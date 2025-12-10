@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "noUncheckedSideEffectImports": true,
+
+    "incremental": true,
+    // Projects
+    "composite": false,
+    // Language and Environment
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "moduleDetection": "force",
+    "useDefineForClassFields": true,
+
+    // Path Mapping
+    "baseUrl": ".",
+    // Module Resolution
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    // Type Checking - Maximum Strictness
+    "strict": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    // Emit
+    "declaration": true,
+    "declarationMap": true,
+    "importHelpers": true,
+    "newLine": "lf",
+    "noEmit": true,
+    "noEmitHelpers": false,
+    "removeComments": false,
+    "sourceMap": true,
+    "stripInternal": true,
+    "allowSyntheticDefaultImports": true,
+
+    // Interop Constraints
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+
+    "verbatimModuleSyntax": true,
+
+    // Completeness
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*",
+    "env.d.ts",
+    "eslint.config.ts",
+    "tsdown.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
+}
