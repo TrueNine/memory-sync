@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  entry: ['./src/index.ts', './src/cli.ts', '!**/*.{spec,test}.*'],
+  entry: ['./src/index.ts', '!**/*.{spec,test}.*'],
   platform: 'node',
   sourcemap: true,
   unbundle: false,
@@ -18,7 +18,7 @@ export default defineConfig({
   format: ['esm'],
   minify: true,
   dts: {
-    sourcemap: true,
+    sourcemap: false,
     tsconfig: './tsconfig.lib.json',
   },
 })
