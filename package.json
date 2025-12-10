@@ -42,21 +42,18 @@
   },
   "dependencies": {
     "@clack/prompts": "^0.11.0",
-    "cac": "^6.7.14",
-    "execa": "^9.6.1",
     "fast-glob": "^3.3.3",
     "fs-extra": "^11.3.2",
     "picocolors": "^1.1.1",
     "picomatch": "^4.0.3",
-    "winston": "^3.19.0",
-    "zod": "^4.1.13"
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@truenine/eslint9-config": "^1.0.19",
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "^24.10.2",
+    "@types/node": "^25.0.0",
     "@types/picomatch": "^4.0.2",
-    "@types/web": "^0.0.299",
+
     "@vitest/coverage-v8": "4.0.15",
     "eslint": "^9.39.1",
     "fast-check": "^4.4.0",
