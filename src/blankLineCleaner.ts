@@ -37,6 +37,18 @@ export interface CleanBlankLinesResult {
 }
 
 /**
+ * Clean whitespace from blank lines in content
+ * 
+ * @param content - Content to clean
+ * @returns Cleaned content
+ */
+function cleanBlankLinesInContent(content: string): string {
+  // Replace blank lines with indentation to just newlines
+  // Match lines that only contain whitespace (spaces or tabs)
+  return content.replace(/^[ \t]+$/gm, '')
+}
+
+/**
  * Remove indentation spaces from blank lines in files
  * This saves tokens when files are used as prompts
  *
@@ -85,9 +97,8 @@ export async function cleanBlankLines(
     try {
       const content = await fs.readFile(filePath, 'utf-8')
 
-      // Replace blank lines with indentation to just newlines
-      // Match lines that only contain whitespace (spaces or tabs)
-      const modifiedContent = content.replace(/^[ \t]+$/gm, '')
+      // Clean blank lines using shared function
+      const modifiedContent = cleanBlankLinesInContent(content)
 
       if (content !== modifiedContent) {
         if (!dryRun) {
@@ -113,7 +124,9 @@ export async function cleanBlankLines(
 export async function cleanBlankLinesInFile(filePath: string): Promise<boolean> {
   try {
     const content = await fs.readFile(filePath, 'utf-8')
-    const modifiedContent = content.replace(/^[ \t]+$/gm, '')
+    
+    // Clean blank lines using shared function
+    const modifiedContent = cleanBlankLinesInContent(content)
 
     if (content !== modifiedContent) {
       await fs.writeFile(filePath, modifiedContent, 'utf-8')

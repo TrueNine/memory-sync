@@ -172,6 +172,7 @@ export async function ensureDirectoryLink({ source, link }: EnsureDirectoryLinkO
 
   return true
 }
+
 export async function linkOrCopyFile(source: string, target: string): Promise<boolean> {
   try {
     const targetDir = path.dirname(target)

@@ -370,7 +370,8 @@ export async function findAirefDistFiles(
       const files = await walkFiles({
         baseDir: distPath,
         targetFileName,
-        skipHidden: false,
+        skipHidden: true,
+        skipSymlinks: true,
       })
 
       if (files.length > 0) {
@@ -378,91 +379,55 @@ export async function findAirefDistFiles(
       }
     }
   } catch {
-    // Directory might not exist
+    // _airef directory might not exist
   }
 
   return projectFiles
 }
 
-export interface AgentsSyncResult {
-  copied: number
-  deleted: number
-}
+
 
 /**
- * Clean all existing CLAUDE.md files (including symlinks) in the project
+ * Clean all CLAUDE.md files from target directories
+ * Used during export to remove previous exports before writing new ones
  */
-export async function cleanAllClaudeMd(
-  baseDir: string,
-  options?: {
-    logger?: LogAdapter
-    allowScripts?: boolean
-  },
-): Promise<number> {
-  const { logger, allowScripts = true } = options ?? {}
+export async function cleanAllClaudeMd(baseDir: string): Promise<void> {
+  // Find all CLAUDE.md files
+  const claudeFiles = await walkFiles({
+    baseDir,
+    targetFileName: 'CLAUDE.md',
+    skipHidden: true,
+    skipSymlinks: true,
+  })
 
-  const agentsFiles = await findAgentsFiles(baseDir, { allowScripts })
-  let deleted = 0
-
-  for (const agentsFile of agentsFiles) {
-    const claudeFile = path.join(path.dirname(agentsFile), 'CLAUDE.md')
-    const fileExists = await pathExists(claudeFile)
-
-    if (!fileExists) {
-      continue
-    }
-
+  // Delete all found files
+  await Promise.all(claudeFiles.map(async (file) => {
     try {
-      await fs.remove(claudeFile)
-      deleted++
-      if (logger) {
-        logger.debug('DELETED: {}', claudeFile)
-      }
+      await fs.remove(file)
     } catch {
-      if (logger) {
-        logger.error('Failed to delete {}', claudeFile)
-      }
+      // Ignore deletion errors
     }
-  }
-
-  return deleted
+  }))
 }
 
 /**
- * Create symlinks from AGENTS.md to CLAUDE.md in the same directory
+ * Copy AGENTS.md files to CLAUDE.md in the same directory
+ * Used during export to create CLAUDE.md versions of AGENTS.md files
  */
-export async function copyAgentsToClaude(
-  baseDir: string,
-  options?: {
-    logger?: LogAdapter
-    allowScripts?: boolean
-  },
-): Promise<AgentsSyncResult> {
-  const { logger, allowScripts = true } = options ?? {}
+export async function copyAgentsToClaude(baseDir: string): Promise<void> {
+  // Find all AGENTS.md files
+  const agentsFiles = await findAgentsFiles(baseDir, {
+    skipRoot: false,
+    allowScripts: true,
+  })
 
-  const agentsFiles = await findAgentsFiles(baseDir, { allowScripts })
-  let copied = 0
-
-  for (const agentsFile of agentsFiles) {
-    const claudeFile = path.join(path.dirname(agentsFile), 'CLAUDE.md')
-
-    const linked = await linkOrCopyFile(agentsFile, claudeFile)
-
-    if (linked) {
-      copied++
-      if (logger) {
-        logger.info('{}/CLAUDE.md', path.basename(path.dirname(agentsFile)))
-      }
-      continue
+  // Copy each AGENTS.md to CLAUDE.md in the same directory
+  await Promise.all(agentsFiles.map(async (agentsFile) => {
+    const claudeFile = agentsFile.replace(/AGENTS\.md$/, 'CLAUDE.md')
+    try {
+      await fs.copy(agentsFile, claudeFile, { overwrite: true })
+    } catch {
+      // Ignore copy errors
     }
-
-    if (logger) {
-      logger.debug('Skipped linking (already up-to-date or failed): {}', claudeFile)
-    }
-  }
-
-  return {
-    copied,
-    deleted: 0,
-  }
+  }))
 }

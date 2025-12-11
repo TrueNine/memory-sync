@@ -109,7 +109,8 @@ const log = new LogAdapter('default')
 export default log
 
 /**
- * Perform logger shutdown with proper cleanup
+ * Shutdown the logger and flush all pending log entries
+ * Should be called in finally blocks of command functions
  *
  * Algorithm:
  * 1. Check if already shutdown - return immediately if so
@@ -122,8 +123,17 @@ export default log
  *
  * This ensures all log entries are written before process exit
  * and prevents race conditions during concurrent shutdown calls
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await someOperation()
+ * } finally {
+ *   await shutdownLogger()
+ * }
+ * ```
  */
-async function performLoggerShutdown(): Promise<void> {
+export async function shutdownLogger(): Promise<void> {
   if (isLoggerShutdown) {
     return
   }
@@ -159,23 +169,6 @@ async function performLoggerShutdown(): Promise<void> {
   })()
 
   await loggerShutdownPromise
-}
-
-/**
- * Shutdown the logger and flush all pending log entries
- * Should be called in finally blocks of command functions
- *
- * @example
- * ```typescript
- * try {
- *   await someOperation()
- * } finally {
- *   await shutdownLogger()
- * }
- * ```
- */
-export async function shutdownLogger(): Promise<void> {
-  await performLoggerShutdown()
 }
 
 /**

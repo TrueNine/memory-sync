@@ -8,7 +8,6 @@
 import { describe, expect, it } from 'vitest'
 import fc from 'fast-check'
 import { parseArgs } from './index'
-import type { CLIFlags } from './index'
 
 /**
  * Generate valid CLI flag combinations

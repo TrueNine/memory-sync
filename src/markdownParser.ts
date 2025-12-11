@@ -159,7 +159,11 @@ export function buildMarkdown<T = Record<string, unknown>>(
  */
 export function generateFrontmatterString<T = Record<string, unknown>>(data: T): string {
   const yamlContent = stringifyYaml(data).trim()
-  return `---\n${yamlContent}\n---\n\n`
+  return `---
+${yamlContent}
+---
+
+`
 }
 
 /**

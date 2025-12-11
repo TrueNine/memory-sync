@@ -5,56 +5,9 @@
  */
 
 import process from 'node:process'
-import { PluginRunner } from './core/PluginRunner'
+import { PluginRunner } from '@/core'
 
-export {
-  type BootstrapOptions,
-  type BootstrapResult,
-  type CleanResult,
-  CleanupCollector,
-  ConfigLoader,
-  createPluginContext,
-  createPluginContextWithDeps,
-  createPluginRegistry,
-  type EmittedFile,
-  type ExtendedRunResult,
-  type FilenameTransformRule,
-  FrontMatterType,
-  type InputBundle,
-  type InputPlugin,
-  type InputPluginFactory,
-  InputType,
-  type OutputPlugin,
-  type OutputPluginFactory,
-  type Plugin,
-  type PluginConfig,
-  type PluginContext,
-  PluginError,
-  type PluginFactory,
-  type PluginFileSystem,
-  type PluginGlobalOptions,
-  type PluginLog,
-  type PluginMode,
-  type PluginOutput,
-  type PluginPaths,
-  type PluginRegistry,
-  PluginRunner,
-  type PluginRunnerOptions,
-  type PluginState,
-  type PluginTargets,
-  type RunResult,
-  type SystemCapabilities,
-  type TransformResult,
-  validateOutputPlugin,
-  validatePlugin,
-  ValidationError,
-} from './core'
-// Re-export for library usage
-export {
-  createDocLinkInputPlugin,
-  type DocLinkInputPluginOptions,
-  type DocLinkProjectInfo,
-} from './plugins'
-export { createBlankLineCleanerPlugin, createFrontMatterPlugin } from './plugins'
+// CLI工具只需要导出PluginRunner
+export { PluginRunner } from './core'
 
 void PluginRunner.main(process.argv.slice(2))

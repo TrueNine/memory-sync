@@ -13,21 +13,6 @@ function getPathModule(sourcePath: string, basePath: string): PathModule {
   return path.posix
 }
 
-function resolveRelativePath(options: PathCalculationOptions): {
-  pathModule: PathModule
-  relativePath: string
-} {
-  const pathModule = getPathModule(options.sourcePath, options.basePath)
-  return {
-    pathModule,
-    relativePath: pathModule.relative(options.basePath, options.sourcePath),
-  }
-}
-
-function normalizeDirPath(dirPath: string): string {
-  return dirPath.replace(/\\/g, '/')
-}
-
 export interface PathCalculationOptions {
   sourcePath: string
   basePath: string
@@ -37,8 +22,12 @@ export interface PathCalculationOptions {
  * Calculate relative path from base path to source path
  */
 export function calculateRelativePath(options: PathCalculationOptions): string {
-  const { relativePath } = resolveRelativePath(options)
-  return relativePath
+  const pathModule = getPathModule(options.sourcePath, options.basePath)
+  return pathModule.relative(options.basePath, options.sourcePath)
+}
+
+function normalizeDirPath(dirPath: string): string {
+  return dirPath.replace(/\\/g, '/')
 }
 
 /**
