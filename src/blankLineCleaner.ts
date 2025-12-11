@@ -38,7 +38,7 @@ export interface CleanBlankLinesResult {
 
 /**
  * Clean whitespace from blank lines in content
- * 
+ *
  * @param content - Content to clean
  * @returns Cleaned content
  */
@@ -124,7 +124,7 @@ export async function cleanBlankLines(
 export async function cleanBlankLinesInFile(filePath: string): Promise<boolean> {
   try {
     const content = await fs.readFile(filePath, 'utf-8')
-    
+
     // Clean blank lines using shared function
     const modifiedContent = cleanBlankLinesInContent(content)
 

@@ -8,6 +8,7 @@ export default eslint9({
   },
   ignores: [
     '*.md',
+    '.kiro/**',
     'src/**/__tests__/**',
     '**/*.test.ts',
     '**/*.spec.ts',

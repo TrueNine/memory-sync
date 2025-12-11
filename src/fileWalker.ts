@@ -1,7 +1,6 @@
 import path from 'node:path'
 import fs from 'fs-extra'
 import picomatch from 'picomatch'
-import { linkOrCopyFile, pathExists } from './fs'
 
 /**
  * Check if a file path matches any of the exclude patterns.
@@ -383,8 +382,6 @@ export async function findAirefDistFiles(
 
   return projectFiles
 }
-
-
 
 /**
  * Clean all CLAUDE.md files from target directories

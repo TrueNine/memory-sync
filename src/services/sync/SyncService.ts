@@ -3,7 +3,7 @@ import path from 'node:path'
 import process from 'node:process'
 import fs from 'fs-extra'
 import { FileSystemError } from '../../errors'
-import { findAgentsFiles, matchesExcludePattern } from '../fileWalker'
+import { findAgentsFiles, matchesExcludePattern } from '../../fileWalker'
 import { LogMessages } from '../../logMessages'
 
 /**

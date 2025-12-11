@@ -1,14 +1,14 @@
 import type { Dirent } from 'node:fs'
-import type { RuleGenerationOptions } from '../rule/RuleGeneratorService'
-import type { FrontMatterOptions } from '@/core'
 import type { LogAdapter } from '../../log'
+import type { RuleGenerationOptions } from '../rule/RuleGeneratorService'
+import type { FrontMatterOptions } from '@/core/types'
 import path from 'node:path'
 import fs from 'fs-extra'
-import { FrontMatterType } from '@/core'
+import { FrontMatterType } from '@/core/types'
 import { cleanAndEnsureDir } from '../../dirCleaner'
-import { findAgentsFiles } from '../fileWalker'
-import { isInsideDirectory } from '../../pathResolver'
+import { findAgentsFiles } from '../../fileWalker'
 import { LogMessages } from '../../logMessages'
+import { isInsideDirectory } from '../../pathResolver'
 import { RuleGeneratorService } from '../rule/RuleGeneratorService'
 import { MemoryRuleProcessor } from './MemoryRuleProcessor'
 
@@ -109,7 +109,7 @@ export class ExportService {
 
   /**
    * Export AGENTS.md files with specified front matter type
-   *
+   import { findAgentsFiles } from '../../fileWalker'
    * @param options - Export options
    * @returns Export result with counts and errors
    */
@@ -220,7 +220,7 @@ export class ExportService {
 
   /**
    * Export to Kiro steering directory
-   *
+   import { findAgentsFiles } from '../../fileWalker'
    * @param options - Export options
    * @returns Export result
    */
@@ -233,7 +233,7 @@ export class ExportService {
 
   /**
    * Export to Qoder rules directory
-   *
+   import { findAgentsFiles } from '../../fileWalker'
    * @param options - Export options
    * @returns Export result
    */
@@ -278,7 +278,6 @@ export class ExportService {
           frontMatterType,
           logger,
         )
-
         result.exported += projectResult.exported
         result.errors.push(...projectResult.errors)
       }
@@ -370,7 +369,6 @@ export class ExportService {
   /**
    * Export ref projects using memory-based processing
    * Reads AGENTS.md files from ref projects and writes directly to root target directories
-   *
    * @param options - Memory-based ref export options
    * @returns Export result with counts and errors
    */
