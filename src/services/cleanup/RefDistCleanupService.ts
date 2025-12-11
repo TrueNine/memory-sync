@@ -1,8 +1,8 @@
-import type { LogAdapter } from '../../utils/log'
+import type { LogAdapter } from '../../log'
 import path from 'node:path'
 import fs from 'fs-extra'
-import { FileSystemError } from '../../utils/errors'
-import { LogMessages } from '../../utils/logMessages'
+import { FileSystemError } from '../../errors'
+import { LogMessages } from '../../logMessages'
 
 /**
  * Options for cleanup operations

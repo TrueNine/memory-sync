@@ -21,7 +21,7 @@ import {
   parseMarkdown,
   stringifyMarkdown,
   stripFrontmatter,
-} from '../../utils/markdownParser'
+} from '../../markdownParser'
 import { FrontMatterType } from '../types'
 
 /**

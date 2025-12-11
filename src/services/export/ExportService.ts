@@ -5,7 +5,8 @@ import type { LogAdapter } from '../../log'
 import path from 'node:path'
 import fs from 'fs-extra'
 import { FrontMatterType } from '@/core'
-import { cleanAndEnsureDir, findAgentsFiles } from '../../dirCleaner'
+import { cleanAndEnsureDir } from '../../dirCleaner'
+import { findAgentsFiles } from '../fileWalker'
 import { isInsideDirectory } from '../../pathResolver'
 import { LogMessages } from '../../logMessages'
 import { RuleGeneratorService } from '../rule/RuleGeneratorService'
@@ -160,7 +161,7 @@ export class ExportService {
       if (!processRefProjects && typeof refPath === 'string' && refPath.length > 0) {
         const beforeCount = agentsFiles.length
         const refPathValue = refPath
-        agentsFiles = agentsFiles.filter((file) => !isInsideDirectory(file, refPathValue))
+        agentsFiles = agentsFiles.filter((file: string) => !isInsideDirectory(file, refPathValue))
         result.skipped = beforeCount - agentsFiles.length
         if (result.skipped > 0 && logger) {
           logger.debug('Skipping {} AGENTS.md file(s) under ref/', result.skipped)

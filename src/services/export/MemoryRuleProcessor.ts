@@ -1,7 +1,7 @@
 import type { FrontMatterOptions } from '../../core/types'
 import { addFrontMatter, generateFrontMatter } from '../../core/capabilities'
 import { FrontMatterType } from '../../core/types'
-import { generateRefFileName } from '../../utils/pathResolver'
+import { generateRefFileName } from '../../pathResolver'
 
 /**
  * Options for in-memory rule processing

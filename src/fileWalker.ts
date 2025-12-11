@@ -1,4 +1,3 @@
-import type { LogAdapter } from './log'
 import path from 'node:path'
 import fs from 'fs-extra'
 import picomatch from 'picomatch'

@@ -13,6 +13,12 @@ function getPathModule(sourcePath: string, basePath: string): PathModule {
   return path.posix
 }
 
+function resolveRelativePath(options: PathCalculationOptions): { pathModule: PathModule, relativePath: string } {
+  const pathModule = getPathModule(options.sourcePath, options.basePath)
+  const relativePath = pathModule.relative(options.basePath, options.sourcePath)
+  return { pathModule, relativePath }
+}
+
 export interface PathCalculationOptions {
   sourcePath: string
   basePath: string

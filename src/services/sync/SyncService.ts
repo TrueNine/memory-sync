@@ -1,10 +1,10 @@
-import type { LogAdapter } from '../../utils/log'
+import type { LogAdapter } from '../../log'
 import path from 'node:path'
 import process from 'node:process'
 import fs from 'fs-extra'
-import { FileSystemError } from '../../utils/errors'
-import { findAgentsFiles, matchesExcludePattern } from '../../utils/fileWalker'
-import { LogMessages } from '../../utils/logMessages'
+import { FileSystemError } from '../../errors'
+import { findAgentsFiles, matchesExcludePattern } from '../fileWalker'
+import { LogMessages } from '../../logMessages'
 
 /**
  * Options for sync operations
