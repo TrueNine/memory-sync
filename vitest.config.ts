@@ -17,6 +17,8 @@ export default mergeConfig(
       },
       // Property-based tests run more iterations
       testTimeout: 30000,
+      // Minimal output: suppress console logs, show summary only
+      onConsoleLog: () => false,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json', 'html'],

@@ -1,7 +1,12 @@
 /**
  * Winston logger configuration for the scripts CLI tool
  * Provides structured logging with console output only
+ *
+ * Test environment: silent by default, enable with DEBUG=true or --debug flag
+ * Production environment: normal logging
  */
+
+import process from 'node:process'
 
 import winston from 'winston'
 
@@ -24,6 +29,37 @@ const levels = {
   info: 3,
   debug: 4,
   trace: 5,
+}
+
+/**
+ * Detect if running in test environment
+ */
+function isTestEnvironment(): boolean {
+  return (
+    process.env['NODE_ENV'] === 'test'
+    || process.env['VITEST'] === 'true'
+    || process.env['JEST_WORKER_ID'] != null
+  )
+}
+
+/**
+ * Check if debug mode is enabled via environment or CLI flag
+ */
+function isDebugEnabled(): boolean {
+  const envDebug = process.env['DEBUG'] === 'true' || process.env['DEBUG'] === '1'
+  const cliDebug = process.argv.includes('--debug')
+  return envDebug || cliDebug
+}
+
+/**
+ * Determine if logger should be silent
+ * Silent in test environment unless debug is explicitly enabled
+ */
+function shouldBeSilent(): boolean {
+  if (isTestEnvironment()) {
+    return !isDebugEnabled()
+  }
+  return false
 }
 
 /**
@@ -114,6 +150,7 @@ const shortKeyFormat = winston.format((info: winston.Logform.TransformableInfo) 
  * - Console output only (no file logging)
  * - Compact JSON format with shortened keys
  * - Stack trace capture for errors
+ * - Auto-silent in test environment (enable with DEBUG=true or --debug)
  */
 const logger = winston.createLogger({
   levels,
@@ -124,8 +161,23 @@ const logger = winston.createLogger({
     shortKeyFormat(),
   ),
   transports: [new winston.transports.Console({ level: 'trace' })],
-  silent: false,
+  silent: shouldBeSilent(),
   exitOnError: false,
 })
+
+/**
+ * Enable or disable logger output at runtime
+ * Useful for programmatic control in tests
+ */
+export function setLoggerSilent(silent: boolean): void {
+  logger.silent = silent
+}
+
+/**
+ * Check current silent state
+ */
+export function isLoggerSilent(): boolean {
+  return logger.silent
+}
 
 export default logger

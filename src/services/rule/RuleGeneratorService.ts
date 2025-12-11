@@ -95,9 +95,9 @@ export class RuleGeneratorService {
       // Determine the pattern for front matter if needed
       let frontMatterOpts = frontMatterOptions
       if (frontMatterOptions.type === FrontMatterType.KIRO_FILE_MATCH || frontMatterOptions.type === FrontMatterType.QODER_GLOB) {
-        if (frontMatterOptions.pattern == null) {
-          const pattern = globPatternGenerator({ sourcePath: sourceFile, basePath })
-          frontMatterOpts = { ...frontMatterOptions, pattern }
+        if (frontMatterOptions.filePattern == null) {
+          const filePattern = globPatternGenerator({ sourcePath: sourceFile, basePath })
+          frontMatterOpts = { ...frontMatterOptions, filePattern }
         }
       }
 
