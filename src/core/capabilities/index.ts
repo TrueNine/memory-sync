@@ -40,8 +40,11 @@ export type {
   FilenameTransformResult,
 } from './filenameTransform'
 export {
+  addFrontMatter,
   createFrontMatterCapability,
+  createMarkdownCapability,
   FrontMatterParseError,
+  generateFrontMatter,
   generateFrontMatterByType,
   mergeFrontMatter,
   parseFrontMatter,

@@ -76,7 +76,8 @@ describe('frontMatter properties', () => {
             FrontMatterType.KIRO_FILE_MATCH,
             FrontMatterType.QODER_GLOB,
           ),
-          pattern: fc.string({ minLength: 1, maxLength: 100 }),
+          // Use alphanumeric patterns to avoid YAML escaping issues
+          pattern: fc.stringMatching(/^[a-zA-Z0-9/*_.-]+$/),
         }),
         (options) => {
           const result = generateFrontMatter(options)

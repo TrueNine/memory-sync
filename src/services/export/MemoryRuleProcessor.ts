@@ -1,5 +1,6 @@
-import type { FrontMatterOptions } from '../../utils/frontMatter'
-import { addFrontMatter, FrontMatterType, generateFrontMatter } from '../../utils/frontMatter'
+import type { FrontMatterOptions } from '../../core/types'
+import { addFrontMatter, generateFrontMatter } from '../../core/capabilities'
+import { FrontMatterType } from '../../core/types'
 import { generateRefFileName } from '../../utils/pathResolver'
 
 /**

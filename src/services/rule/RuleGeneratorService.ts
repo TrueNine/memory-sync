@@ -1,9 +1,10 @@
-import type { FrontMatterOptions } from '../../utils/frontMatter'
+import type { FrontMatterOptions } from '../../core/types'
 import type { LogAdapter } from '../../utils/log'
 import path from 'node:path'
 import fs from 'fs-extra'
+import { addFrontMatter, generateFrontMatter } from '../../core/capabilities'
+import { FrontMatterType } from '../../core/types'
 import { FileSystemError } from '../../utils/errors'
-import { addFrontMatter, FrontMatterType, generateFrontMatter } from '../../utils/frontMatter'
 import { LogMessages } from '../../utils/logMessages'
 import { calculateGlobPattern, generateUniqueFileName } from '../../utils/pathResolver'
 

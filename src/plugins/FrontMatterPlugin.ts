@@ -5,6 +5,11 @@
 
 import type { Plugin, PluginContext, TransformResult } from '../core/types'
 import { FrontMatterType } from '../core/types'
+import {
+  extractFrontmatter,
+  generateFrontmatterString,
+  stripFrontmatter,
+} from '../utils/markdownParser'
 
 /**
  * Options for FrontMatterPlugin
@@ -28,70 +33,16 @@ export function parseFrontMatter(content: string): {
   frontMatter: Record<string, unknown> | null
   content: string
 } {
-  const frontMatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/
-  const match = content.match(frontMatterRegex)
-
-  if (!match) {
-    return { frontMatter: null, content }
-  }
-
-  const yamlContent = match[1] ?? ''
-  const restContent = content.slice(match[0].length)
-
-  const frontMatter: Record<string, unknown> = {}
-  const lines = yamlContent.split(/\r?\n/)
-
-  for (const line of lines) {
-    const colonIndex = line.indexOf(':')
-    if (colonIndex === -1) {
-      continue
-    }
-
-    const key = line.slice(0, colonIndex).trim()
-    let value: unknown = line.slice(colonIndex + 1).trim()
-
-    if (value === 'true') {
-      value = true
-    } else if (value === 'false') {
-      value = false
-    } else if (typeof value === 'string' && /^-?\d+$/.test(value)) {
-      value = Number.parseInt(value, 10)
-    } else if (typeof value === 'string' && /^-?\d+\.\d+$/.test(value)) {
-      value = Number.parseFloat(value)
-    } else if (typeof value === 'string' && value.startsWith('"') && value.endsWith('"')) {
-      value = value.slice(1, -1)
-    }
-
-    frontMatter[key] = value
-  }
-
-  return { frontMatter, content: restContent }
+  const frontMatter = extractFrontmatter<Record<string, unknown>>(content)
+  const body = stripFrontmatter(content)
+  return { frontMatter, content: body }
 }
 
 /**
  * Serialize front matter object to YAML string
  */
 export function serializeFrontMatter(frontMatter: Record<string, unknown>): string {
-  const lines: string[] = ['---']
-
-  for (const [key, value] of Object.entries(frontMatter)) {
-    if (typeof value === 'string') {
-      if (value.includes(':') || value.includes('#') || value.includes('"')) {
-        lines.push(`${key}: "${value.replace(/"/g, '\\"')}"`)
-      } else {
-        lines.push(`${key}: ${value}`)
-      }
-    } else if (typeof value === 'boolean' || typeof value === 'number') {
-      lines.push(`${key}: ${value}`)
-    } else if (value === null || typeof value === 'undefined') {
-      lines.push(`${key}: null`)
-    } else {
-      lines.push(`${key}: ${JSON.stringify(value)}`)
-    }
-  }
-
-  lines.push('---', '')
-  return lines.join('\n')
+  return generateFrontmatterString(frontMatter).replace(/\n\n$/, '\n')
 }
 
 /**

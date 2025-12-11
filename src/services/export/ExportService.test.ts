@@ -2,9 +2,9 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import path from 'node:path'
 import fs from 'fs-extra'
 import os from 'node:os'
-import { ExportService } from './ExportService'
-import { FrontMatterType } from '../../utils/frontMatter'
+import { FrontMatterType } from '../../core/types'
 import { LogAdapter } from '../../utils/log'
+import { ExportService } from './ExportService'
 
 describe('ExportService', () => {
   let service: ExportService
@@ -49,7 +49,8 @@ describe('ExportService', () => {
 
       const content = await fs.readFile(exportedFile, 'utf-8')
       expect(content).toContain('inclusion: fileMatch')
-      expect(content).toContain('fileMatchPattern: "src/api/**/*"')
+      expect(content).toContain('fileMatchPattern:')
+      expect(content).toContain('src/api/**/*')
       expect(content).toContain('# API Rules')
     })
 

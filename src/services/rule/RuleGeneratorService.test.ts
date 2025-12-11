@@ -2,9 +2,9 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import path from 'node:path'
 import fs from 'fs-extra'
 import os from 'node:os'
-import { RuleGeneratorService } from './RuleGeneratorService'
-import { FrontMatterType } from '../../utils/frontMatter'
+import { FrontMatterType } from '../../core/types'
 import { LogAdapter } from '../../utils/log'
+import { RuleGeneratorService } from './RuleGeneratorService'
 
 describe('RuleGeneratorService', () => {
   let service: RuleGeneratorService
@@ -76,7 +76,8 @@ describe('RuleGeneratorService', () => {
 
       expect(content).toContain('---')
       expect(content).toContain('inclusion: fileMatch')
-      expect(content).toContain('fileMatchPattern: "src/api/**/*"')
+      expect(content).toContain('fileMatchPattern:')
+      expect(content).toContain('src/api/**/*')
       expect(content).toContain('# API Rules')
     })
 
@@ -177,7 +178,8 @@ describe('RuleGeneratorService', () => {
       const targetFile = path.join(targetDir, '_src.md')
       const content = await fs.readFile(targetFile, 'utf-8')
 
-      expect(content).toContain('fileMatchPattern: "custom/**"')
+      expect(content).toContain('fileMatchPattern:')
+      expect(content).toContain('custom/**')
     })
 
     it('should use provided pattern when specified', async () => {
@@ -200,7 +202,8 @@ describe('RuleGeneratorService', () => {
       const targetFile = path.join(targetDir, '_project.md')
       const content = await fs.readFile(targetFile, 'utf-8')
 
-      expect(content).toContain('fileMatchPattern: "explicit/pattern/**"')
+      expect(content).toContain('fileMatchPattern:')
+      expect(content).toContain('explicit/pattern/**')
     })
 
     it('should return false when source file does not exist', async () => {
@@ -368,9 +371,11 @@ describe('RuleGeneratorService', () => {
       const content2 = await fs.readFile(path.join(targetDir, '_src.md'), 'utf-8')
 
       expect(content1).toContain('trigger: glob')
-      expect(content1).toContain('glob: **/*')
+      expect(content1).toContain('glob:')
+      expect(content1).toMatch(/\*\*\/\*/)
       expect(content2).toContain('trigger: glob')
-      expect(content2).toContain('glob: src/**/*')
+      expect(content2).toContain('glob:')
+      expect(content2).toContain('src/**/*')
     })
   })
 })

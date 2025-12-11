@@ -1,4 +1,5 @@
 import type { InitOptions } from '../types'
+import { buildMarkdown } from './markdownParser'
 
 export function generateEditorConfig(): string {
   return `root = true
@@ -155,12 +156,11 @@ See the project documentation for detailed architecture information.
 }
 
 export function generateBasicTemplate(): string {
-  return `---
-created: {{date}}
-tags: []
----
-
-# {{title}}
+  const frontmatter = {
+    created: '{{date}}',
+    tags: [],
+  }
+  const content = `# {{title}}
 
 ## Overview
 
@@ -170,16 +170,16 @@ tags: []
 
 ## Related Topics
 `
+  return buildMarkdown(frontmatter, content)
 }
 
 export function generateProjectTemplate(): string {
-  return `---
-created: {{date}}
-status: active
-tags: [project]
----
-
-# {{title}}
+  const frontmatter = {
+    created: '{{date}}',
+    status: 'active',
+    tags: ['project'],
+  }
+  const content = `# {{title}}
 
 ## Project Overview
 
@@ -191,16 +191,16 @@ tags: [project]
 
 ## Notes
 `
+  return buildMarkdown(frontmatter, content)
 }
 
 export function generateProjectFile(projectName: string): string {
-  return `---
-created: ${new Date().toISOString().split('T')[0]}
-status: active
-tags: [project]
----
-
-# ${projectName}
+  const frontmatter = {
+    created: new Date().toISOString().split('T')[0],
+    status: 'active',
+    tags: ['project'],
+  }
+  const content = `# ${projectName}
 
 ## Project Overview
 
@@ -214,4 +214,5 @@ This project corresponds to the \`_airef/${projectName}/\` directory.
 
 ## Notes
 `
+  return buildMarkdown(frontmatter, content)
 }

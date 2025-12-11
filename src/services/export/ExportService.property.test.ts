@@ -8,8 +8,8 @@ import fc from 'fast-check'
 import path from 'node:path'
 import fs from 'fs-extra'
 import os from 'node:os'
+import { FrontMatterType } from '../../core/types'
 import { ExportService } from './ExportService'
-import { FrontMatterType } from '../../utils/frontMatter'
 
 describe('ExportService properties', () => {
   let tempDir: string

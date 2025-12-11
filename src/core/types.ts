@@ -1336,8 +1336,37 @@ export interface ParsedFrontMatter {
   body: string
 }
 
+/**
+ * Parsed document with full AST and frontmatter
+ * Used by MarkdownCapability for complete document processing
+ *
+ * @see Requirements 30.5
+ */
+export interface ParsedDocument<T = Record<string, unknown>> {
+  /**
+   * Parsed frontmatter data (null if no frontmatter)
+   */
+  frontmatter: T | null
+  /**
+   * Raw frontmatter string without delimiters (null if no frontmatter)
+   */
+  rawFrontmatter: string | null
+  /**
+   * Markdown AST (mdast Root node)
+   */
+  ast: unknown
+  /**
+   * Content nodes excluding frontmatter
+   */
+  content: unknown[]
+  /**
+   * Original raw content
+   */
+  raw: string
+}
+
 // ============================================================================
-// System Capabilities (Requirements 30.1, 30.2, 30.3, 30.4)
+// System Capabilities (Requirements 30.1, 30.2, 30.3, 30.4, 30.5)
 // ============================================================================
 
 /**
@@ -1478,7 +1507,78 @@ export interface CodeBlockTransformCapability {
 }
 
 /**
- * System capabilities provided by PluginContext (Requirements 30.1-30.4)
+ * Markdown capability interface (Requirement 30.5)
+ * Provides complete markdown document processing with AST support
+ * Input plugins use this to parse content into structured documents
+ * Output plugins use this to transform and rebuild documents
+ */
+export interface MarkdownCapability {
+  /**
+   * Parse markdown content into structured document with AST
+   * Extracts frontmatter, builds AST, and separates content nodes
+   *
+   * @param content - Raw markdown string
+   * @returns ParsedDocument with frontmatter, AST, and content
+   */
+  parse: <T = Record<string, unknown>>(content: string) => ParsedDocument<T>
+
+  /**
+   * Stringify AST back to markdown
+   *
+   * @param ast - Markdown AST (mdast Root node)
+   * @returns Markdown string
+   */
+  stringify: (ast: unknown) => string
+
+  /**
+   * Build markdown from frontmatter and content
+   * Combines frontmatter object with content nodes or string
+   *
+   * @param frontmatter - Frontmatter data object (null for no frontmatter)
+   * @param content - Content nodes array or raw markdown string
+   * @returns Complete markdown string
+   */
+  build: <T = Record<string, unknown>>(
+    frontmatter: T | null,
+    content: unknown[] | string,
+  ) => string
+
+  /**
+   * Transform frontmatter to target tool format
+   * Converts generic frontmatter to tool-specific format
+   *
+   * @param frontmatter - Source frontmatter object
+   * @param targetType - Target front matter type
+   * @param options - Additional options for transformation
+   * @returns Transformed frontmatter object
+   */
+  transformFrontmatter: (
+    frontmatter: Record<string, unknown>,
+    targetType: FrontMatterType,
+    options?: FrontMatterOptions,
+  ) => Record<string, unknown>
+
+  /**
+   * Strip frontmatter from content (lightweight)
+   * Returns content without frontmatter block
+   *
+   * @param content - Markdown content with optional frontmatter
+   * @returns Content without frontmatter
+   */
+  stripFrontmatter: (content: string) => string
+
+  /**
+   * Extract frontmatter only (lightweight, no AST parsing)
+   * Returns frontmatter data without full document parsing
+   *
+   * @param content - Markdown content with optional frontmatter
+   * @returns Frontmatter data or null
+   */
+  extractFrontmatter: <T = Record<string, unknown>>(content: string) => T | null
+}
+
+/**
+ * System capabilities provided by PluginContext (Requirements 30.1-30.5)
  * Plugins decide whether to use these capabilities
  *
  * @example
@@ -1520,6 +1620,13 @@ export interface SystemCapabilities {
    * @see Requirements 30.4, 27.1
    */
   codeBlockTransform: CodeBlockTransformCapability
+
+  /**
+   * Markdown document processing capability
+   * Provides complete AST-based markdown parsing and building
+   * @see Requirements 30.5
+   */
+  markdown: MarkdownCapability
 }
 
 // ============================================================================

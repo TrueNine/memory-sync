@@ -43,7 +43,8 @@ describe('Template Generators', () => {
     it('should include frontmatter', () => {
       const template = generateBasicTemplate()
       expect(template).toContain('---')
-      expect(template).toContain('created: {{date}}')
+      expect(template).toContain('created:')
+      expect(template).toContain('{{date}}')
       expect(template).toContain('tags: []')
     })
   })

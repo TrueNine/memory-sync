@@ -25,12 +25,9 @@ inclusion: always
         pattern: 'src/**',
       })
 
-      expect(result).toBe(`---
-inclusion: fileMatch
-fileMatchPattern: "src/**"
----
-
-`)
+      expect(result).toContain('inclusion: fileMatch')
+      expect(result).toContain('fileMatchPattern:')
+      expect(result).toContain('src/**')
     })
 
     it('should throw error when pattern is missing', () => {

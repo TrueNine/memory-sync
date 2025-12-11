@@ -7,8 +7,6 @@
 import process from 'node:process'
 import { PluginRunner } from './core/PluginRunner'
 
-// Re-export for library usage
-export { autoSyncCommand, autoSyncWithFilter } from './commands/auto'
 export {
   type BootstrapOptions,
   type BootstrapResult,
@@ -51,6 +49,12 @@ export {
   validatePlugin,
   ValidationError,
 } from './core'
+// Re-export for library usage
+export {
+  createDocLinkInputPlugin,
+  type DocLinkInputPluginOptions,
+  type DocLinkProjectInfo,
+} from './plugins'
 export { createBlankLineCleanerPlugin, createFrontMatterPlugin } from './plugins'
 
 void PluginRunner.main(process.argv.slice(2))

@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 import fc from 'fast-check'
-import { FrontMatterType } from '../../utils/frontMatter'
+import { FrontMatterType } from '../../core/types'
 import { MemoryRuleProcessor } from './MemoryRuleProcessor'
 
 /**

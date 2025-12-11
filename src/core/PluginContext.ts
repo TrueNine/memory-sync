@@ -34,6 +34,7 @@ import {
   createCodeBlockTransformCapability,
   createContentInjectionCapability,
   createFrontMatterCapability,
+  createMarkdownCapability,
 } from './capabilities'
 import { createDryRunOperation, createDryRunTracker } from './DryRunTracker'
 import { createPluginRegistry } from './PluginRegistry'
@@ -319,7 +320,7 @@ function createMode(dryRun: boolean = false, cleanOnly: boolean = false): Plugin
 /**
  * Create system capabilities
  * Provides implementations for front matter, blank line cleaning,
- * content injection, and code block transformation
+ * content injection, code block transformation, and markdown processing
  */
 function createSystemCapabilities(): SystemCapabilities {
   return {
@@ -327,6 +328,7 @@ function createSystemCapabilities(): SystemCapabilities {
     blankLineCleaner: createBlankLineCleanerCapability(),
     contentInjection: createContentInjectionCapability(),
     codeBlockTransform: createCodeBlockTransformCapability(),
+    markdown: createMarkdownCapability(),
   }
 }
 

@@ -1,29 +1,28 @@
 /**
  * Front matter capability implementation
  * Provides methods for parsing, serializing, merging, and generating front matter
+ * Integrates markdown AST parsing for complete document processing
  *
  * @see Requirements 30.1, 4.1, 4.3, 4.4, 4.5, 4.6, 7.4
  */
 
+import type { Root, RootContent } from 'mdast'
 import type {
   FrontMatterCapability,
   FrontMatterOptions,
+  MarkdownCapability,
+  ParsedDocument,
   ParsedFrontMatter,
 } from '../types'
+import {
+  buildMarkdown,
+  extractFrontmatter,
+  generateFrontmatterString,
+  parseMarkdown,
+  stringifyMarkdown,
+  stripFrontmatter,
+} from '../../utils/markdownParser'
 import { FrontMatterType } from '../types'
-
-/**
- * Front matter parsing error with line number context
- */
-export class FrontMatterParseError extends Error {
-  public lineNumber: number
-
-  constructor(message: string, lineNumber: number) {
-    super(`${message} at line ${lineNumber}`)
-    this.name = 'FrontMatterParseError'
-    this.lineNumber = lineNumber
-  }
-}
 
 /**
  * Remove BOM (Byte Order Mark) from content
@@ -40,6 +39,19 @@ export function removeBom(content: string): string {
 }
 
 /**
+ * Front matter parsing error with line number context
+ */
+export class FrontMatterParseError extends Error {
+  public lineNumber: number
+
+  constructor(message: string, lineNumber: number) {
+    super(`${message} at line ${lineNumber}`)
+    this.name = 'FrontMatterParseError'
+    this.lineNumber = lineNumber
+  }
+}
+
+/**
  * Parse YAML front matter from content
  * Extracts front matter block and returns structured object with body
  *
@@ -50,69 +62,14 @@ export function removeBom(content: string): string {
  */
 export function parseFrontMatter(content: string): ParsedFrontMatter {
   const cleanContent = removeBom(content)
-
-  // Match front matter block: starts with ---, ends with ---
-  // Capture group 1 contains the YAML content between delimiters
-  const frontMatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
-  const match = cleanContent.match(frontMatterRegex)
+  const frontMatter = extractFrontmatter<Record<string, unknown>>(cleanContent)
+  const body = stripFrontmatter(cleanContent)
 
   // Handle missing front matter as empty object (Requirement 4.5)
-  if (!match) {
-    return { frontMatter: {}, body: cleanContent }
+  return {
+    frontMatter: frontMatter ?? {},
+    body,
   }
-
-  const yamlContent = match[1] ?? ''
-  const body = cleanContent.slice(match[0].length)
-
-  const frontMatter: Record<string, unknown> = {}
-  const lines = yamlContent.split(/\r?\n/)
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] as string
-    if (line.trim() === '') {
-      continue
-    }
-
-    const colonIndex = line.indexOf(':')
-    if (colonIndex === -1) {
-      // Report parse error with line number (Requirement 4.6)
-      // Line number is 2 + i because line 1 is '---'
-      throw new FrontMatterParseError(
-        `Invalid YAML: missing colon in key-value pair "${line}"`,
-        2 + i,
-      )
-    }
-
-    const key = line.slice(0, colonIndex).trim()
-    if (key === '') {
-      throw new FrontMatterParseError(
-        `Invalid YAML: empty key in line "${line}"`,
-        2 + i,
-      )
-    }
-
-    let value: unknown = line.slice(colonIndex + 1).trim()
-
-    // Parse value types
-    if (value === 'true') {
-      value = true
-    } else if (value === 'false') {
-      value = false
-    } else if (value === 'null' || value === '') {
-      value = null
-    } else if (typeof value === 'string' && /^-?\d+$/.test(value)) {
-      value = Number.parseInt(value, 10)
-    } else if (typeof value === 'string' && /^-?\d+\.\d+$/.test(value)) {
-      value = Number.parseFloat(value)
-    } else if (typeof value === 'string' && value.startsWith('"') && value.endsWith('"')) {
-      // Handle quoted strings
-      value = value.slice(1, -1).replace(/\\"/g, '"')
-    }
-
-    frontMatter[key] = value
-  }
-
-  return { frontMatter, body }
 }
 
 /**
@@ -133,37 +90,7 @@ export function serializeFrontMatter(
     return body
   }
 
-  const lines: string[] = ['---']
-
-  for (const [key, value] of Object.entries(frontMatter)) {
-    if (typeof value === 'string') {
-      // Quote strings containing special YAML characters or that look like numbers
-      const needsQuoting = value.includes(':')
-        || value.includes('#')
-        || value.includes('"')
-        || value.includes('\n')
-        || /^-?\d+(?:\.\d+)?$/.test(value)
-        || value === 'true'
-        || value === 'false'
-        || value === 'null'
-        || value === ''
-      if (needsQuoting) {
-        lines.push(`${key}: "${value.replace(/"/g, '\\"')}"`)
-      } else {
-        lines.push(`${key}: ${value}`)
-      }
-    } else if (typeof value === 'boolean' || typeof value === 'number') {
-      lines.push(`${key}: ${value}`)
-    } else if (value === null || typeof value === 'undefined') {
-      lines.push(`${key}: null`)
-    } else {
-      // Complex values serialized as JSON
-      lines.push(`${key}: ${JSON.stringify(value)}`)
-    }
-  }
-
-  lines.push('---', '')
-  return lines.join('\n') + body
+  return buildMarkdown(frontMatter, body)
 }
 
 /**
@@ -257,6 +184,54 @@ export function generateFrontMatterByType(
 }
 
 /**
+ * Legacy options interface for backward compatibility
+ */
+interface LegacyFrontMatterOptions {
+  type: FrontMatterType
+  pattern?: string
+}
+
+/**
+ * Generate YAML front matter string based on type and options
+ * Supports both legacy `pattern` and new `filePattern` fields
+ *
+ * @param options - Front matter generation options
+ * @returns YAML front matter string with delimiters and trailing newline
+ */
+export function generateFrontMatter(
+  options: FrontMatterOptions | LegacyFrontMatterOptions,
+): string {
+  // Support legacy `pattern` field for backward compatibility
+  const filePattern = 'filePattern' in options
+    ? options.filePattern
+    : (options as LegacyFrontMatterOptions).pattern
+
+  const normalizedOptions: FrontMatterOptions = { type: options.type }
+  if (filePattern != null) {
+    normalizedOptions.filePattern = filePattern
+  }
+  if ('additionalProps' in options && options.additionalProps != null) {
+    normalizedOptions.additionalProps = options.additionalProps
+  }
+
+  const data = generateFrontMatterByType(normalizedOptions.type, normalizedOptions)
+  return generateFrontmatterString(data)
+}
+
+/**
+ * Add front matter to content
+ * Removes BOM if present before adding front matter
+ *
+ * @param content - Original content
+ * @param frontMatter - Front matter string to prepend
+ * @returns Content with front matter prepended
+ */
+export function addFrontMatter(content: string, frontMatter: string): string {
+  const cleanContent = removeBom(content)
+  return frontMatter + cleanContent
+}
+
+/**
  * Create front matter capability instance
  * Provides all front matter operations through a unified interface
  *
@@ -268,5 +243,55 @@ export function createFrontMatterCapability(): FrontMatterCapability {
     serialize: serializeFrontMatter,
     merge: mergeFrontMatter,
     generateByType: generateFrontMatterByType,
+  }
+}
+
+/**
+ * Create markdown capability instance
+ * Provides complete markdown document processing with AST support
+ *
+ * @returns MarkdownCapability implementation
+ */
+export function createMarkdownCapability(): MarkdownCapability {
+  return {
+    parse: <T = Record<string, unknown>>(content: string): ParsedDocument<T> => {
+      const cleanContent = removeBom(content)
+      const parsed = parseMarkdown<T>(cleanContent)
+      return {
+        frontmatter: parsed.frontmatter,
+        rawFrontmatter: parsed.rawFrontmatter,
+        ast: parsed.ast,
+        content: parsed.content,
+        raw: cleanContent,
+      }
+    },
+
+    stringify: (ast: unknown): string => {
+      return stringifyMarkdown(ast as Root)
+    },
+
+    build: <T = Record<string, unknown>>(
+      frontmatter: T | null,
+      content: unknown[] | string,
+    ): string => {
+      return buildMarkdown(frontmatter, content as RootContent[] | string)
+    },
+
+    transformFrontmatter: (
+      frontmatter: Record<string, unknown>,
+      targetType: FrontMatterType,
+      options?: FrontMatterOptions,
+    ): Record<string, unknown> => {
+      const generated = generateFrontMatterByType(targetType, options)
+      return mergeFrontMatter(frontmatter, generated)
+    },
+
+    stripFrontmatter: (content: string): string => {
+      return stripFrontmatter(removeBom(content))
+    },
+
+    extractFrontmatter: <T = Record<string, unknown>>(content: string): T | null => {
+      return extractFrontmatter<T>(removeBom(content))
+    },
   }
 }

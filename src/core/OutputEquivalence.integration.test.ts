@@ -13,10 +13,10 @@ import path from 'node:path'
 import fs from 'fs-extra'
 import os from 'node:os'
 import fc from 'fast-check'
+import { FrontMatterType } from './types'
 import { PluginRunner } from './PluginRunner'
 import { ExportService } from '../services/export/ExportService'
 import { SyncService } from '../services/sync/SyncService'
-import { FrontMatterType } from '../utils/frontMatter'
 
 /**
  * Create a temporary directory for testing
