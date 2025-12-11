@@ -13,7 +13,7 @@ import type {
 } from '../core/types'
 import { USER_PROJECTS_DIR } from '../constants/paths'
 import { InputType } from '../core/types'
-import { matchesExcludePattern } from '../utils/fileWalker'
+import { matchesExcludePattern } from '../fileWalker'
 
 /**
  * Configuration options for WorkspaceGroupInputPlugin

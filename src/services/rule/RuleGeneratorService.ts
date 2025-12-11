@@ -1,12 +1,11 @@
-import type { FrontMatterOptions } from '../../core/types'
-import type { LogAdapter } from '../../utils/log'
+import type { FrontMatterOptions } from '@/core'
+import type { LogAdapter } from '../../log'
 import path from 'node:path'
 import fs from 'fs-extra'
-import { addFrontMatter, generateFrontMatter } from '../../core/capabilities'
-import { FrontMatterType } from '../../core/types'
-import { FileSystemError } from '../../utils/errors'
-import { LogMessages } from '../../utils/logMessages'
-import { calculateGlobPattern, generateUniqueFileName } from '../../utils/pathResolver'
+import { addFrontMatter, FrontMatterType, generateFrontMatter } from '@/core'
+
+import { calculateGlobPattern, FileSystemError, generateUniqueFileName } from '../../pathResolver'
+import { LogMessages } from '../../logMessages'
 
 /**
  * Options for generating a single rule file

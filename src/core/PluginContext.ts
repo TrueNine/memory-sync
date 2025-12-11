@@ -28,7 +28,7 @@ import path from 'node:path'
 import { glob } from 'fast-glob'
 import fs from 'fs-extra'
 import { PathBuilder } from '../constants/paths'
-import logger from '../utils/logger'
+import logger from '../logger'
 import {
   createBlankLineCleanerCapability,
   createCodeBlockTransformCapability,

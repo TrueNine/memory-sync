@@ -1,16 +1,7 @@
 /**
  * Core plugin system exports
+ * For CLI tool usage only - minimal exports
  */
 
-export * from './bootstrapUtils'
-export * from './capabilities'
-export * from './CleanupCollector'
-export * from './ConfigLoader'
-export * from './DryRunTracker'
-export * from './LocalToGlobalConverter'
-export * from './OutputBlocker'
-export * from './PluginContext'
-export { createPluginRegistry } from './PluginRegistry'
-export * from './PluginRunner'
-export * from './types'
-export * from './validation'
+// 只导出PluginRunner，因为这是CLI工具唯一需要直接使用的类
+export { PluginRunner } from './PluginRunner'

@@ -15,7 +15,7 @@ import type {
   PluginContext,
 } from '../core/types'
 import { InputType } from '../core/types'
-import { matchesExcludePattern } from '../utils/fileWalker'
+import { matchesExcludePattern } from '../fileWalker'
 
 /**
  * Configuration options for AindexInputPlugin

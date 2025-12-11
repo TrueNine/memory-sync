@@ -331,7 +331,7 @@ export class PluginRunner {
     const clack = await import('@clack/prompts')
     const picocolors = await import('picocolors')
     const pc = picocolors.default
-    const { shutdownLogger } = await import('../utils/log')
+    const { shutdownLogger } = await import('../log')
     const { intro, outro, spinner } = clack
 
     // Parse arguments

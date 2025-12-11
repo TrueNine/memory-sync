@@ -9,7 +9,7 @@ import {
   extractFrontmatter,
   generateFrontmatterString,
   stripFrontmatter,
-} from '../utils/markdownParser'
+} from '../markdownParser'
 
 /**
  * Options for FrontMatterPlugin

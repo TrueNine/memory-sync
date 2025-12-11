@@ -1,14 +1,13 @@
-import type { FrontMatterOptions } from '../../core/types'
-import type { LogAdapter } from '../../utils/log'
+import type { Dirent } from 'node:fs'
 import type { RuleGenerationOptions } from '../rule/RuleGeneratorService'
+import type { FrontMatterOptions } from '@/core'
+import type { LogAdapter } from '../../log'
 import path from 'node:path'
 import fs from 'fs-extra'
-import { FrontMatterType } from '../../core/types'
-import { cleanAndEnsureDir } from '../../utils/dirCleaner'
-import { FileSystemError } from '../../utils/errors'
-import { findAgentsFiles } from '../../utils/fileWalker'
-import { LogMessages } from '../../utils/logMessages'
-import { isInsideDirectory } from '../../utils/pathResolver'
+import { FrontMatterType } from '@/core'
+import { cleanAndEnsureDir, findAgentsFiles } from '../../dirCleaner'
+import { isInsideDirectory } from '../../pathResolver'
+import { LogMessages } from '../../logMessages'
 import { RuleGeneratorService } from '../rule/RuleGeneratorService'
 import { MemoryRuleProcessor } from './MemoryRuleProcessor'
 
@@ -136,7 +135,11 @@ export class ExportService {
       // Ensure source path exists
       if (!(await fs.pathExists(sourcePath))) {
         const errorMsg = LogMessages.DIR_NOT_FOUND.replace('{}', sourcePath)
-        throw new FileSystemError(errorMsg, sourcePath)
+        result.errors.push(errorMsg)
+        if (logger) {
+          logger.error(LogMessages.DIR_NOT_FOUND, sourcePath)
+        }
+        return result
       }
 
       // Clean target directory if requested, otherwise just ensure it exists
@@ -255,7 +258,7 @@ export class ExportService {
     }
 
     try {
-      const projectDirs = await fs.readdir(refPath, { withFileTypes: true })
+      const projectDirs: Dirent[] = await fs.readdir(refPath, { withFileTypes: true })
 
       for (const entry of projectDirs) {
         if (!entry.isDirectory()) {
@@ -383,14 +386,18 @@ export class ExportService {
       // Ensure ref path exists
       if (!(await fs.pathExists(refPath))) {
         const errorMsg = LogMessages.DIR_NOT_FOUND.replace('{}', refPath)
-        throw new FileSystemError(errorMsg, refPath)
+        result.errors.push(errorMsg)
+        if (logger) {
+          logger.error(LogMessages.DIR_NOT_FOUND, refPath)
+        }
+        return result
       }
 
       // Ensure target directory exists
       await fs.ensureDir(targetPath)
 
       // Read all project directories under ref/
-      const projectDirs = await fs.readdir(refPath, { withFileTypes: true })
+      const projectDirs = await fs.readdir(refPath, { withFileTypes: true }) as unknown as Dirent[]
 
       for (const entry of projectDirs) {
         if (!entry.isDirectory()) {

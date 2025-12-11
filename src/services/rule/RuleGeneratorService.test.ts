@@ -191,7 +191,7 @@ describe('RuleGeneratorService', () => {
         targetDir,
         frontMatterOptions: {
           type: FrontMatterType.KIRO_FILE_MATCH,
-          pattern: 'explicit/pattern/**',
+          filePattern: 'explicit/pattern/**',
         },
         basePath: sourceDir,
         logger,
