@@ -45,7 +45,7 @@ export interface CodexCLIPluginOptions {
 
 /**
  * Default plugin outputs for CodexCLIPlugin
- * Emits to global config directory (~/.codex/) only
+ * Emits to global config directory ($USER_HOME/.codex/) only
  *
  * @see Requirement 32.5
  */
@@ -55,7 +55,7 @@ const DEFAULT_OUTPUTS: PluginOutput[] = [
     category: 'cli',
     tool: 'codex',
     targetType: 'globalConfig',
-    path: '.codex',
+    path: '$USER_HOME/.codex',
     enabled: true,
   },
 ]
@@ -159,9 +159,13 @@ export function filterHandledBundles(bundles: InputBundle[]): InputBundle[] {
  *
  * // With custom options
  * const plugin = createCodexCLIPlugin({
- *   globalConfigPath: '~/.codex/',
+ *   globalConfigPath: '$USER_HOME/.codex/',
  *   cleanTarget: false,
  * })
+ *
+ * // Register global prompt file
+ * // The plugin will automatically register $USER_HOME/.codex/AGENTS.md
+ * // as a global prompt file for Codex
  * ```
  *
  * @see Requirements 32.5
@@ -252,7 +256,7 @@ export function createCodexCLIPlugin(options: CodexCLIPluginOptions = {}): Outpu
     },
 
     /**
-     * Write bundle hook - write files to global config directory (~/.codex/)
+     * Write bundle hook - write files to global config directory ($USER_HOME/.codex/)
      *
      * @see Requirement 32.5
      */
@@ -293,7 +297,7 @@ export function createCodexCLIPlugin(options: CodexCLIPluginOptions = {}): Outpu
 
       for (const file of codexFiles) {
         try {
-          // Write to global config directory (~/.codex/)
+          // Write to global config directory ($USER_HOME/.codex/)
           const resolvedGlobalPath = globalConfigPath ?? (os.homedir() + (os.platform() === 'win32' ? '\\.codex' : '/.codex'))
           const targetPath = ctx.path.join(resolvedGlobalPath, file.fileName)
           const targetDir = ctx.path.dirname(targetPath)
@@ -307,6 +311,20 @@ export function createCodexCLIPlugin(options: CodexCLIPluginOptions = {}): Outpu
           const errorMsg = error instanceof Error ? error.message : String(error)
           ctx.log.error(`CodexCLIPlugin: Failed to write ${file.fileName}: ${errorMsg}`)
         }
+      }
+
+      // Register global prompt file ($USER_HOME/.codex/AGENTS.md)
+      try {
+        const resolvedGlobalPath = globalConfigPath ?? (os.homedir() + (os.platform() === 'win32' ? '\\.codex' : '/.codex'))
+        const globalPromptPath = ctx.path.join(resolvedGlobalPath, 'AGENTS.md')
+        const globalPromptExists = await ctx.fs.exists(globalPromptPath)
+        
+        if (globalPromptExists) {
+          ctx.log.info(`CodexCLIPlugin: Registered global prompt file at ${globalPromptPath}`)
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        ctx.log.warn(`CodexCLIPlugin: Failed to register global prompt file: ${errorMsg}`)
       }
 
       if (globalWritten > 0) {

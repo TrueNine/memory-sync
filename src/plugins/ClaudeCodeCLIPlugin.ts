@@ -72,7 +72,7 @@ const DEFAULT_OUTPUTS: PluginOutput[] = [
     category: 'cli',
     tool: 'claude',
     targetType: 'globalConfig',
-    path: '.claude',
+    path: '$USER_HOME/.claude',
     enabled: true,
   },
   {

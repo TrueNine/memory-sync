@@ -335,7 +335,7 @@ export class PluginRunner {
     const { intro, outro, spinner } = clack
 
     // Parse arguments
-    const flags = { dryRun: false, clean: false, help: false, version: false }
+    const flags = { dryRun: false, clean: false }
     const invalidFlags: string[] = []
 
     for (const arg of args) {
@@ -348,44 +348,12 @@ export class PluginRunner {
         case '-c':
           flags.clean = true
           break
-        case '--help':
-        case '-h':
-          flags.help = true
-          break
-        case '--version':
-        case '-v':
-          flags.version = true
-          break
         default:
           if (arg.startsWith('-')) {
             invalidFlags.push(arg)
           }
           break
       }
-    }
-
-    // Handle help
-    if (flags.help) {
-      // eslint-disable-next-line no-console
-      console.info(`
-${pc.bold('aindex toolchain')} - Plugin-based AI prompt engineering toolchain
-
-${pc.bold('Usage:')} node .scripts/dist/index.mjs [options]
-
-${pc.bold('Options:')}
-  -d, --dry-run    Simulate operations without writing to disk
-  -c, --clean      Execute only cleanup-related operations
-  -h, --help       Show this help message
-  -v, --version    Show version number
-`)
-      return
-    }
-
-    // Handle version
-    if (flags.version) {
-      // eslint-disable-next-line no-console
-      console.info('0.0.1')
-      return
     }
 
     // Handle invalid flags

@@ -17,17 +17,13 @@ const validFlagArb = fc.constantFrom(
   '-d',
   '--clean',
   '-c',
-  '--help',
-  '-h',
-  '--version',
-  '-v',
 )
 
 /**
  * Generate invalid CLI flags (flags that start with - but are not recognized)
  */
 const invalidFlagArb = fc.string({ minLength: 2, maxLength: 20 })
-  .filter((s) => s.startsWith('-') && !['--dry-run', '-d', '--clean', '-c', '--help', '-h', '--version', '-v'].includes(s))
+  .filter((s) => s.startsWith('-') && !['--dry-run', '-d', '--clean', '-c'].includes(s))
   .map((s) => s.startsWith('-') ? s : `-${s}`)
 
 /**
@@ -43,7 +39,7 @@ describe('CLI argument parsing properties', () => {
        * **Feature: plugin-bootstrap-refactor, Property 1: CLI argument parsing produces valid configuration**
        * **Validates: Requirements 1.1**
        *
-       * For any valid combination of CLI arguments (--dry-run, --clean, --help, --version),
+       * For any valid combination of CLI arguments (--dry-run, --clean),
        * parsing SHALL produce a PluginGlobalOptions object with corresponding boolean flags set correctly.
        */
       fc.assert(
@@ -55,8 +51,6 @@ describe('CLI argument parsing properties', () => {
             // All flags should be boolean
             expect(typeof flags.dryRun).toBe('boolean')
             expect(typeof flags.clean).toBe('boolean')
-            expect(typeof flags.help).toBe('boolean')
-            expect(typeof flags.version).toBe('boolean')
 
             // No invalid flags should be detected for valid input
             expect(invalidFlags).toEqual([])
@@ -64,13 +58,9 @@ describe('CLI argument parsing properties', () => {
             // Verify flag values match input
             const hasDryRun = args.includes('--dry-run') || args.includes('-d')
             const hasClean = args.includes('--clean') || args.includes('-c')
-            const hasHelp = args.includes('--help') || args.includes('-h')
-            const hasVersion = args.includes('--version') || args.includes('-v')
 
             expect(flags.dryRun).toBe(hasDryRun)
             expect(flags.clean).toBe(hasClean)
-            expect(flags.help).toBe(hasHelp)
-            expect(flags.version).toBe(hasVersion)
           },
         ),
         { numRuns: 100 },
@@ -124,8 +114,6 @@ describe('CLI argument parsing properties', () => {
             // All flags should be false (no valid flags provided)
             expect(flags.dryRun).toBe(false)
             expect(flags.clean).toBe(false)
-            expect(flags.help).toBe(false)
-            expect(flags.version).toBe(false)
           },
         ),
         { numRuns: 100 },
@@ -151,13 +139,9 @@ describe('CLI argument parsing properties', () => {
             // Valid flags should be set correctly
             const hasDryRun = validArgs.includes('--dry-run') || validArgs.includes('-d')
             const hasClean = validArgs.includes('--clean') || validArgs.includes('-c')
-            const hasHelp = validArgs.includes('--help') || validArgs.includes('-h')
-            const hasVersion = validArgs.includes('--version') || validArgs.includes('-v')
 
             expect(flags.dryRun).toBe(hasDryRun)
             expect(flags.clean).toBe(hasClean)
-            expect(flags.help).toBe(hasHelp)
-            expect(flags.version).toBe(hasVersion)
 
             // Invalid flags should be detected
             expect(invalidFlags.length).toBe(invalidArgs.length)
@@ -178,8 +162,6 @@ describe('CLI argument parsing properties', () => {
 
       expect(flags.dryRun).toBe(false)
       expect(flags.clean).toBe(false)
-      expect(flags.help).toBe(false)
-      expect(flags.version).toBe(false)
       expect(invalidFlags).toEqual([])
     })
 
@@ -207,12 +189,6 @@ describe('CLI argument parsing properties', () => {
             }
             if (flag === '--clean' || flag === '-c') {
               expect(flags.clean).toBe(true)
-            }
-            if (flag === '--help' || flag === '-h') {
-              expect(flags.help).toBe(true)
-            }
-            if (flag === '--version' || flag === '-v') {
-              expect(flags.version).toBe(true)
             }
           },
         ),

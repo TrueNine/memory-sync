@@ -39,6 +39,7 @@ import {
 import { createDryRunOperation, createDryRunTracker } from './DryRunTracker'
 import { createPluginRegistry } from './PluginRegistry'
 import { ClassificationService } from './services/ClassificationService'
+import { resolvePathVariables } from './PathResolver'
 
 /**
  * Create a log adapter from winston logger (deprecated)
@@ -407,10 +408,13 @@ export function createPluginContext(options: PluginContextOptions): PluginContex
       const result: ResolvedOutputPaths = {}
 
       for (const output of outputs) {
+        // First resolve any variables in the path
+        const resolvedPath = resolvePathVariables(output.path)
+        
         if (output.targetType === 'workspace') {
-          result.workspacePath = paths.resolve(output.path)
+          result.workspacePath = paths.resolve(resolvedPath)
         } else if (output.targetType === 'globalConfig') {
-          result.globalConfigPath = path.join(paths.userHome, output.path)
+          result.globalConfigPath = path.join(paths.userHome, resolvedPath)
         }
       }
 

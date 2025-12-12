@@ -13,6 +13,7 @@ import type {
   PluginLog,
   PluginTargets,
 } from './types'
+import { resolvePathVariables } from './PathResolver'
 
 /**
  * CleanupCollector - collects and executes cleanup of plugin output targets
@@ -96,21 +97,24 @@ export class CleanupCollector {
    * @returns Resolved absolute path
    */
   private resolvePath(target: CleanupTarget): string {
+    // First resolve any variables in the path
+    const resolvedPath = resolvePathVariables(target.path)
+    
     switch (target.targetType) {
       case 'workspaceGroup':
-        return this.targets.workspaceGroup(target.path)
+        return this.targets.workspaceGroup(resolvedPath)
       case 'workspace':
         // For workspace targets, path is relative to workspace root
         // Use workspaceGroup with empty name to get base path
-        return this.targets.workspaceGroup(target.path)
+        return this.targets.workspaceGroup(resolvedPath)
       case 'globalConfig': {
         // Extract tool name from path (e.g., ~/.claude/ -> claude)
-        const toolMatch = target.path.match(/^~?\.?([^/]+)/)
-        const tool = toolMatch?.[1] ?? target.path
+        const toolMatch = resolvedPath.match(/^~?\.?([^/]+)/)
+        const tool = toolMatch?.[1] ?? resolvedPath
         return this.targets.globalConfig(tool)
       }
       default:
-        return target.path
+        return resolvedPath
     }
   }
 
