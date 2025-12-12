@@ -17,7 +17,6 @@ import type {
   InputBundle,
   InputPlugin,
   OutputPlugin,
-  Plugin,
   PluginConfig,
   PluginContext,
   PluginState,
@@ -99,7 +98,7 @@ export interface PluginRunnerOptions {
 export class PluginRunner {
   private inputPlugins: InputPlugin[] = []
   private outputPlugins: OutputPlugin[] = []
-  private plugins: Plugin[] = []
+  private plugins: OutputPlugin[] = []
   private pluginStates: Map<string, PluginState> = new Map()
   private context: PluginContext
   private readonly config: PluginConfig
@@ -522,7 +521,7 @@ export class PluginRunner {
    * Register a plugin (legacy method for backward compatibility)
    * @throws ValidationError if plugin is invalid
    */
-  register(plugin: Plugin): void {
+  register(plugin: OutputPlugin): void {
     validatePlugin(plugin)
 
     if (this.plugins.some((p) => p.name === plugin.name)) {
@@ -544,7 +543,7 @@ export class PluginRunner {
   /**
    * Get all registered plugins (legacy)
    */
-  getPlugins(): Plugin[] {
+  getPlugins(): OutputPlugin[] {
     return [...this.plugins]
   }
 
@@ -825,7 +824,7 @@ export class PluginRunner {
       }
 
       const deps = plugin.dependencies
-      if (deps != null && deps.some((dep) => failedPlugins.has(dep))) {
+      if (deps != null && deps.some((dep: string) => failedPlugins.has(dep))) {
         state.status = 'skipped'
         continue
       }
@@ -1115,7 +1114,7 @@ export class PluginRunner {
 
       // Skip dependent plugins when dependency fails (Requirement 9.4)
       const deps = plugin.dependencies
-      if (deps != null && deps.some((dep) => failedPlugins.has(dep))) {
+      if (deps != null && deps.some((dep: string) => failedPlugins.has(dep))) {
         state.status = 'skipped'
         this.context.log.warn(
           `Skipping plugin "${plugin.name}" due to failed dependency`,
@@ -1298,7 +1297,6 @@ export class PluginRunner {
         paths: this.context.paths,
         targets: this.context.targets,
         log: this.context.log,
-        logger: this.context.logger,
         mode: this.context.mode,
         capabilities: this.context.capabilities,
         inputBundles: bundles,
@@ -1321,7 +1319,7 @@ export class PluginRunner {
   /**
    * Run a single plugin through its lifecycle
    */
-  private async runPluginLifecycle(plugin: Plugin): Promise<void> {
+  private async runPluginLifecycle(plugin: OutputPlugin): Promise<void> {
     await this.runHook(plugin, 'buildStart')
     await this.runHook(plugin, 'generateBundle')
     await this.runHook(plugin, 'writeBundle')
@@ -1331,8 +1329,8 @@ export class PluginRunner {
   /**
    * Run a specific hook for a plugin
    */
-  async runHook<K extends keyof Plugin>(
-    plugin: Plugin,
+  async runHook<K extends keyof OutputPlugin>(
+    plugin: OutputPlugin,
     hookName: K,
   ): Promise<void> {
     const hook = plugin[hookName]
@@ -1345,9 +1343,9 @@ export class PluginRunner {
     } catch (error) {
       const cause = error instanceof Error ? error : new Error(String(error))
       throw new PluginError(
-        `Hook "${hookName}" failed: ${cause.message}`,
+        `Hook "${String(hookName)}" failed: ${cause.message}`,
         plugin.name,
-        hookName,
+        String(hookName),
         cause,
       )
     }
@@ -1388,7 +1386,7 @@ export class PluginRunner {
 
       try {
         // Each plugin receives output of previous (Requirement 3.2)
-        const result = await transformHook(currentCode, id, this.context)
+        const result = await transformHook(currentCode, id, this.context, { sourceMap: false })
         if (result != null) {
           const previousCode = currentCode
           currentCode = result.code

@@ -18,7 +18,7 @@ import type {
   WriteBundleParams,
 } from '@/core/types'
 import { FrontMatterType, InputType } from '@/core/types'
-import { addFrontMatterToContent } from './FrontMatterPlugin'
+
 import {
   filterWindsurfHandledBundles,
   generateWindsurfOutputFilename,

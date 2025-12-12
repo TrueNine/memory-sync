@@ -8,7 +8,6 @@ import type {
   EmittedFile,
   InputBundle,
   InputType,
-  LogAdapter,
   PluginConfig,
   PluginContext,
   PluginFileSystem,
@@ -23,6 +22,7 @@ import type {
   ResolvedOutputPaths,
   SystemCapabilities,
 } from './types'
+import type { LogAdapter } from '@/log'
 import os from 'node:os'
 import path from 'node:path'
 import { glob } from 'fast-glob'
@@ -41,25 +41,6 @@ import { resolvePathVariables } from './PathResolver'
 import { createPluginRegistry } from './PluginRegistry'
 import { ClassificationService } from './services/ClassificationService'
 
-/**
- * Create a log adapter from winston logger (deprecated)
- */
-function createLogAdapter(): LogAdapter {
-  return {
-    info: (message: string, meta?: Record<string, unknown>) => {
-      logger.info(message, meta)
-    },
-    warn: (message: string, meta?: Record<string, unknown>) => {
-      logger.warn(message, meta)
-    },
-    error: (message: string, meta?: Record<string, unknown>) => {
-      logger.error(message, meta)
-    },
-    debug: (message: string, meta?: Record<string, unknown>) => {
-      logger.debug(message, meta)
-    },
-  }
-}
 
 /**
  * Create plugin log interface (Requirements 12.5, 12.6, 12.7)
@@ -384,7 +365,6 @@ export function createPluginContext(options: PluginContextOptions): PluginContex
       resolve: (...paths: string[]) => path.resolve(...paths),
     },
     log: createPluginLog(),
-    logger: createLogAdapter(),
     config,
     mode,
     meta,
@@ -494,7 +474,6 @@ export function createPluginContextWithDeps(
       resolve: (...paths: string[]) => path.resolve(...paths),
     },
     log: deps.log ?? createPluginLog(),
-    logger: deps.logger ?? createLogAdapter(),
     config,
     mode,
     meta,

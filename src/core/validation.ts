@@ -2,14 +2,14 @@
  * Plugin validation utilities
  */
 
-import type { OutputPlugin, Plugin } from './types'
+import type { OutputPlugin } from './types'
 import { InputType, ValidationError } from './types'
 
 /**
  * Validate a plugin object before registration
  * @throws ValidationError if plugin is invalid
  */
-export function validatePlugin(plugin: unknown): asserts plugin is Plugin {
+export function validatePlugin(plugin: unknown): asserts plugin is OutputPlugin {
   if (plugin == null || typeof plugin !== 'object') {
     throw new ValidationError('Plugin must be a non-null object', 'plugin')
   }
@@ -50,7 +50,7 @@ export function validatePlugin(plugin: unknown): asserts plugin is Plugin {
 /**
  * Check if a value is a valid plugin (non-throwing version)
  */
-export function isValidPlugin(plugin: unknown): plugin is Plugin {
+export function isValidPlugin(plugin: unknown): plugin is OutputPlugin {
   try {
     validatePlugin(plugin)
     return true
