@@ -139,7 +139,7 @@ export async function walkFiles(options: FileWalkerOptions): Promise<string[]> {
 
   const walk = async (dir: string, isRootLevel: boolean = true): Promise<void> => {
     try {
-      const entries = await fs.readdir(dir, { withFileTypes: true })
+      const entries = fs.readdirSync(dir, { withFileTypes: true })
 
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name)

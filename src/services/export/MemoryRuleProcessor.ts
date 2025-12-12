@@ -1,7 +1,7 @@
-import type { FrontMatterOptions } from '../../core/types'
-import { addFrontMatter, generateFrontMatter } from '../../core/capabilities'
-import { FrontMatterType } from '../../core/types'
-import { generateRefFileName } from '../../pathResolver'
+import type { FrontMatterOptions } from '@/core/types.ts'
+import { addFrontMatter, generateFrontMatter } from '@/core/capabilities'
+import { FrontMatterType } from '@/core/types.ts'
+import { generateRefFileName } from '@/pathResolver.ts'
 
 /**
  * Options for in-memory rule processing

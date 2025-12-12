@@ -276,28 +276,6 @@ export function applyDefaults(options: PluginGlobalOptions): PluginGlobalOptions
 }
 
 /**
- * Serialize PluginGlobalOptions to JSON string
- * Removes undefined values for cleaner output
- *
- * @param options - Options to serialize
- * @returns JSON string representation
- *
- * @see Requirement 7.1
- */
-export function serializeOptions(options: PluginGlobalOptions): string {
-  // Filter out undefined values
-  const filtered: Record<string, unknown> = {}
-
-  for (const [key, value] of Object.entries(options)) {
-    if (value !== null && value !== void 0) {
-      filtered[key] = value
-    }
-  }
-
-  return JSON.stringify(filtered)
-}
-
-/**
  * Create merged options from BootstrapOptions and PluginConfig
  * Convenience function that extracts config options and merges
  *

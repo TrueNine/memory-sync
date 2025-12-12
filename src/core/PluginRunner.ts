@@ -25,7 +25,6 @@ import type {
   TransformationRecord,
   TransformChainSummary,
   TransformError,
-  TransformParams,
   TransformResult,
   WriteBundleParams,
 } from './types'
@@ -874,7 +873,7 @@ export class PluginRunner {
     const errors: string[] = []
     const emptyPlugins: string[] = []
     const failedPlugins = new Set<string>()
-    let inputPluginsExecuted = 0
+    let inputPluginsExecuted
     let outputPluginsExecuted = 0
     const onError = this.config.options?.onError ?? 'continue'
 
@@ -1390,101 +1389,6 @@ export class PluginRunner {
       try {
         // Each plugin receives output of previous (Requirement 3.2)
         const result = await transformHook(currentCode, id, this.context)
-        if (result != null) {
-          const previousCode = currentCode
-          currentCode = result.code
-          hasTransformed = true
-
-          // Record transformation for summary (Requirement 3.4)
-          transformations.push({
-            pluginName: plugin.name,
-            inputLength: previousCode.length,
-            outputLength: result.code.length,
-            changed: previousCode !== result.code,
-          })
-        }
-      } catch (error) {
-        // Preserve original input on failure (Requirement 3.3)
-        const cause = error instanceof Error ? error : new Error(String(error))
-        errors.push({
-          pluginName: plugin.name,
-          message: cause.message,
-          error: cause,
-        })
-
-        this.context.log.error(
-          `Transform failed in plugin "${plugin.name}": ${cause.message}`,
-        )
-
-        const onError = this.config.options?.onError ?? 'continue'
-        if (onError === 'stop') {
-          // Store summary before throwing
-          this.lastTransformSummary = {
-            originalLength: originalCode.length,
-            finalLength: currentCode.length,
-            transformations,
-            errors,
-            success: false,
-          }
-
-          throw new PluginError(
-            `Transform failed: ${cause.message}`,
-            plugin.name,
-            'transform',
-            cause,
-          )
-        }
-        // Continue with current code (preserved from before failure)
-      }
-    }
-
-    // Store summary of changes (Requirement 3.4)
-    this.lastTransformSummary = {
-      originalLength: originalCode.length,
-      finalLength: currentCode.length,
-      transformations,
-      errors,
-      success: errors.length === 0,
-    }
-
-    return hasTransformed ? { code: currentCode } : null
-  }
-
-  /**
-   * Run transform hook for OutputPlugins
-   * Chains transformations in priority order - each plugin receives output of previous
-   * Preserves original input on failure and reports error
-   *
-   * @param code - Original code to transform
-   * @param id - File identifier
-   * @param params - Transform parameters
-   * @returns Transform result or null if no transformations applied
-   * @see Requirements 3.2, 3.3, 3.4
-   */
-  async runOutputTransform(
-    code: string,
-    id: string,
-    params: TransformParams = { sourceMap: false },
-  ): Promise<TransformResult | null> {
-    const originalCode = code
-    let currentCode = code
-    let hasTransformed = false
-    const transformations: TransformationRecord[] = []
-    const errors: TransformError[] = []
-
-    // Sort and resolve inheritance for output plugins
-    const sortedOutputPlugins = this.sortPlugins(this.outputPlugins)
-    const resolvedPlugins = sortedOutputPlugins.map((p) => this.resolveInheritance(p))
-
-    for (const plugin of resolvedPlugins) {
-      const transformHook = plugin.transform
-      if (transformHook == null) {
-        continue
-      }
-
-      try {
-        // Each plugin receives output of previous (Requirement 3.2)
-        const result = await transformHook(currentCode, id, this.context, params)
         if (result != null) {
           const previousCode = currentCode
           currentCode = result.code

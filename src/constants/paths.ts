@@ -310,31 +310,6 @@ export class AgentPathBuilder {
   rules(): string {
     return path.join(this.baseDir, 'rules')
   }
-
-  /**
-   * Get workflows directory path
-   */
-  workflows(): string {
-    return path.join(this.baseDir, 'workflows')
-  }
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Helper function to get Claude skills directory for a project
- */
-export function getClaudeSkillsDir(projectRoot: string): string {
-  return new PathBuilder({ root: projectRoot }).claude().skills()
-}
-
-/**
- * Helper function to get Factory skills directory for a project
- */
-export function getFactorySkillsDir(projectRoot: string): string {
-  return new PathBuilder({ root: projectRoot }).factory().skills()
 }
 
 /**
@@ -344,6 +319,5 @@ export function getFactorySkillsDir(projectRoot: string): string {
  */
 export function getProjectExcludePatterns(_projectName: string): readonly string[] {
   // Default exclude patterns for any project
-  const defaultPatterns = ['ref/*/dist'] as const
-  return defaultPatterns
+  return ['ref/*/dist'] as const
 }

@@ -161,26 +161,3 @@ export const defaultPluginConfig: PluginSystemConfig = {
   frontMatterMapping: defaultFrontMatterMapping,
   globalPaths: defaultGlobalPaths,
 }
-
-/**
- * Get default configuration for a specific plugin
- * @param pluginName - Name of the plugin
- * @returns Default path configuration for the plugin
- */
-export function getDefaultPathConfig(pluginName: string): PathTransformConfig {
-  return (
-    defaultPathConfigs[pluginName] || {
-      outputDir: `.${pluginName}/`,
-      createDir: true,
-    }
-  )
-}
-
-/**
- * Get default front matter type from string identifier
- * @param type - String identifier for front matter type
- * @returns FrontMatterType enum value or undefined if not found
- */
-export function getDefaultFrontMatterType(type: string): FrontMatterType | undefined {
-  return defaultFrontMatterMapping[type]
-}

@@ -886,15 +886,6 @@ export interface InputPlugin {
 }
 
 /**
- * Factory function type for creating InputPlugins with options
- */
-export type InputPluginFactory = (options?: Record<string, unknown>) => InputPlugin
-
-// ============================================================================
-// Hook Parameter Interfaces (Requirements 5.6, 5.7, 5.8)
-// ============================================================================
-
-/**
  * Parameters for cleanup hooks (beforeCleanup, afterCleanup)
  */
 export interface CleanupParams {
@@ -1149,11 +1140,6 @@ export interface OutputPlugin {
    */
   buildEnd?: (ctx: PluginContext, params: BuildEndParams) => Promise<void> | void
 }
-
-/**
- * Factory function type for creating OutputPlugins with options
- */
-export type OutputPluginFactory = (options?: Record<string, unknown>) => OutputPlugin
 
 /**
  * Legacy Plugin interface (alias for OutputPlugin)
@@ -1905,48 +1891,6 @@ export interface OutputCondition {
    */
   check?: (ctx: PluginContext) => boolean | Promise<boolean>
 }
-
-/**
- * Blocked output record
- * Represents a file that was blocked from emission due to unmet conditions
- *
- * @see Requirements 16.2, 16.4
- */
-export interface BlockedOutput {
-  /**
-   * Name of the file that was blocked
-   */
-  fileName: string
-
-  /**
-   * Human-readable reason for blocking
-   */
-  reason: string
-
-  /**
-   * The condition that caused the block
-   */
-  condition: OutputCondition
-}
-
-/**
- * Result of evaluating an output condition
- */
-export interface OutputConditionResult {
-  /**
-   * Whether the condition was met
-   */
-  met: boolean
-
-  /**
-   * Reason for the result (especially useful when not met)
-   */
-  reason: string
-}
-
-// ============================================================================
-// Cleanup Types (Requirements 24.1, 24.2, 24.3, 24.5, 24.7)
-// ============================================================================
 
 /**
  * Cleanup target collected from plugin output configurations

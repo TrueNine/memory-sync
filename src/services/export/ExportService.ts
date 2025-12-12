@@ -10,7 +10,6 @@ import { findAgentsFiles } from '@/fileWalker.ts'
 import { LogMessages } from '@/logMessages.ts'
 import { isInsideDirectory } from '@/pathResolver.ts'
 import { RuleGeneratorService } from '../rule/RuleGeneratorService'
-import { MemoryRuleProcessor } from './MemoryRuleProcessor'
 
 /**
  * Options for export operations
@@ -74,37 +73,13 @@ export interface ExportResult {
 }
 
 /**
- * Options for memory-based ref export operations
- */
-export interface RefMemoryExportOptions {
-  /**
-   * Path to ref directory
-   */
-  refPath: string
-  /**
-   * Target path to write rule files
-   */
-  targetPath: string
-  /**
-   * Front matter type to use
-   */
-  frontMatterType: FrontMatterType
-  /**
-   * Optional logger for operation logging
-   */
-  logger?: LogAdapter
-}
-
-/**
  * Service for exporting AGENTS.md files to different AI tool formats
  */
 export class ExportService {
   private ruleGenerator: RuleGeneratorService
-  private memoryProcessor: MemoryRuleProcessor
 
   constructor() {
     this.ruleGenerator = new RuleGeneratorService()
-    this.memoryProcessor = new MemoryRuleProcessor()
   }
 
   /**
@@ -369,109 +344,5 @@ export class ExportService {
     }
 
     return result
-  }
-
-  /**
-   * Export ref projects using memory-based processing
-   * Reads AGENTS.md files from ref projects and writes directly to root target directories
-   * @param options - Memory-based ref export options
-   * @returns Export result with counts and errors
-   */
-  async exportRefProjectsInMemory(options: RefMemoryExportOptions): Promise<ExportResult> {
-    const { refPath, targetPath, frontMatterType, logger } = options
-
-    const result: ExportResult = {
-      exported: 0,
-      skipped: 0,
-      errors: [],
-    }
-
-    try {
-      // Ensure ref path exists
-      if (!(await fs.pathExists(refPath))) {
-        const errorMsg = LogMessages.DIR_NOT_FOUND.replace('{}', refPath)
-        result.errors.push(errorMsg)
-        if (logger) {
-          logger.error(LogMessages.DIR_NOT_FOUND, refPath)
-        }
-        return result
-      }
-
-      // Ensure target directory exists
-      await fs.ensureDir(targetPath)
-
-      // Read all project directories under ref/
-      const projectDirs = fs.readdirSync(refPath, { withFileTypes: true })
-
-      for (const entry of projectDirs) {
-        if (!entry.isDirectory()) {
-          continue
-        }
-
-        const projectName = entry.name
-        const distPath = path.join(refPath, projectName, 'dist')
-
-        // Skip if dist directory doesn't exist
-        if (!(await fs.pathExists(distPath))) {
-          if (logger) {
-            logger.debug('Skipping ref/{}: dist directory not found', projectName)
-          }
-          continue
-        }
-
-        // Find all AGENTS.md files in dist directory
-        const agentsFiles = await findAgentsFiles(distPath, {
-          skipRoot: false,
-          allowScripts: false,
-        })
-
-        // Process each AGENTS.md file
-        for (const agentsFile of agentsFiles) {
-          try {
-            // Read file content
-            const content = fs.readFileSync(agentsFile, 'utf-8')
-
-            // Calculate relative path from dist directory
-            const relativePath = path.relative(path.join(refPath, projectName), agentsFile)
-
-            // Process rule in memory
-            const processedRule = this.memoryProcessor.processRule({
-              content,
-              projectName,
-              relativePath: relativePath.replace(/[\\/]AGENTS\.md$/, ''),
-              frontMatterType,
-            })
-
-            // Write directly to target directory
-            const outputPath = path.join(targetPath, processedRule.filename)
-            await fs.writeFile(outputPath, processedRule.content, 'utf-8')
-
-            result.exported++
-            if (logger) {
-              logger.debug('Exported ref/{}/{} to {}', projectName, relativePath, processedRule.filename)
-            }
-          } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : String(error)
-            result.errors.push(`Failed to process ${agentsFile}: ${errorMsg}`)
-            if (logger) {
-              logger.error('Failed to process {}: {}', agentsFile, errorMsg)
-            }
-          }
-        }
-      }
-
-      if (logger) {
-        logger.info('Exported {} ref project rule(s) to {}', result.exported, targetPath)
-      }
-
-      return result
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error)
-      result.errors.push(errorMsg)
-      if (logger) {
-        logger.error(LogMessages.EXPORT_ERROR, errorMsg)
-      }
-      return result
-    }
   }
 }
