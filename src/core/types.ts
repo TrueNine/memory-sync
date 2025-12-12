@@ -125,11 +125,11 @@ export interface PluginOutput {
    * Output path template (relative to workspace or global config directory)
    * For workspace: relative to workspace root (e.g., '.claude')
    * For globalConfig: relative to user home (e.g., '.claude')
-   * 
+   *
    * Supports variable substitution:
    * - $USER_HOME or ${USER_HOME}: User's home directory
    * - $HOME or ${HOME}: User's home directory (alias for $USER_HOME)
-   * 
+   *
    * Examples:
    * - '$USER_HOME/.codex' resolves to '/home/user/.codex' (Linux/Mac) or 'C:\Users\user\.codex' (Windows)
    * - '${USER_HOME}/.kiro/steering' resolves to '/home/user/.kiro/steering'
@@ -425,7 +425,7 @@ export interface PluginTargets {
    *
    * @param tool - Tool name (e.g., 'claude', 'kiro', 'gemini')
    * @returns Resolved absolute path to the global config directory
-   * 
+   *
    * Note: Path variables like $USER_HOME are resolved before processing
    * @see Requirement 6.3
    */
@@ -1961,7 +1961,7 @@ export interface CleanupTarget {
   pluginName: string
   /**
    * Target path to clean (file or directory)
-   * 
+   *
    * Supports variable substitution:
    * - $USER_HOME or ${USER_HOME}: User's home directory
    * - $HOME or ${HOME}: User's home directory (alias for $USER_HOME)

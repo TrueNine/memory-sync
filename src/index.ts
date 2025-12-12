@@ -14,7 +14,7 @@ export { PluginRunner } from './core'
  * Parse CLI arguments
  * Supports only --dry-run/-d and --clean/-c flags
  */
-export function parseArgs(args: string[]): { flags: { dryRun: boolean; clean: boolean }; invalidFlags: string[] } {
+export function parseArgs(args: string[]): { flags: { dryRun: boolean, clean: boolean }, invalidFlags: string[] } {
   const flags = { dryRun: false, clean: false }
   const invalidFlags: string[] = []
 

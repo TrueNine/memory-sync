@@ -99,7 +99,7 @@ export class CleanupCollector {
   private resolvePath(target: CleanupTarget): string {
     // First resolve any variables in the path
     const resolvedPath = resolvePathVariables(target.path)
-    
+
     switch (target.targetType) {
       case 'workspaceGroup':
         return this.targets.workspaceGroup(resolvedPath)

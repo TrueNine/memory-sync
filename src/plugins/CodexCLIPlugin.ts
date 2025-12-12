@@ -318,7 +318,7 @@ export function createCodexCLIPlugin(options: CodexCLIPluginOptions = {}): Outpu
         const resolvedGlobalPath = globalConfigPath ?? (os.homedir() + (os.platform() === 'win32' ? '\\.codex' : '/.codex'))
         const globalPromptPath = ctx.path.join(resolvedGlobalPath, 'AGENTS.md')
         const globalPromptExists = await ctx.fs.exists(globalPromptPath)
-        
+
         if (globalPromptExists) {
           ctx.log.info(`CodexCLIPlugin: Registered global prompt file at ${globalPromptPath}`)
         }
