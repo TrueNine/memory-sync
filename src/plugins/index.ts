@@ -52,10 +52,6 @@ export type { CodeBuddyIDEPluginOptions } from './CodeBuddyIDEPlugin'
 
 export {
   createCodexCLIPlugin,
-  filterHandledBundles as filterCodexHandledBundles,
-  getOutputFilename as getCodexOutputFilename,
-  getOutputSubdirectory as getCodexOutputSubdirectory,
-  processInputBundle as processCodexInputBundle,
 } from './CodexCLIPlugin'
 export type { CodexCLIPluginOptions } from './CodexCLIPlugin'
 
@@ -84,10 +80,6 @@ export type { EditorconfigConfigPluginOptions } from './EditorconfigConfigPlugin
 
 export {
   createFactoryDroidCLIPlugin,
-  filterHandledBundles as filterFactoryDroidHandledBundles,
-  getOutputFilename as getFactoryDroidOutputFilename,
-  getOutputSubdirectory as getFactoryDroidOutputSubdirectory,
-  processInputBundle as processFactoryDroidInputBundle,
 } from './FactoryDroidCLIPlugin'
 export type { FactoryDroidCLIPluginOptions } from './FactoryDroidCLIPlugin'
 
@@ -142,7 +134,7 @@ export {
 export type { QoderIDEPluginOptions } from './QoderIDEPlugin'
 
 export { createRefInputPlugin } from './RefInputPlugin'
-export type { RefInputPluginOptions, RefProjectInfo as RefInputProjectInfo } from './RefInputPlugin'
+export type { RefInputPluginOptions } from './RefInputPlugin'
 
 // VSCodeIDEConfigPlugin - Config output plugin for VSCode IDE settings
 export {

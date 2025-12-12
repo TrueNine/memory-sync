@@ -372,5 +372,3 @@ export function createKiroIDEPlugin(options: KiroIDEPluginOptions = {}): OutputP
     },
   }
 }
-
-export default createKiroIDEPlugin

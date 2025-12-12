@@ -300,5 +300,3 @@ export function createWindsurfIDEPlugin(options: WindsurfIDEPluginOptions = {}):
     },
   }
 }
-
-export default createWindsurfIDEPlugin

@@ -263,10 +263,10 @@ describe('Transform Chain properties', () => {
             let expectedInputLength = initialContent.length
             for (let i = 0; i < markers.length; i++) {
               const record = summary!.transformations[i]
-              expect(record.pluginName).toBe(`plugin-${i}`)
-              expect(record.inputLength).toBe(expectedInputLength)
-              expect(record.changed).toBe(true)
-              expectedInputLength = record.outputLength
+              expect(record?.pluginName).toBe(`plugin-${i}`)
+              expect(record?.inputLength).toBe(expectedInputLength)
+              expect(record?.changed).toBe(true)
+              expectedInputLength = record?.outputLength ?? expectedInputLength
             }
           },
         ),
@@ -316,8 +316,8 @@ describe('Transform Chain properties', () => {
             expect(summary).not.toBeNull()
             expect(summary!.success).toBe(false)
             expect(summary!.errors.length).toBe(1)
-            expect(summary!.errors[0].pluginName).toBe('failing-plugin')
-            expect(summary!.errors[0].message).toBe(errorMessage)
+            expect(summary!.errors[0]?.pluginName).toBe('failing-plugin')
+            expect(summary!.errors[0]?.message).toBe(errorMessage)
           },
         ),
         { numRuns: 50 },

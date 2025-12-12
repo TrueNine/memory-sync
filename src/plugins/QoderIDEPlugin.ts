@@ -301,5 +301,3 @@ export function createQoderIDEPlugin(options: QoderIDEPluginOptions = {}): Outpu
     },
   }
 }
-
-export default createQoderIDEPlugin

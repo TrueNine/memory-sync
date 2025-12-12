@@ -376,5 +376,3 @@ export function createVSCodeIDEConfigPlugin(
     },
   }
 }
-
-export default createVSCodeIDEConfigPlugin

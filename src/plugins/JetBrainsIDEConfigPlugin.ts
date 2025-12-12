@@ -375,5 +375,3 @@ export function createJetBrainsIDEConfigPlugin(
     },
   }
 }
-
-export default createJetBrainsIDEConfigPlugin

@@ -29,8 +29,8 @@ describe('ConfigLoader', () => {
     }
 
     const config = await configLoader.load(userConfig)
-    expect(config.paths.cursor.outputDir).toBe('.my-rules/')
-    expect(config.paths.kiro).toEqual(defaultPluginConfig.paths.kiro)
+    expect(config.paths['cursor']?.outputDir).toBe('.my-rules/')
+    expect(config.paths['kiro']).toEqual(defaultPluginConfig.paths?.['kiro'])
   })
 
   it('should clear cache', async () => {
@@ -47,8 +47,9 @@ describe('ConfigLoader', () => {
   it('should validate configuration', () => {
     expect(configLoader.validate(defaultPluginConfig)).toBe(true)
 
-    const invalidConfig = { ...defaultPluginConfig }
-    delete invalidConfig.inputClassification
-    expect(configLoader.validate(invalidConfig as any)).toBe(false)
+    // Test with missing inputClassification by creating a partial config
+    const invalidConfig: any = { ...defaultPluginConfig }
+    invalidConfig.inputClassification = undefined
+    expect(configLoader.validate(invalidConfig)).toBe(false)
   })
 })

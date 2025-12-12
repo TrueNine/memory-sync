@@ -19,7 +19,22 @@ import type {
 } from '../core/types'
 import os from 'node:os'
 import { InputType } from '../core/types'
-import { getWorkspaceFromBundle, processMemoryPromptBundle } from './AgentsMdPlugin'
+import { processMemoryPromptBundle } from './AgentsMdPlugin'
+
+/**
+ * Get the workspace path from an InputBundle
+ * Extracts the workspace directory from the bundle's path
+ *
+ * @param bundle - InputBundle containing the file path
+ * @param ctx - Plugin context for path utilities
+ * @returns Workspace directory path
+ */
+function getWorkspaceFromBundle(bundle: InputBundle, ctx: PluginContext): string {
+  // The bundle path is relative to the workspace
+  // For AGENTS.md files, the workspace is the parent directory
+  const dir = ctx.path.dirname(bundle.path)
+  return dir === '.' ? '' : dir
+}
 
 /**
  * Options for GeminiCLIPlugin
@@ -101,6 +116,7 @@ const HANDLED_INPUT_TYPES: InputType[] = [
  * Preserves original filename from the bundle path
  *
  * @param bundle - InputBundle to get filename from
+ * @param ctx
  * @returns Output filename
  */
 export function getGlobalPromptFilename(bundle: InputBundle, ctx: PluginContext): string {
@@ -112,6 +128,7 @@ export function getGlobalPromptFilename(bundle: InputBundle, ctx: PluginContext)
  *
  * @param bundle - InputBundle of type GlobalPrompt
  * @param targetType - Target type (globalConfig or workspace)
+ * @param ctx
  * @returns EmittedFile ready for writing
  */
 export function processGlobalPromptBundle(
@@ -359,5 +376,3 @@ export function createGeminiCLIPlugin(options: GeminiCLIPluginOptions = {}): Out
     },
   }
 }
-
-export default createGeminiCLIPlugin
