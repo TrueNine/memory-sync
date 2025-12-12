@@ -41,7 +41,6 @@ import { resolvePathVariables } from './PathResolver'
 import { createPluginRegistry } from './PluginRegistry'
 import { ClassificationService } from './services/ClassificationService'
 
-
 /**
  * Create plugin log interface (Requirements 12.5, 12.6, 12.7)
  * ONLY allowed logging method for plugins

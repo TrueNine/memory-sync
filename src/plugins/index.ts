@@ -59,7 +59,6 @@ export {
 } from './CursorIDEPlugin'
 export type { CursorIDEPluginOptions } from './CursorIDEPlugin'
 
-
 // EditorconfigConfigPlugin - Config output plugin for .editorconfig files
 export {
   createEditorconfigConfigPlugin,

@@ -17,8 +17,12 @@ import type {
   PluginOutput,
   WriteBundleParams,
 } from '../core/types'
-import { FrontMatterType, InputType } from '../core/types'
+import {
+  addFrontMatterToContent,
+  generateFrontMatterByType,
+} from '../core/capabilities/frontMatter'
 
+import { FrontMatterType, InputType } from '../core/types'
 
 /**
  * Options for QoderIDEPlugin
@@ -128,7 +132,7 @@ export function processMemoryPromptForQoder(
     pattern,
   )
 
-  const frontMatter = generateFrontMatterByType(FrontMatterType.QODER_GLOB, pattern)
+  const frontMatter = generateFrontMatterByType(FrontMatterType.QODER_GLOB, { type: FrontMatterType.QODER_GLOB, filePattern: pattern })
 
   ctx.log.debug(`QoderIDEPlugin: Generated pattern "${pattern}" for ${bundle.path}`)
 

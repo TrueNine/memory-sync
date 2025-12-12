@@ -17,8 +17,12 @@ import type {
   PluginOutput,
   WriteBundleParams,
 } from '../core/types'
-import { FrontMatterType, InputType } from '../core/types'
+import {
+  addFrontMatterToContent,
+  generateFrontMatterByType,
+} from '../core/capabilities/frontMatter'
 
+import { FrontMatterType, InputType } from '../core/types'
 
 /**
  * Options for KiroIDEPlugin
@@ -141,7 +145,7 @@ export function processMemoryPromptForKiro(
     pattern,
   )
 
-  const frontMatter = generateFrontMatterByType(FrontMatterType.KIRO_FILE_MATCH, pattern)
+  const frontMatter = generateFrontMatterByType(FrontMatterType.KIRO_FILE_MATCH, { type: FrontMatterType.KIRO_FILE_MATCH, filePattern: pattern })
 
   ctx.log.debug(`KiroIDEPlugin: Generated pattern "${pattern}" for ${bundle.path}`)
 
@@ -175,7 +179,7 @@ export function processGlobalPromptForKiro(
     FrontMatterType.KIRO_ALWAYS,
   )
 
-  const frontMatter = generateFrontMatterByType(FrontMatterType.KIRO_ALWAYS)
+  const frontMatter = generateFrontMatterByType(FrontMatterType.KIRO_ALWAYS, { type: FrontMatterType.KIRO_ALWAYS })
 
   ctx.log.debug(`KiroIDEPlugin: Processing GlobalPrompt ${bundle.path}`)
 

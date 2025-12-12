@@ -218,6 +218,35 @@ export function addFrontMatter(content: string, frontMatter: string): string {
 }
 
 /**
+ * Add front matter to content by type
+ * Convenience function that generates front matter and adds it to content
+ *
+ * @param content - Original content
+ * @param type - Front matter type
+ * @param pattern - Optional pattern for file matching or glob
+ * @param additionalProps - Optional additional properties to merge
+ * @returns Content with front matter prepended
+ */
+export function addFrontMatterToContent(
+  content: string,
+  type: FrontMatterType,
+  pattern?: string,
+  additionalProps?: Record<string, unknown>,
+): string {
+  const options: FrontMatterOptions = { type }
+  if (pattern != null) {
+    options.filePattern = pattern
+  }
+  if (additionalProps != null) {
+    options.additionalProps = additionalProps
+  }
+
+  const frontMatterData = generateFrontMatterByType(type, options)
+  const frontMatterString = generateFrontmatterString(frontMatterData)
+  return addFrontMatter(content, frontMatterString)
+}
+
+/**
  * Create front matter capability instance
  * Provides all front matter operations through a unified interface
  *
