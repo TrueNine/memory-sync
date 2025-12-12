@@ -2,6 +2,23 @@
 
 跨 AI 编程工具的提示词同步工具。一套规则，多端适配。
 
+## 快速开始
+
+```bash
+npx @truenine/memory-sync-cli
+```
+
+## 全局安装
+
+```bash
+pnpm add -g @truenine/memory-sync-cli
+```
+
+安装后可直接使用命令：
+
+```bash
+tnmsc
+```
 
 ## 支持的 AI 工具
 
@@ -39,4 +56,4 @@
 
 ## License
 
-Private
+UNLICENSED
