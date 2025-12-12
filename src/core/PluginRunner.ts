@@ -102,7 +102,7 @@ export class PluginRunner {
   private plugins: Plugin[] = []
   private pluginStates: Map<string, PluginState> = new Map()
   private context: PluginContext
-  private config: PluginConfig
+  private readonly config: PluginConfig
   private collectedInputBundles: InputBundle[] = []
   private resolvedOutputPlugins: Map<string, OutputPlugin> = new Map()
 
@@ -873,7 +873,7 @@ export class PluginRunner {
     const errors: string[] = []
     const emptyPlugins: string[] = []
     const failedPlugins = new Set<string>()
-    let inputPluginsExecuted
+
     let outputPluginsExecuted = 0
     const onError = this.config.options?.onError ?? 'continue'
 
@@ -886,7 +886,7 @@ export class PluginRunner {
 
     // Phase 1: Execute InputPlugins (Requirement 36.1, 36.2, 36.3)
     const inputResult = await this.runInputPhase(onError, failedPlugins, errors)
-    inputPluginsExecuted = inputResult.executed
+    const inputPluginsExecuted = inputResult.executed
 
     // If onError is 'stop' and we have errors, don't proceed to output phase
     if (onError === 'stop' && errors.length > 0) {
@@ -1465,131 +1465,5 @@ export class PluginRunner {
    */
   getContext(): PluginContext {
     return this.context
-  }
-
-  /**
-   * Set the plugin context (for testing)
-   */
-  setContext(context: PluginContext): void {
-    this.context = context
-  }
-
-  /**
-   * Get collected input bundles
-   */
-  getCollectedInputBundles(): InputBundle[] {
-    return [...this.collectedInputBundles]
-  }
-
-  /**
-   * Run filename transformation for all OutputPlugins
-   * Applies transformFilename hook from each plugin in priority order
-   * Returns null to preserve original filename when no transformation is configured
-   *
-   * @param filename - Original filename to transform
-   * @param tool - Optional target tool for filtering rules
-   * @returns Transformed filename or null if no transformation applied
-   * @see Requirements 14.1, 14.4, 14.5
-   */
-  runFilenameTransform(filename: string, tool?: string): string | null {
-    // Sort and resolve inheritance for output plugins
-    const sortedOutputPlugins = this.sortPlugins(this.outputPlugins)
-    const resolvedPlugins = sortedOutputPlugins.map((p) => this.resolveInheritance(p))
-
-    let currentFilename = filename
-    let hasTransformed = false
-
-    for (const plugin of resolvedPlugins) {
-      const transformHook = plugin.transformFilename
-      if (transformHook == null) {
-        continue
-      }
-
-      // Check if plugin handles the specified tool
-      const outputs = plugin.outputs
-      if (tool != null && outputs != null) {
-        const handlesTool = outputs.some((o) => o.tool === tool)
-        if (!handlesTool) {
-          continue
-        }
-      }
-
-      try {
-        // Apply transformation (Requirement 14.1)
-        const result = transformHook(currentFilename, this.context)
-        if (result != null) {
-          currentFilename = result
-          hasTransformed = true
-        }
-      } catch (error) {
-        // Log error but continue with other plugins
-        const cause = error instanceof Error ? error : new Error(String(error))
-        this.context.log.error(
-          `Filename transform failed in plugin "${plugin.name}": ${cause.message}`,
-        )
-      }
-    }
-
-    // Preserve original when no transformation configured (Requirement 14.5)
-    return hasTransformed ? currentFilename : null
-  }
-
-  /**
-   * Apply filename transformation rules from a specific plugin
-   * Uses the plugin's filenameTransform configuration
-   *
-   * @param filename - Original filename
-   * @param plugin - Plugin with transformation rules
-   * @param tool - Optional target tool for filtering
-   * @returns Transformed filename or original if no rules match
-   * @see Requirements 14.1, 14.4
-   */
-  applyPluginFilenameRules(
-    filename: string,
-    plugin: OutputPlugin,
-    tool?: string,
-  ): string {
-    const rules = plugin.filenameTransform
-    if (rules == null || rules.length === 0) {
-      return filename
-    }
-
-    let current = filename
-
-    for (const rule of rules) {
-      // Check tool filter
-      if (rule.tools != null && rule.tools.length > 0) {
-        if (tool == null || !rule.tools.includes(tool)) {
-          continue
-        }
-      }
-
-      const pattern = rule.pattern
-      const replacement = rule.replacement
-
-      // Apply pattern matching
-      if (typeof pattern === 'string') {
-        if (current.includes(pattern)) {
-          if (typeof replacement === 'string') {
-            current = current.replace(pattern, replacement)
-          } else {
-            current = current.replace(pattern, replacement(pattern))
-          }
-        }
-      } else {
-        if (pattern.test(current)) {
-          if (typeof replacement === 'string') {
-            current = current.replace(pattern, replacement)
-          } else {
-            const match = current.match(pattern)
-            if (match != null && match[0] != null) {
-              current = current.replace(pattern, replacement(match[0]))
-            }
-          }
-        }
-      }
-    }
-
-    return current
   }
 }
