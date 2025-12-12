@@ -336,5 +336,3 @@ export {
   getOutputSubdirectory,
   processInputBundle,
 }
-
-export default createFactoryDroidCLIPlugin

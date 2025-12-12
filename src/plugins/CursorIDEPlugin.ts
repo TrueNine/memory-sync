@@ -318,5 +318,3 @@ export function createCursorIDEPlugin(options: CursorIDEPluginOptions = {}): Out
     },
   }
 }
-
-export default createCursorIDEPlugin

@@ -278,5 +278,3 @@ export function createEditorconfigConfigPlugin(
     },
   }
 }
-
-export default createEditorconfigConfigPlugin

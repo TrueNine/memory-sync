@@ -262,5 +262,3 @@ async function createInputBundle(
     return null
   }
 }
-
-export default createDocLinkInputPlugin

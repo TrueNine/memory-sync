@@ -57,5 +57,3 @@ export function createBlankLineCleanerPlugin(
     },
   }
 }
-
-export default createBlankLineCleanerPlugin

@@ -402,5 +402,3 @@ export {
   generateWindsurfOutputFilename,
   generateWorkflowFrontMatter,
 }
-
-export default createAntigravityIDEPlugin

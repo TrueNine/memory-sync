@@ -130,16 +130,6 @@ export function processInputBundle(bundle: InputBundle, ctx: PluginContext): Emi
 }
 
 /**
- * Filter InputBundles to only include handled types
- *
- * @param bundles - Array of InputBundles
- * @returns Filtered array containing only handled input types
- */
-export function filterHandledBundles(bundles: InputBundle[]): InputBundle[] {
-  return bundles.filter((bundle) => HANDLED_INPUT_TYPES.includes(bundle.type))
-}
-
-/**
  * CodexCLIPlugin - CLI output plugin for Codex AI assistant
  *
  * Extends AgentsMdPlugin functionality to handle GlobalPrompt and FastCommand input types.
@@ -333,5 +323,3 @@ export function createCodexCLIPlugin(options: CodexCLIPluginOptions = {}): Outpu
     },
   }
 }
-
-export default createCodexCLIPlugin

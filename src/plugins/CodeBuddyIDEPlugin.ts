@@ -317,5 +317,3 @@ export {
   generateCursorOutputFilename,
   transformCursorFilename,
 }
-
-export default createCodeBuddyIDEPlugin

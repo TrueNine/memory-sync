@@ -259,5 +259,3 @@ export function createAgentsMdPlugin(options: AgentsMdPluginOptions = {}): Outpu
     },
   }
 }
-
-export default createAgentsMdPlugin

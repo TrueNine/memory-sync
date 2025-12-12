@@ -155,6 +155,7 @@ export function getOutputFilename(bundle: InputBundle, ctx: PluginContext): stri
  *
  * @param bundle - InputBundle to process
  * @param targetType - Target type (globalConfig or workspace)
+ * @param ctx
  * @returns EmittedFile ready for writing
  */
 export function processInputBundle(
@@ -413,5 +414,3 @@ export function createClaudeCodeCLIPlugin(
     },
   }
 }
-
-export default createClaudeCodeCLIPlugin
