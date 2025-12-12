@@ -10,10 +10,10 @@ import type {
   InputBundle,
   InputPlugin,
   PluginContext,
-} from '../core/types'
+} from '@/core/types'
 import { USER_PROJECTS_DIR } from '@/constants'
-import { InputType } from '../core/types'
-import { matchesExcludePattern } from '../fileWalker'
+import { InputType } from '@/core/types'
+import { matchesExcludePattern } from '@/fileWalker'
 
 /**
  * Configuration options for WorkspaceGroupInputPlugin

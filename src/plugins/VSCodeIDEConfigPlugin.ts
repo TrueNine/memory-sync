@@ -16,8 +16,8 @@ import type {
   PluginContext,
   PluginOutput,
   WriteBundleParams,
-} from '../core/types'
-import { InputType } from '../core/types'
+} from '@/core/types'
+import { InputType } from '@/core/types'
 
 /**
  * Options for VSCodeIDEConfigPlugin

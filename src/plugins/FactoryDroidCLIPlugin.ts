@@ -16,8 +16,8 @@ import type {
   PluginOutput,
   ResolvedOutputPaths,
   WriteBundleParams,
-} from '../core/types'
-import { InputType } from '../core/types'
+} from '@/core/types'
+import { InputType } from '@/core/types'
 import {
   filterHandledBundles,
   getOutputFilename,

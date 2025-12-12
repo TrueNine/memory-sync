@@ -1,26 +1,25 @@
 {
-  "name": "@truenine/truenine-life-cli",
+  "name": "@truenine/memory-sync-cli",
   "type": "module",
   "version": "0.0.1",
-  "packageManager": "pnpm@10.24.0",
+  "packageManager": "pnpm@10.25.0",
   "description": "TrueNine Life CLI Tools",
   "author": "TrueNine",
-  "license": "private",
-  "homepage": "https://github.com/TrueNine_Life",
+  "license": "UNLICENSED",
+  "homepage": "https://github.com/TrueNine/memory-sync-cli",
   "repository": {
     "type": "git",
-    "url": "git+https://https://github.com/TrueNine/TrueNine_Life",
+    "url": "git+https://github.com/TrueNine/memory-sync-cli.git",
     "directory": "_ai/scripts"
   },
   "exports": {
-    ".": "./dist/index.js",
+    ".": "./dist/index.mjs",
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
   "bin": {
-    "tnmsc": "./dist/index.js"
+    "tnmsc": "./dist/index.mjs"
   },
   "files": [
     "dist"
@@ -29,7 +28,8 @@
     "node": ">= 25.2.1"
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
@@ -58,12 +58,12 @@
     "@truenine/eslint9-config": "^1.0.19",
     "@types/fs-extra": "^11.0.4",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^25.0.0",
+    "@types/node": "^25.0.1",
     "@types/picomatch": "^4.0.2",
     "@vitest/coverage-v8": "4.0.15",
     "eslint": "^9.39.1",
     "fast-check": "^4.4.0",
-    "tsdown": "0.17.2",
+    "tsdown": "0.17.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.2.7",

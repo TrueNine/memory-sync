@@ -16,13 +16,13 @@ import type {
   PluginContext,
   PluginOutput,
   WriteBundleParams,
-} from '../core/types'
+} from '@/core/types'
 import {
   addFrontMatterToContent,
   generateFrontMatterByType,
-} from '../core/capabilities/frontMatter'
+} from '@/core/capabilities/frontMatter'
 
-import { FrontMatterType, InputType } from '../core/types'
+import { FrontMatterType, InputType } from '@/core/types'
 
 /**
  * Options for KiroIDEPlugin

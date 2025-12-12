@@ -16,10 +16,10 @@ import type {
   PluginContext,
   PluginOutput,
   WriteBundleParams,
-} from '../core/types'
+} from '@/core/types'
 import {
   addFrontMatterToContent,
-} from '../core/capabilities/frontMatter'
+} from '@/core/capabilities/frontMatter'
 
 import { FrontMatterType, InputType } from '../core/types'
 

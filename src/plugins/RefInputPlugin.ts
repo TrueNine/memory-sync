@@ -12,9 +12,9 @@ import type {
   InputBundle,
   InputPlugin,
   PluginContext,
-} from '../core/types'
-import { InputType } from '../core/types'
-import { matchesExcludePattern } from '../fileWalker'
+} from '@/core/types'
+import { InputType } from '@/core/types'
+import { matchesExcludePattern } from '@/fileWalker'
 
 /**
  * Configuration options for RefInputPlugin
