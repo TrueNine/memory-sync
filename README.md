@@ -28,7 +28,7 @@
 采用 input → transform → output 管道架构：
 
 - **Input 插件**: 读取源文件（Aindex、Ref、WorkspaceGroup）
-- **Transform 插件**: 处理内容（FrontMatter、BlankLineCleaner）
+- **Transform 插件**: 处理内容
 - **Output 插件**: 写入目标格式（各 IDE/CLI 适配器）
 
 ## 配置

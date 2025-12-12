@@ -537,17 +537,6 @@ export interface PluginLog {
 }
 
 /**
- * Log adapter interface for plugin logging
- * @deprecated Use PluginLog instead
- */
-export interface LogAdapter {
-  info: (message: string, meta?: Record<string, unknown>) => void
-  warn: (message: string, meta?: Record<string, unknown>) => void
-  error: (message: string, meta?: Record<string, unknown>) => void
-  debug: (message: string, meta?: Record<string, unknown>) => void
-}
-
-/**
  * Runtime mode flags for plugin execution (Requirements 21.1, 24.4)
  * Controls dry-run and clean-only behavior
  */
@@ -583,7 +572,7 @@ export interface PluginMode {
  * Plugin configuration
  */
 export interface PluginConfig {
-  plugins: (Plugin | PluginFactory)[]
+  plugins: (OutputPlugin | PluginFactory)[]
   options?: PluginGlobalOptions
 }
 
@@ -656,7 +645,7 @@ export interface PluginGlobalOptions {
 /**
  * Plugin factory function type
  */
-export type PluginFactory = (options?: Record<string, unknown>) => Plugin
+export type PluginFactory = (options?: Record<string, unknown>) => OutputPlugin
 
 /**
  * Context provided to plugins during execution
@@ -696,11 +685,6 @@ export interface PluginContext {
    * @see Requirements 12.5, 12.6, 12.7
    */
   log: PluginLog
-
-  /**
-   * @deprecated Use log instead
-   */
-  logger: LogAdapter
 
   /**
    * Plugin configuration
@@ -993,7 +977,7 @@ export interface BuildEndParams {
  *     path: '.kiro/steering/',
  *   }],
  *   buildStart: async (ctx, params) => {
- *     ctx.logger.info(`Starting build in ${params.mode} mode`)
+ *     ctx.log.info(`Starting build in ${params.mode} mode`)
  *   },
  *   generateBundle: async (ctx, params) => {
  *     const bundles = ctx.getInputBundles(InputType.MEMORY_PROMPT)
@@ -1139,66 +1123,6 @@ export interface OutputPlugin {
    * @see Requirements 5.1
    */
   buildEnd?: (ctx: PluginContext, params: BuildEndParams) => Promise<void> | void
-}
-
-/**
- * Legacy Plugin interface (alias for OutputPlugin)
- * @deprecated Use OutputPlugin instead
- */
-export interface Plugin {
-  /**
-   * Plugin name (required)
-   */
-  name: string
-
-  /**
-   * Priority for execution order (lower = earlier, default: 100)
-   */
-  priority?: number
-
-  /**
-   * Names of plugins this plugin depends on
-   */
-  dependencies?: string[]
-
-  /**
-   * Called at the start of the build
-   */
-  buildStart?: (ctx: PluginContext) => Promise<void> | void
-
-  /**
-   * Resolve a module ID to a path
-   */
-  resolveId?: (id: string, ctx: PluginContext) => Promise<string | null> | string | null
-
-  /**
-   * Load content for a resolved ID
-   */
-  load?: (id: string, ctx: PluginContext) => Promise<string | null> | string | null
-
-  /**
-   * Transform content
-   */
-  transform?: (
-    code: string,
-    id: string,
-    ctx: PluginContext,
-  ) => Promise<TransformResult | null> | TransformResult | null
-
-  /**
-   * Generate output bundle
-   */
-  generateBundle?: (ctx: PluginContext) => Promise<void> | void
-
-  /**
-   * Write output bundle to disk
-   */
-  writeBundle?: (ctx: PluginContext) => Promise<void> | void
-
-  /**
-   * Called at the end of the build
-   */
-  buildEnd?: (ctx: PluginContext) => Promise<void> | void
 }
 
 /**

@@ -25,12 +25,6 @@ export {
 } from './AntigravityIDEPlugin'
 export type { AntigravityIDEPluginOptions } from './AntigravityIDEPlugin'
 
-export {
-  cleanBlankLinesContent,
-  createBlankLineCleanerPlugin,
-} from './BlankLineCleanerPlugin'
-export type { BlankLineCleanerPluginOptions } from './BlankLineCleanerPlugin'
-
 // CLI output plugins
 export {
   createClaudeCodeCLIPlugin,
@@ -65,9 +59,6 @@ export {
 } from './CursorIDEPlugin'
 export type { CursorIDEPluginOptions } from './CursorIDEPlugin'
 
-// DocLinkInputPlugin - Input plugin for scanning project documentation
-export { createDocLinkInputPlugin } from './DocLinkInputPlugin'
-export type { DocLinkInputPluginOptions, DocLinkProjectInfo } from './DocLinkInputPlugin'
 
 // EditorconfigConfigPlugin - Config output plugin for .editorconfig files
 export {
@@ -82,18 +73,6 @@ export {
   createFactoryDroidCLIPlugin,
 } from './FactoryDroidCLIPlugin'
 export type { FactoryDroidCLIPluginOptions } from './FactoryDroidCLIPlugin'
-
-// Transform plugins
-export {
-  addFrontMatterToContent,
-  createFrontMatterPlugin,
-  generateFrontMatterByType,
-  mergeFrontMatter,
-  parseFrontMatter,
-  removeBom,
-  serializeFrontMatter,
-} from './FrontMatterPlugin'
-export type { FrontMatterPluginOptions } from './FrontMatterPlugin'
 
 export {
   createGeminiCLIPlugin,
