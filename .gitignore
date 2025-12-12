@@ -1,27 +1,12 @@
-# Dependencies
 node_modules/
 pnpm-lock.yaml
-
-# Build outputs
 dist/
 *.tsbuildinfo
-
-# IDE
-.vscode/
-.idea/
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Logs
 *.log
-
-# Test coverage
 coverage/
 .nyc_output
-
-# Temporary files
 *.tmp
 *.temp
 *.tsbuildinfo
