@@ -11,7 +11,7 @@ import type {
   InputPlugin,
   PluginContext,
 } from '../core/types'
-import { USER_PROJECTS_DIR } from '../constants/paths'
+import { USER_PROJECTS_DIR } from '@/constants'
 import { InputType } from '../core/types'
 import { matchesExcludePattern } from '../fileWalker'
 
@@ -319,5 +319,3 @@ async function createConfigFileBundle(
     return null
   }
 }
-
-export default createWorkspaceGroupInputPlugin

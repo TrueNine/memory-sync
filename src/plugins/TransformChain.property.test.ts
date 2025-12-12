@@ -3,10 +3,10 @@
  * **Feature: plugin-architecture, Property 5: Transform chain propagation**
  */
 
-import type { Plugin, PluginContext, TransformResult } from '../core/types'
+import type { Plugin, TransformResult } from '../core/types'
 import { describe, expect, it } from 'vitest'
 import fc from 'fast-check'
-import { PluginRunner } from '../core/PluginRunner'
+import { PluginRunner } from '@/core'
 
 /**
  * Create a transform plugin that appends a marker to content
@@ -60,7 +60,7 @@ describe('Transform Chain properties', () => {
             const runner = new PluginRunner({ plugins: [] })
 
             for (let i = 0; i < markers.length; i++) {
-              runner.register(createMarkerPlugin(`plugin-${i}`, markers[i]))
+              runner.register(createMarkerPlugin(`plugin-${i}`, markers[i] as string))
             }
 
             await runner.run()
@@ -245,7 +245,7 @@ describe('Transform Chain properties', () => {
             const runner = new PluginRunner({ plugins: [] })
 
             for (let i = 0; i < markers.length; i++) {
-              runner.register(createMarkerPlugin(`plugin-${i}`, markers[i]))
+              runner.register(createMarkerPlugin(`plugin-${i}`, markers[i] as string))
             }
 
             await runner.run()

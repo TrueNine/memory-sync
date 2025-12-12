@@ -1,10 +1,10 @@
-import type { LogAdapter } from '../../log'
+import type { LogAdapter } from '@/log.ts'
 import path from 'node:path'
 import process from 'node:process'
 import fs from 'fs-extra'
-import { FileSystemError } from '../../errors'
-import { findAgentsFiles, matchesExcludePattern } from '../../fileWalker'
-import { LogMessages } from '../../logMessages'
+import { FileSystemError } from '@/errors.ts'
+import { findAgentsFiles, matchesExcludePattern } from '@/fileWalker.ts'
+import { LogMessages } from '@/logMessages.ts'
 
 /**
  * Options for sync operations
@@ -189,8 +189,7 @@ export class SyncService {
 
     try {
       // First, clean all existing CLAUDE.md files
-      const cleanResult = await this.cleanAllClaudeMd(basePath, { allowScripts, ...(logger && { logger }) })
-      result.deleted = cleanResult
+      result.deleted = await this.cleanAllClaudeMd(basePath, { allowScripts, ...(logger && { logger }) })
 
       // Find all AGENTS.md files
       const agentsFiles = await findAgentsFiles(basePath, {
@@ -303,7 +302,7 @@ export class SyncService {
 
     const walk = async (dirPath: string): Promise<void> => {
       try {
-        const entries = await fs.readdir(dirPath, { withFileTypes: true })
+        const entries = fs.readdirSync(dirPath, { withFileTypes: true })
 
         for (const entry of entries) {
           const fullPath = path.join(dirPath, entry.name)

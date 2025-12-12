@@ -27,7 +27,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { glob } from 'fast-glob'
 import fs from 'fs-extra'
-import { PathBuilder } from '../constants/paths'
+import { PathBuilder } from '@/constants'
 import logger from '../logger'
 import {
   createBlankLineCleanerCapability,
@@ -192,14 +192,13 @@ function createFileSystem(
     readdir: async (dirPath: string, options?: { withFileTypes?: boolean }) => {
       // Explicitly handle the two return types of readdir
       if (options?.withFileTypes) {
-        const files = await fs.readdir(dirPath, { withFileTypes: true }) as unknown as Dirent[]
+        const files = fs.readdirSync(dirPath, { withFileTypes: true }) as unknown as Dirent[]
         return files.map((f) => ({
           name: f.name,
           isDirectory: () => f.isDirectory(),
         }))
       } else {
-        const files = await fs.readdir(dirPath) as unknown as string[]
-        return files
+        return await fs.readdir(dirPath) as unknown as string[]
       }
     },
     async readJson<T = unknown>(filePath: string): Promise<T> {
@@ -278,7 +277,7 @@ function createTargets(workspaceGroups: Record<string, string> = {}): PluginTarg
     workspaceGroup: (name: string): string => {
       // Check configured workspace groups first
       const configured = workspaceGroups[name]
-      if (typeof configured === 'string' && configured !== '') {
+      if (configured !== '' && configured !== void 0) {
         return configured
       }
       // Default to ~/project/{name}

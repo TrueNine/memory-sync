@@ -7,21 +7,8 @@
  */
 
 import type { Root, RootContent } from 'mdast'
-import type {
-  FrontMatterCapability,
-  FrontMatterOptions,
-  MarkdownCapability,
-  ParsedDocument,
-  ParsedFrontMatter,
-} from '../types'
-import {
-  buildMarkdown,
-  extractFrontmatter,
-  generateFrontmatterString,
-  parseMarkdown,
-  stringifyMarkdown,
-  stripFrontmatter,
-} from '../../markdownParser'
+import type { FrontMatterCapability, FrontMatterOptions, MarkdownCapability, ParsedDocument, ParsedFrontMatter } from '../types'
+import { buildMarkdown, extractFrontmatter, generateFrontmatterString, parseMarkdown, stringifyMarkdown, stripFrontmatter } from '@/markdownParser.ts'
 import { FrontMatterType } from '../types'
 
 /**
@@ -170,8 +157,7 @@ export function generateFrontMatterByType(
       break
 
     default: {
-      const exhaustiveCheck: never = type
-      throw new Error(`Unknown front matter type: ${String(exhaustiveCheck)}`)
+      throw new Error(`Unknown front matter type: ${String(type)}`)
     }
   }
 

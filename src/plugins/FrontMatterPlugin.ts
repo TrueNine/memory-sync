@@ -5,11 +5,7 @@
 
 import type { Plugin, PluginContext, TransformResult } from '../core/types'
 import { FrontMatterType } from '../core/types'
-import {
-  extractFrontmatter,
-  generateFrontmatterString,
-  stripFrontmatter,
-} from '../markdownParser'
+import { extractFrontmatter, generateFrontmatterString, stripFrontmatter } from '../markdownParser'
 
 /**
  * Options for FrontMatterPlugin
@@ -108,8 +104,7 @@ export function generateFrontMatterByType(
       break
 
     default: {
-      const exhaustiveCheck: never = type
-      throw new Error(`Unknown front matter type: ${String(exhaustiveCheck)}`)
+      throw new Error(`Unknown front matter type: ${String(type)}`)
     }
   }
 
@@ -191,5 +186,3 @@ export function createFrontMatterPlugin(options: FrontMatterPluginOptions = {}):
     },
   }
 }
-
-export default createFrontMatterPlugin

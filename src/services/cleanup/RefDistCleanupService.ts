@@ -1,8 +1,9 @@
-import type { LogAdapter } from '../../log'
+import type { Dirent } from 'node:fs'
+import type { LogAdapter } from '@/log.ts'
 import path from 'node:path'
 import fs from 'fs-extra'
-import { FileSystemError } from '../../errors'
-import { LogMessages } from '../../logMessages'
+import { FileSystemError } from '@/errors.ts'
+import { LogMessages } from '@/logMessages.ts'
 
 /**
  * Options for cleanup operations
@@ -71,7 +72,7 @@ export class RefDistCleanupService {
         throw new FileSystemError(errorMsg, refPath)
       }
 
-      const projectDirs = await fs.readdir(refPath, { withFileTypes: true })
+      const projectDirs = fs.readdirSync(refPath, { withFileTypes: true }) as unknown as Dirent[]
 
       for (const entry of projectDirs) {
         if (!entry.isDirectory()) {
@@ -154,7 +155,7 @@ export class RefDistCleanupService {
     logger?: LogAdapter,
   ): Promise<void> {
     try {
-      const entries = await fs.readdir(distPath, { withFileTypes: true })
+      const entries = fs.readdirSync(distPath, { withFileTypes: true }) as unknown as Dirent[]
 
       for (const entry of entries) {
         if (entry.isFile() && !preserveFiles.includes(entry.name)) {

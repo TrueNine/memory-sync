@@ -8,7 +8,7 @@ let isLoggerShutdown = false
  * Supports format: log.info('User {} logged in with id {}', username, userId);
  */
 export class LogAdapter {
-  private id: string
+  private readonly id: string
 
   constructor(id: string) {
     this.id = id
@@ -65,17 +65,6 @@ export class LogAdapter {
   info(message: string, ...args: unknown[]): void {
     if (this.canLog()) {
       logger.log('info', this.formatMessage(message, ...args), { id: this.id })
-    }
-  }
-
-  /**
-   * Log fatal message
-   * @param message Message template
-   * @param args Argument list
-   */
-  fatal(message: string, ...args: unknown[]): void {
-    if (this.canLog()) {
-      logger.log('fatal', this.formatMessage(message, ...args), { id: this.id })
     }
   }
 
@@ -169,14 +158,4 @@ export async function shutdownLogger(): Promise<void> {
   })()
 
   await loggerShutdownPromise
-}
-
-/**
- * Get a logger adapter with a specific identifier
- *
- * @param id - Identifier for the logger (e.g., 'commands/export')
- * @returns LogAdapter instance
- */
-export function getLogger(id: string = 'default'): LogAdapter {
-  return new LogAdapter(id)
 }

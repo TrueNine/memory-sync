@@ -24,14 +24,6 @@ export interface PathCalculationOptions {
   basePath: string
 }
 
-/**
- * Calculate relative path from base path to source path
- */
-export function calculateRelativePath(options: PathCalculationOptions): string {
-  const pathModule = getPathModule(options.sourcePath, options.basePath)
-  return pathModule.relative(options.basePath, options.sourcePath)
-}
-
 function normalizeDirPath(dirPath: string): string {
   return dirPath.replace(/\\/g, '/')
 }

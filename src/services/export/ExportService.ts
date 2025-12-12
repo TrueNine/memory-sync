@@ -1,14 +1,14 @@
 import type { Dirent } from 'node:fs'
-import type { LogAdapter } from '../../log'
 import type { RuleGenerationOptions } from '../rule/RuleGeneratorService'
 import type { FrontMatterOptions } from '@/core/types'
+import type { LogAdapter } from '@/log.ts'
 import path from 'node:path'
 import fs from 'fs-extra'
 import { FrontMatterType } from '@/core/types'
-import { cleanAndEnsureDir } from '../../dirCleaner'
-import { findAgentsFiles } from '../../fileWalker'
-import { LogMessages } from '../../logMessages'
-import { isInsideDirectory } from '../../pathResolver'
+import { cleanAndEnsureDir } from '@/dirCleaner.ts'
+import { findAgentsFiles } from '@/fileWalker.ts'
+import { LogMessages } from '@/logMessages.ts'
+import { isInsideDirectory } from '@/pathResolver.ts'
 import { RuleGeneratorService } from '../rule/RuleGeneratorService'
 import { MemoryRuleProcessor } from './MemoryRuleProcessor'
 
@@ -109,7 +109,7 @@ export class ExportService {
 
   /**
    * Export AGENTS.md files with specified front matter type
-   import { findAgentsFiles } from '../../fileWalker'
+     import { findAgentsFiles } from '../../fileWalker'
    * @param options - Export options
    * @returns Export result with counts and errors
    */
@@ -220,7 +220,7 @@ export class ExportService {
 
   /**
    * Export to Kiro steering directory
-   import { findAgentsFiles } from '../../fileWalker'
+     import { findAgentsFiles } from '../../fileWalker'
    * @param options - Export options
    * @returns Export result
    */
@@ -233,7 +233,7 @@ export class ExportService {
 
   /**
    * Export to Qoder rules directory
-   import { findAgentsFiles } from '../../fileWalker'
+     import { findAgentsFiles } from '../../fileWalker'
    * @param options - Export options
    * @returns Export result
    */
@@ -259,7 +259,7 @@ export class ExportService {
     }
 
     try {
-      const projectDirs: Dirent[] = await fs.readdir(refPath, { withFileTypes: true })
+      const projectDirs: Dirent[] = fs.readdirSync(refPath, { withFileTypes: true })
 
       for (const entry of projectDirs) {
         if (!entry.isDirectory()) {
@@ -315,7 +315,12 @@ export class ExportService {
       } else if (frontMatterType === FrontMatterType.QODER_GLOB) {
         targetSubDir = path.join('.qoder', 'rules')
       } else {
-        throw new Error(`Unsupported front matter type for ref projects: ${frontMatterType}`)
+        const errorMsg = `Unsupported front matter type for ref projects: ${frontMatterType}`
+        result.errors.push(errorMsg)
+        if (logger) {
+          logger.error(LogMessages.EXPORT_ERROR, errorMsg)
+        }
+        return result
       }
 
       const targetPath = path.join(distPath, targetSubDir)
@@ -396,7 +401,7 @@ export class ExportService {
       await fs.ensureDir(targetPath)
 
       // Read all project directories under ref/
-      const projectDirs = await fs.readdir(refPath, { withFileTypes: true }) as unknown as Dirent[]
+      const projectDirs = fs.readdirSync(refPath, { withFileTypes: true })
 
       for (const entry of projectDirs) {
         if (!entry.isDirectory()) {
@@ -424,7 +429,7 @@ export class ExportService {
         for (const agentsFile of agentsFiles) {
           try {
             // Read file content
-            const content = await fs.readFile(agentsFile, 'utf-8')
+            const content = fs.readFileSync(agentsFile, 'utf-8')
 
             // Calculate relative path from dist directory
             const relativePath = path.relative(path.join(refPath, projectName), agentsFile)

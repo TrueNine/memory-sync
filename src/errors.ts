@@ -22,13 +22,3 @@ export class FileSystemError extends ScriptsError {
     this.name = 'FileSystemError'
   }
 }
-
-/**
- * Error class for configuration-related issues
- */
-export class ConfigurationError extends ScriptsError {
-  constructor(message: string, key: string, value?: unknown) {
-    super(message, 'CONFIG_ERROR', { key, value })
-    this.name = 'ConfigurationError'
-  }
-}

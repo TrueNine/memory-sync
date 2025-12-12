@@ -60,38 +60,3 @@ export const LogMessages = {
   OPERATION_COMPLETE: 'Operation completed',
   UNEXPECTED_ERROR: 'Unexpected error: {}',
 } as const
-
-/**
- * Log level guidelines:
- * - error: Failures that prevent operation completion, require user attention
- * - warn: Issues that don't prevent completion but may need attention
- * - info: Normal operation progress, user-facing status updates
- * - debug: Detailed diagnostic information for troubleshooting
- */
-export const LogLevelGuidelines = {
-  ERROR: [
-    'File system errors (read/write failures)',
-    'Configuration errors',
-    'Command execution failures',
-    'Validation failures',
-    'Unexpected exceptions',
-  ],
-  WARN: [
-    'Missing optional files or directories',
-    'Skipped operations due to preconditions',
-    'Deprecated feature usage',
-    'Non-critical failures',
-  ],
-  INFO: [
-    'Operation start/completion',
-    'Successful file operations',
-    'Progress updates',
-    'Summary statistics',
-  ],
-  DEBUG: [
-    'Detailed operation steps',
-    'Internal state changes',
-    'Diagnostic information',
-    'Ignored files/directories',
-  ],
-} as const

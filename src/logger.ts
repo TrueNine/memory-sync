@@ -119,7 +119,7 @@ const shortKeyFormat = winston.format((info: winston.Logform.TransformableInfo) 
           ? Date.now()
           : new Date(timestamp).valueOf()
         : Date.now(),
-    lvl: typeof level === 'string' ? level : String(level),
+    lvl: level,
     msg: typeof message === 'string' ? message : JSON.stringify(message),
   }
 
@@ -164,20 +164,5 @@ const logger = winston.createLogger({
   silent: shouldBeSilent(),
   exitOnError: false,
 })
-
-/**
- * Enable or disable logger output at runtime
- * Useful for programmatic control in tests
- */
-export function setLoggerSilent(silent: boolean): void {
-  logger.silent = silent
-}
-
-/**
- * Check current silent state
- */
-export function isLoggerSilent(): boolean {
-  return logger.silent
-}
 
 export default logger

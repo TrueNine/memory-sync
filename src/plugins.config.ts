@@ -16,11 +16,8 @@ import type {
   InputPlugin,
   OutputPlugin,
   PluginConfig,
-  PluginSystemConfig,
-  UserPluginConfig,
 } from './core/types'
-import { PathBuilder, USER_PROJECTS_DIR } from './constants/paths'
-import { loadPluginConfig } from './core/config/ConfigLoader'
+import { PathBuilder, USER_PROJECTS_DIR } from '@/constants'
 import {
   createAgentsMdPlugin,
   createAindexInputPlugin,
@@ -148,66 +145,3 @@ const config: PluginConfig = {
 }
 
 export default config
-
-// ============================================================================
-// Configuration System Support
-// ============================================================================
-
-/**
- * Load plugin system configuration with user overrides
- * Combines defaults with user configuration from plugins.config.ts
- *
- * @param userConfig - Optional user configuration overrides
- * @returns Complete plugin system configuration
- */
-export async function loadSystemConfig(userConfig?: UserPluginConfig): Promise<PluginSystemConfig> {
-  return loadPluginConfig(userConfig)
-}
-
-/**
- * Extended plugin configuration with system config
- */
-interface ExtendedPluginConfig extends PluginConfig {
-  systemConfig?: PluginSystemConfig
-}
-
-/**
- * Create plugin configuration with system config integration
- * This is the new recommended way to create plugin configuration
- *
- * @param userConfig - Optional user configuration overrides
- * @returns Plugin configuration with system config integrated
- */
-export async function createPluginConfigWithSystem(userConfig?: UserPluginConfig): Promise<ExtendedPluginConfig> {
-  const systemConfig = await loadSystemConfig(userConfig)
-
-  // Apply plugin selection if specified
-  let inputPluginsToUse = inputPlugins
-  let outputPluginsToUse = outputPlugins
-
-  if (userConfig?.plugins?.input) {
-    inputPluginsToUse = inputPlugins.filter((plugin) =>
-      userConfig.plugins!.input!.includes(plugin.name),
-    )
-  }
-
-  if (userConfig?.plugins?.output) {
-    outputPluginsToUse = outputPlugins.filter((plugin) =>
-      userConfig.plugins!.output!.includes(plugin.name),
-    )
-  }
-
-  const result: ExtendedPluginConfig = {
-    // eslint-disable-next-line ts/no-unsafe-assignment
-    plugins: [...inputPluginsToUse, ...outputPluginsToUse] as any,
-    options: {
-      parallel: false,
-      onError: 'continue',
-      logLevel: 'info',
-      excludePatterns: defaultPluginOptions.excludePatterns,
-    },
-    // Add system config as metadata for plugins to access
-    systemConfig,
-  }
-  return result
-}

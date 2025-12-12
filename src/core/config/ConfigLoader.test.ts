@@ -2,10 +2,10 @@
  * Tests for ConfigLoader
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
-import { ConfigLoader } from './ConfigLoader'
-import { defaultPluginConfig } from './defaultConfig'
-import type { UserPluginConfig } from './types'
+import {beforeEach, describe, expect, it} from 'vitest'
+import {ConfigLoader} from './ConfigLoader'
+import {defaultPluginConfig} from './defaultConfig'
+import type {UserPluginConfig} from './types'
 
 describe('ConfigLoader', () => {
   let configLoader: ConfigLoader
@@ -45,8 +45,7 @@ describe('ConfigLoader', () => {
   })
 
   it('should validate configuration', () => {
-    const validConfig = defaultPluginConfig
-    expect(configLoader.validate(validConfig)).toBe(true)
+    expect(configLoader.validate(defaultPluginConfig)).toBe(true)
 
     const invalidConfig = { ...defaultPluginConfig }
     delete invalidConfig.inputClassification

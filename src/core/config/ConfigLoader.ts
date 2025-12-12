@@ -7,15 +7,8 @@
 /* eslint-disable ts/no-unsafe-assignment */
 /* eslint-disable ts/strict-boolean-expressions */
 /* eslint-disable ts/no-unsafe-member-access */
-/* eslint-disable no-eval */
 
-import type {
-  InputClassificationConfig,
-  PathTransformConfig,
-  PluginSystemConfig,
-  UserPluginConfig,
-} from './types'
-import { readFile } from 'node:fs/promises'
+import type { InputClassificationConfig, PathTransformConfig, PluginSystemConfig, UserPluginConfig } from './types'
 import { resolve } from 'node:path'
 import { defaultPluginConfig } from './defaultConfig'
 
@@ -87,7 +80,7 @@ export class ConfigLoader {
       return defaultConfig
     }
 
-    const merged: PluginSystemConfig = {
+    return {
       ...defaultConfig,
       inputClassification: this.mergeInputClassification(
         defaultConfig.inputClassification,
@@ -103,8 +96,6 @@ export class ConfigLoader {
         ...userConfig.globalPaths,
       },
     }
-
-    return merged
   }
 
   /**
@@ -189,26 +180,6 @@ export class ConfigLoader {
    */
   clearCache(): void {
     this.cache = null
-  }
-
-  /**
-   * Get the raw user configuration from file
-   * @returns User configuration object or undefined if not found
-   */
-  async loadRawUserConfig(): Promise<UserPluginConfig | null> {
-    try {
-      const content = await readFile(this.configPath, 'utf-8')
-      // Use eval to load user configuration
-      // This is acceptable because:
-      // 1. We only load user's own config file (plugins.config.ts)
-      // 2. The content is executed in a controlled environment
-      // 3. We validate the result before using it
-      const module: unknown = eval(content)
-      // eslint-disable-next-line ts/no-unsafe-return
-      return (module as any)?.default ?? (module as any) ?? null
-    } catch {
-      return null
-    }
   }
 
   /**
