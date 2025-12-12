@@ -29,7 +29,7 @@ const frontMatterKeyArb = fc.string({ minLength: 1, maxLength: 20 })
  * - Strings containing colons or hashes (YAML special chars)
  */
 const simpleFrontMatterValueArb = fc.oneof(
-  fc.stringMatching(/^[a-zA-Z0-9_\-\.]+$/, { minLength: 1, maxLength: 30 }),
+  fc.stringMatching(/^[a-zA-Z0-9_\-\.]+$/, { size: 'small' }),
   fc.integer({ min: -1000000, max: 1000000 }),
   fc.boolean(),
 )
