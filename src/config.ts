@@ -55,14 +55,14 @@ export function defineConfig(userOptions: PluginOptions = {}): CollectedInputCon
       const entries = fs.readdirSync(shadowSourceProjectDir, { withFileTypes: true })
       for (const entry of entries) {
         if (entry.isDirectory()) {
-          const projectPath = path.join(shadowSourceProjectDir, entry.name)
           shadowProjects.push({
             name: entry.name,
             dirFromWorkspacePath: {
               pathKind: FilePathKind.Relative,
-              path: projectPath,
+              path: entry.name,
               basePath: workspaceDir,
               getDirectoryName: () => entry.name,
+              getAbsolutePath: () => path.resolve(workspaceDir, entry.name),
             },
           })
         }

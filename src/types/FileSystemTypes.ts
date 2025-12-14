@@ -17,6 +17,7 @@ export interface RelativePath extends Path<FilePathKind.Relative> {
    * 相对路径的基准目录，使用 `/` 进行分割
    */
   readonly basePath: string
+  getAbsolutePath: () => string
 }
 
 /**
