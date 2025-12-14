@@ -1,6 +1,8 @@
-
-import type {Plugin} from "@/core/types";
 import type { Root, RootContent } from 'mdast'
+import type { Plugin } from '@/core/types'
+
+// TODO 加入输出源的收集
+// TODO 加入输出 target 的删除
 
 /**
  * 目录路径类型
@@ -94,14 +96,6 @@ export const PathPlaceholders = {
   USER_HOME: '~',
   WORKSPACE: '$WORKSPACE',
   SHADOW_PROJECT: '$SHADOW_PROJECT',
-}
-
-
-/**
- * 输入插件，
- * 用来从地方上解析
- */
-export interface InputPlugin extends Plugin {
 }
 
 /**
