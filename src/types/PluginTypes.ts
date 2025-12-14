@@ -55,6 +55,16 @@ export interface PluginOptions {
   readonly shadowFastCommandDir?: string
 
   /**
+   * @default $SHADOW_PROJECT/dist/agents
+   */
+  readonly shadowSubAgentDir?: string
+
+  /**
+   * @default $SHADOW_PROJECT/dist/GLOBAL.md
+   */
+  readonly globalMemoryFile?: string
+
+  /**
    * 插件自动扫描其 directChildrenDirectory 为 shadow project，
    * 只有同时识别为
    * @default $SHADOW_PROJECT/ref
