@@ -1,39 +1,17 @@
 import type { Root, RootContent } from 'mdast'
-import type { Plugin } from '@/core/types'
+import type {
+  ClaudeCodeCLISubAgentColors,
+  CodingAgentTools,
+  FilePathKind,
+  GlobalConfigDirectoryType,
+  IDEKind,
+  NamingCaseKind,
+  PromptKind,
+} from '@/core'
+import type { Plugin } from '@/core/PluginTypes'
 
 // TODO 加入输出源的收集
 // TODO 加入输出 target 的删除
-
-/**
- * 目录路径类型
- */
-export enum FilePathKind {
-  /**
-   * 相对于某个基准的路径
-   */
-  Relative = 'Relative',
-  /**
-   * 绝对路径
-   */
-  Absolute = 'Absolute',
-  /**
-   * 空路径，表示当前工作目录
-   */
-  Empty = 'Empty',
-}
-
-/**
- * 命名方式
- */
-export enum NamingCaseKind {
-  CamelCase = 'CamelCase',
-  PascalCase = 'PascalCase',
-  SnakeCase = 'SnakeCase',
-  KebabCase = 'KebabCase',
-  UpperCase = 'UpperCase',
-  LowerCase = 'LowerCase',
-  Original = 'Original',
-}
 
 export interface YAMLFrontMatter<N extends NamingCaseKind = NamingCaseKind.KebabCase> extends Record<string, unknown> {
   readonly namingCase: N
@@ -91,11 +69,6 @@ export interface Project {
    * 工作于当前项目子目录的记忆提示词
    */
   readonly childMemoryPrompts?: readonly ProjectChildrenMemoryPrompt[]
-}
-export const PathPlaceholders = {
-  USER_HOME: '~',
-  WORKSPACE: '$WORKSPACE',
-  SHADOW_PROJECT: '$SHADOW_PROJECT',
 }
 
 /**
@@ -160,22 +133,6 @@ export interface Workspace {
   readonly projects: Project[]
 }
 
-export enum GlobalConfigDirectoryType {
-  UserHome = 'UserHome',
-  External = 'External',
-}
-
-export enum IDEKind {
-  VSCode = 'VSCode',
-  IntellijIDEA = 'IntellijIDEA',
-  Git = 'Git',
-  EditorConfig = 'EditorConfig',
-  /**
-   * 通用类型
-   */
-  Original = 'Original',
-}
-
 export interface ProjectIDEConfigDirectory {
   readonly directory: Path
   readonly ideKind: IDEKind
@@ -218,16 +175,6 @@ export interface GlobalConfigDirectoryInOther<K = GlobalConfigDirectoryType.Exte
 }
 
 export type GlobalConfigDirectory<K = GlobalConfigDirectoryType> = GlobalConfigDirectoryInUserHome<K> | GlobalConfigDirectoryInOther<K>
-
-export enum PromptKind {
-  GlobalMemory = 'GlobalMemory',
-  ProjectRootMemory = 'ProjectRootMemory',
-  ProjectChildrenMemory = 'ProjectChildrenMemory',
-  FastCommand = 'FastCommand',
-  SubAgent = 'SubAgent',
-  Skill = 'Skill',
-  SkillReferenceDocument = 'SkillReferenceDocument',
-}
 
 /**
  * 提示词
@@ -289,23 +236,6 @@ export interface ProjectRootMemoryPrompt extends Prompt<
 export interface ProjectChildrenMemoryPrompt extends Prompt<PromptKind.ProjectChildrenMemory> {
   readonly type: PromptKind.ProjectChildrenMemory
   readonly workingChildDirectoryPath: RelativePath
-}
-
-export enum ClaudeCodeCLISubAgentColors {
-  Red = 'Red',
-  Green = 'Green',
-  Blue = 'Blue',
-  Yellow = 'Yellow',
-}
-
-/**
- * AI Agent 可调用的工具
- */
-export enum CodingAgentTools {
-  Read = 'Read',
-  Write = 'Write',
-  Edit = 'Edit',
-  Grep = 'Grep',
 }
 
 export interface FastCommandYAMLFrontMatter extends YAMLFrontMatter {

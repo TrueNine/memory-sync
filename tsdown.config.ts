@@ -6,9 +6,7 @@ export default defineConfig({
   sourcemap: false,
   unbundle: false,
   noExternal: [
-    '@clack/prompts',
-    'fast-glob',
-    'picocolors',
+
   ],
   format: ['esm'],
   minify: true,

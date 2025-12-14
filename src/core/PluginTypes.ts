@@ -1,9 +1,5 @@
-import type { CollectedInputContext } from '@/types'
-
-export enum PluginKind {
-  Input = 'Input',
-  Output = 'Output',
-}
+import type { PluginKind } from '@/core/Enums'
+import type { CollectedInputContext } from '@/core/InputTypes'
 
 export interface Plugin<T extends PluginKind = PluginKind> {
   readonly type: T
