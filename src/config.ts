@@ -1,4 +1,4 @@
-import type { CollectedInputContext, PluginOptions, Project, Workspace } from '@/types'
+import type { CollectedInputContext, PluginOptions, Project, ProjectIDEConfigFile, Workspace } from '@/types'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -8,7 +8,7 @@ import {
   DEFAULT_WORKSPACE_DIR,
   PathPlaceholders,
 } from '@/constants'
-import { FilePathKind } from '@/types'
+import { FilePathKind, IDEKind } from '@/types'
 
 const PLACEHOLDER_USER_HOME = PathPlaceholders.USER_HOME
 const PLACEHOLDER_SHADOW_PROJECT = PathPlaceholders.SHADOW_PROJECT
@@ -72,6 +72,44 @@ export function defineConfig(userOptions: PluginOptions = {}): CollectedInputCon
     }
   }
 
+  const defaultIdeFiles = [
+    '.editorconfig',
+    '.idea/codeStyles/Project.xml',
+    '.idea/codeStyles/codeStyleConfig.xml',
+    '.idea/.gitignore',
+    '.vscode/settings.json',
+    '.vscode/extensions.json',
+  ]
+
+  const ideConfigFiles: ProjectIDEConfigFile<IDEKind>[] = []
+
+  for (const relativePath of defaultIdeFiles) {
+    const absPath = path.join(shadowProjectDir, relativePath)
+    if (fs.existsSync(absPath) && fs.statSync(absPath).isFile()) {
+      const content = fs.readFileSync(absPath, 'utf-8')
+      let type: IDEKind = IDEKind.Original
+      if (relativePath.includes('.vscode')) {
+        type = IDEKind.VSCode
+      } else if (relativePath.includes('.idea')) {
+        type = IDEKind.IntellijIDEA
+      } else if (relativePath.includes('.editorconfig')) {
+        type = IDEKind.EditorConfig
+      }
+
+      ideConfigFiles.push({
+        type,
+        content,
+        length: content.length,
+        filePathKind: FilePathKind.Absolute,
+        dir: {
+          pathKind: FilePathKind.Absolute,
+          path: absPath,
+          getDirectoryName: () => path.basename(absPath),
+        },
+      })
+    }
+  }
+
   const externalProjects = (options.externalProjects || []).map((p) => {
     const resolved = resolvePath(p, workspaceDir, shadowProjectDir)
     return {
@@ -96,7 +134,7 @@ export function defineConfig(userOptions: PluginOptions = {}): CollectedInputCon
 
   const result: CollectedInputContext = {
     workspace,
-    ideConfigFiles: [],
+    ideConfigFiles,
   }
 
   if (externalProjects.length > 0) {

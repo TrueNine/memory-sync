@@ -38,7 +38,7 @@ export interface Workspace {
 /**
  * IDE 配置文件
  */
-export interface ProjectIDEConfigFile<I extends IDEKind = IDEKind.Original> extends FileContent<string> {
+export interface ProjectIDEConfigFile<I extends IDEKind = IDEKind.Original> extends FileContent<string, FilePathKind, Path> {
   readonly type: I
 }
 
@@ -48,7 +48,7 @@ export interface ProjectIDEConfigFile<I extends IDEKind = IDEKind.Original> exte
 export interface CollectedInputContext {
   readonly workspace: Workspace
   readonly externalProjects?: readonly Project[]
-  readonly ideConfigFiles: readonly ProjectIDEConfigFile[]
+  readonly ideConfigFiles: readonly ProjectIDEConfigFile<IDEKind>[]
   readonly fastCommands?: readonly FastCommandPrompt[]
   readonly subAgents?: readonly SubAgentPrompt[]
   readonly skills?: readonly SkillPrompt[]
