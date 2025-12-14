@@ -68,7 +68,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial
  * Merge options from multiple sources with defined precedence
  *
  * Precedence order (highest to lowest):
- * 1. CLI flags (from BootstrapOptions direct fields: dryRun, cleanOnly, workspaceGroups, root)
+ * 1. CLI flags (from BootstrapOptions direct fields: dryRun, cleanOnly, workspaces, root)
  * 2. BootstrapOptions.options
  * 3. PluginConfig.options
  * 4. Default values
@@ -117,8 +117,8 @@ export function mergeOptions(
   if (bootstrapOptions.cleanOnly !== null && bootstrapOptions.cleanOnly !== void 0) {
     result.cleanOnly = bootstrapOptions.cleanOnly
   }
-  if (bootstrapOptions.workspaceGroups !== null && bootstrapOptions.workspaceGroups !== void 0) {
-    result.workspaceGroups = bootstrapOptions.workspaceGroups
+  if (bootstrapOptions.workspaces !== null && bootstrapOptions.workspaces !== void 0) {
+    result.workspaces = bootstrapOptions.workspaces
   }
   if (bootstrapOptions.root !== null && bootstrapOptions.root !== void 0) {
     result.root = bootstrapOptions.root

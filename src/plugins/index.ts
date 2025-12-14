@@ -133,5 +133,9 @@ export {
 } from './WindsurfIDEPlugin'
 export type { WindsurfIDEPluginOptions } from './WindsurfIDEPlugin'
 
-export { createWorkspaceGroupInputPlugin } from './WorkspaceGroupInputPlugin'
-export type { WorkspaceGroupInputPluginOptions, WorkspaceInfo } from './WorkspaceGroupInputPlugin'
+export { createWorkspaceInputPlugin } from './WorkspaceInputPlugin'
+export type { ProjectInfo, WorkspaceInputPluginOptions } from './WorkspaceInputPlugin'
+
+// Legacy export for backward compatibility
+export { createWorkspaceInputPlugin as createWorkspaceGroupInputPlugin } from './WorkspaceInputPlugin'
+export type { WorkspaceInputPluginOptions as WorkspaceGroupInputPluginOptions } from './WorkspaceInputPlugin'

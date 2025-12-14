@@ -124,7 +124,7 @@ export function validateOutputPlugin(plugin: unknown): asserts plugin is OutputP
         throw new ValidationError(`Plugin output at index ${i} must have a non-empty tool`, 'outputs')
       }
 
-      const validTargetTypes = ['workspaceGroup', 'workspace', 'globalConfig']
+      const validTargetTypes = ['workspace', 'project', 'globalConfig']
       if (!validTargetTypes.includes(output['targetType'] as string)) {
         throw new ValidationError(
           `Plugin output at index ${i} has invalid targetType. Must be one of: ${validTargetTypes.join(', ')}`,

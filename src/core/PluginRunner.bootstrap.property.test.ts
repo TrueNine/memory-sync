@@ -155,12 +155,12 @@ describe('PluginRunner.bootstrap() properties', () => {
       )
     })
 
-    it('should accept PluginGlobalOptions with workspaceGroups', () => {
+    it('should accept PluginGlobalOptions with workspaces', () => {
       /**
        * **Feature: plugin-bootstrap-refactor, Property 2: PluginRunner accepts any valid PluginGlobalOptions**
        * **Validates: Requirements 1.2**
        *
-       * PluginRunner should accept options with workspaceGroups mapping
+       * PluginRunner should accept options with workspaces mapping
        */
       fc.assert(
         fc.asyncProperty(
@@ -169,9 +169,9 @@ describe('PluginRunner.bootstrap() properties', () => {
             fc.string({ minLength: 1, maxLength: 100 }),
             { minKeys: 0, maxKeys: 3 },
           ),
-          async (workspaceGroups) => {
+          async (workspaces) => {
             const options: PluginGlobalOptions = {
-              workspaceGroups,
+              workspaces,
             }
 
             const config: PluginConfig = {
@@ -238,7 +238,7 @@ describe('PluginRunner.bootstrap() properties', () => {
             { minKeys: 0, maxKeys: 2 },
           ),
           fc.string({ minLength: 1, maxLength: 50 }),
-          async (dryRun, cleanOnly, logLevel, onError, parallel, excludePatterns, workspaceGroups, root) => {
+          async (dryRun, cleanOnly, logLevel, onError, parallel, excludePatterns, workspaces, root) => {
             const options: PluginGlobalOptions = {
               dryRun,
               cleanOnly,
@@ -246,7 +246,7 @@ describe('PluginRunner.bootstrap() properties', () => {
               onError,
               parallel,
               excludePatterns,
-              workspaceGroups,
+              workspaces,
               root,
             }
 

@@ -1,3 +1,5 @@
+
+import type {Plugin} from "@/core/types";
 import type { Root, RootContent } from 'mdast'
 
 /**
@@ -94,6 +96,14 @@ export const PathPlaceholders = {
   SHADOW_PROJECT: '$SHADOW_PROJECT',
 }
 
+
+/**
+ * 输入插件，
+ * 用来从地方上解析
+ */
+export interface InputPlugin extends Plugin {
+}
+
 /**
  * 输出插件需要处理的配置
  * 由插件系统解读为收集上下文
@@ -105,7 +115,7 @@ export const PathPlaceholders = {
  * @see CollectedInputContext - 被收集的上下文
  * @see PathPlaceholders - 路径占位符
  */
-export interface InputPluginOptions {
+export interface PluginOptions {
   /**
    * 插件自动扫描其 directChildrenDirectory 为 project
    * @default ~/project
@@ -147,6 +157,8 @@ export interface InputPluginOptions {
    * projectName and excludePatterns
    */
   readonly excludePatterns?: Record<string, string[]>
+  plugins?: Plugin[]
+  logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'
 }
 
 export interface Workspace {

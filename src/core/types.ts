@@ -1,11 +1,29 @@
-/**
- * Core plugin system types
- * Inspired by Vite/Rollup plugin architecture
- */
+import type { CollectedInputContext } from '@/types'
 
-// ============================================================================
-// Input Type Classification (Requirement 29.1)
-// ============================================================================
+export enum PluginKind {
+  Input = 'Input',
+  Output = 'Output',
+}
+
+export interface Plugin<T extends PluginKind = PluginKind> {
+  readonly type: T
+  /**
+   * 插件名称（亦是插件id）
+   */
+  readonly name: string
+}
+
+export interface OutputPlugin extends Plugin<PluginKind.Output> {
+}
+
+export interface InputPluginContext extends CollectedInputContext {
+  resolvePlaceholderPath: (path: string) => string
+}
+
+export interface InputPlugin extends Plugin<PluginKind.Input> {
+}
+
+// ===== 下为旧的代码 =======
 
 /**
  * Input content types - plugins read from context by type
@@ -120,7 +138,7 @@ export interface PluginOutput {
   /**
    * Output target type
    */
-  targetType: 'workspaceGroup' | 'workspace' | 'globalConfig'
+  targetType: 'workspace' | 'project' | 'globalConfig'
   /**
    * Output path template (relative to workspace or global config directory)
    * For workspace: relative to workspace root (e.g., '.claude')
@@ -238,7 +256,7 @@ export interface EmittedFile {
   /**
    * Output target type
    */
-  targetType?: 'workspaceGroup' | 'workspace' | 'globalConfig'
+  targetType?: 'workspace' | 'project' | 'globalConfig'
   /**
    * Input type this file originated from
    */
@@ -399,25 +417,25 @@ export interface PluginPaths {
  */
 export interface PluginTargets {
   /**
-   * Resolve path relative to WorkspaceGroup directory
-   * WorkspaceGroup is the project group directory (e.g., ~/project)
+   * Resolve path relative to Workspace directory
+   * Workspace is the project group directory (e.g., ~/project)
    *
-   * @param name - WorkspaceGroup name or identifier
-   * @returns Resolved absolute path to the workspace group
+   * @param name - Workspace name or identifier
+   * @returns Resolved absolute path to the workspace
    * @see Requirement 6.1
    */
-  workspaceGroup: (name: string) => string
+  workspace: (name: string) => string
 
   /**
-   * Resolve path relative to a specific Workspace within a group
-   * Workspace is a single project directory within a WorkspaceGroup
+   * Resolve path relative to a specific Project within a workspace
+   * Project is a single project directory within a Workspace
    *
-   * @param group - WorkspaceGroup name
-   * @param name - Workspace name within the group
-   * @returns Resolved absolute path to the workspace
+   * @param workspaceName - Workspace name
+   * @param name - Project name within the workspace
+   * @returns Resolved absolute path to the project
    * @see Requirement 6.2
    */
-  workspace: (group: string, name: string) => string
+  project: (workspaceName: string, name: string) => string
 
   /**
    * Resolve path to GlobalConfigDirectory for a specific tool
@@ -628,10 +646,10 @@ export interface PluginGlobalOptions {
   cleanOnly?: boolean
 
   /**
-   * Workspace group mappings
-   * Maps workspace group names to their absolute paths
+   * Workspace mappings
+   * Maps workspace names to their absolute paths
    */
-  workspaceGroups?: Record<string, string>
+  workspaces?: Record<string, string>
 
   /**
    * Root directory of the workspace/project
@@ -1842,7 +1860,7 @@ export interface CleanupTarget {
   /**
    * Output target type for path resolution
    */
-  targetType: 'workspaceGroup' | 'workspace' | 'globalConfig'
+  targetType: 'workspace' | 'project' | 'globalConfig'
 }
 
 /**
@@ -2077,18 +2095,18 @@ export interface BootstrapOptions {
   cleanOnly?: boolean
 
   /**
-   * Workspace group mappings
-   * Maps workspace group names to their absolute paths
+   * Workspace mappings
+   * Maps workspace names to their absolute paths
    *
    * @example
    * ```typescript
-   * workspaceGroups: {
+   * workspaces: {
    *   'default': '/home/user/projects',
    *   'work': '/home/user/work-projects',
    * }
    * ```
    */
-  workspaceGroups?: Record<string, string>
+  workspaces?: Record<string, string>
 
   /**
    * Root directory of the workspace/project

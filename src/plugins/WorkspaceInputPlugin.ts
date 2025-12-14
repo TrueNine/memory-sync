@@ -1,6 +1,6 @@
 /**
- * WorkspaceGroupInputPlugin - Input plugin for discovering workspaces from project group
- * Scans configured workspaceGroup directory and creates InputBundles for discovered files
+ * WorkspaceInputPlugin - Input plugin for discovering projects from workspace
+ * Scans configured workspace directory and creates InputBundles for discovered files
  *
  * @see Requirements 37.1, 37.2, 37.3, 37.4, 37.5, 19.1
  * Feature: plugin-architecture
@@ -16,17 +16,17 @@ import { InputType } from '@/core/types'
 import { matchesExcludePattern } from '@/fileWalker'
 
 /**
- * Configuration options for WorkspaceGroupInputPlugin
+ * Configuration options for WorkspaceInputPlugin
  */
-export interface WorkspaceGroupInputPluginOptions {
+export interface WorkspaceInputPluginOptions {
   /**
-   * Path to the workspace group directory
+   * Path to the workspace directory
    * Default: ~/project/
    */
-  workspaceGroupDir?: string
+  workspaceDir?: string
 
   /**
-   * Patterns to exclude from workspace discovery
+   * Patterns to exclude from project discovery
    * Default: ['node_modules', '.git', 'dist', 'build']
    */
   excludePatterns?: string[]
@@ -39,21 +39,21 @@ export interface WorkspaceGroupInputPluginOptions {
 }
 
 /**
- * Information about a discovered workspace
+ * Information about a discovered project
  */
-export interface WorkspaceInfo {
+export interface ProjectInfo {
   /**
-   * Workspace name (directory name)
+   * Project name (directory name)
    */
   name: string
 
   /**
-   * Absolute path to workspace root
+   * Absolute path to project root
    */
   path: string
 
   /**
-   * Whether AGENTS.md exists in this workspace
+   * Whether AGENTS.md exists in this project
    */
   hasAgentsMd: boolean
 
@@ -64,7 +64,7 @@ export interface WorkspaceInfo {
 }
 
 /**
- * Default patterns to exclude from workspace discovery
+ * Default patterns to exclude from project discovery
  */
 const DEFAULT_EXCLUDE_PATTERNS = [
   'node_modules',
@@ -85,46 +85,46 @@ const DEFAULT_CONFIG_FILE_PATTERNS = [
 ]
 
 /**
- * Create a WorkspaceGroupInputPlugin instance
+ * Create a WorkspaceInputPlugin instance
  *
  * @param options - Plugin configuration options
  * @returns InputPlugin instance
  * @see Requirements 37.1, 37.2, 37.3, 37.4, 37.5
  */
-export function createWorkspaceGroupInputPlugin(
-  options: WorkspaceGroupInputPluginOptions = {},
+export function createWorkspaceInputPlugin(
+  options: WorkspaceInputPluginOptions = {},
 ): InputPlugin {
   const {
-    workspaceGroupDir = USER_PROJECTS_DIR,
+    workspaceDir = USER_PROJECTS_DIR,
     excludePatterns = DEFAULT_EXCLUDE_PATTERNS,
     configFilePatterns = DEFAULT_CONFIG_FILE_PATTERNS,
   } = options
 
   return {
-    name: 'workspaceGroupInput',
+    name: 'workspaceInput',
     priority: 10,
 
     async scan(ctx: PluginContext): Promise<InputBundle[]> {
       const bundles: InputBundle[] = []
-      const workspaces: WorkspaceInfo[] = []
+      const projects: ProjectInfo[] = []
 
       // Merge global exclusion patterns with plugin-specific patterns (Requirement 19.1)
       const globalExcludePatterns = ctx.config.options?.excludePatterns ?? []
       const allExcludePatterns = [...new Set([...excludePatterns, ...globalExcludePatterns])]
 
-      // Check if workspace group directory exists (Requirement 37.1)
-      const groupExists = await ctx.fs.exists(workspaceGroupDir)
-      if (!groupExists) {
-        ctx.log.warn(`Workspace group directory not found: ${workspaceGroupDir}`)
-        ctx.registry.set('workspaceGroupInput', 'workspaces', [])
+      // Check if workspace directory exists (Requirement 37.1)
+      const workspaceExists = await ctx.fs.exists(workspaceDir)
+      if (!workspaceExists) {
+        ctx.log.warn(`Workspace directory not found: ${workspaceDir}`)
+        ctx.registry.set('workspaceInput', 'projects', [])
         return bundles
       }
 
-      ctx.log.debug(`Scanning workspace group: ${workspaceGroupDir}`)
+      ctx.log.debug(`Scanning workspace: ${workspaceDir}`)
 
       try {
-        // Scan for workspaces (Requirement 37.1)
-        const entries = await ctx.fs.readdir(workspaceGroupDir, { withFileTypes: true })
+        // Scan for projects (Requirement 37.1)
+        const entries = await ctx.fs.readdir(workspaceDir, { withFileTypes: true })
 
         for (const entry of entries) {
           // Skip non-directories
@@ -143,20 +143,20 @@ export function createWorkspaceGroupInputPlugin(
             continue
           }
 
-          const workspacePath = ctx.paths.resolve(workspaceGroupDir, entry.name)
-          const workspaceInfo = await scanWorkspace(
+          const projectPath = ctx.paths.resolve(workspaceDir, entry.name)
+          const projectInfo = await scanProject(
             ctx,
             entry.name,
-            workspacePath,
+            projectPath,
             configFilePatterns,
           )
 
-          if (workspaceInfo != null) {
-            workspaces.push(workspaceInfo)
+          if (projectInfo != null) {
+            projects.push(projectInfo)
 
             // Create MemoryPrompt InputBundle for AGENTS.md (Requirement 37.3)
-            if (workspaceInfo.hasAgentsMd) {
-              const agentsMdPath = ctx.path.join(workspacePath, 'AGENTS.md')
+            if (projectInfo.hasAgentsMd) {
+              const agentsMdPath = ctx.path.join(projectPath, 'AGENTS.md')
               const agentsMdBundle = await createMemoryPromptBundle(ctx, agentsMdPath, entry.name)
               if (agentsMdBundle != null) {
                 bundles.push(agentsMdBundle)
@@ -164,7 +164,7 @@ export function createWorkspaceGroupInputPlugin(
             }
 
             // Create ConfigFile InputBundles for config files (Requirement 37.4)
-            for (const configFile of workspaceInfo.configFiles) {
+            for (const configFile of projectInfo.configFiles) {
               const configBundle = await createConfigFileBundle(ctx, configFile, entry.name)
               if (configBundle != null) {
                 bundles.push(configBundle)
@@ -174,14 +174,14 @@ export function createWorkspaceGroupInputPlugin(
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
-        ctx.log.error(`Failed to scan workspace group: ${errorMsg}`)
+        ctx.log.error(`Failed to scan workspace: ${errorMsg}`)
       }
 
-      // Register discovered workspaces in context (Requirement 37.2)
-      ctx.registry.set('workspaceGroupInput', 'workspaces', workspaces)
+      // Register discovered projects in context (Requirement 37.2)
+      ctx.registry.set('workspaceInput', 'projects', projects)
 
-      // Log count of discovered workspaces (Requirement 37.5)
-      ctx.log.info(`Discovered ${workspaces.length} workspace(s) in ${workspaceGroupDir}`)
+      // Log count of discovered projects (Requirement 37.5)
+      ctx.log.info(`Discovered ${projects.length} project(s) in ${workspaceDir}`)
 
       return bundles
     },
@@ -189,35 +189,35 @@ export function createWorkspaceGroupInputPlugin(
 }
 
 /**
- * Scan a single workspace directory for AGENTS.md and config files
+ * Scan a single project directory for AGENTS.md and config files
  *
  * @param ctx - Plugin context
- * @param name - Workspace name
- * @param workspacePath - Absolute path to workspace
+ * @param name - Project name
+ * @param projectPath - Absolute path to project
  * @param configFilePatterns - Patterns for config files to scan
- * @returns WorkspaceInfo or null if not a valid workspace
+ * @returns ProjectInfo or null if not a valid project
  */
-async function scanWorkspace(
+async function scanProject(
   ctx: PluginContext,
   name: string,
-  workspacePath: string,
+  projectPath: string,
   configFilePatterns: string[],
-): Promise<WorkspaceInfo | null> {
+): Promise<ProjectInfo | null> {
   try {
     // Check if it's a valid directory
-    const stats = await ctx.fs.stat(workspacePath)
+    const stats = await ctx.fs.stat(projectPath)
     if (!stats.isDirectory()) {
       return null
     }
 
     // Check for AGENTS.md
-    const agentsMdPath = ctx.path.join(workspacePath, 'AGENTS.md')
+    const agentsMdPath = ctx.path.join(projectPath, 'AGENTS.md')
     const hasAgentsMd = await ctx.fs.exists(agentsMdPath)
 
     // Scan for config files
     const configFiles: string[] = []
     for (const pattern of configFilePatterns) {
-      const configPath = ctx.path.join(workspacePath, pattern)
+      const configPath = ctx.path.join(projectPath, pattern)
 
       // Handle directory patterns (like .idea)
       if (!pattern.includes('/') && !pattern.includes('.')) {
@@ -239,12 +239,12 @@ async function scanWorkspace(
 
     return {
       name,
-      path: workspacePath,
+      path: projectPath,
       hasAgentsMd,
       configFiles,
     }
   } catch (error) {
-    ctx.log.debug(`Failed to scan workspace ${name}: ${error instanceof Error ? error.message : String(error)}`)
+    ctx.log.debug(`Failed to scan project ${name}: ${error instanceof Error ? error.message : String(error)}`)
     return null
   }
 }

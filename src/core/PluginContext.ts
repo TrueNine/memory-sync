@@ -250,23 +250,23 @@ function createPaths(root: string): PluginPaths {
 /**
  * Create output target resolution utilities (Requirements 6.1, 6.2, 6.3)
  */
-function createTargets(workspaceGroups: Record<string, string> = {}): PluginTargets {
+function createTargets(workspaces: Record<string, string> = {}): PluginTargets {
   const homeDir = os.homedir()
 
   return {
-    workspaceGroup: (name: string): string => {
-      // Check configured workspace groups first
-      const configured = workspaceGroups[name]
+    workspace: (name: string): string => {
+      // Check configured workspaces first
+      const configured = workspaces[name]
       if (configured !== '' && configured !== void 0) {
         return configured
       }
       // Default to ~/project/{name}
       return path.join(homeDir, 'project', name)
     },
-    workspace: (group: string, name: string): string => {
-      // Resolve workspace within a group
-      const groupPath = workspaceGroups[group] ?? path.join(homeDir, 'project', group)
-      return path.join(groupPath, name)
+    project: (workspaceName: string, name: string): string => {
+      // Resolve project within a workspace
+      const workspacePath = workspaces[workspaceName] ?? path.join(homeDir, 'project', workspaceName)
+      return path.join(workspacePath, name)
     },
     globalConfig: (tool: string): string => {
       // Resolve global config directory for a tool (e.g., ~/.claude, ~/.kiro)
@@ -318,7 +318,7 @@ export interface PluginContextOptions {
   systemConfig?: PluginSystemConfig
   dryRun?: boolean
   cleanOnly?: boolean
-  workspaceGroups?: Record<string, string>
+  workspaces?: Record<string, string>
 }
 
 /**
@@ -341,7 +341,7 @@ export function createPluginContext(options: PluginContextOptions): PluginContex
     systemConfig,
     dryRun = false,
     cleanOnly = false,
-    workspaceGroups = {},
+    workspaces = {},
   } = options
   const emittedFiles: EmittedFile[] = []
   const inputBundles: InputBundle[] = []
@@ -351,7 +351,7 @@ export function createPluginContext(options: PluginContextOptions): PluginContex
   const mode = createMode(dryRun, cleanOnly)
 
   const paths = createPaths(root)
-  const targets = createTargets(workspaceGroups)
+  const targets = createTargets(workspaces)
 
   // Create base context
   const baseContext: PluginContext = {
@@ -451,7 +451,7 @@ export function createPluginContextWithDeps(
     config,
     dryRun = false,
     cleanOnly = false,
-    workspaceGroups = {},
+    workspaces = {},
   } = options
   const emittedFiles: EmittedFile[] = []
   const inputBundles: InputBundle[] = deps.inputBundles ?? []
@@ -460,7 +460,7 @@ export function createPluginContextWithDeps(
   // Create mode first to get the tracker (Requirement 21.2)
   const mode = deps.mode ?? createMode(dryRun, cleanOnly)
   const paths = deps.paths ?? createPaths(root)
-  const targets = deps.targets ?? createTargets(workspaceGroups)
+  const targets = deps.targets ?? createTargets(workspaces)
 
   return {
     fs: deps.fs ?? createFileSystem(mode),

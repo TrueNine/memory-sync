@@ -101,12 +101,12 @@ export class CleanupCollector {
     const resolvedPath = resolvePathVariables(target.path)
 
     switch (target.targetType) {
-      case 'workspaceGroup':
-        return this.targets.workspaceGroup(resolvedPath)
       case 'workspace':
-        // For workspace targets, path is relative to workspace root
-        // Use workspaceGroup with empty name to get base path
-        return this.targets.workspaceGroup(resolvedPath)
+        return this.targets.workspace(resolvedPath)
+      case 'project':
+        // For project targets, path is relative to project root
+        // Use workspace with empty name to get base path
+        return this.targets.workspace(resolvedPath)
       case 'globalConfig': {
         // Extract tool name from path (e.g., ~/.claude/ -> claude)
         const toolMatch = resolvedPath.match(/^~?\.?([^/]+)/)

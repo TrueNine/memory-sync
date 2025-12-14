@@ -35,12 +35,8 @@ import {
   createRefInputPlugin,
   createVSCodeIDEConfigPlugin,
   createWindsurfIDEPlugin,
-  createWorkspaceGroupInputPlugin,
+  createWorkspaceInputPlugin,
 } from './plugins'
-
-// ============================================================================
-// Default Path Configuration
-// ============================================================================
 
 /**
  * Default aindex project path builder
@@ -68,9 +64,9 @@ export const defaultPluginOptions = {
   excludePatterns: ['ref/*/dist'] as string[],
 
   /**
-   * Default workspace groups directory
+   * Default workspace directory
    */
-  workspaceGroupsDir: USER_PROJECTS_DIR,
+  workspaceDir: USER_PROJECTS_DIR,
 } as const
 
 // ============================================================================
@@ -85,7 +81,7 @@ export function createInputPlugins(options?: Partial<typeof defaultPluginOptions
   const opts = { ...defaultPluginOptions, ...options }
 
   return [
-    createWorkspaceGroupInputPlugin(),
+    createWorkspaceInputPlugin(),
     createRefInputPlugin({
       refDir: opts.refDir,
       excludePatterns: opts.excludePatterns,

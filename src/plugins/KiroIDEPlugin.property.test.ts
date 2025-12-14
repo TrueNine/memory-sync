@@ -83,8 +83,8 @@ function createMockContext(): PluginContext {
       resolve: (...segments: string[]) => ['', 'test', ...segments].join('/'),
     },
     targets: {
-      workspaceGroup: () => '/test/workspace-group',
       workspace: () => '/test/workspace',
+      project: () => '/test/project',
       globalConfig: () => '/test/global',
     },
     logger: {

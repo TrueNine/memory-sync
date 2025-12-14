@@ -23,9 +23,9 @@ const onErrorArb = fc.constantFrom('continue', 'stop') as fc.Arbitrary<'continue
 const excludePatternArb = fc.stringMatching(/^[a-zA-Z0-9_\-\*\/\.]+$/, { minLength: 1, maxLength: 30 })
 
 /**
- * Generate a valid workspace group name
+ * Generate a valid workspace name
  */
-const workspaceGroupNameArb = fc.stringMatching(/^[a-zA-Z][a-zA-Z0-9_\-]*$/, { minLength: 1, maxLength: 20 })
+const workspaceNameArb = fc.stringMatching(/^[a-zA-Z][a-zA-Z0-9_\-]*$/, { minLength: 1, maxLength: 20 })
 
 /**
  * Generate a valid path string
@@ -43,8 +43,8 @@ const pluginGlobalOptionsArb: fc.Arbitrary<PluginGlobalOptions> = fc.record({
   excludePatterns: fc.option(fc.array(excludePatternArb, { minLength: 0, maxLength: 5 }), { nil: undefined }),
   dryRun: fc.option(fc.boolean(), { nil: undefined }),
   cleanOnly: fc.option(fc.boolean(), { nil: undefined }),
-  workspaceGroups: fc.option(
-    fc.dictionary(workspaceGroupNameArb, pathArb, { minKeys: 0, maxKeys: 3 }),
+  workspaces: fc.option(
+    fc.dictionary(workspaceNameArb, pathArb, { minKeys: 0, maxKeys: 3 }),
     { nil: undefined },
   ),
   root: fc.option(pathArb, { nil: undefined }),
@@ -101,9 +101,9 @@ function areOptionsEquivalent(a: PluginGlobalOptions, b: PluginGlobalOptions): b
     }
   }
 
-  // Compare workspaceGroups object
-  const aGroups = a.workspaceGroups ?? {}
-  const bGroups = b.workspaceGroups ?? {}
+  // Compare workspaces object
+  const aGroups = a.workspaces ?? {}
+  const bGroups = b.workspaces ?? {}
   const aKeys = Object.keys(aGroups)
   const bKeys = Object.keys(bGroups)
   if (aKeys.length !== bKeys.length) {
@@ -204,23 +204,23 @@ describe('Bootstrap types properties', () => {
       )
     })
 
-    it('should preserve workspaceGroups object after round-trip', () => {
+    it('should preserve workspaces object after round-trip', () => {
       /**
        * **Feature: plugin-bootstrap-refactor, Property 10: PluginGlobalOptions serialization round-trip**
        * **Validates: Requirements 7.3**
        */
       fc.assert(
         fc.property(
-          fc.dictionary(workspaceGroupNameArb, pathArb, { minKeys: 1, maxKeys: 5 }),
+          fc.dictionary(workspaceNameArb, pathArb, { minKeys: 1, maxKeys: 5 }),
           (groups) => {
             const original: PluginGlobalOptions = {
-              workspaceGroups: groups,
+              workspaces: groups,
             }
 
             const serialized = serializeOptions(original)
             const deserialized = deserializeOptions(serialized)
 
-            expect(deserialized.workspaceGroups).toEqual(groups)
+            expect(deserialized.workspaces).toEqual(groups)
           },
         ),
         { numRuns: 100 },
