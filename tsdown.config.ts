@@ -7,6 +7,13 @@ export default defineConfig({
   unbundle: false,
   noExternal: [
     'mdast',
+    'yaml',
+    'winston',
+    'unified',
+    'remark-frontmatter',
+    'remark-gfm',
+    'remark-parse',
+    'fast-glob',
   ],
   format: ['esm'],
   minify: true,

@@ -19,6 +19,9 @@ export interface Plugin<T extends PluginKind = PluginKind> {
 
 export interface PluginContext {
   logger: Logger
+  fs: typeof import('node:fs')
+  path: typeof import('node:path')
+  glob: typeof import('fast-glob')
 }
 
 export interface InputPluginContext extends PluginContext {
@@ -30,7 +33,7 @@ export interface InputPlugin extends Plugin<PluginKind.Input> {
    * Collect all inputs from all registered input plugins.
    * This is the main entry point for the collect command.
    */
-  collect: (ctx: InputPluginContext) => CollectedInputContext
+  collect: (ctx: InputPluginContext) => Partial<CollectedInputContext>
 }
 
 /**
