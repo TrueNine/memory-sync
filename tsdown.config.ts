@@ -6,7 +6,7 @@ export default defineConfig({
   sourcemap: false,
   unbundle: false,
   noExternal: [
-
+    'mdast',
   ],
   format: ['esm'],
   minify: true,

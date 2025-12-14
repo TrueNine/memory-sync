@@ -7,52 +7,11 @@ import type {
   IDEKind,
   NamingCaseKind,
   PromptKind,
-} from '@/core'
-import type { Plugin } from '@/core/PluginTypes'
-
-// TODO 加入输出源的收集
-// TODO 加入输出 target 的删除
+} from '@/types'
+import type { AbsolutePath, EmptyPath, FileContent, Path, RelativePath } from '@/types/FileSystemTypes'
 
 export interface YAMLFrontMatter<N extends NamingCaseKind = NamingCaseKind.KebabCase> extends Record<string, unknown> {
   readonly namingCase: N
-}
-
-/**
- * 通用目录表示
- */
-export interface Path<K extends FilePathKind = FilePathKind> {
-  readonly pathKind: K
-  readonly path: string
-  readonly getDirectoryName: () => string
-}
-
-/**
- * 相对路径目录
- */
-export interface RelativePath extends Path<FilePathKind.Relative> {
-  /**
-   * 相对路径的基准目录，使用 `/` 进行分割
-   */
-  readonly basePath: string
-}
-
-/**
- * 绝对路径目录
- */
-export type AbsolutePath = Path<FilePathKind.Absolute>
-
-export type EmptyPath = Path<FilePathKind.Empty>
-
-export interface FileContent<
-  C = unknown,
-  FK extends FilePathKind = FilePathKind.Relative,
-  F extends Path = RelativePath,
-> {
-  content: C
-  length: number
-  filePathKind: FK
-  dir: F
-  charsetEncoding?: BufferEncoding
 }
 
 export interface Project {
@@ -71,71 +30,9 @@ export interface Project {
   readonly childMemoryPrompts?: readonly ProjectChildrenMemoryPrompt[]
 }
 
-/**
- * 输出插件需要处理的配置
- * 由插件系统解读为收集上下文
- * 插件路径自动解析以下展位符为特殊符号
- * - `$WORKSPACE`: 工作目录
- * - `$SHADOW_PROJECT`: 抽取源提示词工作目录（它是一个特殊的 project，方便存放于 git，单独进行管理提示词）
- * - `~`: 用户主目录
- *
- * @see CollectedInputContext - 被收集的上下文
- * @see PathPlaceholders - 路径占位符
- */
-export interface PluginOptions {
-  /**
-   * 插件自动扫描其 directChildrenDirectory 为 project
-   * @default ~/project
-   */
-  readonly workspaceDir?: string
-
-  /**
-   * @default $WORKSPACE/aindex
-   */
-  readonly shadowProjectDir?: string
-
-  /**
-   * @default $SHADOW_PROJECT/dist/skills
-   */
-  readonly shadowSkillSourceDir?: string
-
-  /**
-   * @default $SHADOW_PROJECT/dist/commands
-   */
-  readonly shadowFastCommandDir?: string
-
-  /**
-   * 插件自动扫描其 directChildrenDirectory 为 shadow project，
-   * 只有同时识别为
-   * @default $SHADOW_PROJECT/ref
-   */
-  readonly shadowSourceProjectDir?: string
-
-  /**
-   * 一些用户定义的脱离 workspace 的项目，
-   * 如果 shadow project 和 任何 project 重叠，则会：
-   * - 保留 shadow project
-   * - 剔除 同名的 project
-   */
-  readonly externalProjects?: readonly string[]
-
-  /**
-   * 不被处理的文件
-   * projectName and excludePatterns
-   */
-  readonly excludePatterns?: Record<string, string[]>
-  plugins?: Plugin[]
-  logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'
-}
-
 export interface Workspace {
   readonly directory: Path
   readonly projects: Project[]
-}
-
-export interface ProjectIDEConfigDirectory {
-  readonly directory: Path
-  readonly ideKind: IDEKind
 }
 
 /**
@@ -180,18 +77,18 @@ export type GlobalConfigDirectory<K = GlobalConfigDirectoryType> = GlobalConfigD
  * 提示词
  */
 export interface Prompt<
-  P extends PromptKind = PromptKind,
+  T extends PromptKind = PromptKind,
   Y extends YAMLFrontMatter = YAMLFrontMatter,
   DK extends FilePathKind = FilePathKind.Relative,
   D extends Path = RelativePath,
   C = unknown,
-> extends FileContent<C, DK, D>
-{
-  readonly type: P
+> extends FileContent<C, DK, D> {
+  readonly type: T
+
   /**
    * title YAML front matter
    */
-  readonly frontMatter?: Y
+  readonly yamlFrontMatter?: Y
   /**
    * YAML front matter as raw string
    * @example ```yaml
@@ -271,7 +168,7 @@ export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAML
 /**
  * skill 包含的其他文件
  */
-export interface SkillReferenceDocument extends Prompt<PromptKind.SkillReferenceDocument, YAMLFrontMatter, FilePathKind.Relative, RelativePath> {
+export interface SkillReferenceDocument extends Prompt<PromptKind.SkillReferenceDocument> {
   readonly type: PromptKind.SkillReferenceDocument
   readonly dir: RelativePath
   readonly referenceDocuments?: SkillReferenceDocument[]
@@ -294,5 +191,5 @@ export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatt
    */
   readonly dir: RelativePath
   readonly referenceDocuments?: SkillReferenceDocument[]
-  readonly frontMatter: SkillYAMLFrontMatter
+  readonly yamlFrontMatter: SkillYAMLFrontMatter
 }
