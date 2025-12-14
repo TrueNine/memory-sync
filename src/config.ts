@@ -291,7 +291,6 @@ export function defineConfig(userOptions: PluginOptions = {}): CollectedInputCon
         content,
         length: content.length,
         filePathKind: FilePathKind.Relative,
-        ...(parsed.yamlFrontMatter != null && { yamlFrontMatter: parsed.yamlFrontMatter }),
         ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
         markdownAst: parsed.markdownAst,
         markdownContents: parsed.markdownContents,
