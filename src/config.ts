@@ -14,6 +14,7 @@ import type {
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import process from 'node:process'
 import {
   DEFAULT_GLOBAL_MEMORY_FILE,
   DEFAULT_SHADOW_FAST_COMMAND_DIR,
@@ -55,6 +56,10 @@ function resolvePath(
 
 export function defineConfig(userOptions: PluginOptions = {}): CollectedInputContext {
   const options = { ...userOptions }
+
+  if (options.logLevel) {
+    process.env['LOG_LEVEL'] = options.logLevel
+  }
 
   const workspaceDirRaw = options.workspaceDir ?? DEFAULT_WORKSPACE_DIR
   const workspaceDir = resolvePath(workspaceDirRaw, '', '')
