@@ -78,6 +78,34 @@ export interface OutputCleanContext extends OutputPluginContext {
 }
 
 /**
+ * Context for output writing operations
+ */
+export interface OutputWriteContext extends OutputPluginContext {
+  /**
+   * Whether running in dry-run mode (no actual file writes)
+   */
+  readonly dryRun?: boolean
+}
+
+/**
+ * Result of a single write operation
+ */
+export interface WriteResult {
+  readonly path: RelativePath
+  readonly success: boolean
+  readonly skipped?: boolean
+  readonly error?: Error
+}
+
+/**
+ * Collected results from write operations
+ */
+export interface WriteResults {
+  readonly files: readonly WriteResult[]
+  readonly dirs: readonly WriteResult[]
+}
+
+/**
  * Awaitable type for sync/async flexibility
  */
 export type Awaitable<T> = T | Promise<T>
@@ -129,6 +157,30 @@ export interface OutputPlugin extends Plugin<PluginKind.Output> {
    * Can be used for post-cleanup tasks.
    */
   onCleanComplete?: (ctx: OutputCleanContext) => Awaitable<void>
+
+  /**
+   * Called before writing outputs.
+   * Return false to skip writing for this plugin.
+   */
+  canWrite?: (ctx: OutputWriteContext) => Awaitable<boolean>
+
+  /**
+   * Write project-level outputs.
+   * In dry-run mode, should only collect what would be written without actual I/O.
+   */
+  writeProjectOutputs?: (ctx: OutputWriteContext) => Awaitable<WriteResults>
+
+  /**
+   * Write global-level outputs.
+   * In dry-run mode, should only collect what would be written without actual I/O.
+   */
+  writeGlobalOutputs?: (ctx: OutputWriteContext) => Awaitable<WriteResults>
+
+  /**
+   * Hook called after writing completes.
+   * Can be used for post-write tasks like validation.
+   */
+  onWriteComplete?: (ctx: OutputWriteContext, results: WriteResults) => Awaitable<void>
 }
 
 /**
@@ -216,6 +268,61 @@ export async function executeOnCleanComplete(
   for (const plugin of plugins) {
     await plugin.onCleanComplete?.(ctx)
   }
+}
+
+/**
+ * Result of checking if a plugin allows writing.
+ */
+export interface WritePermission {
+  readonly project: boolean
+  readonly global: boolean
+}
+
+/**
+ * Check if all plugins allow writing.
+ * Returns a map of plugin name to whether writing is allowed.
+ */
+export async function checkCanWrite(
+  plugins: readonly OutputPlugin[],
+  ctx: OutputWriteContext,
+): Promise<Map<string, WritePermission>> {
+  const result = new Map<string, WritePermission>()
+
+  for (const plugin of plugins) {
+    const canWrite = (await plugin.canWrite?.(ctx)) ?? true
+    result.set(plugin.name, {
+      project: canWrite,
+      global: canWrite,
+    })
+  }
+
+  return result
+}
+
+/**
+ * Execute write operations for all plugins.
+ * Respects dry-run mode in context.
+ */
+export async function executeWriteOutputs(
+  plugins: readonly OutputPlugin[],
+  ctx: OutputWriteContext,
+): Promise<Map<string, WriteResults>> {
+  const results = new Map<string, WriteResults>()
+
+  for (const plugin of plugins) {
+    const projectResults = await plugin.writeProjectOutputs?.(ctx) ?? { files: [], dirs: [] }
+    const globalResults = await plugin.writeGlobalOutputs?.(ctx) ?? { files: [], dirs: [] }
+
+    const merged: WriteResults = {
+      files: [...projectResults.files, ...globalResults.files],
+      dirs: [...projectResults.dirs, ...globalResults.dirs],
+    }
+
+    results.set(plugin.name, merged)
+    await plugin.onWriteComplete?.(ctx, merged)
+  }
+
+  return results
 }
 
 /**

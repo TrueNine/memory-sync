@@ -16,7 +16,6 @@ import {
   PromptKind,
 } from '@/types'
 
-
 /**
  * Project memory prompt file name
  */
@@ -137,7 +136,7 @@ export class FileSystemProjectPromptPlugin implements InputPlugin {
 
     const entries = fs.readdirSync(currentPath, { withFileTypes: true })
     for (const entry of entries) {
-      if (!(Boolean(entry.isDirectory()))) {
+      if (!(entry.isDirectory())) {
         continue
       }
 

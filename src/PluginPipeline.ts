@@ -3,11 +3,23 @@ import type {
   CollectedInputContext,
   InputPlugin,
   InputPluginContext,
+  OutputPlugin,
+  OutputPluginContext,
+  OutputWriteContext,
   Plugin,
   PluginKind,
 } from '@/types'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import glob from 'fast-glob'
 import { createLogger } from '@/log'
-import { CircularDependencyError, MissingDependencyError } from '@/types'
+import {
+  checkCanWrite,
+  CircularDependencyError,
+  collectAllPluginOutputs,
+  executeWriteOutputs,
+  MissingDependencyError,
+} from '@/types'
 
 /**
  * 命令行参数解析结果
@@ -157,6 +169,7 @@ function parseArgs(args: readonly string[]): ParsedCliArgs {
 export class PluginPipeline {
   private readonly logger: Logger
   readonly args: ParsedCliArgs
+  private outputPlugins: OutputPlugin[] = []
 
   constructor(...cmdArgs: (string | undefined)[]) {
     this.logger = createLogger('PluginPipeline')
@@ -166,29 +179,86 @@ export class PluginPipeline {
     this.logger.info('PluginPipeline initialized', { args: this.args })
   }
 
-  async runCleanPipeline() {
-
+  registerOutputPlugins(plugins: OutputPlugin[]): this {
+    this.outputPlugins.push(...plugins)
+    return this
   }
 
-  async runExecutePipeline() {
+  async runCleanPipeline(ctx: CollectedInputContext): Promise<void> {
+    this.logger.info('Running clean pipeline')
+    const outputCtx = this.createOutputContext(ctx, false)
+    const outputs = await collectAllPluginOutputs(this.outputPlugins, outputCtx)
 
+    this.logger.info('Collected outputs for cleanup', {
+      projectDirs: outputs.projectDirs.length,
+      projectFiles: outputs.projectFiles.length,
+      globalDirs: outputs.globalDirs.length,
+      globalFiles: outputs.globalFiles.length,
+    })
   }
 
-  async runDryRunPipeline() {
+  async runExecutePipeline(ctx: CollectedInputContext): Promise<void> {
+    this.logger.info('Running execute pipeline')
+    const writeCtx = this.createWriteContext(ctx, false)
 
+    const permissions = await checkCanWrite(this.outputPlugins, writeCtx)
+    const allowedPlugins = this.outputPlugins.filter((p) => permissions.get(p.name)?.project ?? true)
+
+    const results = await executeWriteOutputs(allowedPlugins, writeCtx)
+    this.logger.info('Execute pipeline complete', { pluginCount: results.size })
+  }
+
+  async runDryRunPipeline(ctx: CollectedInputContext): Promise<void> {
+    this.logger.info('[DRY-RUN] Running dry-run pipeline')
+    const writeCtx = this.createWriteContext(ctx, true)
+
+    const permissions = await checkCanWrite(this.outputPlugins, writeCtx)
+    const allowedPlugins = this.outputPlugins.filter((p) => permissions.get(p.name)?.project ?? true)
+
+    const results = await executeWriteOutputs(allowedPlugins, writeCtx)
+
+    // Summary
+    let totalFiles = 0
+    let totalDirs = 0
+    for (const [pluginName, result] of results) {
+      totalFiles += result.files.length
+      totalDirs += result.dirs.length
+      this.logger.info(`[DRY-RUN] ${pluginName}: ${result.files.length} files, ${result.dirs.length} dirs`)
+    }
+    this.logger.info(`[DRY-RUN] Total: ${totalFiles} files, ${totalDirs} dirs would be written`)
   }
 
   async run(ctx: CollectedInputContext): Promise<void> {
-    console.error(ctx.globalMemory == null)
     if (this.args.clean) {
-      await this.runCleanPipeline()
+      await this.runCleanPipeline(ctx)
       return
     }
     if (this.args.dryRun) {
-      await this.runDryRunPipeline()
+      await this.runDryRunPipeline(ctx)
       return
     }
-    await this.runExecutePipeline()
+    await this.runExecutePipeline(ctx)
+  }
+
+  private createOutputContext(ctx: CollectedInputContext, _dryRun: boolean): OutputPluginContext {
+    return {
+      logger: this.logger,
+      fs,
+      path,
+      glob,
+      collectedInputContext: ctx,
+    }
+  }
+
+  private createWriteContext(ctx: CollectedInputContext, dryRun: boolean): OutputWriteContext {
+    return {
+      logger: this.logger,
+      fs,
+      path,
+      glob,
+      collectedInputContext: ctx,
+      dryRun,
+    }
   }
 
   /**
