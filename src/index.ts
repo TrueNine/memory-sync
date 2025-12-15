@@ -13,6 +13,6 @@ async function main() {
   await pipeline.run(userPluginConfig)
 }
 
-main().catch((e) => {
+main().catch((e: unknown) => {
   console.error(e)
 })

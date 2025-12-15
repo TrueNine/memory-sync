@@ -8,6 +8,7 @@ import type {
   YAMLFrontMatter,
 } from '@/types'
 
+import { DEFAULT_SHADOW_SOURCE_PROJECT_DIR } from '@/constants'
 import { createLogger } from '@/log'
 import { parseMarkdown } from '@/markdown'
 import {
@@ -15,6 +16,7 @@ import {
   PluginKind,
   PromptKind,
 } from '@/types'
+import { resolveBasePaths, resolvePath } from '@/utils/pathUtils'
 
 /**
  * Project memory prompt file name
@@ -32,7 +34,12 @@ export class FileSystemProjectPromptPlugin implements InputPlugin {
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const { dependencyContext, fs } = ctx
+    const { dependencyContext, fs, userConfigOptions: options, path } = ctx
+    const { workspaceDir, shadowProjectDir } = resolveBasePaths(options)
+
+    // Resolve shadow source project directory
+    const shadowSourceProjectDirRaw = options.shadowSourceProjectDir ?? DEFAULT_SHADOW_SOURCE_PROJECT_DIR
+    const shadowSourceProjectDir = resolvePath(shadowSourceProjectDirRaw, workspaceDir, shadowProjectDir)
 
     // Get workspace from dependency context (provided by FileSystemShadowProjectPlugin)
     const dependencyWorkspace = dependencyContext.workspace
@@ -43,19 +50,28 @@ export class FileSystemProjectPromptPlugin implements InputPlugin {
 
     const projects = dependencyWorkspace.projects ?? []
 
-    // Enhance projects with memory prompts
+    // Enhance projects with memory prompts from shadow source dist directory
     const enhancedProjects = projects.map((project) => {
-      const projectPath = project.dirFromWorkspacePath?.getAbsolutePath()
-      if (projectPath == null) {
+      const projectName = project.name
+      if (projectName == null) {
         return project
       }
 
-      if (!fs.existsSync(projectPath) || !fs.statSync(projectPath).isDirectory()) {
+      // Read from shadow source dist directory: ref/<project>/dist/
+      const shadowProjectDistPath = path.join(shadowSourceProjectDir, projectName, 'dist')
+      if (!fs.existsSync(shadowProjectDistPath) || !fs.statSync(shadowProjectDistPath).isDirectory()) {
         return project
       }
 
-      const rootMemoryPrompt = this.readRootMemoryPrompt(ctx, projectPath)
-      const childMemoryPrompts = this.scanChildMemoryPrompts(ctx, projectPath)
+      // Get target project path for output
+      const targetProjectPath = project.dirFromWorkspacePath?.getAbsolutePath()
+
+      // Root prompt: ref/<project>/dist/AGENTS.md -> <project>/AGENTS.md
+      const rootMemoryPrompt = this.readRootMemoryPrompt(ctx, shadowProjectDistPath)
+      // Child prompts: ref/<project>/dist/<subdir>/AGENTS.md -> <project>/<subdir>/AGENTS.md
+      const childMemoryPrompts = targetProjectPath != null
+        ? this.scanChildMemoryPrompts(ctx, shadowProjectDistPath, targetProjectPath)
+        : []
 
       return {
         ...project,
@@ -112,15 +128,16 @@ export class FileSystemProjectPromptPlugin implements InputPlugin {
 
   private scanChildMemoryPrompts(
     ctx: InputPluginContext,
-    projectPath: string,
+    shadowProjectPath: string,
+    targetProjectPath: string,
   ): ProjectChildrenMemoryPrompt[] {
     const { logger } = ctx
     const prompts: ProjectChildrenMemoryPrompt[] = []
 
     try {
-      this.scanDirectoryRecursive(ctx, projectPath, projectPath, prompts)
+      this.scanDirectoryRecursive(ctx, shadowProjectPath, shadowProjectPath, targetProjectPath, prompts)
     } catch (e) {
-      logger.error(`Failed to scan child memory prompts at ${projectPath}`, { error: e })
+      logger.error(`Failed to scan child memory prompts at ${shadowProjectPath}`, { error: e })
     }
 
     return prompts
@@ -128,8 +145,9 @@ export class FileSystemProjectPromptPlugin implements InputPlugin {
 
   private scanDirectoryRecursive(
     ctx: InputPluginContext,
-    projectPath: string,
+    shadowProjectPath: string,
     currentPath: string,
+    targetProjectPath: string,
     prompts: ProjectChildrenMemoryPrompt[],
   ): void {
     const { fs, path } = ctx
@@ -149,31 +167,35 @@ export class FileSystemProjectPromptPlugin implements InputPlugin {
       const memoryFile = path.join(childDir, PROJECT_MEMORY_FILE)
 
       if ((Boolean(fs.existsSync(memoryFile))) && (Boolean(fs.statSync(memoryFile).isFile()))) {
-        const prompt = this.readChildMemoryPrompt(ctx, projectPath, childDir, entry.name)
+        const prompt = this.readChildMemoryPrompt(ctx, shadowProjectPath, childDir, targetProjectPath)
         if (prompt != null) {
           prompts.push(prompt)
         }
       }
 
       // Continue scanning subdirectories
-      this.scanDirectoryRecursive(ctx, projectPath, childDir, prompts)
+      this.scanDirectoryRecursive(ctx, shadowProjectPath, childDir, targetProjectPath, prompts)
     }
   }
 
   private readChildMemoryPrompt(
     ctx: InputPluginContext,
-    projectPath: string,
-    childDir: string,
-    dirName: string,
+    shadowProjectPath: string,
+    shadowChildDir: string,
+    targetProjectPath: string,
   ): ProjectChildrenMemoryPrompt | undefined {
     const { fs, path, logger } = ctx
-    const filePath = path.join(childDir, PROJECT_MEMORY_FILE)
+    const filePath = path.join(shadowChildDir, PROJECT_MEMORY_FILE)
 
     try {
       const rawContent = fs.readFileSync(filePath, 'utf-8')
       const parsed = parseMarkdown<YAMLFrontMatter>(rawContent)
       const content = parsed.contentWithoutFrontMatter
-      const relativePath = path.relative(projectPath, childDir)
+      // Relative path from shadow project root
+      const relativePath = path.relative(shadowProjectPath, shadowChildDir)
+      // Target directory in actual project
+      const targetChildDir = path.join(targetProjectPath, relativePath)
+      const dirName = path.basename(shadowChildDir)
 
       return {
         type: PromptKind.ProjectChildrenMemory,
@@ -187,16 +209,16 @@ export class FileSystemProjectPromptPlugin implements InputPlugin {
         dir: {
           pathKind: FilePathKind.Relative,
           path: relativePath,
-          basePath: projectPath,
+          basePath: targetProjectPath,
           getDirectoryName: () => dirName,
-          getAbsolutePath: () => childDir,
+          getAbsolutePath: () => targetChildDir,
         },
         workingChildDirectoryPath: {
           pathKind: FilePathKind.Relative,
           path: relativePath,
-          basePath: projectPath,
+          basePath: targetProjectPath,
           getDirectoryName: () => dirName,
-          getAbsolutePath: () => childDir,
+          getAbsolutePath: () => targetChildDir,
         },
       }
     } catch (e) {

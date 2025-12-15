@@ -13,6 +13,8 @@ import process from 'node:process'
 import { createLogger } from '@/log'
 import { FilePathKind, PluginKind } from '@/types'
 
+const PROJECT_MEMORY_FILE = 'AGENTS.md'
+
 export class AgentMdOutputPlugin implements OutputPlugin {
   readonly type = PluginKind.Output
   readonly name = 'AgentMdOutputPlugin'
@@ -65,13 +67,17 @@ export class AgentMdOutputPlugin implements OutputPlugin {
 
     for (const project of projects) {
       const projectName = project.name ?? 'unknown'
+      const projectDir = project.dirFromWorkspacePath
 
-      // Write root memory prompt
+      if (projectDir == null) {
+        continue
+      }
+
+      // Write root memory prompt (only if exists)
       if (project.rootMemoryPrompt != null) {
-        const rootDir = project.rootMemoryPrompt.dir
         const result = await this.writePromptFile(
           ctx,
-          rootDir,
+          projectDir,
           project.rootMemoryPrompt.content as string,
           `project:${projectName}/root`,
         )
@@ -81,13 +87,13 @@ export class AgentMdOutputPlugin implements OutputPlugin {
       // Write children memory prompts
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
-          const result = await this.writePromptFile(
+          const childResult = await this.writePromptFile(
             ctx,
             child.dir,
             child.content as string,
             `project:${projectName}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`,
           )
-          fileResults.push(result)
+          fileResults.push(childResult)
         }
       }
     }
@@ -98,7 +104,7 @@ export class AgentMdOutputPlugin implements OutputPlugin {
   async onWriteComplete(ctx: OutputWriteContext, results: WriteResults): Promise<void> {
     const successCount = results.files.filter((r) => r.success).length
     const skipCount = results.files.filter((r) => r.skipped).length
-    const failCount = results.files.filter((r) => !(Boolean(r.success)) && !(Boolean(r.skipped))).length
+    const failCount = results.files.filter((r) => !(r.success) && !(r.skipped)).length
 
     const mode = ctx.dryRun === true ? '[DRY-RUN]' : ''
     this.log.info(`${mode} Write complete: ${successCount} success, ${skipCount} skipped, ${failCount} failed`)
@@ -153,13 +159,15 @@ export class AgentMdOutputPlugin implements OutputPlugin {
   }
 
   private resolveFullPath(targetPath: Path): string {
+    let dirPath: string
     if (targetPath.pathKind === FilePathKind.Absolute) {
-      return targetPath.path
+      dirPath = targetPath.path
+    } else if (this.isRelativePath(targetPath)) {
+      dirPath = path.resolve(targetPath.basePath, targetPath.path)
+    } else {
+      dirPath = path.resolve(process.cwd(), targetPath.path)
     }
-    if (this.isRelativePath(targetPath)) {
-      return path.resolve(targetPath.basePath, targetPath.path)
-    }
-    // Empty path - use current working directory
-    return path.resolve(process.cwd(), targetPath.path)
+    // Append the output file name to the directory path
+    return path.join(dirPath, PROJECT_MEMORY_FILE)
   }
 }

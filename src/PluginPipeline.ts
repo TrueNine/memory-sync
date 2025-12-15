@@ -1,3 +1,4 @@
+import type { PipelineConfig } from '@/config'
 import type { Logger } from '@/log'
 import type {
   CollectedInputContext,
@@ -228,16 +229,19 @@ export class PluginPipeline {
     this.logger.info(`[DRY-RUN] Total: ${totalFiles} files, ${totalDirs} dirs would be written`)
   }
 
-  async run(ctx: CollectedInputContext): Promise<void> {
+  async run(config: PipelineConfig): Promise<void> {
+    const { context, outputPlugins } = config
+    this.registerOutputPlugins([...outputPlugins])
+
     if (this.args.clean) {
-      await this.runCleanPipeline(ctx)
+      await this.runCleanPipeline(context)
       return
     }
     if (this.args.dryRun) {
-      await this.runDryRunPipeline(ctx)
+      await this.runDryRunPipeline(context)
       return
     }
-    await this.runExecutePipeline(ctx)
+    await this.runExecutePipeline(context)
   }
 
   private createOutputContext(ctx: CollectedInputContext, _dryRun: boolean): OutputPluginContext {

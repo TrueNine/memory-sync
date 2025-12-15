@@ -1,4 +1,4 @@
-import type { CollectedInputContext, InputPlugin, InputPluginContext, PluginOptions } from '@/types'
+import type { CollectedInputContext, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions } from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
@@ -14,6 +14,14 @@ import {
 import { createLogger } from '@/log'
 import { PluginPipeline } from '@/PluginPipeline'
 import { PluginKind } from '@/types'
+
+/**
+ * Pipeline configuration containing collected context and output plugins
+ */
+export interface PipelineConfig {
+  readonly context: CollectedInputContext
+  readonly outputPlugins: readonly OutputPlugin[]
+}
 
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
   workspaceDir: DEFAULT_WORKSPACE_DIR,
@@ -82,7 +90,7 @@ function mergeExcludePatterns(
   return result
 }
 
-export function defineConfig(options: PluginOptions = {}): CollectedInputContext {
+export function defineConfig(options: PluginOptions = {}): PipelineConfig {
   const { plugins = [], logLevel } = mergeConfig(options)
   const logger = createLogger('defineConfig', logLevel)
 
@@ -95,8 +103,9 @@ export function defineConfig(options: PluginOptions = {}): CollectedInputContext
     glob,
   }
 
-  // Filter input plugins
+  // Filter plugins by type
   const inputPlugins = plugins.filter((p): p is InputPlugin => p.type === PluginKind.Input)
+  const outputPlugins = plugins.filter((p): p is OutputPlugin => p.type === PluginKind.Output)
 
   // Use PluginPipeline to execute plugins in dependency order
   const pipeline = new PluginPipeline()
@@ -107,7 +116,7 @@ export function defineConfig(options: PluginOptions = {}): CollectedInputContext
     throw new Error('Workspace not initialized by any plugin')
   }
 
-  return {
+  const context: CollectedInputContext = {
     workspace: merged.workspace,
     ideConfigFiles: merged.ideConfigFiles ?? [],
     ...(merged.externalProjects != null && { externalProjects: merged.externalProjects }),
@@ -116,4 +125,6 @@ export function defineConfig(options: PluginOptions = {}): CollectedInputContext
     ...(merged.skills != null && { skills: merged.skills }),
     ...(merged.globalMemory != null && { globalMemory: merged.globalMemory }),
   }
+
+  return { context, outputPlugins }
 }
