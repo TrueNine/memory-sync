@@ -5,7 +5,6 @@ import { createLogger } from '@/log'
 import {
   FilePathKind,
   PluginKind,
-
 } from '@/types'
 import { resolveBasePaths, resolvePath } from '@/utils/pathUtils'
 

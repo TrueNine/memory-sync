@@ -3,6 +3,7 @@ import type { PluginKind } from '@/types/Enums'
 import type { RelativePath } from '@/types/FileSystemTypes'
 import type {
   CollectedInputContext,
+  Project,
 } from '@/types/InputTypes'
 
 export interface Plugin<T extends PluginKind = PluginKind> {
@@ -15,6 +16,11 @@ export interface Plugin<T extends PluginKind = PluginKind> {
    * Logger for the plugin
    */
   readonly log: Logger
+  /**
+   * Plugin names this plugin depends on.
+   * Dependencies will be executed before this plugin.
+   */
+  readonly dependsOn?: readonly string[]
 }
 
 export interface PluginContext {
@@ -26,6 +32,11 @@ export interface PluginContext {
 
 export interface InputPluginContext extends PluginContext {
   readonly userConfigOptions: PluginOptions
+  /**
+   * Accumulated context from all executed dependencies.
+   * Contains merged outputs from plugins that this plugin depends on.
+   */
+  readonly dependencyContext: Partial<CollectedInputContext>
 }
 
 export interface InputPlugin extends Plugin<PluginKind.Input> {
@@ -34,6 +45,19 @@ export interface InputPlugin extends Plugin<PluginKind.Input> {
    * This is the main entry point for the collect command.
    */
   collect: (ctx: InputPluginContext) => Partial<CollectedInputContext>
+}
+
+/**
+ * Plugin that can enhance projects after all projects are collected.
+ * This is useful for plugins that need to add data to projects
+ * that were collected by other plugins.
+ */
+export interface ProjectEnhancerPlugin extends InputPlugin {
+  /**
+   * Enhance projects with additional data.
+   * Called after all projects are collected from all input plugins.
+   */
+  enhanceProjects: (ctx: InputPluginContext, projects: readonly Project[]) => Project[]
 }
 
 /**
@@ -54,59 +78,57 @@ export interface OutputCleanContext extends OutputPluginContext {
 }
 
 /**
- * Hooks that output plugins can register.
- * Each hook is optional - plugins only implement what they need.
+ * Awaitable type for sync/async flexibility
  */
-export interface OutputPluginHooks {
+export type Awaitable<T> = T | Promise<T>
+
+/**
+ * Output plugin interface.
+ * Plugins directly implement lifecycle hooks as methods.
+ * All hooks support both sync and async implementations.
+ */
+export interface OutputPlugin extends Plugin<PluginKind.Output> {
   /**
    * Register project-level output directories created by this plugin.
    * Called during output collection phase.
    */
-  readonly registerProjectOutputDirs?: (ctx: OutputPluginContext) => readonly RelativePath[]
+  registerProjectOutputDirs?: (ctx: OutputPluginContext) => Awaitable<readonly RelativePath[]>
 
   /**
    * Register project-level output files created by this plugin.
    * Called during output collection phase.
    */
-  readonly registerProjectOutputFiles?: (ctx: OutputPluginContext) => readonly RelativePath[]
+  registerProjectOutputFiles?: (ctx: OutputPluginContext) => Awaitable<readonly RelativePath[]>
 
   /**
    * Register global output directories created by this plugin.
    * Called during output collection phase.
    */
-  readonly registerGlobalOutputDirs?: (ctx: OutputPluginContext) => readonly RelativePath[]
+  registerGlobalOutputDirs?: (ctx: OutputPluginContext) => Awaitable<readonly RelativePath[]>
 
   /**
    * Register global output files created by this plugin.
    * Called during output collection phase.
    */
-  readonly registerGlobalOutputFiles?: (ctx: OutputPluginContext) => readonly RelativePath[]
+  registerGlobalOutputFiles?: (ctx: OutputPluginContext) => Awaitable<readonly RelativePath[]>
 
   /**
    * Called before cleaning project outputs.
    * Return false to prevent cleanup for this plugin.
    */
-  readonly canCleanProject?: (ctx: OutputCleanContext) => boolean
+  canCleanProject?: (ctx: OutputCleanContext) => Awaitable<boolean>
 
   /**
    * Called before cleaning global outputs.
    * Return false to prevent cleanup for this plugin.
    */
-  readonly canCleanGlobal?: (ctx: OutputCleanContext) => boolean
+  canCleanGlobal?: (ctx: OutputCleanContext) => Awaitable<boolean>
 
   /**
    * Hook called after cleaning completes.
    * Can be used for post-cleanup tasks.
    */
-  readonly onCleanComplete?: (ctx: OutputCleanContext) => void
-}
-
-/**
- * Output plugin interface with hook-based architecture.
- * Plugins register hooks to participate in different lifecycle phases.
- */
-export interface OutputPlugin extends Plugin<PluginKind.Output> {
-  readonly hooks: OutputPluginHooks
+  onCleanComplete?: (ctx: OutputCleanContext) => Awaitable<void>
 }
 
 /**
@@ -124,29 +146,27 @@ export interface CollectedOutputs {
  * Collect all outputs from all registered output plugins.
  * This is the main entry point for the clean command.
  */
-export function collectAllPluginOutputs(
+export async function collectAllPluginOutputs(
   plugins: readonly OutputPlugin[],
   ctx: OutputPluginContext,
-): CollectedOutputs {
+): Promise<CollectedOutputs> {
   const projectDirs: RelativePath[] = []
   const projectFiles: RelativePath[] = []
   const globalDirs: RelativePath[] = []
   const globalFiles: RelativePath[] = []
 
   for (const plugin of plugins) {
-    const hooks = plugin.hooks
-
-    if (hooks.registerProjectOutputDirs) {
-      projectDirs.push(...hooks.registerProjectOutputDirs(ctx))
+    if (plugin.registerProjectOutputDirs) {
+      projectDirs.push(...await plugin.registerProjectOutputDirs(ctx))
     }
-    if (hooks.registerProjectOutputFiles) {
-      projectFiles.push(...hooks.registerProjectOutputFiles(ctx))
+    if (plugin.registerProjectOutputFiles) {
+      projectFiles.push(...await plugin.registerProjectOutputFiles(ctx))
     }
-    if (hooks.registerGlobalOutputDirs) {
-      globalDirs.push(...hooks.registerGlobalOutputDirs(ctx))
+    if (plugin.registerGlobalOutputDirs) {
+      globalDirs.push(...await plugin.registerGlobalOutputDirs(ctx))
     }
-    if (hooks.registerGlobalOutputFiles) {
-      globalFiles.push(...hooks.registerGlobalOutputFiles(ctx))
+    if (plugin.registerGlobalOutputFiles) {
+      globalFiles.push(...await plugin.registerGlobalOutputFiles(ctx))
     }
   }
 
@@ -170,17 +190,16 @@ export interface CleanPermission {
  * Check if all plugins allow cleaning.
  * Returns a map of plugin name to whether cleaning is allowed.
  */
-export function checkCanClean(
+export async function checkCanClean(
   plugins: readonly OutputPlugin[],
   ctx: OutputCleanContext,
-): Map<string, CleanPermission> {
+): Promise<Map<string, CleanPermission>> {
   const result = new Map<string, CleanPermission>()
 
   for (const plugin of plugins) {
-    const hooks = plugin.hooks
     result.set(plugin.name, {
-      project: hooks.canCleanProject?.(ctx) ?? true,
-      global: hooks.canCleanGlobal?.(ctx) ?? true,
+      project: (await plugin.canCleanProject?.(ctx)) ?? true,
+      global: (await plugin.canCleanGlobal?.(ctx)) ?? true,
     })
   }
 
@@ -190,12 +209,12 @@ export function checkCanClean(
 /**
  * Execute post-clean hooks for all plugins.
  */
-export function executeOnCleanComplete(
+export async function executeOnCleanComplete(
   plugins: readonly OutputPlugin[],
   ctx: OutputCleanContext,
-): void {
+): Promise<void> {
   for (const plugin of plugins) {
-    plugin.hooks.onCleanComplete?.(ctx)
+    await plugin.onCleanComplete?.(ctx)
   }
 }
 

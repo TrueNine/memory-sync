@@ -1,4 +1,5 @@
 export * from './Enums'
+export * from './Errors'
 export * from './FileSystemTypes'
 export * from './InputTypes'
 export * from './OutputTypes'
