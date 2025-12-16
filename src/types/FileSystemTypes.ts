@@ -25,7 +25,7 @@ export interface RelativePath extends Path<FilePathKind.Relative> {
  */
 export type AbsolutePath = Path<FilePathKind.Absolute>
 
-export type EmptyPath = Path<FilePathKind.Empty>
+export type RootPath = Path<FilePathKind.Root>
 
 export interface FileContent<
   C = unknown,

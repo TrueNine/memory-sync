@@ -1,6 +1,6 @@
 import type { Root, RootContent } from 'mdast'
 import type { ClaudeCodeCLISubAgentColors, CodingAgentTools, FilePathKind, NamingCaseKind, PromptKind } from '@/types/Enums'
-import type { EmptyPath, FileContent, Path, RelativePath } from '@/types/FileSystemTypes'
+import type { FileContent, Path, RelativePath, RootPath } from '@/types/FileSystemTypes'
 import type { GlobalConfigDirectory } from '@/types/OutputTypes'
 
 /**
@@ -44,7 +44,7 @@ export interface ProjectRootMemoryPrompt extends Prompt<
   PromptKind.ProjectRootMemory,
   YAMLFrontMatter,
   FilePathKind.Relative,
-  EmptyPath
+  RootPath
 > {
   readonly type: PromptKind.ProjectRootMemory
 }

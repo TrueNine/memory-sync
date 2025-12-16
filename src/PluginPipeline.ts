@@ -4,8 +4,8 @@ import type {
   CollectedInputContext,
   InputPlugin,
   InputPluginContext,
+  OutputCleanContext,
   OutputPlugin,
-  OutputPluginContext,
   OutputWriteContext,
   Plugin,
   PluginKind,
@@ -15,9 +15,11 @@ import * as path from 'node:path'
 import glob from 'fast-glob'
 import { createLogger } from '@/log'
 import {
+  checkCanClean,
   checkCanWrite,
   CircularDependencyError,
   collectAllPluginOutputs,
+  executeOnCleanComplete,
   executeWriteOutputs,
   MissingDependencyError,
 } from '@/types'
@@ -187,8 +189,9 @@ export class PluginPipeline {
 
   async runCleanPipeline(ctx: CollectedInputContext): Promise<void> {
     this.logger.info('Running clean pipeline')
-    const outputCtx = this.createOutputContext(ctx, false)
-    const outputs = await collectAllPluginOutputs(this.outputPlugins, outputCtx)
+    const dryRun = this.args.dryRun
+    const cleanCtx = this.createCleanContext(ctx, dryRun)
+    const outputs = await collectAllPluginOutputs(this.outputPlugins, cleanCtx)
 
     this.logger.info('Collected outputs for cleanup', {
       projectDirs: outputs.projectDirs.length,
@@ -196,6 +199,71 @@ export class PluginPipeline {
       globalDirs: outputs.globalDirs.length,
       globalFiles: outputs.globalFiles.length,
     })
+
+    // Check permissions
+    const permissions = await checkCanClean(this.outputPlugins, cleanCtx)
+
+    // Collect files/dirs to delete based on permissions
+    const filesToDelete: string[] = []
+    const dirsToDelete: string[] = []
+
+    for (const plugin of this.outputPlugins) {
+      const perm = permissions.get(plugin.name)
+      if (perm?.project) {
+        // Add project outputs for this plugin
+        const projectFiles = await plugin.registerProjectOutputFiles?.(cleanCtx) ?? []
+        const projectDirs = await plugin.registerProjectOutputDirs?.(cleanCtx) ?? []
+        filesToDelete.push(...projectFiles.map((f) => f.getAbsolutePath()))
+        dirsToDelete.push(...projectDirs.map((d) => d.getAbsolutePath()))
+      }
+      if (perm?.global) {
+        // Add global outputs for this plugin
+        const globalFiles = await plugin.registerGlobalOutputFiles?.(cleanCtx) ?? []
+        const globalDirs = await plugin.registerGlobalOutputDirs?.(cleanCtx) ?? []
+        filesToDelete.push(...globalFiles.map((f) => f.getAbsolutePath()))
+        dirsToDelete.push(...globalDirs.map((d) => d.getAbsolutePath()))
+      }
+    }
+
+    // Delete files first
+    for (const file of filesToDelete) {
+      const resolved = path.isAbsolute(file) ? file : path.resolve(file)
+      if (dryRun) {
+        this.logger.info(`[DRY-RUN] Would delete file: ${resolved}`)
+        continue
+      }
+      try {
+        if (fs.existsSync(resolved)) {
+          fs.unlinkSync(resolved)
+          this.logger.info(`Deleted file: ${resolved}`)
+        }
+      } catch (e) {
+        this.logger.warn(`Failed to delete file: ${resolved}`, { error: e })
+      }
+    }
+
+    // Delete directories (in reverse order to handle nested dirs)
+    const sortedDirs = [...dirsToDelete].sort((a, b) => b.length - a.length)
+    for (const dir of sortedDirs) {
+      const resolved = path.isAbsolute(dir) ? dir : path.resolve(dir)
+      if (dryRun) {
+        this.logger.info(`[DRY-RUN] Would delete directory: ${resolved}`)
+        continue
+      }
+      try {
+        if (fs.existsSync(resolved)) {
+          fs.rmSync(resolved, { recursive: true, force: true })
+          this.logger.info(`Deleted directory: ${resolved}`)
+        }
+      } catch (e) {
+        this.logger.warn(`Failed to delete directory: ${resolved}`, { error: e })
+      }
+    }
+
+    // Execute post-clean hooks
+    await executeOnCleanComplete(this.outputPlugins, cleanCtx)
+
+    this.logger.info(`Clean complete: ${filesToDelete.length} files, ${dirsToDelete.length} directories${dryRun ? ' (dry-run)' : ''}`)
   }
 
   async runExecutePipeline(ctx: CollectedInputContext): Promise<void> {
@@ -214,7 +282,7 @@ export class PluginPipeline {
     const writeCtx = this.createWriteContext(ctx, true)
 
     const permissions = await checkCanWrite(this.outputPlugins, writeCtx)
-    const allowedPlugins = this.outputPlugins.filter((p) => permissions.get(p.name)?.project ?? true)
+    const allowedPlugins = this.outputPlugins.filter((p) => Boolean((permissions.get(p.name)?.project ?? true)))
 
     const results = await executeWriteOutputs(allowedPlugins, writeCtx)
 
@@ -244,13 +312,14 @@ export class PluginPipeline {
     await this.runExecutePipeline(context)
   }
 
-  private createOutputContext(ctx: CollectedInputContext, _dryRun: boolean): OutputPluginContext {
+  private createCleanContext(ctx: CollectedInputContext, dryRun: boolean): OutputCleanContext {
     return {
       logger: this.logger,
       fs,
       path,
       glob,
       collectedInputContext: ctx,
+      dryRun,
     }
   }
 

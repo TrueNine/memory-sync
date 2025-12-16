@@ -115,7 +115,7 @@ export class FileSystemProjectPromptPlugin implements InputPlugin {
         markdownAst: parsed.markdownAst,
         markdownContents: parsed.markdownContents,
         dir: {
-          pathKind: FilePathKind.Empty,
+          pathKind: FilePathKind.Root,
           path: '',
           getDirectoryName: () => '',
         },

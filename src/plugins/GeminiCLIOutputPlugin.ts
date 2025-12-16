@@ -31,21 +31,32 @@ export class GeminiCLIOutputPlugin implements OutputPlugin {
     const { projects } = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
-      const rootDir = project.rootMemoryPrompt?.dir
-      if (rootDir != null && this.isRelativePath(rootDir)) {
-        results.push(rootDir)
+      // Root memory prompt uses project.dirFromWorkspacePath
+      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
+        results.push(this.createFileRelativePath(project.dirFromWorkspacePath))
       }
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
           if (child.dir != null && this.isRelativePath(child.dir)) {
-            results.push(child.dir)
+            results.push(this.createFileRelativePath(child.dir))
           }
         }
       }
     }
 
     return results
+  }
+
+  private createFileRelativePath(dir: RelativePath): RelativePath {
+    const filePath = path.join(dir.path, PROJECT_MEMORY_FILE)
+    return {
+      pathKind: FilePathKind.Relative,
+      path: filePath,
+      basePath: dir.basePath,
+      getDirectoryName: () => dir.getDirectoryName(),
+      getAbsolutePath: () => path.join(dir.basePath, filePath),
+    }
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {

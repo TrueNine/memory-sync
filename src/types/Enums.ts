@@ -61,9 +61,9 @@ export enum FilePathKind {
    */
   Absolute = 'Absolute',
   /**
-   * 空路径，表示当前工作目录
+   * 根路径，表示基于某个目录的根节点直接依附
    */
-  Empty = 'Empty',
+  Root = 'Root',
 }
 
 export enum IDEKind {

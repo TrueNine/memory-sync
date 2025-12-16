@@ -1,6 +1,7 @@
 import { defineConfig } from '@/config'
 import { AgentsOutputPlugin } from '@/plugins/AgentsOutputPlugin'
 import { ClaudeCodeCLIOutputPlugin } from '@/plugins/ClaudeCodeCLIOutputPlugin'
+import { DroidCLIOutputPlugin } from '@/plugins/DroidCLIOutputPlugin'
 import { FileSystemFastCommandPlugin } from '@/plugins/FileSystemFastCommandPlugin'
 import { FileSystemGlobalMemoryPlugin } from '@/plugins/FileSystemGlobalMemoryPlugin'
 import { FileSystemIdeConfigPlugin } from '@/plugins/FileSystemIdeConfigPlugin'
@@ -17,6 +18,7 @@ export default defineConfig({
   plugins: [
     new AgentsOutputPlugin(),
     new ClaudeCodeCLIOutputPlugin(),
+    new DroidCLIOutputPlugin(),
     new GeminiCLIOutputPlugin(),
     new WarpOutputPlugin(),
     new JetBrainsIDECodeStyleConfigOutputPlugin(),
