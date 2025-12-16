@@ -8,12 +8,14 @@ import type {
 } from '@/types'
 import type { Path, RelativePath } from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import { createLogger } from '@/log'
 import { FilePathKind, PluginKind } from '@/types'
 
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'
+const GLOBAL_CONFIG_DIR = '.claude'
 
 export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
   readonly type = PluginKind.Output
@@ -46,13 +48,32 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
     return results
   }
 
+  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const { globalMemory } = ctx.collectedInputContext
+    if (globalMemory == null) {
+      return []
+    }
+
+    const globalDir = this.getGlobalConfigDir()
+    return [
+      {
+        pathKind: FilePathKind.Relative,
+        path: PROJECT_MEMORY_FILE,
+        basePath: globalDir,
+        getDirectoryName: () => GLOBAL_CONFIG_DIR,
+        getAbsolutePath: () => path.join(globalDir, PROJECT_MEMORY_FILE),
+      },
+    ]
+  }
+
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { workspace } = ctx.collectedInputContext
+    const { workspace, globalMemory } = ctx.collectedInputContext
     const hasProjectOutputs = workspace.projects.some(
       (p) => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
     )
+    const hasGlobalMemory = globalMemory != null
 
-    if (!hasProjectOutputs) {
+    if (!hasProjectOutputs && !hasGlobalMemory) {
       this.log.info('No outputs to write, skipping')
       return false
     }
@@ -101,6 +122,50 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
     return { files: fileResults, dirs: dirResults }
   }
 
+  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+    const { globalMemory } = ctx.collectedInputContext
+    const fileResults: WriteResult[] = []
+    const dirResults: WriteResult[] = []
+
+    if (globalMemory == null) {
+      return { files: fileResults, dirs: dirResults }
+    }
+
+    const globalDir = this.getGlobalConfigDir()
+    const fullPath = path.join(globalDir, PROJECT_MEMORY_FILE)
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: PROJECT_MEMORY_FILE,
+      basePath: globalDir,
+      getDirectoryName: () => GLOBAL_CONFIG_DIR,
+      getAbsolutePath: () => fullPath,
+    }
+
+    if (ctx.dryRun === true) {
+      this.log.info(`[DRY-RUN] Would write global memory -> ${fullPath}`)
+      return {
+        files: [{ path: relativePath, success: true, skipped: false }],
+        dirs: dirResults,
+      }
+    }
+
+    try {
+      if (!fs.existsSync(globalDir)) {
+        fs.mkdirSync(globalDir, { recursive: true })
+      }
+
+      fs.writeFileSync(fullPath, globalMemory.content as string, 'utf-8')
+      this.log.info(`Written global memory -> ${fullPath}`)
+      fileResults.push({ path: relativePath, success: true })
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error(`Failed to write global memory: ${errMsg}`)
+      fileResults.push({ path: relativePath, success: false, error: error as Error })
+    }
+
+    return { files: fileResults, dirs: dirResults }
+  }
+
   async onWriteComplete(ctx: OutputWriteContext, results: WriteResults): Promise<void> {
     const successCount = results.files.filter((r) => r.success).length
     const skipCount = results.files.filter((r) => r.skipped).length
@@ -108,6 +173,10 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
 
     const mode = ctx.dryRun === true ? '[DRY-RUN]' : ''
     this.log.info(`${mode} Write complete: ${successCount} success, ${skipCount} skipped, ${failCount} failed`)
+  }
+
+  private getGlobalConfigDir(): string {
+    return path.join(os.homedir(), GLOBAL_CONFIG_DIR)
   }
 
   private async writePromptFile(

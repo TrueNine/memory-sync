@@ -1,8 +1,6 @@
 import { defineConfig } from '@/config'
 import { AgentsOutputPlugin } from '@/plugins/AgentsOutputPlugin'
 import { ClaudeCodeCLIOutputPlugin } from '@/plugins/ClaudeCodeCLIOutputPlugin'
-import { GeminiCLIOutputPlugin } from '@/plugins/GeminiCLIOutputPlugin'
-import { WarpOutputPlugin } from '@/plugins/WarpOutputPlugin'
 import { FileSystemFastCommandPlugin } from '@/plugins/FileSystemFastCommandPlugin'
 import { FileSystemGlobalMemoryPlugin } from '@/plugins/FileSystemGlobalMemoryPlugin'
 import { FileSystemIdeConfigPlugin } from '@/plugins/FileSystemIdeConfigPlugin'
@@ -11,6 +9,9 @@ import { FileSystemShadowProjectPlugin } from '@/plugins/FileSystemShadowProject
 import { FileSystemSkillPlugin } from '@/plugins/FileSystemSkillPlugin'
 import { FileSystemSubAgentPlugin } from '@/plugins/FileSystemSubAgentPlugin'
 import { FileSystemWorkspacePlugin } from '@/plugins/FileSystemWorkspacePlugin'
+import { GeminiCLIOutputPlugin } from '@/plugins/GeminiCLIOutputPlugin'
+import { JetBrainsIDECodeStyleConfigOutputPlugin } from '@/plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
+import { WarpOutputPlugin } from '@/plugins/WarpOutputPlugin'
 
 export default defineConfig({
   plugins: [
@@ -18,6 +19,7 @@ export default defineConfig({
     new ClaudeCodeCLIOutputPlugin(),
     new GeminiCLIOutputPlugin(),
     new WarpOutputPlugin(),
+    new JetBrainsIDECodeStyleConfigOutputPlugin(),
 
     new FileSystemWorkspacePlugin(),
     new FileSystemShadowProjectPlugin(),
