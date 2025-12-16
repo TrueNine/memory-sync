@@ -1,6 +1,6 @@
 import eslint9 from '@truenine/eslint9-config'
 
-export default eslint9({
+const config = eslint9({
   type: 'app',
   typescript: {
     strictTypescriptEslint: true,
@@ -16,3 +16,5 @@ export default eslint9({
     '**/*.integration.test.ts',
   ],
 })
+
+export default config as unknown
