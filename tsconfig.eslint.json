@@ -7,6 +7,8 @@
   },
   "include": [
     "src/**/*.ts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
     "env.d.ts",
     "eslint.config.ts",
     "tsdown.config.ts",

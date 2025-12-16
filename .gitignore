@@ -12,3 +12,4 @@ coverage/
 *.tsbuildinfo
 AGENTS.md
 .kiro/
+nul

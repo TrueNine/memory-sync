@@ -602,7 +602,7 @@ export class PluginPipeline {
     const visited = new Set<string>()
     const result: string[] = []
 
-    const visit = (deps: readonly string[]) => {
+    const visit = (deps: readonly string[]): void => {
       for (const dep of deps) {
         if (visited.has(dep)) {
           continue

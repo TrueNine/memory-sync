@@ -1,10 +1,10 @@
+import type { CollectedInputContext, InputPlugin, InputPluginContext, Plugin } from '@/types'
 import fs from 'node:fs'
 import path from 'node:path'
 import glob from 'fast-glob'
 import { describe, expect, it } from 'vitest'
-import { PluginPipeline } from '@/PluginPipeline'
 import { createLogger } from '@/log'
-import type { CollectedInputContext, InputPlugin, InputPluginContext, Plugin } from '@/types'
+import { PluginPipeline } from '@/PluginPipeline'
 import { CircularDependencyError, FilePathKind, MissingDependencyError, PluginKind, PromptKind } from '@/types'
 
 function createMockPlugin(name: string, dependsOn?: readonly string[]): Plugin {
@@ -54,7 +54,7 @@ function createMockPath(pathStr: string): CollectedInputContext['workspace']['di
   } as CollectedInputContext['workspace']['directory']
 }
 
-describe('PluginPipeline', () => {
+describe('pluginPipeline', () => {
   describe('buildDependencyGraph', () => {
     it('should return empty graph for empty plugins array', () => {
       const pipeline = new PluginPipeline()

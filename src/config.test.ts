@@ -1,9 +1,9 @@
-import defineConfig from "@/plugin.config";
-import {describe, it} from "vitest";
+import { describe, it } from 'vitest'
+import defineConfig from '@/plugin.config'
 
-describe('a',() => {
+describe('a', () => {
   it('a', () => {
-    const  r = defineConfig
+    const r = defineConfig
     console.log(r)
     console.log('a')
   })

@@ -8,7 +8,7 @@ export * from './log'
 export * from './types'
 export default userPluginConfig
 
-async function main() {
+async function main(): Promise<void> {
   const pipeline = new PluginPipeline(...process.argv)
   await pipeline.run(userPluginConfig)
 }
