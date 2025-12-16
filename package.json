@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "packageManager": "pnpm@10.25.0",
   "description": "TrueNine Life CLI Tools",
   "author": "TrueNine",
@@ -35,6 +35,7 @@
     "dev": "tsx src/index.ts",
     "build": "tsc --noEmit -p tsconfig.lib.json && eslint --fix && tsdown",
     "build:tsdown": "tsdown",
+    "prepublishOnly": "pnpm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint --fix",
