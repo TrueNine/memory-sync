@@ -13,11 +13,11 @@ import process from 'node:process'
 import { createLogger } from '@/log'
 import { FilePathKind, PluginKind } from '@/types'
 
-const PROJECT_MEMORY_FILE = 'AGENTS.md'
+const PROJECT_MEMORY_FILE = 'GEMINI.md'
 
-export class AgentMdOutputPlugin implements OutputPlugin {
+export class GeminiCLIOutputPlugin implements OutputPlugin {
   readonly type = PluginKind.Output
-  readonly name = 'AgentMdOutputPlugin'
+  readonly name = 'GeminiCLIOutputPlugin'
   readonly log: Logger
 
   constructor() {

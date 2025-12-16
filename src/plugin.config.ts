@@ -1,5 +1,8 @@
 import { defineConfig } from '@/config'
-import { AgentMdOutputPlugin } from '@/plugins/AgentMdOutputPlugin'
+import { AgentsOutputPlugin } from '@/plugins/AgentsOutputPlugin'
+import { ClaudeCodeCLIOutputPlugin } from '@/plugins/ClaudeCodeCLIOutputPlugin'
+import { GeminiCLIOutputPlugin } from '@/plugins/GeminiCLIOutputPlugin'
+import { WarpOutputPlugin } from '@/plugins/WarpOutputPlugin'
 import { FileSystemFastCommandPlugin } from '@/plugins/FileSystemFastCommandPlugin'
 import { FileSystemGlobalMemoryPlugin } from '@/plugins/FileSystemGlobalMemoryPlugin'
 import { FileSystemIdeConfigPlugin } from '@/plugins/FileSystemIdeConfigPlugin'
@@ -11,7 +14,10 @@ import { FileSystemWorkspacePlugin } from '@/plugins/FileSystemWorkspacePlugin'
 
 export default defineConfig({
   plugins: [
-    new AgentMdOutputPlugin(),
+    new AgentsOutputPlugin(),
+    new ClaudeCodeCLIOutputPlugin(),
+    new GeminiCLIOutputPlugin(),
+    new WarpOutputPlugin(),
 
     new FileSystemWorkspacePlugin(),
     new FileSystemShadowProjectPlugin(),
