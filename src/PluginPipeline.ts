@@ -1,3 +1,4 @@
+import type { Command, CommandContext } from '@/commands'
 import type { PipelineConfig } from '@/config'
 import type { Logger } from '@/log'
 import type {
@@ -13,14 +14,16 @@ import type {
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
+import {
+  CleanCommand,
+  DryRunCleanCommand,
+  DryRunOutputCommand,
+  ExecuteCommand,
+  HelpCommand,
+} from '@/commands'
 import { createLogger } from '@/log'
 import {
-  checkCanClean,
-  checkCanWrite,
   CircularDependencyError,
-  collectAllPluginOutputs,
-  executeOnCleanComplete,
-  executeWriteOutputs,
   MissingDependencyError,
 } from '@/types'
 
@@ -28,6 +31,10 @@ import {
  * 命令行参数解析结果
  */
 export interface ParsedCliArgs {
+  /**
+   * 显示帮助信息
+   */
+  readonly help: boolean
   /**
    * 清理模式
    */
@@ -104,11 +111,13 @@ function isScriptOrPackage(arg: string): boolean {
  */
 function parseArgs(args: readonly string[]): ParsedCliArgs {
   const result: {
+    help: boolean
     clean: boolean
     dryRun: boolean
     positional: string[]
     unknown: string[]
   } = {
+    help: false,
     clean: false,
     dryRun: false,
     positional: [],
@@ -132,6 +141,9 @@ function parseArgs(args: readonly string[]): ParsedCliArgs {
       const parts = arg.slice(2).split('=')
       const key = parts[0] ?? ''
       switch (key) {
+        case 'help':
+          result.help = true
+          break
         case 'clean':
           result.clean = true
           break
@@ -149,6 +161,9 @@ function parseArgs(args: readonly string[]): ParsedCliArgs {
       const flags = arg.slice(1)
       for (const flag of flags) {
         switch (flag) {
+          case 'h':
+            result.help = true
+            break
           case 'c':
             result.clean = true
             break
@@ -187,129 +202,42 @@ export class PluginPipeline {
     return this
   }
 
-  async runCleanPipeline(ctx: CollectedInputContext): Promise<void> {
-    this.logger.info('Running clean pipeline')
-    const dryRun = this.args.dryRun
-    const cleanCtx = this.createCleanContext(ctx, dryRun)
-    const outputs = await collectAllPluginOutputs(this.outputPlugins, cleanCtx)
-
-    this.logger.info('Collected outputs for cleanup', {
-      projectDirs: outputs.projectDirs.length,
-      projectFiles: outputs.projectFiles.length,
-      globalDirs: outputs.globalDirs.length,
-      globalFiles: outputs.globalFiles.length,
-    })
-
-    // Check permissions
-    const permissions = await checkCanClean(this.outputPlugins, cleanCtx)
-
-    // Collect files/dirs to delete based on permissions
-    const filesToDelete: string[] = []
-    const dirsToDelete: string[] = []
-
-    for (const plugin of this.outputPlugins) {
-      const perm = permissions.get(plugin.name)
-      if (perm?.project) {
-        // Add project outputs for this plugin
-        const projectFiles = await plugin.registerProjectOutputFiles?.(cleanCtx) ?? []
-        const projectDirs = await plugin.registerProjectOutputDirs?.(cleanCtx) ?? []
-        filesToDelete.push(...projectFiles.map((f) => f.getAbsolutePath()))
-        dirsToDelete.push(...projectDirs.map((d) => d.getAbsolutePath()))
-      }
-      if (perm?.global) {
-        // Add global outputs for this plugin
-        const globalFiles = await plugin.registerGlobalOutputFiles?.(cleanCtx) ?? []
-        const globalDirs = await plugin.registerGlobalOutputDirs?.(cleanCtx) ?? []
-        filesToDelete.push(...globalFiles.map((f) => f.getAbsolutePath()))
-        dirsToDelete.push(...globalDirs.map((d) => d.getAbsolutePath()))
-      }
-    }
-
-    // Delete files first
-    for (const file of filesToDelete) {
-      const resolved = path.isAbsolute(file) ? file : path.resolve(file)
-      if (dryRun) {
-        this.logger.info(`[DRY-RUN] Would delete file: ${resolved}`)
-        continue
-      }
-      try {
-        if (fs.existsSync(resolved)) {
-          fs.unlinkSync(resolved)
-          this.logger.info(`Deleted file: ${resolved}`)
-        }
-      } catch (e) {
-        this.logger.warn(`Failed to delete file: ${resolved}`, { error: e })
-      }
-    }
-
-    // Delete directories (in reverse order to handle nested dirs)
-    const sortedDirs = [...dirsToDelete].sort((a, b) => b.length - a.length)
-    for (const dir of sortedDirs) {
-      const resolved = path.isAbsolute(dir) ? dir : path.resolve(dir)
-      if (dryRun) {
-        this.logger.info(`[DRY-RUN] Would delete directory: ${resolved}`)
-        continue
-      }
-      try {
-        if (fs.existsSync(resolved)) {
-          fs.rmSync(resolved, { recursive: true, force: true })
-          this.logger.info(`Deleted directory: ${resolved}`)
-        }
-      } catch (e) {
-        this.logger.warn(`Failed to delete directory: ${resolved}`, { error: e })
-      }
-    }
-
-    // Execute post-clean hooks
-    await executeOnCleanComplete(this.outputPlugins, cleanCtx)
-
-    this.logger.info(`Clean complete: ${filesToDelete.length} files, ${dirsToDelete.length} directories${dryRun ? ' (dry-run)' : ''}`)
-  }
-
-  async runExecutePipeline(ctx: CollectedInputContext): Promise<void> {
-    this.logger.info('Running execute pipeline')
-    const writeCtx = this.createWriteContext(ctx, false)
-
-    const permissions = await checkCanWrite(this.outputPlugins, writeCtx)
-    const allowedPlugins = this.outputPlugins.filter((p) => permissions.get(p.name)?.project ?? true)
-
-    const results = await executeWriteOutputs(allowedPlugins, writeCtx)
-    this.logger.info('Execute pipeline complete', { pluginCount: results.size })
-  }
-
-  async runDryRunPipeline(ctx: CollectedInputContext): Promise<void> {
-    this.logger.info('[DRY-RUN] Running dry-run pipeline')
-    const writeCtx = this.createWriteContext(ctx, true)
-
-    const permissions = await checkCanWrite(this.outputPlugins, writeCtx)
-    const allowedPlugins = this.outputPlugins.filter((p) => Boolean((permissions.get(p.name)?.project ?? true)))
-
-    const results = await executeWriteOutputs(allowedPlugins, writeCtx)
-
-    // Summary
-    let totalFiles = 0
-    let totalDirs = 0
-    for (const [pluginName, result] of results) {
-      totalFiles += result.files.length
-      totalDirs += result.dirs.length
-      this.logger.info(`[DRY-RUN] ${pluginName}: ${result.files.length} files, ${result.dirs.length} dirs`)
-    }
-    this.logger.info(`[DRY-RUN] Total: ${totalFiles} files, ${totalDirs} dirs would be written`)
-  }
-
   async run(config: PipelineConfig): Promise<void> {
     const { context, outputPlugins } = config
     this.registerOutputPlugins([...outputPlugins])
 
-    if (this.args.clean) {
-      await this.runCleanPipeline(context)
-      return
+    const command = this.resolveCommand()
+    const commandCtx = this.createCommandContext(context)
+    await command.execute(commandCtx)
+  }
+
+  private resolveCommand(): Command {
+    const { help, clean, dryRun } = this.args
+
+    if (help) {
+      return new HelpCommand()
     }
-    if (this.args.dryRun) {
-      await this.runDryRunPipeline(context)
-      return
+    if (clean && dryRun) {
+      return new DryRunCleanCommand()
     }
-    await this.runExecutePipeline(context)
+    if (clean) {
+      return new CleanCommand()
+    }
+    if (dryRun) {
+      return new DryRunOutputCommand()
+    }
+
+    return new ExecuteCommand()
+  }
+
+  private createCommandContext(ctx: CollectedInputContext): CommandContext {
+    return {
+      logger: this.logger,
+      outputPlugins: this.outputPlugins,
+      collectedInputContext: ctx,
+      createCleanContext: (dryRun: boolean) => this.createCleanContext(ctx, dryRun),
+      createWriteContext: (dryRun: boolean) => this.createWriteContext(ctx, dryRun),
+    }
   }
 
   private createCleanContext(ctx: CollectedInputContext, dryRun: boolean): OutputCleanContext {
