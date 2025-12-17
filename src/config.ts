@@ -1,7 +1,9 @@
 import type { CollectedInputContext, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions } from '@/types'
+import type { ConfigLoaderOptions, UserConfigFile } from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
+import { loadUserConfig } from '@/ConfigLoader'
 import {
   DEFAULT_GLOBAL_MEMORY_FILE,
   DEFAULT_SHADOW_FAST_COMMAND_DIR,
@@ -35,6 +37,52 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
   excludePatterns: {},
   plugins: [],
   logLevel: 'info',
+}
+
+/**
+ * Convert UserConfigFile to PluginOptions
+ * UserConfigFile is the JSON schema, PluginOptions includes plugins
+ */
+function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOptions> {
+  return {
+    ...(userConfig.workspaceDir != null ? { workspaceDir: userConfig.workspaceDir } : {}),
+    ...(userConfig.shadowProjectDir != null ? { shadowProjectDir: userConfig.shadowProjectDir } : {}),
+    ...(userConfig.shadowSkillSourceDir != null ? { shadowSkillSourceDir: userConfig.shadowSkillSourceDir } : {}),
+    ...(userConfig.shadowFastCommandDir != null ? { shadowFastCommandDir: userConfig.shadowFastCommandDir } : {}),
+    ...(userConfig.shadowSubAgentDir != null ? { shadowSubAgentDir: userConfig.shadowSubAgentDir } : {}),
+    ...(userConfig.globalMemoryFile != null ? { globalMemoryFile: userConfig.globalMemoryFile } : {}),
+    ...(userConfig.shadowSourceProjectDir != null ? { shadowSourceProjectDir: userConfig.shadowSourceProjectDir } : {}),
+    ...(userConfig.externalProjects != null ? { externalProjects: userConfig.externalProjects } : {}),
+    ...(userConfig.excludePatterns != null ? { excludePatterns: userConfig.excludePatterns } : {}),
+    ...(userConfig.logLevel != null ? { logLevel: userConfig.logLevel } : {}),
+  }
+}
+
+/**
+ * Options for defineConfig
+ */
+export interface DefineConfigOptions {
+  /**
+   * Plugin options (programmatic configuration)
+   */
+  readonly pluginOptions?: PluginOptions
+
+  /**
+   * Config loader options
+   */
+  readonly configLoaderOptions?: ConfigLoaderOptions
+
+  /**
+   * Whether to load user config files (.tnmsc.json)
+   * @default true
+   */
+  readonly loadUserConfig?: boolean
+
+  /**
+   * Current working directory for config file search
+   * @default process.cwd()
+   */
+  readonly cwd?: string
 }
 
 /**
@@ -90,14 +138,59 @@ function mergeExcludePatterns(
   return result
 }
 
-export function defineConfig(options: PluginOptions = {}): PipelineConfig {
-  const { plugins = [], logLevel } = mergeConfig(options)
+/**
+ * Check if options is DefineConfigOptions
+ */
+function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): options is DefineConfigOptions {
+  return 'pluginOptions' in options || 'configLoaderOptions' in options || 'loadUserConfig' in options
+}
+
+/**
+ * Define configuration with support for user config files.
+ *
+ * Configuration priority (highest to lowest):
+ * 1. Programmatic options passed to defineConfig
+ * 2. CWD config file (.tnmsc.json)
+ * 3. Global config file (~/.aindex/.tnmsc.json)
+ * 4. Default values
+ *
+ * @param options - Plugin options or DefineConfigOptions
+ */
+export function defineConfig(options: PluginOptions | DefineConfigOptions = {}): PipelineConfig {
+  // Normalize options
+  let pluginOptions: PluginOptions
+  let shouldLoadUserConfig: boolean
+  let cwd: string | undefined
+
+  if (isDefineConfigOptions(options)) {
+    pluginOptions = options.pluginOptions ?? {}
+    shouldLoadUserConfig = options.loadUserConfig ?? true
+    cwd = options.cwd
+  } else {
+    pluginOptions = options
+    shouldLoadUserConfig = true
+  }
+
+  // Load user config if enabled
+  let userConfigOptions: Partial<PluginOptions> = {}
+  if (shouldLoadUserConfig) {
+    const userConfigResult = loadUserConfig(cwd)
+    if (userConfigResult.found) {
+      userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
+      // Log loaded config sources at debug level
+      const tempLogger = createLogger('defineConfig', pluginOptions.logLevel ?? userConfigResult.config.logLevel)
+      tempLogger.debug(`Loaded config from: ${userConfigResult.sources.join(', ')}`)
+    }
+  }
+
+  // Merge: defaults <- user config <- programmatic options
+  const { plugins = [], logLevel } = mergeConfig(userConfigOptions, pluginOptions)
   const logger = createLogger('defineConfig', logLevel)
 
   // Base context without dependencyContext (will be provided by pipeline)
   const baseCtx: Omit<InputPluginContext, 'dependencyContext'> = {
     logger,
-    userConfigOptions: options,
+    userConfigOptions: pluginOptions,
     fs,
     path,
     glob,

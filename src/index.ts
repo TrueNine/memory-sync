@@ -3,6 +3,7 @@ import { PluginPipeline } from '@/PluginPipeline'
 import userPluginConfig from './plugin.config'
 
 export * from './config'
+export * from './ConfigLoader'
 export * from './constants'
 export * from './log'
 export * from './types'

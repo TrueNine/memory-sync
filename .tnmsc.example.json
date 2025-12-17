@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "workspaceDir": "~/project",
+  "shadowProjectDir": "$WORKSPACE/aindex",
+  "shadowSkillSourceDir": "$SHADOW_PROJECT/dist/skills",
+  "shadowFastCommandDir": "$SHADOW_PROJECT/dist/commands",
+  "shadowSubAgentDir": "$SHADOW_PROJECT/dist/agents",
+  "globalMemoryFile": "$SHADOW_PROJECT/dist/GLOBAL.md",
+  "shadowSourceProjectDir": "$SHADOW_PROJECT/ref",
+  "externalProjects": [],
+  "excludePatterns": {},
+  "logLevel": "info"
+}

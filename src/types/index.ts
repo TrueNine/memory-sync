@@ -1,3 +1,4 @@
+export * from './ConfigTypes'
 export * from './Enums'
 export * from './Errors'
 export * from './FileSystemTypes'
