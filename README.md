@@ -13,12 +13,65 @@ npx @truenine/memory-sync-cli
 ```bash
 pnpm add -g @truenine/memory-sync-cli
 ```
+## 更新版本
+
+```bash
+pnpm update -g @truenine/memory-sync-cli --latest
+```
 
 安装后可直接使用命令：
 
 ```bash
 tnmsc
 ```
+
+可用功能：
+
+```bash
+# 直接同步
+tnmsc
+
+# 获取参数列表
+tnmsc --help
+tnmsc -h
+
+# 预览导出
+tnmsc --dry-run
+tnmsc -n
+
+# 清理所有导出
+tnmsc --clean
+tnmsc -c
+# 预览清理目标
+tnmsc --clean --dry-run
+```
+
+## CLI 配置
+```
+可以在两个地方创建配置，来适配，以下示例为默认配置
+
+```text
+~/.aindex/.tnmsc.json
+cwd()/.tnmsc.json
+```
+> cwd() 代表当前执行命令的目录。
+
+
+```json
+{
+  "workspaceDir": "~/project",
+  "shadowProjectDir": "$WORKSPACE/aindex",
+  "shadowSkillSourceDir": "$SHADOW_PROJECT/dist/skills",
+  "shadowFastCommandDir": "$SHADOW_PROJECT/dist/commands",
+  "shadowSubAgentDir": "$SHADOW_PROJECT/dist/agents",
+  "globalMemoryFile": "$SHADOW_PROJECT/dist/GLOBAL.md",
+  "shadowSourceProjectDir": "$SHADOW_PROJECT/ref",
+  "externalProjects": [],
+  "excludePatterns": {},
+  "logLevel": "info"
+}
+```
+
 
 ## 支持的 AI 工具
 
@@ -50,9 +103,8 @@ tnmsc
 
 ## 配置
 
-配置文件优先级：`cwd()/.memorysync.json` > `~/.aindex/configs.json`
+配置文件优先级：`cwd()/.tnmsc.json` > `~/.aindex/.tnmsc.json`
 
-首次运行会自动创建 `~/.aindex/config.json`。
 
 ## License
 
