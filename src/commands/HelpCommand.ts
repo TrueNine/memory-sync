@@ -13,11 +13,13 @@ USAGE:
 
 OPTIONS:
   -h, --help      Show this help message
+  -i, --init      Initialize directory structure based on configuration
   -c, --clean     Clean generated output files and directories
   -n, --dry-run   Preview changes without writing files
 
 EXAMPLES:
   ${CLI_NAME}              Run the sync pipeline (default)
+  ${CLI_NAME} --init       Initialize directories and files
   ${CLI_NAME} --dry-run    Preview what would be written
   ${CLI_NAME} --clean      Remove all generated files
   ${CLI_NAME} -cn          Preview what would be cleaned

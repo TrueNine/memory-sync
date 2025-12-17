@@ -35,6 +35,10 @@ tnmsc
 tnmsc --help
 tnmsc -h
 
+# 根据配置文件以及默认配置，初始化目录以及文件结构
+tnmsc --init
+tnmsc -i
+
 # 预览导出
 tnmsc --dry-run
 tnmsc -n

@@ -20,6 +20,7 @@ import {
   DryRunOutputCommand,
   ExecuteCommand,
   HelpCommand,
+  InitCommand,
 } from '@/commands'
 import { createLogger } from '@/log'
 import {
@@ -43,6 +44,10 @@ export interface ParsedCliArgs {
    * 试运行模式
    */
   readonly dryRun: boolean
+  /**
+   * 初始化模式
+   */
+  readonly init: boolean
   /**
    * 未识别的位置参数
    */
@@ -114,12 +119,14 @@ function parseArgs(args: readonly string[]): ParsedCliArgs {
     help: boolean
     clean: boolean
     dryRun: boolean
+    init: boolean
     positional: string[]
     unknown: string[]
   } = {
     help: false,
     clean: false,
     dryRun: false,
+    init: false,
     positional: [],
     unknown: [],
   }
@@ -150,6 +157,9 @@ function parseArgs(args: readonly string[]): ParsedCliArgs {
         case 'dry-run':
           result.dryRun = true
           break
+        case 'init':
+          result.init = true
+          break
         default:
           result.unknown.push(arg)
       }
@@ -169,6 +179,9 @@ function parseArgs(args: readonly string[]): ParsedCliArgs {
             break
           case 'n':
             result.dryRun = true
+            break
+          case 'i':
+            result.init = true
             break
           default:
             result.unknown.push(`-${flag}`)
@@ -212,10 +225,13 @@ export class PluginPipeline {
   }
 
   private resolveCommand(): Command {
-    const { help, clean, dryRun } = this.args
+    const { help, clean, dryRun, init } = this.args
 
     if (help) {
       return new HelpCommand()
+    }
+    if (init) {
+      return new InitCommand()
     }
     if (clean && dryRun) {
       return new DryRunCleanCommand()
