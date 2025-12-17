@@ -13,6 +13,7 @@ import { FileSystemWorkspacePlugin } from '@/plugins/FileSystemWorkspacePlugin'
 import { GeminiCLIOutputPlugin } from '@/plugins/GeminiCLIOutputPlugin'
 import { JetBrainsIDECodeStyleConfigOutputPlugin } from '@/plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
 import { WarpOutputPlugin } from '@/plugins/WarpOutputPlugin'
+import { VisualStudioCodeIDEConfigOutputPlugin } from './plugins/VisualStudioCodeIDEConfigOutputPlugin'
 
 export default defineConfig({
   plugins: [
@@ -22,6 +23,7 @@ export default defineConfig({
     new GeminiCLIOutputPlugin(),
     new WarpOutputPlugin(),
     new JetBrainsIDECodeStyleConfigOutputPlugin(),
+    new VisualStudioCodeIDEConfigOutputPlugin(),
 
     new FileSystemWorkspacePlugin(),
     new FileSystemShadowProjectPlugin(),
