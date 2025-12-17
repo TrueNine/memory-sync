@@ -12,7 +12,7 @@ import { FileSystemSubAgentPlugin } from '@/plugins/FileSystemSubAgentPlugin'
 import { FileSystemWorkspacePlugin } from '@/plugins/FileSystemWorkspacePlugin'
 import { GeminiCLIOutputPlugin } from '@/plugins/GeminiCLIOutputPlugin'
 import { JetBrainsIDECodeStyleConfigOutputPlugin } from '@/plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
-import { WarpOutputPlugin } from '@/plugins/WarpOutputPlugin'
+import { WarpIDEOutputPlugin } from '@/plugins/WarpIDEOutputPlugin'
 import { VisualStudioCodeIDEConfigOutputPlugin } from './plugins/VisualStudioCodeIDEConfigOutputPlugin'
 
 export default defineConfig({
@@ -21,7 +21,8 @@ export default defineConfig({
     new ClaudeCodeCLIOutputPlugin(),
     new DroidCLIOutputPlugin(),
     new GeminiCLIOutputPlugin(),
-    new WarpOutputPlugin(),
+    new WarpIDEOutputPlugin(),
+
     new JetBrainsIDECodeStyleConfigOutputPlugin(),
     new VisualStudioCodeIDEConfigOutputPlugin(),
 

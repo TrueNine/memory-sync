@@ -15,9 +15,9 @@ import { FilePathKind, PluginKind } from '@/types'
 
 const PROJECT_MEMORY_FILE = 'WARP.md'
 
-export class WarpOutputPlugin implements OutputPlugin {
+export class WarpIDEOutputPlugin implements OutputPlugin {
   readonly type = PluginKind.Output
-  readonly name = 'WarpOutputPlugin'
+  readonly name = 'WarpIDEOutputPlugin'
   readonly log: Logger
 
   constructor() {
