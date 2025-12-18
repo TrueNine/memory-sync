@@ -1,32 +1,24 @@
-import type { Logger } from '@/log'
-import type { CollectedInputContext, InputPlugin, InputPluginContext, SubAgentPrompt, SubAgentYAMLFrontMatter } from '@/types'
+import type { CollectedInputContext, InputPluginContext, SubAgentPrompt, SubAgentYAMLFrontMatter } from '@/types'
 
 import { DEFAULT_SHADOW_SUB_AGENT_DIR } from '@/constants'
-import { createLogger } from '@/log'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
-  PluginKind,
   PromptKind,
-
 } from '@/types'
-import { resolveBasePaths, resolvePath } from '@/utils/pathUtils'
+import { AbstractInputPlugin } from './AbstractInputPlugin'
 
-export class FileSystemSubAgentPlugin implements InputPlugin {
-  readonly type = PluginKind.Input
-  readonly name = 'FileSystemSubAgentPlugin'
-  readonly log: Logger
-
+export class FileSystemSubAgentPlugin extends AbstractInputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('FileSystemSubAgentPlugin')
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
     const { userConfigOptions: options, logger, fs, path } = ctx
-    const { workspaceDir, shadowProjectDir } = resolveBasePaths(options)
+    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const subAgentDirRaw = options.shadowSubAgentDir ?? DEFAULT_SHADOW_SUB_AGENT_DIR
-    const subAgentDir = resolvePath(subAgentDirRaw, workspaceDir, shadowProjectDir)
+    const subAgentDir = this.resolvePath(subAgentDirRaw, workspaceDir, shadowProjectDir)
 
     const subAgents: SubAgentPrompt[] = []
     if (fs.existsSync(subAgentDir) && fs.statSync(subAgentDir).isDirectory()) {

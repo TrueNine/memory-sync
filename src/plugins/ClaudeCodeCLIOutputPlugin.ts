@@ -1,7 +1,5 @@
-import type { Logger } from '@/log'
 import type {
   FastCommandPrompt,
-  OutputPlugin,
   OutputPluginContext,
   OutputWriteContext,
   SkillPrompt,
@@ -9,13 +7,11 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { Path, RelativePath } from '@/types/FileSystemTypes'
+import type { RelativePath } from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
-import process from 'node:process'
-import { createLogger } from '@/log'
-import { FilePathKind, PluginKind } from '@/types'
+import { FilePathKind } from '@/types'
+import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'
 const GLOBAL_CONFIG_DIR = '.claude'
@@ -26,13 +22,12 @@ const SKILLS_SUBDIR = 'skills'
 // Directories to clean under .claude/
 const CLEANUP_SUBDIRS = [COMMANDS_SUBDIR, AGENTS_SUBDIR, SKILLS_SUBDIR] as const
 
-export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
-  readonly type = PluginKind.Output
-  readonly name = 'ClaudeCodeCLIOutputPlugin'
-  readonly log: Logger
-
+export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('ClaudeCodeCLIOutputPlugin', {
+      globalConfigDir: GLOBAL_CONFIG_DIR,
+      outputFileName: PROJECT_MEMORY_FILE,
+    })
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -67,30 +62,19 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
     for (const project of projects) {
       // Root memory prompt uses project.dirFromWorkspacePath
       if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
-        results.push(this.createFileRelativePath(project.dirFromWorkspacePath))
+        results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
       }
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
           if (child.dir != null && this.isRelativePath(child.dir)) {
-            results.push(this.createFileRelativePath(child.dir))
+            results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
           }
         }
       }
     }
 
     return results
-  }
-
-  private createFileRelativePath(dir: RelativePath): RelativePath {
-    const filePath = path.join(dir.path, PROJECT_MEMORY_FILE)
-    return {
-      pathKind: FilePathKind.Relative,
-      path: filePath,
-      basePath: dir.basePath,
-      getDirectoryName: () => dir.getDirectoryName(),
-      getAbsolutePath: () => path.join(dir.basePath, filePath),
-    }
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -223,10 +207,7 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
     }
 
     try {
-      if (!fs.existsSync(globalDir)) {
-        fs.mkdirSync(globalDir, { recursive: true })
-      }
-
+      this.ensureDirectory(globalDir)
       fs.writeFileSync(fullPath, globalMemory.content as string, 'utf-8')
       this.log.info(`Written global memory -> ${fullPath}`)
       fileResults.push({ path: relativePath, success: true })
@@ -237,19 +218,6 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
     }
 
     return { files: fileResults, dirs: dirResults }
-  }
-
-  async onWriteComplete(ctx: OutputWriteContext, results: WriteResults): Promise<void> {
-    const successCount = results.files.filter((r) => r.success).length
-    const skipCount = results.files.filter((r) => r.skipped).length
-    const failCount = results.files.filter((r) => !(r.success) && !(r.skipped)).length
-
-    const mode = ctx.dryRun === true ? '[DRY-RUN]' : ''
-    this.log.info(`${mode} Write complete: ${successCount} success, ${skipCount} skipped, ${failCount} failed`)
-  }
-
-  private getGlobalConfigDir(): string {
-    return path.join(os.homedir(), GLOBAL_CONFIG_DIR)
   }
 
   private async writeFastCommand(
@@ -270,7 +238,7 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter
+    // Build content with front matter using inherited method
     const content = this.buildMarkdownContent(cmd.rawFrontMatter, cmd.content as string)
 
     if (ctx.dryRun === true) {
@@ -279,9 +247,7 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
     }
 
     try {
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true })
-      }
+      this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf-8')
       this.log.info(`Written fast command -> ${fullPath}`)
       results.push({ path: relativePath, success: true })
@@ -312,7 +278,7 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter
+    // Build content with front matter using inherited method
     const content = this.buildMarkdownContent(agent.rawFrontMatter, agent.content as string)
 
     if (ctx.dryRun === true) {
@@ -321,9 +287,7 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
     }
 
     try {
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true })
-      }
+      this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf-8')
       this.log.info(`Written sub agent -> ${fullPath}`)
       results.push({ path: relativePath, success: true })
@@ -355,7 +319,7 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter
+    // Build content with front matter using inherited method
     const content = this.buildMarkdownContent(skill.rawFrontMatter, skill.content as string)
 
     if (ctx.dryRun === true) {
@@ -364,9 +328,7 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
     }
 
     try {
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true })
-      }
+      this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf-8')
       this.log.info(`Written skill -> ${fullPath}`)
       results.push({ path: relativePath, success: true })
@@ -422,73 +384,5 @@ export class ClaudeCodeCLIOutputPlugin implements OutputPlugin {
     }
 
     return results
-  }
-
-  private buildMarkdownContent(rawFrontMatter: string | undefined, content: string): string {
-    if (rawFrontMatter != null && rawFrontMatter.length > 0) {
-      return `${rawFrontMatter}\n${content}`
-    }
-    return content
-  }
-
-  private async writePromptFile(
-    ctx: OutputWriteContext,
-    targetPath: Path,
-    content: string,
-    label: string,
-  ): Promise<WriteResult> {
-    const fullPath = this.resolveFullPath(targetPath)
-    const relativePath = this.toRelativePath(targetPath)
-
-    if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write ${label} -> ${fullPath}`)
-      return { path: relativePath, success: true, skipped: false }
-    }
-
-    try {
-      const dir = path.dirname(fullPath)
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
-      }
-
-      fs.writeFileSync(fullPath, content, 'utf-8')
-      this.log.info(`Written ${label} -> ${fullPath}`)
-      return { path: relativePath, success: true }
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write ${label}: ${errMsg}`)
-      return { path: relativePath, success: false, error: error as Error }
-    }
-  }
-
-  private isRelativePath(p: Path): p is RelativePath {
-    return p.pathKind === FilePathKind.Relative
-  }
-
-  private toRelativePath(p: Path): RelativePath {
-    if (this.isRelativePath(p)) {
-      return p
-    }
-    // Fallback for non-relative paths
-    return {
-      pathKind: FilePathKind.Relative,
-      path: p.path,
-      basePath: '',
-      getDirectoryName: p.getDirectoryName,
-      getAbsolutePath: () => p.path,
-    }
-  }
-
-  private resolveFullPath(targetPath: Path): string {
-    let dirPath: string
-    if (targetPath.pathKind === FilePathKind.Absolute) {
-      dirPath = targetPath.path
-    } else if (this.isRelativePath(targetPath)) {
-      dirPath = path.resolve(targetPath.basePath, targetPath.path)
-    } else {
-      dirPath = path.resolve(process.cwd(), targetPath.path)
-    }
-    // Append the output file name to the directory path
-    return path.join(dirPath, PROJECT_MEMORY_FILE)
   }
 }

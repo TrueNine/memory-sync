@@ -1,37 +1,29 @@
-import type { Logger } from '@/log'
-import type { CollectedInputContext, InputPlugin, InputPluginContext } from '@/types'
+import type { CollectedInputContext, InputPluginContext } from '@/types'
 
 import * as os from 'node:os'
 
 import {
   DEFAULT_GLOBAL_MEMORY_FILE,
 } from '@/constants'
-import { createLogger } from '@/log'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
   GlobalConfigDirectoryType,
-  PluginKind,
   PromptKind,
-
 } from '@/types'
-import { resolveBasePaths, resolvePath } from '@/utils/pathUtils'
+import { AbstractInputPlugin } from './AbstractInputPlugin'
 
-export class FileSystemGlobalMemoryPlugin implements InputPlugin {
-  readonly type = PluginKind.Input
-  readonly name = 'FileSystemGlobalMemoryPlugin'
-  readonly log: Logger
-
+export class FileSystemGlobalMemoryPlugin extends AbstractInputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('FileSystemGlobalMemoryPlugin')
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
     const { userConfigOptions: options, fs, path } = ctx
-    const { workspaceDir, shadowProjectDir } = resolveBasePaths(options)
+    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const globalMemoryFileRaw = options.globalMemoryFile ?? DEFAULT_GLOBAL_MEMORY_FILE
-    const globalMemoryFile = resolvePath(globalMemoryFileRaw, workspaceDir, shadowProjectDir)
+    const globalMemoryFile = this.resolvePath(globalMemoryFileRaw, workspaceDir, shadowProjectDir)
 
     if (fs.existsSync(globalMemoryFile) && fs.statSync(globalMemoryFile).isFile()) {
       const rawContent = fs.readFileSync(globalMemoryFile, 'utf-8')

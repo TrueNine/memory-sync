@@ -1,7 +1,5 @@
-import type { Logger } from '@/log'
 import type {
   FastCommandPrompt,
-  OutputPlugin,
   OutputPluginContext,
   OutputWriteContext,
   SkillPrompt,
@@ -11,10 +9,9 @@ import type {
 } from '@/types'
 import type { RelativePath } from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
-import { createLogger } from '@/log'
-import { FilePathKind, PluginKind } from '@/types'
+import { FilePathKind } from '@/types'
+import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.factory'
@@ -25,13 +22,12 @@ const SKILLS_SUBDIR = 'skills'
 // Directories to clean under .factory/
 const CLEANUP_SUBDIRS = [COMMANDS_SUBDIR, AGENTS_SUBDIR, SKILLS_SUBDIR] as const
 
-export class DroidCLIOutputPlugin implements OutputPlugin {
-  readonly type = PluginKind.Output
-  readonly name = 'DroidCLIOutputPlugin'
-  readonly log: Logger
-
+export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('DroidCLIOutputPlugin', {
+      globalConfigDir: GLOBAL_CONFIG_DIR,
+      outputFileName: GLOBAL_MEMORY_FILE,
+    })
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -166,10 +162,7 @@ export class DroidCLIOutputPlugin implements OutputPlugin {
     }
 
     try {
-      if (!fs.existsSync(globalDir)) {
-        fs.mkdirSync(globalDir, { recursive: true })
-      }
-
+      this.ensureDirectory(globalDir)
       fs.writeFileSync(fullPath, globalMemory.content as string, 'utf-8')
       this.log.info(`Written global memory -> ${fullPath}`)
       fileResults.push({ path: relativePath, success: true })
@@ -180,19 +173,6 @@ export class DroidCLIOutputPlugin implements OutputPlugin {
     }
 
     return { files: fileResults, dirs: dirResults }
-  }
-
-  async onWriteComplete(ctx: OutputWriteContext, results: WriteResults): Promise<void> {
-    const successCount = results.files.filter((r) => r.success).length
-    const skipCount = results.files.filter((r) => r.skipped).length
-    const failCount = results.files.filter((r) => !(r.success) && !(r.skipped)).length
-
-    const mode = ctx.dryRun === true ? '[DRY-RUN]' : ''
-    this.log.info(`${mode} Write complete: ${successCount} success, ${skipCount} skipped, ${failCount} failed`)
-  }
-
-  private getGlobalConfigDir(): string {
-    return path.join(os.homedir(), GLOBAL_CONFIG_DIR)
   }
 
   private async writeFastCommand(
@@ -213,7 +193,7 @@ export class DroidCLIOutputPlugin implements OutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter
+    // Build content with front matter using inherited method
     const content = this.buildMarkdownContent(cmd.rawFrontMatter, cmd.content as string)
 
     if (ctx.dryRun === true) {
@@ -222,9 +202,7 @@ export class DroidCLIOutputPlugin implements OutputPlugin {
     }
 
     try {
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true })
-      }
+      this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf-8')
       this.log.info(`Written fast command -> ${fullPath}`)
       results.push({ path: relativePath, success: true })
@@ -255,7 +233,7 @@ export class DroidCLIOutputPlugin implements OutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter
+    // Build content with front matter using inherited method
     const content = this.buildMarkdownContent(agent.rawFrontMatter, agent.content as string)
 
     if (ctx.dryRun === true) {
@@ -264,9 +242,7 @@ export class DroidCLIOutputPlugin implements OutputPlugin {
     }
 
     try {
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true })
-      }
+      this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf-8')
       this.log.info(`Written sub agent -> ${fullPath}`)
       results.push({ path: relativePath, success: true })
@@ -298,7 +274,7 @@ export class DroidCLIOutputPlugin implements OutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter
+    // Build content with front matter using inherited method
     const content = this.buildMarkdownContent(skill.rawFrontMatter, skill.content as string)
 
     if (ctx.dryRun === true) {
@@ -307,9 +283,7 @@ export class DroidCLIOutputPlugin implements OutputPlugin {
     }
 
     try {
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true })
-      }
+      this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf-8')
       this.log.info(`Written skill -> ${fullPath}`)
       results.push({ path: relativePath, success: true })
@@ -365,12 +339,5 @@ export class DroidCLIOutputPlugin implements OutputPlugin {
     }
 
     return results
-  }
-
-  private buildMarkdownContent(rawFrontMatter: string | undefined, content: string): string {
-    if (rawFrontMatter != null && rawFrontMatter.length > 0) {
-      return `${rawFrontMatter}\n${content}`
-    }
-    return content
   }
 }

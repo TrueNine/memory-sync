@@ -1,28 +1,21 @@
-import type { Logger } from '@/log'
-import type { CollectedInputContext, InputPlugin, InputPluginContext, Project, Workspace } from '@/types'
+import type { CollectedInputContext, InputPluginContext, Project, Workspace } from '@/types'
 import * as path from 'node:path'
-import { createLogger } from '@/log'
 import {
   FilePathKind,
-  PluginKind,
 } from '@/types'
-import { resolveBasePaths, resolvePath } from '@/utils/pathUtils'
+import { AbstractInputPlugin } from './AbstractInputPlugin'
 
-export class FileSystemWorkspacePlugin implements InputPlugin {
-  readonly type = PluginKind.Input
-  readonly name = 'FileSystemWorkspacePlugin'
-  readonly log: Logger
-
+export class FileSystemWorkspacePlugin extends AbstractInputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('FileSystemWorkspacePlugin')
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
     const { userConfigOptions: options } = ctx
-    const { workspaceDir, shadowProjectDir } = resolveBasePaths(options)
+    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const externalProjects = (options.externalProjects || []).map((p) => {
-      const resolved = resolvePath(p, workspaceDir, shadowProjectDir)
+      const resolved = this.resolvePath(p, workspaceDir, shadowProjectDir)
       return {
         name: path.basename(resolved),
         dirFromWorkspacePath: {

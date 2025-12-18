@@ -1,6 +1,4 @@
-import type { Logger } from '@/log'
 import type {
-  OutputPlugin,
   OutputPluginContext,
   OutputWriteContext,
   WriteResult,
@@ -9,19 +7,15 @@ import type {
 import type { RelativePath } from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { createLogger } from '@/log'
-import { FilePathKind, IDEKind, PluginKind } from '@/types'
+import { FilePathKind, IDEKind } from '@/types'
+import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
 const IDEA_DIR = '.idea'
 const CODE_STYLES_DIR = 'codeStyles'
 
-export class JetBrainsIDECodeStyleConfigOutputPlugin implements OutputPlugin {
-  readonly type = PluginKind.Output
-  readonly name = 'JetBrainsIDECodeStyleConfigOutputPlugin'
-  readonly log: Logger
-
+export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('JetBrainsIDECodeStyleConfigOutputPlugin')
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -94,15 +88,6 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin implements OutputPlugin {
     return { files: fileResults, dirs: dirResults }
   }
 
-  async onWriteComplete(ctx: OutputWriteContext, results: WriteResults): Promise<void> {
-    const successCount = results.files.filter((r) => r.success).length
-    const skipCount = results.files.filter((r) => r.skipped === true).length
-    const failCount = results.files.filter((r) => !r.success && r.skipped !== true).length
-
-    const mode = ctx.dryRun === true ? '[DRY-RUN]' : ''
-    this.log.info(`${mode} Write complete: ${successCount} success, ${skipCount} skipped, ${failCount} failed`)
-  }
-
   private async writeConfigFile(
     ctx: OutputWriteContext,
     projectDir: RelativePath,
@@ -128,10 +113,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin implements OutputPlugin {
 
     try {
       const dir = path.dirname(fullPath)
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
-      }
-
+      this.ensureDirectory(dir)
       fs.writeFileSync(fullPath, config.content, 'utf-8')
       this.log.info(`Written ${label} -> ${fullPath}`)
       return { path: relativePath, success: true }

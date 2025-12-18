@@ -1,33 +1,25 @@
-import type { Logger } from '@/log'
-import type { CollectedInputContext, InputPlugin, InputPluginContext, SkillPrompt, SkillYAMLFrontMatter } from '@/types'
+import type { CollectedInputContext, InputPluginContext, SkillPrompt, SkillYAMLFrontMatter } from '@/types'
 
 import * as path from 'node:path'
 import { DEFAULT_SHADOW_SKILL_SOURCE_DIR } from '@/constants'
-import { createLogger } from '@/log'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
-  PluginKind,
   PromptKind,
-
 } from '@/types'
-import { resolveBasePaths, resolvePath } from '@/utils/pathUtils'
+import { AbstractInputPlugin } from './AbstractInputPlugin'
 
-export class FileSystemSkillPlugin implements InputPlugin {
-  readonly type = PluginKind.Input
-  readonly name = 'FileSystemSkillPlugin'
-  readonly log: Logger
-
+export class FileSystemSkillPlugin extends AbstractInputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('FileSystemSkillPlugin')
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
     const { userConfigOptions: options, logger } = ctx
-    const { workspaceDir, shadowProjectDir } = resolveBasePaths(options)
+    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const skillDirRaw = options.shadowSkillSourceDir ?? DEFAULT_SHADOW_SKILL_SOURCE_DIR
-    const skillDir = resolvePath(skillDirRaw, workspaceDir, shadowProjectDir)
+    const skillDir = this.resolvePath(skillDirRaw, workspaceDir, shadowProjectDir)
 
     const skills: SkillPrompt[] = []
     if (ctx.fs.existsSync(skillDir) && ctx.fs.statSync(skillDir).isDirectory()) {

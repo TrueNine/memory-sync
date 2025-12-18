@@ -1,7 +1,5 @@
-import type { Logger } from '@/log'
 import type {
   CollectedInputContext,
-  InputPlugin,
   InputPluginContext,
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
@@ -9,37 +7,30 @@ import type {
 } from '@/types'
 
 import { DEFAULT_SHADOW_SOURCE_PROJECT_DIR } from '@/constants'
-import { createLogger } from '@/log'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
-  PluginKind,
   PromptKind,
 } from '@/types'
-import { resolveBasePaths, resolvePath } from '@/utils/pathUtils'
+import { AbstractInputPlugin } from './AbstractInputPlugin'
 
 /**
  * Project memory prompt file name
  */
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
 
-export class FileSystemProjectPromptPlugin implements InputPlugin {
-  readonly type = PluginKind.Input
-  readonly name = 'FileSystemProjectPromptPlugin'
-  readonly log: Logger
-  readonly dependsOn = ['FileSystemShadowProjectPlugin'] as const
-
+export class FileSystemProjectPromptPlugin extends AbstractInputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('FileSystemProjectPromptPlugin', ['FileSystemShadowProjectPlugin'])
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
     const { dependencyContext, fs, userConfigOptions: options, path } = ctx
-    const { workspaceDir, shadowProjectDir } = resolveBasePaths(options)
+    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     // Resolve shadow source project directory
     const shadowSourceProjectDirRaw = options.shadowSourceProjectDir ?? DEFAULT_SHADOW_SOURCE_PROJECT_DIR
-    const shadowSourceProjectDir = resolvePath(shadowSourceProjectDirRaw, workspaceDir, shadowProjectDir)
+    const shadowSourceProjectDir = this.resolvePath(shadowSourceProjectDirRaw, workspaceDir, shadowProjectDir)
 
     // Get workspace from dependency context (provided by FileSystemShadowProjectPlugin)
     const dependencyWorkspace = dependencyContext.workspace

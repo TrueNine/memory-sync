@@ -30,9 +30,7 @@
  * - `inclusion`: 'always' | 'fileMatch' | 'manual' (default: 'always')
  * - `fileMatchPattern`: glob pattern for fileMatch inclusion (e.g. '*.ts', 'src/**')
  */
-import type { Logger } from '@/log'
 import type {
-  OutputPlugin,
   OutputPluginContext,
   OutputWriteContext,
   Project,
@@ -45,8 +43,8 @@ import type { RelativePath } from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { createLogger } from '@/log'
-import { FilePathKind, PluginKind } from '@/types'
+import { FilePathKind } from '@/types'
+import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
 const GLOBAL_CONFIG_DIR = '.kiro'
@@ -73,13 +71,12 @@ export interface KiroSteeringYAMLFrontMatter extends YAMLFrontMatter {
 
 // Kiro supports AGENTS.md at project root, so it relies on AGENTS.md output.
 // Therefore, rootMemoryPrompt handling is not needed here.
-export class KiroCLIOutputPlugin implements OutputPlugin {
-  readonly type = PluginKind.Output
-  readonly name = 'KiroCLIOutputPlugin'
-  readonly log: Logger
-
+export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('KiroCLIOutputPlugin', {
+      globalConfigDir: GLOBAL_CONFIG_DIR,
+      outputFileName: GLOBAL_MEMORY_FILE,
+    })
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -235,10 +232,7 @@ export class KiroCLIOutputPlugin implements OutputPlugin {
     }
 
     try {
-      if (!fs.existsSync(globalDir)) {
-        fs.mkdirSync(globalDir, { recursive: true })
-      }
-
+      this.ensureDirectory(globalDir)
       fs.writeFileSync(fullPath, globalMemory.content as string, 'utf-8')
       this.log.info(`Written global memory -> ${fullPath}`)
       fileResults.push({ path: relativePath, success: true })
@@ -249,15 +243,6 @@ export class KiroCLIOutputPlugin implements OutputPlugin {
     }
 
     return { files: fileResults, dirs: dirResults }
-  }
-
-  async onWriteComplete(ctx: OutputWriteContext, results: WriteResults): Promise<void> {
-    const successCount = results.files.filter((r) => r.success).length
-    const skipCount = results.files.filter((r) => r.skipped).length
-    const failCount = results.files.filter((r) => !(r.success) && !(r.skipped)).length
-
-    const mode = ctx.dryRun === true ? '[DRY-RUN]' : ''
-    this.log.info(`${mode} Write complete: ${successCount} success, ${skipCount} skipped, ${failCount} failed`)
   }
 
   private getGlobalSteeringDir(): string {
@@ -325,9 +310,7 @@ export class KiroCLIOutputPlugin implements OutputPlugin {
     }
 
     try {
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true })
-      }
+      this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf-8')
       this.log.info(`Written steering file -> ${fullPath}`)
       return { path: relativePath, success: true }

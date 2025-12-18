@@ -1,32 +1,24 @@
-import type { Logger } from '@/log'
-import type { CollectedInputContext, InputPlugin, InputPluginContext, Project, Workspace } from '@/types'
+import type { CollectedInputContext, InputPluginContext, Project, Workspace } from '@/types'
 
 import {
   DEFAULT_SHADOW_SOURCE_PROJECT_DIR,
 } from '@/constants'
-import { createLogger } from '@/log'
 import {
   FilePathKind,
-  PluginKind,
-
 } from '@/types'
-import { resolveBasePaths, resolvePath } from '@/utils/pathUtils'
+import { AbstractInputPlugin } from './AbstractInputPlugin'
 
-export class FileSystemShadowProjectPlugin implements InputPlugin {
-  readonly type = PluginKind.Input
-  readonly name = 'FileSystemShadowProjectPlugin'
-  readonly log: Logger
-
+export class FileSystemShadowProjectPlugin extends AbstractInputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('FileSystemShadowProjectPlugin')
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
     const { userConfigOptions: options, logger, fs, path } = ctx
-    const { workspaceDir, shadowProjectDir } = resolveBasePaths(options)
+    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const shadowSourceProjectDirRaw = options.shadowSourceProjectDir ?? DEFAULT_SHADOW_SOURCE_PROJECT_DIR
-    const shadowSourceProjectDir = resolvePath(shadowSourceProjectDirRaw, workspaceDir, shadowProjectDir)
+    const shadowSourceProjectDir = this.resolvePath(shadowSourceProjectDirRaw, workspaceDir, shadowProjectDir)
 
     const shadowProjects: Project[] = []
     if (fs.existsSync(shadowSourceProjectDir) && fs.statSync(shadowSourceProjectDir).isDirectory()) {

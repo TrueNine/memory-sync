@@ -1,29 +1,19 @@
-import type { Logger } from '@/log'
-import type { CollectedInputContext, InputPlugin, InputPluginContext, ProjectIDEConfigFile } from '@/types'
+import type { CollectedInputContext, InputPluginContext, ProjectIDEConfigFile } from '@/types'
 
-import { createLogger } from '@/log'
 import {
-
   FilePathKind,
   IDEKind,
-
-  PluginKind,
-
 } from '@/types'
-import { resolveBasePaths } from '@/utils/pathUtils'
+import { AbstractInputPlugin } from './AbstractInputPlugin'
 
-export class FileSystemIdeConfigPlugin implements InputPlugin {
-  readonly type = PluginKind.Input
-  readonly name = 'FileSystemIdeConfigPlugin'
-  readonly log: Logger
-
+export class FileSystemIdeConfigPlugin extends AbstractInputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('FileSystemIdeConfigPlugin')
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
     const { userConfigOptions, fs, path } = ctx
-    const { shadowProjectDir } = resolveBasePaths(userConfigOptions)
+    const { shadowProjectDir } = this.resolveBasePaths(userConfigOptions)
 
     const defaultIdeFiles = [
       '.editorconfig',

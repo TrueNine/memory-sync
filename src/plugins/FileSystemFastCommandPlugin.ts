@@ -1,31 +1,24 @@
-import type { Logger } from '@/log'
-import type { CollectedInputContext, FastCommandPrompt, FastCommandYAMLFrontMatter, InputPlugin, InputPluginContext } from '@/types'
+import type { CollectedInputContext, FastCommandPrompt, FastCommandYAMLFrontMatter, InputPluginContext } from '@/types'
 
 import { DEFAULT_SHADOW_FAST_COMMAND_DIR } from '@/constants'
-import { createLogger } from '@/log'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
-  PluginKind,
   PromptKind,
 } from '@/types'
-import { resolveBasePaths, resolvePath } from '@/utils/pathUtils'
+import { AbstractInputPlugin } from './AbstractInputPlugin'
 
-export class FileSystemFastCommandPlugin implements InputPlugin {
-  readonly type = PluginKind.Input
-  readonly name = 'FileSystemFastCommandPlugin'
-  readonly log: Logger
-
+export class FileSystemFastCommandPlugin extends AbstractInputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('FileSystemFastCommandPlugin')
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
     const { userConfigOptions: options, logger } = ctx
-    const { workspaceDir, shadowProjectDir } = resolveBasePaths(options)
+    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const fastCommandDirRaw = options.shadowFastCommandDir ?? DEFAULT_SHADOW_FAST_COMMAND_DIR
-    const fastCommandDir = resolvePath(fastCommandDirRaw, workspaceDir, shadowProjectDir)
+    const fastCommandDir = this.resolvePath(fastCommandDirRaw, workspaceDir, shadowProjectDir)
 
     const fastCommands: FastCommandPrompt[] = []
     if (ctx.fs.existsSync(fastCommandDir) && ctx.fs.statSync(fastCommandDir).isDirectory()) {

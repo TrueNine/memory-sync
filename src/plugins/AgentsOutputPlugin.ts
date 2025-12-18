@@ -1,27 +1,19 @@
-import type { Logger } from '@/log'
 import type {
-  OutputPlugin,
   OutputPluginContext,
   OutputWriteContext,
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { Path, RelativePath } from '@/types/FileSystemTypes'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-import process from 'node:process'
-import { createLogger } from '@/log'
-import { FilePathKind, PluginKind } from '@/types'
+import type { RelativePath } from '@/types/FileSystemTypes'
+import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
 
-export class AgentsOutputPlugin implements OutputPlugin {
-  readonly type = PluginKind.Output
-  readonly name = 'AgentsOutputPlugin'
-  readonly log: Logger
-
+export class AgentsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    this.log = createLogger(this.name)
+    super('AgentsOutputPlugin', {
+      outputFileName: PROJECT_MEMORY_FILE,
+    })
   }
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -31,30 +23,19 @@ export class AgentsOutputPlugin implements OutputPlugin {
     for (const project of projects) {
       // Root memory prompt uses project.dirFromWorkspacePath
       if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
-        results.push(this.createFileRelativePath(project.dirFromWorkspacePath))
+        results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
       }
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
           if (child.dir != null && this.isRelativePath(child.dir)) {
-            results.push(this.createFileRelativePath(child.dir))
+            results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
           }
         }
       }
     }
 
     return results
-  }
-
-  private createFileRelativePath(dir: RelativePath): RelativePath {
-    const filePath = path.join(dir.path, PROJECT_MEMORY_FILE)
-    return {
-      pathKind: FilePathKind.Relative,
-      path: filePath,
-      basePath: dir.basePath,
-      getDirectoryName: () => dir.getDirectoryName(),
-      getAbsolutePath: () => path.join(dir.basePath, filePath),
-    }
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
@@ -110,75 +91,5 @@ export class AgentsOutputPlugin implements OutputPlugin {
     }
 
     return { files: fileResults, dirs: dirResults }
-  }
-
-  async onWriteComplete(ctx: OutputWriteContext, results: WriteResults): Promise<void> {
-    const successCount = results.files.filter((r) => r.success).length
-    const skipCount = results.files.filter((r) => r.skipped).length
-    const failCount = results.files.filter((r) => !(r.success) && !(r.skipped)).length
-
-    const mode = ctx.dryRun === true ? '[DRY-RUN]' : ''
-    this.log.info(`${mode} Write complete: ${successCount} success, ${skipCount} skipped, ${failCount} failed`)
-  }
-
-  private async writePromptFile(
-    ctx: OutputWriteContext,
-    targetPath: Path,
-    content: string,
-    label: string,
-  ): Promise<WriteResult> {
-    const fullPath = this.resolveFullPath(targetPath)
-    const relativePath = this.toRelativePath(targetPath)
-
-    if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write ${label} -> ${fullPath}`)
-      return { path: relativePath, success: true, skipped: false }
-    }
-
-    try {
-      const dir = path.dirname(fullPath)
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
-      }
-
-      fs.writeFileSync(fullPath, content, 'utf-8')
-      this.log.info(`Written ${label} -> ${fullPath}`)
-      return { path: relativePath, success: true }
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write ${label}: ${errMsg}`)
-      return { path: relativePath, success: false, error: error as Error }
-    }
-  }
-
-  private isRelativePath(p: Path): p is RelativePath {
-    return p.pathKind === FilePathKind.Relative
-  }
-
-  private toRelativePath(p: Path): RelativePath {
-    if (this.isRelativePath(p)) {
-      return p
-    }
-    // Fallback for non-relative paths
-    return {
-      pathKind: FilePathKind.Relative,
-      path: p.path,
-      basePath: '',
-      getDirectoryName: p.getDirectoryName,
-      getAbsolutePath: () => p.path,
-    }
-  }
-
-  private resolveFullPath(targetPath: Path): string {
-    let dirPath: string
-    if (targetPath.pathKind === FilePathKind.Absolute) {
-      dirPath = targetPath.path
-    } else if (this.isRelativePath(targetPath)) {
-      dirPath = path.resolve(targetPath.basePath, targetPath.path)
-    } else {
-      dirPath = path.resolve(process.cwd(), targetPath.path)
-    }
-    // Append the output file name to the directory path
-    return path.join(dirPath, PROJECT_MEMORY_FILE)
   }
 }
