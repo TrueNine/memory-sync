@@ -18,4 +18,4 @@ nul
 .vscode/
 .claude/
 .factory/
-
+.npmrc
