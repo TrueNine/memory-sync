@@ -38,6 +38,29 @@ export interface AbstractOutputPluginOptions {
 }
 
 /**
+ * Options for combining global content with project content.
+ */
+export interface CombineOptions {
+  /**
+   * Separator between global and project content.
+   * @default '\n\n'
+   */
+  separator?: string
+
+  /**
+   * Skip combination if global content is empty or only whitespace.
+   * @default true
+   */
+  skipIfEmpty?: boolean
+
+  /**
+   * Position of global content relative to project content.
+   * @default 'before'
+   */
+  position?: 'before' | 'after'
+}
+
+/**
  * Abstract base class for output plugins.
  * Provides common functionality for writing data to the file system.
  *
@@ -380,6 +403,80 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       return `${rawFrontMatter}\n${content}`
     }
     return content
+  }
+
+  /**
+   * Extract global memory content from the output write context.
+   *
+   * @param ctx - The output write context
+   * @returns The global memory content string, or undefined if not present
+   *
+   * @example
+   * ```typescript
+   * const globalContent = this.extractGlobalMemoryContent(ctx)
+   * if (globalContent) {
+   *   // Use global content
+   * }
+   * ```
+   */
+  protected extractGlobalMemoryContent(ctx: OutputWriteContext): string | undefined {
+    return ctx.collectedInputContext.globalMemory?.content as string | undefined
+  }
+
+  /**
+   * Combine global content with project content.
+   * Useful for scenarios where global prompt/memory should be merged with project-specific content.
+   *
+   * @param globalContent - The global content to combine
+   * @param projectContent - The project-specific content
+   * @param options - Optional configuration for combination behavior
+   * @returns The combined content string
+   *
+   * @example
+   * ```typescript
+   * const globalContent = this.extractGlobalMemoryContent(ctx)
+   * const combined = this.combineGlobalWithContent(
+   *   globalContent,
+   *   project.rootMemoryPrompt.content as string
+   * )
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Custom separator and position
+   * const combined = this.combineGlobalWithContent(
+   *   globalContent,
+   *   projectContent,
+   *   { separator: '\n---\n', position: 'after' }
+   * )
+   * ```
+   */
+  protected combineGlobalWithContent(
+    globalContent: string | undefined,
+    projectContent: string,
+    options?: CombineOptions,
+  ): string {
+    const {
+      separator = '\n\n',
+      skipIfEmpty = true,
+      position = 'before',
+    } = options ?? {}
+
+    // Skip if global content is undefined/null or empty/whitespace when skipIfEmpty is true
+    if (skipIfEmpty && (globalContent == null || globalContent.trim().length === 0)) {
+      return projectContent
+    }
+
+    // If global content is null/undefined but skipIfEmpty is false, treat as empty string
+    const effectiveGlobalContent = globalContent ?? ''
+
+    // Combine based on position
+    if (position === 'after') {
+      return `${projectContent}${separator}${effectiveGlobalContent}`
+    }
+
+    // Default: 'before'
+    return `${effectiveGlobalContent}${separator}${projectContent}`
   }
 
   /**

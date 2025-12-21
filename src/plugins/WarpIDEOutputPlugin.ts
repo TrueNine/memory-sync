@@ -53,9 +53,13 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { projects } = ctx.collectedInputContext.workspace
+    const { workspace } = ctx.collectedInputContext
+    const { projects } = workspace
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
+
+    // Extract global memory content using helper method
+    const globalMemoryContent = this.extractGlobalMemoryContent(ctx)
 
     for (const project of projects) {
       const projectName = project.name ?? 'unknown'
@@ -67,10 +71,16 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
       // Write root memory prompt (only if exists)
       if (project.rootMemoryPrompt != null) {
+        // Combine global memory with root memory prompt using helper method
+        const combinedContent = this.combineGlobalWithContent(
+          globalMemoryContent,
+          project.rootMemoryPrompt.content as string,
+        )
+
         const result = await this.writePromptFile(
           ctx,
           projectDir,
-          project.rootMemoryPrompt.content as string,
+          combinedContent,
           `project:${projectName}/root`,
         )
         fileResults.push(result)

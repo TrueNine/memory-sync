@@ -11,5 +11,6 @@ coverage/
 *.temp
 *.tsbuildinfo
 AGENTS.md
+WARP.md
 .kiro/
 nul
