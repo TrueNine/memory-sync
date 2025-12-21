@@ -16,4 +16,6 @@ WARP.md
 nul
 .idea/
 .vscode/
+.claude/
+.factory/
 
