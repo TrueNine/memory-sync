@@ -1,5 +1,4 @@
 import type {
-  OutputPluginContext,
   OutputWriteContext,
   WriteResult,
   WriteResults,
@@ -14,38 +13,6 @@ const CODE_STYLES_DIR = 'codeStyles'
 export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('JetBrainsIDECodeStyleConfigOutputPlugin')
-  }
-
-  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
-    const { shadowProjectDir } = ctx.collectedInputContext
-
-    for (const project of projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) {
-        continue
-      }
-
-      // Skip projects under shadowProjectDir
-      if (shadowProjectDir != null) {
-        const projectAbsPath = projectDir.getAbsolutePath()
-        if (projectAbsPath.startsWith(shadowProjectDir)) {
-          continue
-        }
-      }
-
-      const ideaDir: RelativePath = {
-        pathKind: FilePathKind.Relative,
-        path: this.joinPath(projectDir.path, IDEA_DIR, CODE_STYLES_DIR),
-        basePath: projectDir.basePath,
-        getDirectoryName: () => CODE_STYLES_DIR,
-        getAbsolutePath: () => this.resolvePath(projectDir.basePath, projectDir.path, IDEA_DIR, CODE_STYLES_DIR),
-      }
-      results.push(ideaDir)
-    }
-
-    return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {

@@ -1,5 +1,4 @@
 import type {
-  OutputPluginContext,
   OutputWriteContext,
   WriteResult,
   WriteResults,
@@ -13,38 +12,6 @@ const VSCODE_DIR = '.vscode'
 export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('VisualStudioCodeIDEConfigOutputPlugin')
-  }
-
-  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
-    const { shadowProjectDir } = ctx.collectedInputContext
-
-    for (const project of projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) {
-        continue
-      }
-
-      // Skip projects under shadowProjectDir
-      if (shadowProjectDir != null) {
-        const projectAbsPath = projectDir.getAbsolutePath()
-        if (projectAbsPath.startsWith(shadowProjectDir)) {
-          continue
-        }
-      }
-
-      const vscodeDir: RelativePath = {
-        pathKind: FilePathKind.Relative,
-        path: this.joinPath(projectDir.path, VSCODE_DIR),
-        basePath: projectDir.basePath,
-        getDirectoryName: () => VSCODE_DIR,
-        getAbsolutePath: () => this.resolvePath(projectDir.basePath, projectDir.path, VSCODE_DIR),
-      }
-      results.push(vscodeDir)
-    }
-
-    return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {

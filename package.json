@@ -1,8 +1,8 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "0.0.9",
-  "packageManager": "pnpm@10.26.0",
+  "version": "0.0.10",
+  "packageManager": "pnpm@10.26.1",
   "description": "TrueNine Life CLI Tools",
   "author": "TrueNine",
   "license": "UNLICENSED",
