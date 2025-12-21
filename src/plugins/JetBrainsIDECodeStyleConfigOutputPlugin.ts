@@ -5,8 +5,6 @@ import type {
   WriteResults,
 } from '@/types'
 import type { RelativePath } from '@/types/FileSystemTypes'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
 import { FilePathKind, IDEKind } from '@/types'
 import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
@@ -39,10 +37,10 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
 
       const ideaDir: RelativePath = {
         pathKind: FilePathKind.Relative,
-        path: path.join(projectDir.path, IDEA_DIR, CODE_STYLES_DIR),
+        path: this.joinPath(projectDir.path, IDEA_DIR, CODE_STYLES_DIR),
         basePath: projectDir.basePath,
         getDirectoryName: () => CODE_STYLES_DIR,
-        getAbsolutePath: () => path.resolve(projectDir.basePath, projectDir.path, IDEA_DIR, CODE_STYLES_DIR),
+        getAbsolutePath: () => this.resolvePath(projectDir.basePath, projectDir.path, IDEA_DIR, CODE_STYLES_DIR),
       }
       results.push(ideaDir)
     }
@@ -105,13 +103,13 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
   ): Promise<WriteResult> {
     // Determine target path based on config type
     const targetRelativePath = this.getTargetRelativePath(config)
-    const fullPath = path.resolve(projectDir.basePath, projectDir.path, targetRelativePath)
+    const fullPath = this.resolvePath(projectDir.basePath, projectDir.path, targetRelativePath)
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, targetRelativePath),
+      path: this.joinPath(projectDir.path, targetRelativePath),
       basePath: projectDir.basePath,
-      getDirectoryName: () => path.dirname(targetRelativePath),
+      getDirectoryName: () => this.dirname(targetRelativePath),
       getAbsolutePath: () => fullPath,
     }
 
@@ -121,9 +119,9 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     }
 
     try {
-      const dir = path.dirname(fullPath)
+      const dir = this.dirname(fullPath)
       this.ensureDirectory(dir)
-      fs.writeFileSync(fullPath, config.content, 'utf-8')
+      this.writeFileSync(fullPath, config.content)
       this.log.info(`Written ${label} -> ${fullPath}`)
       return { path: relativePath, success: true }
     } catch (error) {
@@ -147,10 +145,10 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
         return sourcePath.substring(ideaIndex)
       }
       // Fallback: use filename only
-      return path.join(IDEA_DIR, CODE_STYLES_DIR, path.basename(sourcePath))
+      return this.joinPath(IDEA_DIR, CODE_STYLES_DIR, this.basename(sourcePath))
     }
 
     // Default fallback
-    return path.basename(sourcePath)
+    return this.basename(sourcePath)
   }
 }

@@ -264,6 +264,88 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   /**
+   * Join path segments using the platform-specific separator.
+   * Wrapper around path.join for consistency.
+   *
+   * @param segments - Path segments to join
+   * @returns The joined path
+   *
+   * @example
+   * ```typescript
+   * const fullPath = this.joinPath('dir', 'subdir', 'file.txt')
+   * ```
+   */
+  protected joinPath(...segments: string[]): string {
+    return path.join(...segments)
+  }
+
+  /**
+   * Resolve path segments to an absolute path.
+   * Wrapper around path.resolve for consistency.
+   *
+   * @param segments - Path segments to resolve
+   * @returns The resolved absolute path
+   *
+   * @example
+   * ```typescript
+   * const absPath = this.resolvePath('/base', 'relative', 'path')
+   * ```
+   */
+  protected resolvePath(...segments: string[]): string {
+    return path.resolve(...segments)
+  }
+
+  /**
+   * Get the directory name from a path.
+   * Wrapper around path.dirname for consistency.
+   *
+   * @param p - The path to get directory from
+   * @returns The directory name
+   *
+   * @example
+   * ```typescript
+   * const dir = this.dirname('/path/to/file.txt') // '/path/to'
+   * ```
+   */
+  protected dirname(p: string): string {
+    return path.dirname(p)
+  }
+
+  /**
+   * Get the base name from a path.
+   * Wrapper around path.basename for consistency.
+   *
+   * @param p - The path to get basename from
+   * @param ext - Optional extension to remove
+   * @returns The base name
+   *
+   * @example
+   * ```typescript
+   * const name = this.basename('/path/to/file.txt') // 'file.txt'
+   * ```
+   */
+  protected basename(p: string, ext?: string): string {
+    return path.basename(p, ext)
+  }
+
+  /**
+   * Write file content synchronously.
+   * Wrapper around fs.writeFileSync for consistency.
+   *
+   * @param filePath - The file path to write
+   * @param content - The content to write
+   * @param encoding - The encoding (default: 'utf-8')
+   *
+   * @example
+   * ```typescript
+   * this.writeFileSync('/path/to/file.txt', 'content')
+   * ```
+   */
+  protected writeFileSync(filePath: string, content: string, encoding: BufferEncoding = 'utf-8'): void {
+    fs.writeFileSync(filePath, content, encoding)
+  }
+
+  /**
    * Ensure a directory exists, creating it recursively if necessary.
    *
    * @param dir - The directory path to ensure exists

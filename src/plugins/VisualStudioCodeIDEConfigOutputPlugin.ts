@@ -5,8 +5,6 @@ import type {
   WriteResults,
 } from '@/types'
 import type { RelativePath } from '@/types/FileSystemTypes'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
 import { FilePathKind, IDEKind } from '@/types'
 import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
@@ -38,10 +36,10 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
 
       const vscodeDir: RelativePath = {
         pathKind: FilePathKind.Relative,
-        path: path.join(projectDir.path, VSCODE_DIR),
+        path: this.joinPath(projectDir.path, VSCODE_DIR),
         basePath: projectDir.basePath,
         getDirectoryName: () => VSCODE_DIR,
-        getAbsolutePath: () => path.resolve(projectDir.basePath, projectDir.path, VSCODE_DIR),
+        getAbsolutePath: () => this.resolvePath(projectDir.basePath, projectDir.path, VSCODE_DIR),
       }
       results.push(vscodeDir)
     }
@@ -99,13 +97,13 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     label: string,
   ): Promise<WriteResult> {
     const targetRelativePath = this.getTargetRelativePath(config)
-    const fullPath = path.resolve(projectDir.basePath, projectDir.path, targetRelativePath)
+    const fullPath = this.resolvePath(projectDir.basePath, projectDir.path, targetRelativePath)
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, targetRelativePath),
+      path: this.joinPath(projectDir.path, targetRelativePath),
       basePath: projectDir.basePath,
-      getDirectoryName: () => path.dirname(targetRelativePath),
+      getDirectoryName: () => this.dirname(targetRelativePath),
       getAbsolutePath: () => fullPath,
     }
 
@@ -115,9 +113,9 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     }
 
     try {
-      const dir = path.dirname(fullPath)
+      const dir = this.dirname(fullPath)
       this.ensureDirectory(dir)
-      fs.writeFileSync(fullPath, config.content, 'utf-8')
+      this.writeFileSync(fullPath, config.content)
       this.log.info(`Written ${label} -> ${fullPath}`)
       return { path: relativePath, success: true }
     } catch (error) {
@@ -137,10 +135,10 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
         return sourcePath.substring(vscodeIndex)
       }
       // Fallback: use filename only
-      return path.join(VSCODE_DIR, path.basename(sourcePath))
+      return this.joinPath(VSCODE_DIR, this.basename(sourcePath))
     }
 
     // Default fallback
-    return path.basename(sourcePath)
+    return this.basename(sourcePath)
   }
 }

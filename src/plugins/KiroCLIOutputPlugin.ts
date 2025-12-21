@@ -40,9 +40,6 @@ import type {
   YAMLFrontMatter,
 } from '@/types'
 import type { RelativePath } from '@/types/FileSystemTypes'
-import * as fs from 'node:fs'
-import * as os from 'node:os'
-import * as path from 'node:path'
 import { FilePathKind } from '@/types'
 import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
@@ -89,13 +86,13 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
 
       // Register <project>/.kiro/steering/ for cleanup
-      const steeringDir = path.join(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR)
+      const steeringDir = this.joinPath(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR)
       results.push({
         pathKind: FilePathKind.Relative,
         path: steeringDir,
         basePath: project.dirFromWorkspacePath.basePath,
         getDirectoryName: () => STEERING_SUBDIR,
-        getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, steeringDir),
+        getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, steeringDir),
       })
     }
 
@@ -115,7 +112,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
           const fileName = this.buildSteeringFileName(child)
-          const filePath = path.join(
+          const filePath = this.joinPath(
             project.dirFromWorkspacePath.path,
             GLOBAL_CONFIG_DIR,
             STEERING_SUBDIR,
@@ -126,7 +123,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
             path: filePath,
             basePath: project.dirFromWorkspacePath.basePath,
             getDirectoryName: () => STEERING_SUBDIR,
-            getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, filePath),
+            getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, filePath),
           })
         }
       }
@@ -141,7 +138,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       {
         pathKind: FilePathKind.Relative,
         path: STEERING_SUBDIR,
-        basePath: path.join(os.homedir(), GLOBAL_CONFIG_DIR),
+        basePath: this.joinPath(this.getGlobalConfigDir()),
         getDirectoryName: () => STEERING_SUBDIR,
         getAbsolutePath: () => globalDir,
       },
@@ -161,7 +158,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         path: GLOBAL_MEMORY_FILE,
         basePath: globalDir,
         getDirectoryName: () => STEERING_SUBDIR,
-        getAbsolutePath: () => path.join(globalDir, GLOBAL_MEMORY_FILE),
+        getAbsolutePath: () => this.joinPath(globalDir, GLOBAL_MEMORY_FILE),
       },
     ]
   }
@@ -214,7 +211,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     const globalDir = this.getGlobalSteeringDir()
-    const fullPath = path.join(globalDir, GLOBAL_MEMORY_FILE)
+    const fullPath = this.joinPath(globalDir, GLOBAL_MEMORY_FILE)
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
       path: GLOBAL_MEMORY_FILE,
@@ -233,7 +230,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
     try {
       this.ensureDirectory(globalDir)
-      fs.writeFileSync(fullPath, globalMemory.content as string, 'utf-8')
+      this.writeFileSync(fullPath, globalMemory.content as string)
       this.log.info(`Written global memory -> ${fullPath}`)
       fileResults.push({ path: relativePath, success: true })
     } catch (error) {
@@ -246,7 +243,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   private getGlobalSteeringDir(): string {
-    return path.join(os.homedir(), GLOBAL_CONFIG_DIR, STEERING_SUBDIR)
+    return this.joinPath(this.getGlobalConfigDir(), STEERING_SUBDIR)
   }
 
   /**
@@ -291,12 +288,12 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   ): Promise<WriteResult> {
     const projectDir = project.dirFromWorkspacePath!
     const fileName = this.buildSteeringFileName(child)
-    const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR)
-    const fullPath = path.join(targetDir, fileName)
+    const targetDir = this.joinPath(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR)
+    const fullPath = this.joinPath(targetDir, fileName)
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR, fileName),
+      path: this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR, fileName),
       basePath: projectDir.basePath,
       getDirectoryName: () => STEERING_SUBDIR,
       getAbsolutePath: () => fullPath,
@@ -311,7 +308,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
     try {
       this.ensureDirectory(targetDir)
-      fs.writeFileSync(fullPath, content, 'utf-8')
+      this.writeFileSync(fullPath, content)
       this.log.info(`Written steering file -> ${fullPath}`)
       return { path: relativePath, success: true }
     } catch (error) {
