@@ -54,6 +54,11 @@ export interface CollectedInputContext {
   readonly subAgents?: readonly SubAgentPrompt[]
   readonly skills?: readonly SkillPrompt[]
   readonly globalMemory?: GlobalMemoryPrompt
+  /**
+   * Shadow project directory absolute path
+   * Used to identify and skip shadow project during cleanup
+   */
+  readonly shadowProjectDir?: string
 }
 
 /**

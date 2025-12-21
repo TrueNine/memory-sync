@@ -21,11 +21,20 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const { projects } = ctx.collectedInputContext.workspace
+    const { shadowProjectDir } = ctx.collectedInputContext
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) {
         continue
+      }
+
+      // Skip projects under shadowProjectDir
+      if (shadowProjectDir != null) {
+        const projectAbsPath = projectDir.getAbsolutePath()
+        if (projectAbsPath.startsWith(shadowProjectDir)) {
+          continue
+        }
       }
 
       const ideaDir: RelativePath = {
@@ -47,7 +56,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
       (f) => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
     )
 
-    if (!(hasIdeaConfigs)) {
+    if (!hasIdeaConfigs) {
       this.log.info('No JetBrains IDE config files found, skipping')
       return false
     }

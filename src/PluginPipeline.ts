@@ -629,6 +629,10 @@ export class PluginPipeline {
     const globalMemory: CollectedInputContext['globalMemory'] | undefined
       = addition.globalMemory ?? base.globalMemory
 
+    // shadowProjectDir: last one wins
+    const shadowProjectDir: CollectedInputContext['shadowProjectDir'] | undefined
+      = addition.shadowProjectDir ?? base.shadowProjectDir
+
     // Build result object using object literal
     return {
       ...(workspace != null ? { workspace } : {}),
@@ -638,6 +642,7 @@ export class PluginPipeline {
       ...(subAgents != null ? { subAgents } : {}),
       ...(skills != null ? { skills } : {}),
       ...(globalMemory != null ? { globalMemory } : {}),
+      ...(shadowProjectDir != null ? { shadowProjectDir } : {}),
     }
   }
 }

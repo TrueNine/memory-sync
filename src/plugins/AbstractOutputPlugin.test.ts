@@ -37,6 +37,7 @@ function createMockRelativePath(pathStr: string, basePath: string): RelativePath
 }
 
 function createMockContext(globalContent?: string): OutputWriteContext {
+  const hasGlobalContent = globalContent != null && globalContent.trim().length > 0
   return {
     collectedInputContext: {
       workspace: {
@@ -44,20 +45,20 @@ function createMockContext(globalContent?: string): OutputWriteContext {
         projects: [],
       },
       ideConfigFiles: [],
-      globalMemory: globalContent
+      globalMemory: hasGlobalContent
         ? {
             type: PromptKind.GlobalMemory,
             content: globalContent,
             dir: createMockRelativePath('.', '/test'),
             markdownContents: [],
-            length: globalContent.length,
+            length: (globalContent).length,
             filePathKind: FilePathKind.Relative,
             parentDirectoryPath: {
               type: 'UserHome',
               directory: createMockRelativePath('.memory', '/home/user'),
             },
           } as any
-        : undefined,
+        : (null as any),
     } as any,
     dryRun: false,
   }
@@ -128,7 +129,7 @@ describe('abstractOutputPlugin', () => {
 
     it('should skip undefined global content by default', () => {
       const plugin = new TestOutputPlugin()
-      const result = plugin.testCombineGlobalWithContent(undefined, 'Project')
+      const result = plugin.testCombineGlobalWithContent(null as any, 'Project')
 
       expect(result).toBe('Project')
     })
@@ -180,7 +181,7 @@ describe('abstractOutputPlugin', () => {
 
     it('should treat undefined as empty string when skipIfEmpty is false', () => {
       const plugin = new TestOutputPlugin()
-      const result = plugin.testCombineGlobalWithContent(undefined, 'Project', {
+      const result = plugin.testCombineGlobalWithContent(null as any, 'Project', {
         skipIfEmpty: false,
       })
 

@@ -38,6 +38,7 @@ export class FileSystemWorkspacePlugin extends AbstractInputPlugin {
 
     return {
       workspace,
+      shadowProjectDir,
       ...(externalProjects.length > 0 && { externalProjects }),
     }
   }

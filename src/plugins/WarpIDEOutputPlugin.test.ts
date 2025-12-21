@@ -22,8 +22,8 @@ describe('warpIDEOutputPlugin', () => {
   beforeEach(() => {
     plugin = new WarpIDEOutputPlugin()
     vi.mocked(fs.existsSync).mockReturnValue(true)
-    vi.mocked(fs.mkdirSync).mockReturnValue(undefined)
-    vi.mocked(fs.writeFileSync).mockReturnValue(undefined)
+    vi.mocked(fs.mkdirSync).mockReturnValue(void 0)
+    vi.mocked(fs.writeFileSync).mockReturnValue(void 0)
   })
 
   afterEach(() => {
@@ -481,7 +481,7 @@ describe('warpIDEOutputPlugin', () => {
             ] as any,
           } as any,
         },
-        true, // dryRun = true
+        true,
       )
 
       const results = await plugin.writeProjectOutputs(ctx)
