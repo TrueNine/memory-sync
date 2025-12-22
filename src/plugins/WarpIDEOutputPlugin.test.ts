@@ -69,6 +69,7 @@ describe('warpIDEOutputPlugin', () => {
   function createMockOutputWriteContext(
     collectedInputContext: Partial<CollectedInputContext>,
     dryRun = false,
+    registeredPluginNames: readonly string[] = [],
   ): OutputWriteContext {
     return {
       collectedInputContext: {
@@ -80,6 +81,7 @@ describe('warpIDEOutputPlugin', () => {
         ...collectedInputContext,
       } as CollectedInputContext,
       dryRun,
+      registeredPluginNames,
     }
   }
 
@@ -166,7 +168,30 @@ describe('warpIDEOutputPlugin', () => {
   })
 
   describe('canWrite', () => {
-    it('should return true when project has rootMemoryPrompt', async () => {
+    it('should return false when AgentsOutputPlugin is registered', async () => {
+      const ctx = createMockOutputWriteContext(
+        {
+          workspace: {
+            directory: createMockRelativePath('.', mockWorkspaceDir),
+            projects: [
+              {
+                name: 'test-project',
+                dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
+                rootMemoryPrompt: createMockRootMemoryPrompt('test content'),
+              },
+            ] as any,
+          } as any,
+        },
+        false,
+        ['AgentsOutputPlugin'],
+      )
+
+      const result = await plugin.canWrite(ctx)
+
+      expect(result).toBe(false)
+    })
+
+    it('should return true when project has rootMemoryPrompt and AgentsOutputPlugin is not registered', async () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),

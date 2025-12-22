@@ -39,6 +39,15 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+    // Skip if AgentsOutputPlugin is registered (it provides more comprehensive output)
+    if ('registeredPluginNames' in ctx && ctx.registeredPluginNames != null) {
+      const pluginNames = Array.from(ctx.registeredPluginNames)
+      if (pluginNames.includes('AgentsOutputPlugin')) {
+        this.log.info('Skipping WARP.md output, AgentsOutputPlugin is registered')
+        return false
+      }
+    }
+
     const { workspace } = ctx.collectedInputContext
     const hasProjectOutputs = workspace.projects.some(
       (p) => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,

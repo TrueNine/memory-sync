@@ -275,6 +275,7 @@ export class PluginPipeline {
       glob,
       collectedInputContext: ctx,
       dryRun,
+      registeredPluginNames: this.outputPlugins.map((p) => p.name),
     }
   }
 

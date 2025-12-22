@@ -562,6 +562,31 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   /**
+   * Check if another plugin with a given name is registered and should take precedence.
+   * Useful for plugins that can be replaced by more comprehensive alternatives.
+   *
+   * @param ctx - The output write context
+   * @param precedingPluginName - The name of the plugin that should take precedence
+   * @returns True if the preceding plugin is registered, false otherwise
+   *
+   * @example
+   * ```typescript
+   * // In WarpIDEOutputPlugin.canWrite():
+   * if (this.shouldSkipDueToPlugin(ctx, 'AgentsOutputPlugin')) {
+   *   this.log.info('Skipping WARP.md output, AgentsOutputPlugin is registered')
+   *   return false
+   * }
+   * ```
+   */
+  protected shouldSkipDueToPlugin(ctx: OutputWriteContext, precedingPluginName: string): boolean {
+    const registeredPlugins = ctx.registeredPluginNames
+    if (registeredPlugins == null) {
+      return false
+    }
+    return registeredPlugins.includes(precedingPluginName)
+  }
+
+  /**
    * Default implementation of onWriteComplete lifecycle hook.
    * Logs statistics about the write operation including success, skip, and fail counts.
    *

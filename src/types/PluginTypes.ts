@@ -85,6 +85,13 @@ export interface OutputWriteContext extends OutputPluginContext {
    * Whether running in dry-run mode (no actual file writes)
    */
   readonly dryRun?: boolean
+
+  /**
+   * Names of all registered output plugins.
+   * Useful for plugins to check if other plugins are registered
+   * and potentially skip their own output if a more comprehensive plugin is available.
+   */
+  readonly registeredPluginNames?: readonly string[]
 }
 
 /**
