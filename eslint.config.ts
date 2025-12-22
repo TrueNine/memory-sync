@@ -9,6 +9,9 @@ const config = eslint9({
   ignores: [
     '*.md',
     '.kiro/**',
+    '.claude/**',
+    '.factory/**',
+    'src/AGENTS.md',
   ],
 })
 
