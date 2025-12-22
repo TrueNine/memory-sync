@@ -151,6 +151,41 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       expect(results.map((r) => r.path)).toContain(path.join('project1', '.qoderignore'))
       expect(results.map((r) => r.path)).toContain(path.join('project2', '.qoderignore'))
     })
+
+    it('should skip shadow source project during cleanup', async () => {
+      const ignoreFiles = createMockIgnoreFiles()
+      const shadowProjectDir = '/workspace/aindex'
+      const ctx: OutputPluginContext = {
+        collectedInputContext: {
+          workspace: {
+            directory: createMockRelativePath('.', mockWorkspaceDir),
+            projects: [
+              {
+                name: 'regular-project',
+                dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
+              },
+              {
+                name: 'shadow-project',
+                dirFromWorkspacePath: createMockRelativePath('aindex/ref/shadow-project', shadowProjectDir),
+              },
+            ],
+          },
+          ideConfigFiles: [],
+          aiAgentIgnoreConfigFiles: ignoreFiles,
+          shadowProjectDir,
+        } as CollectedInputContext,
+      }
+
+      const results = await plugin.registerProjectOutputFiles(ctx)
+
+      // Should only register files for regular project, not shadow project
+      expect(results).toHaveLength(3)
+      expect(results.map((r) => r.path)).toEqual([
+        path.join('project1', '.qoderignore'),
+        path.join('project1', '.cursorignore'),
+        path.join('project1', '.warpindexignore'),
+      ])
+    })
   })
 
   describe('canWrite', () => {
