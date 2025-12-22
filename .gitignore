@@ -11,6 +11,8 @@ coverage/
 *.temp
 *.tsbuildinfo
 AGENTS.md
+CLAUDE.md
+GEMINI.md
 WARP.md
 .kiro/
 nul
