@@ -71,12 +71,18 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     const globalMemoryContent = this.extractGlobalMemoryContent(ctx)
 
     for (const project of projects) {
-      const projectName = project.name ?? 'unknown'
       const projectDir = project.dirFromWorkspacePath
-
       if (projectDir == null) {
         continue
       }
+
+      // Skip shadow source project
+      if (project.isShadowSourceProject === true) {
+        this.log.debug(`Skipping shadow source project: ${project.name}`)
+        continue
+      }
+
+      const projectName = project.name ?? 'unknown'
 
       // Write root memory prompt (only if exists)
       if (project.rootMemoryPrompt != null) {

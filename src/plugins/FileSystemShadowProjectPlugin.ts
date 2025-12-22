@@ -28,6 +28,7 @@ export class FileSystemShadowProjectPlugin extends AbstractInputPlugin {
           if (entry.isDirectory()) {
             shadowProjects.push({
               name: entry.name,
+              isShadowSourceProject: true,
               dirFromWorkspacePath: {
                 pathKind: FilePathKind.Relative,
                 path: entry.name,

@@ -41,6 +41,12 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
         continue
       }
 
+      // Skip shadow source project
+      if (project.isShadowSourceProject === true) {
+        this.log.debug(`Skipping shadow source project: ${project.name}`)
+        continue
+      }
+
       const projectName = project.name ?? 'unknown'
 
       for (const config of vscodeConfigs) {

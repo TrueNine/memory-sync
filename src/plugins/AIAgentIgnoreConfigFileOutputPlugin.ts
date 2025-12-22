@@ -23,7 +23,7 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const { projects } = ctx.collectedInputContext.workspace
-    const { aiAgentIgnoreConfigFiles, shadowProjectDir } = ctx.collectedInputContext
+    const { aiAgentIgnoreConfigFiles } = ctx.collectedInputContext
 
     if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) {
       return []
@@ -35,9 +35,8 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
       }
 
       // Skip shadow source project to avoid deleting the source files
-      const projectAbsPath = path.join(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path)
-      if (shadowProjectDir != null && projectAbsPath.startsWith(shadowProjectDir)) {
-        this.log.debug(`Skipping shadow source project during cleanup: ${projectAbsPath}`)
+      if (project.isShadowSourceProject === true) {
+        this.log.debug(`Skipping shadow source project during cleanup: ${project.name}`)
         continue
       }
 

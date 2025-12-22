@@ -46,6 +46,12 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
         continue
       }
 
+      // Skip shadow source project
+      if (project.isShadowSourceProject === true) {
+        this.log.debug(`Skipping shadow source project: ${project.name}`)
+        continue
+      }
+
       const projectName = project.name ?? 'unknown'
 
       for (const config of jetbrainsConfigs) {

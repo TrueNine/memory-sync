@@ -29,6 +29,11 @@ export interface Project {
    * 工作于当前项目子目录的记忆提示词
    */
   readonly childMemoryPrompts?: readonly ProjectChildrenMemoryPrompt[]
+  /**
+   * 标识此项目是否为 shadow source project（如 aindex）
+   * shadow source project 是提示词的源存放位置，不应被清理或覆盖
+   */
+  readonly isShadowSourceProject?: boolean
 }
 
 export interface Workspace {

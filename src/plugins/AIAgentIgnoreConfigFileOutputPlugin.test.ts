@@ -154,7 +154,6 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
     it('should skip shadow source project during cleanup', async () => {
       const ignoreFiles = createMockIgnoreFiles()
-      const shadowProjectDir = '/workspace/aindex'
       const ctx: OutputPluginContext = {
         collectedInputContext: {
           workspace: {
@@ -166,13 +165,13 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
               },
               {
                 name: 'shadow-project',
-                dirFromWorkspacePath: createMockRelativePath('aindex/ref/shadow-project', shadowProjectDir),
+                isShadowSourceProject: true,
+                dirFromWorkspacePath: createMockRelativePath('shadow-project', mockWorkspaceDir),
               },
             ],
           },
           ideConfigFiles: [],
           aiAgentIgnoreConfigFiles: ignoreFiles,
-          shadowProjectDir,
         } as CollectedInputContext,
       }
 
