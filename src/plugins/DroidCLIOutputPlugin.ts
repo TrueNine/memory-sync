@@ -101,13 +101,8 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) {
-        continue
-      }
 
-      // Skip shadow source project
-      if (project.isShadowSourceProject === true) {
-        this.log.debug(`Skipping shadow source project: ${project.name}`)
+      if (projectDir == null) {
         continue
       }
 

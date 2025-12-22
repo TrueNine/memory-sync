@@ -188,12 +188,6 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         continue
       }
 
-      // Skip shadow source project
-      if (project.isShadowSourceProject === true) {
-        this.log.debug(`Skipping shadow source project: ${project.name}`)
-        continue
-      }
-
       // Write childMemoryPrompts as steering files
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {

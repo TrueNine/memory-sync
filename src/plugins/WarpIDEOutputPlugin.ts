@@ -16,20 +16,40 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
+  /**
+   * Check if AgentsOutputPlugin is registered
+   */
+  private isAgentsPluginRegistered(ctx: OutputPluginContext | OutputWriteContext): boolean {
+    if ('registeredPluginNames' in ctx && ctx.registeredPluginNames != null) {
+      return ctx.registeredPluginNames.includes('AgentsOutputPlugin')
+    }
+    return false
+  }
+
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const { projects } = ctx.collectedInputContext.workspace
+    const agentsRegistered = this.isAgentsPluginRegistered(ctx)
 
     for (const project of projects) {
-      // Root memory prompt uses project.dirFromWorkspacePath
-      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
-        results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
+      if (project.dirFromWorkspacePath == null) {
+        continue
       }
 
-      if (project.childMemoryPrompts != null) {
-        for (const child of project.childMemoryPrompts) {
-          if (child.dir != null && this.isRelativePath(child.dir)) {
-            results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
+      if (agentsRegistered) {
+        // When AgentsOutputPlugin is registered, register WARP.md for global prompt output to each project
+        results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
+      } else {
+        // Normal mode: register files for projects with prompts
+        if (project.rootMemoryPrompt != null) {
+          results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
+        }
+
+        if (project.childMemoryPrompts != null) {
+          for (const child of project.childMemoryPrompts) {
+            if (child.dir != null && this.isRelativePath(child.dir)) {
+              results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
+            }
           }
         }
       }
@@ -39,16 +59,19 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    // Skip if AgentsOutputPlugin is registered (it provides more comprehensive output)
-    if ('registeredPluginNames' in ctx && ctx.registeredPluginNames != null) {
-      const pluginNames = Array.from(ctx.registeredPluginNames)
-      if (pluginNames.includes('AgentsOutputPlugin')) {
-        this.log.info('Skipping WARP.md output, AgentsOutputPlugin is registered')
+    const agentsRegistered = this.isAgentsPluginRegistered(ctx)
+    const { workspace, globalMemory } = ctx.collectedInputContext
+
+    if (agentsRegistered) {
+      // When AgentsOutputPlugin is registered, only write if we have global memory
+      if (globalMemory == null) {
+        this.log.info('AgentsOutputPlugin registered but no global memory, skipping global WARP.md')
         return false
       }
+      return true
     }
 
-    const { workspace } = ctx.collectedInputContext
+    // Normal mode: check for project outputs
     const hasProjectOutputs = workspace.projects.some(
       (p) => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
     )
@@ -62,27 +85,47 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { workspace } = ctx.collectedInputContext
+    const agentsRegistered = this.isAgentsPluginRegistered(ctx)
+    const { workspace, globalMemory } = ctx.collectedInputContext
     const { projects } = workspace
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    // Extract global memory content using helper method
+    if (agentsRegistered) {
+      // When AgentsOutputPlugin is registered, write global prompt to each project's WARP.md
+      if (globalMemory == null) {
+        return { files: [], dirs: [] }
+      }
+
+      for (const project of projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null) {
+          continue
+        }
+
+        const projectName = project.name ?? 'unknown'
+        const result = await this.writePromptFile(
+          ctx,
+          projectDir,
+          globalMemory.content as string,
+          `project:${projectName}/global-warp`,
+        )
+        fileResults.push(result)
+      }
+
+      return { files: fileResults, dirs: dirResults }
+    }
+
+    // Normal mode: write combined content
     const globalMemoryContent = this.extractGlobalMemoryContent(ctx)
 
     for (const project of projects) {
+      const projectName = project.name ?? 'unknown'
       const projectDir = project.dirFromWorkspacePath
+
       if (projectDir == null) {
         continue
       }
-
-      // Skip shadow source project
-      if (project.isShadowSourceProject === true) {
-        this.log.debug(`Skipping shadow source project: ${project.name}`)
-        continue
-      }
-
-      const projectName = project.name ?? 'unknown'
 
       // Write root memory prompt (only if exists)
       if (project.rootMemoryPrompt != null) {
