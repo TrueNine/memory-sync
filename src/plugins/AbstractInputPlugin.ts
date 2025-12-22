@@ -10,26 +10,14 @@ import type {
 
 import * as os from 'node:os'
 import * as path from 'node:path'
+import {
+  DEFAULT_SHADOW_PROJECT_SUFFIX,
+  DEFAULT_WORKSPACE_DIR,
+  PathPlaceholders,
+} from '@/constants'
 import { parseMarkdown } from '@/markdown'
 import { PluginKind } from '@/types'
 import { AbstractPlugin } from './AbstractPlugin'
-
-/**
- * Default workspace directory path.
- */
-const DEFAULT_WORKSPACE_DIR = '~/project'
-
-/**
- * Default shadow project directory suffix.
- */
-const DEFAULT_SHADOW_PROJECT_SUFFIX = 'aindex'
-
-/**
- * Path placeholder constants.
- */
-const PLACEHOLDER_USER_HOME = '~'
-const PLACEHOLDER_SHADOW_PROJECT = '$SHADOW_PROJECT'
-const PLACEHOLDER_WORKSPACE = '$WORKSPACE'
 
 /**
  * Result of resolving base paths from plugin options.
@@ -103,7 +91,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     const workspaceDirRaw = options.workspaceDir ?? DEFAULT_WORKSPACE_DIR
     const workspaceDir = this.resolvePath(workspaceDirRaw, '', '')
 
-    const shadowProjectDirRaw = options.shadowProjectDir ?? `${PLACEHOLDER_WORKSPACE}/${DEFAULT_SHADOW_PROJECT_SUFFIX}`
+    const shadowProjectDirRaw = options.shadowProjectDir ?? `${PathPlaceholders.WORKSPACE}/${DEFAULT_SHADOW_PROJECT_SUFFIX}`
     const shadowProjectDir = this.resolvePath(shadowProjectDirRaw, workspaceDir, '')
 
     return { workspaceDir, shadowProjectDir }
@@ -129,16 +117,16 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
   protected resolvePath(rawPath: string, workspaceDir: string, shadowProjectDir: string): string {
     let resolved = rawPath
 
-    if (resolved.startsWith(PLACEHOLDER_USER_HOME)) {
-      resolved = resolved.replace(PLACEHOLDER_USER_HOME, os.homedir())
+    if (resolved.startsWith(PathPlaceholders.USER_HOME)) {
+      resolved = resolved.replace(PathPlaceholders.USER_HOME, os.homedir())
     }
 
-    if (resolved.includes(PLACEHOLDER_SHADOW_PROJECT)) {
-      resolved = resolved.replace(PLACEHOLDER_SHADOW_PROJECT, shadowProjectDir)
+    if (resolved.includes(PathPlaceholders.SHADOW_PROJECT)) {
+      resolved = resolved.replace(PathPlaceholders.SHADOW_PROJECT, shadowProjectDir)
     }
 
-    if (resolved.includes(PLACEHOLDER_WORKSPACE)) {
-      resolved = resolved.replace(PLACEHOLDER_WORKSPACE, workspaceDir)
+    if (resolved.includes(PathPlaceholders.WORKSPACE)) {
+      resolved = resolved.replace(PathPlaceholders.WORKSPACE, workspaceDir)
     }
 
     return path.normalize(resolved)
