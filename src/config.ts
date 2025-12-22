@@ -217,6 +217,8 @@ export function defineConfig(options: PluginOptions | DefineConfigOptions = {}):
     ...(merged.subAgents != null && { subAgents: merged.subAgents }),
     ...(merged.skills != null && { skills: merged.skills }),
     ...(merged.globalMemory != null && { globalMemory: merged.globalMemory }),
+    ...(merged.aiAgentIgnoreConfigFiles != null && { aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles }),
+    ...(merged.shadowProjectDir != null && { shadowProjectDir: merged.shadowProjectDir }),
   }
 
   return { context, outputPlugins }

@@ -626,6 +626,11 @@ export class PluginPipeline {
         ? [...(base.skills ?? []), ...addition.skills]
         : base.skills
 
+    const aiAgentIgnoreConfigFiles: CollectedInputContext['aiAgentIgnoreConfigFiles'] | undefined
+      = addition.aiAgentIgnoreConfigFiles != null
+        ? [...(base.aiAgentIgnoreConfigFiles ?? []), ...addition.aiAgentIgnoreConfigFiles]
+        : base.aiAgentIgnoreConfigFiles
+
     // globalMemory: last one wins
     const globalMemory: CollectedInputContext['globalMemory'] | undefined
       = addition.globalMemory ?? base.globalMemory
@@ -642,6 +647,7 @@ export class PluginPipeline {
       ...(fastCommands != null ? { fastCommands } : {}),
       ...(subAgents != null ? { subAgents } : {}),
       ...(skills != null ? { skills } : {}),
+      ...(aiAgentIgnoreConfigFiles != null ? { aiAgentIgnoreConfigFiles } : {}),
       ...(globalMemory != null ? { globalMemory } : {}),
       ...(shadowProjectDir != null ? { shadowProjectDir } : {}),
     }

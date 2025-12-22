@@ -1,5 +1,7 @@
 import { defineConfig } from '@/config'
 import { AgentsOutputPlugin } from '@/plugins/AgentsOutputPlugin'
+import { AIAgentIgnoreConfigFileInputPlugin } from '@/plugins/AIAgentIgnoreConfigFileInputPlugin'
+import { AIAgentIgnoreConfigFileOutputPlugin } from '@/plugins/AIAgentIgnoreConfigFileOutputPlugin'
 import { ClaudeCodeCLIOutputPlugin } from '@/plugins/ClaudeCodeCLIOutputPlugin'
 import { DroidCLIOutputPlugin } from '@/plugins/DroidCLIOutputPlugin'
 import { FileSystemFastCommandPlugin } from '@/plugins/FileSystemFastCommandPlugin'
@@ -19,6 +21,7 @@ import { VisualStudioCodeIDEConfigOutputPlugin } from './plugins/VisualStudioCod
 export default defineConfig({
   plugins: [
     new AgentsOutputPlugin(),
+    new AIAgentIgnoreConfigFileOutputPlugin(),
     new ClaudeCodeCLIOutputPlugin(),
     new DroidCLIOutputPlugin(),
     new GeminiCLIOutputPlugin(),
@@ -30,6 +33,7 @@ export default defineConfig({
 
     new FileSystemWorkspacePlugin(),
     new FileSystemShadowProjectPlugin(),
+    new AIAgentIgnoreConfigFileInputPlugin(),
     new FileSystemIdeConfigPlugin(),
     new FileSystemSkillPlugin(),
     new FileSystemFastCommandPlugin(),

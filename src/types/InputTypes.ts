@@ -44,6 +44,14 @@ export interface ProjectIDEConfigFile<I extends IDEKind = IDEKind.Original> exte
 }
 
 /**
+ * AI Agent ignore configuration file
+ */
+export interface AIAgentIgnoreConfigFile {
+  readonly fileName: string
+  readonly content: string
+}
+
+/**
  * 所有收集到的输出信息，提供给插件系统，作为输出插件的输入
  */
 export interface CollectedInputContext {
@@ -54,6 +62,7 @@ export interface CollectedInputContext {
   readonly subAgents?: readonly SubAgentPrompt[]
   readonly skills?: readonly SkillPrompt[]
   readonly globalMemory?: GlobalMemoryPrompt
+  readonly aiAgentIgnoreConfigFiles?: readonly AIAgentIgnoreConfigFile[]
   /**
    * Shadow project directory absolute path
    * Used to identify and skip shadow project during cleanup
