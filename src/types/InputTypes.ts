@@ -85,6 +85,10 @@ export interface CollectedInputContext {
    * Used to identify and skip shadow project during cleanup
    */
   readonly shadowProjectDir?: string
+  /**
+   * README.md prompts collected from shadow project
+   */
+  readonly readmePrompts?: readonly ReadmePrompt[]
 }
 
 /**
@@ -152,4 +156,23 @@ export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatt
   readonly dir: RelativePath
   readonly referenceDocuments?: SkillReferenceDocument[]
   readonly yamlFrontMatter: SkillYAMLFrontMatter
+}
+
+/**
+ * README.md prompt data structure
+ */
+export interface ReadmePrompt extends Prompt<PromptKind.Readme> {
+  readonly type: PromptKind.Readme
+  /**
+   * Project name this README belongs to
+   */
+  readonly projectName: string
+  /**
+   * Target output directory relative to workspace
+   */
+  readonly targetDir: RelativePath
+  /**
+   * Whether this is a root README (in project root) or child README (in subdirectory)
+   */
+  readonly isRoot: boolean
 }

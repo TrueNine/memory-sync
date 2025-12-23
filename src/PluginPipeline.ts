@@ -21,6 +21,7 @@ import {
   ExecuteCommand,
   HelpCommand,
   InitCommand,
+  UnknownCommand,
 } from '@/commands'
 import { createLogger } from '@/log'
 import {
@@ -29,31 +30,49 @@ import {
 } from '@/types'
 
 /**
- * 命令行参数解析结果
+ * Valid subcommands for the CLI
+ */
+export type Subcommand = 'help' | 'init' | 'dry-run' | 'clean'
+
+/**
+ * Valid log levels for the CLI
+ */
+export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error'
+
+/**
+ * Command line argument parsing result
  */
 export interface ParsedCliArgs {
   /**
-   * 显示帮助信息
+   * The subcommand to execute (help, init, dry-run, clean, or undefined for default)
    */
-  readonly help: boolean
+  readonly subcommand: Subcommand | undefined
   /**
-   * 清理模式
+   * Whether help was requested via --help or -h flag
    */
-  readonly clean: boolean
+  readonly helpFlag: boolean
   /**
-   * 试运行模式
+   * Dry run mode for clean command
    */
   readonly dryRun: boolean
   /**
-   * 初始化模式
+   * Log level configuration (single level for backward compatibility)
    */
-  readonly init: boolean
+  readonly logLevel: LogLevel | undefined
   /**
-   * 未识别的位置参数
+   * All log level flags provided (for priority resolution)
+   */
+  readonly logLevelFlags: readonly LogLevel[]
+  /**
+   * Unknown subcommand if provided
+   */
+  readonly unknownCommand: string | undefined
+  /**
+   * Remaining positional arguments
    */
   readonly positional: readonly string[]
   /**
-   * 未识别的选项
+   * Unknown flags
    */
   readonly unknown: readonly string[]
 }
@@ -112,24 +131,143 @@ function isScriptOrPackage(arg: string): boolean {
 }
 
 /**
- * 解析命令行参数
+ * Valid subcommands set for quick lookup
  */
-function parseArgs(args: readonly string[]): ParsedCliArgs {
+const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'init', 'dry-run', 'clean'])
+
+/**
+ * Log level flags mapping
+ */
+const LOG_LEVEL_FLAGS: ReadonlyMap<string, LogLevel> = new Map([
+  ['--trace', 'trace'],
+  ['--debug', 'debug'],
+  ['--info', 'info'],
+  ['--warn', 'warn'],
+  ['--error', 'error'],
+])
+
+/**
+ * Log level priority map (lower number = more verbose)
+ */
+const LOG_LEVEL_PRIORITY: ReadonlyMap<LogLevel, number> = new Map([
+  ['trace', 0],
+  ['debug', 1],
+  ['info', 2],
+  ['warn', 3],
+  ['error', 4],
+])
+
+/**
+ * Resolve log level from parsed arguments.
+ * When multiple log level flags are provided, returns the most verbose level.
+ * Priority: trace > debug > info > warn > error
+ *
+ * @param args - Parsed CLI arguments
+ * @returns The resolved log level, or undefined if no log level flag was provided
+ */
+export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
+  const { logLevelFlags } = args
+
+  if (logLevelFlags.length === 0) {
+    return void 0
+  }
+
+  // Find the most verbose level (lowest priority number)
+  let mostVerbose: LogLevel = logLevelFlags[0]!
+  let lowestPriority = LOG_LEVEL_PRIORITY.get(mostVerbose) ?? 4
+
+  for (const level of logLevelFlags) {
+    const priority = LOG_LEVEL_PRIORITY.get(level) ?? 4
+    if (priority < lowestPriority) {
+      lowestPriority = priority
+      mostVerbose = level
+    }
+  }
+
+  return mostVerbose
+}
+
+/**
+ * Resolve command from parsed arguments.
+ * Resolution rules:
+ * 1. If helpFlag is true → HelpCommand
+ * 2. If unknownCommand is defined → UnknownCommand
+ * 3. If subcommand is 'help' → HelpCommand
+ * 4. If subcommand is 'init' → InitCommand
+ * 5. If subcommand is 'dry-run' → DryRunOutputCommand
+ * 6. If subcommand is 'clean':
+ *    - If dryRun is true → DryRunCleanCommand
+ *    - Else → CleanCommand
+ * 7. Default → ExecuteCommand
+ *
+ * @param args - Parsed CLI arguments
+ * @returns The resolved command
+ */
+export function resolveCommand(args: ParsedCliArgs): Command {
+  const { helpFlag, subcommand, dryRun, unknownCommand } = args
+
+  // Help flag takes priority
+  if (helpFlag) {
+    return new HelpCommand()
+  }
+
+  // Unknown command handling
+  if (unknownCommand != null) {
+    return new UnknownCommand(unknownCommand)
+  }
+
+  // Help subcommand
+  if (subcommand === 'help') {
+    return new HelpCommand()
+  }
+
+  // Init subcommand
+  if (subcommand === 'init') {
+    return new InitCommand()
+  }
+
+  // Dry-run subcommand
+  if (subcommand === 'dry-run') {
+    return new DryRunOutputCommand()
+  }
+
+  // Clean subcommand with optional dry-run flag
+  if (subcommand === 'clean') {
+    if (dryRun) {
+      return new DryRunCleanCommand()
+    }
+    return new CleanCommand()
+  }
+
+  // Default: execute sync pipeline
+  return new ExecuteCommand()
+}
+
+/**
+ * Parse command line arguments into structured result
+ */
+export function parseArgs(args: readonly string[]): ParsedCliArgs {
   const result: {
-    help: boolean
-    clean: boolean
+    subcommand: Subcommand | undefined
+    helpFlag: boolean
     dryRun: boolean
-    init: boolean
+    logLevel: LogLevel | undefined
+    logLevelFlags: LogLevel[]
+    unknownCommand: string | undefined
     positional: string[]
     unknown: string[]
   } = {
-    help: false,
-    clean: false,
+    subcommand: void 0,
+    helpFlag: false,
     dryRun: false,
-    init: false,
+    logLevel: void 0,
+    logLevelFlags: [],
+    unknownCommand: void 0,
     positional: [],
     unknown: [],
   }
+
+  let firstPositionalProcessed = false
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
@@ -137,28 +275,31 @@ function parseArgs(args: readonly string[]): ParsedCliArgs {
       continue
     }
 
-    // 处理 -- 后的所有参数作为位置参数
+    // Handle -- separator: all following args are positional
     if (arg === '--') {
       result.positional.push(...args.slice(i + 1).filter((a): a is string => a != null))
       break
     }
 
-    // 长选项
+    // Long options
     if (arg.startsWith('--')) {
-      const parts = arg.slice(2).split('=')
+      const parts = arg.split('=')
       const key = parts[0] ?? ''
+
+      // Check log level flags
+      const logLevel = LOG_LEVEL_FLAGS.get(key)
+      if (logLevel != null) {
+        result.logLevelFlags.push(logLevel)
+        result.logLevel = logLevel
+        continue
+      }
+
       switch (key) {
-        case 'help':
-          result.help = true
+        case '--help':
+          result.helpFlag = true
           break
-        case 'clean':
-          result.clean = true
-          break
-        case 'dry-run':
+        case '--dry-run':
           result.dryRun = true
-          break
-        case 'init':
-          result.init = true
           break
         default:
           result.unknown.push(arg)
@@ -166,22 +307,16 @@ function parseArgs(args: readonly string[]): ParsedCliArgs {
       continue
     }
 
-    // 短选项
+    // Short options
     if (arg.startsWith('-') && arg.length > 1) {
       const flags = arg.slice(1)
       for (const flag of flags) {
         switch (flag) {
           case 'h':
-            result.help = true
-            break
-          case 'c':
-            result.clean = true
+            result.helpFlag = true
             break
           case 'n':
             result.dryRun = true
-            break
-          case 'i':
-            result.init = true
             break
           default:
             result.unknown.push(`-${flag}`)
@@ -190,7 +325,19 @@ function parseArgs(args: readonly string[]): ParsedCliArgs {
       continue
     }
 
-    // 位置参数
+    // First positional argument: check if it's a subcommand
+    if (!firstPositionalProcessed) {
+      firstPositionalProcessed = true
+      if (VALID_SUBCOMMANDS.has(arg)) {
+        result.subcommand = arg as Subcommand
+      } else {
+        // Unknown first positional is captured as unknownCommand
+        result.unknownCommand = arg
+      }
+      continue
+    }
+
+    // Remaining positional arguments
     result.positional.push(arg)
   }
 
@@ -203,10 +350,13 @@ export class PluginPipeline {
   private outputPlugins: OutputPlugin[] = []
 
   constructor(...cmdArgs: (string | undefined)[]) {
-    this.logger = createLogger('PluginPipeline')
     const filtered = cmdArgs.filter((arg): arg is string => arg != null)
     const userArgs = extractUserArgs(filtered)
     this.args = parseArgs(userArgs)
+
+    // Resolve log level from parsed args and pass to logger
+    const resolvedLogLevel = resolveLogLevel(this.args)
+    this.logger = createLogger('PluginPipeline', resolvedLogLevel)
     this.logger.info('PluginPipeline initialized', { args: this.args })
   }
 
@@ -225,25 +375,7 @@ export class PluginPipeline {
   }
 
   private resolveCommand(): Command {
-    const { help, clean, dryRun, init } = this.args
-
-    if (help) {
-      return new HelpCommand()
-    }
-    if (init) {
-      return new InitCommand()
-    }
-    if (clean && dryRun) {
-      return new DryRunCleanCommand()
-    }
-    if (clean) {
-      return new CleanCommand()
-    }
-    if (dryRun) {
-      return new DryRunOutputCommand()
-    }
-
-    return new ExecuteCommand()
+    return resolveCommand(this.args)
   }
 
   private createCommandContext(ctx: CollectedInputContext): CommandContext {
@@ -639,6 +771,12 @@ export class PluginPipeline {
     const shadowProjectDir: CollectedInputContext['shadowProjectDir'] | undefined
       = addition.shadowProjectDir ?? base.shadowProjectDir
 
+    // readmePrompts: concatenate arrays
+    const readmePrompts: CollectedInputContext['readmePrompts'] | undefined
+      = addition.readmePrompts != null
+        ? [...(base.readmePrompts ?? []), ...addition.readmePrompts]
+        : base.readmePrompts
+
     // Build result object using object literal
     return {
       ...(workspace != null ? { workspace } : {}),
@@ -650,6 +788,7 @@ export class PluginPipeline {
       ...(aiAgentIgnoreConfigFiles != null ? { aiAgentIgnoreConfigFiles } : {}),
       ...(globalMemory != null ? { globalMemory } : {}),
       ...(shadowProjectDir != null ? { shadowProjectDir } : {}),
+      ...(readmePrompts != null ? { readmePrompts } : {}),
     }
   }
 }

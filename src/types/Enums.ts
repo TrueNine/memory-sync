@@ -11,6 +11,7 @@ export enum PromptKind {
   SubAgent = 'SubAgent',
   Skill = 'Skill',
   SkillReferenceDocument = 'SkillReferenceDocument',
+  Readme = 'Readme',
 }
 
 export enum ClaudeCodeCLISubAgentColors {

@@ -11,6 +11,8 @@ import { IdeConfigInputPlugin } from '@/plugins/IdeConfigInputPlugin'
 import { JetBrainsIDECodeStyleConfigOutputPlugin } from '@/plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
 import { KiroCLIOutputPlugin } from '@/plugins/KiroCLIOutputPlugin'
 import { ProjectPromptInputPlugin } from '@/plugins/ProjectPromptInputPlugin'
+import { ReadmeMdConfigFileOutputPlugin } from '@/plugins/ReadmeMdConfigFileOutputPlugin'
+import { ReadmeMdInputPlugin } from '@/plugins/ReadmeMdInputPlugin'
 import { ShadowProjectInputPlugin } from '@/plugins/ShadowProjectInputPlugin'
 import { SkillInputPlugin } from '@/plugins/SkillInputPlugin'
 import { SubAgentInputPlugin } from '@/plugins/SubAgentInputPlugin'
@@ -30,6 +32,7 @@ export default defineConfig({
 
     new JetBrainsIDECodeStyleConfigOutputPlugin(),
     new VisualStudioCodeIDEConfigOutputPlugin(),
+    new ReadmeMdConfigFileOutputPlugin(),
 
     new WorkspaceInputPlugin(),
     new ShadowProjectInputPlugin(),
@@ -40,5 +43,6 @@ export default defineConfig({
     new SubAgentInputPlugin(),
     new GlobalMemoryInputPlugin(),
     new ProjectPromptInputPlugin(),
+    new ReadmeMdInputPlugin(),
   ],
 })

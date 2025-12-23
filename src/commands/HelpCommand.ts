@@ -9,20 +9,32 @@ ${CLI_NAME} v${VERSION} - Memory Sync CLI
 Synchronize AI memory and configuration files across projects.
 
 USAGE:
-  ${CLI_NAME} [OPTIONS]
+  ${CLI_NAME}                    Run the sync pipeline (default)
+  ${CLI_NAME} help               Show this help message
+  ${CLI_NAME} init               Initialize directories and files
+  ${CLI_NAME} dry-run            Preview what would be written
+  ${CLI_NAME} clean              Remove all generated files
+  ${CLI_NAME} clean --dry-run    Preview what would be cleaned
 
-OPTIONS:
-  -h, --help      Show this help message
-  -i, --init      Initialize directory structure based on configuration
-  -c, --clean     Clean generated output files and directories
-  -n, --dry-run   Preview changes without writing files
+SUBCOMMANDS:
+  help       Show this help message
+  init       Initialize directory structure based on configuration
+  dry-run    Preview changes without writing files
+  clean      Remove all generated output files and directories
 
-EXAMPLES:
-  ${CLI_NAME}              Run the sync pipeline (default)
-  ${CLI_NAME} --init       Initialize directories and files
-  ${CLI_NAME} --dry-run    Preview what would be written
-  ${CLI_NAME} --clean      Remove all generated files
-  ${CLI_NAME} -cn          Preview what would be cleaned
+ALIASES:
+  ${CLI_NAME} --help, ${CLI_NAME} -h   Same as '${CLI_NAME} help'
+  ${CLI_NAME} clean -n           Same as '${CLI_NAME} clean --dry-run'
+
+LOG LEVEL OPTIONS:
+  --trace        Most verbose output
+  --debug        Debug information
+  --info         Standard information (default)
+  --warn         Warnings only
+  --error        Errors only
+
+CLEAN OPTIONS:
+  -n, --dry-run  Preview cleanup without removing files
 
 CONFIGURATION:
   Configure via plugin.config.ts in your project root.

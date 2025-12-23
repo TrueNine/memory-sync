@@ -236,13 +236,14 @@ export function defineConfig(options: PluginOptions | DefineConfigOptions = {}):
   }
 
   // Merge: defaults <- user config <- programmatic options
-  const { plugins = [], logLevel } = mergeConfig(userConfigOptions, pluginOptions)
+  const mergedOptions = mergeConfig(userConfigOptions, pluginOptions)
+  const { plugins = [], logLevel } = mergedOptions
   const logger = createLogger('defineConfig', logLevel)
 
   // Base context without dependencyContext (will be provided by pipeline)
   const baseCtx: Omit<InputPluginContext, 'dependencyContext'> = {
     logger,
-    userConfigOptions: pluginOptions,
+    userConfigOptions: mergedOptions,
     fs,
     path,
     glob,
@@ -271,6 +272,7 @@ export function defineConfig(options: PluginOptions | DefineConfigOptions = {}):
     ...(merged.globalMemory != null && { globalMemory: merged.globalMemory }),
     ...(merged.aiAgentIgnoreConfigFiles != null && { aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles }),
     ...(merged.shadowProjectDir != null && { shadowProjectDir: merged.shadowProjectDir }),
+    ...(merged.readmePrompts != null && { readmePrompts: merged.readmePrompts }),
   }
 
   return { context, outputPlugins }

@@ -1,10 +1,20 @@
+import type { ParsedCliArgs } from '@/PluginPipeline'
 import type { CollectedInputContext, InputPlugin, InputPluginContext, Plugin } from '@/types'
 import fs from 'node:fs'
 import path from 'node:path'
 import glob from 'fast-glob'
 import { describe, expect, it } from 'vitest'
+import {
+  CleanCommand,
+  DryRunCleanCommand,
+  DryRunOutputCommand,
+  ExecuteCommand,
+  HelpCommand,
+  InitCommand,
+  UnknownCommand,
+} from '@/commands'
 import { createLogger } from '@/log'
-import { PluginPipeline } from '@/PluginPipeline'
+import { parseArgs, PluginPipeline, resolveCommand, resolveLogLevel } from '@/PluginPipeline'
 import { CircularDependencyError, FilePathKind, MissingDependencyError, PluginKind, PromptKind } from '@/types'
 
 function createMockPlugin(name: string, dependsOn?: readonly string[]): Plugin {
@@ -482,6 +492,338 @@ describe('pluginPipeline', () => {
 
       const result = pipeline.executePluginsInOrder(plugins, createBaseContext())
       expect(result.globalMemory?.content).toBe('from-B')
+    })
+  })
+})
+
+/**
+ * Unit tests for argument parsing
+ * Requirements: 1.1, 2.1-2.3, 3.1, 4.1, 5.1-5.3, 6.1-6.7
+ */
+describe('parseArgs', () => {
+  describe('subcommand parsing', () => {
+    it('should parse "help" subcommand', () => {
+      const result = parseArgs(['help'])
+      expect(result.subcommand).toBe('help')
+      expect(result.unknownCommand).toBeUndefined()
+    })
+
+    it('should parse "init" subcommand', () => {
+      const result = parseArgs(['init'])
+      expect(result.subcommand).toBe('init')
+      expect(result.unknownCommand).toBeUndefined()
+    })
+
+    it('should parse "dry-run" subcommand', () => {
+      const result = parseArgs(['dry-run'])
+      expect(result.subcommand).toBe('dry-run')
+      expect(result.unknownCommand).toBeUndefined()
+    })
+
+    it('should parse "clean" subcommand', () => {
+      const result = parseArgs(['clean'])
+      expect(result.subcommand).toBe('clean')
+      expect(result.unknownCommand).toBeUndefined()
+    })
+
+    it('should return undefined subcommand for empty args', () => {
+      const result = parseArgs([])
+      expect(result.subcommand).toBeUndefined()
+      expect(result.unknownCommand).toBeUndefined()
+    })
+
+    it('should capture unknown first positional as unknownCommand', () => {
+      const result = parseArgs(['foo'])
+      expect(result.subcommand).toBeUndefined()
+      expect(result.unknownCommand).toBe('foo')
+    })
+  })
+
+  describe('help flag parsing', () => {
+    it('should parse --help flag', () => {
+      const result = parseArgs(['--help'])
+      expect(result.helpFlag).toBe(true)
+    })
+
+    it('should parse -h flag', () => {
+      const result = parseArgs(['-h'])
+      expect(result.helpFlag).toBe(true)
+    })
+
+    it('should parse --help with subcommand', () => {
+      const result = parseArgs(['init', '--help'])
+      expect(result.helpFlag).toBe(true)
+      expect(result.subcommand).toBe('init')
+    })
+  })
+
+  describe('dry-run flag parsing', () => {
+    it('should parse --dry-run flag', () => {
+      const result = parseArgs(['--dry-run'])
+      expect(result.dryRun).toBe(true)
+    })
+
+    it('should parse -n flag', () => {
+      const result = parseArgs(['-n'])
+      expect(result.dryRun).toBe(true)
+    })
+
+    it('should parse clean --dry-run', () => {
+      const result = parseArgs(['clean', '--dry-run'])
+      expect(result.subcommand).toBe('clean')
+      expect(result.dryRun).toBe(true)
+    })
+
+    it('should parse clean -n', () => {
+      const result = parseArgs(['clean', '-n'])
+      expect(result.subcommand).toBe('clean')
+      expect(result.dryRun).toBe(true)
+    })
+  })
+
+  describe('log level parsing', () => {
+    it('should parse --trace flag', () => {
+      const result = parseArgs(['--trace'])
+      expect(result.logLevel).toBe('trace')
+      expect(result.logLevelFlags).toContain('trace')
+    })
+
+    it('should parse --debug flag', () => {
+      const result = parseArgs(['--debug'])
+      expect(result.logLevel).toBe('debug')
+      expect(result.logLevelFlags).toContain('debug')
+    })
+
+    it('should parse --info flag', () => {
+      const result = parseArgs(['--info'])
+      expect(result.logLevel).toBe('info')
+      expect(result.logLevelFlags).toContain('info')
+    })
+
+    it('should parse --warn flag', () => {
+      const result = parseArgs(['--warn'])
+      expect(result.logLevel).toBe('warn')
+      expect(result.logLevelFlags).toContain('warn')
+    })
+
+    it('should parse --error flag', () => {
+      const result = parseArgs(['--error'])
+      expect(result.logLevel).toBe('error')
+      expect(result.logLevelFlags).toContain('error')
+    })
+
+    it('should have undefined logLevel when no flag provided', () => {
+      const result = parseArgs([])
+      expect(result.logLevel).toBeUndefined()
+      expect(result.logLevelFlags).toHaveLength(0)
+    })
+
+    it('should collect multiple log level flags', () => {
+      const result = parseArgs(['--debug', '--trace', '--info'])
+      expect(result.logLevelFlags).toContain('debug')
+      expect(result.logLevelFlags).toContain('trace')
+      expect(result.logLevelFlags).toContain('info')
+      expect(result.logLevelFlags).toHaveLength(3)
+    })
+  })
+
+  describe('unknown flags', () => {
+    it('should collect unknown long flags', () => {
+      const result = parseArgs(['--unknown-flag'])
+      expect(result.unknown).toContain('--unknown-flag')
+    })
+
+    it('should collect unknown short flags', () => {
+      const result = parseArgs(['-x'])
+      expect(result.unknown).toContain('-x')
+    })
+  })
+
+  describe('positional arguments', () => {
+    it('should collect positional arguments after subcommand', () => {
+      const result = parseArgs(['init', 'arg1', 'arg2'])
+      expect(result.subcommand).toBe('init')
+      expect(result.positional).toContain('arg1')
+      expect(result.positional).toContain('arg2')
+    })
+
+    it('should handle -- separator', () => {
+      const result = parseArgs(['init', '--', '--help', 'arg'])
+      expect(result.subcommand).toBe('init')
+      expect(result.helpFlag).toBe(false)
+      expect(result.positional).toContain('--help')
+      expect(result.positional).toContain('arg')
+    })
+  })
+
+  describe('parsedCliArgs structure', () => {
+    it('should return complete ParsedCliArgs structure', () => {
+      const result = parseArgs(['clean', '--dry-run', '--debug'])
+      expect(result).toMatchObject({
+        subcommand: 'clean',
+        helpFlag: false,
+        dryRun: true,
+        logLevel: 'debug',
+        unknownCommand: void 0,
+      } satisfies Partial<ParsedCliArgs>)
+      expect(result.logLevelFlags).toContain('debug')
+      expect(Array.isArray(result.positional)).toBe(true)
+      expect(Array.isArray(result.unknown)).toBe(true)
+    })
+  })
+})
+
+/**
+ * Unit tests for log level resolution
+ * Requirements: 6.6, 6.7
+ */
+describe('resolveLogLevel', () => {
+  function createParsedArgs(overrides: Partial<ParsedCliArgs> = {}): ParsedCliArgs {
+    return {
+      subcommand: void 0,
+      helpFlag: false,
+      dryRun: false,
+      logLevel: void 0,
+      logLevelFlags: [],
+      unknownCommand: void 0,
+      positional: [],
+      unknown: [],
+      ...overrides,
+    }
+  }
+
+  it('should return undefined when no log level flags provided', () => {
+    const args = createParsedArgs()
+    expect(resolveLogLevel(args)).toBeUndefined()
+  })
+
+  it('should return single log level when one flag provided', () => {
+    const args = createParsedArgs({ logLevelFlags: ['debug'] })
+    expect(resolveLogLevel(args)).toBe('debug')
+  })
+
+  it('should return most verbose level (trace) when multiple flags provided', () => {
+    const args = createParsedArgs({ logLevelFlags: ['error', 'trace', 'warn'] })
+    expect(resolveLogLevel(args)).toBe('trace')
+  })
+
+  it('should return debug over info when both provided', () => {
+    const args = createParsedArgs({ logLevelFlags: ['info', 'debug'] })
+    expect(resolveLogLevel(args)).toBe('debug')
+  })
+
+  it('should return info over warn when both provided', () => {
+    const args = createParsedArgs({ logLevelFlags: ['warn', 'info'] })
+    expect(resolveLogLevel(args)).toBe('info')
+  })
+})
+
+/**
+ * Unit tests for command resolution
+ * Requirements: 1.1, 2.1-2.3, 3.1, 4.1, 5.1-5.3, 7.1
+ */
+describe('resolveCommand', () => {
+  function createParsedArgs(overrides: Partial<ParsedCliArgs> = {}): ParsedCliArgs {
+    return {
+      subcommand: void 0,
+      helpFlag: false,
+      dryRun: false,
+      logLevel: void 0,
+      logLevelFlags: [],
+      unknownCommand: void 0,
+      positional: [],
+      unknown: [],
+      ...overrides,
+    }
+  }
+
+  describe('default command', () => {
+    it('should return ExecuteCommand for empty args', () => {
+      const args = createParsedArgs()
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(ExecuteCommand)
+    })
+  })
+
+  describe('help command', () => {
+    it('should return HelpCommand for help subcommand', () => {
+      const args = createParsedArgs({ subcommand: 'help' })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(HelpCommand)
+    })
+
+    it('should return HelpCommand for --help flag', () => {
+      const args = createParsedArgs({ helpFlag: true })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(HelpCommand)
+    })
+
+    it('should return HelpCommand for -h flag', () => {
+      const args = createParsedArgs({ helpFlag: true })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(HelpCommand)
+    })
+
+    it('should prioritize helpFlag over subcommand', () => {
+      const args = createParsedArgs({ helpFlag: true, subcommand: 'init' })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(HelpCommand)
+    })
+
+    it('should prioritize helpFlag over unknownCommand', () => {
+      const args = createParsedArgs({ helpFlag: true, unknownCommand: 'foo' })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(HelpCommand)
+    })
+  })
+
+  describe('init command', () => {
+    it('should return InitCommand for init subcommand', () => {
+      const args = createParsedArgs({ subcommand: 'init' })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(InitCommand)
+    })
+  })
+
+  describe('dry-run command', () => {
+    it('should return DryRunOutputCommand for dry-run subcommand', () => {
+      const args = createParsedArgs({ subcommand: 'dry-run' })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(DryRunOutputCommand)
+    })
+  })
+
+  describe('clean command', () => {
+    it('should return CleanCommand for clean subcommand', () => {
+      const args = createParsedArgs({ subcommand: 'clean' })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(CleanCommand)
+    })
+
+    it('should return DryRunCleanCommand for clean --dry-run', () => {
+      const args = createParsedArgs({ subcommand: 'clean', dryRun: true })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(DryRunCleanCommand)
+    })
+
+    it('should return DryRunCleanCommand for clean -n', () => {
+      const args = createParsedArgs({ subcommand: 'clean', dryRun: true })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(DryRunCleanCommand)
+    })
+  })
+
+  describe('unknown command', () => {
+    it('should return UnknownCommand for unknown subcommand', () => {
+      const args = createParsedArgs({ unknownCommand: 'foo' })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(UnknownCommand)
+    })
+
+    it('should prioritize unknownCommand over default', () => {
+      const args = createParsedArgs({ unknownCommand: 'bar' })
+      const command = resolveCommand(args)
+      expect(command).toBeInstanceOf(UnknownCommand)
     })
   })
 })

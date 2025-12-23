@@ -1,65 +1,74 @@
 # TrueNine Life CLI
 
-跨 AI 编程工具的提示词同步工具。一套规则，多端适配。
+Cross-platform prompt sync tool for AI coding assistants. One ruleset, multi-target adaptation.
 
-## 快速开始
+## Quick Start
 
 ```bash
 npx @truenine/memory-sync-cli
 ```
 
-## 全局安装
+## Global Install
 
 ```bash
 pnpm add -g @truenine/memory-sync-cli
 ```
-## 更新版本
+
+## Update
 
 ```bash
 pnpm update -g @truenine/memory-sync-cli --latest
 ```
 
-安装后可直接使用命令：
+After installation, use directly:
 
 ```bash
 tnmsc
 ```
 
-可用功能：
+Available commands:
 
 ```bash
-# 直接同步
+# Sync directly
 tnmsc
 
-# 获取参数列表
+# Get help
+tnmsc help
 tnmsc --help
 tnmsc -h
 
-# 根据配置文件以及默认配置，初始化目录以及文件结构
-tnmsc --init
-tnmsc -i
+# Init directory structure from config
+tnmsc init
 
-# 预览导出
-tnmsc --dry-run
-tnmsc -n
+# Preview export
+tnmsc dry-run
 
-# 清理所有导出
-tnmsc --clean
-tnmsc -c
-# 预览清理目标
-tnmsc --clean --dry-run
+# Clean all exports
+tnmsc clean
+
+# Preview clean targets
+tnmsc clean --dry-run
+tnmsc clean -n
+
+# Set log level
+tnmsc --debug
+tnmsc --info
+tnmsc --warn
+tnmsc --error
+tnmsc clean --info
+tnmsc dry-run --debug
+tnmsc clean dry-run --info
 ```
 
-## CLI 配置
-```
-可以在两个地方创建配置，来适配，以下示例为默认配置
+## CLI Config
+
+Config can be created in two locations. Example shows defaults:
 
 ```text
 ~/.aindex/.tnmsc.json
 cwd()/.tnmsc.json
 ```
-> cwd() 代表当前执行命令的目录。
-
+> cwd() represents current working directory.
 
 ```json
 {
@@ -76,8 +85,7 @@ cwd()/.tnmsc.json
 }
 ```
 
-
-## 支持的 AI 工具
+## Supported AI Tools
 
 **IDE**
 - Cursor IDE
@@ -87,28 +95,27 @@ cwd()/.tnmsc.json
 - CodeBuddy IDE
 - Antigravity IDE
 
-**CLI 工具**
+**CLI Tools**
 - Claude Code CLI
 - Codex CLI
 - Gemini CLI
 - FactoryDroid CLI
 
-**配置文件**
+**Config Files**
 - JetBrains IDE
 - VSCode IDE
 
-## 插件体系
+## Plugin System
 
-采用 input → transform → output 管道架构：
+Pipeline architecture: input → transform → output
 
-- **Input 插件**: 读取源文件（Aindex、Ref、WorkspaceGroup）
-- **Transform 插件**: 处理内容
-- **Output 插件**: 写入目标格式（各 IDE/CLI 适配器）
+- **Input Plugins**: Read sources (Aindex, Ref, WorkspaceGroup)
+- **Transform Plugins**: Process content
+- **Output Plugins**: Write target formats (IDE/CLI adapters)
 
-## 配置
+## Config
 
-配置文件优先级：`cwd()/.tnmsc.json` > `~/.aindex/.tnmsc.json`
-
+Priority: `cwd()/.tnmsc.json` > `~/.aindex/.tnmsc.json`
 
 ## License
 
