@@ -17,13 +17,12 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
   })
 
   function createMockInputPluginContext(
-    shadowSourceProjectDir: string = mockShadowProjectDir,
+    shadowProjectDir: string = mockShadowProjectDir,
   ): InputPluginContext {
     return {
       userConfigOptions: {
         workspaceDir: mockWorkspaceDir,
-        shadowProjectDir: mockShadowProjectDir,
-        shadowSourceProjectDir,
+        shadowProjectDir,
       },
       logger: {
         debug: vi.fn(),
@@ -200,7 +199,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       expect(ctx.logger.debug).toHaveBeenCalledTimes(3)
     })
 
-    it('should support custom shadowSourceProjectDir', () => {
+    it('should support custom shadowProjectDir', () => {
       const customDir = '/custom/shadow/project'
       const ctx = createMockInputPluginContext(customDir)
 

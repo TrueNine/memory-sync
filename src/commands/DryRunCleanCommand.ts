@@ -10,12 +10,13 @@ export class DryRunCleanCommand implements Command {
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
     const { logger, outputPlugins, createCleanContext } = ctx
-    logger.info('[DRY-RUN] Running clean pipeline')
+    logger.info('running clean pipeline', { command: 'dry-run-clean', dryRun: true })
 
     const cleanCtx = createCleanContext(true)
     const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx)
 
-    logger.info('[DRY-RUN] Collected outputs for cleanup', {
+    logger.info('collected outputs for cleanup', {
+      dryRun: true,
       projectDirs: outputs.projectDirs.length,
       projectFiles: outputs.projectFiles.length,
       globalDirs: outputs.globalDirs.length,
@@ -30,7 +31,7 @@ export class DryRunCleanCommand implements Command {
 
     await executeOnCleanComplete(outputPlugins, cleanCtx)
 
-    logger.info(`[DRY-RUN] Clean complete: ${filesToDelete.length} files, ${dirsToDelete.length} directories would be deleted`)
+    logger.info('clean complete', { dryRun: true, filesAffected: filesToDelete.length, dirsAffected: dirsToDelete.length })
 
     return {
       success: true,
@@ -70,7 +71,7 @@ export class DryRunCleanCommand implements Command {
   private logDryRunFiles(files: string[], logger: CommandContext['logger']): void {
     for (const file of files) {
       const resolved = path.isAbsolute(file) ? file : path.resolve(file)
-      logger.info(`[DRY-RUN] Would delete file: ${resolved}`)
+      logger.info('would delete file', { path: resolved, dryRun: true })
     }
   }
 
@@ -78,7 +79,7 @@ export class DryRunCleanCommand implements Command {
     const sortedDirs = [...dirs].sort((a, b) => b.length - a.length)
     for (const dir of sortedDirs) {
       const resolved = path.isAbsolute(dir) ? dir : path.resolve(dir)
-      logger.info(`[DRY-RUN] Would delete directory: ${resolved}`)
+      logger.info('would delete directory', { path: resolved, dryRun: true })
     }
   }
 }

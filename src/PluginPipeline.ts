@@ -357,7 +357,7 @@ export class PluginPipeline {
     // Resolve log level from parsed args and pass to logger
     const resolvedLogLevel = resolveLogLevel(this.args)
     this.logger = createLogger('PluginPipeline', resolvedLogLevel)
-    this.logger.info('PluginPipeline initialized', { args: this.args })
+    this.logger.debug('initialized', { args: this.args })
   }
 
   registerOutputPlugins(plugins: OutputPlugin[]): this {

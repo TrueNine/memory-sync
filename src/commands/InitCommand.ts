@@ -36,7 +36,7 @@ export class InitCommand implements Command {
   async execute(ctx: CommandContext): Promise<CommandResult> {
     const { logger } = ctx
 
-    logger.info('Initializing directory structure...')
+    logger.info('initializing directory structure', { command: 'init' })
 
     // Load user config
     const configResult = loadUserConfig()
@@ -101,10 +101,10 @@ export class InitCommand implements Command {
     for (const dir of dirsToCreate) {
       if (!fs.existsSync(dir.path)) {
         fs.mkdirSync(dir.path, { recursive: true })
-        logger.info(`Created ${dir.name} directory: ${dir.path}`)
+        logger.info('created directory', { name: dir.name, path: dir.path })
         dirsCreated++
       } else {
-        logger.info(`${dir.name} directory already exists: ${dir.path}`)
+        logger.debug('directory already exists', { name: dir.name, path: dir.path })
         dirsExisted++
       }
     }
@@ -118,10 +118,10 @@ export class InitCommand implements Command {
 
     if (!fs.existsSync(globalMemoryFile)) {
       fs.writeFileSync(globalMemoryFile, '# Global Memory\n\n', 'utf-8')
-      logger.info(`Created global memory file: ${globalMemoryFile}`)
+      logger.info('created global memory file', { path: globalMemoryFile })
       filesCreated++
     } else {
-      logger.info(`Global memory file already exists: ${globalMemoryFile}`)
+      logger.debug('global memory file already exists', { path: globalMemoryFile })
       filesExisted++
     }
 

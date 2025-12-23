@@ -75,7 +75,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     )
 
     if (!hasIdeaConfigs) {
-      this.log.info('No JetBrains IDE config files found, skipping')
+      this.log.debug('skipped', { reason: 'no JetBrains IDE config files found' })
       return false
     }
 
@@ -134,7 +134,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     }
 
     if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write ${label} -> ${fullPath}`)
+      this.log.info('would write', { path: fullPath, label, dryRun: true })
       return { path: relativePath, success: true, skipped: false }
     }
 
@@ -142,11 +142,11 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
       const dir = this.dirname(fullPath)
       this.ensureDirectory(dir)
       this.writeFileSync(fullPath, config.content)
-      this.log.info(`Written ${label} -> ${fullPath}`)
+      this.log.info('written', { path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write ${label}: ${errMsg}`)
+      this.log.error('write failed', { path: fullPath, label, error: errMsg })
       return { path: relativePath, success: false, error: error as Error }
     }
   }

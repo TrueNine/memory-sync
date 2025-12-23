@@ -26,7 +26,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
 
     // Check if shadow source project directory exists
     if (!fs.existsSync(shadowSourceProjectDir) || !fs.statSync(shadowSourceProjectDir).isDirectory()) {
-      logger.debug(`Shadow source project directory does not exist: ${shadowSourceProjectDir}`)
+      logger.debug('shadow source project directory does not exist', { path: shadowSourceProjectDir })
       return { readmePrompts }
     }
 
@@ -58,7 +58,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         )
       }
     } catch (e) {
-      logger.error(`Failed to scan shadow source projects at ${shadowSourceProjectDir}`, { error: e })
+      logger.error('failed to scan shadow source projects', { path: shadowSourceProjectDir, error: e })
     }
 
     return { readmePrompts }
@@ -124,7 +124,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           dir,
         })
       } catch (e) {
-        logger.warn(`Failed to read README.md at ${readmePath}`, { error: e })
+        logger.warn('failed to read README.md', { path: readmePath, error: e })
       }
     }
 
@@ -148,7 +148,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         }
       }
     } catch (e) {
-      logger.warn(`Failed to scan directory ${currentDir}`, { error: e })
+      logger.warn('failed to scan directory', { path: currentDir, error: e })
     }
   }
 }

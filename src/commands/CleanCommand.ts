@@ -9,12 +9,12 @@ export class CleanCommand implements Command {
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
     const { logger, outputPlugins, createCleanContext } = ctx
-    logger.info('Running clean pipeline')
+    logger.info('running clean pipeline', { command: 'clean' })
 
     const cleanCtx = createCleanContext(false)
     const result = await performCleanup(outputPlugins, cleanCtx, logger)
 
-    logger.info(`Clean complete: ${result.deletedFiles} files, ${result.deletedDirs} directories`)
+    logger.info('clean complete', { deletedFiles: result.deletedFiles, deletedDirs: result.deletedDirs })
 
     return {
       success: true,

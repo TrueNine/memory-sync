@@ -69,7 +69,7 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { aiAgentIgnoreConfigFiles } = ctx.collectedInputContext
     if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) {
-      this.log.info('No ignore config files to write, skipping')
+      this.log.debug('skipped', { reason: 'no ignore config files to write' })
       return false
     }
 
@@ -126,17 +126,17 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write ignore config file -> ${fullPath}`)
+      this.log.info('would write', { path: fullPath, label, dryRun: true })
       return { path: relativePath, success: true, skipped: false }
     }
 
     try {
       fs.writeFileSync(fullPath, ignoreFile.content, 'utf-8')
-      this.log.info(`Written ignore config file -> ${fullPath}`)
+      this.log.info('written', { path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write ignore config file ${label}: ${errMsg}`)
+      this.log.error('write failed', { path: fullPath, label, error: errMsg })
       return { path: relativePath, success: false, error: error as Error }
     }
   }

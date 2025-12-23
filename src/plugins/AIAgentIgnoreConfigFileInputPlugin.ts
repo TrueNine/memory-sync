@@ -30,9 +30,9 @@ export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
         try {
           const content = fs.readFileSync(filePath, 'utf-8')
           ignoreFiles.push({ fileName, content })
-          logger.debug(`Read ignore file: ${filePath}`)
+          logger.debug('read ignore file', { path: filePath })
         } catch (e) {
-          logger.warn(`Failed to read ignore file ${filePath}`, { error: e })
+          logger.warn('failed to read ignore file', { path: filePath, error: e })
         }
       }
     }

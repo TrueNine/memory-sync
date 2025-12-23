@@ -431,18 +431,18 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     }
 
     if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write ${label} -> ${fullPath}`)
+      this.log.info('would write', { path: fullPath, label, dryRun: true })
       return { path: relativePath, success: true, skipped: false }
     }
 
     try {
       this.ensureDirectory(dir)
       fs.writeFileSync(fullPath, content, 'utf-8')
-      this.log.info(`Written ${label} -> ${fullPath}`)
+      this.log.info('written', { path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write ${label}: ${errMsg}`)
+      this.log.error('write failed', { path: fullPath, label, error: errMsg })
       return { path: relativePath, success: false, error: error as Error }
     }
   }
@@ -477,7 +477,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const relativePath = this.toRelativePath(targetPath)
 
     if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write ${label} -> ${fullPath}`)
+      this.log.info('would write', { path: fullPath, label, dryRun: true })
       return { path: relativePath, success: true, skipped: false }
     }
 
@@ -485,11 +485,11 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       const dir = path.dirname(fullPath)
       this.ensureDirectory(dir)
       fs.writeFileSync(fullPath, content, 'utf-8')
-      this.log.info(`Written ${label} -> ${fullPath}`)
+      this.log.info('written', { path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write ${label}: ${errMsg}`)
+      this.log.error('write failed', { path: fullPath, label, error: errMsg })
       return { path: relativePath, success: false, error: error as Error }
     }
   }
@@ -754,12 +754,15 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    * ```
    */
   async onWriteComplete(ctx: OutputWriteContext, results: WriteResults): Promise<void> {
-    const successCount = results.files.filter((r) => r.success).length
-    const skipCount = results.files.filter((r) => r.skipped).length
-    const failCount = results.files.filter((r) => !r.success && !r.skipped).length
+    const success = results.files.filter((r) => r.success).length
+    const skipped = results.files.filter((r) => r.skipped).length
+    const failed = results.files.filter((r) => !r.success && !r.skipped).length
 
-    const mode = ctx.dryRun === true ? '[DRY-RUN]' : ''
-    this.log.info(`${mode} Write complete: ${successCount} success, ${skipCount} skipped, ${failCount} failed`)
+    if (ctx.dryRun === true) {
+      this.log.info('write complete', { success, skipped, failed, dryRun: true })
+    } else {
+      this.log.info('write complete', { success, skipped, failed })
+    }
   }
 
   /**

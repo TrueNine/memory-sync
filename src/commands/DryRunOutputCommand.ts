@@ -9,7 +9,7 @@ export class DryRunOutputCommand implements Command {
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
     const { logger, outputPlugins, createWriteContext } = ctx
-    logger.info('[DRY-RUN] Running dry-run pipeline')
+    logger.info('started', { command: 'dry-run-output', dryRun: true })
 
     const writeCtx = createWriteContext(true)
     const permissions = await checkCanWrite(outputPlugins, writeCtx)
@@ -24,10 +24,20 @@ export class DryRunOutputCommand implements Command {
     for (const [pluginName, result] of results) {
       totalFiles += result.files.length
       totalDirs += result.dirs.length
-      logger.info(`[DRY-RUN] ${pluginName}: ${result.files.length} files, ${result.dirs.length} dirs`)
+      logger.info('plugin result', {
+        plugin: pluginName,
+        files: result.files.length,
+        dirs: result.dirs.length,
+        dryRun: true,
+      })
     }
 
-    logger.info(`[DRY-RUN] Total: ${totalFiles} files, ${totalDirs} dirs would be written`)
+    logger.info('complete', {
+      command: 'dry-run-output',
+      totalFiles,
+      totalDirs,
+      dryRun: true,
+    })
 
     return {
       success: true,

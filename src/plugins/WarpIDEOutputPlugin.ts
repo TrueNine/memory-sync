@@ -65,7 +65,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     if (agentsRegistered) {
       // When AgentsOutputPlugin is registered, only write if we have global memory
       if (globalMemory == null) {
-        this.log.info('AgentsOutputPlugin registered but no global memory, skipping global WARP.md')
+        this.log.debug('skipped', { reason: 'AgentsOutputPlugin registered but no global memory' })
         return false
       }
       return true
@@ -77,7 +77,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     )
 
     if (!hasProjectOutputs) {
-      this.log.info('No outputs to write, skipping')
+      this.log.debug('skipped', { reason: 'no outputs to write' })
       return false
     }
 

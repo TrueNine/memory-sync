@@ -49,7 +49,7 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
           }
         }
       } catch (e) {
-        logger.error(`Failed to scan shadow source projects at ${shadowSourceProjectDir}`, { error: e })
+        logger.error('failed to scan shadow source projects', { path: shadowSourceProjectDir, error: e })
       }
     }
 

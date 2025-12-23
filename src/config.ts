@@ -229,9 +229,9 @@ export function defineConfig(options: PluginOptions | DefineConfigOptions = {}):
     const userConfigResult = loadUserConfig(cwd)
     if (userConfigResult.found) {
       userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
-      // Log loaded config sources at debug level
+      // Log loaded config sources at debug level with structured context
       const tempLogger = createLogger('defineConfig', pluginOptions.logLevel ?? userConfigResult.config.logLevel)
-      tempLogger.debug(`Loaded config from: ${userConfigResult.sources.join(', ')}`)
+      tempLogger.debug('loaded', { sources: userConfigResult.sources })
     }
   }
 

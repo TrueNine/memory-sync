@@ -76,11 +76,12 @@ export function deleteFiles(files: string[], logger: Logger): { deleted: number,
     try {
       if (fs.existsSync(resolved)) {
         fs.unlinkSync(resolved)
-        logger.info(`Deleted file: ${resolved}`)
+        logger.info('deleted file', { path: resolved })
         deleted++
       }
     } catch (e) {
-      logger.warn(`Failed to delete file: ${resolved}`, { error: e })
+      const errorMessage = e instanceof Error ? e.message : String(e)
+      logger.warn('failed to delete file', { path: resolved, error: errorMessage })
       errors.push({ path: resolved, type: 'file', error: e })
     }
   }
@@ -105,11 +106,12 @@ export function deleteDirectories(dirs: string[], logger: Logger): { deleted: nu
     try {
       if (fs.existsSync(resolved)) {
         fs.rmSync(resolved, { recursive: true, force: true })
-        logger.info(`Deleted directory: ${resolved}`)
+        logger.info('deleted directory', { path: resolved })
         deleted++
       }
     } catch (e) {
-      logger.warn(`Failed to delete directory: ${resolved}`, { error: e })
+      const errorMessage = e instanceof Error ? e.message : String(e)
+      logger.warn('failed to delete directory', { path: resolved, error: errorMessage })
       errors.push({ path: resolved, type: 'directory', error: e })
     }
   }

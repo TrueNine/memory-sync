@@ -104,13 +104,13 @@ export class SkillInputPlugin extends AbstractInputPlugin {
 
       // Check if file exists
       if (!fs.existsSync(absolutePath)) {
-        logger.warn(`Reference document not found: ${link.path} in skill directory ${skillDir}`)
+        logger.warn('reference document not found', { path: link.path, skillDir })
         continue
       }
 
       // Check if it's a file (not a directory)
       if (!fs.statSync(absolutePath).isFile()) {
-        logger.warn(`Reference document path is not a file: ${link.path}`)
+        logger.warn('reference document path is not a file', { path: link.path })
         continue
       }
 
@@ -139,7 +139,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
           },
         } as SkillReferenceDocument)
       } catch (e) {
-        logger.warn(`Failed to read reference document: ${link.path}`, { error: e })
+        logger.warn('failed to read reference document', { path: link.path, error: e })
       }
     }
 
@@ -200,7 +200,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
           }
         }
       } catch (e) {
-        logger.error(`Failed to scan skills at ${skillDir}`, { error: e })
+        logger.error('failed to scan skills', { path: skillDir, error: e })
       }
     }
 

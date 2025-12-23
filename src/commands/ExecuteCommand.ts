@@ -11,7 +11,7 @@ export class ExecuteCommand implements Command {
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
     const { logger, outputPlugins, createCleanContext, createWriteContext } = ctx
-    logger.info('Running execute pipeline with pre-cleanup')
+    logger.info('started', { command: 'execute' })
 
     // Step 1: Pre-cleanup (non-dry-run only)
     const cleanCtx = createCleanContext(false)
@@ -20,7 +20,10 @@ export class ExecuteCommand implements Command {
       // They will be handled by the write phase
       executeHooks: false,
     })
-    logger.info(`Pre-cleanup complete: ${cleanupResult.deletedFiles} files, ${cleanupResult.deletedDirs} directories`)
+    logger.info('cleanup complete', {
+      deletedFiles: cleanupResult.deletedFiles,
+      deletedDirs: cleanupResult.deletedDirs,
+    })
 
     // Step 2: Write outputs
     const writeCtx = createWriteContext(false)
@@ -38,7 +41,7 @@ export class ExecuteCommand implements Command {
       totalDirs += result.dirs.length
     }
 
-    logger.info('Execute pipeline complete', { pluginCount: results.size })
+    logger.info('complete', { command: 'execute', pluginCount: results.size })
 
     return {
       success: true,

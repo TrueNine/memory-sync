@@ -79,11 +79,10 @@ export class ConfigLoader {
       const content = fs.readFileSync(resolvedPath, 'utf-8')
       const config = this.parseConfig(content, resolvedPath)
 
-      this.logger.debug(`Loaded config from: ${resolvedPath}`)
+      this.logger.debug('loaded', { source: resolvedPath })
       return { config, source: resolvedPath, found: true }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      this.logger.warn(`Failed to load config from ${resolvedPath}: ${errorMessage}`)
+      this.logger.warn('load failed', { path: resolvedPath, error })
       return { config: {}, source: null, found: false }
     }
   }
@@ -213,7 +212,7 @@ export class ConfigLoader {
     }
 
     if (errors.length > 0) {
-      this.logger.warn(`Config validation warnings in ${filePath}:\n  - ${errors.join('\n  - ')}`)
+      this.logger.warn('validation warnings', { path: filePath, errors })
     }
 
     return config

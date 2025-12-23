@@ -91,7 +91,7 @@ export abstract class RegistryWriter<
    */
   read(): TRegistry {
     if (!fs.existsSync(this.registryPath)) {
-      this.log.debug(`Registry file not found: ${this.registryPath}, returning initial registry`)
+      this.log.debug('registry not found', { path: this.registryPath })
       return this.createInitialRegistry()
     }
 
@@ -100,7 +100,7 @@ export abstract class RegistryWriter<
       return JSON.parse(content) as TRegistry
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to parse registry file ${this.registryPath}: ${errMsg}`)
+      this.log.error('parse failed', { path: this.registryPath, error: errMsg })
       return this.createInitialRegistry()
     }
   }
@@ -122,7 +122,7 @@ export abstract class RegistryWriter<
     } as TRegistry
 
     if (dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write registry to ${this.registryPath}`)
+      this.log.info('would write registry', { path: this.registryPath, dryRun: true })
       return true
     }
 
@@ -138,11 +138,11 @@ export abstract class RegistryWriter<
       // Atomic rename to replace target
       fs.renameSync(tempPath, this.registryPath)
 
-      this.log.info(`Written registry to ${this.registryPath}`)
+      this.log.info('written registry', { path: this.registryPath })
       return true
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write registry ${this.registryPath}: ${errMsg}`)
+      this.log.error('write registry failed', { path: this.registryPath, error: errMsg })
 
       // Cleanup temp file if it exists
       try {
@@ -190,9 +190,9 @@ export abstract class RegistryWriter<
           entryName,
         })
         if (dryRun === true) {
-          this.log.info(`[DRY-RUN] Would register entry: ${entryName}`)
+          this.log.info('would register entry', { entryName, dryRun: true })
         } else {
-          this.log.info(`Registered entry: ${entryName}`)
+          this.log.info('registered entry', { entryName })
         }
       } else {
         results.push({
@@ -200,7 +200,7 @@ export abstract class RegistryWriter<
           entryName,
           error: new Error(`Failed to write registry file`),
         })
-        this.log.error(`Failed to register entry: ${entryName}`)
+        this.log.error('register entry failed', { entryName })
       }
     }
 

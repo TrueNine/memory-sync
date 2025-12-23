@@ -25,7 +25,7 @@ function colorizeValue(value: unknown): string {
     return pc.blue(String(value))
   }
   if (typeof value === 'string') {
-    return pc.green(`'${value}'`)
+    return pc.green(`"${value}"`)
   }
   if (Array.isArray(value)) {
     if (value.length === 0) {
@@ -45,8 +45,9 @@ function toJson5(obj: Record<string, unknown>): string {
     return '{}'
   }
   const parts = entries.map(([k, v]) => {
-    // JSON5: unquoted keys if valid identifier
-    const key = /^[\w$]+$/.test(k) ? k : `'${k}'`
+    // JSON5: unquoted keys (pink), quoted keys (yellow)
+    const isValidIdentifier = /^[\w$]+$/.test(k)
+    const key = isValidIdentifier ? pc.magenta(k) : pc.yellow(`"${k}"`)
     return `${key}:${colorizeValue(v)}`
   })
   return `{${parts.join(',')}}`
