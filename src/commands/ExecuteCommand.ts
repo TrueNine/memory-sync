@@ -1,16 +1,28 @@
 import type { Command, CommandContext, CommandResult } from './Command'
 import { checkCanWrite, executeWriteOutputs } from '@/types'
+import { performCleanup } from './CleanupUtils'
 
 /**
  * Execute command - performs actual write operations
+ * Includes pre-cleanup to remove stale files before writing new outputs
  */
 export class ExecuteCommand implements Command {
   readonly name = 'execute'
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
-    const { logger, outputPlugins, createWriteContext } = ctx
-    logger.info('Running execute pipeline')
+    const { logger, outputPlugins, createCleanContext, createWriteContext } = ctx
+    logger.info('Running execute pipeline with pre-cleanup')
 
+    // Step 1: Pre-cleanup (non-dry-run only)
+    const cleanCtx = createCleanContext(false)
+    const cleanupResult = await performCleanup(outputPlugins, cleanCtx, logger, {
+      // Skip onCleanComplete hooks during pre-cleanup
+      // They will be handled by the write phase
+      executeHooks: false,
+    })
+    logger.info(`Pre-cleanup complete: ${cleanupResult.deletedFiles} files, ${cleanupResult.deletedDirs} directories`)
+
+    // Step 2: Write outputs
     const writeCtx = createWriteContext(false)
     const permissions = await checkCanWrite(outputPlugins, writeCtx)
     const allowedPlugins = outputPlugins.filter(

@@ -60,6 +60,11 @@ export interface UserConfigFile {
    * Log level
    */
   readonly logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'
+
+  /**
+   * Fast command series options for controlling prefix handling in output filenames
+   */
+  readonly fastCommandSeriesOptions?: FastCommandSeriesOptions
 }
 
 /**
@@ -80,6 +85,38 @@ export interface ConfigLoadResult {
    * Whether the config file was found and loaded successfully
    */
   readonly found: boolean
+}
+
+/**
+ * Per-plugin fast command series override options
+ */
+export interface FastCommandSeriesPluginOverride {
+  /**
+   * Whether to include series prefix in output filenames for this plugin
+   */
+  readonly includeSeriesPrefix?: boolean
+
+  /**
+   * Separator between series and command name for this plugin
+   */
+  readonly seriesSeparator?: string
+}
+
+/**
+ * Fast command series configuration options
+ */
+export interface FastCommandSeriesOptions {
+  /**
+   * Whether to include series prefix in output filenames
+   * @default true
+   */
+  readonly includeSeriesPrefix?: boolean
+
+  /**
+   * Per-plugin overrides for series handling
+   * Key is the plugin name
+   */
+  readonly pluginOverrides?: Record<string, FastCommandSeriesPluginOverride>
 }
 
 /**

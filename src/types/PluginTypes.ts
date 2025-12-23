@@ -1,4 +1,5 @@
 import type { Logger } from '@/log'
+import type { FastCommandSeriesOptions } from '@/types/ConfigTypes'
 import type { PluginKind } from '@/types/Enums'
 import type { RelativePath } from '@/types/FileSystemTypes'
 import type {
@@ -65,6 +66,11 @@ export interface ProjectEnhancerPlugin extends InputPlugin {
  */
 export interface OutputPluginContext extends PluginContext {
   readonly collectedInputContext: CollectedInputContext
+  /**
+   * Plugin options containing user configuration.
+   * Used by output plugins to access configuration like fastCommandSeriesOptions.
+   */
+  readonly pluginOptions?: PluginOptions
 }
 
 /**
@@ -395,6 +401,12 @@ export interface PluginOptions {
    * projectName and excludePatterns
    */
   readonly excludePatterns?: Record<string, string[]>
+
+  /**
+   * Fast command series options for controlling prefix handling in output filenames
+   */
+  readonly fastCommandSeriesOptions?: FastCommandSeriesOptions
+
   plugins?: Plugin[]
   logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'
 }

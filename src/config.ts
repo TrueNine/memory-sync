@@ -1,5 +1,5 @@
 import type { CollectedInputContext, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions } from '@/types'
-import type { ConfigLoaderOptions, UserConfigFile } from '@/types/ConfigTypes'
+import type { ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, UserConfigFile } from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
@@ -35,6 +35,7 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
   shadowSourceProjectDir: DEFAULT_SHADOW_SOURCE_PROJECT_DIR,
   externalProjects: [],
   excludePatterns: {},
+  fastCommandSeriesOptions: {},
   plugins: [],
   logLevel: 'info',
 }
@@ -54,6 +55,7 @@ function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOp
     ...(userConfig.shadowSourceProjectDir != null ? { shadowSourceProjectDir: userConfig.shadowSourceProjectDir } : {}),
     ...(userConfig.externalProjects != null ? { externalProjects: userConfig.externalProjects } : {}),
     ...(userConfig.excludePatterns != null ? { excludePatterns: userConfig.excludePatterns } : {}),
+    ...(userConfig.fastCommandSeriesOptions != null ? { fastCommandSeriesOptions: userConfig.fastCommandSeriesOptions } : {}),
     ...(userConfig.logLevel != null ? { logLevel: userConfig.logLevel } : {}),
   }
 }
@@ -106,6 +108,7 @@ function mergeTwoConfigs(
   const overrideExternal = override.externalProjects
   const overridePlugins = override.plugins
   const overrideExclude = override.excludePatterns
+  const overrideFastCommandSeries = override.fastCommandSeriesOptions
 
   return {
     ...base,
@@ -122,6 +125,8 @@ function mergeTwoConfigs(
     ],
     // Deep merge for excludePatterns
     excludePatterns: mergeExcludePatterns(base.excludePatterns, overrideExclude),
+    // Deep merge for fastCommandSeriesOptions
+    fastCommandSeriesOptions: mergeFastCommandSeriesOptions(base.fastCommandSeriesOptions, overrideFastCommandSeries),
   }
 }
 
@@ -136,6 +141,53 @@ function mergeExcludePatterns(
     }
   }
   return result
+}
+
+function mergeFastCommandSeriesOptions(
+  base?: FastCommandSeriesOptions,
+  override?: FastCommandSeriesOptions,
+): FastCommandSeriesOptions {
+  if (override == null) {
+    return base ?? {}
+  }
+  if (base == null) {
+    return override
+  }
+
+  // Merge pluginOverrides deeply
+  const mergedPluginOverrides: Record<string, FastCommandSeriesPluginOverride> = {}
+
+  // Copy base plugin overrides
+  if (base.pluginOverrides != null) {
+    for (const [key, value] of Object.entries(base.pluginOverrides)) {
+      mergedPluginOverrides[key] = { ...value }
+    }
+  }
+
+  // Merge override plugin overrides
+  if (override.pluginOverrides != null) {
+    for (const [key, value] of Object.entries(override.pluginOverrides)) {
+      mergedPluginOverrides[key] = {
+        ...mergedPluginOverrides[key],
+        ...value,
+      }
+    }
+  }
+
+  // Build result with conditional properties to satisfy exactOptionalPropertyTypes
+  const includeSeriesPrefix = override.includeSeriesPrefix ?? base.includeSeriesPrefix
+  const hasPluginOverrides = Object.keys(mergedPluginOverrides).length > 0
+
+  if (includeSeriesPrefix != null && hasPluginOverrides) {
+    return { includeSeriesPrefix, pluginOverrides: mergedPluginOverrides }
+  }
+  if (includeSeriesPrefix != null) {
+    return { includeSeriesPrefix }
+  }
+  if (hasPluginOverrides) {
+    return { pluginOverrides: mergedPluginOverrides }
+  }
+  return {}
 }
 
 /**

@@ -6,6 +6,6 @@
 export { AbstractInputPlugin } from './AbstractInputPlugin'
 export type { ResolvedBasePaths } from './AbstractInputPlugin'
 export { AbstractOutputPlugin } from './AbstractOutputPlugin'
-export type { AbstractOutputPluginOptions } from './AbstractOutputPlugin'
+export type { AbstractOutputPluginOptions, FastCommandNameTransformOptions } from './AbstractOutputPlugin'
 // Abstract base classes
 export { AbstractPlugin } from './AbstractPlugin'

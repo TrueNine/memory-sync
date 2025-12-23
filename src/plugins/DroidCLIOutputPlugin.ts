@@ -181,7 +181,9 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     cmd: FastCommandPrompt,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    const fileName = cmd.dir.path.endsWith('.md') ? cmd.dir.path : `${cmd.dir.path}.md`
+    // Use transformFastCommandName with configuration from context
+    const transformOptions = this.getTransformOptionsFromContext(ctx)
+    const fileName = this.transformFastCommandName(cmd, transformOptions)
     const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR)
     const fullPath = path.join(targetDir, fileName)
 

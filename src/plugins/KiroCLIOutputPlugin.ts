@@ -31,6 +31,7 @@
  * - `fileMatchPattern`: glob pattern for fileMatch inclusion (e.g. '*.ts', 'src/**')
  */
 import type {
+  FastCommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
   Project,
@@ -146,31 +147,46 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const { globalMemory } = ctx.collectedInputContext
-    if (globalMemory == null) {
-      return []
-    }
-
+    const { globalMemory, fastCommands } = ctx.collectedInputContext
+    const results: RelativePath[] = []
     const globalDir = this.getGlobalSteeringDir()
-    return [
-      {
+
+    if (globalMemory != null) {
+      results.push({
         pathKind: FilePathKind.Relative,
         path: GLOBAL_MEMORY_FILE,
         basePath: globalDir,
         getDirectoryName: () => STEERING_SUBDIR,
         getAbsolutePath: () => this.joinPath(globalDir, GLOBAL_MEMORY_FILE),
-      },
-    ]
+      })
+    }
+
+    // Register fast command steering files
+    if (fastCommands != null) {
+      for (const cmd of fastCommands) {
+        const fileName = this.buildFastCommandSteeringFileName(cmd)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: fileName,
+          basePath: globalDir,
+          getDirectoryName: () => STEERING_SUBDIR,
+          getAbsolutePath: () => this.joinPath(globalDir, fileName),
+        })
+      }
+    }
+
+    return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { workspace, globalMemory } = ctx.collectedInputContext
+    const { workspace, globalMemory, fastCommands } = ctx.collectedInputContext
     const hasChildPrompts = workspace.projects.some(
       (p) => (p.childMemoryPrompts?.length ?? 0) > 0,
     )
     const hasGlobalMemory = globalMemory != null
+    const hasFastCommands = (fastCommands?.length ?? 0) > 0
 
-    if (!hasChildPrompts && !hasGlobalMemory) {
+    if (!hasChildPrompts && !hasGlobalMemory && !hasFastCommands) {
       this.log.info('No outputs to write, skipping')
       return false
     }
@@ -201,42 +217,45 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { globalMemory } = ctx.collectedInputContext
+    const { globalMemory, fastCommands } = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (globalMemory == null) {
-      this.log.info('No global memory found, skipping global output')
-      return { files: fileResults, dirs: dirResults }
-    }
+    // Write global memory
+    if (globalMemory != null) {
+      const globalDir = this.getGlobalSteeringDir()
+      const fullPath = this.joinPath(globalDir, GLOBAL_MEMORY_FILE)
+      const relativePath: RelativePath = {
+        pathKind: FilePathKind.Relative,
+        path: GLOBAL_MEMORY_FILE,
+        basePath: globalDir,
+        getDirectoryName: () => STEERING_SUBDIR,
+        getAbsolutePath: () => fullPath,
+      }
 
-    const globalDir = this.getGlobalSteeringDir()
-    const fullPath = this.joinPath(globalDir, GLOBAL_MEMORY_FILE)
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: GLOBAL_MEMORY_FILE,
-      basePath: globalDir,
-      getDirectoryName: () => STEERING_SUBDIR,
-      getAbsolutePath: () => fullPath,
-    }
-
-    if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write global memory -> ${fullPath}`)
-      return {
-        files: [{ path: relativePath, success: true, skipped: false }],
-        dirs: dirResults,
+      if (ctx.dryRun === true) {
+        this.log.info(`[DRY-RUN] Would write global memory -> ${fullPath}`)
+        fileResults.push({ path: relativePath, success: true, skipped: false })
+      } else {
+        try {
+          this.ensureDirectory(globalDir)
+          this.writeFileSync(fullPath, globalMemory.content as string)
+          this.log.info(`Written global memory -> ${fullPath}`)
+          fileResults.push({ path: relativePath, success: true })
+        } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error)
+          this.log.error(`Failed to write global memory: ${errMsg}`)
+          fileResults.push({ path: relativePath, success: false, error: error as Error })
+        }
       }
     }
 
-    try {
-      this.ensureDirectory(globalDir)
-      this.writeFileSync(fullPath, globalMemory.content as string)
-      this.log.info(`Written global memory -> ${fullPath}`)
-      fileResults.push({ path: relativePath, success: true })
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write global memory: ${errMsg}`)
-      fileResults.push({ path: relativePath, success: false, error: error as Error })
+    // Write fast commands as manual steering files
+    if (fastCommands != null) {
+      for (const cmd of fastCommands) {
+        const result = await this.writeFastCommandSteeringFile(ctx, cmd)
+        fileResults.push(result)
+      }
     }
 
     return { files: fileResults, dirs: dirResults }
@@ -244,6 +263,82 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
   private getGlobalSteeringDir(): string {
     return this.joinPath(this.getGlobalConfigDir(), STEERING_SUBDIR)
+  }
+
+  /**
+   * Build steering file name from fast command
+   * Uses hyphen separator for Kiro naming conventions (kebab-case)
+   * @example 'pe_compile.md' -> 'pe-compile.md'
+   * @example 'compile.md' -> 'compile.md'
+   */
+  private buildFastCommandSteeringFileName(cmd: FastCommandPrompt): string {
+    return this.transformFastCommandName(cmd, {
+      includeSeriesPrefix: true,
+      seriesSeparator: '-',
+    })
+  }
+
+  /**
+   * Build fast command steering file content with manual inclusion front matter
+   * Uses manual inclusion mode so users can include via '#' in chat
+   */
+  private buildFastCommandSteeringContent(cmd: FastCommandPrompt): string {
+    const description = cmd.yamlFrontMatter?.description ?? ''
+
+    // Build front matter with manual inclusion
+    const frontMatterLines = [
+      '---',
+      'inclusion: manual',
+    ]
+
+    // Preserve description if available
+    if (description.length > 0) {
+      frontMatterLines.push(`description: '${description}'`)
+    }
+
+    frontMatterLines.push('---')
+
+    const frontMatter = frontMatterLines.join('\n')
+    const content = cmd.content as string
+    return `${frontMatter}\n${content}`
+  }
+
+  /**
+   * Write fast command as a manual steering file to global steering directory
+   */
+  private async writeFastCommandSteeringFile(
+    ctx: OutputWriteContext,
+    cmd: FastCommandPrompt,
+  ): Promise<WriteResult> {
+    const globalDir = this.getGlobalSteeringDir()
+    const fileName = this.buildFastCommandSteeringFileName(cmd)
+    const fullPath = this.joinPath(globalDir, fileName)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: fileName,
+      basePath: globalDir,
+      getDirectoryName: () => STEERING_SUBDIR,
+      getAbsolutePath: () => fullPath,
+    }
+
+    const content = this.buildFastCommandSteeringContent(cmd)
+
+    if (ctx.dryRun === true) {
+      this.log.info(`[DRY-RUN] Would write fast command steering -> ${fullPath}`)
+      return { path: relativePath, success: true, skipped: false }
+    }
+
+    try {
+      this.ensureDirectory(globalDir)
+      this.writeFileSync(fullPath, content)
+      this.log.info(`Written fast command steering -> ${fullPath}`)
+      return { path: relativePath, success: true }
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error(`Failed to write fast command steering: ${errMsg}`)
+      return { path: relativePath, success: false, error: error as Error }
+    }
   }
 
   /**

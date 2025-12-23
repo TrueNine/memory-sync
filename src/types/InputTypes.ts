@@ -81,6 +81,15 @@ export interface CollectedInputContext {
 export interface FastCommandPrompt extends Prompt<PromptKind.FastCommand, FastCommandYAMLFrontMatter> {
   readonly type: PromptKind.FastCommand
   readonly globalOnly?: true
+  /**
+   * Series prefix extracted from filename (e.g., 'pe' from 'pe_compile.md')
+   * Undefined if filename has no underscore prefix
+   */
+  readonly series?: string
+  /**
+   * Command name without series prefix (e.g., 'compile' from 'pe_compile.md')
+   */
+  readonly commandName: string
 }
 
 /**

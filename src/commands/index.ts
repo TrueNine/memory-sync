@@ -1,4 +1,5 @@
 export * from './CleanCommand'
+export * from './CleanupUtils'
 export * from './Command'
 export * from './DryRunCleanCommand'
 export * from './DryRunOutputCommand'

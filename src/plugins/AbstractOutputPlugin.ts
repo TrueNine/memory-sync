@@ -1,10 +1,12 @@
 import type { Logger } from '@/log'
 import type {
+  FastCommandPrompt,
   OutputPlugin,
   OutputWriteContext,
   WriteResult,
   WriteResults,
 } from '@/types'
+import type { FastCommandSeriesPluginOverride } from '@/types/ConfigTypes'
 import type { Path, RelativePath } from '@/types/FileSystemTypes'
 
 import * as fs from 'node:fs'
@@ -13,6 +15,23 @@ import * as path from 'node:path'
 import process from 'node:process'
 import { FilePathKind, PluginKind } from '@/types'
 import { AbstractPlugin } from './AbstractPlugin'
+
+/**
+ * Options for transforming fast command names in output filenames.
+ * Used by transformFastCommandName method to control prefix handling.
+ */
+export interface FastCommandNameTransformOptions {
+  /**
+   * Whether to include series prefix in output filename.
+   * @default true
+   */
+  readonly includeSeriesPrefix?: boolean
+  /**
+   * Separator between series and command name.
+   * @default '_'
+   */
+  readonly seriesSeparator?: string
+}
 
 /**
  * Options for configuring AbstractOutputPlugin subclasses.
@@ -559,6 +578,128 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
     // Default: 'before'
     return `${effectiveGlobalContent}${separator}${projectContent}`
+  }
+
+  /**
+   * Transform a fast command name into an output filename.
+   * Handles series prefix inclusion and separator configuration.
+   *
+   * @param cmd - The fast command prompt containing series and commandName
+   * @param options - Optional configuration for transformation behavior
+   * @returns The transformed filename with .md extension
+   *
+   * @example
+   * ```typescript
+   * // Default behavior: include prefix with underscore separator
+   * const name = this.transformFastCommandName(cmd)
+   * // For cmd with series='pe', commandName='compile' -> 'pe_compile.md'
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Kiro-style: use hyphen separator
+   * const name = this.transformFastCommandName(cmd, { seriesSeparator: '-' })
+   * // For cmd with series='pe', commandName='compile' -> 'pe-compile.md'
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Strip prefix
+   * const name = this.transformFastCommandName(cmd, { includeSeriesPrefix: false })
+   * // For cmd with series='pe', commandName='compile' -> 'compile.md'
+   * ```
+   */
+  protected transformFastCommandName(
+    cmd: FastCommandPrompt,
+    options?: FastCommandNameTransformOptions,
+  ): string {
+    const { includeSeriesPrefix = true, seriesSeparator = '_' } = options ?? {}
+
+    // If prefix should not be included or series is not present, return just commandName
+    if (!includeSeriesPrefix || cmd.series == null) {
+      return `${cmd.commandName}.md`
+    }
+
+    return `${cmd.series}${seriesSeparator}${cmd.commandName}.md`
+  }
+
+  /**
+   * Get fast command series options from context, with plugin-specific override support.
+   * Plugin-specific overrides take precedence over global settings.
+   *
+   * @param ctx - The output write context containing plugin options
+   * @returns The resolved fast command series options for this plugin
+   *
+   * @example
+   * ```typescript
+   * // Get options with plugin-specific overrides
+   * const seriesOptions = this.getFastCommandSeriesOptions(ctx)
+   * const transformOptions = {
+   *   includeSeriesPrefix: seriesOptions.includeSeriesPrefix,
+   *   seriesSeparator: seriesOptions.seriesSeparator,
+   * }
+   * ```
+   */
+  protected getFastCommandSeriesOptions(ctx: OutputWriteContext): FastCommandSeriesPluginOverride {
+    const globalOptions = ctx.pluginOptions?.fastCommandSeriesOptions
+    const pluginOverride = globalOptions?.pluginOverrides?.[this.name]
+
+    // Plugin-specific overrides take precedence over global settings
+    // Only include properties that have defined values to satisfy exactOptionalPropertyTypes
+    const includeSeriesPrefix = pluginOverride?.includeSeriesPrefix ?? globalOptions?.includeSeriesPrefix
+    const seriesSeparator = pluginOverride?.seriesSeparator
+
+    // Build result object conditionally to avoid assigning undefined to readonly properties
+    if (includeSeriesPrefix != null && seriesSeparator != null) {
+      return { includeSeriesPrefix, seriesSeparator }
+    }
+    if (includeSeriesPrefix != null) {
+      return { includeSeriesPrefix }
+    }
+    if (seriesSeparator != null) {
+      return { seriesSeparator }
+    }
+    return {}
+  }
+
+  /**
+   * Get transform options for fast command names from context configuration.
+   * Combines global settings with plugin-specific overrides.
+   * Allows additional options to be merged (e.g., plugin-specific defaults).
+   *
+   * @param ctx - The output write context containing plugin options
+   * @param additionalOptions - Additional options to merge (plugin-specific defaults)
+   * @returns The resolved transform options for this plugin
+   *
+   * @example
+   * ```typescript
+   * // In KiroCLIOutputPlugin, use hyphen as default separator
+   * const options = this.getTransformOptionsFromContext(ctx, { seriesSeparator: '-' })
+   * const fileName = this.transformFastCommandName(cmd, options)
+   * ```
+   */
+  protected getTransformOptionsFromContext(
+    ctx: OutputWriteContext,
+    additionalOptions?: FastCommandNameTransformOptions,
+  ): FastCommandNameTransformOptions {
+    const seriesOptions = this.getFastCommandSeriesOptions(ctx)
+
+    // Merge: additionalOptions (plugin defaults) <- seriesOptions (config overrides)
+    // Only include properties that have defined values to satisfy exactOptionalPropertyTypes
+    const includeSeriesPrefix = seriesOptions.includeSeriesPrefix ?? additionalOptions?.includeSeriesPrefix
+    const seriesSeparator = seriesOptions.seriesSeparator ?? additionalOptions?.seriesSeparator
+
+    // Build result object conditionally to avoid assigning undefined to readonly properties
+    if (includeSeriesPrefix != null && seriesSeparator != null) {
+      return { includeSeriesPrefix, seriesSeparator }
+    }
+    if (includeSeriesPrefix != null) {
+      return { includeSeriesPrefix }
+    }
+    if (seriesSeparator != null) {
+      return { seriesSeparator }
+    }
+    return {}
   }
 
   /**

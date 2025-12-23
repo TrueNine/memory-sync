@@ -15,5 +15,6 @@ export {
 } from '@/plugins'
 export type {
   AbstractOutputPluginOptions,
+  FastCommandNameTransformOptions,
   ResolvedBasePaths,
 } from '@/plugins'
