@@ -1,4 +1,5 @@
 import type {
+  OutputPluginContext,
   OutputWriteContext,
   WriteResult,
   WriteResults,
@@ -9,9 +10,57 @@ import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
 const VSCODE_DIR = '.vscode'
 
+/**
+ * Default VS Code config files that this plugin manages.
+ * These are the relative paths within each project directory.
+ */
+const VSCODE_CONFIG_FILES = [
+  '.vscode/settings.json',
+  '.vscode/extensions.json',
+] as const
+
 export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('VisualStudioCodeIDEConfigOutputPlugin')
+  }
+
+  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results: RelativePath[] = []
+    const { projects } = ctx.collectedInputContext.workspace
+    const { ideConfigFiles } = ctx.collectedInputContext
+
+    // Only register files if we have VS Code configs to write
+    const hasVSCodeConfigs = ideConfigFiles.some((f) => f.type === IDEKind.VSCode)
+    if (!hasVSCodeConfigs) {
+      return results
+    }
+
+    for (const project of projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) {
+        continue
+      }
+
+      // Skip prompt source projects (e.g., aindex) - their files are source files
+      // that should be protected from cleanup
+      if (project.isPromptSourceProject === true) {
+        continue
+      }
+
+      // Register all VS Code config files for cleanup
+      for (const configFile of VSCODE_CONFIG_FILES) {
+        const filePath = this.joinPath(projectDir.path, configFile)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: filePath,
+          basePath: projectDir.basePath,
+          getDirectoryName: () => this.dirname(configFile),
+          getAbsolutePath: () => this.resolvePath(projectDir.basePath, filePath),
+        })
+      }
+    }
+
+    return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
@@ -38,12 +87,6 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) {
-        continue
-      }
-
-      // Skip shadow source project
-      if (project.isShadowSourceProject === true) {
-        this.log.debug(`Skipping shadow source project: ${project.name}`)
         continue
       }
 

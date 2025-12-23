@@ -6,6 +6,7 @@ export * from './InputTypes'
 export * from './OutputTypes'
 export * from './PluginTypes'
 export * from './PromptTypes'
+export * from './RegistryTypes'
 
 // Re-export abstract plugin classes for easy importing
 export {

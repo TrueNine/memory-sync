@@ -1,3 +1,17 @@
+import type {
+  FastCommandPrompt,
+  OutputPluginContext,
+  OutputWriteContext,
+  Project,
+  ProjectChildrenMemoryPrompt,
+  RegistryOperationResult,
+  SkillPrompt,
+  SkillYAMLFrontMatter,
+  WriteResult,
+  WriteResults,
+  YAMLFrontMatter,
+} from '@/types'
+import type { RelativePath } from '@/types/FileSystemTypes'
 /**
  * Kiro CLI Output Plugin
  *
@@ -30,23 +44,18 @@
  * - `inclusion`: 'always' | 'fileMatch' | 'manual' (default: 'always')
  * - `fileMatchPattern`: glob pattern for fileMatch inclusion (e.g. '*.ts', 'src/**')
  */
-import type {
-  FastCommandPrompt,
-  OutputPluginContext,
-  OutputWriteContext,
-  Project,
-  ProjectChildrenMemoryPrompt,
-  WriteResult,
-  WriteResults,
-  YAMLFrontMatter,
-} from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import os from 'node:os'
 import { FilePathKind } from '@/types'
 import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import { KiroPowersRegistryWriter } from './registry/KiroPowersRegistryWriter'
 
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
 const GLOBAL_CONFIG_DIR = '.kiro'
 const STEERING_SUBDIR = 'steering'
+
+// Kiro Powers constants
+const KIRO_POWERS_DIR = '.kiro/powers/installed'
+const POWER_FILE_NAME = 'POWER.md'
 
 /**
  * Kiro steering file front matter
@@ -133,9 +142,9 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputDirs(_ctx: OutputPluginContext): Promise<RelativePath[]> {
+  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalSteeringDir()
-    return [
+    const results: RelativePath[] = [
       {
         pathKind: FilePathKind.Relative,
         path: STEERING_SUBDIR,
@@ -144,10 +153,29 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         getAbsolutePath: () => globalDir,
       },
     ]
+
+    // Register each skill's power directory for cleanup
+    const { skills } = ctx.collectedInputContext
+    if (skills != null) {
+      const powersDir = this.getKiroPowersDir()
+      for (const skill of skills) {
+        const skillName = skill.yamlFrontMatter.name
+        const skillPowerDir = this.joinPath(powersDir, skillName)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: skillName,
+          basePath: powersDir,
+          getDirectoryName: () => skillName,
+          getAbsolutePath: () => skillPowerDir,
+        })
+      }
+    }
+
+    return results
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const { globalMemory, fastCommands } = ctx.collectedInputContext
+    const { globalMemory, fastCommands, skills } = ctx.collectedInputContext
     const results: RelativePath[] = []
     const globalDir = this.getGlobalSteeringDir()
 
@@ -175,18 +203,52 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
+    // Register skill power files (POWER.md and reference documents)
+    if (skills != null) {
+      const powersDir = this.getKiroPowersDir()
+      for (const skill of skills) {
+        const skillName = skill.yamlFrontMatter.name
+        const skillPowerDir = this.joinPath(powersDir, skillName)
+
+        // Register POWER.md
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: POWER_FILE_NAME,
+          basePath: skillPowerDir,
+          getDirectoryName: () => skillName,
+          getAbsolutePath: () => this.joinPath(skillPowerDir, POWER_FILE_NAME),
+        })
+
+        // Register reference documents in steering/ subdirectory
+        if (skill.referenceDocuments != null) {
+          const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
+          for (const refDoc of skill.referenceDocuments) {
+            const refDocFileName = refDoc.dir.path
+            results.push({
+              pathKind: FilePathKind.Relative,
+              path: this.joinPath(STEERING_SUBDIR, refDocFileName),
+              basePath: skillPowerDir,
+              getDirectoryName: () => STEERING_SUBDIR,
+              getAbsolutePath: () => this.joinPath(steeringDir, refDocFileName),
+            })
+          }
+        }
+      }
+    }
+
     return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { workspace, globalMemory, fastCommands } = ctx.collectedInputContext
+    const { workspace, globalMemory, fastCommands, skills } = ctx.collectedInputContext
     const hasChildPrompts = workspace.projects.some(
       (p) => (p.childMemoryPrompts?.length ?? 0) > 0,
     )
     const hasGlobalMemory = globalMemory != null
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
+    const hasSkills = (skills?.length ?? 0) > 0
 
-    if (!hasChildPrompts && !hasGlobalMemory && !hasFastCommands) {
+    if (!hasChildPrompts && !hasGlobalMemory && !hasFastCommands && !hasSkills) {
       this.log.info('No outputs to write, skipping')
       return false
     }
@@ -217,9 +279,10 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { globalMemory, fastCommands } = ctx.collectedInputContext
+    const { globalMemory, fastCommands, skills } = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
+    const registryResults: RegistryOperationResult[] = []
 
     // Write global memory
     if (globalMemory != null) {
@@ -258,11 +321,206 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
+    // Write skills as Kiro Powers and register in registry
+    if (skills != null && skills.length > 0) {
+      this.log.debug(`Processing ${skills.length} skills as Kiro Powers`)
+      for (const skill of skills) {
+        const { fileResults: skillFileResults, registryResult } = await this.writeSkillAsPower(ctx, skill)
+        fileResults.push(...skillFileResults)
+        registryResults.push(registryResult)
+      }
+
+      // Log registry operation results (Requirements 6.4, 6.5)
+      this.logRegistryResults(registryResults, ctx.dryRun)
+    }
+
     return { files: fileResults, dirs: dirResults }
+  }
+
+  /**
+   * Log registry operation results.
+   * Logs success/failure for each registration attempt.
+   *
+   * @param results - The registry operation results
+   * @param dryRun - Whether this is a dry-run operation
+   * @see Requirements 6.4, 6.5
+   */
+  private logRegistryResults(results: readonly RegistryOperationResult[], dryRun?: boolean): void {
+    const prefix = dryRun === true ? '[DRY-RUN] ' : ''
+    const successCount = results.filter((r) => r.success).length
+    const failCount = results.filter((r) => !r.success).length
+
+    if (successCount > 0) {
+      this.log.info(`${prefix}Registry: ${successCount} power(s) registered successfully`)
+    }
+
+    if (failCount > 0) {
+      this.log.error(`${prefix}Registry: ${failCount} power(s) failed to register`)
+      for (const result of results) {
+        if (!result.success) {
+          const errMsg = result.error?.message ?? 'Unknown error'
+          this.log.error(`  - ${result.entryName}: ${errMsg}`)
+        }
+      }
+    }
   }
 
   private getGlobalSteeringDir(): string {
     return this.joinPath(this.getGlobalConfigDir(), STEERING_SUBDIR)
+  }
+
+  /**
+   * Get the absolute path to the Kiro Powers installation directory.
+   * @returns The absolute path to ~/.kiro/powers/installed/
+   */
+  private getKiroPowersDir(): string {
+    return this.joinPath(this.getHomeDir(), KIRO_POWERS_DIR)
+  }
+
+  /**
+   * Get the user's home directory.
+   * @returns The absolute path to the user's home directory
+   */
+  private getHomeDir(): string {
+    return os.homedir()
+  }
+
+  /**
+   * Build YAML front matter for Kiro Power POWER.md file.
+   * Includes name, description, keywords, displayName, and author if available.
+   *
+   * @param frontMatter - The skill YAML front matter data
+   * @returns YAML front matter string with leading/trailing delimiters
+   */
+  private buildPowerFrontMatter(frontMatter: SkillYAMLFrontMatter): string {
+    const name: string = frontMatter.name
+    const description: string = frontMatter.description
+    const displayName: string | undefined = frontMatter.displayName
+    const keywords: readonly string[] | undefined = frontMatter.keywords
+    const author: string | undefined = frontMatter.author
+
+    const lines: string[] = ['---']
+
+    lines.push(`name: "${name}"`)
+
+    if (displayName != null && displayName.length > 0) {
+      lines.push(`displayName: "${displayName}"`)
+    }
+
+    if (description.length > 0) {
+      lines.push(`description: "${description}"`)
+    }
+
+    if (keywords != null && keywords.length > 0) {
+      const keywordsStr = keywords.map((k) => `"${k}"`).join(', ')
+      lines.push(`keywords: [${keywordsStr}]`)
+    }
+
+    if (author != null && author.length > 0) {
+      lines.push(`author: "${author}"`)
+    }
+
+    lines.push('---')
+    return lines.join('\n')
+  }
+
+  /**
+   * Write a single skill as a Kiro Power.
+   * Creates the power directory, writes POWER.md (with front matter),
+   * writes all reference documents, and registers in the Kiro powers registry.
+   *
+   * @param ctx - The output write context
+   * @param skill - The skill prompt to write
+   * @returns Object containing file write results and registry operation result
+   */
+  private async writeSkillAsPower(
+    ctx: OutputWriteContext,
+    skill: SkillPrompt,
+  ): Promise<{ fileResults: WriteResult[], registryResult: RegistryOperationResult }> {
+    const fileResults: WriteResult[] = []
+    const skillName = skill.yamlFrontMatter.name
+    const powerDir = this.joinPath(this.getKiroPowersDir(), skillName)
+    const powerFilePath = this.joinPath(powerDir, POWER_FILE_NAME)
+
+    // Create RelativePath for POWER.md
+    const powerRelativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: POWER_FILE_NAME,
+      basePath: powerDir,
+      getDirectoryName: () => skillName,
+      getAbsolutePath: () => powerFilePath,
+    }
+
+    // Build POWER.md content with front matter
+    const frontMatterStr = this.buildPowerFrontMatter(skill.yamlFrontMatter)
+    const bodyContent = skill.content as string
+    const powerContent = `${frontMatterStr}\n${bodyContent}`
+
+    if (ctx.dryRun === true) {
+      this.log.info(`[DRY-RUN] Would write skill power -> ${powerFilePath}`)
+      fileResults.push({ path: powerRelativePath, success: true, skipped: false })
+    } else {
+      try {
+        this.ensureDirectory(powerDir)
+        this.writeFileSync(powerFilePath, powerContent)
+        this.log.info(`Written skill power -> ${powerFilePath}`)
+        fileResults.push({ path: powerRelativePath, success: true })
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error)
+        this.log.error(`Failed to write skill power: ${errMsg}`)
+        fileResults.push({ path: powerRelativePath, success: false, error: error as Error })
+      }
+    }
+
+    // Write reference documents to steering/ subdirectory
+    if (skill.referenceDocuments != null) {
+      const steeringDir = this.joinPath(powerDir, STEERING_SUBDIR)
+
+      for (const refDoc of skill.referenceDocuments) {
+        const refDocFileName = refDoc.dir.path
+        const refDocFilePath = this.joinPath(steeringDir, refDocFileName)
+
+        const refDocRelativePath: RelativePath = {
+          pathKind: FilePathKind.Relative,
+          path: this.joinPath(STEERING_SUBDIR, refDocFileName),
+          basePath: powerDir,
+          getDirectoryName: () => STEERING_SUBDIR,
+          getAbsolutePath: () => refDocFilePath,
+        }
+
+        // Write reference document content (without front matter)
+        const refDocContent = refDoc.content as string
+
+        if (ctx.dryRun === true) {
+          this.log.info(`[DRY-RUN] Would write reference document -> ${refDocFilePath}`)
+          fileResults.push({ path: refDocRelativePath, success: true, skipped: false })
+        } else {
+          try {
+            this.ensureDirectory(steeringDir)
+            this.writeFileSync(refDocFilePath, refDocContent)
+            this.log.info(`Written reference document -> ${refDocFilePath}`)
+            fileResults.push({ path: refDocRelativePath, success: true })
+          } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error)
+            this.log.error(`Failed to write reference document: ${errMsg}`)
+            fileResults.push({ path: refDocRelativePath, success: false, error: error as Error })
+          }
+        }
+      }
+    }
+
+    // Register in Kiro powers registry after writing POWER.md
+    // Requirements: 4.3, 4.4, 4.8
+    const registryWriter = this.getRegistryWriter(KiroPowersRegistryWriter)
+    const powerEntry = registryWriter.buildPowerEntry(skill, powerDir)
+    const registryResults = await this.registerInRegistry(registryWriter, [powerEntry], ctx)
+    const registryResult = registryResults[0] ?? {
+      success: false,
+      entryName: skillName,
+      error: new Error('No registry result returned'),
+    }
+
+    return { fileResults, registryResult }
   }
 
   /**

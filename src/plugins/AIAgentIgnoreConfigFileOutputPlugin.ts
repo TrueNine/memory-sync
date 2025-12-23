@@ -34,8 +34,9 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
         continue
       }
 
-      // Skip shadow source projects - their ignore files are source files and should be protected
-      if (project.isShadowSourceProject === true) {
+      // Skip prompt source projects (e.g., aindex) - their files are source files
+      // that should be protected from cleanup
+      if (project.isPromptSourceProject === true) {
         continue
       }
 

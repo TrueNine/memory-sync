@@ -20,15 +20,24 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
     const shadowSourceProjectDirRaw = options.shadowSourceProjectDir ?? DEFAULT_SHADOW_SOURCE_PROJECT_DIR
     const shadowSourceProjectDir = this.resolvePath(shadowSourceProjectDirRaw, workspaceDir, shadowProjectDir)
 
+    // Get the shadow project name (e.g., "aindex") from shadowProjectDir
+    const shadowProjectName = path.basename(shadowProjectDir)
+
     const shadowProjects: Project[] = []
     if (fs.existsSync(shadowSourceProjectDir) && fs.statSync(shadowSourceProjectDir).isDirectory()) {
       try {
         const entries = fs.readdirSync(shadowSourceProjectDir, { withFileTypes: true })
         for (const entry of entries) {
           if (entry.isDirectory()) {
+            // Only mark the shadow project itself (e.g., aindex) as prompt source project
+            // Other projects should have their output files cleaned normally
+            const isTheShadowProject = entry.name === shadowProjectName
+
             shadowProjects.push({
               name: entry.name,
-              isShadowSourceProject: true,
+              // Only true for the shadow project itself (e.g., aindex)
+              // This protects source files in the shadow project from being cleaned
+              ...(isTheShadowProject && { isPromptSourceProject: true }),
               dirFromWorkspacePath: {
                 pathKind: FilePathKind.Relative,
                 path: entry.name,

@@ -30,10 +30,22 @@ export interface Project {
    */
   readonly childMemoryPrompts?: readonly ProjectChildrenMemoryPrompt[]
   /**
-   * 标识此项目是否为 shadow source project（如 aindex）
-   * shadow source project 是提示词的源存放位置，不应被清理或覆盖
+   * Indicates whether this project's configuration originates from the shadow source directory (e.g., aindex/ref/).
+   *
+   * When true:
+   * - The project configuration was discovered from the shadow source directory
+   * - `dirFromWorkspacePath` still points to the actual workspace project directory (output target)
+   * - Certain output plugins (e.g., AIAgentIgnoreConfigFileOutputPlugin) should skip this project
+   *   to avoid overwriting source files in the shadow project
+   *
+   * When false or undefined:
+   * - The project is a regular workspace project or external project
+   * - All output plugins should process this project normally
+   *
+   * Note: This flag does NOT mean the output should go to the shadow source directory.
+   * The output target is always determined by `dirFromWorkspacePath`.
    */
-  readonly isShadowSourceProject?: boolean
+  readonly isPromptSourceProject?: boolean
 }
 
 export interface Workspace {
@@ -112,6 +124,20 @@ export interface SkillYAMLFrontMatter extends YAMLFrontMatter {
   readonly name: string
   readonly description: string
   readonly allowTools?: (CodingAgentTools | string)[]
+  /**
+   * Keywords for skill discovery and matching
+   * Used by Kiro Powers for keyword-based activation
+   */
+  readonly keywords?: readonly string[]
+  /**
+   * Display name for the skill
+   * If not set, defaults to `name`
+   */
+  readonly displayName?: string
+  /**
+   * Author of the skill
+   */
+  readonly author?: string
 }
 
 /**

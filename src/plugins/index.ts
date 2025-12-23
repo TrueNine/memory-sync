@@ -9,3 +9,5 @@ export { AbstractOutputPlugin } from './AbstractOutputPlugin'
 export type { AbstractOutputPluginOptions, FastCommandNameTransformOptions } from './AbstractOutputPlugin'
 // Abstract base classes
 export { AbstractPlugin } from './AbstractPlugin'
+// Registry writers
+export { RegistryWriter } from './registry'

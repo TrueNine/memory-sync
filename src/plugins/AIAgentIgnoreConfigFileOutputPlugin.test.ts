@@ -172,9 +172,11 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
                 dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
               },
               {
-                name: 'shadow-project',
-                isShadowSourceProject: true,
-                dirFromWorkspacePath: createMockRelativePath('shadow-project', mockWorkspaceDir),
+                name: 'prompt-source-project',
+                // Prompt source project (e.g., aindex) - should be skipped for cleanup
+                // to protect source files
+                isPromptSourceProject: true,
+                dirFromWorkspacePath: createMockRelativePath('prompt-source-project', mockWorkspaceDir),
               },
             ],
           },
@@ -185,10 +187,11 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      // Should only register files for regular project, NOT shadow source project
+      // Should only register files for regular project, NOT prompt source project
+      // because prompt source project files are source files that should be protected
       expect(results).toHaveLength(3)
       expect(results.map((r) => r.path)).toContain(path.join('project1', '.qoderignore'))
-      expect(results.map((r) => r.path)).not.toContain(path.join('shadow-project', '.qoderignore'))
+      expect(results.map((r) => r.path)).not.toContain(path.join('prompt-source-project', '.qoderignore'))
     })
   })
 

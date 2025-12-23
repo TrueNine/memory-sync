@@ -1,14 +1,17 @@
+import type { RegistryWriter } from './registry/RegistryWriter'
 import type { Logger } from '@/log'
 import type {
   FastCommandPrompt,
   OutputPlugin,
   OutputWriteContext,
+  RegistryOperationResult,
   WriteResult,
   WriteResults,
 } from '@/types'
 import type { FastCommandSeriesPluginOverride } from '@/types/ConfigTypes'
-import type { Path, RelativePath } from '@/types/FileSystemTypes'
 
+import type { Path, RelativePath } from '@/types/FileSystemTypes'
+import type { RegistryData } from '@/types/RegistryTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -118,6 +121,15 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    * Used when writing output files.
    */
   protected readonly outputFileName: string
+
+  /**
+   * Cache for registry writer instances.
+   * Uses lazy initialization pattern for efficiency.
+   * Key is the constructor name of the registry writer class.
+   *
+   * @see Requirements 5.1, 5.5
+   */
+  private readonly registryWriterCache: Map<string, RegistryWriter<unknown, RegistryData>> = new Map()
 
   /**
    * Creates a new AbstractOutputPlugin instance.
@@ -748,5 +760,76 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
     const mode = ctx.dryRun === true ? '[DRY-RUN]' : ''
     this.log.info(`${mode} Write complete: ${successCount} success, ${skipCount} skipped, ${failCount} failed`)
+  }
+
+  /**
+   * Get or create a registry writer instance.
+   * Uses lazy initialization pattern for efficiency.
+   * Instances are cached by constructor name to avoid creating duplicates.
+   *
+   * @template TEntry - The type of entries stored in the registry
+   * @template TRegistry - The full registry data structure type
+   * @template T - The registry writer class type
+   * @param WriterClass - The registry writer class constructor
+   * @returns The registry writer instance
+   *
+   * @see Requirements 5.1, 5.5
+   *
+   * @example
+   * ```typescript
+   * // Get a KiroPowersRegistryWriter instance
+   * const writer = this.getRegistryWriter(KiroPowersRegistryWriter)
+   * ```
+   */
+  protected getRegistryWriter<
+    TEntry,
+    TRegistry extends RegistryData,
+    T extends RegistryWriter<TEntry, TRegistry>,
+  >(
+    WriterClass: new (logger: Logger) => T,
+  ): T {
+    const cacheKey = WriterClass.name
+
+    // Check cache first
+    const cached = this.registryWriterCache.get(cacheKey)
+    if (cached != null) {
+      return cached as T
+    }
+
+    // Create new instance and cache it
+    const writer = new WriterClass(this.log)
+    this.registryWriterCache.set(cacheKey, writer as RegistryWriter<unknown, RegistryData>)
+    return writer
+  }
+
+  /**
+   * Register entries in a registry with dry-run support.
+   * Convenience method for subclasses to register entries in a registry.
+   *
+   * @template TEntry - The type of entries to register
+   * @template TRegistry - The full registry data structure type
+   * @param writer - The registry writer instance
+   * @param entries - The entries to register
+   * @param ctx - The output write context (includes dryRun flag)
+   * @returns Array of operation results, one for each entry
+   *
+   * @see Requirements 5.2, 5.3
+   *
+   * @example
+   * ```typescript
+   * // Register power entries in Kiro registry
+   * const writer = this.getRegistryWriter(KiroPowersRegistryWriter)
+   * const results = await this.registerInRegistry(writer, powerEntries, ctx)
+   * ```
+   */
+  protected async registerInRegistry<
+    TEntry,
+    TRegistry extends RegistryData,
+  >(
+    writer: RegistryWriter<TEntry, TRegistry>,
+    entries: readonly TEntry[],
+    ctx: OutputWriteContext,
+  ): Promise<readonly RegistryOperationResult[]> {
+    return writer.register(entries, ctx.dryRun)
   }
 }
