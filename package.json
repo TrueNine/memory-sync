@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "packageManager": "pnpm@10.26.1",
   "description": "TrueNine Life CLI Tools",
   "author": "TrueNine",
@@ -63,7 +63,7 @@
     "@types/picomatch": "^4.0.2",
     "@vitest/coverage-v8": "4.0.16",
     "eslint": "^9.39.2",
-    "fast-check": "^4.5.1",
+    "fast-check": "^4.5.2",
     "tsdown": "0.18.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
