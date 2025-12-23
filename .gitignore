@@ -21,3 +21,8 @@ nul
 .claude/
 .factory/
 .npmrc
+README.md
+.cursorignore
+.qoderignore
+.warpindexignore
+.editorconfig
