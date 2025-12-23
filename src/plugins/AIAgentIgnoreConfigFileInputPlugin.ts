@@ -14,7 +14,7 @@ const IGNORE_FILE_NAMES = ['.qoderignore', '.cursorignore', '.warpindexignore'] 
 
 export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
   constructor() {
-    super('AIAgentIgnoreConfigFileInputPlugin', ['FileSystemShadowProjectPlugin'])
+    super('AIAgentIgnoreConfigFileInputPlugin', ['ShadowProjectInputPlugin'])
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
