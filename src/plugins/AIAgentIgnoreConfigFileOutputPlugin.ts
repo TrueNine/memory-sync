@@ -10,6 +10,11 @@ import * as path from 'node:path'
 import { FilePathKind } from '@/types'
 import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
+/**
+ * All ignore file names that this plugin manages
+ */
+const IGNORE_FILE_NAMES = ['.qoderignore', '.cursorignore', '.warpindexignore'] as const
+
 export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('AIAgentIgnoreConfigFileOutputPlugin')
@@ -23,25 +28,17 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const { projects } = ctx.collectedInputContext.workspace
-    const { aiAgentIgnoreConfigFiles } = ctx.collectedInputContext
-
-    if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) {
-      return []
-    }
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) {
         continue
       }
 
-      // Skip shadow source project to avoid deleting the source files
-      if (project.isShadowSourceProject === true) {
-        this.log.debug(`Skipping shadow source project during cleanup: ${project.name}`)
-        continue
-      }
-
-      for (const ignoreFile of aiAgentIgnoreConfigFiles) {
-        const filePath = path.join(project.dirFromWorkspacePath.path, ignoreFile.fileName)
+      // Register all possible ignore files for cleanup
+      // Note: isShadowSourceProject projects have dirFromWorkspacePath pointing to actual workspace project dirs,
+      // so we should NOT skip them - the ignore files are written to the actual project directories
+      for (const fileName of IGNORE_FILE_NAMES) {
+        const filePath = path.join(project.dirFromWorkspacePath.path, fileName)
         results.push({
           pathKind: FilePathKind.Relative,
           path: filePath,

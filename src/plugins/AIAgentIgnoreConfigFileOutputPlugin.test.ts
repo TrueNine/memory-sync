@@ -101,7 +101,8 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
   })
 
   describe('registerProjectOutputFiles', () => {
-    it('should register ignore files for each project', async () => {
+    it('should register all ignore files for each project regardless of aiAgentIgnoreConfigFiles', async () => {
+      // Even with ignore files provided, should register all known ignore file types
       const ignoreFiles = createMockIgnoreFiles()
       const ctx = createMockOutputPluginContext(ignoreFiles)
 
@@ -115,12 +116,19 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       ])
     })
 
-    it('should return empty array when no ignore files exist', async () => {
+    it('should register all ignore files even when aiAgentIgnoreConfigFiles is empty', async () => {
+      // This is the key fix: cleanup should work even without collected ignore files
       const ctx = createMockOutputPluginContext([])
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(0)
+      // Should still register all known ignore file types for cleanup
+      expect(results).toHaveLength(3)
+      expect(results.map((r) => r.path)).toEqual([
+        path.join('project1', '.qoderignore'),
+        path.join('project1', '.cursorignore'),
+        path.join('project1', '.warpindexignore'),
+      ])
     })
 
     it('should register files for multiple projects', async () => {
@@ -152,7 +160,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       expect(results.map((r) => r.path)).toContain(path.join('project2', '.qoderignore'))
     })
 
-    it('should skip shadow source project during cleanup', async () => {
+    it('should NOT skip shadow source project since dirFromWorkspacePath points to actual project dir', async () => {
       const ignoreFiles = createMockIgnoreFiles()
       const ctx: OutputPluginContext = {
         collectedInputContext: {
@@ -177,13 +185,10 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      // Should only register files for regular project, not shadow project
-      expect(results).toHaveLength(3)
-      expect(results.map((r) => r.path)).toEqual([
-        path.join('project1', '.qoderignore'),
-        path.join('project1', '.cursorignore'),
-        path.join('project1', '.warpindexignore'),
-      ])
+      // Should register files for BOTH projects since dirFromWorkspacePath points to actual project dirs
+      expect(results).toHaveLength(6)
+      expect(results.map((r) => r.path)).toContain(path.join('project1', '.qoderignore'))
+      expect(results.map((r) => r.path)).toContain(path.join('shadow-project', '.qoderignore'))
     })
   })
 
