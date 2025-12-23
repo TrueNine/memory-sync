@@ -34,9 +34,12 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
         continue
       }
 
+      // Skip shadow source projects - their ignore files are source files and should be protected
+      if (project.isShadowSourceProject === true) {
+        continue
+      }
+
       // Register all possible ignore files for cleanup
-      // Note: isShadowSourceProject projects have dirFromWorkspacePath pointing to actual workspace project dirs,
-      // so we should NOT skip them - the ignore files are written to the actual project directories
       for (const fileName of IGNORE_FILE_NAMES) {
         const filePath = path.join(project.dirFromWorkspacePath.path, fileName)
         results.push({

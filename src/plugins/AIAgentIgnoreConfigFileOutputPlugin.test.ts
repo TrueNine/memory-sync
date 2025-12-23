@@ -160,7 +160,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       expect(results.map((r) => r.path)).toContain(path.join('project2', '.qoderignore'))
     })
 
-    it('should NOT skip shadow source project since dirFromWorkspacePath points to actual project dir', async () => {
+    it('should skip shadow source project since their ignore files are protected source files', async () => {
       const ignoreFiles = createMockIgnoreFiles()
       const ctx: OutputPluginContext = {
         collectedInputContext: {
@@ -185,10 +185,10 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      // Should register files for BOTH projects since dirFromWorkspacePath points to actual project dirs
-      expect(results).toHaveLength(6)
+      // Should only register files for regular project, NOT shadow source project
+      expect(results).toHaveLength(3)
       expect(results.map((r) => r.path)).toContain(path.join('project1', '.qoderignore'))
-      expect(results.map((r) => r.path)).toContain(path.join('shadow-project', '.qoderignore'))
+      expect(results.map((r) => r.path)).not.toContain(path.join('shadow-project', '.qoderignore'))
     })
   })
 
