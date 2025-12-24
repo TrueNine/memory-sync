@@ -122,7 +122,7 @@ export abstract class RegistryWriter<
     } as TRegistry
 
     if (dryRun === true) {
-      this.log.info('would write registry', { path: this.registryPath, dryRun: true })
+      this.log.trace({ action: 'dryRun', type: 'registry', path: this.registryPath })
       return true
     }
 
@@ -138,11 +138,11 @@ export abstract class RegistryWriter<
       // Atomic rename to replace target
       fs.renameSync(tempPath, this.registryPath)
 
-      this.log.info('written registry', { path: this.registryPath })
+      this.log.trace({ action: 'write', type: 'registry', path: this.registryPath })
       return true
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error('write registry failed', { path: this.registryPath, error: errMsg })
+      this.log.error({ action: 'write', type: 'registry', path: this.registryPath, error: errMsg })
 
       // Cleanup temp file if it exists
       try {
@@ -190,9 +190,9 @@ export abstract class RegistryWriter<
           entryName,
         })
         if (dryRun === true) {
-          this.log.info('would register entry', { entryName, dryRun: true })
+          this.log.trace({ action: 'dryRun', type: 'registerEntry', entryName })
         } else {
-          this.log.info('registered entry', { entryName })
+          this.log.trace({ action: 'register', type: 'entry', entryName })
         }
       } else {
         results.push({

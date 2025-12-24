@@ -76,7 +76,7 @@ export function deleteFiles(files: string[], logger: Logger): { deleted: number,
     try {
       if (fs.existsSync(resolved)) {
         fs.unlinkSync(resolved)
-        logger.info('deleted file', { path: resolved })
+        logger.debug({ action: 'delete', type: 'file', path: resolved })
         deleted++
       }
     } catch (e) {
@@ -106,7 +106,7 @@ export function deleteDirectories(dirs: string[], logger: Logger): { deleted: nu
     try {
       if (fs.existsSync(resolved)) {
         fs.rmSync(resolved, { recursive: true, force: true })
-        logger.info('deleted directory', { path: resolved })
+        logger.debug({ action: 'delete', type: 'directory', path: resolved })
         deleted++
       }
     } catch (e) {

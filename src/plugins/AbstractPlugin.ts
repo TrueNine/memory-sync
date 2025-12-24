@@ -33,10 +33,21 @@ export abstract class AbstractPlugin<T extends PluginKind = PluginKind> implemen
   readonly name: string
 
   /**
-   * Logger instance for this plugin.
-   * Automatically initialized with the plugin name as scope.
+   * Cached logger instance for this plugin.
+   * Lazily initialized on first access to respect global log level.
    */
-  readonly log: Logger
+  private _log?: Logger
+
+  /**
+   * Logger instance for this plugin.
+   * Lazily initialized to respect global log level set by CLI args.
+   */
+  get log(): Logger {
+    if (this._log == null) {
+      this._log = createLogger(this.name)
+    }
+    return this._log
+  }
 
   /**
    * Optional list of plugin names that this plugin depends on.
@@ -54,7 +65,6 @@ export abstract class AbstractPlugin<T extends PluginKind = PluginKind> implemen
   protected constructor(name: string, type: T, dependsOn?: readonly string[]) {
     this.name = name
     this.type = type
-    this.log = createLogger(name)
     if (dependsOn != null) {
       this.dependsOn = dependsOn
     }

@@ -69,7 +69,7 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
     const hasGlobalMemory = globalMemory != null
 
     if (!hasProjectOutputs && !hasGlobalMemory) {
-      this.log.info('No outputs to write, skipping')
+      this.log.trace({ action: 'skip', reason: 'noOutputs' })
       return false
     }
 
@@ -137,7 +137,7 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write global memory -> ${fullPath}`)
+      this.log.trace({ action: 'dryRun', type: 'globalMemory', path: fullPath })
       return {
         files: [{ path: relativePath, success: true, skipped: false }],
         dirs: dirResults,
@@ -147,11 +147,11 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
     try {
       this.ensureDirectory(globalDir)
       fs.writeFileSync(fullPath, globalMemory.content as string, 'utf-8')
-      this.log.info(`Written global memory -> ${fullPath}`)
+      this.log.trace({ action: 'write', type: 'globalMemory', path: fullPath })
       fileResults.push({ path: relativePath, success: true })
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write global memory: ${errMsg}`)
+      this.log.error({ action: 'write', type: 'globalMemory', path: fullPath, error: errMsg })
       fileResults.push({ path: relativePath, success: false, error: error as Error })
     }
 

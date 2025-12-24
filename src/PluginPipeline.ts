@@ -23,7 +23,7 @@ import {
   InitCommand,
   UnknownCommand,
 } from '@/commands'
-import { createLogger } from '@/log'
+import { createLogger, setGlobalLogLevel } from '@/log'
 import {
   CircularDependencyError,
   MissingDependencyError,
@@ -354,8 +354,11 @@ export class PluginPipeline {
     const userArgs = extractUserArgs(filtered)
     this.args = parseArgs(userArgs)
 
-    // Resolve log level from parsed args and pass to logger
+    // Resolve log level from parsed args and set globally
     const resolvedLogLevel = resolveLogLevel(this.args)
+    if (resolvedLogLevel != null) {
+      setGlobalLogLevel(resolvedLogLevel)
+    }
     this.logger = createLogger('PluginPipeline', resolvedLogLevel)
     this.logger.debug('initialized', { args: this.args })
   }

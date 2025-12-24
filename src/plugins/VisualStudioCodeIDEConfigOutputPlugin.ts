@@ -124,7 +124,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     }
 
     if (ctx.dryRun === true) {
-      this.log.info('would write', { path: fullPath, label, dryRun: true })
+      this.log.trace({ action: 'dryRun', type: 'config', path: fullPath, label })
       return { path: relativePath, success: true, skipped: false }
     }
 
@@ -132,11 +132,11 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
       const dir = this.dirname(fullPath)
       this.ensureDirectory(dir)
       this.writeFileSync(fullPath, config.content)
-      this.log.info('written', { path: fullPath, label })
+      this.log.trace({ action: 'write', type: 'config', path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error('write failed', { path: fullPath, label, error: errMsg })
+      this.log.error({ action: 'write', type: 'config', path: fullPath, label, error: errMsg })
       return { path: relativePath, success: false, error: error as Error }
     }
   }

@@ -138,7 +138,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
 
     // Dry-run mode: log without writing
     if (ctx.dryRun === true) {
-      this.log.info('would write', { path: fullPath, label, dryRun: true })
+      this.log.trace({ action: 'dryRun', type: 'readme', path: fullPath, label })
       return { path: relativePath, success: true, skipped: false }
     }
 
@@ -151,11 +151,11 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
       }
 
       fs.writeFileSync(fullPath, content, 'utf-8')
-      this.log.info('written', { path: fullPath, label })
+      this.log.trace({ action: 'write', type: 'readme', path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error('write failed', { path: fullPath, label, error: errMsg })
+      this.log.error({ action: 'write', type: 'readme', path: fullPath, label, error: errMsg })
       return { path: relativePath, success: false, error: error as Error }
     }
   }

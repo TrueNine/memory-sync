@@ -249,7 +249,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const hasSkills = (skills?.length ?? 0) > 0
 
     if (!hasChildPrompts && !hasGlobalMemory && !hasFastCommands && !hasSkills) {
-      this.log.info('No outputs to write, skipping')
+      this.log.trace({ action: 'skip', reason: 'noOutputs' })
       return false
     }
 
@@ -297,17 +297,17 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (ctx.dryRun === true) {
-        this.log.info(`[DRY-RUN] Would write global memory -> ${fullPath}`)
+        this.log.trace({ action: 'dryRun', type: 'globalMemory', path: fullPath })
         fileResults.push({ path: relativePath, success: true, skipped: false })
       } else {
         try {
           this.ensureDirectory(globalDir)
           this.writeFileSync(fullPath, globalMemory.content as string)
-          this.log.info(`Written global memory -> ${fullPath}`)
+          this.log.trace({ action: 'write', type: 'globalMemory', path: fullPath })
           fileResults.push({ path: relativePath, success: true })
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error)
-          this.log.error(`Failed to write global memory: ${errMsg}`)
+          this.log.error({ action: 'write', type: 'globalMemory', path: fullPath, error: errMsg })
           fileResults.push({ path: relativePath, success: false, error: error as Error })
         }
       }
@@ -346,20 +346,19 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
    * @see Requirements 6.4, 6.5
    */
   private logRegistryResults(results: readonly RegistryOperationResult[], dryRun?: boolean): void {
-    const prefix = dryRun === true ? '[DRY-RUN] ' : ''
     const successCount = results.filter((r) => r.success).length
     const failCount = results.filter((r) => !r.success).length
 
     if (successCount > 0) {
-      this.log.info(`${prefix}Registry: ${successCount} power(s) registered successfully`)
+      this.log.trace({ action: dryRun === true ? 'dryRun' : 'register', type: 'registrySummary', successCount })
     }
 
     if (failCount > 0) {
-      this.log.error(`${prefix}Registry: ${failCount} power(s) failed to register`)
+      this.log.error({ action: 'register', type: 'registrySummary', failCount })
       for (const result of results) {
         if (!result.success) {
           const errMsg = result.error?.message ?? 'Unknown error'
-          this.log.error(`  - ${result.entryName}: ${errMsg}`)
+          this.log.error({ action: 'register', type: 'registryEntry', entryName: result.entryName, error: errMsg })
         }
       }
     }
@@ -457,17 +456,17 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const powerContent = `${frontMatterStr}\n${bodyContent}`
 
     if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write skill power -> ${powerFilePath}`)
+      this.log.trace({ action: 'dryRun', type: 'skillPower', path: powerFilePath })
       fileResults.push({ path: powerRelativePath, success: true, skipped: false })
     } else {
       try {
         this.ensureDirectory(powerDir)
         this.writeFileSync(powerFilePath, powerContent)
-        this.log.info(`Written skill power -> ${powerFilePath}`)
+        this.log.trace({ action: 'write', type: 'skillPower', path: powerFilePath })
         fileResults.push({ path: powerRelativePath, success: true })
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error)
-        this.log.error(`Failed to write skill power: ${errMsg}`)
+        this.log.error({ action: 'write', type: 'skillPower', path: powerFilePath, error: errMsg })
         fileResults.push({ path: powerRelativePath, success: false, error: error as Error })
       }
     }
@@ -492,17 +491,17 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         const refDocContent = refDoc.content as string
 
         if (ctx.dryRun === true) {
-          this.log.info(`[DRY-RUN] Would write reference document -> ${refDocFilePath}`)
+          this.log.trace({ action: 'dryRun', type: 'refDoc', path: refDocFilePath })
           fileResults.push({ path: refDocRelativePath, success: true, skipped: false })
         } else {
           try {
             this.ensureDirectory(steeringDir)
             this.writeFileSync(refDocFilePath, refDocContent)
-            this.log.info(`Written reference document -> ${refDocFilePath}`)
+            this.log.trace({ action: 'write', type: 'refDoc', path: refDocFilePath })
             fileResults.push({ path: refDocRelativePath, success: true })
           } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error)
-            this.log.error(`Failed to write reference document: ${errMsg}`)
+            this.log.error({ action: 'write', type: 'refDoc', path: refDocFilePath, error: errMsg })
             fileResults.push({ path: refDocRelativePath, success: false, error: error as Error })
           }
         }
@@ -583,18 +582,18 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const content = this.buildFastCommandSteeringContent(cmd)
 
     if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write fast command steering -> ${fullPath}`)
+      this.log.trace({ action: 'dryRun', type: 'fastCommandSteering', path: fullPath })
       return { path: relativePath, success: true, skipped: false }
     }
 
     try {
       this.ensureDirectory(globalDir)
       this.writeFileSync(fullPath, content)
-      this.log.info(`Written fast command steering -> ${fullPath}`)
+      this.log.trace({ action: 'write', type: 'fastCommandSteering', path: fullPath })
       return { path: relativePath, success: true }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write fast command steering: ${errMsg}`)
+      this.log.error({ action: 'write', type: 'fastCommandSteering', path: fullPath, error: errMsg })
       return { path: relativePath, success: false, error: error as Error }
     }
   }
@@ -655,18 +654,18 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const content = this.buildSteeringContent(child)
 
     if (ctx.dryRun === true) {
-      this.log.info(`[DRY-RUN] Would write steering file -> ${fullPath}`)
+      this.log.trace({ action: 'dryRun', type: 'steeringFile', path: fullPath })
       return { path: relativePath, success: true, skipped: false }
     }
 
     try {
       this.ensureDirectory(targetDir)
       this.writeFileSync(fullPath, content)
-      this.log.info(`Written steering file -> ${fullPath}`)
+      this.log.trace({ action: 'write', type: 'steeringFile', path: fullPath })
       return { path: relativePath, success: true }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error(`Failed to write steering file: ${errMsg}`)
+      this.log.error({ action: 'write', type: 'steeringFile', path: fullPath, error: errMsg })
       return { path: relativePath, success: false, error: error as Error }
     }
   }

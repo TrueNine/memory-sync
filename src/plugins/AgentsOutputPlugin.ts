@@ -45,7 +45,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     )
 
     if (!hasProjectOutputs) {
-      this.log.info('No outputs to write, skipping')
+      this.log.trace({ action: 'skip', reason: 'noOutputs' })
       return false
     }
 

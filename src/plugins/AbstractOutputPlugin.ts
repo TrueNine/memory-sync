@@ -105,12 +105,6 @@ export interface CombineOptions {
  */
 export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Output> implements OutputPlugin {
   /**
-   * Logger instance inherited from AbstractPlugin.
-   * Exposed for compatibility with OutputPlugin interface.
-   */
-  declare readonly log: Logger
-
-  /**
    * Global configuration directory name (e.g., '.claude', '.gemini').
    * Used by getGlobalConfigDir() to construct the full path.
    */
@@ -431,18 +425,18 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     }
 
     if (ctx.dryRun === true) {
-      this.log.info('would write', { path: fullPath, label, dryRun: true })
+      this.log.trace({ action: 'dryRun', type: 'file', path: fullPath, label })
       return { path: relativePath, success: true, skipped: false }
     }
 
     try {
       this.ensureDirectory(dir)
       fs.writeFileSync(fullPath, content, 'utf-8')
-      this.log.info('written', { path: fullPath, label })
+      this.log.trace({ action: 'write', type: 'file', path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error('write failed', { path: fullPath, label, error: errMsg })
+      this.log.error({ action: 'write', type: 'file', path: fullPath, label, error: errMsg })
       return { path: relativePath, success: false, error: error as Error }
     }
   }
@@ -477,7 +471,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const relativePath = this.toRelativePath(targetPath)
 
     if (ctx.dryRun === true) {
-      this.log.info('would write', { path: fullPath, label, dryRun: true })
+      this.log.trace({ action: 'dryRun', type: 'promptFile', path: fullPath, label })
       return { path: relativePath, success: true, skipped: false }
     }
 
@@ -485,11 +479,11 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       const dir = path.dirname(fullPath)
       this.ensureDirectory(dir)
       fs.writeFileSync(fullPath, content, 'utf-8')
-      this.log.info('written', { path: fullPath, label })
+      this.log.trace({ action: 'write', type: 'promptFile', path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error('write failed', { path: fullPath, label, error: errMsg })
+      this.log.error({ action: 'write', type: 'promptFile', path: fullPath, label, error: errMsg })
       return { path: relativePath, success: false, error: error as Error }
     }
   }
@@ -758,11 +752,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const skipped = results.files.filter((r) => r.skipped).length
     const failed = results.files.filter((r) => !r.success && !r.skipped).length
 
-    if (ctx.dryRun === true) {
-      this.log.info('write complete', { success, skipped, failed, dryRun: true })
-    } else {
-      this.log.info('write complete', { success, skipped, failed })
-    }
+    this.log.trace({ action: ctx.dryRun === true ? 'dryRun' : 'complete', type: 'writeSummary', success, skipped, failed })
   }
 
   /**

@@ -1,4 +1,3 @@
-import type { Logger } from '@/log'
 import type { ParsedMarkdown } from '@/markdown'
 import type {
   CollectedInputContext,
@@ -49,12 +48,6 @@ export interface ResolvedBasePaths {
  * ```
  */
 export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Input> implements InputPlugin {
-  /**
-   * Logger instance inherited from AbstractPlugin.
-   * Exposed for compatibility with InputPlugin interface.
-   */
-  declare readonly log: Logger
-
   /**
    * Creates a new AbstractInputPlugin instance.
    * Automatically sets the plugin type to PluginKind.Input.
