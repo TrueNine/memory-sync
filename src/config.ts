@@ -8,8 +8,8 @@ import {
   DEFAULT_GLOBAL_MEMORY_FILE,
   DEFAULT_SHADOW_FAST_COMMAND_DIR,
   DEFAULT_SHADOW_PROJECT_SUFFIX,
+  DEFAULT_SHADOW_PROJECTS_DIR,
   DEFAULT_SHADOW_SKILL_SOURCE_DIR,
-  DEFAULT_SHADOW_SOURCE_PROJECT_DIR,
   DEFAULT_SHADOW_SUB_AGENT_DIR,
   DEFAULT_WORKSPACE_DIR,
 } from '@/constants'
@@ -27,12 +27,12 @@ export interface PipelineConfig {
 
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
   workspaceDir: DEFAULT_WORKSPACE_DIR,
-  shadowProjectDir: `$WORKSPACE/${DEFAULT_SHADOW_PROJECT_SUFFIX}`,
+  shadowSourceProjectDir: `$WORKSPACE/${DEFAULT_SHADOW_PROJECT_SUFFIX}`,
   shadowSkillSourceDir: DEFAULT_SHADOW_SKILL_SOURCE_DIR,
   shadowFastCommandDir: DEFAULT_SHADOW_FAST_COMMAND_DIR,
   shadowSubAgentDir: DEFAULT_SHADOW_SUB_AGENT_DIR,
   globalMemoryFile: DEFAULT_GLOBAL_MEMORY_FILE,
-  shadowSourceProjectDir: DEFAULT_SHADOW_SOURCE_PROJECT_DIR,
+  shadowProjectsDir: DEFAULT_SHADOW_PROJECTS_DIR,
   externalProjects: [],
   excludePatterns: {},
   fastCommandSeriesOptions: {},
@@ -47,12 +47,12 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
 function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOptions> {
   return {
     ...(userConfig.workspaceDir != null ? { workspaceDir: userConfig.workspaceDir } : {}),
-    ...(userConfig.shadowProjectDir != null ? { shadowProjectDir: userConfig.shadowProjectDir } : {}),
+    ...(userConfig.shadowSourceProjectDir != null ? { shadowSourceProjectDir: userConfig.shadowSourceProjectDir } : {}),
     ...(userConfig.shadowSkillSourceDir != null ? { shadowSkillSourceDir: userConfig.shadowSkillSourceDir } : {}),
     ...(userConfig.shadowFastCommandDir != null ? { shadowFastCommandDir: userConfig.shadowFastCommandDir } : {}),
     ...(userConfig.shadowSubAgentDir != null ? { shadowSubAgentDir: userConfig.shadowSubAgentDir } : {}),
     ...(userConfig.globalMemoryFile != null ? { globalMemoryFile: userConfig.globalMemoryFile } : {}),
-    ...(userConfig.shadowSourceProjectDir != null ? { shadowSourceProjectDir: userConfig.shadowSourceProjectDir } : {}),
+    ...(userConfig.shadowProjectsDir != null ? { shadowProjectsDir: userConfig.shadowProjectsDir } : {}),
     ...(userConfig.externalProjects != null ? { externalProjects: userConfig.externalProjects } : {}),
     ...(userConfig.excludePatterns != null ? { excludePatterns: userConfig.excludePatterns } : {}),
     ...(userConfig.fastCommandSeriesOptions != null ? { fastCommandSeriesOptions: userConfig.fastCommandSeriesOptions } : {}),
@@ -271,7 +271,7 @@ export function defineConfig(options: PluginOptions | DefineConfigOptions = {}):
     ...(merged.skills != null && { skills: merged.skills }),
     ...(merged.globalMemory != null && { globalMemory: merged.globalMemory }),
     ...(merged.aiAgentIgnoreConfigFiles != null && { aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles }),
-    ...(merged.shadowProjectDir != null && { shadowProjectDir: merged.shadowProjectDir }),
+    ...(merged.shadowSourceProjectDir != null && { shadowSourceProjectDir: merged.shadowSourceProjectDir }),
     ...(merged.readmePrompts != null && { readmePrompts: merged.readmePrompts }),
   }
 

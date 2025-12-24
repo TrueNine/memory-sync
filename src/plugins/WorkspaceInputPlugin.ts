@@ -38,7 +38,7 @@ export class WorkspaceInputPlugin extends AbstractInputPlugin {
 
     return {
       workspace,
-      shadowProjectDir,
+      shadowSourceProjectDir: shadowProjectDir,
       ...(externalProjects.length > 0 && { externalProjects }),
     }
   }

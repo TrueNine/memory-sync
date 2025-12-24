@@ -22,7 +22,7 @@ export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
 
     const ignoreFiles: AIAgentIgnoreConfigFile[] = []
 
-    // Read ignore files from shadow project root directory: $SHADOW_PROJECT/
+    // Read ignore files from shadow source project root directory: $SHADOW_SOURCE_PROJECT/
     for (const fileName of IGNORE_FILE_NAMES) {
       const filePath = path.join(shadowProjectDir, fileName)
 

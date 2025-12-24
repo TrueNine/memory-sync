@@ -6,7 +6,7 @@ import type {
   YAMLFrontMatter,
 } from '@/types'
 
-import { DEFAULT_SHADOW_SOURCE_PROJECT_DIR } from '@/constants'
+import { DEFAULT_SHADOW_PROJECTS_DIR } from '@/constants'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
@@ -29,9 +29,9 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     const { dependencyContext, fs, userConfigOptions: options, path } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
-    // Resolve shadow source project directory
-    const shadowSourceProjectDirRaw = options.shadowSourceProjectDir ?? DEFAULT_SHADOW_SOURCE_PROJECT_DIR
-    const shadowSourceProjectDir = this.resolvePath(shadowSourceProjectDirRaw, workspaceDir, shadowProjectDir)
+    // Resolve shadow projects directory
+    const shadowProjectsDirRaw = options.shadowProjectsDir ?? DEFAULT_SHADOW_PROJECTS_DIR
+    const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
 
     // Get workspace from dependency context (provided by ShadowProjectInputPlugin)
     const dependencyWorkspace = dependencyContext.workspace
@@ -42,7 +42,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
     const projects = dependencyWorkspace.projects ?? []
 
-    // Enhance projects with memory prompts from shadow source directory
+    // Enhance projects with memory prompts from shadow projects directory
     // New structure: dist/app/<project>/AGENTS.md (no nested dist folder)
     const enhancedProjects = projects.map((project) => {
       const projectName = project.name
@@ -50,8 +50,8 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
         return project
       }
 
-      // Read directly from shadow source project directory: dist/app/<project>/
-      const shadowProjectPath = path.join(shadowSourceProjectDir, projectName)
+      // Read directly from shadow projects directory: dist/app/<project>/
+      const shadowProjectPath = path.join(shadowProjectsDir, projectName)
       if (!fs.existsSync(shadowProjectPath) || !fs.statSync(shadowProjectPath).isDirectory()) {
         return project
       }

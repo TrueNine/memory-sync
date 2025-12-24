@@ -76,8 +76,8 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
   abstract collect(ctx: InputPluginContext): Partial<CollectedInputContext>
 
   /**
-   * Resolve base paths (workspace and shadow project directories) from plugin options.
-   * Handles path placeholders like ~, $WORKSPACE, and $SHADOW_PROJECT.
+   * Resolve base paths (workspace and shadow source project directories) from plugin options.
+   * Handles path placeholders like ~, $WORKSPACE, and $SHADOW_SOURCE_PROJECT.
    *
    * @param options - The plugin options containing path configurations
    * @returns Object containing resolved workspaceDir and shadowProjectDir
@@ -91,7 +91,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     const workspaceDirRaw = options.workspaceDir ?? DEFAULT_WORKSPACE_DIR
     const workspaceDir = this.resolvePath(workspaceDirRaw, '', '')
 
-    const shadowProjectDirRaw = options.shadowProjectDir ?? `${PathPlaceholders.WORKSPACE}/${DEFAULT_SHADOW_PROJECT_SUFFIX}`
+    const shadowProjectDirRaw = options.shadowSourceProjectDir ?? `${PathPlaceholders.WORKSPACE}/${DEFAULT_SHADOW_PROJECT_SUFFIX}`
     const shadowProjectDir = this.resolvePath(shadowProjectDirRaw, workspaceDir, '')
 
     return { workspaceDir, shadowProjectDir }
@@ -102,7 +102,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
    * Supports the following placeholders:
    * - `~`: User home directory
    * - `$WORKSPACE`: Workspace directory
-   * - `$SHADOW_PROJECT`: Shadow project directory
+   * - `$SHADOW_SOURCE_PROJECT`: Shadow source project directory
    *
    * @param rawPath - The raw path string potentially containing placeholders
    * @param workspaceDir - The resolved workspace directory
@@ -111,7 +111,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
    *
    * @example
    * ```typescript
-   * const resolved = this.resolvePath('$SHADOW_PROJECT/dist/skills', workspaceDir, shadowProjectDir)
+   * const resolved = this.resolvePath('$SHADOW_SOURCE_PROJECT/dist/skills', workspaceDir, shadowProjectDir)
    * ```
    */
   protected resolvePath(rawPath: string, workspaceDir: string, shadowProjectDir: string): string {
@@ -121,8 +121,8 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
       resolved = resolved.replace(PathPlaceholders.USER_HOME, os.homedir())
     }
 
-    if (resolved.includes(PathPlaceholders.SHADOW_PROJECT)) {
-      resolved = resolved.replace(PathPlaceholders.SHADOW_PROJECT, shadowProjectDir)
+    if (resolved.includes(PathPlaceholders.SHADOW_SOURCE_PROJECT)) {
+      resolved = resolved.replace(PathPlaceholders.SHADOW_SOURCE_PROJECT, shadowProjectDir)
     }
 
     if (resolved.includes(PathPlaceholders.WORKSPACE)) {

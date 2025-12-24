@@ -7,8 +7,8 @@ import {
   DEFAULT_GLOBAL_MEMORY_FILE,
   DEFAULT_SHADOW_FAST_COMMAND_DIR,
   DEFAULT_SHADOW_PROJECT_SUFFIX,
+  DEFAULT_SHADOW_PROJECTS_DIR,
   DEFAULT_SHADOW_SKILL_SOURCE_DIR,
-  DEFAULT_SHADOW_SOURCE_PROJECT_DIR,
   DEFAULT_SHADOW_SUB_AGENT_DIR,
   DEFAULT_WORKSPACE_DIR,
   PathPlaceholders,
@@ -17,9 +17,9 @@ import {
 /**
  * Resolve path placeholders and tilde
  */
-function resolvePath(p: string, workspaceDir: string, shadowProjectDir: string): string {
+function resolvePath(p: string, workspaceDir: string, shadowSourceProjectDir: string): string {
   let resolved = p
-  resolved = resolved.replace(PathPlaceholders.SHADOW_PROJECT, shadowProjectDir)
+  resolved = resolved.replace(PathPlaceholders.SHADOW_SOURCE_PROJECT, shadowSourceProjectDir)
   resolved = resolved.replace(PathPlaceholders.WORKSPACE, workspaceDir)
   if (resolved.startsWith('~')) {
     resolved = path.join(os.homedir(), resolved.slice(1))
@@ -49,9 +49,9 @@ export class InitCommand implements Command {
       '',
     )
 
-    // Resolve shadow project directory
-    const shadowProjectDir = resolvePath(
-      config.shadowProjectDir ?? `${PathPlaceholders.WORKSPACE}/${DEFAULT_SHADOW_PROJECT_SUFFIX}`,
+    // Resolve shadow source project directory
+    const shadowSourceProjectDir = resolvePath(
+      config.shadowSourceProjectDir ?? `${PathPlaceholders.WORKSPACE}/${DEFAULT_SHADOW_PROJECT_SUFFIX}`,
       workspaceDir,
       '',
     )
@@ -60,36 +60,36 @@ export class InitCommand implements Command {
     const skillsDir = resolvePath(
       config.shadowSkillSourceDir ?? DEFAULT_SHADOW_SKILL_SOURCE_DIR,
       workspaceDir,
-      shadowProjectDir,
+      shadowSourceProjectDir,
     )
     const commandsDir = resolvePath(
       config.shadowFastCommandDir ?? DEFAULT_SHADOW_FAST_COMMAND_DIR,
       workspaceDir,
-      shadowProjectDir,
+      shadowSourceProjectDir,
     )
     const agentsDir = resolvePath(
       config.shadowSubAgentDir ?? DEFAULT_SHADOW_SUB_AGENT_DIR,
       workspaceDir,
-      shadowProjectDir,
+      shadowSourceProjectDir,
     )
-    const refDir = resolvePath(
-      config.shadowSourceProjectDir ?? DEFAULT_SHADOW_SOURCE_PROJECT_DIR,
+    const shadowProjectsDir = resolvePath(
+      config.shadowProjectsDir ?? DEFAULT_SHADOW_PROJECTS_DIR,
       workspaceDir,
-      shadowProjectDir,
+      shadowSourceProjectDir,
     )
     const globalMemoryFile = resolvePath(
       config.globalMemoryFile ?? DEFAULT_GLOBAL_MEMORY_FILE,
       workspaceDir,
-      shadowProjectDir,
+      shadowSourceProjectDir,
     )
 
     const dirsToCreate = [
       { path: workspaceDir, name: 'workspace' },
-      { path: shadowProjectDir, name: 'shadow project' },
+      { path: shadowSourceProjectDir, name: 'shadow source project' },
       { path: skillsDir, name: 'skills' },
       { path: commandsDir, name: 'commands' },
       { path: agentsDir, name: 'agents' },
-      { path: refDir, name: 'ref' },
+      { path: shadowProjectsDir, name: 'shadow projects' },
     ]
 
     let dirsCreated = 0

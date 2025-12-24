@@ -9,7 +9,7 @@ vi.mock('node:fs')
 describe('aIAgentIgnoreConfigFileInputPlugin', () => {
   let plugin: AIAgentIgnoreConfigFileInputPlugin
   const mockWorkspaceDir = '/workspace'
-  const mockShadowProjectDir = '/workspace/aindex'
+  const mockShadowSourceProjectDir = '/workspace/aindex'
 
   beforeEach(() => {
     plugin = new AIAgentIgnoreConfigFileInputPlugin()
@@ -17,12 +17,12 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
   })
 
   function createMockInputPluginContext(
-    shadowProjectDir: string = mockShadowProjectDir,
+    shadowSourceProjectDir: string = mockShadowSourceProjectDir,
   ): InputPluginContext {
     return {
       userConfigOptions: {
         workspaceDir: mockWorkspaceDir,
-        shadowProjectDir,
+        shadowSourceProjectDir,
       },
       logger: {
         debug: vi.fn(),
@@ -199,7 +199,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       expect(ctx.logger.debug).toHaveBeenCalledTimes(3)
     })
 
-    it('should support custom shadowProjectDir', () => {
+    it('should support custom shadowSourceProjectDir', () => {
       const customDir = '/custom/shadow/project'
       const ctx = createMockInputPluginContext(customDir)
 

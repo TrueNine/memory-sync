@@ -81,10 +81,10 @@ export interface CollectedInputContext {
   readonly globalMemory?: GlobalMemoryPrompt
   readonly aiAgentIgnoreConfigFiles?: readonly AIAgentIgnoreConfigFile[]
   /**
-   * Shadow project directory absolute path
-   * Used to identify and skip shadow project during cleanup
+   * Shadow source project directory absolute path
+   * Used to identify and skip shadow source project during cleanup
    */
-  readonly shadowProjectDir?: string
+  readonly shadowSourceProjectDir?: string
   /**
    * README.md prompts collected from shadow project
    */

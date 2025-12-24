@@ -11,40 +11,40 @@ export interface UserConfigFile {
   readonly workspaceDir?: string
 
   /**
-   * Shadow project directory path
+   * Shadow source project directory path
    * @default $WORKSPACE/aindex
    */
-  readonly shadowProjectDir?: string
+  readonly shadowSourceProjectDir?: string
 
   /**
    * Shadow skill source directory
-   * @default $SHADOW_PROJECT/dist/skills
+   * @default $SHADOW_SOURCE_PROJECT/dist/skills
    */
   readonly shadowSkillSourceDir?: string
 
   /**
    * Shadow fast command directory
-   * @default $SHADOW_PROJECT/dist/commands
+   * @default $SHADOW_SOURCE_PROJECT/dist/commands
    */
   readonly shadowFastCommandDir?: string
 
   /**
    * Shadow sub-agent directory
-   * @default $SHADOW_PROJECT/dist/agents
+   * @default $SHADOW_SOURCE_PROJECT/dist/agents
    */
   readonly shadowSubAgentDir?: string
 
   /**
    * Global memory file path
-   * @default $SHADOW_PROJECT/dist/GLOBAL.md
+   * @default $SHADOW_SOURCE_PROJECT/dist/GLOBAL.md
    */
   readonly globalMemoryFile?: string
 
   /**
-   * Shadow source project directory
-   * @default $SHADOW_PROJECT/ref
+   * Shadow projects directory
+   * @default $SHADOW_SOURCE_PROJECT/dist/app
    */
-  readonly shadowSourceProjectDir?: string
+  readonly shadowProjectsDir?: string
 
   /**
    * External project paths outside workspace

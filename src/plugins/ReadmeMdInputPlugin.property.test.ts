@@ -18,11 +18,11 @@ describe('readmeMdInputPlugin property tests', () => {
   /**
    * Create a mock InputPluginContext for testing
    */
-  function createMockContext(workspaceDir: string, shadowProjectDir: string): InputPluginContext {
+  function createMockContext(workspaceDir: string, shadowSourceProjectDir: string): InputPluginContext {
     const options: PluginOptions = {
       workspaceDir,
-      shadowProjectDir,
-      shadowSourceProjectDir: path.join(shadowProjectDir, 'ref'),
+      shadowSourceProjectDir,
+      shadowProjectsDir: path.join(shadowSourceProjectDir, 'ref'),
     }
 
     return {

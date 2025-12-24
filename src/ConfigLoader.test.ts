@@ -105,7 +105,7 @@ describe('configLoader', () => {
       // workspaceDir is invalid (number instead of string)
       const configContent = JSON.stringify({
         workspaceDir: 123,
-        shadowProjectDir: '~/shadow',
+        shadowSourceProjectDir: '~/shadow',
       })
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -117,7 +117,7 @@ describe('configLoader', () => {
       expect(result.found).toBe(true)
       // Invalid field should be ignored
       expect(result.config.workspaceDir).toBeUndefined()
-      expect(result.config.shadowProjectDir).toBe('~/shadow')
+      expect(result.config.shadowSourceProjectDir).toBe('~/shadow')
     })
 
     it('should validate logLevel values', () => {
@@ -193,7 +193,7 @@ describe('configLoader', () => {
 
       const globalConfig = JSON.stringify({
         workspaceDir: '~/global-workspace',
-        shadowProjectDir: '~/global-shadow',
+        shadowSourceProjectDir: '~/global-shadow',
         logLevel: 'info',
       })
 
@@ -222,7 +222,7 @@ describe('configLoader', () => {
       expect(result.config.workspaceDir).toBe('~/cwd-workspace')
       expect(result.config.logLevel).toBe('debug')
       // Global config should fill in missing values
-      expect(result.config.shadowProjectDir).toBe('~/global-shadow')
+      expect(result.config.shadowSourceProjectDir).toBe('~/global-shadow')
       expect(result.sources).toHaveLength(2)
     })
 

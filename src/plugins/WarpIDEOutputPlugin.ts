@@ -9,6 +9,25 @@ import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'WARP.md'
 
+/**
+ * Warp IDE output plugin for generating WARP.md files.
+ *
+ * Note: Warp IDE supports AGENTS.md natively, so this plugin handles child memory prompts
+ * differently than other plugins:
+ *
+ * 1. When AgentsOutputPlugin is NOT registered:
+ *    - Root memory prompts are written to project root as WARP.md (combined with global memory)
+ *    - Child memory prompts are written to subdirectories as WARP.md (without global memory)
+ *
+ * 2. When AgentsOutputPlugin IS registered:
+ *    - AgentsOutputPlugin handles AGENTS.md output (which Warp reads natively)
+ *    - This plugin only writes global memory to each project's WARP.md
+ *    - Root memory prompts are effectively converted to global memory by AgentsOutputPlugin
+ *    - Child memory prompts are handled by AgentsOutputPlugin via AGENTS.md in subdirectories
+ *
+ * This design leverages Warp's native AGENTS.md support while providing WARP.md as a fallback
+ * or supplementary output format.
+ */
 export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('WarpIDEOutputPlugin', {
@@ -117,6 +136,10 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Normal mode: write combined content
+    // Note: Child memory prompts are written without global memory prefix,
+    // as Warp supports AGENTS.md natively for hierarchical prompt inheritance.
+    // When users need child-level prompts with global context, they should use
+    // AgentsOutputPlugin which outputs AGENTS.md files that Warp reads directly.
     const globalMemoryContent = this.extractGlobalMemoryContent(ctx)
 
     for (const project of projects) {

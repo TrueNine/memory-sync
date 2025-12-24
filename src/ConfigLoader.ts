@@ -143,12 +143,12 @@ export class ConfigLoader {
     // String fields
     const stringFields = [
       'workspaceDir',
-      'shadowProjectDir',
+      'shadowSourceProjectDir',
       'shadowSkillSourceDir',
       'shadowFastCommandDir',
       'shadowSubAgentDir',
       'globalMemoryFile',
-      'shadowSourceProjectDir',
+      'shadowProjectsDir',
     ] as const
 
     for (const field of stringFields) {

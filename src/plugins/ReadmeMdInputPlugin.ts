@@ -1,6 +1,6 @@
 import type { CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath } from '@/types'
 
-import { DEFAULT_SHADOW_SOURCE_PROJECT_DIR } from '@/constants'
+import { DEFAULT_SHADOW_PROJECTS_DIR } from '@/constants'
 import { FilePathKind, PromptKind } from '@/types'
 import { AbstractInputPlugin } from './AbstractInputPlugin'
 
@@ -19,20 +19,20 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     const { userConfigOptions: options, logger, fs, path } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
-    const shadowSourceProjectDirRaw = options.shadowSourceProjectDir ?? DEFAULT_SHADOW_SOURCE_PROJECT_DIR
-    const shadowSourceProjectDir = this.resolvePath(shadowSourceProjectDirRaw, workspaceDir, shadowProjectDir)
+    const shadowProjectsDirRaw = options.shadowProjectsDir ?? DEFAULT_SHADOW_PROJECTS_DIR
+    const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
 
     const readmePrompts: ReadmePrompt[] = []
 
-    // Check if shadow source project directory exists
-    if (!fs.existsSync(shadowSourceProjectDir) || !fs.statSync(shadowSourceProjectDir).isDirectory()) {
-      logger.debug('shadow source project directory does not exist', { path: shadowSourceProjectDir })
+    // Check if shadow projects directory exists
+    if (!fs.existsSync(shadowProjectsDir) || !fs.statSync(shadowProjectsDir).isDirectory()) {
+      logger.debug('shadow projects directory does not exist', { path: shadowProjectsDir })
       return { readmePrompts }
     }
 
     try {
       // Scan dist/app/<project> directories
-      const projectEntries = fs.readdirSync(shadowSourceProjectDir, { withFileTypes: true })
+      const projectEntries = fs.readdirSync(shadowProjectsDir, { withFileTypes: true })
 
       for (const projectEntry of projectEntries) {
         if (!projectEntry.isDirectory()) {
@@ -41,7 +41,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
 
         const projectName = projectEntry.name
         // New structure: dist/app/<project>/ (no nested dist folder)
-        const projectDir = path.join(shadowSourceProjectDir, projectName)
+        const projectDir = path.join(shadowProjectsDir, projectName)
 
         // Collect README.md files from project directory
         this.collectReadmeFiles(
@@ -54,7 +54,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         )
       }
     } catch (e) {
-      logger.error('failed to scan shadow source projects', { path: shadowSourceProjectDir, error: e })
+      logger.error('failed to scan shadow projects', { path: shadowProjectsDir, error: e })
     }
 
     return { readmePrompts }

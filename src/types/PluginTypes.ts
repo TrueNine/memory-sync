@@ -343,7 +343,7 @@ export async function executeWriteOutputs(
  * 由插件系统解读为收集上下文
  * 插件路径自动解析以下展位符为特殊符号
  * - `$WORKSPACE`: 工作目录
- * - `$SHADOW_PROJECT`: 抽取源提示词工作目录（它是一个特殊的 project，方便存放于 git，单独进行管理提示词）
+ * - `$SHADOW_SOURCE_PROJECT`: 抽取源提示词工作目录（它是一个特殊的 project，方便存放于 git，单独进行管理提示词）
  * - `~`: 用户主目录
  *
  * @see CollectedInputContext - 被收集的上下文
@@ -359,34 +359,34 @@ export interface PluginOptions {
   /**
    * @default $WORKSPACE/aindex
    */
-  readonly shadowProjectDir?: string
+  readonly shadowSourceProjectDir?: string
 
   /**
-   * @default $SHADOW_PROJECT/dist/skills
+   * @default $SHADOW_SOURCE_PROJECT/dist/skills
    */
   readonly shadowSkillSourceDir?: string
 
   /**
-   * @default $SHADOW_PROJECT/dist/commands
+   * @default $SHADOW_SOURCE_PROJECT/dist/commands
    */
   readonly shadowFastCommandDir?: string
 
   /**
-   * @default $SHADOW_PROJECT/dist/agents
+   * @default $SHADOW_SOURCE_PROJECT/dist/agents
    */
   readonly shadowSubAgentDir?: string
 
   /**
-   * @default $SHADOW_PROJECT/dist/GLOBAL.md
+   * @default $SHADOW_SOURCE_PROJECT/dist/GLOBAL.md
    */
   readonly globalMemoryFile?: string
 
   /**
    * 插件自动扫描其 directChildrenDirectory 为 shadow project，
    * 只有同时识别为
-   * @default $SHADOW_PROJECT/ref
+   * @default $SHADOW_SOURCE_PROJECT/dist/app
    */
-  readonly shadowSourceProjectDir?: string
+  readonly shadowProjectsDir?: string
 
   /**
    * 一些用户定义的脱离 workspace 的项目，

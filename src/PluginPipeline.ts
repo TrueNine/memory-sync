@@ -767,9 +767,9 @@ export class PluginPipeline {
     const globalMemory: CollectedInputContext['globalMemory'] | undefined
       = addition.globalMemory ?? base.globalMemory
 
-    // shadowProjectDir: last one wins
-    const shadowProjectDir: CollectedInputContext['shadowProjectDir'] | undefined
-      = addition.shadowProjectDir ?? base.shadowProjectDir
+    // shadowSourceProjectDir: last one wins
+    const shadowSourceProjectDir: CollectedInputContext['shadowSourceProjectDir'] | undefined
+      = addition.shadowSourceProjectDir ?? base.shadowSourceProjectDir
 
     // readmePrompts: concatenate arrays
     const readmePrompts: CollectedInputContext['readmePrompts'] | undefined
@@ -787,7 +787,7 @@ export class PluginPipeline {
       ...(skills != null ? { skills } : {}),
       ...(aiAgentIgnoreConfigFiles != null ? { aiAgentIgnoreConfigFiles } : {}),
       ...(globalMemory != null ? { globalMemory } : {}),
-      ...(shadowProjectDir != null ? { shadowProjectDir } : {}),
+      ...(shadowSourceProjectDir != null ? { shadowSourceProjectDir } : {}),
       ...(readmePrompts != null ? { readmePrompts } : {}),
     }
   }

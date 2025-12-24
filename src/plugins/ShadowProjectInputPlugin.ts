@@ -1,7 +1,7 @@
 import type { CollectedInputContext, InputPluginContext, Project, Workspace } from '@/types'
 
 import {
-  DEFAULT_SHADOW_SOURCE_PROJECT_DIR,
+  DEFAULT_SHADOW_PROJECTS_DIR,
 } from '@/constants'
 import {
   FilePathKind,
@@ -17,27 +17,27 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
     const { userConfigOptions: options, logger, fs, path } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
-    const shadowSourceProjectDirRaw = options.shadowSourceProjectDir ?? DEFAULT_SHADOW_SOURCE_PROJECT_DIR
-    const shadowSourceProjectDir = this.resolvePath(shadowSourceProjectDirRaw, workspaceDir, shadowProjectDir)
+    const shadowProjectsDirRaw = options.shadowProjectsDir ?? DEFAULT_SHADOW_PROJECTS_DIR
+    const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
 
-    // Get the shadow project name (e.g., "aindex") from shadowProjectDir
-    const shadowProjectName = path.basename(shadowProjectDir)
+    // Get the shadow source project name (e.g., "aindex") from shadowProjectDir
+    const shadowSourceProjectName = path.basename(shadowProjectDir)
 
     const shadowProjects: Project[] = []
-    if (fs.existsSync(shadowSourceProjectDir) && fs.statSync(shadowSourceProjectDir).isDirectory()) {
+    if (fs.existsSync(shadowProjectsDir) && fs.statSync(shadowProjectsDir).isDirectory()) {
       try {
-        const entries = fs.readdirSync(shadowSourceProjectDir, { withFileTypes: true })
+        const entries = fs.readdirSync(shadowProjectsDir, { withFileTypes: true })
         for (const entry of entries) {
           if (entry.isDirectory()) {
-            // Only mark the shadow project itself (e.g., aindex) as prompt source project
+            // Only mark the shadow source project itself (e.g., aindex) as prompt source project
             // Other projects should have their output files cleaned normally
-            const isTheShadowProject = entry.name === shadowProjectName
+            const isTheShadowSourceProject = entry.name === shadowSourceProjectName
 
             shadowProjects.push({
               name: entry.name,
-              // Only true for the shadow project itself (e.g., aindex)
-              // This protects source files in the shadow project from being cleaned
-              ...(isTheShadowProject && { isPromptSourceProject: true }),
+              // Only true for the shadow source project itself (e.g., aindex)
+              // This protects source files in the shadow source project from being cleaned
+              ...(isTheShadowSourceProject && { isPromptSourceProject: true }),
               dirFromWorkspacePath: {
                 pathKind: FilePathKind.Relative,
                 path: entry.name,
@@ -49,7 +49,7 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
           }
         }
       } catch (e) {
-        logger.error('failed to scan shadow source projects', { path: shadowSourceProjectDir, error: e })
+        logger.error('failed to scan shadow projects', { path: shadowProjectsDir, error: e })
       }
     }
 
