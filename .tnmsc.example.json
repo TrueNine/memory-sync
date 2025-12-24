@@ -6,7 +6,7 @@
   "shadowFastCommandDir": "$SHADOW_PROJECT/dist/commands",
   "shadowSubAgentDir": "$SHADOW_PROJECT/dist/agents",
   "globalMemoryFile": "$SHADOW_PROJECT/dist/GLOBAL.md",
-  "shadowSourceProjectDir": "$SHADOW_PROJECT/ref",
+  "shadowSourceProjectDir": "$SHADOW_PROJECT/dist/app",
   "externalProjects": [],
   "excludePatterns": {},
   "logLevel": "info"

@@ -6,9 +6,9 @@ import { AbstractInputPlugin } from './AbstractInputPlugin'
 
 /**
  * Input plugin for collecting README.md files from shadow project directories.
- * Scans ref/star/dist directories for README.md files and collects them as ReadmePrompt objects.
+ * Scans dist/app/<project> directories for README.md files and collects them as ReadmePrompt objects.
  *
- * Supports both root README files (in dist/) and child README files (in dist/subdir/).
+ * Supports both root README files (in project root) and child README files (in subdirectories).
  */
 export class ReadmeMdInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -31,7 +31,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     }
 
     try {
-      // Scan ref/* directories
+      // Scan dist/app/<project> directories
       const projectEntries = fs.readdirSync(shadowSourceProjectDir, { withFileTypes: true })
 
       for (const projectEntry of projectEntries) {
@@ -40,17 +40,13 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         }
 
         const projectName = projectEntry.name
-        const distDir = path.join(shadowSourceProjectDir, projectName, 'dist')
+        // New structure: dist/app/<project>/ (no nested dist folder)
+        const projectDir = path.join(shadowSourceProjectDir, projectName)
 
-        // Check if dist directory exists
-        if (!fs.existsSync(distDir) || !fs.statSync(distDir).isDirectory()) {
-          continue
-        }
-
-        // Collect README.md files from dist directory
+        // Collect README.md files from project directory
         this.collectReadmeFiles(
           ctx,
-          distDir,
+          projectDir,
           projectName,
           workspaceDir,
           '',

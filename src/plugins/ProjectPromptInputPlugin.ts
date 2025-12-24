@@ -42,27 +42,28 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
     const projects = dependencyWorkspace.projects ?? []
 
-    // Enhance projects with memory prompts from shadow source dist directory
+    // Enhance projects with memory prompts from shadow source directory
+    // New structure: dist/app/<project>/AGENTS.md (no nested dist folder)
     const enhancedProjects = projects.map((project) => {
       const projectName = project.name
       if (projectName == null) {
         return project
       }
 
-      // Read from shadow source dist directory: ref/<project>/dist/
-      const shadowProjectDistPath = path.join(shadowSourceProjectDir, projectName, 'dist')
-      if (!fs.existsSync(shadowProjectDistPath) || !fs.statSync(shadowProjectDistPath).isDirectory()) {
+      // Read directly from shadow source project directory: dist/app/<project>/
+      const shadowProjectPath = path.join(shadowSourceProjectDir, projectName)
+      if (!fs.existsSync(shadowProjectPath) || !fs.statSync(shadowProjectPath).isDirectory()) {
         return project
       }
 
       // Get target project path for output
       const targetProjectPath = project.dirFromWorkspacePath?.getAbsolutePath()
 
-      // Root prompt: ref/<project>/dist/AGENTS.md -> <project>/AGENTS.md
-      const rootMemoryPrompt = this.readRootMemoryPrompt(ctx, shadowProjectDistPath)
-      // Child prompts: ref/<project>/dist/<subdir>/AGENTS.md -> <project>/<subdir>/AGENTS.md
+      // Root prompt: dist/app/<project>/AGENTS.md -> <project>/AGENTS.md
+      const rootMemoryPrompt = this.readRootMemoryPrompt(ctx, shadowProjectPath)
+      // Child prompts: dist/app/<project>/<subdir>/AGENTS.md -> <project>/<subdir>/AGENTS.md
       const childMemoryPrompts = targetProjectPath != null
-        ? this.scanChildMemoryPrompts(ctx, shadowProjectDistPath, targetProjectPath)
+        ? this.scanChildMemoryPrompts(ctx, shadowProjectPath, targetProjectPath)
         : []
 
       return {
