@@ -6,6 +6,7 @@ export * from './config'
 export * from './ConfigLoader'
 export * from './constants'
 export * from './log'
+export * from './ShadowSourceProject'
 export * from './types'
 export default userPluginConfig
 

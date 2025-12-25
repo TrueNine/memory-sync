@@ -1,5 +1,5 @@
 import type { Content, RootContent } from 'mdast'
-import type { Logger } from '@/log'
+import type { ILogger } from '@/log'
 import type { CollectedInputContext, InputPluginContext, SkillPrompt, SkillReferenceDocument, SkillYAMLFrontMatter } from '@/types'
 
 import * as path from 'node:path'
@@ -87,14 +87,14 @@ export class SkillInputPlugin extends AbstractInputPlugin {
    * @param skillDir - The absolute path to the skill directory
    * @param links - Array of extracted links to read
    * @param fs - The file system module
-   * @param logger - Logger instance for warnings
+   * @param logger - ILogger instance for warnings
    * @returns Array of SkillReferenceDocument objects
    */
   readReferenceDocuments(
     skillDir: string,
     links: ExtractedLink[],
     fs: typeof import('node:fs'),
-    logger: Logger,
+    logger: ILogger,
   ): SkillReferenceDocument[] {
     const documents: SkillReferenceDocument[] = []
 

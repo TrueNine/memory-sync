@@ -1,4 +1,4 @@
-import type { Logger } from '@/log'
+import type { ILogger } from '@/log'
 import type { FastCommandSeriesOptions } from '@/types/ConfigTypes'
 import type { PluginKind } from '@/types/Enums'
 import type { RelativePath } from '@/types/FileSystemTypes'
@@ -16,7 +16,7 @@ export interface Plugin<T extends PluginKind = PluginKind> {
   /**
    * Logger for the plugin
    */
-  readonly log: Logger
+  readonly log: ILogger
   /**
    * Plugin names this plugin depends on.
    * Dependencies will be executed before this plugin.
@@ -25,7 +25,7 @@ export interface Plugin<T extends PluginKind = PluginKind> {
 }
 
 export interface PluginContext {
-  logger: Logger
+  logger: ILogger
   fs: typeof import('node:fs')
   path: typeof import('node:path')
   glob: typeof import('fast-glob')

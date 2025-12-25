@@ -7,7 +7,7 @@
  * @see Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8
  */
 
-import type { Logger } from '@/log'
+import type { ILogger } from '@/log'
 import type { SkillPrompt } from '@/types/InputTypes'
 import type {
   KiroPowerEntry,
@@ -40,7 +40,7 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
    *
    * @param logger - Optional logger instance
    */
-  constructor(logger?: Logger) {
+  constructor(logger?: ILogger) {
     super(KiroPowersRegistryWriter.REGISTRY_PATH, logger)
   }
 

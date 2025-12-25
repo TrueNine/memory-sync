@@ -1,5 +1,5 @@
 import type { RegistryWriter } from './registry/RegistryWriter'
-import type { Logger } from '@/log'
+import type { ILogger } from '@/log'
 import type {
   FastCommandPrompt,
   OutputPlugin,
@@ -490,16 +490,16 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   /**
    * Build markdown content by combining front matter with content.
-   * If front matter exists, prepends it to the content with a newline separator.
+   * If front matter exists, wraps it with --- delimiters and prepends to content.
    *
-   * @param rawFrontMatter - The raw YAML front matter string (including --- delimiters)
+   * @param rawFrontMatter - The raw YAML front matter string (without --- delimiters)
    * @param content - The markdown content
    * @returns The combined markdown string
    *
    * @example
    * ```typescript
    * const markdown = this.buildMarkdownContent(
-   *   '---\ntitle: My Doc\n---',
+   *   'title: My Doc',
    *   '# Content here'
    * )
    * // Returns: '---\ntitle: My Doc\n---\n# Content here'
@@ -507,7 +507,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    */
   protected buildMarkdownContent(rawFrontMatter: string | undefined, content: string): string {
     if (rawFrontMatter != null && rawFrontMatter.length > 0) {
-      return `${rawFrontMatter}\n${content}`
+      return `---\n${rawFrontMatter}\n---\n${content}`
     }
     return content
   }
@@ -779,7 +779,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     TRegistry extends RegistryData,
     T extends RegistryWriter<TEntry, TRegistry>,
   >(
-    WriterClass: new (logger: Logger) => T,
+    WriterClass: new (logger: ILogger) => T,
   ): T {
     const cacheKey = WriterClass.name
 

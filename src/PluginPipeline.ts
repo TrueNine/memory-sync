@@ -1,6 +1,6 @@
 import type { Command, CommandContext } from '@/commands'
 import type { PipelineConfig } from '@/config'
-import type { Logger } from '@/log'
+import type { ILogger } from '@/log'
 import type {
   CollectedInputContext,
   InputPlugin,
@@ -10,6 +10,7 @@ import type {
   OutputWriteContext,
   Plugin,
   PluginKind,
+  PluginOptions,
 } from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -345,7 +346,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
 }
 
 export class PluginPipeline {
-  private readonly logger: Logger
+  private readonly logger: ILogger
   readonly args: ParsedCliArgs
   private outputPlugins: OutputPlugin[] = []
 
@@ -369,11 +370,11 @@ export class PluginPipeline {
   }
 
   async run(config: PipelineConfig): Promise<void> {
-    const { context, outputPlugins } = config
+    const { context, outputPlugins, userConfigOptions } = config
     this.registerOutputPlugins([...outputPlugins])
 
     const command = this.resolveCommand()
-    const commandCtx = this.createCommandContext(context)
+    const commandCtx = this.createCommandContext(context, userConfigOptions)
     await command.execute(commandCtx)
   }
 
@@ -381,11 +382,12 @@ export class PluginPipeline {
     return resolveCommand(this.args)
   }
 
-  private createCommandContext(ctx: CollectedInputContext): CommandContext {
+  private createCommandContext(ctx: CollectedInputContext, userConfigOptions: Required<PluginOptions>): CommandContext {
     return {
       logger: this.logger,
       outputPlugins: this.outputPlugins,
       collectedInputContext: ctx,
+      userConfigOptions,
       createCleanContext: (dryRun: boolean) => this.createCleanContext(ctx, dryRun),
       createWriteContext: (dryRun: boolean) => this.createWriteContext(ctx, dryRun),
     }

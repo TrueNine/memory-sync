@@ -1,4 +1,4 @@
-import type { Logger } from '@/log'
+import type { ILogger } from '@/log'
 import type { PluginKind } from '@/types/Enums'
 import type { Plugin } from '@/types/PluginTypes'
 
@@ -36,13 +36,13 @@ export abstract class AbstractPlugin<T extends PluginKind = PluginKind> implemen
    * Cached logger instance for this plugin.
    * Lazily initialized on first access to respect global log level.
    */
-  private _log?: Logger
+  private _log?: ILogger
 
   /**
    * Logger instance for this plugin.
    * Lazily initialized to respect global log level set by CLI args.
    */
-  get log(): Logger {
+  get log(): ILogger {
     if (this._log == null) {
       this._log = createLogger(this.name)
     }

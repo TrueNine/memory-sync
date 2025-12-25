@@ -1,4 +1,4 @@
-import type { Logger } from '@/log'
+import type { ILogger } from '@/log'
 import type { OutputCleanContext, OutputPlugin } from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -67,7 +67,7 @@ export async function collectDeletionTargets(
  * Delete files with error handling
  * Logs warnings for failed deletions and continues with remaining files
  */
-export function deleteFiles(files: string[], logger: Logger): { deleted: number, errors: CleanupError[] } {
+export function deleteFiles(files: string[], logger: ILogger): { deleted: number, errors: CleanupError[] } {
   let deleted = 0
   const errors: CleanupError[] = []
 
@@ -94,7 +94,7 @@ export function deleteFiles(files: string[], logger: Logger): { deleted: number,
  * Sorts by length descending to handle nested dirs properly
  * Logs warnings for failed deletions and continues with remaining directories
  */
-export function deleteDirectories(dirs: string[], logger: Logger): { deleted: number, errors: CleanupError[] } {
+export function deleteDirectories(dirs: string[], logger: ILogger): { deleted: number, errors: CleanupError[] } {
   let deleted = 0
   const errors: CleanupError[] = []
 
@@ -133,7 +133,7 @@ export function deleteDirectories(dirs: string[], logger: Logger): { deleted: nu
 export async function performCleanup(
   outputPlugins: readonly OutputPlugin[],
   cleanCtx: OutputCleanContext,
-  logger: Logger,
+  logger: ILogger,
   options?: CleanupOptions,
 ): Promise<CleanupResult> {
   const { executeHooks = true } = options ?? {}

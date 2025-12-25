@@ -1,13 +1,14 @@
-import type { Logger } from '@/log'
-import type { CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext } from '@/types'
+import type { ILogger } from '@/log'
+import type { CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions } from '@/types'
 
 /**
  * Command execution context
  */
 export interface CommandContext {
-  readonly logger: Logger
+  readonly logger: ILogger
   readonly outputPlugins: readonly OutputPlugin[]
   readonly collectedInputContext: CollectedInputContext
+  readonly userConfigOptions: Required<PluginOptions>
   readonly createCleanContext: (dryRun: boolean) => OutputCleanContext
   readonly createWriteContext: (dryRun: boolean) => OutputWriteContext
 }

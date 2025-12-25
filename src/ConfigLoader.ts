@@ -1,4 +1,4 @@
-import type { Logger } from '@/log'
+import type { ILogger } from '@/log'
 import type { ConfigLoaderOptions, ConfigLoadResult, UserConfigFile } from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
@@ -31,7 +31,7 @@ export class ConfigLoader {
   private readonly searchCwd: boolean
   private readonly searchGlobal: boolean
   private readonly customSearchPaths: readonly string[]
-  private readonly logger: Logger
+  private readonly logger: ILogger
 
   constructor(options: ConfigLoaderOptions = {}) {
     this.configFileName = options.configFileName ?? DEFAULT_CONFIG_FILE_NAME

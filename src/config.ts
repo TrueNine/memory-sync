@@ -23,6 +23,7 @@ import { PluginKind } from '@/types'
 export interface PipelineConfig {
   readonly context: CollectedInputContext
   readonly outputPlugins: readonly OutputPlugin[]
+  readonly userConfigOptions: Required<PluginOptions>
 }
 
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
@@ -225,13 +226,15 @@ export function defineConfig(options: PluginOptions | DefineConfigOptions = {}):
 
   // Load user config if enabled
   let userConfigOptions: Partial<PluginOptions> = {}
+  let userConfigFound = false
+  let userConfigSources: readonly string[] = []
+
   if (shouldLoadUserConfig) {
     const userConfigResult = loadUserConfig(cwd)
+    userConfigFound = userConfigResult.found
+    userConfigSources = userConfigResult.sources
     if (userConfigResult.found) {
       userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
-      // Log loaded config sources at debug level with structured context
-      const tempLogger = createLogger('defineConfig', pluginOptions.logLevel ?? userConfigResult.config.logLevel)
-      tempLogger.debug('loaded', { sources: userConfigResult.sources })
     }
   }
 
@@ -239,6 +242,22 @@ export function defineConfig(options: PluginOptions | DefineConfigOptions = {}):
   const mergedOptions = mergeConfig(userConfigOptions, pluginOptions)
   const { plugins = [], logLevel } = mergedOptions
   const logger = createLogger('defineConfig', logLevel)
+
+  // Log configuration loading info
+  if (userConfigFound) {
+    logger.info('user config loaded', { sources: userConfigSources })
+  } else {
+    logger.info('no user config found, using defaults', {
+      workspaceDir: DEFAULT_OPTIONS.workspaceDir,
+      shadowSourceProjectDir: DEFAULT_OPTIONS.shadowSourceProjectDir,
+      shadowSkillSourceDir: DEFAULT_OPTIONS.shadowSkillSourceDir,
+      shadowFastCommandDir: DEFAULT_OPTIONS.shadowFastCommandDir,
+      shadowSubAgentDir: DEFAULT_OPTIONS.shadowSubAgentDir,
+      globalMemoryFile: DEFAULT_OPTIONS.globalMemoryFile,
+      shadowProjectsDir: DEFAULT_OPTIONS.shadowProjectsDir,
+      logLevel: DEFAULT_OPTIONS.logLevel,
+    })
+  }
 
   // Base context without dependencyContext (will be provided by pipeline)
   const baseCtx: Omit<InputPluginContext, 'dependencyContext'> = {
@@ -275,5 +294,5 @@ export function defineConfig(options: PluginOptions | DefineConfigOptions = {}):
     ...(merged.readmePrompts != null && { readmePrompts: merged.readmePrompts }),
   }
 
-  return { context, outputPlugins }
+  return { context, outputPlugins, userConfigOptions: mergedOptions }
 }

@@ -1,5 +1,5 @@
 import type { CommandContext } from './Command'
-import type { CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, WriteResults } from '@/types'
+import type { CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, WriteResults } from '@/types'
 import * as nodeFs from 'node:fs'
 import * as nodePath from 'node:path'
 import * as fc from 'fast-check'
@@ -11,6 +11,22 @@ import { ExecuteCommand } from './ExecuteCommand'
 
 // Mock logger
 const mockLogger = createLogger('test', 'error')
+
+// Mock user config options
+const mockUserConfigOptions: Required<PluginOptions> = {
+  workspaceDir: '/test/workspace',
+  shadowSourceProjectDir: '/test/workspace/aindex',
+  shadowSkillSourceDir: '/test/workspace/aindex/dist/skills',
+  shadowFastCommandDir: '/test/workspace/aindex/dist/commands',
+  shadowSubAgentDir: '/test/workspace/aindex/dist/agents',
+  globalMemoryFile: '/test/workspace/aindex/dist/GLOBAL.md',
+  shadowProjectsDir: '/test/workspace/aindex/dist/app',
+  externalProjects: [],
+  excludePatterns: {},
+  fastCommandSeriesOptions: {},
+  plugins: [],
+  logLevel: 'error',
+}
 
 // Helper to create mock RelativePath
 function createMockRelativePath(pathStr: string) {
@@ -79,6 +95,7 @@ function createMockCommandContext(
     logger: mockLogger,
     outputPlugins,
     collectedInputContext,
+    userConfigOptions: mockUserConfigOptions,
     createCleanContext: (dryRun: boolean): OutputCleanContext => ({
       logger: mockLogger,
       fs: nodeFs,
@@ -512,6 +529,7 @@ describe('dryRunOutputCommand', () => {
               logger: mockLogger,
               outputPlugins: [plugin],
               collectedInputContext,
+              userConfigOptions: mockUserConfigOptions,
               createCleanContext: (): OutputCleanContext => ({
                 ...dryRunWriteCtx,
                 dryRun: true,
@@ -574,6 +592,7 @@ describe('dryRunOutputCommand', () => {
         logger: mockLogger,
         outputPlugins: [plugin],
         collectedInputContext,
+        userConfigOptions: mockUserConfigOptions,
         createCleanContext: (): OutputCleanContext => ({
           logger: mockLogger,
           fs: nodeFs,
@@ -646,6 +665,7 @@ describe('dryRunOutputCommand', () => {
         logger: mockLogger,
         outputPlugins: [plugin],
         collectedInputContext: collectedInputContext2,
+        userConfigOptions: mockUserConfigOptions,
         createCleanContext: (): OutputCleanContext => ({
           logger: mockLogger,
           fs: nodeFs,

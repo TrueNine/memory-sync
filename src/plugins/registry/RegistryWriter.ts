@@ -7,7 +7,7 @@
  * @see Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 7.1, 7.2
  */
 
-import type { Logger } from '@/log'
+import type { ILogger } from '@/log'
 import type { RegistryData, RegistryOperationResult } from '@/types/RegistryTypes'
 
 import * as fs from 'node:fs'
@@ -37,7 +37,7 @@ export abstract class RegistryWriter<
   /**
    * Logger instance for this registry writer.
    */
-  protected readonly log: Logger
+  protected readonly log: ILogger
 
   /**
    * Creates a new RegistryWriter instance.
@@ -45,7 +45,7 @@ export abstract class RegistryWriter<
    * @param registryPath - The path to the registry file (supports ~ for home directory)
    * @param logger - Optional logger instance (creates one if not provided)
    */
-  protected constructor(registryPath: string, logger?: Logger) {
+  protected constructor(registryPath: string, logger?: ILogger) {
     this.registryPath = this.resolvePath(registryPath)
     this.log = logger ?? createLogger(this.constructor.name)
   }
