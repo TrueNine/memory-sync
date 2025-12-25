@@ -3,6 +3,7 @@ import { AgentsOutputPlugin } from '@/plugins/AgentsOutputPlugin'
 import { AIAgentIgnoreConfigFileInputPlugin } from '@/plugins/AIAgentIgnoreConfigFileInputPlugin'
 import { AIAgentIgnoreConfigFileOutputPlugin } from '@/plugins/AIAgentIgnoreConfigFileOutputPlugin'
 import { ClaudeCodeCLIOutputPlugin } from '@/plugins/ClaudeCodeCLIOutputPlugin'
+import { CodexCLIOutputPlugin } from '@/plugins/CodexCLIOutputPlugin'
 import { DroidCLIOutputPlugin } from '@/plugins/DroidCLIOutputPlugin'
 import { FastCommandInputPlugin } from '@/plugins/FastCommandInputPlugin'
 import { GeminiCLIOutputPlugin } from '@/plugins/GeminiCLIOutputPlugin'
@@ -25,6 +26,7 @@ export default defineConfig({
     new AgentsOutputPlugin(),
     new AIAgentIgnoreConfigFileOutputPlugin(),
     new ClaudeCodeCLIOutputPlugin(),
+    new CodexCLIOutputPlugin(),
     new DroidCLIOutputPlugin(),
     new GeminiCLIOutputPlugin(),
     new KiroCLIOutputPlugin(),

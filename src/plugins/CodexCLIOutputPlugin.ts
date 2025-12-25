@@ -1,0 +1,361 @@
+// @see https://www.bilibili.com/video/BV1MAY5zWEPS codex 自定义斜杠命令
+// @see https://developers.openai.com/codex/skills/create-skill codex 如何创建 skills
+//
+// Codex CLI configuration:
+// - Global config dir: ~/.codex/
+// - Global prompts dir: ~/.codex/prompts/
+// - Global memory file: ~/.codex/AGENTS.md
+// - Global skills dir: ~/.codex/skills/ (Codex only supports global skills, no project-level skills)
+
+import type {
+  FastCommandPrompt,
+  OutputPluginContext,
+  OutputWriteContext,
+  SkillPrompt,
+  WriteResult,
+  WriteResults,
+} from '@/types'
+import type { RelativePath } from '@/types/FileSystemTypes'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { FilePathKind } from '@/types'
+import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+
+const PROJECT_MEMORY_FILE = 'AGENTS.md'
+const GLOBAL_CONFIG_DIR = '.codex'
+const PROMPTS_SUBDIR = 'prompts'
+const SKILLS_SUBDIR = 'skills'
+const SKILL_FILE_NAME = 'SKILL.md'
+
+export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
+  constructor() {
+    super('CodexCLIOutputPlugin', {
+      globalConfigDir: GLOBAL_CONFIG_DIR,
+      outputFileName: PROJECT_MEMORY_FILE,
+      dependsOn: ['AgentsOutputPlugin'],
+    })
+  }
+
+  async registerProjectOutputDirs(_ctx: OutputPluginContext): Promise<RelativePath[]> {
+    // Codex only supports global prompts and skills, no project-level outputs
+    return []
+  }
+
+  async registerProjectOutputFiles(_ctx: OutputPluginContext): Promise<RelativePath[]> {
+    // AGENTS.md files are handled by AgentsOutputPlugin (dependency)
+    // Only register fast command files here
+    return []
+  }
+
+  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const globalDir = this.getGlobalConfigDir()
+    const results: RelativePath[] = []
+
+    // Register ~/.codex/prompts/ for cleanup
+    const promptsPath = path.join(globalDir, PROMPTS_SUBDIR)
+    results.push({
+      pathKind: FilePathKind.Relative,
+      path: PROMPTS_SUBDIR,
+      basePath: globalDir,
+      getDirectoryName: () => PROMPTS_SUBDIR,
+      getAbsolutePath: () => promptsPath,
+    })
+
+    // Register each skill directory individually (not the entire skills/ dir)
+    // This preserves ~/.codex/skills/.system/ which is Codex's built-in system skills
+    const { skills } = ctx.collectedInputContext
+    if (skills != null && skills.length > 0) {
+      for (const skill of skills) {
+        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+        const skillPath = path.join(globalDir, SKILLS_SUBDIR, skillName)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: path.join(SKILLS_SUBDIR, skillName),
+          basePath: globalDir,
+          getDirectoryName: () => skillName,
+          getAbsolutePath: () => skillPath,
+        })
+      }
+    }
+
+    return results
+  }
+
+  async registerGlobalOutputFiles(_ctx: OutputPluginContext): Promise<RelativePath[]> {
+    // Always register ~/.codex/AGENTS.md for cleanup
+    const globalDir = this.getGlobalConfigDir()
+    return [
+      {
+        pathKind: FilePathKind.Relative,
+        path: PROJECT_MEMORY_FILE,
+        basePath: globalDir,
+        getDirectoryName: () => GLOBAL_CONFIG_DIR,
+        getAbsolutePath: () => path.join(globalDir, PROJECT_MEMORY_FILE),
+      },
+    ]
+  }
+
+  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+    const { globalMemory, fastCommands, skills } = ctx.collectedInputContext
+    const hasGlobalMemory = globalMemory != null
+    const hasFastCommands = (fastCommands?.length ?? 0) > 0
+    const hasSkills = (skills?.length ?? 0) > 0
+
+    // Project AGENTS.md is handled by AgentsOutputPlugin
+    // This plugin handles global outputs only (memory, prompts, skills)
+    if (!hasGlobalMemory && !hasFastCommands && !hasSkills) {
+      this.log.trace({ action: 'skip', reason: 'noOutputs' })
+      return false
+    }
+
+    return true
+  }
+
+  async writeProjectOutputs(_ctx: OutputWriteContext): Promise<WriteResults> {
+    // Codex only supports global prompts and skills, no project-level outputs
+    // Project AGENTS.md files are handled by AgentsOutputPlugin (dependency)
+    return { files: [], dirs: [] }
+  }
+
+  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+    const { globalMemory, fastCommands, skills } = ctx.collectedInputContext
+    const fileResults: WriteResult[] = []
+    const dirResults: WriteResult[] = []
+
+    // Write global memory file
+    if (globalMemory != null) {
+      const globalDir = this.getGlobalConfigDir()
+      const fullPath = path.join(globalDir, PROJECT_MEMORY_FILE)
+      const relativePath: RelativePath = {
+        pathKind: FilePathKind.Relative,
+        path: PROJECT_MEMORY_FILE,
+        basePath: globalDir,
+        getDirectoryName: () => GLOBAL_CONFIG_DIR,
+        getAbsolutePath: () => fullPath,
+      }
+
+      if (ctx.dryRun === true) {
+        this.log.trace({ action: 'dryRun', type: 'globalMemory', path: fullPath })
+        fileResults.push({ path: relativePath, success: true, skipped: false })
+      } else {
+        try {
+          this.ensureDirectory(globalDir)
+          fs.writeFileSync(fullPath, globalMemory.content as string, 'utf-8')
+          this.log.trace({ action: 'write', type: 'globalMemory', path: fullPath })
+          fileResults.push({ path: relativePath, success: true })
+        } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error)
+          this.log.error({ action: 'write', type: 'globalMemory', path: fullPath, error: errMsg })
+          fileResults.push({ path: relativePath, success: false, error: error as Error })
+        }
+      }
+    }
+
+    // Write global fast commands to ~/.codex/prompts/
+    if (fastCommands != null && fastCommands.length > 0) {
+      const globalDir = this.getGlobalConfigDir()
+      for (const cmd of fastCommands) {
+        const cmdResults = await this.writeGlobalFastCommand(ctx, globalDir, cmd)
+        fileResults.push(...cmdResults)
+      }
+    }
+
+    // Write skills to ~/.codex/skills/ (Codex only supports global skills)
+    if (skills != null && skills.length > 0) {
+      const globalDir = this.getGlobalConfigDir()
+      for (const skill of skills) {
+        const skillResults = await this.writeGlobalSkill(ctx, globalDir, skill)
+        fileResults.push(...skillResults)
+      }
+    }
+
+    return { files: fileResults, dirs: dirResults }
+  }
+
+  private async writeGlobalFastCommand(
+    ctx: OutputWriteContext,
+    globalDir: string,
+    cmd: FastCommandPrompt,
+  ): Promise<WriteResult[]> {
+    const results: WriteResult[] = []
+    const transformOptions = this.getTransformOptionsFromContext(ctx)
+    const fileName = this.transformFastCommandName(cmd, transformOptions)
+    const targetDir = path.join(globalDir, PROMPTS_SUBDIR)
+    const fullPath = path.join(targetDir, fileName)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(PROMPTS_SUBDIR, fileName),
+      basePath: globalDir,
+      getDirectoryName: () => PROMPTS_SUBDIR,
+      getAbsolutePath: () => fullPath,
+    }
+
+    // Build content with front matter using inherited method
+    const content = this.buildMarkdownContent(cmd.rawFrontMatter, cmd.content as string)
+
+    if (ctx.dryRun === true) {
+      this.log.trace({ action: 'dryRun', type: 'globalFastCommand', path: fullPath })
+      return [{ path: relativePath, success: true, skipped: false }]
+    }
+
+    try {
+      this.ensureDirectory(targetDir)
+      fs.writeFileSync(fullPath, content, 'utf-8')
+      this.log.trace({ action: 'write', type: 'globalFastCommand', path: fullPath })
+      results.push({ path: relativePath, success: true })
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({ action: 'write', type: 'globalFastCommand', path: fullPath, error: errMsg })
+      results.push({ path: relativePath, success: false, error: error as Error })
+    }
+
+    return results
+  }
+
+  /**
+   * Write a skill to ~/.codex/skills/<skill-name>/SKILL.md
+   * Codex only supports global skills, no project-level skills
+   */
+  private async writeGlobalSkill(
+    ctx: OutputWriteContext,
+    globalDir: string,
+    skill: SkillPrompt,
+  ): Promise<WriteResult[]> {
+    const results: WriteResult[] = []
+    const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+    const targetDir = path.join(globalDir, SKILLS_SUBDIR, skillName)
+    const fullPath = path.join(targetDir, SKILL_FILE_NAME)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(SKILLS_SUBDIR, skillName, SKILL_FILE_NAME),
+      basePath: globalDir,
+      getDirectoryName: () => skillName,
+      getAbsolutePath: () => fullPath,
+    }
+
+    // Build Codex-compatible front matter and content
+    const content = this.buildCodexSkillContent(skill)
+
+    if (ctx.dryRun === true) {
+      this.log.trace({ action: 'dryRun', type: 'globalSkill', path: fullPath })
+      return [{ path: relativePath, success: true, skipped: false }]
+    }
+
+    try {
+      this.ensureDirectory(targetDir)
+      fs.writeFileSync(fullPath, content, 'utf-8')
+      this.log.trace({ action: 'write', type: 'globalSkill', path: fullPath })
+      results.push({ path: relativePath, success: true })
+
+      // Write reference documents if any
+      if (skill.referenceDocuments != null) {
+        for (const refDoc of skill.referenceDocuments) {
+          const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc, globalDir)
+          results.push(...refResults)
+        }
+      }
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({ action: 'write', type: 'globalSkill', path: fullPath, error: errMsg })
+      results.push({ path: relativePath, success: false, error: error as Error })
+    }
+
+    return results
+  }
+
+  /**
+   * Build Codex-compatible SKILL.md content with front matter
+   * Converts SkillYAMLFrontMatter to CodexSkillYAMLFrontMatter format
+   *
+   * Codex requires:
+   * - name: non-empty, at most 100 characters, single line
+   * - description: non-empty, at most 500 characters, single line
+   */
+  private buildCodexSkillContent(skill: SkillPrompt): string {
+    const fm = skill.yamlFrontMatter
+
+    // Normalize description to single line (Codex requirement)
+    const description = this.normalizeToSingleLine(fm.description, 500)
+    const name = this.normalizeToSingleLine(fm.name, 100)
+
+    // Build YAML front matter string
+    const lines: string[] = ['---']
+    lines.push(`name: ${this.yamlQuoteIfNeeded(name)}`)
+    lines.push(`description: ${this.yamlQuoteIfNeeded(description)}`)
+    if (fm.displayName != null) {
+      lines.push('metadata:')
+      lines.push(`  short-description: ${this.yamlQuoteIfNeeded(fm.displayName)}`)
+    }
+    lines.push('---')
+
+    return `${lines.join('\n')}\n${skill.content as string}`
+  }
+
+  /**
+   * Normalize text to single line by replacing newlines with spaces
+   * and truncating to max length
+   */
+  private normalizeToSingleLine(text: string, maxLength: number): string {
+    // Replace newlines and multiple spaces with single space
+    const singleLine = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()
+    // Truncate if exceeds max length
+    if (singleLine.length > maxLength) {
+      return `${singleLine.slice(0, maxLength - 3)}...`
+    }
+    return singleLine
+  }
+
+  /**
+   * Quote YAML string value if it contains special characters
+   */
+  private yamlQuoteIfNeeded(value: string): string {
+    // Quote if contains special YAML characters or starts with special chars
+    if (/[:[\]{}#&*!|>'"%@`]/.test(value) || /^[\s-]/.test(value)) {
+      // Escape double quotes and wrap in double quotes
+      return `"${value.replace(/"/g, '\\"')}"`
+    }
+    return value
+  }
+
+  /**
+   * Write skill reference document
+   */
+  private async writeSkillReferenceDocument(
+    ctx: OutputWriteContext,
+    skillDir: string,
+    skillName: string,
+    refDoc: { dir: RelativePath, content: unknown },
+    globalDir: string,
+  ): Promise<WriteResult[]> {
+    const results: WriteResult[] = []
+    const fileName = refDoc.dir.path
+    const fullPath = path.join(skillDir, fileName)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(SKILLS_SUBDIR, skillName, fileName),
+      basePath: globalDir,
+      getDirectoryName: () => skillName,
+      getAbsolutePath: () => fullPath,
+    }
+
+    if (ctx.dryRun === true) {
+      this.log.trace({ action: 'dryRun', type: 'skillRefDoc', path: fullPath })
+      return [{ path: relativePath, success: true, skipped: false }]
+    }
+
+    try {
+      fs.writeFileSync(fullPath, refDoc.content as string, 'utf-8')
+      this.log.trace({ action: 'write', type: 'skillRefDoc', path: fullPath })
+      results.push({ path: relativePath, success: true })
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({ action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg })
+      results.push({ path: relativePath, success: false, error: error as Error })
+    }
+
+    return results
+  }
+}

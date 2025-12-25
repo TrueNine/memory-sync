@@ -145,6 +145,42 @@ export interface SkillYAMLFrontMatter extends YAMLFrontMatter {
 }
 
 /**
+ * Codex CLI skill YAML front matter definition
+ * @see https://developers.openai.com/codex/skills/create-skill
+ *
+ * Codex only supports global skills at ~/.codex/skills/
+ */
+export interface CodexSkillYAMLFrontMatter extends YAMLFrontMatter {
+  /**
+   * Skill name (required)
+   * - Non-empty, at most 100 characters
+   * - Must be single line
+   */
+  readonly name: string
+  /**
+   * Skill description - what it does and when to use it (required)
+   * - Non-empty, at most 500 characters
+   * - Must be single line
+   * - Should explicitly state when the skill should be triggered
+   */
+  readonly description: string
+  /**
+   * Optional metadata for the skill
+   */
+  readonly metadata?: CodexSkillMetadata
+}
+
+/**
+ * Codex skill metadata
+ */
+export interface CodexSkillMetadata {
+  /**
+   * Short description for the skill
+   */
+  readonly 'short-description'?: string
+}
+
+/**
  * skill 主文件（SKILL.md）
  * skill name 从 front matter 当中进行获取
  */
