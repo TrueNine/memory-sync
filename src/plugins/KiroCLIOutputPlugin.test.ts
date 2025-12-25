@@ -1,7 +1,10 @@
-import type { FastCommandPrompt, SkillYAMLFrontMatter } from '@/types'
+import type { CollectedInputContext, FastCommandPrompt, OutputPluginContext, SkillYAMLFrontMatter } from '@/types'
 import type { RelativePath } from '@/types/FileSystemTypes'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import * as fc from 'fast-check'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FilePathKind, PromptKind } from '@/types'
 import { KiroCLIOutputPlugin } from './KiroCLIOutputPlugin'
 
@@ -33,6 +36,8 @@ function createMockFastCommandPrompt(
 
 // Create a testable subclass to expose private methods
 class TestableKiroCLIOutputPlugin extends KiroCLIOutputPlugin {
+  private mockHomeDir: string | null = null
+
   public testBuildFastCommandSteeringFileName(cmd: FastCommandPrompt): string {
     // Access private method via any cast
     return (this as any).buildFastCommandSteeringFileName(cmd)
@@ -41,6 +46,23 @@ class TestableKiroCLIOutputPlugin extends KiroCLIOutputPlugin {
   public testBuildPowerFrontMatter(frontMatter: SkillYAMLFrontMatter): string {
     // Access private method via any cast
     return (this as any).buildPowerFrontMatter(frontMatter)
+  }
+
+  public testListInstalledPowers(powersDir: string): string[] {
+    // Access private method via any cast
+    return (this as any).listInstalledPowers(powersDir)
+  }
+
+  public setMockHomeDir(dir: string | null): void {
+    this.mockHomeDir = dir
+  }
+
+  // Override getHomeDir to allow mocking in tests
+  protected override getHomeDir(): string {
+    if (this.mockHomeDir != null) {
+      return this.mockHomeDir
+    }
+    return super.getHomeDir()
   }
 }
 
@@ -142,8 +164,8 @@ describe('kiroCLIOutputPlugin', () => {
       const result = plugin.testBuildPowerFrontMatter(frontMatter)
 
       expect(result).toContain('---')
-      expect(result).toContain('name: "test-skill"')
-      expect(result).toContain('description: "A test skill"')
+      expect(result).toContain('name: test-skill')
+      expect(result).toContain('description: A test skill')
     })
 
     it('should include displayName when provided', () => {
@@ -156,7 +178,7 @@ describe('kiroCLIOutputPlugin', () => {
 
       const result = plugin.testBuildPowerFrontMatter(frontMatter)
 
-      expect(result).toContain('displayName: "Test Skill Display"')
+      expect(result).toContain('displayName: Test Skill Display')
     })
 
     it('should include keywords array when provided', () => {
@@ -169,7 +191,11 @@ describe('kiroCLIOutputPlugin', () => {
 
       const result = plugin.testBuildPowerFrontMatter(frontMatter)
 
-      expect(result).toContain('keywords: ["typescript", "testing", "cli"]')
+      // YAML library outputs arrays in block style
+      expect(result).toContain('keywords:')
+      expect(result).toContain('- typescript')
+      expect(result).toContain('- testing')
+      expect(result).toContain('- cli')
     })
 
     it('should include author when provided', () => {
@@ -182,7 +208,7 @@ describe('kiroCLIOutputPlugin', () => {
 
       const result = plugin.testBuildPowerFrontMatter(frontMatter)
 
-      expect(result).toContain('author: "Test Author"')
+      expect(result).toContain('author: Test Author')
     })
 
     it('should omit optional fields when not provided', () => {
@@ -219,6 +245,109 @@ describe('kiroCLIOutputPlugin', () => {
       const lines = result.split('\n')
       expect(lines[0]).toBe('---')
       expect(lines[lines.length - 1]).toBe('---')
+    })
+  })
+
+  /**
+   * Feature: clean-all-installed-powers
+   * Validates: registerGlobalOutputDirs should scan and register ALL installed powers
+   * for cleanup, not just the ones in current skills list
+   */
+  describe('registerGlobalOutputDirs - clean all installed powers', () => {
+    let tempDir: string
+
+    beforeEach(() => {
+      // Create a temporary directory for testing
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kiro-test-'))
+    })
+
+    afterEach(() => {
+      // Clean up temporary directory
+      if (tempDir && fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    })
+
+    it('should list all installed power directories', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+
+      // Create mock power directories
+      const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed')
+      fs.mkdirSync(powersDir, { recursive: true })
+      fs.mkdirSync(path.join(powersDir, 'power-a'))
+      fs.mkdirSync(path.join(powersDir, 'power-b'))
+      fs.mkdirSync(path.join(powersDir, 'old-power'))
+
+      const result = plugin.testListInstalledPowers(powersDir)
+
+      expect(result).toHaveLength(3)
+      expect(result).toContain('power-a')
+      expect(result).toContain('power-b')
+      expect(result).toContain('old-power')
+    })
+
+    it('should return empty array when powers directory does not exist', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const nonExistentDir = path.join(tempDir, 'non-existent')
+
+      const result = plugin.testListInstalledPowers(nonExistentDir)
+
+      expect(result).toEqual([])
+    })
+
+    it('should only list directories, not files', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+
+      // Create mock power directories and files
+      const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed')
+      fs.mkdirSync(powersDir, { recursive: true })
+      fs.mkdirSync(path.join(powersDir, 'valid-power'))
+      fs.writeFileSync(path.join(powersDir, 'not-a-power.txt'), 'content')
+
+      const result = plugin.testListInstalledPowers(powersDir)
+
+      expect(result).toHaveLength(1)
+      expect(result).toContain('valid-power')
+      expect(result).not.toContain('not-a-power.txt')
+    })
+
+    it('should register all installed powers for cleanup in registerGlobalOutputDirs', async () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+
+      // Create mock power directories
+      const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed')
+      fs.mkdirSync(powersDir, { recursive: true })
+      fs.mkdirSync(path.join(powersDir, 'current-skill'))
+      fs.mkdirSync(path.join(powersDir, 'old-removed-skill'))
+      fs.mkdirSync(path.join(powersDir, 'renamed-skill'))
+
+      // Mock the home directory to use our temp dir
+      plugin.setMockHomeDir(tempDir)
+
+      // Create a minimal context with no skills (simulating clean after skills removed)
+      const ctx: OutputPluginContext = {
+        collectedInputContext: {
+          workspace: {
+            projects: [],
+          },
+          // No current skills - simulating clean after skills removed
+          skills: [],
+        } as unknown as CollectedInputContext,
+        logger: { debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any,
+        fs,
+        path,
+      }
+
+      const result = await plugin.registerGlobalOutputDirs(ctx)
+
+      // Should include all installed powers, not just current skills
+      const powerDirs = result.filter((r) => r.basePath.includes('powers/installed'))
+      expect(powerDirs).toHaveLength(3)
+
+      const powerNames = powerDirs.map((r) => r.path)
+      expect(powerNames).toContain('current-skill')
+      expect(powerNames).toContain('old-removed-skill')
+      expect(powerNames).toContain('renamed-skill')
     })
   })
 })

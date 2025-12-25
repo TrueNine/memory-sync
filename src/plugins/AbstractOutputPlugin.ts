@@ -1,10 +1,15 @@
 import type { RegistryWriter } from './registry/RegistryWriter'
 import type { ILogger } from '@/log'
 import type {
+  CleanEffectHandler,
+  EffectRegistration,
+  EffectResult,
   FastCommandPrompt,
+  OutputCleanContext,
   OutputPlugin,
   OutputWriteContext,
   RegistryOperationResult,
+  WriteEffectHandler,
   WriteResult,
   WriteResults,
 } from '@/types'
@@ -126,6 +131,22 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   private readonly registryWriterCache: Map<string, RegistryWriter<unknown, RegistryData>> = new Map()
 
   /**
+   * Registered write effects to be executed after writeGlobalOutputs completes.
+   * Effects are executed in registration order.
+   *
+   * @see Requirements 4.1, 5.1
+   */
+  private readonly writeEffects: EffectRegistration<WriteEffectHandler>[] = []
+
+  /**
+   * Registered clean effects to be executed during onCleanComplete.
+   * Effects are executed in registration order.
+   *
+   * @see Requirements 4.2, 5.2
+   */
+  private readonly cleanEffects: EffectRegistration<CleanEffectHandler>[] = []
+
+  /**
    * Creates a new AbstractOutputPlugin instance.
    * Automatically sets the plugin type to PluginKind.Output.
    *
@@ -136,6 +157,136 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     super(name, PluginKind.Output, options?.dependsOn)
     this.globalConfigDir = options?.globalConfigDir ?? ''
     this.outputFileName = options?.outputFileName ?? ''
+  }
+
+  /**
+   * Register a write effect to be executed after writeGlobalOutputs completes.
+   * Effects are executed in registration order.
+   *
+   * @param name - Descriptive name for logging purposes
+   * @param handler - The effect handler function
+   *
+   * @see Requirements 4.1, 4.3, 4.4
+   *
+   * @example
+   * ```typescript
+   * this.registerWriteEffect('registry-update', async (ctx) => {
+   *   // Update registry
+   *   return { success: true, description: 'Updated registry' }
+   * })
+   * ```
+   */
+  protected registerWriteEffect(name: string, handler: WriteEffectHandler): void {
+    this.writeEffects.push({ name, handler })
+  }
+
+  /**
+   * Register a clean effect to be executed during onCleanComplete.
+   * Effects are executed in registration order.
+   *
+   * @param name - Descriptive name for logging purposes
+   * @param handler - The effect handler function
+   *
+   * @see Requirements 4.2, 4.3, 4.4
+   *
+   * @example
+   * ```typescript
+   * this.registerCleanEffect('registry-cleanup', async (ctx) => {
+   *   // Clean up registry
+   *   return { success: true, description: 'Cleaned registry' }
+   * })
+   * ```
+   */
+  protected registerCleanEffect(name: string, handler: CleanEffectHandler): void {
+    this.cleanEffects.push({ name, handler })
+  }
+
+  /**
+   * Execute all registered write effects sequentially.
+   * Effects are executed in registration order.
+   * Errors are caught and logged, but execution continues with remaining effects.
+   *
+   * @param ctx - The output write context
+   * @returns Array of effect results, one for each registered effect
+   *
+   * @see Requirements 2.1, 2.3, 2.4, 2.5, 5.1, 5.3, 7.1, 7.2, 7.3
+   *
+   * @example
+   * ```typescript
+   * const results = await this.executeWriteEffects(ctx)
+   * ```
+   */
+  protected async executeWriteEffects(ctx: OutputWriteContext): Promise<EffectResult[]> {
+    const results: EffectResult[] = []
+
+    for (const effect of this.writeEffects) {
+      if (ctx.dryRun === true) {
+        this.log.trace({ action: 'dryRun', type: 'effect', name: effect.name })
+        results.push({ success: true, description: `Would execute write effect: ${effect.name}` })
+        continue
+      }
+
+      try {
+        const result = await effect.handler(ctx)
+        if (result.success) {
+          this.log.trace({ action: 'effect', name: effect.name, status: 'success' })
+        } else {
+          const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
+          this.log.error({ action: 'effect', name: effect.name, status: 'failed', error: errorMsg })
+        }
+        results.push(result)
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        this.log.error({ action: 'effect', name: effect.name, status: 'failed', error: errorMsg })
+        results.push({ success: false, error: error as Error, description: `Write effect failed: ${effect.name}` })
+      }
+    }
+
+    return results
+  }
+
+  /**
+   * Execute all registered clean effects sequentially.
+   * Effects are executed in registration order.
+   * Errors are caught and logged, but execution continues with remaining effects.
+   *
+   * @param ctx - The output clean context
+   * @returns Array of effect results, one for each registered effect
+   *
+   * @see Requirements 3.1, 3.3, 3.4, 3.5, 5.2, 5.3, 7.1, 7.2, 7.3
+   *
+   * @example
+   * ```typescript
+   * const results = await this.executeCleanEffects(ctx)
+   * ```
+   */
+  protected async executeCleanEffects(ctx: OutputCleanContext): Promise<EffectResult[]> {
+    const results: EffectResult[] = []
+
+    for (const effect of this.cleanEffects) {
+      if (ctx.dryRun === true) {
+        this.log.trace({ action: 'dryRun', type: 'effect', name: effect.name })
+        results.push({ success: true, description: `Would execute clean effect: ${effect.name}` })
+        continue
+      }
+
+      try {
+        const result = await effect.handler(ctx)
+        if (result.success) {
+          this.log.trace({ action: 'effect', name: effect.name, status: 'success' })
+        } else {
+          const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
+          this.log.error({ action: 'effect', name: effect.name, status: 'failed', error: errorMsg })
+        }
+        results.push(result)
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        this.log.error({ action: 'effect', name: effect.name, status: 'failed', error: errorMsg })
+        results.push({ success: false, error: error as Error, description: `Clean effect failed: ${effect.name}` })
+      }
+    }
+
+    return results
   }
 
   /**
@@ -385,6 +536,46 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })
     }
+  }
+
+  /**
+   * Check if a file or directory exists.
+   * Wrapper around fs.existsSync for consistency.
+   *
+   * @param p - The path to check
+   * @returns True if the path exists, false otherwise
+   *
+   * @example
+   * ```typescript
+   * if (this.existsSync('/path/to/file')) {
+   *   // File exists
+   * }
+   * ```
+   */
+  protected existsSync(p: string): boolean {
+    return fs.existsSync(p)
+  }
+
+  /**
+   * Read directory contents synchronously.
+   * Wrapper around fs.readdirSync for consistency.
+   *
+   * @param dir - The directory path to read
+   * @param options - Optional options for reading directory
+   * @returns Array of directory entries
+   *
+   * @example
+   * ```typescript
+   * const entries = this.readdirSync('/path/to/dir', { withFileTypes: true })
+   * ```
+   */
+  protected readdirSync(dir: string, options: { withFileTypes: true }): fs.Dirent[]
+  protected readdirSync(dir: string): string[]
+  protected readdirSync(dir: string, options?: { withFileTypes?: boolean }): fs.Dirent[] | string[] {
+    if (options?.withFileTypes === true) {
+      return fs.readdirSync(dir, { withFileTypes: true })
+    }
+    return fs.readdirSync(dir)
   }
 
   /**
@@ -753,6 +944,29 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const failed = results.files.filter((r) => !r.success && !r.skipped).length
 
     this.log.trace({ action: ctx.dryRun === true ? 'dryRun' : 'complete', type: 'writeSummary', success, skipped, failed })
+
+    // Execute registered write effects
+    await this.executeWriteEffects(ctx)
+  }
+
+  /**
+   * Default implementation of onCleanComplete lifecycle hook.
+   * Executes all registered clean effects.
+   *
+   * @param ctx - The output clean context
+   *
+   * @see Requirements 3.1
+   *
+   * @example
+   * ```typescript
+   * // Called automatically after clean operations complete
+   * // Or can be called manually:
+   * await this.onCleanComplete(ctx)
+   * ```
+   */
+  async onCleanComplete(ctx: OutputCleanContext): Promise<void> {
+    // Execute registered clean effects
+    await this.executeCleanEffects(ctx)
   }
 
   /**

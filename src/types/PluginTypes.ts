@@ -111,6 +111,19 @@ export interface WriteResult {
 }
 
 /**
+ * Result of executing a side effect.
+ * Used for both write and clean effects.
+ */
+export interface EffectResult {
+  /** Whether the effect executed successfully */
+  readonly success: boolean
+  /** Error details if the effect failed */
+  readonly error?: Error
+  /** Description of what the effect did (for logging) */
+  readonly description?: string
+}
+
+/**
  * Collected results from write operations
  */
 export interface WriteResults {
@@ -122,6 +135,28 @@ export interface WriteResults {
  * Awaitable type for sync/async flexibility
  */
 export type Awaitable<T> = T | Promise<T>
+
+/**
+ * Handler function for write effects.
+ * Receives the write context and returns an effect result.
+ */
+export type WriteEffectHandler = (ctx: OutputWriteContext) => Awaitable<EffectResult>
+
+/**
+ * Handler function for clean effects.
+ * Receives the clean context and returns an effect result.
+ */
+export type CleanEffectHandler = (ctx: OutputCleanContext) => Awaitable<EffectResult>
+
+/**
+ * Registration entry for an effect.
+ */
+export interface EffectRegistration<THandler> {
+  /** Descriptive name for logging */
+  readonly name: string
+  /** The effect handler function */
+  readonly handler: THandler
+}
 
 /**
  * Output plugin interface.

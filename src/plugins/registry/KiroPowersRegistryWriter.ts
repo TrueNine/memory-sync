@@ -151,6 +151,55 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
   }
 
   /**
+   * Unregister all locally-installed powers from the registry.
+   * Removes power entries where source.repoId starts with 'local-'
+   * and corresponding repoSource entries where type === 'local'.
+   *
+   * @param dryRun - If true, log intended actions without modifying files
+   * @returns True if operation succeeded, false otherwise
+   * @see Requirements 6.1, 6.2, 6.3, 6.4
+   */
+  unregisterLocalPowers(dryRun?: boolean): boolean {
+    // Read existing registry (returns initial if file doesn't exist)
+    const existing = this.read()
+
+    // Filter out local power entries (source.repoId starts with 'local-')
+    const filteredPowers: Record<string, KiroPowerEntry> = {}
+    for (const [name, power] of Object.entries(existing.powers)) {
+      const repoId = power.source.repoId
+      if (repoId == null || !repoId.startsWith('local-')) {
+        filteredPowers[name] = power
+      } else {
+        this.log.trace({ action: dryRun === true ? 'dryRun' : 'unregister', type: 'localPower', name })
+      }
+    }
+
+    // Filter out local repoSource entries (type === 'local')
+    const filteredRepoSources: Record<string, KiroRepoSource> = {}
+    for (const [id, repoSource] of Object.entries(existing.repoSources)) {
+      if (repoSource.type !== 'local') {
+        filteredRepoSources[id] = repoSource
+      } else {
+        this.log.trace({ action: dryRun === true ? 'dryRun' : 'unregister', type: 'localRepoSource', id })
+      }
+    }
+
+    // Build cleaned registry preserving other fields
+    const cleanedRegistry: KiroPowersRegistry = {
+      version: existing.version,
+      powers: filteredPowers,
+      repoSources: filteredRepoSources,
+      ...(existing.kiroRecommendedRepo != null && {
+        kiroRecommendedRepo: existing.kiroRecommendedRepo,
+      }),
+      lastUpdated: existing.lastUpdated,
+    }
+
+    // Write cleaned registry (respects dry-run)
+    return this.write(cleanedRegistry, dryRun)
+  }
+
+  /**
    * Build a KiroRepoSource for a power entry.
    *
    * @param power - The power entry to create a repo source for

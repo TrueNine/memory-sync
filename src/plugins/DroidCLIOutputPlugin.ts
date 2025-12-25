@@ -56,7 +56,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   // DroidCLI does not output project memory files, return empty
-  async registerProjectOutputFiles(_ctx: OutputPluginContext): Promise<RelativePath[]> {
+  async registerProjectOutputFiles(): Promise<RelativePath[]> {
     return []
   }
 

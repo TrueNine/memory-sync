@@ -45,6 +45,7 @@ import type { RelativePath } from '@/types/FileSystemTypes'
  * - `fileMatchPattern`: glob pattern for fileMatch inclusion (e.g. '*.ts', 'src/**')
  */
 import os from 'node:os'
+import { buildMarkdownWithFrontMatter } from '@/markdown'
 import { FilePathKind } from '@/types'
 import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 import { KiroPowersRegistryWriter } from './registry/KiroPowersRegistryWriter'
@@ -83,6 +84,17 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     super('KiroCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: GLOBAL_MEMORY_FILE,
+    })
+
+    // Register clean effect to remove local powers from registry
+    // Requirements: 6.1, 6.2
+    this.registerCleanEffect('registry-cleanup', async (ctx) => {
+      const registryWriter = this.getRegistryWriter(KiroPowersRegistryWriter)
+      const success = registryWriter.unregisterLocalPowers(ctx.dryRun)
+      if (success) {
+        return { success: true, description: 'Removed local power entries from registry' }
+      }
+      return { success: false, error: new Error('Failed to clean registry'), description: 'Failed to remove local power entries from registry' }
     })
   }
 
@@ -142,7 +154,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  async registerGlobalOutputDirs(): Promise<RelativePath[]> {
     const globalDir = this.getGlobalSteeringDir()
     const results: RelativePath[] = [
       {
@@ -154,24 +166,43 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       },
     ]
 
-    // Register each skill's power directory for cleanup
-    const { skills } = ctx.collectedInputContext
-    if (skills != null) {
-      const powersDir = this.getKiroPowersDir()
-      for (const skill of skills) {
-        const skillName = skill.yamlFrontMatter.name
-        const skillPowerDir = this.joinPath(powersDir, skillName)
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: skillName,
-          basePath: powersDir,
-          getDirectoryName: () => skillName,
-          getAbsolutePath: () => skillPowerDir,
-        })
-      }
+    // Register ALL installed powers for cleanup (not just current skills)
+    // This ensures old/renamed powers are also cleaned up
+    const powersDir = this.getKiroPowersDir()
+    const installedPowers = this.listInstalledPowers(powersDir)
+
+    for (const powerName of installedPowers) {
+      const powerDir = this.joinPath(powersDir, powerName)
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: powerName,
+        basePath: powersDir,
+        getDirectoryName: () => powerName,
+        getAbsolutePath: () => powerDir,
+      })
     }
 
     return results
+  }
+
+  /**
+   * List all installed power directories in the Kiro powers directory.
+   * @param powersDir - The absolute path to the powers installation directory
+   * @returns Array of power directory names
+   */
+  private listInstalledPowers(powersDir: string): string[] {
+    try {
+      if (!this.existsSync(powersDir)) {
+        return []
+      }
+      const entries = this.readdirSync(powersDir, { withFileTypes: true })
+      return entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+    } catch {
+      this.log.debug({ action: 'listInstalledPowers', error: 'Failed to read powers directory' })
+      return []
+    }
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -380,7 +411,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
    * Get the user's home directory.
    * @returns The absolute path to the user's home directory
    */
-  private getHomeDir(): string {
+  protected getHomeDir(): string {
     return os.homedir()
   }
 
@@ -392,35 +423,15 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
    * @returns YAML front matter string with leading/trailing delimiters
    */
   private buildPowerFrontMatter(frontMatter: SkillYAMLFrontMatter): string {
-    const name: string = frontMatter.name
-    const description: string = frontMatter.description
-    const displayName: string | undefined = frontMatter.displayName
-    const keywords: readonly string[] | undefined = frontMatter.keywords
-    const author: string | undefined = frontMatter.author
-
-    const lines: string[] = ['---']
-
-    lines.push(`name: "${name}"`)
-
-    if (displayName != null && displayName.length > 0) {
-      lines.push(`displayName: "${displayName}"`)
+    const fmData: Record<string, unknown> = {
+      name: frontMatter.name,
+      displayName: frontMatter.displayName,
+      description: frontMatter.description,
+      keywords: frontMatter.keywords,
+      author: frontMatter.author,
     }
 
-    if (description.length > 0) {
-      lines.push(`description: "${description}"`)
-    }
-
-    if (keywords != null && keywords.length > 0) {
-      const keywordsStr = keywords.map((k) => `"${k}"`).join(', ')
-      lines.push(`keywords: [${keywordsStr}]`)
-    }
-
-    if (author != null && author.length > 0) {
-      lines.push(`author: "${author}"`)
-    }
-
-    lines.push('---')
-    return lines.join('\n')
+    return buildMarkdownWithFrontMatter(fmData, '').trimEnd()
   }
 
   /**
@@ -540,24 +551,14 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
    * Uses manual inclusion mode so users can include via '#' in chat
    */
   private buildFastCommandSteeringContent(cmd: FastCommandPrompt): string {
-    const description = cmd.yamlFrontMatter?.description ?? ''
+    const description = cmd.yamlFrontMatter?.description
 
-    // Build front matter with manual inclusion
-    const frontMatterLines = [
-      '---',
-      'inclusion: manual',
-    ]
-
-    // Preserve description if available
-    if (description.length > 0) {
-      frontMatterLines.push(`description: '${description}'`)
+    const fmData: Record<string, unknown> = {
+      inclusion: 'manual',
+      description: description != null && description.length > 0 ? description : null,
     }
 
-    frontMatterLines.push('---')
-
-    const frontMatter = frontMatterLines.join('\n')
-    const content = cmd.content as string
-    return `${frontMatter}\n${content}`
+    return buildMarkdownWithFrontMatter(fmData, cmd.content as string)
   }
 
   /**
@@ -621,16 +622,12 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
     const normalizedPath = childPath.replace(/\\/g, '/')
 
-    // Build front matter with fileMatch inclusion
-    const frontMatter = [
-      '---',
-      'inclusion: fileMatch',
-      `fileMatchPattern: '${normalizedPath}/**'`,
-      '---',
-    ].join('\n')
+    const fmData: Record<string, unknown> = {
+      inclusion: 'fileMatch',
+      fileMatchPattern: `${normalizedPath}/**`,
+    }
 
-    const content = child.content as string
-    return `${frontMatter}\n${content}`
+    return buildMarkdownWithFrontMatter(fmData, child.content as string)
   }
 
   private async writeSteeringFile(

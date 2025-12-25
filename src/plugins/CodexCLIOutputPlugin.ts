@@ -18,6 +18,7 @@ import type {
 import type { RelativePath } from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { buildMarkdownWithFrontMatter } from '@/markdown'
 import { FilePathKind } from '@/types'
 import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
@@ -36,12 +37,12 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  async registerProjectOutputDirs(_ctx: OutputPluginContext): Promise<RelativePath[]> {
+  async registerProjectOutputDirs(): Promise<RelativePath[]> {
     // Codex only supports global prompts and skills, no project-level outputs
     return []
   }
 
-  async registerProjectOutputFiles(_ctx: OutputPluginContext): Promise<RelativePath[]> {
+  async registerProjectOutputFiles(): Promise<RelativePath[]> {
     // AGENTS.md files are handled by AgentsOutputPlugin (dependency)
     // Only register fast command files here
     return []
@@ -81,7 +82,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputFiles(_ctx: OutputPluginContext): Promise<RelativePath[]> {
+  async registerGlobalOutputFiles(): Promise<RelativePath[]> {
     // Always register ~/.codex/AGENTS.md for cleanup
     const globalDir = this.getGlobalConfigDir()
     return [
@@ -111,7 +112,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     return true
   }
 
-  async writeProjectOutputs(_ctx: OutputWriteContext): Promise<WriteResults> {
+  async writeProjectOutputs(): Promise<WriteResults> {
     // Codex only supports global prompts and skills, no project-level outputs
     // Project AGENTS.md files are handled by AgentsOutputPlugin (dependency)
     return { files: [], dirs: [] }
@@ -280,17 +281,16 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     const description = this.normalizeToSingleLine(fm.description, 500)
     const name = this.normalizeToSingleLine(fm.name, 100)
 
-    // Build YAML front matter string
-    const lines: string[] = ['---']
-    lines.push(`name: ${this.yamlQuoteIfNeeded(name)}`)
-    lines.push(`description: ${this.yamlQuoteIfNeeded(description)}`)
-    if (fm.displayName != null) {
-      lines.push('metadata:')
-      lines.push(`  short-description: ${this.yamlQuoteIfNeeded(fm.displayName)}`)
+    // Build front matter data
+    const fmData: Record<string, unknown> = {
+      name,
+      description,
+      metadata: fm.displayName != null
+        ? { 'short-description': fm.displayName }
+        : null,
     }
-    lines.push('---')
 
-    return `${lines.join('\n')}\n${skill.content as string}`
+    return buildMarkdownWithFrontMatter(fmData, skill.content as string)
   }
 
   /**
@@ -305,18 +305,6 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       return `${singleLine.slice(0, maxLength - 3)}...`
     }
     return singleLine
-  }
-
-  /**
-   * Quote YAML string value if it contains special characters
-   */
-  private yamlQuoteIfNeeded(value: string): string {
-    // Quote if contains special YAML characters or starts with special chars
-    if (/[:[\]{}#&*!|>'"%@`]/.test(value) || /^[\s-]/.test(value)) {
-      // Escape double quotes and wrap in double quotes
-      return `"${value.replace(/"/g, '\\"')}"`
-    }
-    return value
   }
 
   /**
