@@ -1,7 +1,18 @@
 import type { ILogger } from '@/log'
 
-const NPM_REGISTRY_URL = 'https://registry.npmjs.org/@truenine/memory-sync-cli/latest'
-const PACKAGE_NAME = '@truenine/memory-sync-cli'
+/**
+ * Get package name from build-time injection or fallback
+ */
+function getPackageName(): string {
+  return typeof __CLI_PACKAGE_NAME__ !== 'undefined' ? __CLI_PACKAGE_NAME__ : '@truenine/memory-sync-cli'
+}
+
+/**
+ * Get npm registry URL for the package
+ */
+function getNpmRegistryUrl(): string {
+  return `https://registry.npmjs.org/${getPackageName()}/latest`
+}
 
 /**
  * Version comparison result
@@ -64,13 +75,23 @@ const FETCH_TIMEOUT_MS = 3000
 /**
  * Fetch latest version from npm registry
  * Returns version string on success, or error message on failure
+ * Uses unref() on timeout to prevent blocking process exit
  */
 export async function fetchLatestVersion(): Promise<{ version: string } | { error: string }> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+  // Unref the timeout so it doesn't prevent process exit
+  if (typeof timeoutId === 'object' && 'unref' in timeoutId) {
+    timeoutId.unref()
+  }
+
   try {
-    const response = await fetch(NPM_REGISTRY_URL, {
+    const response = await fetch(getNpmRegistryUrl(), {
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      signal: controller.signal,
     })
+    clearTimeout(timeoutId)
+
     if (!response.ok) {
       return { error: `HTTP ${response.status}: ${response.statusText}` }
     }
@@ -80,6 +101,7 @@ export async function fetchLatestVersion(): Promise<{ version: string } | { erro
     }
     return { version: data.version }
   } catch (err) {
+    clearTimeout(timeoutId)
     if (err instanceof Error) {
       if (err.name === 'TimeoutError' || err.name === 'AbortError') {
         return { error: `Request timeout after ${FETCH_TIMEOUT_MS}ms` }
@@ -144,7 +166,7 @@ export function logVersionCheckResult(result: VersionCheckResult, logger: ILogge
   switch (status) {
     case 'outdated':
       logger.warn(
-        `Version outdated: ${localVersion} → ${remoteVersion}. Run 'npm i -g ${PACKAGE_NAME}@latest' to update.`,
+        `Version outdated: ${localVersion} → ${remoteVersion}. Run 'npm i -g ${getPackageName()}@latest' to update.`,
       )
       break
     case 'current':
@@ -175,20 +197,25 @@ export function shouldCheckVersion(): boolean {
 
 /**
  * Perform version check on CLI startup if conditions are met
+ * This function is designed to not block process exit - it catches all errors
+ * and uses unref'd timers to ensure the process can exit normally
  */
-export async function startupVersionCheck(logger: ILogger): Promise<void> {
+export function startupVersionCheck(logger: ILogger): void {
   if (!shouldCheckVersion()) {
     return
   }
 
-  try {
-    const result = await checkVersion()
-    // Log warnings for outdated versions or errors on startup
-    if (result.status === 'outdated' || result.error != null) {
-      logVersionCheckResult(result, logger)
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    logger.error(`Version check failed: ${message}`)
-  }
+  // Run version check in background without blocking process exit
+  // The promise is intentionally not awaited
+  checkVersion()
+    .then((result) => {
+      // Log warnings for outdated versions or errors on startup
+      if (result.status === 'outdated' || result.error != null) {
+        logVersionCheckResult(result, logger)
+      }
+    })
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      logger.error(`Version check failed: ${message}`)
+    })
 }

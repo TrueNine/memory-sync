@@ -444,8 +444,9 @@ export class PluginPipeline {
   }
 
   async run(config: PipelineConfig): Promise<void> {
-    // Startup version check (runs on even minutes)
-    await startupVersionCheck(this.logger)
+    // Startup version check (runs on even minutes, non-blocking)
+    // Don't await - let it run in background without blocking process exit
+    void startupVersionCheck(this.logger)
 
     const { context, outputPlugins, userConfigOptions } = config
     this.registerOutputPlugins([...outputPlugins])

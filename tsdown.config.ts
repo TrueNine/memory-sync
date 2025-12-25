@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { defineConfig } from 'tsdown'
 
-const pkg = JSON.parse(readFileSync('./package.json', 'utf-8')) as { version: string }
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8')) as { version: string, name: string }
 
 export default defineConfig({
   entry: ['./src/index.ts', '!**/*.{spec,test}.*'],
@@ -23,5 +23,6 @@ export default defineConfig({
   dts: false,
   define: {
     __CLI_VERSION__: JSON.stringify(pkg.version),
+    __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
   },
 })

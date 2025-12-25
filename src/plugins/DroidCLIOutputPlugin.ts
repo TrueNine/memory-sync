@@ -276,8 +276,18 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(skill.rawFrontMatter, skill.content as string)
+    // Build front matter with only name and description for Droid CLI
+    const frontMatterParts: string[] = []
+    if (skill.yamlFrontMatter?.name != null) {
+      frontMatterParts.push(`name: ${skill.yamlFrontMatter.name}`)
+    }
+    if (skill.yamlFrontMatter?.description != null) {
+      frontMatterParts.push(`description: ${skill.yamlFrontMatter.description}`)
+    }
+    const simplifiedFrontMatter = frontMatterParts.length > 0 ? frontMatterParts.join('\n') : void 0
+
+    // Build content with simplified front matter
+    const content = this.buildMarkdownContent(simplifiedFrontMatter, skill.content as string)
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'skill', path: fullPath })
