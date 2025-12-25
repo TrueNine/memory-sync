@@ -2,8 +2,9 @@ import type { CollectedInputContext, InputPlugin, InputPluginContext, OutputPlug
 import type { ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, UserConfigFile } from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import process from 'node:process'
 import glob from 'fast-glob'
-import { loadUserConfig } from '@/ConfigLoader'
+import { loadUserConfig, validateAndEnsureGlobalConfig } from '@/ConfigLoader'
 import {
   DEFAULT_GLOBAL_MEMORY_FILE,
   DEFAULT_SHADOW_FAST_COMMAND_DIR,
@@ -210,6 +211,12 @@ function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): op
  * @param options - Plugin options or DefineConfigOptions
  */
 export function defineConfig(options: PluginOptions | DefineConfigOptions = {}): PipelineConfig {
+  // Validate and ensure global config exists
+  const validationResult = validateAndEnsureGlobalConfig()
+  if (validationResult.shouldExit) {
+    process.exit(1)
+  }
+
   // Normalize options
   let pluginOptions: PluginOptions
   let shouldLoadUserConfig: boolean

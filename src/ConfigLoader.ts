@@ -4,6 +4,15 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
+import {
+  DEFAULT_GLOBAL_MEMORY_FILE,
+  DEFAULT_SHADOW_FAST_COMMAND_DIR,
+  DEFAULT_SHADOW_PROJECT_SUFFIX,
+  DEFAULT_SHADOW_PROJECTS_DIR,
+  DEFAULT_SHADOW_SKILL_SOURCE_DIR,
+  DEFAULT_SHADOW_SUB_AGENT_DIR,
+  DEFAULT_WORKSPACE_DIR,
+} from '@/constants'
 import { createLogger } from '@/log'
 
 /**
@@ -15,6 +24,71 @@ export const DEFAULT_CONFIG_FILE_NAME = '.tnmsc.json'
  * Default global config directory (relative to home)
  */
 export const DEFAULT_GLOBAL_CONFIG_DIR = '.aindex'
+
+/**
+ * Get global config file path
+ */
+export function getGlobalConfigPath(): string {
+  return path.join(os.homedir(), DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
+}
+
+/**
+ * Get default user config content
+ */
+export function getDefaultUserConfig(): UserConfigFile {
+  return {
+    workspaceDir: DEFAULT_WORKSPACE_DIR,
+    shadowSourceProjectDir: `$WORKSPACE/${DEFAULT_SHADOW_PROJECT_SUFFIX}`,
+    shadowSkillSourceDir: DEFAULT_SHADOW_SKILL_SOURCE_DIR,
+    shadowFastCommandDir: DEFAULT_SHADOW_FAST_COMMAND_DIR,
+    shadowSubAgentDir: DEFAULT_SHADOW_SUB_AGENT_DIR,
+    globalMemoryFile: DEFAULT_GLOBAL_MEMORY_FILE,
+    shadowProjectsDir: DEFAULT_SHADOW_PROJECTS_DIR,
+    logLevel: 'info',
+  }
+}
+
+/**
+ * Write global config file
+ */
+function writeGlobalConfig(config: UserConfigFile, logger: ILogger): void {
+  const configPath = getGlobalConfigPath()
+  const configDir = path.dirname(configPath)
+
+  // Ensure directory exists
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true })
+  }
+
+  // Write with pretty formatting
+  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8')
+  logger.info('global config created', { path: configPath })
+}
+
+/**
+ * Validation result for global config
+ */
+export interface GlobalConfigValidationResult {
+  /**
+   * Whether the config is valid
+   */
+  readonly valid: boolean
+
+  /**
+   * Whether the config file exists
+   */
+  readonly exists: boolean
+
+  /**
+   * Validation errors if any
+   */
+  readonly errors: readonly string[]
+
+  /**
+   * Whether the program should exit
+   */
+  readonly shouldExit: boolean
+}
 
 /**
  * ConfigLoader handles discovery and loading of user configuration files.
@@ -324,4 +398,152 @@ export function getConfigLoader(options?: ConfigLoaderOptions): ConfigLoader {
  */
 export function loadUserConfig(cwd?: string): MergedConfigResult {
   return getConfigLoader().load(cwd)
+}
+
+/**
+ * Validate global config file strictly.
+ * - If config doesn't exist: create default config, log warn, continue
+ * - If config is invalid (parse error or validation error): delete and recreate, log error, exit
+ *
+ * @returns Validation result indicating whether program should continue or exit
+ */
+export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
+  const logger = createLogger('ConfigLoader')
+  const configPath = getGlobalConfigPath()
+
+  // Check if config file exists
+  if (!fs.existsSync(configPath)) {
+    logger.warn('global config not found, creating default config', { path: configPath })
+    writeGlobalConfig(getDefaultUserConfig(), logger)
+    return {
+      valid: true,
+      exists: false,
+      errors: [],
+      shouldExit: false,
+    }
+  }
+
+  // Try to read and parse config
+  let content: string
+  try {
+    content = fs.readFileSync(configPath, 'utf-8')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error('failed to read global config', { path: configPath, error: errorMessage })
+    return recreateConfigAndExit(configPath, logger, [`Failed to read config: ${errorMessage}`])
+  }
+
+  // Try to parse JSON
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(content)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error('invalid JSON in global config', { path: configPath, error: errorMessage })
+    return recreateConfigAndExit(configPath, logger, [`Invalid JSON: ${errorMessage}`])
+  }
+
+  // Validate structure
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    logger.error('global config must be a JSON object', { path: configPath })
+    return recreateConfigAndExit(configPath, logger, ['Config must be a JSON object'])
+  }
+
+  // Validate fields strictly
+  const errors = validateConfigStrict(parsed as Record<string, unknown>)
+  if (errors.length > 0) {
+    for (const err of errors) {
+      logger.error('config validation error', { path: configPath, error: err })
+    }
+    return recreateConfigAndExit(configPath, logger, errors)
+  }
+
+  return {
+    valid: true,
+    exists: true,
+    errors: [],
+    shouldExit: false,
+  }
+}
+
+/**
+ * Strictly validate config fields
+ */
+function validateConfigStrict(raw: Record<string, unknown>): string[] {
+  const errors: string[] = []
+
+  // String fields
+  const stringFields = [
+    'workspaceDir',
+    'shadowSourceProjectDir',
+    'shadowSkillSourceDir',
+    'shadowFastCommandDir',
+    'shadowSubAgentDir',
+    'globalMemoryFile',
+    'shadowProjectsDir',
+  ] as const
+
+  for (const field of stringFields) {
+    if (field in raw && typeof raw[field] !== 'string') {
+      errors.push(`${field} must be a string`)
+    }
+  }
+
+  // logLevel validation
+  if ('logLevel' in raw) {
+    const validLevels = ['trace', 'debug', 'info', 'warn', 'error']
+    const logLevelValue = raw['logLevel']
+    if (typeof logLevelValue !== 'string' || !validLevels.includes(logLevelValue)) {
+      errors.push(`logLevel must be one of: ${validLevels.join(', ')}`)
+    }
+  }
+
+  // externalProjects validation
+  if ('externalProjects' in raw) {
+    const externalProjectsValue = raw['externalProjects']
+    if (!Array.isArray(externalProjectsValue)) {
+      errors.push('externalProjects must be an array')
+    } else if (!externalProjectsValue.every((p) => typeof p === 'string')) {
+      errors.push('externalProjects must be an array of strings')
+    }
+  }
+
+  // excludePatterns validation
+  if ('excludePatterns' in raw) {
+    const excludePatternsValue = raw['excludePatterns']
+    if (typeof excludePatternsValue !== 'object' || excludePatternsValue === null || Array.isArray(excludePatternsValue)) {
+      errors.push('excludePatterns must be an object')
+    } else {
+      const patterns = excludePatternsValue as Record<string, unknown>
+      for (const [key, value] of Object.entries(patterns)) {
+        if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
+          errors.push(`excludePatterns.${key} must be an array of strings`)
+        }
+      }
+    }
+  }
+
+  return errors
+}
+
+/**
+ * Delete invalid config, recreate with defaults, and return exit result
+ */
+function recreateConfigAndExit(configPath: string, logger: ILogger, errors: string[]): GlobalConfigValidationResult {
+  try {
+    fs.unlinkSync(configPath)
+    logger.info('deleted invalid config', { path: configPath })
+  } catch {
+    logger.warn('failed to delete invalid config', { path: configPath })
+  }
+
+  writeGlobalConfig(getDefaultUserConfig(), logger)
+  logger.error('recreated default config, please review and restart', { path: configPath })
+
+  return {
+    valid: false,
+    exists: true,
+    errors,
+    shouldExit: true,
+  }
 }

@@ -24,6 +24,7 @@ import {
   InitCommand,
   SetCommand,
   UnknownCommand,
+  VersionCommand,
 } from '@/commands'
 import { createLogger, setGlobalLogLevel } from '@/log'
 import {
@@ -34,7 +35,7 @@ import {
 /**
  * Valid subcommands for the CLI
  */
-export type Subcommand = 'help' | 'init' | 'dry-run' | 'clean' | 'set'
+export type Subcommand = 'help' | 'version' | 'init' | 'dry-run' | 'clean' | 'set'
 
 /**
  * Valid log levels for the CLI
@@ -46,13 +47,17 @@ export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error'
  */
 export interface ParsedCliArgs {
   /**
-   * The subcommand to execute (help, init, dry-run, clean, set, or undefined for default)
+   * The subcommand to execute (help, version, init, dry-run, clean, set, or undefined for default)
    */
   readonly subcommand: Subcommand | undefined
   /**
    * Whether help was requested via --help or -h flag
    */
   readonly helpFlag: boolean
+  /**
+   * Whether version was requested via --version or -v flag
+   */
+  readonly versionFlag: boolean
   /**
    * Dry run mode for clean command
    */
@@ -139,7 +144,7 @@ function isScriptOrPackage(arg: string): boolean {
 /**
  * Valid subcommands set for quick lookup
  */
-const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'init', 'dry-run', 'clean', 'set'])
+const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'version', 'init', 'dry-run', 'clean', 'set'])
 
 /**
  * Log level flags mapping
@@ -196,22 +201,29 @@ export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
 /**
  * Resolve command from parsed arguments.
  * Resolution rules:
- * 1. If helpFlag is true → HelpCommand
- * 2. If unknownCommand is defined → UnknownCommand
- * 3. If subcommand is 'help' → HelpCommand
- * 4. If subcommand is 'init' → InitCommand
- * 5. If subcommand is 'dry-run' → DryRunOutputCommand
- * 6. If subcommand is 'clean':
+ * 1. If versionFlag is true → VersionCommand
+ * 2. If helpFlag is true → HelpCommand
+ * 3. If unknownCommand is defined → UnknownCommand
+ * 4. If subcommand is 'version' → VersionCommand
+ * 5. If subcommand is 'help' → HelpCommand
+ * 6. If subcommand is 'init' → InitCommand
+ * 7. If subcommand is 'dry-run' → DryRunOutputCommand
+ * 8. If subcommand is 'clean':
  *    - If dryRun is true → DryRunCleanCommand
  *    - Else → CleanCommand
- * 7. If subcommand is 'set' or setOption is provided → SetCommand
- * 8. Default → ExecuteCommand
+ * 9. If subcommand is 'set' or setOption is provided → SetCommand
+ * 10. Default → ExecuteCommand
  *
  * @param args - Parsed CLI arguments
  * @returns The resolved command
  */
 export function resolveCommand(args: ParsedCliArgs): Command {
-  const { helpFlag, subcommand, dryRun, unknownCommand, setOption, positional } = args
+  const { helpFlag, versionFlag, subcommand, dryRun, unknownCommand, setOption, positional } = args
+
+  // Version flag takes highest priority
+  if (versionFlag) {
+    return new VersionCommand()
+  }
 
   // Help flag takes priority
   if (helpFlag) {
@@ -221,6 +233,11 @@ export function resolveCommand(args: ParsedCliArgs): Command {
   // Unknown command handling
   if (unknownCommand != null) {
     return new UnknownCommand(unknownCommand)
+  }
+
+  // Version subcommand
+  if (subcommand === 'version') {
+    return new VersionCommand()
   }
 
   // Help subcommand
@@ -270,6 +287,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
   const result: {
     subcommand: Subcommand | undefined
     helpFlag: boolean
+    versionFlag: boolean
     dryRun: boolean
     logLevel: LogLevel | undefined
     logLevelFlags: LogLevel[]
@@ -280,6 +298,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
   } = {
     subcommand: void 0,
     helpFlag: false,
+    versionFlag: false,
     dryRun: false,
     logLevel: void 0,
     logLevelFlags: [],
@@ -320,6 +339,9 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
         case '--help':
           result.helpFlag = true
           break
+        case '--version':
+          result.versionFlag = true
+          break
         case '--dry-run':
           result.dryRun = true
           break
@@ -357,6 +379,9 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
         switch (flag) {
           case 'h':
             result.helpFlag = true
+            break
+          case 'v':
+            result.versionFlag = true
             break
           case 'n':
             result.dryRun = true

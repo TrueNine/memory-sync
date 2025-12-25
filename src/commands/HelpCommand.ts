@@ -1,16 +1,17 @@
 import type { Command, CommandContext, CommandResult } from './Command'
+import { getCliVersion } from './VersionCommand'
 
 const CLI_NAME = 'tnmsc'
-const VERSION = '0.0.6'
 
 const HELP_TEXT = `
-${CLI_NAME} v${VERSION} - Memory Sync CLI
+${CLI_NAME} v${getCliVersion()} - Memory Sync CLI
 
 Synchronize AI memory and configuration files across projects.
 
 USAGE:
   ${CLI_NAME}                         Run the sync pipeline (default)
   ${CLI_NAME} help                    Show this help message
+  ${CLI_NAME} version                 Show version information
   ${CLI_NAME} init                    Initialize directories and files
   ${CLI_NAME} dry-run                 Preview what would be written
   ${CLI_NAME} clean                   Remove all generated files
@@ -20,6 +21,7 @@ USAGE:
 
 SUBCOMMANDS:
   help       Show this help message
+  version    Show version information
   init       Initialize directory structure based on configuration
   dry-run    Preview changes without writing files
   clean      Remove all generated output files and directories
@@ -27,6 +29,7 @@ SUBCOMMANDS:
 
 ALIASES:
   ${CLI_NAME} --help, ${CLI_NAME} -h      Same as '${CLI_NAME} help'
+  ${CLI_NAME} --version, ${CLI_NAME} -v   Same as '${CLI_NAME} version'
   ${CLI_NAME} clean -n              Same as '${CLI_NAME} clean --dry-run'
   ${CLI_NAME} set key=value         Same as '${CLI_NAME} --set key=value'
 

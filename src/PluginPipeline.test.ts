@@ -682,9 +682,11 @@ describe('resolveLogLevel', () => {
     return {
       subcommand: void 0,
       helpFlag: false,
+      versionFlag: false,
       dryRun: false,
       logLevel: void 0,
       logLevelFlags: [],
+      setOption: [],
       unknownCommand: void 0,
       positional: [],
       unknown: [],
@@ -727,9 +729,11 @@ describe('resolveCommand', () => {
     return {
       subcommand: void 0,
       helpFlag: false,
+      versionFlag: false,
       dryRun: false,
       logLevel: void 0,
       logLevelFlags: [],
+      setOption: [],
       unknownCommand: void 0,
       positional: [],
       unknown: [],
