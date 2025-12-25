@@ -21,6 +21,7 @@ import {
   ExecuteCommand,
   HelpCommand,
   InitCommand,
+  SetCommand,
   UnknownCommand,
 } from '@/commands'
 import { createLogger, setGlobalLogLevel } from '@/log'
@@ -32,7 +33,7 @@ import {
 /**
  * Valid subcommands for the CLI
  */
-export type Subcommand = 'help' | 'init' | 'dry-run' | 'clean'
+export type Subcommand = 'help' | 'init' | 'dry-run' | 'clean' | 'set'
 
 /**
  * Valid log levels for the CLI
@@ -44,7 +45,7 @@ export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error'
  */
 export interface ParsedCliArgs {
   /**
-   * The subcommand to execute (help, init, dry-run, clean, or undefined for default)
+   * The subcommand to execute (help, init, dry-run, clean, set, or undefined for default)
    */
   readonly subcommand: Subcommand | undefined
   /**
@@ -63,6 +64,10 @@ export interface ParsedCliArgs {
    * All log level flags provided (for priority resolution)
    */
   readonly logLevelFlags: readonly LogLevel[]
+  /**
+   * Set option: key=value pair for configuration
+   */
+  readonly setOption: readonly [key: string, value: string][]
   /**
    * Unknown subcommand if provided
    */
@@ -133,7 +138,7 @@ function isScriptOrPackage(arg: string): boolean {
 /**
  * Valid subcommands set for quick lookup
  */
-const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'init', 'dry-run', 'clean'])
+const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'init', 'dry-run', 'clean', 'set'])
 
 /**
  * Log level flags mapping
@@ -198,13 +203,14 @@ export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
  * 6. If subcommand is 'clean':
  *    - If dryRun is true → DryRunCleanCommand
  *    - Else → CleanCommand
- * 7. Default → ExecuteCommand
+ * 7. If subcommand is 'set' or setOption is provided → SetCommand
+ * 8. Default → ExecuteCommand
  *
  * @param args - Parsed CLI arguments
  * @returns The resolved command
  */
 export function resolveCommand(args: ParsedCliArgs): Command {
-  const { helpFlag, subcommand, dryRun, unknownCommand } = args
+  const { helpFlag, subcommand, dryRun, unknownCommand, setOption, positional } = args
 
   // Help flag takes priority
   if (helpFlag) {
@@ -239,6 +245,19 @@ export function resolveCommand(args: ParsedCliArgs): Command {
     return new CleanCommand()
   }
 
+  // Set subcommand or --set option
+  if (subcommand === 'set' || setOption.length > 0) {
+    // Parse positional args as key=value pairs for 'set' subcommand
+    const parsedPositional: [key: string, value: string][] = []
+    for (const arg of positional) {
+      const eqIndex = arg.indexOf('=')
+      if (eqIndex > 0) {
+        parsedPositional.push([arg.slice(0, eqIndex), arg.slice(eqIndex + 1)])
+      }
+    }
+    return new SetCommand([...setOption, ...parsedPositional])
+  }
+
   // Default: execute sync pipeline
   return new ExecuteCommand()
 }
@@ -253,6 +272,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     dryRun: boolean
     logLevel: LogLevel | undefined
     logLevelFlags: LogLevel[]
+    setOption: [key: string, value: string][]
     unknownCommand: string | undefined
     positional: string[]
     unknown: string[]
@@ -262,6 +282,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     dryRun: false,
     logLevel: void 0,
     logLevelFlags: [],
+    setOption: [],
     unknownCommand: void 0,
     positional: [],
     unknown: [],
@@ -300,6 +321,27 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
           break
         case '--dry-run':
           result.dryRun = true
+          break
+        case '--set':
+          // Parse --set key=value from next arg or from = syntax
+          if (parts.length > 1) {
+            const keyValue = parts.slice(1).join('=')
+            const eqIndex = keyValue.indexOf('=')
+            if (eqIndex > 0) {
+              result.setOption.push([keyValue.slice(0, eqIndex), keyValue.slice(eqIndex + 1)])
+            }
+          } else {
+            // Next arg is the value
+            const nextArg = args[i + 1]
+            if (nextArg != null) {
+              const eqIndex = nextArg.indexOf('=')
+              if (eqIndex > 0) {
+                result.setOption.push([nextArg.slice(0, eqIndex), nextArg.slice(eqIndex + 1)])
+                // Skip next arg
+                i++
+              }
+            }
+          }
           break
         default:
           result.unknown.push(arg)
