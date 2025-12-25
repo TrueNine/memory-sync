@@ -57,21 +57,36 @@ export function compareVersions(a: string, b: string): -1 | 0 | 1 {
 }
 
 /**
- * Fetch latest version from npm registry
+ * Timeout duration for fetching version (3 seconds)
  */
-export async function fetchLatestVersion(): Promise<string | null> {
+const FETCH_TIMEOUT_MS = 3000
+
+/**
+ * Fetch latest version from npm registry
+ * Returns version string on success, or error message on failure
+ */
+export async function fetchLatestVersion(): Promise<{ version: string } | { error: string }> {
   try {
     const response = await fetch(NPM_REGISTRY_URL, {
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
     if (!response.ok) {
-      return null
+      return { error: `HTTP ${response.status}: ${response.statusText}` }
     }
     const data = await response.json() as { version?: string }
-    return data.version ?? null
-  } catch {
-    return null
+    if (data.version == null) {
+      return { error: 'Invalid response: missing version field' }
+    }
+    return { version: data.version }
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+        return { error: `Request timeout after ${FETCH_TIMEOUT_MS}ms` }
+      }
+      return { error: err.message }
+    }
+    return { error: 'Unknown network error' }
   }
 }
 
@@ -97,17 +112,18 @@ export async function checkVersion(): Promise<VersionCheckResult> {
     }
   }
 
-  const remoteVersion = await fetchLatestVersion()
+  const fetchResult = await fetchLatestVersion()
 
-  if (remoteVersion == null) {
+  if ('error' in fetchResult) {
     return {
       status: 'current',
       localVersion,
       remoteVersion: null,
-      error: 'Failed to fetch remote version',
+      error: fetchResult.error,
     }
   }
 
+  const remoteVersion = fetchResult.version
   const comparison = compareVersions(localVersion, remoteVersion)
 
   if (comparison < 0) {
@@ -133,7 +149,7 @@ export function logVersionCheckResult(result: VersionCheckResult, logger: ILogge
       break
     case 'current':
       if (result.error != null) {
-        logger.debug(`Version check skipped: ${result.error}`)
+        logger.error(`Version check failed: ${result.error}`)
       } else {
         logger.info(`Version ${localVersion} is up to date.`)
       }
@@ -167,11 +183,12 @@ export async function startupVersionCheck(logger: ILogger): Promise<void> {
 
   try {
     const result = await checkVersion()
-    // Only log warnings for outdated versions on startup
-    if (result.status === 'outdated') {
+    // Log warnings for outdated versions or errors on startup
+    if (result.status === 'outdated' || result.error != null) {
       logVersionCheckResult(result, logger)
     }
-  } catch {
-    // Silently ignore errors during startup check
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    logger.error(`Version check failed: ${message}`)
   }
 }
