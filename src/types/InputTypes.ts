@@ -1,5 +1,4 @@
 import type {
-  CodingAgentTools,
   FilePathKind,
   GlobalMemoryPrompt,
   IDEKind,
@@ -11,8 +10,8 @@ import type {
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
   Prompt,
+  SkillYAMLFrontMatter,
   SubAgentYAMLFrontMatter,
-  YAMLFrontMatter,
 } from '@/types/PromptTypes'
 
 export interface Project {
@@ -122,62 +121,6 @@ export interface SkillReferenceDocument extends Prompt<PromptKind.SkillReference
   readonly type: PromptKind.SkillReferenceDocument
   readonly dir: RelativePath
   readonly referenceDocuments?: SkillReferenceDocument[]
-}
-
-export interface SkillYAMLFrontMatter extends YAMLFrontMatter {
-  readonly name: string
-  readonly description: string
-  readonly allowTools?: (CodingAgentTools | string)[]
-  /**
-   * Keywords for skill discovery and matching
-   * Used by Kiro Powers for keyword-based activation
-   */
-  readonly keywords?: readonly string[]
-  /**
-   * Display name for the skill
-   * If not set, defaults to `name`
-   */
-  readonly displayName?: string
-  /**
-   * Author of the skill
-   */
-  readonly author?: string
-}
-
-/**
- * Codex CLI skill YAML front matter definition
- * @see https://developers.openai.com/codex/skills/create-skill
- *
- * Codex only supports global skills at ~/.codex/skills/
- */
-export interface CodexSkillYAMLFrontMatter extends YAMLFrontMatter {
-  /**
-   * Skill name (required)
-   * - Non-empty, at most 100 characters
-   * - Must be single line
-   */
-  readonly name: string
-  /**
-   * Skill description - what it does and when to use it (required)
-   * - Non-empty, at most 500 characters
-   * - Must be single line
-   * - Should explicitly state when the skill should be triggered
-   */
-  readonly description: string
-  /**
-   * Optional metadata for the skill
-   */
-  readonly metadata?: CodexSkillMetadata
-}
-
-/**
- * Codex skill metadata
- */
-export interface CodexSkillMetadata {
-  /**
-   * Short description for the skill
-   */
-  readonly 'short-description'?: string
 }
 
 /**

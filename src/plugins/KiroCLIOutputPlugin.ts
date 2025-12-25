@@ -9,7 +9,6 @@ import type {
   SkillYAMLFrontMatter,
   WriteResult,
   WriteResults,
-  YAMLFrontMatter,
 } from '@/types'
 import type { RelativePath } from '@/types/FileSystemTypes'
 /**
@@ -57,25 +56,6 @@ const STEERING_SUBDIR = 'steering'
 // Kiro Powers constants
 const KIRO_POWERS_DIR = '.kiro/powers/installed'
 const POWER_FILE_NAME = 'POWER.md'
-
-/**
- * Kiro steering file front matter
- * @see https://kiro.dev/docs/steering
- */
-export interface KiroSteeringYAMLFrontMatter extends YAMLFrontMatter {
-  /**
-   * Inclusion mode for steering file
-   * - 'always': Always included (default)
-   * - 'fileMatch': Conditionally included when matching file is read
-   * - 'manual': Manually included via context key ('#' in chat)
-   */
-  readonly inclusion?: 'always' | 'fileMatch' | 'manual'
-  /**
-   * Glob pattern for fileMatch inclusion mode
-   * @example 'README*', '*.ts', 'src/**'
-   */
-  readonly fileMatchPattern?: string
-}
 
 // Kiro supports AGENTS.md at project root, so it relies on AGENTS.md output.
 // Therefore, rootMemoryPrompt handling is not needed here.

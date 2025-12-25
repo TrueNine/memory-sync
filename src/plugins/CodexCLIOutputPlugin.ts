@@ -193,7 +193,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(cmd.rawFrontMatter, cmd.content as string)
+    const content = this.buildMarkdownContent(cmd.content as string, cmd.yamlFrontMatter)
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'globalFastCommand', path: fullPath })
@@ -270,27 +270,91 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
    * Build Codex-compatible SKILL.md content with front matter
    * Converts SkillYAMLFrontMatter to CodexSkillYAMLFrontMatter format
    *
-   * Codex requires:
-   * - name: non-empty, at most 100 characters, single line
-   * - description: non-empty, at most 500 characters, single line
+   * Follows Agent Skills specification: https://agentskills.io/specification
+   *
+   * Required fields:
+   * - name: Max 64 characters. Lowercase letters, numbers, and hyphens only.
+   * - description: Max 1024 characters. Describes what the skill does and when to use it.
+   *
+   * Optional fields:
+   * - license: License name or reference to a bundled license file.
+   * - compatibility: Max 500 characters. Environment requirements.
+   * - metadata: Arbitrary key-value mapping (displayName, version, author, keywords, etc.)
+   * - allowed-tools: Space-delimited list of pre-approved tools (experimental).
    */
   private buildCodexSkillContent(skill: SkillPrompt): string {
     const fm = skill.yamlFrontMatter
 
-    // Normalize description to single line (Codex requirement)
-    const description = this.normalizeToSingleLine(fm.description, 500)
-    const name = this.normalizeToSingleLine(fm.name, 100)
+    // Normalize name: max 64 chars, lowercase, only letters/numbers/hyphens
+    const name = this.normalizeSkillName(fm.name, 64)
+    // Normalize description: max 1024 chars, single line
+    const description = this.normalizeToSingleLine(fm.description, 1024)
 
-    // Build front matter data
+    // Build metadata object with all available fields
+    const metadata: Record<string, unknown> = {}
+
+    // short-description from displayName
+    if (fm.displayName != null) {
+      metadata['short-description'] = fm.displayName
+    }
+
+    // version
+    if (fm.version != null) {
+      metadata['version'] = fm.version
+    }
+
+    // author
+    if (fm.author != null) {
+      metadata['author'] = fm.author
+    }
+
+    // keywords
+    if (fm.keywords != null && fm.keywords.length > 0) {
+      metadata['keywords'] = [...fm.keywords]
+    }
+
+    // Build front matter data following Agent Skills spec
     const fmData: Record<string, unknown> = {
       name,
       description,
-      metadata: fm.displayName != null
-        ? { 'short-description': fm.displayName }
-        : null,
+    }
+
+    // Only add metadata if it has content
+    if (Object.keys(metadata).length > 0) {
+      fmData['metadata'] = metadata
+    }
+
+    // Convert allowTools to allowed-tools (space-delimited string)
+    if (fm.allowTools != null && fm.allowTools.length > 0) {
+      fmData['allowed-tools'] = fm.allowTools.join(' ')
     }
 
     return buildMarkdownWithFrontMatter(fmData, skill.content as string)
+  }
+
+  /**
+   * Normalize skill name to Agent Skills spec requirements:
+   * - Max 64 characters
+   * - Lowercase letters, numbers, and hyphens only
+   * - Must not start or end with a hyphen
+   */
+  private normalizeSkillName(name: string, maxLength: number): string {
+    // Convert to lowercase and replace invalid characters with hyphens
+    let normalized = name
+      .toLowerCase()
+      // Replace invalid characters with hyphens
+      .replace(/[^a-z0-9-]/g, '-')
+      // Collapse multiple hyphens
+      .replace(/-+/g, '-')
+      // Trim leading/trailing hyphens
+      .replace(/^-+|-+$/g, '')
+
+    // Truncate if exceeds max length, remove trailing hyphens after truncation
+    if (normalized.length > maxLength) {
+      normalized = normalized.slice(0, maxLength).replace(/-+$/, '')
+    }
+
+    return normalized
   }
 
   /**

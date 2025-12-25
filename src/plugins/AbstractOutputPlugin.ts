@@ -21,6 +21,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
+import { buildMarkdownWithFrontMatter } from '@/markdown'
 import { FilePathKind, PluginKind } from '@/types'
 import { AbstractPlugin } from './AbstractPlugin'
 
@@ -681,26 +682,23 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   /**
    * Build markdown content by combining front matter with content.
-   * If front matter exists, wraps it with --- delimiters and prepends to content.
+   * If front matter exists, serializes it to YAML and prepends to content.
    *
-   * @param rawFrontMatter - The raw YAML front matter string (without --- delimiters)
    * @param content - The markdown content
+   * @param frontMatter - The YAML front matter object
    * @returns The combined markdown string
    *
    * @example
    * ```typescript
    * const markdown = this.buildMarkdownContent(
-   *   'title: My Doc',
-   *   '# Content here'
+   *   '# Content here',
+   *   { title: 'My Doc', tags: ['a', 'b'] }
    * )
-   * // Returns: '---\ntitle: My Doc\n---\n# Content here'
+   * // Returns: '---\ntitle: My Doc\ntags:\n  - a\n  - b\n---\n# Content here'
    * ```
    */
-  protected buildMarkdownContent(rawFrontMatter: string | undefined, content: string): string {
-    if (rawFrontMatter != null && rawFrontMatter.length > 0) {
-      return `---\n${rawFrontMatter}\n---\n${content}`
-    }
-    return content
+  protected buildMarkdownContent(content: string, frontMatter?: Record<string, unknown>): string {
+    return buildMarkdownWithFrontMatter(frontMatter, content)
   }
 
   /**

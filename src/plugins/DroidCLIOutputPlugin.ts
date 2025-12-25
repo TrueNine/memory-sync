@@ -196,7 +196,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(cmd.rawFrontMatter, cmd.content as string)
+    const content = this.buildMarkdownContent(cmd.content as string, cmd.yamlFrontMatter)
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'fastCommand', path: fullPath })
@@ -236,7 +236,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(agent.rawFrontMatter, agent.content as string)
+    const content = this.buildMarkdownContent(agent.content as string, agent.yamlFrontMatter)
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'subAgent', path: fullPath })
@@ -277,17 +277,12 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Build front matter with only name and description for Droid CLI
-    const frontMatterParts: string[] = []
-    if (skill.yamlFrontMatter?.name != null) {
-      frontMatterParts.push(`name: ${skill.yamlFrontMatter.name}`)
-    }
-    if (skill.yamlFrontMatter?.description != null) {
-      frontMatterParts.push(`description: ${skill.yamlFrontMatter.description}`)
-    }
-    const simplifiedFrontMatter = frontMatterParts.length > 0 ? frontMatterParts.join('\n') : void 0
+    const simplifiedFrontMatter = skill.yamlFrontMatter != null
+      ? { name: skill.yamlFrontMatter.name, description: skill.yamlFrontMatter.description }
+      : void 0
 
     // Build content with simplified front matter
-    const content = this.buildMarkdownContent(simplifiedFrontMatter, skill.content as string)
+    const content = this.buildMarkdownContent(skill.content as string, simplifiedFrontMatter)
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'skill', path: fullPath })

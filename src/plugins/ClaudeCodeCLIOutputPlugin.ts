@@ -241,7 +241,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(cmd.rawFrontMatter, cmd.content as string)
+    const content = this.buildMarkdownContent(cmd.content as string, cmd.yamlFrontMatter)
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'fastCommand', path: fullPath })
@@ -281,7 +281,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(agent.rawFrontMatter, agent.content as string)
+    const content = this.buildMarkdownContent(agent.content as string, agent.yamlFrontMatter)
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'subAgent', path: fullPath })
@@ -322,7 +322,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(skill.rawFrontMatter, skill.content as string)
+    const content = this.buildMarkdownContent(skill.content as string, skill.yamlFrontMatter)
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'skill', path: fullPath })
