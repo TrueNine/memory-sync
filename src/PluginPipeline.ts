@@ -22,6 +22,7 @@ import {
   ExecuteCommand,
   HelpCommand,
   InitCommand,
+  OutdatedCommand,
   SetCommand,
   UnknownCommand,
   VersionCommand,
@@ -31,11 +32,12 @@ import {
   CircularDependencyError,
   MissingDependencyError,
 } from '@/types'
+import { startupVersionCheck } from '@/versionCheck'
 
 /**
  * Valid subcommands for the CLI
  */
-export type Subcommand = 'help' | 'version' | 'init' | 'dry-run' | 'clean' | 'set'
+export type Subcommand = 'help' | 'version' | 'outdated' | 'init' | 'dry-run' | 'clean' | 'set'
 
 /**
  * Valid log levels for the CLI
@@ -144,7 +146,7 @@ function isScriptOrPackage(arg: string): boolean {
 /**
  * Valid subcommands set for quick lookup
  */
-const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'version', 'init', 'dry-run', 'clean', 'set'])
+const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'version', 'outdated', 'init', 'dry-run', 'clean', 'set'])
 
 /**
  * Log level flags mapping
@@ -243,6 +245,11 @@ export function resolveCommand(args: ParsedCliArgs): Command {
   // Help subcommand
   if (subcommand === 'help') {
     return new HelpCommand()
+  }
+
+  // Outdated subcommand
+  if (subcommand === 'outdated') {
+    return new OutdatedCommand()
   }
 
   // Init subcommand
@@ -437,6 +444,9 @@ export class PluginPipeline {
   }
 
   async run(config: PipelineConfig): Promise<void> {
+    // Startup version check (runs on even minutes)
+    await startupVersionCheck(this.logger)
+
     const { context, outputPlugins, userConfigOptions } = config
     this.registerOutputPlugins([...outputPlugins])
 
