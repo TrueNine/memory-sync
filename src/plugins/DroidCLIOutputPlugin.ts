@@ -55,9 +55,64 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  // DroidCLI does not output project memory files, return empty
-  async registerProjectOutputFiles(): Promise<RelativePath[]> {
-    return []
+  // DroidCLI outputs skills to project directories, register skill files for cleanup
+  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results: RelativePath[] = []
+    const { projects } = ctx.collectedInputContext.workspace
+    const { skills } = ctx.collectedInputContext
+
+    for (const project of projects) {
+      if (project.dirFromWorkspacePath == null) {
+        continue
+      }
+
+      // Register skill files (SKILL.md, reference docs, and resources)
+      if (skills != null) {
+        for (const skill of skills) {
+          const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+          const skillDir = path.join(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
+
+          // Register SKILL.md
+          results.push({
+            pathKind: FilePathKind.Relative,
+            path: path.join(skillDir, 'SKILL.md'),
+            basePath: project.dirFromWorkspacePath.basePath,
+            getDirectoryName: () => skillName,
+            getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, skillDir, 'SKILL.md'),
+          })
+
+          // Register reference documents
+          if (skill.childDocs != null) {
+            for (const refDoc of skill.childDocs) {
+              const refDocPath = path.join(skillDir, refDoc.dir.path)
+              results.push({
+                pathKind: FilePathKind.Relative,
+                path: refDocPath,
+                basePath: project.dirFromWorkspacePath.basePath,
+                getDirectoryName: () => skillName,
+                getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, refDocPath),
+              })
+            }
+          }
+
+          // Register resource files
+          if (skill.resources != null) {
+            for (const resource of skill.resources) {
+              const resourcePath = path.join(skillDir, resource.relativePath)
+              results.push({
+                pathKind: FilePathKind.Relative,
+                path: resourcePath,
+                basePath: project.dirFromWorkspacePath.basePath,
+                getDirectoryName: () => skillName,
+                getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, resourcePath),
+              })
+            }
+          }
+        }
+      }
+    }
+
+    return results
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -302,6 +357,14 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
           results.push(...refResults)
         }
       }
+
+      // Write resource files if any
+      if (skill.resources != null) {
+        for (const resource of skill.resources) {
+          const resourceResults = await this.writeSkillResource(ctx, targetDir, skillName, resource, projectDir)
+          results.push(...resourceResults)
+        }
+      }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({ action: 'write', type: 'skill', path: fullPath, error: errMsg })
@@ -345,6 +408,45 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({ action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg })
+      results.push({ path: relativePath, success: false, error: error as Error })
+    }
+
+    return results
+  }
+
+  private async writeSkillResource(
+    ctx: OutputWriteContext,
+    skillDir: string,
+    skillName: string,
+    resource: { relativePath: string, content: string },
+    projectDir: RelativePath,
+  ): Promise<WriteResult[]> {
+    const results: WriteResult[] = []
+    const fullPath = path.join(skillDir, resource.relativePath)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, resource.relativePath),
+      basePath: projectDir.basePath,
+      getDirectoryName: () => skillName,
+      getAbsolutePath: () => fullPath,
+    }
+
+    if (ctx.dryRun === true) {
+      this.log.trace({ action: 'dryRun', type: 'skillResource', path: fullPath })
+      return [{ path: relativePath, success: true, skipped: false }]
+    }
+
+    try {
+      // Ensure parent directory exists for nested resources
+      const parentDir = path.dirname(fullPath)
+      this.ensureDirectory(parentDir)
+      fs.writeFileSync(fullPath, resource.content, 'utf-8')
+      this.log.trace({ action: 'write', type: 'skillResource', path: fullPath })
+      results.push({ path: relativePath, success: true })
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({ action: 'write', type: 'skillResource', path: fullPath, error: errMsg })
       results.push({ path: relativePath, success: false, error: error as Error })
     }
 

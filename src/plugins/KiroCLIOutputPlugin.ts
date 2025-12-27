@@ -43,7 +43,6 @@ import type { RelativePath } from '@/types/FileSystemTypes'
  * - `inclusion`: 'always' | 'fileMatch' | 'manual' (default: 'always')
  * - `fileMatchPattern`: glob pattern for fileMatch inclusion (e.g. '*.ts', 'src/**')
  */
-import os from 'node:os'
 import { buildMarkdownWithFrontMatter } from '@/markdown'
 import { FilePathKind } from '@/types'
 import { AbstractOutputPlugin } from './AbstractOutputPlugin'
@@ -52,9 +51,11 @@ import { KiroPowersRegistryWriter } from './registry/KiroPowersRegistryWriter'
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
 const GLOBAL_CONFIG_DIR = '.kiro'
 const STEERING_SUBDIR = 'steering'
+const MCP_CONFIG_FILE = 'mcp.json'
 
 // Kiro Powers constants
 const KIRO_POWERS_DIR = '.kiro/powers/installed'
+const KIRO_POWERS_REPOS_DIR = '.kiro/powers/repos'
 const POWER_FILE_NAME = 'POWER.md'
 
 // Kiro supports AGENTS.md at project root, so it relies on AGENTS.md output.
@@ -162,6 +163,16 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       })
     }
 
+    // Register repos directory for cleanup
+    const reposDir = this.getKiroPowersReposDir()
+    results.push({
+      pathKind: FilePathKind.Relative,
+      path: 'repos',
+      basePath: this.joinPath(this.getHomeDir(), '.kiro/powers'),
+      getDirectoryName: () => 'repos',
+      getAbsolutePath: () => reposDir,
+    })
+
     return results
   }
 
@@ -214,7 +225,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    // Register skill power files (POWER.md and reference documents)
+    // Register skill power files (POWER.md, mcp.json, and reference documents)
     if (skills != null) {
       const powersDir = this.getKiroPowersDir()
       for (const skill of skills) {
@@ -230,6 +241,17 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
           getAbsolutePath: () => this.joinPath(skillPowerDir, POWER_FILE_NAME),
         })
 
+        // Register mcp.json if skill has MCP configuration
+        if (skill.mcpConfig != null) {
+          results.push({
+            pathKind: FilePathKind.Relative,
+            path: MCP_CONFIG_FILE,
+            basePath: skillPowerDir,
+            getDirectoryName: () => skillName,
+            getAbsolutePath: () => this.joinPath(skillPowerDir, MCP_CONFIG_FILE),
+          })
+        }
+
         // Register reference documents in steering/ subdirectory
         if (skill.childDocs != null) {
           const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
@@ -241,6 +263,20 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
               basePath: skillPowerDir,
               getDirectoryName: () => STEERING_SUBDIR,
               getAbsolutePath: () => this.joinPath(steeringDir, refDocFileName),
+            })
+          }
+        }
+
+        // Register resource files in steering/ subdirectory (non-.md files like .kt, .java, .sql, etc.)
+        if (skill.resources != null) {
+          const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
+          for (const resource of skill.resources) {
+            results.push({
+              pathKind: FilePathKind.Relative,
+              path: this.joinPath(STEERING_SUBDIR, resource.relativePath),
+              basePath: skillPowerDir,
+              getDirectoryName: () => STEERING_SUBDIR,
+              getAbsolutePath: () => this.joinPath(steeringDir, resource.relativePath),
             })
           }
         }
@@ -388,11 +424,11 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   /**
-   * Get the user's home directory.
-   * @returns The absolute path to the user's home directory
+   * Get the absolute path to the Kiro Powers repos directory.
+   * @returns The absolute path to ~/.kiro/powers/repos/
    */
-  protected getHomeDir(): string {
-    return os.homedir()
+  private getKiroPowersReposDir(): string {
+    return this.joinPath(this.getHomeDir(), KIRO_POWERS_REPOS_DIR)
   }
 
   /**
@@ -501,6 +537,50 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
+    // Write resource files to steering/ subdirectory (non-.md files like .kt, .java, .sql, etc.)
+    if (skill.resources != null) {
+      const steeringDir = this.joinPath(powerDir, STEERING_SUBDIR)
+
+      for (const resource of skill.resources) {
+        const resourceFilePath = this.joinPath(steeringDir, resource.relativePath)
+
+        const resourceRelativePath: RelativePath = {
+          pathKind: FilePathKind.Relative,
+          path: this.joinPath(STEERING_SUBDIR, resource.relativePath),
+          basePath: powerDir,
+          getDirectoryName: () => STEERING_SUBDIR,
+          getAbsolutePath: () => resourceFilePath,
+        }
+
+        if (ctx.dryRun === true) {
+          this.log.trace({ action: 'dryRun', type: 'resource', path: resourceFilePath })
+          fileResults.push({ path: resourceRelativePath, success: true, skipped: false })
+        } else {
+          try {
+            // Ensure parent directory exists for nested resources
+            const parentDir = this.dirname(resourceFilePath)
+            this.ensureDirectory(parentDir)
+
+            // Write content directly as-is
+            this.writeFileSync(resourceFilePath, resource.content)
+
+            this.log.trace({ action: 'write', type: 'resource', path: resourceFilePath })
+            fileResults.push({ path: resourceRelativePath, success: true })
+          } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error)
+            this.log.error({ action: 'write', type: 'resource', path: resourceFilePath, error: errMsg })
+            fileResults.push({ path: resourceRelativePath, success: false, error: error as Error })
+          }
+        }
+      }
+    }
+
+    // Write mcp.json if skill has MCP configuration
+    if (skill.mcpConfig != null) {
+      const mcpResult = await this.writeSkillMcpConfig(ctx, skill, powerDir)
+      fileResults.push(mcpResult)
+    }
+
     // Register in Kiro powers registry after writing POWER.md
     // Requirements: 4.3, 4.4, 4.8
     const registryWriter = this.getRegistryWriter(KiroPowersRegistryWriter)
@@ -513,6 +593,51 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     return { fileResults, registryResult }
+  }
+
+  /**
+   * Write MCP configuration for a single skill to its power directory.
+   * Writes the skill's mcp.json directly to ~/.kiro/powers/installed/{skill-name}/mcp.json
+   *
+   * @param ctx - The output write context
+   * @param skill - The skill prompt containing MCP configuration
+   * @param powerDir - The power directory path
+   * @returns WriteResult indicating success or failure
+   */
+  private async writeSkillMcpConfig(
+    ctx: OutputWriteContext,
+    skill: SkillPrompt,
+    powerDir: string,
+  ): Promise<WriteResult> {
+    const skillName = skill.yamlFrontMatter.name
+    const mcpConfigPath = this.joinPath(powerDir, MCP_CONFIG_FILE)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: MCP_CONFIG_FILE,
+      basePath: powerDir,
+      getDirectoryName: () => skillName,
+      getAbsolutePath: () => mcpConfigPath,
+    }
+
+    // Use the raw content from the skill's mcp.json (preserves original format)
+    const mcpConfigContent = skill.mcpConfig!.rawContent
+
+    if (ctx.dryRun === true) {
+      this.log.trace({ action: 'dryRun', type: 'mcpConfig', path: mcpConfigPath, skill: skillName })
+      return { path: relativePath, success: true, skipped: false }
+    }
+
+    try {
+      this.ensureDirectory(powerDir)
+      this.writeFileSync(mcpConfigPath, mcpConfigContent)
+      this.log.trace({ action: 'write', type: 'mcpConfig', path: mcpConfigPath, skill: skillName })
+      return { path: relativePath, success: true }
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({ action: 'write', type: 'mcpConfig', path: mcpConfigPath, error: errMsg })
+      return { path: relativePath, success: false, error: error as Error }
+    }
   }
 
   /**

@@ -1,3 +1,4 @@
+import type { Buffer } from 'node:buffer'
 import type { RegistryWriter } from './registry/RegistryWriter'
 import type { ILogger } from '@/log'
 import type {
@@ -13,8 +14,8 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { FastCommandSeriesPluginOverride } from '@/types/ConfigTypes'
 
+import type { FastCommandSeriesPluginOverride } from '@/types/ConfigTypes'
 import type { Path, RelativePath } from '@/types/FileSystemTypes'
 import type { RegistryData } from '@/types/RegistryTypes'
 import * as fs from 'node:fs'
@@ -437,7 +438,23 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    * ```
    */
   protected getGlobalConfigDir(): string {
-    return path.join(os.homedir(), this.globalConfigDir)
+    return path.join(this.getHomeDir(), this.globalConfigDir)
+  }
+
+  /**
+   * Get the user's home directory.
+   * Wrapper around os.homedir() for consistency and testability.
+   *
+   * @returns The absolute path to the user's home directory
+   *
+   * @example
+   * ```typescript
+   * const homeDir = this.getHomeDir()
+   * // Returns something like '/home/user' or 'C:\\Users\\user'
+   * ```
+   */
+  protected getHomeDir(): string {
+    return os.homedir()
   }
 
   /**
@@ -520,6 +537,23 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    */
   protected writeFileSync(filePath: string, content: string, encoding: BufferEncoding = 'utf-8'): void {
     fs.writeFileSync(filePath, content, encoding)
+  }
+
+  /**
+   * Write binary file content synchronously.
+   * Wrapper around fs.writeFileSync for binary data.
+   *
+   * @param filePath - The file path to write
+   * @param buffer - The buffer to write
+   *
+   * @example
+   * ```typescript
+   * const buffer = Buffer.from(base64Content, 'base64')
+   * this.writeFileSyncBuffer('/path/to/file.png', buffer)
+   * ```
+   */
+  protected writeFileSyncBuffer(filePath: string, buffer: Buffer): void {
+    fs.writeFileSync(filePath, buffer)
   }
 
   /**

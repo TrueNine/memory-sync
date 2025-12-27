@@ -257,6 +257,14 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
           results.push(...refResults)
         }
       }
+
+      // Write resource files if any
+      if (skill.resources != null) {
+        for (const resource of skill.resources) {
+          const resourceResults = await this.writeSkillResource(ctx, targetDir, skillName, resource, globalDir)
+          results.push(...resourceResults)
+        }
+      }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({ action: 'write', type: 'globalSkill', path: fullPath, error: errMsg })
@@ -408,6 +416,48 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({ action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg })
+      results.push({ path: relativePath, success: false, error: error as Error })
+    }
+
+    return results
+  }
+
+  /**
+   * Write skill resource file (non-.md files like .kt, .java, .sql, etc.)
+   */
+  private async writeSkillResource(
+    ctx: OutputWriteContext,
+    skillDir: string,
+    skillName: string,
+    resource: { relativePath: string, content: string },
+    globalDir: string,
+  ): Promise<WriteResult[]> {
+    const results: WriteResult[] = []
+    const fullPath = path.join(skillDir, resource.relativePath)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(SKILLS_SUBDIR, skillName, resource.relativePath),
+      basePath: globalDir,
+      getDirectoryName: () => skillName,
+      getAbsolutePath: () => fullPath,
+    }
+
+    if (ctx.dryRun === true) {
+      this.log.trace({ action: 'dryRun', type: 'skillResource', path: fullPath })
+      return [{ path: relativePath, success: true, skipped: false }]
+    }
+
+    try {
+      // Ensure parent directory exists for nested resources
+      const parentDir = path.dirname(fullPath)
+      this.ensureDirectory(parentDir)
+      fs.writeFileSync(fullPath, resource.content, 'utf-8')
+      this.log.trace({ action: 'write', type: 'skillResource', path: fullPath })
+      results.push({ path: relativePath, success: true })
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({ action: 'write', type: 'skillResource', path: fullPath, error: errMsg })
       results.push({ path: relativePath, success: false, error: error as Error })
     }
 
