@@ -10,7 +10,22 @@ export enum PromptKind {
   FastCommand = 'FastCommand',
   SubAgent = 'SubAgent',
   Skill = 'Skill',
-  SkillReferenceDocument = 'SkillReferenceDocument',
+  /**
+   * Skill child document (.md files in any subdirectory)
+   */
+  SkillChildDoc = 'SkillChildDoc',
+  /**
+   * Skill resource file for AI on-demand access
+   * Includes code files, binary files, images, data files, etc.
+   * Any non-.md file in skill directory or subdirectories
+   */
+  SkillResource = 'SkillResource',
+  /**
+   * Skill MCP configuration file (mcp.json)
+   * - Kiro: supports per-power MCP configuration
+   * - Others: may support lazy loading in the future
+   */
+  SkillMcpConfig = 'SkillMcpConfig',
   Readme = 'Readme',
 }
 

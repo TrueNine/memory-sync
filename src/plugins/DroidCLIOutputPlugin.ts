@@ -296,8 +296,8 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       results.push({ path: relativePath, success: true })
 
       // Write reference documents if any
-      if (skill.referenceDocuments != null) {
-        for (const refDoc of skill.referenceDocuments) {
+      if (skill.childDocs != null) {
+        for (const refDoc of skill.childDocs) {
           const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc, projectDir)
           results.push(...refResults)
         }
@@ -336,6 +336,9 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     try {
+      // Ensure parent directory exists for nested reference documents
+      const parentDir = path.dirname(fullPath)
+      this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, refDoc.content as string, 'utf-8')
       this.log.trace({ action: 'write', type: 'skillRefDoc', path: fullPath })
       results.push({ path: relativePath, success: true })

@@ -115,17 +115,334 @@ export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAML
 }
 
 /**
- * skill 包含的其他文件
+ * Skill child document (.md files in skill directory or any subdirectory)
+ * Excludes SKILL.md which is the main skill file
  */
-export interface SkillReferenceDocument extends Prompt<PromptKind.SkillReferenceDocument> {
-  readonly type: PromptKind.SkillReferenceDocument
-  readonly dir: RelativePath
-  readonly referenceDocuments?: SkillReferenceDocument[]
+export interface SkillChildDoc extends Prompt<PromptKind.SkillChildDoc> {
+  readonly type: PromptKind.SkillChildDoc
+  /**
+   * Relative path from skill directory (e.g., 'docs/guide.md', 'examples/basic.md')
+   */
+  readonly relativePath: string
+}
+
+/**
+ * Resource content encoding type
+ */
+export type SkillResourceEncoding = 'text' | 'base64'
+
+/**
+ * Resource category for classification
+ */
+export type SkillResourceCategory
+  = | 'code' // .kt, .java, .py, .ts, .js, .go, .rs, etc.
+    | 'data' // .sql, .json, .xml, .yaml, .csv, etc.
+    | 'document' // .txt, .rtf, .docx, .pdf, etc.
+    | 'config' // .ini, .conf, .properties, etc.
+    | 'script' // .sh, .bash, .ps1, .bat, etc.
+    | 'image' // .png, .jpg, .gif, .svg, .webp, etc.
+    | 'binary' // .exe, .dll, .so, .wasm, etc.
+    | 'other' // anything else
+
+/**
+ * Skill resource file for AI on-demand access
+ * Any non-.md file in skill directory or subdirectories
+ *
+ * Supports:
+ * - Code files: .kt, .java, .py, .ts, .js, .go, .rs, .c, .cpp, etc.
+ * - Data files: .sql, .json, .xml, .yaml, .csv, etc.
+ * - Documents: .txt, .rtf, .docx, .pdf, etc.
+ * - Config files: .ini, .conf, .properties, etc.
+ * - Scripts: .sh, .bash, .ps1, .bat, etc.
+ * - Images: .png, .jpg, .gif, .svg, .webp, etc.
+ * - Binary files: .exe, .dll, .wasm, etc.
+ */
+export interface SkillResource {
+  readonly type: PromptKind.SkillResource
+  /**
+   * File extension (e.g., '.kt', '.java', '.sql', '.docx', '.png')
+   */
+  readonly extension: string
+  /**
+   * File name without directory path
+   */
+  readonly fileName: string
+  /**
+   * Relative path from skill directory (e.g., 'helper.kt', 'assets/logo.png', 'data/schema.sql')
+   */
+  readonly relativePath: string
+  /**
+   * File content
+   * - For text files: UTF-8 encoded string
+   * - For binary files: base64 encoded string
+   */
+  readonly content: string
+  /**
+   * Content encoding type
+   */
+  readonly encoding: SkillResourceEncoding
+  /**
+   * Resource category for classification
+   */
+  readonly category: SkillResourceCategory
+  /**
+   * Content length in bytes (original size for binary files)
+   */
+  readonly length: number
+  /**
+   * MIME type if detectable
+   */
+  readonly mimeType?: string
+}
+
+/**
+ * Text file extensions that should be read as UTF-8
+ */
+export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
+  // Code files
+  '.kt',
+  '.java',
+  '.py',
+  '.pyi',
+  '.pyx',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.go',
+  '.rs',
+  '.c',
+  '.cpp',
+  '.cc',
+  '.h',
+  '.hpp',
+  '.hxx',
+  '.cs',
+  '.fs',
+  '.fsx',
+  '.vb',
+  '.rb',
+  '.php',
+  '.swift',
+  '.scala',
+  '.groovy',
+  '.lua',
+  '.r',
+  '.R',
+  '.jl',
+  '.ex',
+  '.exs',
+  '.erl',
+  '.clj',
+  '.cljs',
+  '.hs',
+  '.ml',
+  '.mli',
+  '.nim',
+  '.zig',
+  '.v',
+  '.dart',
+  '.vue',
+  '.svelte',
+  // Data files
+  '.sql',
+  '.json',
+  '.jsonc',
+  '.json5',
+  '.xml',
+  '.xsd',
+  '.xsl',
+  '.xslt',
+  '.yaml',
+  '.yml',
+  '.toml',
+  '.csv',
+  '.tsv',
+  '.graphql',
+  '.gql',
+  '.proto',
+  // Document files
+  '.txt',
+  '.text',
+  '.rtf',
+  '.log',
+  // Config files
+  '.ini',
+  '.conf',
+  '.cfg',
+  '.config',
+  '.properties',
+  '.env',
+  '.envrc',
+  '.editorconfig',
+  '.gitignore',
+  '.gitattributes',
+  '.npmrc',
+  '.nvmrc',
+  '.npmignore',
+  '.eslintrc',
+  '.prettierrc',
+  '.stylelintrc',
+  '.babelrc',
+  '.browserslistrc',
+  // Script files
+  '.sh',
+  '.bash',
+  '.zsh',
+  '.fish',
+  '.ps1',
+  '.psm1',
+  '.psd1',
+  '.bat',
+  '.cmd',
+  // Web files
+  '.html',
+  '.htm',
+  '.xhtml',
+  '.css',
+  '.scss',
+  '.sass',
+  '.less',
+  '.styl',
+  '.svg',
+  // Template files
+  '.ejs',
+  '.hbs',
+  '.mustache',
+  '.pug',
+  '.jade',
+  '.jinja',
+  '.jinja2',
+  '.j2',
+  '.erb',
+  '.haml',
+  '.slim',
+  // Declaration files
+  '.d.ts',
+  '.d.mts',
+  '.d.cts',
+  // Other text formats
+  '.diff',
+  '.patch',
+  '.asm',
+  '.s',
+  '.makefile',
+  '.mk',
+  '.dockerfile',
+  '.tf',
+  '.tfvars', // Terraform
+  '.prisma', // Prisma
+  '.mdx', // MDX (but not .md which is handled separately)
+] as const
+
+/**
+ * Binary file extensions that should be read as base64
+ */
+export const SKILL_RESOURCE_BINARY_EXTENSIONS = [
+  // Documents
+  '.docx',
+  '.doc',
+  '.xlsx',
+  '.xls',
+  '.pptx',
+  '.ppt',
+  '.pdf',
+  '.odt',
+  '.ods',
+  '.odp',
+  // Images
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.ico',
+  '.bmp',
+  '.tiff',
+  // Archives
+  '.zip',
+  '.tar',
+  '.gz',
+  '.bz2',
+  '.7z',
+  '.rar',
+  // Compiled
+  '.pyd',
+  '.pyc',
+  '.pyo',
+  '.class',
+  '.jar',
+  '.war',
+  '.dll',
+  '.so',
+  '.dylib',
+  '.exe',
+  '.bin',
+  '.wasm',
+  // Fonts
+  '.ttf',
+  '.otf',
+  '.woff',
+  '.woff2',
+  '.eot',
+  // Audio/Video (usually not needed but for completeness)
+  '.mp3',
+  '.wav',
+  '.ogg',
+  '.mp4',
+  '.webm',
+  // Database
+  '.db',
+  '.sqlite',
+  '.sqlite3',
+] as const
+
+export type SkillResourceTextExtension = typeof SKILL_RESOURCE_TEXT_EXTENSIONS[number]
+export type SkillResourceBinaryExtension = typeof SKILL_RESOURCE_BINARY_EXTENSIONS[number]
+
+/**
+ * MCP server configuration entry
+ */
+export interface McpServerConfig {
+  readonly command: string
+  readonly args?: readonly string[]
+  readonly env?: Readonly<Record<string, string>>
+  readonly disabled?: boolean
+  readonly autoApprove?: readonly string[]
+}
+
+/**
+ * Skill MCP configuration (mcp.json)
+ * - Kiro: supports per-power MCP configuration natively
+ * - Others: may support lazy loading in the future
+ */
+export interface SkillMcpConfig {
+  readonly type: PromptKind.SkillMcpConfig
+  /**
+   * MCP servers configuration
+   */
+  readonly mcpServers: Readonly<Record<string, McpServerConfig>>
+  /**
+   * Raw JSON content
+   */
+  readonly rawContent: string
 }
 
 /**
  * skill 主文件（SKILL.md）
  * skill name 从 front matter 当中进行获取
+ *
+ * Skill structure:
+ * - SKILL.md: Main skill definition file (required)
+ * - mcp.json: MCP server configuration (optional)
+ *   - Kiro: supports per-power MCP configuration
+ *   - Others: may support lazy loading
+ * - childDocs: All .md files in skill directory or subdirectories (optional)
+ * - resources: All non-.md files for AI on-demand access (optional)
+ *   - Code, data, documents, images, binary files, etc.
+ *   - Can be in any subdirectory
  */
 export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatter> {
   readonly type: PromptKind.Skill
@@ -133,8 +450,24 @@ export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatt
    * skill 是需要一个目录来表示是一组 skill
    */
   readonly dir: RelativePath
-  readonly referenceDocuments?: SkillReferenceDocument[]
   readonly yamlFrontMatter: SkillYAMLFrontMatter
+  /**
+   * MCP configuration (mcp.json)
+   * - Kiro: supports per-power MCP configuration
+   * - Others: may support lazy loading
+   */
+  readonly mcpConfig?: SkillMcpConfig
+  /**
+   * Child documents (.md files in skill directory or subdirectories)
+   * Excludes SKILL.md
+   */
+  readonly childDocs?: SkillChildDoc[]
+  /**
+   * Resource files for AI on-demand access
+   * All non-.md files in skill directory or subdirectories
+   * Includes code, data, documents, images, binary files, etc.
+   */
+  readonly resources?: SkillResource[]
 }
 
 /**

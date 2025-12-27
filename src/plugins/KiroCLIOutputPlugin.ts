@@ -231,9 +231,9 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         })
 
         // Register reference documents in steering/ subdirectory
-        if (skill.referenceDocuments != null) {
+        if (skill.childDocs != null) {
           const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
-          for (const refDoc of skill.referenceDocuments) {
+          for (const refDoc of skill.childDocs) {
             const refDocFileName = refDoc.dir.path
             results.push({
               pathKind: FilePathKind.Relative,
@@ -463,10 +463,10 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Write reference documents to steering/ subdirectory
-    if (skill.referenceDocuments != null) {
+    if (skill.childDocs != null) {
       const steeringDir = this.joinPath(powerDir, STEERING_SUBDIR)
 
-      for (const refDoc of skill.referenceDocuments) {
+      for (const refDoc of skill.childDocs) {
         const refDocFileName = refDoc.dir.path
         const refDocFilePath = this.joinPath(steeringDir, refDocFileName)
 
@@ -486,7 +486,9 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
           fileResults.push({ path: refDocRelativePath, success: true, skipped: false })
         } else {
           try {
-            this.ensureDirectory(steeringDir)
+            // Ensure parent directory exists for nested reference documents
+            const parentDir = this.dirname(refDocFilePath)
+            this.ensureDirectory(parentDir)
             this.writeFileSync(refDocFilePath, refDocContent)
             this.log.trace({ action: 'write', type: 'refDoc', path: refDocFilePath })
             fileResults.push({ path: refDocRelativePath, success: true })
