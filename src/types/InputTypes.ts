@@ -133,16 +133,26 @@ export type SkillResourceEncoding = 'text' | 'base64'
 
 /**
  * Resource category for classification
+ *
+ * Categories:
+ * - code: .kt, .java, .py, .ts, .js, .go, .rs, etc.
+ * - data: .sql, .json, .xml, .yaml, .csv, etc.
+ * - document: .txt, .rtf, .docx, .pdf, etc.
+ * - config: .ini, .conf, .properties, etc.
+ * - script: .sh, .bash, .ps1, .bat, etc.
+ * - image: .png, .jpg, .gif, .svg, .webp, etc.
+ * - binary: .exe, .dll, .so, .wasm, etc.
+ * - other: anything else
  */
-export type SkillResourceCategory
-  = | 'code' // .kt, .java, .py, .ts, .js, .go, .rs, etc.
-    | 'data' // .sql, .json, .xml, .yaml, .csv, etc.
-    | 'document' // .txt, .rtf, .docx, .pdf, etc.
-    | 'config' // .ini, .conf, .properties, etc.
-    | 'script' // .sh, .bash, .ps1, .bat, etc.
-    | 'image' // .png, .jpg, .gif, .svg, .webp, etc.
-    | 'binary' // .exe, .dll, .so, .wasm, etc.
-    | 'other' // anything else
+export type SkillResourceCategory =
+  | 'code'
+  | 'data'
+  | 'document'
+  | 'config'
+  | 'script'
+  | 'image'
+  | 'binary'
+  | 'other'
 
 /**
  * Skill resource file for AI on-demand access
@@ -332,9 +342,12 @@ export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
   '.mk',
   '.dockerfile',
   '.tf',
-  '.tfvars', // Terraform
-  '.prisma', // Prisma
-  '.mdx', // MDX (but not .md which is handled separately)
+  // Terraform
+  '.tfvars',
+  // Prisma
+  '.prisma',
+  // MDX (but not .md which is handled separately)
+  '.mdx',
 ] as const
 
 /**

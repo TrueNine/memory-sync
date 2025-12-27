@@ -206,7 +206,7 @@ describe('skillInputPlugin', () => {
             return '# Content'
           }
           if (filePath.endsWith('.png')) {
-            return Buffer.from('binary')
+            return globalThis.Buffer.from('binary')
           }
           return 'code content'
         }),
@@ -253,7 +253,7 @@ describe('skillInputPlugin', () => {
             return '# Content'
           }
           if (filePath.endsWith('.png')) {
-            return Buffer.from('binary')
+            return globalThis.Buffer.from('binary')
           }
           return 'content'
         }),
@@ -277,7 +277,7 @@ describe('skillInputPlugin', () => {
         readdirSync: vi.fn().mockReturnValue([
           { name: 'image.png', isFile: () => true, isDirectory: () => false },
         ]),
-        readFileSync: vi.fn().mockReturnValue(Buffer.from('binary content')),
+        readFileSync: vi.fn().mockReturnValue(globalThis.Buffer.from('binary content')),
       } as unknown as typeof import('node:fs')
 
       const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())

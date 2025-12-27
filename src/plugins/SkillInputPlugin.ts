@@ -41,16 +41,16 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     skillDir: string,
     fs: typeof import('node:fs'),
     logger: ILogger,
-  ): SkillMcpConfig | undefined {
+  ): SkillMcpConfig | void {
     const mcpJsonPath = path.join(skillDir, 'mcp.json')
 
     if (!fs.existsSync(mcpJsonPath)) {
-      return undefined
+      return void 0
     }
 
     if (!fs.statSync(mcpJsonPath).isFile()) {
       logger.warn('mcp.json is not a file', { skillDir })
-      return undefined
+      return void 0
     }
 
     try {
@@ -59,7 +59,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
 
       if (parsed.mcpServers == null || typeof parsed.mcpServers !== 'object') {
         logger.warn('mcp.json missing mcpServers field', { skillDir })
-        return undefined
+        return void 0
       }
 
       return {
@@ -69,7 +69,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       }
     } catch (e) {
       logger.warn('failed to parse mcp.json', { skillDir, error: e })
-      return undefined
+      return void 0
     }
   }
 
@@ -288,9 +288,9 @@ export class SkillInputPlugin extends AbstractInputPlugin {
    * Get MIME type for a file extension.
    *
    * @param ext - The file extension (including the dot)
-   * @returns The MIME type or undefined
+   * @returns The MIME type or void 0
    */
-  getMimeType(ext: string): string | undefined {
+  getMimeType(ext: string): string | void {
     const mimeTypes: Record<string, string> = {
       // Code
       '.ts': 'text/typescript',
@@ -433,7 +433,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 // Read as UTF-8 text (default for unknown extensions too)
                 content = fs.readFileSync(filePath, 'utf-8')
                 encoding = 'text'
-                length = Buffer.byteLength(content, 'utf-8')
+                length = globalThis.Buffer.byteLength(content, 'utf-8')
               }
 
               const mimeType = this.getMimeType(ext)
