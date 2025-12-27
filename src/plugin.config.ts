@@ -11,11 +11,14 @@ import { GlobalMemoryInputPlugin } from '@/plugins/GlobalMemoryInputPlugin'
 import { IdeConfigInputPlugin } from '@/plugins/IdeConfigInputPlugin'
 import { JetBrainsIDECodeStyleConfigOutputPlugin } from '@/plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
 import { KiroCLIOutputPlugin } from '@/plugins/KiroCLIOutputPlugin'
+import { MarkdownWhitespaceCleanupEffectInputPlugin } from '@/plugins/MarkdownWhitespaceCleanupEffectInputPlugin'
+import { OrphanFileCleanupEffectInputPlugin } from '@/plugins/OrphanFileCleanupEffectInputPlugin'
 import { ProjectPromptInputPlugin } from '@/plugins/ProjectPromptInputPlugin'
 import { ReadmeMdConfigFileOutputPlugin } from '@/plugins/ReadmeMdConfigFileOutputPlugin'
 import { ReadmeMdInputPlugin } from '@/plugins/ReadmeMdInputPlugin'
 import { ShadowProjectInputPlugin } from '@/plugins/ShadowProjectInputPlugin'
 import { SkillInputPlugin } from '@/plugins/SkillInputPlugin'
+import { SkillNonSrcFileSyncEffectInputPlugin } from '@/plugins/SkillNonSrcFileSyncEffectInputPlugin'
 import { SubAgentInputPlugin } from '@/plugins/SubAgentInputPlugin'
 import { WarpIDEOutputPlugin } from '@/plugins/WarpIDEOutputPlugin'
 import { WorkspaceInputPlugin } from '@/plugins/WorkspaceInputPlugin'
@@ -35,6 +38,11 @@ export default defineConfig({
     new JetBrainsIDECodeStyleConfigOutputPlugin(),
     new VisualStudioCodeIDEConfigOutputPlugin(),
     new ReadmeMdConfigFileOutputPlugin(),
+
+    // Effect Input Plugins (executed in priority order: 10, 20, 30)
+    new SkillNonSrcFileSyncEffectInputPlugin(),
+    new OrphanFileCleanupEffectInputPlugin(),
+    new MarkdownWhitespaceCleanupEffectInputPlugin(),
 
     new WorkspaceInputPlugin(),
     new ShadowProjectInputPlugin(),

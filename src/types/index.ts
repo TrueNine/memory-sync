@@ -9,14 +9,8 @@ export * from './PromptTypes'
 export * from './RegistryTypes'
 export * from './ShadowSourceProjectTypes'
 
-// Re-export abstract plugin classes for easy importing
-export {
-  AbstractInputPlugin,
-  AbstractOutputPlugin,
-  AbstractPlugin,
-} from '@/plugins'
-export type {
-  AbstractOutputPluginOptions,
-  FastCommandNameTransformOptions,
-  ResolvedBasePaths,
-} from '@/plugins'
+// NOTE: Abstract plugin classes are NOT re-exported here to avoid circular dependencies.
+// Import them directly from '@/plugins' instead:
+//   import { AbstractInputPlugin, AbstractOutputPlugin, AbstractPlugin } from '@/plugins'
+// Types like AbstractOutputPluginOptions, FastCommandNameTransformOptions, ResolvedBasePaths
+// are also available from '@/plugins'.

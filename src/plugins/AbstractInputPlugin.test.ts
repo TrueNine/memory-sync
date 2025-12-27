@@ -1,0 +1,413 @@
+import type { InputEffectContext, InputEffectResult } from './AbstractInputPlugin'
+import type { InputPluginContext, PluginOptions } from '@/types'
+
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
+import glob from 'fast-glob'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { createLogger } from '@/log'
+import { AbstractInputPlugin, cleanStaleDistFiles, syncDirectory } from './AbstractInputPlugin'
+
+// Concrete implementation for testing
+class TestInputPlugin extends AbstractInputPlugin {
+  public effectResults: InputEffectResult[] = []
+
+  constructor(name: string = 'TestInputPlugin', dependsOn?: readonly string[]) {
+    super(name, dependsOn)
+  }
+
+  collect(): { testData: string } {
+    return { testData: 'collected' }
+  }
+
+  // Expose protected methods for testing
+  public exposeRegisterEffect(
+    name: string,
+    handler: (ctx: InputEffectContext) => Promise<InputEffectResult>,
+    priority?: number,
+  ): void {
+    this.registerEffect(name, handler, priority)
+  }
+
+  public exposeResolveBasePaths(options: PluginOptions): { workspaceDir: string, shadowProjectDir: string } {
+    return this.resolveBasePaths(options)
+  }
+
+  public exposeResolvePath(rawPath: string, workspaceDir: string, shadowProjectDir: string): string {
+    return this.resolvePath(rawPath, workspaceDir, shadowProjectDir)
+  }
+}
+
+describe('abstractInputPlugin', () => {
+  let plugin: TestInputPlugin
+  let mockLogger: ReturnType<typeof createLogger>
+
+  beforeEach(() => {
+    plugin = new TestInputPlugin()
+    mockLogger = createLogger('test')
+  })
+
+  describe('effect registration', () => {
+    it('should register effects', () => {
+      expect(plugin.hasEffects()).toBe(false)
+      expect(plugin.getEffectCount()).toBe(0)
+
+      plugin.exposeRegisterEffect('test-effect', async () => ({
+        success: true,
+        description: 'Test effect executed',
+      }))
+
+      expect(plugin.hasEffects()).toBe(true)
+      expect(plugin.getEffectCount()).toBe(1)
+    })
+
+    it('should sort effects by priority', () => {
+      const executionOrder: string[] = []
+
+      plugin.exposeRegisterEffect('low-priority', async () => {
+        executionOrder.push('low')
+        return { success: true }
+      }, 10)
+
+      plugin.exposeRegisterEffect('high-priority', async () => {
+        executionOrder.push('high')
+        return { success: true }
+      }, -10)
+
+      plugin.exposeRegisterEffect('default-priority', async () => {
+        executionOrder.push('default')
+        return { success: true }
+      })
+
+      expect(plugin.getEffectCount()).toBe(3)
+    })
+  })
+
+  describe('executeEffects', () => {
+    it('should execute effects in priority order', async () => {
+      const executionOrder: string[] = []
+
+      plugin.exposeRegisterEffect('third', async () => {
+        executionOrder.push('third')
+        return { success: true }
+      }, 10)
+
+      plugin.exposeRegisterEffect('first', async () => {
+        executionOrder.push('first')
+        return { success: true }
+      }, -10)
+
+      plugin.exposeRegisterEffect('second', async () => {
+        executionOrder.push('second')
+        return { success: true }
+      }, 0)
+
+      const ctx: InputPluginContext = {
+        logger: mockLogger,
+        fs,
+        path,
+        glob,
+        userConfigOptions: { workspaceDir: '/test' },
+        dependencyContext: {},
+      }
+
+      const results = await plugin.executeEffects(ctx)
+
+      expect(results).toHaveLength(3)
+      expect(results.every((r) => r.success)).toBe(true)
+      expect(executionOrder).toEqual(['first', 'second', 'third'])
+    })
+
+    it('should return empty array when no effects registered', async () => {
+      const ctx: InputPluginContext = {
+        logger: mockLogger,
+        fs,
+        path,
+        glob,
+        userConfigOptions: { workspaceDir: '/test' },
+        dependencyContext: {},
+      }
+
+      const results = await plugin.executeEffects(ctx)
+      expect(results).toHaveLength(0)
+    })
+
+    it('should handle dry-run mode', async () => {
+      let effectExecuted = false
+
+      plugin.exposeRegisterEffect('test-effect', async () => {
+        effectExecuted = true
+        return { success: true }
+      })
+
+      const ctx: InputPluginContext = {
+        logger: mockLogger,
+        fs,
+        path,
+        glob,
+        userConfigOptions: { workspaceDir: '/test' },
+        dependencyContext: {},
+      }
+
+      const results = await plugin.executeEffects(ctx, true)
+
+      expect(results).toHaveLength(1)
+      expect(results[0]?.success).toBe(true)
+      expect(results[0]?.description).toContain('Would execute')
+      expect(effectExecuted).toBe(false)
+    })
+
+    it('should catch and log errors from effects', async () => {
+      plugin.exposeRegisterEffect('failing-effect', async () => {
+        throw new Error('Effect failed')
+      })
+
+      const ctx: InputPluginContext = {
+        logger: mockLogger,
+        fs,
+        path,
+        glob,
+        userConfigOptions: { workspaceDir: '/test' },
+        dependencyContext: {},
+      }
+
+      const results = await plugin.executeEffects(ctx)
+
+      expect(results).toHaveLength(1)
+      expect(results[0]?.success).toBe(false)
+      expect(results[0]?.error?.message).toBe('Effect failed')
+    })
+
+    it('should continue executing effects after one fails', async () => {
+      const executionOrder: string[] = []
+
+      plugin.exposeRegisterEffect('first', async () => {
+        executionOrder.push('first')
+        throw new Error('First failed')
+      }, -10)
+
+      plugin.exposeRegisterEffect('second', async () => {
+        executionOrder.push('second')
+        return { success: true }
+      }, 10)
+
+      const ctx: InputPluginContext = {
+        logger: mockLogger,
+        fs,
+        path,
+        glob,
+        userConfigOptions: { workspaceDir: '/test' },
+        dependencyContext: {},
+      }
+
+      const results = await plugin.executeEffects(ctx)
+
+      expect(results).toHaveLength(2)
+      expect(results[0]?.success).toBe(false)
+      expect(results[1]?.success).toBe(true)
+      expect(executionOrder).toEqual(['first', 'second'])
+    })
+  })
+
+  describe('resolveBasePaths', () => {
+    it('should resolve workspace and shadow project paths', () => {
+      const options: PluginOptions = {
+        workspaceDir: '/custom/workspace',
+        shadowSourceProjectDir: '/custom/workspace/aindex',
+      }
+
+      const { workspaceDir, shadowProjectDir } = plugin.exposeResolveBasePaths(options)
+
+      expect(workspaceDir).toBe('/custom/workspace')
+      expect(shadowProjectDir).toBe('/custom/workspace/aindex')
+    })
+
+    it('should use default paths when not specified', () => {
+      const options: PluginOptions = {}
+
+      const { workspaceDir, shadowProjectDir } = plugin.exposeResolveBasePaths(options)
+
+      expect(workspaceDir).toContain('project')
+      expect(shadowProjectDir).toContain('aindex')
+    })
+  })
+
+  describe('resolvePath', () => {
+    it('should replace ~ with home directory', () => {
+      const resolved = plugin.exposeResolvePath('~/test', '', '')
+      expect(resolved).toBe(path.normalize(`${os.homedir()}/test`))
+    })
+
+    it('should replace $WORKSPACE placeholder', () => {
+      const resolved = plugin.exposeResolvePath('$WORKSPACE/subdir', '/workspace', '')
+      expect(resolved).toBe(path.normalize('/workspace/subdir'))
+    })
+
+    it('should replace $SHADOW_SOURCE_PROJECT placeholder', () => {
+      const resolved = plugin.exposeResolvePath('$SHADOW_SOURCE_PROJECT/dist', '', '/shadow')
+      expect(resolved).toBe(path.normalize('/shadow/dist'))
+    })
+  })
+})
+
+describe('cleanStaleDistFiles', () => {
+  let tempDir: string
+  let srcDir: string
+  let distDir: string
+  let mockLogger: ReturnType<typeof createLogger>
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-clean-stale-'))
+    srcDir = path.join(tempDir, 'src')
+    distDir = path.join(tempDir, 'dist')
+    fs.mkdirSync(srcDir, { recursive: true })
+    fs.mkdirSync(distDir, { recursive: true })
+    mockLogger = createLogger('test')
+  })
+
+  afterEach(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true })
+  })
+
+  it('should delete dist files without corresponding src files', () => {
+    // Create src file
+    fs.mkdirSync(path.join(srcDir, 'skill-a'))
+    fs.writeFileSync(path.join(srcDir, 'skill-a', 'SKILL.md'), '# Skill A')
+
+    // Create dist files (one valid, one stale)
+    fs.writeFileSync(path.join(distDir, 'skill-a.md'), '# Skill A compiled')
+    fs.writeFileSync(path.join(distDir, 'skill-b.md'), '# Skill B compiled (stale)')
+
+    const result = cleanStaleDistFiles(
+      { fs, path, logger: mockLogger },
+      { srcDir, distDir, logger: mockLogger },
+    )
+
+    expect(result.deletedFiles).toHaveLength(1)
+    expect(result.deletedFiles[0]).toContain('skill-b.md')
+    expect(fs.existsSync(path.join(distDir, 'skill-a.md'))).toBe(true)
+    expect(fs.existsSync(path.join(distDir, 'skill-b.md'))).toBe(false)
+  })
+
+  it('should handle dry-run mode', () => {
+    fs.writeFileSync(path.join(distDir, 'stale.md'), '# Stale')
+
+    const result = cleanStaleDistFiles(
+      { fs, path, logger: mockLogger },
+      { srcDir, distDir, dryRun: true, logger: mockLogger },
+    )
+
+    expect(result.wouldDelete).toHaveLength(1)
+    expect(result.deletedFiles).toHaveLength(0)
+    expect(fs.existsSync(path.join(distDir, 'stale.md'))).toBe(true)
+  })
+
+  it('should recursively clean subdirectories', () => {
+    // Create src structure
+    fs.mkdirSync(path.join(srcDir, 'sub', 'skill-a'), { recursive: true })
+    fs.writeFileSync(path.join(srcDir, 'sub', 'skill-a', 'SKILL.md'), '# Skill A')
+
+    // Create dist structure with stale directory
+    fs.mkdirSync(path.join(distDir, 'sub'), { recursive: true })
+    fs.writeFileSync(path.join(distDir, 'sub', 'skill-a.md'), '# Skill A')
+    fs.mkdirSync(path.join(distDir, 'stale-dir'), { recursive: true })
+    fs.writeFileSync(path.join(distDir, 'stale-dir', 'file.md'), '# Stale')
+
+    const result = cleanStaleDistFiles(
+      { fs, path, logger: mockLogger },
+      { srcDir, distDir, logger: mockLogger },
+    )
+
+    expect(result.deletedFiles.some((f) => f.includes('stale-dir'))).toBe(true)
+    expect(fs.existsSync(path.join(distDir, 'stale-dir'))).toBe(false)
+  })
+
+  it('should return empty result when dist directory does not exist', () => {
+    fs.rmSync(distDir, { recursive: true })
+
+    const result = cleanStaleDistFiles(
+      { fs, path, logger: mockLogger },
+      { srcDir, distDir, logger: mockLogger },
+    )
+
+    expect(result.deletedFiles).toHaveLength(0)
+    expect(result.wouldDelete).toHaveLength(0)
+    expect(result.errors).toHaveLength(0)
+  })
+})
+
+describe('syncDirectory', () => {
+  let tempDir: string
+  let srcDir: string
+  let targetDir: string
+  let mockLogger: ReturnType<typeof createLogger>
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-sync-'))
+    srcDir = path.join(tempDir, 'src')
+    targetDir = path.join(tempDir, 'target')
+    fs.mkdirSync(srcDir, { recursive: true })
+    mockLogger = createLogger('test')
+  })
+
+  afterEach(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true })
+  })
+
+  it('should copy files from src to target', () => {
+    fs.writeFileSync(path.join(srcDir, 'file1.md'), '# File 1')
+    fs.writeFileSync(path.join(srcDir, 'file2.md'), '# File 2')
+
+    const result = syncDirectory(
+      { fs, path, logger: mockLogger },
+      { srcDir, targetDir, logger: mockLogger },
+    )
+
+    expect(result.copiedFiles).toHaveLength(2)
+    expect(fs.existsSync(path.join(targetDir, 'file1.md'))).toBe(true)
+    expect(fs.existsSync(path.join(targetDir, 'file2.md'))).toBe(true)
+  })
+
+  it('should delete orphaned files when deleteOrphans is true', () => {
+    fs.writeFileSync(path.join(srcDir, 'keep.md'), '# Keep')
+    fs.mkdirSync(targetDir, { recursive: true })
+    fs.writeFileSync(path.join(targetDir, 'keep.md'), '# Old Keep')
+    fs.writeFileSync(path.join(targetDir, 'orphan.md'), '# Orphan')
+
+    const result = syncDirectory(
+      { fs, path, logger: mockLogger },
+      { srcDir, targetDir, deleteOrphans: true, logger: mockLogger },
+    )
+
+    expect(result.deletedFiles).toHaveLength(1)
+    expect(result.deletedFiles[0]).toContain('orphan.md')
+    expect(fs.existsSync(path.join(targetDir, 'keep.md'))).toBe(true)
+    expect(fs.existsSync(path.join(targetDir, 'orphan.md'))).toBe(false)
+  })
+
+  it('should handle dry-run mode', () => {
+    fs.writeFileSync(path.join(srcDir, 'file.md'), '# File')
+
+    const result = syncDirectory(
+      { fs, path, logger: mockLogger },
+      { srcDir, targetDir, dryRun: true, logger: mockLogger },
+    )
+
+    expect(result.copiedFiles).toHaveLength(1)
+    expect(fs.existsSync(targetDir)).toBe(false)
+  })
+
+  it('should recursively sync subdirectories', () => {
+    fs.mkdirSync(path.join(srcDir, 'sub'), { recursive: true })
+    fs.writeFileSync(path.join(srcDir, 'sub', 'nested.md'), '# Nested')
+
+    const result = syncDirectory(
+      { fs, path, logger: mockLogger },
+      { srcDir, targetDir, logger: mockLogger },
+    )
+
+    expect(result.copiedFiles.some((f) => f.includes('nested.md'))).toBe(true)
+    expect(fs.existsSync(path.join(targetDir, 'sub', 'nested.md'))).toBe(true)
+  })
+})

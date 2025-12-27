@@ -17,6 +17,38 @@ import {
 } from '@/types'
 
 /**
+ * Version control check result
+ */
+export interface VersionControlCheckResult {
+  readonly hasGit: boolean
+  readonly gitPath: string
+}
+
+/**
+ * Check if the shadow source project has version control (.git directory)
+ * Logs info if .git exists, warns if not
+ *
+ * @param rootPath - Root path of the shadow source project
+ * @param logger - Optional logger instance
+ * @returns Version control check result
+ */
+export function checkVersionControl(
+  rootPath: string,
+  logger?: ILogger,
+): VersionControlCheckResult {
+  const gitPath = path.join(rootPath, '.git')
+  const hasGit = fs.existsSync(gitPath)
+
+  if (hasGit) {
+    logger?.info('version control detected', { path: gitPath })
+  } else {
+    logger?.warn('no version control detected, please use git to manage your shadow source project', { path: rootPath })
+  }
+
+  return { hasGit, gitPath }
+}
+
+/**
  * Validation result for a single item (file or directory)
  */
 export interface ValidationItem {

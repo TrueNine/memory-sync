@@ -1,6 +1,6 @@
 import process from 'node:process'
 import { PluginPipeline } from '@/PluginPipeline'
-import userPluginConfig from './plugin.config'
+import userPluginConfigPromise from './plugin.config'
 
 export * from './config'
 export * from './ConfigLoader'
@@ -8,9 +8,10 @@ export * from './constants'
 export * from './log'
 export * from './ShadowSourceProject'
 export * from './types'
-export default userPluginConfig
+export default userPluginConfigPromise
 
 async function main(): Promise<void> {
+  const userPluginConfig = await userPluginConfigPromise
   const pipeline = new PluginPipeline(...process.argv)
   await pipeline.run(userPluginConfig)
 }

@@ -679,15 +679,18 @@ export class PluginPipeline {
   /**
    * Execute plugins in topological order, merging outputs incrementally.
    * Each plugin receives accumulated context from all its dependencies.
+   * For plugins with registered effects, executes effects before collect().
    *
    * @param plugins - Input plugins to execute (will be sorted by dependencies)
    * @param baseCtx - Base context without dependencyContext (will be extended for each plugin)
+   * @param dryRun - Whether to run effects in dry-run mode
    * @returns Merged CollectedInputContext from all plugins
    */
-  executePluginsInOrder(
+  async executePluginsInOrder(
     plugins: readonly InputPlugin[],
     baseCtx: Omit<InputPluginContext, 'dependencyContext'>,
-  ): Partial<CollectedInputContext> {
+    dryRun: boolean = false,
+  ): Promise<Partial<CollectedInputContext>> {
     if (plugins.length === 0) {
       return {}
     }
@@ -709,6 +712,13 @@ export class PluginPipeline {
       const ctx: InputPluginContext = {
         ...baseCtx,
         dependencyContext,
+      }
+
+      // Execute effects before collect() if plugin has any
+      // AbstractInputPlugin provides executeEffects method for effect-based plugins
+      const inputPlugin = plugin as InputPlugin & { executeEffects?: (ctx: InputPluginContext, dryRun: boolean) => Promise<unknown> }
+      if (inputPlugin.executeEffects != null) {
+        await inputPlugin.executeEffects(ctx, dryRun)
       }
 
       // Execute plugin

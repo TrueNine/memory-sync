@@ -289,13 +289,13 @@ describe('pluginPipeline', () => {
   })
 
   describe('executePluginsInOrder', () => {
-    it('should return empty object for empty plugins array', () => {
+    it('should return empty object for empty plugins array', async () => {
       const pipeline = new PluginPipeline()
-      const result = pipeline.executePluginsInOrder([], createBaseContext())
+      const result = await pipeline.executePluginsInOrder([], createBaseContext())
       expect(result).toEqual({})
     })
 
-    it('should execute single plugin and return its output', () => {
+    it('should execute single plugin and return its output', async () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockInputPlugin('A', () => ({
@@ -303,11 +303,11 @@ describe('pluginPipeline', () => {
         })),
       ]
 
-      const result = pipeline.executePluginsInOrder(plugins, createBaseContext())
+      const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
       expect(result.workspace?.directory.path).toBe('/test')
     })
 
-    it('should execute plugins in dependency order', () => {
+    it('should execute plugins in dependency order', async () => {
       const pipeline = new PluginPipeline()
       const executionOrder: string[] = []
 
@@ -322,11 +322,11 @@ describe('pluginPipeline', () => {
         }),
       ]
 
-      pipeline.executePluginsInOrder(plugins, createBaseContext())
+      await pipeline.executePluginsInOrder(plugins, createBaseContext())
       expect(executionOrder).toEqual(['B', 'A'])
     })
 
-    it('should merge outputs from all plugins', () => {
+    it('should merge outputs from all plugins', async () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockInputPlugin('A', () => ({
@@ -343,13 +343,13 @@ describe('pluginPipeline', () => {
         })),
       ]
 
-      const result = pipeline.executePluginsInOrder(plugins, createBaseContext())
+      const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
       expect(result.workspace?.projects).toHaveLength(2)
       expect(result.workspace?.projects.map((p) => p.name)).toContain('project-a')
       expect(result.workspace?.projects.map((p) => p.name)).toContain('project-b')
     })
 
-    it('should pass dependency context to dependent plugins', () => {
+    it('should pass dependency context to dependent plugins', async () => {
       const pipeline = new PluginPipeline()
       let receivedContext: Partial<CollectedInputContext> | undefined
 
@@ -366,14 +366,14 @@ describe('pluginPipeline', () => {
         }, ['B']),
       ]
 
-      pipeline.executePluginsInOrder(plugins, createBaseContext())
+      await pipeline.executePluginsInOrder(plugins, createBaseContext())
 
       expect(receivedContext).toBeDefined()
       expect(receivedContext?.workspace?.projects).toHaveLength(1)
       expect(receivedContext?.workspace?.projects[0]?.name).toBe('from-B')
     })
 
-    it('should provide empty dependency context for plugins without dependencies', () => {
+    it('should provide empty dependency context for plugins without dependencies', async () => {
       const pipeline = new PluginPipeline()
       let receivedContext: Partial<CollectedInputContext> | undefined
 
@@ -384,11 +384,11 @@ describe('pluginPipeline', () => {
         }),
       ]
 
-      pipeline.executePluginsInOrder(plugins, createBaseContext())
+      await pipeline.executePluginsInOrder(plugins, createBaseContext())
       expect(receivedContext).toEqual({})
     })
 
-    it('should handle diamond dependency pattern with correct context', () => {
+    it('should handle diamond dependency pattern with correct context', async () => {
       const pipeline = new PluginPipeline()
       const executionOrder: string[] = []
       let aReceivedContext: Partial<CollectedInputContext> | undefined
@@ -429,7 +429,7 @@ describe('pluginPipeline', () => {
         }),
       ]
 
-      pipeline.executePluginsInOrder(plugins, createBaseContext())
+      await pipeline.executePluginsInOrder(plugins, createBaseContext())
 
       // D must execute first
       expect(executionOrder.indexOf('D')).toBeLessThan(executionOrder.indexOf('B'))
@@ -445,7 +445,7 @@ describe('pluginPipeline', () => {
       expect(projectNames).toContain('from-C')
     })
 
-    it('should merge array fields correctly', () => {
+    it('should merge array fields correctly', async () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockInputPlugin('A', () => ({
@@ -456,11 +456,11 @@ describe('pluginPipeline', () => {
         })),
       ]
 
-      const result = pipeline.executePluginsInOrder(plugins, createBaseContext())
+      const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
       expect(result.fastCommands).toHaveLength(2)
     })
 
-    it('should use last globalMemory when multiple plugins provide it', () => {
+    it('should use last globalMemory when multiple plugins provide it', async () => {
       const pipeline = new PluginPipeline()
       const mockGlobalMemoryA = {
         type: PromptKind.GlobalMemory,
@@ -490,7 +490,7 @@ describe('pluginPipeline', () => {
         })),
       ]
 
-      const result = pipeline.executePluginsInOrder(plugins, createBaseContext())
+      const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
       expect(result.globalMemory?.content).toBe('from-B')
     })
   })

@@ -16,6 +16,7 @@ import {
 } from '@/constants'
 import { createLogger } from '@/log'
 import { PluginPipeline } from '@/PluginPipeline'
+import { checkVersionControl } from '@/ShadowSourceProject'
 import { PluginKind } from '@/types'
 
 /**
@@ -210,7 +211,7 @@ function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): op
  *
  * @param options - Plugin options or DefineConfigOptions
  */
-export function defineConfig(options: PluginOptions | DefineConfigOptions = {}): PipelineConfig {
+export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
   // Validate and ensure global config exists
   const validationResult = validateAndEnsureGlobalConfig()
   if (validationResult.shouldExit) {
@@ -281,7 +282,7 @@ export function defineConfig(options: PluginOptions | DefineConfigOptions = {}):
 
   // Use PluginPipeline to execute plugins in dependency order
   const pipeline = new PluginPipeline()
-  const merged = pipeline.executePluginsInOrder(inputPlugins, baseCtx)
+  const merged = await pipeline.executePluginsInOrder(inputPlugins, baseCtx)
 
   // Validate workspace exists
   if (merged.workspace == null) {
@@ -299,6 +300,11 @@ export function defineConfig(options: PluginOptions | DefineConfigOptions = {}):
     ...(merged.aiAgentIgnoreConfigFiles != null && { aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles }),
     ...(merged.shadowSourceProjectDir != null && { shadowSourceProjectDir: merged.shadowSourceProjectDir }),
     ...(merged.readmePrompts != null && { readmePrompts: merged.readmePrompts }),
+  }
+
+  // Check version control status for shadow source project
+  if (merged.shadowSourceProjectDir != null) {
+    checkVersionControl(merged.shadowSourceProjectDir, logger)
   }
 
   return { context, outputPlugins, userConfigOptions: mergedOptions }

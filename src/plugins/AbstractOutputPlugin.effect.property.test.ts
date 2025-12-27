@@ -1,602 +1,375 @@
-import type {
-  CleanEffectHandler,
-  EffectResult,
-  OutputCleanContext,
-  OutputWriteContext,
-  WriteEffectHandler,
-} from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type { ILogger } from '@/log'
+import type { PluginOptions } from '@/types/PluginTypes'
+
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import * as fc from 'fast-check'
+import * as glob from 'fast-glob'
 import { describe, expect, it } from 'vitest'
-import { FilePathKind } from '@/types'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
 /**
- * Test implementation that exposes effect registration and execution for testing.
+ * Feature: effect-input-plugins
+ * Property-based tests for dry-run behavior across all Effect Input Plugins
+ *
+ * Property 4: Dry-run no-op
+ * For any Effect Input Plugin running in dry-run mode, the filesystem state
+ * (files and directories) should remain unchanged after execution.
+ *
+ * Validates: Requirements 1.5, 2.8, 3.5
  */
-class TestEffectPlugin extends AbstractOutputPlugin {
-  constructor() {
-    super('TestEffectPlugin', {
-      outputFileName: 'TEST.md',
-    })
-  }
 
-  /**
-   * Expose registerWriteEffect for testing
-   */
-  public testRegisterWriteEffect(name: string, handler: WriteEffectHandler): void {
-    this.registerWriteEffect(name, handler)
-  }
-
-  /**
-   * Expose registerCleanEffect for testing
-   */
-  public testRegisterCleanEffect(name: string, handler: CleanEffectHandler): void {
-    this.registerCleanEffect(name, handler)
-  }
-
-  /**
-   * Expose executeWriteEffects for testing
-   */
-  public async testExecuteWriteEffects(ctx: OutputWriteContext): Promise<EffectResult[]> {
-    return this.executeWriteEffects(ctx)
-  }
-
-  /**
-   * Expose executeCleanEffects for testing
-   */
-  public async testExecuteCleanEffects(ctx: OutputCleanContext): Promise<EffectResult[]> {
-    return this.executeCleanEffects(ctx)
-  }
+/**
+ * Context provided to input effect handlers.
+ * Duplicated here to avoid circular dependency issues.
+ */
+interface InputEffectContext {
+  readonly logger: ILogger
+  readonly fs: typeof import('node:fs')
+  readonly path: typeof import('node:path')
+  readonly glob: typeof import('fast-glob')
+  readonly userConfigOptions: PluginOptions
+  readonly workspaceDir: string
+  readonly shadowProjectDir: string
+  readonly dryRun?: boolean
 }
 
-function createMockRelativePath(pathStr: string, basePath: string): RelativePath {
+// Test helpers
+function createMockLogger(): ILogger {
   return {
-    pathKind: FilePathKind.Relative,
-    path: pathStr,
-    basePath,
-    getDirectoryName: () => pathStr,
-    getAbsolutePath: () => `${basePath}/${pathStr}`,
-  }
+    trace: () => { },
+    debug: () => { },
+    info: () => { },
+    warn: () => { },
+    error: () => { },
+    fatal: () => { },
+    child: () => createMockLogger(),
+  } as unknown as ILogger
 }
 
-function createMockWriteContext(dryRun: boolean = false): OutputWriteContext {
+function createEffectContext(workspaceDir: string, shadowProjectDir: string, dryRun: boolean): InputEffectContext {
   return {
-    collectedInputContext: {
-      workspace: {
-        directory: createMockRelativePath('.', '/test'),
-        projects: [],
-      },
-      ideConfigFiles: [],
-      globalMemory: null as any,
-    } as any,
+    logger: createMockLogger(),
+    fs,
+    path,
+    glob,
+    userConfigOptions: {} as PluginOptions,
+    workspaceDir,
+    shadowProjectDir,
     dryRun,
   }
 }
 
-function createMockCleanContext(dryRun: boolean = false): OutputCleanContext {
-  return {
-    collectedInputContext: {
-      workspace: {
-        directory: createMockRelativePath('.', '/test'),
-        projects: [],
-      },
-      ideConfigFiles: [],
-      globalMemory: null as any,
-    } as any,
-    dryRun,
+// Generators
+const validNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
+  .filter((s) => /^[\w-]+$/.test(s))
+  .map((s) => s.toLowerCase())
+
+const fileExtensionGen = fc.constantFrom('.ts', '.js', '.json', '.sh', '.txt', '.yaml', '.yml')
+
+const fileContentGen = fc.string({ minLength: 0, maxLength: 500 })
+
+// Generate a non-.src.md filename
+const nonSrcMdFileNameGen = fc.tuple(validNameGen, fileExtensionGen)
+  .map(([name, ext]) => `${name}${ext}`)
+  .filter((name) => !name.endsWith('.src.md'))
+
+// Generate markdown content with whitespace issues
+const markdownWithWhitespaceGen = fc.array(
+  fc.tuple(
+    fc.string({ minLength: 0, maxLength: 50, unit: 'grapheme-ascii' }).filter((s) => !s.includes('\n') && !s.includes('\r')),
+    fc.array(fc.constantFrom(' ', '\t'), { minLength: 0, maxLength: 5 }).map((arr) => arr.join('')),
+  ).map(([content, trailing]) => content + trailing),
+  { minLength: 1, maxLength: 10 },
+).chain((lines) =>
+  fc.array(fc.integer({ min: 0, max: 5 }), { minLength: lines.length, maxLength: lines.length })
+    .map((blankCounts) => {
+      const result: string[] = []
+      for (let i = 0; i < lines.length; i++) {
+        for (let j = 0; j < (blankCounts[i] ?? 0); j++) {
+          result.push('')
+        }
+        result.push(lines[i])
+      }
+      return result.join('\n')
+    }),
+)
+
+/**
+ * Capture the complete filesystem state of a directory.
+ * Returns a map of relative paths to their content (for files) or 'DIR' marker (for directories).
+ */
+function captureFilesystemState(baseDir: string): Map<string, string | 'DIR'> {
+  const state = new Map<string, string | 'DIR'>()
+
+  if (!fs.existsSync(baseDir)) {
+    return state
   }
+
+  function scanDir(dir: string, relativePath: string): void {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      const entryRelPath = relativePath ? path.join(relativePath, entry.name) : entry.name
+      const entryFullPath = path.join(dir, entry.name)
+
+      if (entry.isDirectory()) {
+        state.set(entryRelPath, 'DIR')
+        scanDir(entryFullPath, entryRelPath)
+      } else if (entry.isFile()) {
+        state.set(entryRelPath, fs.readFileSync(entryFullPath, 'utf-8'))
+      }
+    }
+  }
+
+  scanDir(baseDir, '')
+  return state
 }
 
 /**
- * Feature: plugin-side-effects
- * Property-based tests for effect execution order and error resilience
- *
- * Property 4: Error Resilience - Continue on Failure
- * For any sequence of registered effects where effect at index K fails,
- * all effects at indices > K shall still be executed.
- *
- * Property 5: Sequential Execution Order
- * For any sequence of N registered effects, the effects shall execute in registration order
- * (effect registered first executes first), and each effect shall complete before the next begins.
- *
- * Validates: Requirements 2.5, 3.5, 5.1, 5.2, 5.3
+ * Compare two filesystem states and return true if they are identical.
  */
-describe('abstractOutputPlugin Effect Property Tests', () => {
+function filesystemStatesEqual(before: Map<string, string | 'DIR'>, after: Map<string, string | 'DIR'>): boolean {
+  if (before.size !== after.size) {
+    return false
+  }
+
+  for (const [key, value] of before) {
+    if (!after.has(key) || after.get(key) !== value) {
+      return false
+    }
+  }
+
+  return true
+}
+
+describe('effect Input Plugins Dry-Run Property Tests', () => {
   /**
-   * Feature: plugin-side-effects, Property 5: Sequential Execution Order
-   * Validates: Requirements 5.1, 5.2, 5.3
+   * Feature: effect-input-plugins, Property 4: Dry-run no-op
+   * Validates: Requirements 1.5, 2.8, 3.5
    *
-   * For any sequence of N registered write effects, the effects shall execute
-   * in registration order (effect registered first executes first).
+   * For any Effect Input Plugin running in dry-run mode, the filesystem state
+   * (files and directories) should remain unchanged after execution.
    */
-  describe('property 5: Write Effects Sequential Execution Order', () => {
-    // Generator for effect names (alphanumeric, non-empty)
-    const effectNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z0-9]+$/i.test(s))
+  describe('property 4: Dry-run no-op', () => {
+    describe('skillNonSrcFileSyncEffectInputPlugin', () => {
+      it('should not modify filesystem when running in dry-run mode', async () => {
+        // Dynamic import to avoid circular dependency
+        const { SkillNonSrcFileSyncEffectInputPlugin } = await import('./SkillNonSrcFileSyncEffectInputPlugin')
 
-    it('should execute write effects in registration order', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          // Generate 1-10 unique effect names
-          fc.array(effectNameGen, { minLength: 1, maxLength: 10 })
-            // Ensure unique names
-            .map((names) => [...new Set(names)])
-            .filter((names) => names.length >= 1),
-          async (effectNames) => {
-            const plugin = new TestEffectPlugin()
-            const executionOrder: string[] = []
-            const ctx = createMockWriteContext(false)
-
-            // Register effects in order
-            for (const name of effectNames) {
-              plugin.testRegisterWriteEffect(name, async () => {
-                executionOrder.push(name)
-                return { success: true, description: `Executed ${name}` }
+        await fc.assert(
+          fc.asyncProperty(
+            fc.array(
+              fc.record({
+                skillName: validNameGen,
+                files: fc.array(
+                  fc.record({
+                    name: nonSrcMdFileNameGen,
+                    content: fileContentGen,
+                  }),
+                  { minLength: 1, maxLength: 3 },
+                ).map((files) => {
+                  // Deduplicate by name
+                  const seen = new Set<string>()
+                  return files.filter((f) => {
+                    if (seen.has(f.name)) {
+                      return false
+                    }
+                    seen.add(f.name)
+                    return true
+                  })
+                }).filter((files) => files.length > 0),
+              }),
+              { minLength: 1, maxLength: 3 },
+            ).map((skills) => {
+              // Deduplicate by skillName
+              const seen = new Set<string>()
+              return skills.filter((s) => {
+                if (seen.has(s.skillName)) {
+                  return false
+                }
+                seen.add(s.skillName)
+                return true
               })
-            }
+            }).filter((skills) => skills.length > 0),
+            async (skills) => {
+              const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dryrun-skill-sync-'))
 
-            // Execute effects
-            const results = await plugin.testExecuteWriteEffects(ctx)
+              try {
+                // Setup: Create src/skills/ structure with files to sync
+                const shadowProjectDir = path.join(tempDir, 'shadow')
+                const srcSkillsDir = path.join(shadowProjectDir, 'src', 'skills')
 
-            // Verify execution order matches registration order
-            expect(executionOrder).toEqual(effectNames)
-            expect(results.length).toBe(effectNames.length)
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
+                for (const skill of skills) {
+                  const skillDir = path.join(srcSkillsDir, skill.skillName)
+                  fs.mkdirSync(skillDir, { recursive: true })
 
-    it('should return results in registration order', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          fc.array(effectNameGen, { minLength: 1, maxLength: 10 })
-            .map((names) => [...new Set(names)])
-            .filter((names) => names.length >= 1),
-          async (effectNames) => {
-            const plugin = new TestEffectPlugin()
-            const ctx = createMockWriteContext(false)
+                  for (const file of skill.files) {
+                    fs.writeFileSync(path.join(skillDir, file.name), file.content, 'utf-8')
+                  }
+                }
 
-            // Register effects with unique descriptions
-            for (const name of effectNames) {
-              plugin.testRegisterWriteEffect(name, async () => {
-                return { success: true, description: `Result-${name}` }
-              })
-            }
+                // Capture filesystem state BEFORE dry-run
+                const stateBefore = captureFilesystemState(shadowProjectDir)
 
-            const results = await plugin.testExecuteWriteEffects(ctx)
+                // Execute plugin in dry-run mode
+                const plugin = new SkillNonSrcFileSyncEffectInputPlugin()
+                const ctx = createEffectContext(tempDir, shadowProjectDir, true)
+                const effectMethod = (plugin as any).syncNonSrcFiles.bind(plugin)
+                await effectMethod(ctx)
 
-            // Verify results are in registration order
-            for (let i = 0; i < effectNames.length; i++) {
-              expect(results[i].description).toBe(`Result-${effectNames[i]}`)
-            }
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
-  })
+                // Capture filesystem state AFTER dry-run
+                const stateAfter = captureFilesystemState(shadowProjectDir)
 
-  /**
-   * Feature: plugin-side-effects, Property 5: Sequential Execution Order
-   * Validates: Requirements 5.1, 5.2, 5.3
-   *
-   * For any sequence of N registered clean effects, the effects shall execute
-   * in registration order (effect registered first executes first).
-   */
-  describe('property 5: Clean Effects Sequential Execution Order', () => {
-    const effectNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z0-9]+$/i.test(s))
-
-    it('should execute clean effects in registration order', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          fc.array(effectNameGen, { minLength: 1, maxLength: 10 })
-            .map((names) => [...new Set(names)])
-            .filter((names) => names.length >= 1),
-          async (effectNames) => {
-            const plugin = new TestEffectPlugin()
-            const executionOrder: string[] = []
-            const ctx = createMockCleanContext(false)
-
-            // Register effects in order
-            for (const name of effectNames) {
-              plugin.testRegisterCleanEffect(name, async () => {
-                executionOrder.push(name)
-                return { success: true, description: `Executed ${name}` }
-              })
-            }
-
-            // Execute effects
-            const results = await plugin.testExecuteCleanEffects(ctx)
-
-            // Verify execution order matches registration order
-            expect(executionOrder).toEqual(effectNames)
-            expect(results.length).toBe(effectNames.length)
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
-
-    it('should return results in registration order', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          fc.array(effectNameGen, { minLength: 1, maxLength: 10 })
-            .map((names) => [...new Set(names)])
-            .filter((names) => names.length >= 1),
-          async (effectNames) => {
-            const plugin = new TestEffectPlugin()
-            const ctx = createMockCleanContext(false)
-
-            // Register effects with unique descriptions
-            for (const name of effectNames) {
-              plugin.testRegisterCleanEffect(name, async () => {
-                return { success: true, description: `Result-${name}` }
-              })
-            }
-
-            const results = await plugin.testExecuteCleanEffects(ctx)
-
-            // Verify results are in registration order
-            for (let i = 0; i < effectNames.length; i++) {
-              expect(results[i].description).toBe(`Result-${effectNames[i]}`)
-            }
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
-  })
-
-  /**
-   * Feature: plugin-side-effects, Property 5: Sequential Execution Order
-   * Validates: Requirements 5.3
-   *
-   * Effects shall execute sequentially (not in parallel).
-   * Each effect shall complete before the next begins.
-   */
-  describe('property 5: Sequential (Non-Parallel) Execution', () => {
-    it('should execute write effects sequentially, not in parallel', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          // Generate 2-5 effects with random delays
-          fc.array(fc.nat({ max: 50 }), { minLength: 2, maxLength: 5 }),
-          async (delays) => {
-            const plugin = new TestEffectPlugin()
-            const ctx = createMockWriteContext(false)
-            const executionLog: Array<{ name: string, event: 'start' | 'end', time: number }> = []
-            const startTime = Date.now()
-
-            // Register effects with delays
-            for (let i = 0; i < delays.length; i++) {
-              const name = `effect-${i}`
-              const delay = delays[i]
-              plugin.testRegisterWriteEffect(name, async () => {
-                executionLog.push({ name, event: 'start', time: Date.now() - startTime })
-                await new Promise((resolve) => setTimeout(resolve, delay))
-                executionLog.push({ name, event: 'end', time: Date.now() - startTime })
-                return { success: true }
-              })
-            }
-
-            await plugin.testExecuteWriteEffects(ctx)
-
-            // Verify sequential execution: each effect's start should be after previous effect's end
-            for (let i = 1; i < delays.length; i++) {
-              const prevEnd = executionLog.find((e) => e.name === `effect-${i - 1}` && e.event === 'end')
-              const currStart = executionLog.find((e) => e.name === `effect-${i}` && e.event === 'start')
-
-              expect(prevEnd).toBeDefined()
-              expect(currStart).toBeDefined()
-              // Current effect should start at or after previous effect ends
-              expect(currStart!.time).toBeGreaterThanOrEqual(prevEnd!.time)
-            }
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
-
-    it('should execute clean effects sequentially, not in parallel', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          fc.array(fc.nat({ max: 50 }), { minLength: 2, maxLength: 5 }),
-          async (delays) => {
-            const plugin = new TestEffectPlugin()
-            const ctx = createMockCleanContext(false)
-            const executionLog: Array<{ name: string, event: 'start' | 'end', time: number }> = []
-            const startTime = Date.now()
-
-            // Register effects with delays
-            for (let i = 0; i < delays.length; i++) {
-              const name = `effect-${i}`
-              const delay = delays[i]
-              plugin.testRegisterCleanEffect(name, async () => {
-                executionLog.push({ name, event: 'start', time: Date.now() - startTime })
-                await new Promise((resolve) => setTimeout(resolve, delay))
-                executionLog.push({ name, event: 'end', time: Date.now() - startTime })
-                return { success: true }
-              })
-            }
-
-            await plugin.testExecuteCleanEffects(ctx)
-
-            // Verify sequential execution
-            for (let i = 1; i < delays.length; i++) {
-              const prevEnd = executionLog.find((e) => e.name === `effect-${i - 1}` && e.event === 'end')
-              const currStart = executionLog.find((e) => e.name === `effect-${i}` && e.event === 'start')
-
-              expect(prevEnd).toBeDefined()
-              expect(currStart).toBeDefined()
-              expect(currStart!.time).toBeGreaterThanOrEqual(prevEnd!.time)
-            }
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
-  })
-
-  /**
-   * Feature: plugin-side-effects, Property 4: Error Resilience - Continue on Failure
-   * Validates: Requirements 2.5, 3.5
-   *
-   * For any sequence of registered effects where effect at index K fails,
-   * all effects at indices > K shall still be executed.
-   */
-  describe('property 4: Error Resilience - Continue on Failure', () => {
-    /**
-     * Generator for failure patterns: array of booleans where true = should fail
-     * Ensures at least one failure and at least one success after the first failure
-     */
-    const failurePatternGen = fc.array(fc.boolean(), { minLength: 2, maxLength: 10 })
-      .filter((pattern) => {
-        // Must have at least one failure
-        const hasFailure = pattern.some((shouldFail) => shouldFail)
-        // Must have at least one effect after the first failure
-        const firstFailureIndex = pattern.findIndex((shouldFail) => shouldFail)
-        const hasEffectAfterFailure = firstFailureIndex < pattern.length - 1
-        return hasFailure && hasEffectAfterFailure
+                // Verify: Filesystem state should be unchanged
+                expect(filesystemStatesEqual(stateBefore, stateAfter)).toBe(true)
+              } finally {
+                if (fs.existsSync(tempDir)) {
+                  fs.rmSync(tempDir, { recursive: true, force: true })
+                }
+              }
+            },
+          ),
+          { numRuns: 100 },
+        )
       })
+    })
 
-    it('should continue executing write effects after a failure', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          failurePatternGen,
-          async (failurePattern) => {
-            const plugin = new TestEffectPlugin()
-            const ctx = createMockWriteContext(false)
-            const executedEffects: number[] = []
+    describe('orphanFileCleanupEffectInputPlugin', () => {
+      it('should not modify filesystem when running in dry-run mode', async () => {
+        // Dynamic import to avoid circular dependency
+        const { OrphanFileCleanupEffectInputPlugin } = await import('./OrphanFileCleanupEffectInputPlugin')
 
-            // Register effects based on failure pattern
-            for (let i = 0; i < failurePattern.length; i++) {
-              const shouldFail = failurePattern[i]
-              plugin.testRegisterWriteEffect(`effect-${i}`, async () => {
-                executedEffects.push(i)
-                if (shouldFail) {
-                  throw new Error(`Effect ${i} failed`)
+        await fc.assert(
+          fc.asyncProperty(
+            fc.array(
+              fc.record({
+                name: validNameGen,
+                dirType: fc.constantFrom('skills', 'commands', 'agents', 'app'),
+              }),
+              { minLength: 1, maxLength: 5 },
+            ).map((files) => {
+              // Deduplicate by (name, dirType)
+              const seen = new Set<string>()
+              return files.filter((f) => {
+                const key = `${f.dirType}:${f.name}`
+                if (seen.has(key)) {
+                  return false
                 }
-                return { success: true, description: `Effect ${i} succeeded` }
+                seen.add(key)
+                return true
               })
-            }
+            }).filter((files) => files.length > 0),
+            async (orphanFiles) => {
+              const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dryrun-orphan-cleanup-'))
 
-            // Execute effects
-            const results = await plugin.testExecuteWriteEffects(ctx)
+              try {
+                // Setup: Create dist/ structure with orphan files (no sources)
+                const shadowProjectDir = path.join(tempDir, 'shadow')
+                const distDir = path.join(shadowProjectDir, 'dist')
 
-            // All effects should have been executed regardless of failures
-            expect(executedEffects.length).toBe(failurePattern.length)
-            expect(executedEffects).toEqual(failurePattern.map((_, i) => i))
+                for (const file of orphanFiles) {
+                  const distTypeDir = path.join(distDir, file.dirType)
+                  fs.mkdirSync(distTypeDir, { recursive: true })
+                  fs.writeFileSync(
+                    path.join(distTypeDir, `${file.name}.md`),
+                    `# ${file.name}`,
+                    'utf-8',
+                  )
+                }
 
-            // Results should match the failure pattern
-            expect(results.length).toBe(failurePattern.length)
-            for (let i = 0; i < failurePattern.length; i++) {
-              if (failurePattern[i]) {
-                expect(results[i].success).toBe(false)
-                expect(results[i].error).toBeDefined()
-              } else {
-                expect(results[i].success).toBe(true)
+                // Capture filesystem state BEFORE dry-run
+                const stateBefore = captureFilesystemState(shadowProjectDir)
+
+                // Execute plugin in dry-run mode
+                const plugin = new OrphanFileCleanupEffectInputPlugin()
+                const ctx = createEffectContext(tempDir, shadowProjectDir, true)
+                const effectMethod = (plugin as any).cleanupOrphanFiles.bind(plugin)
+                await effectMethod(ctx)
+
+                // Capture filesystem state AFTER dry-run
+                const stateAfter = captureFilesystemState(shadowProjectDir)
+
+                // Verify: Filesystem state should be unchanged
+                expect(filesystemStatesEqual(stateBefore, stateAfter)).toBe(true)
+              } finally {
+                if (fs.existsSync(tempDir)) {
+                  fs.rmSync(tempDir, { recursive: true, force: true })
+                }
               }
-            }
-          },
-        ),
-        { numRuns: 100 },
-      )
+            },
+          ),
+          { numRuns: 100 },
+        )
+      })
     })
 
-    it('should continue executing clean effects after a failure', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          failurePatternGen,
-          async (failurePattern) => {
-            const plugin = new TestEffectPlugin()
-            const ctx = createMockCleanContext(false)
-            const executedEffects: number[] = []
+    describe('markdownWhitespaceCleanupEffectInputPlugin', () => {
+      it('should not modify filesystem when running in dry-run mode', async () => {
+        // Dynamic import to avoid circular dependency
+        const { MarkdownWhitespaceCleanupEffectInputPlugin } = await import('./MarkdownWhitespaceCleanupEffectInputPlugin')
 
-            // Register effects based on failure pattern
-            for (let i = 0; i < failurePattern.length; i++) {
-              const shouldFail = failurePattern[i]
-              plugin.testRegisterCleanEffect(`effect-${i}`, async () => {
-                executedEffects.push(i)
-                if (shouldFail) {
-                  throw new Error(`Effect ${i} failed`)
+        await fc.assert(
+          fc.asyncProperty(
+            fc.array(
+              fc.record({
+                name: validNameGen,
+                content: markdownWithWhitespaceGen,
+                dir: fc.constantFrom('src', 'app', 'dist'),
+              }),
+              { minLength: 1, maxLength: 5 },
+            ).map((files) => {
+              // Deduplicate by (name, dir)
+              const seen = new Set<string>()
+              return files.filter((f) => {
+                const key = `${f.dir}:${f.name}`
+                if (seen.has(key)) {
+                  return false
                 }
-                return { success: true, description: `Effect ${i} succeeded` }
+                seen.add(key)
+                return true
               })
-            }
+            }).filter((files) => files.length > 0),
+            async (mdFiles) => {
+              const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dryrun-whitespace-cleanup-'))
 
-            // Execute effects
-            const results = await plugin.testExecuteCleanEffects(ctx)
+              try {
+                // Setup: Create directories with markdown files containing whitespace issues
+                const shadowProjectDir = path.join(tempDir, 'shadow')
 
-            // All effects should have been executed regardless of failures
-            expect(executedEffects.length).toBe(failurePattern.length)
-            expect(executedEffects).toEqual(failurePattern.map((_, i) => i))
+                for (const file of mdFiles) {
+                  const targetDir = path.join(shadowProjectDir, file.dir)
+                  fs.mkdirSync(targetDir, { recursive: true })
+                  fs.writeFileSync(
+                    path.join(targetDir, `${file.name}.md`),
+                    file.content,
+                    'utf-8',
+                  )
+                }
 
-            // Results should match the failure pattern
-            expect(results.length).toBe(failurePattern.length)
-            for (let i = 0; i < failurePattern.length; i++) {
-              if (failurePattern[i]) {
-                expect(results[i].success).toBe(false)
-                expect(results[i].error).toBeDefined()
-              } else {
-                expect(results[i].success).toBe(true)
+                // Capture filesystem state BEFORE dry-run
+                const stateBefore = captureFilesystemState(shadowProjectDir)
+
+                // Execute plugin in dry-run mode
+                const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin()
+                const ctx = createEffectContext(tempDir, shadowProjectDir, true)
+                const effectMethod = (plugin as any).cleanupWhitespace.bind(plugin)
+                await effectMethod(ctx)
+
+                // Capture filesystem state AFTER dry-run
+                const stateAfter = captureFilesystemState(shadowProjectDir)
+
+                // Verify: Filesystem state should be unchanged
+                expect(filesystemStatesEqual(stateBefore, stateAfter)).toBe(true)
+              } finally {
+                if (fs.existsSync(tempDir)) {
+                  fs.rmSync(tempDir, { recursive: true, force: true })
+                }
               }
-            }
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
-
-    it('should execute all write effects after multiple consecutive failures', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          // Generate effect count and a set of indices that should fail
-          fc.integer({ min: 3, max: 10 }),
-          fc.array(fc.integer({ min: 0, max: 9 }), { minLength: 1, maxLength: 5 }),
-          async (effectCount, failIndices) => {
-            // Normalize fail indices to be within range
-            const normalizedFailIndices = new Set(
-              failIndices.map((i) => i % effectCount),
-            )
-
-            const plugin = new TestEffectPlugin()
-            const ctx = createMockWriteContext(false)
-            const executedEffects: number[] = []
-
-            // Register effects
-            for (let i = 0; i < effectCount; i++) {
-              const shouldFail = normalizedFailIndices.has(i)
-              plugin.testRegisterWriteEffect(`effect-${i}`, async () => {
-                executedEffects.push(i)
-                if (shouldFail) {
-                  throw new Error(`Effect ${i} failed`)
-                }
-                return { success: true }
-              })
-            }
-
-            await plugin.testExecuteWriteEffects(ctx)
-
-            // All effects should have been executed
-            expect(executedEffects.length).toBe(effectCount)
-            expect(executedEffects).toEqual(Array.from({ length: effectCount }, (_, i) => i))
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
-
-    it('should execute all clean effects after multiple consecutive failures', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          fc.integer({ min: 3, max: 10 }),
-          fc.array(fc.integer({ min: 0, max: 9 }), { minLength: 1, maxLength: 5 }),
-          async (effectCount, failIndices) => {
-            const normalizedFailIndices = new Set(
-              failIndices.map((i) => i % effectCount),
-            )
-
-            const plugin = new TestEffectPlugin()
-            const ctx = createMockCleanContext(false)
-            const executedEffects: number[] = []
-
-            // Register effects
-            for (let i = 0; i < effectCount; i++) {
-              const shouldFail = normalizedFailIndices.has(i)
-              plugin.testRegisterCleanEffect(`effect-${i}`, async () => {
-                executedEffects.push(i)
-                if (shouldFail) {
-                  throw new Error(`Effect ${i} failed`)
-                }
-                return { success: true }
-              })
-            }
-
-            await plugin.testExecuteCleanEffects(ctx)
-
-            // All effects should have been executed
-            expect(executedEffects.length).toBe(effectCount)
-            expect(executedEffects).toEqual(Array.from({ length: effectCount }, (_, i) => i))
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
-
-    it('should capture error details in results for failed write effects', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          fc.array(fc.boolean(), { minLength: 1, maxLength: 10 }),
-          fc.array(fc.string({ minLength: 1, maxLength: 50 }), { minLength: 1, maxLength: 10 }),
-          async (failurePattern, errorMessages) => {
-            const plugin = new TestEffectPlugin()
-            const ctx = createMockWriteContext(false)
-
-            // Register effects with custom error messages
-            for (let i = 0; i < failurePattern.length; i++) {
-              const shouldFail = failurePattern[i]
-              const errorMsg = errorMessages[i % errorMessages.length]
-              plugin.testRegisterWriteEffect(`effect-${i}`, async () => {
-                if (shouldFail) {
-                  throw new Error(errorMsg)
-                }
-                return { success: true }
-              })
-            }
-
-            const results = await plugin.testExecuteWriteEffects(ctx)
-
-            // Verify error details are captured
-            for (let i = 0; i < failurePattern.length; i++) {
-              if (failurePattern[i]) {
-                expect(results[i].success).toBe(false)
-                expect(results[i].error).toBeInstanceOf(Error)
-                expect(results[i].error?.message).toBe(errorMessages[i % errorMessages.length])
-              }
-            }
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
-
-    it('should capture error details in results for failed clean effects', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          fc.array(fc.boolean(), { minLength: 1, maxLength: 10 }),
-          fc.array(fc.string({ minLength: 1, maxLength: 50 }), { minLength: 1, maxLength: 10 }),
-          async (failurePattern, errorMessages) => {
-            const plugin = new TestEffectPlugin()
-            const ctx = createMockCleanContext(false)
-
-            // Register effects with custom error messages
-            for (let i = 0; i < failurePattern.length; i++) {
-              const shouldFail = failurePattern[i]
-              const errorMsg = errorMessages[i % errorMessages.length]
-              plugin.testRegisterCleanEffect(`effect-${i}`, async () => {
-                if (shouldFail) {
-                  throw new Error(errorMsg)
-                }
-                return { success: true }
-              })
-            }
-
-            const results = await plugin.testExecuteCleanEffects(ctx)
-
-            // Verify error details are captured
-            for (let i = 0; i < failurePattern.length; i++) {
-              if (failurePattern[i]) {
-                expect(results[i].success).toBe(false)
-                expect(results[i].error).toBeInstanceOf(Error)
-                expect(results[i].error?.message).toBe(errorMessages[i % errorMessages.length])
-              }
-            }
-          },
-        ),
-        { numRuns: 100 },
-      )
+            },
+          ),
+          { numRuns: 100 },
+        )
+      })
     })
   })
 })
