@@ -144,15 +144,15 @@ export type SkillResourceEncoding = 'text' | 'base64'
  * - binary: .exe, .dll, .so, .wasm, etc.
  * - other: anything else
  */
-export type SkillResourceCategory =
-  | 'code'
-  | 'data'
-  | 'document'
-  | 'config'
-  | 'script'
-  | 'image'
-  | 'binary'
-  | 'other'
+export type SkillResourceCategory
+  = | 'code'
+    | 'data'
+    | 'document'
+    | 'config'
+    | 'script'
+    | 'image'
+    | 'binary'
+    | 'other'
 
 /**
  * Skill resource file for AI on-demand access

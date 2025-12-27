@@ -12,6 +12,7 @@ import type {
   SkillYAMLFrontMatter,
 } from '@/types'
 
+import { Buffer } from 'node:buffer'
 import * as path from 'node:path'
 import { DEFAULT_SHADOW_SKILL_SOURCE_DIR } from '@/constants'
 import { parseMarkdown } from '@/markdown'
@@ -433,7 +434,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 // Read as UTF-8 text (default for unknown extensions too)
                 content = fs.readFileSync(filePath, 'utf-8')
                 encoding = 'text'
-                length = globalThis.Buffer.byteLength(content, 'utf-8')
+                length = Buffer.byteLength(content, 'utf-8')
               }
 
               const mimeType = this.getMimeType(ext)
