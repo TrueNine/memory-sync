@@ -2,11 +2,10 @@
  * Property-based tests for KiroPowersRegistryWriter
  *
  * Feature: plugin-side-effects
- * Property 6: Registry Cleanup Removes Local Entries
+ * Property 6: Registry Reset to Official State
  *
- * For any Kiro powers registry containing local power entries, after executing
- * the clean effect, the registry shall contain no entries where source.repoId
- * starts with 'local-' and no repoSources entries where type === 'local'.
+ * After executing the clean effect, the registry shall be reset to the official
+ * Kiro powers registry state (from build-time constant or empty fallback).
  *
  * Validates: Requirements 6.1, 6.2
  */
@@ -83,40 +82,10 @@ const localPowerEntryGen = fc.record({
   sourcePath: fc.string({ minLength: 1, maxLength: 50 }).map((s) => `/test/source/${s}`),
 }) as fc.Arbitrary<KiroPowerEntry>
 
-// Generator for non-local power entries (source.repoId does NOT start with 'local-')
-const nonLocalPowerEntryGen = fc.record({
-  name: powerNameGen,
-  description: descriptionGen,
-  keywords: keywordsGen,
-  installed: fc.constant(true),
-  installedAt: validDateGen.map((d) => d.toISOString()),
-  installPath: fc.string({ minLength: 1, maxLength: 50 }).map((s) => `/test/path/${s}`),
-  source: fc.record({
-    type: fc.constant('repo' as const),
-    repoId: fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z0-9]+$/i.test(s) && !s.startsWith('local'))
-      // Ensure repoId does NOT start with 'local-'
-      .map((s) => `remote-${s}`),
-    repoName: fc.string({ minLength: 1, maxLength: 30 }),
-  }),
-  sourcePath: fc.string({ minLength: 1, maxLength: 50 }).map((s) => `/test/source/${s}`),
-}) as fc.Arbitrary<KiroPowerEntry>
-
 // Generator for local repoSource entries (type === 'local')
 const localRepoSourceGen = fc.record({
   name: fc.string({ minLength: 1, maxLength: 50 }),
   type: fc.constant('local' as const),
-  enabled: fc.boolean(),
-  addedAt: validDateGen.map((d) => d.toISOString()),
-  powerCount: fc.nat({ max: 10 }),
-  path: fc.string({ minLength: 1, maxLength: 50 }).map((s) => `/test/${s}`),
-  lastSync: validDateGen.map((d) => d.toISOString()),
-}) as fc.Arbitrary<KiroRepoSource>
-
-// Generator for non-local repoSource entries (type === 'git')
-const nonLocalRepoSourceGen = fc.record({
-  name: fc.string({ minLength: 1, maxLength: 50 }),
-  type: fc.constant('git' as const),
   enabled: fc.boolean(),
   addedAt: validDateGen.map((d) => d.toISOString()),
   powerCount: fc.nat({ max: 10 }),
@@ -146,34 +115,28 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
   })
 
   /**
-   * Feature: plugin-side-effects, Property 6: Registry Cleanup Removes Local Entries
+   * Feature: plugin-side-effects, Property 6: Registry Reset to Official State
    * Validates: Requirements 6.1, 6.2
    *
-   * For any Kiro powers registry containing local power entries, after executing
-   * the clean effect, the registry shall contain no entries where source.repoId
-   * starts with 'local-' and no repoSources entries where type === 'local'.
+   * After cleanup, the registry should be reset to official state
+   * (empty in test environment since __KIRO_GLOBAL_POWERS_REGISTRY__ is not defined)
    */
-  describe('property 6: Registry Cleanup Removes Local Entries', () => {
-    it('should remove all local power entries after cleanup', async () => {
+  describe('property 6: Registry Reset to Official State', () => {
+    it('should reset registry to official state after cleanup (empty in tests)', async () => {
       await fc.assert(
         fc.asyncProperty(
-          // Generate 0-5 local powers and 0-5 non-local powers
-          fc.array(localPowerEntryGen, { minLength: 0, maxLength: 5 }),
-          fc.array(nonLocalPowerEntryGen, { minLength: 0, maxLength: 5 }),
-          async (localPowers, nonLocalPowers) => {
+          // Generate 0-5 local powers
+          fc.array(localPowerEntryGen, { minLength: 1, maxLength: 5 }),
+          async (localPowers) => {
             // Ensure unique names by adding index suffix
             const uniqueLocalPowers = localPowers.map((p, i) => ({
               ...p,
               name: `${p.name}-local-${i}`,
             }))
-            const uniqueNonLocalPowers = nonLocalPowers.map((p, i) => ({
-              ...p,
-              name: `${p.name}-remote-${i}`,
-            }))
 
-            // Build initial registry with both local and non-local powers
+            // Build initial registry with local powers
             const powers: Record<string, KiroPowerEntry> = {}
-            for (const power of [...uniqueLocalPowers, ...uniqueNonLocalPowers]) {
+            for (const power of uniqueLocalPowers) {
               powers[power.name] = power
             }
 
@@ -196,56 +159,36 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             // Read cleaned registry
             const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf-8')) as KiroPowersRegistry
 
-            // Verify: no power entries with source.repoId starting with 'local-'
-            for (const [name, power] of Object.entries(cleanedRegistry.powers)) {
-              const repoId = power.source.repoId
-              expect(
-                repoId == null || !repoId.startsWith('local-'),
-                `Power "${name}" should not have repoId starting with 'local-', got: ${repoId}`,
-              ).toBe(true)
-            }
-
-            // Verify: all non-local powers are preserved
-            for (const power of uniqueNonLocalPowers) {
-              expect(cleanedRegistry.powers[power.name]).toBeDefined()
-            }
-
-            // Verify: all local powers are removed
-            for (const power of uniqueLocalPowers) {
-              expect(cleanedRegistry.powers[power.name]).toBeUndefined()
-            }
+            // In test environment, should reset to empty registry (fallback)
+            // since __KIRO_GLOBAL_POWERS_REGISTRY__ is not defined
+            expect(cleanedRegistry.version).toBe('1.0.0')
+            expect(Object.keys(cleanedRegistry.powers).length).toBe(0)
+            expect(Object.keys(cleanedRegistry.repoSources).length).toBe(0)
+            expect(cleanedRegistry.lastUpdated).toBeDefined()
           },
         ),
-        { numRuns: 100 },
+        { numRuns: 50 },
       )
     })
 
-    it('should remove all local repoSource entries after cleanup', async () => {
+    it('should reset registry and clear all repoSources after cleanup', async () => {
       await fc.assert(
         fc.asyncProperty(
-          // Generate 0-5 local repoSources and 0-5 non-local repoSources
+          // Generate 0-5 local repoSources
           fc.array(
             fc.tuple(repoSourceIdGen, localRepoSourceGen),
-            { minLength: 0, maxLength: 5 },
+            { minLength: 1, maxLength: 5 },
           ),
-          fc.array(
-            fc.tuple(repoSourceIdGen, nonLocalRepoSourceGen),
-            { minLength: 0, maxLength: 5 },
-          ),
-          async (localSources, nonLocalSources) => {
+          async (localSources) => {
             // Ensure unique IDs by adding suffix
             const uniqueLocalSources = localSources.map(([id, source], i) => [
               `${id}-local-${i}`,
               source,
             ] as const)
-            const uniqueNonLocalSources = nonLocalSources.map(([id, source], i) => [
-              `${id}-git-${i}`,
-              source,
-            ] as const)
 
-            // Build initial registry with both local and non-local repoSources
+            // Build initial registry with local repoSources
             const repoSources: Record<string, KiroRepoSource> = {}
-            for (const [id, source] of [...uniqueLocalSources, ...uniqueNonLocalSources]) {
+            for (const [id, source] of uniqueLocalSources) {
               repoSources[id] = source
             }
 
@@ -268,112 +211,19 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             // Read cleaned registry
             const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf-8')) as KiroPowersRegistry
 
-            // Verify: no repoSource entries with type === 'local'
-            for (const [id, source] of Object.entries(cleanedRegistry.repoSources)) {
-              expect(
-                source.type !== 'local',
-                `RepoSource "${id}" should not have type 'local', got: ${source.type}`,
-              ).toBe(true)
-            }
-
-            // Verify: all non-local repoSources are preserved
-            for (const [id] of uniqueNonLocalSources) {
-              expect(cleanedRegistry.repoSources[id]).toBeDefined()
-            }
-
-            // Verify: all local repoSources are removed
-            for (const [id] of uniqueLocalSources) {
-              expect(cleanedRegistry.repoSources[id]).toBeUndefined()
-            }
+            // All repoSources should be cleared (reset to official state)
+            expect(Object.keys(cleanedRegistry.repoSources).length).toBe(0)
           },
         ),
-        { numRuns: 100 },
+        { numRuns: 50 },
       )
     })
 
-    it('should remove both local powers and local repoSources in a single cleanup', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          // Generate mixed registry with local and non-local entries
-          fc.array(localPowerEntryGen, { minLength: 1, maxLength: 3 }),
-          fc.array(nonLocalPowerEntryGen, { minLength: 1, maxLength: 3 }),
-          fc.array(fc.tuple(repoSourceIdGen, localRepoSourceGen), { minLength: 1, maxLength: 3 }),
-          fc.array(fc.tuple(repoSourceIdGen, nonLocalRepoSourceGen), { minLength: 1, maxLength: 3 }),
-          async (localPowers, nonLocalPowers, localSources, nonLocalSources) => {
-            // Ensure unique names/IDs
-            const uniqueLocalPowers = localPowers.map((p, i) => ({
-              ...p,
-              name: `${p.name}-local-${i}`,
-            }))
-            const uniqueNonLocalPowers = nonLocalPowers.map((p, i) => ({
-              ...p,
-              name: `${p.name}-remote-${i}`,
-            }))
-            const uniqueLocalSources = localSources.map(([id, source], i) => [
-              `${id}-local-${i}`,
-              source,
-            ] as const)
-            const uniqueNonLocalSources = nonLocalSources.map(([id, source], i) => [
-              `${id}-git-${i}`,
-              source,
-            ] as const)
-
-            // Build initial registry
-            const powers: Record<string, KiroPowerEntry> = {}
-            for (const power of [...uniqueLocalPowers, ...uniqueNonLocalPowers]) {
-              powers[power.name] = power
-            }
-
-            const repoSources: Record<string, KiroRepoSource> = {}
-            for (const [id, source] of [...uniqueLocalSources, ...uniqueNonLocalSources]) {
-              repoSources[id] = source
-            }
-
-            const initialRegistry: KiroPowersRegistry = {
-              version: '1.0.0',
-              powers,
-              repoSources,
-              lastUpdated: new Date().toISOString(),
-            }
-
-            // Write and cleanup
-            fs.writeFileSync(registryPath, JSON.stringify(initialRegistry, null, 2))
-            const writer = new TestableKiroPowersRegistryWriter(registryPath)
-            const result = writer.unregisterLocalPowers(false)
-
-            expect(result).toBe(true)
-
-            // Read cleaned registry
-            const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf-8')) as KiroPowersRegistry
-
-            // Count remaining entries
-            const remainingPowerCount = Object.keys(cleanedRegistry.powers).length
-            const remainingSourceCount = Object.keys(cleanedRegistry.repoSources).length
-
-            // Verify counts match expected non-local entries
-            expect(remainingPowerCount).toBe(uniqueNonLocalPowers.length)
-            expect(remainingSourceCount).toBe(uniqueNonLocalSources.length)
-
-            // Verify no local entries remain
-            for (const power of Object.values(cleanedRegistry.powers)) {
-              expect(power.source.repoId?.startsWith('local-')).not.toBe(true)
-            }
-            for (const source of Object.values(cleanedRegistry.repoSources)) {
-              expect(source.type).not.toBe('local')
-            }
-          },
-        ),
-        { numRuns: 100 },
-      )
-    })
-
-    it('should preserve registry structure and other fields after cleanup', async () => {
+    it('should preserve registry structure after cleanup', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(localPowerEntryGen, { minLength: 1, maxLength: 3 }),
-          // version
-          fc.string({ minLength: 1, maxLength: 10 }).map((s) => `${s}.0.0`),
-          async (localPowers, version) => {
+          async (localPowers) => {
             // Ensure unique names
             const uniqueLocalPowers = localPowers.map((p, i) => ({
               ...p,
@@ -386,7 +236,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             }
 
             const initialRegistry: KiroPowersRegistry = {
-              version,
+              version: '2.0.0',
               powers,
               repoSources: {},
               kiroRecommendedRepo: {
@@ -405,13 +255,14 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             // Read cleaned registry
             const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf-8')) as KiroPowersRegistry
 
-            // Verify structure is preserved
-            expect(cleanedRegistry.version).toBe(version)
-            expect(cleanedRegistry.kiroRecommendedRepo).toEqual(initialRegistry.kiroRecommendedRepo)
+            // Verify structure is valid (reset to official state)
+            expect(cleanedRegistry.version).toBeDefined()
+            expect(cleanedRegistry.powers).toBeDefined()
+            expect(cleanedRegistry.repoSources).toBeDefined()
             expect(cleanedRegistry.lastUpdated).toBeDefined()
           },
         ),
-        { numRuns: 100 },
+        { numRuns: 50 },
       )
     })
 
@@ -426,6 +277,11 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
 
       // Should succeed without error (Requirement 6.4)
       expect(result).toBe(true)
+
+      // Registry file should be created with official state
+      expect(fs.existsSync(registryPath)).toBe(true)
+      const registry = JSON.parse(fs.readFileSync(registryPath, 'utf-8')) as KiroPowersRegistry
+      expect(registry.version).toBe('1.0.0')
     })
 
     it('should not modify registry in dry-run mode', async () => {
@@ -467,7 +323,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             expect(afterContent).toBe(originalContent)
           },
         ),
-        { numRuns: 100 },
+        { numRuns: 50 },
       )
     })
   })

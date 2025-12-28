@@ -548,14 +548,23 @@ describe('kiroCLIOutputPlugin', () => {
 
       const result = await plugin.registerGlobalOutputFiles(ctx)
 
-      // Should have mcp.json for skill-a and skill-b, but not skill-c
+      // Should have mcp.json for skill-a, skill-b (in power dirs), and one global settings/mcp.json
       const mcpFiles = result.filter((r) => r.path === 'mcp.json')
-      expect(mcpFiles).toHaveLength(2)
+      // 2 power mcp.json + 1 global settings/mcp.json = 3
+      expect(mcpFiles).toHaveLength(3)
 
-      const mcpBasePaths = mcpFiles.map((f) => f.basePath)
+      // Check power directory mcp.json files
+      const powerMcpFiles = mcpFiles.filter((f) => f.basePath.includes('powers/installed'))
+      expect(powerMcpFiles).toHaveLength(2)
+
+      const mcpBasePaths = powerMcpFiles.map((f) => f.basePath)
       expect(mcpBasePaths.some((p) => p.includes('skill-a'))).toBe(true)
       expect(mcpBasePaths.some((p) => p.includes('skill-b'))).toBe(true)
       expect(mcpBasePaths.some((p) => p.includes('skill-c'))).toBe(false)
+
+      // Check global settings/mcp.json
+      const globalMcpFile = mcpFiles.find((f) => f.basePath.includes('settings'))
+      expect(globalMcpFile).toBeDefined()
     })
   })
 })

@@ -51,12 +51,34 @@ import { KiroPowersRegistryWriter } from './registry/KiroPowersRegistryWriter'
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
 const GLOBAL_CONFIG_DIR = '.kiro'
 const STEERING_SUBDIR = 'steering'
+const SETTINGS_SUBDIR = 'settings'
 const MCP_CONFIG_FILE = 'mcp.json'
 
 // Kiro Powers constants
 const KIRO_POWERS_DIR = '.kiro/powers/installed'
 const KIRO_POWERS_REPOS_DIR = '.kiro/powers/repos'
 const POWER_FILE_NAME = 'POWER.md'
+
+/**
+ * Kiro global MCP settings structure
+ * Located at ~/.kiro/settings/mcp.json
+ *
+ * Format:
+ * {
+ *   "mcpServers": {},
+ *   "powers": {
+ *     "mcpServers": {
+ *       "power-[powerName]-[mcpName]": { ... }
+ *     }
+ *   }
+ * }
+ */
+interface KiroGlobalMcpSettings {
+  mcpServers: Record<string, unknown>
+  powers: {
+    mcpServers: Record<string, unknown>
+  }
+}
 
 // Kiro supports AGENTS.md at project root, so it relies on AGENTS.md output.
 // Therefore, rootMemoryPrompt handling is not needed here.
@@ -73,10 +95,48 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       const registryWriter = this.getRegistryWriter(KiroPowersRegistryWriter)
       const success = registryWriter.unregisterLocalPowers(ctx.dryRun)
       if (success) {
-        return { success: true, description: 'Removed local power entries from registry' }
+        return { success: true, description: 'Reset registry to official state' }
       }
-      return { success: false, error: new Error('Failed to clean registry'), description: 'Failed to remove local power entries from registry' }
+      return { success: false, error: new Error('Failed to clean registry'), description: 'Failed to reset registry' }
     })
+
+    // Register clean effect to reset global mcp.json to empty shell
+    this.registerCleanEffect('mcp-settings-cleanup', async (ctx) => {
+      const settingsDir = this.getGlobalSettingsDir()
+      const mcpPath = this.joinPath(settingsDir, MCP_CONFIG_FILE)
+
+      // Empty shell structure
+      const emptyMcpSettings: KiroGlobalMcpSettings = {
+        mcpServers: {},
+        powers: {
+          mcpServers: {},
+        },
+      }
+
+      if (ctx.dryRun === true) {
+        this.log.trace({ action: 'dryRun', type: 'mcpSettingsCleanup', path: mcpPath })
+        return { success: true, description: 'Would reset mcp.json to empty shell' }
+      }
+
+      try {
+        this.ensureDirectory(settingsDir)
+        this.writeFileSync(mcpPath, JSON.stringify(emptyMcpSettings, null, 2))
+        this.log.trace({ action: 'clean', type: 'mcpSettingsCleanup', path: mcpPath })
+        return { success: true, description: 'Reset mcp.json to empty shell' }
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error)
+        this.log.error({ action: 'clean', type: 'mcpSettingsCleanup', path: mcpPath, error: errMsg })
+        return { success: false, error: error as Error, description: 'Failed to reset mcp.json' }
+      }
+    })
+  }
+
+  /**
+   * Get the absolute path to the global settings directory.
+   * @returns The absolute path to ~/.kiro/settings/
+   */
+  private getGlobalSettingsDir(): string {
+    return this.joinPath(this.getHomeDir(), GLOBAL_CONFIG_DIR, SETTINGS_SUBDIR)
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -281,6 +341,19 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
           }
         }
       }
+
+      // Register global settings/mcp.json if any skill has MCP configuration
+      const hasAnyMcpConfig = skills.some((s) => s.mcpConfig != null)
+      if (hasAnyMcpConfig) {
+        const settingsDir = this.getGlobalSettingsDir()
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: MCP_CONFIG_FILE,
+          basePath: settingsDir,
+          getDirectoryName: () => SETTINGS_SUBDIR,
+          getAbsolutePath: () => this.joinPath(settingsDir, MCP_CONFIG_FILE),
+        })
+      }
     }
 
     return results
@@ -377,11 +450,101 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         registryResults.push(registryResult)
       }
 
+      // Write global settings/mcp.json with all skill MCP configurations
+      const globalMcpResult = await this.writeGlobalMcpSettings(ctx, skills)
+      if (globalMcpResult != null) {
+        fileResults.push(globalMcpResult)
+      }
+
       // Log registry operation results (Requirements 6.4, 6.5)
       this.logRegistryResults(registryResults, ctx.dryRun)
     }
 
     return { files: fileResults, dirs: dirResults }
+  }
+
+  /**
+   * Write global MCP settings file at ~/.kiro/settings/mcp.json
+   * Aggregates all skill MCP configurations into the powers.mcpServers section.
+   *
+   * Format:
+   * {
+   *   "mcpServers": {},
+   *   "powers": {
+   *     "mcpServers": {
+   *       "power-[powerName]-[mcpName]": mcpConfig,
+   *       ...
+   *     }
+   *   }
+   * }
+   *
+   * @param ctx - The output write context
+   * @param skills - All skill prompts
+   * @returns WriteResult or null if no MCP configurations
+   */
+  private async writeGlobalMcpSettings(
+    ctx: OutputWriteContext,
+    skills: readonly SkillPrompt[],
+  ): Promise<WriteResult | null> {
+    // Collect all MCP configurations from skills into powers.mcpServers
+    const powersMcpServers: Record<string, unknown> = {}
+
+    for (const skill of skills) {
+      if (skill.mcpConfig == null) {
+        continue
+      }
+
+      const powerName = skill.yamlFrontMatter.name
+      const mcpServers = skill.mcpConfig.mcpServers
+
+      // Add each MCP server with key format: power-[powerName]-[mcpName]
+      for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) {
+        const key = `power-${powerName}-${mcpName}`
+        powersMcpServers[key] = mcpConfig
+      }
+    }
+
+    // Skip if no MCP configurations
+    if (Object.keys(powersMcpServers).length === 0) {
+      return null
+    }
+
+    const settingsDir = this.getGlobalSettingsDir()
+    const fullPath = this.joinPath(settingsDir, MCP_CONFIG_FILE)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: MCP_CONFIG_FILE,
+      basePath: settingsDir,
+      getDirectoryName: () => SETTINGS_SUBDIR,
+      getAbsolutePath: () => fullPath,
+    }
+
+    // Build global MCP settings structure
+    const globalMcpSettings: KiroGlobalMcpSettings = {
+      mcpServers: {},
+      powers: {
+        mcpServers: powersMcpServers,
+      },
+    }
+
+    const content = JSON.stringify(globalMcpSettings, null, 2)
+
+    if (ctx.dryRun === true) {
+      this.log.trace({ action: 'dryRun', type: 'globalMcpSettings', path: fullPath, serverCount: Object.keys(powersMcpServers).length })
+      return { path: relativePath, success: true, skipped: false }
+    }
+
+    try {
+      this.ensureDirectory(settingsDir)
+      this.writeFileSync(fullPath, content)
+      this.log.trace({ action: 'write', type: 'globalMcpSettings', path: fullPath, serverCount: Object.keys(powersMcpServers).length })
+      return { path: relativePath, success: true }
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({ action: 'write', type: 'globalMcpSettings', path: fullPath, error: errMsg })
+      return { path: relativePath, success: false, error: error as Error }
+    }
   }
 
   /**

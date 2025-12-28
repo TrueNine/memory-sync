@@ -46,14 +46,23 @@ export interface KiroPowerSource {
  * A single power entry in the Kiro registry.
  * Contains metadata about an installed power.
  *
+ * Field order matches Kiro's expected format:
+ * name → description → mcpServers → author → keywords → displayName → installed → installedAt → installPath → source → sourcePath
+ *
  * @see Requirements 2.1, 2.2, 2.3, 2.4
  */
 export interface KiroPowerEntry {
   readonly name: string
   readonly description: string
-  readonly displayName?: string
+  /**
+   * MCP server names from skill's mcp.json configuration.
+   * Contains all keys from mcpServers object.
+   * Position: after description, before author (matches Kiro format)
+   */
+  readonly mcpServers?: readonly string[]
   readonly author?: string
   readonly keywords: readonly string[]
+  readonly displayName?: string
   readonly installed: boolean
   readonly installedAt?: string
   readonly installPath?: string

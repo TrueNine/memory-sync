@@ -117,10 +117,14 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
    * @param skill - The skill prompt to convert
    * @param installPath - The installation path for the power
    * @returns A KiroPowerEntry object
+   *
+   * Field order matches Kiro's expected format:
+   * name → description → mcpServers → author → keywords → displayName → installed → installedAt → installPath → source → sourcePath
+   *
    * @see Requirements 2.4, 4.8
    */
   buildPowerEntry(skill: SkillPrompt, installPath: string): KiroPowerEntry {
-    const { yamlFrontMatter } = skill
+    const { yamlFrontMatter, mcpConfig } = skill
     const repoId = this.generateEntryId('local')
 
     // Build source object with repo type (Kiro uses "repo" for local installations)
@@ -130,11 +134,18 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
       repoName: installPath,
     }
 
-    // Build base entry with required fields
+    // Extract MCP server names if skill has MCP configuration
+    const mcpServerNames = mcpConfig != null
+      ? Object.keys(mcpConfig.mcpServers)
+      : null
+
+    // Build entry with fields in Kiro's expected order:
+    // name → description → mcpServers → author → keywords → displayName → installed → installedAt → installPath → source → sourcePath
     const entry: KiroPowerEntry = {
       name: yamlFrontMatter.name,
       description: yamlFrontMatter.description,
-      // Only include optional fields if they have values (match Kiro's field order)
+      // mcpServers comes after description, before author (Kiro format)
+      ...(mcpServerNames != null && mcpServerNames.length > 0 && { mcpServers: mcpServerNames }),
       ...(yamlFrontMatter.author != null && { author: yamlFrontMatter.author }),
       keywords: yamlFrontMatter.keywords ?? [],
       ...(yamlFrontMatter.displayName != null && { displayName: yamlFrontMatter.displayName }),
@@ -151,52 +162,50 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
   }
 
   /**
-   * Unregister all locally-installed powers from the registry.
-   * Removes power entries where source.repoId starts with 'local-'
-   * and corresponding repoSource entries where type === 'local'.
+   * Get the official Kiro powers registry from build-time constant.
+   * Falls back to empty registry if constant is not available (e.g., in tests).
+   *
+   * @returns The official Kiro powers registry
+   */
+  private getOfficialRegistry(): KiroPowersRegistry {
+    try {
+      // __KIRO_GLOBAL_POWERS_REGISTRY__ is injected at build time by tsdown
+      if (typeof __KIRO_GLOBAL_POWERS_REGISTRY__ !== 'undefined') {
+        return JSON.parse(__KIRO_GLOBAL_POWERS_REGISTRY__) as KiroPowersRegistry
+      }
+    } catch {
+      this.log.debug('Failed to parse official registry, using empty registry')
+    }
+    // Fallback for tests or when constant is not available
+    return this.createInitialRegistry()
+  }
+
+  /**
+   * Reset the registry to official Kiro powers registry state.
+   * Overwrites the entire registry with the official registry from build-time constant.
    *
    * @param dryRun - If true, log intended actions without modifying files
    * @returns True if operation succeeded, false otherwise
    * @see Requirements 6.1, 6.2, 6.3, 6.4
    */
   unregisterLocalPowers(dryRun?: boolean): boolean {
-    // Read existing registry (returns initial if file doesn't exist)
-    const existing = this.read()
+    // Get official registry from build-time constant
+    const officialRegistry = this.getOfficialRegistry()
 
-    // Filter out local power entries (source.repoId starts with 'local-')
-    const filteredPowers: Record<string, KiroPowerEntry> = {}
-    for (const [name, power] of Object.entries(existing.powers)) {
-      const repoId = power.source.repoId
-      if (repoId == null || !repoId.startsWith('local-')) {
-        filteredPowers[name] = power
-      } else {
-        this.log.trace({ action: dryRun === true ? 'dryRun' : 'unregister', type: 'localPower', name })
-      }
+    // Update lastUpdated timestamp
+    const resetRegistry: KiroPowersRegistry = {
+      ...officialRegistry,
+      lastUpdated: new Date().toISOString(),
     }
 
-    // Filter out local repoSource entries (type === 'local')
-    const filteredRepoSources: Record<string, KiroRepoSource> = {}
-    for (const [id, repoSource] of Object.entries(existing.repoSources)) {
-      if (repoSource.type !== 'local') {
-        filteredRepoSources[id] = repoSource
-      } else {
-        this.log.trace({ action: dryRun === true ? 'dryRun' : 'unregister', type: 'localRepoSource', id })
-      }
-    }
+    this.log.trace({
+      action: dryRun === true ? 'dryRun' : 'reset',
+      type: 'registry',
+      powerCount: Object.keys(resetRegistry.powers).length,
+    })
 
-    // Build cleaned registry preserving other fields
-    const cleanedRegistry: KiroPowersRegistry = {
-      version: existing.version,
-      powers: filteredPowers,
-      repoSources: filteredRepoSources,
-      ...(existing.kiroRecommendedRepo != null && {
-        kiroRecommendedRepo: existing.kiroRecommendedRepo,
-      }),
-      lastUpdated: existing.lastUpdated,
-    }
-
-    // Write cleaned registry (respects dry-run)
-    return this.write(cleanedRegistry, dryRun)
+    // Write reset registry (respects dry-run)
+    return this.write(resetRegistry, dryRun)
   }
 
   /**
