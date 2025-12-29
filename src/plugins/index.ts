@@ -26,6 +26,7 @@ export { AbstractOutputPlugin } from './AbstractOutputPlugin'
 export type { AbstractOutputPluginOptions, FastCommandNameTransformOptions } from './AbstractOutputPlugin'
 // Abstract base classes
 export { AbstractPlugin } from './AbstractPlugin'
+export { GenericSkillsOutputPlugin } from './GenericSkillsOutputPlugin'
 // Effect Input Plugins
 export { MarkdownWhitespaceCleanupEffectInputPlugin } from './MarkdownWhitespaceCleanupEffectInputPlugin'
 

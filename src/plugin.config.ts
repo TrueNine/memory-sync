@@ -7,6 +7,7 @@ import { CodexCLIOutputPlugin } from '@/plugins/CodexCLIOutputPlugin'
 import { DroidCLIOutputPlugin } from '@/plugins/DroidCLIOutputPlugin'
 import { FastCommandInputPlugin } from '@/plugins/FastCommandInputPlugin'
 import { GeminiCLIOutputPlugin } from '@/plugins/GeminiCLIOutputPlugin'
+import { GenericSkillsOutputPlugin } from '@/plugins/GenericSkillsOutputPlugin'
 import { GlobalMemoryInputPlugin } from '@/plugins/GlobalMemoryInputPlugin'
 import { IdeConfigInputPlugin } from '@/plugins/IdeConfigInputPlugin'
 import { JetBrainsIDECodeStyleConfigOutputPlugin } from '@/plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
@@ -32,6 +33,7 @@ export default defineConfig({
     new CodexCLIOutputPlugin(),
     new DroidCLIOutputPlugin(),
     new GeminiCLIOutputPlugin(),
+    new GenericSkillsOutputPlugin(),
     new KiroCLIOutputPlugin(),
     new WarpIDEOutputPlugin(),
 
