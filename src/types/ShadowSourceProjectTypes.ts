@@ -86,7 +86,7 @@ export const SHADOW_SOURCE_DIR_NAMES = {
 export const SHADOW_SOURCE_FILE_NAMES = {
   // Global memory
   GLOBAL_MEMORY: 'GLOBAL.md',
-  GLOBAL_MEMORY_SRC: 'GLOBAL.cn.md',
+  GLOBAL_MEMORY_SRC: 'GLOBAL.cn.mdx',
   // EditorConfig
   EDITOR_CONFIG: '.editorconfig',
   // JetBrains IDE
@@ -110,7 +110,7 @@ export const SHADOW_SOURCE_RELATIVE_PATHS = {
   SRC_SKILLS: 'src/skills',
   SRC_COMMANDS: 'src/commands',
   SRC_AGENTS: 'src/agents',
-  SRC_GLOBAL_MEMORY: 'src/GLOBAL.cn.md',
+  SRC_GLOBAL_MEMORY: 'src/GLOBAL.cn.mdx',
   // Distribution paths
   DIST_SKILLS: 'dist/skills',
   DIST_COMMANDS: 'dist/commands',
@@ -130,17 +130,17 @@ export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE: ShadowSourceProjectDirecto
     skills: {
       name: SHADOW_SOURCE_DIR_NAMES.SKILLS,
       required: false,
-      description: 'Skill source files (.cn.md)',
+      description: 'Skill source files (.cn.mdx)',
     },
     commands: {
       name: SHADOW_SOURCE_DIR_NAMES.COMMANDS,
       required: false,
-      description: 'Fast command source files (.cn.md)',
+      description: 'Fast command source files (.cn.mdx)',
     },
     agents: {
       name: SHADOW_SOURCE_DIR_NAMES.AGENTS,
       required: false,
-      description: 'Sub-agent source files (.cn.md)',
+      description: 'Sub-agent source files (.cn.mdx)',
     },
     globalMemoryFile: {
       name: SHADOW_SOURCE_FILE_NAMES.GLOBAL_MEMORY_SRC,

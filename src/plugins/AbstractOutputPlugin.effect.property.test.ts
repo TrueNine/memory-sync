@@ -69,10 +69,10 @@ const fileExtensionGen = fc.constantFrom('.ts', '.js', '.json', '.sh', '.txt', '
 
 const fileContentGen = fc.string({ minLength: 0, maxLength: 500 })
 
-// Generate a non-.cn.md filename
+// Generate a non-.cn.mdx filename
 const nonSrcMdFileNameGen = fc.tuple(validNameGen, fileExtensionGen)
   .map(([name, ext]) => `${name}${ext}`)
-  .filter((name) => !name.endsWith('.cn.md'))
+  .filter((name) => !name.endsWith('.cn.mdx'))
 
 // Generate markdown content with whitespace issues
 const markdownWithWhitespaceGen = fc.array(

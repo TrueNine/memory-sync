@@ -14,8 +14,8 @@ import { SkillNonSrcFileSyncEffectInputPlugin } from './SkillNonSrcFileSyncEffec
  * Feature: effect-input-plugins
  * Property-based tests for SkillNonSrcFileSyncEffectInputPlugin
  *
- * Property 1: Non-.cn.md file sync correctness
- * For any file in src/skills/{skill_name}/ that does not end with .cn.md,
+ * Property 1: Non-.cn.mdx file sync correctness
+ * For any file in src/skills/{skill_name}/ that does not end with .cn.mdx,
  * after the plugin executes, the file should exist at dist/skills/{skill_name}/{relative_path}
  * with identical content.
  *
@@ -61,13 +61,13 @@ const fileExtensionGen = fc.constantFrom('.ts', '.js', '.json', '.sh', '.txt', '
 
 const fileContentGen = fc.string({ minLength: 0, maxLength: 1000 })
 
-// Generate a non-.cn.md filename
+// Generate a non-.cn.mdx filename
 const nonSrcMdFileNameGen = fc.tuple(validFileNameGen, fileExtensionGen)
   .map(([name, ext]) => `${name}${ext}`)
-  .filter((name) => !name.endsWith('.cn.md'))
+  .filter((name) => !name.endsWith('.cn.mdx'))
 
-// Generate a .cn.md filename
-const srcMdFileNameGen = validFileNameGen.map((name) => `${name}.cn.md`)
+// Generate a .cn.mdx filename
+const srcMdFileNameGen = validFileNameGen.map((name) => `${name}.cn.mdx`)
 
 // Generate skill directory structure
 interface SkillFile {
@@ -85,13 +85,13 @@ const skillStructureGen: fc.Arbitrary<SkillStructure> = fc.record({
   skillName: validFileNameGen,
   files: fc.array(
     fc.oneof(
-      // Non-.cn.md files (should be synced)
+      // Non-.cn.mdx files (should be synced)
       fc.record({
         relativePath: nonSrcMdFileNameGen,
         content: fileContentGen,
         isSrcMd: fc.constant(false),
       }),
-      // .cn.md files (should NOT be synced)
+      // .cn.mdx files (should NOT be synced)
       fc.record({
         relativePath: srcMdFileNameGen,
         content: fileContentGen,
@@ -115,15 +115,15 @@ const skillStructureGen: fc.Arbitrary<SkillStructure> = fc.record({
 
 describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
   /**
-   * Feature: effect-input-plugins, Property 1: Non-.cn.md file sync correctness
+   * Feature: effect-input-plugins, Property 1: Non-.cn.mdx file sync correctness
    * Validates: Requirements 1.2
    *
-   * For any file in src/skills/{skill_name}/ that does not end with .cn.md,
+   * For any file in src/skills/{skill_name}/ that does not end with .cn.mdx,
    * after the plugin executes, the file should exist at dist/skills/{skill_name}/{relative_path}
    * with identical content.
    */
-  describe('property 1: Non-.cn.md file sync correctness', () => {
-    it('should sync all non-.cn.md files from src/skills/ to dist/skills/ with identical content', async () => {
+  describe('property 1: Non-.cn.mdx file sync correctness', () => {
+    it('should sync all non-.cn.mdx files from src/skills/ to dist/skills/ with identical content', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(skillStructureGen, { minLength: 1, maxLength: 3 }),
@@ -155,16 +155,16 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               const effectMethod = (plugin as any).syncNonSrcFiles.bind(plugin)
               await effectMethod(ctx)
 
-              // Verify: All non-.cn.md files should exist in dist with identical content
+              // Verify: All non-.cn.mdx files should exist in dist with identical content
               for (const skill of skills) {
                 for (const file of skill.files) {
                   const distPath = path.join(distSkillsDir, skill.skillName, file.relativePath)
 
                   if (file.isSrcMd) {
-                    // .cn.md files should NOT be synced
+                    // .cn.mdx files should NOT be synced
                     expect(fs.existsSync(distPath)).toBe(false)
                   } else {
-                    // Non-.cn.md files should be synced with identical content
+                    // Non-.cn.mdx files should be synced with identical content
                     expect(fs.existsSync(distPath)).toBe(true)
                     const distContent = fs.readFileSync(distPath, 'utf-8')
                     expect(distContent).toBe(file.content)
