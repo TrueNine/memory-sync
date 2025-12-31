@@ -259,7 +259,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               // Create source for valid file
               const srcSkillDir = path.join(srcSkillsDir, validName)
               fs.mkdirSync(srcSkillDir, { recursive: true })
-              fs.writeFileSync(path.join(srcSkillDir, 'SKILL.src.md'), `# ${validName}`, 'utf-8')
+              fs.writeFileSync(path.join(srcSkillDir, 'SKILL.cn.md'), `# ${validName}`, 'utf-8')
 
               // Execute plugin
               const plugin = new OrphanFileCleanupEffectInputPlugin()
@@ -297,31 +297,31 @@ function createSourceFile(
 ): void {
   switch (dirType) {
     case 'skills': {
-      // src/skills/{name}/SKILL.src.md
+      // src/skills/{name}/SKILL.cn.md
       const skillDir = path.join(shadowProjectDir, 'src', 'skills', name)
       fs.mkdirSync(skillDir, { recursive: true })
-      fs.writeFileSync(path.join(skillDir, 'SKILL.src.md'), `# ${name}`, 'utf-8')
+      fs.writeFileSync(path.join(skillDir, 'SKILL.cn.md'), `# ${name}`, 'utf-8')
       break
     }
     case 'commands': {
-      // src/commands/{name}.src.md
+      // src/commands/{name}.cn.md
       const commandsDir = path.join(shadowProjectDir, 'src', 'commands')
       fs.mkdirSync(commandsDir, { recursive: true })
-      fs.writeFileSync(path.join(commandsDir, `${name}.src.md`), `# ${name}`, 'utf-8')
+      fs.writeFileSync(path.join(commandsDir, `${name}.cn.md`), `# ${name}`, 'utf-8')
       break
     }
     case 'agents': {
-      // src/agents/{name}.src.md
+      // src/agents/{name}.cn.md
       const agentsDir = path.join(shadowProjectDir, 'src', 'agents')
       fs.mkdirSync(agentsDir, { recursive: true })
-      fs.writeFileSync(path.join(agentsDir, `${name}.src.md`), `# ${name}`, 'utf-8')
+      fs.writeFileSync(path.join(agentsDir, `${name}.cn.md`), `# ${name}`, 'utf-8')
       break
     }
     case 'app': {
-      // app/{name}.src.md
+      // app/{name}.cn.md
       const appDir = path.join(shadowProjectDir, 'app')
       fs.mkdirSync(appDir, { recursive: true })
-      fs.writeFileSync(path.join(appDir, `${name}.src.md`), `# ${name}`, 'utf-8')
+      fs.writeFileSync(path.join(appDir, `${name}.cn.md`), `# ${name}`, 'utf-8')
       break
     }
   }

@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto'
 import { AbstractInputPlugin } from './AbstractInputPlugin'
 
 /**
- * Result of the skill non-.src.md file sync effect.
+ * Result of the skill non-.cn.md file sync effect.
  */
 export interface SkillSyncEffectResult extends InputEffectResult {
   readonly copiedFiles: string[]
@@ -15,14 +15,14 @@ export interface SkillSyncEffectResult extends InputEffectResult {
 }
 
 /**
- * Effect Input Plugin that syncs non-.src.md files from src/skills/ to dist/skills/.
+ * Effect Input Plugin that syncs non-.cn.md files from src/skills/ to dist/skills/.
  *
  * This plugin copies supporting files (scripts, examples, configs, etc.) from skill source
  * directories to their corresponding distribution directories, preserving relative paths.
  *
  * Features:
  * - Recursively scans src/skills/{skill_name}/ subdirectories
- * - Filters out .src.md files (only syncs non-.src.md files)
+ * - Filters out .cn.md files (only syncs non-.cn.md files)
  * - Creates target directories as needed
  * - Skips files with identical content (compares hash)
  * - Supports dry-run mode for previewing operations
@@ -30,10 +30,10 @@ export interface SkillSyncEffectResult extends InputEffectResult {
  * @example
  * ```
  * src/skills/my-skill/
- *   ├── SKILL.src.md      (ignored - .src.md file)
- *   ├── example.ts        (copied to dist/skills/my-skill/example.ts)
+ *   ├── SKILL.cn.md        (ignored - .cn.md file)
+ *   ├── example.ts         (copied to dist/skills/my-skill/example.ts)
  *   └── scripts/
- *       └── helper.sh     (copied to dist/skills/my-skill/scripts/helper.sh)
+ *       └── helper.sh      (copied to dist/skills/my-skill/scripts/helper.sh)
  * ```
  */
 export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
@@ -43,7 +43,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
   }
 
   /**
-   * Effect handler that syncs non-.src.md files from src/skills/ to dist/skills/.
+   * Effect handler that syncs non-.cn.md files from src/skills/ to dist/skills/.
    */
   private async syncNonSrcFiles(ctx: InputEffectContext): Promise<SkillSyncEffectResult> {
     const { fs, path, shadowProjectDir, dryRun, logger } = ctx
@@ -100,7 +100,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
   }
 
   /**
-   * Recursively sync non-.src.md files from source to destination directory.
+   * Recursively sync non-.cn.md files from source to destination directory.
    */
   private syncDirectoryRecursive(
     ctx: InputEffectContext,
@@ -150,8 +150,8 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
           dryRun,
         )
       } else if (entry.isFile()) {
-        // Skip .src.md files (Requirement 1.2)
-        if (entry.name.endsWith('.src.md')) {
+        // Skip .cn.md files (Requirement 1.2)
+        if (entry.name.endsWith('.cn.md')) {
           continue
         }
 

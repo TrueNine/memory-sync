@@ -209,53 +209,53 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
   ): string[] {
     switch (dirType) {
       case 'skills':
-        // dist/skills/{name}.md → src/skills/{name}/SKILL.src.md OR src/skills/{name}.src.md
-        // dist/skills/{name}/{sub}.md → src/skills/{name}/{sub}.src.md
+        // dist/skills/{name}.md → src/skills/{name}/SKILL.cn.md OR src/skills/{name}.cn.md
+        // dist/skills/{name}/{sub}.md → src/skills/{name}/{sub}.cn.md
         if (relativeDir === '.') {
           // Top-level skill file
           return [
-            nodePath.join(shadowProjectDir, 'src', 'skills', baseName, 'SKILL.src.md'),
-            nodePath.join(shadowProjectDir, 'src', 'skills', `${baseName}.src.md`),
+            nodePath.join(shadowProjectDir, 'src', 'skills', baseName, 'SKILL.cn.md'),
+            nodePath.join(shadowProjectDir, 'src', 'skills', `${baseName}.cn.md`),
           ]
         } else {
           // Nested skill file (e.g., dist/skills/api-convention/timestamp.md)
           return [
-            nodePath.join(shadowProjectDir, 'src', 'skills', relativeDir, `${baseName}.src.md`),
+            nodePath.join(shadowProjectDir, 'src', 'skills', relativeDir, `${baseName}.cn.md`),
           ]
         }
       case 'commands':
-        // dist/commands/{name}.md → src/commands/{name}.src.md
-        // dist/commands/{sub}/{name}.md → src/commands/{sub}/{name}.src.md
+        // dist/commands/{name}.md → src/commands/{name}.cn.md
+        // dist/commands/{sub}/{name}.md → src/commands/{sub}/{name}.cn.md
         if (relativeDir === '.') {
           return [
-            nodePath.join(shadowProjectDir, 'src', 'commands', `${baseName}.src.md`),
+            nodePath.join(shadowProjectDir, 'src', 'commands', `${baseName}.cn.md`),
           ]
         } else {
           return [
-            nodePath.join(shadowProjectDir, 'src', 'commands', relativeDir, `${baseName}.src.md`),
+            nodePath.join(shadowProjectDir, 'src', 'commands', relativeDir, `${baseName}.cn.md`),
           ]
         }
       case 'agents':
-        // dist/agents/{name}.md → src/agents/{name}.src.md
-        // dist/agents/{sub}/{name}.md → src/agents/{sub}/{name}.src.md
+        // dist/agents/{name}.md → src/agents/{name}.cn.md
+        // dist/agents/{sub}/{name}.md → src/agents/{sub}/{name}.cn.md
         if (relativeDir === '.') {
           return [
-            nodePath.join(shadowProjectDir, 'src', 'agents', `${baseName}.src.md`),
+            nodePath.join(shadowProjectDir, 'src', 'agents', `${baseName}.cn.md`),
           ]
         } else {
           return [
-            nodePath.join(shadowProjectDir, 'src', 'agents', relativeDir, `${baseName}.src.md`),
+            nodePath.join(shadowProjectDir, 'src', 'agents', relativeDir, `${baseName}.cn.md`),
           ]
         }
       case 'app':
-        // dist/app/{project}/{name}.md → app/{project}/{name}.src.md
+        // dist/app/{project}/{name}.md → app/{project}/{name}.cn.md
         if (relativeDir === '.') {
           return [
-            nodePath.join(shadowProjectDir, 'app', `${baseName}.src.md`),
+            nodePath.join(shadowProjectDir, 'app', `${baseName}.cn.md`),
           ]
         } else {
           return [
-            nodePath.join(shadowProjectDir, 'app', relativeDir, `${baseName}.src.md`),
+            nodePath.join(shadowProjectDir, 'app', relativeDir, `${baseName}.cn.md`),
           ]
         }
       default:

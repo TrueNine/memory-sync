@@ -468,11 +468,11 @@ export function cleanStaleDistFiles(
       const distFilePath = nodePath.join(distDir, entry.name)
 
       // Try to find corresponding source file
-      // Convention: dist/foo.md -> src/foo/SKILL.md or src/foo.src.md
+      // Convention: dist/foo.md -> src/foo/SKILL.md or src/foo.cn.md
       const baseName = entry.name.replace(extension, '')
       const possibleSrcPaths = [
         nodePath.join(srcDir, baseName, 'SKILL.md'),
-        nodePath.join(srcDir, `${baseName}.src.md`),
+        nodePath.join(srcDir, `${baseName}.cn.md`),
         nodePath.join(srcDir, `${baseName}${extension}`),
         nodePath.join(srcDir, entry.name),
       ]
