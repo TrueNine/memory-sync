@@ -116,13 +116,13 @@ describe('readmeMdInputPlugin property tests', () => {
 
                 // Add root README if flag is true
                 if (includeRoot) {
-                  structure[`ref/${projectName}/README.md`] = content
+                  structure[`ref/${projectName}/readme.md`] = content
                   expectedReadmes.push({ projectName, isRoot: true })
                 }
 
                 // Add child READMEs
                 for (const subdir of uniqueSubdirs) {
-                  structure[`ref/${projectName}/${subdir}/README.md`] = content
+                  structure[`ref/${projectName}/${subdir}/readme.md`] = content
                   expectedReadmes.push({ projectName, isRoot: false, subdir })
                 }
               }
@@ -210,8 +210,8 @@ describe('readmeMdInputPlugin property tests', () => {
             withTempDir((tempDir) => {
               // Create structure with both root and child README
               const structure: Record<string, string | null> = {
-                [`ref/${projectName}/README.md`]: rootContent,
-                [`ref/${projectName}/${subdir}/README.md`]: childContent,
+                [`ref/${projectName}/readme.md`]: rootContent,
+                [`ref/${projectName}/${subdir}/readme.md`]: childContent,
               }
 
               createDirectoryStructure(tempDir, structure)
@@ -248,7 +248,7 @@ describe('readmeMdInputPlugin property tests', () => {
           (projectName, content) => {
             withTempDir((tempDir) => {
               const structure: Record<string, string | null> = {
-                [`ref/${projectName}/README.md`]: content,
+                [`ref/${projectName}/readme.md`]: content,
               }
 
               createDirectoryStructure(tempDir, structure)
@@ -279,7 +279,7 @@ describe('readmeMdInputPlugin property tests', () => {
               const structure: Record<string, string | null> = {}
 
               for (const subdir of uniqueSubdirs) {
-                structure[`ref/${projectName}/${subdir}/README.md`] = content
+                structure[`ref/${projectName}/${subdir}/readme.md`] = content
               }
 
               createDirectoryStructure(tempDir, structure)

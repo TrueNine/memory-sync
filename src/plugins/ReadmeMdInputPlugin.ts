@@ -81,8 +81,8 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     const { fs, path, logger } = ctx
     const isRoot = relativePath === ''
 
-    // Check for README.md in current directory
-    const readmePath = path.join(currentDir, 'README.md')
+    // Check for readme.md in current directory
+    const readmePath = path.join(currentDir, 'readme.md')
     if (fs.existsSync(readmePath) && fs.statSync(readmePath).isFile()) {
       try {
         const content = fs.readFileSync(readmePath, 'utf-8')
@@ -120,7 +120,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           dir,
         })
       } catch (e) {
-        logger.warn('failed to read README.md', { path: readmePath, error: e })
+        logger.warn('failed to read readme.md', { path: readmePath, error: e })
       }
     }
 
