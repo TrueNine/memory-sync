@@ -6,7 +6,6 @@ import type {
   YAMLFrontMatter,
 } from '@/types'
 
-import { DEFAULT_SHADOW_PROJECTS_DIR } from '@/constants'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
@@ -30,7 +29,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     // Resolve shadow projects directory
-    const shadowProjectsDirRaw = options.shadowProjectsDir ?? DEFAULT_SHADOW_PROJECTS_DIR
+    const shadowProjectsDirRaw = options.shadowProjectsDir
     const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
 
     // Get workspace from dependency context (provided by ShadowProjectInputPlugin)

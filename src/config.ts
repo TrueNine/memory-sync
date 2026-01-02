@@ -5,15 +5,7 @@ import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
 import { loadUserConfig, validateAndEnsureGlobalConfig } from '@/ConfigLoader'
-import {
-  DEFAULT_GLOBAL_MEMORY_FILE,
-  DEFAULT_SHADOW_FAST_COMMAND_DIR,
-  DEFAULT_SHADOW_PROJECT_SUFFIX,
-  DEFAULT_SHADOW_PROJECTS_DIR,
-  DEFAULT_SHADOW_SKILL_SOURCE_DIR,
-  DEFAULT_SHADOW_SUB_AGENT_DIR,
-  DEFAULT_WORKSPACE_DIR,
-} from '@/constants'
+import { DEFAULT_USER_CONFIG } from '@/constants'
 import { createLogger } from '@/log'
 import { PluginPipeline } from '@/PluginPipeline'
 import { checkVersionControl } from '@/ShadowSourceProject'
@@ -29,18 +21,11 @@ export interface PipelineConfig {
 }
 
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
-  workspaceDir: DEFAULT_WORKSPACE_DIR,
-  shadowSourceProjectDir: `$WORKSPACE/${DEFAULT_SHADOW_PROJECT_SUFFIX}`,
-  shadowSkillSourceDir: DEFAULT_SHADOW_SKILL_SOURCE_DIR,
-  shadowFastCommandDir: DEFAULT_SHADOW_FAST_COMMAND_DIR,
-  shadowSubAgentDir: DEFAULT_SHADOW_SUB_AGENT_DIR,
-  globalMemoryFile: DEFAULT_GLOBAL_MEMORY_FILE,
-  shadowProjectsDir: DEFAULT_SHADOW_PROJECTS_DIR,
+  ...DEFAULT_USER_CONFIG,
   externalProjects: [],
   excludePatterns: {},
   fastCommandSeriesOptions: {},
   plugins: [],
-  logLevel: 'info',
 }
 
 /**

@@ -279,7 +279,10 @@ export function generateShadowSourceProject(
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.SRC_COMMANDS))
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.SRC_AGENTS))
 
-  // Create src/GLOBAL.src.md
+  // Create app directory (must be created before app/global.cn.mdx)
+  ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.APP))
+
+  // Create app/global.cn.mdx
   ensureFile(
     path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.SRC_GLOBAL_MEMORY),
     SHADOW_SOURCE_RELATIVE_PATHS.SRC_GLOBAL_MEMORY,
@@ -292,15 +295,12 @@ export function generateShadowSourceProject(
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_AGENTS))
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_APP))
 
-  // Create dist/GLOBAL.md
+  // Create dist/global.md
   ensureFile(
     path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_GLOBAL_MEMORY),
     SHADOW_SOURCE_RELATIVE_PATHS.DIST_GLOBAL_MEMORY,
     '# Global Memory\n\n',
   )
-
-  // Create app directory
-  ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.APP))
 
   // Create IDE directories
   ensureDir(path.join(rootPath, SHADOW_SOURCE_DIR_NAMES.IDEA_CODE_STYLES))

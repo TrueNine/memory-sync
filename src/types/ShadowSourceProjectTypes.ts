@@ -85,8 +85,8 @@ export const SHADOW_SOURCE_DIR_NAMES = {
  */
 export const SHADOW_SOURCE_FILE_NAMES = {
   // Global memory
-  GLOBAL_MEMORY: 'GLOBAL.md',
-  GLOBAL_MEMORY_SRC: 'GLOBAL.cn.mdx',
+  GLOBAL_MEMORY: 'global.md',
+  GLOBAL_MEMORY_SRC: 'global.cn.mdx',
   // EditorConfig
   EDITOR_CONFIG: '.editorconfig',
   // JetBrains IDE
@@ -110,13 +110,13 @@ export const SHADOW_SOURCE_RELATIVE_PATHS = {
   SRC_SKILLS: 'src/skills',
   SRC_COMMANDS: 'src/commands',
   SRC_AGENTS: 'src/agents',
-  SRC_GLOBAL_MEMORY: 'src/GLOBAL.cn.mdx',
+  SRC_GLOBAL_MEMORY: 'app/global.cn.mdx',
   // Distribution paths
   DIST_SKILLS: 'dist/skills',
   DIST_COMMANDS: 'dist/commands',
   DIST_AGENTS: 'dist/agents',
   DIST_APP: 'dist/app',
-  DIST_GLOBAL_MEMORY: 'dist/GLOBAL.md',
+  DIST_GLOBAL_MEMORY: 'dist/global.md',
   // App source path (standalone at root)
   APP: 'app',
 } as const

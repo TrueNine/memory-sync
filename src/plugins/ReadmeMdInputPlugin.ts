@@ -1,6 +1,5 @@
 import type { CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath } from '@/types'
 
-import { DEFAULT_SHADOW_PROJECTS_DIR } from '@/constants'
 import { FilePathKind, PromptKind } from '@/types'
 import { AbstractInputPlugin } from './AbstractInputPlugin'
 
@@ -19,7 +18,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     const { userConfigOptions: options, logger, fs, path } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
-    const shadowProjectsDirRaw = options.shadowProjectsDir ?? DEFAULT_SHADOW_PROJECTS_DIR
+    const shadowProjectsDirRaw = options.shadowProjectsDir
     const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
 
     const readmePrompts: ReadmePrompt[] = []

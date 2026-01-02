@@ -1,6 +1,5 @@
 import type { CollectedInputContext, InputPluginContext, SubAgentPrompt, SubAgentYAMLFrontMatter } from '@/types'
 
-import { DEFAULT_SHADOW_SUB_AGENT_DIR } from '@/constants'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
@@ -17,7 +16,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     const { userConfigOptions: options, logger, fs, path } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
-    const subAgentDirRaw = options.shadowSubAgentDir ?? DEFAULT_SHADOW_SUB_AGENT_DIR
+    const subAgentDirRaw = options.shadowSubAgentDir
     const subAgentDir = this.resolvePath(subAgentDirRaw, workspaceDir, shadowProjectDir)
 
     const subAgents: SubAgentPrompt[] = []

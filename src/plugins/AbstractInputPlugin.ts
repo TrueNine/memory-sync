@@ -15,11 +15,7 @@ import { spawn } from 'node:child_process'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {
-  DEFAULT_SHADOW_PROJECT_SUFFIX,
-  DEFAULT_WORKSPACE_DIR,
-  PathPlaceholders,
-} from '@/constants'
+import { PathPlaceholders } from '@/constants'
 import { parseMarkdown } from '@/markdown'
 import { PluginKind } from '@/types'
 import { AbstractPlugin } from './AbstractPlugin'
@@ -274,11 +270,11 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
    * const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(ctx.userConfigOptions)
    * ```
    */
-  protected resolveBasePaths(options: PluginOptions): ResolvedBasePaths {
-    const workspaceDirRaw = options.workspaceDir ?? DEFAULT_WORKSPACE_DIR
+  protected resolveBasePaths(options: Required<PluginOptions>): ResolvedBasePaths {
+    const workspaceDirRaw = options.workspaceDir
     const workspaceDir = this.resolvePath(workspaceDirRaw, '', '')
 
-    const shadowProjectDirRaw = options.shadowSourceProjectDir ?? `${PathPlaceholders.WORKSPACE}/${DEFAULT_SHADOW_PROJECT_SUFFIX}`
+    const shadowProjectDirRaw = options.shadowSourceProjectDir
     const shadowProjectDir = this.resolvePath(shadowProjectDirRaw, workspaceDir, '')
 
     return { workspaceDir, shadowProjectDir }

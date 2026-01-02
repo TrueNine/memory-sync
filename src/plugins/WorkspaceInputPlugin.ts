@@ -14,7 +14,7 @@ export class WorkspaceInputPlugin extends AbstractInputPlugin {
     const { userConfigOptions: options } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
-    const externalProjects = (options.externalProjects || []).map((p) => {
+    const externalProjects = options.externalProjects.map((p) => {
       const resolved = this.resolvePath(p, workspaceDir, shadowProjectDir)
       return {
         name: path.basename(resolved),

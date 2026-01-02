@@ -1,13 +1,15 @@
+import type { UserConfigFile } from '@/types/ConfigTypes'
+
 export const PathPlaceholders = {
   USER_HOME: '~',
   WORKSPACE: '$WORKSPACE',
   SHADOW_SOURCE_PROJECT: '$SHADOW_SOURCE_PROJECT',
 } as const
 
-export const DEFAULT_WORKSPACE_DIR = '~/project'
-export const DEFAULT_SHADOW_PROJECT_SUFFIX = 'aindex'
-export const DEFAULT_SHADOW_SKILL_SOURCE_DIR = '$SHADOW_SOURCE_PROJECT/dist/skills'
-export const DEFAULT_SHADOW_FAST_COMMAND_DIR = '$SHADOW_SOURCE_PROJECT/dist/commands'
-export const DEFAULT_SHADOW_SUB_AGENT_DIR = '$SHADOW_SOURCE_PROJECT/dist/agents'
-export const DEFAULT_SHADOW_PROJECTS_DIR = '$SHADOW_SOURCE_PROJECT/dist/app'
-export const DEFAULT_GLOBAL_MEMORY_FILE = '$SHADOW_SOURCE_PROJECT/dist/GLOBAL.md'
+/**
+ * Default user config values from public/tnmsc.example.json
+ * Injected at build time via __TEMPLATE_TNMSC_EXAMPLE__
+ */
+export const DEFAULT_USER_CONFIG = JSON.parse(__TEMPLATE_TNMSC_EXAMPLE__) as Readonly<
+  Required<Omit<UserConfigFile, 'externalProjects' | 'excludePatterns'>>
+>

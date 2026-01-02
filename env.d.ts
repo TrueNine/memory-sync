@@ -17,3 +17,9 @@ declare const __CLI_PACKAGE_NAME__: string
  * from public/kiro_global_powers_registry.json
  */
 declare const __KIRO_GLOBAL_POWERS_REGISTRY__: string
+
+/**
+ * Default tnmsc config template content injected at build time
+ * from public/tnmsc.example.json
+ */
+declare const __TEMPLATE_TNMSC_EXAMPLE__: string

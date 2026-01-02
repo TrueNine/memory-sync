@@ -9,6 +9,25 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createLogger } from '@/log'
 import { AbstractInputPlugin, cleanStaleDistFiles, syncDirectory } from './AbstractInputPlugin'
 
+// Default test options for Required<PluginOptions>
+function createTestOptions(overrides: Partial<PluginOptions> = {}): Required<PluginOptions> {
+  return {
+    workspaceDir: '/test',
+    shadowSourceProjectDir: '/test/aindex',
+    shadowSkillSourceDir: '$SHADOW_SOURCE_PROJECT/dist/skills',
+    shadowFastCommandDir: '$SHADOW_SOURCE_PROJECT/dist/commands',
+    shadowSubAgentDir: '$SHADOW_SOURCE_PROJECT/dist/agents',
+    globalMemoryFile: '$SHADOW_SOURCE_PROJECT/dist/global.md',
+    shadowProjectsDir: '$SHADOW_SOURCE_PROJECT/dist/app',
+    externalProjects: [],
+    excludePatterns: {},
+    fastCommandSeriesOptions: {},
+    plugins: [],
+    logLevel: 'info',
+    ...overrides,
+  }
+}
+
 // Concrete implementation for testing
 class TestInputPlugin extends AbstractInputPlugin {
   public effectResults: InputEffectResult[] = []
@@ -30,7 +49,7 @@ class TestInputPlugin extends AbstractInputPlugin {
     this.registerEffect(name, handler, priority)
   }
 
-  public exposeResolveBasePaths(options: PluginOptions): { workspaceDir: string, shadowProjectDir: string } {
+  public exposeResolveBasePaths(options: Required<PluginOptions>): { workspaceDir: string, shadowProjectDir: string } {
     return this.resolveBasePaths(options)
   }
 
@@ -108,7 +127,7 @@ describe('abstractInputPlugin', () => {
         fs,
         path,
         glob,
-        userConfigOptions: { workspaceDir: '/test' },
+        userConfigOptions: createTestOptions({ workspaceDir: '/test' }),
         dependencyContext: {},
       }
 
@@ -125,7 +144,7 @@ describe('abstractInputPlugin', () => {
         fs,
         path,
         glob,
-        userConfigOptions: { workspaceDir: '/test' },
+        userConfigOptions: createTestOptions(),
         dependencyContext: {},
       }
 
@@ -146,7 +165,7 @@ describe('abstractInputPlugin', () => {
         fs,
         path,
         glob,
-        userConfigOptions: { workspaceDir: '/test' },
+        userConfigOptions: createTestOptions(),
         dependencyContext: {},
       }
 
@@ -168,7 +187,7 @@ describe('abstractInputPlugin', () => {
         fs,
         path,
         glob,
-        userConfigOptions: { workspaceDir: '/test' },
+        userConfigOptions: createTestOptions(),
         dependencyContext: {},
       }
 
@@ -197,7 +216,7 @@ describe('abstractInputPlugin', () => {
         fs,
         path,
         glob,
-        userConfigOptions: { workspaceDir: '/test' },
+        userConfigOptions: createTestOptions(),
         dependencyContext: {},
       }
 
@@ -212,10 +231,10 @@ describe('abstractInputPlugin', () => {
 
   describe('resolveBasePaths', () => {
     it('should resolve workspace and shadow project paths', () => {
-      const options: PluginOptions = {
+      const options = createTestOptions({
         workspaceDir: '/custom/workspace',
         shadowSourceProjectDir: '/custom/workspace/aindex',
-      }
+      })
 
       const { workspaceDir, shadowProjectDir } = plugin.exposeResolveBasePaths(options)
 
@@ -224,7 +243,10 @@ describe('abstractInputPlugin', () => {
     })
 
     it('should use default paths when not specified', () => {
-      const options: PluginOptions = {}
+      const options = createTestOptions({
+        workspaceDir: '~/project',
+        shadowSourceProjectDir: '$WORKSPACE/aindex',
+      })
 
       const { workspaceDir, shadowProjectDir } = plugin.exposeResolveBasePaths(options)
 

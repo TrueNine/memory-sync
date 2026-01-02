@@ -1,9 +1,6 @@
 import type { CollectedInputContext, InputPluginContext, Project, Workspace } from '@/types'
 
 import {
-  DEFAULT_SHADOW_PROJECTS_DIR,
-} from '@/constants'
-import {
   FilePathKind,
 } from '@/types'
 import { AbstractInputPlugin } from './AbstractInputPlugin'
@@ -17,7 +14,7 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
     const { userConfigOptions: options, logger, fs, path } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
-    const shadowProjectsDirRaw = options.shadowProjectsDir ?? DEFAULT_SHADOW_PROJECTS_DIR
+    const shadowProjectsDirRaw = options.shadowProjectsDir
     const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
 
     // Get the shadow source project name (e.g., "aindex") from shadowProjectDir

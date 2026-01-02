@@ -32,7 +32,7 @@ export interface PluginContext {
 }
 
 export interface InputPluginContext extends PluginContext {
-  readonly userConfigOptions: PluginOptions
+  readonly userConfigOptions: Required<PluginOptions>
   /**
    * Accumulated context from all executed dependencies.
    * Contains merged outputs from plugins that this plugin depends on.

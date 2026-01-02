@@ -2,9 +2,6 @@ import type { CollectedInputContext, InputPluginContext } from '@/types'
 
 import * as os from 'node:os'
 
-import {
-  DEFAULT_GLOBAL_MEMORY_FILE,
-} from '@/constants'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
@@ -22,7 +19,7 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
     const { userConfigOptions: options, fs, path } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
-    const globalMemoryFileRaw = options.globalMemoryFile ?? DEFAULT_GLOBAL_MEMORY_FILE
+    const globalMemoryFileRaw = options.globalMemoryFile
     const globalMemoryFile = this.resolvePath(globalMemoryFileRaw, workspaceDir, shadowProjectDir)
 
     if (fs.existsSync(globalMemoryFile) && fs.statSync(globalMemoryFile).isFile()) {

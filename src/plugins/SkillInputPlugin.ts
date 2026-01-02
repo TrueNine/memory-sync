@@ -14,7 +14,6 @@ import type {
 
 import { Buffer } from 'node:buffer'
 import * as path from 'node:path'
-import { DEFAULT_SHADOW_SKILL_SOURCE_DIR } from '@/constants'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
@@ -471,7 +470,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     const { userConfigOptions: options, logger } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
-    const skillDirRaw = options.shadowSkillSourceDir ?? DEFAULT_SHADOW_SKILL_SOURCE_DIR
+    const skillDirRaw = options.shadowSkillSourceDir
     const skillDir = this.resolvePath(skillDirRaw, workspaceDir, shadowProjectDir)
 
     const skills: SkillPrompt[] = []

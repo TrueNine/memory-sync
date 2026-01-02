@@ -1,0 +1,12 @@
+{
+  "workspaceDir": "~/project",
+  "shadowSourceProjectDir": "$WORKSPACE/aindex",
+  "shadowSkillSourceDir": "$SHADOW_SOURCE_PROJECT/dist/skills",
+  "shadowFastCommandDir": "$SHADOW_SOURCE_PROJECT/dist/commands",
+  "shadowSubAgentDir": "$SHADOW_SOURCE_PROJECT/dist/agents",
+  "globalMemoryFile": "$SHADOW_SOURCE_PROJECT/dist/global.md",
+  "shadowProjectsDir": "$SHADOW_SOURCE_PROJECT/dist/app",
+  "externalProjects": [],
+  "excludePatterns": {},
+  "logLevel": "info"
+}

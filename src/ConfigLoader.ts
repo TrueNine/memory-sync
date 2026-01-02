@@ -4,15 +4,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {
-  DEFAULT_GLOBAL_MEMORY_FILE,
-  DEFAULT_SHADOW_FAST_COMMAND_DIR,
-  DEFAULT_SHADOW_PROJECT_SUFFIX,
-  DEFAULT_SHADOW_PROJECTS_DIR,
-  DEFAULT_SHADOW_SKILL_SOURCE_DIR,
-  DEFAULT_SHADOW_SUB_AGENT_DIR,
-  DEFAULT_WORKSPACE_DIR,
-} from '@/constants'
+import { DEFAULT_USER_CONFIG } from '@/constants'
 import { createLogger } from '@/log'
 
 /**
@@ -34,18 +26,10 @@ export function getGlobalConfigPath(): string {
 
 /**
  * Get default user config content
+ * Uses build-time injected template from public/tnmsc.example.json
  */
 export function getDefaultUserConfig(): UserConfigFile {
-  return {
-    workspaceDir: DEFAULT_WORKSPACE_DIR,
-    shadowSourceProjectDir: `$WORKSPACE/${DEFAULT_SHADOW_PROJECT_SUFFIX}`,
-    shadowSkillSourceDir: DEFAULT_SHADOW_SKILL_SOURCE_DIR,
-    shadowFastCommandDir: DEFAULT_SHADOW_FAST_COMMAND_DIR,
-    shadowSubAgentDir: DEFAULT_SHADOW_SUB_AGENT_DIR,
-    globalMemoryFile: DEFAULT_GLOBAL_MEMORY_FILE,
-    shadowProjectsDir: DEFAULT_SHADOW_PROJECTS_DIR,
-    logLevel: 'info',
-  }
+  return { ...DEFAULT_USER_CONFIG }
 }
 
 /**

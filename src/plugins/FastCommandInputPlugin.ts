@@ -1,6 +1,5 @@
 import type { CollectedInputContext, FastCommandPrompt, FastCommandYAMLFrontMatter, InputPluginContext } from '@/types'
 
-import { DEFAULT_SHADOW_FAST_COMMAND_DIR } from '@/constants'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
@@ -43,7 +42,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
     const { userConfigOptions: options, logger } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
-    const fastCommandDirRaw = options.shadowFastCommandDir ?? DEFAULT_SHADOW_FAST_COMMAND_DIR
+    const fastCommandDirRaw = options.shadowFastCommandDir
     const fastCommandDir = this.resolvePath(fastCommandDirRaw, workspaceDir, shadowProjectDir)
 
     const fastCommands: FastCommandPrompt[] = []
