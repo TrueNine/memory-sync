@@ -22,40 +22,49 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
     const globalMemoryFileRaw = options.globalMemoryFile
     const globalMemoryFile = this.resolvePath(globalMemoryFileRaw, workspaceDir, shadowProjectDir)
 
-    if (fs.existsSync(globalMemoryFile) && fs.statSync(globalMemoryFile).isFile()) {
-      const rawContent = fs.readFileSync(globalMemoryFile, 'utf-8')
-      const parsed = parseMarkdown(rawContent)
-      const content = parsed.contentWithoutFrontMatter
-      return {
-        globalMemory: {
-          type: PromptKind.GlobalMemory,
-          content,
-          length: content.length,
-          filePathKind: FilePathKind.Relative,
-          ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
-          markdownAst: parsed.markdownAst,
-          markdownContents: parsed.markdownContents,
-          dir: {
-            pathKind: FilePathKind.Relative,
-            path: path.basename(globalMemoryFile),
-            basePath: path.dirname(globalMemoryFile),
-            getDirectoryName: () => path.basename(globalMemoryFile),
-            getAbsolutePath: () => globalMemoryFile,
-          },
-          parentDirectoryPath: {
-            type: GlobalConfigDirectoryType.UserHome,
-            directory: {
-              pathKind: FilePathKind.Relative,
-              path: '',
-              basePath: os.homedir(),
-              getDirectoryName: () => path.basename(os.homedir()),
-              getAbsolutePath: () => os.homedir(),
-            },
-          },
-        },
-      }
+    if (!fs.existsSync(globalMemoryFile)) {
+      this.log.warn({ action: 'collect', reason: 'fileNotFound', path: globalMemoryFile })
+      return {}
     }
 
-    return {}
+    if (!fs.statSync(globalMemoryFile).isFile()) {
+      this.log.warn({ action: 'collect', reason: 'notAFile', path: globalMemoryFile })
+      return {}
+    }
+
+    const rawContent = fs.readFileSync(globalMemoryFile, 'utf-8')
+    const parsed = parseMarkdown(rawContent)
+    const content = parsed.contentWithoutFrontMatter
+
+    this.log.debug({ action: 'collect', path: globalMemoryFile, contentLength: content.length })
+
+    return {
+      globalMemory: {
+        type: PromptKind.GlobalMemory,
+        content,
+        length: content.length,
+        filePathKind: FilePathKind.Relative,
+        ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
+        markdownAst: parsed.markdownAst,
+        markdownContents: parsed.markdownContents,
+        dir: {
+          pathKind: FilePathKind.Relative,
+          path: path.basename(globalMemoryFile),
+          basePath: path.dirname(globalMemoryFile),
+          getDirectoryName: () => path.basename(globalMemoryFile),
+          getAbsolutePath: () => globalMemoryFile,
+        },
+        parentDirectoryPath: {
+          type: GlobalConfigDirectoryType.UserHome,
+          directory: {
+            pathKind: FilePathKind.Relative,
+            path: '',
+            basePath: os.homedir(),
+            getDirectoryName: () => path.basename(os.homedir()),
+            getAbsolutePath: () => os.homedir(),
+          },
+        },
+      },
+    }
   }
 }
