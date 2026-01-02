@@ -273,7 +273,7 @@ describe('cleanStaleDistFiles', () => {
   it('should delete dist files without corresponding src files', () => {
     // Create src file
     fs.mkdirSync(path.join(srcDir, 'skill-a'))
-    fs.writeFileSync(path.join(srcDir, 'skill-a', 'SKILL.md'), '# Skill A')
+    fs.writeFileSync(path.join(srcDir, 'skill-a', 'skill.md'), '# Skill A')
 
     // Create dist files (one valid, one stale)
     fs.writeFileSync(path.join(distDir, 'skill-a.md'), '# Skill A compiled')
@@ -306,7 +306,7 @@ describe('cleanStaleDistFiles', () => {
   it('should recursively clean subdirectories', () => {
     // Create src structure
     fs.mkdirSync(path.join(srcDir, 'sub', 'skill-a'), { recursive: true })
-    fs.writeFileSync(path.join(srcDir, 'sub', 'skill-a', 'SKILL.md'), '# Skill A')
+    fs.writeFileSync(path.join(srcDir, 'sub', 'skill-a', 'skill.md'), '# Skill A')
 
     // Create dist structure with stale directory
     fs.mkdirSync(path.join(distDir, 'sub'), { recursive: true })

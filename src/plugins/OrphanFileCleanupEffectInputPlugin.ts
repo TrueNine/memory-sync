@@ -33,9 +33,9 @@ export interface OrphanCleanupEffectResult extends InputEffectResult {
  *
  * @example
  * ```
- * dist/skills/old-skill.md  (no src/skills/old-skill/SKILL.src.md) → deleted
+ * dist/skills/old-skill.md  (no src/skills/old-skill/skill.src.md) → deleted
  * dist/commands/removed.md  (no src/commands/removed.src.md) → deleted
- * dist/skills/valid.md      (has src/skills/valid/SKILL.src.md) → kept
+ * dist/skills/valid.md      (has src/skills/valid/skill.src.md) → kept
  * ```
  */
 export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {

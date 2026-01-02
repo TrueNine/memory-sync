@@ -116,7 +116,7 @@ export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAML
 
 /**
  * Skill child document (.md files in skill directory or any subdirectory)
- * Excludes SKILL.md which is the main skill file
+ * Excludes skill.md which is the main skill file
  */
 export interface SkillChildDoc extends Prompt<PromptKind.SkillChildDoc> {
   readonly type: PromptKind.SkillChildDoc
@@ -444,11 +444,11 @@ export interface SkillMcpConfig {
 }
 
 /**
- * skill 主文件（SKILL.md）
+ * skill 主文件（skill.md）
  * skill name 从 front matter 当中进行获取
  *
  * Skill structure:
- * - SKILL.md: Main skill definition file (required)
+ * - skill.md: Main skill definition file (required)
  * - mcp.json: MCP server configuration (optional)
  *   - Kiro: supports per-power MCP configuration
  *   - Others: may support lazy loading
@@ -472,7 +472,7 @@ export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatt
   readonly mcpConfig?: SkillMcpConfig
   /**
    * Child documents (.md files in skill directory or subdirectories)
-   * Excludes SKILL.md
+   * Excludes skill.md
    */
   readonly childDocs?: SkillChildDoc[]
   /**

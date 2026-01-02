@@ -196,7 +196,7 @@ describe('skillInputPlugin', () => {
     it('should scan child docs and resources at root level', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'SKILL.md', isFile: () => true, isDirectory: () => false },
+          { name: 'skill.md', isFile: () => true, isDirectory: () => false },
           { name: 'guide.md', isFile: () => true, isDirectory: () => false },
           { name: 'mcp.json', isFile: () => true, isDirectory: () => false },
           { name: 'helper.kt', isFile: () => true, isDirectory: () => false },
@@ -215,7 +215,7 @@ describe('skillInputPlugin', () => {
 
       const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
 
-      // Should have 1 child doc (guide.md, not SKILL.md)
+      // Should have 1 child doc (guide.md, not skill.md)
       expect(result.childDocs).toHaveLength(1)
       expect(result.childDocs[0]?.relativePath).toBe('guide.md')
       expect(result.childDocs[0]?.type).toBe(PromptKind.SkillChildDoc)

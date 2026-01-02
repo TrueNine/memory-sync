@@ -1,8 +1,8 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2025.12.3119",
-  "packageManager": "pnpm@10.26.2",
+  "version": "2026.0.0",
+  "packageManager": "pnpm@10.27.0",
   "description": "TrueNine Life CLI Tools",
   "author": "TrueNine",
   "license": "UNLICENSED",
@@ -32,14 +32,11 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "build": "tsc --noEmit -p tsconfig.lib.json && eslint --fix && tsdown",
-    "build:tsdown": "tsdown",
-    "prepublishOnly": "pnpm run build",
+    "build": "pnpm typecheck && pnpm lint && tsdown",
+    "prepublishOnly": "pnpm build",
     "test": "vitest run",
-    "test:watch": "vitest",
     "lint": "eslint --fix",
-    "type-check": "tsc --noEmit -p tsconfig.lib.json"
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {
     "@clack/prompts": "^0.11.0",
@@ -63,8 +60,8 @@
     "@types/picomatch": "^4.0.2",
     "@vitest/coverage-v8": "4.0.16",
     "eslint": "^9.39.2",
-    "fast-check": "^4.5.2",
-    "tsdown": "0.18.3",
+    "fast-check": "^4.5.3",
+    "tsdown": "0.19.0-beta.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.0",
