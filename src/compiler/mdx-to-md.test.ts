@@ -159,16 +159,16 @@ Some content here.`
       expect(result).toContain('# Hello World')
     })
 
-    it('should handle Md component with if condition true', async () => {
-      const input = `<Md if={show}>
+    it('should handle Md component with when condition true', async () => {
+      const input = `<Md when={show}>
 # Conditional Content
 </Md>`
       const result = await mdxToMd(input, { scope: { show: true } })
       expect(result).toContain('# Conditional Content')
     })
 
-    it('should handle Md component with if condition false', async () => {
-      const input = `<Md if={show}>
+    it('should handle Md component with when condition false', async () => {
+      const input = `<Md when={show}>
 # Conditional Content
 </Md>`
       const result = await mdxToMd(input, { scope: { show: false } })

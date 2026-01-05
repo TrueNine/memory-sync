@@ -96,13 +96,13 @@ describe('md component', () => {
     })
   })
 
-  describe('conditional inclusion with if attribute (Requirement 3.3)', () => {
-    it('should include content when if="true"', async () => {
+  describe('conditional inclusion with when attribute (Requirement 3.3)', () => {
+    it('should include content when when="true"', async () => {
       const children = [createParagraph('Conditional content')]
       const element = createMdElement(children, [
         {
           type: 'mdxJsxAttribute',
-          name: 'if',
+          name: 'when',
           value: 'true',
         },
       ])
@@ -114,12 +114,12 @@ describe('md component', () => {
       expect(result).toEqual(children)
     })
 
-    it('should exclude content when if="false"', async () => {
+    it('should exclude content when when="false"', async () => {
       const children = [createParagraph('Conditional content')]
       const element = createMdElement(children, [
         {
           type: 'mdxJsxAttribute',
-          name: 'if',
+          name: 'when',
           value: 'false',
         },
       ])
@@ -136,7 +136,7 @@ describe('md component', () => {
       const element = createMdElement(children, [
         {
           type: 'mdxJsxAttribute',
-          name: 'if',
+          name: 'when',
           value: {
             type: 'mdxJsxAttributeValueExpression',
             value: 'showContent',
@@ -156,7 +156,7 @@ describe('md component', () => {
       const element = createMdElement(children, [
         {
           type: 'mdxJsxAttribute',
-          name: 'if',
+          name: 'when',
           value: {
             type: 'mdxJsxAttributeValueExpression',
             value: 'showContent',
@@ -176,7 +176,7 @@ describe('md component', () => {
       const element = createMdElement(children, [
         {
           type: 'mdxJsxAttribute',
-          name: 'if',
+          name: 'when',
           value: {
             type: 'mdxJsxAttributeValueExpression',
             value: 'undefinedVar',
@@ -196,7 +196,7 @@ describe('md component', () => {
       const element = createMdElement(children, [
         {
           type: 'mdxJsxAttribute',
-          name: 'if',
+          name: 'when',
           value: {
             type: 'mdxJsxAttributeValueExpression',
             value: 'flag',
@@ -216,7 +216,7 @@ describe('md component', () => {
       const element = createMdElement(children, [
         {
           type: 'mdxJsxAttribute',
-          name: 'if',
+          name: 'when',
           value: {
             type: 'mdxJsxAttributeValueExpression',
             value: 'flag',

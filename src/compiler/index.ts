@@ -21,6 +21,9 @@ export type { ExportMetadata, MetadataSource, ParseExportOptions } from './expor
 // Expression evaluation export
 export { evaluateExpression } from './expression-eval'
 
+// JSX expression evaluation export
+export { evaluateJsxExpression, hasJsxInEstree } from './jsx-expression-eval'
+
 // Main compiler function
 export { mdxToMd } from './mdx-to-md'
 

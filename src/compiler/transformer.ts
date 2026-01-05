@@ -1,6 +1,7 @@
 // transformer.ts
 // AST transformation module for lossless MDX to Markdown conversion
 
+import type { Program } from 'estree'
 import type { Paragraph, Parent, Root, RootContent, Text } from 'mdast'
 import type {
   MdxJsxFlowElement,
@@ -9,6 +10,7 @@ import type { ProcessingContext } from './types'
 import { isMdxComponent, processComponent } from './component-processor'
 import { evaluateExpression } from './expression-eval'
 import { convertJsxToMarkdown } from './jsx-converter'
+import { evaluateJsxExpression, hasJsxInEstree } from './jsx-expression-eval'
 
 type ChildNode = RootContent | Text
 
@@ -53,6 +55,18 @@ async function transformNode(
 
   if (node.type === 'mdxFlowExpression') {
     const flowExpr = node
+    const estree = (flowExpr.data as { estree?: Program } | undefined)?.estree
+
+    // Check if expression contains JSX
+    if (hasJsxInEstree(estree)) {
+      return evaluateJsxExpression(flowExpr, ctx, async (children, c) => {
+        const tempRoot: Root = { type: 'root', children }
+        const processed = await processAst(tempRoot, c)
+        return processed.children
+      })
+    }
+
+    // Standard expression evaluation
     const value = evaluateExpression(flowExpr.value, ctx.scope)
     if (value !== '') {
       const paragraph: Paragraph = {

@@ -10,7 +10,7 @@ import { evaluateExpression } from '../compiler/expression-eval'
  * Md component handler - wrapper for conditional Markdown content.
  *
  * The Md component allows wrapping Markdown content for conditional compilation.
- * It passes through children content directly, optionally filtered by an `if` condition.
+ * It passes through children content directly, optionally filtered by a `when` condition.
  *
  * @example
  * Basic usage - content passes through directly:
@@ -24,7 +24,7 @@ import { evaluateExpression } from '../compiler/expression-eval'
  * @example
  * With condition - content only included if condition is true:
  * ```mdx
- * <Md if={someCondition}>
+ * <Md when={someCondition}>
  *   # Only included if condition is true
  * </Md>
  * ```
@@ -39,26 +39,26 @@ export async function MdHandler(
   ctx: ProcessingContext,
   processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>,
 ): Promise<RootContent[]> {
-  // Check for conditional `if` attribute
-  const ifAttr = element.attributes.find(
-    (attr) => attr.type === 'mdxJsxAttribute' && attr.name === 'if',
+  // Check for conditional `when` attribute (JSX-compatible, not a reserved keyword)
+  const whenAttr = element.attributes.find(
+    (attr) => attr.type === 'mdxJsxAttribute' && attr.name === 'when',
   )
 
-  if (ifAttr != null && ifAttr.type === 'mdxJsxAttribute') {
+  if (whenAttr != null && whenAttr.type === 'mdxJsxAttribute') {
     // Evaluate the condition
     let condition = false
 
-    if (typeof ifAttr.value === 'string') {
+    if (typeof whenAttr.value === 'string') {
       // String value: "true" or "false"
-      condition = ifAttr.value === 'true'
+      condition = whenAttr.value === 'true'
     } else if (
-      ifAttr.value != null
-      && typeof ifAttr.value === 'object'
-      && ifAttr.value.type === 'mdxJsxAttributeValueExpression'
+      whenAttr.value != null
+      && typeof whenAttr.value === 'object'
+      && whenAttr.value.type === 'mdxJsxAttributeValueExpression'
     ) {
       // Expression value: {someCondition}
       try {
-        const evaluated = evaluateExpression(ifAttr.value.value, ctx.scope)
+        const evaluated = evaluateExpression(whenAttr.value.value, ctx.scope)
         // Handle various truthy representations (evaluated is always a string)
         condition = evaluated === 'true' || evaluated === '1'
       } catch {
