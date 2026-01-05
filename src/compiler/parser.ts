@@ -3,6 +3,7 @@
 
 import type { Root } from 'mdast'
 import remarkFrontmatter from 'remark-frontmatter'
+import remarkGfm from 'remark-gfm'
 import remarkMdx from 'remark-mdx'
 import remarkParse from 'remark-parse'
 import { unified } from 'unified'
@@ -12,6 +13,7 @@ import { unified } from 'unified'
  *
  * The parser preserves:
  * - Standard Markdown syntax as native MDAST nodes (heading, code, list, link, etc.)
+ * - GFM extensions (tables, task lists, strikethrough, autolinks)
  * - YAML front matter as `yaml` nodes
  * - JSX elements as `mdxJsxFlowElement` or `mdxJsxTextElement` nodes
  * - Import/export statements as `mdxjsEsm` nodes
@@ -23,6 +25,7 @@ import { unified } from 'unified'
 export function parseMdx(source: string): Root {
   const processor = unified()
     .use(remarkParse)
+    .use(remarkGfm)
     .use(remarkFrontmatter, ['yaml'])
     .use(remarkMdx)
   return processor.parse(source)

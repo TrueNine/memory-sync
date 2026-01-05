@@ -4,6 +4,7 @@
 import type { YAML } from 'mdast'
 import type { EvaluationScope, MdxjsEsm, MdxToMdOptions, MdxToMdResult, ProcessingContext } from './types'
 import remarkFrontmatter from 'remark-frontmatter'
+import remarkGfm from 'remark-gfm'
 import remarkStringify from 'remark-stringify'
 import { unified } from 'unified'
 import * as YAML_LIB from 'yaml'
@@ -167,12 +168,20 @@ export async function mdxToMd(
 
   const processor = unified()
     .use(remarkFrontmatter, ['yaml'])
+    .use(remarkGfm)
     .use(remarkStringify, {
       bullet: '-',
       fence: '`',
       fences: true,
       emphasis: '*',
       strong: '*',
+      rule: '-',
+      handlers: {
+        // 自定义 text handler 避免不必要的转义
+        text(node: { value: string }) {
+          return node.value
+        },
+      },
     })
 
   const markdown = processor.stringify(processedAst).trim()

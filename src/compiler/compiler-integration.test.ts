@@ -187,8 +187,7 @@ Search Tool: {tool.websearch}`
       expect(result).toContain('# Hello Test User')
       expect(result).toContain('Platform: linux')
       expect(result).toContain('Environment: production')
-      // Note: underscores are escaped in markdown output
-      expect(result).toContain('Search Tool: web\\_search')
+      expect(result).toContain('Search Tool: web_search')
     })
 
     it('should allow custom scope to override global scope', async () => {
@@ -397,9 +396,8 @@ Debug mode: {myPlugin.config.debug}`
       // Verify content compilation
       expect(result.content).toContain('# Welcome, John Doe!')
       expect(result.content).toContain('Your role: developer')
-      // Note: underscores are escaped in markdown output
-      expect(result.content).toContain('Search tool: web\\_search')
-      expect(result.content).toContain('Fetch tool: web\\_fetch')
+      expect(result.content).toContain('Search tool: web_search')
+      expect(result.content).toContain('Fetch tool: web_fetch')
       expect(result.content).toContain('Plugin version: 3.0.0')
       expect(result.content).toContain('Debug mode: true')
 
@@ -429,8 +427,7 @@ Default search: {tool.websearch}`
 
       // Should use system defaults
       expect(result).toContain('Platform:')
-      // Note: underscores are escaped in markdown output
-      expect(result).toContain('Default search: web\\_search')
+      expect(result).toContain('Default search: web_search')
     })
 
     it('should preserve scope isolation between compilations', async () => {

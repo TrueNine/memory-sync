@@ -57,6 +57,12 @@ async function transformNode(
     const flowExpr = node
     const estree = (flowExpr.data as { estree?: Program } | undefined)?.estree
 
+    // Check if this is a JSX comment {/* ... */} - skip it
+    const trimmedValue = flowExpr.value.trim()
+    if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) {
+      return []
+    }
+
     // Check if expression contains JSX
     if (hasJsxInEstree(estree)) {
       return evaluateJsxExpression(flowExpr, ctx, async (children, c) => {
@@ -125,6 +131,11 @@ async function transformChildren(
   for (const child of children) {
     if (child.type === 'mdxTextExpression') {
       const textExpr = child
+      // Check if this is a JSX comment {/* ... */} - skip it
+      const trimmedValue = textExpr.value.trim()
+      if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) {
+        continue
+      }
       const value = evaluateExpression(textExpr.value, ctx.scope)
       const textNode: Text = { type: 'text', value }
       result.push(textNode)
@@ -133,6 +144,20 @@ async function transformChildren(
 
     if (child.type === 'mdxJsxTextElement') {
       const textElement = child
+      // Check if it's a registered component first
+      if (textElement.name != null && isMdxComponent(textElement.name, ctx)) {
+        const componentResult = await processComponent(textElement, ctx, processAst)
+        for (const node of componentResult) {
+          if (node.type === 'paragraph' && 'children' in node) {
+            const para = node
+            result.push(...para.children)
+          } else {
+            result.push(node as ChildNode)
+          }
+        }
+        continue
+      }
+      // Otherwise try to convert as standard JSX
       const converted = convertJsxToMarkdown(textElement, ctx)
       if (converted != null) {
         for (const node of converted) {
