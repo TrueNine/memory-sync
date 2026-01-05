@@ -12,6 +12,7 @@ const config = eslint9({
     '.claude/**',
     '.factory/**',
     'src/AGENTS.md',
+    'public/**',
   ],
 })
 

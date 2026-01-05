@@ -21,8 +21,9 @@ function evaluateWhenCondition(
     (attr) => attr.type === 'mdxJsxAttribute' && attr.name === 'when',
   )
 
+  // No condition = always true
   if (whenAttr == null || whenAttr.type !== 'mdxJsxAttribute') {
-    return true // No condition = always true
+    return true
   }
 
   if (typeof whenAttr.value === 'string') {
