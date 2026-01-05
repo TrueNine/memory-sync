@@ -14,6 +14,9 @@
   },
   "exports": {
     ".": "./dist/index.mjs",
+    "./globals": {
+      "types": "./dist/globals/index.d.mts"
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.mjs",
