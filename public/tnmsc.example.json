@@ -8,5 +8,6 @@
   "shadowProjectsDir": "$SHADOW_SOURCE_PROJECT/dist/app",
   "externalProjects": [],
   "excludePatterns": {},
-  "logLevel": "info"
+  "logLevel": "info",
+  "env": {}
 }
