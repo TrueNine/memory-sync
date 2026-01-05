@@ -147,7 +147,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           dir,
         })
       } catch (e) {
-        logger.warn('failed to read readme.mdx', { path: readmePath, error: e })
+        logger.warn('failed to read readme', { path: readmePath, error: e })
       }
     }
 

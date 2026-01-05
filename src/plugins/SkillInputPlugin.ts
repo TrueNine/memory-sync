@@ -478,12 +478,12 @@ export class SkillInputPlugin extends AbstractInputPlugin {
 
     const skills: SkillPrompt[] = []
     if (ctx.fs.existsSync(skillDir) && ctx.fs.statSync(skillDir).isDirectory()) {
-      try {
-        const entries = ctx.fs.readdirSync(skillDir, { withFileTypes: true })
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            const skillFilePath = ctx.path.join(skillDir, entry.name, 'skill.mdx')
-            if (ctx.fs.existsSync(skillFilePath) && ctx.fs.statSync(skillFilePath).isFile()) {
+      const entries = ctx.fs.readdirSync(skillDir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const skillFilePath = ctx.path.join(skillDir, entry.name, 'skill.mdx')
+          if (ctx.fs.existsSync(skillFilePath) && ctx.fs.statSync(skillFilePath).isFile()) {
+            try {
               const rawContent = ctx.fs.readFileSync(skillFilePath, 'utf-8')
 
               // Parse YAML front matter first for backward compatibility
@@ -566,11 +566,11 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                   getAbsolutePath: () => path.join(skillDir, entry.name),
                 },
               })
+            } catch (e) {
+              logger.error('failed to parse skill', { file: skillFilePath, error: e })
             }
           }
         }
-      } catch (e) {
-        logger.error('failed to scan skills', { path: skillDir, error: e })
       }
     }
 

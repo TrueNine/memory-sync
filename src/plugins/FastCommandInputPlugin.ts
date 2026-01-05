@@ -50,11 +50,11 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
 
     const fastCommands: FastCommandPrompt[] = []
     if (ctx.fs.existsSync(fastCommandDir) && ctx.fs.statSync(fastCommandDir).isDirectory()) {
-      try {
-        const entries = ctx.fs.readdirSync(fastCommandDir, { withFileTypes: true })
-        for (const entry of entries) {
-          if (entry.isFile() && entry.name.endsWith('.mdx')) {
-            const filePath = ctx.path.join(fastCommandDir, entry.name)
+      const entries = ctx.fs.readdirSync(fastCommandDir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isFile() && entry.name.endsWith('.mdx')) {
+          const filePath = ctx.path.join(fastCommandDir, entry.name)
+          try {
             const rawContent = ctx.fs.readFileSync(filePath, 'utf-8')
 
             // Parse YAML front matter first for backward compatibility
@@ -124,10 +124,10 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
               ...(seriesInfo.series != null && { series: seriesInfo.series }),
               commandName: seriesInfo.commandName,
             })
+          } catch (e) {
+            logger.error('failed to parse fast command', { file: filePath, error: e })
           }
         }
-      } catch (e) {
-        logger.error(`Failed to scan fast commands at ${fastCommandDir}`, { error: e })
       }
     }
 
