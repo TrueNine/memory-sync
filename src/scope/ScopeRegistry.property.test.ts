@@ -50,7 +50,7 @@ const _nestedRecordArb = fc.dictionary(
  * Arbitrary generator for namespace string
  */
 const namespaceArb = fc.string({ minLength: 1, maxLength: 20 }).filter((s) =>
-  /^[a-z_][a-z0-9_]*$/i.test(s)
+  /^[a-z_]\w*$/i.test(s)
   && s !== '__proto__'
   && s !== 'constructor'
   && s !== 'prototype'

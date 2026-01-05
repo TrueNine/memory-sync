@@ -5,7 +5,7 @@ import type { EnvironmentContext, MdxGlobalScope, OsInfo, ToolReferences, UserPr
 import type { UserConfigFile } from '@/types/ConfigTypes'
 import * as os from 'node:os'
 import process from 'node:process'
-import { ShellKind } from '@/globals'
+import { OsKind, ShellKind } from '@/globals'
 
 /**
  * Options for GlobalScopeCollector
@@ -43,8 +43,9 @@ export class GlobalScopeCollector {
    * Collect operating system information
    */
   private collectOsInfo(): OsInfo {
+    const platform = os.platform()
     return {
-      platform: os.platform(),
+      platform,
       arch: os.arch(),
       hostname: os.hostname(),
       homedir: os.homedir(),
@@ -52,6 +53,27 @@ export class GlobalScopeCollector {
       type: os.type(),
       release: os.release(),
       shellKind: this.detectShellKind(),
+      kind: this.detectOsKind(platform),
+    }
+  }
+
+  /**
+   * Detect the simplified OS kind from platform
+   */
+  private detectOsKind(platform: string): OsKind {
+    switch (platform) {
+      case 'win32':
+        return OsKind.Win
+      case 'darwin':
+        return OsKind.Mac
+      case 'linux':
+      case 'freebsd':
+      case 'openbsd':
+      case 'sunos':
+      case 'aix':
+        return OsKind.Linux
+      default:
+        return OsKind.Unknown
     }
   }
 
@@ -60,27 +82,27 @@ export class GlobalScopeCollector {
    */
   private detectShellKind(): ShellKind {
     const shell = process.env['SHELL'] ?? process.env['ComSpec'] ?? ''
-    const shellLower = shell.toLowerCase()
+    const s = shell.toLowerCase()
 
-    if (shellLower.includes('bash')) {
+    if (s.includes('bash')) {
       return ShellKind.Bash
     }
-    if (shellLower.includes('zsh')) {
+    if (s.includes('zsh')) {
       return ShellKind.Zsh
     }
-    if (shellLower.includes('fish')) {
+    if (s.includes('fish')) {
       return ShellKind.Fish
     }
-    if (shellLower.includes('pwsh')) {
+    if (s.includes('pwsh')) {
       return ShellKind.Pwsh
     }
-    if (shellLower.includes('powershell')) {
+    if (s.includes('powershell')) {
       return ShellKind.PowerShell
     }
-    if (shellLower.includes('cmd')) {
+    if (s.includes('cmd')) {
       return ShellKind.Cmd
     }
-    if (shellLower.endsWith('/sh')) {
+    if (s.endsWith('/sh')) {
       return ShellKind.Sh
     }
 

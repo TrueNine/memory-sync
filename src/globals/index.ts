@@ -47,8 +47,20 @@ export enum ShellKind {
 }
 
 /**
+ * Operating system kind enumeration
+ * Simplified OS type for conditional logic in templates
+ * @example {os.kind === 'mac' ? 'macOS specific' : 'other'}
+ */
+export enum OsKind {
+  Win = 'win',
+  Mac = 'mac',
+  Linux = 'linux',
+  Unknown = 'unknown',
+}
+
+/**
  * Operating system information
- * @example {os.platform}, {os.arch}, {os.shellKind}
+ * @example {os.platform}, {os.arch}, {os.shellKind}, {os.kind}
  */
 export interface OsInfo {
   platform?: string
@@ -59,7 +71,8 @@ export interface OsInfo {
   type?: string
   release?: string
   shellKind?: ShellKind
-  [key: string]: string | ShellKind | undefined
+  kind?: OsKind
+  [key: string]: string | ShellKind | OsKind | undefined
 }
 
 /**
