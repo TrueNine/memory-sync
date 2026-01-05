@@ -37,6 +37,7 @@ export default defineConfig([
     entry: ['./src/globals/index.ts'],
     outDir: './dist/globals',
     platform: 'node',
+    minify: true,
     dts: { sourcemap: false },
   },
 ])
