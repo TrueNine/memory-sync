@@ -13,6 +13,7 @@ export type {
   InputEffectHandler,
   InputEffectRegistration,
   InputEffectResult,
+  PluginScopeRegistration,
   ResolvedBasePaths,
   SyncDirectoryOptions,
   SyncDirectoryResult,

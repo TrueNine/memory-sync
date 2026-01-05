@@ -171,6 +171,120 @@ describe('configLoader', () => {
         projectB: ['dist'],
       })
     })
+
+    it('should validate profile object with arbitrary key-value pairs', () => {
+      const configContent = JSON.stringify({
+        profile: {
+          name: '张三',
+          username: 'zhangsan',
+          gender: 'male',
+          birthday: '1990-01-01',
+          customField: 'custom value',
+        },
+      })
+
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile('/test/.tnmsc.json')
+
+      expect(result.found).toBe(true)
+      expect(result.config.profile).toEqual({
+        name: '张三',
+        username: 'zhangsan',
+        gender: 'male',
+        birthday: '1990-01-01',
+        customField: 'custom value',
+      })
+    })
+
+    it('should reject invalid profile (non-object)', () => {
+      const configContent = JSON.stringify({
+        profile: 'invalid',
+      })
+
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile('/test/.tnmsc.json')
+
+      expect(result.found).toBe(true)
+      expect(result.config.profile).toBeUndefined()
+    })
+
+    it('should reject invalid profile (array)', () => {
+      const configContent = JSON.stringify({
+        profile: ['invalid'],
+      })
+
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile('/test/.tnmsc.json')
+
+      expect(result.found).toBe(true)
+      expect(result.config.profile).toBeUndefined()
+    })
+
+    it('should validate tool object with string values', () => {
+      const configContent = JSON.stringify({
+        tool: {
+          websearch: 'search_web',
+          webfetch: 'fetch_url',
+          codeSearch: 'search_code',
+        },
+      })
+
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile('/test/.tnmsc.json')
+
+      expect(result.found).toBe(true)
+      expect(result.config.tool).toEqual({
+        websearch: 'search_web',
+        webfetch: 'fetch_url',
+        codeSearch: 'search_code',
+      })
+    })
+
+    it('should reject invalid tool (non-object)', () => {
+      const configContent = JSON.stringify({
+        tool: 'invalid',
+      })
+
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile('/test/.tnmsc.json')
+
+      expect(result.found).toBe(true)
+      expect(result.config.tool).toBeUndefined()
+    })
+
+    it('should reject tool with non-string values', () => {
+      const configContent = JSON.stringify({
+        tool: {
+          websearch: 'search_web',
+          invalidTool: 123,
+        },
+      })
+
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile('/test/.tnmsc.json')
+
+      expect(result.found).toBe(true)
+      // Invalid tool should be rejected entirely
+      expect(result.config.tool).toBeUndefined()
+    })
   })
 
   describe('load', () => {

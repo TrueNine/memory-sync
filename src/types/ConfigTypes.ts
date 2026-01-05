@@ -1,3 +1,5 @@
+import type { UserProfile } from '@/globals'
+
 /**
  * User configuration file schema (.tnmsc.json)
  * This represents the JSON structure users can provide in config files.
@@ -65,6 +67,24 @@ export interface UserConfigFile {
    * Fast command series options for controlling prefix handling in output filenames
    */
   readonly fastCommandSeriesOptions?: FastCommandSeriesOptions
+
+  /**
+   * User profile information
+   * Available in MDX templates via {profile.xxx}
+   *
+   * @example
+   * ```json
+   * {
+   *   "profile": {
+   *     "name": "张三",
+   *     "username": "zhangsan",
+   *     "gender": "male",
+   *     "birthday": "1990-01-01"
+   *   }
+   * }
+   * ```
+   */
+  readonly profile?: UserProfile
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { Command, CommandContext } from '@/commands'
 import type { PipelineConfig } from '@/config'
+import type { MdxGlobalScope } from '@/globals'
 import type { ILogger } from '@/log'
 import type {
   CollectedInputContext,
@@ -12,6 +13,7 @@ import type {
   PluginKind,
   PluginOptions,
 } from '@/types'
+import type { UserConfigFile } from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
@@ -28,6 +30,7 @@ import {
   VersionCommand,
 } from '@/commands'
 import { createLogger, setGlobalLogLevel } from '@/log'
+import { GlobalScopeCollector, ScopePriority, ScopeRegistry } from '@/scope'
 import {
   CircularDependencyError,
   MissingDependencyError,
@@ -680,16 +683,19 @@ export class PluginPipeline {
    * Execute plugins in topological order, merging outputs incrementally.
    * Each plugin receives accumulated context from all its dependencies.
    * For plugins with registered effects, executes effects before collect().
+   * Creates GlobalScopeCollector and ScopeRegistry for MDX expression evaluation.
    *
    * @param plugins - Input plugins to execute (will be sorted by dependencies)
    * @param baseCtx - Base context without dependencyContext (will be extended for each plugin)
    * @param dryRun - Whether to run effects in dry-run mode
+   * @param userConfig - Optional user configuration for global scope collection
    * @returns Merged CollectedInputContext from all plugins
    */
   async executePluginsInOrder(
     plugins: readonly InputPlugin[],
-    baseCtx: Omit<InputPluginContext, 'dependencyContext'>,
+    baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'>,
     dryRun: boolean = false,
+    userConfig?: UserConfigFile,
   ): Promise<Partial<CollectedInputContext>> {
     if (plugins.length === 0) {
       return {}
@@ -697,6 +703,18 @@ export class PluginPipeline {
 
     // Sort plugins by dependencies (cast is safe since InputPlugin extends Plugin)
     const sortedPlugins = this.topologicalSort(plugins) as InputPlugin[]
+
+    // Create GlobalScopeCollector and ScopeRegistry for MDX expression evaluation
+    const globalScopeCollector = new GlobalScopeCollector({ userConfig })
+    const globalScope: MdxGlobalScope = globalScopeCollector.collect()
+    const scopeRegistry = new ScopeRegistry()
+    scopeRegistry.setGlobalScope(globalScope)
+
+    this.logger.debug('global scope collected', {
+      osInfo: { platform: globalScope.os.platform, arch: globalScope.os.arch, shellKind: globalScope.os.shellKind },
+      hasProfile: Object.keys(globalScope.profile).length > 0,
+      hasTool: Object.keys(globalScope.tool).length > 0,
+    })
 
     // Track outputs by plugin name for dependency resolution
     const outputsByPlugin = new Map<string, Partial<CollectedInputContext>>()
@@ -708,10 +726,12 @@ export class PluginPipeline {
       // Build dependency context from direct dependencies only
       const dependencyContext = this.buildDependencyContext(plugin, outputsByPlugin)
 
-      // Create context with dependency outputs
+      // Create context with dependency outputs, globalScope, and scopeRegistry
       const ctx: InputPluginContext = {
         ...baseCtx,
         dependencyContext,
+        globalScope,
+        scopeRegistry,
       }
 
       // Execute effects before collect() if plugin has any
@@ -722,13 +742,23 @@ export class PluginPipeline {
       }
 
       // Execute plugin
-      const output = plugin.collect(ctx)
+      const output = await plugin.collect(ctx)
 
       // Store output for this plugin
       outputsByPlugin.set(plugin.name, output)
 
       // Merge into accumulated context
       accumulatedContext = this.mergeContexts(accumulatedContext, output)
+
+      // Collect registered scopes from plugin and register them to ScopeRegistry
+      const inputPluginWithScopes = plugin as InputPlugin & { getRegisteredScopes?: () => ReadonlyArray<{ namespace: string, values: Record<string, unknown> }> }
+      if (inputPluginWithScopes.getRegisteredScopes != null) {
+        const registeredScopes = inputPluginWithScopes.getRegisteredScopes()
+        for (const { namespace, values } of registeredScopes) {
+          scopeRegistry.register(namespace, values, ScopePriority.PluginRegistered)
+          this.logger.debug('plugin scope registered', { plugin: plugin.name, namespace, keys: Object.keys(values) })
+        }
+      }
     }
 
     return accumulatedContext

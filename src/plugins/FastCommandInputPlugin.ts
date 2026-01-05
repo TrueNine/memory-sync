@@ -1,9 +1,12 @@
 import type { CollectedInputContext, FastCommandPrompt, FastCommandYAMLFrontMatter, InputPluginContext } from '@/types'
 
+import { mdxToMd } from '@/compiler'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
+  MetadataValidationError,
   PromptKind,
+  validateFastCommandMetadata,
 } from '@/types'
 import { AbstractInputPlugin } from './AbstractInputPlugin'
 
@@ -38,8 +41,8 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
     }
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const { userConfigOptions: options, logger } = ctx
+  async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+    const { userConfigOptions: options, logger, globalScope } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const fastCommandDirRaw = options.shadowFastCommandDir
@@ -53,15 +56,61 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
           if (entry.isFile() && entry.name.endsWith('.mdx')) {
             const filePath = ctx.path.join(fastCommandDir, entry.name)
             const rawContent = ctx.fs.readFileSync(filePath, 'utf-8')
+
+            // Parse YAML front matter first for backward compatibility
             const parsed = parseMarkdown<FastCommandYAMLFrontMatter>(rawContent)
-            const content = parsed.contentWithoutFrontMatter
+
+            // Compile MDX with globalScope and extract metadata from exports
+            const compileResult = await mdxToMd(rawContent, {
+              globalScope,
+              extractMetadata: true,
+              basePath: fastCommandDir,
+            })
+
+            // Merge YAML front matter with export metadata (export takes priority)
+            const mergedFrontMatter: FastCommandYAMLFrontMatter | undefined = parsed.yamlFrontMatter != null || Object.keys(compileResult.metadata.fields).length > 0
+              ? {
+                  ...parsed.yamlFrontMatter,
+                  ...compileResult.metadata.fields,
+                } as FastCommandYAMLFrontMatter
+              : void 0
+
+            // Validate merged metadata (FastCommand has no required fields, but we still validate)
+            if (mergedFrontMatter != null) {
+              const validationResult = validateFastCommandMetadata(
+                mergedFrontMatter as Record<string, unknown>,
+                filePath,
+              )
+
+              // Log validation warnings
+              for (const warning of validationResult.warnings) {
+                logger.debug(warning)
+              }
+
+              // Throw error if validation fails
+              if (!validationResult.valid) {
+                throw new MetadataValidationError(validationResult.errors, filePath)
+              }
+            }
+
+            // Use compiled content
+            const content = compileResult.content
             const seriesInfo = this.extractSeriesInfo(entry.name)
+
+            // Log metadata source for debugging
+            logger.debug('fast command metadata extracted', {
+              command: entry.name,
+              source: compileResult.metadata.source,
+              hasYaml: parsed.yamlFrontMatter != null,
+              hasExport: Object.keys(compileResult.metadata.fields).length > 0,
+            })
+
             fastCommands.push({
               type: PromptKind.FastCommand,
               content,
               length: content.length,
               filePathKind: FilePathKind.Relative,
-              ...(parsed.yamlFrontMatter != null && { yamlFrontMatter: parsed.yamlFrontMatter }),
+              ...(mergedFrontMatter != null && { yamlFrontMatter: mergedFrontMatter }),
               ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
               markdownAst: parsed.markdownAst,
               markdownContents: parsed.markdownContents,

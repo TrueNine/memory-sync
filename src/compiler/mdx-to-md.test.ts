@@ -108,24 +108,45 @@ Some content here.`
     })
   })
 
-  describe('global definitions (Requirement 4)', () => {
-    it('should have access to global VERSION', async () => {
-      const input = 'Version: {VERSION}'
-      const result = await mdxToMd(input)
-      // VERSION is defined in src/globals/index.ts
-      expect(result).toMatch(/Version: \d+\.\d+\.\d+/)
+  describe('global scope (Requirement 4)', () => {
+    it('should have access to globalScope.profile', async () => {
+      const input = 'Name: {profile.name}'
+      const result = await mdxToMd(input, {
+        globalScope: {
+          profile: { name: 'TestUser' },
+          tool: {},
+          env: {},
+          os: {},
+        },
+      })
+      expect(result).toContain('Name: TestUser')
     })
 
-    it('should have access to global PROJECT_NAME', async () => {
-      const input = 'Project: {PROJECT_NAME}'
-      const result = await mdxToMd(input)
-      expect(result).toContain('Project: memory-sync-cli')
+    it('should have access to globalScope.tool', async () => {
+      const input = 'Search: {tool.websearch}'
+      const result = await mdxToMd(input, {
+        globalScope: {
+          profile: {},
+          tool: { websearch: 'websearch' },
+          env: {},
+          os: {},
+        },
+      })
+      expect(result).toContain('Search: websearch')
     })
 
-    it('should allow user scope to override globals', async () => {
-      const input = 'Version: {VERSION}'
-      const result = await mdxToMd(input, { scope: { VERSION: 'custom-version' } })
-      expect(result).toContain('Version: custom-version')
+    it('should allow user scope to override globalScope', async () => {
+      const input = 'Name: {profile.name}'
+      const result = await mdxToMd(input, {
+        globalScope: {
+          profile: { name: 'GlobalName' },
+          tool: {},
+          env: {},
+          os: {},
+        },
+        scope: { profile: { name: 'OverriddenName' } },
+      })
+      expect(result).toContain('Name: OverriddenName')
     })
   })
 

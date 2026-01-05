@@ -9,5 +9,10 @@
   "externalProjects": [],
   "excludePatterns": {},
   "logLevel": "info",
-  "env": {}
+  "profile": {
+    "name": "Your Name",
+    "username": "your_username",
+    "gender": "male",
+    "birthday": "1990-01-01"
+  }
 }

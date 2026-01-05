@@ -1,6 +1,10 @@
 import type { CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath } from '@/types'
 
+import process from 'node:process'
+
+import { mdxToMd } from '@/compiler'
 import { FilePathKind, PromptKind } from '@/types'
+import { ScopeError } from '@/types/Errors'
 import { AbstractInputPlugin } from './AbstractInputPlugin'
 
 /**
@@ -14,8 +18,8 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     super('ReadmeMdInputPlugin', ['ShadowProjectInputPlugin'])
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const { userConfigOptions: options, logger, fs, path } = ctx
+  async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+    const { userConfigOptions: options, logger, fs, path, globalScope } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const shadowProjectsDirRaw = options.shadowProjectsDir
@@ -43,13 +47,14 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         const projectDir = path.join(shadowProjectsDir, projectName)
 
         // Collect readme.mdx files from project directory
-        this.collectReadmeFiles(
+        await this.collectReadmeFiles(
           ctx,
           projectDir,
           projectName,
           workspaceDir,
           '',
           readmePrompts,
+          globalScope,
         )
       }
     } catch (e) {
@@ -68,15 +73,17 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
    * @param workspaceDir - Workspace directory
    * @param relativePath - Relative path from dist directory
    * @param readmePrompts - Array to collect README prompts
+   * @param globalScope - Global scope for MDX expression evaluation
    */
-  private collectReadmeFiles(
+  private async collectReadmeFiles(
     ctx: InputPluginContext,
     currentDir: string,
     projectName: string,
     workspaceDir: string,
     relativePath: string,
     readmePrompts: ReadmePrompt[],
-  ): void {
+    globalScope: InputPluginContext['globalScope'],
+  ): Promise<void> {
     const { fs, path, logger } = ctx
     const isRoot = relativePath === ''
 
@@ -84,7 +91,28 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     const readmePath = path.join(currentDir, 'readme.mdx')
     if (fs.existsSync(readmePath) && fs.statSync(readmePath).isFile()) {
       try {
-        const content = fs.readFileSync(readmePath, 'utf-8')
+        const rawContent = fs.readFileSync(readmePath, 'utf-8')
+
+        // Compile MDX with globalScope to evaluate expressions like {profile.name}
+        // Only compile if globalScope is provided, otherwise use raw content
+        let content: string
+        if (globalScope != null) {
+          try {
+            content = await mdxToMd(rawContent, {
+              globalScope,
+              basePath: currentDir,
+            })
+          } catch (e) {
+            if (e instanceof ScopeError) {
+              logger.error(`MDX compilation failed in ${readmePath}: ${e.message}`)
+              logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
+              process.exit(1)
+            }
+            throw e
+          }
+        } else {
+          content = rawContent
+        }
 
         // Calculate target directory
         const targetPath = isRoot ? projectName : path.join(projectName, relativePath)
@@ -132,13 +160,14 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           const subRelativePath = isRoot ? entry.name : path.join(relativePath, entry.name)
           const subDir = path.join(currentDir, entry.name)
 
-          this.collectReadmeFiles(
+          await this.collectReadmeFiles(
             ctx,
             subDir,
             projectName,
             workspaceDir,
             subRelativePath,
             readmePrompts,
+            globalScope,
           )
         }
       }

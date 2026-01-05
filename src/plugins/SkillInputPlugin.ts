@@ -14,10 +14,13 @@ import type {
 
 import { Buffer } from 'node:buffer'
 import * as path from 'node:path'
+import { mdxToMd } from '@/compiler'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
+  MetadataValidationError,
   PromptKind,
+  validateSkillMetadata,
 } from '@/types'
 import {
   SKILL_RESOURCE_BINARY_EXTENSIONS,
@@ -466,8 +469,8 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     return { childDocs, resources }
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const { userConfigOptions: options, logger } = ctx
+  async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+    const { userConfigOptions: options, logger, globalScope } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const skillDirRaw = options.shadowSkillSourceDir
@@ -482,8 +485,41 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             const skillFilePath = ctx.path.join(skillDir, entry.name, 'skill.mdx')
             if (ctx.fs.existsSync(skillFilePath) && ctx.fs.statSync(skillFilePath).isFile()) {
               const rawContent = ctx.fs.readFileSync(skillFilePath, 'utf-8')
+
+              // Parse YAML front matter first for backward compatibility
               const parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)
-              const content = parsed.contentWithoutFrontMatter
+
+              // Compile MDX with globalScope and extract metadata from exports
+              const compileResult = await mdxToMd(rawContent, {
+                globalScope,
+                extractMetadata: true,
+                basePath: ctx.path.join(skillDir, entry.name),
+              })
+
+              // Merge YAML front matter with export metadata (export takes priority)
+              const mergedFrontMatter: SkillYAMLFrontMatter = {
+                ...parsed.yamlFrontMatter,
+                ...compileResult.metadata.fields,
+              } as SkillYAMLFrontMatter
+
+              // Validate merged metadata
+              const validationResult = validateSkillMetadata(
+                mergedFrontMatter as Record<string, unknown>,
+                skillFilePath,
+              )
+
+              // Log validation warnings
+              for (const warning of validationResult.warnings) {
+                logger.debug(warning)
+              }
+
+              // Throw error if validation fails (missing required fields)
+              if (!validationResult.valid) {
+                throw new MetadataValidationError(validationResult.errors, skillFilePath)
+              }
+
+              // Use compiled content
+              const content = compileResult.content
 
               const skillAbsoluteDir = ctx.path.join(skillDir, entry.name)
 
@@ -497,12 +533,22 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 logger,
               )
 
+              // Log metadata source for debugging
+              logger.debug('skill metadata extracted', {
+                skill: entry.name,
+                source: compileResult.metadata.source,
+                hasYaml: parsed.yamlFrontMatter != null,
+                hasExport: Object.keys(compileResult.metadata.fields).length > 0,
+              })
+
               skills.push({
                 type: PromptKind.Skill,
                 content,
                 length: content.length,
                 filePathKind: FilePathKind.Relative,
-                yamlFrontMatter: parsed.yamlFrontMatter ?? { name: entry.name, description: '' } as SkillYAMLFrontMatter,
+                yamlFrontMatter: mergedFrontMatter.name != null
+                  ? mergedFrontMatter
+                  : { name: entry.name, description: '' } as SkillYAMLFrontMatter,
                 ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
                 markdownAst: parsed.markdownAst,
                 markdownContents: parsed.markdownContents,

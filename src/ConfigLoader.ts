@@ -269,6 +269,41 @@ export class ConfigLoader {
       }
     }
 
+    // profile validation - supports arbitrary key-value pairs
+    if ('profile' in raw) {
+      const profileValue = raw['profile']
+      if (typeof profileValue === 'object' && profileValue !== null && !Array.isArray(profileValue)) {
+        (config as Record<string, unknown>)['profile'] = profileValue
+      } else {
+        errors.push('profile must be an object')
+      }
+    }
+
+    // tool validation - supports string values for tool references
+    if ('tool' in raw) {
+      const toolValue = raw['tool']
+      if (typeof toolValue === 'object' && toolValue !== null && !Array.isArray(toolValue)) {
+        const toolObj = toolValue as Record<string, unknown>
+        const validTool: Record<string, string | undefined> = {}
+        let valid = true
+
+        for (const [key, value] of Object.entries(toolObj)) {
+          if (typeof value === 'string' || value === void 0) {
+            validTool[key] = value
+          } else {
+            errors.push(`tool.${key} must be a string`)
+            valid = false
+          }
+        }
+
+        if (valid) {
+          (config as Record<string, unknown>)['tool'] = validTool
+        }
+      } else {
+        errors.push('tool must be an object')
+      }
+    }
+
     if (errors.length > 0) {
       this.logger.warn('validation warnings', { path: filePath, errors })
     }
@@ -502,6 +537,29 @@ function validateConfigStrict(raw: Record<string, unknown>): string[] {
       for (const [key, value] of Object.entries(patterns)) {
         if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
           errors.push(`excludePatterns.${key} must be an array of strings`)
+        }
+      }
+    }
+  }
+
+  // profile validation - must be an object with arbitrary key-value pairs
+  if ('profile' in raw) {
+    const profileValue = raw['profile']
+    if (typeof profileValue !== 'object' || profileValue === null || Array.isArray(profileValue)) {
+      errors.push('profile must be an object')
+    }
+  }
+
+  // tool validation - must be an object with string values
+  if ('tool' in raw) {
+    const toolValue = raw['tool']
+    if (typeof toolValue !== 'object' || toolValue === null || Array.isArray(toolValue)) {
+      errors.push('tool must be an object')
+    } else {
+      const toolObj = toolValue as Record<string, unknown>
+      for (const [key, value] of Object.entries(toolObj)) {
+        if (typeof value !== 'string' && value !== void 0) {
+          errors.push(`tool.${key} must be a string`)
         }
       }
     }

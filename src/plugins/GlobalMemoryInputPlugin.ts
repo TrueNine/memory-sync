@@ -1,13 +1,16 @@
 import type { CollectedInputContext, InputPluginContext } from '@/types'
 
 import * as os from 'node:os'
+import process from 'node:process'
 
+import { mdxToMd } from '@/compiler'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
   GlobalConfigDirectoryType,
   PromptKind,
 } from '@/types'
+import { ScopeError } from '@/types/Errors'
 import { AbstractInputPlugin } from './AbstractInputPlugin'
 
 export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
@@ -15,8 +18,8 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
     super('GlobalMemoryInputPlugin')
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const { userConfigOptions: options, fs, path } = ctx
+  async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+    const { userConfigOptions: options, fs, path, globalScope } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const globalMemoryFileRaw = options.globalMemoryFile
@@ -34,15 +37,36 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
 
     const rawContent = fs.readFileSync(globalMemoryFile, 'utf-8')
     const parsed = parseMarkdown(rawContent)
-    const content = parsed.contentWithoutFrontMatter
 
-    this.log.debug({ action: 'collect', path: globalMemoryFile, contentLength: content.length })
+    // Compile MDX with globalScope to evaluate expressions like {profile.name}
+    // Only compile if globalScope is provided, otherwise use raw content
+    let compiledContent: string
+    if (globalScope != null) {
+      try {
+        compiledContent = await mdxToMd(rawContent, {
+          globalScope,
+          basePath: path.dirname(globalMemoryFile),
+        })
+      } catch (e) {
+        if (e instanceof ScopeError) {
+          this.log.error(`MDX compilation failed: ${e.message}`)
+          this.log.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
+          this.log.error(`For example, if using {profile.name}, add a "profile" section with "name" field to your config.`)
+          process.exit(1)
+        }
+        throw e
+      }
+    } else {
+      compiledContent = parsed.contentWithoutFrontMatter
+    }
+
+    this.log.debug({ action: 'collect', path: globalMemoryFile, contentLength: compiledContent.length })
 
     return {
       globalMemory: {
         type: PromptKind.GlobalMemory,
-        content,
-        length: content.length,
+        content: compiledContent,
+        length: compiledContent.length,
         filePathKind: FilePathKind.Relative,
         ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
         markdownAst: parsed.markdownAst,

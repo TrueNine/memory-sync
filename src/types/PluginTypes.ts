@@ -1,4 +1,6 @@
+import type { MdxGlobalScope } from '@/globals'
 import type { ILogger } from '@/log'
+import type { ScopeRegistry } from '@/scope/ScopeRegistry'
 import type { FastCommandSeriesOptions } from '@/types/ConfigTypes'
 import type { PluginKind } from '@/types/Enums'
 import type { RelativePath } from '@/types/FileSystemTypes'
@@ -38,14 +40,27 @@ export interface InputPluginContext extends PluginContext {
    * Contains merged outputs from plugins that this plugin depends on.
    */
   readonly dependencyContext: Partial<CollectedInputContext>
+
+  /**
+   * Global scope containing os, env, profile, tool namespaces.
+   * Available for MDX expression evaluation.
+   */
+  readonly globalScope?: MdxGlobalScope
+
+  /**
+   * Scope registry for registering and merging scopes.
+   * Plugins can use this to register custom scope variables.
+   */
+  readonly scopeRegistry?: ScopeRegistry
 }
 
 export interface InputPlugin extends Plugin<PluginKind.Input> {
   /**
    * Collect all inputs from all registered input plugins.
    * This is the main entry point for the collect command.
+   * Supports both sync and async implementations.
    */
-  collect: (ctx: InputPluginContext) => Partial<CollectedInputContext>
+  collect: (ctx: InputPluginContext) => Partial<CollectedInputContext> | Promise<Partial<CollectedInputContext>>
 }
 
 /**

@@ -1,9 +1,12 @@
 import type { CollectedInputContext, InputPluginContext, SubAgentPrompt, SubAgentYAMLFrontMatter } from '@/types'
 
+import { mdxToMd } from '@/compiler'
 import { parseMarkdown } from '@/markdown'
 import {
   FilePathKind,
+  MetadataValidationError,
   PromptKind,
+  validateSubAgentMetadata,
 } from '@/types'
 import { AbstractInputPlugin } from './AbstractInputPlugin'
 
@@ -12,8 +15,8 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     super('SubAgentInputPlugin')
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const { userConfigOptions: options, logger, fs, path } = ctx
+  async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+    const { userConfigOptions: options, logger, fs, path, globalScope } = ctx
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
 
     const subAgentDirRaw = options.shadowSubAgentDir
@@ -27,14 +30,60 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
           if (entry.isFile() && entry.name.endsWith('.mdx')) {
             const filePath = path.join(subAgentDir, entry.name)
             const rawContent = fs.readFileSync(filePath, 'utf-8')
+
+            // Parse YAML front matter first for backward compatibility
             const parsed = parseMarkdown<SubAgentYAMLFrontMatter>(rawContent)
-            const content = parsed.contentWithoutFrontMatter
+
+            // Compile MDX with globalScope and extract metadata from exports
+            const compileResult = await mdxToMd(rawContent, {
+              globalScope,
+              extractMetadata: true,
+              basePath: subAgentDir,
+            })
+
+            // Merge YAML front matter with export metadata (export takes priority)
+            const mergedFrontMatter: SubAgentYAMLFrontMatter | undefined = parsed.yamlFrontMatter != null || Object.keys(compileResult.metadata.fields).length > 0
+              ? {
+                  ...parsed.yamlFrontMatter,
+                  ...compileResult.metadata.fields,
+                } as SubAgentYAMLFrontMatter
+              : void 0
+
+            // Validate merged metadata
+            if (mergedFrontMatter != null) {
+              const validationResult = validateSubAgentMetadata(
+                mergedFrontMatter as Record<string, unknown>,
+                filePath,
+              )
+
+              // Log validation warnings
+              for (const warning of validationResult.warnings) {
+                logger.debug(warning)
+              }
+
+              // Throw error if validation fails (missing required fields)
+              if (!validationResult.valid) {
+                throw new MetadataValidationError(validationResult.errors, filePath)
+              }
+            }
+
+            // Use compiled content
+            const content = compileResult.content
+
+            // Log metadata source for debugging
+            logger.debug('sub agent metadata extracted', {
+              agent: entry.name,
+              source: compileResult.metadata.source,
+              hasYaml: parsed.yamlFrontMatter != null,
+              hasExport: Object.keys(compileResult.metadata.fields).length > 0,
+            })
+
             subAgents.push({
               type: PromptKind.SubAgent,
               content,
               length: content.length,
               filePathKind: FilePathKind.Relative,
-              ...(parsed.yamlFrontMatter != null && { yamlFrontMatter: parsed.yamlFrontMatter }),
+              ...(mergedFrontMatter != null && { yamlFrontMatter: mergedFrontMatter }),
               ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
               markdownAst: parsed.markdownAst,
               markdownContents: parsed.markdownContents,

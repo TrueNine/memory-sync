@@ -57,10 +57,10 @@ describe('readmeMdInputPlugin property tests', () => {
   /**
    * Create isolated temp directory and run test, then cleanup
    */
-  function withTempDir<T>(fn: (tempDir: string) => T): T {
+  async function withTempDir<T>(fn: (tempDir: string) => Promise<T>): Promise<T> {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-test-'))
     try {
-      return fn(tempDir)
+      return await fn(tempDir)
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
@@ -89,19 +89,19 @@ describe('readmeMdInputPlugin property tests', () => {
     const readmeContentArb = fc.string({ minLength: 1, maxLength: 100 })
       .filter((s) => s.trim().length > 0)
 
-    it('should discover all readme.mdx files in generated directory structures', () => {
-      fc.assert(
-        fc.property(
+    it('should discover all readme.mdx files in generated directory structures', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           // Generate 1-3 projects
           fc.array(projectNameArb, { minLength: 1, maxLength: 3 }),
           // Generate 0-2 subdirectories per project
           fc.array(subdirNameArb, { minLength: 0, maxLength: 2 }),
           // Whether to include root README
           fc.boolean(),
-          // README content
+          // README content (avoid MDX expressions that need globalScope)
           readmeContentArb,
-          (projectNames, subdirs, includeRoot, content) => {
-            withTempDir((tempDir) => {
+          async (projectNames, subdirs, includeRoot, content) => {
+            await withTempDir(async (tempDir) => {
               // Deduplicate project names
               const uniqueProjects = [...new Set(projectNames)]
               const uniqueSubdirs = [...new Set(subdirs)]
@@ -130,9 +130,9 @@ describe('readmeMdInputPlugin property tests', () => {
               // Create the structure
               createDirectoryStructure(tempDir, structure)
 
-              // Run the plugin
+              // Run the plugin (now async)
               const ctx = createMockContext(tempDir, tempDir)
-              const result = plugin.collect(ctx)
+              const result = await plugin.collect(ctx)
 
               // Verify all expected READMEs were discovered
               const readmePrompts = result.readmePrompts ?? []
@@ -155,18 +155,18 @@ describe('readmeMdInputPlugin property tests', () => {
       )
     })
 
-    it('should return empty result when shadow source directory does not exist', () => {
-      fc.assert(
-        fc.property(
+    it('should return empty result when shadow source directory does not exist', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           projectNameArb,
-          (projectName) => {
-            withTempDir((tempDir) => {
+          async (projectName) => {
+            await withTempDir(async (tempDir) => {
               // Create workspace but no ref directory
               const workspaceDir = path.join(tempDir, projectName)
               fs.mkdirSync(workspaceDir, { recursive: true })
 
               const ctx = createMockContext(workspaceDir, workspaceDir)
-              const result = plugin.collect(ctx)
+              const result = await plugin.collect(ctx)
 
               expect(result.readmePrompts).toEqual([])
             })
@@ -199,15 +199,15 @@ describe('readmeMdInputPlugin property tests', () => {
     const readmeContentArb = fc.string({ minLength: 1, maxLength: 100 })
       .filter((s) => s.trim().length > 0)
 
-    it('should correctly set isRoot flag based on README location', () => {
-      fc.assert(
-        fc.property(
+    it('should correctly set isRoot flag based on README location', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           projectNameArb,
           subdirNameArb,
           readmeContentArb,
           readmeContentArb,
-          (projectName, subdir, rootContent, childContent) => {
-            withTempDir((tempDir) => {
+          async (projectName, subdir, rootContent, childContent) => {
+            await withTempDir(async (tempDir) => {
               // Create structure with both root and child README
               const structure: Record<string, string | null> = {
                 [`ref/${projectName}/readme.mdx`]: rootContent,
@@ -217,7 +217,7 @@ describe('readmeMdInputPlugin property tests', () => {
               createDirectoryStructure(tempDir, structure)
 
               const ctx = createMockContext(tempDir, tempDir)
-              const result = plugin.collect(ctx)
+              const result = await plugin.collect(ctx)
               const readmePrompts = result.readmePrompts ?? []
 
               // Find root README
@@ -240,13 +240,13 @@ describe('readmeMdInputPlugin property tests', () => {
       )
     })
 
-    it('should preserve content exactly as read from file', () => {
-      fc.assert(
-        fc.property(
+    it('should preserve content exactly as read from file', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           projectNameArb,
           readmeContentArb,
-          (projectName, content) => {
-            withTempDir((tempDir) => {
+          async (projectName, content) => {
+            await withTempDir(async (tempDir) => {
               const structure: Record<string, string | null> = {
                 [`ref/${projectName}/readme.mdx`]: content,
               }
@@ -254,7 +254,7 @@ describe('readmeMdInputPlugin property tests', () => {
               createDirectoryStructure(tempDir, structure)
 
               const ctx = createMockContext(tempDir, tempDir)
-              const result = plugin.collect(ctx)
+              const result = await plugin.collect(ctx)
               const readmePrompts = result.readmePrompts ?? []
 
               expect(readmePrompts.length).toBe(1)
@@ -267,14 +267,14 @@ describe('readmeMdInputPlugin property tests', () => {
       )
     })
 
-    it('should correctly set targetDir with proper path structure', () => {
-      fc.assert(
-        fc.property(
+    it('should correctly set targetDir with proper path structure', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           projectNameArb,
           fc.array(subdirNameArb, { minLength: 1, maxLength: 3 }),
           readmeContentArb,
-          (projectName, subdirs, content) => {
-            withTempDir((tempDir) => {
+          async (projectName, subdirs, content) => {
+            await withTempDir(async (tempDir) => {
               const uniqueSubdirs = [...new Set(subdirs)]
               const structure: Record<string, string | null> = {}
 
@@ -285,7 +285,7 @@ describe('readmeMdInputPlugin property tests', () => {
               createDirectoryStructure(tempDir, structure)
 
               const ctx = createMockContext(tempDir, tempDir)
-              const result = plugin.collect(ctx)
+              const result = await plugin.collect(ctx)
               const readmePrompts = result.readmePrompts ?? []
 
               for (const readme of readmePrompts) {

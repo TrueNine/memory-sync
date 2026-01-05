@@ -1,3 +1,11 @@
+// Global scope type exports
+export type {
+  EnvironmentContext,
+  MdxGlobalScope,
+  ToolReferences,
+  UserProfile,
+} from '../globals'
+
 // Component registry exports
 export {
   clearComponents,
@@ -6,6 +14,10 @@ export {
   registerComponent,
 } from './component-registry'
 
+// Export parser exports
+export { isStaticallyEvaluable, parseExports, parseStaticValue } from './export-parser'
+
+export type { ExportMetadata, MetadataSource, ParseExportOptions } from './export-parser'
 // Expression evaluation export
 export { evaluateExpression } from './expression-eval'
 
@@ -20,6 +32,7 @@ export type {
   ComponentHandler,
   EvaluationScope,
   MdxToMdOptions,
+  MdxToMdResult,
   ProcessingContext,
 } from './types'
 

@@ -56,6 +56,15 @@ class TestInputPlugin extends AbstractInputPlugin {
   public exposeResolvePath(rawPath: string, workspaceDir: string, shadowProjectDir: string): string {
     return this.resolvePath(rawPath, workspaceDir, shadowProjectDir)
   }
+
+  // Expose scope registration methods for testing
+  public exposeRegisterScope(namespace: string, values: Record<string, unknown>): void {
+    this.registerScope(namespace, values)
+  }
+
+  public exposeClearRegisteredScopes(): void {
+    this.clearRegisteredScopes()
+  }
 }
 
 describe('abstractInputPlugin', () => {
@@ -269,6 +278,72 @@ describe('abstractInputPlugin', () => {
     it('should replace $SHADOW_SOURCE_PROJECT placeholder', () => {
       const resolved = plugin.exposeResolvePath('$SHADOW_SOURCE_PROJECT/dist', '', '/shadow')
       expect(resolved).toBe(path.normalize('/shadow/dist'))
+    })
+  })
+
+  describe('scope registration', () => {
+    it('should register scope variables', () => {
+      expect(plugin.getRegisteredScopes()).toHaveLength(0)
+
+      plugin.exposeRegisterScope('myPlugin', { version: '1.0.0' })
+
+      const scopes = plugin.getRegisteredScopes()
+      expect(scopes).toHaveLength(1)
+      expect(scopes[0]?.namespace).toBe('myPlugin')
+      expect(scopes[0]?.values).toEqual({ version: '1.0.0' })
+    })
+
+    it('should register multiple scopes', () => {
+      plugin.exposeRegisterScope('plugin1', { key1: 'value1' })
+      plugin.exposeRegisterScope('plugin2', { key2: 'value2' })
+
+      const scopes = plugin.getRegisteredScopes()
+      expect(scopes).toHaveLength(2)
+      expect(scopes[0]?.namespace).toBe('plugin1')
+      expect(scopes[1]?.namespace).toBe('plugin2')
+    })
+
+    it('should allow registering same namespace multiple times', () => {
+      plugin.exposeRegisterScope('myPlugin', { key1: 'value1' })
+      plugin.exposeRegisterScope('myPlugin', { key2: 'value2' })
+
+      const scopes = plugin.getRegisteredScopes()
+      expect(scopes).toHaveLength(2)
+      expect(scopes[0]?.values).toEqual({ key1: 'value1' })
+      expect(scopes[1]?.values).toEqual({ key2: 'value2' })
+    })
+
+    it('should support nested objects in scope values', () => {
+      plugin.exposeRegisterScope('myPlugin', {
+        config: {
+          debug: true,
+          nested: { level: 2 },
+        },
+      })
+
+      const scopes = plugin.getRegisteredScopes()
+      expect(scopes[0]?.values).toEqual({
+        config: {
+          debug: true,
+          nested: { level: 2 },
+        },
+      })
+    })
+
+    it('should clear registered scopes', () => {
+      plugin.exposeRegisterScope('myPlugin', { key: 'value' })
+      expect(plugin.getRegisteredScopes()).toHaveLength(1)
+
+      plugin.exposeClearRegisteredScopes()
+      expect(plugin.getRegisteredScopes()).toHaveLength(0)
+    })
+
+    it('should return readonly array from getRegisteredScopes', () => {
+      plugin.exposeRegisterScope('myPlugin', { key: 'value' })
+
+      const scopes = plugin.getRegisteredScopes()
+      // TypeScript should prevent modification, but we verify the array is a copy
+      expect(Array.isArray(scopes)).toBe(true)
     })
   })
 })

@@ -6,6 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
+import { UndefinedNamespaceError, UndefinedVariableError } from '@/types/Errors'
 import { evaluateExpression } from './expression-eval'
 
 describe('expression-eval', () => {
@@ -48,11 +49,11 @@ describe('expression-eval', () => {
     })
 
     it('should throw for undefined root variable', () => {
-      expect(() => evaluateExpression('unknown', {})).toThrow(/Undefined variable/)
+      expect(() => evaluateExpression('unknown', {})).toThrow(/Undefined namespace/)
     })
 
     it('should throw for undefined nested property', () => {
-      expect(() => evaluateExpression('user.unknown', { user: {} })).toThrow(/Undefined property/)
+      expect(() => evaluateExpression('user.unknown', { user: {} })).toThrow(/Undefined variable/)
     })
   })
 
@@ -130,6 +131,56 @@ describe('expression-eval', () => {
 
     it('should throw for invalid expression syntax', () => {
       expect(() => evaluateExpression('a +', { a: 1 })).toThrow()
+    })
+  })
+
+  describe('error handling with new error types (Requirements 7.1, 7.2)', () => {
+    it('should throw UndefinedNamespaceError for undefined root variable', () => {
+      expect(() => evaluateExpression('unknown', {})).toThrow(UndefinedNamespaceError)
+    })
+
+    it('should throw UndefinedVariableError for undefined nested property', () => {
+      expect(() => evaluateExpression('user.unknown', { user: {} })).toThrow(UndefinedVariableError)
+    })
+
+    it('should include variable name in UndefinedVariableError', () => {
+      try {
+        evaluateExpression('user.missing', { user: {} })
+      } catch (error) {
+        expect(error).toBeInstanceOf(UndefinedVariableError)
+        expect((error as UndefinedVariableError).variableName).toBe('missing')
+        expect((error as UndefinedVariableError).expression).toBe('user.missing')
+      }
+    })
+
+    it('should include namespace in UndefinedNamespaceError', () => {
+      try {
+        evaluateExpression('unknown', {})
+      } catch (error) {
+        expect(error).toBeInstanceOf(UndefinedNamespaceError)
+        expect((error as UndefinedNamespaceError).namespace).toBe('unknown')
+        expect((error as UndefinedNamespaceError).expression).toBe('unknown')
+      }
+    })
+
+    it('should include file path in error when provided', () => {
+      try {
+        evaluateExpression('unknown', {}, { filePath: '/path/to/file.mdx' })
+      } catch (error) {
+        expect(error).toBeInstanceOf(UndefinedNamespaceError)
+        expect((error as UndefinedNamespaceError).filePath).toBe('/path/to/file.mdx')
+        expect(error.message).toContain('/path/to/file.mdx')
+      }
+    })
+
+    it('should include file path in UndefinedVariableError when provided', () => {
+      try {
+        evaluateExpression('user.missing', { user: {} }, { filePath: '/path/to/file.mdx' })
+      } catch (error) {
+        expect(error).toBeInstanceOf(UndefinedVariableError)
+        expect((error as UndefinedVariableError).filePath).toBe('/path/to/file.mdx')
+        expect(error.message).toContain('/path/to/file.mdx')
+      }
     })
   })
 })

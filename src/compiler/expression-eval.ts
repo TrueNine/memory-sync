@@ -2,6 +2,15 @@
 // JavaScript expression evaluation module for MDX
 
 import type { EvaluationScope } from './types.js'
+import { UndefinedNamespaceError, UndefinedVariableError } from '@/types/Errors'
+
+/**
+ * Options for expression evaluation
+ */
+export interface EvaluateExpressionOptions {
+  /** File path for error messages */
+  readonly filePath?: string
+}
 
 /**
  * Evaluates a JavaScript expression within a given scope.
@@ -9,12 +18,16 @@ import type { EvaluationScope } from './types.js'
  *
  * @param expression - The JavaScript expression string (without braces)
  * @param scope - Object containing variables available to the expression
+ * @param options - Optional configuration including file path for error messages
  * @returns The evaluated result as a string
- * @throws Error if expression references undefined variables or fails to evaluate
+ * @throws UndefinedVariableError if expression references undefined variables
+ * @throws UndefinedNamespaceError if expression references undefined namespace
+ * @throws Error if expression fails to evaluate
  */
 export function evaluateExpression(
   expression: string,
   scope: EvaluationScope,
+  options?: EvaluateExpressionOptions,
 ): string {
   const trimmed = expression.trim()
 
@@ -25,10 +38,10 @@ export function evaluateExpression(
   // Handle simple variable references directly for better error messages
   // Matches: identifier, identifier.property, identifier.property.nested
   if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) {
-    return evaluateSimpleReference(trimmed, scope)
+    return evaluateSimpleReference(trimmed, scope, options?.filePath)
   }
 
-  return evaluateComplexExpression(trimmed, scope)
+  return evaluateComplexExpression(trimmed, scope, options?.filePath)
 }
 
 /**
@@ -37,14 +50,14 @@ export function evaluateExpression(
 function evaluateSimpleReference(
   reference: string,
   scope: EvaluationScope,
+  filePath?: string,
 ): string {
   const parts = reference.split('.')
   const rootVar = parts[0]
 
   if (rootVar == null || !(rootVar in scope)) {
-    throw new Error(
-      `Undefined variable: "${rootVar ?? ''}" in expression "${reference}"`,
-    )
+    // Root variable is treated as a namespace
+    throw new UndefinedNamespaceError(rootVar ?? '', reference, filePath)
   }
 
   let value: unknown = scope[rootVar]
@@ -55,9 +68,7 @@ function evaluateSimpleReference(
     }
 
     if (value == null) {
-      throw new Error(
-        `Cannot read property "${prop}" of ${String(value)} in expression "${reference}"`,
-      )
+      throw new UndefinedVariableError(prop, reference, filePath)
     }
     if (typeof value !== 'object') {
       throw new TypeError(
@@ -66,9 +77,7 @@ function evaluateSimpleReference(
     }
     const obj = value as Record<string, unknown>
     if (!(prop in obj)) {
-      throw new Error(
-        `Undefined property: "${prop}" in expression "${reference}"`,
-      )
+      throw new UndefinedVariableError(prop, reference, filePath)
     }
     value = obj[prop]
   }
@@ -82,6 +91,7 @@ function evaluateSimpleReference(
 function evaluateComplexExpression(
   expression: string,
   scope: EvaluationScope,
+  filePath?: string,
 ): string {
   const scopeKeys = Object.keys(scope)
   const scopeValues = scopeKeys.map((k) => scope[k])
@@ -95,8 +105,16 @@ function evaluateComplexExpression(
     return convertToString(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    // Check if the error is about undefined variable
+    if (message.includes('is not defined')) {
+      const match = /(\w+) is not defined/.exec(message)
+      if (match?.[1] != null) {
+        throw new UndefinedNamespaceError(match[1], expression, filePath)
+      }
+    }
+    const fileInfo = filePath != null ? ` (file: ${filePath})` : ''
     throw new Error(
-      `Failed to evaluate expression: "${expression}"\nCause: ${message}`,
+      `Failed to evaluate expression: "${expression}"${fileInfo}\nCause: ${message}`,
     )
   }
 }

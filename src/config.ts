@@ -221,6 +221,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   let userConfigOptions: Partial<PluginOptions> = {}
   let userConfigFound = false
   let userConfigSources: readonly string[] = []
+  let userConfigFile: UserConfigFile | undefined
 
   if (shouldLoadUserConfig) {
     const userConfigResult = loadUserConfig(cwd)
@@ -228,6 +229,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     userConfigSources = userConfigResult.sources
     if (userConfigResult.found) {
       userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
+      userConfigFile = userConfigResult.config
     }
   }
 
@@ -252,8 +254,8 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     })
   }
 
-  // Base context without dependencyContext (will be provided by pipeline)
-  const baseCtx: Omit<InputPluginContext, 'dependencyContext'> = {
+  // Base context without dependencyContext, globalScope, scopeRegistry (will be provided by pipeline)
+  const baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = {
     logger,
     userConfigOptions: mergedOptions,
     fs,
@@ -266,8 +268,9 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   const outputPlugins = plugins.filter((p): p is OutputPlugin => p.type === PluginKind.Output)
 
   // Use PluginPipeline to execute plugins in dependency order
+  // Pass userConfigFile for GlobalScopeCollector to access profile and tool
   const pipeline = new PluginPipeline()
-  const merged = await pipeline.executePluginsInOrder(inputPlugins, baseCtx)
+  const merged = await pipeline.executePluginsInOrder(inputPlugins, baseCtx, false, userConfigFile)
 
   // Validate workspace exists
   if (merged.workspace == null) {

@@ -1,6 +1,7 @@
 export * from './ConfigTypes'
 export * from './Enums'
 export * from './Errors'
+export * from './ExportMetadataTypes'
 export * from './FileSystemTypes'
 export * from './InputTypes'
 export * from './OutputTypes'

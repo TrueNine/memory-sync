@@ -9,6 +9,8 @@ import type {
   MdxJsxTextElement,
   MdxTextExpression,
 } from 'mdast-util-mdx'
+import type { MdxGlobalScope } from '../globals'
+import type { ExportMetadata } from './export-parser'
 
 /** Scope containing values available for expression evaluation */
 export interface EvaluationScope {
@@ -43,6 +45,24 @@ export interface MdxToMdOptions {
   scope?: EvaluationScope
   /** Base path for file resolution */
   basePath?: string
+  /**
+   * Global scope containing os, env, profile, tool namespaces.
+   * These values are merged with custom scope (custom scope takes precedence).
+   */
+  globalScope?: MdxGlobalScope | undefined
+  /**
+   * Whether to extract metadata from export statements.
+   * When true, returns MdxToMdResult instead of string.
+   */
+  extractMetadata?: boolean
+}
+
+/** Result of mdxToMd when extractMetadata is true */
+export interface MdxToMdResult {
+  /** Compiled Markdown content */
+  content: string
+  /** Extracted metadata from export statements */
+  metadata: ExportMetadata
 }
 
 // Re-export MDX-specific types for convenience

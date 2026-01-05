@@ -91,9 +91,20 @@ export interface ResolvedBasePaths {
 }
 
 /**
+ * Represents a registered scope entry from a plugin.
+ */
+export interface PluginScopeRegistration {
+  /** The namespace name (e.g., 'myPlugin') */
+  readonly namespace: string
+  /** Key-value pairs registered under this namespace */
+  readonly values: Record<string, unknown>
+}
+
+/**
  * Abstract base class for input plugins.
  * Provides common functionality for collecting data from the file system.
  * Supports effect registration for preprocessing/cleaning input sources.
+ * Supports scope registration for MDX expression evaluation.
  *
  * @example
  * ```typescript
@@ -109,6 +120,8 @@ export interface ResolvedBasePaths {
  *
  *   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
  *     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(ctx.userConfigOptions)
+ *     // Register custom scope variables
+ *     this.registerScope('myPlugin', { version: '1.0.0' })
  *     // ... collect data
  *     return { ... }
  *   }
@@ -121,6 +134,12 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
    * Effects are executed in priority order (lower priority = earlier execution).
    */
   private readonly inputEffects: InputEffectRegistration[] = []
+
+  /**
+   * Registered scope variables for MDX expression evaluation.
+   * These are collected by PluginPipeline and merged into the global scope.
+   */
+  private readonly registeredScopes: PluginScopeRegistration[] = []
 
   /**
    * Creates a new AbstractInputPlugin instance.
@@ -249,14 +268,60 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     return this.inputEffects.length
   }
 
+  // ============================================================================
+  // Scope Registration Methods
+  // ============================================================================
+
+  /**
+   * Register custom scope variables for MDX expression evaluation.
+   * These variables will be available in MDX templates under the specified namespace.
+   *
+   * @param namespace - The namespace name (e.g., 'myPlugin')
+   * @param values - Key-value pairs to register under this namespace
+   *
+   * @example
+   * ```typescript
+   * // Register plugin-specific variables
+   * this.registerScope('myPlugin', {
+   *   version: '1.0.0',
+   *   config: { debug: true }
+   * })
+   * // In MDX: {myPlugin.version}, {myPlugin.config.debug}
+   * ```
+   */
+  protected registerScope(namespace: string, values: Record<string, unknown>): void {
+    this.registeredScopes.push({ namespace, values })
+    this.log.debug({ action: 'registerScope', namespace, keys: Object.keys(values) })
+  }
+
+  /**
+   * Get all registered scope variables.
+   * Called by PluginPipeline to collect scopes from all plugins.
+   *
+   * @returns Readonly array of scope registrations
+   */
+  getRegisteredScopes(): readonly PluginScopeRegistration[] {
+    return this.registeredScopes
+  }
+
+  /**
+   * Clear all registered scope variables.
+   * Useful for resetting state between test runs or re-collection.
+   */
+  protected clearRegisteredScopes(): void {
+    this.registeredScopes.length = 0
+    this.log.debug({ action: 'clearRegisteredScopes' })
+  }
+
   /**
    * Collect data from the file system.
    * Subclasses must implement this method to define their collection logic.
+   * Supports both sync and async implementations.
    *
    * @param ctx - The input plugin context containing configuration and utilities
    * @returns Partial collected input context with the data gathered by this plugin
    */
-  abstract collect(ctx: InputPluginContext): Partial<CollectedInputContext>
+  abstract collect(ctx: InputPluginContext): Partial<CollectedInputContext> | Promise<Partial<CollectedInputContext>>
 
   /**
    * Resolve base paths (workspace and shadow source project directories) from plugin options.
