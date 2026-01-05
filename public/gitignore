@@ -1,18 +1,18 @@
-# Dependencies
+logs/
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+WARP.md
+.claude/
+.factory/
+.cursor/
+.codebuddy/
+.qoder/
+.windsurf/
+.kiro/
+.cache/
+.skills/
+.google-devtools-mcp/
+nul
 node_modules/
-
-# Build outputs
-dist/
-build/
-out/
-
-# IDE
-.idea/
-.vscode/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
+pnpm-lock.yaml
