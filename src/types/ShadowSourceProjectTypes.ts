@@ -85,7 +85,7 @@ export const SHADOW_SOURCE_DIR_NAMES = {
  */
 export const SHADOW_SOURCE_FILE_NAMES = {
   // Global memory
-  GLOBAL_MEMORY: 'global.md',
+  GLOBAL_MEMORY: 'global.mdx',
   GLOBAL_MEMORY_SRC: 'global.cn.mdx',
   // EditorConfig
   EDITOR_CONFIG: '.editorconfig',
@@ -116,7 +116,7 @@ export const SHADOW_SOURCE_RELATIVE_PATHS = {
   DIST_COMMANDS: 'dist/commands',
   DIST_AGENTS: 'dist/agents',
   DIST_APP: 'dist/app',
-  DIST_GLOBAL_MEMORY: 'dist/global.md',
+  DIST_GLOBAL_MEMORY: 'dist/global.mdx',
   // App source path (standalone at root)
   APP: 'app',
 } as const
@@ -152,17 +152,17 @@ export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE: ShadowSourceProjectDirecto
     skills: {
       name: SHADOW_SOURCE_DIR_NAMES.SKILLS,
       required: false,
-      description: 'Compiled skill files (.md)',
+      description: 'Compiled skill files (.mdx)',
     },
     commands: {
       name: SHADOW_SOURCE_DIR_NAMES.COMMANDS,
       required: false,
-      description: 'Compiled fast command files (.md)',
+      description: 'Compiled fast command files (.mdx)',
     },
     agents: {
       name: SHADOW_SOURCE_DIR_NAMES.AGENTS,
       required: false,
-      description: 'Compiled sub-agent files (.md)',
+      description: 'Compiled sub-agent files (.mdx)',
     },
     globalMemoryFile: {
       name: SHADOW_SOURCE_FILE_NAMES.GLOBAL_MEMORY,

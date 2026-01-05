@@ -10,39 +10,39 @@ import type {
   MdxTextExpression,
 } from 'mdast-util-mdx'
 
-/** Scope containing resolved imports and their values */
+/** Scope containing values available for expression evaluation */
 export interface EvaluationScope {
   [key: string]: unknown
 }
 
-/** Information about an imported module */
-export interface ImportInfo {
-  /** The import specifier (e.g., "./file.json") */
-  source: string
-  /** Named imports (e.g., { name, description }) */
-  namedImports: Map<string, string>
-  /** Default import name (e.g., Component) */
-  defaultImport?: string
-  /** Whether this is an MDX component import */
-  isMdxComponent: boolean
-}
+/**
+ * Component handler signature for built-in components.
+ * Handlers receive the JSX element, processing context, and a function to process children.
+ */
+export type ComponentHandler = (
+  element: MdxJsxFlowElement | MdxJsxTextElement,
+  ctx: ProcessingContext,
+  processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>,
+) => Promise<RootContent[]>
 
-/** Context passed through the processing pipeline */
+/** Simplified processing context without import tracking */
 export interface ProcessingContext {
-  /** Evaluation scope with resolved imports */
+  /** Merged evaluation scope (globals + user scope) */
   scope: EvaluationScope
-  /** Map of component names to their content */
-  components: Map<string, string>
-  /** Stack of component names being processed (for circular dependency detection) */
+  /** Built-in component handlers */
+  components: Map<string, ComponentHandler>
+  /** Stack for circular dependency detection */
   processingStack: string[]
+  /** Base path for resolving relative file references */
+  basePath?: string
 }
 
 /** Options for the mdxToMd function */
 export interface MdxToMdOptions {
-  /** Custom scope values to inject */
+  /** Custom scope values (override globals) */
   scope?: EvaluationScope
-  /** Map of component names to their MDX content */
-  components?: Map<string, string> | Record<string, string>
+  /** Base path for file resolution */
+  basePath?: string
 }
 
 // Re-export MDX-specific types for convenience

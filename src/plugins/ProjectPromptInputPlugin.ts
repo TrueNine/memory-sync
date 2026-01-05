@@ -16,7 +16,7 @@ import { AbstractInputPlugin } from './AbstractInputPlugin'
 /**
  * Project memory prompt file name
  */
-const PROJECT_MEMORY_FILE = 'agt.md'
+const PROJECT_MEMORY_FILE = 'agt.mdx'
 
 export class ProjectPromptInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -42,7 +42,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     const projects = dependencyWorkspace.projects ?? []
 
     // Enhance projects with memory prompts from shadow projects directory
-    // New structure: dist/app/<project>/agt.md (no nested dist folder)
+    // New structure: dist/app/<project>/agt.mdx (no nested dist folder)
     const enhancedProjects = projects.map((project) => {
       const projectName = project.name
       if (projectName == null) {
@@ -58,9 +58,9 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       // Get target project path for output
       const targetProjectPath = project.dirFromWorkspacePath?.getAbsolutePath()
 
-      // Root prompt: dist/app/<project>/agt.md -> <project>/AGENTS.md
+      // Root prompt: dist/app/<project>/agt.mdx -> <project>/AGENTS.md
       const rootMemoryPrompt = this.readRootMemoryPrompt(ctx, shadowProjectPath)
-      // Child prompts: dist/app/<project>/<subdir>/agt.md -> <project>/<subdir>/AGENTS.md
+      // Child prompts: dist/app/<project>/<subdir>/agt.mdx -> <project>/<subdir>/AGENTS.md
       const childMemoryPrompts = targetProjectPath != null
         ? this.scanChildMemoryPrompts(ctx, shadowProjectPath, targetProjectPath)
         : []

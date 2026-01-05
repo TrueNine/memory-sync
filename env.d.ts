@@ -23,3 +23,9 @@ declare const __KIRO_GLOBAL_POWERS_REGISTRY__: string
  * from public/tnmsc.example.json
  */
 declare const __TEMPLATE_TNMSC_EXAMPLE__: string
+
+/**
+ * Default gitignore template content injected at build time
+ * from public/gitignore
+ */
+declare const __TEMPLATE_GITIGNORE__: string

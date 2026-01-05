@@ -69,9 +69,9 @@ describe('readmeMdInputPlugin property tests', () => {
   /**
    * Feature: readme-md-plugin, Property 1: README Discovery Completeness
    *
-   * For any shadow project directory structure containing README.md files,
-   * the ReadmeMdInputPlugin SHALL discover all README.md files at both
-   * ref/project/README.md (root) and ref/project/subdir/README.md (child) locations,
+   * For any shadow project directory structure containing readme.mdx files,
+   * the ReadmeMdInputPlugin SHALL discover all readme.mdx files at both
+   * ref/project/readme.mdx (root) and ref/project/subdir/readme.mdx (child) locations,
    * and continue processing remaining files when individual file reads fail.
    *
    * Validates: Requirements 1.1, 1.2, 1.3, 1.5
@@ -89,7 +89,7 @@ describe('readmeMdInputPlugin property tests', () => {
     const readmeContentArb = fc.string({ minLength: 1, maxLength: 100 })
       .filter((s) => s.trim().length > 0)
 
-    it('should discover all README.md files in generated directory structures', () => {
+    it('should discover all readme.mdx files in generated directory structures', () => {
       fc.assert(
         fc.property(
           // Generate 1-3 projects
@@ -116,13 +116,13 @@ describe('readmeMdInputPlugin property tests', () => {
 
                 // Add root README if flag is true
                 if (includeRoot) {
-                  structure[`ref/${projectName}/readme.md`] = content
+                  structure[`ref/${projectName}/readme.mdx`] = content
                   expectedReadmes.push({ projectName, isRoot: true })
                 }
 
                 // Add child READMEs
                 for (const subdir of uniqueSubdirs) {
-                  structure[`ref/${projectName}/${subdir}/readme.md`] = content
+                  structure[`ref/${projectName}/${subdir}/readme.mdx`] = content
                   expectedReadmes.push({ projectName, isRoot: false, subdir })
                 }
               }
@@ -180,7 +180,7 @@ describe('readmeMdInputPlugin property tests', () => {
   /**
    * Feature: readme-md-plugin, Property 2: Data Structure Correctness
    *
-   * For any discovered README.md file, the resulting ReadmePrompt SHALL contain
+   * For any discovered readme.mdx file, the resulting ReadmePrompt SHALL contain
    * the correct projectName, content, relative path, and isRoot flag that accurately
    * reflects whether the file is a root README (in project root) or child README (in subdir/).
    *
@@ -210,8 +210,8 @@ describe('readmeMdInputPlugin property tests', () => {
             withTempDir((tempDir) => {
               // Create structure with both root and child README
               const structure: Record<string, string | null> = {
-                [`ref/${projectName}/readme.md`]: rootContent,
-                [`ref/${projectName}/${subdir}/readme.md`]: childContent,
+                [`ref/${projectName}/readme.mdx`]: rootContent,
+                [`ref/${projectName}/${subdir}/readme.mdx`]: childContent,
               }
 
               createDirectoryStructure(tempDir, structure)
@@ -248,7 +248,7 @@ describe('readmeMdInputPlugin property tests', () => {
           (projectName, content) => {
             withTempDir((tempDir) => {
               const structure: Record<string, string | null> = {
-                [`ref/${projectName}/readme.md`]: content,
+                [`ref/${projectName}/readme.mdx`]: content,
               }
 
               createDirectoryStructure(tempDir, structure)
@@ -279,7 +279,7 @@ describe('readmeMdInputPlugin property tests', () => {
               const structure: Record<string, string | null> = {}
 
               for (const subdir of uniqueSubdirs) {
-                structure[`ref/${projectName}/${subdir}/readme.md`] = content
+                structure[`ref/${projectName}/${subdir}/readme.mdx`] = content
               }
 
               createDirectoryStructure(tempDir, structure)

@@ -295,7 +295,7 @@ export function generateShadowSourceProject(
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_AGENTS))
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_APP))
 
-  // Create dist/global.md
+  // Create dist/global.mdx
   ensureFile(
     path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_GLOBAL_MEMORY),
     SHADOW_SOURCE_RELATIVE_PATHS.DIST_GLOBAL_MEMORY,
@@ -434,23 +434,5 @@ function getDefaultVscodeExtensions(): string {
 }
 
 function getDefaultIgnoreContent(): string {
-  return `# Dependencies
-node_modules/
-
-# Build outputs
-dist/
-build/
-out/
-
-# IDE
-.idea/
-.vscode/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-`
+  return __TEMPLATE_GITIGNORE__
 }

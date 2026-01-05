@@ -14,8 +14,8 @@ import { OrphanFileCleanupEffectInputPlugin } from './OrphanFileCleanupEffectInp
  * Feature: effect-input-plugins
  * Property-based tests for OrphanFileCleanupEffectInputPlugin
  *
- * Property 5: Orphan .md file deletion
- * For any .md file in dist/skills/, dist/commands/, dist/agents/, or dist/app/,
+ * Property 5: Orphan .mdx file deletion
+ * For any .mdx file in dist/skills/, dist/commands/, dist/agents/, or dist/app/,
  * if no corresponding source file exists according to the mapping rules,
  * the file should be deleted after OrphanFileCleanupEffectInputPlugin executes.
  *
@@ -74,15 +74,15 @@ const distFileGen: fc.Arbitrary<DistFile> = fc.record({
 
 describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
   /**
-   * Feature: effect-input-plugins, Property 5: Orphan .md file deletion
+   * Feature: effect-input-plugins, Property 5: Orphan .mdx file deletion
    * Validates: Requirements 2.2, 2.3, 2.4, 2.5
    *
-   * For any .md file in dist/skills/, dist/commands/, dist/agents/, or dist/app/,
+   * For any .mdx file in dist/skills/, dist/commands/, dist/agents/, or dist/app/,
    * if no corresponding source file exists according to the mapping rules,
    * the file should be deleted after OrphanFileCleanupEffectInputPlugin executes.
    */
-  describe('property 5: Orphan .md file deletion', () => {
-    it('should delete orphan .md files and keep files with valid sources', async () => {
+  describe('property 5: Orphan .mdx file deletion', () => {
+    it('should delete orphan .mdx files and keep files with valid sources', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(distFileGen, { minLength: 1, maxLength: 10 })
@@ -124,7 +124,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
                 const distTypePath = path.join(distDir, file.dirType)
                 fs.mkdirSync(distTypePath, { recursive: true })
 
-                const distFilePath = path.join(distTypePath, `${file.name}.md`)
+                const distFilePath = path.join(distTypePath, `${file.name}.mdx`)
                 fs.writeFileSync(distFilePath, `# ${file.name}`, 'utf-8')
 
                 if (file.hasSource) {
@@ -193,7 +193,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               fs.mkdirSync(subDir, { recursive: true })
 
               // Create orphan file in subdirectory (no source)
-              const orphanFilePath = path.join(subDir, `${name}.md`)
+              const orphanFilePath = path.join(subDir, `${name}.mdx`)
               fs.writeFileSync(orphanFilePath, `# ${name}`, 'utf-8')
 
               // Verify setup: subdirectory exists with file
@@ -249,11 +249,11 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               fs.mkdirSync(srcSkillsDir, { recursive: true })
 
               // Create orphan file (no source)
-              const orphanFilePath = path.join(distSkillsDir, `${orphanName}.md`)
+              const orphanFilePath = path.join(distSkillsDir, `${orphanName}.mdx`)
               fs.writeFileSync(orphanFilePath, `# ${orphanName}`, 'utf-8')
 
               // Create valid file with source
-              const validFilePath = path.join(distSkillsDir, `${validName}.md`)
+              const validFilePath = path.join(distSkillsDir, `${validName}.mdx`)
               fs.writeFileSync(validFilePath, `# ${validName}`, 'utf-8')
 
               // Create source for valid file

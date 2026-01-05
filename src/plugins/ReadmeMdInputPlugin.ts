@@ -4,8 +4,8 @@ import { FilePathKind, PromptKind } from '@/types'
 import { AbstractInputPlugin } from './AbstractInputPlugin'
 
 /**
- * Input plugin for collecting README.md files from shadow project directories.
- * Scans dist/app/<project> directories for README.md files and collects them as ReadmePrompt objects.
+ * Input plugin for collecting readme.mdx files from shadow project directories.
+ * Scans dist/app/<project> directories for readme.mdx files and collects them as ReadmePrompt objects.
  *
  * Supports both root README files (in project root) and child README files (in subdirectories).
  */
@@ -42,7 +42,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         // New structure: dist/app/<project>/ (no nested dist folder)
         const projectDir = path.join(shadowProjectsDir, projectName)
 
-        // Collect README.md files from project directory
+        // Collect readme.mdx files from project directory
         this.collectReadmeFiles(
           ctx,
           projectDir,
@@ -60,7 +60,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
   }
 
   /**
-   * Recursively collect README.md files from a directory.
+   * Recursively collect readme.mdx files from a directory.
    *
    * @param ctx - Input plugin context
    * @param currentDir - Current directory to scan
@@ -80,8 +80,8 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     const { fs, path, logger } = ctx
     const isRoot = relativePath === ''
 
-    // Check for readme.md in current directory
-    const readmePath = path.join(currentDir, 'readme.md')
+    // Check for readme.mdx in current directory
+    const readmePath = path.join(currentDir, 'readme.mdx')
     if (fs.existsSync(readmePath) && fs.statSync(readmePath).isFile()) {
       try {
         const content = fs.readFileSync(readmePath, 'utf-8')
@@ -119,7 +119,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           dir,
         })
       } catch (e) {
-        logger.warn('failed to read readme.md', { path: readmePath, error: e })
+        logger.warn('failed to read readme.mdx', { path: readmePath, error: e })
       }
     }
 

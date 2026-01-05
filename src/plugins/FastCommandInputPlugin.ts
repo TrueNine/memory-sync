@@ -25,7 +25,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
    * @returns SeriesInfo with optional series and required commandName
    */
   extractSeriesInfo(fileName: string): SeriesInfo {
-    const baseName = fileName.replace(/\.md$/, '')
+    const baseName = fileName.replace(/\.mdx$/, '')
     const underscoreIndex = baseName.indexOf('_')
 
     if (underscoreIndex === -1) {
@@ -50,7 +50,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
       try {
         const entries = ctx.fs.readdirSync(fastCommandDir, { withFileTypes: true })
         for (const entry of entries) {
-          if (entry.isFile() && entry.name.endsWith('.md')) {
+          if (entry.isFile() && entry.name.endsWith('.mdx')) {
             const filePath = ctx.path.join(fastCommandDir, entry.name)
             const rawContent = ctx.fs.readFileSync(filePath, 'utf-8')
             const parsed = parseMarkdown<FastCommandYAMLFrontMatter>(rawContent)
@@ -69,7 +69,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
                 pathKind: FilePathKind.Relative,
                 path: entry.name,
                 basePath: fastCommandDir,
-                getDirectoryName: () => entry.name.replace(/\.md$/, ''),
+                getDirectoryName: () => entry.name.replace(/\.mdx$/, ''),
                 getAbsolutePath: () => filePath,
               },
               ...(seriesInfo.series != null && { series: seriesInfo.series }),

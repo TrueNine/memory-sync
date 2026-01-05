@@ -18,11 +18,11 @@ export interface OrphanCleanupEffectResult extends InputEffectResult {
  * removing any files that don't have a valid source file according to the mapping rules.
  *
  * Mapping Rules:
- * - dist/skills/{name}.md → src/skills/{name}/SKILL.src.md OR src/skills/{name}.src.md
- * - dist/commands/{name}.md → src/commands/{name}.src.md
- * - dist/agents/{name}.md → src/agents/{name}.src.md
- * - dist/app/{name}.md → app/{name}.src.md
- * - dist/{type}/{path} (non-.md) → src/{type}/{path} or app/{path} (direct mapping)
+ * - dist/skills/{name}.mdx → src/skills/{name}/SKILL.src.mdx OR src/skills/{name}.src.mdx
+ * - dist/commands/{name}.mdx → src/commands/{name}.src.mdx
+ * - dist/agents/{name}.mdx → src/agents/{name}.src.mdx
+ * - dist/app/{name}.mdx → app/{name}.src.mdx
+ * - dist/{type}/{path} (non-.mdx) → src/{type}/{path} or app/{path} (direct mapping)
  *
  * Features:
  * - Scans dist/skills/, dist/commands/, dist/agents/, dist/app/ directories
@@ -33,9 +33,9 @@ export interface OrphanCleanupEffectResult extends InputEffectResult {
  *
  * @example
  * ```
- * dist/skills/old-skill.md  (no src/skills/old-skill/skill.src.md) → deleted
- * dist/commands/removed.md  (no src/commands/removed.src.md) → deleted
- * dist/skills/valid.md      (has src/skills/valid/skill.src.md) → kept
+ * dist/skills/old-skill.mdx  (no src/skills/old-skill/skill.src.mdx) → deleted
+ * dist/commands/removed.mdx  (no src/commands/removed.src.mdx) → deleted
+ * dist/skills/valid.mdx      (has src/skills/valid/skill.src.mdx) → kept
  * ```
  */
 export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
@@ -167,21 +167,21 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     const { fs, path } = ctx
 
     const fileName = path.basename(distFilePath)
-    const isMdFile = fileName.endsWith('.md')
+    const isMdxFile = fileName.endsWith('.mdx')
 
     // Get relative path from dist/{dirType}/ to the file
     const distTypeDir = path.join(shadowProjectDir, 'dist', dirType)
     const relativeFromType = path.relative(distTypeDir, distFilePath)
     const relativeDir = path.dirname(relativeFromType)
-    const baseName = fileName.replace(/\.md$/, '')
+    const baseName = fileName.replace(/\.mdx$/, '')
 
-    if (isMdFile) {
-      // Apply mapping rules for .md files (Requirements 2.2, 2.3, 2.4, 2.5)
+    if (isMdxFile) {
+      // Apply mapping rules for .mdx files (Requirements 2.2, 2.3, 2.4, 2.5)
       const possibleSrcPaths = this.getPossibleSourcePaths(path, shadowProjectDir, dirType, baseName, relativeDir)
 
       return !possibleSrcPaths.some((srcPath) => fs.existsSync(srcPath))
     } else {
-      // For non-.md files, check direct mapping (Requirement 2.6)
+      // For non-.mdx files, check direct mapping (Requirement 2.6)
       // Build possible source paths based on directory type
       const possibleSrcPaths: string[] = []
 

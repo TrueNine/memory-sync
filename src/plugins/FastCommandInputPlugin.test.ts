@@ -29,7 +29,7 @@ describe('fastCommandInputPlugin', () => {
           alphanumericNoUnderscore,
           alphanumericWithUnderscore,
           (seriesPrefix, commandName) => {
-            const fileName = `${seriesPrefix}_${commandName}.md`
+            const fileName = `${seriesPrefix}_${commandName}.mdx`
             const result = plugin.extractSeriesInfo(fileName)
 
             expect(result.series).toBe(seriesPrefix)
@@ -49,7 +49,7 @@ describe('fastCommandInputPlugin', () => {
         fc.property(
           alphanumericNoUnderscore,
           (baseName) => {
-            const fileName = `${baseName}.md`
+            const fileName = `${baseName}.mdx`
             const result = plugin.extractSeriesInfo(fileName)
 
             expect(result.series).toBeUndefined()
@@ -72,7 +72,7 @@ describe('fastCommandInputPlugin', () => {
           alphanumericNoUnderscore,
           (seriesPrefix, part1, part2) => {
             // Create filename with multiple underscores
-            const fileName = `${seriesPrefix}_${part1}_${part2}.md`
+            const fileName = `${seriesPrefix}_${part1}_${part2}.mdx`
             const result = plugin.extractSeriesInfo(fileName)
 
             // Series should be only the first part
@@ -86,26 +86,26 @@ describe('fastCommandInputPlugin', () => {
     })
 
     // Unit tests for specific edge cases
-    it('should handle pe_compile.md correctly', () => {
-      const result = plugin.extractSeriesInfo('pe_compile.md')
+    it('should handle pe_compile.mdx correctly', () => {
+      const result = plugin.extractSeriesInfo('pe_compile.mdx')
       expect(result.series).toBe('pe')
       expect(result.commandName).toBe('compile')
     })
 
-    it('should handle compile.md correctly (no underscore)', () => {
-      const result = plugin.extractSeriesInfo('compile.md')
+    it('should handle compile.mdx correctly (no underscore)', () => {
+      const result = plugin.extractSeriesInfo('compile.mdx')
       expect(result.series).toBeUndefined()
       expect(result.commandName).toBe('compile')
     })
 
-    it('should handle pe_compile_all.md correctly (multiple underscores)', () => {
-      const result = plugin.extractSeriesInfo('pe_compile_all.md')
+    it('should handle pe_compile_all.mdx correctly (multiple underscores)', () => {
+      const result = plugin.extractSeriesInfo('pe_compile_all.mdx')
       expect(result.series).toBe('pe')
       expect(result.commandName).toBe('compile_all')
     })
 
-    it('should handle _compile.md correctly (empty prefix)', () => {
-      const result = plugin.extractSeriesInfo('_compile.md')
+    it('should handle _compile.mdx correctly (empty prefix)', () => {
+      const result = plugin.extractSeriesInfo('_compile.mdx')
       expect(result.series).toBe('')
       expect(result.commandName).toBe('compile')
     })

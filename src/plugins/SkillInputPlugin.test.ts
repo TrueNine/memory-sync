@@ -196,14 +196,14 @@ describe('skillInputPlugin', () => {
     it('should scan child docs and resources at root level', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'skill.md', isFile: () => true, isDirectory: () => false },
-          { name: 'guide.md', isFile: () => true, isDirectory: () => false },
+          { name: 'skill.mdx', isFile: () => true, isDirectory: () => false },
+          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
           { name: 'mcp.json', isFile: () => true, isDirectory: () => false },
           { name: 'helper.kt', isFile: () => true, isDirectory: () => false },
           { name: 'logo.png', isFile: () => true, isDirectory: () => false },
         ]),
         readFileSync: vi.fn().mockImplementation((filePath: string) => {
-          if (filePath.endsWith('.md')) {
+          if (filePath.endsWith('.mdx')) {
             return '# Content'
           }
           if (filePath.endsWith('.png')) {
@@ -215,9 +215,9 @@ describe('skillInputPlugin', () => {
 
       const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
 
-      // Should have 1 child doc (guide.md, not skill.md)
+      // Should have 1 child doc (guide.mdx, not skill.mdx)
       expect(result.childDocs).toHaveLength(1)
-      expect(result.childDocs[0]?.relativePath).toBe('guide.md')
+      expect(result.childDocs[0]?.relativePath).toBe('guide.mdx')
       expect(result.childDocs[0]?.type).toBe(PromptKind.SkillChildDoc)
 
       // Should have 2 resources (helper.kt, logo.png, not mcp.json)
@@ -237,8 +237,8 @@ describe('skillInputPlugin', () => {
           }
           if (dir === '/skill/dir/docs') {
             return [
-              { name: 'guide.md', isFile: () => true, isDirectory: () => false },
-              { name: 'api.md', isFile: () => true, isDirectory: () => false },
+              { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+              { name: 'api.mdx', isFile: () => true, isDirectory: () => false },
             ]
           }
           if (dir === '/skill/dir/assets') {
@@ -250,7 +250,7 @@ describe('skillInputPlugin', () => {
           return []
         }),
         readFileSync: vi.fn().mockImplementation((filePath: string) => {
-          if (filePath.endsWith('.md')) {
+          if (filePath.endsWith('.mdx')) {
             return '# Content'
           }
           if (filePath.endsWith('.png')) {
@@ -264,8 +264,8 @@ describe('skillInputPlugin', () => {
 
       // Should have 2 child docs from docs/
       expect(result.childDocs).toHaveLength(2)
-      expect(result.childDocs.map((d) => d.relativePath)).toContain('docs/guide.md')
-      expect(result.childDocs.map((d) => d.relativePath)).toContain('docs/api.md')
+      expect(result.childDocs.map((d) => d.relativePath)).toContain('docs/guide.mdx')
+      expect(result.childDocs.map((d) => d.relativePath)).toContain('docs/api.mdx')
 
       // Should have 2 resources from assets/
       expect(result.resources).toHaveLength(2)

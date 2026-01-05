@@ -341,8 +341,8 @@ export class SkillInputPlugin extends AbstractInputPlugin {
 
   /**
    * Recursively scan skill directory for child docs and resources.
-   * Child docs: all .md files except skill.md
-   * Resources: all non-.md files except mcp.json
+   * Child docs: all .mdx files except skill.mdx
+   * Resources: all non-.mdx files except mcp.json
    *
    * @param skillDir - The absolute path to the skill directory
    * @param fs - The file system module
@@ -379,10 +379,10 @@ export class SkillInputPlugin extends AbstractInputPlugin {
         } else if (entry.isFile()) {
           const filePath = path.join(currentDir, entry.name)
 
-          // Handle .md files as child docs (except skill.md at root)
-          if (entry.name.endsWith('.md')) {
-            // Skip skill.md at root level
-            if (currentRelativePath === '' && entry.name === 'skill.md') {
+          // Handle .mdx files as child docs (except skill.mdx at root)
+          if (entry.name.endsWith('.mdx')) {
+            // Skip skill.mdx at root level
+            if (currentRelativePath === '' && entry.name === 'skill.mdx') {
               continue
             }
 
@@ -412,7 +412,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
               logger.warn('failed to read child doc', { path: relativePath, error: e })
             }
           } else {
-            // Handle non-.md files as resources (except mcp.json at root)
+            // Handle non-.mdx files as resources (except mcp.json at root)
             if (currentRelativePath === '' && entry.name === 'mcp.json') {
               continue
             }
@@ -479,7 +479,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
         const entries = ctx.fs.readdirSync(skillDir, { withFileTypes: true })
         for (const entry of entries) {
           if (entry.isDirectory()) {
-            const skillFilePath = ctx.path.join(skillDir, entry.name, 'skill.md')
+            const skillFilePath = ctx.path.join(skillDir, entry.name, 'skill.mdx')
             if (ctx.fs.existsSync(skillFilePath) && ctx.fs.statSync(skillFilePath).isFile()) {
               const rawContent = ctx.fs.readFileSync(skillFilePath, 'utf-8')
               const parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)

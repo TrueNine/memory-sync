@@ -3,62 +3,24 @@
 
 import type { Paragraph, Parent, Root, RootContent, Text } from 'mdast'
 import type {
-  MdxjsEsm,
   MdxJsxFlowElement,
 } from 'mdast-util-mdx'
 import type { ProcessingContext } from './types'
 import { isMdxComponent, processComponent } from './component-processor'
 import { evaluateExpression } from './expression-eval'
-import {
-  extractImports,
-  getComponentNameFromSource,
-  resolveImport,
-} from './import-resolver'
 import { convertJsxToMarkdown } from './jsx-converter'
 
 type ChildNode = RootContent | Text
 
 /**
- * Processes an MDX AST, resolving imports, evaluating expressions,
- * and expanding components.
+ * Processes an MDX AST, evaluating expressions and expanding components.
+ * Import statements (mdxjsEsm nodes) are skipped during transformation.
  */
 export async function processAst(
   ast: Root,
   ctx: ProcessingContext,
 ): Promise<Root> {
-  resolveAllImports(ast, ctx)
   return transformNodes(ast, ctx)
-}
-
-/**
- * Extracts all imports from the AST and resolves them into the scope.
- */
-function resolveAllImports(ast: Root, ctx: ProcessingContext): void {
-  const esmNodes: MdxjsEsm[] = []
-
-  for (const node of ast.children) {
-    if (node.type === 'mdxjsEsm') {
-      esmNodes.push(node)
-    }
-  }
-
-  for (const node of esmNodes) {
-    const imports = extractImports(node)
-
-    for (const importInfo of imports) {
-      const resolved = resolveImport(importInfo, ctx)
-      Object.assign(ctx.scope, resolved)
-
-      // Register MDX component if available in ctx.components
-      if (importInfo.isMdxComponent && importInfo.defaultImport != null) {
-        const componentKey = getComponentNameFromSource(importInfo.source)
-        const content = ctx.components.get(componentKey)
-        if (content != null) {
-          ctx.components.set(importInfo.defaultImport, content)
-        }
-      }
-    }
-  }
 }
 
 /**

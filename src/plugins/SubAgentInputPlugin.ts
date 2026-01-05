@@ -24,7 +24,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       try {
         const entries = fs.readdirSync(subAgentDir, { withFileTypes: true })
         for (const entry of entries) {
-          if (entry.isFile() && entry.name.endsWith('.md')) {
+          if (entry.isFile() && entry.name.endsWith('.mdx')) {
             const filePath = path.join(subAgentDir, entry.name)
             const rawContent = fs.readFileSync(filePath, 'utf-8')
             const parsed = parseMarkdown<SubAgentYAMLFrontMatter>(rawContent)
@@ -42,7 +42,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
                 pathKind: FilePathKind.Relative,
                 path: entry.name,
                 basePath: subAgentDir,
-                getDirectoryName: () => entry.name.replace(/\.md$/, ''),
+                getDirectoryName: () => entry.name.replace(/\.mdx$/, ''),
                 getAbsolutePath: () => filePath,
               },
             })
