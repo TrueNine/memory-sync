@@ -46,9 +46,12 @@ This is a test skill content.`
       expect(result.content).toContain('This is a test skill content.')
       // YAML-only files should have source 'yaml'
       expect(result.metadata.source).toBe('yaml')
-      // Fields should be empty since we don't parse YAML in export-parser
-      // YAML is handled separately by parseMarkdown
-      expect(result.metadata.fields).toEqual({})
+      // YAML frontmatter is now extracted and merged
+      expect(result.metadata.fields).toEqual({
+        name: 'test-skill',
+        description: 'A test skill',
+        keywords: ['test', 'example'],
+      })
     })
 
     it('should handle YAML-only file with complex front matter', async () => {
@@ -71,6 +74,14 @@ tags:
 
       expect(result.content).toContain('# Complex Skill Content')
       expect(result.metadata.source).toBe('yaml')
+      expect(result.metadata.fields).toEqual({
+        name: 'complex-skill',
+        description: 'A complex skill',
+        enabled: true,
+        priority: 10,
+        config: { debug: true, timeout: 5000 },
+        tags: ['typescript', 'testing'],
+      })
     })
 
     it('should handle YAML-only file with empty content', async () => {
@@ -81,10 +92,12 @@ description: Skill with empty content
 
       const result = await mdxToMd(content, { extractMetadata: true })
 
-      // Note: mdxToMd doesn't strip YAML front matter from content
-      // YAML parsing is handled at the plugin level via parseMarkdown
-      // The compiler sees YAML as regular content (remark-frontmatter not used in mdxToMd)
+      // YAML frontmatter is extracted
       expect(result.metadata.source).toBe('yaml')
+      expect(result.metadata.fields).toEqual({
+        name: 'empty-content',
+        description: 'Skill with empty content',
+      })
     })
   })
 
@@ -191,13 +204,16 @@ export const exportOnly = true
       const result = await mdxToMd(content, { extractMetadata: true })
 
       expect(result.content).toContain('# Mixed Content')
-      // Note: mdxToMd alone doesn't parse YAML, so it only sees exports
-      // The 'mixed' source detection happens when parseExports is called
-      // with yamlFrontMatter option (done at plugin level)
-      expect(result.metadata.source).toBe('export')
-      // Export fields should be present
+      // mdxToMd now merges YAML and export, so source is 'mixed'
+      expect(result.metadata.source).toBe('mixed')
+      // Export takes priority over YAML for same fields
       expect(result.metadata.fields).toEqual({
+        // export wins over yaml for 'name'
         name: 'export-name',
+        // from YAML
+        description: 'yaml-description',
+        yamlOnly: true,
+        // from export
         exportOnly: true,
       })
     })
@@ -287,6 +303,91 @@ export const exportField = "export-value"`
 
       expect(result.fields).toEqual({})
       expect(result.source).toBe('yaml')
+    })
+  })
+
+  describe('export default support', () => {
+    it('should parse export default object as frontmatter', async () => {
+      const content = `export default {
+  name: "default-skill",
+  description: "A skill using export default",
+  keywords: ["test", "default"]
+}
+
+# Default Export Skill
+
+This is content.`
+
+      const result = await mdxToMd(content, { extractMetadata: true })
+
+      expect(result.content).toContain('# Default Export Skill')
+      expect(result.metadata.source).toBe('export')
+      expect(result.metadata.fields).toEqual({
+        name: 'default-skill',
+        description: 'A skill using export default',
+        keywords: ['test', 'default'],
+      })
+    })
+
+    it('should handle export default with nested objects', async () => {
+      const content = `export default {
+  name: "nested-skill",
+  config: {
+    debug: true,
+    options: {
+      timeout: 5000
+    }
+  }
+}
+
+# Content`
+
+      const result = await mdxToMd(content, { extractMetadata: true })
+
+      expect(result.metadata.fields).toEqual({
+        name: 'nested-skill',
+        config: {
+          debug: true,
+          options: {
+            timeout: 5000,
+          },
+        },
+      })
+    })
+
+    it('should merge export default with YAML frontmatter (export takes priority)', () => {
+      const mdxContent = `export default {
+  name: "export-name",
+  exportOnly: true
+}`
+
+      const ast = parseMdx(mdxContent)
+      const esmNodes = ast.children.filter((n): n is MdxjsEsm => n.type === 'mdxjsEsm')
+
+      const result = parseExports(esmNodes, {
+        yamlFrontMatter: {
+          name: 'yaml-name',
+          yamlOnly: true,
+        },
+      })
+
+      expect(result.source).toBe('mixed')
+      expect(result.fields['name']).toBe('export-name')
+      expect(result.fields['yamlOnly']).toBe(true)
+      expect(result.fields['exportOnly']).toBe(true)
+    })
+
+    it('should handle single-line export default', async () => {
+      const content = `export default { name: "inline", count: 42 }
+
+# Content`
+
+      const result = await mdxToMd(content, { extractMetadata: true })
+
+      expect(result.metadata.fields).toEqual({
+        name: 'inline',
+        count: 42,
+      })
     })
   })
 

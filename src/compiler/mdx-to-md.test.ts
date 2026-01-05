@@ -210,4 +210,95 @@ Content inside
       expect(result).toContain('# Test')
     })
   })
+
+  describe('yAML frontmatter preservation', () => {
+    it('should preserve YAML frontmatter in output when extractMetadata is false', async () => {
+      const input = `---
+title: Test Document
+tags:
+  - a
+  - b
+---
+
+# Hello World`
+      const result = await mdxToMd(input)
+      expect(result).toContain('---')
+      expect(result).toContain('title: Test Document')
+      expect(result).toContain('# Hello World')
+    })
+
+    it('should not convert frontmatter delimiters to thematic breaks', async () => {
+      const input = `---
+name: test
+description: A test description
+---
+
+# Content`
+      const result = await mdxToMd(input)
+      // Should NOT contain *** (thematic break)
+      expect(result).not.toContain('***')
+      // Should contain proper frontmatter
+      expect(result).toContain('---')
+      expect(result).toContain('name: test')
+    })
+
+    it('should handle frontmatter with complex values', async () => {
+      const input = `---
+argument-hint: "locale [en_US or zh_CN]"
+allowed-tools: Read, Write, Edit
+description: Test description
+---
+
+# Title`
+      const result = await mdxToMd(input)
+      expect(result).toContain('argument-hint:')
+      expect(result).toContain('allowed-tools:')
+      expect(result).toContain('# Title')
+    })
+
+    it('should remove frontmatter from content when extractMetadata is true', async () => {
+      const input = `---
+name: test-skill
+description: A test skill
+---
+
+# Content`
+      const result = await mdxToMd(input, { extractMetadata: true })
+      // Content should NOT contain frontmatter
+      expect(result.content).not.toContain('---')
+      expect(result.content).not.toContain('name: test-skill')
+      expect(result.content).toContain('# Content')
+      // Metadata should contain frontmatter fields
+      expect(result.metadata.fields).toEqual({
+        name: 'test-skill',
+        description: 'A test skill',
+      })
+      expect(result.metadata.source).toBe('yaml')
+    })
+
+    it('should merge YAML and export when extractMetadata is true', async () => {
+      const input = `---
+name: yaml-name
+yamlField: yaml-value
+---
+
+export const name = "export-name"
+export const exportField = "export-value"
+
+# Content`
+      const result = await mdxToMd(input, { extractMetadata: true })
+      // Content should be clean
+      expect(result.content).not.toContain('---')
+      expect(result.content).not.toContain('export const')
+      expect(result.content).toContain('# Content')
+      // Metadata should be merged (export takes priority)
+      expect(result.metadata.fields).toEqual({
+        // export wins over yaml for 'name'
+        name: 'export-name',
+        yamlField: 'yaml-value',
+        exportField: 'export-value',
+      })
+      expect(result.metadata.source).toBe('mixed')
+    })
+  })
 })

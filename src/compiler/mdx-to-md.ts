@@ -1,9 +1,12 @@
 // mdx-to-md.ts
 // Main entry point for lossless MDX to Markdown conversion
 
+import type { YAML } from 'mdast'
 import type { EvaluationScope, MdxjsEsm, MdxToMdOptions, MdxToMdResult, ProcessingContext } from './types'
+import remarkFrontmatter from 'remark-frontmatter'
 import remarkStringify from 'remark-stringify'
 import { unified } from 'unified'
+import * as YAML_LIB from 'yaml'
 import { registerBuiltInComponents } from '../components'
 import { getComponents } from './component-registry'
 import { parseExports } from './export-parser'
@@ -125,14 +128,32 @@ export async function mdxToMd(
   // Load built-in components from registry
   const components = getComponents()
 
-  // Extract export metadata if requested
+  // Extract metadata if requested (YAML frontmatter + ESM exports merged)
   let metadata: MdxToMdResult['metadata'] | undefined
   if (options?.extractMetadata === true) {
-    const esmNodes = ast.children.filter((n): n is MdxjsEsm => n.type === 'mdxjsEsm')
-    metadata = parseExports(esmNodes)
+    // 1. Extract YAML frontmatter
+    const yamlNode = ast.children.find((n): n is YAML => n.type === 'yaml')
+    let yamlFrontMatter: Record<string, unknown> | undefined
+    if (yamlNode != null) {
+      try {
+        yamlFrontMatter = YAML_LIB.parse(yamlNode.value) as Record<string, unknown>
+      } catch {
+        // YAML parsing failed, ignore
+      }
+    }
 
-    // Remove export nodes from AST
-    ast.children = ast.children.filter((n) => n.type !== 'mdxjsEsm')
+    // 2. Extract ESM exports
+    const esmNodes = ast.children.filter((n): n is MdxjsEsm => n.type === 'mdxjsEsm')
+
+    // 3. Merge: export takes priority over YAML
+    metadata = parseExports(esmNodes, {
+      ...(yamlFrontMatter != null && { yamlFrontMatter }),
+      scope: mergedScope,
+      ...(options?.basePath != null && { filePath: options.basePath }),
+    })
+
+    // 4. Remove YAML and ESM nodes from AST (clean content output)
+    ast.children = ast.children.filter((n) => n.type !== 'yaml' && n.type !== 'mdxjsEsm')
   }
 
   const ctx: ProcessingContext = {
@@ -144,13 +165,15 @@ export async function mdxToMd(
 
   const processedAst = await processAst(ast, ctx)
 
-  const processor = unified().use(remarkStringify, {
-    bullet: '-',
-    fence: '`',
-    fences: true,
-    emphasis: '*',
-    strong: '*',
-  })
+  const processor = unified()
+    .use(remarkFrontmatter, ['yaml'])
+    .use(remarkStringify, {
+      bullet: '-',
+      fence: '`',
+      fences: true,
+      emphasis: '*',
+      strong: '*',
+    })
 
   const markdown = processor.stringify(processedAst).trim()
 

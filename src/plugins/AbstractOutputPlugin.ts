@@ -736,6 +736,34 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   /**
+   * Build markdown content with front matter, preferring raw front matter if available.
+   * This is useful when YAML parsing failed but we still want to preserve the original front matter.
+   *
+   * @param content - The markdown content
+   * @param frontMatter - The parsed YAML front matter object (may be undefined if parsing failed)
+   * @param rawFrontMatter - The raw front matter string (without --- delimiters)
+   * @returns The combined markdown string
+   */
+  protected buildMarkdownContentWithRaw(
+    content: string,
+    frontMatter?: Record<string, unknown>,
+    rawFrontMatter?: string,
+  ): string {
+    // If we have parsed front matter, use it
+    if (frontMatter != null && Object.keys(frontMatter).length > 0) {
+      return buildMarkdownWithFrontMatter(frontMatter, content)
+    }
+
+    // If we have raw front matter but parsing failed, use raw
+    if (rawFrontMatter != null && rawFrontMatter.length > 0) {
+      return `---\n${rawFrontMatter}\n---\n${content}`
+    }
+
+    // No front matter
+    return content
+  }
+
+  /**
    * Extract global memory content from the output write context.
    *
    * @param ctx - The output write context

@@ -2,6 +2,7 @@
 // MDX parsing module using unified + remark-parse + remark-mdx
 
 import type { Root } from 'mdast'
+import remarkFrontmatter from 'remark-frontmatter'
 import remarkMdx from 'remark-mdx'
 import remarkParse from 'remark-parse'
 import { unified } from 'unified'
@@ -11,6 +12,7 @@ import { unified } from 'unified'
  *
  * The parser preserves:
  * - Standard Markdown syntax as native MDAST nodes (heading, code, list, link, etc.)
+ * - YAML front matter as `yaml` nodes
  * - JSX elements as `mdxJsxFlowElement` or `mdxJsxTextElement` nodes
  * - Import/export statements as `mdxjsEsm` nodes
  * - Expression interpolations as `mdxFlowExpression` or `mdxTextExpression` nodes
@@ -19,6 +21,9 @@ import { unified } from 'unified'
  * @returns The parsed AST root node
  */
 export function parseMdx(source: string): Root {
-  const processor = unified().use(remarkParse).use(remarkMdx)
+  const processor = unified()
+    .use(remarkParse)
+    .use(remarkFrontmatter, ['yaml'])
+    .use(remarkMdx)
   return processor.parse(source)
 }

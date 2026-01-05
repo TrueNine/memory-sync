@@ -81,10 +81,11 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
             getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, skillDir, 'SKILL.md'),
           })
 
-          // Register reference documents
+          // Register reference documents (convert .mdx to .md)
           if (skill.childDocs != null) {
             for (const refDoc of skill.childDocs) {
-              const refDocPath = path.join(skillDir, refDoc.dir.path)
+              const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+              const refDocPath = path.join(skillDir, refDocFileName)
               results.push({
                 pathKind: FilePathKind.Relative,
                 path: refDocPath,
@@ -250,8 +251,12 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(cmd.content as string, cmd.yamlFrontMatter)
+    // Build content with front matter, preferring raw if parsed failed
+    const content = this.buildMarkdownContentWithRaw(
+      cmd.content as string,
+      cmd.yamlFrontMatter,
+      cmd.rawFrontMatter,
+    )
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'fastCommand', path: fullPath })
@@ -290,8 +295,12 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(agent.content as string, agent.yamlFrontMatter)
+    // Build content with front matter, preferring raw if parsed failed
+    const content = this.buildMarkdownContentWithRaw(
+      agent.content as string,
+      agent.yamlFrontMatter,
+      agent.rawFrontMatter,
+    )
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'subAgent', path: fullPath })
@@ -382,7 +391,8 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     projectDir: RelativePath,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    const fileName = refDoc.dir.path
+    // Convert .mdx to .md for output
+    const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
     const fullPath = path.join(skillDir, fileName)
 
     const relativePath: RelativePath = {

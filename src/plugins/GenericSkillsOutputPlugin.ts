@@ -112,15 +112,16 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
           })
         }
 
-        // Register child docs
+        // Register child docs (convert .mdx to .md)
         if (skill.childDocs != null) {
           for (const childDoc of skill.childDocs) {
+            const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
             results.push({
               pathKind: FilePathKind.Relative,
-              path: this.joinPath(SKILLS_DIR, skillName, childDoc.relativePath),
+              path: this.joinPath(SKILLS_DIR, skillName, outputRelativePath),
               basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
               getDirectoryName: () => skillName,
-              getAbsolutePath: () => this.joinPath(skillDir, childDoc.relativePath),
+              getAbsolutePath: () => this.joinPath(skillDir, outputRelativePath),
             })
           }
         }
@@ -334,6 +335,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
   /**
    * Write a child document (.md file).
+   * Converts .mdx extension to .md for output.
    */
   private async writeChildDoc(
     ctx: OutputWriteContext,
@@ -341,11 +343,13 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     skillDir: string,
     skillName: string,
   ): Promise<WriteResult> {
-    const childDocPath = this.joinPath(skillDir, childDoc.relativePath)
+    // Convert .mdx to .md for output
+    const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
+    const childDocPath = this.joinPath(skillDir, outputRelativePath)
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: childDoc.relativePath,
+      path: outputRelativePath,
       basePath: skillDir,
       getDirectoryName: () => skillName,
       getAbsolutePath: () => childDocPath,

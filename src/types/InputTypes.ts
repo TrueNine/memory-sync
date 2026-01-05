@@ -105,6 +105,11 @@ export interface FastCommandPrompt extends Prompt<PromptKind.FastCommand, FastCo
    * Command name without series prefix (e.g., 'compile' from 'pe_compile.md')
    */
   readonly commandName: string
+  /**
+   * Raw MDX content before compilation.
+   * Used by output plugins to recompile with tool-specific presets.
+   */
+  readonly rawMdxContent?: string
 }
 
 /**

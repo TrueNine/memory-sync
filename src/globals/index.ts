@@ -16,13 +16,60 @@ export interface UserProfile {
 
 /**
  * Tool references for AI assistants
- * @example {tool.websearch}, {tool.webfetch}
+ * @example {tool.websearch}, {tool.webfetch}, {tool.readFile}
  */
 export interface ToolReferences {
+  /** Web search tool name */
   websearch?: string
+  /** Web fetch tool name */
   webfetch?: string
+  /** Read file tool name */
+  readFile?: string
+  /** Write file tool name */
+  writeFile?: string
+  /** Execute command/shell tool name */
+  executeCommand?: string
+  /** Todolist write tool name */
+  todolistWrite?: string
+  /** Grep/search tool name */
+  grep?: string
+  /** Allow custom tool references */
   [key: string]: string | undefined
 }
+
+/**
+ * Tool name presets for different AI tools.
+ * Each preset provides tool name mappings specific to that AI tool.
+ */
+export const ToolPresets = {
+  /** Default tool names (snake_case) */
+  default: {
+    websearch: 'web_search',
+    webfetch: 'web_fetch',
+    readFile: 'read_file',
+    writeFile: 'write_file',
+    executeCommand: 'execute_command',
+    todolistWrite: 'todolist_write',
+    grep: 'grep',
+  },
+  /** Claude Code CLI tool names (PascalCase) */
+  claudeCode: {
+    readFile: 'Read',
+    writeFile: 'Write',
+    executeCommand: 'Execute',
+    todolistWrite: 'TodoWrite',
+  },
+  /** Kiro tool names */
+  kiro: {
+    websearch: 'remote_web_search',
+    webfetch: 'webFetch',
+    readFile: 'readFile',
+    writeFile: 'fsWrite',
+    executeCommand: 'executeBash',
+    todolistWrite: 'todolistWrite',
+    grep: 'grepSearch',
+  },
+} as const satisfies Record<string, Partial<ToolReferences>>
 
 /**
  * Environment context
@@ -92,4 +139,4 @@ declare global {
   const os: OsInfo
 }
 
-export {}
+export { }

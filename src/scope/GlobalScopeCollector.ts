@@ -5,7 +5,12 @@ import type { EnvironmentContext, MdxGlobalScope, OsInfo, ToolReferences, UserPr
 import type { UserConfigFile } from '@/types/ConfigTypes'
 import * as os from 'node:os'
 import process from 'node:process'
-import { OsKind, ShellKind } from '@/globals'
+import { OsKind, ShellKind, ToolPresets } from '@/globals'
+
+/**
+ * Tool preset names supported by GlobalScopeCollector
+ */
+export type ToolPresetName = keyof typeof ToolPresets
 
 /**
  * Options for GlobalScopeCollector
@@ -13,6 +18,8 @@ import { OsKind, ShellKind } from '@/globals'
 export interface GlobalScopeCollectorOptions {
   /** User configuration file */
   readonly userConfig?: UserConfigFile | undefined
+  /** Tool preset to use (default: 'default') */
+  readonly toolPreset?: ToolPresetName | undefined
 }
 
 /**
@@ -21,9 +28,11 @@ export interface GlobalScopeCollectorOptions {
  */
 export class GlobalScopeCollector {
   private readonly userConfig: UserConfigFile | undefined
+  private readonly toolPreset: ToolPresetName
 
   constructor(options: GlobalScopeCollectorOptions = {}) {
     this.userConfig = options.userConfig
+    this.toolPreset = options.toolPreset ?? 'default'
   }
 
   /**
@@ -120,18 +129,25 @@ export class GlobalScopeCollector {
    * Collect user profile from configuration
    */
   private collectProfile(): UserProfile {
-    return this.userConfig?.profile ?? {}
+    if (this.userConfig?.profile != null) {
+      return this.userConfig.profile
+    }
+    return {}
   }
 
   /**
-   * Collect tool references with system defaults
+   * Collect tool references with system defaults and preset overrides.
    * Tool references are system-defined and not user-configurable.
-   * Output plugins may override these values for specific AI tools.
+   * Output plugins may override these values for specific AI tools via presets.
    */
   private collectToolReferences(): ToolReferences {
-    return {
-      websearch: 'web_search',
-      webfetch: 'web_fetch',
+    const defaults: ToolReferences = { ...ToolPresets.default }
+    if (this.toolPreset === 'claudeCode') {
+      return { ...defaults, ...ToolPresets.claudeCode }
     }
+    if (this.toolPreset === 'kiro') {
+      return { ...defaults, ...ToolPresets.kiro }
+    }
+    return defaults
   }
 }

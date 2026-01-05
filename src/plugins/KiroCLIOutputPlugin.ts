@@ -312,11 +312,11 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
           })
         }
 
-        // Register reference documents in steering/ subdirectory
+        // Register reference documents in steering/ subdirectory (convert .mdx to .md)
         if (skill.childDocs != null) {
           const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
           for (const refDoc of skill.childDocs) {
-            const refDocFileName = refDoc.dir.path
+            const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
             results.push({
               pathKind: FilePathKind.Relative,
               path: this.joinPath(STEERING_SUBDIR, refDocFileName),
@@ -661,12 +661,13 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    // Write reference documents to steering/ subdirectory
+    // Write reference documents to steering/ subdirectory (convert .mdx to .md)
     if (skill.childDocs != null) {
       const steeringDir = this.joinPath(powerDir, STEERING_SUBDIR)
 
       for (const refDoc of skill.childDocs) {
-        const refDocFileName = refDoc.dir.path
+        // Convert .mdx to .md for output
+        const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
         const refDocFilePath = this.joinPath(steeringDir, refDocFileName)
 
         const refDocRelativePath: RelativePath = {

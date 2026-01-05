@@ -1,7 +1,7 @@
 // export-parser.ts
 // Extracts metadata from MDX export statements
 
-import type { MdxjsEsm } from './types'
+import type { EvaluationScope, MdxjsEsm } from './types'
 
 /**
  * Metadata source type
@@ -24,13 +24,17 @@ export interface ExportMetadata {
 export interface ParseExportOptions {
   /** Existing YAML front matter (for merging) */
   readonly yamlFrontMatter?: Record<string, unknown>
+  /** Evaluation scope for resolving variable references like tool.readFile */
+  readonly scope?: EvaluationScope
+  /** File path for error messages */
+  readonly filePath?: string
 }
 
 /**
  * Supported literal types for static evaluation
  */
 type SupportedLiteral
-  = | string
+  = string
     | number
     | boolean
     | null
@@ -59,10 +63,10 @@ export function parseExports(
   options: ParseExportOptions = {},
 ): ExportMetadata {
   const exportFields: Record<string, unknown> = {}
-  const { yamlFrontMatter } = options
+  const { yamlFrontMatter, scope, filePath } = options
 
   for (const node of esmNodes) {
-    const extracted = extractExportFromNode(node)
+    const extracted = extractExportFromNode(node, scope, filePath)
     Object.assign(exportFields, extracted)
   }
 
@@ -87,15 +91,51 @@ export function parseExports(
 
 /**
  * Extracts export declarations from a single ESM node.
+ * Supports both `export const` and `export default` patterns.
  *
  * @param node - MDX ESM node containing export statements
+ * @param scope - Optional evaluation scope for resolving variable references
+ * @param filePath - Optional file path for error messages
  * @returns Record of extracted key-value pairs
+ *
+ * @example
+ * // export const name = "test" → { name: "test" }
+ * // export default { name: "test" } → { name: "test" } (spread)
  */
-function extractExportFromNode(node: MdxjsEsm): Record<string, unknown> {
+function extractExportFromNode(
+  node: MdxjsEsm,
+  scope?: EvaluationScope,
+  filePath?: string,
+): Record<string, unknown> {
   const result: Record<string, unknown> = {}
 
   // Parse ESM node's value (source code string)
   const code = node.value.trim()
+
+  // Handle export default pattern first
+  // export default { ... } or export default { ... } as const
+  const exportDefaultMatch = /^export\s+default\s+/.exec(code)
+  if (exportDefaultMatch != null) {
+    const valueStartIndex = exportDefaultMatch[0].length
+    const valueStr = extractValueString(code, valueStartIndex)
+
+    if (valueStr != null) {
+      try {
+        const value = parseStaticValue(valueStr.trim(), scope, filePath)
+
+        // export default must be an object to be spread as frontmatter
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          Object.assign(result, value)
+        }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
+        throw new Error(`Cannot statically evaluate export default${fileInfo}: ${message}`)
+      }
+    }
+
+    return result
+  }
 
   // Match export const name = value pattern
   // Handles multiline and various value types
@@ -119,7 +159,7 @@ function extractExportFromNode(node: MdxjsEsm): Record<string, unknown> {
     }
 
     try {
-      const value = parseStaticValue(valueStr.trim())
+      const value = parseStaticValue(valueStr.trim(), scope, filePath)
 
       // If it's a metadata object, spread its properties
       if (name === 'metadata' && typeof value === 'object' && value !== null && !Array.isArray(value)) {
@@ -129,7 +169,8 @@ function extractExportFromNode(node: MdxjsEsm): Record<string, unknown> {
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
-      throw new Error(`Cannot statically evaluate export "${name}": ${message}`)
+      const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
+      throw new Error(`Cannot statically evaluate export "${name}"${fileInfo}: ${message}`)
     }
 
     match = exportConstRegex.exec(code)
@@ -216,6 +257,8 @@ function extractValueString(code: string, startIndex: number): string | null {
  * Only supports literals that can be statically evaluated.
  *
  * @param valueStr - String representation of the value
+ * @param scope - Optional evaluation scope for resolving variable references
+ * @param filePath - Optional file path for error messages
  * @returns The parsed value
  * @throws Error if the value cannot be statically evaluated
  *
@@ -226,8 +269,13 @@ function extractValueString(code: string, startIndex: number): string | null {
  * - Null literal: null
  * - Array literals: [1, 2, 3]
  * - Object literals: { key: "value" }
+ * - Variable references (with scope): tool.readFile, profile.name
  */
-export function parseStaticValue(valueStr: string): SupportedLiteral {
+export function parseStaticValue(
+  valueStr: string,
+  scope?: EvaluationScope,
+  filePath?: string,
+): SupportedLiteral {
   const trimmed = valueStr.trim()
 
   // Handle empty string
@@ -266,7 +314,6 @@ export function parseStaticValue(valueStr: string): SupportedLiteral {
   // Template literals (without expressions)
   if (trimmed.startsWith('`') && trimmed.endsWith('`')) {
     const inner = trimmed.slice(1, -1)
-    // Check for template expressions
     if (/\$\{/.test(inner)) {
       throw new Error(`Template literal with expressions cannot be statically evaluated: ${trimmed}`)
     }
@@ -275,16 +322,22 @@ export function parseStaticValue(valueStr: string): SupportedLiteral {
 
   // Array literals
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    return parseArrayLiteral(trimmed)
+    return parseArrayLiteral(trimmed, scope, filePath)
   }
 
   // Object literals
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    return parseObjectLiteral(trimmed)
+    return parseObjectLiteral(trimmed, scope, filePath)
+  }
+
+  // Variable reference (e.g., tool.readFile, profile.name)
+  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) {
+    return evaluateVariableReference(trimmed, scope, filePath)
   }
 
   // Cannot statically evaluate
-  throw new Error(`Expression "${trimmed}" cannot be statically evaluated`)
+  const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
+  throw new Error(`Expression "${trimmed}" cannot be statically evaluated${fileInfo}`)
 }
 
 /**
@@ -306,12 +359,92 @@ function parseStringLiteral(content: string, _quote: string): string {
 }
 
 /**
+ * Evaluates a variable reference from scope.
+ *
+ * @param reference - Variable reference string (e.g., "tool.readFile")
+ * @param scope - Evaluation scope
+ * @param filePath - Optional file path for error messages
+ * @returns The resolved value
+ * @throws Error if variable is not found in scope
+ */
+function evaluateVariableReference(
+  reference: string,
+  scope: EvaluationScope | undefined,
+  filePath?: string,
+): SupportedLiteral {
+  if (scope == null) {
+    const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
+    throw new Error(`Variable reference "${reference}" cannot be resolved without scope${fileInfo}`)
+  }
+
+  const parts = reference.split('.')
+  const rootVar = parts[0]
+
+  if (rootVar == null || !(rootVar in scope)) {
+    const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
+    const availableKeys = Object.keys(scope).join(', ')
+    throw new Error(
+      `Undefined namespace "${rootVar}" in expression "${reference}"${fileInfo}. Available: ${availableKeys}`,
+    )
+  }
+
+  let value: unknown = scope[rootVar]
+  for (let i = 1; i < parts.length; i++) {
+    const prop = parts[i]
+    if (prop == null) {
+      continue
+    }
+
+    if (value == null) {
+      const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
+      throw new Error(`Cannot read property "${prop}" of null/undefined in "${reference}"${fileInfo}`)
+    }
+
+    if (typeof value !== 'object') {
+      const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
+      throw new Error(`Cannot read property "${prop}" of ${typeof value} in "${reference}"${fileInfo}`)
+    }
+
+    const obj = value as Record<string, unknown>
+    if (!(prop in obj)) {
+      const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
+      const availableProps = Object.keys(obj).join(', ')
+      throw new Error(
+        `Undefined property "${prop}" in "${reference}"${fileInfo}. Available: ${availableProps}`,
+      )
+    }
+    value = obj[prop]
+  }
+
+  // Ensure the value is a supported literal type
+  if (
+    typeof value === 'string'
+    || typeof value === 'number'
+    || typeof value === 'boolean'
+    || value === null
+    || Array.isArray(value)
+    || (typeof value === 'object' && value !== null)
+  ) {
+    return value as SupportedLiteral
+  }
+
+  const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
+  throw new Error(`Variable "${reference}" resolved to unsupported type: ${typeof value}${fileInfo}`)
+}
+
+/**
  * Parses an array literal.
  *
  * @param valueStr - Array literal string including brackets
+ * @param scope - Optional evaluation scope
+ * @param filePath - Optional file path for error messages
  * @returns Parsed array
  */
-function parseArrayLiteral(valueStr: string): SupportedLiteral[] {
+function parseArrayLiteral(
+  valueStr: string,
+  scope?: EvaluationScope,
+  filePath?: string,
+): SupportedLiteral[] {
   const inner = valueStr.slice(1, -1).trim()
 
   // Empty array
@@ -319,29 +452,37 @@ function parseArrayLiteral(valueStr: string): SupportedLiteral[] {
     return []
   }
 
-  // Try JSON parse first (handles most cases)
-  try {
-    const jsonStr = convertToJson(valueStr)
-    const parsed: unknown = JSON.parse(jsonStr)
-    if (Array.isArray(parsed)) {
-      return parsed as SupportedLiteral[]
+  // Try JSON parse first (handles most cases without variable references)
+  if (scope == null) {
+    try {
+      const jsonStr = convertToJson(valueStr)
+      const parsed: unknown = JSON.parse(jsonStr)
+      if (Array.isArray(parsed)) {
+        return parsed as SupportedLiteral[]
+      }
+    } catch {
+      // Fall through to manual parsing
     }
-  } catch {
-    // Fall through to manual parsing
   }
 
-  // Manual parsing for non-JSON compatible arrays
+  // Manual parsing for arrays with variable references
   const elements = splitArrayElements(inner)
-  return elements.map((el) => parseStaticValue(el.trim()))
+  return elements.map((el) => parseStaticValue(el.trim(), scope, filePath))
 }
 
 /**
  * Parses an object literal.
  *
  * @param valueStr - Object literal string including braces
+ * @param scope - Optional evaluation scope
+ * @param filePath - Optional file path for error messages
  * @returns Parsed object
  */
-function parseObjectLiteral(valueStr: string): { [key: string]: SupportedLiteral } {
+function parseObjectLiteral(
+  valueStr: string,
+  scope?: EvaluationScope,
+  filePath?: string,
+): { [key: string]: SupportedLiteral } {
   const inner = valueStr.slice(1, -1).trim()
 
   // Empty object
@@ -349,18 +490,20 @@ function parseObjectLiteral(valueStr: string): { [key: string]: SupportedLiteral
     return {}
   }
 
-  // Try JSON parse first
-  try {
-    const jsonStr = convertToJson(valueStr)
-    const parsed: unknown = JSON.parse(jsonStr)
-    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-      return parsed as { [key: string]: SupportedLiteral }
+  // Try JSON parse first (only if no scope needed)
+  if (scope == null) {
+    try {
+      const jsonStr = convertToJson(valueStr)
+      const parsed: unknown = JSON.parse(jsonStr)
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        return parsed as { [key: string]: SupportedLiteral }
+      }
+    } catch {
+      // Fall through to manual parsing
     }
-  } catch {
-    // Fall through to manual parsing
   }
 
-  // Manual parsing for non-JSON compatible objects
+  // Manual parsing for objects with variable references
   const result: { [key: string]: SupportedLiteral } = {}
   const pairs = splitObjectPairs(inner)
 
@@ -378,7 +521,7 @@ function parseObjectLiteral(valueStr: string): { [key: string]: SupportedLiteral
       key = key.slice(1, -1)
     }
 
-    result[key] = parseStaticValue(value)
+    result[key] = parseStaticValue(value, scope, filePath)
   }
 
   return result

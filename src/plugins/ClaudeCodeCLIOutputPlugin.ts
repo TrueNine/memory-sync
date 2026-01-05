@@ -10,6 +10,8 @@ import type {
 import type { RelativePath } from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { mdxToMd } from '@/compiler'
+import { GlobalScopeCollector } from '@/scope'
 import { FilePathKind } from '@/types'
 import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
@@ -89,10 +91,11 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
             getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, skillDir, 'SKILL.md'),
           })
 
-          // Register reference documents
+          // Register reference documents (convert .mdx to .md)
           if (skill.childDocs != null) {
             for (const refDoc of skill.childDocs) {
-              const refDocPath = path.join(skillDir, refDoc.dir.path)
+              const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+              const refDocPath = path.join(skillDir, refDocFileName)
               results.push({
                 pathKind: FilePathKind.Relative,
                 path: refDocPath,
@@ -286,8 +289,46 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(cmd.content as string, cmd.yamlFrontMatter)
+    // Recompile MDX with Claude Code tool preset if raw content available
+    let compiledContent = cmd.content as string
+    let compiledFrontMatter = cmd.yamlFrontMatter
+    let useRecompiledFrontMatter = false
+    if (cmd.rawMdxContent != null) {
+      this.log.debug('recompiling fast command with claudeCode preset', {
+        file: cmd.dir.getAbsolutePath(),
+        hasRawContent: true,
+        rawContentLength: cmd.rawMdxContent.length,
+      })
+      try {
+        const scopeCollector = new GlobalScopeCollector({ toolPreset: 'claudeCode' })
+        const globalScope = scopeCollector.collect()
+        this.log.debug('claudeCode tool scope', { tool: globalScope.tool })
+        const result = await mdxToMd(cmd.rawMdxContent, {
+          globalScope,
+          extractMetadata: true,
+          basePath: cmd.dir.basePath,
+        })
+        compiledContent = result.content
+        compiledFrontMatter = result.metadata.fields as typeof cmd.yamlFrontMatter
+        useRecompiledFrontMatter = true
+        this.log.debug('recompiled front matter', { frontMatter: compiledFrontMatter })
+      } catch (e) {
+        this.log.warn('failed to recompile fast command with claudeCode preset, using default', {
+          file: cmd.dir.getAbsolutePath(),
+          error: e instanceof Error ? e.message : String(e),
+        })
+      }
+    } else {
+      this.log.debug('no rawMdxContent available for fast command', {
+        file: cmd.dir.getAbsolutePath(),
+      })
+    }
+
+    // Build content with front matter
+    // If recompiled successfully, use recompiled front matter; otherwise fall back to raw
+    const content = useRecompiledFrontMatter
+      ? this.buildMarkdownContent(compiledContent, compiledFrontMatter)
+      : this.buildMarkdownContentWithRaw(compiledContent, compiledFrontMatter, cmd.rawFrontMatter)
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'fastCommand', path: fullPath })
@@ -326,8 +367,12 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(agent.content as string, agent.yamlFrontMatter)
+    // Build content with front matter, preferring raw if parsed failed
+    const content = this.buildMarkdownContentWithRaw(
+      agent.content as string,
+      agent.yamlFrontMatter,
+      agent.rawFrontMatter,
+    )
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'subAgent', path: fullPath })
@@ -367,8 +412,12 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(skill.content as string, skill.yamlFrontMatter)
+    // Build content with front matter, preferring raw if parsed failed
+    const content = this.buildMarkdownContentWithRaw(
+      skill.content as string,
+      skill.yamlFrontMatter,
+      skill.rawFrontMatter,
+    )
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'skill', path: fullPath })
@@ -413,7 +462,8 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     projectDir: RelativePath,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    const fileName = refDoc.dir.path
+    // Convert .mdx to .md for output
+    const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
     const fullPath = path.join(skillDir, fileName)
 
     const relativePath: RelativePath = {

@@ -192,8 +192,12 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter using inherited method
-    const content = this.buildMarkdownContent(cmd.content as string, cmd.yamlFrontMatter)
+    // Build content with front matter, preferring raw if parsed failed
+    const content = this.buildMarkdownContentWithRaw(
+      cmd.content as string,
+      cmd.yamlFrontMatter,
+      cmd.rawFrontMatter,
+    )
 
     if (ctx.dryRun === true) {
       this.log.trace({ action: 'dryRun', type: 'globalFastCommand', path: fullPath })
@@ -390,7 +394,8 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     globalDir: string,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    const fileName = refDoc.dir.path
+    // Convert .mdx to .md for output
+    const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
     const fullPath = path.join(skillDir, fileName)
 
     const relativePath: RelativePath = {

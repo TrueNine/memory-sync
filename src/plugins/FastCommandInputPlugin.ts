@@ -123,6 +123,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
               },
               ...(seriesInfo.series != null && { series: seriesInfo.series }),
               commandName: seriesInfo.commandName,
+              rawMdxContent: rawContent,
             })
           } catch (e) {
             logger.error('failed to parse fast command', { file: filePath, error: e })
