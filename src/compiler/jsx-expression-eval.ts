@@ -88,7 +88,6 @@ async function evaluateLogicalExpression(
 
   if (isJsxExpression(expr.left)) return evaluateEstreeExpression(expr.left, ctx, processAstFn)
   return valueToRootContent(leftValue)
-  return evaluateEstreeExpression(expr.right, ctx, processAstFn)
 }
 
 async function evaluateConditionalExpression(
