@@ -211,6 +211,47 @@ Content inside
     })
   })
 
+  describe('link text simplification', () => {
+    it('should simplify file path link text to basename', async () => {
+      const input = '[a/b/c.md](./a/b/c.md)'
+      const result = await mdxToMd(input)
+      expect(result).toContain('[c.md]')
+      expect(result).toContain('(./a/b/c.md)')
+    })
+
+    it('should simplify deep nested path', async () => {
+      const input = '[src/components/Button.tsx](./src/components/Button.tsx)'
+      const result = await mdxToMd(input)
+      expect(result).toContain('[Button.tsx]')
+    })
+
+    it('should not simplify non-path link text', async () => {
+      const input = '[Click here](./file.md)'
+      const result = await mdxToMd(input)
+      expect(result).toContain('[Click here]')
+    })
+
+    it('should not simplify text without extension', async () => {
+      const input = '[a/b/c](./path)'
+      const result = await mdxToMd(input)
+      expect(result).toContain('[a/b/c]')
+    })
+
+    it('should handle multiple links with path text', async () => {
+      const input = '[docs/api.md](./docs/api.md) and [src/index.ts](./src/index.ts)'
+      const result = await mdxToMd(input)
+      expect(result).toContain('[api.md]')
+      expect(result).toContain('[index.ts]')
+    })
+
+    it('should preserve URL in link while simplifying text', async () => {
+      const input = '[path/to/file.js](https://example.com/path/to/file.js)'
+      const result = await mdxToMd(input)
+      expect(result).toContain('[file.js]')
+      expect(result).toContain('(https://example.com/path/to/file.js)')
+    })
+  })
+
   describe('yAML frontmatter preservation', () => {
     it('should preserve YAML frontmatter in output when extractMetadata is false', async () => {
       const input = `---

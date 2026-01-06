@@ -13,6 +13,21 @@ import { evaluateJsxExpression, hasJsxInEstree } from './jsx-expression-eval'
 type ChildNode = RootContent | Text
 
 /**
+ * Simplifies link text that looks like a file path.
+ * If the link text matches pattern like "a/b/c.ext", returns only "c.ext".
+ *
+ * @param text - The link text to simplify
+ * @returns The simplified text (basename only) or original text
+ */
+function simplifyLinkText(text: string): string {
+  // Check if text looks like a file path (contains / and ends with .ext)
+  if (!(text.includes('/') && /\.\w+$/.test(text))) return text
+
+  const lastSlashIndex = text.lastIndexOf('/')
+  return text.slice(lastSlashIndex + 1)
+}
+
+/**
  * Processes an MDX AST, evaluating expressions and expanding components.
  * Import statements (mdxjsEsm nodes) are skipped during transformation.
  */
@@ -79,6 +94,18 @@ async function transformNode(
   }
 
   if (node.type === 'mdxJsxFlowElement') return transformJsxElement(node, ctx)
+
+  // Simplify link text that looks like file paths
+  if (node.type === 'link') {
+    const linkNode = node
+    const newChildren = await transformChildren(linkNode.children as ChildNode[], ctx)
+    // Simplify text children that look like file paths
+    const simplifiedChildren = newChildren.map(child => {
+      if (child.type === 'text') return { ...child, value: simplifyLinkText(child.value) }
+      return child
+    })
+    return [{ ...linkNode, children: simplifiedChildren } as RootContent]
+  }
 
   if (!('children' in node && Array.isArray(node.children))) return [node]
 
@@ -154,6 +181,15 @@ async function transformChildren(
         parentChild.children as ChildNode[],
         ctx,
       )
+      // Simplify link text that looks like file paths
+      if (child.type === 'link') {
+        const simplifiedChildren = newChildren.map(c => {
+          if (c.type === 'text') return { ...c, value: simplifyLinkText(c.value) }
+          return c
+        })
+        result.push({ ...child, children: simplifiedChildren } as ChildNode)
+        continue
+      }
       result.push({ ...child, children: newChildren } as ChildNode)
       continue
     }

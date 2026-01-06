@@ -328,4 +328,91 @@ describe('skillInputPlugin', () => {
       }
     })
   })
+
+  describe('.mdx to .md URL transformation in skills', () => {
+    const plugin = new SkillInputPlugin()
+
+    it('should transform .mdx links to .md in child doc content', () => {
+      const mockFs = {
+        readdirSync: vi.fn().mockReturnValue([
+          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+        ]),
+        readFileSync: vi.fn().mockReturnValue('See [other doc](./other.mdx) for details'),
+      } as unknown as typeof import('node:fs')
+
+      const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
+
+      expect(result.childDocs).toHaveLength(1)
+      expect(result.childDocs[0]?.content).toContain('./other.md')
+      expect(result.childDocs[0]?.content).not.toContain('.mdx')
+    })
+
+    it('should transform .mdx links with anchors', () => {
+      const mockFs = {
+        readdirSync: vi.fn().mockReturnValue([
+          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+        ]),
+        readFileSync: vi.fn().mockReturnValue('[Section](./doc.mdx#section)'),
+      } as unknown as typeof import('node:fs')
+
+      const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
+
+      expect(result.childDocs[0]?.content).toContain('./doc.md#section')
+    })
+
+    it('should not transform external URLs', () => {
+      const mockFs = {
+        readdirSync: vi.fn().mockReturnValue([
+          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+        ]),
+        readFileSync: vi.fn().mockReturnValue('[External](https://example.com/file.mdx)'),
+      } as unknown as typeof import('node:fs')
+
+      const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
+
+      expect(result.childDocs[0]?.content).toContain('https://example.com/file.mdx')
+    })
+
+    it('should transform multiple .mdx links in same content', () => {
+      const mockFs = {
+        readdirSync: vi.fn().mockReturnValue([
+          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+        ]),
+        readFileSync: vi.fn().mockReturnValue('[First](./a.mdx) and [Second](./b.mdx)'),
+      } as unknown as typeof import('node:fs')
+
+      const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
+
+      expect(result.childDocs[0]?.content).toContain('./a.md')
+      expect(result.childDocs[0]?.content).toContain('./b.md')
+      expect(result.childDocs[0]?.content).not.toContain('.mdx')
+    })
+
+    it('should transform image references with .mdx extension', () => {
+      const mockFs = {
+        readdirSync: vi.fn().mockReturnValue([
+          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+        ]),
+        readFileSync: vi.fn().mockReturnValue('![Diagram](./diagram.mdx)'),
+      } as unknown as typeof import('node:fs')
+
+      const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
+
+      expect(result.childDocs[0]?.content).toContain('./diagram.md')
+    })
+
+    it('should preserve non-.mdx links unchanged', () => {
+      const mockFs = {
+        readdirSync: vi.fn().mockReturnValue([
+          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+        ]),
+        readFileSync: vi.fn().mockReturnValue('[Link](./file.md) and [Other](./doc.txt)'),
+      } as unknown as typeof import('node:fs')
+
+      const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
+
+      expect(result.childDocs[0]?.content).toContain('./file.md')
+      expect(result.childDocs[0]?.content).toContain('./doc.txt')
+    })
+  })
 })

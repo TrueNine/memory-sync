@@ -27,6 +27,33 @@ import {
 } from '@/types/InputTypes'
 import { AbstractInputPlugin } from './AbstractInputPlugin'
 
+/**
+ * Converts .mdx file references to .md in markdown content.
+ * Only converts local file references (not external URLs).
+ *
+ * Handles:
+ * - Markdown links: [text](./file.mdx) -> [text](./file.md)
+ * - Markdown images: ![alt](./file.mdx) -> ![alt](./file.md)
+ * - Preserves anchors and query params: ./file.mdx#section -> ./file.md#section
+ *
+ * @param content - The markdown content to transform
+ * @returns The transformed content with .mdx replaced by .md
+ */
+function transformMdxReferencesToMd(content: string): string {
+  // Match markdown links and images: [text](url) or ![alt](url)
+  // Capture the URL part and transform .mdx to .md for local references
+  return content.replaceAll(
+    /(\[[^\]]*\]\()([^)]+)(\))/g,
+    (match, prefix: string, url: string, suffix: string) => {
+      // Skip external URLs (http://, https://, //, etc.)
+      if (/^(?:https?:)?\/\//.test(url)) return match
+      // Convert .mdx to .md for local file references
+      const transformedUrl = url.replace(/\.mdx($|#|\?)/, '.md$1')
+      return `${prefix}${transformedUrl}${suffix}`
+    },
+  )
+}
+
 export class SkillInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('SkillInputPlugin')
@@ -374,7 +401,8 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             try {
               const rawContent = fs.readFileSync(filePath, 'utf8')
               const parsed = parseMarkdown(rawContent)
-              const content = parsed.contentWithoutFrontMatter
+              // Transform .mdx references to .md in child doc content
+              const content = transformMdxReferencesToMd(parsed.contentWithoutFrontMatter)
 
               childDocs.push({
                 type: PromptKind.SkillChildDoc,
@@ -411,12 +439,12 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 const buffer = fs.readFileSync(filePath)
                 content = buffer.toString('base64')
                 encoding = 'base64'
-                ;({ length } = buffer)
+                ; ({ length } = buffer)
               } else {
                 // Read as UTF-8 text (default for unknown extensions too)
                 content = fs.readFileSync(filePath, 'utf8')
                 encoding = 'text'
-                ;({ length } = Buffer.from(content, 'utf8'))
+                ; ({ length } = Buffer.from(content, 'utf8'))
               }
 
               const mimeType = this.getMimeType(ext)
@@ -494,8 +522,8 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             // Throw error if validation fails (missing required fields)
             if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, skillFilePath)
 
-            // Use compiled content
-            const { content } = compileResult
+            // Use compiled content and transform .mdx references to .md
+            const content = transformMdxReferencesToMd(compileResult.content)
 
             const skillAbsoluteDir = ctx.path.join(skillDir, entry.name)
 
