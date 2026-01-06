@@ -64,11 +64,10 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
     )
     const hasGlobalMemory = globalMemory != null
 
-    if (hasProjectOutputs && !hasGlobalMemory) return true
+    if (hasProjectOutputs || hasGlobalMemory) return true
 
     this.log.trace({ action: 'skip', reason: 'noOutputs' })
     return false
-    return true
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {

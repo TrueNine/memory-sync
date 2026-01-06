@@ -73,7 +73,6 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
 
     this.log.debug('skipped', { reason: 'no README prompts to write' })
     return false
-    return true
   }
 
   /**

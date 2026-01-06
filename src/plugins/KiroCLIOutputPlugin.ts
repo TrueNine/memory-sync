@@ -357,11 +357,10 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
 
-    if (hasChildPrompts && !hasGlobalMemory && !hasFastCommands && !hasSkills) return true
+    if (hasChildPrompts || hasGlobalMemory || hasFastCommands || hasSkills) return true
 
     this.log.trace({ action: 'skip', reason: 'noOutputs' })
     return false
-    return true
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {

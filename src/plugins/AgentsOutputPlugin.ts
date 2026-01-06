@@ -46,7 +46,6 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
 
     this.log.trace({ action: 'skip', reason: 'noOutputs' })
     return false
-    return true
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {

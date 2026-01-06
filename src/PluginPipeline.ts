@@ -558,7 +558,6 @@ export class PluginPipeline {
 
     const cyclePath = this.findCyclePath(plugins, inDegree)
     throw new CircularDependencyError(cyclePath)
-    return result
   }
 
   /**

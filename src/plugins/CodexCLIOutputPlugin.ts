@@ -104,11 +104,10 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
     // Project AGENTS.md is handled by AgentsOutputPlugin
     // This plugin handles global outputs only (memory, prompts, skills)
-    if (hasGlobalMemory && !hasFastCommands && !hasSkills) return true
+    if (hasGlobalMemory || hasFastCommands || hasSkills) return true
 
     this.log.trace({ action: 'skip', reason: 'noOutputs' })
     return false
-    return true
   }
 
   async writeProjectOutputs(): Promise<WriteResults> {

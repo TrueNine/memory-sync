@@ -159,7 +159,6 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
     this.log.trace({ action: 'skip', reason: 'noProjects' })
     return false
-    return true
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {

@@ -135,11 +135,10 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     const hasSubAgents = (subAgents?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
 
-    if (hasGlobalMemory && !hasFastCommands && !hasSubAgents && !hasSkills) return true
+    if (hasGlobalMemory || hasFastCommands || hasSubAgents || hasSkills) return true
 
     this.log.trace({ action: 'skip', reason: 'noOutputs' })
     return false
-    return true
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {

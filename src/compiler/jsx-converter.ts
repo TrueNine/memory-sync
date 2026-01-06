@@ -195,7 +195,6 @@ function convertStrongElement(
     children: [strong],
   }
   return [paragraph]
-  return [{ type: 'paragraph', children: [strong] }]
 }
 
 function convertEmphasisElement(
@@ -216,7 +215,6 @@ function convertEmphasisElement(
     children: [emphasis],
   }
   return [paragraph]
-  return [{ type: 'paragraph', children: [emphasis] }]
 }
 
 function convertImageElement(
@@ -243,7 +241,6 @@ function convertImageElement(
     children: [image],
   }
   return [paragraph]
-  return [{ type: 'paragraph', children: [image] }]
 }
 
 function convertBlockquoteElement(

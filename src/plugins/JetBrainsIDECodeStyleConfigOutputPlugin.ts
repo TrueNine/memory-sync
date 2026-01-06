@@ -72,7 +72,6 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
 
     this.log.debug('skipped', { reason: 'no JetBrains IDE config files found' })
     return false
-    return true
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
@@ -152,6 +151,5 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     const ideaIndex = sourcePath.indexOf(IDEA_DIR)
     if (ideaIndex !== -1) return sourcePath.substring(ideaIndex)
     return this.joinPath(IDEA_DIR, CODE_STYLES_DIR, this.basename(sourcePath))
-    return this.basename(sourcePath)
   }
 }

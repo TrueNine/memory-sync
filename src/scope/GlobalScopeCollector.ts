@@ -1,7 +1,7 @@
 // src/scope/GlobalScopeCollector.ts
 // Collects and manages global scope variables for MDX expression evaluation.
 
-import type { EnvironmentContext, MdxGlobalScope, OsInfo, ToolReferences, UserProfile } from '@/globals'
+import type { EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile } from '@/globals'
 import type { UserConfigFile } from '@/types/ConfigTypes'
 import * as os from 'node:os'
 import process from 'node:process'
@@ -37,7 +37,7 @@ export class GlobalScopeCollector {
 
   /**
    * Collect the complete global scope
-   * @returns MdxGlobalScope containing os, env, profile, and tool namespaces
+   * @returns MdxGlobalScope containing os, env, profile, tool, and Md namespaces
    */
   collect(): MdxGlobalScope {
     return {
@@ -45,6 +45,7 @@ export class GlobalScopeCollector {
       env: this.collectEnvContext(),
       profile: this.collectProfile(),
       tool: this.collectToolReferences(),
+      Md: this.createMdComponent(),
     }
   }
 
@@ -129,5 +130,23 @@ export class GlobalScopeCollector {
     if (this.toolPreset === 'claudeCode') return { ...defaults, ...ToolPresets.claudeCode }
     if (this.toolPreset === 'kiro') return { ...defaults, ...ToolPresets.kiro }
     return defaults
+  }
+
+  /**
+   * Create the Md component for conditional rendering in MDX.
+   * This is a placeholder implementation - actual rendering is handled by the MDX compiler.
+   */
+  private createMdComponent(): MdComponent {
+    const mdComponent = ((props: { when?: boolean, children?: unknown }) => {
+      if (props.when === false) return null
+      return props.children
+    }) as MdComponent
+
+    mdComponent.Line = (props: { when?: boolean, children?: unknown }) => {
+      if (props.when === false) return null
+      return props.children
+    }
+
+    return mdComponent
   }
 }

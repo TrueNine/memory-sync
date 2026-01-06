@@ -68,7 +68,6 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
 
     this.log.debug('skipped', { reason: 'no ignore config files to write' })
     return false
-    return true
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {

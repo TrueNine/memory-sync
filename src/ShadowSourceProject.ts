@@ -233,7 +233,6 @@ export function generateShadowSourceProject(
 
     logger?.debug('copying from source', { path: sourcePath })
     return fs.readFileSync(sourcePath, 'utf-8')
-    return defaultContent
   }
 
   // Helper to create directory

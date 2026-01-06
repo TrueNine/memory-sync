@@ -91,7 +91,6 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
     this.log.debug('skipped', { reason: 'no outputs to write' })
     return false
-    return true
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {

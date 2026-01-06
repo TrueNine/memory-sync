@@ -88,7 +88,6 @@ async function transformNode(
     ctx,
   )
   return [{ ...node, children: newChildren } as RootContent]
-  return [node]
 }
 
 /**

@@ -65,7 +65,6 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
 
     this.log.debug('skipped', { reason: 'no VS Code config files found' })
     return false
-    return true
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
@@ -140,6 +139,5 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     const vscodeIndex = sourcePath.indexOf(VSCODE_DIR)
     if (vscodeIndex !== -1) return sourcePath.substring(vscodeIndex)
     return this.joinPath(VSCODE_DIR, this.basename(sourcePath))
-    return this.basename(sourcePath)
   }
 }

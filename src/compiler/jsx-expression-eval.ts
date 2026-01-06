@@ -84,12 +84,11 @@ async function evaluateLogicalExpression(
   }
   if (expr.operator !== '??') return []
 
-  if (leftValue != null) {
-    if (isJsxExpression(expr.left)) return evaluateEstreeExpression(expr.left, ctx, processAstFn)
-    return valueToRootContent(leftValue)
-  }
+  if (leftValue == null) return evaluateEstreeExpression(expr.right, ctx, processAstFn)
+
+  if (isJsxExpression(expr.left)) return evaluateEstreeExpression(expr.left, ctx, processAstFn)
+  return valueToRootContent(leftValue)
   return evaluateEstreeExpression(expr.right, ctx, processAstFn)
-  return []
 }
 
 async function evaluateConditionalExpression(
@@ -349,7 +348,6 @@ function convertEstreeJsxChildToMdx(child: JSXChild, ctx: ProcessingContext): Ro
 
   const source = `...${estreeToSource(child.expression)}`
   return [{ type: 'paragraph', children: [{ type: 'text', value: source }] }]
-  return null
 }
 
 function estreeToSource(expr: Expression | SpreadElement): string {

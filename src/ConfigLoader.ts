@@ -497,7 +497,7 @@ function validateConfigStrict(raw: Record<string, unknown>): string[] {
   }
 
   // tool validation - must be an object with string values
-  if (!'tool' in raw) return errors
+  if (!('tool' in raw)) return errors
 
   const toolValue = raw['tool']
   if (typeof toolValue !== 'object' || toolValue === null || Array.isArray(toolValue)) errors.push('tool must be an object')
