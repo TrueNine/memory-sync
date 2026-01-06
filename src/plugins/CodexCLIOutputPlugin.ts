@@ -160,7 +160,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Write skills to ~/.codex/skills/ (Codex only supports global skills)
-    if (skills == null && skills.length > 0) return { files: fileResults, dirs: dirResults }
+    if (skills == null || skills.length === 0) return { files: fileResults, dirs: dirResults }
 
     const globalDir = this.getGlobalConfigDir()
     for (const skill of skills) {

@@ -427,7 +427,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Write skills as Kiro Powers and register in registry
-    if (skills == null && skills.length > 0) return { files: fileResults, dirs: dirResults }
+    if (skills == null || skills.length === 0) return { files: fileResults, dirs: dirResults }
 
     this.log.debug(`Processing ${skills.length} skills as Kiro Powers`)
     for (const skill of skills) {
