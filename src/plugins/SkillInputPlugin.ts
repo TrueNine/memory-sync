@@ -32,9 +32,9 @@ import { AbstractInputPlugin } from './AbstractInputPlugin'
  * Only converts local file references (not external URLs).
  *
  * Handles:
- * - Markdown links: [text](./file.mdx) -> [text](./file.md)
- * - Markdown images: ![alt](./file.mdx) -> ![alt](./file.md)
- * - Preserves anchors and query params: ./file.mdx#section -> ./file.md#section
+ * - Markdown links: [text](file.mdx) -> [text](file.md)
+ * - Markdown images: ![alt](file.mdx) -> ![alt](file.md)
+ * - Preserves anchors and query params: file.mdx#section -> file.md#section
  *
  * @param content - The markdown content to transform
  * @returns The transformed content with .mdx replaced by .md
@@ -43,12 +43,16 @@ function transformMdxReferencesToMd(content: string): string {
   // Match markdown links and images: [text](url) or ![alt](url)
   // Capture the URL part and transform .mdx to .md for local references
   return content.replaceAll(
-    /(\[[^\]]*\]\()([^)]+)(\))/g,
+    /(!?\[[^\]]*\]\()([^)]+)(\))/g,
     (match, prefix: string, url: string, suffix: string) => {
       // Skip external URLs (http://, https://, //, etc.)
       if (/^(?:https?:)?\/\//.test(url)) return match
       // Convert .mdx to .md for local file references
-      const transformedUrl = url.replace(/\.mdx($|#|\?)/, '.md$1')
+      // Simple replacement: .mdx at end or before # or ?
+      const transformedUrl = url
+        .replace(/\.mdx$/, '.md')
+        .replace(/\.mdx#/, '.md#')
+        .replace(/\.mdx\?/, '.md?')
       return `${prefix}${transformedUrl}${suffix}`
     },
   )
