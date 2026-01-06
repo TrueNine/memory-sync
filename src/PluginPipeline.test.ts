@@ -23,9 +23,7 @@ function createMockPlugin(name: string, dependsOn?: readonly string[]): Plugin {
     name,
     log: {} as Plugin['log'],
   }
-  if (dependsOn) {
-    return { ...base, dependsOn }
-  }
+  if (dependsOn) return { ...base, dependsOn }
   return base
 }
 
@@ -40,9 +38,7 @@ function createMockInputPlugin(
     log: createLogger(name),
     collect: collectFn,
   }
-  if (dependsOn) {
-    return { ...base, dependsOn }
-  }
+  if (dependsOn) return { ...base, dependsOn }
   return base
 }
 
@@ -160,7 +156,7 @@ describe('pluginPipeline', () => {
       const pipeline = new PluginPipeline()
       const plugins = [createMockPlugin('A')]
       const result = pipeline.topologicalSort(plugins)
-      expect(result.map((p) => p.name)).toEqual(['A'])
+      expect(result.map(p => p.name)).toEqual(['A'])
     })
 
     it('should preserve registration order for plugins without dependencies', () => {
@@ -171,7 +167,7 @@ describe('pluginPipeline', () => {
         createMockPlugin('C'),
       ]
       const result = pipeline.topologicalSort(plugins)
-      expect(result.map((p) => p.name)).toEqual(['A', 'B', 'C'])
+      expect(result.map(p => p.name)).toEqual(['A', 'B', 'C'])
     })
 
     it('should sort plugins with linear dependency chain', () => {
@@ -183,7 +179,7 @@ describe('pluginPipeline', () => {
         createMockPlugin('C'),
       ]
       const result = pipeline.topologicalSort(plugins)
-      const names = result.map((p) => p.name)
+      const names = result.map(p => p.name)
 
       // C must come before B, B must come before A
       expect(names.indexOf('C')).toBeLessThan(names.indexOf('B'))
@@ -200,7 +196,7 @@ describe('pluginPipeline', () => {
         createMockPlugin('D'),
       ]
       const result = pipeline.topologicalSort(plugins)
-      const names = result.map((p) => p.name)
+      const names = result.map(p => p.name)
 
       // D must come before B and C, B and C must come before A
       expect(names.indexOf('D')).toBeLessThan(names.indexOf('B'))
@@ -219,7 +215,7 @@ describe('pluginPipeline', () => {
         createMockPlugin('C'),
       ]
       const result = pipeline.topologicalSort(plugins)
-      const names = result.map((p) => p.name)
+      const names = result.map(p => p.name)
 
       // B must come before A
       expect(names.indexOf('B')).toBeLessThan(names.indexOf('A'))
@@ -345,8 +341,8 @@ describe('pluginPipeline', () => {
 
       const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
       expect(result.workspace?.projects).toHaveLength(2)
-      expect(result.workspace?.projects.map((p) => p.name)).toContain('project-a')
-      expect(result.workspace?.projects.map((p) => p.name)).toContain('project-b')
+      expect(result.workspace?.projects.map(p => p.name)).toContain('project-a')
+      expect(result.workspace?.projects.map(p => p.name)).toContain('project-b')
     })
 
     it('should pass dependency context to dependent plugins', async () => {
@@ -360,7 +356,7 @@ describe('pluginPipeline', () => {
             projects: [{ name: 'from-B' }],
           },
         })),
-        createMockInputPlugin('A', (ctx) => {
+        createMockInputPlugin('A', ctx => {
           receivedContext = ctx.dependencyContext
           return {}
         }, ['B']),
@@ -378,7 +374,7 @@ describe('pluginPipeline', () => {
       let receivedContext: Partial<CollectedInputContext> | undefined
 
       const plugins = [
-        createMockInputPlugin('A', (ctx) => {
+        createMockInputPlugin('A', ctx => {
           receivedContext = ctx.dependencyContext
           return {}
         }),
@@ -395,7 +391,7 @@ describe('pluginPipeline', () => {
 
       // A depends on B and C, both B and C depend on D
       const plugins = [
-        createMockInputPlugin('A', (ctx) => {
+        createMockInputPlugin('A', ctx => {
           executionOrder.push('A')
           aReceivedContext = ctx.dependencyContext
           return {}
@@ -440,7 +436,7 @@ describe('pluginPipeline', () => {
 
       // A should receive context from B and C (its direct dependencies)
       expect(aReceivedContext?.workspace?.projects).toBeDefined()
-      const projectNames = aReceivedContext?.workspace?.projects.map((p) => p.name) ?? []
+      const projectNames = aReceivedContext?.workspace?.projects.map(p => p.name) ?? []
       expect(projectNames).toContain('from-B')
       expect(projectNames).toContain('from-C')
     })

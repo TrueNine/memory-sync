@@ -43,9 +43,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     const results: RelativePath[] = []
     const { readmePrompts } = ctx.collectedInputContext
 
-    if (readmePrompts == null || readmePrompts.length === 0) {
-      return results
-    }
+    if (readmePrompts == null || readmePrompts.length === 0) return results
 
     for (const readme of readmePrompts) {
       const targetDir = readme.targetDir
@@ -71,11 +69,10 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { readmePrompts } = ctx.collectedInputContext
 
-    if (readmePrompts == null || readmePrompts.length === 0) {
-      this.log.debug('skipped', { reason: 'no README prompts to write' })
-      return false
-    }
+    if (readmePrompts == null || readmePrompts.length !== 0) return true
 
+    this.log.debug('skipped', { reason: 'no README prompts to write' })
+    return false
     return true
   }
 
@@ -92,9 +89,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     const dirResults: WriteResult[] = []
     const { readmePrompts } = ctx.collectedInputContext
 
-    if (readmePrompts == null || readmePrompts.length === 0) {
-      return { files: fileResults, dirs: dirResults }
-    }
+    if (readmePrompts == null || readmePrompts.length === 0) return { files: fileResults, dirs: dirResults }
 
     for (const readme of readmePrompts) {
       const result = await this.writeReadmeFile(ctx, readme)
@@ -146,9 +141,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     try {
       // Ensure target directory exists
       const dir = path.dirname(fullPath)
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
-      }
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 
       fs.writeFileSync(fullPath, content, 'utf-8')
       this.log.trace({ action: 'write', type: 'readme', path: fullPath, label })

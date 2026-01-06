@@ -30,22 +30,16 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     const { ideConfigFiles } = ctx.collectedInputContext
 
     // Only register files if we have VS Code configs to write
-    const hasVSCodeConfigs = ideConfigFiles.some((f) => f.type === IDEKind.VSCode)
-    if (!hasVSCodeConfigs) {
-      return results
-    }
+    const hasVSCodeConfigs = ideConfigFiles.some(f => f.type === IDEKind.VSCode)
+    if (!hasVSCodeConfigs) return results
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) {
-        continue
-      }
+      if (projectDir == null) continue
 
       // Skip prompt source projects (e.g., aindex) - their files are source files
       // that should be protected from cleanup
-      if (project.isPromptSourceProject === true) {
-        continue
-      }
+      if (project.isPromptSourceProject === true) continue
 
       // Register all VS Code config files for cleanup
       for (const configFile of VSCODE_CONFIG_FILES) {
@@ -65,13 +59,12 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { ideConfigFiles } = ctx.collectedInputContext
-    const hasVSCodeConfigs = ideConfigFiles.some((f) => f.type === IDEKind.VSCode)
+    const hasVSCodeConfigs = ideConfigFiles.some(f => f.type === IDEKind.VSCode)
 
-    if (!hasVSCodeConfigs) {
-      this.log.debug('skipped', { reason: 'no VS Code config files found' })
-      return false
-    }
+    if (hasVSCodeConfigs) return true
 
+    this.log.debug('skipped', { reason: 'no VS Code config files found' })
+    return false
     return true
   }
 
@@ -82,13 +75,11 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     const dirResults: WriteResult[] = []
 
     // Filter VS Code related config files
-    const vscodeConfigs = ideConfigFiles.filter((f) => f.type === IDEKind.VSCode)
+    const vscodeConfigs = ideConfigFiles.filter(f => f.type === IDEKind.VSCode)
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) {
-        continue
-      }
+      if (projectDir == null) continue
 
       const projectName = project.name ?? 'unknown'
 
@@ -144,17 +135,11 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
   private getTargetRelativePath(config: { type: IDEKind, dir: { path: string } }): string {
     const sourcePath = config.dir.path
 
-    if (config.type === IDEKind.VSCode) {
-      // Extract relative path from source (e.g., .vscode/settings.json)
-      const vscodeIndex = sourcePath.indexOf(VSCODE_DIR)
-      if (vscodeIndex !== -1) {
-        return sourcePath.substring(vscodeIndex)
-      }
-      // Fallback: use filename only
-      return this.joinPath(VSCODE_DIR, this.basename(sourcePath))
-    }
+    if (config.type !== IDEKind.VSCode) return this.basename(sourcePath)
 
-    // Default fallback
+    const vscodeIndex = sourcePath.indexOf(VSCODE_DIR)
+    if (vscodeIndex !== -1) return sourcePath.substring(vscodeIndex)
+    return this.joinPath(VSCODE_DIR, this.basename(sourcePath))
     return this.basename(sourcePath)
   }
 }

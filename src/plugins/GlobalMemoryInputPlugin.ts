@@ -56,9 +56,8 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
         }
         throw e
       }
-    } else {
-      compiledContent = parsed.contentWithoutFrontMatter
     }
+    else compiledContent = parsed.contentWithoutFrontMatter
 
     this.log.debug({ action: 'collect', path: globalMemoryFile, contentLength: compiledContent.length })
 

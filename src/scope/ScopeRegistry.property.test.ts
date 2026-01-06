@@ -22,7 +22,7 @@ const simpleValueArb = fc.oneof(
  * Arbitrary generator for flat record (no nested objects)
  */
 const flatRecordArb = fc.dictionary(
-  fc.string({ minLength: 1, maxLength: 20 }).filter((s) =>
+  fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
     /^[a-z_]\w*$/i.test(s)
     && s !== '__proto__'
     && s !== 'constructor'
@@ -36,7 +36,7 @@ const flatRecordArb = fc.dictionary(
  * Arbitrary generator for nested record (one level of nesting)
  */
 const _nestedRecordArb = fc.dictionary(
-  fc.string({ minLength: 1, maxLength: 20 }).filter((s) =>
+  fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
     /^[a-z_]\w*$/i.test(s)
     && s !== '__proto__'
     && s !== 'constructor'
@@ -49,7 +49,7 @@ const _nestedRecordArb = fc.dictionary(
 /**
  * Arbitrary generator for namespace string
  */
-const namespaceArb = fc.string({ minLength: 1, maxLength: 20 }).filter((s) =>
+const namespaceArb = fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
   /^[a-z_]\w*$/i.test(s)
   && s !== '__proto__'
   && s !== 'constructor'
@@ -314,7 +314,7 @@ describe('scopeRegistry property tests', () => {
 
     it('should deep merge multiple levels of nesting', () => {
       // Safe key generator that excludes prototype pollution keys
-      const safeKeyArb = fc.string({ minLength: 1, maxLength: 20 }).filter((s) =>
+      const safeKeyArb = fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
         /^[a-z_]\w*$/i.test(s)
         && s !== '__proto__'
         && s !== 'constructor'
@@ -528,7 +528,7 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           globalScopeArb,
-          fc.string({ minLength: 1, maxLength: 20 }).filter((s) =>
+          fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
             /^[a-z_]\w*$/i.test(s)
             && s !== '__proto__'
             && s !== 'constructor'
@@ -552,12 +552,8 @@ describe('scopeRegistry property tests', () => {
 
             // Original profile values should be preserved
             const profileResult = merged['profile'] as Record<string, unknown>
-            if (globalScope.profile.name !== void 0) {
-              expect(profileResult['name']).toBe(globalScope.profile.name)
-            }
-            if (globalScope.profile.username !== void 0) {
-              expect(profileResult['username']).toBe(globalScope.profile.username)
-            }
+            if (globalScope.profile.name !== void 0) expect(profileResult['name']).toBe(globalScope.profile.name)
+            if (globalScope.profile.username !== void 0) expect(profileResult['username']).toBe(globalScope.profile.username)
 
             // Custom key should be added
             expect(profileResult[customKey]).toBe(customValue)

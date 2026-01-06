@@ -109,7 +109,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       const results = await plugin.registerProjectOutputFiles(ctx)
 
       expect(results).toHaveLength(3)
-      expect(results.map((r) => r.path)).toEqual([
+      expect(results.map(r => r.path)).toEqual([
         path.join('project1', '.qoderignore'),
         path.join('project1', '.cursorignore'),
         path.join('project1', '.warpindexignore'),
@@ -124,7 +124,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       // Should still register all known ignore file types for cleanup
       expect(results).toHaveLength(3)
-      expect(results.map((r) => r.path)).toEqual([
+      expect(results.map(r => r.path)).toEqual([
         path.join('project1', '.qoderignore'),
         path.join('project1', '.cursorignore'),
         path.join('project1', '.warpindexignore'),
@@ -156,8 +156,8 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       const results = await plugin.registerProjectOutputFiles(ctx)
 
       expect(results).toHaveLength(6)
-      expect(results.map((r) => r.path)).toContain(path.join('project1', '.qoderignore'))
-      expect(results.map((r) => r.path)).toContain(path.join('project2', '.qoderignore'))
+      expect(results.map(r => r.path)).toContain(path.join('project1', '.qoderignore'))
+      expect(results.map(r => r.path)).toContain(path.join('project2', '.qoderignore'))
     })
 
     it('should skip shadow source project since their ignore files are protected source files', async () => {
@@ -190,8 +190,8 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       // Should only register files for regular project, NOT prompt source project
       // because prompt source project files are source files that should be protected
       expect(results).toHaveLength(3)
-      expect(results.map((r) => r.path)).toContain(path.join('project1', '.qoderignore'))
-      expect(results.map((r) => r.path)).not.toContain(path.join('prompt-source-project', '.qoderignore'))
+      expect(results.map(r => r.path)).toContain(path.join('project1', '.qoderignore'))
+      expect(results.map(r => r.path)).not.toContain(path.join('prompt-source-project', '.qoderignore'))
     })
   })
 
@@ -222,7 +222,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       const results = await plugin.writeProjectOutputs(ctx)
 
       expect(results.files).toHaveLength(3)
-      expect(results.files.every((r) => r.success)).toBe(true)
+      expect(results.files.every(r => r.success)).toBe(true)
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(3)
     })
 
@@ -269,7 +269,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       const results = await plugin.writeProjectOutputs(ctx)
 
       expect(results.files).toHaveLength(3)
-      expect(results.files.every((r) => r.success && r.skipped === false)).toBe(true)
+      expect(results.files.every(r => r.success && r.skipped === false)).toBe(true)
       expect(vi.mocked(fs.writeFileSync)).not.toHaveBeenCalled()
     })
 
@@ -278,9 +278,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       const ctx = createMockOutputWriteContext(ignoreFiles)
 
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: string) => {
-        if ((filePath).includes('.cursorignore')) {
-          throw new Error('Permission denied')
-        }
+        if ((filePath).includes('.cursorignore')) throw new Error('Permission denied')
       })
 
       const results = await plugin.writeProjectOutputs(ctx)

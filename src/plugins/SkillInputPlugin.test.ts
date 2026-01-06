@@ -203,12 +203,8 @@ describe('skillInputPlugin', () => {
           { name: 'logo.png', isFile: () => true, isDirectory: () => false },
         ]),
         readFileSync: vi.fn().mockImplementation((filePath: string) => {
-          if (filePath.endsWith('.mdx')) {
-            return '# Content'
-          }
-          if (filePath.endsWith('.png')) {
-            return Buffer.from('binary')
-          }
+          if (filePath.endsWith('.mdx')) return '# Content'
+          if (filePath.endsWith('.png')) return Buffer.from('binary')
           return 'code content'
         }),
       } as unknown as typeof import('node:fs')
@@ -222,8 +218,8 @@ describe('skillInputPlugin', () => {
 
       // Should have 2 resources (helper.kt, logo.png, not mcp.json)
       expect(result.resources).toHaveLength(2)
-      expect(result.resources.map((r) => r.fileName)).toContain('helper.kt')
-      expect(result.resources.map((r) => r.fileName)).toContain('logo.png')
+      expect(result.resources.map(r => r.fileName)).toContain('helper.kt')
+      expect(result.resources.map(r => r.fileName)).toContain('logo.png')
     })
 
     it('should recursively scan subdirectories', () => {
@@ -250,12 +246,8 @@ describe('skillInputPlugin', () => {
           return []
         }),
         readFileSync: vi.fn().mockImplementation((filePath: string) => {
-          if (filePath.endsWith('.mdx')) {
-            return '# Content'
-          }
-          if (filePath.endsWith('.png')) {
-            return Buffer.from('binary')
-          }
+          if (filePath.endsWith('.mdx')) return '# Content'
+          if (filePath.endsWith('.png')) return Buffer.from('binary')
           return 'content'
         }),
       } as unknown as typeof import('node:fs')
@@ -264,13 +256,13 @@ describe('skillInputPlugin', () => {
 
       // Should have 2 child docs from docs/
       expect(result.childDocs).toHaveLength(2)
-      expect(result.childDocs.map((d) => d.relativePath)).toContain('docs/guide.mdx')
-      expect(result.childDocs.map((d) => d.relativePath)).toContain('docs/api.mdx')
+      expect(result.childDocs.map(d => d.relativePath)).toContain('docs/guide.mdx')
+      expect(result.childDocs.map(d => d.relativePath)).toContain('docs/api.mdx')
 
       // Should have 2 resources from assets/
       expect(result.resources).toHaveLength(2)
-      expect(result.resources.map((r) => r.relativePath)).toContain('assets/logo.png')
-      expect(result.resources.map((r) => r.relativePath)).toContain('assets/schema.sql')
+      expect(result.resources.map(r => r.relativePath)).toContain('assets/logo.png')
+      expect(result.resources.map(r => r.relativePath)).toContain('assets/schema.sql')
     })
 
     it('should handle binary files with base64 encoding', () => {

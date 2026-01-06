@@ -30,15 +30,11 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
     const { projects } = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       // Skip prompt source projects (e.g., aindex) - their files are source files
       // that should be protected from cleanup
-      if (project.isPromptSourceProject === true) {
-        continue
-      }
+      if (project.isPromptSourceProject === true) continue
 
       // Register all possible ignore files for cleanup
       for (const fileName of IGNORE_FILE_NAMES) {
@@ -68,11 +64,10 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { aiAgentIgnoreConfigFiles } = ctx.collectedInputContext
-    if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) {
-      this.log.debug('skipped', { reason: 'no ignore config files to write' })
-      return false
-    }
+    if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length !== 0) return true
 
+    this.log.debug('skipped', { reason: 'no ignore config files to write' })
+    return false
     return true
   }
 
@@ -82,15 +77,11 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) {
-      return { files: fileResults, dirs: dirResults }
-    }
+    if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) return { files: fileResults, dirs: dirResults }
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) {
-        continue
-      }
+      if (projectDir == null) continue
 
       const projectName = project.name ?? 'unknown'
 

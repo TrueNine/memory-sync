@@ -45,14 +45,10 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     const { projects } = ctx.collectedInputContext.workspace
     const { skills } = ctx.collectedInputContext
 
-    if (skills == null || skills.length === 0) {
-      return results
-    }
+    if (skills == null || skills.length === 0) return results
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       // Register <project>/.skills/ for cleanup
       const skillsDir = this.joinPath(project.dirFromWorkspacePath.path, SKILLS_DIR)
@@ -73,14 +69,10 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     const { projects } = ctx.collectedInputContext.workspace
     const { skills } = ctx.collectedInputContext
 
-    if (skills == null || skills.length === 0) {
-      return results
-    }
+    if (skills == null || skills.length === 0) return results
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       const projectSkillsDir = this.joinPath(
         project.dirFromWorkspacePath.basePath,
@@ -163,11 +155,10 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       return false
     }
 
-    if (projects.length === 0) {
-      this.log.trace({ action: 'skip', reason: 'noProjects' })
-      return false
-    }
+    if (projects.length !== 0) return true
 
+    this.log.trace({ action: 'skip', reason: 'noProjects' })
+    return false
     return true
   }
 
@@ -177,14 +168,10 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (skills == null || skills.length === 0) {
-      return { files: fileResults, dirs: dirResults }
-    }
+    if (skills == null || skills.length === 0) return { files: fileResults, dirs: dirResults }
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       const projectSkillsDir = this.joinPath(
         project.dirFromWorkspacePath.basePath,
@@ -407,9 +394,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       if (resource.encoding === 'base64') {
         const buffer = Buffer.from(resource.content, 'base64')
         this.writeFileSyncBuffer(resourcePath, buffer)
-      } else {
-        this.writeFileSync(resourcePath, resource.content)
       }
+      else this.writeFileSync(resourcePath, resource.content)
 
       this.log.trace({ action: 'write', type: 'resource', path: resourcePath })
       return { path: relativePath, success: true }

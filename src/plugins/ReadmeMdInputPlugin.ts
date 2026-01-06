@@ -38,9 +38,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
       const projectEntries = fs.readdirSync(shadowProjectsDir, { withFileTypes: true })
 
       for (const projectEntry of projectEntries) {
-        if (!projectEntry.isDirectory()) {
-          continue
-        }
+        if (!projectEntry.isDirectory()) continue
 
         const projectName = projectEntry.name
         // New structure: dist/app/<project>/ (no nested dist folder)
@@ -110,9 +108,8 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
             }
             throw e
           }
-        } else {
-          content = rawContent
         }
+        else content = rawContent
 
         // Calculate target directory
         const targetPath = isRoot ? projectName : path.join(projectName, relativePath)

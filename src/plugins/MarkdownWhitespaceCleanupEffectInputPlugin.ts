@@ -78,9 +78,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     }
 
     const hasErrors = errors.length > 0
-    if (hasErrors) {
-      logger.warn({ action: 'whitespace-cleanup', errors: errors.map((e) => ({ path: e.path, error: e.error.message })) })
-    }
+    if (hasErrors) logger.warn({ action: 'whitespace-cleanup', errors: errors.map(e => ({ path: e.path, error: e.error.message })) })
 
     return {
       success: !hasErrors,
@@ -181,7 +179,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     const lines = content.split(/\r?\n/)
 
     // Remove trailing whitespace from each line (Requirement 3.2)
-    const trimmedLines = lines.map((line) => line.replace(/[ \t]+$/, ''))
+    const trimmedLines = lines.map(line => line.replace(/[ \t]+$/, ''))
 
     // Reduce excessive blank lines (Requirement 3.3)
     const result: string[] = []
@@ -191,9 +189,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
       if (line === '') {
         consecutiveBlankCount++
         // Only keep up to 2 consecutive blank lines
-        if (consecutiveBlankCount <= 2) {
-          result.push(line)
-        }
+        if (consecutiveBlankCount <= 2) result.push(line)
       } else {
         consecutiveBlankCount = 0
         result.push(line)
@@ -211,9 +207,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
    */
   detectLineEnding(content: string): '\r\n' | '\n' {
     // Check for CRLF first (Windows style)
-    if (content.includes('\r\n')) {
-      return '\r\n'
-    }
+    if (content.includes('\r\n')) return '\r\n'
     // Default to LF (Unix style)
     return '\n'
   }

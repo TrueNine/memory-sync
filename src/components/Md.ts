@@ -18,17 +18,13 @@ function evaluateWhenCondition(
   ctx: ProcessingContext,
 ): boolean {
   const whenAttr = element.attributes.find(
-    (attr) => attr.type === 'mdxJsxAttribute' && attr.name === 'when',
+    attr => attr.type === 'mdxJsxAttribute' && attr.name === 'when',
   )
 
   // No condition = always true
-  if (whenAttr == null || whenAttr.type !== 'mdxJsxAttribute') {
-    return true
-  }
+  if (whenAttr == null || whenAttr.type !== 'mdxJsxAttribute') return true
 
-  if (typeof whenAttr.value === 'string') {
-    return whenAttr.value === 'true'
-  }
+  if (typeof whenAttr.value === 'string') return whenAttr.value === 'true'
 
   if (
     whenAttr.value != null
@@ -79,13 +75,9 @@ export async function MdHandler(
   ctx: ProcessingContext,
   processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>,
 ): Promise<RootContent[]> {
-  if (!evaluateWhenCondition(element, ctx)) {
-    return []
-  }
+  if (!evaluateWhenCondition(element, ctx)) return []
 
-  if (element.children.length === 0) {
-    return []
-  }
+  if (element.children.length === 0) return []
 
   return processChildren(element.children as RootContent[], ctx)
 }
@@ -116,20 +108,14 @@ export async function MdLineHandler(
   element: MdxJsxFlowElement | MdxJsxTextElement,
   ctx: ProcessingContext,
 ): Promise<RootContent[]> {
-  if (!evaluateWhenCondition(element, ctx)) {
-    return []
-  }
+  if (!evaluateWhenCondition(element, ctx)) return []
 
-  if (element.children.length === 0) {
-    return []
-  }
+  if (element.children.length === 0) return []
 
   // Extract text content from children
   const textContent = extractTextContent(element.children, ctx)
 
-  if (textContent === '') {
-    return []
-  }
+  if (textContent === '') return []
 
   const textNode: Text = { type: 'text', value: textContent }
   return [textNode]
@@ -145,17 +131,15 @@ function extractTextContent(
   let result = ''
 
   for (const child of children) {
-    if (child.type === 'text') {
-      result += child.value
-    } else if (child.type === 'mdxTextExpression') {
+    if (child.type === 'text') result += child.value
+    else if (child.type === 'mdxTextExpression') {
       try {
         result += evaluateExpression(child.value, ctx.scope)
       } catch {
         // Skip failed expressions
       }
-    } else if ('children' in child && Array.isArray(child.children)) {
-      result += extractTextContent(child.children as typeof children, ctx)
     }
+    else if ('children' in child && Array.isArray(child.children)) result += extractTextContent(child.children as typeof children, ctx)
   }
 
   return result

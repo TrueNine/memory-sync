@@ -260,11 +260,11 @@ describe('abstractOutputPlugin', () => {
   describe('transformFastCommandName', () => {
     // Generator for alphanumeric strings without underscore (for series prefix)
     const alphanumericNoUnderscore = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z0-9]+$/i.test(s))
+      .filter(s => /^[a-z0-9]+$/i.test(s))
 
     // Generator for alphanumeric strings (for command name)
     const alphanumericCommandName = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
-      .filter((s) => /^\w+$/.test(s))
+      .filter(s => /^\w+$/.test(s))
 
     // Generator for separator characters
     const separatorChar = fc.constantFrom('_', '-', '.', '~')
@@ -395,7 +395,7 @@ describe('abstractOutputPlugin', () => {
   describe('getFastCommandSeriesOptions and getTransformOptionsFromContext', () => {
     // Generator for plugin names
     const pluginNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generator for separator characters
     const separatorGen = fc.constantFrom('_', '-', '.', '~')
@@ -462,7 +462,7 @@ describe('abstractOutputPlugin', () => {
       fc.assert(
         fc.property(
           pluginNameGen,
-          (pluginName) => {
+          pluginName => {
             const plugin = new TestOutputPlugin(pluginName)
             const ctx = createMockContext()
 

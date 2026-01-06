@@ -154,7 +154,7 @@ export async function mdxToMd(
     })
 
     // 4. Remove YAML and ESM nodes from AST (clean content output)
-    ast.children = ast.children.filter((n) => n.type !== 'yaml' && n.type !== 'mdxjsEsm')
+    ast.children = ast.children.filter(n => n.type !== 'yaml' && n.type !== 'mdxjsEsm')
   }
 
   const ctx: ProcessingContext = {
@@ -187,9 +187,7 @@ export async function mdxToMd(
   const markdown = processor.stringify(processedAst).trim()
 
   // Return result with metadata if extractMetadata is true
-  if (options?.extractMetadata === true && metadata != null) {
-    return { content: markdown, metadata }
-  }
+  if (options?.extractMetadata === true && metadata != null) return { content: markdown, metadata }
 
   return markdown
 }

@@ -66,7 +66,7 @@ describe('genericSkillsOutputPlugin', () => {
       version: options?.version ?? '',
     }
 
-    const childDocs: SkillChildDoc[] | undefined = options?.childDocs?.map((d) => ({
+    const childDocs: SkillChildDoc[] | undefined = options?.childDocs?.map(d => ({
       type: PromptKind.SkillChildDoc,
       relativePath: d.relativePath,
       content: d.content,
@@ -76,7 +76,7 @@ describe('genericSkillsOutputPlugin', () => {
       filePathKind: FilePathKind.Relative,
     }))
 
-    const resources: SkillResource[] | undefined = options?.resources?.map((r) => ({
+    const resources: SkillResource[] | undefined = options?.resources?.map(r => ({
       type: PromptKind.SkillResource,
       relativePath: r.relativePath,
       content: r.content,

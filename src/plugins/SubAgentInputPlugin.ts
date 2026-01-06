@@ -62,9 +62,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
               }
 
               // Throw error if validation fails (missing required fields)
-              if (!validationResult.valid) {
-                throw new MetadataValidationError(validationResult.errors, filePath)
-              }
+              if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, filePath)
             }
 
             // Use compiled content

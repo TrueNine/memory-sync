@@ -93,27 +93,13 @@ export class GlobalScopeCollector {
     const shell = process.env['SHELL'] ?? process.env['ComSpec'] ?? ''
     const s = shell.toLowerCase()
 
-    if (s.includes('bash')) {
-      return ShellKind.Bash
-    }
-    if (s.includes('zsh')) {
-      return ShellKind.Zsh
-    }
-    if (s.includes('fish')) {
-      return ShellKind.Fish
-    }
-    if (s.includes('pwsh')) {
-      return ShellKind.Pwsh
-    }
-    if (s.includes('powershell')) {
-      return ShellKind.PowerShell
-    }
-    if (s.includes('cmd')) {
-      return ShellKind.Cmd
-    }
-    if (s.endsWith('/sh')) {
-      return ShellKind.Sh
-    }
+    if (s.includes('bash')) return ShellKind.Bash
+    if (s.includes('zsh')) return ShellKind.Zsh
+    if (s.includes('fish')) return ShellKind.Fish
+    if (s.includes('pwsh')) return ShellKind.Pwsh
+    if (s.includes('powershell')) return ShellKind.PowerShell
+    if (s.includes('cmd')) return ShellKind.Cmd
+    if (s.endsWith('/sh')) return ShellKind.Sh
 
     return ShellKind.Unknown
   }
@@ -129,9 +115,7 @@ export class GlobalScopeCollector {
    * Collect user profile from configuration
    */
   private collectProfile(): UserProfile {
-    if (this.userConfig?.profile != null) {
-      return this.userConfig.profile
-    }
+    if (this.userConfig?.profile != null) return this.userConfig.profile
     return {}
   }
 
@@ -142,12 +126,8 @@ export class GlobalScopeCollector {
    */
   private collectToolReferences(): ToolReferences {
     const defaults: ToolReferences = { ...ToolPresets.default }
-    if (this.toolPreset === 'claudeCode') {
-      return { ...defaults, ...ToolPresets.claudeCode }
-    }
-    if (this.toolPreset === 'kiro') {
-      return { ...defaults, ...ToolPresets.kiro }
-    }
+    if (this.toolPreset === 'claudeCode') return { ...defaults, ...ToolPresets.claudeCode }
+    if (this.toolPreset === 'kiro') return { ...defaults, ...ToolPresets.kiro }
     return defaults
   }
 }

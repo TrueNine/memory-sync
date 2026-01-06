@@ -47,17 +47,13 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
     // Enhance projects with memory prompts from shadow projects directory
     // New structure: dist/app/<project>/agt.mdx (no nested dist folder)
-    const enhancedProjects = await Promise.all(projects.map(async (project) => {
+    const enhancedProjects = await Promise.all(projects.map(async project => {
       const projectName = project.name
-      if (projectName == null) {
-        return project
-      }
+      if (projectName == null) return project
 
       // Read directly from shadow projects directory: dist/app/<project>/
       const shadowProjectPath = path.join(shadowProjectsDir, projectName)
-      if (!fs.existsSync(shadowProjectPath) || !fs.statSync(shadowProjectPath).isDirectory()) {
-        return project
-      }
+      if (!fs.existsSync(shadowProjectPath) || !fs.statSync(shadowProjectPath).isDirectory()) return project
 
       // Get target project path for output
       const targetProjectPath = project.dirFromWorkspacePath?.getAbsolutePath()
@@ -93,9 +89,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     const { fs, path, logger } = ctx
     const filePath = path.join(projectPath, PROJECT_MEMORY_FILE)
 
-    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-      return
-    }
+    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return
 
     try {
       const rawContent = fs.readFileSync(filePath, 'utf-8')
@@ -168,23 +162,17 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
     const entries = fs.readdirSync(currentPath, { withFileTypes: true })
     for (const entry of entries) {
-      if (!(entry.isDirectory())) {
-        continue
-      }
+      if (!(entry.isDirectory())) continue
 
       // Skip hidden directories and common non-source directories
-      if ((Boolean(entry.name.startsWith('.'))) || entry.name === 'node_modules') {
-        continue
-      }
+      if ((Boolean(entry.name.startsWith('.'))) || entry.name === 'node_modules') continue
 
       const childDir = path.join(currentPath, entry.name)
       const memoryFile = path.join(childDir, PROJECT_MEMORY_FILE)
 
       if ((Boolean(fs.existsSync(memoryFile))) && (Boolean(fs.statSync(memoryFile).isFile()))) {
         const prompt = await this.readChildMemoryPrompt(ctx, shadowProjectPath, childDir, targetProjectPath, globalScope)
-        if (prompt != null) {
-          prompts.push(prompt)
-        }
+        if (prompt != null) prompts.push(prompt)
       }
 
       // Continue scanning subdirectories

@@ -33,9 +33,7 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
-          if (child.dir != null && this.isRelativePath(child.dir)) {
-            results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
-          }
+          if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
         }
       }
     }
@@ -45,9 +43,7 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const { globalMemory } = ctx.collectedInputContext
-    if (globalMemory == null) {
-      return []
-    }
+    if (globalMemory == null) return []
 
     const globalDir = this.getGlobalConfigDir()
     return [
@@ -64,15 +60,14 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { workspace, globalMemory } = ctx.collectedInputContext
     const hasProjectOutputs = workspace.projects.some(
-      (p) => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
+      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
     )
     const hasGlobalMemory = globalMemory != null
 
-    if (!hasProjectOutputs && !hasGlobalMemory) {
-      this.log.trace({ action: 'skip', reason: 'noOutputs' })
-      return false
-    }
+    if (hasProjectOutputs && !hasGlobalMemory) return true
 
+    this.log.trace({ action: 'skip', reason: 'noOutputs' })
+    return false
     return true
   }
 
@@ -85,9 +80,7 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
       const projectName = project.name ?? 'unknown'
       const projectDir = project.dirFromWorkspacePath
 
-      if (projectDir == null) {
-        continue
-      }
+      if (projectDir == null) continue
 
       // Write root memory prompt (only if exists)
       if (project.rootMemoryPrompt != null) {
@@ -122,9 +115,7 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (globalMemory == null) {
-      return { files: fileResults, dirs: dirResults }
-    }
+    if (globalMemory == null) return { files: fileResults, dirs: dirResults }
 
     const globalDir = this.getGlobalConfigDir()
     const fullPath = path.join(globalDir, PROJECT_MEMORY_FILE)

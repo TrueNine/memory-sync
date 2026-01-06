@@ -271,18 +271,10 @@ export async function collectAllPluginOutputs(
   const globalFiles: RelativePath[] = []
 
   for (const plugin of plugins) {
-    if (plugin.registerProjectOutputDirs) {
-      projectDirs.push(...await plugin.registerProjectOutputDirs(ctx))
-    }
-    if (plugin.registerProjectOutputFiles) {
-      projectFiles.push(...await plugin.registerProjectOutputFiles(ctx))
-    }
-    if (plugin.registerGlobalOutputDirs) {
-      globalDirs.push(...await plugin.registerGlobalOutputDirs(ctx))
-    }
-    if (plugin.registerGlobalOutputFiles) {
-      globalFiles.push(...await plugin.registerGlobalOutputFiles(ctx))
-    }
+    if (plugin.registerProjectOutputDirs) projectDirs.push(...await plugin.registerProjectOutputDirs(ctx))
+    if (plugin.registerProjectOutputFiles) projectFiles.push(...await plugin.registerProjectOutputFiles(ctx))
+    if (plugin.registerGlobalOutputDirs) globalDirs.push(...await plugin.registerGlobalOutputDirs(ctx))
+    if (plugin.registerGlobalOutputFiles) globalFiles.push(...await plugin.registerGlobalOutputFiles(ctx))
   }
 
   return {

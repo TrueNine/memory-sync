@@ -66,15 +66,9 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       vi.mocked(fs.readFileSync).mockImplementation((filePath: string) => {
         const fileName = path.basename(filePath)
-        if (fileName === '.qoderignore') {
-          return 'qoder ignore content'
-        }
-        if (fileName === '.cursorignore') {
-          return 'cursor ignore content'
-        }
-        if (fileName === '.warpindexignore') {
-          return 'warp ignore content'
-        }
+        if (fileName === '.qoderignore') return 'qoder ignore content'
+        if (fileName === '.cursorignore') return 'cursor ignore content'
+        if (fileName === '.warpindexignore') return 'warp ignore content'
         return ''
       })
 
@@ -148,7 +142,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       const result = plugin.collect(ctx)
 
       expect(result.aiAgentIgnoreConfigFiles).toHaveLength(2)
-      expect(result.aiAgentIgnoreConfigFiles?.map((f) => f.fileName)).toEqual([
+      expect(result.aiAgentIgnoreConfigFiles?.map(f => f.fileName)).toEqual([
         '.cursorignore',
         '.warpindexignore',
       ])
@@ -166,16 +160,14 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       vi.mocked(fs.readFileSync).mockImplementation((filePath: string) => {
         const fileName = path.basename(filePath)
-        if (fileName === '.cursorignore') {
-          throw new Error('Permission denied')
-        }
+        if (fileName === '.cursorignore') throw new Error('Permission denied')
         return 'content'
       })
 
       const result = plugin.collect(ctx)
 
       expect(result.aiAgentIgnoreConfigFiles).toHaveLength(2)
-      expect(result.aiAgentIgnoreConfigFiles?.map((f) => f.fileName)).toEqual([
+      expect(result.aiAgentIgnoreConfigFiles?.map(f => f.fileName)).toEqual([
         '.qoderignore',
         '.warpindexignore',
       ])
@@ -215,8 +207,8 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       plugin.collect(ctx)
 
       // Verify that existsSync was called with paths under custom directory
-      const existsCallPaths = vi.mocked(fs.existsSync).mock.calls.map((call) => call[0])
-      expect(existsCallPaths.some((p) => (p as string).startsWith(customDir))).toBe(true)
+      const existsCallPaths = vi.mocked(fs.existsSync).mock.calls.map(call => call[0])
+      expect(existsCallPaths.some(p => (p as string).startsWith(customDir))).toBe(true)
     })
 
     it('should read ignore files with multiline content', () => {

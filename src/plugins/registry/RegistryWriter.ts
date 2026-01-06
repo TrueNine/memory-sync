@@ -57,9 +57,7 @@ export abstract class RegistryWriter<
    * @returns The resolved absolute path
    */
   protected resolvePath(p: string): string {
-    if (p.startsWith('~')) {
-      return path.join(os.homedir(), p.slice(1))
-    }
+    if (p.startsWith('~')) return path.join(os.homedir(), p.slice(1))
     return path.resolve(p)
   }
 
@@ -77,9 +75,7 @@ export abstract class RegistryWriter<
    */
   protected ensureRegistryDir(): void {
     const dir = this.getRegistryDir()
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   }
 
   /**
@@ -146,9 +142,7 @@ export abstract class RegistryWriter<
 
       // Cleanup temp file if it exists
       try {
-        if (fs.existsSync(tempPath)) {
-          fs.unlinkSync(tempPath)
-        }
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath)
       } catch {
         // Ignore cleanup errors
       }
@@ -189,11 +183,8 @@ export abstract class RegistryWriter<
           success: true,
           entryName,
         })
-        if (dryRun === true) {
-          this.log.trace({ action: 'dryRun', type: 'registerEntry', entryName })
-        } else {
-          this.log.trace({ action: 'register', type: 'entry', entryName })
-        }
+        if (dryRun === true) this.log.trace({ action: 'dryRun', type: 'registerEntry', entryName })
+        else this.log.trace({ action: 'register', type: 'entry', entryName })
       } else {
         results.push({
           success: false,

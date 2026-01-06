@@ -135,12 +135,8 @@ function mergeFastCommandSeriesOptions(
   base?: FastCommandSeriesOptions,
   override?: FastCommandSeriesOptions,
 ): FastCommandSeriesOptions {
-  if (override == null) {
-    return base ?? {}
-  }
-  if (base == null) {
-    return override
-  }
+  if (override == null) return base ?? {}
+  if (base == null) return override
 
   // Merge pluginOverrides deeply
   const mergedPluginOverrides: Record<string, FastCommandSeriesPluginOverride> = {}
@@ -166,15 +162,9 @@ function mergeFastCommandSeriesOptions(
   const includeSeriesPrefix = override.includeSeriesPrefix ?? base.includeSeriesPrefix
   const hasPluginOverrides = Object.keys(mergedPluginOverrides).length > 0
 
-  if (includeSeriesPrefix != null && hasPluginOverrides) {
-    return { includeSeriesPrefix, pluginOverrides: mergedPluginOverrides }
-  }
-  if (includeSeriesPrefix != null) {
-    return { includeSeriesPrefix }
-  }
-  if (hasPluginOverrides) {
-    return { pluginOverrides: mergedPluginOverrides }
-  }
+  if (includeSeriesPrefix != null && hasPluginOverrides) return { includeSeriesPrefix, pluginOverrides: mergedPluginOverrides }
+  if (includeSeriesPrefix != null) return { includeSeriesPrefix }
+  if (hasPluginOverrides) return { pluginOverrides: mergedPluginOverrides }
   return {}
 }
 
@@ -199,9 +189,7 @@ function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): op
 export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
   // Validate and ensure global config exists
   const validationResult = validateAndEnsureGlobalConfig()
-  if (validationResult.shouldExit) {
-    process.exit(1)
-  }
+  if (validationResult.shouldExit) process.exit(1)
 
   // Normalize options
   let pluginOptions: PluginOptions
@@ -239,9 +227,8 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   const logger = createLogger('defineConfig', logLevel)
 
   // Log configuration loading info
-  if (userConfigFound) {
-    logger.info('user config loaded', { sources: userConfigSources })
-  } else {
+  if (userConfigFound) logger.info('user config loaded', { sources: userConfigSources })
+  else {
     logger.info('no user config found, using defaults', {
       workspaceDir: DEFAULT_OPTIONS.workspaceDir,
       shadowSourceProjectDir: DEFAULT_OPTIONS.shadowSourceProjectDir,
@@ -273,9 +260,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   const merged = await pipeline.executePluginsInOrder(inputPlugins, baseCtx, false, userConfigFile)
 
   // Validate workspace exists
-  if (merged.workspace == null) {
-    throw new Error('Workspace not initialized by any plugin')
-  }
+  if (merged.workspace == null) throw new Error('Workspace not initialized by any plugin')
 
   const context: CollectedInputContext = {
     workspace: merged.workspace,
@@ -291,9 +276,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   }
 
   // Check version control status for shadow source project
-  if (merged.shadowSourceProjectDir != null) {
-    checkVersionControl(merged.shadowSourceProjectDir, logger)
-  }
+  if (merged.shadowSourceProjectDir != null) checkVersionControl(merged.shadowSourceProjectDir, logger)
 
   return { context, outputPlugins, userConfigOptions: mergedOptions }
 }

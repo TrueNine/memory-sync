@@ -29,7 +29,7 @@ export class ExecuteCommand implements Command {
     const writeCtx = createWriteContext(false)
     const permissions = await checkCanWrite(outputPlugins, writeCtx)
     const allowedPlugins = outputPlugins.filter(
-      (p) => permissions.get(p.name)?.project ?? true,
+      p => permissions.get(p.name)?.project ?? true,
     )
 
     const results = await executeWriteOutputs(allowedPlugins, writeCtx)

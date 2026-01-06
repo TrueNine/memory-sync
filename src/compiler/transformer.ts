@@ -47,9 +47,7 @@ async function transformNode(
   node: RootContent,
   ctx: ProcessingContext,
 ): Promise<RootContent[]> {
-  if (node.type === 'mdxjsEsm') {
-    return []
-  }
+  if (node.type === 'mdxjsEsm') return []
 
   if (node.type === 'mdxFlowExpression') {
     const flowExpr = node
@@ -57,9 +55,7 @@ async function transformNode(
 
     // Check if this is a JSX comment {/* ... */} - skip it
     const trimmedValue = flowExpr.value.trim()
-    if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) {
-      return []
-    }
+    if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) return []
 
     // Check if expression contains JSX
     if (hasJsxInEstree(estree)) {
@@ -82,19 +78,16 @@ async function transformNode(
     return []
   }
 
-  if (node.type === 'mdxJsxFlowElement') {
-    return transformJsxElement(node, ctx)
-  }
+  if (node.type === 'mdxJsxFlowElement') return transformJsxElement(node, ctx)
 
-  if ('children' in node && Array.isArray(node.children)) {
-    const parentNode = node as Parent
-    const newChildren = await transformChildren(
-      parentNode.children as ChildNode[],
-      ctx,
-    )
-    return [{ ...node, children: newChildren } as RootContent]
-  }
+  if (!('children' in node && Array.isArray(node.children))) return [node]
 
+  const parentNode = node as Parent
+  const newChildren = await transformChildren(
+    parentNode.children as ChildNode[],
+    ctx,
+  )
+  return [{ ...node, children: newChildren } as RootContent]
   return [node]
 }
 
@@ -105,14 +98,10 @@ async function transformJsxElement(
   element: MdxJsxFlowElement,
   ctx: ProcessingContext,
 ): Promise<RootContent[]> {
-  if (element.name != null && isMdxComponent(element.name, ctx)) {
-    return processComponent(element, ctx, processAst)
-  }
+  if (element.name != null && isMdxComponent(element.name, ctx)) return processComponent(element, ctx, processAst)
 
   const converted = convertJsxToMarkdown(element, ctx)
-  if (converted != null) {
-    return converted
-  }
+  if (converted != null) return converted
 
   return []
 }
@@ -131,9 +120,7 @@ async function transformChildren(
       const textExpr = child
       // Check if this is a JSX comment {/* ... */} - skip it
       const trimmedValue = textExpr.value.trim()
-      if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) {
-        continue
-      }
+      if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) continue
       const value = evaluateExpression(textExpr.value, ctx.scope)
       const textNode: Text = { type: 'text', value }
       result.push(textNode)
@@ -146,11 +133,8 @@ async function transformChildren(
       if (textElement.name != null && isMdxComponent(textElement.name, ctx)) {
         const componentResult = await processComponent(textElement, ctx, processAst)
         for (const node of componentResult) {
-          if (node.type === 'paragraph' && 'children' in node) {
-            result.push(...node.children)
-          } else {
-            result.push(node as ChildNode)
-          }
+          if (node.type === 'paragraph' && 'children' in node) result.push(...node.children)
+          else result.push(node as ChildNode)
         }
         continue
       }
@@ -158,11 +142,8 @@ async function transformChildren(
       const converted = convertJsxToMarkdown(textElement, ctx)
       if (converted != null) {
         for (const node of converted) {
-          if (node.type === 'paragraph' && 'children' in node) {
-            result.push(...node.children)
-          } else {
-            result.push(node as ChildNode)
-          }
+          if (node.type === 'paragraph' && 'children' in node) result.push(...node.children)
+          else result.push(node as ChildNode)
         }
       }
       continue

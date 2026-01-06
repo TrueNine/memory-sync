@@ -54,11 +54,11 @@ function createMockOutputPlugin(
     operationOrder,
     registerProjectOutputFiles: vi.fn(async () => {
       operationOrder.push(`${name}:registerProjectOutputFiles`)
-      return files.map((f) => createMockRelativePath(f))
+      return files.map(f => createMockRelativePath(f))
     }),
     registerProjectOutputDirs: vi.fn(async () => {
       operationOrder.push(`${name}:registerProjectOutputDirs`)
-      return dirs.map((d) => createMockRelativePath(d))
+      return dirs.map(d => createMockRelativePath(d))
     }),
     registerGlobalOutputFiles: vi.fn(async () => []),
     registerGlobalOutputDirs: vi.fn(async () => []),
@@ -111,7 +111,7 @@ function createMockCommandContext(
       glob: fastGlob,
       collectedInputContext,
       dryRun,
-      registeredPluginNames: outputPlugins.map((p) => p.name),
+      registeredPluginNames: outputPlugins.map(p => p.name),
     }),
   }
 }
@@ -127,11 +127,11 @@ describe('executeCommand', () => {
   describe('pre-cleanup execution order', () => {
     // Generator for plugin names - ensure they start with letter and are unique
     const pluginNameGen = fc.string({ minLength: 2, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generator for file names
     const fileNameGen = fc.string({ minLength: 2, maxLength: 20, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][\w.-]*$/i.test(s))
+      .filter(s => /^[a-z][\w.-]*$/i.test(s))
 
     it('should complete cleanup before write operations for any plugin configuration', async () => {
       await fc.assert(
@@ -141,20 +141,18 @@ describe('executeCommand', () => {
           async (pluginNames, fileNames) => {
             // Ensure unique plugin names
             const uniqueNames = [...new Set(pluginNames)]
-            if (uniqueNames.length === 0) {
-              return
-            }
+            if (uniqueNames.length === 0) return
 
             // Track global operation order across all plugins
             const globalOperationOrder: string[] = []
 
             // Create plugins with tracking
-            const plugins = uniqueNames.map((name) => {
+            const plugins = uniqueNames.map(name => {
               const plugin = createMockOutputPlugin(name, fileNames)
               // Override to track global order
               plugin.registerProjectOutputFiles = vi.fn(async () => {
                 globalOperationOrder.push(`cleanup:${name}`)
-                return fileNames.map((f) => createMockRelativePath(f))
+                return fileNames.map(f => createMockRelativePath(f))
               })
               plugin.writeProjectOutputs = vi.fn(async () => {
                 globalOperationOrder.push(`write:${name}`)
@@ -171,18 +169,18 @@ describe('executeCommand', () => {
             // Find the last cleanup operation and first write operation
             const cleanupIndices = globalOperationOrder
               .map((op, i) => op.startsWith('cleanup:') ? i : -1)
-              .filter((i) => i >= 0)
+              .filter(i => i >= 0)
 
             const writeIndices = globalOperationOrder
               .map((op, i) => op.startsWith('write:') ? i : -1)
-              .filter((i) => i >= 0)
+              .filter(i => i >= 0)
 
             // All cleanup operations should complete before any write operation
-            if (cleanupIndices.length > 0 && writeIndices.length > 0) {
-              const lastCleanupIndex = Math.max(...cleanupIndices)
-              const firstWriteIndex = Math.min(...writeIndices)
-              expect(lastCleanupIndex).toBeLessThan(firstWriteIndex)
-            }
+            if (cleanupIndices.length <= 0 && writeIndices.length > 0) return
+
+            const lastCleanupIndex = Math.max(...cleanupIndices)
+            const firstWriteIndex = Math.min(...writeIndices)
+            expect(lastCleanupIndex).toBeLessThan(firstWriteIndex)
           },
         ),
         { numRuns: 100 },
@@ -226,8 +224,8 @@ describe('executeCommand', () => {
       await command.execute(ctx)
 
       // Verify cleanup operations happen before write operations
-      const cleanupOps = operationOrder.filter((op) => op.startsWith('cleanup:'))
-      const writeOps = operationOrder.filter((op) => op.startsWith('write:'))
+      const cleanupOps = operationOrder.filter(op => op.startsWith('cleanup:'))
+      const writeOps = operationOrder.filter(op => op.startsWith('write:'))
 
       expect(cleanupOps.length).toBeGreaterThan(0)
       expect(writeOps.length).toBeGreaterThan(0)
@@ -251,7 +249,7 @@ describe('cleanupUtils', () => {
   describe('cleanup respects plugin registration', () => {
     // Generator for file paths - ensure unique paths
     const filePathGen = fc.string({ minLength: 2, maxLength: 20, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][\w.-]*$/i.test(s))
+      .filter(s => /^[a-z][\w.-]*$/i.test(s))
 
     it('should only collect files registered by enabled plugins', async () => {
       await fc.assert(
@@ -300,8 +298,8 @@ describe('cleanupUtils', () => {
 
             // All collected files should be from registered plugins
             const allRegisteredFiles = new Set([
-              ...plugin1Files.map((f) => `/test/${f}`),
-              ...plugin2Files.map((f) => `/test/${f}`),
+              ...plugin1Files.map(f => `/test/${f}`),
+              ...plugin2Files.map(f => `/test/${f}`),
             ])
 
             for (const file of filesToDelete) {
@@ -318,9 +316,9 @@ describe('cleanupUtils', () => {
         fc.asyncProperty(
           // Generate unique file sets to avoid overlap
           fc.array(filePathGen, { minLength: 1, maxLength: 3 })
-            .map((files) => files.map((f) => `allowed_${f}`)),
+            .map(files => files.map(f => `allowed_${f}`)),
           fc.array(filePathGen, { minLength: 1, maxLength: 3 })
-            .map((files) => files.map((f) => `denied_${f}`)),
+            .map(files => files.map(f => `denied_${f}`)),
           async (allowedFiles, deniedFiles) => {
             // Create two plugins with non-overlapping files
             const allowedPlugin = createMockOutputPlugin('allowed', allowedFiles)
@@ -361,13 +359,13 @@ describe('cleanupUtils', () => {
             )
 
             // Files from denied plugin should not be in the list
-            const deniedFilePaths = new Set(deniedFiles.map((f) => `/test/${f}`))
+            const deniedFilePaths = new Set(deniedFiles.map(f => `/test/${f}`))
             for (const file of filesToDelete) {
               expect(deniedFilePaths.has(file)).toBe(false)
             }
 
             // All files should be from allowed plugin
-            const allowedFilePaths = new Set(allowedFiles.map((f) => `/test/${f}`))
+            const allowedFilePaths = new Set(allowedFiles.map(f => `/test/${f}`))
             for (const file of filesToDelete) {
               expect(allowedFilePaths.has(file)).toBe(true)
             }
@@ -434,13 +432,13 @@ describe('dryRunOutputCommand', () => {
   describe('dry-run skips actual operations', () => {
     // Generator for file paths
     const filePathGen = fc.string({ minLength: 2, maxLength: 20, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][\w.-]*$/i.test(s))
+      .filter(s => /^[a-z][\w.-]*$/i.test(s))
 
     it('should not perform actual file operations in dry-run mode', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(filePathGen, { minLength: 1, maxLength: 3 }),
-          async (fileNames) => {
+          async fileNames => {
             // Track actual file system operations
             const fsOperations: string[] = []
 
@@ -470,7 +468,7 @@ describe('dryRunOutputCommand', () => {
               name: 'test-plugin',
               log: mockLogger,
               registerProjectOutputFiles: vi.fn(async () =>
-                fileNames.map((f) => createMockRelativePath(f)),
+                fileNames.map(f => createMockRelativePath(f)),
               ),
               registerProjectOutputDirs: vi.fn(async () => []),
               registerGlobalOutputFiles: vi.fn(async () => []),
@@ -480,11 +478,9 @@ describe('dryRunOutputCommand', () => {
               canWrite: vi.fn(async () => true),
               writeProjectOutputs: vi.fn(async (ctx: OutputWriteContext): Promise<WriteResults> => {
                 // In dry-run mode, should not perform actual writes
-                if (!ctx.dryRun) {
-                  mockFs.writeFileSync()
-                }
+                if (!ctx.dryRun) mockFs.writeFileSync()
                 return {
-                  files: fileNames.map((f) => ({
+                  files: fileNames.map(f => ({
                     path: createMockRelativePath(f),
                     success: true,
                     skipped: ctx.dryRun,

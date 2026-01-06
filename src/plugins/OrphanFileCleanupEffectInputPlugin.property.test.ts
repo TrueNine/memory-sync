@@ -54,8 +54,8 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
 
 // Generators
 const validNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
-  .filter((s) => /^[\w-]+$/.test(s))
-  .map((s) => s.toLowerCase())
+  .filter(s => /^[\w-]+$/.test(s))
+  .map(s => s.toLowerCase())
 
 const dirTypeGen = fc.constantFrom('skills', 'commands', 'agents', 'app')
 
@@ -86,20 +86,18 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(distFileGen, { minLength: 1, maxLength: 10 })
-            .map((files) => {
+            .map(files => {
               // Deduplicate by (name, dirType) to avoid conflicts
               const seen = new Set<string>()
-              return files.filter((f) => {
+              return files.filter(f => {
                 const key = `${f.dirType}:${f.name}`
-                if (seen.has(key)) {
-                  return false
-                }
+                if (seen.has(key)) return false
                 seen.add(key)
                 return true
               })
             })
-            .filter((files) => files.length > 0),
-          async (distFiles) => {
+            .filter(files => files.length > 0),
+          async distFiles => {
             // Create isolated temp directory for this property run
             const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orphan-cleanup-p5-'))
 
@@ -131,9 +129,8 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
                   // Create corresponding source file
                   createSourceFile(shadowProjectDir, file.dirType, file.name)
                   expectedKept.push(distFilePath)
-                } else {
-                  expectedDeleted.push(distFilePath)
                 }
+                else expectedDeleted.push(distFilePath)
               }
 
               // Execute plugin
@@ -155,9 +152,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               }
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) {
-                fs.rmSync(tempDir, { recursive: true, force: true })
-              }
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
             }
           },
         ),
@@ -215,9 +210,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               expect(result.deletedDirs).toContain(subDir)
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) {
-                fs.rmSync(tempDir, { recursive: true, force: true })
-              }
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
             }
           },
         ),
@@ -232,9 +225,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
           validNameGen,
           async (orphanName, validName) => {
             // Ensure different names
-            if (orphanName === validName) {
-              return
-            }
+            if (orphanName === validName) return
 
             // Create isolated temp directory for this property run
             const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orphan-cleanup-p7b-'))
@@ -275,9 +266,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               expect(fs.existsSync(distSkillsDir)).toBe(true)
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) {
-                fs.rmSync(tempDir, { recursive: true, force: true })
-              }
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
             }
           },
         ),

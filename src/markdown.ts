@@ -73,9 +73,7 @@ export function buildFrontMatter(
     Object.entries(frontMatter).filter(([_, v]) => v != null),
   )
 
-  if (Object.keys(cleanedFrontMatter).length === 0) {
-    return '---\n---'
-  }
+  if (Object.keys(cleanedFrontMatter).length === 0) return '---\n---'
 
   const yamlStr = YAML.stringify(cleanedFrontMatter, {
     singleQuote: options?.singleQuote ?? false,
@@ -115,9 +113,7 @@ export function buildMarkdownWithFrontMatter(
   content: string,
   options?: BuildMarkdownOptions,
 ): string {
-  if (frontMatter == null || Object.keys(frontMatter).length === 0) {
-    return content
-  }
+  if (frontMatter == null || Object.keys(frontMatter).length === 0) return content
 
   const fmStr = buildFrontMatter(frontMatter, options)
   return `${fmStr}\n${content}`
@@ -139,9 +135,7 @@ export function buildRawFrontMatter(
     Object.entries(frontMatter).filter(([_, v]) => v != null),
   )
 
-  if (Object.keys(cleanedFrontMatter).length === 0) {
-    return ''
-  }
+  if (Object.keys(cleanedFrontMatter).length === 0) return ''
 
   return YAML.stringify(cleanedFrontMatter, {
     singleQuote: options?.singleQuote ?? false,
@@ -173,9 +167,8 @@ export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): 
       } catch {
         // YAML parsing failed, keep raw front matter
       }
-    } else {
-      markdownContents.push(node)
     }
+    else markdownContents.push(node)
   }
 
   // Calculate content without front matter

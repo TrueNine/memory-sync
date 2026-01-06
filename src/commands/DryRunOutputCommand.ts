@@ -14,7 +14,7 @@ export class DryRunOutputCommand implements Command {
     const writeCtx = createWriteContext(true)
     const permissions = await checkCanWrite(outputPlugins, writeCtx)
     const allowedPlugins = outputPlugins.filter(
-      (p) => Boolean(permissions.get(p.name)?.project ?? true),
+      p => Boolean(permissions.get(p.name)?.project ?? true),
     )
 
     const results = await executeWriteOutputs(allowedPlugins, writeCtx)

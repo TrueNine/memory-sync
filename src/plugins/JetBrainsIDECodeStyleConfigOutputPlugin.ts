@@ -34,23 +34,17 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
 
     // Only register files if we have JetBrains configs to write
     const hasJetBrainsConfigs = ideConfigFiles.some(
-      (f) => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
+      f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
     )
-    if (!hasJetBrainsConfigs) {
-      return results
-    }
+    if (!hasJetBrainsConfigs) return results
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) {
-        continue
-      }
+      if (projectDir == null) continue
 
       // Skip prompt source projects (e.g., aindex) - their files are source files
       // that should be protected from cleanup
-      if (project.isPromptSourceProject === true) {
-        continue
-      }
+      if (project.isPromptSourceProject === true) continue
 
       // Register all JetBrains config files for cleanup
       for (const configFile of JETBRAINS_CONFIG_FILES) {
@@ -71,14 +65,13 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { ideConfigFiles } = ctx.collectedInputContext
     const hasIdeaConfigs = ideConfigFiles.some(
-      (f) => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
+      f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
     )
 
-    if (!hasIdeaConfigs) {
-      this.log.debug('skipped', { reason: 'no JetBrains IDE config files found' })
-      return false
-    }
+    if (hasIdeaConfigs) return true
 
+    this.log.debug('skipped', { reason: 'no JetBrains IDE config files found' })
+    return false
     return true
   }
 
@@ -90,14 +83,12 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
 
     // Filter JetBrains IDE related config files
     const jetbrainsConfigs = ideConfigFiles.filter(
-      (f) => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
+      f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
     )
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) {
-        continue
-      }
+      if (projectDir == null) continue
 
       const projectName = project.name ?? 'unknown'
 
@@ -154,21 +145,13 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
   private getTargetRelativePath(config: { type: IDEKind, dir: { path: string } }): string {
     const sourcePath = config.dir.path
 
-    if (config.type === IDEKind.EditorConfig) {
-      return '.editorconfig'
-    }
+    if (config.type === IDEKind.EditorConfig) return '.editorconfig'
 
-    if (config.type === IDEKind.IntellijIDEA) {
-      // Extract relative path from source (e.g., .idea/codeStyles/Project.xml)
-      const ideaIndex = sourcePath.indexOf(IDEA_DIR)
-      if (ideaIndex !== -1) {
-        return sourcePath.substring(ideaIndex)
-      }
-      // Fallback: use filename only
-      return this.joinPath(IDEA_DIR, CODE_STYLES_DIR, this.basename(sourcePath))
-    }
+    if (config.type !== IDEKind.IntellijIDEA) return this.basename(sourcePath)
 
-    // Default fallback
+    const ideaIndex = sourcePath.indexOf(IDEA_DIR)
+    if (ideaIndex !== -1) return sourcePath.substring(ideaIndex)
+    return this.joinPath(IDEA_DIR, CODE_STYLES_DIR, this.basename(sourcePath))
     return this.basename(sourcePath)
   }
 }

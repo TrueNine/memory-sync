@@ -44,13 +44,9 @@ describe('readmeMdInputPlugin property tests', () => {
       const fullPath = path.join(baseDir, filePath)
       const dir = path.dirname(fullPath)
 
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
-      }
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 
-      if (content !== null) {
-        fs.writeFileSync(fullPath, content, 'utf-8')
-      }
+      if (content !== null) fs.writeFileSync(fullPath, content, 'utf-8')
     }
   }
 
@@ -79,15 +75,15 @@ describe('readmeMdInputPlugin property tests', () => {
   describe('property 1: README Discovery Completeness', () => {
     // Generate valid project names (alphanumeric, no special chars)
     const projectNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generate valid subdirectory names
     const subdirNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generate README content
     const readmeContentArb = fc.string({ minLength: 1, maxLength: 100 })
-      .filter((s) => s.trim().length > 0)
+      .filter(s => s.trim().length > 0)
 
     it('should discover all readme.mdx files in generated directory structures', async () => {
       await fc.assert(
@@ -101,7 +97,7 @@ describe('readmeMdInputPlugin property tests', () => {
           // README content (avoid MDX expressions that need globalScope)
           readmeContentArb,
           async (projectNames, subdirs, includeRoot, content) => {
-            await withTempDir(async (tempDir) => {
+            await withTempDir(async tempDir => {
               // Deduplicate project names
               const uniqueProjects = [...new Set(projectNames)]
               const uniqueSubdirs = [...new Set(subdirs)]
@@ -141,7 +137,7 @@ describe('readmeMdInputPlugin property tests', () => {
 
               for (const expected of expectedReadmes) {
                 const found = readmePrompts.find(
-                  (r) =>
+                  r =>
                     r.projectName === expected.projectName
                     && r.isRoot === expected.isRoot,
                 )
@@ -159,8 +155,8 @@ describe('readmeMdInputPlugin property tests', () => {
       await fc.assert(
         fc.asyncProperty(
           projectNameArb,
-          async (projectName) => {
-            await withTempDir(async (tempDir) => {
+          async projectName => {
+            await withTempDir(async tempDir => {
               // Create workspace but no ref directory
               const workspaceDir = path.join(tempDir, projectName)
               fs.mkdirSync(workspaceDir, { recursive: true })
@@ -189,15 +185,15 @@ describe('readmeMdInputPlugin property tests', () => {
   describe('property 2: Data Structure Correctness', () => {
     // Generate valid project names
     const projectNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generate valid subdirectory names
     const subdirNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generate README content
     const readmeContentArb = fc.string({ minLength: 1, maxLength: 100 })
-      .filter((s) => s.trim().length > 0)
+      .filter(s => s.trim().length > 0)
 
     it('should correctly set isRoot flag based on README location', async () => {
       await fc.assert(
@@ -207,7 +203,7 @@ describe('readmeMdInputPlugin property tests', () => {
           readmeContentArb,
           readmeContentArb,
           async (projectName, subdir, rootContent, childContent) => {
-            await withTempDir(async (tempDir) => {
+            await withTempDir(async tempDir => {
               // Create structure with both root and child README
               const structure: Record<string, string | null> = {
                 [`ref/${projectName}/readme.mdx`]: rootContent,
@@ -221,14 +217,14 @@ describe('readmeMdInputPlugin property tests', () => {
               const readmePrompts = result.readmePrompts ?? []
 
               // Find root README
-              const rootReadme = readmePrompts.find((r) => r.isRoot === true)
+              const rootReadme = readmePrompts.find(r => r.isRoot === true)
               expect(rootReadme).toBeDefined()
               expect(rootReadme?.projectName).toBe(projectName)
               expect(rootReadme?.content).toBe(rootContent)
               expect(rootReadme?.targetDir.path).toBe(projectName)
 
               // Find child README
-              const childReadme = readmePrompts.find((r) => r.isRoot === false)
+              const childReadme = readmePrompts.find(r => r.isRoot === false)
               expect(childReadme).toBeDefined()
               expect(childReadme?.projectName).toBe(projectName)
               expect(childReadme?.content).toBe(childContent)
@@ -246,7 +242,7 @@ describe('readmeMdInputPlugin property tests', () => {
           projectNameArb,
           readmeContentArb,
           async (projectName, content) => {
-            await withTempDir(async (tempDir) => {
+            await withTempDir(async tempDir => {
               const structure: Record<string, string | null> = {
                 [`ref/${projectName}/readme.mdx`]: content,
               }
@@ -274,7 +270,7 @@ describe('readmeMdInputPlugin property tests', () => {
           fc.array(subdirNameArb, { minLength: 1, maxLength: 3 }),
           readmeContentArb,
           async (projectName, subdirs, content) => {
-            await withTempDir(async (tempDir) => {
+            await withTempDir(async tempDir => {
               const uniqueSubdirs = [...new Set(subdirs)]
               const structure: Record<string, string | null> = {}
 

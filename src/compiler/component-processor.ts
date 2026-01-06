@@ -17,9 +17,7 @@ export function isMdxComponent(
   name: string | null,
   ctx: ProcessingContext,
 ): boolean {
-  if (name === null) {
-    return false
-  }
+  if (name === null) return false
   // Check both the context's components map and the global registry
   return ctx.components.has(name) || hasComponent(name)
 }
@@ -50,9 +48,7 @@ export async function processComponent(
 ): Promise<RootContent[]> {
   const componentName = element.name
 
-  if (componentName == null || componentName === '') {
-    return []
-  }
+  if (componentName == null || componentName === '') return []
 
   // Get the component handler from context
   const handler = ctx.components.get(componentName)

@@ -37,9 +37,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     const { projects } = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       // Register .claude/commands, .claude/agents, .claude/skills for cleanup
       for (const subdir of CLEANUP_SUBDIRS) {
@@ -70,9 +68,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
-          if (child.dir != null && this.isRelativePath(child.dir)) {
-            results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
-          }
+          if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
         }
       }
 
@@ -128,9 +124,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const { globalMemory } = ctx.collectedInputContext
-    if (globalMemory == null) {
-      return []
-    }
+    if (globalMemory == null) return []
 
     const globalDir = this.getGlobalConfigDir()
     return [
@@ -147,18 +141,17 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { workspace, globalMemory, fastCommands, subAgents, skills } = ctx.collectedInputContext
     const hasProjectOutputs = workspace.projects.some(
-      (p) => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
+      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
     )
     const hasGlobalMemory = globalMemory != null
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasSubAgents = (subAgents?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
 
-    if (!hasProjectOutputs && !hasGlobalMemory && !hasFastCommands && !hasSubAgents && !hasSkills) {
-      this.log.trace({ action: 'skip', reason: 'noOutputs' })
-      return false
-    }
+    if (hasProjectOutputs && !hasGlobalMemory && !hasFastCommands && !hasSubAgents && !hasSkills) return true
 
+    this.log.trace({ action: 'skip', reason: 'noOutputs' })
+    return false
     return true
   }
 
@@ -172,9 +165,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       const projectName = project.name ?? 'unknown'
       const projectDir = project.dirFromWorkspacePath
 
-      if (projectDir == null) {
-        continue
-      }
+      if (projectDir == null) continue
 
       // Write root memory prompt (only if exists)
       if (project.rootMemoryPrompt != null) {
@@ -233,9 +224,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (globalMemory == null) {
-      return { files: fileResults, dirs: dirResults }
-    }
+    if (globalMemory == null) return { files: fileResults, dirs: dirResults }
 
     const globalDir = this.getGlobalConfigDir()
     const fullPath = path.join(globalDir, PROJECT_MEMORY_FILE)

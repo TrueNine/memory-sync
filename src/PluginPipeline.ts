@@ -102,15 +102,11 @@ function extractUserArgs(argv: readonly string[]): string[] {
 
   // 跳过 node/bun/deno 等运行时路径
   const first = args[0]
-  if (first != null && isRuntimeExecutable(first)) {
-    args.shift()
-  }
+  if (first != null && isRuntimeExecutable(first)) args.shift()
 
   // 跳过脚本路径或 npx 包名
   const second = args[0]
-  if (second != null && isScriptOrPackage(second)) {
-    args.shift()
-  }
+  if (second != null && isScriptOrPackage(second)) args.shift()
 
   return args
 }
@@ -121,7 +117,7 @@ function extractUserArgs(argv: readonly string[]): string[] {
 function isRuntimeExecutable(arg: string): boolean {
   const runtimes = ['node', 'nodejs', 'bun', 'deno', 'tsx', 'ts-node', 'npx', 'pnpx', 'yarn', 'pnpm']
   const normalized = arg.toLowerCase().replace(/\\/g, '/')
-  return runtimes.some((rt) => {
+  return runtimes.some(rt => {
     const pattern = new RegExp(`(?:^|/)${rt}(?:\\.exe|\\.cmd|\\.ps1)?$`, 'i')
     return pattern.test(normalized) || normalized === rt
   })
@@ -132,13 +128,9 @@ function isRuntimeExecutable(arg: string): boolean {
  */
 function isScriptOrPackage(arg: string): boolean {
   // 脚本文件
-  if (/\.(?:m?[jt]s|cjs)$/.test(arg)) {
-    return true
-  }
+  if (/\.(?:m?[jt]s|cjs)$/.test(arg)) return true
   // 包含路径分隔符的文件路径
-  if (/[/\\]/.test(arg) && !arg.startsWith('-')) {
-    return true
-  }
+  if (/[/\\]/.test(arg) && !arg.startsWith('-')) return true
   // npx 执行的包名（如 tnmsc、@truenine/memory-sync-cli）
   return /^(?:@[\w-]+\/)?[\w-]+$/.test(arg) && !arg.startsWith('-')
 }
@@ -181,9 +173,7 @@ const LOG_LEVEL_PRIORITY: ReadonlyMap<LogLevel, number> = new Map([
 export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
   const { logLevelFlags } = args
 
-  if (logLevelFlags.length === 0) {
-    return void 0
-  }
+  if (logLevelFlags.length === 0) return void 0
 
   // Find the most verbose level (lowest priority number)
   let mostVerbose: LogLevel = logLevelFlags[0]!
@@ -223,67 +213,44 @@ export function resolveCommand(args: ParsedCliArgs): Command {
   const { helpFlag, versionFlag, subcommand, dryRun, unknownCommand, setOption, positional } = args
 
   // Version flag takes highest priority
-  if (versionFlag) {
-    return new VersionCommand()
-  }
+  if (versionFlag) return new VersionCommand()
 
   // Help flag takes priority
-  if (helpFlag) {
-    return new HelpCommand()
-  }
+  if (helpFlag) return new HelpCommand()
 
   // Unknown command handling
-  if (unknownCommand != null) {
-    return new UnknownCommand(unknownCommand)
-  }
+  if (unknownCommand != null) return new UnknownCommand(unknownCommand)
 
   // Version subcommand
-  if (subcommand === 'version') {
-    return new VersionCommand()
-  }
+  if (subcommand === 'version') return new VersionCommand()
 
   // Help subcommand
-  if (subcommand === 'help') {
-    return new HelpCommand()
-  }
+  if (subcommand === 'help') return new HelpCommand()
 
   // Outdated subcommand
-  if (subcommand === 'outdated') {
-    return new OutdatedCommand()
-  }
+  if (subcommand === 'outdated') return new OutdatedCommand()
 
   // Init subcommand
-  if (subcommand === 'init') {
-    return new InitCommand()
-  }
+  if (subcommand === 'init') return new InitCommand()
 
   // Dry-run subcommand
-  if (subcommand === 'dry-run') {
-    return new DryRunOutputCommand()
-  }
+  if (subcommand === 'dry-run') return new DryRunOutputCommand()
 
   // Clean subcommand with optional dry-run flag
   if (subcommand === 'clean') {
-    if (dryRun) {
-      return new DryRunCleanCommand()
-    }
+    if (dryRun) return new DryRunCleanCommand()
     return new CleanCommand()
   }
 
   // Set subcommand or --set option
-  if (subcommand === 'set' || setOption.length > 0) {
-    // Parse positional args as key=value pairs for 'set' subcommand
-    const parsedPositional: [key: string, value: string][] = []
-    for (const arg of positional) {
-      const eqIndex = arg.indexOf('=')
-      if (eqIndex > 0) {
-        parsedPositional.push([arg.slice(0, eqIndex), arg.slice(eqIndex + 1)])
-      }
-    }
-    return new SetCommand([...setOption, ...parsedPositional])
-  }
+  if (subcommand !== 'set' || setOption.length > 0) return new ExecuteCommand()
 
-  // Default: execute sync pipeline
+  const parsedPositional: [key: string, value: string][] = []
+  for (const arg of positional) {
+    const eqIndex = arg.indexOf('=')
+    if (eqIndex > 0) parsedPositional.push([arg.slice(0, eqIndex), arg.slice(eqIndex + 1)])
+  }
+  return new SetCommand([...setOption, ...parsedPositional])
   return new ExecuteCommand()
 }
 
@@ -319,9 +286,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
-    if (arg == null) {
-      continue
-    }
+    if (arg == null) continue
 
     // Handle -- separator: all following args are positional
     if (arg === '--') {
@@ -357,9 +322,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
           if (parts.length > 1) {
             const keyValue = parts.slice(1).join('=')
             const eqIndex = keyValue.indexOf('=')
-            if (eqIndex > 0) {
-              result.setOption.push([keyValue.slice(0, eqIndex), keyValue.slice(eqIndex + 1)])
-            }
+            if (eqIndex > 0) result.setOption.push([keyValue.slice(0, eqIndex), keyValue.slice(eqIndex + 1)])
           } else {
             // Next arg is the value
             const nextArg = args[i + 1]
@@ -403,9 +366,8 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     // First positional argument: check if it's a subcommand
     if (!firstPositionalProcessed) {
       firstPositionalProcessed = true
-      if (VALID_SUBCOMMANDS.has(arg)) {
-        result.subcommand = arg as Subcommand
-      } else {
+      if (VALID_SUBCOMMANDS.has(arg)) result.subcommand = arg as Subcommand
+      else {
         // Unknown first positional is captured as unknownCommand
         result.unknownCommand = arg
       }
@@ -431,9 +393,7 @@ export class PluginPipeline {
 
     // Resolve log level from parsed args and set globally
     const resolvedLogLevel = resolveLogLevel(this.args)
-    if (resolvedLogLevel != null) {
-      setGlobalLogLevel(resolvedLogLevel)
-    }
+    if (resolvedLogLevel != null) setGlobalLogLevel(resolvedLogLevel)
     this.logger = createLogger('PluginPipeline', resolvedLogLevel)
     this.logger.debug('initialized', { args: this.args })
   }
@@ -490,7 +450,7 @@ export class PluginPipeline {
       glob,
       collectedInputContext: ctx,
       dryRun,
-      registeredPluginNames: this.outputPlugins.map((p) => p.name),
+      registeredPluginNames: this.outputPlugins.map(p => p.name),
     }
   }
 
@@ -512,13 +472,11 @@ export class PluginPipeline {
    * Throws MissingDependencyError if a plugin depends on a non-existent plugin.
    */
   validateDependencies<T extends PluginKind>(plugins: readonly Plugin<T>[]): void {
-    const pluginNames = new Set(plugins.map((p) => p.name))
+    const pluginNames = new Set(plugins.map(p => p.name))
     for (const plugin of plugins) {
       const deps = plugin.dependsOn ?? []
       for (const dep of deps) {
-        if (!pluginNames.has(dep)) {
-          throw new MissingDependencyError(plugin.name, dep)
-        }
+        if (!pluginNames.has(dep)) throw new MissingDependencyError(plugin.name, dep)
       }
     }
   }
@@ -568,9 +526,7 @@ export class PluginPipeline {
     // Use registration order for initial queue
     const queue: string[] = []
     for (const plugin of plugins) {
-      if (inDegree.get(plugin.name) === 0) {
-        queue.push(plugin.name)
-      }
+      if (inDegree.get(plugin.name) === 0) queue.push(plugin.name)
     }
 
     // Process queue
@@ -585,27 +541,23 @@ export class PluginPipeline {
       const currentDependents = dependents.get(current) ?? []
       // Sort dependents by their original registration order
       const sortedDependents = currentDependents.sort((a, b) => {
-        const indexA = plugins.findIndex((p) => p.name === a)
-        const indexB = plugins.findIndex((p) => p.name === b)
+        const indexA = plugins.findIndex(p => p.name === a)
+        const indexB = plugins.findIndex(p => p.name === b)
         return indexA - indexB
       })
 
       for (const dependent of sortedDependents) {
         const newDegree = (inDegree.get(dependent) ?? 0) - 1
         inDegree.set(dependent, newDegree)
-        if (newDegree === 0) {
-          queue.push(dependent)
-        }
+        if (newDegree === 0) queue.push(dependent)
       }
     }
 
     // Check for cycle: if not all plugins are in result, there's a cycle
-    if (result.length !== plugins.length) {
-      // Find cycle path for error message
-      const cyclePath = this.findCyclePath(plugins, inDegree)
-      throw new CircularDependencyError(cyclePath)
-    }
+    if (result.length === plugins.length) return result
 
+    const cyclePath = this.findCyclePath(plugins, inDegree)
+    throw new CircularDependencyError(cyclePath)
     return result
   }
 
@@ -620,16 +572,14 @@ export class PluginPipeline {
     // Find nodes that are part of a cycle (in-degree > 0)
     const cycleNodes = new Set<string>()
     for (const [name, degree] of inDegree) {
-      if (degree > 0) {
-        cycleNodes.add(name)
-      }
+      if (degree > 0) cycleNodes.add(name)
     }
 
     // Build dependency map for cycle nodes
     const deps = new Map<string, string[]>()
     for (const plugin of plugins) {
       if (cycleNodes.has(plugin.name)) {
-        const pluginDeps = (plugin.dependsOn ?? []).filter((d) => cycleNodes.has(d))
+        const pluginDeps = (plugin.dependsOn ?? []).filter(d => cycleNodes.has(d))
         deps.set(plugin.name, pluginDeps)
       }
     }
@@ -644,17 +594,13 @@ export class PluginPipeline {
         path.push(node)
         return true
       }
-      if (visited.has(node)) {
-        return false
-      }
+      if (visited.has(node)) return false
 
       visited.add(node)
       path.push(node)
 
       for (const dep of deps.get(node) ?? []) {
-        if (dfs(dep)) {
-          return true
-        }
+        if (dfs(dep)) return true
       }
 
       path.pop()
@@ -694,9 +640,7 @@ export class PluginPipeline {
     dryRun: boolean = false,
     userConfig?: UserConfigFile,
   ): Promise<Partial<CollectedInputContext>> {
-    if (plugins.length === 0) {
-      return {}
-    }
+    if (plugins.length === 0) return {}
 
     // Sort plugins by dependencies (cast is safe since InputPlugin extends Plugin)
     const sortedPlugins = this.topologicalSort(plugins) as InputPlugin[]
@@ -734,9 +678,7 @@ export class PluginPipeline {
       // Execute effects before collect() if plugin has any
       // AbstractInputPlugin provides executeEffects method for effect-based plugins
       const inputPlugin = plugin as InputPlugin & { executeEffects?: (ctx: InputPluginContext, dryRun: boolean) => Promise<unknown> }
-      if (inputPlugin.executeEffects != null) {
-        await inputPlugin.executeEffects(ctx, dryRun)
-      }
+      if (inputPlugin.executeEffects != null) await inputPlugin.executeEffects(ctx, dryRun)
 
       // Execute plugin
       const output = await plugin.collect(ctx)
@@ -769,9 +711,7 @@ export class PluginPipeline {
     outputsByPlugin: Map<string, Partial<CollectedInputContext>>,
   ): Partial<CollectedInputContext> {
     const deps = plugin.dependsOn ?? []
-    if (deps.length === 0) {
-      return {}
-    }
+    if (deps.length === 0) return {}
 
     // Collect all transitive dependencies
     const allDeps = this.collectTransitiveDependencies(plugin, outputsByPlugin)
@@ -780,9 +720,7 @@ export class PluginPipeline {
     let merged: Partial<CollectedInputContext> = {}
     for (const depName of allDeps) {
       const depOutput = outputsByPlugin.get(depName)
-      if (depOutput != null) {
-        merged = this.mergeContexts(merged, depOutput)
-      }
+      if (depOutput != null) merged = this.mergeContexts(merged, depOutput)
     }
 
     return merged
@@ -801,18 +739,14 @@ export class PluginPipeline {
 
     const visit = (deps: readonly string[]): void => {
       for (const dep of deps) {
-        if (visited.has(dep)) {
-          continue
-        }
+        if (visited.has(dep)) continue
         visited.add(dep)
 
         // Get the plugin's dependencies recursively
         // We need to find the plugin to get its dependencies
         // Since we've already executed it, we can look it up
         const depOutput = outputsByPlugin.get(dep)
-        if (depOutput != null) {
-          result.push(dep)
-        }
+        if (depOutput != null) result.push(dep)
       }
     }
 
@@ -847,9 +781,8 @@ export class PluginPipeline {
           directory: addition.workspace.directory ?? workspace.directory,
           projects: Array.from(projectMap.values()),
         }
-      } else {
-        workspace = addition.workspace
       }
+      else workspace = addition.workspace
     }
 
     // Build merged arrays

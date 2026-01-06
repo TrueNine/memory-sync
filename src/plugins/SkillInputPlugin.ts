@@ -47,9 +47,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
   ): SkillMcpConfig | void {
     const mcpJsonPath = path.join(skillDir, 'mcp.json')
 
-    if (!fs.existsSync(mcpJsonPath)) {
-      return void 0
-    }
+    if (!fs.existsSync(mcpJsonPath)) return void 0
 
     if (!fs.statSync(mcpJsonPath).isFile()) {
       logger.warn('mcp.json is not a file', { skillDir })
@@ -107,9 +105,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       '.tiff',
       '.svg',
     ]
-    if (imageExtensions.includes(lowerExt)) {
-      return 'image'
-    }
+    if (imageExtensions.includes(lowerExt)) return 'image'
 
     // Code files
     const codeExtensions = [
@@ -162,9 +158,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       '.d.mts',
       '.d.cts',
     ]
-    if (codeExtensions.includes(lowerExt)) {
-      return 'code'
-    }
+    if (codeExtensions.includes(lowerExt)) return 'code'
 
     // Data files
     const dataExtensions = [
@@ -185,9 +179,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       '.gql',
       '.proto',
     ]
-    if (dataExtensions.includes(lowerExt)) {
-      return 'data'
-    }
+    if (dataExtensions.includes(lowerExt)) return 'data'
 
     // Document files
     const documentExtensions = [
@@ -206,9 +198,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       '.ods',
       '.odp',
     ]
-    if (documentExtensions.includes(lowerExt)) {
-      return 'document'
-    }
+    if (documentExtensions.includes(lowerExt)) return 'document'
 
     // Config files
     const configExtensions = [
@@ -231,9 +221,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       '.babelrc',
       '.browserslistrc',
     ]
-    if (configExtensions.includes(lowerExt)) {
-      return 'config'
-    }
+    if (configExtensions.includes(lowerExt)) return 'config'
 
     // Script files
     const scriptExtensions = [
@@ -247,9 +235,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       '.bat',
       '.cmd',
     ]
-    if (scriptExtensions.includes(lowerExt)) {
-      return 'script'
-    }
+    if (scriptExtensions.includes(lowerExt)) return 'script'
 
     // Binary files
     const binaryExtensions = [
@@ -280,9 +266,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       '.sqlite',
       '.sqlite3',
     ]
-    if (binaryExtensions.includes(lowerExt)) {
-      return 'binary'
-    }
+    if (binaryExtensions.includes(lowerExt)) return 'binary'
 
     return 'other'
   }
@@ -385,9 +369,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
           // Handle .mdx files as child docs (except skill.mdx at root)
           if (entry.name.endsWith('.mdx')) {
             // Skip skill.mdx at root level
-            if (currentRelativePath === '' && entry.name === 'skill.mdx') {
-              continue
-            }
+            if (currentRelativePath === '' && entry.name === 'skill.mdx') continue
 
             try {
               const rawContent = fs.readFileSync(filePath, 'utf-8')
@@ -416,9 +398,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             }
           } else {
             // Handle non-.mdx files as resources (except mcp.json at root)
-            if (currentRelativePath === '' && entry.name === 'mcp.json') {
-              continue
-            }
+            if (currentRelativePath === '' && entry.name === 'mcp.json') continue
 
             const ext = path.extname(entry.name)
             let content: string
@@ -451,11 +431,8 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 length,
               }
 
-              if (mimeType != null) {
-                resources.push({ ...resource, mimeType })
-              } else {
-                resources.push(resource)
-              }
+              if (mimeType != null) resources.push({ ...resource, mimeType })
+              else resources.push(resource)
             } catch (e) {
               logger.warn('failed to read resource file', { path: relativePath, error: e })
             }
@@ -477,103 +454,100 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     const skillDir = this.resolvePath(skillDirRaw, workspaceDir, shadowProjectDir)
 
     const skills: SkillPrompt[] = []
-    if (ctx.fs.existsSync(skillDir) && ctx.fs.statSync(skillDir).isDirectory()) {
-      const entries = ctx.fs.readdirSync(skillDir, { withFileTypes: true })
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const skillFilePath = ctx.path.join(skillDir, entry.name, 'skill.mdx')
-          if (ctx.fs.existsSync(skillFilePath) && ctx.fs.statSync(skillFilePath).isFile()) {
-            try {
-              const rawContent = ctx.fs.readFileSync(skillFilePath, 'utf-8')
+    if (!(ctx.fs.existsSync(skillDir) && ctx.fs.statSync(skillDir).isDirectory())) return { skills }
 
-              // Parse YAML front matter first for backward compatibility
-              const parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)
+    const entries = ctx.fs.readdirSync(skillDir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const skillFilePath = ctx.path.join(skillDir, entry.name, 'skill.mdx')
+        if (ctx.fs.existsSync(skillFilePath) && ctx.fs.statSync(skillFilePath).isFile()) {
+          try {
+            const rawContent = ctx.fs.readFileSync(skillFilePath, 'utf-8')
 
-              // Compile MDX with globalScope and extract metadata from exports
-              const compileResult = await mdxToMd(rawContent, {
-                globalScope,
-                extractMetadata: true,
-                basePath: ctx.path.join(skillDir, entry.name),
-              })
+            // Parse YAML front matter first for backward compatibility
+            const parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)
 
-              // Merge YAML front matter with export metadata (export takes priority)
-              const mergedFrontMatter: SkillYAMLFrontMatter = {
-                ...parsed.yamlFrontMatter,
-                ...compileResult.metadata.fields,
-              } as SkillYAMLFrontMatter
+            // Compile MDX with globalScope and extract metadata from exports
+            const compileResult = await mdxToMd(rawContent, {
+              globalScope,
+              extractMetadata: true,
+              basePath: ctx.path.join(skillDir, entry.name),
+            })
 
-              // Validate merged metadata
-              const validationResult = validateSkillMetadata(
-                mergedFrontMatter as Record<string, unknown>,
-                skillFilePath,
-              )
+            // Merge YAML front matter with export metadata (export takes priority)
+            const mergedFrontMatter: SkillYAMLFrontMatter = {
+              ...parsed.yamlFrontMatter,
+              ...compileResult.metadata.fields,
+            } as SkillYAMLFrontMatter
 
-              // Log validation warnings
-              for (const warning of validationResult.warnings) {
-                logger.debug(warning)
-              }
+            // Validate merged metadata
+            const validationResult = validateSkillMetadata(
+              mergedFrontMatter as Record<string, unknown>,
+              skillFilePath,
+            )
 
-              // Throw error if validation fails (missing required fields)
-              if (!validationResult.valid) {
-                throw new MetadataValidationError(validationResult.errors, skillFilePath)
-              }
-
-              // Use compiled content
-              const content = compileResult.content
-
-              const skillAbsoluteDir = ctx.path.join(skillDir, entry.name)
-
-              // Read MCP configuration (mcp.json)
-              const mcpConfig = this.readMcpConfig(skillAbsoluteDir, ctx.fs, logger)
-
-              // Recursively scan for child docs and resources
-              const { childDocs, resources } = this.scanSkillDirectory(
-                skillAbsoluteDir,
-                ctx.fs,
-                logger,
-              )
-
-              // Log metadata source for debugging
-              logger.debug('skill metadata extracted', {
-                skill: entry.name,
-                source: compileResult.metadata.source,
-                hasYaml: parsed.yamlFrontMatter != null,
-                hasExport: Object.keys(compileResult.metadata.fields).length > 0,
-              })
-
-              skills.push({
-                type: PromptKind.Skill,
-                content,
-                length: content.length,
-                filePathKind: FilePathKind.Relative,
-                yamlFrontMatter: mergedFrontMatter.name != null
-                  ? mergedFrontMatter
-                  : { name: entry.name, description: '' } as SkillYAMLFrontMatter,
-                ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
-                markdownAst: parsed.markdownAst,
-                markdownContents: parsed.markdownContents,
-                // Include MCP configuration if found
-                ...(mcpConfig != null && { mcpConfig }),
-                // Include child docs if any were found
-                ...(childDocs.length > 0 && { childDocs }),
-                // Include resources if any were found
-                ...(resources.length > 0 && { resources }),
-                dir: {
-                  pathKind: FilePathKind.Relative,
-                  path: entry.name,
-                  basePath: skillDir,
-                  getDirectoryName: () => entry.name,
-                  getAbsolutePath: () => path.join(skillDir, entry.name),
-                },
-              })
-            } catch (e) {
-              logger.error('failed to parse skill', { file: skillFilePath, error: e })
+            // Log validation warnings
+            for (const warning of validationResult.warnings) {
+              logger.debug(warning)
             }
+
+            // Throw error if validation fails (missing required fields)
+            if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, skillFilePath)
+
+            // Use compiled content
+            const content = compileResult.content
+
+            const skillAbsoluteDir = ctx.path.join(skillDir, entry.name)
+
+            // Read MCP configuration (mcp.json)
+            const mcpConfig = this.readMcpConfig(skillAbsoluteDir, ctx.fs, logger)
+
+            // Recursively scan for child docs and resources
+            const { childDocs, resources } = this.scanSkillDirectory(
+              skillAbsoluteDir,
+              ctx.fs,
+              logger,
+            )
+
+            // Log metadata source for debugging
+            logger.debug('skill metadata extracted', {
+              skill: entry.name,
+              source: compileResult.metadata.source,
+              hasYaml: parsed.yamlFrontMatter != null,
+              hasExport: Object.keys(compileResult.metadata.fields).length > 0,
+            })
+
+            skills.push({
+              type: PromptKind.Skill,
+              content,
+              length: content.length,
+              filePathKind: FilePathKind.Relative,
+              yamlFrontMatter: mergedFrontMatter.name != null
+                ? mergedFrontMatter
+                : { name: entry.name, description: '' } as SkillYAMLFrontMatter,
+              ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
+              markdownAst: parsed.markdownAst,
+              markdownContents: parsed.markdownContents,
+              // Include MCP configuration if found
+              ...(mcpConfig != null && { mcpConfig }),
+              // Include child docs if any were found
+              ...(childDocs.length > 0 && { childDocs }),
+              // Include resources if any were found
+              ...(resources.length > 0 && { resources }),
+              dir: {
+                pathKind: FilePathKind.Relative,
+                path: entry.name,
+                basePath: skillDir,
+                getDirectoryName: () => entry.name,
+                getAbsolutePath: () => path.join(skillDir, entry.name),
+              },
+            })
+          } catch (e) {
+            logger.error('failed to parse skill', { file: skillFilePath, error: e })
           }
         }
       }
     }
-
     return { skills }
   }
 }

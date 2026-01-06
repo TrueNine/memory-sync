@@ -230,9 +230,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
       try {
         const result = await effect.handler(ctx)
-        if (result.success) {
-          this.log.trace({ action: 'effect', name: effect.name, status: 'success' })
-        } else {
+        if (result.success) this.log.trace({ action: 'effect', name: effect.name, status: 'success' })
+        else {
           const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
           this.log.error({ action: 'effect', name: effect.name, status: 'failed', error: errorMsg })
         }
@@ -274,9 +273,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
       try {
         const result = await effect.handler(ctx)
-        if (result.success) {
-          this.log.trace({ action: 'effect', name: effect.name, status: 'success' })
-        } else {
+        if (result.success) this.log.trace({ action: 'effect', name: effect.name, status: 'success' })
+        else {
           const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
           this.log.error({ action: 'effect', name: effect.name, status: 'failed', error: errorMsg })
         }
@@ -323,9 +321,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    * ```
    */
   protected toRelativePath(p: Path): RelativePath {
-    if (this.isRelativePath(p)) {
-      return p
-    }
+    if (this.isRelativePath(p)) return p
     // Fallback for non-relative paths
     return {
       pathKind: FilePathKind.Relative,
@@ -354,19 +350,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    */
   protected resolveFullPath(targetPath: Path, outputFileName?: string): string {
     let dirPath: string
-    if (targetPath.pathKind === FilePathKind.Absolute) {
-      dirPath = targetPath.path
-    } else if (this.isRelativePath(targetPath)) {
-      dirPath = path.resolve(targetPath.basePath, targetPath.path)
-    } else {
-      dirPath = path.resolve(process.cwd(), targetPath.path)
-    }
+    if (targetPath.pathKind === FilePathKind.Absolute) dirPath = targetPath.path
+    else if (this.isRelativePath(targetPath)) dirPath = path.resolve(targetPath.basePath, targetPath.path)
+    else dirPath = path.resolve(process.cwd(), targetPath.path)
 
     // Append the output file name if provided or if default is set
     const fileName = outputFileName ?? this.outputFileName
-    if (fileName) {
-      return path.join(dirPath, fileName)
-    }
+    if (fileName) return path.join(dirPath, fileName)
     return dirPath
   }
 
@@ -568,9 +558,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    * ```
    */
   protected ensureDirectory(dir: string): void {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   }
 
   /**
@@ -607,9 +595,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   protected readdirSync(dir: string, options: { withFileTypes: true }): fs.Dirent[]
   protected readdirSync(dir: string): string[]
   protected readdirSync(dir: string, options?: { withFileTypes?: boolean }): fs.Dirent[] | string[] {
-    if (options?.withFileTypes === true) {
-      return fs.readdirSync(dir, { withFileTypes: true })
-    }
+    if (options?.withFileTypes === true) return fs.readdirSync(dir, { withFileTypes: true })
     return fs.readdirSync(dir)
   }
 
@@ -750,14 +736,10 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     rawFrontMatter?: string,
   ): string {
     // If we have parsed front matter, use it
-    if (frontMatter != null && Object.keys(frontMatter).length > 0) {
-      return buildMarkdownWithFrontMatter(frontMatter, content)
-    }
+    if (frontMatter != null && Object.keys(frontMatter).length > 0) return buildMarkdownWithFrontMatter(frontMatter, content)
 
     // If we have raw front matter but parsing failed, use raw
-    if (rawFrontMatter != null && rawFrontMatter.length > 0) {
-      return `---\n${rawFrontMatter}\n---\n${content}`
-    }
+    if (rawFrontMatter != null && rawFrontMatter.length > 0) return `---\n${rawFrontMatter}\n---\n${content}`
 
     // No front matter
     return content
@@ -821,17 +803,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     } = options ?? {}
 
     // Skip if global content is undefined/null or empty/whitespace when skipIfEmpty is true
-    if (skipIfEmpty && (globalContent == null || globalContent.trim().length === 0)) {
-      return projectContent
-    }
+    if (skipIfEmpty && (globalContent == null || globalContent.trim().length === 0)) return projectContent
 
     // If global content is null/undefined but skipIfEmpty is false, treat as empty string
     const effectiveGlobalContent = globalContent ?? ''
 
     // Combine based on position
-    if (position === 'after') {
-      return `${projectContent}${separator}${effectiveGlobalContent}`
-    }
+    if (position === 'after') return `${projectContent}${separator}${effectiveGlobalContent}`
 
     // Default: 'before'
     return `${effectiveGlobalContent}${separator}${projectContent}`
@@ -873,9 +851,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const { includeSeriesPrefix = true, seriesSeparator = '_' } = options ?? {}
 
     // If prefix should not be included or series is not present, return just commandName
-    if (!includeSeriesPrefix || cmd.series == null) {
-      return `${cmd.commandName}.md`
-    }
+    if (!includeSeriesPrefix || cmd.series == null) return `${cmd.commandName}.md`
 
     return `${cmd.series}${seriesSeparator}${cmd.commandName}.md`
   }
@@ -907,15 +883,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const seriesSeparator = pluginOverride?.seriesSeparator
 
     // Build result object conditionally to avoid assigning undefined to readonly properties
-    if (includeSeriesPrefix != null && seriesSeparator != null) {
-      return { includeSeriesPrefix, seriesSeparator }
-    }
-    if (includeSeriesPrefix != null) {
-      return { includeSeriesPrefix }
-    }
-    if (seriesSeparator != null) {
-      return { seriesSeparator }
-    }
+    if (includeSeriesPrefix != null && seriesSeparator != null) return { includeSeriesPrefix, seriesSeparator }
+    if (includeSeriesPrefix != null) return { includeSeriesPrefix }
+    if (seriesSeparator != null) return { seriesSeparator }
     return {}
   }
 
@@ -947,15 +917,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const seriesSeparator = seriesOptions.seriesSeparator ?? additionalOptions?.seriesSeparator
 
     // Build result object conditionally to avoid assigning undefined to readonly properties
-    if (includeSeriesPrefix != null && seriesSeparator != null) {
-      return { includeSeriesPrefix, seriesSeparator }
-    }
-    if (includeSeriesPrefix != null) {
-      return { includeSeriesPrefix }
-    }
-    if (seriesSeparator != null) {
-      return { seriesSeparator }
-    }
+    if (includeSeriesPrefix != null && seriesSeparator != null) return { includeSeriesPrefix, seriesSeparator }
+    if (includeSeriesPrefix != null) return { includeSeriesPrefix }
+    if (seriesSeparator != null) return { seriesSeparator }
     return {}
   }
 
@@ -978,9 +942,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    */
   protected shouldSkipDueToPlugin(ctx: OutputWriteContext, precedingPluginName: string): boolean {
     const registeredPlugins = ctx.registeredPluginNames
-    if (registeredPlugins == null) {
-      return false
-    }
+    if (registeredPlugins == null) return false
     return registeredPlugins.includes(precedingPluginName)
   }
 
@@ -999,9 +961,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    * ```
    */
   async onWriteComplete(ctx: OutputWriteContext, results: WriteResults): Promise<void> {
-    const success = results.files.filter((r) => r.success).length
-    const skipped = results.files.filter((r) => r.skipped).length
-    const failed = results.files.filter((r) => !r.success && !r.skipped).length
+    const success = results.files.filter(r => r.success).length
+    const skipped = results.files.filter(r => r.skipped).length
+    const failed = results.files.filter(r => !r.success && !r.skipped).length
 
     this.log.trace({ action: ctx.dryRun === true ? 'dryRun' : 'complete', type: 'writeSummary', success, skipped, failed })
 
@@ -1059,9 +1021,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
     // Check cache first
     const cached = this.registryWriterCache.get(cacheKey)
-    if (cached != null) {
-      return cached as T
-    }
+    if (cached != null) return cached as T
 
     // Create new instance and cache it
     const writer = new WriterClass(this.log)

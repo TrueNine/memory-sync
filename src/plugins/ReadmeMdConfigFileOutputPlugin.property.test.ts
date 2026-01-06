@@ -132,15 +132,15 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
   describe('property 3: Output Path Mapping', () => {
     // Generate valid project names
     const projectNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generate valid subdirectory names
     const subdirNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generate README content
     const readmeContentArb = fc.string({ minLength: 1, maxLength: 100 })
-      .filter((s) => s.trim().length > 0)
+      .filter(s => s.trim().length > 0)
 
     it('should register correct output paths for root READMEs', async () => {
       await fc.assert(
@@ -252,15 +252,15 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
   describe('property 4: Dry-Run Idempotence', () => {
     // Generate valid project names
     const projectNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generate valid subdirectory names
     const subdirNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generate README content
     const readmeContentArb = fc.string({ minLength: 1, maxLength: 100 })
-      .filter((s) => s.trim().length > 0)
+      .filter(s => s.trim().length > 0)
 
     it('should not create any files in dry-run mode', async () => {
       await fc.assert(
@@ -300,7 +300,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
           readmeContentArb,
           async (projectNames, content) => {
             const uniqueProjects = [...new Set(projectNames)]
-            const readmes = uniqueProjects.map((name) =>
+            const readmes = uniqueProjects.map(name =>
               createReadmePrompt(name, content, true, tempDir),
             )
             const ctx = createMockWriteContext(readmes, tempDir, true)
@@ -362,15 +362,15 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
   describe('property 5: Clean Operation Completeness', () => {
     // Generate valid project names
     const projectNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generate valid subdirectory names
     const subdirNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z][a-z0-9]*$/i.test(s))
+      .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generate README content
     const readmeContentArb = fc.string({ minLength: 1, maxLength: 100 })
-      .filter((s) => s.trim().length > 0)
+      .filter(s => s.trim().length > 0)
 
     it('should register all output file paths for cleanup', async () => {
       await fc.assert(
@@ -379,7 +379,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
           readmeContentArb,
           async (projectNames, content) => {
             const uniqueProjects = [...new Set(projectNames)]
-            const readmes = uniqueProjects.map((name) =>
+            const readmes = uniqueProjects.map(name =>
               createReadmePrompt(name, content, true, tempDir),
             )
             const ctx = createMockPluginContext(readmes, tempDir)
@@ -415,8 +415,8 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             expect(registeredPaths.length).toBe(2)
 
             // Find root and child paths
-            const rootPath = registeredPaths.find((p) => p.path === path.join(projectName, 'README.md'))
-            const childPath = registeredPaths.find((p) => p.path === path.join(projectName, subdir, 'README.md'))
+            const rootPath = registeredPaths.find(p => p.path === path.join(projectName, 'README.md'))
+            const childPath = registeredPaths.find(p => p.path === path.join(projectName, subdir, 'README.md'))
 
             expect(rootPath).toBeDefined()
             expect(childPath).toBeDefined()

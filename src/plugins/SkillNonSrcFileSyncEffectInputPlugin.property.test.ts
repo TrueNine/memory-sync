@@ -54,8 +54,8 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
 
 // Generators
 const validFileNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
-  .filter((s) => /^[\w-]+$/.test(s))
-  .map((s) => s.toLowerCase())
+  .filter(s => /^[\w-]+$/.test(s))
+  .map(s => s.toLowerCase())
 
 const fileExtensionGen = fc.constantFrom('.ts', '.js', '.json', '.sh', '.txt', '.md', '.yaml', '.yml')
 
@@ -64,10 +64,10 @@ const fileContentGen = fc.string({ minLength: 0, maxLength: 1000 })
 // Generate a non-.cn.mdx filename
 const nonSrcMdFileNameGen = fc.tuple(validFileNameGen, fileExtensionGen)
   .map(([name, ext]) => `${name}${ext}`)
-  .filter((name) => !name.endsWith('.cn.mdx'))
+  .filter(name => !name.endsWith('.cn.mdx'))
 
 // Generate a .cn.mdx filename
-const srcMdFileNameGen = validFileNameGen.map((name) => `${name}.cn.mdx`)
+const srcMdFileNameGen = validFileNameGen.map(name => `${name}.cn.mdx`)
 
 // Generate skill directory structure
 interface SkillFile {
@@ -100,18 +100,16 @@ const skillStructureGen: fc.Arbitrary<SkillStructure> = fc.record({
     ),
     { minLength: 1, maxLength: 5 },
   ),
-}).map((skill) => {
+}).map(skill => {
   // Deduplicate files by relativePath, keeping the first occurrence
   const seen = new Set<string>()
-  const uniqueFiles = skill.files.filter((file) => {
-    if (seen.has(file.relativePath)) {
-      return false
-    }
+  const uniqueFiles = skill.files.filter(file => {
+    if (seen.has(file.relativePath)) return false
     seen.add(file.relativePath)
     return true
   })
   return { ...skill, files: uniqueFiles }
-}).filter((skill) => skill.files.length > 0)
+}).filter(skill => skill.files.length > 0)
 
 describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
   /**
@@ -127,7 +125,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(skillStructureGen, { minLength: 1, maxLength: 3 }),
-          async (skills) => {
+          async skills => {
             // Create isolated temp directory for this property run
             const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-sync-p1-'))
 
@@ -173,9 +171,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               }
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) {
-                fs.rmSync(tempDir, { recursive: true, force: true })
-              }
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
             }
           },
         ),
@@ -196,8 +192,8 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
     it('should skip files with identical content and not modify them', async () => {
       await fc.assert(
         fc.asyncProperty(
-          skillStructureGen.filter((s) => s.files.some((f) => !f.isSrcMd)),
-          async (skill) => {
+          skillStructureGen.filter(s => s.files.some(f => !f.isSrcMd)),
+          async skill => {
             // Create isolated temp directory for this property run
             const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-sync-p3a-'))
 
@@ -213,7 +209,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               fs.mkdirSync(skillSrcDir, { recursive: true })
               fs.mkdirSync(skillDistDir, { recursive: true })
 
-              const nonSrcMdFiles = skill.files.filter((f) => !f.isSrcMd)
+              const nonSrcMdFiles = skill.files.filter(f => !f.isSrcMd)
 
               // Create source files and pre-existing dist files with identical content
               for (const file of nonSrcMdFiles) {
@@ -241,9 +237,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               }
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) {
-                fs.rmSync(tempDir, { recursive: true, force: true })
-              }
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
             }
           },
         ),
@@ -254,8 +248,8 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
     it('should be idempotent - running twice produces same result', async () => {
       await fc.assert(
         fc.asyncProperty(
-          skillStructureGen.filter((s) => s.files.some((f) => !f.isSrcMd)),
-          async (skill) => {
+          skillStructureGen.filter(s => s.files.some(f => !f.isSrcMd)),
+          async skill => {
             // Create isolated temp directory for this property run
             const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-sync-p3b-'))
 
@@ -284,7 +278,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               const result2 = await effectMethod(ctx)
 
               // Verify: Second run should skip all files (idempotence)
-              const nonSrcMdFiles = skill.files.filter((f) => !f.isSrcMd)
+              const nonSrcMdFiles = skill.files.filter(f => !f.isSrcMd)
               expect(result2.copiedFiles.length).toBe(0)
               expect(result2.skippedFiles.length).toBe(nonSrcMdFiles.length)
 
@@ -299,9 +293,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               }
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) {
-                fs.rmSync(tempDir, { recursive: true, force: true })
-              }
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
             }
           },
         ),

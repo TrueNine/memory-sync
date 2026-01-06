@@ -91,17 +91,15 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
     // Register clean effect to remove local powers from registry
     // Requirements: 6.1, 6.2
-    this.registerCleanEffect('registry-cleanup', async (ctx) => {
+    this.registerCleanEffect('registry-cleanup', async ctx => {
       const registryWriter = this.getRegistryWriter(KiroPowersRegistryWriter)
       const success = registryWriter.unregisterLocalPowers(ctx.dryRun)
-      if (success) {
-        return { success: true, description: 'Reset registry to official state' }
-      }
+      if (success) return { success: true, description: 'Reset registry to official state' }
       return { success: false, error: new Error('Failed to clean registry'), description: 'Failed to reset registry' }
     })
 
     // Register clean effect to reset global mcp.json to empty shell
-    this.registerCleanEffect('mcp-settings-cleanup', async (ctx) => {
+    this.registerCleanEffect('mcp-settings-cleanup', async ctx => {
       const settingsDir = this.getGlobalSettingsDir()
       const mcpPath = this.joinPath(settingsDir, MCP_CONFIG_FILE)
 
@@ -144,9 +142,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const { projects } = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       // Register <project>/.kiro/steering/ for cleanup
       const steeringDir = this.joinPath(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR)
@@ -167,9 +163,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const { projects } = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       // Register steering files for each childMemoryPrompt
       if (project.childMemoryPrompts != null) {
@@ -243,13 +237,11 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
    */
   private listInstalledPowers(powersDir: string): string[] {
     try {
-      if (!this.existsSync(powersDir)) {
-        return []
-      }
+      if (!this.existsSync(powersDir)) return []
       const entries = this.readdirSync(powersDir, { withFileTypes: true })
       return entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name)
+        .filter(entry => entry.isDirectory())
+        .map(entry => entry.name)
     } catch {
       this.log.debug({ action: 'listInstalledPowers', error: 'Failed to read powers directory' })
       return []
@@ -286,93 +278,89 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Register skill power files (POWER.md, mcp.json, and reference documents)
-    if (skills != null) {
-      const powersDir = this.getKiroPowersDir()
-      for (const skill of skills) {
-        const skillName = skill.yamlFrontMatter.name
-        const skillPowerDir = this.joinPath(powersDir, skillName)
+    if (skills == null) return results
 
-        // Register POWER.md
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: POWER_FILE_NAME,
-          basePath: skillPowerDir,
-          getDirectoryName: () => skillName,
-          getAbsolutePath: () => this.joinPath(skillPowerDir, POWER_FILE_NAME),
-        })
+    const powersDir = this.getKiroPowersDir()
+    for (const skill of skills) {
+      const skillName = skill.yamlFrontMatter.name
+      const skillPowerDir = this.joinPath(powersDir, skillName)
 
-        // Register mcp.json if skill has MCP configuration
-        if (skill.mcpConfig != null) {
-          results.push({
-            pathKind: FilePathKind.Relative,
-            path: MCP_CONFIG_FILE,
-            basePath: skillPowerDir,
-            getDirectoryName: () => skillName,
-            getAbsolutePath: () => this.joinPath(skillPowerDir, MCP_CONFIG_FILE),
-          })
-        }
+      // Register POWER.md
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: POWER_FILE_NAME,
+        basePath: skillPowerDir,
+        getDirectoryName: () => skillName,
+        getAbsolutePath: () => this.joinPath(skillPowerDir, POWER_FILE_NAME),
+      })
 
-        // Register reference documents in steering/ subdirectory (convert .mdx to .md)
-        if (skill.childDocs != null) {
-          const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
-          for (const refDoc of skill.childDocs) {
-            const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
-            results.push({
-              pathKind: FilePathKind.Relative,
-              path: this.joinPath(STEERING_SUBDIR, refDocFileName),
-              basePath: skillPowerDir,
-              getDirectoryName: () => STEERING_SUBDIR,
-              getAbsolutePath: () => this.joinPath(steeringDir, refDocFileName),
-            })
-          }
-        }
-
-        // Register resource files in steering/ subdirectory (non-.md files like .kt, .java, .sql, etc.)
-        if (skill.resources != null) {
-          const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
-          for (const resource of skill.resources) {
-            results.push({
-              pathKind: FilePathKind.Relative,
-              path: this.joinPath(STEERING_SUBDIR, resource.relativePath),
-              basePath: skillPowerDir,
-              getDirectoryName: () => STEERING_SUBDIR,
-              getAbsolutePath: () => this.joinPath(steeringDir, resource.relativePath),
-            })
-          }
-        }
-      }
-
-      // Register global settings/mcp.json if any skill has MCP configuration
-      const hasAnyMcpConfig = skills.some((s) => s.mcpConfig != null)
-      if (hasAnyMcpConfig) {
-        const settingsDir = this.getGlobalSettingsDir()
+      // Register mcp.json if skill has MCP configuration
+      if (skill.mcpConfig != null) {
         results.push({
           pathKind: FilePathKind.Relative,
           path: MCP_CONFIG_FILE,
-          basePath: settingsDir,
-          getDirectoryName: () => SETTINGS_SUBDIR,
-          getAbsolutePath: () => this.joinPath(settingsDir, MCP_CONFIG_FILE),
+          basePath: skillPowerDir,
+          getDirectoryName: () => skillName,
+          getAbsolutePath: () => this.joinPath(skillPowerDir, MCP_CONFIG_FILE),
         })
       }
-    }
 
+      // Register reference documents in steering/ subdirectory (convert .mdx to .md)
+      if (skill.childDocs != null) {
+        const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
+        for (const refDoc of skill.childDocs) {
+          const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+          results.push({
+            pathKind: FilePathKind.Relative,
+            path: this.joinPath(STEERING_SUBDIR, refDocFileName),
+            basePath: skillPowerDir,
+            getDirectoryName: () => STEERING_SUBDIR,
+            getAbsolutePath: () => this.joinPath(steeringDir, refDocFileName),
+          })
+        }
+      }
+
+      // Register resource files in steering/ subdirectory (non-.md files like .kt, .java, .sql, etc.)
+      if (skill.resources != null) {
+        const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
+        for (const resource of skill.resources) {
+          results.push({
+            pathKind: FilePathKind.Relative,
+            path: this.joinPath(STEERING_SUBDIR, resource.relativePath),
+            basePath: skillPowerDir,
+            getDirectoryName: () => STEERING_SUBDIR,
+            getAbsolutePath: () => this.joinPath(steeringDir, resource.relativePath),
+          })
+        }
+      }
+    }
+    const hasAnyMcpConfig = skills.some(s => s.mcpConfig != null)
+    if (!hasAnyMcpConfig) return results
+
+    const settingsDir = this.getGlobalSettingsDir()
+    results.push({
+      pathKind: FilePathKind.Relative,
+      path: MCP_CONFIG_FILE,
+      basePath: settingsDir,
+      getDirectoryName: () => SETTINGS_SUBDIR,
+      getAbsolutePath: () => this.joinPath(settingsDir, MCP_CONFIG_FILE),
+    })
     return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { workspace, globalMemory, fastCommands, skills } = ctx.collectedInputContext
     const hasChildPrompts = workspace.projects.some(
-      (p) => (p.childMemoryPrompts?.length ?? 0) > 0,
+      p => (p.childMemoryPrompts?.length ?? 0) > 0,
     )
     const hasGlobalMemory = globalMemory != null
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
 
-    if (!hasChildPrompts && !hasGlobalMemory && !hasFastCommands && !hasSkills) {
-      this.log.trace({ action: 'skip', reason: 'noOutputs' })
-      return false
-    }
+    if (hasChildPrompts && !hasGlobalMemory && !hasFastCommands && !hasSkills) return true
 
+    this.log.trace({ action: 'skip', reason: 'noOutputs' })
+    return false
     return true
   }
 
@@ -382,9 +370,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const dirResults: WriteResult[] = []
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       // Write childMemoryPrompts as steering files
       if (project.childMemoryPrompts != null) {
@@ -442,24 +428,17 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Write skills as Kiro Powers and register in registry
-    if (skills != null && skills.length > 0) {
-      this.log.debug(`Processing ${skills.length} skills as Kiro Powers`)
-      for (const skill of skills) {
-        const { fileResults: skillFileResults, registryResult } = await this.writeSkillAsPower(ctx, skill)
-        fileResults.push(...skillFileResults)
-        registryResults.push(registryResult)
-      }
+    if (skills == null && skills.length > 0) return { files: fileResults, dirs: dirResults }
 
-      // Write global settings/mcp.json with all skill MCP configurations
-      const globalMcpResult = await this.writeGlobalMcpSettings(ctx, skills)
-      if (globalMcpResult != null) {
-        fileResults.push(globalMcpResult)
-      }
-
-      // Log registry operation results (Requirements 6.4, 6.5)
-      this.logRegistryResults(registryResults, ctx.dryRun)
+    this.log.debug(`Processing ${skills.length} skills as Kiro Powers`)
+    for (const skill of skills) {
+      const { fileResults: skillFileResults, registryResult } = await this.writeSkillAsPower(ctx, skill)
+      fileResults.push(...skillFileResults)
+      registryResults.push(registryResult)
     }
-
+    const globalMcpResult = await this.writeGlobalMcpSettings(ctx, skills)
+    if (globalMcpResult != null) fileResults.push(globalMcpResult)
+    this.logRegistryResults(registryResults, ctx.dryRun)
     return { files: fileResults, dirs: dirResults }
   }
 
@@ -490,9 +469,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const powersMcpServers: Record<string, unknown> = {}
 
     for (const skill of skills) {
-      if (skill.mcpConfig == null) {
-        continue
-      }
+      if (skill.mcpConfig == null) continue
 
       const powerName = skill.yamlFrontMatter.name
       const mcpServers = skill.mcpConfig.mcpServers
@@ -505,9 +482,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Skip if no MCP configurations
-    if (Object.keys(powersMcpServers).length === 0) {
-      return null
-    }
+    if (Object.keys(powersMcpServers).length === 0) return null
 
     const settingsDir = this.getGlobalSettingsDir()
     const fullPath = this.joinPath(settingsDir, MCP_CONFIG_FILE)
@@ -556,20 +531,18 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
    * @see Requirements 6.4, 6.5
    */
   private logRegistryResults(results: readonly RegistryOperationResult[], dryRun?: boolean): void {
-    const successCount = results.filter((r) => r.success).length
-    const failCount = results.filter((r) => !r.success).length
+    const successCount = results.filter(r => r.success).length
+    const failCount = results.filter(r => !r.success).length
 
-    if (successCount > 0) {
-      this.log.trace({ action: dryRun === true ? 'dryRun' : 'register', type: 'registrySummary', successCount })
-    }
+    if (successCount > 0) this.log.trace({ action: dryRun === true ? 'dryRun' : 'register', type: 'registrySummary', successCount })
 
-    if (failCount > 0) {
-      this.log.error({ action: 'register', type: 'registrySummary', failCount })
-      for (const result of results) {
-        if (!result.success) {
-          const errMsg = result.error?.message ?? 'Unknown error'
-          this.log.error({ action: 'register', type: 'registryEntry', entryName: result.entryName, error: errMsg })
-        }
+    if (failCount <= 0) return
+
+    this.log.error({ action: 'register', type: 'registrySummary', failCount })
+    for (const result of results) {
+      if (!result.success) {
+        const errMsg = result.error?.message ?? 'Unknown error'
+        this.log.error({ action: 'register', type: 'registryEntry', entryName: result.entryName, error: errMsg })
       }
     }
   }

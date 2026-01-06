@@ -34,9 +34,7 @@ export function parseVersion(version: string): [number, number, number] | null {
   // Remove leading 'v' if present
   const cleaned = version.replace(/^v/, '')
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec(cleaned)
-  if (match == null) {
-    return null
-  }
+  if (match == null) return null
   return [
     Number.parseInt(match[1]!, 10),
     Number.parseInt(match[2]!, 10),
@@ -52,17 +50,11 @@ export function compareVersions(a: string, b: string): -1 | 0 | 1 {
   const parsedA = parseVersion(a)
   const parsedB = parseVersion(b)
 
-  if (parsedA == null || parsedB == null) {
-    return 0
-  }
+  if (parsedA == null || parsedB == null) return 0
 
   for (let i = 0; i < 3; i++) {
-    if (parsedA[i]! < parsedB[i]!) {
-      return -1
-    }
-    if (parsedA[i]! > parsedB[i]!) {
-      return 1
-    }
+    if (parsedA[i]! < parsedB[i]!) return -1
+    if (parsedA[i]! > parsedB[i]!) return 1
   }
   return 0
 }
@@ -81,9 +73,7 @@ export async function fetchLatestVersion(): Promise<{ version: string } | { erro
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
   // Unref the timeout so it doesn't prevent process exit
-  if (typeof timeoutId === 'object' && 'unref' in timeoutId) {
-    timeoutId.unref()
-  }
+  if (typeof timeoutId === 'object' && 'unref' in timeoutId) timeoutId.unref()
 
   try {
     const response = await fetch(getNpmRegistryUrl(), {
@@ -92,20 +82,14 @@ export async function fetchLatestVersion(): Promise<{ version: string } | { erro
     })
     clearTimeout(timeoutId)
 
-    if (!response.ok) {
-      return { error: `HTTP ${response.status}: ${response.statusText}` }
-    }
+    if (!response.ok) return { error: `HTTP ${response.status}: ${response.statusText}` }
     const data = await response.json() as { version?: string }
-    if (data.version == null) {
-      return { error: 'Invalid response: missing version field' }
-    }
+    if (data.version == null) return { error: 'Invalid response: missing version field' }
     return { version: data.version }
   } catch (err) {
     clearTimeout(timeoutId)
     if (err instanceof Error) {
-      if (err.name === 'TimeoutError' || err.name === 'AbortError') {
-        return { error: `Request timeout after ${FETCH_TIMEOUT_MS}ms` }
-      }
+      if (err.name === 'TimeoutError' || err.name === 'AbortError') return { error: `Request timeout after ${FETCH_TIMEOUT_MS}ms` }
       return { error: err.message }
     }
     return { error: 'Unknown network error' }
@@ -148,12 +132,8 @@ export async function checkVersion(): Promise<VersionCheckResult> {
   const remoteVersion = fetchResult.version
   const comparison = compareVersions(localVersion, remoteVersion)
 
-  if (comparison < 0) {
-    return { status: 'outdated', localVersion, remoteVersion }
-  }
-  if (comparison > 0) {
-    return { status: 'development', localVersion, remoteVersion }
-  }
+  if (comparison < 0) return { status: 'outdated', localVersion, remoteVersion }
+  if (comparison > 0) return { status: 'development', localVersion, remoteVersion }
   return { status: 'current', localVersion, remoteVersion }
 }
 
@@ -170,18 +150,12 @@ export function logVersionCheckResult(result: VersionCheckResult, logger: ILogge
       )
       break
     case 'current':
-      if (result.error != null) {
-        logger.error(`Version check failed: ${result.error}`)
-      } else {
-        logger.info(`Version ${localVersion} is up to date.`)
-      }
+      if (result.error != null) logger.error(`Version check failed: ${result.error}`)
+      else logger.info(`Version ${localVersion} is up to date.`)
       break
     case 'development':
-      if (remoteVersion != null) {
-        logger.info(`Development version detected: ${localVersion} > ${remoteVersion}. Thanks for contributing!`)
-      } else {
-        logger.debug('Running in development mode, version check skipped.')
-      }
+      if (remoteVersion != null) logger.info(`Development version detected: ${localVersion} > ${remoteVersion}. Thanks for contributing!`)
+      else logger.debug('Running in development mode, version check skipped.')
       break
   }
 }
@@ -201,18 +175,14 @@ export function shouldCheckVersion(): boolean {
  * and uses unref'd timers to ensure the process can exit normally
  */
 export function startupVersionCheck(logger: ILogger): void {
-  if (!shouldCheckVersion()) {
-    return
-  }
+  if (!shouldCheckVersion()) return
 
   // Run version check in background without blocking process exit
   // The promise is intentionally not awaited
   checkVersion()
-    .then((result) => {
+    .then(result => {
       // Log warnings for outdated versions or errors on startup
-      if (result.status === 'outdated' || result.error != null) {
-        logVersionCheckResult(result, logger)
-      }
+      if (result.status === 'outdated' || result.error != null) logVersionCheckResult(result, logger)
     })
     .catch((err: unknown) => {
       const message = err instanceof Error ? err.message : 'Unknown error'

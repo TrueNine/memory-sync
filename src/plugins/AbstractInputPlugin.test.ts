@@ -143,7 +143,7 @@ describe('abstractInputPlugin', () => {
       const results = await plugin.executeEffects(ctx)
 
       expect(results).toHaveLength(3)
-      expect(results.every((r) => r.success)).toBe(true)
+      expect(results.every(r => r.success)).toBe(true)
       expect(executionOrder).toEqual(['first', 'second', 'third'])
     })
 
@@ -416,7 +416,7 @@ describe('cleanStaleDistFiles', () => {
       { srcDir, distDir, logger: mockLogger },
     )
 
-    expect(result.deletedFiles.some((f) => f.includes('stale-dir'))).toBe(true)
+    expect(result.deletedFiles.some(f => f.includes('stale-dir'))).toBe(true)
     expect(fs.existsSync(path.join(distDir, 'stale-dir'))).toBe(false)
   })
 
@@ -504,7 +504,7 @@ describe('syncDirectory', () => {
       { srcDir, targetDir, logger: mockLogger },
     )
 
-    expect(result.copiedFiles.some((f) => f.includes('nested.md'))).toBe(true)
+    expect(result.copiedFiles.some(f => f.includes('nested.md'))).toBe(true)
     expect(fs.existsSync(path.join(targetDir, 'sub', 'nested.md'))).toBe(true)
   })
 })

@@ -39,9 +39,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
    * Check if AgentsOutputPlugin is registered
    */
   private isAgentsPluginRegistered(ctx: OutputPluginContext | OutputWriteContext): boolean {
-    if ('registeredPluginNames' in ctx && ctx.registeredPluginNames != null) {
-      return ctx.registeredPluginNames.includes('AgentsOutputPlugin')
-    }
+    if ('registeredPluginNames' in ctx && ctx.registeredPluginNames != null) return ctx.registeredPluginNames.includes('AgentsOutputPlugin')
     return false
   }
 
@@ -51,24 +49,18 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     const agentsRegistered = this.isAgentsPluginRegistered(ctx)
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       if (agentsRegistered) {
         // When AgentsOutputPlugin is registered, register WARP.md for global prompt output to each project
         results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
       } else {
         // Normal mode: register files for projects with prompts
-        if (project.rootMemoryPrompt != null) {
-          results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
-        }
+        if (project.rootMemoryPrompt != null) results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
 
         if (project.childMemoryPrompts != null) {
           for (const child of project.childMemoryPrompts) {
-            if (child.dir != null && this.isRelativePath(child.dir)) {
-              results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
-            }
+            if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
           }
         }
       }
@@ -92,14 +84,13 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
     // Normal mode: check for project outputs
     const hasProjectOutputs = workspace.projects.some(
-      (p) => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
+      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
     )
 
-    if (!hasProjectOutputs) {
-      this.log.debug('skipped', { reason: 'no outputs to write' })
-      return false
-    }
+    if (hasProjectOutputs) return true
 
+    this.log.debug('skipped', { reason: 'no outputs to write' })
+    return false
     return true
   }
 
@@ -112,15 +103,11 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
     if (agentsRegistered) {
       // When AgentsOutputPlugin is registered, write global prompt to each project's WARP.md
-      if (globalMemory == null) {
-        return { files: [], dirs: [] }
-      }
+      if (globalMemory == null) return { files: [], dirs: [] }
 
       for (const project of projects) {
         const projectDir = project.dirFromWorkspacePath
-        if (projectDir == null) {
-          continue
-        }
+        if (projectDir == null) continue
 
         const projectName = project.name ?? 'unknown'
         const result = await this.writePromptFile(
@@ -146,9 +133,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
       const projectName = project.name ?? 'unknown'
       const projectDir = project.dirFromWorkspacePath
 
-      if (projectDir == null) {
-        continue
-      }
+      if (projectDir == null) continue
 
       // Write root memory prompt (only if exists)
       if (project.rootMemoryPrompt != null) {

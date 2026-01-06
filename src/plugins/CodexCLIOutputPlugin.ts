@@ -104,11 +104,10 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
     // Project AGENTS.md is handled by AgentsOutputPlugin
     // This plugin handles global outputs only (memory, prompts, skills)
-    if (!hasGlobalMemory && !hasFastCommands && !hasSkills) {
-      this.log.trace({ action: 'skip', reason: 'noOutputs' })
-      return false
-    }
+    if (hasGlobalMemory && !hasFastCommands && !hasSkills) return true
 
+    this.log.trace({ action: 'skip', reason: 'noOutputs' })
+    return false
     return true
   }
 
@@ -162,14 +161,13 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Write skills to ~/.codex/skills/ (Codex only supports global skills)
-    if (skills != null && skills.length > 0) {
-      const globalDir = this.getGlobalConfigDir()
-      for (const skill of skills) {
-        const skillResults = await this.writeGlobalSkill(ctx, globalDir, skill)
-        fileResults.push(...skillResults)
-      }
-    }
+    if (skills == null && skills.length > 0) return { files: fileResults, dirs: dirResults }
 
+    const globalDir = this.getGlobalConfigDir()
+    for (const skill of skills) {
+      const skillResults = await this.writeGlobalSkill(ctx, globalDir, skill)
+      fileResults.push(...skillResults)
+    }
     return { files: fileResults, dirs: dirResults }
   }
 
@@ -306,24 +304,16 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     const metadata: Record<string, unknown> = {}
 
     // short-description from displayName
-    if (fm.displayName != null) {
-      metadata['short-description'] = fm.displayName
-    }
+    if (fm.displayName != null) metadata['short-description'] = fm.displayName
 
     // version
-    if (fm.version != null) {
-      metadata['version'] = fm.version
-    }
+    if (fm.version != null) metadata['version'] = fm.version
 
     // author
-    if (fm.author != null) {
-      metadata['author'] = fm.author
-    }
+    if (fm.author != null) metadata['author'] = fm.author
 
     // keywords
-    if (fm.keywords != null && fm.keywords.length > 0) {
-      metadata['keywords'] = [...fm.keywords]
-    }
+    if (fm.keywords != null && fm.keywords.length > 0) metadata['keywords'] = [...fm.keywords]
 
     // Build front matter data following Agent Skills spec
     const fmData: Record<string, unknown> = {
@@ -332,14 +322,10 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Only add metadata if it has content
-    if (Object.keys(metadata).length > 0) {
-      fmData['metadata'] = metadata
-    }
+    if (Object.keys(metadata).length > 0) fmData['metadata'] = metadata
 
     // Convert allowTools to allowed-tools (space-delimited string)
-    if (fm.allowTools != null && fm.allowTools.length > 0) {
-      fmData['allowed-tools'] = fm.allowTools.join(' ')
-    }
+    if (fm.allowTools != null && fm.allowTools.length > 0) fmData['allowed-tools'] = fm.allowTools.join(' ')
 
     return buildMarkdownWithFrontMatter(fmData, skill.content as string)
   }
@@ -362,9 +348,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       .replace(/^-+|-+$/g, '')
 
     // Truncate if exceeds max length, remove trailing hyphens after truncation
-    if (normalized.length > maxLength) {
-      normalized = normalized.slice(0, maxLength).replace(/-+$/, '')
-    }
+    if (normalized.length > maxLength) normalized = normalized.slice(0, maxLength).replace(/-+$/, '')
 
     return normalized
   }
@@ -377,9 +361,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     // Replace newlines and multiple spaces with single space
     const singleLine = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()
     // Truncate if exceeds max length
-    if (singleLine.length > maxLength) {
-      return `${singleLine.slice(0, maxLength - 3)}...`
-    }
+    if (singleLine.length > maxLength) return `${singleLine.slice(0, maxLength - 3)}...`
     return singleLine
   }
 

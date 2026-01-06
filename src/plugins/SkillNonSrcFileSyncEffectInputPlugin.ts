@@ -82,9 +82,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
     )
 
     const hasErrors = errors.length > 0
-    if (hasErrors) {
-      logger.warn({ action: 'skill-sync', errors: errors.map((e) => ({ path: e.path, error: e.error.message })) })
-    }
+    if (hasErrors) logger.warn({ action: 'skill-sync', errors: errors.map(e => ({ path: e.path, error: e.error.message })) })
 
     return {
       success: !hasErrors,
@@ -118,9 +116,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
     const currentSrcDir = relativePath ? path.join(srcDir, relativePath) : srcDir
 
     // Check if source directory exists
-    if (!fs.existsSync(currentSrcDir)) {
-      return
-    }
+    if (!fs.existsSync(currentSrcDir)) return
 
     let entries: import('node:fs').Dirent[]
     try {
@@ -151,9 +147,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
         )
       } else if (entry.isFile()) {
         // Skip .cn.mdx files (Requirement 1.2)
-        if (entry.name.endsWith('.cn.mdx')) {
-          continue
-        }
+        if (entry.name.endsWith('.cn.mdx')) continue
 
         // Check if target directory needs to be created (Requirement 1.3)
         const targetDir = path.dirname(distPath)

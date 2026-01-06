@@ -58,7 +58,7 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@truenine/eslint9-config": "^2026.10106.0",
+    "@truenine/eslint9-config": "^2026.10106.109",
     "@types/estree": "^1.0.8",
     "@types/estree-jsx": "^1.0.5",
     "@types/fs-extra": "^11.0.4",

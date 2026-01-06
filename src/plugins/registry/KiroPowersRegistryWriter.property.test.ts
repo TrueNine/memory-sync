@@ -45,14 +45,14 @@ class TestableKiroPowersRegistryWriter extends KiroPowersRegistryWriter {
 
 // Generator for valid power names (alphanumeric with hyphens)
 const powerNameGen = fc.string({ minLength: 1, maxLength: 30, unit: 'grapheme-ascii' })
-  .filter((s) => /^[a-z][a-z0-9-]*$/i.test(s))
+  .filter(s => /^[a-z][a-z0-9-]*$/i.test(s))
 
 // Generator for descriptions
 const descriptionGen = fc.string({ minLength: 1, maxLength: 100 })
 
 // Generator for keywords
 const keywordsGen = fc.array(
-  fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' }).filter((s) => /^[a-z0-9]+$/i.test(s)),
+  fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' }).filter(s => /^[a-z0-9]+$/i.test(s)),
   { minLength: 0, maxLength: 5 },
 )
 
@@ -61,7 +61,7 @@ const keywordsGen = fc.array(
 const validDateGen = fc.integer({
   min: new Date('2020-01-01').getTime(),
   max: new Date('2030-12-31').getTime(),
-}).map((timestamp) => new Date(timestamp))
+}).map(timestamp => new Date(timestamp))
 
 // Generator for local power entries (source.repoId starts with 'local-')
 const localPowerEntryGen = fc.record({
@@ -69,17 +69,17 @@ const localPowerEntryGen = fc.record({
   description: descriptionGen,
   keywords: keywordsGen,
   installed: fc.constant(true),
-  installedAt: validDateGen.map((d) => d.toISOString()),
-  installPath: fc.string({ minLength: 1, maxLength: 50 }).map((s) => `/test/path/${s}`),
+  installedAt: validDateGen.map(d => d.toISOString()),
+  installPath: fc.string({ minLength: 1, maxLength: 50 }).map(s => `/test/path/${s}`),
   source: fc.record({
     type: fc.constant('repo' as const),
     repoId: fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z0-9]+$/i.test(s))
+      .filter(s => /^[a-z0-9]+$/i.test(s))
       // Ensure repoId starts with 'local-'
-      .map((s) => `local-${s}`),
+      .map(s => `local-${s}`),
     repoName: fc.string({ minLength: 1, maxLength: 30 }),
   }),
-  sourcePath: fc.string({ minLength: 1, maxLength: 50 }).map((s) => `/test/source/${s}`),
+  sourcePath: fc.string({ minLength: 1, maxLength: 50 }).map(s => `/test/source/${s}`),
 }) as fc.Arbitrary<KiroPowerEntry>
 
 // Generator for local repoSource entries (type === 'local')
@@ -87,15 +87,15 @@ const localRepoSourceGen = fc.record({
   name: fc.string({ minLength: 1, maxLength: 50 }),
   type: fc.constant('local' as const),
   enabled: fc.boolean(),
-  addedAt: validDateGen.map((d) => d.toISOString()),
+  addedAt: validDateGen.map(d => d.toISOString()),
   powerCount: fc.nat({ max: 10 }),
-  path: fc.string({ minLength: 1, maxLength: 50 }).map((s) => `/test/${s}`),
-  lastSync: validDateGen.map((d) => d.toISOString()),
+  path: fc.string({ minLength: 1, maxLength: 50 }).map(s => `/test/${s}`),
+  lastSync: validDateGen.map(d => d.toISOString()),
 }) as fc.Arbitrary<KiroRepoSource>
 
 // Generator for repoSource ID
 const repoSourceIdGen = fc.string({ minLength: 1, maxLength: 30, unit: 'grapheme-ascii' })
-  .filter((s) => /^[a-z0-9-]+$/i.test(s))
+  .filter(s => /^[a-z0-9-]+$/i.test(s))
 
 describe('kiroPowersRegistryWriter Property Tests', () => {
   let tempDir: string
@@ -109,9 +109,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
 
   afterEach(() => {
     // Clean up temp directory
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true })
-    }
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
   })
 
   /**
@@ -127,7 +125,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
         fc.asyncProperty(
           // Generate 0-5 local powers
           fc.array(localPowerEntryGen, { minLength: 1, maxLength: 5 }),
-          async (localPowers) => {
+          async localPowers => {
             // Ensure unique names by adding index suffix
             const uniqueLocalPowers = localPowers.map((p, i) => ({
               ...p,
@@ -179,7 +177,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             fc.tuple(repoSourceIdGen, localRepoSourceGen),
             { minLength: 1, maxLength: 5 },
           ),
-          async (localSources) => {
+          async localSources => {
             // Ensure unique IDs by adding suffix
             const uniqueLocalSources = localSources.map(([id, source], i) => [
               `${id}-local-${i}`,
@@ -223,7 +221,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(localPowerEntryGen, { minLength: 1, maxLength: 3 }),
-          async (localPowers) => {
+          async localPowers => {
             // Ensure unique names
             const uniqueLocalPowers = localPowers.map((p, i) => ({
               ...p,
@@ -268,9 +266,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
 
     it('should succeed when registry file does not exist', async () => {
       // Ensure registry file does not exist
-      if (fs.existsSync(registryPath)) {
-        fs.unlinkSync(registryPath)
-      }
+      if (fs.existsSync(registryPath)) fs.unlinkSync(registryPath)
 
       const writer = new TestableKiroPowersRegistryWriter(registryPath)
       const result = writer.unregisterLocalPowers(false)
@@ -288,7 +284,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(localPowerEntryGen, { minLength: 1, maxLength: 3 }),
-          async (localPowers) => {
+          async localPowers => {
             // Ensure unique names
             const uniqueLocalPowers = localPowers.map((p, i) => ({
               ...p,

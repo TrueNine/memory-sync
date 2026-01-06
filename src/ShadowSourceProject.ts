@@ -39,11 +39,8 @@ export function checkVersionControl(
   const gitPath = path.join(rootPath, '.git')
   const hasGit = fs.existsSync(gitPath)
 
-  if (hasGit) {
-    logger?.info('version control detected', { path: gitPath })
-  } else {
-    logger?.warn('no version control detected, please use git to manage your shadow source project', { path: rootPath })
-  }
+  if (hasGit) logger?.info('version control detected', { path: gitPath })
+  else logger?.warn('no version control detected, please use git to manage your shadow source project', { path: rootPath })
 
   return { hasGit, gitPath }
 }
@@ -121,8 +118,8 @@ export function validateShadowSourceProject(
     validateFileEntry(rootPath, file, items)
   }
 
-  const missingRequired = items.filter((i) => !i.exists && i.required)
-  const missingOptional = items.filter((i) => !i.exists && !i.required)
+  const missingRequired = items.filter(i => !i.exists && i.required)
+  const missingOptional = items.filter(i => !i.exists && !i.required)
 
   return {
     valid: missingRequired.length === 0,
@@ -229,13 +226,13 @@ export function generateShadowSourceProject(
 
   // Helper to read file from source or return default
   const getFileContent = (relativePath: string, defaultContent: string): string => {
-    if (sourceDir != null) {
-      const sourcePath = path.join(sourceDir, relativePath)
-      if (fs.existsSync(sourcePath) && fs.statSync(sourcePath).isFile()) {
-        logger?.debug('copying from source', { path: sourcePath })
-        return fs.readFileSync(sourcePath, 'utf-8')
-      }
-    }
+    if (sourceDir == null) return defaultContent
+
+    const sourcePath = path.join(sourceDir, relativePath)
+    if (!(fs.existsSync(sourcePath) && fs.statSync(sourcePath).isFile())) return defaultContent
+
+    logger?.debug('copying from source', { path: sourcePath })
+    return fs.readFileSync(sourcePath, 'utf-8')
     return defaultContent
   }
 

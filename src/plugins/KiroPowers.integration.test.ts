@@ -21,9 +21,7 @@ describe('kiroPowersIntegration', () => {
 
   afterEach(() => {
     // Clean up temporary directory
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true })
-    }
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
   })
 
   /**
@@ -47,12 +45,12 @@ describe('kiroPowersIntegration', () => {
         fc.constant('Code: `example`\n'),
       ),
       { minLength: 1, maxLength: 10 },
-    ).map((parts) => parts.join('').trim() || 'Default content')
+    ).map(parts => parts.join('').trim() || 'Default content')
 
     // Generator for valid file names (alphanumeric with .md extension)
     const fileNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z0-9]+$/i.test(s))
-      .map((s) => `${s}.md`)
+      .filter(s => /^[a-z0-9]+$/i.test(s))
+      .map(s => `${s}.md`)
 
     it('should preserve content when reading and writing reference documents', () => {
       fc.assert(
@@ -121,13 +119,13 @@ describe('kiroPowersIntegration', () => {
   describe('property 6: Reference Document Co-location', () => {
     // Generator for valid skill names (alphanumeric, kebab-case friendly)
     const skillNameGen = fc.string({ minLength: 1, maxLength: 15, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z0-9]+$/i.test(s))
-      .map((s) => s || 'default-skill')
+      .filter(s => /^[a-z0-9]+$/i.test(s))
+      .map(s => s || 'default-skill')
 
     // Generator for reference document file names
     const refDocFileNameGen = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[a-z0-9]+$/i.test(s))
-      .map((s) => `${s || 'doc'}.md`)
+      .filter(s => /^[a-z0-9]+$/i.test(s))
+      .map(s => `${s || 'doc'}.md`)
 
     it('should place all reference documents in the same directory as POWER.md', () => {
       fc.assert(
@@ -139,7 +137,7 @@ describe('kiroPowersIntegration', () => {
             const uniqueFileNames = [...new Set(refDocFileNames)]
 
             // Create mock reference documents
-            const referenceDocuments: SkillReferenceDocument[] = uniqueFileNames.map((fileName) => ({
+            const referenceDocuments: SkillReferenceDocument[] = uniqueFileNames.map(fileName => ({
               type: PromptKind.SkillReferenceDocument,
               content: `Content of ${fileName}`,
               length: `Content of ${fileName}`.length,
@@ -205,9 +203,7 @@ describe('kiroPowersIntegration', () => {
           (skillName, refDocFileNames) => {
             // Ensure unique file names
             const uniqueFileNames = [...new Set(refDocFileNames)]
-            if (uniqueFileNames.length === 0) {
-              return true
-            }
+            if (uniqueFileNames.length === 0) return true
 
             // Calculate expected base directory
             const powersDir = path.join(os.homedir(), '.kiro/powers/installed')
@@ -216,10 +212,10 @@ describe('kiroPowersIntegration', () => {
             // All files should be in the same directory
             const allPaths = [
               path.join(skillPowerDir, 'POWER.md'),
-              ...uniqueFileNames.map((fn) => path.join(skillPowerDir, fn)),
+              ...uniqueFileNames.map(fn => path.join(skillPowerDir, fn)),
             ]
 
-            const directories = allPaths.map((p) => path.dirname(p))
+            const directories = allPaths.map(p => path.dirname(p))
             const uniqueDirs = [...new Set(directories)]
 
             // Assert: All files should be in exactly one directory

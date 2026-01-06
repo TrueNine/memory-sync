@@ -75,13 +75,9 @@ export function parseExports(
   const hasYaml = yamlFrontMatter != null && Object.keys(yamlFrontMatter).length > 0
 
   let source: MetadataSource
-  if (hasExports && hasYaml) {
-    source = 'mixed'
-  } else if (hasExports) {
-    source = 'export'
-  } else {
-    source = 'yaml'
-  }
+  if (hasExports && hasYaml) source = 'mixed'
+  else if (hasExports) source = 'export'
+  else source = 'yaml'
 
   // Merge: export takes priority over YAML
   const fields = { ...yamlFrontMatter, ...exportFields }
@@ -124,9 +120,7 @@ function extractExportFromNode(
         const value = parseStaticValue(valueStr.trim(), scope, filePath)
 
         // export default must be an object to be spread as frontmatter
-        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-          Object.assign(result, value)
-        }
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) Object.assign(result, value)
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e)
         const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
@@ -162,11 +156,8 @@ function extractExportFromNode(
       const value = parseStaticValue(valueStr.trim(), scope, filePath)
 
       // If it's a metadata object, spread its properties
-      if (name === 'metadata' && typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        Object.assign(result, value)
-      } else {
-        result[name] = value
-      }
+      if (name === 'metadata' && typeof value === 'object' && value !== null && !Array.isArray(value)) Object.assign(result, value)
+      else result[name] = value
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
@@ -208,9 +199,7 @@ function extractValueString(code: string, startIndex: number): string | null {
 
     // Handle string boundaries
     if (inString != null) {
-      if (char === inString) {
-        inString = null
-      }
+      if (char === inString) inString = null
       continue
     }
 
@@ -238,14 +227,10 @@ function extractValueString(code: string, startIndex: number): string | null {
     }
 
     // Handle end of code
-    if (i === code.length - 1) {
-      endIndex = code.length
-    }
+    if (i === code.length - 1) endIndex = code.length
   }
 
-  if (endIndex <= startIndex) {
-    endIndex = code.length
-  }
+  if (endIndex <= startIndex) endIndex = code.length
 
   const valueStr = code.slice(startIndex, endIndex).trim()
   // Remove trailing semicolon if present
@@ -279,61 +264,39 @@ export function parseStaticValue(
   const trimmed = valueStr.trim()
 
   // Handle empty string
-  if (trimmed === '') {
-    throw new Error('Empty value cannot be evaluated')
-  }
+  if (trimmed === '') throw new Error('Empty value cannot be evaluated')
 
   // Boolean literals
-  if (trimmed === 'true') {
-    return true
-  }
-  if (trimmed === 'false') {
-    return false
-  }
+  if (trimmed === 'true') return true
+  if (trimmed === 'false') return false
 
   // Null literal
-  if (trimmed === 'null') {
-    return null
-  }
+  if (trimmed === 'null') return null
 
   // Number literals (including negative and decimal)
-  if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
-    return Number(trimmed)
-  }
+  if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed)
 
   // String literals with double quotes
-  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-    return parseStringLiteral(trimmed.slice(1, -1), '"')
-  }
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) return parseStringLiteral(trimmed.slice(1, -1), '"')
 
   // String literals with single quotes
-  if (trimmed.startsWith('\'') && trimmed.endsWith('\'')) {
-    return parseStringLiteral(trimmed.slice(1, -1), '\'')
-  }
+  if (trimmed.startsWith('\'') && trimmed.endsWith('\'')) return parseStringLiteral(trimmed.slice(1, -1), '\'')
 
   // Template literals (without expressions)
   if (trimmed.startsWith('`') && trimmed.endsWith('`')) {
     const inner = trimmed.slice(1, -1)
-    if (/\$\{/.test(inner)) {
-      throw new Error(`Template literal with expressions cannot be statically evaluated: ${trimmed}`)
-    }
+    if (/\$\{/.test(inner)) throw new Error(`Template literal with expressions cannot be statically evaluated: ${trimmed}`)
     return parseStringLiteral(inner, '`')
   }
 
   // Array literals
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    return parseArrayLiteral(trimmed, scope, filePath)
-  }
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) return parseArrayLiteral(trimmed, scope, filePath)
 
   // Object literals
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    return parseObjectLiteral(trimmed, scope, filePath)
-  }
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return parseObjectLiteral(trimmed, scope, filePath)
 
   // Variable reference (e.g., tool.readFile, profile.name)
-  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) {
-    return evaluateVariableReference(trimmed, scope, filePath)
-  }
+  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) return evaluateVariableReference(trimmed, scope, filePath)
 
   // Cannot statically evaluate
   const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
@@ -391,9 +354,7 @@ function evaluateVariableReference(
   let value: unknown = scope[rootVar]
   for (let i = 1; i < parts.length; i++) {
     const prop = parts[i]
-    if (prop == null) {
-      continue
-    }
+    if (prop == null) continue
 
     if (value == null) {
       const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
@@ -448,18 +409,14 @@ function parseArrayLiteral(
   const inner = valueStr.slice(1, -1).trim()
 
   // Empty array
-  if (inner === '') {
-    return []
-  }
+  if (inner === '') return []
 
   // Try JSON parse first (handles most cases without variable references)
   if (scope == null) {
     try {
       const jsonStr = convertToJson(valueStr)
       const parsed: unknown = JSON.parse(jsonStr)
-      if (Array.isArray(parsed)) {
-        return parsed as SupportedLiteral[]
-      }
+      if (Array.isArray(parsed)) return parsed as SupportedLiteral[]
     } catch {
       // Fall through to manual parsing
     }
@@ -467,7 +424,7 @@ function parseArrayLiteral(
 
   // Manual parsing for arrays with variable references
   const elements = splitArrayElements(inner)
-  return elements.map((el) => parseStaticValue(el.trim(), scope, filePath))
+  return elements.map(el => parseStaticValue(el.trim(), scope, filePath))
 }
 
 /**
@@ -486,18 +443,14 @@ function parseObjectLiteral(
   const inner = valueStr.slice(1, -1).trim()
 
   // Empty object
-  if (inner === '') {
-    return {}
-  }
+  if (inner === '') return {}
 
   // Try JSON parse first (only if no scope needed)
   if (scope == null) {
     try {
       const jsonStr = convertToJson(valueStr)
       const parsed: unknown = JSON.parse(jsonStr)
-      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-        return parsed as { [key: string]: SupportedLiteral }
-      }
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) return parsed as { [key: string]: SupportedLiteral }
     } catch {
       // Fall through to manual parsing
     }
@@ -509,17 +462,13 @@ function parseObjectLiteral(
 
   for (const pair of pairs) {
     const colonIndex = findKeyValueSeparator(pair)
-    if (colonIndex === -1) {
-      continue
-    }
+    if (colonIndex === -1) continue
 
     let key = pair.slice(0, colonIndex).trim()
     const value = pair.slice(colonIndex + 1).trim()
 
     // Remove quotes from key if present
-    if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith('\'') && key.endsWith('\''))) {
-      key = key.slice(1, -1)
-    }
+    if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith('\'') && key.endsWith('\''))) key = key.slice(1, -1)
 
     result[key] = parseStaticValue(value, scope, filePath)
   }
@@ -558,11 +507,9 @@ function convertToJson(jsLiteral: string): string {
       if (char === inString) {
         result += '"'
         inString = null
-      } else if (char === '"' && inString === '\'') {
-        result += '\\"'
-      } else {
-        result += char
       }
+      else if (char === '"' && inString === '\'') result += '\\"'
+      else result += char
       continue
     }
 
@@ -593,9 +540,7 @@ function convertToJson(jsLiteral: string): string {
       // Check if key is already quoted
       if (keyStart > 0 && result.charAt(keyStart - 1) !== '"') {
         const key = result.slice(keyStart, keyEndPos)
-        if (key.length > 0 && /^[\w$]+$/.test(key)) {
-          result = `${result.slice(0, keyStart)}"${key}"`
-        }
+        if (key.length > 0 && /^[\w$]+$/.test(key)) result = `${result.slice(0, keyStart)}"${key}"`
       }
     }
 
@@ -633,9 +578,7 @@ function splitArrayElements(inner: string): string[] {
 
     if (inString != null) {
       current += char
-      if (char === inString) {
-        inString = null
-      }
+      if (char === inString) inString = null
       continue
     }
 
@@ -658,9 +601,7 @@ function splitArrayElements(inner: string): string[] {
     }
 
     if (char === ',' && depth === 0) {
-      if (current.trim() !== '') {
-        elements.push(current.trim())
-      }
+      if (current.trim() !== '') elements.push(current.trim())
       current = ''
       continue
     }
@@ -668,9 +609,7 @@ function splitArrayElements(inner: string): string[] {
     current += char
   }
 
-  if (current.trim() !== '') {
-    elements.push(current.trim())
-  }
+  if (current.trim() !== '') elements.push(current.trim())
 
   return elements
 }
@@ -709,9 +648,7 @@ function findKeyValueSeparator(pair: string): number {
     }
 
     if (inString != null) {
-      if (char === inString) {
-        inString = null
-      }
+      if (char === inString) inString = null
       continue
     }
 
@@ -720,9 +657,7 @@ function findKeyValueSeparator(pair: string): number {
       continue
     }
 
-    if (char === ':') {
-      return i
-    }
+    if (char === ':') return i
   }
 
   return -1

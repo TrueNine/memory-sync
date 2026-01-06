@@ -28,9 +28,7 @@ export function convertJsxToMarkdown(
 ): RootContent[] | null {
   const name = element.name?.toLowerCase()
 
-  if (name == null) {
-    return null
-  }
+  if (name == null) return null
 
   switch (name) {
     case 'pre':
@@ -65,13 +63,9 @@ function getAttributeValue(
       a.type === 'mdxJsxAttribute' && a.name === attrName,
   )
 
-  if (attr == null) {
-    return null
-  }
+  if (attr == null) return null
 
-  if (typeof attr.value === 'string') {
-    return attr.value
-  }
+  if (typeof attr.value === 'string') return attr.value
 
   if (
     attr.value != null
@@ -81,9 +75,7 @@ function getAttributeValue(
     return evaluateExpression(attr.value.value, ctx.scope)
   }
 
-  if (attr.value === null) {
-    return ''
-  }
+  if (attr.value === null) return ''
 
   return null
 }
@@ -98,14 +90,10 @@ function extractTextContent(
   let text = ''
 
   for (const child of element.children) {
-    if (child.type === 'text') {
-      text += child.value
-    } else if (child.type === 'mdxTextExpression') {
-      text += evaluateExpression(child.value, ctx.scope)
-    } else if (
-      child.type === 'mdxJsxFlowElement'
-      || child.type === 'mdxJsxTextElement'
-    ) {
+    if (child.type === 'text') text += child.value
+    else if (child.type === 'mdxTextExpression') text += evaluateExpression(child.value, ctx.scope)
+    else if (child.type === 'mdxJsxFlowElement'
+      || child.type === 'mdxJsxTextElement') {
       text += extractTextContent(child, ctx)
     }
   }
@@ -144,15 +132,11 @@ function convertPreElement(
           break
         }
       }
-      if (codeChild != null) {
-        break
-      }
+      if (codeChild != null) break
     }
   }
 
-  if (codeChild == null) {
-    return null
-  }
+  if (codeChild == null) return null
 
   const className = getAttributeValue(codeChild, 'className', ctx) ?? ''
   const langMatch = className.match(/language-(\w+)/)
@@ -174,9 +158,7 @@ function convertLinkElement(
   ctx: ProcessingContext,
 ): RootContent[] | null {
   const href = getAttributeValue(element, 'href', ctx)
-  if (href == null || href === '') {
-    return null
-  }
+  if (href == null || href === '') return null
 
   const text = extractTextContent(element, ctx)
   const title = getAttributeValue(element, 'title', ctx)
@@ -206,14 +188,13 @@ function convertStrongElement(
     children: [{ type: 'text', value: text }],
   }
 
-  if (element.type === 'mdxJsxFlowElement') {
-    const paragraph: Paragraph = {
-      type: 'paragraph',
-      children: [strong],
-    }
-    return [paragraph]
-  }
+  if (element.type !== 'mdxJsxFlowElement') return [{ type: 'paragraph', children: [strong] }]
 
+  const paragraph: Paragraph = {
+    type: 'paragraph',
+    children: [strong],
+  }
+  return [paragraph]
   return [{ type: 'paragraph', children: [strong] }]
 }
 
@@ -228,14 +209,13 @@ function convertEmphasisElement(
     children: [{ type: 'text', value: text }],
   }
 
-  if (element.type === 'mdxJsxFlowElement') {
-    const paragraph: Paragraph = {
-      type: 'paragraph',
-      children: [emphasis],
-    }
-    return [paragraph]
-  }
+  if (element.type !== 'mdxJsxFlowElement') return [{ type: 'paragraph', children: [emphasis] }]
 
+  const paragraph: Paragraph = {
+    type: 'paragraph',
+    children: [emphasis],
+  }
+  return [paragraph]
   return [{ type: 'paragraph', children: [emphasis] }]
 }
 
@@ -244,9 +224,7 @@ function convertImageElement(
   ctx: ProcessingContext,
 ): RootContent[] | null {
   const src = getAttributeValue(element, 'src', ctx)
-  if (src == null || src === '') {
-    return null
-  }
+  if (src == null || src === '') return null
 
   const alt = getAttributeValue(element, 'alt', ctx) ?? ''
   const title = getAttributeValue(element, 'title', ctx)
@@ -258,14 +236,13 @@ function convertImageElement(
     title: title ?? null,
   }
 
-  if (element.type === 'mdxJsxFlowElement') {
-    const paragraph: Paragraph = {
-      type: 'paragraph',
-      children: [image],
-    }
-    return [paragraph]
-  }
+  if (element.type !== 'mdxJsxFlowElement') return [{ type: 'paragraph', children: [image] }]
 
+  const paragraph: Paragraph = {
+    type: 'paragraph',
+    children: [image],
+  }
+  return [paragraph]
   return [{ type: 'paragraph', children: [image] }]
 }
 

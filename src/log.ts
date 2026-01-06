@@ -72,38 +72,22 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
 }
 
 function colorizeValue(value: unknown): string {
-  if (value === null) {
-    return pc.dim('null')
-  }
-  if (typeof value === 'undefined') {
-    return pc.dim('undefined')
-  }
-  if (typeof value === 'boolean') {
-    return pc.yellow(String(value))
-  }
-  if (typeof value === 'number') {
-    return pc.blue(String(value))
-  }
-  if (typeof value === 'string') {
-    return pc.green(`"${value}"`)
-  }
+  if (value === null) return pc.dim('null')
+  if (typeof value === 'undefined') return pc.dim('undefined')
+  if (typeof value === 'boolean') return pc.yellow(String(value))
+  if (typeof value === 'number') return pc.blue(String(value))
+  if (typeof value === 'string') return pc.green(`"${value}"`)
   if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return '[]'
-    }
-    return `[${value.map((v) => colorizeValue(v)).join(',')}]`
+    if (value.length === 0) return '[]'
+    return `[${value.map(v => colorizeValue(v)).join(',')}]`
   }
-  if (typeof value === 'object') {
-    return toJson5(value as Record<string, unknown>)
-  }
+  if (typeof value === 'object') return toJson5(value as Record<string, unknown>)
   return String(value)
 }
 
 function toJson5(obj: Record<string, unknown>): string {
   const entries = Object.entries(obj)
-  if (entries.length === 0) {
-    return '{}'
-  }
+  if (entries.length === 0) return '{}'
   const parts = entries.map(([k, v]) => {
     // JSON5: unquoted keys (pink), quoted keys (yellow)
     const isValidIdentifier = /^[\w$]+$/.test(k)

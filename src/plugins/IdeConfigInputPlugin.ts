@@ -31,13 +31,9 @@ export class IdeConfigInputPlugin extends AbstractInputPlugin {
       if (fs.existsSync(absPath) && fs.statSync(absPath).isFile()) {
         const content = fs.readFileSync(absPath, 'utf-8')
         let type: IDEKind = IDEKind.Original
-        if (relativePath.includes('.vscode')) {
-          type = IDEKind.VSCode
-        } else if (relativePath.includes('.idea')) {
-          type = IDEKind.IntellijIDEA
-        } else if (relativePath.includes('.editorconfig')) {
-          type = IDEKind.EditorConfig
-        }
+        if (relativePath.includes('.vscode')) type = IDEKind.VSCode
+        else if (relativePath.includes('.idea')) type = IDEKind.IntellijIDEA
+        else if (relativePath.includes('.editorconfig')) type = IDEKind.EditorConfig
 
         ideConfigFiles.push({
           type,

@@ -35,9 +35,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     const { projects } = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       // Register .factory/commands, .factory/agents, .factory/skills for cleanup
       for (const subdir of CLEANUP_SUBDIRS) {
@@ -62,9 +60,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     const { skills } = ctx.collectedInputContext
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) {
-        continue
-      }
+      if (project.dirFromWorkspacePath == null) continue
 
       // Register skill files (SKILL.md, reference docs, and resources)
       if (skills != null) {
@@ -118,9 +114,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const { globalMemory } = ctx.collectedInputContext
-    if (globalMemory == null) {
-      return []
-    }
+    if (globalMemory == null) return []
 
     const globalDir = this.getGlobalConfigDir()
     return [
@@ -141,11 +135,10 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     const hasSubAgents = (subAgents?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
 
-    if (!hasGlobalMemory && !hasFastCommands && !hasSubAgents && !hasSkills) {
-      this.log.trace({ action: 'skip', reason: 'noOutputs' })
-      return false
-    }
+    if (hasGlobalMemory && !hasFastCommands && !hasSubAgents && !hasSkills) return true
 
+    this.log.trace({ action: 'skip', reason: 'noOutputs' })
+    return false
     return true
   }
 
@@ -158,9 +151,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
 
-      if (projectDir == null) {
-        continue
-      }
+      if (projectDir == null) continue
 
       // Write fast commands to .factory/commands/
       if (fastCommands != null) {
@@ -195,9 +186,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (globalMemory == null) {
-      return { files: fileResults, dirs: dirResults }
-    }
+    if (globalMemory == null) return { files: fileResults, dirs: dirResults }
 
     const globalDir = this.getGlobalConfigDir()
     const fullPath = path.join(globalDir, GLOBAL_MEMORY_FILE)

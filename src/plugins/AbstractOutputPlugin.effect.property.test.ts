@@ -62,8 +62,8 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
 
 // Generators
 const validNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
-  .filter((s) => /^[\w-]+$/.test(s))
-  .map((s) => s.toLowerCase())
+  .filter(s => /^[\w-]+$/.test(s))
+  .map(s => s.toLowerCase())
 
 const fileExtensionGen = fc.constantFrom('.ts', '.js', '.json', '.sh', '.txt', '.yaml', '.yml')
 
@@ -72,18 +72,18 @@ const fileContentGen = fc.string({ minLength: 0, maxLength: 500 })
 // Generate a non-.cn.mdx filename
 const nonSrcMdFileNameGen = fc.tuple(validNameGen, fileExtensionGen)
   .map(([name, ext]) => `${name}${ext}`)
-  .filter((name) => !name.endsWith('.cn.mdx'))
+  .filter(name => !name.endsWith('.cn.mdx'))
 
 // Generate markdown content with whitespace issues
 const markdownWithWhitespaceGen = fc.array(
   fc.tuple(
-    fc.string({ minLength: 0, maxLength: 50, unit: 'grapheme-ascii' }).filter((s) => !s.includes('\n') && !s.includes('\r')),
-    fc.array(fc.constantFrom(' ', '\t'), { minLength: 0, maxLength: 5 }).map((arr) => arr.join('')),
+    fc.string({ minLength: 0, maxLength: 50, unit: 'grapheme-ascii' }).filter(s => !s.includes('\n') && !s.includes('\r')),
+    fc.array(fc.constantFrom(' ', '\t'), { minLength: 0, maxLength: 5 }).map(arr => arr.join('')),
   ).map(([content, trailing]) => content + trailing),
   { minLength: 1, maxLength: 10 },
-).chain((lines) =>
+).chain(lines =>
   fc.array(fc.integer({ min: 0, max: 5 }), { minLength: lines.length, maxLength: lines.length })
-    .map((blankCounts) => {
+    .map(blankCounts => {
       const result: string[] = []
       for (let i = 0; i < lines.length; i++) {
         for (let j = 0; j < (blankCounts[i] ?? 0); j++) {
@@ -102,9 +102,7 @@ const markdownWithWhitespaceGen = fc.array(
 function captureFilesystemState(baseDir: string): Map<string, string | 'DIR'> {
   const state = new Map<string, string | 'DIR'>()
 
-  if (!fs.existsSync(baseDir)) {
-    return state
-  }
+  if (!fs.existsSync(baseDir)) return state
 
   function scanDir(dir: string, relativePath: string): void {
     const entries = fs.readdirSync(dir, { withFileTypes: true })
@@ -115,9 +113,8 @@ function captureFilesystemState(baseDir: string): Map<string, string | 'DIR'> {
       if (entry.isDirectory()) {
         state.set(entryRelPath, 'DIR')
         scanDir(entryFullPath, entryRelPath)
-      } else if (entry.isFile()) {
-        state.set(entryRelPath, fs.readFileSync(entryFullPath, 'utf-8'))
       }
+      else if (entry.isFile()) state.set(entryRelPath, fs.readFileSync(entryFullPath, 'utf-8'))
     }
   }
 
@@ -129,14 +126,10 @@ function captureFilesystemState(baseDir: string): Map<string, string | 'DIR'> {
  * Compare two filesystem states and return true if they are identical.
  */
 function filesystemStatesEqual(before: Map<string, string | 'DIR'>, after: Map<string, string | 'DIR'>): boolean {
-  if (before.size !== after.size) {
-    return false
-  }
+  if (before.size !== after.size) return false
 
   for (const [key, value] of before) {
-    if (!after.has(key) || after.get(key) !== value) {
-      return false
-    }
+    if (!after.has(key) || after.get(key) !== value) return false
   }
 
   return true
@@ -167,31 +160,27 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                     content: fileContentGen,
                   }),
                   { minLength: 1, maxLength: 3 },
-                ).map((files) => {
+                ).map(files => {
                   // Deduplicate by name
                   const seen = new Set<string>()
-                  return files.filter((f) => {
-                    if (seen.has(f.name)) {
-                      return false
-                    }
+                  return files.filter(f => {
+                    if (seen.has(f.name)) return false
                     seen.add(f.name)
                     return true
                   })
-                }).filter((files) => files.length > 0),
+                }).filter(files => files.length > 0),
               }),
               { minLength: 1, maxLength: 3 },
-            ).map((skills) => {
+            ).map(skills => {
               // Deduplicate by skillName
               const seen = new Set<string>()
-              return skills.filter((s) => {
-                if (seen.has(s.skillName)) {
-                  return false
-                }
+              return skills.filter(s => {
+                if (seen.has(s.skillName)) return false
                 seen.add(s.skillName)
                 return true
               })
-            }).filter((skills) => skills.length > 0),
-            async (skills) => {
+            }).filter(skills => skills.length > 0),
+            async skills => {
               const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dryrun-skill-sync-'))
 
               try {
@@ -223,9 +212,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 // Verify: Filesystem state should be unchanged
                 expect(filesystemStatesEqual(stateBefore, stateAfter)).toBe(true)
               } finally {
-                if (fs.existsSync(tempDir)) {
-                  fs.rmSync(tempDir, { recursive: true, force: true })
-                }
+                if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
               }
             },
           ),
@@ -247,19 +234,17 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 dirType: fc.constantFrom('skills', 'commands', 'agents', 'app'),
               }),
               { minLength: 1, maxLength: 5 },
-            ).map((files) => {
+            ).map(files => {
               // Deduplicate by (name, dirType)
               const seen = new Set<string>()
-              return files.filter((f) => {
+              return files.filter(f => {
                 const key = `${f.dirType}:${f.name}`
-                if (seen.has(key)) {
-                  return false
-                }
+                if (seen.has(key)) return false
                 seen.add(key)
                 return true
               })
-            }).filter((files) => files.length > 0),
-            async (orphanFiles) => {
+            }).filter(files => files.length > 0),
+            async orphanFiles => {
               const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dryrun-orphan-cleanup-'))
 
               try {
@@ -292,9 +277,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 // Verify: Filesystem state should be unchanged
                 expect(filesystemStatesEqual(stateBefore, stateAfter)).toBe(true)
               } finally {
-                if (fs.existsSync(tempDir)) {
-                  fs.rmSync(tempDir, { recursive: true, force: true })
-                }
+                if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
               }
             },
           ),
@@ -317,19 +300,17 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 dir: fc.constantFrom('src', 'app', 'dist'),
               }),
               { minLength: 1, maxLength: 5 },
-            ).map((files) => {
+            ).map(files => {
               // Deduplicate by (name, dir)
               const seen = new Set<string>()
-              return files.filter((f) => {
+              return files.filter(f => {
                 const key = `${f.dir}:${f.name}`
-                if (seen.has(key)) {
-                  return false
-                }
+                if (seen.has(key)) return false
                 seen.add(key)
                 return true
               })
-            }).filter((files) => files.length > 0),
-            async (mdFiles) => {
+            }).filter(files => files.length > 0),
+            async mdFiles => {
               const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dryrun-whitespace-cleanup-'))
 
               try {
@@ -361,9 +342,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 // Verify: Filesystem state should be unchanged
                 expect(filesystemStatesEqual(stateBefore, stateAfter)).toBe(true)
               } finally {
-                if (fs.existsSync(tempDir)) {
-                  fs.rmSync(tempDir, { recursive: true, force: true })
-                }
+                if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
               }
             },
           ),

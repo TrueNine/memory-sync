@@ -47,9 +47,7 @@ function getGlobalConfigPath(): string {
  */
 function readGlobalConfig(): Record<string, unknown> {
   const configPath = getGlobalConfigPath()
-  if (!fs.existsSync(configPath)) {
-    return {}
-  }
+  if (!fs.existsSync(configPath)) return {}
   try {
     const content = fs.readFileSync(configPath, 'utf-8')
     return JSON.parse(content) as Record<string, unknown>
@@ -66,9 +64,7 @@ function writeGlobalConfig(config: Record<string, unknown>): void {
   const configDir = path.dirname(configPath)
 
   // Ensure directory exists
-  if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true })
-  }
+  if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
 
   // Write with pretty formatting
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8')
@@ -127,9 +123,7 @@ export class SetCommand implements Command {
       const oldValue = config[key]
       config[key] = value
 
-      if (oldValue !== value) {
-        updated.push(`${key}=${value}`)
-      }
+      if (oldValue !== value) updated.push(`${key}=${value}`)
 
       logger.info('configuration updated', { key, value })
     }

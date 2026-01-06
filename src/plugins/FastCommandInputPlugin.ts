@@ -31,9 +31,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
     const baseName = fileName.replace(/\.mdx$/, '')
     const underscoreIndex = baseName.indexOf('_')
 
-    if (underscoreIndex === -1) {
-      return { commandName: baseName }
-    }
+    if (underscoreIndex === -1) return { commandName: baseName }
 
     return {
       series: baseName.substring(0, underscoreIndex),
@@ -49,89 +47,86 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
     const fastCommandDir = this.resolvePath(fastCommandDirRaw, workspaceDir, shadowProjectDir)
 
     const fastCommands: FastCommandPrompt[] = []
-    if (ctx.fs.existsSync(fastCommandDir) && ctx.fs.statSync(fastCommandDir).isDirectory()) {
-      const entries = ctx.fs.readdirSync(fastCommandDir, { withFileTypes: true })
-      for (const entry of entries) {
-        if (entry.isFile() && entry.name.endsWith('.mdx')) {
-          const filePath = ctx.path.join(fastCommandDir, entry.name)
-          try {
-            const rawContent = ctx.fs.readFileSync(filePath, 'utf-8')
+    if (!(ctx.fs.existsSync(fastCommandDir) && ctx.fs.statSync(fastCommandDir).isDirectory())) return { fastCommands }
 
-            // Parse YAML front matter first for backward compatibility
-            const parsed = parseMarkdown<FastCommandYAMLFrontMatter>(rawContent)
+    const entries = ctx.fs.readdirSync(fastCommandDir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.endsWith('.mdx')) {
+        const filePath = ctx.path.join(fastCommandDir, entry.name)
+        try {
+          const rawContent = ctx.fs.readFileSync(filePath, 'utf-8')
 
-            // Compile MDX with globalScope and extract metadata from exports
-            const compileResult = await mdxToMd(rawContent, {
-              globalScope,
-              extractMetadata: true,
-              basePath: fastCommandDir,
-            })
+          // Parse YAML front matter first for backward compatibility
+          const parsed = parseMarkdown<FastCommandYAMLFrontMatter>(rawContent)
 
-            // Merge YAML front matter with export metadata (export takes priority)
-            const mergedFrontMatter: FastCommandYAMLFrontMatter | undefined = parsed.yamlFrontMatter != null || Object.keys(compileResult.metadata.fields).length > 0
-              ? {
-                  ...parsed.yamlFrontMatter,
-                  ...compileResult.metadata.fields,
-                } as FastCommandYAMLFrontMatter
-              : void 0
+          // Compile MDX with globalScope and extract metadata from exports
+          const compileResult = await mdxToMd(rawContent, {
+            globalScope,
+            extractMetadata: true,
+            basePath: fastCommandDir,
+          })
 
-            // Validate merged metadata (FastCommand has no required fields, but we still validate)
-            if (mergedFrontMatter != null) {
-              const validationResult = validateFastCommandMetadata(
-                mergedFrontMatter as Record<string, unknown>,
-                filePath,
-              )
+          // Merge YAML front matter with export metadata (export takes priority)
+          const mergedFrontMatter: FastCommandYAMLFrontMatter | undefined = parsed.yamlFrontMatter != null || Object.keys(compileResult.metadata.fields).length > 0
+            ? {
+                ...parsed.yamlFrontMatter,
+                ...compileResult.metadata.fields,
+              } as FastCommandYAMLFrontMatter
+            : void 0
 
-              // Log validation warnings
-              for (const warning of validationResult.warnings) {
-                logger.debug(warning)
-              }
+          // Validate merged metadata (FastCommand has no required fields, but we still validate)
+          if (mergedFrontMatter != null) {
+            const validationResult = validateFastCommandMetadata(
+              mergedFrontMatter as Record<string, unknown>,
+              filePath,
+            )
 
-              // Throw error if validation fails
-              if (!validationResult.valid) {
-                throw new MetadataValidationError(validationResult.errors, filePath)
-              }
+            // Log validation warnings
+            for (const warning of validationResult.warnings) {
+              logger.debug(warning)
             }
 
-            // Use compiled content
-            const content = compileResult.content
-            const seriesInfo = this.extractSeriesInfo(entry.name)
-
-            // Log metadata source for debugging
-            logger.debug('fast command metadata extracted', {
-              command: entry.name,
-              source: compileResult.metadata.source,
-              hasYaml: parsed.yamlFrontMatter != null,
-              hasExport: Object.keys(compileResult.metadata.fields).length > 0,
-            })
-
-            fastCommands.push({
-              type: PromptKind.FastCommand,
-              content,
-              length: content.length,
-              filePathKind: FilePathKind.Relative,
-              ...(mergedFrontMatter != null && { yamlFrontMatter: mergedFrontMatter }),
-              ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
-              markdownAst: parsed.markdownAst,
-              markdownContents: parsed.markdownContents,
-              dir: {
-                pathKind: FilePathKind.Relative,
-                path: entry.name,
-                basePath: fastCommandDir,
-                getDirectoryName: () => entry.name.replace(/\.mdx$/, ''),
-                getAbsolutePath: () => filePath,
-              },
-              ...(seriesInfo.series != null && { series: seriesInfo.series }),
-              commandName: seriesInfo.commandName,
-              rawMdxContent: rawContent,
-            })
-          } catch (e) {
-            logger.error('failed to parse fast command', { file: filePath, error: e })
+            // Throw error if validation fails
+            if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, filePath)
           }
+
+          // Use compiled content
+          const content = compileResult.content
+          const seriesInfo = this.extractSeriesInfo(entry.name)
+
+          // Log metadata source for debugging
+          logger.debug('fast command metadata extracted', {
+            command: entry.name,
+            source: compileResult.metadata.source,
+            hasYaml: parsed.yamlFrontMatter != null,
+            hasExport: Object.keys(compileResult.metadata.fields).length > 0,
+          })
+
+          fastCommands.push({
+            type: PromptKind.FastCommand,
+            content,
+            length: content.length,
+            filePathKind: FilePathKind.Relative,
+            ...(mergedFrontMatter != null && { yamlFrontMatter: mergedFrontMatter }),
+            ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
+            markdownAst: parsed.markdownAst,
+            markdownContents: parsed.markdownContents,
+            dir: {
+              pathKind: FilePathKind.Relative,
+              path: entry.name,
+              basePath: fastCommandDir,
+              getDirectoryName: () => entry.name.replace(/\.mdx$/, ''),
+              getAbsolutePath: () => filePath,
+            },
+            ...(seriesInfo.series != null && { series: seriesInfo.series }),
+            commandName: seriesInfo.commandName,
+            rawMdxContent: rawContent,
+          })
+        } catch (e) {
+          logger.error('failed to parse fast command', { file: filePath, error: e })
         }
       }
     }
-
     return { fastCommands }
   }
 }

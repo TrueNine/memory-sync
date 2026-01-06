@@ -200,9 +200,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
   async executeEffects(ctx: InputPluginContext, dryRun: boolean = false): Promise<InputEffectResult[]> {
     const results: InputEffectResult[] = []
 
-    if (this.inputEffects.length === 0) {
-      return results
-    }
+    if (this.inputEffects.length === 0) return results
 
     const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(ctx.userConfigOptions)
 
@@ -365,17 +363,13 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
   protected resolvePath(rawPath: string, workspaceDir: string, shadowProjectDir: string): string {
     let resolved = rawPath
 
-    if (resolved.startsWith(PathPlaceholders.USER_HOME)) {
-      resolved = resolved.replace(PathPlaceholders.USER_HOME, os.homedir())
-    }
+    if (resolved.startsWith(PathPlaceholders.USER_HOME)) resolved = resolved.replace(PathPlaceholders.USER_HOME, os.homedir())
 
     if (resolved.includes(PathPlaceholders.SHADOW_SOURCE_PROJECT)) {
       resolved = resolved.replace(PathPlaceholders.SHADOW_SOURCE_PROJECT, shadowProjectDir)
     }
 
-    if (resolved.includes(PathPlaceholders.WORKSPACE)) {
-      resolved = resolved.replace(PathPlaceholders.WORKSPACE, workspaceDir)
-    }
+    if (resolved.includes(PathPlaceholders.WORKSPACE)) resolved = resolved.replace(PathPlaceholders.WORKSPACE, workspaceDir)
 
     return path.normalize(resolved)
   }
@@ -538,7 +532,7 @@ export function cleanStaleDistFiles(
         nodePath.join(srcDir, entry.name),
       ]
 
-      const srcExists = possibleSrcPaths.some((p) => fs.existsSync(p))
+      const srcExists = possibleSrcPaths.some(p => fs.existsSync(p))
 
       if (!srcExists) {
         if (dryRun) {
@@ -613,9 +607,7 @@ export function syncDirectory(
   }
 
   // Ensure target directory exists
-  if (!dryRun && !fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true })
-  }
+  if (!dryRun && !fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true })
 
   // Check if source exists
   if (!fs.existsSync(srcDir)) {
@@ -625,7 +617,7 @@ export function syncDirectory(
 
   // Get source files
   const srcEntries = fs.readdirSync(srcDir, { withFileTypes: true })
-  const srcNames = new Set(srcEntries.map((e) => e.name))
+  const srcNames = new Set(srcEntries.map(e => e.name))
 
   // Copy files from source to target
   for (const entry of srcEntries) {
@@ -641,9 +633,8 @@ export function syncDirectory(
         } catch (error) {
           result.errors.push({ file: targetPath, error: error as Error })
         }
-      } else {
-        result.copiedFiles.push(targetPath)
       }
+      else result.copiedFiles.push(targetPath)
     } else if (entry.isDirectory()) {
       // Recursively sync subdirectories
       const subResult = syncDirectory(ctx, {
@@ -660,30 +651,25 @@ export function syncDirectory(
   }
 
   // Delete orphaned files in target
-  if (deleteOrphans && fs.existsSync(targetDir)) {
-    const targetEntries = fs.readdirSync(targetDir, { withFileTypes: true })
-    for (const entry of targetEntries) {
-      if (!srcNames.has(entry.name)) {
-        const targetPath = nodePath.join(targetDir, entry.name)
-        if (!dryRun) {
-          try {
-            if (entry.isDirectory()) {
-              fs.rmSync(targetPath, { recursive: true, force: true })
-            } else {
-              fs.unlinkSync(targetPath)
-            }
-            result.deletedFiles.push(targetPath)
-            logger?.debug({ action: 'syncDirectory', deleted: targetPath })
-          } catch (error) {
-            result.errors.push({ file: targetPath, error: error as Error })
-          }
-        } else {
+  if (!(deleteOrphans && fs.existsSync(targetDir))) return result
+
+  const targetEntries = fs.readdirSync(targetDir, { withFileTypes: true })
+  for (const entry of targetEntries) {
+    if (!srcNames.has(entry.name)) {
+      const targetPath = nodePath.join(targetDir, entry.name)
+      if (!dryRun) {
+        try {
+          if (entry.isDirectory()) fs.rmSync(targetPath, { recursive: true, force: true })
+          else fs.unlinkSync(targetPath)
           result.deletedFiles.push(targetPath)
+          logger?.debug({ action: 'syncDirectory', deleted: targetPath })
+        } catch (error) {
+          result.errors.push({ file: targetPath, error: error as Error })
         }
       }
+      else result.deletedFiles.push(targetPath)
     }
   }
-
   return result
 }
 
@@ -760,7 +746,7 @@ export async function executeCommand(options: ExecuteCommandOptions): Promise<Ex
     }
   }
 
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const proc = spawnFn(command, [...args], {
       cwd,
       env: { ...process.env, ...env },
@@ -779,7 +765,7 @@ export async function executeCommand(options: ExecuteCommandOptions): Promise<Ex
       stderr += data.toString()
     })
 
-    proc.on('error', (error) => {
+    proc.on('error', error => {
       logger?.error({ action: 'executeCommand', error: error.message, command })
       resolve({
         success: false,
@@ -790,13 +776,10 @@ export async function executeCommand(options: ExecuteCommandOptions): Promise<Ex
       })
     })
 
-    proc.on('close', (code) => {
+    proc.on('close', code => {
       const success = code === 0
-      if (success) {
-        logger?.debug({ action: 'executeCommand', success: true, command })
-      } else {
-        logger?.warn({ action: 'executeCommand', success: false, exitCode: code, command, stderr })
-      }
+      if (success) logger?.debug({ action: 'executeCommand', success: true, command })
+      else logger?.warn({ action: 'executeCommand', success: false, exitCode: code, command, stderr })
       resolve({
         success,
         exitCode: code,

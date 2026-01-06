@@ -318,9 +318,7 @@ export function applyMetadataDefaults<T>(
   const result = { ...metadata }
 
   for (const [key, defaultValue] of Object.entries(defaults)) {
-    if (!(key in result) || result[key] == null) {
-      result[key] = defaultValue
-    }
+    if (!(key in result) || result[key] == null) result[key] = defaultValue
   }
 
   return result as T

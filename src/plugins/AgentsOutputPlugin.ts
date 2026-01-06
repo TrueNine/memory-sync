@@ -28,9 +28,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
-          if (child.dir != null && this.isRelativePath(child.dir)) {
-            results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
-          }
+          if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
         }
       }
     }
@@ -41,14 +39,13 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { workspace } = ctx.collectedInputContext
     const hasProjectOutputs = workspace.projects.some(
-      (p) => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
+      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
     )
 
-    if (!hasProjectOutputs) {
-      this.log.trace({ action: 'skip', reason: 'noOutputs' })
-      return false
-    }
+    if (hasProjectOutputs) return true
 
+    this.log.trace({ action: 'skip', reason: 'noOutputs' })
+    return false
     return true
   }
 
@@ -61,9 +58,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
       const projectName = project.name ?? 'unknown'
       const projectDir = project.dirFromWorkspacePath
 
-      if (projectDir == null) {
-        continue
-      }
+      if (projectDir == null) continue
 
       // Write root memory prompt (only if exists)
       if (project.rootMemoryPrompt != null) {

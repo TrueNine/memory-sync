@@ -31,15 +31,11 @@ export function evaluateExpression(
 ): string {
   const trimmed = expression.trim()
 
-  if (trimmed === '') {
-    return ''
-  }
+  if (trimmed === '') return ''
 
   // Handle simple variable references directly for better error messages
   // Matches: identifier, identifier.property, identifier.property.nested
-  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) {
-    return evaluateSimpleReference(trimmed, scope, options?.filePath)
-  }
+  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) return evaluateSimpleReference(trimmed, scope, options?.filePath)
 
   return evaluateComplexExpression(trimmed, scope, options?.filePath)
 }
@@ -63,22 +59,16 @@ function evaluateSimpleReference(
   let value: unknown = scope[rootVar]
   for (let i = 1; i < parts.length; i++) {
     const prop = parts[i]
-    if (prop == null) {
-      continue
-    }
+    if (prop == null) continue
 
-    if (value == null) {
-      throw new UndefinedVariableError(prop, reference, filePath)
-    }
+    if (value == null) throw new UndefinedVariableError(prop, reference, filePath)
     if (typeof value !== 'object') {
       throw new TypeError(
         `Cannot read property "${prop}" of ${typeof value} in expression "${reference}"`,
       )
     }
     const obj = value as Record<string, unknown>
-    if (!(prop in obj)) {
-      throw new UndefinedVariableError(prop, reference, filePath)
-    }
+    if (!(prop in obj)) throw new UndefinedVariableError(prop, reference, filePath)
     value = obj[prop]
   }
 
@@ -94,7 +84,7 @@ function evaluateComplexExpression(
   filePath?: string,
 ): string {
   const scopeKeys = Object.keys(scope)
-  const scopeValues = scopeKeys.map((k) => scope[k])
+  const scopeValues = scopeKeys.map(k => scope[k])
 
   try {
     // eslint-disable-next-line ts/no-implied-eval, no-new-func
@@ -108,9 +98,7 @@ function evaluateComplexExpression(
     // Check if the error is about undefined variable
     if (message.includes('is not defined')) {
       const match = /(\w+) is not defined/.exec(message)
-      if (match?.[1] != null) {
-        throw new UndefinedNamespaceError(match[1], expression, filePath)
-      }
+      if (match?.[1] != null) throw new UndefinedNamespaceError(match[1], expression, filePath)
     }
     const fileInfo = filePath != null ? ` (file: ${filePath})` : ''
     throw new Error(
@@ -123,17 +111,11 @@ function evaluateComplexExpression(
  * Converts a value to its string representation.
  */
 function convertToString(value: unknown): string {
-  if (value == null) {
-    return ''
-  }
+  if (value == null) return ''
 
-  if (typeof value === 'string') {
-    return value
-  }
+  if (typeof value === 'string') return value
 
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value)
-  }
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
 
   if (typeof value === 'object') {
     try {

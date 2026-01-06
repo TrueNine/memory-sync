@@ -86,9 +86,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     }
 
     const hasErrors = errors.length > 0
-    if (hasErrors) {
-      logger.warn({ action: 'orphan-cleanup', errors: errors.map((e) => ({ path: e.path, error: e.error.message })) })
-    }
+    if (hasErrors) logger.warn({ action: 'orphan-cleanup', errors: errors.map(e => ({ path: e.path, error: e.error.message })) })
 
     return {
       success: !hasErrors,
@@ -179,7 +177,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
       // Apply mapping rules for .mdx files (Requirements 2.2, 2.3, 2.4, 2.5)
       const possibleSrcPaths = this.getPossibleSourcePaths(path, shadowProjectDir, dirType, baseName, relativeDir)
 
-      return !possibleSrcPaths.some((srcPath) => fs.existsSync(srcPath))
+      return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
     } else {
       // For non-.mdx files, check direct mapping (Requirement 2.6)
       // Build possible source paths based on directory type
@@ -193,7 +191,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
         possibleSrcPaths.push(path.join(shadowProjectDir, 'src', dirType, relativeFromType))
       }
 
-      return !possibleSrcPaths.some((srcPath) => fs.existsSync(srcPath))
+      return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
     }
   }
 

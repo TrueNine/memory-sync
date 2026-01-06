@@ -28,11 +28,11 @@ describe('parseArgs property tests', () => {
       fc.assert(
         fc.property(
           fc.constantFrom(...logLevelFlags),
-          fc.array(fc.string().filter((s) => !s.startsWith('-') && s.length > 0), { maxLength: 5 }),
+          fc.array(fc.string().filter(s => !s.startsWith('-') && s.length > 0), { maxLength: 5 }),
           ({ flag, level }, otherArgs) => {
             // Filter out any strings that might be valid subcommands
             const filteredArgs = otherArgs.filter(
-              (arg) => !['help', 'init', 'dry-run', 'clean'].includes(arg),
+              arg => !['help', 'init', 'dry-run', 'clean'].includes(arg),
             )
             const args = [flag, ...filteredArgs]
             const result = parseArgs(args)
@@ -57,10 +57,10 @@ describe('parseArgs property tests', () => {
       fc.assert(
         fc.property(
           fc.array(
-            fc.string().filter((s) => !logLevelFlags.includes(s) && s.length > 0),
+            fc.string().filter(s => !logLevelFlags.includes(s) && s.length > 0),
             { maxLength: 10 },
           ),
-          (args) => {
+          args => {
             const result = parseArgs(args)
             expect(result.logLevel).toBeUndefined()
           },
@@ -82,13 +82,13 @@ describe('parseArgs property tests', () => {
     it('should capture unknown first positional as unknownCommand', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 1 }).filter((s) => {
+          fc.string({ minLength: 1 }).filter(s => {
             // Must not be a valid subcommand
             // Must not start with '-'
             // Must not be empty
             return !validSubcommands.includes(s) && !s.startsWith('-') && s.trim().length > 0
           }),
-          (unknownCmd) => {
+          unknownCmd => {
             const result = parseArgs([unknownCmd])
             expect(result.unknownCommand).toBe(unknownCmd)
             expect(result.subcommand).toBeUndefined()
@@ -102,7 +102,7 @@ describe('parseArgs property tests', () => {
       fc.assert(
         fc.property(
           fc.constantFrom(...validSubcommands),
-          (subcommand) => {
+          subcommand => {
             const result = parseArgs([subcommand])
             expect(result.unknownCommand).toBeUndefined()
             expect(result.subcommand).toBe(subcommand)
@@ -141,9 +141,9 @@ describe('resolveLogLevel property tests', () => {
         fc.property(
           // Generate a non-empty subset of log levels
           fc.array(fc.constantFrom(...allLogLevels), { minLength: 1, maxLength: 5 }),
-          (levels) => {
+          levels => {
             // Build args with log level flags
-            const args = levels.map((level) => `--${level}`)
+            const args = levels.map(level => `--${level}`)
             const parsed = parseArgs(args)
             const resolved = resolveLogLevel(parsed)
 
@@ -165,13 +165,13 @@ describe('resolveLogLevel property tests', () => {
       fc.assert(
         fc.property(
           fc.array(
-            fc.string().filter((s) => {
+            fc.string().filter(s => {
               // Exclude log level flags
-              return !allLogLevels.some((level) => s === `--${level}`)
+              return !allLogLevels.some(level => s === `--${level}`)
             }),
             { maxLength: 10 },
           ),
-          (args) => {
+          args => {
             const parsed = parseArgs(args)
             const resolved = resolveLogLevel(parsed)
             expect(resolved).toBeUndefined()
@@ -186,9 +186,9 @@ describe('resolveLogLevel property tests', () => {
         fc.property(
           // Generate other log levels (not trace)
           fc.array(fc.constantFrom('debug', 'info', 'warn', 'error') as fc.Arbitrary<LogLevel>, { maxLength: 4 }),
-          (otherLevels) => {
+          otherLevels => {
             // Always include trace
-            const args = ['--trace', ...otherLevels.map((level) => `--${level}`)]
+            const args = ['--trace', ...otherLevels.map(level => `--${level}`)]
             const parsed = parseArgs(args)
             const resolved = resolveLogLevel(parsed)
 
@@ -237,7 +237,7 @@ describe('resolveCommand property tests', () => {
         fc.property(
           // Generate arrays of non-flag, non-subcommand strings (positional args)
           fc.array(
-            fc.string().filter((s) => {
+            fc.string().filter(s => {
               // Exclude flags and valid subcommands
               return !s.startsWith('-')
                 && !['help', 'init', 'dry-run', 'clean'].includes(s)
@@ -245,7 +245,7 @@ describe('resolveCommand property tests', () => {
             }),
             { maxLength: 5 },
           ),
-          (_emptyArgs) => {
+          _emptyArgs => {
             // Create args with no subcommand, no helpFlag, no unknownCommand
             const args = createParsedArgs()
             const command = resolveCommand(args)
@@ -260,7 +260,7 @@ describe('resolveCommand property tests', () => {
       fc.assert(
         fc.property(
           fc.array(fc.string({ minLength: 1 }), { maxLength: 5 }),
-          (positionalArgs) => {
+          positionalArgs => {
             // Create args with positional but no subcommand/flags
             const args = createParsedArgs({ positional: positionalArgs })
             const command = resolveCommand(args)
@@ -306,7 +306,7 @@ describe('resolveCommand property tests', () => {
       fc.assert(
         fc.property(
           fc.constantFrom('trace', 'debug', 'info', 'warn', 'error') as fc.Arbitrary<LogLevel>,
-          (logLevel) => {
+          logLevel => {
             const args = createParsedArgs({
               helpFlag: true,
               logLevel,
@@ -353,7 +353,7 @@ describe('resolveCommand property tests', () => {
       fc.assert(
         fc.property(
           fc.array(fc.string(), { maxLength: 5 }),
-          (unknownFlags) => {
+          unknownFlags => {
             const args = createParsedArgs({
               subcommand: 'clean',
               dryRun: true,

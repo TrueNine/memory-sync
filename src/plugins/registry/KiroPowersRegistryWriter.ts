@@ -163,9 +163,7 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
   private getOfficialRegistry(): KiroPowersRegistry {
     try {
       // __KIRO_GLOBAL_POWERS_REGISTRY__ is injected at build time by tsdown
-      if (typeof __KIRO_GLOBAL_POWERS_REGISTRY__ !== 'undefined') {
-        return JSON.parse(__KIRO_GLOBAL_POWERS_REGISTRY__) as KiroPowersRegistry
-      }
+      if (typeof __KIRO_GLOBAL_POWERS_REGISTRY__ !== 'undefined') return JSON.parse(__KIRO_GLOBAL_POWERS_REGISTRY__) as KiroPowersRegistry
     } catch {
       this.log.debug('Failed to parse official registry, using empty registry')
     }

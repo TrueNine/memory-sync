@@ -11,9 +11,7 @@ function resolvePath(p: string, workspaceDir: string, shadowSourceProjectDir: st
   let resolved = p
   resolved = resolved.replace(PathPlaceholders.SHADOW_SOURCE_PROJECT, shadowSourceProjectDir)
   resolved = resolved.replace(PathPlaceholders.WORKSPACE, workspaceDir)
-  if (resolved.startsWith('~')) {
-    resolved = path.join(os.homedir(), resolved.slice(1))
-  }
+  if (resolved.startsWith('~')) resolved = path.join(os.homedir(), resolved.slice(1))
   return path.normalize(resolved)
 }
 

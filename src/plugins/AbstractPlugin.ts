@@ -43,9 +43,7 @@ export abstract class AbstractPlugin<T extends PluginKind = PluginKind> implemen
    * Lazily initialized to respect global log level set by CLI args.
    */
   get log(): ILogger {
-    if (this._log == null) {
-      this._log = createLogger(this.name)
-    }
+    if (this._log == null) this._log = createLogger(this.name)
     return this._log
   }
 
@@ -65,8 +63,6 @@ export abstract class AbstractPlugin<T extends PluginKind = PluginKind> implemen
   protected constructor(name: string, type: T, dependsOn?: readonly string[]) {
     this.name = name
     this.type = type
-    if (dependsOn != null) {
-      this.dependsOn = dependsOn
-    }
+    if (dependsOn != null) this.dependsOn = dependsOn
   }
 }

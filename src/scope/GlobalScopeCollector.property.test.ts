@@ -46,7 +46,7 @@ describe('globalScopeCollector property tests', () => {
             }),
             { nil: void 0 },
           ),
-          (userConfig) => {
+          userConfig => {
             const collector = new GlobalScopeCollector({
               userConfig: userConfig as UserConfigFile | undefined,
             })
@@ -81,7 +81,7 @@ describe('globalScopeCollector property tests', () => {
       fc.assert(
         fc.property(
           fc.integer({ min: 1, max: 10 }),
-          (iterations) => {
+          iterations => {
             const collector = new GlobalScopeCollector()
 
             // Collect multiple times and verify consistency
@@ -124,13 +124,13 @@ describe('globalScopeCollector property tests', () => {
       fc.assert(
         fc.property(
           fc.constantFrom(...shellMappings),
-          fc.string({ minLength: 0, maxLength: 20 }).filter((s) => {
+          fc.string({ minLength: 0, maxLength: 20 }).filter(s => {
             const lower = s.toLowerCase()
-            return !allShellPatterns.some((p) => lower.includes(p))
+            return !allShellPatterns.some(p => lower.includes(p))
           }),
-          fc.string({ minLength: 0, maxLength: 20 }).filter((s) => {
+          fc.string({ minLength: 0, maxLength: 20 }).filter(s => {
             const lower = s.toLowerCase()
-            return !allShellPatterns.some((p) => lower.includes(p))
+            return !allShellPatterns.some(p => lower.includes(p))
           }),
           ({ pattern, expected }, prefix, suffix) => {
             // Set SHELL env var with the pattern
@@ -154,13 +154,13 @@ describe('globalScopeCollector property tests', () => {
       fc.assert(
         fc.property(
           fc.constantFrom(...shellMappings),
-          fc.string({ minLength: 0, maxLength: 20 }).filter((s) => {
+          fc.string({ minLength: 0, maxLength: 20 }).filter(s => {
             const lower = s.toLowerCase()
-            return !allShellPatterns.some((p) => lower.includes(p))
+            return !allShellPatterns.some(p => lower.includes(p))
           }),
-          fc.string({ minLength: 0, maxLength: 20 }).filter((s) => {
+          fc.string({ minLength: 0, maxLength: 20 }).filter(s => {
             const lower = s.toLowerCase()
-            return !allShellPatterns.some((p) => lower.includes(p))
+            return !allShellPatterns.some(p => lower.includes(p))
           }),
           ({ pattern, expected }, prefix, suffix) => {
             // Set ComSpec env var with the pattern (Windows)
@@ -180,7 +180,7 @@ describe('globalScopeCollector property tests', () => {
     it('should detect Sh shell when path ends with /sh', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 0, maxLength: 30 }).filter((s) => {
+          fc.string({ minLength: 0, maxLength: 30 }).filter(s => {
             // Exclude strings that contain other shell patterns
             const lower = s.toLowerCase()
             return !lower.includes('bash')
@@ -190,7 +190,7 @@ describe('globalScopeCollector property tests', () => {
               && !lower.includes('powershell')
               && !lower.includes('cmd')
           }),
-          (prefix) => {
+          prefix => {
             process.env['SHELL'] = `${prefix}/sh`
             delete process.env['ComSpec']
 
@@ -207,7 +207,7 @@ describe('globalScopeCollector property tests', () => {
     it('should return Unknown for unrecognized shell patterns', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 1, maxLength: 50 }).filter((s) => {
+          fc.string({ minLength: 1, maxLength: 50 }).filter(s => {
             const lower = s.toLowerCase()
             // Exclude all known shell patterns
             return !lower.includes('bash')
@@ -218,7 +218,7 @@ describe('globalScopeCollector property tests', () => {
               && !lower.includes('cmd')
               && !lower.endsWith('/sh')
           }),
-          (unknownShell) => {
+          unknownShell => {
             process.env['SHELL'] = unknownShell
             delete process.env['ComSpec']
 
@@ -285,7 +285,7 @@ describe('globalScopeCollector property tests', () => {
           // Generate random env vars to add
           // Exclude __proto__ and other special properties that have special behavior in JS
           fc.dictionary(
-            fc.string({ minLength: 1, maxLength: 20 }).filter((s) =>
+            fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
               /^[A-Z_]\w*$/i.test(s)
               && s !== '__proto__'
               && s !== 'constructor'
@@ -294,7 +294,7 @@ describe('globalScopeCollector property tests', () => {
             fc.string({ minLength: 0, maxLength: 100 }),
             { minKeys: 0, maxKeys: 10 },
           ),
-          (additionalEnvVars) => {
+          additionalEnvVars => {
             // Add random env vars
             for (const [key, value] of Object.entries(additionalEnvVars)) {
               process.env[key] = value
@@ -322,7 +322,7 @@ describe('globalScopeCollector property tests', () => {
       fc.assert(
         fc.property(
           // Exclude __proto__ and other special properties
-          fc.string({ minLength: 1, maxLength: 20 }).filter((s) =>
+          fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
             /^[A-Z_]\w*$/i.test(s)
             && s !== '__proto__'
             && s !== 'constructor'

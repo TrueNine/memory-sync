@@ -105,9 +105,8 @@ export class ScopeRegistry {
             result[key] as Record<string, unknown> | undefined,
             value as Record<string, unknown>,
           )
-        } else {
-          result[key] = value
         }
+        else result[key] = value
       }
     }
 
@@ -124,27 +123,22 @@ export class ScopeRegistry {
     target: Record<string, unknown> | undefined,
     source: Record<string, unknown>,
   ): Record<string, unknown> {
-    if (target == null) {
-      return { ...source }
-    }
+    if (target == null) return { ...source }
 
     const result = { ...target }
     for (const [key, value] of Object.entries(source)) {
-      if (
-        typeof value === 'object'
+      if (typeof value === 'object'
         && value !== null
         && !Array.isArray(value)
         && typeof result[key] === 'object'
         && result[key] !== null
-        && !Array.isArray(result[key])
-      ) {
+        && !Array.isArray(result[key])) {
         result[key] = this.deepMerge(
           result[key] as Record<string, unknown>,
           value as Record<string, unknown>,
         )
-      } else {
-        result[key] = value
       }
+      else result[key] = value
     }
     return result
   }

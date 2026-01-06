@@ -33,7 +33,7 @@ describe('component-processor property tests', () => {
   describe('property 7: Circular Dependency Detection', () => {
     // Generate valid component names (PascalCase)
     const componentNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
-      .filter((s) => /^[A-Z][a-zA-Z0-9]*$/.test(s))
+      .filter(s => /^[A-Z][a-zA-Z0-9]*$/.test(s))
 
     /**
      * Creates a mock JSX element for testing
@@ -76,9 +76,8 @@ describe('component-processor property tests', () => {
           // Process JSX elements through processComponent (which checks for cycles)
           const result = await processComponent(child, ctx, mockProcessAst)
           newChildren.push(...result)
-        } else {
-          newChildren.push(child)
         }
+        else newChildren.push(child)
       }
 
       return { type: 'root', children: newChildren }
@@ -122,7 +121,7 @@ describe('component-processor property tests', () => {
       await fc.assert(
         fc.asyncProperty(
           componentNameArb,
-          async (componentName) => {
+          async componentName => {
             // Register a self-referencing component (A -> A)
             registerComponent(componentName, createReferencingHandler(componentName))
 
@@ -144,7 +143,7 @@ describe('component-processor property tests', () => {
       await fc.assert(
         fc.asyncProperty(
           componentNameArb,
-          componentNameArb.filter((s) => s.length > 0),
+          componentNameArb.filter(s => s.length > 0),
           async (nameA, nameB) => {
             // Ensure different names
             const componentA = `${nameA}A`
@@ -203,7 +202,7 @@ describe('component-processor property tests', () => {
       await fc.assert(
         fc.asyncProperty(
           componentNameArb,
-          async (componentName) => {
+          async componentName => {
             // Register a self-referencing component
             registerComponent(componentName, createReferencingHandler(componentName))
 

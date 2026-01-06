@@ -40,9 +40,7 @@ function writeGlobalConfig(config: UserConfigFile, logger: ILogger): void {
   const configDir = path.dirname(configPath)
 
   // Ensure directory exists
-  if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true })
-  }
+  if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
 
   // Write with pretty formatting
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8')
@@ -111,14 +109,10 @@ export class ConfigLoader {
     }
 
     // CWD config
-    if (this.searchCwd) {
-      paths.push(path.join(cwd, this.configFileName))
-    }
+    if (this.searchCwd) paths.push(path.join(cwd, this.configFileName))
 
     // Global config (lowest priority)
-    if (this.searchGlobal) {
-      paths.push(path.join(os.homedir(), DEFAULT_GLOBAL_CONFIG_DIR, this.configFileName))
-    }
+    if (this.searchGlobal) paths.push(path.join(os.homedir(), DEFAULT_GLOBAL_CONFIG_DIR, this.configFileName))
 
     return paths
   }
@@ -130,9 +124,7 @@ export class ConfigLoader {
     const resolvedPath = this.resolveTilde(filePath)
 
     try {
-      if (!fs.existsSync(resolvedPath)) {
-        return { config: {}, source: null, found: false }
-      }
+      if (!fs.existsSync(resolvedPath)) return { config: {}, source: null, found: false }
 
       const content = fs.readFileSync(resolvedPath, 'utf-8')
       const config = this.parseConfig(content, resolvedPath)
@@ -155,14 +147,12 @@ export class ConfigLoader {
 
     for (const searchPath of searchPaths) {
       const result = this.loadFromFile(searchPath)
-      if (result.found) {
-        loadedConfigs.push(result)
-      }
+      if (result.found) loadedConfigs.push(result)
     }
 
     // Merge configs (first has highest priority)
-    const merged = this.mergeConfigs(loadedConfigs.map((r) => r.config))
-    const sources = loadedConfigs.map((r) => r.source).filter((s): s is string => s !== null)
+    const merged = this.mergeConfigs(loadedConfigs.map(r => r.config))
+    const sources = loadedConfigs.map(r => r.source).filter((s): s is string => s !== null)
 
     return {
       config: merged,
@@ -178,15 +168,11 @@ export class ConfigLoader {
     try {
       const parsed: unknown = JSON.parse(content)
 
-      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        throw new Error('Config must be a JSON object')
-      }
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('Config must be a JSON object')
 
       return this.validateConfig(parsed as Record<string, unknown>, filePath)
     } catch (error) {
-      if (error instanceof SyntaxError) {
-        throw new Error(`Invalid JSON in ${filePath}: ${error.message}`)
-      }
+      if (error instanceof SyntaxError) throw new Error(`Invalid JSON in ${filePath}: ${error.message}`)
       throw error
     }
   }
@@ -211,11 +197,8 @@ export class ConfigLoader {
 
     for (const field of stringFields) {
       if (field in raw) {
-        if (typeof raw[field] === 'string') {
-          (config as Record<string, unknown>)[field] = raw[field]
-        } else {
-          errors.push(`${field} must be a string`)
-        }
+        if (typeof raw[field] === 'string') (config as Record<string, unknown>)[field] = raw[field]
+        else errors.push(`${field} must be a string`)
       }
     }
 
@@ -225,23 +208,20 @@ export class ConfigLoader {
       const logLevelValue = raw['logLevel']
       if (typeof logLevelValue === 'string' && validLevels.includes(logLevelValue)) {
         (config as Record<string, unknown>)['logLevel'] = logLevelValue
-      } else {
-        errors.push(`logLevel must be one of: ${validLevels.join(', ')}`)
       }
+      else errors.push(`logLevel must be one of: ${validLevels.join(', ')}`)
     }
 
     // externalProjects validation
     if ('externalProjects' in raw) {
       const externalProjectsValue = raw['externalProjects']
       if (Array.isArray(externalProjectsValue)) {
-        if (externalProjectsValue.every((p) => typeof p === 'string')) {
+        if (externalProjectsValue.every(p => typeof p === 'string')) {
           (config as Record<string, unknown>)['externalProjects'] = externalProjectsValue
-        } else {
-          errors.push('externalProjects must be an array of strings')
         }
-      } else {
-        errors.push('externalProjects must be an array')
+        else errors.push('externalProjects must be an array of strings')
       }
+      else errors.push('externalProjects must be an array')
     }
 
     // excludePatterns validation
@@ -253,20 +233,16 @@ export class ConfigLoader {
         let valid = true
 
         for (const [key, value] of Object.entries(patterns)) {
-          if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
-            validPatterns[key] = value
-          } else {
+          if (Array.isArray(value) && value.every(v => typeof v === 'string')) validPatterns[key] = value
+          else {
             errors.push(`excludePatterns.${key} must be an array of strings`)
             valid = false
           }
         }
 
-        if (valid) {
-          (config as Record<string, unknown>)['excludePatterns'] = validPatterns
-        }
-      } else {
-        errors.push('excludePatterns must be an object')
+        if (valid) (config as Record<string, unknown>)['excludePatterns'] = validPatterns
       }
+      else errors.push('excludePatterns must be an object')
     }
 
     // profile validation - supports arbitrary key-value pairs
@@ -274,9 +250,8 @@ export class ConfigLoader {
       const profileValue = raw['profile']
       if (typeof profileValue === 'object' && profileValue !== null && !Array.isArray(profileValue)) {
         (config as Record<string, unknown>)['profile'] = profileValue
-      } else {
-        errors.push('profile must be an object')
       }
+      else errors.push('profile must be an object')
     }
 
     // tool validation - supports string values for tool references
@@ -288,25 +263,19 @@ export class ConfigLoader {
         let valid = true
 
         for (const [key, value] of Object.entries(toolObj)) {
-          if (typeof value === 'string' || value === void 0) {
-            validTool[key] = value
-          } else {
+          if (typeof value === 'string' || value === void 0) validTool[key] = value
+          else {
             errors.push(`tool.${key} must be a string`)
             valid = false
           }
         }
 
-        if (valid) {
-          (config as Record<string, unknown>)['tool'] = validTool
-        }
-      } else {
-        errors.push('tool must be an object')
+        if (valid) (config as Record<string, unknown>)['tool'] = validTool
       }
+      else errors.push('tool must be an object')
     }
 
-    if (errors.length > 0) {
-      this.logger.warn('validation warnings', { path: filePath, errors })
-    }
+    if (errors.length > 0) this.logger.warn('validation warnings', { path: filePath, errors })
 
     return config
   }
@@ -315,14 +284,10 @@ export class ConfigLoader {
    * Merge multiple configs (first has highest priority)
    */
   private mergeConfigs(configs: UserConfigFile[]): UserConfigFile {
-    if (configs.length === 0) {
-      return {}
-    }
+    if (configs.length === 0) return {}
 
     const firstConfig = configs[0]
-    if (configs.length === 1 && firstConfig != null) {
-      return firstConfig
-    }
+    if (configs.length === 1 && firstConfig != null) return firstConfig
 
     // Reverse to merge from lowest to highest priority
     const reversed = [...configs].reverse()
@@ -352,15 +317,9 @@ export class ConfigLoader {
     a?: Record<string, string[]>,
     b?: Record<string, string[]>,
   ): Record<string, string[]> | null {
-    if (a == null && b == null) {
-      return null
-    }
-    if (a == null) {
-      return b ?? null
-    }
-    if (b == null) {
-      return a
-    }
+    if (a == null && b == null) return null
+    if (a == null) return b ?? null
+    if (b == null) return a
 
     const result: Record<string, string[]> = { ...a }
     for (const [key, patterns] of Object.entries(b)) {
@@ -370,9 +329,7 @@ export class ConfigLoader {
   }
 
   private resolveTilde(p: string): string {
-    if (p.startsWith('~')) {
-      return path.join(os.homedir(), p.slice(1))
-    }
+    if (p.startsWith('~')) return path.join(os.homedir(), p.slice(1))
     return p
   }
 }
@@ -406,9 +363,7 @@ let defaultLoader: ConfigLoader | null = null
  * Get or create the default ConfigLoader instance
  */
 export function getConfigLoader(options?: ConfigLoaderOptions): ConfigLoader {
-  if (options || !defaultLoader) {
-    defaultLoader = new ConfigLoader(options)
-  }
+  if (options || !defaultLoader) defaultLoader = new ConfigLoader(options)
   return defaultLoader
 }
 
@@ -503,9 +458,7 @@ function validateConfigStrict(raw: Record<string, unknown>): string[] {
   ] as const
 
   for (const field of stringFields) {
-    if (field in raw && typeof raw[field] !== 'string') {
-      errors.push(`${field} must be a string`)
-    }
+    if (field in raw && typeof raw[field] !== 'string') errors.push(`${field} must be a string`)
   }
 
   // logLevel validation
@@ -520,11 +473,8 @@ function validateConfigStrict(raw: Record<string, unknown>): string[] {
   // externalProjects validation
   if ('externalProjects' in raw) {
     const externalProjectsValue = raw['externalProjects']
-    if (!Array.isArray(externalProjectsValue)) {
-      errors.push('externalProjects must be an array')
-    } else if (!externalProjectsValue.every((p) => typeof p === 'string')) {
-      errors.push('externalProjects must be an array of strings')
-    }
+    if (!Array.isArray(externalProjectsValue)) errors.push('externalProjects must be an array')
+    else if (!externalProjectsValue.every(p => typeof p === 'string')) errors.push('externalProjects must be an array of strings')
   }
 
   // excludePatterns validation
@@ -535,9 +485,7 @@ function validateConfigStrict(raw: Record<string, unknown>): string[] {
     } else {
       const patterns = excludePatternsValue as Record<string, unknown>
       for (const [key, value] of Object.entries(patterns)) {
-        if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
-          errors.push(`excludePatterns.${key} must be an array of strings`)
-        }
+        if (!Array.isArray(value) || !value.every(v => typeof v === 'string')) errors.push(`excludePatterns.${key} must be an array of strings`)
       }
     }
   }
@@ -545,26 +493,20 @@ function validateConfigStrict(raw: Record<string, unknown>): string[] {
   // profile validation - must be an object with arbitrary key-value pairs
   if ('profile' in raw) {
     const profileValue = raw['profile']
-    if (typeof profileValue !== 'object' || profileValue === null || Array.isArray(profileValue)) {
-      errors.push('profile must be an object')
-    }
+    if (typeof profileValue !== 'object' || profileValue === null || Array.isArray(profileValue)) errors.push('profile must be an object')
   }
 
   // tool validation - must be an object with string values
-  if ('tool' in raw) {
-    const toolValue = raw['tool']
-    if (typeof toolValue !== 'object' || toolValue === null || Array.isArray(toolValue)) {
-      errors.push('tool must be an object')
-    } else {
-      const toolObj = toolValue as Record<string, unknown>
-      for (const [key, value] of Object.entries(toolObj)) {
-        if (typeof value !== 'string' && value !== void 0) {
-          errors.push(`tool.${key} must be a string`)
-        }
-      }
+  if (!'tool' in raw) return errors
+
+  const toolValue = raw['tool']
+  if (typeof toolValue !== 'object' || toolValue === null || Array.isArray(toolValue)) errors.push('tool must be an object')
+  else {
+    const toolObj = toolValue as Record<string, unknown>
+    for (const [key, value] of Object.entries(toolObj)) {
+      if (typeof value !== 'string' && value !== void 0) errors.push(`tool.${key} must be a string`)
     }
   }
-
   return errors
 }
 
