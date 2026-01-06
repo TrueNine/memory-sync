@@ -32,8 +32,9 @@ import { AbstractInputPlugin } from './AbstractInputPlugin'
  * Only converts local file references (not external URLs).
  *
  * Handles:
- * - Markdown links: [text](file.mdx) -> [text](file.md)
+ * - Markdown links: [text.mdx](file.mdx) -> [text.md](file.md)
  * - Markdown images: ![alt](file.mdx) -> ![alt](file.md)
+ * - Link text containing .mdx paths are also transformed
  * - Preserves anchors and query params: file.mdx#section -> file.md#section
  *
  * @param content - The markdown content to transform
@@ -41,19 +42,28 @@ import { AbstractInputPlugin } from './AbstractInputPlugin'
  */
 function transformMdxReferencesToMd(content: string): string {
   // Match markdown links and images: [text](url) or ![alt](url)
-  // Capture the URL part and transform .mdx to .md for local references
+  // Capture both the text and URL parts to transform .mdx to .md
   return content.replaceAll(
-    /(!?\[[^\]]*\]\()([^)]+)(\))/g,
-    (match, prefix: string, url: string, suffix: string) => {
+    /(!?\[)([^\]]*)(\]\()([^)]+)(\))/g,
+    (_match, prefix: string, text: string, middle: string, url: string, suffix: string) => {
+      // Transform link text: convert .mdx to .md for path-like text
+      const transformedText = text
+        .replace(/\.mdx$/g, '.md')
+        .replace(/\.mdx(?=#|\?|$)/g, '.md')
+
       // Skip external URLs (http://, https://, //, etc.)
-      if (/^(?:https?:)?\/\//.test(url)) return match
+      if (/^(?:https?:)?\/\//.test(url)) {
+        return `${prefix}${transformedText}${middle}${url}${suffix}`
+      }
+
       // Convert .mdx to .md for local file references
       // Simple replacement: .mdx at end or before # or ?
       const transformedUrl = url
         .replace(/\.mdx$/, '.md')
         .replace(/\.mdx#/, '.md#')
         .replace(/\.mdx\?/, '.md?')
-      return `${prefix}${transformedUrl}${suffix}`
+
+      return `${prefix}${transformedText}${middle}${transformedUrl}${suffix}`
     },
   )
 }
@@ -443,12 +453,12 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 const buffer = fs.readFileSync(filePath)
                 content = buffer.toString('base64')
                 encoding = 'base64'
-                ; ({ length } = buffer)
+                  ; ({ length } = buffer)
               } else {
                 // Read as UTF-8 text (default for unknown extensions too)
                 content = fs.readFileSync(filePath, 'utf8')
                 encoding = 'text'
-                ; ({ length } = Buffer.from(content, 'utf8'))
+                  ; ({ length } = Buffer.from(content, 'utf8'))
               }
 
               const mimeType = this.getMimeType(ext)

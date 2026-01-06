@@ -414,5 +414,31 @@ describe('skillInputPlugin', () => {
       expect(result.childDocs[0]?.content).toContain('./file.md')
       expect(result.childDocs[0]?.content).toContain('./doc.txt')
     })
+
+    it('should transform .mdx in link text when it looks like a path', () => {
+      const mockFs = {
+        readdirSync: vi.fn().mockReturnValue([
+          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+        ]),
+        readFileSync: vi.fn().mockReturnValue('[example.mdx](./example.mdx)'),
+      } as unknown as typeof import('node:fs')
+
+      const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
+
+      expect(result.childDocs[0]?.content).toBe('[example.md](./example.md)')
+    })
+
+    it('should transform .mdx in link text for table markdown links', () => {
+      const mockFs = {
+        readdirSync: vi.fn().mockReturnValue([
+          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+        ]),
+        readFileSync: vi.fn().mockReturnValue('| [examples/example_figma.mdx](examples/example_figma.mdx) |'),
+      } as unknown as typeof import('node:fs')
+
+      const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
+
+      expect(result.childDocs[0]?.content).toBe('| [examples/example_figma.md](examples/example_figma.md) |')
+    })
   })
 })
