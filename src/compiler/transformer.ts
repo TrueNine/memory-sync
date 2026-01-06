@@ -3,9 +3,7 @@
 
 import type { Program } from 'estree'
 import type { Paragraph, Parent, Root, RootContent, Text } from 'mdast'
-import type {
-  MdxJsxFlowElement,
-} from 'mdast-util-mdx'
+import type { MdxJsxFlowElement } from 'mdast-util-mdx'
 import type { ProcessingContext } from './types'
 import { isMdxComponent, processComponent } from './component-processor'
 import { evaluateExpression } from './expression-eval'
@@ -149,8 +147,7 @@ async function transformChildren(
         const componentResult = await processComponent(textElement, ctx, processAst)
         for (const node of componentResult) {
           if (node.type === 'paragraph' && 'children' in node) {
-            const para = node
-            result.push(...para.children)
+            result.push(...node.children)
           } else {
             result.push(node as ChildNode)
           }
@@ -162,8 +159,7 @@ async function transformChildren(
       if (converted != null) {
         for (const node of converted) {
           if (node.type === 'paragraph' && 'children' in node) {
-            const para = node
-            result.push(...para.children)
+            result.push(...node.children)
           } else {
             result.push(node as ChildNode)
           }

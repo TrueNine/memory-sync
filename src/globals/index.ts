@@ -129,6 +129,7 @@ export interface OsInfo {
 export interface MdProps {
   /** Condition for rendering content. If omitted, content always renders. */
   when?: boolean
+  /** Child content to render when condition is met */
   children?: unknown
 }
 
@@ -139,6 +140,7 @@ export interface MdProps {
 export interface MdLineProps {
   /** Condition for rendering content. If omitted, content always renders. */
   when?: boolean
+  /** Inline text content to render when condition is met */
   children?: unknown
 }
 
@@ -146,7 +148,17 @@ export interface MdLineProps {
  * Md component type with Line sub-component
  */
 export interface MdComponent {
+  /**
+   * Block-level conditional Markdown wrapper
+   * @param props - Component props including optional `when` condition
+   * @returns Rendered content or nothing if condition is false
+   */
   (props: MdProps): unknown
+  /**
+   * Inline conditional text component
+   * @param props - Component props including optional `when` condition
+   * @returns Inline text or nothing if condition is false
+   */
   Line: (props: MdLineProps) => unknown
 }
 
@@ -154,18 +166,28 @@ export interface MdComponent {
  * Global scope available in MDX expressions
  */
 export interface MdxGlobalScope {
+  /** User profile information */
   profile: UserProfile
+  /** Tool name references for AI assistants */
   tool: ToolReferences
+  /** Environment variables context */
   env: EnvironmentContext
+  /** Operating system information */
   os: OsInfo
+  /** Conditional Markdown component with Line sub-component */
   Md: MdComponent
 }
 
 declare global {
+  /** User profile information */
   const profile: UserProfile
+  /** Tool name references for AI assistants */
   const tool: ToolReferences
+  /** Environment variables context */
   const env: EnvironmentContext
+  /** Operating system information */
   const os: OsInfo
+  /** Conditional Markdown component with Line sub-component */
   const Md: MdComponent
 }
 

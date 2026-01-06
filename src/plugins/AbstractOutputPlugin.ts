@@ -130,7 +130,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    *
    * @see Requirements 5.1, 5.5
    */
-  private readonly registryWriterCache: Map<string, RegistryWriter<unknown, RegistryData>> = new Map()
+  private readonly registryWriterCache: Map<string, RegistryWriter<unknown>> = new Map()
 
   /**
    * Registered write effects to be executed after writeGlobalOutputs completes.

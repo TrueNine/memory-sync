@@ -140,10 +140,7 @@ function isScriptOrPackage(arg: string): boolean {
     return true
   }
   // npx 执行的包名（如 tnmsc、@truenine/memory-sync-cli）
-  if (/^(?:@[\w-]+\/)?[\w-]+$/.test(arg) && !arg.startsWith('-')) {
-    return true
-  }
-  return false
+  return /^(?:@[\w-]+\/)?[\w-]+$/.test(arg) && !arg.startsWith('-')
 }
 
 /**

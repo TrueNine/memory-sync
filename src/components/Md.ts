@@ -3,8 +3,8 @@
 
 import type { RootContent, Text } from 'mdast'
 import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
-import type { ProcessingContext } from '../compiler/types'
-import { evaluateExpression } from '../compiler/expression-eval'
+import type { ProcessingContext } from '@/compiler'
+import { evaluateExpression } from '@/compiler'
 
 /**
  * Evaluates the `when` attribute condition.

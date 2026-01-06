@@ -9,14 +9,9 @@
 
 import type { ILogger } from '@/log'
 import type { SkillPrompt } from '@/types/InputTypes'
-import type {
-  KiroPowerEntry,
-  KiroPowerSource,
-  KiroPowersRegistry,
-  KiroRepoSource,
-} from '@/types/RegistryTypes'
+import type { KiroPowerEntry, KiroPowerSource, KiroPowersRegistry, KiroRepoSource } from '@/types/RegistryTypes'
 
-import { RegistryWriter } from './RegistryWriter'
+import { RegistryWriter } from '@/plugins'
 
 /**
  * Registry writer for Kiro powers.
@@ -141,7 +136,7 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
 
     // Build entry with fields in Kiro's expected order:
     // name → description → mcpServers → author → keywords → displayName → installed → installedAt → installPath → source → sourcePath
-    const entry: KiroPowerEntry = {
+    return {
       name: yamlFrontMatter.name,
       description: yamlFrontMatter.description,
       // mcpServers comes after description, before author (Kiro format)
@@ -157,8 +152,6 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
       source,
       sourcePath: installPath,
     }
-
-    return entry
   }
 
   /**
@@ -220,7 +213,7 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
 
     // Build base repo source with required fields
     // Use sourcePath as name (matches Kiro's format)
-    const repoSource: KiroRepoSource = {
+    return {
       // Use full path as repo source name (matches Kiro's format)
       name: power.sourcePath ?? power.installPath ?? power.name,
       // Set type based on source type (Requirements 3.1)
@@ -234,7 +227,5 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
       ...(power.sourcePath != null && { path: power.sourcePath }),
       lastSync: now,
     }
-
-    return repoSource
   }
 }

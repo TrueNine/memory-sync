@@ -339,8 +339,7 @@ describe('globalScopeCollector property tests', () => {
             expect(scope.env[key]).toBe(value)
 
             // Modify process.env after collection
-            const newValue = `${value}_modified`
-            process.env[key] = newValue
+            process.env[key] = `${value}_modified`
 
             // The collected scope should still have the original value
             // (since it's a spread copy)

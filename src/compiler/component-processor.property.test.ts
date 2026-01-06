@@ -131,7 +131,7 @@ describe('component-processor property tests', () => {
             const element = createMockElement(componentName)
 
             // Should throw circular dependency error
-            await expect(
+            void expect(
               processComponent(element, ctx, mockProcessAst),
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },
@@ -159,7 +159,7 @@ describe('component-processor property tests', () => {
             const element = createMockElement(componentA)
 
             // Should throw circular dependency error
-            await expect(
+            void expect(
               processComponent(element, ctx, mockProcessAst),
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },
@@ -190,7 +190,7 @@ describe('component-processor property tests', () => {
             const element = createMockElement(componentA)
 
             // Should throw circular dependency error
-            await expect(
+            void expect(
               processComponent(element, ctx, mockProcessAst),
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },
@@ -281,7 +281,7 @@ describe('component-processor property tests', () => {
             const element = createMockElement(componentNames[0])
 
             // Should throw circular dependency error
-            await expect(
+            void expect(
               processComponent(element, ctx, mockProcessAst),
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },

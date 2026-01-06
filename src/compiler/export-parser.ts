@@ -423,7 +423,7 @@ function evaluateVariableReference(
     || typeof value === 'boolean'
     || value === null
     || Array.isArray(value)
-    || (typeof value === 'object' && value !== null)
+    || (typeof value === 'object')
   ) {
     return value as SupportedLiteral
   }
