@@ -116,7 +116,7 @@ function extractUserArgs(argv: readonly string[]): string[] {
  */
 function isRuntimeExecutable(arg: string): boolean {
   const runtimes = ['node', 'nodejs', 'bun', 'deno', 'tsx', 'ts-node', 'npx', 'pnpx', 'yarn', 'pnpm']
-  const normalized = arg.toLowerCase().replace(/\\/g, '/')
+  const normalized = arg.toLowerCase().replaceAll('\\', '/')
   return runtimes.some(rt => {
     const pattern = new RegExp(`(?:^|/)${rt}(?:\\.exe|\\.cmd|\\.ps1)?$`, 'i')
     return pattern.test(normalized) || normalized === rt
@@ -251,7 +251,6 @@ export function resolveCommand(args: ParsedCliArgs): Command {
     if (eqIndex > 0) parsedPositional.push([arg.slice(0, eqIndex), arg.slice(eqIndex + 1)])
   }
   return new SetCommand([...setOption, ...parsedPositional])
-  return new ExecuteCommand()
 }
 
 /**
@@ -610,7 +609,7 @@ export class PluginPipeline {
     for (const node of cycleNodes) {
       if (dfs(node)) {
         // Extract just the cycle portion
-        const cycleStart = path.indexOf(path[path.length - 1]!)
+        const cycleStart = path.indexOf(path.at(-1)!)
         return path.slice(cycleStart)
       }
       visited.clear()
@@ -618,7 +617,7 @@ export class PluginPipeline {
     }
 
     // Fallback: return all cycle nodes
-    return Array.from(cycleNodes)
+    return [...cycleNodes]
   }
 
   /**
@@ -765,7 +764,7 @@ export class PluginPipeline {
     addition: Partial<CollectedInputContext>,
   ): Partial<CollectedInputContext> {
     // Build merged workspace
-    let workspace: CollectedInputContext['workspace'] | undefined = base.workspace
+    let { workspace } = base
     if (addition.workspace != null) {
       if (workspace != null) {
         // Merge projects: later projects with same name replace earlier ones
@@ -778,10 +777,12 @@ export class PluginPipeline {
         }
         workspace = {
           directory: addition.workspace.directory ?? workspace.directory,
-          projects: Array.from(projectMap.values()),
+          projects: [...projectMap.values()],
         }
       }
-      else workspace = addition.workspace
+      else {
+        ; ({ workspace } = addition)
+      }
     }
 
     // Build merged arrays

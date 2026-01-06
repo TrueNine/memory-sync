@@ -280,7 +280,7 @@ describe('warpIDEOutputPlugin', () => {
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining('WARP.md'),
         '# Project Rules\n\nThis is project content.',
-        'utf-8',
+        'utf8',
       )
     })
 
@@ -310,7 +310,7 @@ describe('warpIDEOutputPlugin', () => {
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining('WARP.md'),
         '# Global Rules\n\nThese are global rules.\n\n# Project Rules\n\nThese are project rules.',
-        'utf-8',
+        'utf8',
       )
     })
 
@@ -373,7 +373,7 @@ describe('warpIDEOutputPlugin', () => {
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining('WARP.md'),
         '# Project Rules',
-        'utf-8',
+        'utf8',
       )
     })
 
@@ -411,13 +411,13 @@ describe('warpIDEOutputPlugin', () => {
         1,
         expect.stringContaining('project1'),
         'Global rules\n\nProject 1 rules',
-        'utf-8',
+        'utf8',
       )
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining('project2'),
         'Global rules\n\nProject 2 rules',
-        'utf-8',
+        'utf8',
       )
     })
 
@@ -460,7 +460,7 @@ describe('warpIDEOutputPlugin', () => {
         1,
         expect.stringContaining(path.join('project1', 'WARP.md')),
         'Global rules\n\nRoot rules',
-        'utf-8',
+        'utf8',
       )
 
       // Child prompt should NOT have global memory
@@ -468,7 +468,7 @@ describe('warpIDEOutputPlugin', () => {
         2,
         expect.stringContaining(path.join('project1', 'src', 'WARP.md')),
         'Child rules',
-        'utf-8',
+        'utf8',
       )
     })
 

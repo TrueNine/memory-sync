@@ -155,7 +155,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             expect(result).toBe(true)
 
             // Read cleaned registry
-            const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf-8')) as KiroPowersRegistry
+            const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf8')) as KiroPowersRegistry
 
             // In test environment, should reset to empty registry (fallback)
             // since __KIRO_GLOBAL_POWERS_REGISTRY__ is not defined
@@ -207,7 +207,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             expect(result).toBe(true)
 
             // Read cleaned registry
-            const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf-8')) as KiroPowersRegistry
+            const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf8')) as KiroPowersRegistry
 
             // All repoSources should be cleared (reset to official state)
             expect(Object.keys(cleanedRegistry.repoSources).length).toBe(0)
@@ -251,7 +251,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             writer.unregisterLocalPowers(false)
 
             // Read cleaned registry
-            const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf-8')) as KiroPowersRegistry
+            const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf8')) as KiroPowersRegistry
 
             // Verify structure is valid (reset to official state)
             expect(cleanedRegistry.version).toBeDefined()
@@ -276,7 +276,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
 
       // Registry file should be created with official state
       expect(fs.existsSync(registryPath)).toBe(true)
-      const registry = JSON.parse(fs.readFileSync(registryPath, 'utf-8')) as KiroPowersRegistry
+      const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8')) as KiroPowersRegistry
       expect(registry.version).toBe('1.0.0')
     })
 
@@ -305,7 +305,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
 
             // Write initial registry
             fs.writeFileSync(registryPath, JSON.stringify(initialRegistry, null, 2))
-            const originalContent = fs.readFileSync(registryPath, 'utf-8')
+            const originalContent = fs.readFileSync(registryPath, 'utf8')
 
             // Execute cleanup in dry-run mode
             const writer = new TestableKiroPowersRegistryWriter(registryPath)
@@ -315,7 +315,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             expect(result).toBe(true)
 
             // Verify file was not modified
-            const afterContent = fs.readFileSync(registryPath, 'utf-8')
+            const afterContent = fs.readFileSync(registryPath, 'utf8')
             expect(afterContent).toBe(originalContent)
           },
         ),

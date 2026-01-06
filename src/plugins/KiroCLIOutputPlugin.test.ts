@@ -251,7 +251,7 @@ describe('kiroCLIOutputPlugin', () => {
       // Should have proper line structure
       const lines = result.split('\n')
       expect(lines[0]).toBe('---')
-      expect(lines[lines.length - 1]).toBe('---')
+      expect(lines.at(-1)).toBe('---')
     })
   })
 
@@ -482,7 +482,7 @@ describe('kiroCLIOutputPlugin', () => {
       expect(fs.existsSync(mcpConfigPath)).toBe(true)
 
       // Should preserve original raw content
-      const writtenContent = fs.readFileSync(mcpConfigPath, 'utf-8')
+      const writtenContent = fs.readFileSync(mcpConfigPath, 'utf8')
       expect(writtenContent).toBe(mcpRawContent)
     })
 

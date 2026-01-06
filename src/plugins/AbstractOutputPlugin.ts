@@ -518,14 +518,14 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    *
    * @param filePath - The file path to write
    * @param content - The content to write
-   * @param encoding - The encoding (default: 'utf-8')
+   * @param encoding - The encoding (default: 'utf8')
    *
    * @example
    * ```typescript
    * this.writeFileSync('/path/to/file.txt', 'content')
    * ```
    */
-  protected writeFileSync(filePath: string, content: string, encoding: BufferEncoding = 'utf-8'): void {
+  protected writeFileSync(filePath: string, content: string, encoding: BufferEncoding = 'utf8'): void {
     fs.writeFileSync(filePath, content, encoding)
   }
 
@@ -643,7 +643,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
     try {
       this.ensureDirectory(dir)
-      fs.writeFileSync(fullPath, content, 'utf-8')
+      fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({ action: 'write', type: 'file', path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {
@@ -690,7 +690,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     try {
       const dir = path.dirname(fullPath)
       this.ensureDirectory(dir)
-      fs.writeFileSync(fullPath, content, 'utf-8')
+      fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({ action: 'write', type: 'promptFile', path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {

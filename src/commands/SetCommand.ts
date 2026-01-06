@@ -49,7 +49,7 @@ function readGlobalConfig(): Record<string, unknown> {
   const configPath = getGlobalConfigPath()
   if (!fs.existsSync(configPath)) return {}
   try {
-    const content = fs.readFileSync(configPath, 'utf-8')
+    const content = fs.readFileSync(configPath, 'utf8')
     return JSON.parse(content) as Record<string, unknown>
   } catch {
     return {}
@@ -67,7 +67,7 @@ function writeGlobalConfig(config: Record<string, unknown>): void {
   if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
 
   // Write with pretty formatting
-  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8')
+  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
 }
 
 /**
@@ -84,7 +84,7 @@ export class SetCommand implements Command {
 
   constructor(
     private readonly options: readonly [key: string, value: string][],
-  ) {}
+  ) { }
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
     const { logger } = ctx

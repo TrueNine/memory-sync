@@ -137,7 +137,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     if (config.type !== IDEKind.VSCode) return this.basename(sourcePath)
 
     const vscodeIndex = sourcePath.indexOf(VSCODE_DIR)
-    if (vscodeIndex !== -1) return sourcePath.substring(vscodeIndex)
+    if (vscodeIndex !== -1) return sourcePath.slice(Math.max(0, vscodeIndex))
     return this.joinPath(VSCODE_DIR, this.basename(sourcePath))
   }
 }

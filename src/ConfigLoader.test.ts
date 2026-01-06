@@ -314,9 +314,7 @@ describe('configLoader', () => {
       const cwdPath = path.join(mockCwd, DEFAULT_CONFIG_FILE_NAME)
       const globalPath = path.join(mockHomedir, DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
 
-      vi.mocked(fs.existsSync).mockImplementation(p => {
-        return p === cwdPath || p === globalPath
-      })
+      vi.mocked(fs.existsSync).mockImplementation(p => p === cwdPath || p === globalPath)
 
       vi.mocked(fs.readFileSync).mockImplementation(p => {
         if (p === cwdPath) return cwdConfig
@@ -348,9 +346,7 @@ describe('configLoader', () => {
       const cwdPath = path.join(mockCwd, DEFAULT_CONFIG_FILE_NAME)
       const globalPath = path.join(mockHomedir, DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
 
-      vi.mocked(fs.existsSync).mockImplementation(p => {
-        return p === cwdPath || p === globalPath
-      })
+      vi.mocked(fs.existsSync).mockImplementation(p => p === cwdPath || p === globalPath)
 
       vi.mocked(fs.readFileSync).mockImplementation(p => {
         if (p === cwdPath) return cwdConfig
@@ -383,9 +379,7 @@ describe('configLoader', () => {
       const cwdPath = path.join(mockCwd, DEFAULT_CONFIG_FILE_NAME)
       const globalPath = path.join(mockHomedir, DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
 
-      vi.mocked(fs.existsSync).mockImplementation(p => {
-        return p === cwdPath || p === globalPath
-      })
+      vi.mocked(fs.existsSync).mockImplementation(p => p === cwdPath || p === globalPath)
 
       vi.mocked(fs.readFileSync).mockImplementation(p => {
         if (p === cwdPath) return cwdConfig

@@ -43,7 +43,7 @@ export abstract class AbstractPlugin<T extends PluginKind = PluginKind> implemen
    * Lazily initialized to respect global log level set by CLI args.
    */
   get log(): ILogger {
-    if (this._log == null) this._log = createLogger(this.name)
+    this._log ??= createLogger(this.name)
     return this._log
   }
 

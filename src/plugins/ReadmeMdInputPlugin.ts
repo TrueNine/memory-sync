@@ -89,7 +89,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     const readmePath = path.join(currentDir, 'readme.mdx')
     if (fs.existsSync(readmePath) && fs.statSync(readmePath).isFile()) {
       try {
-        const rawContent = fs.readFileSync(readmePath, 'utf-8')
+        const rawContent = fs.readFileSync(readmePath, 'utf8')
 
         // Compile MDX with globalScope to evaluate expressions like {profile.name}
         // Only compile if globalScope is provided, otherwise use raw content

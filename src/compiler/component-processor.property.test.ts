@@ -112,9 +112,7 @@ describe('component-processor property tests', () => {
      * Creates a terminal component handler that doesn't reference other components
      */
     function createTerminalHandler(): ComponentHandler {
-      return async (): Promise<RootContent[]> => {
-        return []
-      }
+      return async (): Promise<RootContent[]> => []
     }
 
     it('should detect direct self-reference (A -> A)', async () => {

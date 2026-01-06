@@ -64,7 +64,7 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { aiAgentIgnoreConfigFiles } = ctx.collectedInputContext
-    if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length !== 0) return true
+    if (aiAgentIgnoreConfigFiles?.length !== 0) return true
 
     this.log.debug('skipped', { reason: 'no ignore config files to write' })
     return false
@@ -121,7 +121,7 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
     }
 
     try {
-      fs.writeFileSync(fullPath, ignoreFile.content, 'utf-8')
+      fs.writeFileSync(fullPath, ignoreFile.content, 'utf8')
       this.log.trace({ action: 'write', type: 'ignoreFile', path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {

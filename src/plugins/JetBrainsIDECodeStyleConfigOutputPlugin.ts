@@ -149,7 +149,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     if (config.type !== IDEKind.IntellijIDEA) return this.basename(sourcePath)
 
     const ideaIndex = sourcePath.indexOf(IDEA_DIR)
-    if (ideaIndex !== -1) return sourcePath.substring(ideaIndex)
+    if (ideaIndex !== -1) return sourcePath.slice(Math.max(0, ideaIndex))
     return this.joinPath(IDEA_DIR, CODE_STYLES_DIR, this.basename(sourcePath))
   }
 }

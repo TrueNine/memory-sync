@@ -60,7 +60,7 @@ describe('kiroPowersIntegration', () => {
           (content, fileName) => {
             // Arrange: Create a reference document file
             const refDocPath = path.join(tempDir, fileName)
-            fs.writeFileSync(refDocPath, content, 'utf-8')
+            fs.writeFileSync(refDocPath, content, 'utf8')
 
             // Act: Parse the content using parseMarkdown (same as SkillInputPlugin)
             const parsed = parseMarkdown(content)
@@ -68,10 +68,10 @@ describe('kiroPowersIntegration', () => {
 
             // Simulate writing via KiroCLIOutputPlugin (writes content without front matter)
             const outputPath = path.join(tempDir, `output-${fileName}`)
-            fs.writeFileSync(outputPath, parsedContent, 'utf-8')
+            fs.writeFileSync(outputPath, parsedContent, 'utf8')
 
             // Assert: Read back and verify content is identical
-            const readBackContent = fs.readFileSync(outputPath, 'utf-8')
+            const readBackContent = fs.readFileSync(outputPath, 'utf8')
             expect(readBackContent).toBe(parsedContent)
           },
         ),
@@ -89,18 +89,18 @@ describe('kiroPowersIntegration', () => {
             const frontMatter = '---\ntitle: Test Document\n---\n'
             const fullContent = `${frontMatter}${bodyContent}`
             const refDocPath = path.join(tempDir, fileName)
-            fs.writeFileSync(refDocPath, fullContent, 'utf-8')
+            fs.writeFileSync(refDocPath, fullContent, 'utf8')
 
             // Act: Parse the content
             const parsed = parseMarkdown(fullContent)
-            const contentWithoutFrontMatter = parsed.contentWithoutFrontMatter
+            const { contentWithoutFrontMatter } = parsed
 
             // Write the content without front matter (as KiroCLIOutputPlugin does)
             const outputPath = path.join(tempDir, `output-${fileName}`)
-            fs.writeFileSync(outputPath, contentWithoutFrontMatter, 'utf-8')
+            fs.writeFileSync(outputPath, contentWithoutFrontMatter, 'utf8')
 
             // Assert: Content without front matter should match body content
-            const readBackContent = fs.readFileSync(outputPath, 'utf-8')
+            const readBackContent = fs.readFileSync(outputPath, 'utf8')
             expect(readBackContent).toBe(bodyContent)
           },
         ),

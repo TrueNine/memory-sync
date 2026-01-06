@@ -43,7 +43,7 @@ function writeGlobalConfig(config: UserConfigFile, logger: ILogger): void {
   if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
 
   // Write with pretty formatting
-  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8')
+  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
   logger.info('global config created', { path: configPath })
 }
 
@@ -126,7 +126,7 @@ export class ConfigLoader {
     try {
       if (!fs.existsSync(resolvedPath)) return { config: {}, source: null, found: false }
 
-      const content = fs.readFileSync(resolvedPath, 'utf-8')
+      const content = fs.readFileSync(resolvedPath, 'utf8')
       const config = this.parseConfig(content, resolvedPath)
 
       this.logger.debug('loaded', { source: resolvedPath })
@@ -400,7 +400,7 @@ export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
   // Try to read and parse config
   let content: string
   try {
-    content = fs.readFileSync(configPath, 'utf-8')
+    content = fs.readFileSync(configPath, 'utf8')
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     logger.error('failed to read global config', { path: configPath, error: errorMessage })

@@ -46,7 +46,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     if (readmePrompts == null || readmePrompts.length === 0) return results
 
     for (const readme of readmePrompts) {
-      const targetDir = readme.targetDir
+      const { targetDir } = readme
       const filePath = path.join(targetDir.path, README_FILE_NAME)
 
       results.push({
@@ -69,7 +69,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const { readmePrompts } = ctx.collectedInputContext
 
-    if (readmePrompts == null || readmePrompts.length !== 0) return true
+    if (readmePrompts?.length !== 0) return true
 
     this.log.debug('skipped', { reason: 'no README prompts to write' })
     return false
@@ -113,7 +113,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     readme: { projectName: string, targetDir: RelativePath, content: unknown, isRoot: boolean },
   ): Promise<WriteResult> {
-    const targetDir = readme.targetDir
+    const { targetDir } = readme
     const filePath = path.join(targetDir.path, README_FILE_NAME)
     const fullPath = path.join(targetDir.basePath, filePath)
     const content = readme.content as string
@@ -142,7 +142,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
       const dir = path.dirname(fullPath)
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 
-      fs.writeFileSync(fullPath, content, 'utf-8')
+      fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({ action: 'write', type: 'readme', path: fullPath, label })
       return { path: relativePath, success: true }
     } catch (error) {

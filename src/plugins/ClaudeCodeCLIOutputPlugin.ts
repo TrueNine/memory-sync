@@ -245,7 +245,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
     try {
       this.ensureDirectory(globalDir)
-      fs.writeFileSync(fullPath, globalMemory.content as string, 'utf-8')
+      fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
       this.log.trace({ action: 'write', type: 'globalMemory', path: fullPath })
       fileResults.push({ path: relativePath, success: true })
     } catch (error) {
@@ -325,7 +325,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
     try {
       this.ensureDirectory(targetDir)
-      fs.writeFileSync(fullPath, content, 'utf-8')
+      fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({ action: 'write', type: 'fastCommand', path: fullPath })
       results.push({ path: relativePath, success: true })
     } catch (error) {
@@ -369,7 +369,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
     try {
       this.ensureDirectory(targetDir)
-      fs.writeFileSync(fullPath, content, 'utf-8')
+      fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({ action: 'write', type: 'subAgent', path: fullPath })
       results.push({ path: relativePath, success: true })
     } catch (error) {
@@ -414,7 +414,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
     try {
       this.ensureDirectory(targetDir)
-      fs.writeFileSync(fullPath, content, 'utf-8')
+      fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({ action: 'write', type: 'skill', path: fullPath })
       results.push({ path: relativePath, success: true })
 
@@ -471,7 +471,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       // Ensure parent directory exists for nested reference documents
       const parentDir = path.dirname(fullPath)
       this.ensureDirectory(parentDir)
-      fs.writeFileSync(fullPath, refDoc.content as string, 'utf-8')
+      fs.writeFileSync(fullPath, refDoc.content as string, 'utf8')
       this.log.trace({ action: 'write', type: 'skillRefDoc', path: fullPath })
       results.push({ path: relativePath, success: true })
     } catch (error) {
@@ -510,7 +510,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       // Ensure parent directory exists for nested resources
       const parentDir = path.dirname(fullPath)
       this.ensureDirectory(parentDir)
-      fs.writeFileSync(fullPath, resource.content, 'utf-8')
+      fs.writeFileSync(fullPath, resource.content, 'utf8')
       this.log.trace({ action: 'write', type: 'skillResource', path: fullPath })
       results.push({ path: relativePath, success: true })
     } catch (error) {

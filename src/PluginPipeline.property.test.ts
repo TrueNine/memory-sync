@@ -51,13 +51,13 @@ describe('parseArgs property tests', () => {
    * Validates: Requirements 6.6
    */
   describe('property 3: Log Level Default Behavior', () => {
-    const logLevelFlags = ['--trace', '--debug', '--info', '--warn', '--error']
+    const logLevelFlags = new Set(['--trace', '--debug', '--info', '--warn', '--error'])
 
     it('should have undefined logLevel when no log level flag is provided', () => {
       fc.assert(
         fc.property(
           fc.array(
-            fc.string().filter(s => !logLevelFlags.includes(s) && s.length > 0),
+            fc.string().filter(s => !logLevelFlags.has(s) && s.length > 0),
             { maxLength: 10 },
           ),
           args => {
@@ -82,12 +82,12 @@ describe('parseArgs property tests', () => {
     it('should capture unknown first positional as unknownCommand', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 1 }).filter(s => {
+          fc.string({ minLength: 1 }).filter(s =>
             // Must not be a valid subcommand
             // Must not start with '-'
             // Must not be empty
-            return !validSubcommands.includes(s) && !s.startsWith('-') && s.trim().length > 0
-          }),
+            !validSubcommands.includes(s) && !s.startsWith('-') && s.trim().length > 0,
+          ),
           unknownCmd => {
             const result = parseArgs([unknownCmd])
             expect(result.unknownCommand).toBe(unknownCmd)
@@ -148,11 +148,9 @@ describe('resolveLogLevel property tests', () => {
             const resolved = resolveLogLevel(parsed)
 
             // Find expected most verbose level
-            const expectedLevel = levels.reduce((mostVerbose, current) => {
-              return logLevelPriority[current] < logLevelPriority[mostVerbose]
-                ? current
-                : mostVerbose
-            })
+            const expectedLevel = levels.reduce((mostVerbose, current) => logLevelPriority[current] < logLevelPriority[mostVerbose]
+              ? current
+              : mostVerbose)
 
             expect(resolved).toBe(expectedLevel)
           },
@@ -165,10 +163,10 @@ describe('resolveLogLevel property tests', () => {
       fc.assert(
         fc.property(
           fc.array(
-            fc.string().filter(s => {
+            fc.string().filter(s =>
               // Exclude log level flags
-              return !allLogLevels.some(level => s === `--${level}`)
-            }),
+              !allLogLevels.some(level => s === `--${level}`),
+            ),
             { maxLength: 10 },
           ),
           args => {
@@ -237,12 +235,12 @@ describe('resolveCommand property tests', () => {
         fc.property(
           // Generate arrays of non-flag, non-subcommand strings (positional args)
           fc.array(
-            fc.string().filter(s => {
+            fc.string().filter(s =>
               // Exclude flags and valid subcommands
-              return !s.startsWith('-')
-                && !['help', 'init', 'dry-run', 'clean'].includes(s)
-                && s.trim().length === 0
-            }),
+              !s.startsWith('-')
+              && !['help', 'init', 'dry-run', 'clean'].includes(s)
+              && s.trim().length === 0,
+            ),
             { maxLength: 5 },
           ),
           _emptyArgs => {

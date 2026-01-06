@@ -232,7 +232,7 @@ export function generateShadowSourceProject(
     if (!(fs.existsSync(sourcePath) && fs.statSync(sourcePath).isFile())) return defaultContent
 
     logger?.debug('copying from source', { path: sourcePath })
-    return fs.readFileSync(sourcePath, 'utf-8')
+    return fs.readFileSync(sourcePath, 'utf8')
   }
 
   // Helper to create directory
@@ -261,7 +261,7 @@ export function generateShadowSourceProject(
       logger?.debug('file exists', { path: filePath })
     } else {
       const content = getFileContent(relativePath, defaultContent)
-      fs.writeFileSync(filePath, content, 'utf-8')
+      fs.writeFileSync(filePath, content, 'utf8')
       createdFiles.push(filePath)
       logger?.info('created file', { path: filePath })
     }

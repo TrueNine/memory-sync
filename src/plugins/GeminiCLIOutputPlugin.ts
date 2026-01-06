@@ -136,7 +136,7 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
 
     try {
       this.ensureDirectory(globalDir)
-      fs.writeFileSync(fullPath, globalMemory.content as string, 'utf-8')
+      fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
       this.log.trace({ action: 'write', type: 'globalMemory', path: fullPath })
       fileResults.push({ path: relativePath, success: true })
     } catch (error) {

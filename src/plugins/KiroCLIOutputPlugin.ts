@@ -471,7 +471,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       if (skill.mcpConfig == null) continue
 
       const powerName = skill.yamlFrontMatter.name
-      const mcpServers = skill.mcpConfig.mcpServers
+      const { mcpServers } = skill.mcpConfig
 
       // Add each MCP server with key format: power-[powerName]-[mcpName]
       for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) {
@@ -851,9 +851,9 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
     // Replace path separators with kebab-case
     const normalizedPath = childPath
-      .replace(/\\/g, '/')
-      .replace(/^\/+|\/+$/g, '')
-      .replace(/\//g, '-')
+      .replaceAll('\\', '/')
+      .replaceAll(/^\/+|\/+$/g, '')
+      .replaceAll('/', '-')
     return `kiro-${normalizedPath}.md`
   }
 
@@ -863,7 +863,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
    */
   private buildSteeringContent(child: ProjectChildrenMemoryPrompt): string {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
-    const normalizedPath = childPath.replace(/\\/g, '/')
+    const normalizedPath = childPath.replaceAll('\\', '/')
 
     const fmData: Record<string, unknown> = {
       inclusion: 'fileMatch',

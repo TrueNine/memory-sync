@@ -285,7 +285,7 @@ export function parseStaticValue(
   // Template literals (without expressions)
   if (trimmed.startsWith('`') && trimmed.endsWith('`')) {
     const inner = trimmed.slice(1, -1)
-    if (/\$\{/.test(inner)) throw new Error(`Template literal with expressions cannot be statically evaluated: ${trimmed}`)
+    if (inner.includes('${')) throw new Error(`Template literal with expressions cannot be statically evaluated: ${trimmed}`)
     return parseStringLiteral(inner, '`')
   }
 
@@ -313,12 +313,12 @@ export function parseStaticValue(
 function parseStringLiteral(content: string, _quote: string): string {
   // Handle common escape sequences
   return content
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
-    .replace(/\\"/g, '"')
-    .replace(/\\'/g, '\'')
-    .replace(/\\\\/g, '\\')
+    .replaceAll('\\n', '\n')
+    .replaceAll('\\r', '\r')
+    .replaceAll('\\t', '\t')
+    .replaceAll('\\"', '"')
+    .replaceAll('\\\'', '\'')
+    .replaceAll('\\\\', '\\')
 }
 
 /**

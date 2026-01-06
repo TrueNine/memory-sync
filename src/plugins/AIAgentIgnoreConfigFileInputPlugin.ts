@@ -28,7 +28,7 @@ export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
 
       if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
         try {
-          const content = fs.readFileSync(filePath, 'utf-8')
+          const content = fs.readFileSync(filePath, 'utf8')
           ignoreFiles.push({ fileName, content })
           logger.debug('read ignore file', { path: filePath })
         } catch (e) {

@@ -395,7 +395,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     filePath: string,
     fs: typeof import('node:fs'),
   ): ParsedMarkdown<T> {
-    const rawContent = fs.readFileSync(filePath, 'utf-8')
+    const rawContent = fs.readFileSync(filePath, 'utf8')
     return parseMarkdown<T>(rawContent)
   }
 }

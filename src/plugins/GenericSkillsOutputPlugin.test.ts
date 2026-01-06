@@ -324,7 +324,7 @@ describe('genericSkillsOutputPlugin', () => {
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining('mcp.json'),
         mcpContent,
-        'utf-8',
+        'utf8',
       )
     })
 
@@ -346,7 +346,7 @@ describe('genericSkillsOutputPlugin', () => {
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining('guide.md'),
         '# Guide',
-        'utf-8',
+        'utf8',
       )
     })
 
@@ -368,7 +368,7 @@ describe('genericSkillsOutputPlugin', () => {
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining('helper.kt'),
         'fun main() {}',
-        'utf-8',
+        'utf8',
       )
     })
 
@@ -434,12 +434,12 @@ describe('genericSkillsOutputPlugin', () => {
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining(path.join('project1', '.skills')),
         expect.any(String),
-        'utf-8',
+        'utf8',
       )
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining(path.join('project2', '.skills')),
         expect.any(String),
-        'utf-8',
+        'utf8',
       )
     })
 

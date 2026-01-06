@@ -43,23 +43,19 @@ function mergeScopes(
   // 2. Merge custom scope (higher priority)
   if (customScope != null) {
     for (const [key, value] of Object.entries(customScope)) {
-      if (
-        typeof value === 'object'
+      const existingValue = result[key]
+      // Deep merge objects
+      result[key] = typeof value === 'object'
         && value !== null
         && !Array.isArray(value)
-        && typeof result[key] === 'object'
-        && result[key] !== null
-        && !Array.isArray(result[key])
-      ) {
-        // Deep merge objects
-        result[key] = {
-          ...(result[key] as Record<string, unknown>),
-          ...(value as Record<string, unknown>),
-        }
-      } else {
-        // Overwrite primitives and arrays
-        result[key] = value
-      }
+        && typeof existingValue === 'object'
+        && existingValue !== null
+        && !Array.isArray(existingValue)
+        ? {
+            ...(existingValue as Record<string, unknown>),
+            ...(value as Record<string, unknown>),
+          }
+        : value
     }
   }
 

@@ -139,7 +139,7 @@ function convertPreElement(
   if (codeChild == null) return null
 
   const className = getAttributeValue(codeChild, 'className', ctx) ?? ''
-  const langMatch = className.match(/language-(\w+)/)
+  const langMatch = /language-(\w+)/.exec(className)
   const lang = langMatch?.[1]
 
   const code = extractTextContent(codeChild, ctx)

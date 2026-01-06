@@ -92,7 +92,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return
 
     try {
-      const rawContent = fs.readFileSync(filePath, 'utf-8')
+      const rawContent = fs.readFileSync(filePath, 'utf8')
       const parsed = parseMarkdown<YAMLFrontMatter>(rawContent)
 
       // Compile MDX with globalScope to evaluate expressions like {profile.name}
@@ -191,7 +191,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     const filePath = path.join(shadowChildDir, PROJECT_MEMORY_FILE)
 
     try {
-      const rawContent = fs.readFileSync(filePath, 'utf-8')
+      const rawContent = fs.readFileSync(filePath, 'utf8')
       const parsed = parseMarkdown<YAMLFrontMatter>(rawContent)
 
       // Compile MDX with globalScope to evaluate expressions like {profile.name}

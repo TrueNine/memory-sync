@@ -143,7 +143,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
                 for (const file of skill.files) {
                   const filePath = path.join(skillDir, file.relativePath)
                   fs.mkdirSync(path.dirname(filePath), { recursive: true })
-                  fs.writeFileSync(filePath, file.content, 'utf-8')
+                  fs.writeFileSync(filePath, file.content, 'utf8')
                 }
               }
 
@@ -164,7 +164,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
                   } else {
                     // Non-.cn.mdx files should be synced with identical content
                     expect(fs.existsSync(distPath)).toBe(true)
-                    const distContent = fs.readFileSync(distPath, 'utf-8')
+                    const distContent = fs.readFileSync(distPath, 'utf8')
                     expect(distContent).toBe(file.content)
                   }
                 }
@@ -219,8 +219,8 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
                 fs.mkdirSync(path.dirname(srcPath), { recursive: true })
                 fs.mkdirSync(path.dirname(distPath), { recursive: true })
 
-                fs.writeFileSync(srcPath, file.content, 'utf-8')
-                fs.writeFileSync(distPath, file.content, 'utf-8')
+                fs.writeFileSync(srcPath, file.content, 'utf8')
+                fs.writeFileSync(distPath, file.content, 'utf8')
               }
 
               // Execute plugin
@@ -265,7 +265,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               for (const file of skill.files) {
                 const srcPath = path.join(skillSrcDir, file.relativePath)
                 fs.mkdirSync(path.dirname(srcPath), { recursive: true })
-                fs.writeFileSync(srcPath, file.content, 'utf-8')
+                fs.writeFileSync(srcPath, file.content, 'utf8')
               }
 
               // Execute plugin first time
@@ -287,8 +287,8 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
                 const srcPath = path.join(skillSrcDir, file.relativePath)
                 const distPath = path.join(distSkillsDir, skill.skillName, file.relativePath)
 
-                const srcContent = fs.readFileSync(srcPath, 'utf-8')
-                const distContent = fs.readFileSync(distPath, 'utf-8')
+                const srcContent = fs.readFileSync(srcPath, 'utf8')
+                const distContent = fs.readFileSync(distPath, 'utf8')
                 expect(distContent).toBe(srcContent)
               }
             } finally {

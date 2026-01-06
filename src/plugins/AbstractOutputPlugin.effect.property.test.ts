@@ -114,7 +114,7 @@ function captureFilesystemState(baseDir: string): Map<string, string | 'DIR'> {
         state.set(entryRelPath, 'DIR')
         scanDir(entryFullPath, entryRelPath)
       }
-      else if (entry.isFile()) state.set(entryRelPath, fs.readFileSync(entryFullPath, 'utf-8'))
+      else if (entry.isFile()) state.set(entryRelPath, fs.readFileSync(entryFullPath, 'utf8'))
     }
   }
 
@@ -193,7 +193,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                   fs.mkdirSync(skillDir, { recursive: true })
 
                   for (const file of skill.files) {
-                    fs.writeFileSync(path.join(skillDir, file.name), file.content, 'utf-8')
+                    fs.writeFileSync(path.join(skillDir, file.name), file.content, 'utf8')
                   }
                 }
 
@@ -258,7 +258,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                   fs.writeFileSync(
                     path.join(distTypeDir, `${file.name}.md`),
                     `# ${file.name}`,
-                    'utf-8',
+                    'utf8',
                   )
                 }
 
@@ -323,7 +323,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                   fs.writeFileSync(
                     path.join(targetDir, `${file.name}.md`),
                     file.content,
-                    'utf-8',
+                    'utf8',
                   )
                 }
 

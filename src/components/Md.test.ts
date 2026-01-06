@@ -27,9 +27,7 @@ describe('md component', () => {
    * Creates a mock processChildren function that returns children as-is
    */
   function createMockProcessChildren(): (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]> {
-    return async (children: RootContent[]): Promise<RootContent[]> => {
-      return children
-    }
+    return async (children: RootContent[]): Promise<RootContent[]> => children
   }
 
   /**

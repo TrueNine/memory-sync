@@ -230,7 +230,7 @@ describe('executeCommand', () => {
       expect(cleanupOps.length).toBeGreaterThan(0)
       expect(writeOps.length).toBeGreaterThan(0)
 
-      const lastCleanupIndex = operationOrder.lastIndexOf(cleanupOps[cleanupOps.length - 1])
+      const lastCleanupIndex = operationOrder.lastIndexOf(cleanupOps.at(-1))
       const firstWriteIndex = operationOrder.indexOf(writeOps[0])
 
       expect(lastCleanupIndex).toBeLessThan(firstWriteIndex)

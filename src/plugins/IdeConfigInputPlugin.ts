@@ -29,7 +29,7 @@ export class IdeConfigInputPlugin extends AbstractInputPlugin {
     for (const relativePath of defaultIdeFiles) {
       const absPath = path.join(shadowProjectDir, relativePath)
       if (fs.existsSync(absPath) && fs.statSync(absPath).isFile()) {
-        const content = fs.readFileSync(absPath, 'utf-8')
+        const content = fs.readFileSync(absPath, 'utf8')
         let type: IDEKind = IDEKind.Original
         if (relativePath.includes('.vscode')) type = IDEKind.VSCode
         else if (relativePath.includes('.idea')) type = IDEKind.IntellijIDEA

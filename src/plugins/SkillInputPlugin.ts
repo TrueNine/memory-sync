@@ -55,7 +55,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     }
 
     try {
-      const rawContent = fs.readFileSync(mcpJsonPath, 'utf-8')
+      const rawContent = fs.readFileSync(mcpJsonPath, 'utf8')
       const parsed = JSON.parse(rawContent) as { mcpServers?: Record<string, McpServerConfig> }
 
       if (parsed.mcpServers == null || typeof parsed.mcpServers !== 'object') {
@@ -372,7 +372,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             if (currentRelativePath === '' && entry.name === 'skill.mdx') continue
 
             try {
-              const rawContent = fs.readFileSync(filePath, 'utf-8')
+              const rawContent = fs.readFileSync(filePath, 'utf8')
               const parsed = parseMarkdown(rawContent)
               const content = parsed.contentWithoutFrontMatter
 
@@ -411,12 +411,12 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 const buffer = fs.readFileSync(filePath)
                 content = buffer.toString('base64')
                 encoding = 'base64'
-                length = buffer.length
+                ;({ length } = buffer)
               } else {
                 // Read as UTF-8 text (default for unknown extensions too)
-                content = fs.readFileSync(filePath, 'utf-8')
+                content = fs.readFileSync(filePath, 'utf8')
                 encoding = 'text'
-                length = Buffer.byteLength(content, 'utf-8')
+                ;({ length } = Buffer.from(content, 'utf8'))
               }
 
               const mimeType = this.getMimeType(ext)
@@ -462,7 +462,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
         const skillFilePath = ctx.path.join(skillDir, entry.name, 'skill.mdx')
         if (ctx.fs.existsSync(skillFilePath) && ctx.fs.statSync(skillFilePath).isFile()) {
           try {
-            const rawContent = ctx.fs.readFileSync(skillFilePath, 'utf-8')
+            const rawContent = ctx.fs.readFileSync(skillFilePath, 'utf8')
 
             // Parse YAML front matter first for backward compatibility
             const parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)
@@ -495,7 +495,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, skillFilePath)
 
             // Use compiled content
-            const content = compileResult.content
+            const { content } = compileResult
 
             const skillAbsoluteDir = ctx.path.join(skillDir, entry.name)
 

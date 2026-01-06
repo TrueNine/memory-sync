@@ -22,7 +22,7 @@ function evaluateWhenCondition(
   )
 
   // No condition = always true
-  if (whenAttr == null || whenAttr.type !== 'mdxJsxAttribute') return true
+  if (whenAttr?.type !== 'mdxJsxAttribute') return true
 
   if (typeof whenAttr.value === 'string') return whenAttr.value === 'true'
 

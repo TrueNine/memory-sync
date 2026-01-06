@@ -139,7 +139,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       } else {
         try {
           this.ensureDirectory(globalDir)
-          fs.writeFileSync(fullPath, globalMemory.content as string, 'utf-8')
+          fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
           this.log.trace({ action: 'write', type: 'globalMemory', path: fullPath })
           fileResults.push({ path: relativePath, success: true })
         } catch (error) {
@@ -203,7 +203,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
     try {
       this.ensureDirectory(targetDir)
-      fs.writeFileSync(fullPath, content, 'utf-8')
+      fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({ action: 'write', type: 'globalFastCommand', path: fullPath })
       results.push({ path: relativePath, success: true })
     } catch (error) {
@@ -247,7 +247,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
     try {
       this.ensureDirectory(targetDir)
-      fs.writeFileSync(fullPath, content, 'utf-8')
+      fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({ action: 'write', type: 'globalSkill', path: fullPath })
       results.push({ path: relativePath, success: true })
 
@@ -340,11 +340,11 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     let normalized = name
       .toLowerCase()
       // Replace invalid characters with hyphens
-      .replace(/[^a-z0-9-]/g, '-')
+      .replaceAll(/[^a-z0-9-]/g, '-')
       // Collapse multiple hyphens
-      .replace(/-+/g, '-')
+      .replaceAll(/-+/g, '-')
       // Trim leading/trailing hyphens
-      .replace(/^-+|-+$/g, '')
+      .replaceAll(/^-+|-+$/g, '')
 
     // Truncate if exceeds max length, remove trailing hyphens after truncation
     if (normalized.length > maxLength) normalized = normalized.slice(0, maxLength).replace(/-+$/, '')
@@ -358,7 +358,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
    */
   private normalizeToSingleLine(text: string, maxLength: number): string {
     // Replace newlines and multiple spaces with single space
-    const singleLine = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()
+    const singleLine = text.replaceAll(/[\r\n]+/g, ' ').replaceAll(/\s+/g, ' ').trim()
     // Truncate if exceeds max length
     if (singleLine.length > maxLength) return `${singleLine.slice(0, maxLength - 3)}...`
     return singleLine
@@ -396,7 +396,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       // Ensure parent directory exists for nested reference documents
       const parentDir = path.dirname(fullPath)
       this.ensureDirectory(parentDir)
-      fs.writeFileSync(fullPath, refDoc.content as string, 'utf-8')
+      fs.writeFileSync(fullPath, refDoc.content as string, 'utf8')
       this.log.trace({ action: 'write', type: 'skillRefDoc', path: fullPath })
       results.push({ path: relativePath, success: true })
     } catch (error) {
@@ -438,7 +438,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       // Ensure parent directory exists for nested resources
       const parentDir = path.dirname(fullPath)
       this.ensureDirectory(parentDir)
-      fs.writeFileSync(fullPath, resource.content, 'utf-8')
+      fs.writeFileSync(fullPath, resource.content, 'utf8')
       this.log.trace({ action: 'write', type: 'skillResource', path: fullPath })
       results.push({ path: relativePath, success: true })
     } catch (error) {

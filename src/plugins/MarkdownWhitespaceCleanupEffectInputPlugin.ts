@@ -140,7 +140,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     const { fs, logger } = ctx
 
     try {
-      const originalContent = fs.readFileSync(filePath, 'utf-8')
+      const originalContent = fs.readFileSync(filePath, 'utf8')
       const cleanedContent = this.cleanMarkdownContent(originalContent)
 
       // Skip if no changes needed (Requirement 3.4)
@@ -155,7 +155,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
         logger.debug({ action: 'whitespace-cleanup', dryRun: true, wouldModify: filePath })
         modifiedFiles.push(filePath)
       } else {
-        fs.writeFileSync(filePath, cleanedContent, 'utf-8')
+        fs.writeFileSync(filePath, cleanedContent, 'utf8')
         modifiedFiles.push(filePath)
         logger.debug({ action: 'whitespace-cleanup', modified: filePath })
       }

@@ -34,8 +34,8 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
     if (underscoreIndex === -1) return { commandName: baseName }
 
     return {
-      series: baseName.substring(0, underscoreIndex),
-      commandName: baseName.substring(underscoreIndex + 1),
+      series: baseName.slice(0, Math.max(0, underscoreIndex)),
+      commandName: baseName.slice(Math.max(0, underscoreIndex + 1)),
     }
   }
 
@@ -54,7 +54,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
       if (entry.isFile() && entry.name.endsWith('.mdx')) {
         const filePath = ctx.path.join(fastCommandDir, entry.name)
         try {
-          const rawContent = ctx.fs.readFileSync(filePath, 'utf-8')
+          const rawContent = ctx.fs.readFileSync(filePath, 'utf8')
 
           // Parse YAML front matter first for backward compatibility
           const parsed = parseMarkdown<FastCommandYAMLFrontMatter>(rawContent)
@@ -91,7 +91,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
           }
 
           // Use compiled content
-          const content = compileResult.content
+          const { content } = compileResult
           const seriesInfo = this.extractSeriesInfo(entry.name)
 
           // Log metadata source for debugging

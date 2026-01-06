@@ -29,7 +29,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
         for (const entry of entries) {
           if (entry.isFile() && entry.name.endsWith('.mdx')) {
             const filePath = path.join(subAgentDir, entry.name)
-            const rawContent = fs.readFileSync(filePath, 'utf-8')
+            const rawContent = fs.readFileSync(filePath, 'utf8')
 
             // Parse YAML front matter first for backward compatibility
             const parsed = parseMarkdown<SubAgentYAMLFrontMatter>(rawContent)
@@ -66,7 +66,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
             }
 
             // Use compiled content
-            const content = compileResult.content
+            const { content } = compileResult
 
             // Log metadata source for debugging
             logger.debug('sub agent metadata extracted', {

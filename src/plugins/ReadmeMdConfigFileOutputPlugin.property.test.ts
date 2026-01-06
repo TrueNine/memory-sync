@@ -206,7 +206,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             // Verify file was written to correct location
             const expectedPath = path.join(tempDir, projectName, 'README.md')
             expect(fs.existsSync(expectedPath)).toBe(true)
-            expect(fs.readFileSync(expectedPath, 'utf-8')).toBe(content)
+            expect(fs.readFileSync(expectedPath, 'utf8')).toBe(content)
           },
         ),
         { numRuns: 100 },
@@ -231,7 +231,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             // Verify file was written to correct location
             const expectedPath = path.join(tempDir, projectName, subdir, 'README.md')
             expect(fs.existsSync(expectedPath)).toBe(true)
-            expect(fs.readFileSync(expectedPath, 'utf-8')).toBe(content)
+            expect(fs.readFileSync(expectedPath, 'utf8')).toBe(content)
           },
         ),
         { numRuns: 100 },

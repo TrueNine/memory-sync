@@ -30,9 +30,7 @@ describe('component-registry', () => {
       _element: MdxJsxFlowElement | MdxJsxTextElement,
       _ctx: ProcessingContext,
       _processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>,
-    ): Promise<RootContent[]> => {
-      return []
-    }
+    ): Promise<RootContent[]> => []
   }
 
   describe('registerComponent', () => {

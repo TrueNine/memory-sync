@@ -123,7 +123,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
                 fs.mkdirSync(distTypePath, { recursive: true })
 
                 const distFilePath = path.join(distTypePath, `${file.name}.mdx`)
-                fs.writeFileSync(distFilePath, `# ${file.name}`, 'utf-8')
+                fs.writeFileSync(distFilePath, `# ${file.name}`, 'utf8')
 
                 if (file.hasSource) {
                   // Create corresponding source file
@@ -189,7 +189,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
 
               // Create orphan file in subdirectory (no source)
               const orphanFilePath = path.join(subDir, `${name}.mdx`)
-              fs.writeFileSync(orphanFilePath, `# ${name}`, 'utf-8')
+              fs.writeFileSync(orphanFilePath, `# ${name}`, 'utf8')
 
               // Verify setup: subdirectory exists with file
               expect(fs.existsSync(subDir)).toBe(true)
@@ -241,16 +241,16 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
 
               // Create orphan file (no source)
               const orphanFilePath = path.join(distSkillsDir, `${orphanName}.mdx`)
-              fs.writeFileSync(orphanFilePath, `# ${orphanName}`, 'utf-8')
+              fs.writeFileSync(orphanFilePath, `# ${orphanName}`, 'utf8')
 
               // Create valid file with source
               const validFilePath = path.join(distSkillsDir, `${validName}.mdx`)
-              fs.writeFileSync(validFilePath, `# ${validName}`, 'utf-8')
+              fs.writeFileSync(validFilePath, `# ${validName}`, 'utf8')
 
               // Create source for valid file
               const srcSkillDir = path.join(srcSkillsDir, validName)
               fs.mkdirSync(srcSkillDir, { recursive: true })
-              fs.writeFileSync(path.join(srcSkillDir, 'SKILL.cn.mdx'), `# ${validName}`, 'utf-8')
+              fs.writeFileSync(path.join(srcSkillDir, 'SKILL.cn.mdx'), `# ${validName}`, 'utf8')
 
               // Execute plugin
               const plugin = new OrphanFileCleanupEffectInputPlugin()
@@ -289,28 +289,28 @@ function createSourceFile(
       // src/skills/{name}/SKILL.cn.mdx
       const skillDir = path.join(shadowProjectDir, 'src', 'skills', name)
       fs.mkdirSync(skillDir, { recursive: true })
-      fs.writeFileSync(path.join(skillDir, 'SKILL.cn.mdx'), `# ${name}`, 'utf-8')
+      fs.writeFileSync(path.join(skillDir, 'SKILL.cn.mdx'), `# ${name}`, 'utf8')
       break
     }
     case 'commands': {
       // src/commands/{name}.cn.mdx
       const commandsDir = path.join(shadowProjectDir, 'src', 'commands')
       fs.mkdirSync(commandsDir, { recursive: true })
-      fs.writeFileSync(path.join(commandsDir, `${name}.cn.mdx`), `# ${name}`, 'utf-8')
+      fs.writeFileSync(path.join(commandsDir, `${name}.cn.mdx`), `# ${name}`, 'utf8')
       break
     }
     case 'agents': {
       // src/agents/{name}.cn.mdx
       const agentsDir = path.join(shadowProjectDir, 'src', 'agents')
       fs.mkdirSync(agentsDir, { recursive: true })
-      fs.writeFileSync(path.join(agentsDir, `${name}.cn.mdx`), `# ${name}`, 'utf-8')
+      fs.writeFileSync(path.join(agentsDir, `${name}.cn.mdx`), `# ${name}`, 'utf8')
       break
     }
     case 'app': {
       // app/{name}.cn.mdx
       const appDir = path.join(shadowProjectDir, 'app')
       fs.mkdirSync(appDir, { recursive: true })
-      fs.writeFileSync(path.join(appDir, `${name}.cn.mdx`), `# ${name}`, 'utf-8')
+      fs.writeFileSync(path.join(appDir, `${name}.cn.mdx`), `# ${name}`, 'utf8')
       break
     }
   }

@@ -192,14 +192,13 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   if (validationResult.shouldExit) process.exit(1)
 
   // Normalize options
-  let pluginOptions: PluginOptions
   let shouldLoadUserConfig: boolean
   let cwd: string | undefined
+  let pluginOptions: PluginOptions
 
   if (isDefineConfigOptions(options)) {
-    pluginOptions = options.pluginOptions ?? {}
+    ({ pluginOptions = {}, cwd } = { pluginOptions: options.pluginOptions, cwd: options.cwd })
     shouldLoadUserConfig = options.loadUserConfig ?? true
-    cwd = options.cwd
   } else {
     pluginOptions = options
     shouldLoadUserConfig = true

@@ -73,9 +73,9 @@ const lineWithTrailingWhitespaceGen = fc.tuple(lineContentGen, trailingWhitespac
 
 // Generate markdown content with various whitespace patterns
 const markdownContentGen = fc.array(lineWithTrailingWhitespaceGen, { minLength: 1, maxLength: 20 })
-  .chain(lines => {
+  .chain(lines =>
     // Randomly insert extra blank lines between content lines
-    return fc.array(
+    fc.array(
       fc.tuple(
         fc.constant(null as string | null),
         // Number of blank lines to insert
@@ -93,8 +93,8 @@ const markdownContentGen = fc.array(lineWithTrailingWhitespaceGen, { minLength: 
         result.push(lines[i])
       }
       return result
-    })
-  })
+    }),
+  )
 
 // Generate line ending style
 const lineEndingGen = fc.constantFrom('\n', '\r\n')
@@ -151,7 +151,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               fs.mkdirSync(srcDir, { recursive: true })
 
               const mdFilePath = path.join(srcDir, 'test.md')
-              fs.writeFileSync(mdFilePath, content, 'utf-8')
+              fs.writeFileSync(mdFilePath, content, 'utf8')
 
               // Execute plugin
               const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin()
@@ -160,7 +160,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               await effectMethod(ctx)
 
               // Read the processed file
-              const processedContent = fs.readFileSync(mdFilePath, 'utf-8')
+              const processedContent = fs.readFileSync(mdFilePath, 'utf8')
               const lines = processedContent.split(/\r?\n/)
 
               // Verify: No line should end with space or tab
@@ -235,7 +235,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               fs.mkdirSync(srcDir, { recursive: true })
 
               const mdFilePath = path.join(srcDir, 'test.md')
-              fs.writeFileSync(mdFilePath, content, 'utf-8')
+              fs.writeFileSync(mdFilePath, content, 'utf8')
 
               // Execute plugin
               const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin()
@@ -244,7 +244,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               await effectMethod(ctx)
 
               // Read the processed file
-              const processedContent = fs.readFileSync(mdFilePath, 'utf-8')
+              const processedContent = fs.readFileSync(mdFilePath, 'utf8')
               const lines = processedContent.split(/\r?\n/)
 
               // Count consecutive blank lines
@@ -320,8 +320,8 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             // Verify: If multi-line, should use CRLF
             if (lines.length <= 1) return
 
-            const crlfCount = (cleaned.match(/\r\n/g) || []).length
-            const lfOnlyCount = (cleaned.replace(/\r\n/g, '').match(/\n/g) || []).length
+            const crlfCount = (cleaned.match(/\r\n/g) ?? []).length
+            const lfOnlyCount = (cleaned.replaceAll('\r\n', '').match(/\n/g) ?? []).length
             expect(lfOnlyCount).toBe(0)
             expect(crlfCount).toBeGreaterThan(0)
           },
@@ -349,7 +349,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               // Create content with specific line ending
               const content = lines.join(lineEnding)
               const mdFilePath = path.join(srcDir, 'test.md')
-              fs.writeFileSync(mdFilePath, content, 'utf-8')
+              fs.writeFileSync(mdFilePath, content, 'utf8')
 
               // Execute plugin
               const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin()
@@ -358,14 +358,14 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               await effectMethod(ctx)
 
               // Read the processed file
-              const processedContent = fs.readFileSync(mdFilePath, 'utf-8')
+              const processedContent = fs.readFileSync(mdFilePath, 'utf8')
 
               // Verify line ending preservation
               if (lines.length > 1) {
                 if (lineEnding === '\r\n') {
                   // Should use CRLF
-                  const crlfCount = (processedContent.match(/\r\n/g) || []).length
-                  const lfOnlyCount = (processedContent.replace(/\r\n/g, '').match(/\n/g) || []).length
+                  const crlfCount = (processedContent.match(/\r\n/g) ?? []).length
+                  const lfOnlyCount = (processedContent.replaceAll('\r\n', '').match(/\n/g) ?? []).length
                   expect(lfOnlyCount).toBe(0)
                   expect(crlfCount).toBeGreaterThan(0)
                 } else {

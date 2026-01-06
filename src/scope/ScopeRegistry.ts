@@ -100,13 +100,12 @@ export class ScopeRegistry {
     // 3. Finally merge compile-time scope (highest priority)
     if (compileTimeScope != null) {
       for (const [key, value] of Object.entries(compileTimeScope)) {
-        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-          result[key] = this.deepMerge(
-            result[key] as Record<string, unknown> | undefined,
-            value as Record<string, unknown>,
-          )
-        }
-        else result[key] = value
+        result[key] = typeof value === 'object' && value !== null && !Array.isArray(value)
+          ? this.deepMerge(
+              result[key] as Record<string, unknown> | undefined,
+              value as Record<string, unknown>,
+            )
+          : value
       }
     }
 
@@ -127,18 +126,17 @@ export class ScopeRegistry {
 
     const result = { ...target }
     for (const [key, value] of Object.entries(source)) {
-      if (typeof value === 'object'
+      result[key] = typeof value === 'object'
         && value !== null
         && !Array.isArray(value)
         && typeof result[key] === 'object'
         && result[key] !== null
-        && !Array.isArray(result[key])) {
-        result[key] = this.deepMerge(
-          result[key] as Record<string, unknown>,
-          value as Record<string, unknown>,
-        )
-      }
-      else result[key] = value
+        && !Array.isArray(result[key])
+        ? this.deepMerge(
+            result[key] as Record<string, unknown>,
+            value as Record<string, unknown>,
+          )
+        : value
     }
     return result
   }

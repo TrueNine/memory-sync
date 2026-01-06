@@ -236,19 +236,19 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
         1,
         path.join(mockWorkspaceDir, 'project1', '.qoderignore'),
         'qoder patterns',
-        'utf-8',
+        'utf8',
       )
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
         2,
         path.join(mockWorkspaceDir, 'project1', '.cursorignore'),
         'cursor patterns',
-        'utf-8',
+        'utf8',
       )
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
         3,
         path.join(mockWorkspaceDir, 'project1', '.warpindexignore'),
         'warp patterns',
-        'utf-8',
+        'utf8',
       )
     })
 

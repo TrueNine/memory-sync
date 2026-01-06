@@ -46,7 +46,7 @@ describe('readmeMdInputPlugin property tests', () => {
 
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 
-      if (content !== null) fs.writeFileSync(fullPath, content, 'utf-8')
+      if (content !== null) fs.writeFileSync(fullPath, content, 'utf8')
     }
   }
 

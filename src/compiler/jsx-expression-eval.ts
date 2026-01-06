@@ -181,7 +181,7 @@ async function evaluateToValue(
     const left = await evaluateToValue(expr.left, ctx, processAstFn)
     if (expr.operator === '&&') return isTruthy(left) ? evaluateToValue(expr.right, ctx, processAstFn) : left
     if (expr.operator === '||') return isTruthy(left) ? left : evaluateToValue(expr.right, ctx, processAstFn)
-    if (expr.operator === '??') return left != null ? left : evaluateToValue(expr.right, ctx, processAstFn)
+    if (expr.operator === '??') return left ?? evaluateToValue(expr.right, ctx, processAstFn)
     return void 0
   }
 
@@ -192,7 +192,7 @@ async function evaluateToValue(
       const prop = await evaluateToValue(expr.property as Expression, ctx, processAstFn)
       return obj[prop as string]
     }
-    const prop = (expr.property as Identifier).name
+    const { name: prop } = expr.property as Identifier
     return obj[prop]
   }
 
@@ -276,7 +276,9 @@ function convertEstreeJsxToMdx(jsxElement: JSXElement, _ctx: ProcessingContext):
   const opening = jsxElement.openingElement
 
   let name: string | null = null
-  if (opening.name.type === 'JSXIdentifier') name = opening.name.name
+  if (opening.name.type === 'JSXIdentifier') {
+    ; ({ name } = opening.name)
+  }
   else if (opening.name.type === 'JSXMemberExpression') name = jsxMemberExpressionToString(opening.name)
   else if (opening.name.type === 'JSXNamespacedName') name = `${opening.name.namespace.name}:${opening.name.name.name}`
 
@@ -325,7 +327,7 @@ function jsxMemberExpressionToString(expr: JSXMemberExpression): string {
 
 function convertEstreeJsxChildToMdx(child: JSXChild, ctx: ProcessingContext): RootContent[] | null {
   if (child.type === 'JSXText') {
-    const value = child.value
+    const { value } = child
     if (value.trim() === '') return null
     return [{ type: 'paragraph', children: [{ type: 'text', value }] }]
   }

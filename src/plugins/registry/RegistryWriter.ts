@@ -92,7 +92,7 @@ export abstract class RegistryWriter<
     }
 
     try {
-      const content = fs.readFileSync(this.registryPath, 'utf-8')
+      const content = fs.readFileSync(this.registryPath, 'utf8')
       return JSON.parse(content) as TRegistry
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
@@ -129,7 +129,7 @@ export abstract class RegistryWriter<
 
       // Write to temporary file first
       const content = JSON.stringify(updatedData, null, 2)
-      fs.writeFileSync(tempPath, content, 'utf-8')
+      fs.writeFileSync(tempPath, content, 'utf8')
 
       // Atomic rename to replace target
       fs.renameSync(tempPath, this.registryPath)
@@ -208,7 +208,7 @@ export abstract class RegistryWriter<
    */
   protected generateEntryId(prefix?: string): string {
     const timestamp = Date.now()
-    const random = Math.random().toString(36).substring(2, 8)
+    const random = Math.random().toString(36).slice(2, 8)
     const id = `${timestamp}-${random}`
     return prefix != null ? `${prefix}-${id}` : id
   }

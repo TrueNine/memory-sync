@@ -35,7 +35,7 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
       return {}
     }
 
-    const rawContent = fs.readFileSync(globalMemoryFile, 'utf-8')
+    const rawContent = fs.readFileSync(globalMemoryFile, 'utf8')
     const parsed = parseMarkdown(rawContent)
 
     // Compile MDX with globalScope to evaluate expressions like {profile.name}
