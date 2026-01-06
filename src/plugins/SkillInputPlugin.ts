@@ -48,13 +48,11 @@ function transformMdxReferencesToMd(content: string): string {
     (_match, prefix: string, text: string, middle: string, url: string, suffix: string) => {
       // Transform link text: convert .mdx to .md for path-like text
       const transformedText = text
-        .replace(/\.mdx$/g, '.md')
-        .replace(/\.mdx(?=#|\?|$)/g, '.md')
+        .replaceAll(/\.mdx$/g, '.md')
+        .replaceAll(/\.mdx(?=#|\?|$)/g, '.md')
 
       // Skip external URLs (http://, https://, //, etc.)
-      if (/^(?:https?:)?\/\//.test(url)) {
-        return `${prefix}${transformedText}${middle}${url}${suffix}`
-      }
+      if (/^(?:https?:)?\/\//.test(url)) return `${prefix}${transformedText}${middle}${url}${suffix}`
 
       // Convert .mdx to .md for local file references
       // Simple replacement: .mdx at end or before # or ?
@@ -453,12 +451,12 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 const buffer = fs.readFileSync(filePath)
                 content = buffer.toString('base64')
                 encoding = 'base64'
-                  ; ({ length } = buffer)
+                ; ({ length } = buffer)
               } else {
                 // Read as UTF-8 text (default for unknown extensions too)
                 content = fs.readFileSync(filePath, 'utf8')
                 encoding = 'text'
-                  ; ({ length } = Buffer.from(content, 'utf8'))
+                ; ({ length } = Buffer.from(content, 'utf8'))
               }
 
               const mimeType = this.getMimeType(ext)
