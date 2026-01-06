@@ -123,6 +123,34 @@ export interface OsInfo {
 }
 
 /**
+ * Md component props - wrapper for conditional Markdown content
+ * @example <Md when={os.kind === 'mac'}>macOS specific content</Md>
+ */
+export interface MdProps {
+  /** Condition for rendering content. If omitted, content always renders. */
+  when?: boolean
+  children?: unknown
+}
+
+/**
+ * Md.Line component props - inline conditional text
+ * @example <Md.Line when={os.kind === 'win'}>PowerShell</Md.Line>
+ */
+export interface MdLineProps {
+  /** Condition for rendering content. If omitted, content always renders. */
+  when?: boolean
+  children?: unknown
+}
+
+/**
+ * Md component type with Line sub-component
+ */
+export interface MdComponent {
+  (props: MdProps): unknown
+  Line: (props: MdLineProps) => unknown
+}
+
+/**
  * Global scope available in MDX expressions
  */
 export interface MdxGlobalScope {
@@ -130,6 +158,7 @@ export interface MdxGlobalScope {
   tool: ToolReferences
   env: EnvironmentContext
   os: OsInfo
+  Md: MdComponent
 }
 
 declare global {
@@ -137,6 +166,7 @@ declare global {
   const tool: ToolReferences
   const env: EnvironmentContext
   const os: OsInfo
+  const Md: MdComponent
 }
 
 export { }
