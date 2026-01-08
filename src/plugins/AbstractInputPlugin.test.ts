@@ -247,8 +247,8 @@ describe('abstractInputPlugin', () => {
 
       const {workspaceDir, shadowProjectDir} = plugin.exposeResolveBasePaths(options)
 
-      expect(workspaceDir).toBe('/custom/workspace')
-      expect(shadowProjectDir).toBe('/custom/workspace/aindex')
+      expect(workspaceDir).toBe(path.normalize('/custom/workspace'))
+      expect(shadowProjectDir).toBe(path.normalize('/custom/workspace/aindex'))
     })
 
     it('should use default paths when not specified', () => {

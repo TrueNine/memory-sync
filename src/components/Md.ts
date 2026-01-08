@@ -76,9 +76,7 @@ export async function MdHandler(
   processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>,
 ): Promise<RootContent[]> {
   if (!evaluateWhenCondition(element, ctx)) return []
-
   if (element.children.length === 0) return []
-
   return processChildren(element.children as RootContent[], ctx)
 }
 

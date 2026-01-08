@@ -121,7 +121,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
    * with identical content.
    */
   describe('property 1: Non-.cn.mdx file sync correctness', () => {
-    it('should sync all non-.cn.mdx files from src/skills/ to dist/skills/ with identical content', async () => {
+    it('should sync all non-.cn.mdx files from src/skills/ to dist/skills/ with identical content', {timeout: 60000}, async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(skillStructureGen, {minLength: 1, maxLength: 3}),

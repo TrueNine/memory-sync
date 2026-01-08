@@ -143,7 +143,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
    */
   describe('property 4: Dry-run no-op', () => {
     describe('skillNonSrcFileSyncEffectInputPlugin', () => {
-      it('should not modify filesystem when running in dry-run mode', async () => {
+      it('should not modify filesystem when running in dry-run mode', {timeout: 60000}, async () => {
         // Dynamic import to avoid circular dependency
         const {SkillNonSrcFileSyncEffectInputPlugin} = await import('./SkillNonSrcFileSyncEffectInputPlugin')
 

@@ -1,5 +1,6 @@
 import type {ILogger} from '@/log'
 import {Buffer} from 'node:buffer'
+import * as path from 'node:path'
 import {describe, expect, it, vi} from 'vitest'
 import {PromptKind} from '@/types'
 import {
@@ -219,21 +220,26 @@ describe('skillInputPlugin', () => {
     })
 
     it('should recursively scan subdirectories', () => {
+      const skillDir = path.normalize('/skill/dir')
+      const docsDir = path.join(skillDir, 'docs')
+      const assetsDir = path.join(skillDir, 'assets')
+
       const mockFs = {
         readdirSync: vi.fn().mockImplementation((dir: string) => {
-          if (dir === '/skill/dir') {
+          const normalizedDir = path.normalize(dir)
+          if (normalizedDir === skillDir) {
             return [
               {name: 'docs', isFile: () => false, isDirectory: () => true},
               {name: 'assets', isFile: () => false, isDirectory: () => true},
             ]
           }
-          if (dir === '/skill/dir/docs') {
+          if (normalizedDir === docsDir) {
             return [
               {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
               {name: 'api.mdx', isFile: () => true, isDirectory: () => false},
             ]
           }
-          if (dir === '/skill/dir/assets') {
+          if (normalizedDir === assetsDir) {
             return [
               {name: 'logo.png', isFile: () => true, isDirectory: () => false},
               {name: 'schema.sql', isFile: () => true, isDirectory: () => false},
@@ -248,17 +254,20 @@ describe('skillInputPlugin', () => {
         }),
       } as unknown as typeof import('node:fs')
 
-      const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
+      const result = plugin.scanSkillDirectory(skillDir, mockFs, createMockLogger())
 
       // Should have 2 child docs from docs/
       expect(result.childDocs).toHaveLength(2)
-      expect(result.childDocs.map(d => d.relativePath)).toContain('docs/guide.mdx')
-      expect(result.childDocs.map(d => d.relativePath)).toContain('docs/api.mdx')
+      // Normalize paths for cross-platform comparison
+      const childDocPaths = result.childDocs.map(d => d.relativePath.replace(/\\/g, '/'))
+      expect(childDocPaths).toContain('docs/guide.mdx')
+      expect(childDocPaths).toContain('docs/api.mdx')
 
       // Should have 2 resources from assets/
       expect(result.resources).toHaveLength(2)
-      expect(result.resources.map(r => r.relativePath)).toContain('assets/logo.png')
-      expect(result.resources.map(r => r.relativePath)).toContain('assets/schema.sql')
+      const resourcePaths = result.resources.map(r => r.relativePath.replace(/\\/g, '/'))
+      expect(resourcePaths).toContain('assets/logo.png')
+      expect(resourcePaths).toContain('assets/schema.sql')
     })
 
     it('should handle binary files with base64 encoding', () => {

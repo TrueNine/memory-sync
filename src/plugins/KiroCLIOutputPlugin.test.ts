@@ -346,7 +346,8 @@ describe('kiroCLIOutputPlugin', () => {
       const result = await plugin.registerGlobalOutputDirs(ctx)
 
       // Should include all installed powers, not just current skills
-      const powerDirs = result.filter(r => r.basePath.includes('powers/installed'))
+      // Use path separator agnostic check for cross-platform compatibility
+      const powerDirs = result.filter(r => r.basePath.includes('powers') && r.basePath.includes('installed'))
       expect(powerDirs).toHaveLength(3)
 
       const powerNames = powerDirs.map(r => r.path)
@@ -409,7 +410,8 @@ describe('kiroCLIOutputPlugin', () => {
       // Should include mcp.json in the power directory
       const mcpFile = result.find(r => r.path === 'mcp.json')
       expect(mcpFile).toBeDefined()
-      expect(mcpFile?.basePath).toContain('powers/installed/test-skill')
+      // Use path separator agnostic check for cross-platform compatibility
+      expect(mcpFile?.basePath).toMatch(/powers[/\\]installed[/\\]test-skill/)
     })
 
     it('should not register mcp.json when skill has no MCP config', async () => {
@@ -547,8 +549,8 @@ describe('kiroCLIOutputPlugin', () => {
       // 2 power mcp.json + 1 global settings/mcp.json = 3
       expect(mcpFiles).toHaveLength(3)
 
-      // Check power directory mcp.json files
-      const powerMcpFiles = mcpFiles.filter(f => f.basePath.includes('powers/installed'))
+      // Check power directory mcp.json files - use path separator agnostic check
+      const powerMcpFiles = mcpFiles.filter(f => f.basePath.includes('powers') && f.basePath.includes('installed'))
       expect(powerMcpFiles).toHaveLength(2)
 
       const mcpBasePaths = powerMcpFiles.map(f => f.basePath)

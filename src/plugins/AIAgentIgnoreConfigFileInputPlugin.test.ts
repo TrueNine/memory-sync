@@ -207,8 +207,10 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       plugin.collect(ctx)
 
       // Verify that existsSync was called with paths under custom directory
-      const existsCallPaths = vi.mocked(fs.existsSync).mock.calls.map(call => call[0])
-      expect(existsCallPaths.some(p => (p as string).startsWith(customDir))).toBe(true)
+      // Normalize the custom dir for cross-platform comparison
+      const normalizedCustomDir = path.normalize(customDir)
+      const existsCallPaths = vi.mocked(fs.existsSync).mock.calls.map(call => path.normalize(call[0] as string))
+      expect(existsCallPaths.some(p => p.startsWith(normalizedCustomDir))).toBe(true)
     })
 
     it('should read ignore files with multiline content', () => {

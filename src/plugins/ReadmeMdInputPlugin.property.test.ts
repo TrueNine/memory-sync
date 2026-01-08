@@ -98,9 +98,9 @@ describe('readmeMdInputPlugin property tests', () => {
           readmeContentArb,
           async (projectNames, subdirs, includeRoot, content) => {
             await withTempDir(async tempDir => {
-              // Deduplicate project names
-              const uniqueProjects = [...new Set(projectNames)]
-              const uniqueSubdirs = [...new Set(subdirs)]
+              // Deduplicate project names (case-insensitive for Windows compatibility)
+              const uniqueProjects = [...new Set(projectNames.map(p => p.toLowerCase()))]
+              const uniqueSubdirs = [...new Set(subdirs.map(s => s.toLowerCase()))]
 
               // Build directory structure
               const structure: Record<string, string | null> = {}
@@ -228,6 +228,7 @@ describe('readmeMdInputPlugin property tests', () => {
               expect(childReadme).toBeDefined()
               expect(childReadme?.projectName).toBe(projectName)
               expect(childReadme?.content).toBe(childContent)
+              // Use path.join for cross-platform path comparison
               expect(childReadme?.targetDir.path).toBe(path.join(projectName, subdir))
             })
           },
