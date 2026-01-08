@@ -5,11 +5,11 @@
  * as specified in Requirements 3.1, 3.2, 3.3, 3.4.
  */
 
-import type { Paragraph, RootContent, Text } from 'mdast'
-import type { MdxJsxFlowElement } from 'mdast-util-mdx'
-import type { ProcessingContext } from '../compiler/types'
-import { describe, expect, it } from 'vitest'
-import { MdHandler } from './Md'
+import type {Paragraph, RootContent, Text} from 'mdast'
+import type {MdxJsxFlowElement} from 'mdast-util-mdx'
+import type {ProcessingContext} from '../compiler/types'
+import {describe, expect, it} from 'vitest'
+import {MdHandler} from './Md'
 
 describe('md component', () => {
   /**
@@ -51,7 +51,7 @@ describe('md component', () => {
   function createParagraph(text: string): Paragraph {
     return {
       type: 'paragraph',
-      children: [{ type: 'text', value: text } as Text],
+      children: [{type: 'text', value: text} as Text],
     }
   }
 
@@ -141,7 +141,7 @@ describe('md component', () => {
           },
         },
       ])
-      const ctx = createMockContext({ showContent: true })
+      const ctx = createMockContext({showContent: true})
       const processChildren = createMockProcessChildren()
 
       const result = await MdHandler(element, ctx, processChildren)
@@ -161,7 +161,7 @@ describe('md component', () => {
           },
         },
       ])
-      const ctx = createMockContext({ showContent: false })
+      const ctx = createMockContext({showContent: false})
       const processChildren = createMockProcessChildren()
 
       const result = await MdHandler(element, ctx, processChildren)
@@ -201,7 +201,7 @@ describe('md component', () => {
           },
         },
       ])
-      const ctx = createMockContext({ flag: 1 })
+      const ctx = createMockContext({flag: 1})
       const processChildren = createMockProcessChildren()
 
       const result = await MdHandler(element, ctx, processChildren)
@@ -221,7 +221,7 @@ describe('md component', () => {
           },
         },
       ])
-      const ctx = createMockContext({ flag: 0 })
+      const ctx = createMockContext({flag: 0})
       const processChildren = createMockProcessChildren()
 
       const result = await MdHandler(element, ctx, processChildren)

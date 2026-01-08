@@ -1,6 +1,6 @@
-import type { Command, CommandContext, CommandResult } from './Command'
-import { checkCanWrite, executeWriteOutputs } from '@/types'
-import { performCleanup } from './CleanupUtils'
+import type {Command, CommandContext, CommandResult} from './Command'
+import {checkCanWrite, executeWriteOutputs} from '@/types'
+import {performCleanup} from './CleanupUtils'
 
 /**
  * Execute command - performs actual write operations
@@ -10,8 +10,8 @@ export class ExecuteCommand implements Command {
   readonly name = 'execute'
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
-    const { logger, outputPlugins, createCleanContext, createWriteContext } = ctx
-    logger.info('started', { command: 'execute' })
+    const {logger, outputPlugins, createCleanContext, createWriteContext} = ctx
+    logger.info('started', {command: 'execute'})
 
     // Step 1: Pre-cleanup (non-dry-run only)
     const cleanCtx = createCleanContext(false)
@@ -41,7 +41,7 @@ export class ExecuteCommand implements Command {
       totalDirs += result.dirs.length
     }
 
-    logger.info('complete', { command: 'execute', pluginCount: results.size })
+    logger.info('complete', {command: 'execute', pluginCount: results.size})
 
     return {
       success: true,

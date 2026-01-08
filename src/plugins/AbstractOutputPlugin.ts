@@ -1,6 +1,6 @@
-import type { Buffer } from 'node:buffer'
-import type { RegistryWriter } from './registry/RegistryWriter'
-import type { ILogger } from '@/log'
+import type {Buffer} from 'node:buffer'
+import type {RegistryWriter} from './registry/RegistryWriter'
+import type {ILogger} from '@/log'
 import type {
   CleanEffectHandler,
   EffectRegistration,
@@ -15,16 +15,16 @@ import type {
   WriteResults,
 } from '@/types'
 
-import type { FastCommandSeriesPluginOverride } from '@/types/ConfigTypes'
-import type { Path, RelativePath } from '@/types/FileSystemTypes'
-import type { RegistryData } from '@/types/RegistryTypes'
+import type {FastCommandSeriesPluginOverride} from '@/types/ConfigTypes'
+import type {Path, RelativePath} from '@/types/FileSystemTypes'
+import type {RegistryData} from '@/types/RegistryTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import { buildMarkdownWithFrontMatter } from '@/markdown'
-import { FilePathKind, PluginKind } from '@/types'
-import { AbstractPlugin } from './AbstractPlugin'
+import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {FilePathKind, PluginKind} from '@/types'
+import {AbstractPlugin} from './AbstractPlugin'
 
 /**
  * Options for transforming fast command names in output filenames.
@@ -179,7 +179,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    * ```
    */
   protected registerWriteEffect(name: string, handler: WriteEffectHandler): void {
-    this.writeEffects.push({ name, handler })
+    this.writeEffects.push({name, handler})
   }
 
   /**
@@ -200,7 +200,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    * ```
    */
   protected registerCleanEffect(name: string, handler: CleanEffectHandler): void {
-    this.cleanEffects.push({ name, handler })
+    this.cleanEffects.push({name, handler})
   }
 
   /**
@@ -223,23 +223,23 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
     for (const effect of this.writeEffects) {
       if (ctx.dryRun === true) {
-        this.log.trace({ action: 'dryRun', type: 'effect', name: effect.name })
-        results.push({ success: true, description: `Would execute write effect: ${effect.name}` })
+        this.log.trace({action: 'dryRun', type: 'effect', name: effect.name})
+        results.push({success: true, description: `Would execute write effect: ${effect.name}`})
         continue
       }
 
       try {
         const result = await effect.handler(ctx)
-        if (result.success) this.log.trace({ action: 'effect', name: effect.name, status: 'success' })
+        if (result.success) this.log.trace({action: 'effect', name: effect.name, status: 'success'})
         else {
           const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
-          this.log.error({ action: 'effect', name: effect.name, status: 'failed', error: errorMsg })
+          this.log.error({action: 'effect', name: effect.name, status: 'failed', error: errorMsg})
         }
         results.push(result)
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({ action: 'effect', name: effect.name, status: 'failed', error: errorMsg })
-        results.push({ success: false, error: error as Error, description: `Write effect failed: ${effect.name}` })
+        this.log.error({action: 'effect', name: effect.name, status: 'failed', error: errorMsg})
+        results.push({success: false, error: error as Error, description: `Write effect failed: ${effect.name}`})
       }
     }
 
@@ -266,23 +266,23 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
     for (const effect of this.cleanEffects) {
       if (ctx.dryRun === true) {
-        this.log.trace({ action: 'dryRun', type: 'effect', name: effect.name })
-        results.push({ success: true, description: `Would execute clean effect: ${effect.name}` })
+        this.log.trace({action: 'dryRun', type: 'effect', name: effect.name})
+        results.push({success: true, description: `Would execute clean effect: ${effect.name}`})
         continue
       }
 
       try {
         const result = await effect.handler(ctx)
-        if (result.success) this.log.trace({ action: 'effect', name: effect.name, status: 'success' })
+        if (result.success) this.log.trace({action: 'effect', name: effect.name, status: 'success'})
         else {
           const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
-          this.log.error({ action: 'effect', name: effect.name, status: 'failed', error: errorMsg })
+          this.log.error({action: 'effect', name: effect.name, status: 'failed', error: errorMsg})
         }
         results.push(result)
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({ action: 'effect', name: effect.name, status: 'failed', error: errorMsg })
-        results.push({ success: false, error: error as Error, description: `Clean effect failed: ${effect.name}` })
+        this.log.error({action: 'effect', name: effect.name, status: 'failed', error: errorMsg})
+        results.push({success: false, error: error as Error, description: `Clean effect failed: ${effect.name}`})
       }
     }
 
@@ -558,7 +558,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    * ```
    */
   protected ensureDirectory(dir: string): void {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive: true})
   }
 
   /**
@@ -592,10 +592,10 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
    * const entries = this.readdirSync('/path/to/dir', { withFileTypes: true })
    * ```
    */
-  protected readdirSync(dir: string, options: { withFileTypes: true }): fs.Dirent[]
+  protected readdirSync(dir: string, options: {withFileTypes: true}): fs.Dirent[]
   protected readdirSync(dir: string): string[]
-  protected readdirSync(dir: string, options?: { withFileTypes?: boolean }): fs.Dirent[] | string[] {
-    if (options?.withFileTypes === true) return fs.readdirSync(dir, { withFileTypes: true })
+  protected readdirSync(dir: string, options?: {withFileTypes?: boolean}): fs.Dirent[] | string[] {
+    if (options?.withFileTypes === true) return fs.readdirSync(dir, {withFileTypes: true})
     return fs.readdirSync(dir)
   }
 
@@ -637,19 +637,19 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'file', path: fullPath, label })
-      return { path: relativePath, success: true, skipped: false }
+      this.log.trace({action: 'dryRun', type: 'file', path: fullPath, label})
+      return {path: relativePath, success: true, skipped: false}
     }
 
     try {
       this.ensureDirectory(dir)
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'file', path: fullPath, label })
-      return { path: relativePath, success: true }
+      this.log.trace({action: 'write', type: 'file', path: fullPath, label})
+      return {path: relativePath, success: true}
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'file', path: fullPath, label, error: errMsg })
-      return { path: relativePath, success: false, error: error as Error }
+      this.log.error({action: 'write', type: 'file', path: fullPath, label, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
     }
   }
 
@@ -683,20 +683,20 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const relativePath = this.toRelativePath(targetPath)
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'promptFile', path: fullPath, label })
-      return { path: relativePath, success: true, skipped: false }
+      this.log.trace({action: 'dryRun', type: 'promptFile', path: fullPath, label})
+      return {path: relativePath, success: true, skipped: false}
     }
 
     try {
       const dir = path.dirname(fullPath)
       this.ensureDirectory(dir)
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'promptFile', path: fullPath, label })
-      return { path: relativePath, success: true }
+      this.log.trace({action: 'write', type: 'promptFile', path: fullPath, label})
+      return {path: relativePath, success: true}
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'promptFile', path: fullPath, label, error: errMsg })
-      return { path: relativePath, success: false, error: error as Error }
+      this.log.error({action: 'write', type: 'promptFile', path: fullPath, label, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
     }
   }
 
@@ -848,7 +848,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     cmd: FastCommandPrompt,
     options?: FastCommandNameTransformOptions,
   ): string {
-    const { includeSeriesPrefix = true, seriesSeparator = '_' } = options ?? {}
+    const {includeSeriesPrefix = true, seriesSeparator = '_'} = options ?? {}
 
     // If prefix should not be included or series is not present, return just commandName
     if (!includeSeriesPrefix || cmd.series == null) return `${cmd.commandName}.md`
@@ -883,9 +883,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const seriesSeparator = pluginOverride?.seriesSeparator
 
     // Build result object conditionally to avoid assigning undefined to readonly properties
-    if (includeSeriesPrefix != null && seriesSeparator != null) return { includeSeriesPrefix, seriesSeparator }
-    if (includeSeriesPrefix != null) return { includeSeriesPrefix }
-    if (seriesSeparator != null) return { seriesSeparator }
+    if (includeSeriesPrefix != null && seriesSeparator != null) return {includeSeriesPrefix, seriesSeparator}
+    if (includeSeriesPrefix != null) return {includeSeriesPrefix}
+    if (seriesSeparator != null) return {seriesSeparator}
     return {}
   }
 
@@ -917,9 +917,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const seriesSeparator = seriesOptions.seriesSeparator ?? additionalOptions?.seriesSeparator
 
     // Build result object conditionally to avoid assigning undefined to readonly properties
-    if (includeSeriesPrefix != null && seriesSeparator != null) return { includeSeriesPrefix, seriesSeparator }
-    if (includeSeriesPrefix != null) return { includeSeriesPrefix }
-    if (seriesSeparator != null) return { seriesSeparator }
+    if (includeSeriesPrefix != null && seriesSeparator != null) return {includeSeriesPrefix, seriesSeparator}
+    if (includeSeriesPrefix != null) return {includeSeriesPrefix}
+    if (seriesSeparator != null) return {seriesSeparator}
     return {}
   }
 
@@ -965,7 +965,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const skipped = results.files.filter(r => r.skipped).length
     const failed = results.files.filter(r => !r.success && !r.skipped).length
 
-    this.log.trace({ action: ctx.dryRun === true ? 'dryRun' : 'complete', type: 'writeSummary', success, skipped, failed })
+    this.log.trace({action: ctx.dryRun === true ? 'dryRun' : 'complete', type: 'writeSummary', success, skipped, failed})
 
     // Execute registered write effects
     await this.executeWriteEffects(ctx)
@@ -1025,7 +1025,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
     // Create new instance and cache it
     const writer = new WriterClass(this.log)
-    this.registryWriterCache.set(cacheKey, writer as RegistryWriter<unknown, RegistryData>)
+    this.registryWriterCache.set(cacheKey, writer as RegistryWriter<unknown>)
     return writer
   }
 

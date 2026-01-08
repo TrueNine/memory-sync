@@ -4,11 +4,11 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { FilePathKind } from '@/types'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import {FilePathKind} from '@/types'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 /**
  * All ignore file names that this plugin manages
@@ -27,7 +27,7 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
@@ -63,20 +63,20 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { aiAgentIgnoreConfigFiles } = ctx.collectedInputContext
+    const {aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     if (aiAgentIgnoreConfigFiles?.length !== 0) return true
 
-    this.log.debug('skipped', { reason: 'no ignore config files to write' })
+    this.log.debug('skipped', {reason: 'no ignore config files to write'})
     return false
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { projects } = ctx.collectedInputContext.workspace
-    const { aiAgentIgnoreConfigFiles } = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
+    const {aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) return { files: fileResults, dirs: dirResults }
+    if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) return {files: fileResults, dirs: dirResults}
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
@@ -95,13 +95,13 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 
   private async writeIgnoreFile(
     ctx: OutputWriteContext,
     projectDir: RelativePath,
-    ignoreFile: { fileName: string, content: string },
+    ignoreFile: {fileName: string, content: string},
     label: string,
   ): Promise<WriteResult> {
     const filePath = path.join(projectDir.path, ignoreFile.fileName)
@@ -116,18 +116,18 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'ignoreFile', path: fullPath, label })
-      return { path: relativePath, success: true, skipped: false }
+      this.log.trace({action: 'dryRun', type: 'ignoreFile', path: fullPath, label})
+      return {path: relativePath, success: true, skipped: false}
     }
 
     try {
       fs.writeFileSync(fullPath, ignoreFile.content, 'utf8')
-      this.log.trace({ action: 'write', type: 'ignoreFile', path: fullPath, label })
-      return { path: relativePath, success: true }
+      this.log.trace({action: 'write', type: 'ignoreFile', path: fullPath, label})
+      return {path: relativePath, success: true}
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'ignoreFile', path: fullPath, label, error: errMsg })
-      return { path: relativePath, success: false, error: error as Error }
+      this.log.error({action: 'write', type: 'ignoreFile', path: fullPath, label, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
     }
   }
 }

@@ -1,8 +1,8 @@
-import type { InputPluginContext } from '@/types'
+import type {InputPluginContext} from '@/types'
 import fs from 'node:fs'
 import path from 'node:path'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AIAgentIgnoreConfigFileInputPlugin } from './AIAgentIgnoreConfigFileInputPlugin'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
+import {AIAgentIgnoreConfigFileInputPlugin} from './AIAgentIgnoreConfigFileInputPlugin'
 
 vi.mock('node:fs')
 
@@ -34,7 +34,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       path,
       dependencyContext: {
         workspace: {
-          directory: { pathKind: 0, path: mockWorkspaceDir, basePath: mockWorkspaceDir },
+          directory: {pathKind: 0, path: mockWorkspaceDir, basePath: mockWorkspaceDir},
           projects: [
             {
               name: 'project1',

@@ -4,12 +4,12 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { FilePathKind } from '@/types'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import {FilePathKind} from '@/types'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const README_FILE_NAME = 'README.md'
 
@@ -41,12 +41,12 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
    */
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { readmePrompts } = ctx.collectedInputContext
+    const {readmePrompts} = ctx.collectedInputContext
 
     if (readmePrompts == null || readmePrompts.length === 0) return results
 
     for (const readme of readmePrompts) {
-      const { targetDir } = readme
+      const {targetDir} = readme
       const filePath = path.join(targetDir.path, README_FILE_NAME)
 
       results.push({
@@ -67,11 +67,11 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
    * @see Requirements 6.2
    */
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { readmePrompts } = ctx.collectedInputContext
+    const {readmePrompts} = ctx.collectedInputContext
 
     if (readmePrompts?.length !== 0) return true
 
-    this.log.debug('skipped', { reason: 'no README prompts to write' })
+    this.log.debug('skipped', {reason: 'no README prompts to write'})
     return false
   }
 
@@ -86,16 +86,16 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
-    const { readmePrompts } = ctx.collectedInputContext
+    const {readmePrompts} = ctx.collectedInputContext
 
-    if (readmePrompts == null || readmePrompts.length === 0) return { files: fileResults, dirs: dirResults }
+    if (readmePrompts == null || readmePrompts.length === 0) return {files: fileResults, dirs: dirResults}
 
     for (const readme of readmePrompts) {
       const result = await this.writeReadmeFile(ctx, readme)
       fileResults.push(result)
     }
 
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 
   /**
@@ -111,9 +111,9 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
    */
   private async writeReadmeFile(
     ctx: OutputWriteContext,
-    readme: { projectName: string, targetDir: RelativePath, content: unknown, isRoot: boolean },
+    readme: {projectName: string, targetDir: RelativePath, content: unknown, isRoot: boolean},
   ): Promise<WriteResult> {
-    const { targetDir } = readme
+    const {targetDir} = readme
     const filePath = path.join(targetDir.path, README_FILE_NAME)
     const fullPath = path.join(targetDir.basePath, filePath)
     const content = readme.content as string
@@ -132,23 +132,23 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
 
     // Dry-run mode: log without writing
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'readme', path: fullPath, label })
-      return { path: relativePath, success: true, skipped: false }
+      this.log.trace({action: 'dryRun', type: 'readme', path: fullPath, label})
+      return {path: relativePath, success: true, skipped: false}
     }
 
     // Actual write operation
     try {
       // Ensure target directory exists
       const dir = path.dirname(fullPath)
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive: true})
 
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'readme', path: fullPath, label })
-      return { path: relativePath, success: true }
+      this.log.trace({action: 'write', type: 'readme', path: fullPath, label})
+      return {path: relativePath, success: true}
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'readme', path: fullPath, label, error: errMsg })
-      return { path: relativePath, success: false, error: error as Error }
+      this.log.error({action: 'write', type: 'readme', path: fullPath, label, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
     }
   }
 }

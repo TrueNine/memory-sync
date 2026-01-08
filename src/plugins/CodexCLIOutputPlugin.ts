@@ -15,12 +15,12 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { buildMarkdownWithFrontMatter } from '@/markdown'
-import { FilePathKind } from '@/types'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {FilePathKind} from '@/types'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.codex'
@@ -64,7 +64,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
     // Register each skill directory individually (not the entire skills/ dir)
     // This preserves ~/.codex/skills/.system/ which is Codex's built-in system skills
-    const { skills } = ctx.collectedInputContext
+    const {skills} = ctx.collectedInputContext
     if (skills != null && skills.length > 0) {
       for (const skill of skills) {
         const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
@@ -97,7 +97,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { globalMemory, fastCommands, skills } = ctx.collectedInputContext
+    const {globalMemory, fastCommands, skills} = ctx.collectedInputContext
     const hasGlobalMemory = globalMemory != null
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
@@ -106,18 +106,18 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     // This plugin handles global outputs only (memory, prompts, skills)
     if (hasGlobalMemory || hasFastCommands || hasSkills) return true
 
-    this.log.trace({ action: 'skip', reason: 'noOutputs' })
+    this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeProjectOutputs(): Promise<WriteResults> {
     // Codex only supports global prompts and skills, no project-level outputs
     // Project AGENTS.md files are handled by AgentsOutputPlugin (dependency)
-    return { files: [], dirs: [] }
+    return {files: [], dirs: []}
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { globalMemory, fastCommands, skills } = ctx.collectedInputContext
+    const {globalMemory, fastCommands, skills} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
@@ -134,18 +134,18 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (ctx.dryRun === true) {
-        this.log.trace({ action: 'dryRun', type: 'globalMemory', path: fullPath })
-        fileResults.push({ path: relativePath, success: true, skipped: false })
+        this.log.trace({action: 'dryRun', type: 'globalMemory', path: fullPath})
+        fileResults.push({path: relativePath, success: true, skipped: false})
       } else {
         try {
           this.ensureDirectory(globalDir)
           fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
-          this.log.trace({ action: 'write', type: 'globalMemory', path: fullPath })
-          fileResults.push({ path: relativePath, success: true })
+          this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
+          fileResults.push({path: relativePath, success: true})
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error)
-          this.log.error({ action: 'write', type: 'globalMemory', path: fullPath, error: errMsg })
-          fileResults.push({ path: relativePath, success: false, error: error as Error })
+          this.log.error({action: 'write', type: 'globalMemory', path: fullPath, error: errMsg})
+          fileResults.push({path: relativePath, success: false, error: error as Error})
         }
       }
     }
@@ -160,14 +160,14 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     // Write skills to ~/.codex/skills/ (Codex only supports global skills)
-    if (skills == null || skills.length === 0) return { files: fileResults, dirs: dirResults }
+    if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults}
 
     const globalDir = this.getGlobalConfigDir()
     for (const skill of skills) {
       const skillResults = await this.writeGlobalSkill(ctx, globalDir, skill)
       fileResults.push(...skillResults)
     }
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 
   private async writeGlobalFastCommand(
@@ -197,19 +197,19 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     )
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'globalFastCommand', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'globalFastCommand', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
       this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'globalFastCommand', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'globalFastCommand', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'globalFastCommand', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'globalFastCommand', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -241,15 +241,15 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     const content = this.buildCodexSkillContent(skill)
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'globalSkill', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'globalSkill', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
       this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'globalSkill', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'globalSkill', path: fullPath})
+      results.push({path: relativePath, success: true})
 
       // Write reference documents if any
       if (skill.childDocs != null) {
@@ -268,8 +268,8 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'globalSkill', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'globalSkill', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -371,7 +371,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
-    refDoc: { dir: RelativePath, content: unknown },
+    refDoc: {dir: RelativePath, content: unknown},
     globalDir: string,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
@@ -388,8 +388,8 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'skillRefDoc', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'skillRefDoc', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
@@ -397,12 +397,12 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       const parentDir = path.dirname(fullPath)
       this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, refDoc.content as string, 'utf8')
-      this.log.trace({ action: 'write', type: 'skillRefDoc', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'skillRefDoc', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -415,7 +415,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
-    resource: { relativePath: string, content: string },
+    resource: {relativePath: string, content: string},
     globalDir: string,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
@@ -430,8 +430,8 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'skillResource', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'skillResource', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
@@ -439,12 +439,12 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       const parentDir = path.dirname(fullPath)
       this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, resource.content, 'utf8')
-      this.log.trace({ action: 'write', type: 'skillResource', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'skillResource', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'skillResource', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'skillResource', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results

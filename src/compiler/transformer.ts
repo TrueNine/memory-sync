@@ -1,14 +1,14 @@
 // transformer.ts
 // AST transformation module for lossless MDX to Markdown conversion
 
-import type { Program } from 'estree'
-import type { Paragraph, Parent, Root, RootContent, Text } from 'mdast'
-import type { MdxJsxFlowElement } from 'mdast-util-mdx'
-import type { ProcessingContext } from './types'
-import { isMdxComponent, processComponent } from './component-processor'
-import { evaluateExpression } from './expression-eval'
-import { convertJsxToMarkdown } from './jsx-converter'
-import { evaluateJsxExpression, hasJsxInEstree } from './jsx-expression-eval'
+import type {Program} from 'estree'
+import type {Paragraph, Parent, Root, RootContent, Text} from 'mdast'
+import type {MdxJsxFlowElement} from 'mdast-util-mdx'
+import type {ProcessingContext} from './types'
+import {isMdxComponent, processComponent} from './component-processor'
+import {evaluateExpression} from './expression-eval'
+import {convertJsxToMarkdown} from './jsx-converter'
+import {evaluateJsxExpression, hasJsxInEstree} from './jsx-expression-eval'
 
 type ChildNode = RootContent | Text
 
@@ -52,7 +52,7 @@ async function transformNodes(
     newChildren.push(...transformed)
   }
 
-  return { type: 'root', children: newChildren }
+  return {type: 'root', children: newChildren}
 }
 
 /**
@@ -66,7 +66,7 @@ async function transformNode(
 
   if (node.type === 'mdxFlowExpression') {
     const flowExpr = node
-    const estree = (flowExpr.data as { estree?: Program } | undefined)?.estree
+    const estree = (flowExpr.data as {estree?: Program} | undefined)?.estree
 
     // Check if this is a JSX comment {/* ... */} - skip it
     const trimmedValue = flowExpr.value.trim()
@@ -75,7 +75,7 @@ async function transformNode(
     // Check if expression contains JSX
     if (hasJsxInEstree(estree)) {
       return evaluateJsxExpression(flowExpr, ctx, async (children, c) => {
-        const tempRoot: Root = { type: 'root', children }
+        const tempRoot: Root = {type: 'root', children}
         const processed = await processAst(tempRoot, c)
         return processed.children
       })
@@ -86,7 +86,7 @@ async function transformNode(
     if (value !== '') {
       const paragraph: Paragraph = {
         type: 'paragraph',
-        children: [{ type: 'text', value }],
+        children: [{type: 'text', value}],
       }
       return [paragraph]
     }
@@ -101,10 +101,10 @@ async function transformNode(
     const newChildren = await transformChildren(linkNode.children as ChildNode[], ctx)
     // Simplify text children that look like file paths
     const simplifiedChildren = newChildren.map(child => {
-      if (child.type === 'text') return { ...child, value: simplifyLinkText(child.value) }
+      if (child.type === 'text') return {...child, value: simplifyLinkText(child.value)}
       return child
     })
-    return [{ ...linkNode, children: simplifiedChildren } as RootContent]
+    return [{...linkNode, children: simplifiedChildren} as RootContent]
   }
 
   if (!('children' in node && Array.isArray(node.children))) return [node]
@@ -114,7 +114,7 @@ async function transformNode(
     parentNode.children as ChildNode[],
     ctx,
   )
-  return [{ ...node, children: newChildren } as RootContent]
+  return [{...node, children: newChildren} as RootContent]
 }
 
 /**
@@ -148,7 +148,7 @@ async function transformChildren(
       const trimmedValue = textExpr.value.trim()
       if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) continue
       const value = evaluateExpression(textExpr.value, ctx.scope)
-      const textNode: Text = { type: 'text', value }
+      const textNode: Text = {type: 'text', value}
       result.push(textNode)
       continue
     }
@@ -184,13 +184,13 @@ async function transformChildren(
       // Simplify link text that looks like file paths
       if (child.type === 'link') {
         const simplifiedChildren = newChildren.map(c => {
-          if (c.type === 'text') return { ...c, value: simplifyLinkText(c.value) }
+          if (c.type === 'text') return {...c, value: simplifyLinkText(c.value)}
           return c
         })
-        result.push({ ...child, children: simplifiedChildren } as ChildNode)
+        result.push({...child, children: simplifiedChildren} as ChildNode)
         continue
       }
-      result.push({ ...child, children: newChildren } as ChildNode)
+      result.push({...child, children: newChildren} as ChildNode)
       continue
     }
 

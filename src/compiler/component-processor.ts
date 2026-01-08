@@ -1,13 +1,13 @@
 // component-processor.ts
 // MDX component expansion module for built-in component processing
 
-import type { Root, RootContent } from 'mdast'
+import type {Root, RootContent} from 'mdast'
 import type {
   MdxJsxFlowElement,
   MdxJsxTextElement,
 } from 'mdast-util-mdx'
-import type { ProcessingContext } from './types'
-import { hasComponent } from './component-registry'
+import type {ProcessingContext} from './types'
+import {hasComponent} from './component-registry'
 
 /**
  * Checks if a JSX element is a registered built-in component.
@@ -31,7 +31,7 @@ async function createProcessChildren(
 ): Promise<(children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>> {
   return async (children: RootContent[], ctx: ProcessingContext): Promise<RootContent[]> => {
     // Wrap children in a root node for processing
-    const tempRoot: Root = { type: 'root', children }
+    const tempRoot: Root = {type: 'root', children}
     const processedRoot = await processAstFn(tempRoot, ctx)
     return processedRoot.children
   }
@@ -68,7 +68,7 @@ export async function processComponent(
     scope: ctx.scope,
     components: ctx.components,
     processingStack: [...ctx.processingStack, componentName],
-    ...(ctx.basePath != null ? { basePath: ctx.basePath } : {}),
+    ...ctx.basePath != null ? {basePath: ctx.basePath} : {},
   }
 
   // Create the processChildren function for the handler
@@ -83,7 +83,7 @@ export async function processComponent(
     throw new Error(
       `Failed to process component "${componentName}"${componentStack !== '' ? ` (called from: ${componentStack})` : ''
       }:\n${message}`,
-      { cause: err },
+      {cause: err},
     )
   }
 }

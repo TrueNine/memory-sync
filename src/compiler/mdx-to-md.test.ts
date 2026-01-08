@@ -5,10 +5,10 @@
  * as specified in Requirements 1, 4, 5, and 6.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { registerBuiltInComponents } from '../components'
-import { clearComponents } from './component-registry'
-import { mdxToMd } from './mdx-to-md'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {registerBuiltInComponents} from '../components'
+import {clearComponents} from './component-registry'
+import {mdxToMd} from './mdx-to-md'
 
 describe('mdxToMd', () => {
   // Re-register built-in components before each test
@@ -85,25 +85,25 @@ Some content here.`
   describe('expression evaluation (Requirement 6)', () => {
     it('should evaluate simple variable expressions', async () => {
       const input = 'Hello {name}!'
-      const result = await mdxToMd(input, { scope: { name: 'World' } })
+      const result = await mdxToMd(input, {scope: {name: 'World'}})
       expect(result).toContain('Hello World!')
     })
 
     it('should evaluate expressions in headings', async () => {
       const input = '# {title}'
-      const result = await mdxToMd(input, { scope: { title: 'My Title' } })
+      const result = await mdxToMd(input, {scope: {title: 'My Title'}})
       expect(result).toContain('# My Title')
     })
 
     it('should evaluate complex expressions', async () => {
       const input = 'Result: {a + b}'
-      const result = await mdxToMd(input, { scope: { a: 1, b: 2 } })
+      const result = await mdxToMd(input, {scope: {a: 1, b: 2}})
       expect(result).toContain('Result: 3')
     })
 
     it('should evaluate property access expressions', async () => {
       const input = 'Name: {user.name}'
-      const result = await mdxToMd(input, { scope: { user: { name: 'John' } } })
+      const result = await mdxToMd(input, {scope: {user: {name: 'John'}}})
       expect(result).toContain('Name: John')
     })
   })
@@ -113,7 +113,7 @@ Some content here.`
       const input = 'Name: {profile.name}'
       const result = await mdxToMd(input, {
         globalScope: {
-          profile: { name: 'TestUser' },
+          profile: {name: 'TestUser'},
           tool: {},
           env: {},
           os: {},
@@ -127,7 +127,7 @@ Some content here.`
       const result = await mdxToMd(input, {
         globalScope: {
           profile: {},
-          tool: { websearch: 'websearch' },
+          tool: {websearch: 'websearch'},
           env: {},
           os: {},
         },
@@ -139,12 +139,12 @@ Some content here.`
       const input = 'Name: {profile.name}'
       const result = await mdxToMd(input, {
         globalScope: {
-          profile: { name: 'GlobalName' },
+          profile: {name: 'GlobalName'},
           tool: {},
           env: {},
           os: {},
         },
-        scope: { profile: { name: 'OverriddenName' } },
+        scope: {profile: {name: 'OverriddenName'}},
       })
       expect(result).toContain('Name: OverriddenName')
     })
@@ -163,7 +163,7 @@ Some content here.`
       const input = `<Md when={show}>
 # Conditional Content
 </Md>`
-      const result = await mdxToMd(input, { scope: { show: true } })
+      const result = await mdxToMd(input, {scope: {show: true}})
       expect(result).toContain('# Conditional Content')
     })
 
@@ -171,7 +171,7 @@ Some content here.`
       const input = `<Md when={show}>
 # Conditional Content
 </Md>`
-      const result = await mdxToMd(input, { scope: { show: false } })
+      const result = await mdxToMd(input, {scope: {show: false}})
       expect(result).not.toContain('# Conditional Content')
     })
 
@@ -206,7 +206,7 @@ Content inside
     it('should support basePath option', async () => {
       const input = '# Test'
       // basePath is passed through to context
-      const result = await mdxToMd(input, { basePath: '/some/path' })
+      const result = await mdxToMd(input, {basePath: '/some/path'})
       expect(result).toContain('# Test')
     })
   })
@@ -304,7 +304,7 @@ description: A test skill
 ---
 
 # Content`
-      const result = await mdxToMd(input, { extractMetadata: true })
+      const result = await mdxToMd(input, {extractMetadata: true})
       // Content should NOT contain frontmatter
       expect(result.content).not.toContain('---')
       expect(result.content).not.toContain('name: test-skill')
@@ -327,7 +327,7 @@ export const name = "export-name"
 export const exportField = "export-value"
 
 # Content`
-      const result = await mdxToMd(input, { extractMetadata: true })
+      const result = await mdxToMd(input, {extractMetadata: true})
       // Content should be clean
       expect(result.content).not.toContain('---')
       expect(result.content).not.toContain('export const')

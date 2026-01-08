@@ -1,7 +1,7 @@
-import type { InputEffectContext, InputEffectResult } from './AbstractInputPlugin'
+import type {InputEffectContext, InputEffectResult} from './AbstractInputPlugin'
 
-import type { CollectedInputContext, InputPluginContext } from '@/types'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import type {CollectedInputContext, InputPluginContext} from '@/types'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**
  * Result of the orphan file cleanup effect.
@@ -48,17 +48,17 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
    * Effect handler that removes orphaned files in dist/.
    */
   private async cleanupOrphanFiles(ctx: InputEffectContext): Promise<OrphanCleanupEffectResult> {
-    const { fs, path, shadowProjectDir, dryRun, logger } = ctx
+    const {fs, path, shadowProjectDir, dryRun, logger} = ctx
 
     const distDir = path.join(shadowProjectDir, 'dist')
 
     const deletedFiles: string[] = []
     const deletedDirs: string[] = []
-    const errors: Array<{ path: string, error: Error }> = []
+    const errors: {path: string, error: Error}[] = []
 
     // Check if dist/ directory exists (Requirement 2.9)
     if (!fs.existsSync(distDir)) {
-      logger.debug({ action: 'orphan-cleanup', message: 'dist/ directory does not exist, skipping', distDir })
+      logger.debug({action: 'orphan-cleanup', message: 'dist/ directory does not exist, skipping', distDir})
       return {
         success: true,
         description: 'dist/ directory does not exist, nothing to clean',
@@ -86,7 +86,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     }
 
     const hasErrors = errors.length > 0
-    if (hasErrors) logger.warn({ action: 'orphan-cleanup', errors: errors.map(e => ({ path: e.path, error: e.error.message })) })
+    if (hasErrors) logger.warn({action: 'orphan-cleanup', errors: errors.map(e => ({path: e.path, error: e.error.message}))})
 
     return {
       success: !hasErrors,
@@ -95,7 +95,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
         : `Deleted ${deletedFiles.length} files and ${deletedDirs.length} directories`,
       deletedFiles,
       deletedDirs,
-      ...(hasErrors && { error: new Error(`${errors.length} errors occurred during cleanup`) }),
+      ...hasErrors && {error: new Error(`${errors.length} errors occurred during cleanup`)},
     }
   }
 
@@ -108,17 +108,17 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     dirType: string,
     deletedFiles: string[],
     deletedDirs: string[],
-    errors: Array<{ path: string, error: Error }>,
+    errors: {path: string, error: Error}[],
     dryRun: boolean,
   ): void {
-    const { fs, path, shadowProjectDir, logger } = ctx
+    const {fs, path, shadowProjectDir, logger} = ctx
 
     let entries: import('node:fs').Dirent[]
     try {
-      entries = fs.readdirSync(distDirPath, { withFileTypes: true })
+      entries = fs.readdirSync(distDirPath, {withFileTypes: true})
     } catch (error) {
-      errors.push({ path: distDirPath, error: error as Error })
-      logger.warn({ action: 'orphan-cleanup', message: 'Failed to read directory', path: distDirPath, error: (error as Error).message })
+      errors.push({path: distDirPath, error: error as Error})
+      logger.warn({action: 'orphan-cleanup', message: 'Failed to read directory', path: distDirPath, error: (error as Error).message})
       return
     }
 
@@ -136,16 +136,16 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
 
         if (isOrphan) {
           if (dryRun) {
-            logger.debug({ action: 'orphan-cleanup', dryRun: true, wouldDelete: entryPath })
+            logger.debug({action: 'orphan-cleanup', dryRun: true, wouldDelete: entryPath})
             deletedFiles.push(entryPath)
           } else {
             try {
               fs.unlinkSync(entryPath)
               deletedFiles.push(entryPath)
-              logger.debug({ action: 'orphan-cleanup', deleted: entryPath })
+              logger.debug({action: 'orphan-cleanup', deleted: entryPath})
             } catch (error) {
-              errors.push({ path: entryPath, error: error as Error })
-              logger.warn({ action: 'orphan-cleanup', message: 'Failed to delete file', path: entryPath, error: (error as Error).message })
+              errors.push({path: entryPath, error: error as Error})
+              logger.warn({action: 'orphan-cleanup', message: 'Failed to delete file', path: entryPath, error: (error as Error).message})
             }
           }
         }
@@ -162,7 +162,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     dirType: string,
     shadowProjectDir: string,
   ): boolean {
-    const { fs, path } = ctx
+    const {fs, path} = ctx
 
     const fileName = path.basename(distFilePath)
     const isMdxFile = fileName.endsWith('.mdx')
@@ -178,21 +178,20 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
       const possibleSrcPaths = this.getPossibleSourcePaths(path, shadowProjectDir, dirType, baseName, relativeDir)
 
       return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
-    } else {
-      // For non-.mdx files, check direct mapping (Requirement 2.6)
-      // Build possible source paths based on directory type
-      const possibleSrcPaths: string[] = []
-
-      if (dirType === 'app') {
-        // dist/app/{path} → app/{path}
-        possibleSrcPaths.push(path.join(shadowProjectDir, 'app', relativeFromType))
-      } else {
-        // dist/{type}/{path} → src/{type}/{path}
-        possibleSrcPaths.push(path.join(shadowProjectDir, 'src', dirType, relativeFromType))
-      }
-
-      return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
     }
+    // For non-.mdx files, check direct mapping (Requirement 2.6)
+    // Build possible source paths based on directory type
+    const possibleSrcPaths: string[] = []
+
+    if (dirType === 'app') {
+      // dist/app/{path} → app/{path}
+      possibleSrcPaths.push(path.join(shadowProjectDir, 'app', relativeFromType))
+    } else {
+      // dist/{type}/{path} → src/{type}/{path}
+      possibleSrcPaths.push(path.join(shadowProjectDir, 'src', dirType, relativeFromType))
+    }
+
+    return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
   }
 
   /**
@@ -248,8 +247,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
           : [
               nodePath.join(shadowProjectDir, 'app', relativeDir, `${baseName}.cn.mdx`),
             ]
-      default:
-        return []
+      default: return []
     }
   }
 
@@ -260,27 +258,27 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     ctx: InputEffectContext,
     dirPath: string,
     deletedDirs: string[],
-    errors: Array<{ path: string, error: Error }>,
+    errors: {path: string, error: Error}[],
     dryRun: boolean,
   ): void {
-    const { fs, logger } = ctx
+    const {fs, logger} = ctx
 
     try {
       const entries = fs.readdirSync(dirPath)
       if (entries.length === 0) {
         if (dryRun) {
-          logger.debug({ action: 'orphan-cleanup', dryRun: true, wouldDeleteDir: dirPath })
+          logger.debug({action: 'orphan-cleanup', dryRun: true, wouldDeleteDir: dirPath})
           deletedDirs.push(dirPath)
         } else {
           fs.rmdirSync(dirPath)
           deletedDirs.push(dirPath)
-          logger.debug({ action: 'orphan-cleanup', deletedDir: dirPath })
+          logger.debug({action: 'orphan-cleanup', deletedDir: dirPath})
         }
       }
     } catch (error) {
       // Directory might not exist or have permission issues
-      errors.push({ path: dirPath, error: error as Error })
-      logger.warn({ action: 'orphan-cleanup', message: 'Failed to check/remove directory', path: dirPath, error: (error as Error).message })
+      errors.push({path: dirPath, error: error as Error})
+      logger.warn({action: 'orphan-cleanup', message: 'Failed to check/remove directory', path: dirPath, error: (error as Error).message})
     }
   }
 

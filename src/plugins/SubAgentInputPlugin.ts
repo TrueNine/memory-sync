@@ -1,14 +1,14 @@
-import type { CollectedInputContext, InputPluginContext, SubAgentPrompt, SubAgentYAMLFrontMatter } from '@/types'
+import type {CollectedInputContext, InputPluginContext, SubAgentPrompt, SubAgentYAMLFrontMatter} from '@/types'
 
-import { mdxToMd } from '@/compiler'
-import { parseMarkdown } from '@/markdown'
+import {mdxToMd} from '@/compiler'
+import {parseMarkdown} from '@/markdown'
 import {
   FilePathKind,
   MetadataValidationError,
   PromptKind,
   validateSubAgentMetadata,
 } from '@/types'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export class SubAgentInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -16,8 +16,8 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
-    const { userConfigOptions: options, logger, fs, path, globalScope } = ctx
-    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
+    const {userConfigOptions: options, logger, fs, path, globalScope} = ctx
+    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
     const subAgentDirRaw = options.shadowSubAgentDir
     const subAgentDir = this.resolvePath(subAgentDirRaw, workspaceDir, shadowProjectDir)
@@ -25,7 +25,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     const subAgents: SubAgentPrompt[] = []
     if (fs.existsSync(subAgentDir) && fs.statSync(subAgentDir).isDirectory()) {
       try {
-        const entries = fs.readdirSync(subAgentDir, { withFileTypes: true })
+        const entries = fs.readdirSync(subAgentDir, {withFileTypes: true})
         for (const entry of entries) {
           if (entry.isFile() && entry.name.endsWith('.mdx')) {
             const filePath = path.join(subAgentDir, entry.name)
@@ -57,16 +57,14 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
               )
 
               // Log validation warnings
-              for (const warning of validationResult.warnings) {
-                logger.debug(warning)
-              }
+              for (const warning of validationResult.warnings) logger.debug(warning)
 
               // Throw error if validation fails (missing required fields)
               if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, filePath)
             }
 
             // Use compiled content
-            const { content } = compileResult
+            const {content} = compileResult
 
             // Log metadata source for debugging
             logger.debug('sub agent metadata extracted', {
@@ -81,8 +79,8 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
               content,
               length: content.length,
               filePathKind: FilePathKind.Relative,
-              ...(mergedFrontMatter != null && { yamlFrontMatter: mergedFrontMatter }),
-              ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
+              ...mergedFrontMatter != null && {yamlFrontMatter: mergedFrontMatter},
+              ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
               markdownAst: parsed.markdownAst,
               markdownContents: parsed.markdownContents,
               dir: {
@@ -96,10 +94,10 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
           }
         }
       } catch (e) {
-        logger.error(`Failed to scan sub agents at ${subAgentDir}`, { error: e })
+        logger.error(`Failed to scan sub agents at ${subAgentDir}`, {error: e})
       }
     }
 
-    return { subAgents }
+    return {subAgents}
   }
 }

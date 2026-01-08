@@ -1,4 +1,4 @@
-import type { FilePathKind } from '@/types/Enums'
+import type {FilePathKind} from '@/types/Enums'
 
 /**
  * 通用目录表示

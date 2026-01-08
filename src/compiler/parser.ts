@@ -1,12 +1,12 @@
 // parser.ts
 // MDX parsing module using unified + remark-parse + remark-mdx
 
-import type { Root } from 'mdast'
+import type {Root} from 'mdast'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkGfm from 'remark-gfm'
 import remarkMdx from 'remark-mdx'
 import remarkParse from 'remark-parse'
-import { unified } from 'unified'
+import {unified} from 'unified'
 
 /**
  * Parses an MDX string into an MDAST with MDX extensions.

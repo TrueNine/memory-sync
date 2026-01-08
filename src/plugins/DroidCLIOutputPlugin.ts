@@ -7,11 +7,11 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { FilePathKind } from '@/types'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import {FilePathKind} from '@/types'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.factory'
@@ -32,7 +32,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
@@ -56,8 +56,8 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
   // DroidCLI outputs skills to project directories, register skill files for cleanup
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
-    const { skills } = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
+    const {skills} = ctx.collectedInputContext
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
@@ -113,7 +113,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const { globalMemory } = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedInputContext
     if (globalMemory == null) return []
 
     const globalDir = this.getGlobalConfigDir()
@@ -129,7 +129,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { globalMemory, fastCommands, subAgents, skills } = ctx.collectedInputContext
+    const {globalMemory, fastCommands, subAgents, skills} = ctx.collectedInputContext
     const hasGlobalMemory = globalMemory != null
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasSubAgents = (subAgents?.length ?? 0) > 0
@@ -137,13 +137,13 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (hasGlobalMemory || hasFastCommands || hasSubAgents || hasSkills) return true
 
-    this.log.trace({ action: 'skip', reason: 'noOutputs' })
+    this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { projects } = ctx.collectedInputContext.workspace
-    const { fastCommands, subAgents, skills } = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
+    const {fastCommands, subAgents, skills} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
@@ -177,15 +177,15 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { globalMemory } = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (globalMemory == null) return { files: fileResults, dirs: dirResults }
+    if (globalMemory == null) return {files: fileResults, dirs: dirResults}
 
     const globalDir = this.getGlobalConfigDir()
     const fullPath = path.join(globalDir, GLOBAL_MEMORY_FILE)
@@ -198,9 +198,9 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'globalMemory', path: fullPath })
+      this.log.trace({action: 'dryRun', type: 'globalMemory', path: fullPath})
       return {
-        files: [{ path: relativePath, success: true, skipped: false }],
+        files: [{path: relativePath, success: true, skipped: false}],
         dirs: dirResults,
       }
     }
@@ -208,15 +208,15 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     try {
       this.ensureDirectory(globalDir)
       fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
-      this.log.trace({ action: 'write', type: 'globalMemory', path: fullPath })
-      fileResults.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
+      fileResults.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'globalMemory', path: fullPath, error: errMsg })
-      fileResults.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'globalMemory', path: fullPath, error: errMsg})
+      fileResults.push({path: relativePath, success: false, error: error as Error})
     }
 
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 
   private async writeFastCommand(
@@ -247,19 +247,19 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     )
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'fastCommand', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'fastCommand', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
       this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'fastCommand', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'fastCommand', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'fastCommand', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'fastCommand', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -271,7 +271,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     agent: SubAgentPrompt,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    const fileName = (agent.dir.path.endsWith('.md')) ? agent.dir.path : `${agent.dir.path}.md`
+    const fileName = agent.dir.path.endsWith('.md') ? agent.dir.path : `${agent.dir.path}.md`
     const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, AGENTS_SUBDIR)
     const fullPath = path.join(targetDir, fileName)
 
@@ -291,19 +291,19 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     )
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'subAgent', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'subAgent', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
       this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'subAgent', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'subAgent', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'subAgent', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'subAgent', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -330,22 +330,22 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
 
     // Build front matter with only name and description for Droid CLI
     const simplifiedFrontMatter = skill.yamlFrontMatter != null
-      ? { name: skill.yamlFrontMatter.name, description: skill.yamlFrontMatter.description }
+      ? {name: skill.yamlFrontMatter.name, description: skill.yamlFrontMatter.description}
       : void 0
 
     // Build content with simplified front matter
     const content = this.buildMarkdownContent(skill.content as string, simplifiedFrontMatter)
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'skill', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'skill', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
       this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'skill', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'skill', path: fullPath})
+      results.push({path: relativePath, success: true})
 
       // Write reference documents if any
       if (skill.childDocs != null) {
@@ -364,8 +364,8 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'skill', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'skill', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -375,7 +375,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
-    refDoc: { dir: RelativePath, content: unknown },
+    refDoc: {dir: RelativePath, content: unknown},
     projectDir: RelativePath,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
@@ -392,8 +392,8 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'skillRefDoc', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'skillRefDoc', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
@@ -401,12 +401,12 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       const parentDir = path.dirname(fullPath)
       this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, refDoc.content as string, 'utf8')
-      this.log.trace({ action: 'write', type: 'skillRefDoc', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'skillRefDoc', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -416,7 +416,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
-    resource: { relativePath: string, content: string },
+    resource: {relativePath: string, content: string},
     projectDir: RelativePath,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
@@ -431,8 +431,8 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'skillResource', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'skillResource', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
@@ -440,12 +440,12 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       const parentDir = path.dirname(fullPath)
       this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, resource.content, 'utf8')
-      this.log.trace({ action: 'write', type: 'skillResource', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'skillResource', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'skillResource', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'skillResource', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results

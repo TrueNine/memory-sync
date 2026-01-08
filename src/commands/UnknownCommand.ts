@@ -1,4 +1,4 @@
-import type { Command, CommandContext, CommandResult } from './Command'
+import type {Command, CommandContext, CommandResult} from './Command'
 
 /**
  * Unknown command - displays error for unrecognized subcommands

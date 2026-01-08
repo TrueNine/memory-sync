@@ -7,13 +7,13 @@ import type {
   SkillResource,
   SkillYAMLFrontMatter,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
-import { Buffer } from 'node:buffer'
+import type {RelativePath} from '@/types/FileSystemTypes'
+import {Buffer} from 'node:buffer'
 import fs from 'node:fs'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FilePathKind, PromptKind } from '@/types'
-import { GenericSkillsOutputPlugin } from './GenericSkillsOutputPlugin'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {FilePathKind, PromptKind} from '@/types'
+import {GenericSkillsOutputPlugin} from './GenericSkillsOutputPlugin'
 
 vi.mock('node:fs')
 
@@ -51,9 +51,9 @@ describe('genericSkillsOutputPlugin', () => {
       displayName?: string
       author?: string
       version?: string
-      mcpConfig?: { rawContent: string }
-      childDocs?: Array<{ relativePath: string, content: string }>
-      resources?: Array<{ relativePath: string, content: string, encoding: 'text' | 'base64' }>
+      mcpConfig?: {rawContent: string}
+      childDocs?: {relativePath: string, content: string}[]
+      resources?: {relativePath: string, content: string, encoding: 'text' | 'base64'}[]
     },
   ): SkillPrompt {
     const yamlFrontMatter: SkillYAMLFrontMatter = {
@@ -122,7 +122,7 @@ describe('genericSkillsOutputPlugin', () => {
       } as CollectedInputContext,
       dryRun,
       registeredPluginNames: [],
-      logger: { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any,
+      logger: {trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
       fs,
       path,
       glob: vi.fn() as any,
@@ -141,7 +141,7 @@ describe('genericSkillsOutputPlugin', () => {
         ideConfigFiles: [],
         ...collectedInputContext,
       } as CollectedInputContext,
-      logger: { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any,
+      logger: {trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
       fs,
       path,
       glob: vi.fn() as any,
@@ -153,7 +153,7 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'test-project', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir) }],
+          projects: [{name: 'test-project', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}],
         },
       })
 
@@ -178,7 +178,7 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'test-project', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir) }],
+          projects: [{name: 'test-project', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}],
         },
         skills: [createMockSkillPrompt('test-skill', 'content')],
       })
@@ -194,8 +194,8 @@ describe('genericSkillsOutputPlugin', () => {
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
           projects: [
-            { name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir) },
-            { name: 'project2', dirFromWorkspacePath: createMockRelativePath('project2', mockWorkspaceDir) },
+            {name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)},
+            {name: 'project2', dirFromWorkspacePath: createMockRelativePath('project2', mockWorkspaceDir)},
           ],
         },
         skills: [createMockSkillPrompt('test-skill', 'content')],
@@ -212,7 +212,7 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputPluginContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir) }],
+          projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}],
         },
       })
 
@@ -226,7 +226,7 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputPluginContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir) }],
+          projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}],
         },
         skills: [
           createMockSkillPrompt('skill-a', 'content a'),
@@ -245,9 +245,9 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputPluginContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir) }],
+          projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}],
         },
-        skills: [createMockSkillPrompt('test-skill', 'content', { mcpConfig: { rawContent: '{}' } })],
+        skills: [createMockSkillPrompt('test-skill', 'content', {mcpConfig: {rawContent: '{}'}})],
       })
 
       const results = await plugin.registerProjectOutputFiles(ctx)
@@ -261,11 +261,11 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputPluginContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir) }],
+          projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}],
         },
         skills: [createMockSkillPrompt('test-skill', 'content', {
-          childDocs: [{ relativePath: 'docs/guide.md', content: 'guide' }],
-          resources: [{ relativePath: 'helper.kt', content: 'code', encoding: 'text' }],
+          childDocs: [{relativePath: 'docs/guide.md', content: 'guide'}],
+          resources: [{relativePath: 'helper.kt', content: 'code', encoding: 'text'}],
         })],
       })
 
@@ -284,7 +284,7 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1', dirFromWorkspacePath: projectDir }],
+          projects: [{name: 'project1', dirFromWorkspacePath: projectDir}],
         },
         skills: [createMockSkillPrompt('test-skill', '# Skill Content', {
           description: 'A test skill',
@@ -313,9 +313,9 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1', dirFromWorkspacePath: projectDir }],
+          projects: [{name: 'project1', dirFromWorkspacePath: projectDir}],
         },
-        skills: [createMockSkillPrompt('test-skill', 'content', { mcpConfig: { rawContent: mcpContent } })],
+        skills: [createMockSkillPrompt('test-skill', 'content', {mcpConfig: {rawContent: mcpContent}})],
       })
 
       const results = await plugin.writeProjectOutputs(ctx)
@@ -333,10 +333,10 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1', dirFromWorkspacePath: projectDir }],
+          projects: [{name: 'project1', dirFromWorkspacePath: projectDir}],
         },
         skills: [createMockSkillPrompt('test-skill', 'content', {
-          childDocs: [{ relativePath: 'docs/guide.md', content: '# Guide' }],
+          childDocs: [{relativePath: 'docs/guide.md', content: '# Guide'}],
         })],
       })
 
@@ -355,10 +355,10 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1', dirFromWorkspacePath: projectDir }],
+          projects: [{name: 'project1', dirFromWorkspacePath: projectDir}],
         },
         skills: [createMockSkillPrompt('test-skill', 'content', {
-          resources: [{ relativePath: 'helper.kt', content: 'fun main() {}', encoding: 'text' }],
+          resources: [{relativePath: 'helper.kt', content: 'fun main() {}', encoding: 'text'}],
         })],
       })
 
@@ -378,10 +378,10 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1', dirFromWorkspacePath: projectDir }],
+          projects: [{name: 'project1', dirFromWorkspacePath: projectDir}],
         },
         skills: [createMockSkillPrompt('test-skill', 'content', {
-          resources: [{ relativePath: 'image.png', content: base64Content, encoding: 'base64' }],
+          resources: [{relativePath: 'image.png', content: base64Content, encoding: 'base64'}],
         })],
       })
 
@@ -400,7 +400,7 @@ describe('genericSkillsOutputPlugin', () => {
         {
           workspace: {
             directory: createMockRelativePath('.', mockWorkspaceDir),
-            projects: [{ name: 'project1', dirFromWorkspacePath: projectDir }],
+            projects: [{name: 'project1', dirFromWorkspacePath: projectDir}],
           },
           skills: [createMockSkillPrompt('test-skill', 'content')],
         },
@@ -420,8 +420,8 @@ describe('genericSkillsOutputPlugin', () => {
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
           projects: [
-            { name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir) },
-            { name: 'project2', dirFromWorkspacePath: createMockRelativePath('project2', mockWorkspaceDir) },
+            {name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)},
+            {name: 'project2', dirFromWorkspacePath: createMockRelativePath('project2', mockWorkspaceDir)},
           ],
         },
         skills: [createMockSkillPrompt('test-skill', 'content')],
@@ -447,7 +447,7 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1' }],
+          projects: [{name: 'project1'}],
         },
         skills: [createMockSkillPrompt('test-skill', 'content')],
       })
@@ -462,7 +462,7 @@ describe('genericSkillsOutputPlugin', () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{ name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir) }],
+          projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}],
         },
       })
 

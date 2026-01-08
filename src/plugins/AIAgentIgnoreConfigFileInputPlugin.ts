@@ -4,7 +4,7 @@ import type {
   InputPluginContext,
 } from '@/types'
 
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**
  * Ignore file names to read from shadow project dist directory
@@ -17,8 +17,8 @@ export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const { userConfigOptions: options, logger, fs, path } = ctx
-    const { shadowProjectDir } = this.resolveBasePaths(options)
+    const {userConfigOptions: options, logger, fs, path} = ctx
+    const {shadowProjectDir} = this.resolveBasePaths(options)
 
     const ignoreFiles: AIAgentIgnoreConfigFile[] = []
 
@@ -29,10 +29,10 @@ export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
       if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
         try {
           const content = fs.readFileSync(filePath, 'utf8')
-          ignoreFiles.push({ fileName, content })
-          logger.debug('read ignore file', { path: filePath })
+          ignoreFiles.push({fileName, content})
+          logger.debug('read ignore file', {path: filePath})
         } catch (e) {
-          logger.warn('failed to read ignore file', { path: filePath, error: e })
+          logger.warn('failed to read ignore file', {path: filePath, error: e})
         }
       }
     }

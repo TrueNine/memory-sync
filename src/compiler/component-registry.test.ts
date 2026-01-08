@@ -5,10 +5,10 @@
  * as specified in Requirements 2.1.
  */
 
-import type { RootContent } from 'mdast'
-import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
-import type { ComponentHandler, ProcessingContext } from './types'
-import { afterEach, describe, expect, it } from 'vitest'
+import type {RootContent} from 'mdast'
+import type {MdxJsxFlowElement, MdxJsxTextElement} from 'mdast-util-mdx'
+import type {ComponentHandler, ProcessingContext} from './types'
+import {afterEach, describe, expect, it} from 'vitest'
 import {
   clearComponents,
   getComponents,

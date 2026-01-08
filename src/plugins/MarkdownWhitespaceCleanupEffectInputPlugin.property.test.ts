@@ -1,14 +1,14 @@
-import type { InputEffectContext } from './AbstractInputPlugin'
-import type { ILogger } from '@/log'
-import type { PluginOptions } from '@/types'
+import type {InputEffectContext} from './AbstractInputPlugin'
+import type {ILogger} from '@/log'
+import type {PluginOptions} from '@/types'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fc from 'fast-check'
 import * as glob from 'fast-glob'
-import { describe, expect, it } from 'vitest'
-import { MarkdownWhitespaceCleanupEffectInputPlugin } from './MarkdownWhitespaceCleanupEffectInputPlugin'
+import {describe, expect, it} from 'vitest'
+import {MarkdownWhitespaceCleanupEffectInputPlugin} from './MarkdownWhitespaceCleanupEffectInputPlugin'
 
 /**
  * Feature: effect-input-plugins
@@ -58,13 +58,13 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
 // Generators
 
 // Generate a line of text (without line endings)
-const lineContentGen = fc.string({ minLength: 0, maxLength: 100, unit: 'grapheme-ascii' })
+const lineContentGen = fc.string({minLength: 0, maxLength: 100, unit: 'grapheme-ascii'})
   .filter(s => !s.includes('\n') && !s.includes('\r'))
 
 // Generate trailing whitespace (spaces and tabs)
 const trailingWhitespaceGen = fc.array(
   fc.constantFrom(' ', '\t'),
-  { minLength: 0, maxLength: 10 },
+  {minLength: 0, maxLength: 10},
 ).map(chars => chars.join(''))
 
 // Generate a line with optional trailing whitespace
@@ -72,24 +72,22 @@ const lineWithTrailingWhitespaceGen = fc.tuple(lineContentGen, trailingWhitespac
   .map(([content, trailing]) => content + trailing)
 
 // Generate markdown content with various whitespace patterns
-const markdownContentGen = fc.array(lineWithTrailingWhitespaceGen, { minLength: 1, maxLength: 20 })
+const markdownContentGen = fc.array(lineWithTrailingWhitespaceGen, {minLength: 1, maxLength: 20})
   .chain(lines =>
     // Randomly insert extra blank lines between content lines
     fc.array(
       fc.tuple(
         fc.constant(null as string | null),
         // Number of blank lines to insert
-        fc.integer({ min: 0, max: 5 }),
+        fc.integer({min: 0, max: 5}),
       ),
-      { minLength: lines.length, maxLength: lines.length },
+      {minLength: lines.length, maxLength: lines.length},
     ).map(blankCounts => {
       const result: string[] = []
       for (let i = 0; i < lines.length; i++) {
         // Add blank lines before this line
         const blankCount = blankCounts[i]?.[1] ?? 0
-        for (let j = 0; j < blankCount; j++) {
-          result.push('')
-        }
+        for (let j = 0; j < blankCount; j++) result.push('')
         result.push(lines[i])
       }
       return result
@@ -126,12 +124,10 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             const lines = cleaned.split(/\r?\n/)
 
             // Verify: No line should end with space or tab
-            for (const line of lines) {
-              expect(line).not.toMatch(/[ \t]$/)
-            }
+            for (const line of lines) expect(line).not.toMatch(/[ \t]$/)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -148,7 +144,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               const shadowProjectDir = path.join(tempDir, 'shadow')
               const srcDir = path.join(shadowProjectDir, 'src')
 
-              fs.mkdirSync(srcDir, { recursive: true })
+              fs.mkdirSync(srcDir, {recursive: true})
 
               const mdFilePath = path.join(srcDir, 'test.md')
               fs.writeFileSync(mdFilePath, content, 'utf8')
@@ -164,16 +160,14 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               const lines = processedContent.split(/\r?\n/)
 
               // Verify: No line should end with space or tab
-              for (const line of lines) {
-                expect(line).not.toMatch(/[ \t]$/)
-              }
+              for (const line of lines) expect(line).not.toMatch(/[ \t]$/)
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
             }
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -215,7 +209,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             expect(maxConsecutiveBlank).toBeLessThanOrEqual(2)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -232,7 +226,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               const shadowProjectDir = path.join(tempDir, 'shadow')
               const srcDir = path.join(shadowProjectDir, 'src')
 
-              fs.mkdirSync(srcDir, { recursive: true })
+              fs.mkdirSync(srcDir, {recursive: true})
 
               const mdFilePath = path.join(srcDir, 'test.md')
               fs.writeFileSync(mdFilePath, content, 'utf8')
@@ -263,11 +257,11 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               expect(maxConsecutiveBlank).toBeLessThanOrEqual(2)
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
             }
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -300,7 +294,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             if (lines.length > 1) expect(cleaned).toContain('\n')
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -326,7 +320,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             expect(crlfCount).toBeGreaterThan(0)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -344,7 +338,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               const shadowProjectDir = path.join(tempDir, 'shadow')
               const srcDir = path.join(shadowProjectDir, 'src')
 
-              fs.mkdirSync(srcDir, { recursive: true })
+              fs.mkdirSync(srcDir, {recursive: true})
 
               // Create content with specific line ending
               const content = lines.join(lineEnding)
@@ -376,11 +370,11 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               }
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
             }
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })

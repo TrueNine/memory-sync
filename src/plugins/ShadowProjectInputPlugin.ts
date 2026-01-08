@@ -1,9 +1,9 @@
-import type { CollectedInputContext, InputPluginContext, Project, Workspace } from '@/types'
+import type {CollectedInputContext, InputPluginContext, Project, Workspace} from '@/types'
 
 import {
   FilePathKind,
 } from '@/types'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export class ShadowProjectInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -11,8 +11,8 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const { userConfigOptions: options, logger, fs, path } = ctx
-    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
+    const {userConfigOptions: options, logger, fs, path} = ctx
+    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
     const shadowProjectsDirRaw = options.shadowProjectsDir
     const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
@@ -25,7 +25,7 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
     // First, try to collect projects from dist/app/ directory
     if (fs.existsSync(shadowProjectsDir) && fs.statSync(shadowProjectsDir).isDirectory()) {
       try {
-        const entries = fs.readdirSync(shadowProjectsDir, { withFileTypes: true })
+        const entries = fs.readdirSync(shadowProjectsDir, {withFileTypes: true})
         for (const entry of entries) {
           if (entry.isDirectory()) {
             // Only mark the shadow source project itself (e.g., aindex) as prompt source project
@@ -36,7 +36,7 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
               name: entry.name,
               // Only true for the shadow source project itself (e.g., aindex)
               // This protects source files in the shadow source project from being cleaned
-              ...(isTheShadowSourceProject && { isPromptSourceProject: true }),
+              ...isTheShadowSourceProject && {isPromptSourceProject: true},
               dirFromWorkspacePath: {
                 pathKind: FilePathKind.Relative,
                 path: entry.name,
@@ -48,23 +48,23 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
           }
         }
       } catch (e) {
-        logger.error('failed to scan shadow projects', { path: shadowProjectsDir, error: e })
+        logger.error('failed to scan shadow projects', {path: shadowProjectsDir, error: e})
       }
     }
 
     // If no projects found in dist/app/, fallback to scanning workspace directory
     // This ensures clean command can find all projects even when dist/app/ is empty
     if (shadowProjects.length === 0 && fs.existsSync(workspaceDir) && fs.statSync(workspaceDir).isDirectory()) {
-      logger.debug('no projects in dist/app/, falling back to workspace scan', { workspaceDir })
+      logger.debug('no projects in dist/app/, falling back to workspace scan', {workspaceDir})
       try {
-        const entries = fs.readdirSync(workspaceDir, { withFileTypes: true })
+        const entries = fs.readdirSync(workspaceDir, {withFileTypes: true})
         for (const entry of entries) {
           if (entry.isDirectory() && !entry.name.startsWith('.')) {
             const isTheShadowSourceProject = entry.name === shadowSourceProjectName
 
             shadowProjects.push({
               name: entry.name,
-              ...(isTheShadowSourceProject && { isPromptSourceProject: true }),
+              ...isTheShadowSourceProject && {isPromptSourceProject: true},
               dirFromWorkspacePath: {
                 pathKind: FilePathKind.Relative,
                 path: entry.name,
@@ -76,7 +76,7 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
           }
         }
       } catch (e) {
-        logger.error('failed to scan workspace directory', { path: workspaceDir, error: e })
+        logger.error('failed to scan workspace directory', {path: workspaceDir, error: e})
       }
     }
 
@@ -89,6 +89,6 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
       projects: shadowProjects,
     }
 
-    return { workspace }
+    return {workspace}
   }
 }

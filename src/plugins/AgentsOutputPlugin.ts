@@ -4,8 +4,8 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import type {RelativePath} from '@/types/FileSystemTypes'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
 
@@ -18,7 +18,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
       // Root memory prompt uses project.dirFromWorkspacePath
@@ -37,19 +37,19 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { workspace } = ctx.collectedInputContext
+    const {workspace} = ctx.collectedInputContext
     const hasProjectOutputs = workspace.projects.some(
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
     )
 
     if (hasProjectOutputs) return true
 
-    this.log.trace({ action: 'skip', reason: 'noOutputs' })
+    this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { projects } = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedInputContext.workspace
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
@@ -84,6 +84,6 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 }

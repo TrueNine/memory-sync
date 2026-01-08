@@ -1,8 +1,8 @@
-import type { LogLevel, ParsedCliArgs } from '@/PluginPipeline'
+import type {LogLevel, ParsedCliArgs} from '@/PluginPipeline'
 import fc from 'fast-check'
-import { describe, expect, it } from 'vitest'
-import { DryRunCleanCommand, ExecuteCommand, HelpCommand } from '@/commands'
-import { parseArgs, resolveCommand, resolveLogLevel } from '@/PluginPipeline'
+import {describe, expect, it} from 'vitest'
+import {DryRunCleanCommand, ExecuteCommand, HelpCommand} from '@/commands'
+import {parseArgs, resolveCommand, resolveLogLevel} from '@/PluginPipeline'
 
 /**
  * Feature: cli-refactor
@@ -17,19 +17,19 @@ describe('parseArgs property tests', () => {
    */
   describe('property 2: Log Level Flag Parsing', () => {
     const logLevelFlags = [
-      { flag: '--trace', level: 'trace' },
-      { flag: '--debug', level: 'debug' },
-      { flag: '--info', level: 'info' },
-      { flag: '--warn', level: 'warn' },
-      { flag: '--error', level: 'error' },
+      {flag: '--trace', level: 'trace'},
+      {flag: '--debug', level: 'debug'},
+      {flag: '--info', level: 'info'},
+      {flag: '--warn', level: 'warn'},
+      {flag: '--error', level: 'error'},
     ] as const
 
     it('should parse single log level flag correctly', () => {
       fc.assert(
         fc.property(
           fc.constantFrom(...logLevelFlags),
-          fc.array(fc.string().filter(s => !s.startsWith('-') && s.length > 0), { maxLength: 5 }),
-          ({ flag, level }, otherArgs) => {
+          fc.array(fc.string().filter(s => !s.startsWith('-') && s.length > 0), {maxLength: 5}),
+          ({flag, level}, otherArgs) => {
             // Filter out any strings that might be valid subcommands
             const filteredArgs = otherArgs.filter(
               arg => !['help', 'init', 'dry-run', 'clean'].includes(arg),
@@ -39,7 +39,7 @@ describe('parseArgs property tests', () => {
             expect(result.logLevel).toBe(level)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -58,14 +58,14 @@ describe('parseArgs property tests', () => {
         fc.property(
           fc.array(
             fc.string().filter(s => !logLevelFlags.has(s) && s.length > 0),
-            { maxLength: 10 },
+            {maxLength: 10},
           ),
           args => {
             const result = parseArgs(args)
             expect(result.logLevel).toBeUndefined()
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -82,7 +82,7 @@ describe('parseArgs property tests', () => {
     it('should capture unknown first positional as unknownCommand', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 1 }).filter(s =>
+          fc.string({minLength: 1}).filter(s =>
             // Must not be a valid subcommand
             // Must not start with '-'
             // Must not be empty
@@ -94,7 +94,7 @@ describe('parseArgs property tests', () => {
             expect(result.subcommand).toBeUndefined()
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -108,7 +108,7 @@ describe('parseArgs property tests', () => {
             expect(result.subcommand).toBe(subcommand)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -140,7 +140,7 @@ describe('resolveLogLevel property tests', () => {
       fc.assert(
         fc.property(
           // Generate a non-empty subset of log levels
-          fc.array(fc.constantFrom(...allLogLevels), { minLength: 1, maxLength: 5 }),
+          fc.array(fc.constantFrom(...allLogLevels), {minLength: 1, maxLength: 5}),
           levels => {
             // Build args with log level flags
             const args = levels.map(level => `--${level}`)
@@ -155,7 +155,7 @@ describe('resolveLogLevel property tests', () => {
             expect(resolved).toBe(expectedLevel)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -167,7 +167,7 @@ describe('resolveLogLevel property tests', () => {
               // Exclude log level flags
               !allLogLevels.some(level => s === `--${level}`),
             ),
-            { maxLength: 10 },
+            {maxLength: 10},
           ),
           args => {
             const parsed = parseArgs(args)
@@ -175,7 +175,7 @@ describe('resolveLogLevel property tests', () => {
             expect(resolved).toBeUndefined()
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -183,7 +183,7 @@ describe('resolveLogLevel property tests', () => {
       fc.assert(
         fc.property(
           // Generate other log levels (not trace)
-          fc.array(fc.constantFrom('debug', 'info', 'warn', 'error') as fc.Arbitrary<LogLevel>, { maxLength: 4 }),
+          fc.array(fc.constantFrom('debug', 'info', 'warn', 'error') as fc.Arbitrary<LogLevel>, {maxLength: 4}),
           otherLevels => {
             // Always include trace
             const args = ['--trace', ...otherLevels.map(level => `--${level}`)]
@@ -193,7 +193,7 @@ describe('resolveLogLevel property tests', () => {
             expect(resolved).toBe('trace')
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -241,7 +241,7 @@ describe('resolveCommand property tests', () => {
               && !['help', 'init', 'dry-run', 'clean'].includes(s)
               && s.trim().length === 0,
             ),
-            { maxLength: 5 },
+            {maxLength: 5},
           ),
           _emptyArgs => {
             // Create args with no subcommand, no helpFlag, no unknownCommand
@@ -250,22 +250,22 @@ describe('resolveCommand property tests', () => {
             expect(command).toBeInstanceOf(ExecuteCommand)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
     it('should return ExecuteCommand when only positional args are present', () => {
       fc.assert(
         fc.property(
-          fc.array(fc.string({ minLength: 1 }), { maxLength: 5 }),
+          fc.array(fc.string({minLength: 1}), {maxLength: 5}),
           positionalArgs => {
             // Create args with positional but no subcommand/flags
-            const args = createParsedArgs({ positional: positionalArgs })
+            const args = createParsedArgs({positional: positionalArgs})
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(ExecuteCommand)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -282,9 +282,9 @@ describe('resolveCommand property tests', () => {
     it('should return HelpCommand when helpFlag is true regardless of subcommand', () => {
       fc.assert(
         fc.property(
-          fc.option(fc.constantFrom(...validSubcommands), { nil: void 0 }),
+          fc.option(fc.constantFrom(...validSubcommands), {nil: void 0}),
           fc.boolean(),
-          fc.option(fc.string({ minLength: 1 }), { nil: void 0 }),
+          fc.option(fc.string({minLength: 1}), {nil: void 0}),
           (subcommand, dryRun, unknownCommand) => {
             const args = createParsedArgs({
               helpFlag: true,
@@ -296,7 +296,7 @@ describe('resolveCommand property tests', () => {
             expect(command).toBeInstanceOf(HelpCommand)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -314,7 +314,7 @@ describe('resolveCommand property tests', () => {
             expect(command).toBeInstanceOf(HelpCommand)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -329,8 +329,8 @@ describe('resolveCommand property tests', () => {
     it('should return DryRunCleanCommand when clean subcommand with dryRun flag', () => {
       fc.assert(
         fc.property(
-          fc.option(fc.constantFrom('trace', 'debug', 'info', 'warn', 'error') as fc.Arbitrary<LogLevel>, { nil: void 0 }),
-          fc.array(fc.string(), { maxLength: 5 }),
+          fc.option(fc.constantFrom('trace', 'debug', 'info', 'warn', 'error') as fc.Arbitrary<LogLevel>, {nil: void 0}),
+          fc.array(fc.string(), {maxLength: 5}),
           (logLevel, positional) => {
             const args = createParsedArgs({
               subcommand: 'clean',
@@ -343,14 +343,14 @@ describe('resolveCommand property tests', () => {
             expect(command).toBeInstanceOf(DryRunCleanCommand)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
     it('should return DryRunCleanCommand regardless of other flags when clean + dryRun', () => {
       fc.assert(
         fc.property(
-          fc.array(fc.string(), { maxLength: 5 }),
+          fc.array(fc.string(), {maxLength: 5}),
           unknownFlags => {
             const args = createParsedArgs({
               subcommand: 'clean',
@@ -361,7 +361,7 @@ describe('resolveCommand property tests', () => {
             expect(command).toBeInstanceOf(DryRunCleanCommand)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })

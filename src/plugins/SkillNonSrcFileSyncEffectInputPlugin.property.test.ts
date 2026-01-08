@@ -1,14 +1,14 @@
-import type { InputEffectContext } from './AbstractInputPlugin'
-import type { ILogger } from '@/log'
-import type { PluginOptions } from '@/types'
+import type {InputEffectContext} from './AbstractInputPlugin'
+import type {ILogger} from '@/log'
+import type {PluginOptions} from '@/types'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fc from 'fast-check'
 import * as glob from 'fast-glob'
-import { describe, expect, it } from 'vitest'
-import { SkillNonSrcFileSyncEffectInputPlugin } from './SkillNonSrcFileSyncEffectInputPlugin'
+import {describe, expect, it} from 'vitest'
+import {SkillNonSrcFileSyncEffectInputPlugin} from './SkillNonSrcFileSyncEffectInputPlugin'
 
 /**
  * Feature: effect-input-plugins
@@ -53,13 +53,13 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
 }
 
 // Generators
-const validFileNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
+const validFileNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
   .filter(s => /^[\w-]+$/.test(s))
   .map(s => s.toLowerCase())
 
 const fileExtensionGen = fc.constantFrom('.ts', '.js', '.json', '.sh', '.txt', '.md', '.yaml', '.yml')
 
-const fileContentGen = fc.string({ minLength: 0, maxLength: 1000 })
+const fileContentGen = fc.string({minLength: 0, maxLength: 1000})
 
 // Generate a non-.cn.mdx filename
 const nonSrcMdFileNameGen = fc.tuple(validFileNameGen, fileExtensionGen)
@@ -98,7 +98,7 @@ const skillStructureGen: fc.Arbitrary<SkillStructure> = fc.record({
         isSrcMd: fc.constant(true),
       }),
     ),
-    { minLength: 1, maxLength: 5 },
+    {minLength: 1, maxLength: 5},
   ),
 }).map(skill => {
   // Deduplicate files by relativePath, keeping the first occurrence
@@ -108,7 +108,7 @@ const skillStructureGen: fc.Arbitrary<SkillStructure> = fc.record({
     seen.add(file.relativePath)
     return true
   })
-  return { ...skill, files: uniqueFiles }
+  return {...skill, files: uniqueFiles}
 }).filter(skill => skill.files.length > 0)
 
 describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
@@ -124,7 +124,7 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
     it('should sync all non-.cn.mdx files from src/skills/ to dist/skills/ with identical content', async () => {
       await fc.assert(
         fc.asyncProperty(
-          fc.array(skillStructureGen, { minLength: 1, maxLength: 3 }),
+          fc.array(skillStructureGen, {minLength: 1, maxLength: 3}),
           async skills => {
             // Create isolated temp directory for this property run
             const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-sync-p1-'))
@@ -138,11 +138,11 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               // Create skill directories and files
               for (const skill of skills) {
                 const skillDir = path.join(srcSkillsDir, skill.skillName)
-                fs.mkdirSync(skillDir, { recursive: true })
+                fs.mkdirSync(skillDir, {recursive: true})
 
                 for (const file of skill.files) {
                   const filePath = path.join(skillDir, file.relativePath)
-                  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+                  fs.mkdirSync(path.dirname(filePath), {recursive: true})
                   fs.writeFileSync(filePath, file.content, 'utf8')
                 }
               }
@@ -171,11 +171,11 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               }
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
             }
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -206,8 +206,8 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               const skillSrcDir = path.join(srcSkillsDir, skill.skillName)
               const skillDistDir = path.join(distSkillsDir, skill.skillName)
 
-              fs.mkdirSync(skillSrcDir, { recursive: true })
-              fs.mkdirSync(skillDistDir, { recursive: true })
+              fs.mkdirSync(skillSrcDir, {recursive: true})
+              fs.mkdirSync(skillDistDir, {recursive: true})
 
               const nonSrcMdFiles = skill.files.filter(f => !f.isSrcMd)
 
@@ -216,8 +216,8 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
                 const srcPath = path.join(skillSrcDir, file.relativePath)
                 const distPath = path.join(skillDistDir, file.relativePath)
 
-                fs.mkdirSync(path.dirname(srcPath), { recursive: true })
-                fs.mkdirSync(path.dirname(distPath), { recursive: true })
+                fs.mkdirSync(path.dirname(srcPath), {recursive: true})
+                fs.mkdirSync(path.dirname(distPath), {recursive: true})
 
                 fs.writeFileSync(srcPath, file.content, 'utf8')
                 fs.writeFileSync(distPath, file.content, 'utf8')
@@ -237,11 +237,11 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               }
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
             }
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -260,11 +260,11 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               const distSkillsDir = path.join(shadowProjectDir, 'dist', 'skills')
 
               const skillSrcDir = path.join(srcSkillsDir, skill.skillName)
-              fs.mkdirSync(skillSrcDir, { recursive: true })
+              fs.mkdirSync(skillSrcDir, {recursive: true})
 
               for (const file of skill.files) {
                 const srcPath = path.join(skillSrcDir, file.relativePath)
-                fs.mkdirSync(path.dirname(srcPath), { recursive: true })
+                fs.mkdirSync(path.dirname(srcPath), {recursive: true})
                 fs.writeFileSync(srcPath, file.content, 'utf8')
               }
 
@@ -293,11 +293,11 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
               }
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
             }
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })

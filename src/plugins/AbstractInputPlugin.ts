@@ -1,7 +1,7 @@
-import type { Buffer } from 'node:buffer'
-import type { ILogger } from '@/log'
+import type {Buffer} from 'node:buffer'
+import type {ILogger} from '@/log'
 
-import type { ParsedMarkdown } from '@/markdown'
+import type {ParsedMarkdown} from '@/markdown'
 import type {
   Awaitable,
   CollectedInputContext,
@@ -10,15 +10,15 @@ import type {
   PluginOptions,
   YAMLFrontMatter,
 } from '@/types'
-import { spawn } from 'node:child_process'
+import {spawn} from 'node:child_process'
 
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import { PathPlaceholders } from '@/constants'
-import { parseMarkdown } from '@/markdown'
-import { PluginKind } from '@/types'
-import { AbstractPlugin } from './AbstractPlugin'
+import {PathPlaceholders} from '@/constants'
+import {parseMarkdown} from '@/markdown'
+import {PluginKind} from '@/types'
+import {AbstractPlugin} from './AbstractPlugin'
 
 /**
  * Result of executing an input effect.
@@ -176,7 +176,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
    * ```
    */
   protected registerEffect(name: string, handler: InputEffectHandler, priority: number = 0): void {
-    this.inputEffects.push({ name, handler, priority })
+    this.inputEffects.push({name, handler, priority})
     // Sort by priority (lower = earlier)
     this.inputEffects.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
   }
@@ -202,7 +202,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
 
     if (this.inputEffects.length === 0) return results
 
-    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(ctx.userConfigOptions)
+    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(ctx.userConfigOptions)
 
     const effectCtx: InputEffectContext = {
       logger: this.log,
@@ -218,30 +218,30 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
 
     for (const effect of this.inputEffects) {
       if (dryRun) {
-        this.log.trace({ action: 'dryRun', type: 'inputEffect', name: effect.name })
-        results.push({ success: true, description: `Would execute input effect: ${effect.name}` })
+        this.log.trace({action: 'dryRun', type: 'inputEffect', name: effect.name})
+        results.push({success: true, description: `Would execute input effect: ${effect.name}`})
         continue
       }
 
       try {
         const result = await effect.handler(effectCtx)
         if (result.success) {
-          this.log.trace({ action: 'inputEffect', name: effect.name, status: 'success', description: result.description })
+          this.log.trace({action: 'inputEffect', name: effect.name, status: 'success', description: result.description})
           if (result.modifiedFiles != null && result.modifiedFiles.length > 0) {
-            this.log.debug({ action: 'inputEffect', name: effect.name, modifiedFiles: result.modifiedFiles })
+            this.log.debug({action: 'inputEffect', name: effect.name, modifiedFiles: result.modifiedFiles})
           }
           if (result.deletedFiles != null && result.deletedFiles.length > 0) {
-            this.log.debug({ action: 'inputEffect', name: effect.name, deletedFiles: result.deletedFiles })
+            this.log.debug({action: 'inputEffect', name: effect.name, deletedFiles: result.deletedFiles})
           }
         } else {
           const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
-          this.log.error({ action: 'inputEffect', name: effect.name, status: 'failed', error: errorMsg })
+          this.log.error({action: 'inputEffect', name: effect.name, status: 'failed', error: errorMsg})
         }
         results.push(result)
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({ action: 'inputEffect', name: effect.name, status: 'failed', error: errorMsg })
-        results.push({ success: false, error: error as Error, description: `Input effect failed: ${effect.name}` })
+        this.log.error({action: 'inputEffect', name: effect.name, status: 'failed', error: errorMsg})
+        results.push({success: false, error: error as Error, description: `Input effect failed: ${effect.name}`})
       }
     }
 
@@ -288,8 +288,8 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
    * ```
    */
   protected registerScope(namespace: string, values: Record<string, unknown>): void {
-    this.registeredScopes.push({ namespace, values })
-    this.log.debug({ action: 'registerScope', namespace, keys: Object.keys(values) })
+    this.registeredScopes.push({namespace, values})
+    this.log.debug({action: 'registerScope', namespace, keys: Object.keys(values)})
   }
 
   /**
@@ -308,7 +308,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
    */
   protected clearRegisteredScopes(): void {
     this.registeredScopes.length = 0
-    this.log.debug({ action: 'clearRegisteredScopes' })
+    this.log.debug({action: 'clearRegisteredScopes'})
   }
 
   /**
@@ -340,7 +340,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     const shadowProjectDirRaw = options.shadowSourceProjectDir
     const shadowProjectDir = this.resolvePath(shadowProjectDirRaw, workspaceDir, '')
 
-    return { workspaceDir, shadowProjectDir }
+    return {workspaceDir, shadowProjectDir}
   }
 
   /**
@@ -365,9 +365,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
 
     if (resolved.startsWith(PathPlaceholders.USER_HOME)) resolved = resolved.replace(PathPlaceholders.USER_HOME, os.homedir())
 
-    if (resolved.includes(PathPlaceholders.SHADOW_SOURCE_PROJECT)) {
-      resolved = resolved.replace(PathPlaceholders.SHADOW_SOURCE_PROJECT, shadowProjectDir)
-    }
+    if (resolved.includes(PathPlaceholders.SHADOW_SOURCE_PROJECT)) resolved = resolved.replace(PathPlaceholders.SHADOW_SOURCE_PROJECT, shadowProjectDir)
 
     if (resolved.includes(PathPlaceholders.WORKSPACE)) resolved = resolved.replace(PathPlaceholders.WORKSPACE, workspaceDir)
 
@@ -431,7 +429,7 @@ export interface CleanStaleDistResult {
   /** Files that would be deleted (dry-run mode) */
   readonly wouldDelete: string[]
   /** Errors encountered during deletion */
-  readonly errors: Array<{ file: string, error: Error }>
+  readonly errors: {file: string, error: Error}[]
 }
 
 /**
@@ -461,8 +459,8 @@ export function cleanStaleDistFiles(
   ctx: Pick<InputEffectContext, 'fs' | 'path' | 'logger'>,
   options: CleanStaleDistOptions,
 ): CleanStaleDistResult {
-  const { srcDir, distDir, extension = '.md', dryRun = false, logger } = options
-  const { fs, path: nodePath } = ctx
+  const {srcDir, distDir, extension = '.md', dryRun = false, logger} = options
+  const {fs, path: nodePath} = ctx
 
   const result: CleanStaleDistResult = {
     deletedFiles: [],
@@ -472,17 +470,17 @@ export function cleanStaleDistFiles(
 
   // Check if directories exist
   if (!fs.existsSync(distDir)) {
-    logger?.debug({ action: 'cleanStaleDistFiles', message: 'dist directory does not exist', distDir })
+    logger?.debug({action: 'cleanStaleDistFiles', message: 'dist directory does not exist', distDir})
     return result
   }
 
   if (!fs.existsSync(srcDir)) {
-    logger?.debug({ action: 'cleanStaleDistFiles', message: 'src directory does not exist', srcDir })
+    logger?.debug({action: 'cleanStaleDistFiles', message: 'src directory does not exist', srcDir})
     return result
   }
 
   // Get all files in dist directory
-  const distEntries = fs.readdirSync(distDir, { withFileTypes: true })
+  const distEntries = fs.readdirSync(distDir, {withFileTypes: true})
 
   for (const entry of distEntries) {
     if (entry.isDirectory()) {
@@ -494,15 +492,15 @@ export function cleanStaleDistFiles(
         // Source directory doesn't exist, mark for deletion
         if (dryRun) {
           result.wouldDelete.push(distSubDir)
-          logger?.debug({ action: 'cleanStaleDistFiles', wouldDelete: distSubDir })
+          logger?.debug({action: 'cleanStaleDistFiles', wouldDelete: distSubDir})
         } else {
           try {
-            fs.rmSync(distSubDir, { recursive: true, force: true })
+            fs.rmSync(distSubDir, {recursive: true, force: true})
             result.deletedFiles.push(distSubDir)
-            logger?.debug({ action: 'cleanStaleDistFiles', deleted: distSubDir })
+            logger?.debug({action: 'cleanStaleDistFiles', deleted: distSubDir})
           } catch (error) {
-            result.errors.push({ file: distSubDir, error: error as Error })
-            logger?.warn({ action: 'cleanStaleDistFiles', error: (error as Error).message, file: distSubDir })
+            result.errors.push({file: distSubDir, error: error as Error})
+            logger?.warn({action: 'cleanStaleDistFiles', error: (error as Error).message, file: distSubDir})
           }
         }
       } else {
@@ -537,15 +535,15 @@ export function cleanStaleDistFiles(
       if (!srcExists) {
         if (dryRun) {
           result.wouldDelete.push(distFilePath)
-          logger?.debug({ action: 'cleanStaleDistFiles', wouldDelete: distFilePath })
+          logger?.debug({action: 'cleanStaleDistFiles', wouldDelete: distFilePath})
         } else {
           try {
             fs.unlinkSync(distFilePath)
             result.deletedFiles.push(distFilePath)
-            logger?.debug({ action: 'cleanStaleDistFiles', deleted: distFilePath })
+            logger?.debug({action: 'cleanStaleDistFiles', deleted: distFilePath})
           } catch (error) {
-            result.errors.push({ file: distFilePath, error: error as Error })
-            logger?.warn({ action: 'cleanStaleDistFiles', error: (error as Error).message, file: distFilePath })
+            result.errors.push({file: distFilePath, error: error as Error})
+            logger?.warn({action: 'cleanStaleDistFiles', error: (error as Error).message, file: distFilePath})
           }
         }
       }
@@ -582,7 +580,7 @@ export interface SyncDirectoryResult {
   /** Files that were deleted (orphans) */
   readonly deletedFiles: string[]
   /** Errors encountered */
-  readonly errors: Array<{ file: string, error: Error }>
+  readonly errors: {file: string, error: Error}[]
 }
 
 /**
@@ -597,8 +595,8 @@ export function syncDirectory(
   ctx: Pick<InputEffectContext, 'fs' | 'path' | 'logger'>,
   options: SyncDirectoryOptions,
 ): SyncDirectoryResult {
-  const { srcDir, targetDir, deleteOrphans = false, dryRun = false, logger } = options
-  const { fs, path: nodePath } = ctx
+  const {srcDir, targetDir, deleteOrphans = false, dryRun = false, logger} = options
+  const {fs, path: nodePath} = ctx
 
   const result: SyncDirectoryResult = {
     copiedFiles: [],
@@ -607,16 +605,16 @@ export function syncDirectory(
   }
 
   // Ensure target directory exists
-  if (!dryRun && !fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true })
+  if (!dryRun && !fs.existsSync(targetDir)) fs.mkdirSync(targetDir, {recursive: true})
 
   // Check if source exists
   if (!fs.existsSync(srcDir)) {
-    logger?.debug({ action: 'syncDirectory', message: 'source directory does not exist', srcDir })
+    logger?.debug({action: 'syncDirectory', message: 'source directory does not exist', srcDir})
     return result
   }
 
   // Get source files
-  const srcEntries = fs.readdirSync(srcDir, { withFileTypes: true })
+  const srcEntries = fs.readdirSync(srcDir, {withFileTypes: true})
   const srcNames = new Set(srcEntries.map(e => e.name))
 
   // Copy files from source to target
@@ -629,9 +627,9 @@ export function syncDirectory(
         try {
           fs.copyFileSync(srcPath, targetPath)
           result.copiedFiles.push(targetPath)
-          logger?.debug({ action: 'syncDirectory', copied: targetPath })
+          logger?.debug({action: 'syncDirectory', copied: targetPath})
         } catch (error) {
-          result.errors.push({ file: targetPath, error: error as Error })
+          result.errors.push({file: targetPath, error: error as Error})
         }
       }
       else result.copiedFiles.push(targetPath)
@@ -653,18 +651,18 @@ export function syncDirectory(
   // Delete orphaned files in target
   if (!(deleteOrphans && fs.existsSync(targetDir))) return result
 
-  const targetEntries = fs.readdirSync(targetDir, { withFileTypes: true })
+  const targetEntries = fs.readdirSync(targetDir, {withFileTypes: true})
   for (const entry of targetEntries) {
     if (!srcNames.has(entry.name)) {
       const targetPath = nodePath.join(targetDir, entry.name)
       if (!dryRun) {
         try {
-          if (entry.isDirectory()) fs.rmSync(targetPath, { recursive: true, force: true })
+          if (entry.isDirectory()) fs.rmSync(targetPath, {recursive: true, force: true})
           else fs.unlinkSync(targetPath)
           result.deletedFiles.push(targetPath)
-          logger?.debug({ action: 'syncDirectory', deleted: targetPath })
+          logger?.debug({action: 'syncDirectory', deleted: targetPath})
         } catch (error) {
-          result.errors.push({ file: targetPath, error: error as Error })
+          result.errors.push({file: targetPath, error: error as Error})
         }
       }
       else result.deletedFiles.push(targetPath)
@@ -733,11 +731,11 @@ export interface ExecuteCommandResult {
  * ```
  */
 export async function executeCommand(options: ExecuteCommandOptions): Promise<ExecuteCommandResult> {
-  const { ctx, command, args = [], cwd, env, timeout, dryRun = false } = options
-  const { spawn: spawnFn, logger } = ctx
+  const {ctx, command, args = [], cwd, env, timeout, dryRun = false} = options
+  const {spawn: spawnFn, logger} = ctx
 
   if (dryRun) {
-    logger?.debug({ action: 'executeCommand', dryRun: true, command, args })
+    logger?.debug({action: 'executeCommand', dryRun: true, command, args})
     return {
       success: true,
       exitCode: 0,
@@ -749,7 +747,7 @@ export async function executeCommand(options: ExecuteCommandOptions): Promise<Ex
   return new Promise(resolve => {
     const proc = spawnFn(command, [...args], {
       cwd,
-      env: { ...process.env, ...env },
+      env: {...process.env, ...env},
       shell: true,
       timeout,
     })
@@ -766,7 +764,7 @@ export async function executeCommand(options: ExecuteCommandOptions): Promise<Ex
     })
 
     proc.on('error', error => {
-      logger?.error({ action: 'executeCommand', error: error.message, command })
+      logger?.error({action: 'executeCommand', error: error.message, command})
       resolve({
         success: false,
         exitCode: null,
@@ -778,8 +776,8 @@ export async function executeCommand(options: ExecuteCommandOptions): Promise<Ex
 
     proc.on('close', code => {
       const success = code === 0
-      if (success) logger?.debug({ action: 'executeCommand', success: true, command })
-      else logger?.warn({ action: 'executeCommand', success: false, exitCode: code, command, stderr })
+      if (success) logger?.debug({action: 'executeCommand', success: true, command})
+      else logger?.warn({action: 'executeCommand', success: false, exitCode: code, command, stderr})
       resolve({
         success,
         exitCode: code,

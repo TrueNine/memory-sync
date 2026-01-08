@@ -1,17 +1,17 @@
-import type { CollectedInputContext, InputPluginContext } from '@/types'
+import type {CollectedInputContext, InputPluginContext} from '@/types'
 
 import * as os from 'node:os'
 import process from 'node:process'
 
-import { mdxToMd } from '@/compiler'
-import { parseMarkdown } from '@/markdown'
+import {mdxToMd} from '@/compiler'
+import {parseMarkdown} from '@/markdown'
 import {
   FilePathKind,
   GlobalConfigDirectoryType,
   PromptKind,
 } from '@/types'
-import { ScopeError } from '@/types/Errors'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {ScopeError} from '@/types/Errors'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -19,19 +19,19 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
-    const { userConfigOptions: options, fs, path, globalScope } = ctx
-    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
+    const {userConfigOptions: options, fs, path, globalScope} = ctx
+    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
     const globalMemoryFileRaw = options.globalMemoryFile
     const globalMemoryFile = this.resolvePath(globalMemoryFileRaw, workspaceDir, shadowProjectDir)
 
     if (!fs.existsSync(globalMemoryFile)) {
-      this.log.warn({ action: 'collect', reason: 'fileNotFound', path: globalMemoryFile })
+      this.log.warn({action: 'collect', reason: 'fileNotFound', path: globalMemoryFile})
       return {}
     }
 
     if (!fs.statSync(globalMemoryFile).isFile()) {
-      this.log.warn({ action: 'collect', reason: 'notAFile', path: globalMemoryFile })
+      this.log.warn({action: 'collect', reason: 'notAFile', path: globalMemoryFile})
       return {}
     }
 
@@ -59,7 +59,7 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
     }
     else compiledContent = parsed.contentWithoutFrontMatter
 
-    this.log.debug({ action: 'collect', path: globalMemoryFile, contentLength: compiledContent.length })
+    this.log.debug({action: 'collect', path: globalMemoryFile, contentLength: compiledContent.length})
 
     return {
       globalMemory: {
@@ -67,7 +67,7 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
         content: compiledContent,
         length: compiledContent.length,
         filePathKind: FilePathKind.Relative,
-        ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
+        ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
         markdownAst: parsed.markdownAst,
         markdownContents: parsed.markdownContents,
         dir: {

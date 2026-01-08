@@ -1,7 +1,7 @@
-import type { Root, RootContent } from 'mdast'
-import type { ClaudeCodeCLISubAgentColors, CodingAgentTools, FilePathKind, NamingCaseKind, PromptKind } from '@/types/Enums'
-import type { FileContent, Path, RelativePath, RootPath } from '@/types/FileSystemTypes'
-import type { GlobalConfigDirectory } from '@/types/OutputTypes'
+import type {Root, RootContent} from 'mdast'
+import type {ClaudeCodeCLISubAgentColors, CodingAgentTools, FilePathKind, NamingCaseKind, PromptKind} from '@/types/Enums'
+import type {FileContent, Path, RelativePath, RootPath} from '@/types/FileSystemTypes'
+import type {GlobalConfigDirectory} from '@/types/OutputTypes'
 
 /**
  * 提示词

@@ -1,10 +1,10 @@
-import type { FastCommandNameTransformOptions } from './AbstractOutputPlugin'
-import type { FastCommandPrompt, OutputWriteContext, PluginOptions } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {FastCommandNameTransformOptions} from './AbstractOutputPlugin'
+import type {FastCommandPrompt, OutputWriteContext, PluginOptions} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fc from 'fast-check'
-import { describe, expect, it } from 'vitest'
-import { FilePathKind, PromptKind } from '@/types'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import {describe, expect, it} from 'vitest'
+import {FilePathKind, PromptKind} from '@/types'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 // Create a concrete test implementation
 class TestOutputPlugin extends AbstractOutputPlugin {
@@ -87,7 +87,7 @@ function createMockContext(globalContent?: string, pluginOptions?: PluginOptions
             content: globalContent,
             dir: createMockRelativePath('.', '/test'),
             markdownContents: [],
-            length: (globalContent).length,
+            length: globalContent.length,
             filePathKind: FilePathKind.Relative,
             parentDirectoryPath: {
               type: 'UserHome',
@@ -259,11 +259,11 @@ describe('abstractOutputPlugin', () => {
    */
   describe('transformFastCommandName', () => {
     // Generator for alphanumeric strings without underscore (for series prefix)
-    const alphanumericNoUnderscore = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
+    const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z0-9]+$/i.test(s))
 
     // Generator for alphanumeric strings (for command name)
-    const alphanumericCommandName = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
+    const alphanumericCommandName = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
       .filter(s => /^\w+$/.test(s))
 
     // Generator for separator characters
@@ -279,7 +279,7 @@ describe('abstractOutputPlugin', () => {
             const cmd = createMockFastCommandPrompt(series, commandName)
 
             // Test with includeSeriesPrefix = true
-            const resultTrue = plugin.testTransformFastCommandName(cmd, { includeSeriesPrefix: true })
+            const resultTrue = plugin.testTransformFastCommandName(cmd, {includeSeriesPrefix: true})
             expect(resultTrue).toBe(`${series}_${commandName}.md`)
 
             // Test with includeSeriesPrefix = undefined (default)
@@ -287,7 +287,7 @@ describe('abstractOutputPlugin', () => {
             expect(resultDefault).toBe(`${series}_${commandName}.md`)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -300,11 +300,11 @@ describe('abstractOutputPlugin', () => {
             const plugin = new TestOutputPlugin()
             const cmd = createMockFastCommandPrompt(series, commandName)
 
-            const result = plugin.testTransformFastCommandName(cmd, { includeSeriesPrefix: false })
+            const result = plugin.testTransformFastCommandName(cmd, {includeSeriesPrefix: false})
             expect(result).toBe(`${commandName}.md`)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -325,7 +325,7 @@ describe('abstractOutputPlugin', () => {
             expect(result).toBe(`${series}${separator}${commandName}.md`)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -347,7 +347,7 @@ describe('abstractOutputPlugin', () => {
             expect(result).toBe(`${commandName}.md`)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -364,7 +364,7 @@ describe('abstractOutputPlugin', () => {
       const plugin = new TestOutputPlugin()
       const cmd = createMockFastCommandPrompt('pe', 'compile')
 
-      const result = plugin.testTransformFastCommandName(cmd, { seriesSeparator: '-' })
+      const result = plugin.testTransformFastCommandName(cmd, {seriesSeparator: '-'})
       expect(result).toBe('pe-compile.md')
     })
 
@@ -380,7 +380,7 @@ describe('abstractOutputPlugin', () => {
       const plugin = new TestOutputPlugin()
       const cmd = createMockFastCommandPrompt('pe', 'compile')
 
-      const result = plugin.testTransformFastCommandName(cmd, { includeSeriesPrefix: false })
+      const result = plugin.testTransformFastCommandName(cmd, {includeSeriesPrefix: false})
       expect(result).toBe('compile.md')
     })
   })
@@ -394,7 +394,7 @@ describe('abstractOutputPlugin', () => {
    */
   describe('getFastCommandSeriesOptions and getTransformOptionsFromContext', () => {
     // Generator for plugin names
-    const pluginNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
+    const pluginNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
     // Generator for separator characters
@@ -429,7 +429,7 @@ describe('abstractOutputPlugin', () => {
             expect(result.seriesSeparator).toBe(pluginSep)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -454,7 +454,7 @@ describe('abstractOutputPlugin', () => {
             expect(result.seriesSeparator).not.toBeDefined()
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -472,7 +472,7 @@ describe('abstractOutputPlugin', () => {
             expect(result.seriesSeparator).not.toBeDefined()
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -506,7 +506,7 @@ describe('abstractOutputPlugin', () => {
             expect(result.seriesSeparator).toBe(configSep)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -531,7 +531,7 @@ describe('abstractOutputPlugin', () => {
             expect(result.seriesSeparator).toBe(additionalSep)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 

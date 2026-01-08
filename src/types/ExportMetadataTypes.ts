@@ -6,7 +6,7 @@
  * @module ExportMetadataTypes
  */
 
-import type { CodingAgentTools, NamingCaseKind } from './Enums'
+import type {CodingAgentTools, NamingCaseKind} from './Enums'
 
 /**
  * Base export metadata interface
@@ -211,7 +211,7 @@ export function validateExportMetadata<T>(
   metadata: Record<string, unknown>,
   options: ValidateMetadataOptions<T>,
 ): MetadataValidationResult {
-  const { requiredFields, optionalDefaults, filePath } = options
+  const {requiredFields, optionalDefaults, filePath} = options
   const errors: string[] = []
   const warnings: string[] = []
 
@@ -315,7 +315,7 @@ export function applyMetadataDefaults<T>(
   metadata: Record<string, unknown>,
   defaults: Partial<T>,
 ): T {
-  const result = { ...metadata }
+  const result = {...metadata}
 
   for (const [key, defaultValue] of Object.entries(defaults)) {
     if (!(key in result) || result[key] == null) result[key] = defaultValue

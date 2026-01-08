@@ -1,7 +1,7 @@
-import type { Command, CommandContext } from '@/commands'
-import type { PipelineConfig } from '@/config'
-import type { MdxGlobalScope } from '@/globals'
-import type { ILogger } from '@/log'
+import type {Command, CommandContext} from '@/commands'
+import type {PipelineConfig} from '@/config'
+import type {MdxGlobalScope} from '@/globals'
+import type {ILogger} from '@/log'
 import type {
   CollectedInputContext,
   InputPlugin,
@@ -13,7 +13,7 @@ import type {
   PluginKind,
   PluginOptions,
 } from '@/types'
-import type { UserConfigFile } from '@/types/ConfigTypes'
+import type {UserConfigFile} from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
@@ -29,13 +29,13 @@ import {
   UnknownCommand,
   VersionCommand,
 } from '@/commands'
-import { createLogger, setGlobalLogLevel } from '@/log'
-import { GlobalScopeCollector, ScopePriority, ScopeRegistry } from '@/scope'
+import {createLogger, setGlobalLogLevel} from '@/log'
+import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/scope'
 import {
   CircularDependencyError,
   MissingDependencyError,
 } from '@/types'
-import { startupVersionCheck } from '@/versionCheck'
+import {startupVersionCheck} from '@/versionCheck'
 
 /**
  * Valid subcommands for the CLI
@@ -171,7 +171,7 @@ const LOG_LEVEL_PRIORITY: ReadonlyMap<LogLevel, number> = new Map([
  * @returns The resolved log level, or undefined if no log level flag was provided
  */
 export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
-  const { logLevelFlags } = args
+  const {logLevelFlags} = args
 
   if (logLevelFlags.length === 0) return void 0
 
@@ -210,7 +210,7 @@ export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
  * @returns The resolved command
  */
 export function resolveCommand(args: ParsedCliArgs): Command {
-  const { helpFlag, versionFlag, subcommand, dryRun, unknownCommand, setOption, positional } = args
+  const {helpFlag, versionFlag, subcommand, dryRun, unknownCommand, setOption, positional} = args
 
   // Version flag takes highest priority
   if (versionFlag) return new VersionCommand()
@@ -307,15 +307,9 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
       }
 
       switch (key) {
-        case '--help':
-          result.helpFlag = true
-          break
-        case '--version':
-          result.versionFlag = true
-          break
-        case '--dry-run':
-          result.dryRun = true
-          break
+        case '--help': result.helpFlag = true; break
+        case '--version': result.versionFlag = true; break
+        case '--dry-run': result.dryRun = true; break
         case '--set':
           // Parse --set key=value from next arg or from = syntax
           if (parts.length > 1) {
@@ -335,8 +329,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
             }
           }
           break
-        default:
-          result.unknown.push(arg)
+        default: result.unknown.push(arg)
       }
       continue
     }
@@ -346,17 +339,10 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
       const flags = arg.slice(1)
       for (const flag of flags) {
         switch (flag) {
-          case 'h':
-            result.helpFlag = true
-            break
-          case 'v':
-            result.versionFlag = true
-            break
-          case 'n':
-            result.dryRun = true
-            break
-          default:
-            result.unknown.push(`-${flag}`)
+          case 'h': result.helpFlag = true; break
+          case 'v': result.versionFlag = true; break
+          case 'n': result.dryRun = true; break
+          default: result.unknown.push(`-${flag}`)
         }
       }
       continue
@@ -394,7 +380,7 @@ export class PluginPipeline {
     const resolvedLogLevel = resolveLogLevel(this.args)
     if (resolvedLogLevel != null) setGlobalLogLevel(resolvedLogLevel)
     this.logger = createLogger('PluginPipeline', resolvedLogLevel)
-    this.logger.debug('initialized', { args: this.args })
+    this.logger.debug('initialized', {args: this.args})
   }
 
   registerOutputPlugins(plugins: OutputPlugin[]): this {
@@ -407,7 +393,7 @@ export class PluginPipeline {
     // Don't await - let it run in background without blocking process exit
     void startupVersionCheck(this.logger)
 
-    const { context, outputPlugins, userConfigOptions } = config
+    const {context, outputPlugins, userConfigOptions} = config
     this.registerOutputPlugins([...outputPlugins])
 
     const command = this.resolveCommand()
@@ -492,21 +478,15 @@ export class PluginPipeline {
 
     // Build plugin map for quick lookup
     const pluginMap = new Map<string, Plugin<T>>()
-    for (const plugin of plugins) {
-      pluginMap.set(plugin.name, plugin)
-    }
+    for (const plugin of plugins) pluginMap.set(plugin.name, plugin)
 
     // Build in-degree map (count of incoming edges)
     const inDegree = new Map<string, number>()
-    for (const plugin of plugins) {
-      inDegree.set(plugin.name, 0)
-    }
+    for (const plugin of plugins) inDegree.set(plugin.name, 0)
 
     // Build adjacency list (dependents for each plugin)
     const dependents = new Map<string, string[]>()
-    for (const plugin of plugins) {
-      dependents.set(plugin.name, [])
-    }
+    for (const plugin of plugins) dependents.set(plugin.name, [])
 
     // Populate in-degree and dependents
     for (const plugin of plugins) {
@@ -644,13 +624,13 @@ export class PluginPipeline {
     const sortedPlugins = this.topologicalSort(plugins) as InputPlugin[]
 
     // Create GlobalScopeCollector and ScopeRegistry for MDX expression evaluation
-    const globalScopeCollector = new GlobalScopeCollector({ userConfig })
+    const globalScopeCollector = new GlobalScopeCollector({userConfig})
     const globalScope: MdxGlobalScope = globalScopeCollector.collect()
     const scopeRegistry = new ScopeRegistry()
     scopeRegistry.setGlobalScope(globalScope)
 
     this.logger.debug('global scope collected', {
-      osInfo: { platform: globalScope.os.platform, arch: globalScope.os.arch, shellKind: globalScope.os.shellKind },
+      osInfo: {platform: globalScope.os.platform, arch: globalScope.os.arch, shellKind: globalScope.os.shellKind},
       hasProfile: Object.keys(globalScope.profile).length > 0,
       hasTool: Object.keys(globalScope.tool).length > 0,
     })
@@ -675,7 +655,7 @@ export class PluginPipeline {
 
       // Execute effects before collect() if plugin has any
       // AbstractInputPlugin provides executeEffects method for effect-based plugins
-      const inputPlugin = plugin as InputPlugin & { executeEffects?: (ctx: InputPluginContext, dryRun: boolean) => Promise<unknown> }
+      const inputPlugin = plugin as InputPlugin & {executeEffects?: (ctx: InputPluginContext, dryRun: boolean) => Promise<unknown>}
       if (inputPlugin.executeEffects != null) await inputPlugin.executeEffects(ctx, dryRun)
 
       // Execute plugin
@@ -688,12 +668,12 @@ export class PluginPipeline {
       accumulatedContext = this.mergeContexts(accumulatedContext, output)
 
       // Collect registered scopes from plugin and register them to ScopeRegistry
-      const inputPluginWithScopes = plugin as InputPlugin & { getRegisteredScopes?: () => ReadonlyArray<{ namespace: string, values: Record<string, unknown> }> }
+      const inputPluginWithScopes = plugin as InputPlugin & {getRegisteredScopes?: () => readonly {namespace: string, values: Record<string, unknown>}[]}
       if (inputPluginWithScopes.getRegisteredScopes != null) {
         const registeredScopes = inputPluginWithScopes.getRegisteredScopes()
-        for (const { namespace, values } of registeredScopes) {
+        for (const {namespace, values} of registeredScopes) {
           scopeRegistry.register(namespace, values, ScopePriority.PluginRegistered)
-          this.logger.debug('plugin scope registered', { plugin: plugin.name, namespace, keys: Object.keys(values) })
+          this.logger.debug('plugin scope registered', {plugin: plugin.name, namespace, keys: Object.keys(values)})
         }
       }
     }
@@ -764,56 +744,52 @@ export class PluginPipeline {
     addition: Partial<CollectedInputContext>,
   ): Partial<CollectedInputContext> {
     // Build merged workspace
-    let { workspace } = base
+    let {workspace} = base
     if (addition.workspace != null) {
       if (workspace != null) {
         // Merge projects: later projects with same name replace earlier ones
         const projectMap = new Map<string | undefined, typeof workspace.projects[0]>()
-        for (const project of workspace.projects) {
-          projectMap.set(project.name, project)
-        }
-        for (const project of addition.workspace.projects) {
-          projectMap.set(project.name, project)
-        }
+        for (const project of workspace.projects) projectMap.set(project.name, project)
+        for (const project of addition.workspace.projects) projectMap.set(project.name, project)
         workspace = {
           directory: addition.workspace.directory ?? workspace.directory,
           projects: [...projectMap.values()],
         }
       }
       else {
-        ; ({ workspace } = addition)
+        ; ({workspace} = addition)
       }
     }
 
     // Build merged arrays
     const externalProjects: CollectedInputContext['externalProjects'] | undefined
       = addition.externalProjects != null
-        ? [...(base.externalProjects ?? []), ...addition.externalProjects]
+        ? [...base.externalProjects ?? [], ...addition.externalProjects]
         : base.externalProjects
 
     const ideConfigFiles: CollectedInputContext['ideConfigFiles'] | undefined
       = addition.ideConfigFiles != null
-        ? [...(base.ideConfigFiles ?? []), ...addition.ideConfigFiles]
+        ? [...base.ideConfigFiles ?? [], ...addition.ideConfigFiles]
         : base.ideConfigFiles
 
     const fastCommands: CollectedInputContext['fastCommands'] | undefined
       = addition.fastCommands != null
-        ? [...(base.fastCommands ?? []), ...addition.fastCommands]
+        ? [...base.fastCommands ?? [], ...addition.fastCommands]
         : base.fastCommands
 
     const subAgents: CollectedInputContext['subAgents'] | undefined
       = addition.subAgents != null
-        ? [...(base.subAgents ?? []), ...addition.subAgents]
+        ? [...base.subAgents ?? [], ...addition.subAgents]
         : base.subAgents
 
     const skills: CollectedInputContext['skills'] | undefined
       = addition.skills != null
-        ? [...(base.skills ?? []), ...addition.skills]
+        ? [...base.skills ?? [], ...addition.skills]
         : base.skills
 
     const aiAgentIgnoreConfigFiles: CollectedInputContext['aiAgentIgnoreConfigFiles'] | undefined
       = addition.aiAgentIgnoreConfigFiles != null
-        ? [...(base.aiAgentIgnoreConfigFiles ?? []), ...addition.aiAgentIgnoreConfigFiles]
+        ? [...base.aiAgentIgnoreConfigFiles ?? [], ...addition.aiAgentIgnoreConfigFiles]
         : base.aiAgentIgnoreConfigFiles
 
     // globalMemory: last one wins
@@ -827,21 +803,21 @@ export class PluginPipeline {
     // readmePrompts: concatenate arrays
     const readmePrompts: CollectedInputContext['readmePrompts'] | undefined
       = addition.readmePrompts != null
-        ? [...(base.readmePrompts ?? []), ...addition.readmePrompts]
+        ? [...base.readmePrompts ?? [], ...addition.readmePrompts]
         : base.readmePrompts
 
     // Build result object using object literal
     return {
-      ...(workspace != null ? { workspace } : {}),
-      ...(externalProjects != null ? { externalProjects } : {}),
-      ...(ideConfigFiles != null ? { ideConfigFiles } : {}),
-      ...(fastCommands != null ? { fastCommands } : {}),
-      ...(subAgents != null ? { subAgents } : {}),
-      ...(skills != null ? { skills } : {}),
-      ...(aiAgentIgnoreConfigFiles != null ? { aiAgentIgnoreConfigFiles } : {}),
-      ...(globalMemory != null ? { globalMemory } : {}),
-      ...(shadowSourceProjectDir != null ? { shadowSourceProjectDir } : {}),
-      ...(readmePrompts != null ? { readmePrompts } : {}),
+      ...workspace != null ? {workspace} : {},
+      ...externalProjects != null ? {externalProjects} : {},
+      ...ideConfigFiles != null ? {ideConfigFiles} : {},
+      ...fastCommands != null ? {fastCommands} : {},
+      ...subAgents != null ? {subAgents} : {},
+      ...skills != null ? {skills} : {},
+      ...aiAgentIgnoreConfigFiles != null ? {aiAgentIgnoreConfigFiles} : {},
+      ...globalMemory != null ? {globalMemory} : {},
+      ...shadowSourceProjectDir != null ? {shadowSourceProjectDir} : {},
+      ...readmePrompts != null ? {readmePrompts} : {},
     }
   }
 }

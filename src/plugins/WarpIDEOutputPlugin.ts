@@ -4,8 +4,8 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import type {RelativePath} from '@/types/FileSystemTypes'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'WARP.md'
 
@@ -45,7 +45,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedInputContext.workspace
     const agentsRegistered = this.isAgentsPluginRegistered(ctx)
 
     for (const project of projects) {
@@ -71,12 +71,12 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const agentsRegistered = this.isAgentsPluginRegistered(ctx)
-    const { workspace, globalMemory } = ctx.collectedInputContext
+    const {workspace, globalMemory} = ctx.collectedInputContext
 
     if (agentsRegistered) {
       // When AgentsOutputPlugin is registered, only write if we have global memory
       if (globalMemory == null) {
-        this.log.debug('skipped', { reason: 'AgentsOutputPlugin registered but no global memory' })
+        this.log.debug('skipped', {reason: 'AgentsOutputPlugin registered but no global memory'})
         return false
       }
       return true
@@ -89,20 +89,20 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
     if (hasProjectOutputs) return true
 
-    this.log.debug('skipped', { reason: 'no outputs to write' })
+    this.log.debug('skipped', {reason: 'no outputs to write'})
     return false
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const agentsRegistered = this.isAgentsPluginRegistered(ctx)
-    const { workspace, globalMemory } = ctx.collectedInputContext
-    const { projects } = workspace
+    const {workspace, globalMemory} = ctx.collectedInputContext
+    const {projects} = workspace
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
     if (agentsRegistered) {
       // When AgentsOutputPlugin is registered, write global prompt to each project's WARP.md
-      if (globalMemory == null) return { files: [], dirs: [] }
+      if (globalMemory == null) return {files: [], dirs: []}
 
       for (const project of projects) {
         const projectDir = project.dirFromWorkspacePath
@@ -118,7 +118,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
         fileResults.push(result)
       }
 
-      return { files: fileResults, dirs: dirResults }
+      return {files: fileResults, dirs: dirResults}
     }
 
     // Normal mode: write combined content
@@ -165,6 +165,6 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 }

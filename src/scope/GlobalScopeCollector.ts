@@ -1,11 +1,11 @@
 // src/scope/GlobalScopeCollector.ts
 // Collects and manages global scope variables for MDX expression evaluation.
 
-import type { EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile } from '@/globals'
-import type { UserConfigFile } from '@/types/ConfigTypes'
+import type {EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@/globals'
+import type {UserConfigFile} from '@/types/ConfigTypes'
 import * as os from 'node:os'
 import process from 'node:process'
-import { OsKind, ShellKind, ToolPresets } from '@/globals'
+import {OsKind, ShellKind, ToolPresets} from '@/globals'
 
 /**
  * Tool preset names supported by GlobalScopeCollector
@@ -72,18 +72,14 @@ export class GlobalScopeCollector {
    */
   private detectOsKind(platform: string): OsKind {
     switch (platform) {
-      case 'win32':
-        return OsKind.Win
-      case 'darwin':
-        return OsKind.Mac
+      case 'win32': return OsKind.Win
+      case 'darwin': return OsKind.Mac
       case 'linux':
       case 'freebsd':
       case 'openbsd':
       case 'sunos':
-      case 'aix':
-        return OsKind.Linux
-      default:
-        return OsKind.Unknown
+      case 'aix': return OsKind.Linux
+      default: return OsKind.Unknown
     }
   }
 
@@ -109,7 +105,7 @@ export class GlobalScopeCollector {
    * Collect environment variables
    */
   private collectEnvContext(): EnvironmentContext {
-    return { ...process.env }
+    return {...process.env}
   }
 
   /**
@@ -126,9 +122,9 @@ export class GlobalScopeCollector {
    * Output plugins may override these values for specific AI tools via presets.
    */
   private collectToolReferences(): ToolReferences {
-    const defaults: ToolReferences = { ...ToolPresets.default }
-    if (this.toolPreset === 'claudeCode') return { ...defaults, ...ToolPresets.claudeCode }
-    if (this.toolPreset === 'kiro') return { ...defaults, ...ToolPresets.kiro }
+    const defaults: ToolReferences = {...ToolPresets.default}
+    if (this.toolPreset === 'claudeCode') return {...defaults, ...ToolPresets.claudeCode}
+    if (this.toolPreset === 'kiro') return {...defaults, ...ToolPresets.kiro}
     return defaults
   }
 
@@ -137,12 +133,12 @@ export class GlobalScopeCollector {
    * This is a placeholder implementation - actual rendering is handled by the MDX compiler.
    */
   private createMdComponent(): MdComponent {
-    const mdComponent = ((props: { when?: boolean, children?: unknown }) => {
+    const mdComponent = ((props: {when?: boolean, children?: unknown}) => {
       if (props.when === false) return null
       return props.children
     }) as MdComponent
 
-    mdComponent.Line = (props: { when?: boolean, children?: unknown }) => {
+    mdComponent.Line = (props: {when?: boolean, children?: unknown}) => {
       if (props.when === false) return null
       return props.children
     }

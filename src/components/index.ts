@@ -1,11 +1,11 @@
 // src/components/index.ts
 // Entry point for built-in MDX components
 
-import { registerComponent } from '../compiler/component-registry'
-import { MdHandler, MdLineHandler } from './Md'
+import {registerComponent} from '../compiler/component-registry'
+import {MdHandler, MdLineHandler} from './Md'
 
 // Re-export component registration helper for convenience
-export { registerComponent } from '../compiler/component-registry'
+export {registerComponent} from '../compiler/component-registry'
 
 /**
  * Register all built-in components with the component registry.
@@ -18,4 +18,4 @@ export function registerBuiltInComponents(): void {
 }
 
 // Export all built-in component handlers
-export { MdHandler, MdLineHandler } from './Md'
+export {MdHandler, MdLineHandler} from './Md'

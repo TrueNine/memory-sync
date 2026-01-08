@@ -1,9 +1,9 @@
-import type { ParsedCliArgs } from '@/PluginPipeline'
-import type { CollectedInputContext, InputPlugin, InputPluginContext, Plugin } from '@/types'
+import type {ParsedCliArgs} from '@/PluginPipeline'
+import type {CollectedInputContext, InputPlugin, InputPluginContext, Plugin} from '@/types'
 import fs from 'node:fs'
 import path from 'node:path'
 import glob from 'fast-glob'
-import { describe, expect, it } from 'vitest'
+import {describe, expect, it} from 'vitest'
 import {
   CleanCommand,
   DryRunCleanCommand,
@@ -13,9 +13,9 @@ import {
   InitCommand,
   UnknownCommand,
 } from '@/commands'
-import { createLogger } from '@/log'
-import { parseArgs, PluginPipeline, resolveCommand, resolveLogLevel } from '@/PluginPipeline'
-import { CircularDependencyError, FilePathKind, MissingDependencyError, PluginKind, PromptKind } from '@/types'
+import {createLogger} from '@/log'
+import {parseArgs, PluginPipeline, resolveCommand, resolveLogLevel} from '@/PluginPipeline'
+import {CircularDependencyError, FilePathKind, MissingDependencyError, PluginKind, PromptKind} from '@/types'
 
 function createMockPlugin(name: string, dependsOn?: readonly string[]): Plugin {
   const base = {
@@ -23,7 +23,7 @@ function createMockPlugin(name: string, dependsOn?: readonly string[]): Plugin {
     name,
     log: {} as Plugin['log'],
   }
-  if (dependsOn) return { ...base, dependsOn }
+  if (dependsOn) return {...base, dependsOn}
   return base
 }
 
@@ -38,7 +38,7 @@ function createMockInputPlugin(
     log: createLogger(name),
     collect: collectFn,
   }
-  if (dependsOn) return { ...base, dependsOn }
+  if (dependsOn) return {...base, dependsOn}
   return base
 }
 
@@ -295,7 +295,7 @@ describe('pluginPipeline', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockInputPlugin('A', () => ({
-          workspace: { directory: createMockPath('/test'), projects: [] },
+          workspace: {directory: createMockPath('/test'), projects: []},
         })),
       ]
 
@@ -328,13 +328,13 @@ describe('pluginPipeline', () => {
         createMockInputPlugin('A', () => ({
           workspace: {
             directory: createMockPath('/test'),
-            projects: [{ name: 'project-a' }],
+            projects: [{name: 'project-a'}],
           },
         })),
         createMockInputPlugin('B', () => ({
           workspace: {
             directory: createMockPath('/test'),
-            projects: [{ name: 'project-b' }],
+            projects: [{name: 'project-b'}],
           },
         })),
       ]
@@ -353,7 +353,7 @@ describe('pluginPipeline', () => {
         createMockInputPlugin('B', () => ({
           workspace: {
             directory: createMockPath('/test'),
-            projects: [{ name: 'from-B' }],
+            projects: [{name: 'from-B'}],
           },
         })),
         createMockInputPlugin('A', ctx => {
@@ -401,7 +401,7 @@ describe('pluginPipeline', () => {
           return {
             workspace: {
               directory: createMockPath('/test'),
-              projects: [{ name: 'from-B' }],
+              projects: [{name: 'from-B'}],
             },
           }
         }, ['D']),
@@ -410,7 +410,7 @@ describe('pluginPipeline', () => {
           return {
             workspace: {
               directory: createMockPath('/test'),
-              projects: [{ name: 'from-C' }],
+              projects: [{name: 'from-C'}],
             },
           }
         }, ['D']),
@@ -419,7 +419,7 @@ describe('pluginPipeline', () => {
           return {
             workspace: {
               directory: createMockPath('/test'),
-              projects: [{ name: 'from-D' }],
+              projects: [{name: 'from-D'}],
             },
           }
         }),
@@ -445,10 +445,10 @@ describe('pluginPipeline', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockInputPlugin('A', () => ({
-          fastCommands: [{ type: 1, name: 'cmd-a' } as unknown as CollectedInputContext['fastCommands'] extends readonly (infer T)[] | undefined ? T : never],
+          fastCommands: [{type: 1, name: 'cmd-a'} as unknown as CollectedInputContext['fastCommands'] extends readonly (infer T)[] | undefined ? T : never],
         })),
         createMockInputPlugin('B', () => ({
-          fastCommands: [{ type: 1, name: 'cmd-b' } as unknown as CollectedInputContext['fastCommands'] extends readonly (infer T)[] | undefined ? T : never],
+          fastCommands: [{type: 1, name: 'cmd-b'} as unknown as CollectedInputContext['fastCommands'] extends readonly (infer T)[] | undefined ? T : never],
         })),
       ]
 
@@ -696,22 +696,22 @@ describe('resolveLogLevel', () => {
   })
 
   it('should return single log level when one flag provided', () => {
-    const args = createParsedArgs({ logLevelFlags: ['debug'] })
+    const args = createParsedArgs({logLevelFlags: ['debug']})
     expect(resolveLogLevel(args)).toBe('debug')
   })
 
   it('should return most verbose level (trace) when multiple flags provided', () => {
-    const args = createParsedArgs({ logLevelFlags: ['error', 'trace', 'warn'] })
+    const args = createParsedArgs({logLevelFlags: ['error', 'trace', 'warn']})
     expect(resolveLogLevel(args)).toBe('trace')
   })
 
   it('should return debug over info when both provided', () => {
-    const args = createParsedArgs({ logLevelFlags: ['info', 'debug'] })
+    const args = createParsedArgs({logLevelFlags: ['info', 'debug']})
     expect(resolveLogLevel(args)).toBe('debug')
   })
 
   it('should return info over warn when both provided', () => {
-    const args = createParsedArgs({ logLevelFlags: ['warn', 'info'] })
+    const args = createParsedArgs({logLevelFlags: ['warn', 'info']})
     expect(resolveLogLevel(args)).toBe('info')
   })
 })
@@ -747,31 +747,31 @@ describe('resolveCommand', () => {
 
   describe('help command', () => {
     it('should return HelpCommand for help subcommand', () => {
-      const args = createParsedArgs({ subcommand: 'help' })
+      const args = createParsedArgs({subcommand: 'help'})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(HelpCommand)
     })
 
     it('should return HelpCommand for --help flag', () => {
-      const args = createParsedArgs({ helpFlag: true })
+      const args = createParsedArgs({helpFlag: true})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(HelpCommand)
     })
 
     it('should return HelpCommand for -h flag', () => {
-      const args = createParsedArgs({ helpFlag: true })
+      const args = createParsedArgs({helpFlag: true})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(HelpCommand)
     })
 
     it('should prioritize helpFlag over subcommand', () => {
-      const args = createParsedArgs({ helpFlag: true, subcommand: 'init' })
+      const args = createParsedArgs({helpFlag: true, subcommand: 'init'})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(HelpCommand)
     })
 
     it('should prioritize helpFlag over unknownCommand', () => {
-      const args = createParsedArgs({ helpFlag: true, unknownCommand: 'foo' })
+      const args = createParsedArgs({helpFlag: true, unknownCommand: 'foo'})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(HelpCommand)
     })
@@ -779,7 +779,7 @@ describe('resolveCommand', () => {
 
   describe('init command', () => {
     it('should return InitCommand for init subcommand', () => {
-      const args = createParsedArgs({ subcommand: 'init' })
+      const args = createParsedArgs({subcommand: 'init'})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(InitCommand)
     })
@@ -787,7 +787,7 @@ describe('resolveCommand', () => {
 
   describe('dry-run command', () => {
     it('should return DryRunOutputCommand for dry-run subcommand', () => {
-      const args = createParsedArgs({ subcommand: 'dry-run' })
+      const args = createParsedArgs({subcommand: 'dry-run'})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(DryRunOutputCommand)
     })
@@ -795,19 +795,19 @@ describe('resolveCommand', () => {
 
   describe('clean command', () => {
     it('should return CleanCommand for clean subcommand', () => {
-      const args = createParsedArgs({ subcommand: 'clean' })
+      const args = createParsedArgs({subcommand: 'clean'})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(CleanCommand)
     })
 
     it('should return DryRunCleanCommand for clean --dry-run', () => {
-      const args = createParsedArgs({ subcommand: 'clean', dryRun: true })
+      const args = createParsedArgs({subcommand: 'clean', dryRun: true})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(DryRunCleanCommand)
     })
 
     it('should return DryRunCleanCommand for clean -n', () => {
-      const args = createParsedArgs({ subcommand: 'clean', dryRun: true })
+      const args = createParsedArgs({subcommand: 'clean', dryRun: true})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(DryRunCleanCommand)
     })
@@ -815,13 +815,13 @@ describe('resolveCommand', () => {
 
   describe('unknown command', () => {
     it('should return UnknownCommand for unknown subcommand', () => {
-      const args = createParsedArgs({ unknownCommand: 'foo' })
+      const args = createParsedArgs({unknownCommand: 'foo'})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(UnknownCommand)
     })
 
     it('should prioritize unknownCommand over default', () => {
-      const args = createParsedArgs({ unknownCommand: 'bar' })
+      const args = createParsedArgs({unknownCommand: 'bar'})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(UnknownCommand)
     })

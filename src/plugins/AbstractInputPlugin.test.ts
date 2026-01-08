@@ -1,13 +1,13 @@
-import type { InputEffectContext, InputEffectResult } from './AbstractInputPlugin'
-import type { InputPluginContext, PluginOptions } from '@/types'
+import type {InputEffectContext, InputEffectResult} from './AbstractInputPlugin'
+import type {InputPluginContext, PluginOptions} from '@/types'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import glob from 'fast-glob'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createLogger } from '@/log'
-import { AbstractInputPlugin, cleanStaleDistFiles, syncDirectory } from './AbstractInputPlugin'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {createLogger} from '@/log'
+import {AbstractInputPlugin, cleanStaleDistFiles, syncDirectory} from './AbstractInputPlugin'
 
 // Default test options for Required<PluginOptions>
 function createTestOptions(overrides: Partial<PluginOptions> = {}): Required<PluginOptions> {
@@ -36,8 +36,8 @@ class TestInputPlugin extends AbstractInputPlugin {
     super(name, dependsOn)
   }
 
-  collect(): { testData: string } {
-    return { testData: 'collected' }
+  collect(): {testData: string} {
+    return {testData: 'collected'}
   }
 
   // Expose protected methods for testing
@@ -49,7 +49,7 @@ class TestInputPlugin extends AbstractInputPlugin {
     this.registerEffect(name, handler, priority)
   }
 
-  public exposeResolveBasePaths(options: Required<PluginOptions>): { workspaceDir: string, shadowProjectDir: string } {
+  public exposeResolveBasePaths(options: Required<PluginOptions>): {workspaceDir: string, shadowProjectDir: string} {
     return this.resolveBasePaths(options)
   }
 
@@ -68,8 +68,8 @@ class TestInputPlugin extends AbstractInputPlugin {
 }
 
 describe('abstractInputPlugin', () => {
-  let plugin: TestInputPlugin
-  let mockLogger: ReturnType<typeof createLogger>
+  let plugin: TestInputPlugin,
+    mockLogger: ReturnType<typeof createLogger>
 
   beforeEach(() => {
     plugin = new TestInputPlugin()
@@ -95,17 +95,17 @@ describe('abstractInputPlugin', () => {
 
       plugin.exposeRegisterEffect('low-priority', async () => {
         executionOrder.push('low')
-        return { success: true }
+        return {success: true}
       }, 10)
 
       plugin.exposeRegisterEffect('high-priority', async () => {
         executionOrder.push('high')
-        return { success: true }
+        return {success: true}
       }, -10)
 
       plugin.exposeRegisterEffect('default-priority', async () => {
         executionOrder.push('default')
-        return { success: true }
+        return {success: true}
       })
 
       expect(plugin.getEffectCount()).toBe(3)
@@ -118,17 +118,17 @@ describe('abstractInputPlugin', () => {
 
       plugin.exposeRegisterEffect('third', async () => {
         executionOrder.push('third')
-        return { success: true }
+        return {success: true}
       }, 10)
 
       plugin.exposeRegisterEffect('first', async () => {
         executionOrder.push('first')
-        return { success: true }
+        return {success: true}
       }, -10)
 
       plugin.exposeRegisterEffect('second', async () => {
         executionOrder.push('second')
-        return { success: true }
+        return {success: true}
       }, 0)
 
       const ctx: InputPluginContext = {
@@ -136,7 +136,7 @@ describe('abstractInputPlugin', () => {
         fs,
         path,
         glob,
-        userConfigOptions: createTestOptions({ workspaceDir: '/test' }),
+        userConfigOptions: createTestOptions({workspaceDir: '/test'}),
         dependencyContext: {},
       }
 
@@ -166,7 +166,7 @@ describe('abstractInputPlugin', () => {
 
       plugin.exposeRegisterEffect('test-effect', async () => {
         effectExecuted = true
-        return { success: true }
+        return {success: true}
       })
 
       const ctx: InputPluginContext = {
@@ -217,7 +217,7 @@ describe('abstractInputPlugin', () => {
 
       plugin.exposeRegisterEffect('second', async () => {
         executionOrder.push('second')
-        return { success: true }
+        return {success: true}
       }, 10)
 
       const ctx: InputPluginContext = {
@@ -245,7 +245,7 @@ describe('abstractInputPlugin', () => {
         shadowSourceProjectDir: '/custom/workspace/aindex',
       })
 
-      const { workspaceDir, shadowProjectDir } = plugin.exposeResolveBasePaths(options)
+      const {workspaceDir, shadowProjectDir} = plugin.exposeResolveBasePaths(options)
 
       expect(workspaceDir).toBe('/custom/workspace')
       expect(shadowProjectDir).toBe('/custom/workspace/aindex')
@@ -257,7 +257,7 @@ describe('abstractInputPlugin', () => {
         shadowSourceProjectDir: '$WORKSPACE/aindex',
       })
 
-      const { workspaceDir, shadowProjectDir } = plugin.exposeResolveBasePaths(options)
+      const {workspaceDir, shadowProjectDir} = plugin.exposeResolveBasePaths(options)
 
       expect(workspaceDir).toContain('project')
       expect(shadowProjectDir).toContain('aindex')
@@ -285,17 +285,17 @@ describe('abstractInputPlugin', () => {
     it('should register scope variables', () => {
       expect(plugin.getRegisteredScopes()).toHaveLength(0)
 
-      plugin.exposeRegisterScope('myPlugin', { version: '1.0.0' })
+      plugin.exposeRegisterScope('myPlugin', {version: '1.0.0'})
 
       const scopes = plugin.getRegisteredScopes()
       expect(scopes).toHaveLength(1)
       expect(scopes[0]?.namespace).toBe('myPlugin')
-      expect(scopes[0]?.values).toEqual({ version: '1.0.0' })
+      expect(scopes[0]?.values).toEqual({version: '1.0.0'})
     })
 
     it('should register multiple scopes', () => {
-      plugin.exposeRegisterScope('plugin1', { key1: 'value1' })
-      plugin.exposeRegisterScope('plugin2', { key2: 'value2' })
+      plugin.exposeRegisterScope('plugin1', {key1: 'value1'})
+      plugin.exposeRegisterScope('plugin2', {key2: 'value2'})
 
       const scopes = plugin.getRegisteredScopes()
       expect(scopes).toHaveLength(2)
@@ -304,20 +304,20 @@ describe('abstractInputPlugin', () => {
     })
 
     it('should allow registering same namespace multiple times', () => {
-      plugin.exposeRegisterScope('myPlugin', { key1: 'value1' })
-      plugin.exposeRegisterScope('myPlugin', { key2: 'value2' })
+      plugin.exposeRegisterScope('myPlugin', {key1: 'value1'})
+      plugin.exposeRegisterScope('myPlugin', {key2: 'value2'})
 
       const scopes = plugin.getRegisteredScopes()
       expect(scopes).toHaveLength(2)
-      expect(scopes[0]?.values).toEqual({ key1: 'value1' })
-      expect(scopes[1]?.values).toEqual({ key2: 'value2' })
+      expect(scopes[0]?.values).toEqual({key1: 'value1'})
+      expect(scopes[1]?.values).toEqual({key2: 'value2'})
     })
 
     it('should support nested objects in scope values', () => {
       plugin.exposeRegisterScope('myPlugin', {
         config: {
           debug: true,
-          nested: { level: 2 },
+          nested: {level: 2},
         },
       })
 
@@ -325,13 +325,13 @@ describe('abstractInputPlugin', () => {
       expect(scopes[0]?.values).toEqual({
         config: {
           debug: true,
-          nested: { level: 2 },
+          nested: {level: 2},
         },
       })
     })
 
     it('should clear registered scopes', () => {
-      plugin.exposeRegisterScope('myPlugin', { key: 'value' })
+      plugin.exposeRegisterScope('myPlugin', {key: 'value'})
       expect(plugin.getRegisteredScopes()).toHaveLength(1)
 
       plugin.exposeClearRegisteredScopes()
@@ -339,7 +339,7 @@ describe('abstractInputPlugin', () => {
     })
 
     it('should return readonly array from getRegisteredScopes', () => {
-      plugin.exposeRegisterScope('myPlugin', { key: 'value' })
+      plugin.exposeRegisterScope('myPlugin', {key: 'value'})
 
       const scopes = plugin.getRegisteredScopes()
       // TypeScript should prevent modification, but we verify the array is a copy
@@ -349,22 +349,22 @@ describe('abstractInputPlugin', () => {
 })
 
 describe('cleanStaleDistFiles', () => {
-  let tempDir: string
-  let srcDir: string
-  let distDir: string
-  let mockLogger: ReturnType<typeof createLogger>
+  let tempDir: string,
+    srcDir: string,
+    distDir: string,
+    mockLogger: ReturnType<typeof createLogger>
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-clean-stale-'))
     srcDir = path.join(tempDir, 'src')
     distDir = path.join(tempDir, 'dist')
-    fs.mkdirSync(srcDir, { recursive: true })
-    fs.mkdirSync(distDir, { recursive: true })
+    fs.mkdirSync(srcDir, {recursive: true})
+    fs.mkdirSync(distDir, {recursive: true})
     mockLogger = createLogger('test')
   })
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true })
+    fs.rmSync(tempDir, {recursive: true, force: true})
   })
 
   it('should delete dist files without corresponding src files', () => {
@@ -377,8 +377,8 @@ describe('cleanStaleDistFiles', () => {
     fs.writeFileSync(path.join(distDir, 'skill-b.md'), '# Skill B compiled (stale)')
 
     const result = cleanStaleDistFiles(
-      { fs, path, logger: mockLogger },
-      { srcDir, distDir, logger: mockLogger },
+      {fs, path, logger: mockLogger},
+      {srcDir, distDir, logger: mockLogger},
     )
 
     expect(result.deletedFiles).toHaveLength(1)
@@ -391,8 +391,8 @@ describe('cleanStaleDistFiles', () => {
     fs.writeFileSync(path.join(distDir, 'stale.md'), '# Stale')
 
     const result = cleanStaleDistFiles(
-      { fs, path, logger: mockLogger },
-      { srcDir, distDir, dryRun: true, logger: mockLogger },
+      {fs, path, logger: mockLogger},
+      {srcDir, distDir, dryRun: true, logger: mockLogger},
     )
 
     expect(result.wouldDelete).toHaveLength(1)
@@ -402,18 +402,18 @@ describe('cleanStaleDistFiles', () => {
 
   it('should recursively clean subdirectories', () => {
     // Create src structure
-    fs.mkdirSync(path.join(srcDir, 'sub', 'skill-a'), { recursive: true })
+    fs.mkdirSync(path.join(srcDir, 'sub', 'skill-a'), {recursive: true})
     fs.writeFileSync(path.join(srcDir, 'sub', 'skill-a', 'skill.md'), '# Skill A')
 
     // Create dist structure with stale directory
-    fs.mkdirSync(path.join(distDir, 'sub'), { recursive: true })
+    fs.mkdirSync(path.join(distDir, 'sub'), {recursive: true})
     fs.writeFileSync(path.join(distDir, 'sub', 'skill-a.md'), '# Skill A')
-    fs.mkdirSync(path.join(distDir, 'stale-dir'), { recursive: true })
+    fs.mkdirSync(path.join(distDir, 'stale-dir'), {recursive: true})
     fs.writeFileSync(path.join(distDir, 'stale-dir', 'file.md'), '# Stale')
 
     const result = cleanStaleDistFiles(
-      { fs, path, logger: mockLogger },
-      { srcDir, distDir, logger: mockLogger },
+      {fs, path, logger: mockLogger},
+      {srcDir, distDir, logger: mockLogger},
     )
 
     expect(result.deletedFiles.some(f => f.includes('stale-dir'))).toBe(true)
@@ -421,11 +421,11 @@ describe('cleanStaleDistFiles', () => {
   })
 
   it('should return empty result when dist directory does not exist', () => {
-    fs.rmSync(distDir, { recursive: true })
+    fs.rmSync(distDir, {recursive: true})
 
     const result = cleanStaleDistFiles(
-      { fs, path, logger: mockLogger },
-      { srcDir, distDir, logger: mockLogger },
+      {fs, path, logger: mockLogger},
+      {srcDir, distDir, logger: mockLogger},
     )
 
     expect(result.deletedFiles).toHaveLength(0)
@@ -435,21 +435,21 @@ describe('cleanStaleDistFiles', () => {
 })
 
 describe('syncDirectory', () => {
-  let tempDir: string
-  let srcDir: string
-  let targetDir: string
-  let mockLogger: ReturnType<typeof createLogger>
+  let tempDir: string,
+    srcDir: string,
+    targetDir: string,
+    mockLogger: ReturnType<typeof createLogger>
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-sync-'))
     srcDir = path.join(tempDir, 'src')
     targetDir = path.join(tempDir, 'target')
-    fs.mkdirSync(srcDir, { recursive: true })
+    fs.mkdirSync(srcDir, {recursive: true})
     mockLogger = createLogger('test')
   })
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true })
+    fs.rmSync(tempDir, {recursive: true, force: true})
   })
 
   it('should copy files from src to target', () => {
@@ -457,8 +457,8 @@ describe('syncDirectory', () => {
     fs.writeFileSync(path.join(srcDir, 'file2.md'), '# File 2')
 
     const result = syncDirectory(
-      { fs, path, logger: mockLogger },
-      { srcDir, targetDir, logger: mockLogger },
+      {fs, path, logger: mockLogger},
+      {srcDir, targetDir, logger: mockLogger},
     )
 
     expect(result.copiedFiles).toHaveLength(2)
@@ -468,13 +468,13 @@ describe('syncDirectory', () => {
 
   it('should delete orphaned files when deleteOrphans is true', () => {
     fs.writeFileSync(path.join(srcDir, 'keep.md'), '# Keep')
-    fs.mkdirSync(targetDir, { recursive: true })
+    fs.mkdirSync(targetDir, {recursive: true})
     fs.writeFileSync(path.join(targetDir, 'keep.md'), '# Old Keep')
     fs.writeFileSync(path.join(targetDir, 'orphan.md'), '# Orphan')
 
     const result = syncDirectory(
-      { fs, path, logger: mockLogger },
-      { srcDir, targetDir, deleteOrphans: true, logger: mockLogger },
+      {fs, path, logger: mockLogger},
+      {srcDir, targetDir, deleteOrphans: true, logger: mockLogger},
     )
 
     expect(result.deletedFiles).toHaveLength(1)
@@ -487,8 +487,8 @@ describe('syncDirectory', () => {
     fs.writeFileSync(path.join(srcDir, 'file.md'), '# File')
 
     const result = syncDirectory(
-      { fs, path, logger: mockLogger },
-      { srcDir, targetDir, dryRun: true, logger: mockLogger },
+      {fs, path, logger: mockLogger},
+      {srcDir, targetDir, dryRun: true, logger: mockLogger},
     )
 
     expect(result.copiedFiles).toHaveLength(1)
@@ -496,12 +496,12 @@ describe('syncDirectory', () => {
   })
 
   it('should recursively sync subdirectories', () => {
-    fs.mkdirSync(path.join(srcDir, 'sub'), { recursive: true })
+    fs.mkdirSync(path.join(srcDir, 'sub'), {recursive: true})
     fs.writeFileSync(path.join(srcDir, 'sub', 'nested.md'), '# Nested')
 
     const result = syncDirectory(
-      { fs, path, logger: mockLogger },
-      { srcDir, targetDir, logger: mockLogger },
+      {fs, path, logger: mockLogger},
+      {srcDir, targetDir, logger: mockLogger},
     )
 
     expect(result.copiedFiles.some(f => f.includes('nested.md'))).toBe(true)

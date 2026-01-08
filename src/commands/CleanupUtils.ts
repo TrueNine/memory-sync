@@ -1,8 +1,8 @@
-import type { ILogger } from '@/log'
-import type { OutputCleanContext, OutputPlugin } from '@/types'
+import type {ILogger} from '@/log'
+import type {OutputCleanContext, OutputPlugin} from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { checkCanClean, collectAllPluginOutputs, executeOnCleanComplete } from '@/types/PluginTypes'
+import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '@/types/PluginTypes'
 
 /**
  * Result of cleanup operation
@@ -38,9 +38,9 @@ export interface CleanupOptions {
  */
 export async function collectDeletionTargets(
   outputPlugins: readonly OutputPlugin[],
-  permissions: Map<string, { project: boolean, global: boolean }>,
+  permissions: Map<string, {project: boolean, global: boolean}>,
   cleanCtx: OutputCleanContext,
-): Promise<{ filesToDelete: string[], dirsToDelete: string[] }> {
+): Promise<{filesToDelete: string[], dirsToDelete: string[]}> {
   const filesToDelete: string[] = []
   const dirsToDelete: string[] = []
 
@@ -60,14 +60,14 @@ export async function collectDeletionTargets(
     }
   }
 
-  return { filesToDelete, dirsToDelete }
+  return {filesToDelete, dirsToDelete}
 }
 
 /**
  * Delete files with error handling
  * Logs warnings for failed deletions and continues with remaining files
  */
-export function deleteFiles(files: string[], logger: ILogger): { deleted: number, errors: CleanupError[] } {
+export function deleteFiles(files: string[], logger: ILogger): {deleted: number, errors: CleanupError[]} {
   let deleted = 0
   const errors: CleanupError[] = []
 
@@ -76,17 +76,17 @@ export function deleteFiles(files: string[], logger: ILogger): { deleted: number
     try {
       if (fs.existsSync(resolved)) {
         fs.unlinkSync(resolved)
-        logger.debug({ action: 'delete', type: 'file', path: resolved })
+        logger.debug({action: 'delete', type: 'file', path: resolved})
         deleted++
       }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e)
-      logger.warn('failed to delete file', { path: resolved, error: errorMessage })
-      errors.push({ path: resolved, type: 'file', error: e })
+      logger.warn('failed to delete file', {path: resolved, error: errorMessage})
+      errors.push({path: resolved, type: 'file', error: e})
     }
   }
 
-  return { deleted, errors }
+  return {deleted, errors}
 }
 
 /**
@@ -94,7 +94,7 @@ export function deleteFiles(files: string[], logger: ILogger): { deleted: number
  * Sorts by length descending to handle nested dirs properly
  * Logs warnings for failed deletions and continues with remaining directories
  */
-export function deleteDirectories(dirs: string[], logger: ILogger): { deleted: number, errors: CleanupError[] } {
+export function deleteDirectories(dirs: string[], logger: ILogger): {deleted: number, errors: CleanupError[]} {
   let deleted = 0
   const errors: CleanupError[] = []
 
@@ -105,18 +105,18 @@ export function deleteDirectories(dirs: string[], logger: ILogger): { deleted: n
     const resolved = path.isAbsolute(dir) ? dir : path.resolve(dir)
     try {
       if (fs.existsSync(resolved)) {
-        fs.rmSync(resolved, { recursive: true, force: true })
-        logger.debug({ action: 'delete', type: 'directory', path: resolved })
+        fs.rmSync(resolved, {recursive: true, force: true})
+        logger.debug({action: 'delete', type: 'directory', path: resolved})
         deleted++
       }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e)
-      logger.warn('failed to delete directory', { path: resolved, error: errorMessage })
-      errors.push({ path: resolved, type: 'directory', error: e })
+      logger.warn('failed to delete directory', {path: resolved, error: errorMessage})
+      errors.push({path: resolved, type: 'directory', error: e})
     }
   }
 
-  return { deleted, errors }
+  return {deleted, errors}
 }
 
 /**
@@ -136,7 +136,7 @@ export async function performCleanup(
   logger: ILogger,
   options?: CleanupOptions,
 ): Promise<CleanupResult> {
-  const { executeHooks = true } = options ?? {}
+  const {executeHooks = true} = options ?? {}
 
   // Collect outputs for logging
   const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx)
@@ -151,7 +151,7 @@ export async function performCleanup(
   const permissions = await checkCanClean(outputPlugins, cleanCtx)
 
   // Collect deletion targets
-  const { filesToDelete, dirsToDelete } = await collectDeletionTargets(
+  const {filesToDelete, dirsToDelete} = await collectDeletionTargets(
     outputPlugins,
     permissions,
     cleanCtx,

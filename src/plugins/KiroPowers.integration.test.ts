@@ -1,11 +1,11 @@
-import type { SkillPrompt, SkillReferenceDocument, SkillYAMLFrontMatter } from '@/types'
+import type {SkillPrompt, SkillReferenceDocument, SkillYAMLFrontMatter} from '@/types'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fc from 'fast-check'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { parseMarkdown } from '@/markdown'
-import { FilePathKind, PromptKind } from '@/types'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {parseMarkdown} from '@/markdown'
+import {FilePathKind, PromptKind} from '@/types'
 
 /**
  * Integration tests for Kiro Powers Skill Output
@@ -21,7 +21,7 @@ describe('kiroPowersIntegration', () => {
 
   afterEach(() => {
     // Clean up temporary directory
-    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
   })
 
   /**
@@ -44,11 +44,11 @@ describe('kiroPowersIntegration', () => {
         fc.constant('Another paragraph.\n'),
         fc.constant('Code: `example`\n'),
       ),
-      { minLength: 1, maxLength: 10 },
+      {minLength: 1, maxLength: 10},
     ).map(parts => parts.join('').trim() || 'Default content')
 
     // Generator for valid file names (alphanumeric with .md extension)
-    const fileNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
+    const fileNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z0-9]+$/i.test(s))
       .map(s => `${s}.md`)
 
@@ -75,7 +75,7 @@ describe('kiroPowersIntegration', () => {
             expect(readBackContent).toBe(parsedContent)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -93,7 +93,7 @@ describe('kiroPowersIntegration', () => {
 
             // Act: Parse the content
             const parsed = parseMarkdown(fullContent)
-            const { contentWithoutFrontMatter } = parsed
+            const {contentWithoutFrontMatter} = parsed
 
             // Write the content without front matter (as KiroCLIOutputPlugin does)
             const outputPath = path.join(tempDir, `output-${fileName}`)
@@ -104,7 +104,7 @@ describe('kiroPowersIntegration', () => {
             expect(readBackContent).toBe(bodyContent)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -118,12 +118,12 @@ describe('kiroPowersIntegration', () => {
    */
   describe('property 6: Reference Document Co-location', () => {
     // Generator for valid skill names (alphanumeric, kebab-case friendly)
-    const skillNameGen = fc.string({ minLength: 1, maxLength: 15, unit: 'grapheme-ascii' })
+    const skillNameGen = fc.string({minLength: 1, maxLength: 15, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z0-9]+$/i.test(s))
       .map(s => s || 'default-skill')
 
     // Generator for reference document file names
-    const refDocFileNameGen = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
+    const refDocFileNameGen = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z0-9]+$/i.test(s))
       .map(s => `${s || 'doc'}.md`)
 
@@ -131,7 +131,7 @@ describe('kiroPowersIntegration', () => {
       fc.assert(
         fc.property(
           skillNameGen,
-          fc.array(refDocFileNameGen, { minLength: 0, maxLength: 5 }),
+          fc.array(refDocFileNameGen, {minLength: 0, maxLength: 5}),
           (skillName, refDocFileNames) => {
             // Ensure unique file names
             const uniqueFileNames = [...new Set(refDocFileNames)]
@@ -170,7 +170,7 @@ describe('kiroPowersIntegration', () => {
                 getDirectoryName: () => skillName,
                 getAbsolutePath: () => path.join(tempDir, skillName),
               },
-              ...(referenceDocuments.length > 0 && { referenceDocuments }),
+              ...referenceDocuments.length > 0 && {referenceDocuments},
             }
 
             // Calculate expected paths
@@ -191,7 +191,7 @@ describe('kiroPowersIntegration', () => {
             return true
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -199,7 +199,7 @@ describe('kiroPowersIntegration', () => {
       fc.assert(
         fc.property(
           skillNameGen,
-          fc.array(refDocFileNameGen, { minLength: 1, maxLength: 10 }),
+          fc.array(refDocFileNameGen, {minLength: 1, maxLength: 10}),
           (skillName, refDocFileNames) => {
             // Ensure unique file names
             const uniqueFileNames = [...new Set(refDocFileNames)]
@@ -225,7 +225,7 @@ describe('kiroPowersIntegration', () => {
             return true
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })

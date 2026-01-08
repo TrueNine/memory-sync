@@ -1,10 +1,10 @@
 // src/components/Md.ts
 // Md component handler - wrapper for conditional Markdown content
 
-import type { RootContent, Text } from 'mdast'
-import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
-import type { ProcessingContext } from '@/compiler/types'
-import { evaluateExpression } from '@/compiler/expression-eval'
+import type {RootContent, Text} from 'mdast'
+import type {MdxJsxFlowElement, MdxJsxTextElement} from 'mdast-util-mdx'
+import type {ProcessingContext} from '@/compiler/types'
+import {evaluateExpression} from '@/compiler/expression-eval'
 
 /**
  * Evaluates the `when` attribute condition.
@@ -117,7 +117,7 @@ export async function MdLineHandler(
 
   if (textContent === '') return []
 
-  const textNode: Text = { type: 'text', value: textContent }
+  const textNode: Text = {type: 'text', value: textContent}
   return [textNode]
 }
 

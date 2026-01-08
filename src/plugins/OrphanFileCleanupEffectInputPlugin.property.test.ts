@@ -1,14 +1,14 @@
-import type { InputEffectContext } from './AbstractInputPlugin'
-import type { ILogger } from '@/log'
-import type { PluginOptions } from '@/types'
+import type {InputEffectContext} from './AbstractInputPlugin'
+import type {ILogger} from '@/log'
+import type {PluginOptions} from '@/types'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fc from 'fast-check'
 import * as glob from 'fast-glob'
-import { describe, expect, it } from 'vitest'
-import { OrphanFileCleanupEffectInputPlugin } from './OrphanFileCleanupEffectInputPlugin'
+import {describe, expect, it} from 'vitest'
+import {OrphanFileCleanupEffectInputPlugin} from './OrphanFileCleanupEffectInputPlugin'
 
 /**
  * Feature: effect-input-plugins
@@ -53,7 +53,7 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
 }
 
 // Generators
-const validNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
+const validNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
   .filter(s => /^[\w-]+$/.test(s))
   .map(s => s.toLowerCase())
 
@@ -85,7 +85,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
     it('should delete orphan .mdx files and keep files with valid sources', async () => {
       await fc.assert(
         fc.asyncProperty(
-          fc.array(distFileGen, { minLength: 1, maxLength: 10 })
+          fc.array(distFileGen, {minLength: 1, maxLength: 10})
             .map(files => {
               // Deduplicate by (name, dirType) to avoid conflicts
               const seen = new Set<string>()
@@ -109,9 +109,9 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               const appDir = path.join(shadowProjectDir, 'app')
 
               // Create directories
-              fs.mkdirSync(distDir, { recursive: true })
-              fs.mkdirSync(srcDir, { recursive: true })
-              fs.mkdirSync(appDir, { recursive: true })
+              fs.mkdirSync(distDir, {recursive: true})
+              fs.mkdirSync(srcDir, {recursive: true})
+              fs.mkdirSync(appDir, {recursive: true})
 
               // Track expected outcomes
               const expectedDeleted: string[] = []
@@ -120,7 +120,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               // Create dist files and optionally their sources
               for (const file of distFiles) {
                 const distTypePath = path.join(distDir, file.dirType)
-                fs.mkdirSync(distTypePath, { recursive: true })
+                fs.mkdirSync(distTypePath, {recursive: true})
 
                 const distFilePath = path.join(distTypePath, `${file.name}.mdx`)
                 fs.writeFileSync(distFilePath, `# ${file.name}`, 'utf8')
@@ -152,11 +152,11 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               }
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
             }
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -185,7 +185,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               const distTypeDir = path.join(distDir, dirType)
               const subDir = path.join(distTypeDir, 'subdir')
 
-              fs.mkdirSync(subDir, { recursive: true })
+              fs.mkdirSync(subDir, {recursive: true})
 
               // Create orphan file in subdirectory (no source)
               const orphanFilePath = path.join(subDir, `${name}.mdx`)
@@ -210,11 +210,11 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               expect(result.deletedDirs).toContain(subDir)
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
             }
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -236,8 +236,8 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               const distSkillsDir = path.join(shadowProjectDir, 'dist', 'skills')
               const srcSkillsDir = path.join(shadowProjectDir, 'src', 'skills')
 
-              fs.mkdirSync(distSkillsDir, { recursive: true })
-              fs.mkdirSync(srcSkillsDir, { recursive: true })
+              fs.mkdirSync(distSkillsDir, {recursive: true})
+              fs.mkdirSync(srcSkillsDir, {recursive: true})
 
               // Create orphan file (no source)
               const orphanFilePath = path.join(distSkillsDir, `${orphanName}.mdx`)
@@ -249,7 +249,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
 
               // Create source for valid file
               const srcSkillDir = path.join(srcSkillsDir, validName)
-              fs.mkdirSync(srcSkillDir, { recursive: true })
+              fs.mkdirSync(srcSkillDir, {recursive: true})
               fs.writeFileSync(path.join(srcSkillDir, 'SKILL.cn.mdx'), `# ${validName}`, 'utf8')
 
               // Execute plugin
@@ -266,11 +266,11 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
               expect(fs.existsSync(distSkillsDir)).toBe(true)
             } finally {
               // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
             }
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -288,28 +288,28 @@ function createSourceFile(
     case 'skills': {
       // src/skills/{name}/SKILL.cn.mdx
       const skillDir = path.join(shadowProjectDir, 'src', 'skills', name)
-      fs.mkdirSync(skillDir, { recursive: true })
+      fs.mkdirSync(skillDir, {recursive: true})
       fs.writeFileSync(path.join(skillDir, 'SKILL.cn.mdx'), `# ${name}`, 'utf8')
       break
     }
     case 'commands': {
       // src/commands/{name}.cn.mdx
       const commandsDir = path.join(shadowProjectDir, 'src', 'commands')
-      fs.mkdirSync(commandsDir, { recursive: true })
+      fs.mkdirSync(commandsDir, {recursive: true})
       fs.writeFileSync(path.join(commandsDir, `${name}.cn.mdx`), `# ${name}`, 'utf8')
       break
     }
     case 'agents': {
       // src/agents/{name}.cn.mdx
       const agentsDir = path.join(shadowProjectDir, 'src', 'agents')
-      fs.mkdirSync(agentsDir, { recursive: true })
+      fs.mkdirSync(agentsDir, {recursive: true})
       fs.writeFileSync(path.join(agentsDir, `${name}.cn.mdx`), `# ${name}`, 'utf8')
       break
     }
     case 'app': {
       // app/{name}.cn.mdx
       const appDir = path.join(shadowProjectDir, 'app')
-      fs.mkdirSync(appDir, { recursive: true })
+      fs.mkdirSync(appDir, {recursive: true})
       fs.writeFileSync(path.join(appDir, `${name}.cn.mdx`), `# ${name}`, 'utf8')
       break
     }

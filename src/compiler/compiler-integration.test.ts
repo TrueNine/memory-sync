@@ -7,19 +7,19 @@
  * @see Requirements 5.1, 5.2, 5.3, 5.5
  */
 
-import type { MdxGlobalScope } from '@/globals'
-import type { CollectedInputContext, InputPluginContext, PluginOptions } from '@/types'
+import type {MdxGlobalScope} from '@/globals'
+import type {CollectedInputContext, InputPluginContext, PluginOptions} from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { registerBuiltInComponents } from '../components'
-import { ShellKind } from '../globals'
-import { createLogger } from '../log'
-import { AbstractInputPlugin } from '../plugins/AbstractInputPlugin'
-import { GlobalScopeCollector, ScopePriority, ScopeRegistry } from '../scope'
-import { clearComponents } from './component-registry'
-import { mdxToMd } from './mdx-to-md'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {registerBuiltInComponents} from '../components'
+import {ShellKind} from '../globals'
+import {createLogger} from '../log'
+import {AbstractInputPlugin} from '../plugins/AbstractInputPlugin'
+import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '../scope'
+import {clearComponents} from './component-registry'
+import {mdxToMd} from './mdx-to-md'
 
 /**
  * Mock input plugin for testing scope registration
@@ -89,7 +89,7 @@ describe('compiler Integration', () => {
         },
       }
 
-      const collector = new GlobalScopeCollector({ userConfig })
+      const collector = new GlobalScopeCollector({userConfig})
       const scope = collector.collect()
 
       expect(scope.profile.name).toBe('Test User')
@@ -115,21 +115,21 @@ describe('compiler Integration', () => {
 
       // Set global scope (lowest priority)
       const globalScope: MdxGlobalScope = {
-        os: { platform: 'linux', shellKind: ShellKind.Bash },
-        env: { NODE_ENV: 'test' },
-        profile: { name: 'Global User' },
-        tool: { websearch: 'global_search' },
+        os: {platform: 'linux', shellKind: ShellKind.Bash},
+        env: {NODE_ENV: 'test'},
+        profile: {name: 'Global User'},
+        tool: {websearch: 'global_search'},
       }
       registry.setGlobalScope(globalScope)
 
       // Register user config scope
-      registry.register('profile', { name: 'Config User', role: 'developer' }, ScopePriority.UserConfig)
+      registry.register('profile', {name: 'Config User', role: 'developer'}, ScopePriority.UserConfig)
 
       // Register plugin scope
-      registry.register('profile', { name: 'Plugin User', team: 'engineering' }, ScopePriority.PluginRegistered)
+      registry.register('profile', {name: 'Plugin User', team: 'engineering'}, ScopePriority.PluginRegistered)
 
       // Merge with compile-time scope
-      const compileTimeScope = { profile: { name: 'Compile User' } }
+      const compileTimeScope = {profile: {name: 'Compile User'}}
       const merged = registry.merge(compileTimeScope)
 
       // Compile-time should win for 'name'
@@ -144,12 +144,12 @@ describe('compiler Integration', () => {
       const registry = new ScopeRegistry()
 
       registry.register('config', {
-        database: { host: 'localhost', port: 5432 },
-        cache: { enabled: true },
+        database: {host: 'localhost', port: 5432},
+        cache: {enabled: true},
       }, ScopePriority.SystemDefault)
 
       registry.register('config', {
-        database: { port: 3306, name: 'mydb' },
+        database: {port: 3306, name: 'mydb'},
       }, ScopePriority.UserConfig)
 
       const merged = registry.merge()
@@ -170,10 +170,10 @@ describe('compiler Integration', () => {
   describe('mdxToMd with global scope', () => {
     it('should evaluate expressions using global scope', async () => {
       const globalScope: MdxGlobalScope = {
-        os: { platform: 'linux', arch: 'x64', shellKind: ShellKind.Bash },
-        env: { NODE_ENV: 'production' },
-        profile: { name: 'Test User', username: 'testuser' },
-        tool: { websearch: 'web_search', webfetch: 'web_fetch' },
+        os: {platform: 'linux', arch: 'x64', shellKind: ShellKind.Bash},
+        env: {NODE_ENV: 'production'},
+        profile: {name: 'Test User', username: 'testuser'},
+        tool: {websearch: 'web_search', webfetch: 'web_fetch'},
       }
 
       const content = `# Hello {profile.name}
@@ -182,7 +182,7 @@ Platform: {os.platform}
 Environment: {env.NODE_ENV}
 Search Tool: {tool.websearch}`
 
-      const result = await mdxToMd(content, { globalScope })
+      const result = await mdxToMd(content, {globalScope})
 
       expect(result).toContain('# Hello Test User')
       expect(result).toContain('Platform: linux')
@@ -192,19 +192,19 @@ Search Tool: {tool.websearch}`
 
     it('should allow custom scope to override global scope', async () => {
       const globalScope: MdxGlobalScope = {
-        os: { platform: 'linux', shellKind: ShellKind.Bash },
+        os: {platform: 'linux', shellKind: ShellKind.Bash},
         env: {},
-        profile: { name: 'Global User' },
-        tool: { websearch: 'global_search' },
+        profile: {name: 'Global User'},
+        tool: {websearch: 'global_search'},
       }
 
       const customScope = {
-        profile: { name: 'Custom User' },
+        profile: {name: 'Custom User'},
       }
 
       const content = `Hello {profile.name}`
 
-      const result = await mdxToMd(content, { globalScope, scope: customScope })
+      const result = await mdxToMd(content, {globalScope, scope: customScope})
 
       // Custom scope should override global scope
       expect(result).toContain('Hello Custom User')
@@ -212,9 +212,9 @@ Search Tool: {tool.websearch}`
 
     it('should extract metadata while using global scope', async () => {
       const globalScope: MdxGlobalScope = {
-        os: { platform: 'darwin', shellKind: ShellKind.Zsh },
+        os: {platform: 'darwin', shellKind: ShellKind.Zsh},
         env: {},
-        profile: { name: 'Test User' },
+        profile: {name: 'Test User'},
         tool: {},
       }
 
@@ -225,7 +225,7 @@ export const description = "A test skill"
 
 This skill runs on {os.platform}.`
 
-      const result = await mdxToMd(content, { globalScope, extractMetadata: true })
+      const result = await mdxToMd(content, {globalScope, extractMetadata: true})
 
       // Content should have expressions evaluated
       expect(result.content).toContain('# Hello Test User')
@@ -243,8 +243,8 @@ This skill runs on {os.platform}.`
 
   describe('multi-plugin scope registration', () => {
     it('should collect scopes from multiple plugins', () => {
-      const plugin1 = new MockScopePlugin('plugin1', 'plugin1', { version: '1.0.0', name: 'Plugin One' })
-      const plugin2 = new MockScopePlugin('plugin2', 'plugin2', { version: '2.0.0', name: 'Plugin Two' })
+      const plugin1 = new MockScopePlugin('plugin1', 'plugin1', {version: '1.0.0', name: 'Plugin One'})
+      const plugin2 = new MockScopePlugin('plugin2', 'plugin2', {version: '2.0.0', name: 'Plugin Two'})
 
       const logger = createLogger('test')
       const ctx: InputPluginContext = {
@@ -274,8 +274,8 @@ This skill runs on {os.platform}.`
     })
 
     it('should merge scopes from multiple plugins into registry', () => {
-      const plugin1 = new MockScopePlugin('plugin1', 'shared', { key1: 'value1', common: 'from-plugin1' })
-      const plugin2 = new MockScopePlugin('plugin2', 'shared', { key2: 'value2', common: 'from-plugin2' })
+      const plugin1 = new MockScopePlugin('plugin1', 'shared', {key1: 'value1', common: 'from-plugin1'})
+      const plugin2 = new MockScopePlugin('plugin2', 'shared', {key2: 'value2', common: 'from-plugin2'})
 
       const logger = createLogger('test')
       const ctx: InputPluginContext = {
@@ -294,13 +294,9 @@ This skill runs on {os.platform}.`
       // Create registry and register scopes
       const registry = new ScopeRegistry()
 
-      for (const { namespace, values } of plugin1.getRegisteredScopes()) {
-        registry.register(namespace, values, ScopePriority.PluginRegistered)
-      }
+      for (const {namespace, values} of plugin1.getRegisteredScopes()) registry.register(namespace, values, ScopePriority.PluginRegistered)
 
-      for (const { namespace, values } of plugin2.getRegisteredScopes()) {
-        registry.register(namespace, values, ScopePriority.PluginRegistered)
-      }
+      for (const {namespace, values} of plugin2.getRegisteredScopes()) registry.register(namespace, values, ScopePriority.PluginRegistered)
 
       const merged = registry.merge()
       const shared = merged['shared'] as Record<string, unknown>
@@ -315,10 +311,10 @@ This skill runs on {os.platform}.`
     it('should integrate plugin scopes with global scope in MDX compilation', async () => {
       // Create global scope
       const globalScope: MdxGlobalScope = {
-        os: { platform: 'linux', shellKind: ShellKind.Bash },
-        env: { NODE_ENV: 'test' },
-        profile: { name: 'Test User' },
-        tool: { websearch: 'search' },
+        os: {platform: 'linux', shellKind: ShellKind.Bash},
+        env: {NODE_ENV: 'test'},
+        profile: {name: 'Test User'},
+        tool: {websearch: 'search'},
       }
 
       // Create registry with global scope
@@ -326,8 +322,8 @@ This skill runs on {os.platform}.`
       registry.setGlobalScope(globalScope)
 
       // Register plugin scopes
-      registry.register('plugin1', { version: '1.0.0' }, ScopePriority.PluginRegistered)
-      registry.register('plugin2', { feature: 'enabled' }, ScopePriority.PluginRegistered)
+      registry.register('plugin1', {version: '1.0.0'}, ScopePriority.PluginRegistered)
+      registry.register('plugin2', {feature: 'enabled'}, ScopePriority.PluginRegistered)
 
       // Merge all scopes
       const mergedScope = registry.merge()
@@ -339,7 +335,7 @@ Platform: {os.platform}
 Plugin1 Version: {plugin1.version}
 Plugin2 Feature: {plugin2.feature}`
 
-      const result = await mdxToMd(content, { scope: mergedScope })
+      const result = await mdxToMd(content, {scope: mergedScope})
 
       expect(result).toContain('# Test User\'s Dashboard')
       expect(result).toContain('Platform: linux')
@@ -360,7 +356,7 @@ Plugin2 Feature: {plugin2.feature}`
       }
 
       // Step 2: Collect global scope
-      const collector = new GlobalScopeCollector({ userConfig })
+      const collector = new GlobalScopeCollector({userConfig})
       const globalScope = collector.collect()
 
       // Step 3: Create registry and set global scope
@@ -370,7 +366,7 @@ Plugin2 Feature: {plugin2.feature}`
       // Step 4: Simulate plugin scope registration
       registry.register('myPlugin', {
         version: '3.0.0',
-        config: { debug: true, timeout: 5000 },
+        config: {debug: true, timeout: 5000},
       }, ScopePriority.PluginRegistered)
 
       // Step 5: Merge all scopes
@@ -423,7 +419,7 @@ Debug mode: {myPlugin.config.debug}`
       const content = `Platform: {os.platform}
 Default search: {tool.websearch}`
 
-      const result = await mdxToMd(content, { scope: mergedScope })
+      const result = await mdxToMd(content, {scope: mergedScope})
 
       // Should use system defaults
       expect(result).toContain('Platform:')
@@ -432,16 +428,16 @@ Default search: {tool.websearch}`
 
     it('should preserve scope isolation between compilations', async () => {
       const globalScope: MdxGlobalScope = {
-        os: { platform: 'linux', shellKind: ShellKind.Bash },
+        os: {platform: 'linux', shellKind: ShellKind.Bash},
         env: {},
-        profile: { name: 'User' },
+        profile: {name: 'User'},
         tool: {},
       }
 
       // First compilation with custom scope
       const result1 = await mdxToMd('Hello {profile.name}', {
         globalScope,
-        scope: { profile: { name: 'Custom User' } },
+        scope: {profile: {name: 'Custom User'}},
       })
 
       // Second compilation without custom scope
@@ -459,7 +455,7 @@ Default search: {tool.websearch}`
   describe('edge cases', () => {
     it('should handle undefined values in scope gracefully', async () => {
       const globalScope: MdxGlobalScope = {
-        os: { platform: 'linux', shellKind: ShellKind.Bash },
+        os: {platform: 'linux', shellKind: ShellKind.Bash},
         env: {},
         profile: {},
         tool: {},
@@ -467,7 +463,7 @@ Default search: {tool.websearch}`
 
       // This should not throw, undefined values are handled
       const content = `Platform: {os.platform}`
-      const result = await mdxToMd(content, { globalScope })
+      const result = await mdxToMd(content, {globalScope})
 
       expect(result).toContain('Platform: linux')
     })
@@ -487,7 +483,7 @@ Default search: {tool.websearch}`
       const content = `Host: {config.database.connection.host}
 Port: {config.database.connection.port}`
 
-      const result = await mdxToMd(content, { scope })
+      const result = await mdxToMd(content, {scope})
 
       expect(result).toContain('Host: localhost')
       expect(result).toContain('Port: 5432')
@@ -503,7 +499,7 @@ Port: {config.database.connection.port}`
 
       // Arrays are converted to string representation
       const content = `Tags: {tags}`
-      const result = await mdxToMd(content, { scope })
+      const result = await mdxToMd(content, {scope})
 
       expect(result).toContain('Tags:')
     })

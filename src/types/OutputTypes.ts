@@ -1,8 +1,8 @@
 // TODO 加入输出源的收集
 // TODO 加入输出 target 的删除
 
-import type { GlobalConfigDirectoryType } from '@/types/Enums'
-import type { AbsolutePath, RelativePath } from '@/types/FileSystemTypes'
+import type {GlobalConfigDirectoryType} from '@/types/Enums'
+import type {AbsolutePath, RelativePath} from '@/types/FileSystemTypes'
 
 /**
  * 基于 user_home 根目录的全局配置

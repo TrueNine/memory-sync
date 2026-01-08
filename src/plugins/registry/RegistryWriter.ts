@@ -7,14 +7,14 @@
  * @see Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 7.1, 7.2
  */
 
-import type { ILogger } from '@/log'
-import type { RegistryData, RegistryOperationResult } from '@/types/RegistryTypes'
+import type {ILogger} from '@/log'
+import type {RegistryData, RegistryOperationResult} from '@/types/RegistryTypes'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 
-import { createLogger } from '@/log'
+import {createLogger} from '@/log'
 
 /**
  * Abstract base class for registry configuration writers.
@@ -75,7 +75,7 @@ export abstract class RegistryWriter<
    */
   protected ensureRegistryDir(): void {
     const dir = this.getRegistryDir()
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive: true})
   }
 
   /**
@@ -87,7 +87,7 @@ export abstract class RegistryWriter<
    */
   read(): TRegistry {
     if (!fs.existsSync(this.registryPath)) {
-      this.log.debug('registry not found', { path: this.registryPath })
+      this.log.debug('registry not found', {path: this.registryPath})
       return this.createInitialRegistry()
     }
 
@@ -96,7 +96,7 @@ export abstract class RegistryWriter<
       return JSON.parse(content) as TRegistry
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error('parse failed', { path: this.registryPath, error: errMsg })
+      this.log.error('parse failed', {path: this.registryPath, error: errMsg})
       return this.createInitialRegistry()
     }
   }
@@ -118,7 +118,7 @@ export abstract class RegistryWriter<
     } as TRegistry
 
     if (dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'registry', path: this.registryPath })
+      this.log.trace({action: 'dryRun', type: 'registry', path: this.registryPath})
       return true
     }
 
@@ -134,11 +134,11 @@ export abstract class RegistryWriter<
       // Atomic rename to replace target
       fs.renameSync(tempPath, this.registryPath)
 
-      this.log.trace({ action: 'write', type: 'registry', path: this.registryPath })
+      this.log.trace({action: 'write', type: 'registry', path: this.registryPath})
       return true
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'registry', path: this.registryPath, error: errMsg })
+      this.log.error({action: 'write', type: 'registry', path: this.registryPath, error: errMsg})
 
       // Cleanup temp file if it exists
       try {
@@ -183,15 +183,15 @@ export abstract class RegistryWriter<
           success: true,
           entryName,
         })
-        if (dryRun === true) this.log.trace({ action: 'dryRun', type: 'registerEntry', entryName })
-        else this.log.trace({ action: 'register', type: 'entry', entryName })
+        if (dryRun === true) this.log.trace({action: 'dryRun', type: 'registerEntry', entryName})
+        else this.log.trace({action: 'register', type: 'entry', entryName})
       } else {
         results.push({
           success: false,
           entryName,
           error: new Error(`Failed to write registry file`),
         })
-        this.log.error('register entry failed', { entryName })
+        this.log.error('register entry failed', {entryName})
       }
     }
 

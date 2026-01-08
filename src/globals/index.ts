@@ -180,15 +180,15 @@ export interface MdxGlobalScope {
 
 declare global {
   /** User profile information */
-  const profile: UserProfile
-  /** Tool name references for AI assistants */
-  const tool: ToolReferences
-  /** Environment variables context */
-  const env: EnvironmentContext
-  /** Operating system information */
-  const os: OsInfo
-  /** Conditional Markdown component with Line sub-component */
-  const Md: MdComponent
+  const profile: UserProfile,
+    /** Tool name references for AI assistants */
+    tool: ToolReferences,
+    /** Environment variables context */
+    env: EnvironmentContext,
+    /** Operating system information */
+    os: OsInfo,
+    /** Conditional Markdown component with Line sub-component */
+    Md: MdComponent
 }
 
 export { }

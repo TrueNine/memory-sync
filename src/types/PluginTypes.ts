@@ -1,9 +1,9 @@
-import type { MdxGlobalScope } from '@/globals'
-import type { ILogger } from '@/log'
-import type { ScopeRegistry } from '@/scope/ScopeRegistry'
-import type { FastCommandSeriesOptions } from '@/types/ConfigTypes'
-import type { PluginKind } from '@/types/Enums'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {MdxGlobalScope} from '@/globals'
+import type {ILogger} from '@/log'
+import type {ScopeRegistry} from '@/scope/ScopeRegistry'
+import type {FastCommandSeriesOptions} from '@/types/ConfigTypes'
+import type {PluginKind} from '@/types/Enums'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import type {
   CollectedInputContext,
   Project,
@@ -305,8 +305,8 @@ export async function checkCanClean(
 
   for (const plugin of plugins) {
     result.set(plugin.name, {
-      project: (await plugin.canCleanProject?.(ctx)) ?? true,
-      global: (await plugin.canCleanGlobal?.(ctx)) ?? true,
+      project: await plugin.canCleanProject?.(ctx) ?? true,
+      global: await plugin.canCleanGlobal?.(ctx) ?? true,
     })
   }
 
@@ -320,9 +320,7 @@ export async function executeOnCleanComplete(
   plugins: readonly OutputPlugin[],
   ctx: OutputCleanContext,
 ): Promise<void> {
-  for (const plugin of plugins) {
-    await plugin.onCleanComplete?.(ctx)
-  }
+  for (const plugin of plugins) await plugin.onCleanComplete?.(ctx)
 }
 
 /**
@@ -344,7 +342,7 @@ export async function checkCanWrite(
   const result = new Map<string, WritePermission>()
 
   for (const plugin of plugins) {
-    const canWrite = (await plugin.canWrite?.(ctx)) ?? true
+    const canWrite = await plugin.canWrite?.(ctx) ?? true
     result.set(plugin.name, {
       project: canWrite,
       global: canWrite,
@@ -365,8 +363,8 @@ export async function executeWriteOutputs(
   const results = new Map<string, WriteResults>()
 
   for (const plugin of plugins) {
-    const projectResults = await plugin.writeProjectOutputs?.(ctx) ?? { files: [], dirs: [] }
-    const globalResults = await plugin.writeGlobalOutputs?.(ctx) ?? { files: [], dirs: [] }
+    const projectResults = await plugin.writeProjectOutputs?.(ctx) ?? {files: [], dirs: []}
+    const globalResults = await plugin.writeGlobalOutputs?.(ctx) ?? {files: [], dirs: []}
 
     const merged: WriteResults = {
       files: [...projectResults.files, ...globalResults.files],

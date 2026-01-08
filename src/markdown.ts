@@ -1,8 +1,8 @@
-import type { Root, RootContent } from 'mdast'
+import type {Root, RootContent} from 'mdast'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkGfm from 'remark-gfm'
 import remarkParse from 'remark-parse'
-import { unified } from 'unified'
+import {unified} from 'unified'
 import * as YAML from 'yaml'
 
 export interface ParsedMarkdown<Y = Record<string, unknown>> {
@@ -154,8 +154,8 @@ export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): 
 
   const ast = processor.parse(rawContent)
 
-  let yamlFrontMatter: Y | undefined
-  let rawFrontMatter: string | undefined
+  let yamlFrontMatter: Y | undefined,
+    rawFrontMatter: string | undefined
   const markdownContents: RootContent[] = []
 
   for (const node of ast.children) {
@@ -180,8 +180,8 @@ export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): 
   }
 
   return {
-    ...(yamlFrontMatter != null && { yamlFrontMatter }),
-    ...(rawFrontMatter != null && { rawFrontMatter }),
+    ...yamlFrontMatter != null && {yamlFrontMatter},
+    ...rawFrontMatter != null && {rawFrontMatter},
     markdownAst: ast,
     markdownContents,
     contentWithoutFrontMatter,

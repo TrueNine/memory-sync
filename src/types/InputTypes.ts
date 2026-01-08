@@ -4,7 +4,7 @@ import type {
   IDEKind,
   PromptKind,
 } from '@/types'
-import type { FileContent, Path, RelativePath } from '@/types/FileSystemTypes'
+import type {FileContent, Path, RelativePath} from '@/types/FileSystemTypes'
 import type {
   FastCommandYAMLFrontMatter,
   ProjectChildrenMemoryPrompt,

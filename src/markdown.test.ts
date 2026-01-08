@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import {describe, expect, it} from 'vitest'
 import {
   buildFrontMatter,
   buildMarkdownWithFrontMatter,
@@ -19,7 +19,7 @@ tags:
 
       const result = parseMarkdown(content)
 
-      expect(result.yamlFrontMatter).toEqual({ title: 'Test', tags: ['a', 'b'] })
+      expect(result.yamlFrontMatter).toEqual({title: 'Test', tags: ['a', 'b']})
       expect(result.rawFrontMatter).toBe('title: Test\ntags:\n  - a\n  - b')
       expect(result.contentWithoutFrontMatter).toBe('# Hello World')
     })
@@ -37,13 +37,13 @@ tags:
 
   describe('buildFrontMatter', () => {
     it('should build front matter with simple values', () => {
-      const result = buildFrontMatter({ name: 'test', description: 'A test' })
+      const result = buildFrontMatter({name: 'test', description: 'A test'})
 
       expect(result).toBe('---\nname: test\ndescription: A test\n---')
     })
 
     it('should build front matter with array values', () => {
-      const result = buildFrontMatter({ keywords: ['a', 'b', 'c'] })
+      const result = buildFrontMatter({keywords: ['a', 'b', 'c']})
 
       expect(result).toContain('keywords:')
       expect(result).toContain('- a')
@@ -71,7 +71,7 @@ tags:
 
     it('should handle nested objects', () => {
       const result = buildFrontMatter({
-        metadata: { version: '1.0', author: 'Test' },
+        metadata: {version: '1.0', author: 'Test'},
       })
 
       expect(result).toContain('metadata:')
@@ -83,7 +83,7 @@ tags:
   describe('buildMarkdownWithFrontMatter', () => {
     it('should combine front matter with content', () => {
       const result = buildMarkdownWithFrontMatter(
-        { title: 'Test' },
+        {title: 'Test'},
         '# Hello World',
       )
 
@@ -112,7 +112,7 @@ tags:
 
   describe('buildRawFrontMatter', () => {
     it('should build raw YAML without delimiters', () => {
-      const result = buildRawFrontMatter({ name: 'test', value: 42 })
+      const result = buildRawFrontMatter({name: 'test', value: 42})
 
       expect(result).toBe('name: test\nvalue: 42')
       expect(result).not.toContain('---')
@@ -136,7 +136,7 @@ tags:
 
   describe('roundtrip', () => {
     it('should parse what was built', () => {
-      const original = { title: 'Test', tags: ['a', 'b'] }
+      const original = {title: 'Test', tags: ['a', 'b']}
       const markdown = buildMarkdownWithFrontMatter(original, '# Content')
       const parsed = parseMarkdown(markdown)
 

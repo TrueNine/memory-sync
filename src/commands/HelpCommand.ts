@@ -1,5 +1,5 @@
-import type { Command, CommandContext, CommandResult } from './Command'
-import { getCliVersion } from './VersionCommand'
+import type {Command, CommandContext, CommandResult} from './Command'
+import {getCliVersion} from './VersionCommand'
 
 const CLI_NAME = 'tnmsc'
 

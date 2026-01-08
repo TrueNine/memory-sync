@@ -4,12 +4,12 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import fs from 'node:fs'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FilePathKind } from '@/types'
-import { AIAgentIgnoreConfigFileOutputPlugin } from './AIAgentIgnoreConfigFileOutputPlugin'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {FilePathKind} from '@/types'
+import {AIAgentIgnoreConfigFileOutputPlugin} from './AIAgentIgnoreConfigFileOutputPlugin'
 
 vi.mock('node:fs')
 
@@ -41,9 +41,9 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
   function createMockIgnoreFiles(): AIAgentIgnoreConfigFile[] {
     return [
-      { fileName: '.qoderignore', content: 'qoder patterns' },
-      { fileName: '.cursorignore', content: 'cursor patterns' },
-      { fileName: '.warpindexignore', content: 'warp patterns' },
+      {fileName: '.qoderignore', content: 'qoder patterns'},
+      {fileName: '.cursorignore', content: 'cursor patterns'},
+      {fileName: '.warpindexignore', content: 'warp patterns'},
     ]
   }
 
@@ -278,7 +278,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       const ctx = createMockOutputWriteContext(ignoreFiles)
 
       vi.mocked(fs.writeFileSync).mockImplementation((filePath: string) => {
-        if ((filePath).includes('.cursorignore')) throw new Error('Permission denied')
+        if (filePath.includes('.cursorignore')) throw new Error('Permission denied')
       })
 
       const results = await plugin.writeProjectOutputs(ctx)

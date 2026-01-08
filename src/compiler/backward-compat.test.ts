@@ -9,13 +9,13 @@
  * @see Requirements 10.1, 10.2, 10.3
  */
 
-import type { MdxjsEsm } from './types'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { registerBuiltInComponents } from '../components'
-import { clearComponents } from './component-registry'
-import { parseExports } from './export-parser'
-import { mdxToMd } from './mdx-to-md'
-import { parseMdx } from './parser'
+import type {MdxjsEsm} from './types'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {registerBuiltInComponents} from '../components'
+import {clearComponents} from './component-registry'
+import {parseExports} from './export-parser'
+import {mdxToMd} from './mdx-to-md'
+import {parseMdx} from './parser'
 
 describe('backward compatibility', () => {
   beforeEach(() => {
@@ -40,7 +40,7 @@ keywords:
 
 This is a test skill content.`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.content).toContain('# Test Skill')
       expect(result.content).toContain('This is a test skill content.')
@@ -70,7 +70,7 @@ tags:
 
 # Complex Skill Content`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.content).toContain('# Complex Skill Content')
       expect(result.metadata.source).toBe('yaml')
@@ -79,7 +79,7 @@ tags:
         description: 'A complex skill',
         enabled: true,
         priority: 10,
-        config: { debug: true, timeout: 5000 },
+        config: {debug: true, timeout: 5000},
         tags: ['typescript', 'testing'],
       })
     })
@@ -90,7 +90,7 @@ name: empty-content
 description: Skill with empty content
 ---`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       // YAML frontmatter is extracted
       expect(result.metadata.source).toBe('yaml')
@@ -111,7 +111,7 @@ export const keywords = ["test", "example"]
 
 This is a test skill content.`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.content).toContain('# Test Skill')
       expect(result.content).toContain('This is a test skill content.')
@@ -133,7 +133,7 @@ This is a test skill content.`
 
 # Metadata Skill Content`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.content).toContain('# Metadata Skill Content')
       expect(result.metadata.source).toBe('export')
@@ -156,7 +156,7 @@ export const config = { key: "value", nested: { deep: true } }
 
 # Type Test Content`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.metadata.source).toBe('export')
       expect(result.metadata.fields).toEqual({
@@ -166,7 +166,7 @@ export const config = { key: "value", nested: { deep: true } }
         disabled: false,
         nothing: null,
         tags: ['a', 'b', 'c'],
-        config: { key: 'value', nested: { deep: true } },
+        config: {key: 'value', nested: {deep: true}},
       })
     })
 
@@ -178,7 +178,7 @@ export const description = "desc"
 
 Some text here.`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       // Export statements should not appear in output
       expect(result.content).not.toContain('export const')
@@ -201,7 +201,7 @@ export const exportOnly = true
 
 # Mixed Content`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.content).toContain('# Mixed Content')
       // mdxToMd now merges YAML and export, so source is 'mixed'
@@ -294,7 +294,7 @@ export const exportField = "export-value"`
 
       const result = parseExports(esmNodes)
 
-      expect(result.fields).toEqual({ name: 'export-name' })
+      expect(result.fields).toEqual({name: 'export-name'})
       expect(result.source).toBe('export')
     })
 
@@ -318,7 +318,7 @@ export const exportField = "export-value"`
 
 This is content.`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.content).toContain('# Default Export Skill')
       expect(result.metadata.source).toBe('export')
@@ -342,7 +342,7 @@ This is content.`
 
 # Content`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.metadata.fields).toEqual({
         name: 'nested-skill',
@@ -382,7 +382,7 @@ This is content.`
 
 # Content`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.metadata.fields).toEqual({
         name: 'inline',
@@ -399,7 +399,7 @@ This is content.`
 
 `
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.metadata.source).toBe('export')
       expect(result.metadata.fields['name']).toBe('whitespace-test')
@@ -410,7 +410,7 @@ This is content.`
 
 # Content`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.metadata.fields['name']).toBe('single-quoted')
     })
@@ -420,7 +420,7 @@ This is content.`
 
 # Content`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.metadata.fields['name']).toBe('template-literal')
     })
@@ -436,7 +436,7 @@ This is content.`
 
 # Content`
 
-      const result = await mdxToMd(content, { extractMetadata: true })
+      const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.metadata.fields['config']).toEqual({
         name: 'multiline',

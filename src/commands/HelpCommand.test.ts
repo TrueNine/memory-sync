@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
-import { createLogger } from '@/log'
-import { HelpCommand } from './HelpCommand'
+import {describe, expect, it, vi} from 'vitest'
+import {createLogger} from '@/log'
+import {HelpCommand} from './HelpCommand'
 
 const mockLogger = createLogger('test', 'error')
 
@@ -14,7 +14,7 @@ describe('helpCommand', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => { })
 
       const command = new HelpCommand()
-      await command.execute({ logger: mockLogger } as any)
+      await command.execute({logger: mockLogger} as any)
 
       const helpText = consoleSpy.mock.calls[0][0] as string
 
@@ -31,7 +31,7 @@ describe('helpCommand', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => { })
 
       const command = new HelpCommand()
-      await command.execute({ logger: mockLogger } as any)
+      await command.execute({logger: mockLogger} as any)
 
       const helpText = consoleSpy.mock.calls[0][0] as string
 
@@ -49,7 +49,7 @@ describe('helpCommand', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => { })
 
       const command = new HelpCommand()
-      await command.execute({ logger: mockLogger } as any)
+      await command.execute({logger: mockLogger} as any)
 
       const helpText = consoleSpy.mock.calls[0][0] as string
 
@@ -65,7 +65,7 @@ describe('helpCommand', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => { })
 
       const command = new HelpCommand()
-      await command.execute({ logger: mockLogger } as any)
+      await command.execute({logger: mockLogger} as any)
 
       const helpText = consoleSpy.mock.calls[0][0] as string
 
@@ -83,7 +83,7 @@ describe('helpCommand', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => { })
 
       const command = new HelpCommand()
-      const result = await command.execute({ logger: mockLogger } as any)
+      const result = await command.execute({logger: mockLogger} as any)
 
       expect(result.success).toBe(true)
       expect(result.filesAffected).toBe(0)

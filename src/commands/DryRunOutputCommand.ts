@@ -1,5 +1,5 @@
-import type { Command, CommandContext, CommandResult } from './Command'
-import { checkCanWrite, executeWriteOutputs } from '@/types'
+import type {Command, CommandContext, CommandResult} from './Command'
+import {checkCanWrite, executeWriteOutputs} from '@/types'
 
 /**
  * Dry-run output command - simulates write operations without actual I/O
@@ -8,8 +8,8 @@ export class DryRunOutputCommand implements Command {
   readonly name = 'dry-run-output'
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
-    const { logger, outputPlugins, createWriteContext } = ctx
-    logger.info('started', { command: 'dry-run-output', dryRun: true })
+    const {logger, outputPlugins, createWriteContext} = ctx
+    logger.info('started', {command: 'dry-run-output', dryRun: true})
 
     const writeCtx = createWriteContext(true)
     const permissions = await checkCanWrite(outputPlugins, writeCtx)

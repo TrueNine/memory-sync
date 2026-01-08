@@ -1,7 +1,7 @@
 // export-parser.ts
 // Extracts metadata from MDX export statements
 
-import type { EvaluationScope, MdxjsEsm } from './types'
+import type {EvaluationScope, MdxjsEsm} from './types'
 
 /**
  * Metadata source type
@@ -39,7 +39,7 @@ type SupportedLiteral
     | boolean
     | null
     | SupportedLiteral[]
-    | { [key: string]: SupportedLiteral }
+    | {[key: string]: SupportedLiteral}
 
 /**
  * Parses export statements from ESM nodes and extracts metadata.
@@ -63,7 +63,7 @@ export function parseExports(
   options: ParseExportOptions = {},
 ): ExportMetadata {
   const exportFields: Record<string, unknown> = {}
-  const { yamlFrontMatter, scope, filePath } = options
+  const {yamlFrontMatter, scope, filePath} = options
 
   for (const node of esmNodes) {
     const extracted = extractExportFromNode(node, scope, filePath)
@@ -80,9 +80,9 @@ export function parseExports(
   else source = 'yaml'
 
   // Merge: export takes priority over YAML
-  const fields = { ...yamlFrontMatter, ...exportFields }
+  const fields = {...yamlFrontMatter, ...exportFields}
 
-  return { fields, source }
+  return {fields, source}
 }
 
 /**
@@ -439,7 +439,7 @@ function parseObjectLiteral(
   valueStr: string,
   scope?: EvaluationScope,
   filePath?: string,
-): { [key: string]: SupportedLiteral } {
+): {[key: string]: SupportedLiteral} {
   const inner = valueStr.slice(1, -1).trim()
 
   // Empty object
@@ -450,14 +450,14 @@ function parseObjectLiteral(
     try {
       const jsonStr = convertToJson(valueStr)
       const parsed: unknown = JSON.parse(jsonStr)
-      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) return parsed as { [key: string]: SupportedLiteral }
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) return parsed as {[key: string]: SupportedLiteral}
     } catch {
       // Fall through to manual parsing
     }
   }
 
   // Manual parsing for objects with variable references
-  const result: { [key: string]: SupportedLiteral } = {}
+  const result: {[key: string]: SupportedLiteral} = {}
   const pairs = splitObjectPairs(inner)
 
   for (const pair of pairs) {
@@ -526,15 +526,11 @@ function convertToJson(jsLiteral: string): string {
       let keyStart = keyEnd - 1
 
       // Skip whitespace
-      while (keyStart >= 0 && /\s/.test(result.charAt(keyStart))) {
-        keyStart--
-      }
+      while (keyStart >= 0 && /\s/.test(result.charAt(keyStart))) keyStart--
 
       // Find key start (word characters)
       const keyEndPos = keyStart + 1
-      while (keyStart >= 0 && /[\w$]/.test(result.charAt(keyStart))) {
-        keyStart--
-      }
+      while (keyStart >= 0 && /[\w$]/.test(result.charAt(keyStart))) keyStart--
       keyStart++
 
       // Check if key is already quoted

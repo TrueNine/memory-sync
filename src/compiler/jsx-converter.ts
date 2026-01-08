@@ -16,8 +16,8 @@ import type {
   MdxJsxFlowElement,
   MdxJsxTextElement,
 } from 'mdast-util-mdx'
-import type { ProcessingContext } from './types'
-import { evaluateExpression } from './expression-eval'
+import type {ProcessingContext} from './types'
+import {evaluateExpression} from './expression-eval'
 
 /**
  * Converts a JSX element to equivalent Markdown AST nodes.
@@ -31,22 +31,15 @@ export function convertJsxToMarkdown(
   if (name == null) return null
 
   switch (name) {
-    case 'pre':
-      return convertPreElement(element, ctx)
-    case 'a':
-      return convertLinkElement(element, ctx)
+    case 'pre': return convertPreElement(element, ctx)
+    case 'a': return convertLinkElement(element, ctx)
     case 'strong':
-    case 'b':
-      return convertStrongElement(element, ctx)
+    case 'b': return convertStrongElement(element, ctx)
     case 'em':
-    case 'i':
-      return convertEmphasisElement(element, ctx)
-    case 'img':
-      return convertImageElement(element, ctx)
-    case 'blockquote':
-      return convertBlockquoteElement(element, ctx)
-    default:
-      return null
+    case 'i': return convertEmphasisElement(element, ctx)
+    case 'img': return convertImageElement(element, ctx)
+    case 'blockquote': return convertBlockquoteElement(element, ctx)
+    default: return null
   }
 }
 
@@ -92,10 +85,7 @@ function extractTextContent(
   for (const child of element.children) {
     if (child.type === 'text') text += child.value
     else if (child.type === 'mdxTextExpression') text += evaluateExpression(child.value, ctx.scope)
-    else if (child.type === 'mdxJsxFlowElement'
-      || child.type === 'mdxJsxTextElement') {
-      text += extractTextContent(child, ctx)
-    }
+    else if (child.type === 'mdxJsxFlowElement' || child.type === 'mdxJsxTextElement') text += extractTextContent(child, ctx)
   }
 
   return text
@@ -118,10 +108,10 @@ function convertPreElement(
     }
 
     if (child.type === 'paragraph' && 'children' in child) {
-      const paraChildren = child.children as Array<{
+      const paraChildren = child.children as {
         type: string
         name?: string | null
-      }>
+      }[]
       for (const paraChild of paraChildren) {
         if (
           (paraChild.type === 'mdxJsxFlowElement'
@@ -167,7 +157,7 @@ function convertLinkElement(
     type: 'link',
     url: href,
     title: title ?? null,
-    children: [{ type: 'text', value: text }],
+    children: [{type: 'text', value: text}],
   }
 
   const paragraph: Paragraph = {
@@ -185,10 +175,10 @@ function convertStrongElement(
 
   const strong: Strong = {
     type: 'strong',
-    children: [{ type: 'text', value: text }],
+    children: [{type: 'text', value: text}],
   }
 
-  if (element.type !== 'mdxJsxFlowElement') return [{ type: 'paragraph', children: [strong] }]
+  if (element.type !== 'mdxJsxFlowElement') return [{type: 'paragraph', children: [strong]}]
 
   const paragraph: Paragraph = {
     type: 'paragraph',
@@ -205,10 +195,10 @@ function convertEmphasisElement(
 
   const emphasis: Emphasis = {
     type: 'emphasis',
-    children: [{ type: 'text', value: text }],
+    children: [{type: 'text', value: text}],
   }
 
-  if (element.type !== 'mdxJsxFlowElement') return [{ type: 'paragraph', children: [emphasis] }]
+  if (element.type !== 'mdxJsxFlowElement') return [{type: 'paragraph', children: [emphasis]}]
 
   const paragraph: Paragraph = {
     type: 'paragraph',
@@ -234,7 +224,7 @@ function convertImageElement(
     title: title ?? null,
   }
 
-  if (element.type !== 'mdxJsxFlowElement') return [{ type: 'paragraph', children: [image] }]
+  if (element.type !== 'mdxJsxFlowElement') return [{type: 'paragraph', children: [image]}]
 
   const paragraph: Paragraph = {
     type: 'paragraph',
@@ -254,7 +244,7 @@ function convertBlockquoteElement(
     children: [
       {
         type: 'paragraph',
-        children: [{ type: 'text', value: text }],
+        children: [{type: 'text', value: text}],
       },
     ],
   }

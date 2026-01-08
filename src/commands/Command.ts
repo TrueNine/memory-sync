@@ -1,5 +1,5 @@
-import type { ILogger } from '@/log'
-import type { CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions } from '@/types'
+import type {ILogger} from '@/log'
+import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions} from '@/types'
 
 /**
  * Command execution context

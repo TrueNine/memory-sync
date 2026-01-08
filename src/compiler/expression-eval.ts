@@ -1,8 +1,8 @@
 // expression-eval.ts
 // JavaScript expression evaluation module for MDX
 
-import type { EvaluationScope } from './types.js'
-import { UndefinedNamespaceError, UndefinedVariableError } from '@/types/Errors'
+import type {EvaluationScope} from './types.js'
+import {UndefinedNamespaceError, UndefinedVariableError} from '@/types/Errors'
 
 /**
  * Options for expression evaluation

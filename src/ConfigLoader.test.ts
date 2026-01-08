@@ -1,8 +1,8 @@
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ConfigLoader, DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR, loadUserConfig } from './ConfigLoader'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {ConfigLoader, DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR, loadUserConfig} from './ConfigLoader'
 
 // Mock fs module
 vi.mock('node:fs')
@@ -32,14 +32,14 @@ describe('configLoader', () => {
     })
 
     it('should respect searchCwd option', () => {
-      const loader = new ConfigLoader({ searchCwd: false })
+      const loader = new ConfigLoader({searchCwd: false})
       const paths = loader.getSearchPaths(mockCwd)
 
       expect(paths).not.toContain(path.join(mockCwd, DEFAULT_CONFIG_FILE_NAME))
     })
 
     it('should respect searchGlobal option', () => {
-      const loader = new ConfigLoader({ searchGlobal: false })
+      const loader = new ConfigLoader({searchGlobal: false})
       const paths = loader.getSearchPaths(mockCwd)
 
       expect(paths).not.toContain(path.join(mockHomedir, DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME))
@@ -47,14 +47,14 @@ describe('configLoader', () => {
 
     it('should include custom search paths', () => {
       const customPath = '/custom/config/path'
-      const loader = new ConfigLoader({ searchPaths: [customPath] })
+      const loader = new ConfigLoader({searchPaths: [customPath]})
       const paths = loader.getSearchPaths(mockCwd)
 
       expect(paths[0]).toBe(customPath)
     })
 
     it('should resolve tilde in custom paths', () => {
-      const loader = new ConfigLoader({ searchPaths: ['~/custom/.tnmsc.json'] })
+      const loader = new ConfigLoader({searchPaths: ['~/custom/.tnmsc.json']})
       const paths = loader.getSearchPaths(mockCwd)
 
       expect(paths[0]).toBe(path.join(mockHomedir, 'custom/.tnmsc.json'))

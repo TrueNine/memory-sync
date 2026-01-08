@@ -8,13 +8,13 @@
  * Validates: Requirements 5.4
  */
 
-import type { Root, RootContent } from 'mdast'
-import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
-import type { ComponentHandler, ProcessingContext } from './types'
+import type {Root, RootContent} from 'mdast'
+import type {MdxJsxFlowElement, MdxJsxTextElement} from 'mdast-util-mdx'
+import type {ComponentHandler, ProcessingContext} from './types'
 import * as fc from 'fast-check'
-import { afterEach, describe, expect, it } from 'vitest'
-import { processComponent } from './component-processor'
-import { clearComponents, getComponents, registerComponent } from './component-registry'
+import {afterEach, describe, expect, it} from 'vitest'
+import {processComponent} from './component-processor'
+import {clearComponents, getComponents, registerComponent} from './component-registry'
 
 describe('component-processor property tests', () => {
   // Clean up after each test
@@ -32,7 +32,7 @@ describe('component-processor property tests', () => {
    */
   describe('property 7: Circular Dependency Detection', () => {
     // Generate valid component names (PascalCase)
-    const componentNameArb = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
+    const componentNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[A-Z][a-zA-Z0-9]*$/.test(s))
 
     /**
@@ -80,7 +80,7 @@ describe('component-processor property tests', () => {
         else newChildren.push(child)
       }
 
-      return { type: 'root', children: newChildren }
+      return {type: 'root', children: newChildren}
     }
 
     /**
@@ -133,7 +133,7 @@ describe('component-processor property tests', () => {
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -161,7 +161,7 @@ describe('component-processor property tests', () => {
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -192,7 +192,7 @@ describe('component-processor property tests', () => {
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -220,7 +220,7 @@ describe('component-processor property tests', () => {
             }
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -247,7 +247,7 @@ describe('component-processor property tests', () => {
             expect(result).toEqual([])
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -255,12 +255,12 @@ describe('component-processor property tests', () => {
       await fc.assert(
         fc.asyncProperty(
           // Generate chain length (1-5 components before the cycle)
-          fc.integer({ min: 1, max: 5 }),
+          fc.integer({min: 1, max: 5}),
           componentNameArb,
           async (chainLength, baseName) => {
             // Create a chain: A0 -> A1 -> ... -> An-1 -> A0 (cycle back to start)
             const componentNames = Array.from(
-              { length: chainLength },
+              {length: chainLength},
               (_, i) => `${baseName}${i}`,
             )
 
@@ -283,7 +283,7 @@ describe('component-processor property tests', () => {
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })

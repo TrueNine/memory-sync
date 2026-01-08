@@ -1,15 +1,15 @@
-import type { CollectedInputContext, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions } from '@/types'
-import type { ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, UserConfigFile } from '@/types/ConfigTypes'
+import type {CollectedInputContext, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions} from '@/types'
+import type {ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, UserConfigFile} from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
-import { loadUserConfig, validateAndEnsureGlobalConfig } from '@/ConfigLoader'
-import { DEFAULT_USER_CONFIG } from '@/constants'
-import { createLogger } from '@/log'
-import { PluginPipeline } from '@/PluginPipeline'
-import { checkVersionControl } from '@/ShadowSourceProject'
-import { PluginKind } from '@/types'
+import {loadUserConfig, validateAndEnsureGlobalConfig} from '@/ConfigLoader'
+import {DEFAULT_USER_CONFIG} from '@/constants'
+import {createLogger} from '@/log'
+import {PluginPipeline} from '@/PluginPipeline'
+import {checkVersionControl} from '@/ShadowSourceProject'
+import {PluginKind} from '@/types'
 
 /**
  * Pipeline configuration containing collected context and output plugins
@@ -34,17 +34,17 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
  */
 function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOptions> {
   return {
-    ...(userConfig.workspaceDir != null ? { workspaceDir: userConfig.workspaceDir } : {}),
-    ...(userConfig.shadowSourceProjectDir != null ? { shadowSourceProjectDir: userConfig.shadowSourceProjectDir } : {}),
-    ...(userConfig.shadowSkillSourceDir != null ? { shadowSkillSourceDir: userConfig.shadowSkillSourceDir } : {}),
-    ...(userConfig.shadowFastCommandDir != null ? { shadowFastCommandDir: userConfig.shadowFastCommandDir } : {}),
-    ...(userConfig.shadowSubAgentDir != null ? { shadowSubAgentDir: userConfig.shadowSubAgentDir } : {}),
-    ...(userConfig.globalMemoryFile != null ? { globalMemoryFile: userConfig.globalMemoryFile } : {}),
-    ...(userConfig.shadowProjectsDir != null ? { shadowProjectsDir: userConfig.shadowProjectsDir } : {}),
-    ...(userConfig.externalProjects != null ? { externalProjects: userConfig.externalProjects } : {}),
-    ...(userConfig.excludePatterns != null ? { excludePatterns: userConfig.excludePatterns } : {}),
-    ...(userConfig.fastCommandSeriesOptions != null ? { fastCommandSeriesOptions: userConfig.fastCommandSeriesOptions } : {}),
-    ...(userConfig.logLevel != null ? { logLevel: userConfig.logLevel } : {}),
+    ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},
+    ...userConfig.shadowSourceProjectDir != null ? {shadowSourceProjectDir: userConfig.shadowSourceProjectDir} : {},
+    ...userConfig.shadowSkillSourceDir != null ? {shadowSkillSourceDir: userConfig.shadowSkillSourceDir} : {},
+    ...userConfig.shadowFastCommandDir != null ? {shadowFastCommandDir: userConfig.shadowFastCommandDir} : {},
+    ...userConfig.shadowSubAgentDir != null ? {shadowSubAgentDir: userConfig.shadowSubAgentDir} : {},
+    ...userConfig.globalMemoryFile != null ? {globalMemoryFile: userConfig.globalMemoryFile} : {},
+    ...userConfig.shadowProjectsDir != null ? {shadowProjectsDir: userConfig.shadowProjectsDir} : {},
+    ...userConfig.externalProjects != null ? {externalProjects: userConfig.externalProjects} : {},
+    ...userConfig.excludePatterns != null ? {excludePatterns: userConfig.excludePatterns} : {},
+    ...userConfig.fastCommandSeriesOptions != null ? {fastCommandSeriesOptions: userConfig.fastCommandSeriesOptions} : {},
+    ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {},
   }
 }
 
@@ -85,7 +85,7 @@ export function mergeConfig(
 ): Required<PluginOptions> {
   return configs.reduce<Required<PluginOptions>>(
     (acc, config) => mergeTwoConfigs(acc, config),
-    { ...DEFAULT_OPTIONS },
+    {...DEFAULT_OPTIONS},
   )
 }
 
@@ -104,12 +104,12 @@ function mergeTwoConfigs(
     // Array concatenation for externalProjects
     externalProjects: [
       ...base.externalProjects,
-      ...(overrideExternal ?? []),
+      ...overrideExternal ?? [],
     ],
     // Array concatenation for plugins
     plugins: [
       ...base.plugins,
-      ...(overridePlugins ?? []),
+      ...overridePlugins ?? [],
     ],
     // Deep merge for excludePatterns
     excludePatterns: mergeExcludePatterns(base.excludePatterns, overrideExclude),
@@ -122,11 +122,9 @@ function mergeExcludePatterns(
   a?: Record<string, string[]>,
   b?: Record<string, string[]>,
 ): Record<string, string[]> {
-  const result: Record<string, string[]> = { ...a }
+  const result: Record<string, string[]> = {...a}
   if (b) {
-    for (const [key, patterns] of Object.entries(b)) {
-      result[key] = [...(result[key] ?? []), ...patterns]
-    }
+    for (const [key, patterns] of Object.entries(b)) result[key] = [...result[key] ?? [], ...patterns]
   }
   return result
 }
@@ -143,9 +141,7 @@ function mergeFastCommandSeriesOptions(
 
   // Copy base plugin overrides
   if (base.pluginOverrides != null) {
-    for (const [key, value] of Object.entries(base.pluginOverrides)) {
-      mergedPluginOverrides[key] = { ...value }
-    }
+    for (const [key, value] of Object.entries(base.pluginOverrides)) mergedPluginOverrides[key] = {...value}
   }
 
   // Merge override plugin overrides
@@ -162,9 +158,9 @@ function mergeFastCommandSeriesOptions(
   const includeSeriesPrefix = override.includeSeriesPrefix ?? base.includeSeriesPrefix
   const hasPluginOverrides = Object.keys(mergedPluginOverrides).length > 0
 
-  if (includeSeriesPrefix != null && hasPluginOverrides) return { includeSeriesPrefix, pluginOverrides: mergedPluginOverrides }
-  if (includeSeriesPrefix != null) return { includeSeriesPrefix }
-  if (hasPluginOverrides) return { pluginOverrides: mergedPluginOverrides }
+  if (includeSeriesPrefix != null && hasPluginOverrides) return {includeSeriesPrefix, pluginOverrides: mergedPluginOverrides}
+  if (includeSeriesPrefix != null) return {includeSeriesPrefix}
+  if (hasPluginOverrides) return {pluginOverrides: mergedPluginOverrides}
   return {}
 }
 
@@ -192,12 +188,12 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   if (validationResult.shouldExit) process.exit(1)
 
   // Normalize options
-  let shouldLoadUserConfig: boolean
-  let cwd: string | undefined
-  let pluginOptions: PluginOptions
+  let shouldLoadUserConfig: boolean,
+    cwd: string | undefined,
+    pluginOptions: PluginOptions
 
   if (isDefineConfigOptions(options)) {
-    ({ pluginOptions = {}, cwd } = { pluginOptions: options.pluginOptions, cwd: options.cwd })
+    ({pluginOptions = {}, cwd} = {pluginOptions: options.pluginOptions, cwd: options.cwd})
     shouldLoadUserConfig = options.loadUserConfig ?? true
   } else {
     pluginOptions = options
@@ -222,11 +218,11 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
 
   // Merge: defaults <- user config <- programmatic options
   const mergedOptions = mergeConfig(userConfigOptions, pluginOptions)
-  const { plugins = [], logLevel } = mergedOptions
+  const {plugins = [], logLevel} = mergedOptions
   const logger = createLogger('defineConfig', logLevel)
 
   // Log configuration loading info
-  if (userConfigFound) logger.info('user config loaded', { sources: userConfigSources })
+  if (userConfigFound) logger.info('user config loaded', {sources: userConfigSources})
   else {
     logger.info('no user config found, using defaults', {
       workspaceDir: DEFAULT_OPTIONS.workspaceDir,
@@ -264,18 +260,18 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   const context: CollectedInputContext = {
     workspace: merged.workspace,
     ideConfigFiles: merged.ideConfigFiles ?? [],
-    ...(merged.externalProjects != null && { externalProjects: merged.externalProjects }),
-    ...(merged.fastCommands != null && { fastCommands: merged.fastCommands }),
-    ...(merged.subAgents != null && { subAgents: merged.subAgents }),
-    ...(merged.skills != null && { skills: merged.skills }),
-    ...(merged.globalMemory != null && { globalMemory: merged.globalMemory }),
-    ...(merged.aiAgentIgnoreConfigFiles != null && { aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles }),
-    ...(merged.shadowSourceProjectDir != null && { shadowSourceProjectDir: merged.shadowSourceProjectDir }),
-    ...(merged.readmePrompts != null && { readmePrompts: merged.readmePrompts }),
+    ...merged.externalProjects != null && {externalProjects: merged.externalProjects},
+    ...merged.fastCommands != null && {fastCommands: merged.fastCommands},
+    ...merged.subAgents != null && {subAgents: merged.subAgents},
+    ...merged.skills != null && {skills: merged.skills},
+    ...merged.globalMemory != null && {globalMemory: merged.globalMemory},
+    ...merged.aiAgentIgnoreConfigFiles != null && {aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles},
+    ...merged.shadowSourceProjectDir != null && {shadowSourceProjectDir: merged.shadowSourceProjectDir},
+    ...merged.readmePrompts != null && {readmePrompts: merged.readmePrompts},
   }
 
   // Check version control status for shadow source project
   if (merged.shadowSourceProjectDir != null) checkVersionControl(merged.shadowSourceProjectDir, logger)
 
-  return { context, outputPlugins, userConfigOptions: mergedOptions }
+  return {context, outputPlugins, userConfigOptions: mergedOptions}
 }

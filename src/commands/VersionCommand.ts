@@ -1,4 +1,4 @@
-import type { Command, CommandContext, CommandResult } from './Command'
+import type {Command, CommandContext, CommandResult} from './Command'
 
 const CLI_NAME = 'tnmsc'
 

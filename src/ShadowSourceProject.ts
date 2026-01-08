@@ -1,7 +1,7 @@
 /**
  * Shadow Source Project validation and generation utilities
  */
-import type { ILogger } from '@/log'
+import type {ILogger} from '@/log'
 import type {
   ShadowSourceDirectoryEntry,
   ShadowSourceFileEntry,
@@ -39,10 +39,10 @@ export function checkVersionControl(
   const gitPath = path.join(rootPath, '.git')
   const hasGit = fs.existsSync(gitPath)
 
-  if (hasGit) logger?.info('version control detected', { path: gitPath })
-  else logger?.warn('no version control detected, please use git to manage your shadow source project', { path: rootPath })
+  if (hasGit) logger?.info('version control detected', {path: gitPath})
+  else logger?.warn('no version control detected, please use git to manage your shadow source project', {path: rootPath})
 
-  return { hasGit, gitPath }
+  return {hasGit, gitPath}
 }
 
 /**
@@ -109,14 +109,10 @@ export function validateShadowSourceProject(
   validateDirectoryEntry(rootPath, structure.ide.vscode, items)
 
   // Validate IDE files
-  for (const file of structure.ideFiles) {
-    validateFileEntry(rootPath, file, items)
-  }
+  for (const file of structure.ideFiles) validateFileEntry(rootPath, file, items)
 
   // Validate ignore files
-  for (const file of structure.ignoreFiles) {
-    validateFileEntry(rootPath, file, items)
-  }
+  for (const file of structure.ignoreFiles) validateFileEntry(rootPath, file, items)
 
   const missingRequired = items.filter(i => !i.exists && i.required)
   const missingOptional = items.filter(i => !i.exists && !i.required)
@@ -218,7 +214,7 @@ export function generateShadowSourceProject(
   rootPath: string,
   options: GenerationOptions = {},
 ): GenerationResult {
-  const { sourceDir, logger } = options
+  const {sourceDir, logger} = options
   const createdDirs: string[] = []
   const createdFiles: string[] = []
   const existedDirs: string[] = []
@@ -231,7 +227,7 @@ export function generateShadowSourceProject(
     const sourcePath = path.join(sourceDir, relativePath)
     if (!(fs.existsSync(sourcePath) && fs.statSync(sourcePath).isFile())) return defaultContent
 
-    logger?.debug('copying from source', { path: sourcePath })
+    logger?.debug('copying from source', {path: sourcePath})
     return fs.readFileSync(sourcePath, 'utf8')
   }
 
@@ -239,11 +235,11 @@ export function generateShadowSourceProject(
   const ensureDir = (dirPath: string): void => {
     if (fs.existsSync(dirPath)) {
       existedDirs.push(dirPath)
-      logger?.debug('directory exists', { path: dirPath })
+      logger?.debug('directory exists', {path: dirPath})
     } else {
-      fs.mkdirSync(dirPath, { recursive: true })
+      fs.mkdirSync(dirPath, {recursive: true})
       createdDirs.push(dirPath)
-      logger?.info('created directory', { path: dirPath })
+      logger?.info('created directory', {path: dirPath})
     }
   }
 
@@ -251,19 +247,19 @@ export function generateShadowSourceProject(
   const ensureFile = (filePath: string, relativePath: string, defaultContent: string): void => {
     const dir = path.dirname(filePath)
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
+      fs.mkdirSync(dir, {recursive: true})
       createdDirs.push(dir)
-      logger?.info('created directory', { path: dir })
+      logger?.info('created directory', {path: dir})
     }
 
     if (fs.existsSync(filePath)) {
       existedFiles.push(filePath)
-      logger?.debug('file exists', { path: filePath })
+      logger?.debug('file exists', {path: filePath})
     } else {
       const content = getFileContent(relativePath, defaultContent)
       fs.writeFileSync(filePath, content, 'utf8')
       createdFiles.push(filePath)
-      logger?.info('created file', { path: filePath })
+      logger?.info('created file', {path: filePath})
     }
   }
 

@@ -1,4 +1,4 @@
-import type { ILogger } from '@/log'
+import type {ILogger} from '@/log'
 
 /**
  * Get package name from build-time injection or fallback
@@ -69,7 +69,7 @@ const FETCH_TIMEOUT_MS = 3000
  * Returns version string on success, or error message on failure
  * Uses unref() on timeout to prevent blocking process exit
  */
-export async function fetchLatestVersion(): Promise<{ version: string } | { error: string }> {
+export async function fetchLatestVersion(): Promise<{version: string} | {error: string}> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
   // Unref the timeout so it doesn't prevent process exit
@@ -77,22 +77,22 @@ export async function fetchLatestVersion(): Promise<{ version: string } | { erro
 
   try {
     const response = await fetch(getNpmRegistryUrl(), {
-      headers: { Accept: 'application/json' },
+      headers: {Accept: 'application/json'},
       signal: controller.signal,
     })
     clearTimeout(timeoutId)
 
-    if (!response.ok) return { error: `HTTP ${response.status}: ${response.statusText}` }
-    const data = await response.json() as { version?: string }
-    if (data.version == null) return { error: 'Invalid response: missing version field' }
-    return { version: data.version }
+    if (!response.ok) return {error: `HTTP ${response.status}: ${response.statusText}`}
+    const data = await response.json() as {version?: string}
+    if (data.version == null) return {error: 'Invalid response: missing version field'}
+    return {version: data.version}
   } catch (err) {
     clearTimeout(timeoutId)
     if (err instanceof Error) {
-      if (err.name === 'TimeoutError' || err.name === 'AbortError') return { error: `Request timeout after ${FETCH_TIMEOUT_MS}ms` }
-      return { error: err.message }
+      if (err.name === 'TimeoutError' || err.name === 'AbortError') return {error: `Request timeout after ${FETCH_TIMEOUT_MS}ms`}
+      return {error: err.message}
     }
-    return { error: 'Unknown network error' }
+    return {error: 'Unknown network error'}
   }
 }
 
@@ -132,16 +132,16 @@ export async function checkVersion(): Promise<VersionCheckResult> {
   const remoteVersion = fetchResult.version
   const comparison = compareVersions(localVersion, remoteVersion)
 
-  if (comparison < 0) return { status: 'outdated', localVersion, remoteVersion }
-  if (comparison > 0) return { status: 'development', localVersion, remoteVersion }
-  return { status: 'current', localVersion, remoteVersion }
+  if (comparison < 0) return {status: 'outdated', localVersion, remoteVersion}
+  if (comparison > 0) return {status: 'development', localVersion, remoteVersion}
+  return {status: 'current', localVersion, remoteVersion}
 }
 
 /**
  * Log version check result
  */
 export function logVersionCheckResult(result: VersionCheckResult, logger: ILogger): void {
-  const { status, localVersion, remoteVersion } = result
+  const {status, localVersion, remoteVersion} = result
 
   switch (status) {
     case 'outdated':

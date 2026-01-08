@@ -1,8 +1,8 @@
-import type { Command, CommandContext, CommandResult } from './Command'
+import type {Command, CommandContext, CommandResult} from './Command'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { PathPlaceholders } from '@/constants'
-import { generateShadowSourceProject } from '@/ShadowSourceProject'
+import {PathPlaceholders} from '@/constants'
+import {generateShadowSourceProject} from '@/ShadowSourceProject'
 
 /**
  * Resolve path placeholders and tilde
@@ -22,9 +22,9 @@ export class InitCommand implements Command {
   readonly name = 'init'
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
-    const { logger, userConfigOptions } = ctx
+    const {logger, userConfigOptions} = ctx
 
-    logger.info('initializing shadow source project structure', { command: 'init' })
+    logger.info('initializing shadow source project structure', {command: 'init'})
 
     // Resolve workspace directory from user config
     const workspaceDir = resolvePath(userConfigOptions.workspaceDir, '', '')
@@ -37,7 +37,7 @@ export class InitCommand implements Command {
     )
 
     // Generate shadow source project structure
-    const result = generateShadowSourceProject(shadowSourceProjectDir, { logger })
+    const result = generateShadowSourceProject(shadowSourceProjectDir, {logger})
 
     const message = result.createdDirs.length === 0 && result.createdFiles.length === 0
       ? `All ${result.existedDirs.length} directories and ${result.existedFiles.length} files already exist`

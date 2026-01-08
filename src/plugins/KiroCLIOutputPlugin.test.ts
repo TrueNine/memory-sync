@@ -1,12 +1,12 @@
-import type { CollectedInputContext, FastCommandPrompt, OutputPluginContext, SkillYAMLFrontMatter } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {CollectedInputContext, FastCommandPrompt, OutputPluginContext, SkillYAMLFrontMatter} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fc from 'fast-check'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FilePathKind, PromptKind } from '@/types'
-import { KiroCLIOutputPlugin } from './KiroCLIOutputPlugin'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {FilePathKind, PromptKind} from '@/types'
+import {KiroCLIOutputPlugin} from './KiroCLIOutputPlugin'
 
 function createMockRelativePath(pathStr: string, basePath: string): RelativePath {
   return {
@@ -83,11 +83,11 @@ describe('kiroCLIOutputPlugin', () => {
    */
   describe('buildFastCommandSteeringFileName', () => {
     // Generator for alphanumeric strings without underscore (for series prefix)
-    const alphanumericNoUnderscore = fc.string({ minLength: 1, maxLength: 10, unit: 'grapheme-ascii' })
+    const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z0-9]+$/i.test(s))
 
     // Generator for alphanumeric strings (for command name)
-    const alphanumericCommandName = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
+    const alphanumericCommandName = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
       .filter(s => /^\w+$/.test(s))
 
     it('should use hyphen separator between series and command name', () => {
@@ -105,7 +105,7 @@ describe('kiroCLIOutputPlugin', () => {
             expect(result).toBe(`${series}-${commandName}.md`)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -123,7 +123,7 @@ describe('kiroCLIOutputPlugin', () => {
             expect(result).toBe(`${commandName}.md`)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -270,7 +270,7 @@ describe('kiroCLIOutputPlugin', () => {
 
     afterEach(() => {
       // Clean up temporary directory
-      if (tempDir && fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+      if (tempDir && fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
     })
 
     it('should list all installed power directories', () => {
@@ -278,7 +278,7 @@ describe('kiroCLIOutputPlugin', () => {
 
       // Create mock power directories
       const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed')
-      fs.mkdirSync(powersDir, { recursive: true })
+      fs.mkdirSync(powersDir, {recursive: true})
       fs.mkdirSync(path.join(powersDir, 'power-a'))
       fs.mkdirSync(path.join(powersDir, 'power-b'))
       fs.mkdirSync(path.join(powersDir, 'old-power'))
@@ -305,7 +305,7 @@ describe('kiroCLIOutputPlugin', () => {
 
       // Create mock power directories and files
       const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed')
-      fs.mkdirSync(powersDir, { recursive: true })
+      fs.mkdirSync(powersDir, {recursive: true})
       fs.mkdirSync(path.join(powersDir, 'valid-power'))
       fs.writeFileSync(path.join(powersDir, 'not-a-power.txt'), 'content')
 
@@ -321,7 +321,7 @@ describe('kiroCLIOutputPlugin', () => {
 
       // Create mock power directories
       const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed')
-      fs.mkdirSync(powersDir, { recursive: true })
+      fs.mkdirSync(powersDir, {recursive: true})
       fs.mkdirSync(path.join(powersDir, 'current-skill'))
       fs.mkdirSync(path.join(powersDir, 'old-removed-skill'))
       fs.mkdirSync(path.join(powersDir, 'renamed-skill'))
@@ -338,7 +338,7 @@ describe('kiroCLIOutputPlugin', () => {
           // No current skills - simulating clean after skills removed
           skills: [],
         } as unknown as CollectedInputContext,
-        logger: { debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any,
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
         fs,
         path,
       }
@@ -369,7 +369,7 @@ describe('kiroCLIOutputPlugin', () => {
     })
 
     afterEach(() => {
-      if (tempDir && fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+      if (tempDir && fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
     })
 
     it('should register mcp.json in power directory when skill has MCP config', async () => {
@@ -378,12 +378,12 @@ describe('kiroCLIOutputPlugin', () => {
 
       const ctx: OutputPluginContext = {
         collectedInputContext: {
-          workspace: { projects: [], directory: { path: tempDir, pathKind: FilePathKind.Absolute, getDirectoryName: () => 'test' } },
+          workspace: {projects: [], directory: {path: tempDir, pathKind: FilePathKind.Absolute, getDirectoryName: () => 'test'}},
           ideConfigFiles: [],
           skills: [
             {
               type: PromptKind.Skill,
-              yamlFrontMatter: { name: 'test-skill', description: 'Test' },
+              yamlFrontMatter: {name: 'test-skill', description: 'Test'},
               content: '# Test',
               length: 6,
               filePathKind: FilePathKind.Relative,
@@ -392,14 +392,14 @@ describe('kiroCLIOutputPlugin', () => {
               mcpConfig: {
                 type: PromptKind.SkillMcpConfig,
                 mcpServers: {
-                  'test-server': { command: 'uvx', args: ['test-package'] },
+                  'test-server': {command: 'uvx', args: ['test-package']},
                 },
                 rawContent: '{"mcpServers":{"test-server":{"command":"uvx","args":["test-package"]}}}',
               },
             },
           ],
         } as unknown as CollectedInputContext,
-        logger: { debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any,
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
         fs,
         path,
       }
@@ -418,12 +418,12 @@ describe('kiroCLIOutputPlugin', () => {
 
       const ctx: OutputPluginContext = {
         collectedInputContext: {
-          workspace: { projects: [], directory: { path: tempDir, pathKind: FilePathKind.Absolute, getDirectoryName: () => 'test' } },
+          workspace: {projects: [], directory: {path: tempDir, pathKind: FilePathKind.Absolute, getDirectoryName: () => 'test'}},
           ideConfigFiles: [],
           skills: [
             {
               type: PromptKind.Skill,
-              yamlFrontMatter: { name: 'test-skill', description: 'Test' },
+              yamlFrontMatter: {name: 'test-skill', description: 'Test'},
               content: '# Test',
               length: 6,
               filePathKind: FilePathKind.Relative,
@@ -433,7 +433,7 @@ describe('kiroCLIOutputPlugin', () => {
             },
           ],
         } as unknown as CollectedInputContext,
-        logger: { debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any,
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
         fs,
         path,
       }
@@ -451,29 +451,29 @@ describe('kiroCLIOutputPlugin', () => {
 
       // Create powers directory
       const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed')
-      fs.mkdirSync(powersDir, { recursive: true })
+      fs.mkdirSync(powersDir, {recursive: true})
 
       const mcpRawContent = JSON.stringify({
         mcpServers: {
-          'my-server': { command: 'uvx', args: ['my-package'], env: { KEY: 'value' } },
+          'my-server': {command: 'uvx', args: ['my-package'], env: {KEY: 'value'}},
         },
       }, null, 2)
 
       const skill = {
         type: PromptKind.Skill,
-        yamlFrontMatter: { name: 'my-skill', description: 'My Skill' },
+        yamlFrontMatter: {name: 'my-skill', description: 'My Skill'},
         content: '# My Skill',
         mcpConfig: {
           type: PromptKind.SkillMcpConfig,
           mcpServers: {
-            'my-server': { command: 'uvx', args: ['my-package'], env: { KEY: 'value' } },
+            'my-server': {command: 'uvx', args: ['my-package'], env: {KEY: 'value'}},
           },
           rawContent: mcpRawContent,
         },
       }
 
       const powerDir = path.join(powersDir, 'my-skill')
-      const ctx = { dryRun: false }
+      const ctx = {dryRun: false}
 
       await plugin.testWriteSkillMcpConfig(ctx, skill, powerDir)
 
@@ -492,12 +492,12 @@ describe('kiroCLIOutputPlugin', () => {
 
       const ctx: OutputPluginContext = {
         collectedInputContext: {
-          workspace: { projects: [], directory: { path: tempDir, pathKind: FilePathKind.Absolute, getDirectoryName: () => 'test' } },
+          workspace: {projects: [], directory: {path: tempDir, pathKind: FilePathKind.Absolute, getDirectoryName: () => 'test'}},
           ideConfigFiles: [],
           skills: [
             {
               type: PromptKind.Skill,
-              yamlFrontMatter: { name: 'skill-a', description: 'Skill A' },
+              yamlFrontMatter: {name: 'skill-a', description: 'Skill A'},
               content: '# Skill A',
               length: 9,
               filePathKind: FilePathKind.Relative,
@@ -505,13 +505,13 @@ describe('kiroCLIOutputPlugin', () => {
               markdownContents: [],
               mcpConfig: {
                 type: PromptKind.SkillMcpConfig,
-                mcpServers: { server1: { command: 'cmd1' } },
+                mcpServers: {server1: {command: 'cmd1'}},
                 rawContent: '{}',
               },
             },
             {
               type: PromptKind.Skill,
-              yamlFrontMatter: { name: 'skill-b', description: 'Skill B' },
+              yamlFrontMatter: {name: 'skill-b', description: 'Skill B'},
               content: '# Skill B',
               length: 9,
               filePathKind: FilePathKind.Relative,
@@ -519,13 +519,13 @@ describe('kiroCLIOutputPlugin', () => {
               markdownContents: [],
               mcpConfig: {
                 type: PromptKind.SkillMcpConfig,
-                mcpServers: { server2: { command: 'cmd2' } },
+                mcpServers: {server2: {command: 'cmd2'}},
                 rawContent: '{}',
               },
             },
             {
               type: PromptKind.Skill,
-              yamlFrontMatter: { name: 'skill-c', description: 'Skill C (no MCP)' },
+              yamlFrontMatter: {name: 'skill-c', description: 'Skill C (no MCP)'},
               content: '# Skill C',
               length: 9,
               filePathKind: FilePathKind.Relative,
@@ -535,7 +535,7 @@ describe('kiroCLIOutputPlugin', () => {
             },
           ],
         } as unknown as CollectedInputContext,
-        logger: { debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any,
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
         fs,
         path,
       }

@@ -7,11 +7,11 @@
  * @see Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8
  */
 
-import type { ILogger } from '@/log'
-import type { SkillPrompt } from '@/types/InputTypes'
-import type { KiroPowerEntry, KiroPowerSource, KiroPowersRegistry, KiroRepoSource } from '@/types/RegistryTypes'
+import type {ILogger} from '@/log'
+import type {SkillPrompt} from '@/types/InputTypes'
+import type {KiroPowerEntry, KiroPowerSource, KiroPowersRegistry, KiroRepoSource} from '@/types/RegistryTypes'
 
-import { RegistryWriter } from '@/plugins'
+import {RegistryWriter} from '@/plugins'
 
 /**
  * Registry writer for Kiro powers.
@@ -79,8 +79,8 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
     entries: readonly KiroPowerEntry[],
   ): KiroPowersRegistry {
     // Start with existing powers and repoSources
-    const powers = { ...existing.powers }
-    const repoSources = { ...existing.repoSources }
+    const powers = {...existing.powers}
+    const repoSources = {...existing.repoSources}
 
     for (const entry of entries) {
       // Add/update power entry (Requirements 4.3, 4.7)
@@ -98,9 +98,9 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
       version: existing.version,
       powers,
       repoSources,
-      ...(existing.kiroRecommendedRepo != null && {
+      ...existing.kiroRecommendedRepo != null && {
         kiroRecommendedRepo: existing.kiroRecommendedRepo,
-      }),
+      },
       lastUpdated: existing.lastUpdated,
     }
   }
@@ -119,7 +119,7 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
    * @see Requirements 2.4, 4.8
    */
   buildPowerEntry(skill: SkillPrompt, installPath: string): KiroPowerEntry {
-    const { yamlFrontMatter, mcpConfig } = skill
+    const {yamlFrontMatter, mcpConfig} = skill
     const repoId = this.generateEntryId('local')
 
     // Build source object with repo type (Kiro uses "repo" for local installations)
@@ -140,10 +140,10 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
       name: yamlFrontMatter.name,
       description: yamlFrontMatter.description,
       // mcpServers comes after description, before author (Kiro format)
-      ...(mcpServerNames != null && mcpServerNames.length > 0 && { mcpServers: mcpServerNames }),
-      ...(yamlFrontMatter.author != null && { author: yamlFrontMatter.author }),
+      ...mcpServerNames != null && mcpServerNames.length > 0 && {mcpServers: mcpServerNames},
+      ...yamlFrontMatter.author != null && {author: yamlFrontMatter.author},
       keywords: yamlFrontMatter.keywords ?? [],
-      ...(yamlFrontMatter.displayName != null && { displayName: yamlFrontMatter.displayName }),
+      ...yamlFrontMatter.displayName != null && {displayName: yamlFrontMatter.displayName},
       // Set installed: true (Requirements 4.8)
       installed: true,
       // Generate installedAt timestamp in ISO 8601 format (Requirements 2.4)
@@ -222,7 +222,7 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
       // Single power per local source
       powerCount: 1,
       // Only include path if it has a value (Requirements 3.5)
-      ...(power.sourcePath != null && { path: power.sourcePath }),
+      ...power.sourcePath != null && {path: power.sourcePath},
       lastSync: now,
     }
   }

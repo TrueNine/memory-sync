@@ -4,9 +4,9 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
-import { FilePathKind, IDEKind } from '@/types'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import type {RelativePath} from '@/types/FileSystemTypes'
+import {FilePathKind, IDEKind} from '@/types'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const VSCODE_DIR = '.vscode'
 
@@ -26,8 +26,8 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
-    const { ideConfigFiles } = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
+    const {ideConfigFiles} = ctx.collectedInputContext
 
     // Only register files if we have VS Code configs to write
     const hasVSCodeConfigs = ideConfigFiles.some(f => f.type === IDEKind.VSCode)
@@ -58,18 +58,18 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { ideConfigFiles } = ctx.collectedInputContext
+    const {ideConfigFiles} = ctx.collectedInputContext
     const hasVSCodeConfigs = ideConfigFiles.some(f => f.type === IDEKind.VSCode)
 
     if (hasVSCodeConfigs) return true
 
-    this.log.debug('skipped', { reason: 'no VS Code config files found' })
+    this.log.debug('skipped', {reason: 'no VS Code config files found'})
     return false
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { projects } = ctx.collectedInputContext.workspace
-    const { ideConfigFiles } = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
+    const {ideConfigFiles} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
@@ -93,13 +93,13 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
       }
     }
 
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 
   private async writeConfigFile(
     ctx: OutputWriteContext,
     projectDir: RelativePath,
-    config: { type: IDEKind, content: string, dir: { path: string } },
+    config: {type: IDEKind, content: string, dir: {path: string}},
     label: string,
   ): Promise<WriteResult> {
     const targetRelativePath = this.getTargetRelativePath(config)
@@ -114,24 +114,24 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'config', path: fullPath, label })
-      return { path: relativePath, success: true, skipped: false }
+      this.log.trace({action: 'dryRun', type: 'config', path: fullPath, label})
+      return {path: relativePath, success: true, skipped: false}
     }
 
     try {
       const dir = this.dirname(fullPath)
       this.ensureDirectory(dir)
       this.writeFileSync(fullPath, config.content)
-      this.log.trace({ action: 'write', type: 'config', path: fullPath, label })
-      return { path: relativePath, success: true }
+      this.log.trace({action: 'write', type: 'config', path: fullPath, label})
+      return {path: relativePath, success: true}
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'config', path: fullPath, label, error: errMsg })
-      return { path: relativePath, success: false, error: error as Error }
+      this.log.error({action: 'write', type: 'config', path: fullPath, label, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
     }
   }
 
-  private getTargetRelativePath(config: { type: IDEKind, dir: { path: string } }): string {
+  private getTargetRelativePath(config: {type: IDEKind, dir: {path: string}}): string {
     const sourcePath = config.dir.path
 
     if (config.type !== IDEKind.VSCode) return this.basename(sourcePath)

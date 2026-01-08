@@ -1,7 +1,7 @@
 // jsx-expression-eval.ts
 // Evaluates JavaScript expressions containing JSX elements
 
-import type { Expression, Identifier, Program, Property, SpreadElement } from 'estree'
+import type {Expression, Identifier, Program, Property, SpreadElement} from 'estree'
 import type {
   JSXElement,
   JSXExpressionContainer,
@@ -10,12 +10,12 @@ import type {
   JSXSpreadChild,
   JSXText,
 } from 'estree-jsx'
-import type { RootContent } from 'mdast'
-import type { MdxFlowExpression, MdxJsxFlowElement, MdxTextExpression } from 'mdast-util-mdx'
-import type { ProcessingContext } from './types'
-import { isMdxComponent, processComponent } from './component-processor'
-import { evaluateExpression } from './expression-eval'
-import { convertJsxToMarkdown } from './jsx-converter'
+import type {RootContent} from 'mdast'
+import type {MdxFlowExpression, MdxJsxFlowElement, MdxTextExpression} from 'mdast-util-mdx'
+import type {ProcessingContext} from './types'
+import {isMdxComponent, processComponent} from './component-processor'
+import {evaluateExpression} from './expression-eval'
+import {convertJsxToMarkdown} from './jsx-converter'
 
 type ProcessAstFn = (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>
 type JSXChild = JSXText | JSXExpressionContainer | JSXSpreadChild | JSXElement | JSXFragment
@@ -36,7 +36,7 @@ export async function evaluateJsxExpression(
   ctx: ProcessingContext,
   processAstFn: ProcessAstFn,
 ): Promise<RootContent[]> {
-  const estree = (node.data as { estree?: Program } | undefined)?.estree
+  const estree = (node.data as {estree?: Program} | undefined)?.estree
   if (estree == null || estree.body.length === 0) return []
 
   const stmt = estree.body[0]
@@ -65,7 +65,7 @@ async function evaluateEstreeExpression(
 }
 
 async function evaluateLogicalExpression(
-  expr: Expression & { type: 'LogicalExpression' },
+  expr: Expression & {type: 'LogicalExpression'},
   ctx: ProcessingContext,
   processAstFn: ProcessAstFn,
 ): Promise<RootContent[]> {
@@ -91,7 +91,7 @@ async function evaluateLogicalExpression(
 }
 
 async function evaluateConditionalExpression(
-  expr: Expression & { type: 'ConditionalExpression' },
+  expr: Expression & {type: 'ConditionalExpression'},
   ctx: ProcessingContext,
   processAstFn: ProcessAstFn,
 ): Promise<RootContent[]> {
@@ -101,7 +101,7 @@ async function evaluateConditionalExpression(
 }
 
 async function evaluateSequenceExpression(
-  expr: Expression & { type: 'SequenceExpression' },
+  expr: Expression & {type: 'SequenceExpression'},
   ctx: ProcessingContext,
   processAstFn: ProcessAstFn,
 ): Promise<RootContent[]> {
@@ -114,7 +114,7 @@ async function evaluateSequenceExpression(
 }
 
 async function evaluateArrayExpression(
-  expr: Expression & { type: 'ArrayExpression' },
+  expr: Expression & {type: 'ArrayExpression'},
   ctx: ProcessingContext,
   processAstFn: ProcessAstFn,
 ): Promise<RootContent[]> {
@@ -192,7 +192,7 @@ async function evaluateToValue(
       const prop = await evaluateToValue(expr.property as Expression, ctx, processAstFn)
       return obj[prop as string]
     }
-    const { name: prop } = expr.property as Identifier
+    const {name: prop} = expr.property as Identifier
     return obj[prop]
   }
 
@@ -227,7 +227,7 @@ async function processJsxElement(
   const mdxElement = convertEstreeJsxToMdx(jsxElement, ctx)
 
   if (mdxElement.name != null && isMdxComponent(mdxElement.name, ctx)) {
-    const { processAst } = await import('./transformer')
+    const {processAst} = await import('./transformer')
     return processComponent(mdxElement, ctx, processAst)
   }
 
@@ -262,7 +262,7 @@ async function processJsxChild(
   if (child.type === 'JSXText') {
     const text = child.value.trim()
     if (text === '') return []
-    return [{ type: 'paragraph', children: [{ type: 'text', value: text }] }]
+    return [{type: 'paragraph', children: [{type: 'text', value: text}]}]
   }
   if (child.type === 'JSXExpressionContainer') {
     if (child.expression.type === 'JSXEmptyExpression') return []
@@ -277,7 +277,7 @@ function convertEstreeJsxToMdx(jsxElement: JSXElement, _ctx: ProcessingContext):
 
   let name: string | null = null
   if (opening.name.type === 'JSXIdentifier') {
-    ; ({ name } = opening.name)
+    ; ({name} = opening.name)
   }
   else if (opening.name.type === 'JSXMemberExpression') name = jsxMemberExpressionToString(opening.name)
   else if (opening.name.type === 'JSXNamespacedName') name = `${opening.name.namespace.name}:${opening.name.name.name}`
@@ -289,7 +289,7 @@ function convertEstreeJsxToMdx(jsxElement: JSXElement, _ctx: ProcessingContext):
         ? attr.name.name
         : `${attr.name.namespace.name}:${attr.name.name.name}`
 
-      let attrValue: string | { type: 'mdxJsxAttributeValueExpression', value: string } | null | undefined = null
+      let attrValue: string | {type: 'mdxJsxAttributeValueExpression', value: string} | null | undefined = null
 
       if (attr.value == null) attrValue = null
       else if (attr.value.type === 'Literal') attrValue = String(attr.value.value)
@@ -302,7 +302,7 @@ function convertEstreeJsxToMdx(jsxElement: JSXElement, _ctx: ProcessingContext):
         }
       }
 
-      attributes.push({ type: 'mdxJsxAttribute', name: attrName, value: attrValue })
+      attributes.push({type: 'mdxJsxAttribute', name: attrName, value: attrValue})
     } else if (attr.type === 'JSXSpreadAttribute') {
       attributes.push({
         type: 'mdxJsxExpressionAttribute',
@@ -317,7 +317,7 @@ function convertEstreeJsxToMdx(jsxElement: JSXElement, _ctx: ProcessingContext):
     if (converted != null) children.push(...converted)
   }
 
-  return { type: 'mdxJsxFlowElement', name, attributes, children } as MdxJsxFlowElement
+  return {type: 'mdxJsxFlowElement', name, attributes, children} as MdxJsxFlowElement
 }
 
 function jsxMemberExpressionToString(expr: JSXMemberExpression): string {
@@ -327,9 +327,9 @@ function jsxMemberExpressionToString(expr: JSXMemberExpression): string {
 
 function convertEstreeJsxChildToMdx(child: JSXChild, ctx: ProcessingContext): RootContent[] | null {
   if (child.type === 'JSXText') {
-    const { value } = child
+    const {value} = child
     if (value.trim() === '') return null
-    return [{ type: 'paragraph', children: [{ type: 'text', value }] }]
+    return [{type: 'paragraph', children: [{type: 'text', value}]}]
   }
   if (child.type === 'JSXElement') return [convertEstreeJsxToMdx(child, ctx) as unknown as RootContent]
   if (child.type === 'JSXFragment') {
@@ -343,12 +343,12 @@ function convertEstreeJsxChildToMdx(child: JSXChild, ctx: ProcessingContext): Ro
   if (child.type === 'JSXExpressionContainer') {
     if (child.expression.type === 'JSXEmptyExpression') return null
     const source = estreeToSource(child.expression)
-    return [{ type: 'paragraph', children: [{ type: 'text', value: source }] }]
+    return [{type: 'paragraph', children: [{type: 'text', value: source}]}]
   }
   if (child.type !== 'JSXSpreadChild') return null
 
   const source = `...${estreeToSource(child.expression)}`
-  return [{ type: 'paragraph', children: [{ type: 'text', value: source }] }]
+  return [{type: 'paragraph', children: [{type: 'text', value: source}]}]
 }
 
 function estreeToSource(expr: Expression | SpreadElement): string {
@@ -429,7 +429,7 @@ function valueToRootContent(value: unknown): RootContent[] {
   if (value == null) return []
   const str = typeof value === 'string' ? value : String(value)
   if (str === '' || str === 'undefined' || str === 'null') return []
-  return [{ type: 'paragraph', children: [{ type: 'text', value: str }] }]
+  return [{type: 'paragraph', children: [{type: 'text', value: str}]}]
 }
 
 function evaluateNonJsxExpression(expr: Expression, ctx: ProcessingContext): RootContent[] {

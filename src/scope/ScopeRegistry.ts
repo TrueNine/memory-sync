@@ -1,8 +1,8 @@
 // src/scope/ScopeRegistry.ts
 // Manages scope registration and merging with priority-based resolution.
 
-import type { EvaluationScope } from '@/compiler/types'
-import type { MdxGlobalScope } from '@/globals'
+import type {EvaluationScope} from '@/compiler/types'
+import type {MdxGlobalScope} from '@/globals'
 
 /**
  * Represents a single scope registration
@@ -62,7 +62,7 @@ export class ScopeRegistry {
     values: Record<string, unknown>,
     priority: ScopePriority = ScopePriority.PluginRegistered,
   ): void {
-    this.registrations.push({ namespace, values, priority })
+    this.registrations.push({namespace, values, priority})
   }
 
   /**
@@ -82,10 +82,10 @@ export class ScopeRegistry {
 
     // 1. First add global scope (lowest priority)
     if (this.globalScope != null) {
-      result['os'] = { ...this.globalScope.os }
-      result['env'] = { ...this.globalScope.env }
-      result['profile'] = { ...this.globalScope.profile }
-      result['tool'] = { ...this.globalScope.tool }
+      result['os'] = {...this.globalScope.os}
+      result['env'] = {...this.globalScope.env}
+      result['profile'] = {...this.globalScope.profile}
+      result['tool'] = {...this.globalScope.tool}
     }
 
     // 2. Sort by priority and merge registered scopes
@@ -122,9 +122,9 @@ export class ScopeRegistry {
     target: Record<string, unknown> | undefined,
     source: Record<string, unknown>,
   ): Record<string, unknown> {
-    if (target == null) return { ...source }
+    if (target == null) return {...source}
 
-    const result = { ...target }
+    const result = {...target}
     for (const [key, value] of Object.entries(source)) {
       result[key] = typeof value === 'object'
         && value !== null

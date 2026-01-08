@@ -1,10 +1,10 @@
-import type { CollectedInputContext, InputPluginContext, ProjectIDEConfigFile } from '@/types'
+import type {CollectedInputContext, InputPluginContext, ProjectIDEConfigFile} from '@/types'
 
 import {
   FilePathKind,
   IDEKind,
 } from '@/types'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export class IdeConfigInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -12,8 +12,8 @@ export class IdeConfigInputPlugin extends AbstractInputPlugin {
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const { userConfigOptions, fs, path } = ctx
-    const { shadowProjectDir } = this.resolveBasePaths(userConfigOptions)
+    const {userConfigOptions, fs, path} = ctx
+    const {shadowProjectDir} = this.resolveBasePaths(userConfigOptions)
 
     const defaultIdeFiles = [
       '.editorconfig',
@@ -49,6 +49,6 @@ export class IdeConfigInputPlugin extends AbstractInputPlugin {
       }
     }
 
-    return { ideConfigFiles }
+    return {ideConfigFiles}
   }
 }

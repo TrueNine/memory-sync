@@ -1,12 +1,12 @@
-import type { ILogger } from '@/log'
-import { Buffer } from 'node:buffer'
-import { describe, expect, it, vi } from 'vitest'
-import { PromptKind } from '@/types'
+import type {ILogger} from '@/log'
+import {Buffer} from 'node:buffer'
+import {describe, expect, it, vi} from 'vitest'
+import {PromptKind} from '@/types'
 import {
   SKILL_RESOURCE_BINARY_EXTENSIONS,
   SKILL_RESOURCE_TEXT_EXTENSIONS,
 } from '@/types/InputTypes'
-import { SkillInputPlugin } from './SkillInputPlugin'
+import {SkillInputPlugin} from './SkillInputPlugin'
 
 describe('skillInputPlugin', () => {
   const createMockLogger = (): ILogger => ({
@@ -21,16 +21,12 @@ describe('skillInputPlugin', () => {
 
     it('should return true for binary extensions', () => {
       const binaryExtensions = ['.docx', '.pdf', '.png', '.jpg', '.zip', '.exe']
-      for (const ext of binaryExtensions) {
-        expect(plugin.isBinaryResourceExtension(ext)).toBe(true)
-      }
+      for (const ext of binaryExtensions) expect(plugin.isBinaryResourceExtension(ext)).toBe(true)
     })
 
     it('should return false for text extensions', () => {
       const textExtensions = ['.kt', '.java', '.py', '.ts', '.txt']
-      for (const ext of textExtensions) {
-        expect(plugin.isBinaryResourceExtension(ext)).toBe(false)
-      }
+      for (const ext of textExtensions) expect(plugin.isBinaryResourceExtension(ext)).toBe(false)
     })
 
     it('should be case-insensitive', () => {
@@ -139,14 +135,14 @@ describe('skillInputPlugin', () => {
           'test-server': {
             command: 'uvx',
             args: ['test-package'],
-            env: { TEST: 'value' },
+            env: {TEST: 'value'},
           },
         },
       })
 
       const mockFs = {
         existsSync: vi.fn().mockReturnValue(true),
-        statSync: vi.fn().mockReturnValue({ isFile: () => true }),
+        statSync: vi.fn().mockReturnValue({isFile: () => true}),
         readFileSync: vi.fn().mockReturnValue(mcpContent),
       } as unknown as typeof import('node:fs')
 
@@ -157,14 +153,14 @@ describe('skillInputPlugin', () => {
       expect(result?.mcpServers['test-server']).toEqual({
         command: 'uvx',
         args: ['test-package'],
-        env: { TEST: 'value' },
+        env: {TEST: 'value'},
       })
     })
 
     it('should return undefined for invalid JSON', () => {
       const mockFs = {
         existsSync: vi.fn().mockReturnValue(true),
-        statSync: vi.fn().mockReturnValue({ isFile: () => true }),
+        statSync: vi.fn().mockReturnValue({isFile: () => true}),
         readFileSync: vi.fn().mockReturnValue('invalid json'),
       } as unknown as typeof import('node:fs')
 
@@ -178,7 +174,7 @@ describe('skillInputPlugin', () => {
     it('should return undefined when mcpServers field is missing', () => {
       const mockFs = {
         existsSync: vi.fn().mockReturnValue(true),
-        statSync: vi.fn().mockReturnValue({ isFile: () => true }),
+        statSync: vi.fn().mockReturnValue({isFile: () => true}),
         readFileSync: vi.fn().mockReturnValue('{}'),
       } as unknown as typeof import('node:fs')
 
@@ -196,11 +192,11 @@ describe('skillInputPlugin', () => {
     it('should scan child docs and resources at root level', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'skill.mdx', isFile: () => true, isDirectory: () => false },
-          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
-          { name: 'mcp.json', isFile: () => true, isDirectory: () => false },
-          { name: 'helper.kt', isFile: () => true, isDirectory: () => false },
-          { name: 'logo.png', isFile: () => true, isDirectory: () => false },
+          {name: 'skill.mdx', isFile: () => true, isDirectory: () => false},
+          {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
+          {name: 'mcp.json', isFile: () => true, isDirectory: () => false},
+          {name: 'helper.kt', isFile: () => true, isDirectory: () => false},
+          {name: 'logo.png', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockImplementation((filePath: string) => {
           if (filePath.endsWith('.mdx')) return '# Content'
@@ -227,20 +223,20 @@ describe('skillInputPlugin', () => {
         readdirSync: vi.fn().mockImplementation((dir: string) => {
           if (dir === '/skill/dir') {
             return [
-              { name: 'docs', isFile: () => false, isDirectory: () => true },
-              { name: 'assets', isFile: () => false, isDirectory: () => true },
+              {name: 'docs', isFile: () => false, isDirectory: () => true},
+              {name: 'assets', isFile: () => false, isDirectory: () => true},
             ]
           }
           if (dir === '/skill/dir/docs') {
             return [
-              { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
-              { name: 'api.mdx', isFile: () => true, isDirectory: () => false },
+              {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
+              {name: 'api.mdx', isFile: () => true, isDirectory: () => false},
             ]
           }
           if (dir === '/skill/dir/assets') {
             return [
-              { name: 'logo.png', isFile: () => true, isDirectory: () => false },
-              { name: 'schema.sql', isFile: () => true, isDirectory: () => false },
+              {name: 'logo.png', isFile: () => true, isDirectory: () => false},
+              {name: 'schema.sql', isFile: () => true, isDirectory: () => false},
             ]
           }
           return []
@@ -268,7 +264,7 @@ describe('skillInputPlugin', () => {
     it('should handle binary files with base64 encoding', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'image.png', isFile: () => true, isDirectory: () => false },
+          {name: 'image.png', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockReturnValue(Buffer.from('binary content')),
       } as unknown as typeof import('node:fs')
@@ -283,7 +279,7 @@ describe('skillInputPlugin', () => {
     it('should handle text files with UTF-8 encoding', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'helper.kt', isFile: () => true, isDirectory: () => false },
+          {name: 'helper.kt', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockReturnValue('fun main() {}'),
       } as unknown as typeof import('node:fs')
@@ -300,32 +296,24 @@ describe('skillInputPlugin', () => {
   describe('sKILL_RESOURCE_TEXT_EXTENSIONS', () => {
     it('should include common code file extensions', () => {
       const codeExtensions = ['.kt', '.java', '.py', '.ts', '.js', '.go', '.rs', '.c', '.cpp']
-      for (const ext of codeExtensions) {
-        expect(SKILL_RESOURCE_TEXT_EXTENSIONS).toContain(ext)
-      }
+      for (const ext of codeExtensions) expect(SKILL_RESOURCE_TEXT_EXTENSIONS).toContain(ext)
     })
 
     it('should include data file extensions', () => {
       const dataExtensions = ['.sql', '.json', '.xml', '.yaml', '.csv']
-      for (const ext of dataExtensions) {
-        expect(SKILL_RESOURCE_TEXT_EXTENSIONS).toContain(ext)
-      }
+      for (const ext of dataExtensions) expect(SKILL_RESOURCE_TEXT_EXTENSIONS).toContain(ext)
     })
   })
 
   describe('sKILL_RESOURCE_BINARY_EXTENSIONS', () => {
     it('should include document file extensions', () => {
       const docExtensions = ['.docx', '.pdf', '.xlsx', '.pptx']
-      for (const ext of docExtensions) {
-        expect(SKILL_RESOURCE_BINARY_EXTENSIONS).toContain(ext)
-      }
+      for (const ext of docExtensions) expect(SKILL_RESOURCE_BINARY_EXTENSIONS).toContain(ext)
     })
 
     it('should include image file extensions', () => {
       const imageExtensions = ['.png', '.jpg', '.gif', '.webp']
-      for (const ext of imageExtensions) {
-        expect(SKILL_RESOURCE_BINARY_EXTENSIONS).toContain(ext)
-      }
+      for (const ext of imageExtensions) expect(SKILL_RESOURCE_BINARY_EXTENSIONS).toContain(ext)
     })
   })
 
@@ -335,7 +323,7 @@ describe('skillInputPlugin', () => {
     it('should transform .mdx links to .md in child doc content', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+          {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockReturnValue('See [other doc](./other.mdx) for details'),
       } as unknown as typeof import('node:fs')
@@ -350,7 +338,7 @@ describe('skillInputPlugin', () => {
     it('should transform .mdx links with anchors', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+          {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockReturnValue('[Section](./doc.mdx#section)'),
       } as unknown as typeof import('node:fs')
@@ -363,7 +351,7 @@ describe('skillInputPlugin', () => {
     it('should not transform external URLs', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+          {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockReturnValue('[External](https://example.com/file.mdx)'),
       } as unknown as typeof import('node:fs')
@@ -376,7 +364,7 @@ describe('skillInputPlugin', () => {
     it('should transform multiple .mdx links in same content', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+          {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockReturnValue('[First](./a.mdx) and [Second](./b.mdx)'),
       } as unknown as typeof import('node:fs')
@@ -391,7 +379,7 @@ describe('skillInputPlugin', () => {
     it('should transform image references with .mdx extension', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+          {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockReturnValue('![Diagram](./diagram.mdx)'),
       } as unknown as typeof import('node:fs')
@@ -404,7 +392,7 @@ describe('skillInputPlugin', () => {
     it('should preserve non-.mdx links unchanged', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+          {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockReturnValue('[Link](./file.md) and [Other](./doc.txt)'),
       } as unknown as typeof import('node:fs')
@@ -418,7 +406,7 @@ describe('skillInputPlugin', () => {
     it('should transform .mdx in link text when it looks like a path', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+          {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockReturnValue('[example.mdx](./example.mdx)'),
       } as unknown as typeof import('node:fs')
@@ -431,7 +419,7 @@ describe('skillInputPlugin', () => {
     it('should transform .mdx in link text for table markdown links', () => {
       const mockFs = {
         readdirSync: vi.fn().mockReturnValue([
-          { name: 'guide.mdx', isFile: () => true, isDirectory: () => false },
+          {name: 'guide.mdx', isFile: () => true, isDirectory: () => false},
         ]),
         readFileSync: vi.fn().mockReturnValue('| [examples/example_figma.mdx](examples/example_figma.mdx) |'),
       } as unknown as typeof import('node:fs')

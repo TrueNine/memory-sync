@@ -1,12 +1,12 @@
-import type { ILogger } from '@/log'
-import type { PluginOptions } from '@/types/PluginTypes'
+import type {ILogger} from '@/log'
+import type {PluginOptions} from '@/types/PluginTypes'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fc from 'fast-check'
 import * as glob from 'fast-glob'
-import { describe, expect, it } from 'vitest'
+import {describe, expect, it} from 'vitest'
 
 /**
  * Feature: effect-input-plugins
@@ -61,13 +61,13 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
 }
 
 // Generators
-const validNameGen = fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' })
+const validNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
   .filter(s => /^[\w-]+$/.test(s))
   .map(s => s.toLowerCase())
 
 const fileExtensionGen = fc.constantFrom('.ts', '.js', '.json', '.sh', '.txt', '.yaml', '.yml')
 
-const fileContentGen = fc.string({ minLength: 0, maxLength: 500 })
+const fileContentGen = fc.string({minLength: 0, maxLength: 500})
 
 // Generate a non-.cn.mdx filename
 const nonSrcMdFileNameGen = fc.tuple(validNameGen, fileExtensionGen)
@@ -77,18 +77,16 @@ const nonSrcMdFileNameGen = fc.tuple(validNameGen, fileExtensionGen)
 // Generate markdown content with whitespace issues
 const markdownWithWhitespaceGen = fc.array(
   fc.tuple(
-    fc.string({ minLength: 0, maxLength: 50, unit: 'grapheme-ascii' }).filter(s => !s.includes('\n') && !s.includes('\r')),
-    fc.array(fc.constantFrom(' ', '\t'), { minLength: 0, maxLength: 5 }).map(arr => arr.join('')),
+    fc.string({minLength: 0, maxLength: 50, unit: 'grapheme-ascii'}).filter(s => !s.includes('\n') && !s.includes('\r')),
+    fc.array(fc.constantFrom(' ', '\t'), {minLength: 0, maxLength: 5}).map(arr => arr.join('')),
   ).map(([content, trailing]) => content + trailing),
-  { minLength: 1, maxLength: 10 },
+  {minLength: 1, maxLength: 10},
 ).chain(lines =>
-  fc.array(fc.integer({ min: 0, max: 5 }), { minLength: lines.length, maxLength: lines.length })
+  fc.array(fc.integer({min: 0, max: 5}), {minLength: lines.length, maxLength: lines.length})
     .map(blankCounts => {
       const result: string[] = []
       for (let i = 0; i < lines.length; i++) {
-        for (let j = 0; j < (blankCounts[i] ?? 0); j++) {
-          result.push('')
-        }
+        for (let j = 0; j < (blankCounts[i] ?? 0); j++) result.push('')
         result.push(lines[i])
       }
       return result.join('\n')
@@ -105,7 +103,7 @@ function captureFilesystemState(baseDir: string): Map<string, string | 'DIR'> {
   if (!fs.existsSync(baseDir)) return state
 
   function scanDir(dir: string, relativePath: string): void {
-    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    const entries = fs.readdirSync(dir, {withFileTypes: true})
     for (const entry of entries) {
       const entryRelPath = relativePath ? path.join(relativePath, entry.name) : entry.name
       const entryFullPath = path.join(dir, entry.name)
@@ -147,7 +145,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
     describe('skillNonSrcFileSyncEffectInputPlugin', () => {
       it('should not modify filesystem when running in dry-run mode', async () => {
         // Dynamic import to avoid circular dependency
-        const { SkillNonSrcFileSyncEffectInputPlugin } = await import('./SkillNonSrcFileSyncEffectInputPlugin')
+        const {SkillNonSrcFileSyncEffectInputPlugin} = await import('./SkillNonSrcFileSyncEffectInputPlugin')
 
         await fc.assert(
           fc.asyncProperty(
@@ -159,7 +157,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                     name: nonSrcMdFileNameGen,
                     content: fileContentGen,
                   }),
-                  { minLength: 1, maxLength: 3 },
+                  {minLength: 1, maxLength: 3},
                 ).map(files => {
                   // Deduplicate by name
                   const seen = new Set<string>()
@@ -170,7 +168,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                   })
                 }).filter(files => files.length > 0),
               }),
-              { minLength: 1, maxLength: 3 },
+              {minLength: 1, maxLength: 3},
             ).map(skills => {
               // Deduplicate by skillName
               const seen = new Set<string>()
@@ -190,11 +188,9 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
 
                 for (const skill of skills) {
                   const skillDir = path.join(srcSkillsDir, skill.skillName)
-                  fs.mkdirSync(skillDir, { recursive: true })
+                  fs.mkdirSync(skillDir, {recursive: true})
 
-                  for (const file of skill.files) {
-                    fs.writeFileSync(path.join(skillDir, file.name), file.content, 'utf8')
-                  }
+                  for (const file of skill.files) fs.writeFileSync(path.join(skillDir, file.name), file.content, 'utf8')
                 }
 
                 // Capture filesystem state BEFORE dry-run
@@ -212,11 +208,11 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 // Verify: Filesystem state should be unchanged
                 expect(filesystemStatesEqual(stateBefore, stateAfter)).toBe(true)
               } finally {
-                if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+                if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
               }
             },
           ),
-          { numRuns: 100 },
+          {numRuns: 100},
         )
       })
     })
@@ -224,7 +220,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
     describe('orphanFileCleanupEffectInputPlugin', () => {
       it('should not modify filesystem when running in dry-run mode', async () => {
         // Dynamic import to avoid circular dependency
-        const { OrphanFileCleanupEffectInputPlugin } = await import('./OrphanFileCleanupEffectInputPlugin')
+        const {OrphanFileCleanupEffectInputPlugin} = await import('./OrphanFileCleanupEffectInputPlugin')
 
         await fc.assert(
           fc.asyncProperty(
@@ -233,7 +229,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 name: validNameGen,
                 dirType: fc.constantFrom('skills', 'commands', 'agents', 'app'),
               }),
-              { minLength: 1, maxLength: 5 },
+              {minLength: 1, maxLength: 5},
             ).map(files => {
               // Deduplicate by (name, dirType)
               const seen = new Set<string>()
@@ -254,7 +250,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
 
                 for (const file of orphanFiles) {
                   const distTypeDir = path.join(distDir, file.dirType)
-                  fs.mkdirSync(distTypeDir, { recursive: true })
+                  fs.mkdirSync(distTypeDir, {recursive: true})
                   fs.writeFileSync(
                     path.join(distTypeDir, `${file.name}.md`),
                     `# ${file.name}`,
@@ -277,11 +273,11 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 // Verify: Filesystem state should be unchanged
                 expect(filesystemStatesEqual(stateBefore, stateAfter)).toBe(true)
               } finally {
-                if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+                if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
               }
             },
           ),
-          { numRuns: 100 },
+          {numRuns: 100},
         )
       })
     })
@@ -289,7 +285,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
     describe('markdownWhitespaceCleanupEffectInputPlugin', () => {
       it('should not modify filesystem when running in dry-run mode', async () => {
         // Dynamic import to avoid circular dependency
-        const { MarkdownWhitespaceCleanupEffectInputPlugin } = await import('./MarkdownWhitespaceCleanupEffectInputPlugin')
+        const {MarkdownWhitespaceCleanupEffectInputPlugin} = await import('./MarkdownWhitespaceCleanupEffectInputPlugin')
 
         await fc.assert(
           fc.asyncProperty(
@@ -299,7 +295,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 content: markdownWithWhitespaceGen,
                 dir: fc.constantFrom('src', 'app', 'dist'),
               }),
-              { minLength: 1, maxLength: 5 },
+              {minLength: 1, maxLength: 5},
             ).map(files => {
               // Deduplicate by (name, dir)
               const seen = new Set<string>()
@@ -319,7 +315,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
 
                 for (const file of mdFiles) {
                   const targetDir = path.join(shadowProjectDir, file.dir)
-                  fs.mkdirSync(targetDir, { recursive: true })
+                  fs.mkdirSync(targetDir, {recursive: true})
                   fs.writeFileSync(
                     path.join(targetDir, `${file.name}.md`),
                     file.content,
@@ -342,11 +338,11 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 // Verify: Filesystem state should be unchanged
                 expect(filesystemStatesEqual(stateBefore, stateAfter)).toBe(true)
               } finally {
-                if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true })
+                if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
               }
             },
           ),
-          { numRuns: 100 },
+          {numRuns: 100},
         )
       })
     })

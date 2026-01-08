@@ -1,14 +1,14 @@
-import type { CollectedInputContext, FastCommandPrompt, FastCommandYAMLFrontMatter, InputPluginContext } from '@/types'
+import type {CollectedInputContext, FastCommandPrompt, FastCommandYAMLFrontMatter, InputPluginContext} from '@/types'
 
-import { mdxToMd } from '@/compiler'
-import { parseMarkdown } from '@/markdown'
+import {mdxToMd} from '@/compiler'
+import {parseMarkdown} from '@/markdown'
 import {
   FilePathKind,
   MetadataValidationError,
   PromptKind,
   validateFastCommandMetadata,
 } from '@/types'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export interface SeriesInfo {
   readonly series?: string
@@ -31,7 +31,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
     const baseName = fileName.replace(/\.mdx$/, '')
     const underscoreIndex = baseName.indexOf('_')
 
-    if (underscoreIndex === -1) return { commandName: baseName }
+    if (underscoreIndex === -1) return {commandName: baseName}
 
     return {
       series: baseName.slice(0, Math.max(0, underscoreIndex)),
@@ -40,16 +40,16 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
-    const { userConfigOptions: options, logger, globalScope } = ctx
-    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
+    const {userConfigOptions: options, logger, globalScope} = ctx
+    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
     const fastCommandDirRaw = options.shadowFastCommandDir
     const fastCommandDir = this.resolvePath(fastCommandDirRaw, workspaceDir, shadowProjectDir)
 
     const fastCommands: FastCommandPrompt[] = []
-    if (!(ctx.fs.existsSync(fastCommandDir) && ctx.fs.statSync(fastCommandDir).isDirectory())) return { fastCommands }
+    if (!(ctx.fs.existsSync(fastCommandDir) && ctx.fs.statSync(fastCommandDir).isDirectory())) return {fastCommands}
 
-    const entries = ctx.fs.readdirSync(fastCommandDir, { withFileTypes: true })
+    const entries = ctx.fs.readdirSync(fastCommandDir, {withFileTypes: true})
     for (const entry of entries) {
       if (entry.isFile() && entry.name.endsWith('.mdx')) {
         const filePath = ctx.path.join(fastCommandDir, entry.name)
@@ -82,16 +82,14 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
             )
 
             // Log validation warnings
-            for (const warning of validationResult.warnings) {
-              logger.debug(warning)
-            }
+            for (const warning of validationResult.warnings) logger.debug(warning)
 
             // Throw error if validation fails
             if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, filePath)
           }
 
           // Use compiled content
-          const { content } = compileResult
+          const {content} = compileResult
           const seriesInfo = this.extractSeriesInfo(entry.name)
 
           // Log metadata source for debugging
@@ -107,8 +105,8 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
             content,
             length: content.length,
             filePathKind: FilePathKind.Relative,
-            ...(mergedFrontMatter != null && { yamlFrontMatter: mergedFrontMatter }),
-            ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
+            ...mergedFrontMatter != null && {yamlFrontMatter: mergedFrontMatter},
+            ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
             markdownAst: parsed.markdownAst,
             markdownContents: parsed.markdownContents,
             dir: {
@@ -118,15 +116,15 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
               getDirectoryName: () => entry.name.replace(/\.mdx$/, ''),
               getAbsolutePath: () => filePath,
             },
-            ...(seriesInfo.series != null && { series: seriesInfo.series }),
+            ...seriesInfo.series != null && {series: seriesInfo.series},
             commandName: seriesInfo.commandName,
             rawMdxContent: rawContent,
           })
         } catch (e) {
-          logger.error('failed to parse fast command', { file: filePath, error: e })
+          logger.error('failed to parse fast command', {file: filePath, error: e})
         }
       }
     }
-    return { fastCommands }
+    return {fastCommands}
   }
 }

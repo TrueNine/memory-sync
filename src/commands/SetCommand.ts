@@ -1,8 +1,8 @@
-import type { Command, CommandContext, CommandResult } from './Command'
+import type {Command, CommandContext, CommandResult} from './Command'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR } from '@/ConfigLoader'
+import {DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR} from '@/ConfigLoader'
 
 /**
  * Valid configuration keys that can be set
@@ -64,7 +64,7 @@ function writeGlobalConfig(config: Record<string, unknown>): void {
   const configDir = path.dirname(configPath)
 
   // Ensure directory exists
-  if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
+  if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, {recursive: true})
 
   // Write with pretty formatting
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
@@ -87,7 +87,7 @@ export class SetCommand implements Command {
   ) { }
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
-    const { logger } = ctx
+    const {logger} = ctx
 
     if (this.options.length === 0) {
       logger.error('No configuration key-value pairs provided')
@@ -125,20 +125,18 @@ export class SetCommand implements Command {
 
       if (oldValue !== value) updated.push(`${key}=${value}`)
 
-      logger.info('configuration updated', { key, value })
+      logger.info('configuration updated', {key, value})
     }
 
     // Write config if there are valid updates
     if (updated.length > 0) {
       writeGlobalConfig(config)
-      logger.info('global config written', { path: getGlobalConfigPath() })
+      logger.info('global config written', {path: getGlobalConfigPath()})
     }
 
     // Handle errors
     if (errors.length > 0) {
-      for (const error of errors) {
-        logger.error(error)
-      }
+      for (const error of errors) logger.error(error)
     }
 
     const success = errors.length === 0

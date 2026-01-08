@@ -1,4 +1,4 @@
-import type { ILogger } from '@/log'
+import type {ILogger} from '@/log'
 import type {
   CollectedInputContext,
   InputPluginContext,
@@ -12,10 +12,10 @@ import type {
   SkillYAMLFrontMatter,
 } from '@/types'
 
-import { Buffer } from 'node:buffer'
+import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import { mdxToMd } from '@/compiler'
-import { parseMarkdown } from '@/markdown'
+import {mdxToMd} from '@/compiler'
+import {parseMarkdown} from '@/markdown'
 import {
   FilePathKind,
   MetadataValidationError,
@@ -25,7 +25,7 @@ import {
 import {
   SKILL_RESOURCE_BINARY_EXTENSIONS,
 } from '@/types/InputTypes'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**
  * Converts .mdx file references to .md in markdown content.
@@ -89,16 +89,16 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     if (!fs.existsSync(mcpJsonPath)) return void 0
 
     if (!fs.statSync(mcpJsonPath).isFile()) {
-      logger.warn('mcp.json is not a file', { skillDir })
+      logger.warn('mcp.json is not a file', {skillDir})
       return void 0
     }
 
     try {
       const rawContent = fs.readFileSync(mcpJsonPath, 'utf8')
-      const parsed = JSON.parse(rawContent) as { mcpServers?: Record<string, McpServerConfig> }
+      const parsed = JSON.parse(rawContent) as {mcpServers?: Record<string, McpServerConfig>}
 
       if (parsed.mcpServers == null || typeof parsed.mcpServers !== 'object') {
-        logger.warn('mcp.json missing mcpServers field', { skillDir })
+        logger.warn('mcp.json missing mcpServers field', {skillDir})
         return void 0
       }
 
@@ -108,7 +108,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
         rawContent,
       }
     } catch (e) {
-      logger.warn('failed to parse mcp.json', { skillDir, error: e })
+      logger.warn('failed to parse mcp.json', {skillDir, error: e})
       return void 0
     }
   }
@@ -381,7 +381,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     fs: typeof import('node:fs'),
     logger: ILogger,
     currentRelativePath: string = '',
-  ): { childDocs: SkillChildDoc[], resources: SkillResource[] } {
+  ): {childDocs: SkillChildDoc[], resources: SkillResource[]} {
     const childDocs: SkillChildDoc[] = []
     const resources: SkillResource[] = []
 
@@ -390,7 +390,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       : skillDir
 
     try {
-      const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+      const entries = fs.readdirSync(currentDir, {withFileTypes: true})
 
       for (const entry of entries) {
         const relativePath = currentRelativePath
@@ -423,7 +423,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 filePathKind: FilePathKind.Relative,
                 markdownAst: parsed.markdownAst,
                 markdownContents: parsed.markdownContents,
-                ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
+                ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
                 relativePath,
                 dir: {
                   pathKind: FilePathKind.Relative,
@@ -434,16 +434,16 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 },
               } as SkillChildDoc)
             } catch (e) {
-              logger.warn('failed to read child doc', { path: relativePath, error: e })
+              logger.warn('failed to read child doc', {path: relativePath, error: e})
             }
           } else {
             // Handle non-.mdx files as resources (except mcp.json at root)
             if (currentRelativePath === '' && entry.name === 'mcp.json') continue
 
             const ext = path.extname(entry.name)
-            let content: string
-            let encoding: SkillResourceEncoding
-            let length: number
+            let content: string,
+              encoding: SkillResourceEncoding,
+              length: number
 
             try {
               if (this.isBinaryResourceExtension(ext)) {
@@ -451,12 +451,12 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 const buffer = fs.readFileSync(filePath)
                 content = buffer.toString('base64')
                 encoding = 'base64'
-                ; ({ length } = buffer)
+                ; ({length} = buffer)
               } else {
                 // Read as UTF-8 text (default for unknown extensions too)
                 content = fs.readFileSync(filePath, 'utf8')
                 encoding = 'text'
-                ; ({ length } = Buffer.from(content, 'utf8'))
+                ; ({length} = Buffer.from(content, 'utf8'))
               }
 
               const mimeType = this.getMimeType(ext)
@@ -471,32 +471,32 @@ export class SkillInputPlugin extends AbstractInputPlugin {
                 length,
               }
 
-              if (mimeType != null) resources.push({ ...resource, mimeType })
+              if (mimeType != null) resources.push({...resource, mimeType})
               else resources.push(resource)
             } catch (e) {
-              logger.warn('failed to read resource file', { path: relativePath, error: e })
+              logger.warn('failed to read resource file', {path: relativePath, error: e})
             }
           }
         }
       }
     } catch (e) {
-      logger.warn('failed to scan directory', { path: currentDir, error: e })
+      logger.warn('failed to scan directory', {path: currentDir, error: e})
     }
 
-    return { childDocs, resources }
+    return {childDocs, resources}
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
-    const { userConfigOptions: options, logger, globalScope } = ctx
-    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
+    const {userConfigOptions: options, logger, globalScope} = ctx
+    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
     const skillDirRaw = options.shadowSkillSourceDir
     const skillDir = this.resolvePath(skillDirRaw, workspaceDir, shadowProjectDir)
 
     const skills: SkillPrompt[] = []
-    if (!(ctx.fs.existsSync(skillDir) && ctx.fs.statSync(skillDir).isDirectory())) return { skills }
+    if (!(ctx.fs.existsSync(skillDir) && ctx.fs.statSync(skillDir).isDirectory())) return {skills}
 
-    const entries = ctx.fs.readdirSync(skillDir, { withFileTypes: true })
+    const entries = ctx.fs.readdirSync(skillDir, {withFileTypes: true})
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const skillFilePath = ctx.path.join(skillDir, entry.name, 'skill.mdx')
@@ -527,9 +527,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             )
 
             // Log validation warnings
-            for (const warning of validationResult.warnings) {
-              logger.debug(warning)
-            }
+            for (const warning of validationResult.warnings) logger.debug(warning)
 
             // Throw error if validation fails (missing required fields)
             if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, skillFilePath)
@@ -543,7 +541,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             const mcpConfig = this.readMcpConfig(skillAbsoluteDir, ctx.fs, logger)
 
             // Recursively scan for child docs and resources
-            const { childDocs, resources } = this.scanSkillDirectory(
+            const {childDocs, resources} = this.scanSkillDirectory(
               skillAbsoluteDir,
               ctx.fs,
               logger,
@@ -564,16 +562,16 @@ export class SkillInputPlugin extends AbstractInputPlugin {
               filePathKind: FilePathKind.Relative,
               yamlFrontMatter: mergedFrontMatter.name != null
                 ? mergedFrontMatter
-                : { name: entry.name, description: '' } as SkillYAMLFrontMatter,
-              ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
+                : {name: entry.name, description: ''} as SkillYAMLFrontMatter,
+              ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
               markdownAst: parsed.markdownAst,
               markdownContents: parsed.markdownContents,
               // Include MCP configuration if found
-              ...(mcpConfig != null && { mcpConfig }),
+              ...mcpConfig != null && {mcpConfig},
               // Include child docs if any were found
-              ...(childDocs.length > 0 && { childDocs }),
+              ...childDocs.length > 0 && {childDocs},
               // Include resources if any were found
-              ...(resources.length > 0 && { resources }),
+              ...resources.length > 0 && {resources},
               dir: {
                 pathKind: FilePathKind.Relative,
                 path: entry.name,
@@ -583,11 +581,11 @@ export class SkillInputPlugin extends AbstractInputPlugin {
               },
             })
           } catch (e) {
-            logger.error('failed to parse skill', { file: skillFilePath, error: e })
+            logger.error('failed to parse skill', {file: skillFilePath, error: e})
           }
         }
       }
     }
-    return { skills }
+    return {skills}
   }
 }

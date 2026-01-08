@@ -8,14 +8,14 @@ import type {
 
 import process from 'node:process'
 
-import { mdxToMd } from '@/compiler'
-import { parseMarkdown } from '@/markdown'
+import {mdxToMd} from '@/compiler'
+import {parseMarkdown} from '@/markdown'
 import {
   FilePathKind,
   PromptKind,
 } from '@/types'
-import { ScopeError } from '@/types/Errors'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {ScopeError} from '@/types/Errors'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**
  * Project memory prompt file name
@@ -29,8 +29,8 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
-    const { dependencyContext, fs, userConfigOptions: options, path, globalScope } = ctx
-    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
+    const {dependencyContext, fs, userConfigOptions: options, path, globalScope} = ctx
+    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
     // Resolve shadow projects directory
     const shadowProjectsDirRaw = options.shadowProjectsDir
@@ -67,8 +67,8 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
       return {
         ...project,
-        ...(rootMemoryPrompt != null && { rootMemoryPrompt }),
-        ...(childMemoryPrompts.length > 0 && { childMemoryPrompts }),
+        ...rootMemoryPrompt != null && {rootMemoryPrompt},
+        ...childMemoryPrompts.length > 0 && {childMemoryPrompts},
       }
     }))
 
@@ -86,7 +86,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     projectPath: string,
     globalScope: InputPluginContext['globalScope'],
   ): Promise<ProjectRootMemoryPrompt | undefined> {
-    const { fs, path, logger } = ctx
+    const {fs, path, logger} = ctx
     const filePath = path.join(projectPath, PROJECT_MEMORY_FILE)
 
     if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return
@@ -116,8 +116,8 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
         content,
         length: content.length,
         filePathKind: FilePathKind.Relative,
-        ...(parsed.yamlFrontMatter != null && { yamlFrontMatter: parsed.yamlFrontMatter }),
-        ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
+        ...parsed.yamlFrontMatter != null && {yamlFrontMatter: parsed.yamlFrontMatter},
+        ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
         markdownAst: parsed.markdownAst,
         markdownContents: parsed.markdownContents,
         dir: {
@@ -127,7 +127,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
         },
       }
     } catch (e) {
-      logger.error(`Failed to read root memory prompt at ${filePath}`, { error: e })
+      logger.error(`Failed to read root memory prompt at ${filePath}`, {error: e})
       return void 0
     }
   }
@@ -138,13 +138,13 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     targetProjectPath: string,
     globalScope: InputPluginContext['globalScope'],
   ): Promise<ProjectChildrenMemoryPrompt[]> {
-    const { logger } = ctx
+    const {logger} = ctx
     const prompts: ProjectChildrenMemoryPrompt[] = []
 
     try {
       await this.scanDirectoryRecursive(ctx, shadowProjectPath, shadowProjectPath, targetProjectPath, prompts, globalScope)
     } catch (e) {
-      logger.error(`Failed to scan child memory prompts at ${shadowProjectPath}`, { error: e })
+      logger.error(`Failed to scan child memory prompts at ${shadowProjectPath}`, {error: e})
     }
 
     return prompts
@@ -158,19 +158,19 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     prompts: ProjectChildrenMemoryPrompt[],
     globalScope: InputPluginContext['globalScope'],
   ): Promise<void> {
-    const { fs, path } = ctx
+    const {fs, path} = ctx
 
-    const entries = fs.readdirSync(currentPath, { withFileTypes: true })
+    const entries = fs.readdirSync(currentPath, {withFileTypes: true})
     for (const entry of entries) {
-      if (!(entry.isDirectory())) continue
+      if (!entry.isDirectory()) continue
 
       // Skip hidden directories and common non-source directories
-      if ((Boolean(entry.name.startsWith('.'))) || entry.name === 'node_modules') continue
+      if (Boolean(entry.name.startsWith('.')) || entry.name === 'node_modules') continue
 
       const childDir = path.join(currentPath, entry.name)
       const memoryFile = path.join(childDir, PROJECT_MEMORY_FILE)
 
-      if ((Boolean(fs.existsSync(memoryFile))) && (Boolean(fs.statSync(memoryFile).isFile()))) {
+      if (Boolean(fs.existsSync(memoryFile)) && Boolean(fs.statSync(memoryFile).isFile())) {
         const prompt = await this.readChildMemoryPrompt(ctx, shadowProjectPath, childDir, targetProjectPath, globalScope)
         if (prompt != null) prompts.push(prompt)
       }
@@ -187,7 +187,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     targetProjectPath: string,
     globalScope: InputPluginContext['globalScope'],
   ): Promise<ProjectChildrenMemoryPrompt | undefined> {
-    const { fs, path, logger } = ctx
+    const {fs, path, logger} = ctx
     const filePath = path.join(shadowChildDir, PROJECT_MEMORY_FILE)
 
     try {
@@ -221,8 +221,8 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
         content,
         length: content.length,
         filePathKind: FilePathKind.Relative,
-        ...(parsed.yamlFrontMatter != null && { yamlFrontMatter: parsed.yamlFrontMatter }),
-        ...(parsed.rawFrontMatter != null && { rawFrontMatter: parsed.rawFrontMatter }),
+        ...parsed.yamlFrontMatter != null && {yamlFrontMatter: parsed.yamlFrontMatter},
+        ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
         markdownAst: parsed.markdownAst,
         markdownContents: parsed.markdownContents,
         dir: {
@@ -241,7 +241,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
         },
       }
     } catch (e) {
-      logger.error(`Failed to read child memory prompt at ${filePath}`, { error: e })
+      logger.error(`Failed to read child memory prompt at ${filePath}`, {error: e})
       return void 0
     }
   }

@@ -1,11 +1,11 @@
-import type { ILogger } from '@/log'
-import type { ConfigLoaderOptions, ConfigLoadResult, UserConfigFile } from '@/types/ConfigTypes'
+import type {ILogger} from '@/log'
+import type {ConfigLoaderOptions, ConfigLoadResult, UserConfigFile} from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import { DEFAULT_USER_CONFIG } from '@/constants'
-import { createLogger } from '@/log'
+import {DEFAULT_USER_CONFIG} from '@/constants'
+import {createLogger} from '@/log'
 
 /**
  * Default config file name
@@ -29,7 +29,7 @@ export function getGlobalConfigPath(): string {
  * Uses build-time injected template from public/tnmsc.example.json
  */
 export function getDefaultUserConfig(): UserConfigFile {
-  return { ...DEFAULT_USER_CONFIG }
+  return {...DEFAULT_USER_CONFIG}
 }
 
 /**
@@ -40,11 +40,11 @@ function writeGlobalConfig(config: UserConfigFile, logger: ILogger): void {
   const configDir = path.dirname(configPath)
 
   // Ensure directory exists
-  if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
+  if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, {recursive: true})
 
   // Write with pretty formatting
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
-  logger.info('global config created', { path: configPath })
+  logger.info('global config created', {path: configPath})
 }
 
 /**
@@ -104,9 +104,7 @@ export class ConfigLoader {
     const paths: string[] = []
 
     // Custom search paths first (highest priority)
-    for (const searchPath of this.customSearchPaths) {
-      paths.push(this.resolveTilde(searchPath))
-    }
+    for (const searchPath of this.customSearchPaths) paths.push(this.resolveTilde(searchPath))
 
     // CWD config
     if (this.searchCwd) paths.push(path.join(cwd, this.configFileName))
@@ -124,16 +122,16 @@ export class ConfigLoader {
     const resolvedPath = this.resolveTilde(filePath)
 
     try {
-      if (!fs.existsSync(resolvedPath)) return { config: {}, source: null, found: false }
+      if (!fs.existsSync(resolvedPath)) return {config: {}, source: null, found: false}
 
       const content = fs.readFileSync(resolvedPath, 'utf8')
       const config = this.parseConfig(content, resolvedPath)
 
-      this.logger.debug('loaded', { source: resolvedPath })
-      return { config, source: resolvedPath, found: true }
+      this.logger.debug('loaded', {source: resolvedPath})
+      return {config, source: resolvedPath, found: true}
     } catch (error) {
-      this.logger.warn('load failed', { path: resolvedPath, error })
-      return { config: {}, source: null, found: false }
+      this.logger.warn('load failed', {path: resolvedPath, error})
+      return {config: {}, source: null, found: false}
     }
   }
 
@@ -206,9 +204,7 @@ export class ConfigLoader {
     if ('logLevel' in raw) {
       const validLevels = ['trace', 'debug', 'info', 'warn', 'error']
       const logLevelValue = raw['logLevel']
-      if (typeof logLevelValue === 'string' && validLevels.includes(logLevelValue)) {
-        (config as Record<string, unknown>)['logLevel'] = logLevelValue
-      }
+      if (typeof logLevelValue === 'string' && validLevels.includes(logLevelValue)) (config as Record<string, unknown>)['logLevel'] = logLevelValue
       else errors.push(`logLevel must be one of: ${validLevels.join(', ')}`)
     }
 
@@ -216,9 +212,7 @@ export class ConfigLoader {
     if ('externalProjects' in raw) {
       const externalProjectsValue = raw['externalProjects']
       if (Array.isArray(externalProjectsValue)) {
-        if (externalProjectsValue.every(p => typeof p === 'string')) {
-          (config as Record<string, unknown>)['externalProjects'] = externalProjectsValue
-        }
+        if (externalProjectsValue.every(p => typeof p === 'string')) (config as Record<string, unknown>)['externalProjects'] = externalProjectsValue
         else errors.push('externalProjects must be an array of strings')
       }
       else errors.push('externalProjects must be an array')
@@ -248,9 +242,7 @@ export class ConfigLoader {
     // profile validation - supports arbitrary key-value pairs
     if ('profile' in raw) {
       const profileValue = raw['profile']
-      if (typeof profileValue === 'object' && profileValue !== null && !Array.isArray(profileValue)) {
-        (config as Record<string, unknown>)['profile'] = profileValue
-      }
+      if (typeof profileValue === 'object' && profileValue !== null && !Array.isArray(profileValue)) (config as Record<string, unknown>)['profile'] = profileValue
       else errors.push('profile must be an object')
     }
 
@@ -275,7 +267,7 @@ export class ConfigLoader {
       else errors.push('tool must be an object')
     }
 
-    if (errors.length > 0) this.logger.warn('validation warnings', { path: filePath, errors })
+    if (errors.length > 0) this.logger.warn('validation warnings', {path: filePath, errors})
 
     return config
   }
@@ -294,8 +286,8 @@ export class ConfigLoader {
 
     return reversed.reduce<UserConfigFile>((acc, config) => {
       const mergedExternalProjects = [
-        ...(acc.externalProjects ?? []),
-        ...(config.externalProjects ?? []),
+        ...acc.externalProjects ?? [],
+        ...config.externalProjects ?? [],
       ]
       const mergedExcludePatterns = this.mergeExcludePatterns(
         acc.excludePatterns,
@@ -306,9 +298,9 @@ export class ConfigLoader {
         ...acc,
         ...config,
         // Merge arrays - only include if non-empty
-        ...(mergedExternalProjects.length > 0 ? { externalProjects: mergedExternalProjects } : {}),
+        ...mergedExternalProjects.length > 0 ? {externalProjects: mergedExternalProjects} : {},
         // Deep merge excludePatterns - only include if defined
-        ...(mergedExcludePatterns != null ? { excludePatterns: mergedExcludePatterns } : {}),
+        ...mergedExcludePatterns != null ? {excludePatterns: mergedExcludePatterns} : {},
       }
     }, {})
   }
@@ -321,10 +313,8 @@ export class ConfigLoader {
     if (a == null) return b ?? null
     if (b == null) return a
 
-    const result: Record<string, string[]> = { ...a }
-    for (const [key, patterns] of Object.entries(b)) {
-      result[key] = [...(result[key] ?? []), ...patterns]
-    }
+    const result: Record<string, string[]> = {...a}
+    for (const [key, patterns] of Object.entries(b)) result[key] = [...result[key] ?? [], ...patterns]
     return result
   }
 
@@ -387,7 +377,7 @@ export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
 
   // Check if config file exists
   if (!fs.existsSync(configPath)) {
-    logger.warn('global config not found, creating default config', { path: configPath })
+    logger.warn('global config not found, creating default config', {path: configPath})
     writeGlobalConfig(getDefaultUserConfig(), logger)
     return {
       valid: true,
@@ -403,7 +393,7 @@ export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
     content = fs.readFileSync(configPath, 'utf8')
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logger.error('failed to read global config', { path: configPath, error: errorMessage })
+    logger.error('failed to read global config', {path: configPath, error: errorMessage})
     return recreateConfigAndExit(configPath, logger, [`Failed to read config: ${errorMessage}`])
   }
 
@@ -413,22 +403,20 @@ export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
     parsed = JSON.parse(content)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logger.error('invalid JSON in global config', { path: configPath, error: errorMessage })
+    logger.error('invalid JSON in global config', {path: configPath, error: errorMessage})
     return recreateConfigAndExit(configPath, logger, [`Invalid JSON: ${errorMessage}`])
   }
 
   // Validate structure
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    logger.error('global config must be a JSON object', { path: configPath })
+    logger.error('global config must be a JSON object', {path: configPath})
     return recreateConfigAndExit(configPath, logger, ['Config must be a JSON object'])
   }
 
   // Validate fields strictly
   const errors = validateConfigStrict(parsed as Record<string, unknown>)
   if (errors.length > 0) {
-    for (const err of errors) {
-      logger.error('config validation error', { path: configPath, error: err })
-    }
+    for (const err of errors) logger.error('config validation error', {path: configPath, error: err})
     return recreateConfigAndExit(configPath, logger, errors)
   }
 
@@ -465,9 +453,7 @@ function validateConfigStrict(raw: Record<string, unknown>): string[] {
   if ('logLevel' in raw) {
     const validLevels = ['trace', 'debug', 'info', 'warn', 'error']
     const logLevelValue = raw['logLevel']
-    if (typeof logLevelValue !== 'string' || !validLevels.includes(logLevelValue)) {
-      errors.push(`logLevel must be one of: ${validLevels.join(', ')}`)
-    }
+    if (typeof logLevelValue !== 'string' || !validLevels.includes(logLevelValue)) errors.push(`logLevel must be one of: ${validLevels.join(', ')}`)
   }
 
   // externalProjects validation
@@ -516,13 +502,13 @@ function validateConfigStrict(raw: Record<string, unknown>): string[] {
 function recreateConfigAndExit(configPath: string, logger: ILogger, errors: string[]): GlobalConfigValidationResult {
   try {
     fs.unlinkSync(configPath)
-    logger.info('deleted invalid config', { path: configPath })
+    logger.info('deleted invalid config', {path: configPath})
   } catch {
-    logger.warn('failed to delete invalid config', { path: configPath })
+    logger.warn('failed to delete invalid config', {path: configPath})
   }
 
   writeGlobalConfig(getDefaultUserConfig(), logger)
-  logger.error('recreated default config, please review and restart', { path: configPath })
+  logger.error('recreated default config, please review and restart', {path: configPath})
 
   return {
     valid: false,

@@ -2,11 +2,11 @@
 // Property-based tests for ScopeRegistry
 // Feature: compiler-integration
 
-import type { MdxGlobalScope, OsInfo, ToolReferences, UserProfile } from '@/globals'
+import type {MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@/globals'
 import * as fc from 'fast-check'
-import { describe, expect, it } from 'vitest'
-import { ShellKind } from '@/globals'
-import { ScopePriority, ScopeRegistry } from './ScopeRegistry'
+import {describe, expect, it} from 'vitest'
+import {ShellKind} from '@/globals'
+import {ScopePriority, ScopeRegistry} from './ScopeRegistry'
 
 /**
  * Arbitrary generator for simple values (non-object primitives)
@@ -22,34 +22,34 @@ const simpleValueArb = fc.oneof(
  * Arbitrary generator for flat record (no nested objects)
  */
 const flatRecordArb = fc.dictionary(
-  fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
+  fc.string({minLength: 1, maxLength: 20}).filter(s =>
     /^[a-z_]\w*$/i.test(s)
     && s !== '__proto__'
     && s !== 'constructor'
     && s !== 'prototype',
   ),
   simpleValueArb,
-  { minKeys: 1, maxKeys: 5 },
+  {minKeys: 1, maxKeys: 5},
 )
 
 /**
  * Arbitrary generator for nested record (one level of nesting)
  */
 const _nestedRecordArb = fc.dictionary(
-  fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
+  fc.string({minLength: 1, maxLength: 20}).filter(s =>
     /^[a-z_]\w*$/i.test(s)
     && s !== '__proto__'
     && s !== 'constructor'
     && s !== 'prototype',
   ),
   fc.oneof(simpleValueArb, flatRecordArb),
-  { minKeys: 1, maxKeys: 5 },
+  {minKeys: 1, maxKeys: 5},
 )
 
 /**
  * Arbitrary generator for namespace string
  */
-const namespaceArb = fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
+const namespaceArb = fc.string({minLength: 1, maxLength: 20}).filter(s =>
   /^[a-z_]\w*$/i.test(s)
   && s !== '__proto__'
   && s !== 'constructor'
@@ -78,18 +78,18 @@ const osInfoArb: fc.Arbitrary<OsInfo> = fc.record({
  * Arbitrary generator for UserProfile
  */
 const userProfileArb: fc.Arbitrary<UserProfile> = fc.record({
-  name: fc.option(fc.string(), { nil: void 0 }),
-  username: fc.option(fc.string(), { nil: void 0 }),
-  gender: fc.option(fc.string(), { nil: void 0 }),
-  birthday: fc.option(fc.string(), { nil: void 0 }),
+  name: fc.option(fc.string(), {nil: void 0}),
+  username: fc.option(fc.string(), {nil: void 0}),
+  gender: fc.option(fc.string(), {nil: void 0}),
+  birthday: fc.option(fc.string(), {nil: void 0}),
 })
 
 /**
  * Arbitrary generator for ToolReferences
  */
 const toolReferencesArb: fc.Arbitrary<ToolReferences> = fc.record({
-  websearch: fc.option(fc.string(), { nil: void 0 }),
-  webfetch: fc.option(fc.string(), { nil: void 0 }),
+  websearch: fc.option(fc.string(), {nil: void 0}),
+  webfetch: fc.option(fc.string(), {nil: void 0}),
 })
 
 /**
@@ -97,7 +97,7 @@ const toolReferencesArb: fc.Arbitrary<ToolReferences> = fc.record({
  */
 const globalScopeArb: fc.Arbitrary<MdxGlobalScope> = fc.record({
   os: osInfoArb,
-  env: fc.dictionary(fc.string({ minLength: 1, maxLength: 10 }), fc.string(), { minKeys: 0, maxKeys: 5 }),
+  env: fc.dictionary(fc.string({minLength: 1, maxLength: 10}), fc.string(), {minKeys: 0, maxKeys: 5}),
   profile: userProfileArb,
   tool: toolReferencesArb,
 })
@@ -123,28 +123,28 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.string({ minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({minLength: 1, maxLength: 20}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
           (namespace, key, systemValue, userValue, pluginValue, compileValue) => {
             const registry = new ScopeRegistry()
 
             // Register same key with different priorities
-            registry.register(namespace, { [key]: systemValue }, ScopePriority.SystemDefault)
-            registry.register(namespace, { [key]: userValue }, ScopePriority.UserConfig)
-            registry.register(namespace, { [key]: pluginValue }, ScopePriority.PluginRegistered)
+            registry.register(namespace, {[key]: systemValue}, ScopePriority.SystemDefault)
+            registry.register(namespace, {[key]: userValue}, ScopePriority.UserConfig)
+            registry.register(namespace, {[key]: pluginValue}, ScopePriority.PluginRegistered)
 
             // Merge with compile-time scope
-            const merged = registry.merge({ [namespace]: { [key]: compileValue } })
+            const merged = registry.merge({[namespace]: {[key]: compileValue}})
 
             // Compile-time should win (highest priority)
             const namespaceResult = merged[namespace] as Record<string, unknown>
             expect(namespaceResult[key]).toBe(compileValue)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -152,17 +152,17 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.string({ minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({minLength: 1, maxLength: 20}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
           (namespace, key, systemValue, userValue, pluginValue) => {
             const registry = new ScopeRegistry()
 
             // Register same key with different priorities (no compile-time)
-            registry.register(namespace, { [key]: systemValue }, ScopePriority.SystemDefault)
-            registry.register(namespace, { [key]: userValue }, ScopePriority.UserConfig)
-            registry.register(namespace, { [key]: pluginValue }, ScopePriority.PluginRegistered)
+            registry.register(namespace, {[key]: systemValue}, ScopePriority.SystemDefault)
+            registry.register(namespace, {[key]: userValue}, ScopePriority.UserConfig)
+            registry.register(namespace, {[key]: pluginValue}, ScopePriority.PluginRegistered)
 
             const merged = registry.merge()
 
@@ -171,7 +171,7 @@ describe('scopeRegistry property tests', () => {
             expect(namespaceResult[key]).toBe(pluginValue)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -179,15 +179,15 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.string({ minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({minLength: 1, maxLength: 20}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
           (namespace, key, systemValue, userValue) => {
             const registry = new ScopeRegistry()
 
             // Register same key with system and user priorities only
-            registry.register(namespace, { [key]: systemValue }, ScopePriority.SystemDefault)
-            registry.register(namespace, { [key]: userValue }, ScopePriority.UserConfig)
+            registry.register(namespace, {[key]: systemValue}, ScopePriority.SystemDefault)
+            registry.register(namespace, {[key]: userValue}, ScopePriority.UserConfig)
 
             const merged = registry.merge()
 
@@ -196,7 +196,7 @@ describe('scopeRegistry property tests', () => {
             expect(namespaceResult[key]).toBe(userValue)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -204,13 +204,13 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           globalScopeArb,
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({minLength: 1, maxLength: 50}),
           (globalScope, overrideValue) => {
             const registry = new ScopeRegistry()
             registry.setGlobalScope(globalScope)
 
             // Register override for profile namespace
-            registry.register('profile', { customKey: overrideValue }, ScopePriority.PluginRegistered)
+            registry.register('profile', {customKey: overrideValue}, ScopePriority.PluginRegistered)
 
             const merged = registry.merge()
 
@@ -225,7 +225,7 @@ describe('scopeRegistry property tests', () => {
             expect(profileResult['customKey']).toBe(overrideValue)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -233,23 +233,23 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.string({ minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({minLength: 1, maxLength: 20}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
           // Shuffle the registration order
           fc.shuffledSubarray([
             ScopePriority.SystemDefault,
             ScopePriority.UserConfig,
             ScopePriority.PluginRegistered,
-          ], { minLength: 3, maxLength: 3 }),
+          ], {minLength: 3, maxLength: 3}),
           (namespace, key, val1, val2, val3, priorities) => {
             const values = [val1, val2, val3]
             const registry = new ScopeRegistry()
 
             // Register in shuffled order
             priorities.forEach((priority, index) => {
-              registry.register(namespace, { [key]: values[index] }, priority)
+              registry.register(namespace, {[key]: values[index]}, priority)
             })
 
             const merged = registry.merge()
@@ -262,7 +262,7 @@ describe('scopeRegistry property tests', () => {
             expect(namespaceResult[key]).toBe(expectedValue)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })
@@ -278,10 +278,10 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.string({ minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({minLength: 1, maxLength: 20}),
+          fc.string({minLength: 1, maxLength: 20}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
           (namespace, key1, key2, value1, value2) => {
             // Ensure keys are different
             fc.pre(key1 !== key2)
@@ -290,12 +290,12 @@ describe('scopeRegistry property tests', () => {
 
             // Register nested object with key1
             registry.register(namespace, {
-              nested: { [key1]: value1 },
+              nested: {[key1]: value1},
             }, ScopePriority.SystemDefault)
 
             // Register nested object with key2 (should merge, not overwrite)
             registry.register(namespace, {
-              nested: { [key2]: value2 },
+              nested: {[key2]: value2},
             }, ScopePriority.UserConfig)
 
             const merged = registry.merge()
@@ -308,13 +308,13 @@ describe('scopeRegistry property tests', () => {
             expect(nestedResult[key2]).toBe(value2)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
     it('should deep merge multiple levels of nesting', () => {
       // Safe key generator that excludes prototype pollution keys
-      const safeKeyArb = fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
+      const safeKeyArb = fc.string({minLength: 1, maxLength: 20}).filter(s =>
         /^[a-z_]\w*$/i.test(s)
         && s !== '__proto__'
         && s !== 'constructor'
@@ -326,8 +326,8 @@ describe('scopeRegistry property tests', () => {
           namespaceArb,
           safeKeyArb,
           safeKeyArb,
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
           (namespace, key1, key2, value1, value2) => {
             fc.pre(key1 !== key2)
 
@@ -362,7 +362,7 @@ describe('scopeRegistry property tests', () => {
             expect(level2[key2]).toBe(value2)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -370,19 +370,19 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.string({ minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({minLength: 1, maxLength: 20}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
           (namespace, key, lowPriorityValue, highPriorityValue) => {
             const registry = new ScopeRegistry()
 
             // Register nested object with same key at different priorities
             registry.register(namespace, {
-              nested: { [key]: lowPriorityValue },
+              nested: {[key]: lowPriorityValue},
             }, ScopePriority.SystemDefault)
 
             registry.register(namespace, {
-              nested: { [key]: highPriorityValue },
+              nested: {[key]: highPriorityValue},
             }, ScopePriority.PluginRegistered)
 
             const merged = registry.merge()
@@ -394,7 +394,7 @@ describe('scopeRegistry property tests', () => {
             expect(nestedResult[key]).toBe(highPriorityValue)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -402,8 +402,8 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.array(fc.string(), { minLength: 1, maxLength: 5 }),
-          fc.array(fc.string(), { minLength: 1, maxLength: 5 }),
+          fc.array(fc.string(), {minLength: 1, maxLength: 5}),
+          fc.array(fc.string(), {minLength: 1, maxLength: 5}),
           (namespace, array1, array2) => {
             const registry = new ScopeRegistry()
 
@@ -424,7 +424,7 @@ describe('scopeRegistry property tests', () => {
             expect(namespaceResult['items']).toEqual(array2)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -432,10 +432,10 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.string({ minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({minLength: 1, maxLength: 20}),
+          fc.string({minLength: 1, maxLength: 20}),
+          fc.string({minLength: 1, maxLength: 50}),
+          fc.string({minLength: 1, maxLength: 50}),
           (namespace, key1, key2, registeredValue, compileTimeValue) => {
             fc.pre(key1 !== key2)
 
@@ -443,13 +443,13 @@ describe('scopeRegistry property tests', () => {
 
             // Register nested object
             registry.register(namespace, {
-              nested: { [key1]: registeredValue },
+              nested: {[key1]: registeredValue},
             }, ScopePriority.PluginRegistered)
 
             // Merge with compile-time scope containing different key
             const merged = registry.merge({
               [namespace]: {
-                nested: { [key2]: compileTimeValue },
+                nested: {[key2]: compileTimeValue},
               },
             })
 
@@ -461,7 +461,7 @@ describe('scopeRegistry property tests', () => {
             expect(nestedResult[key2]).toBe(compileTimeValue)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -469,8 +469,8 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.string({ minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 20 }),
+          fc.string({minLength: 1, maxLength: 20}),
+          fc.string({minLength: 1, maxLength: 20}),
           simpleValueArb,
           flatRecordArb,
           (namespace, primitiveKey, objectKey, primitiveValue, objectValue) => {
@@ -496,7 +496,7 @@ describe('scopeRegistry property tests', () => {
             expect(namespaceResult[objectKey]).toEqual(objectValue)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -515,12 +515,10 @@ describe('scopeRegistry property tests', () => {
 
             // Values should be present
             const namespaceResult = merged[namespace] as Record<string, unknown>
-            for (const [key, value] of Object.entries(values)) {
-              expect(namespaceResult[key]).toBe(value)
-            }
+            for (const [key, value] of Object.entries(values)) expect(namespaceResult[key]).toBe(value)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
 
@@ -528,7 +526,7 @@ describe('scopeRegistry property tests', () => {
       fc.assert(
         fc.property(
           globalScopeArb,
-          fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
+          fc.string({minLength: 1, maxLength: 20}).filter(s =>
             /^[a-z_]\w*$/i.test(s)
             && s !== '__proto__'
             && s !== 'constructor'
@@ -538,7 +536,7 @@ describe('scopeRegistry property tests', () => {
             && s !== 'gender'
             && s !== 'birthday',
           ),
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({minLength: 1, maxLength: 50}),
           (globalScope, customKey, customValue) => {
             const registry = new ScopeRegistry()
             registry.setGlobalScope(globalScope)
@@ -559,7 +557,7 @@ describe('scopeRegistry property tests', () => {
             expect(profileResult[customKey]).toBe(customValue)
           },
         ),
-        { numRuns: 100 },
+        {numRuns: 100},
       )
     })
   })

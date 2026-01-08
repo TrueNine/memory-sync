@@ -5,12 +5,12 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 
-import { Buffer } from 'node:buffer'
-import { buildMarkdownWithFrontMatter } from '@/markdown'
-import { FilePathKind } from '@/types'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import {Buffer} from 'node:buffer'
+import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {FilePathKind} from '@/types'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const SKILLS_DIR = '.skills'
 const SKILL_FILE_NAME = 'SKILL.md'
@@ -42,8 +42,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
-    const { skills } = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
+    const {skills} = ctx.collectedInputContext
 
     if (skills == null || skills.length === 0) return results
 
@@ -66,8 +66,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
-    const { skills } = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
+    const {skills} = ctx.collectedInputContext
 
     if (skills == null || skills.length === 0) return results
 
@@ -147,27 +147,27 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { skills } = ctx.collectedInputContext
-    const { projects } = ctx.collectedInputContext.workspace
+    const {skills} = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
 
     if (skills == null || skills.length === 0) {
-      this.log.trace({ action: 'skip', reason: 'noSkills' })
+      this.log.trace({action: 'skip', reason: 'noSkills'})
       return false
     }
 
     if (projects.length !== 0) return true
 
-    this.log.trace({ action: 'skip', reason: 'noProjects' })
+    this.log.trace({action: 'skip', reason: 'noProjects'})
     return false
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { projects } = ctx.collectedInputContext.workspace
-    const { skills } = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
+    const {skills} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (skills == null || skills.length === 0) return { files: fileResults, dirs: dirResults }
+    if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults}
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
@@ -184,12 +184,12 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 
   async writeGlobalOutputs(): Promise<WriteResults> {
     // No global outputs for this plugin
-    return { files: [], dirs: [] }
+    return {files: [], dirs: []}
   }
 
   /**
@@ -225,18 +225,18 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     const skillContent = buildMarkdownWithFrontMatter(frontMatterData, bodyContent)
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'skill', path: skillFilePath })
-      results.push({ path: skillRelativePath, success: true, skipped: false })
+      this.log.trace({action: 'dryRun', type: 'skill', path: skillFilePath})
+      results.push({path: skillRelativePath, success: true, skipped: false})
     } else {
       try {
         this.ensureDirectory(skillDir)
         this.writeFileSync(skillFilePath, skillContent)
-        this.log.trace({ action: 'write', type: 'skill', path: skillFilePath })
-        results.push({ path: skillRelativePath, success: true })
+        this.log.trace({action: 'write', type: 'skill', path: skillFilePath})
+        results.push({path: skillRelativePath, success: true})
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({ action: 'write', type: 'skill', path: skillFilePath, error: errMsg })
-        results.push({ path: skillRelativePath, success: false, error: error as Error })
+        this.log.error({action: 'write', type: 'skill', path: skillFilePath, error: errMsg})
+        results.push({path: skillRelativePath, success: false, error: error as Error})
       }
     }
 
@@ -273,11 +273,11 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     return {
       name: fm.name,
       description: fm.description,
-      ...(fm.displayName != null && { displayName: fm.displayName }),
-      ...(fm.keywords != null && fm.keywords.length > 0 && { keywords: fm.keywords }),
-      ...(fm.author != null && { author: fm.author }),
-      ...(fm.version != null && { version: fm.version }),
-      ...(fm.allowTools != null && fm.allowTools.length > 0 && { allowTools: fm.allowTools }),
+      ...fm.displayName != null && {displayName: fm.displayName},
+      ...fm.keywords != null && fm.keywords.length > 0 && {keywords: fm.keywords},
+      ...fm.author != null && {author: fm.author},
+      ...fm.version != null && {version: fm.version},
+      ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools},
     }
   }
 
@@ -303,19 +303,19 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     const mcpConfigContent = skill.mcpConfig!.rawContent
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'mcpConfig', path: mcpConfigPath })
-      return { path: relativePath, success: true, skipped: false }
+      this.log.trace({action: 'dryRun', type: 'mcpConfig', path: mcpConfigPath})
+      return {path: relativePath, success: true, skipped: false}
     }
 
     try {
       this.ensureDirectory(skillDir)
       this.writeFileSync(mcpConfigPath, mcpConfigContent)
-      this.log.trace({ action: 'write', type: 'mcpConfig', path: mcpConfigPath })
-      return { path: relativePath, success: true }
+      this.log.trace({action: 'write', type: 'mcpConfig', path: mcpConfigPath})
+      return {path: relativePath, success: true}
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'mcpConfig', path: mcpConfigPath, error: errMsg })
-      return { path: relativePath, success: false, error: error as Error }
+      this.log.error({action: 'write', type: 'mcpConfig', path: mcpConfigPath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
     }
   }
 
@@ -325,7 +325,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
    */
   private async writeChildDoc(
     ctx: OutputWriteContext,
-    childDoc: { relativePath: string, content: unknown },
+    childDoc: {relativePath: string, content: unknown},
     skillDir: string,
     skillName: string,
   ): Promise<WriteResult> {
@@ -344,20 +344,20 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     const content = childDoc.content as string
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'childDoc', path: childDocPath })
-      return { path: relativePath, success: true, skipped: false }
+      this.log.trace({action: 'dryRun', type: 'childDoc', path: childDocPath})
+      return {path: relativePath, success: true, skipped: false}
     }
 
     try {
       const parentDir = this.dirname(childDocPath)
       this.ensureDirectory(parentDir)
       this.writeFileSync(childDocPath, content)
-      this.log.trace({ action: 'write', type: 'childDoc', path: childDocPath })
-      return { path: relativePath, success: true }
+      this.log.trace({action: 'write', type: 'childDoc', path: childDocPath})
+      return {path: relativePath, success: true}
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'childDoc', path: childDocPath, error: errMsg })
-      return { path: relativePath, success: false, error: error as Error }
+      this.log.error({action: 'write', type: 'childDoc', path: childDocPath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
     }
   }
 
@@ -366,7 +366,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
    */
   private async writeResource(
     ctx: OutputWriteContext,
-    resource: { relativePath: string, content: string, encoding: 'text' | 'base64' },
+    resource: {relativePath: string, content: string, encoding: 'text' | 'base64'},
     skillDir: string,
     skillName: string,
   ): Promise<WriteResult> {
@@ -381,8 +381,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'resource', path: resourcePath })
-      return { path: relativePath, success: true, skipped: false }
+      this.log.trace({action: 'dryRun', type: 'resource', path: resourcePath})
+      return {path: relativePath, success: true, skipped: false}
     }
 
     try {
@@ -396,12 +396,12 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       }
       else this.writeFileSync(resourcePath, resource.content)
 
-      this.log.trace({ action: 'write', type: 'resource', path: resourcePath })
-      return { path: relativePath, success: true }
+      this.log.trace({action: 'write', type: 'resource', path: resourcePath})
+      return {path: relativePath, success: true}
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'resource', path: resourcePath, error: errMsg })
-      return { path: relativePath, success: false, error: error as Error }
+      this.log.error({action: 'write', type: 'resource', path: resourcePath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
     }
   }
 }

@@ -1,18 +1,18 @@
 // mdx-to-md.ts
 // Main entry point for lossless MDX to Markdown conversion
 
-import type { YAML } from 'mdast'
-import type { EvaluationScope, MdxjsEsm, MdxToMdOptions, MdxToMdResult, ProcessingContext } from './types'
+import type {YAML} from 'mdast'
+import type {EvaluationScope, MdxjsEsm, MdxToMdOptions, MdxToMdResult, ProcessingContext} from './types'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkGfm from 'remark-gfm'
 import remarkStringify from 'remark-stringify'
-import { unified } from 'unified'
+import {unified} from 'unified'
 import * as YAML_LIB from 'yaml'
-import { registerBuiltInComponents } from '@/components'
-import { getComponents } from './component-registry'
-import { parseExports } from './export-parser'
-import { parseMdx } from './parser'
-import { processAst } from './transformer'
+import {registerBuiltInComponents} from '@/components'
+import {getComponents} from './component-registry'
+import {parseExports} from './export-parser'
+import {parseMdx} from './parser'
+import {processAst} from './transformer'
 
 // Register built-in components on module load
 registerBuiltInComponents()
@@ -34,10 +34,10 @@ function mergeScopes(
 
   // 1. Add global scope first (lower priority)
   if (globalScope != null) {
-    result['os'] = { ...globalScope.os }
-    result['env'] = { ...globalScope.env }
-    result['profile'] = { ...globalScope.profile }
-    result['tool'] = { ...globalScope.tool }
+    result['os'] = {...globalScope.os}
+    result['env'] = {...globalScope.env}
+    result['profile'] = {...globalScope.profile}
+    result['tool'] = {...globalScope.tool}
   }
 
   // 2. Merge custom scope (higher priority)
@@ -105,12 +105,12 @@ function mergeScopes(
  */
 export async function mdxToMd(
   content: string,
-  options?: MdxToMdOptions & { extractMetadata?: false },
+  options?: MdxToMdOptions & {extractMetadata?: false},
 ): Promise<string>
 
 export async function mdxToMd(
   content: string,
-  options: MdxToMdOptions & { extractMetadata: true },
+  options: MdxToMdOptions & {extractMetadata: true},
 ): Promise<MdxToMdResult>
 
 export async function mdxToMd(
@@ -144,9 +144,9 @@ export async function mdxToMd(
 
     // 3. Merge: export takes priority over YAML
     metadata = parseExports(esmNodes, {
-      ...(yamlFrontMatter != null && { yamlFrontMatter }),
+      ...yamlFrontMatter != null && {yamlFrontMatter},
       scope: mergedScope,
-      ...(options?.basePath != null && { filePath: options.basePath }),
+      ...options?.basePath != null && {filePath: options.basePath},
     })
 
     // 4. Remove YAML and ESM nodes from AST (clean content output)
@@ -157,7 +157,7 @@ export async function mdxToMd(
     scope: mergedScope,
     components,
     processingStack: [],
-    ...(options?.basePath != null && { basePath: options.basePath }),
+    ...options?.basePath != null && {basePath: options.basePath},
   }
 
   const processedAst = await processAst(ast, ctx)
@@ -174,7 +174,7 @@ export async function mdxToMd(
       rule: '-',
       handlers: {
         // 自定义 text handler 避免不必要的转义
-        text(node: { value: string }) {
+        text(node: {value: string}) {
           return node.value
         },
       },
@@ -183,7 +183,7 @@ export async function mdxToMd(
   const markdown = processor.stringify(processedAst).trim()
 
   // Return result with metadata if extractMetadata is true
-  if (options?.extractMetadata === true && metadata != null) return { content: markdown, metadata }
+  if (options?.extractMetadata === true && metadata != null) return {content: markdown, metadata}
 
   return markdown
 }

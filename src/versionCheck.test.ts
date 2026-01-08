@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { compareVersions, parseVersion, shouldCheckVersion } from './versionCheck'
+import {describe, expect, it, vi} from 'vitest'
+import {compareVersions, parseVersion, shouldCheckVersion} from './versionCheck'
 
 describe('versionCheck', () => {
   describe('parseVersion', () => {

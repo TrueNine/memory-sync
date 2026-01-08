@@ -1,11 +1,11 @@
-import type { CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath } from '@/types'
+import type {CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath} from '@/types'
 
 import process from 'node:process'
 
-import { mdxToMd } from '@/compiler'
-import { FilePathKind, PromptKind } from '@/types'
-import { ScopeError } from '@/types/Errors'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {mdxToMd} from '@/compiler'
+import {FilePathKind, PromptKind} from '@/types'
+import {ScopeError} from '@/types/Errors'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**
  * Input plugin for collecting readme.mdx files from shadow project directories.
@@ -19,8 +19,8 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
-    const { userConfigOptions: options, logger, fs, path, globalScope } = ctx
-    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
+    const {userConfigOptions: options, logger, fs, path, globalScope} = ctx
+    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
     const shadowProjectsDirRaw = options.shadowProjectsDir
     const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
@@ -29,13 +29,13 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
 
     // Check if shadow projects directory exists
     if (!fs.existsSync(shadowProjectsDir) || !fs.statSync(shadowProjectsDir).isDirectory()) {
-      logger.debug('shadow projects directory does not exist', { path: shadowProjectsDir })
-      return { readmePrompts }
+      logger.debug('shadow projects directory does not exist', {path: shadowProjectsDir})
+      return {readmePrompts}
     }
 
     try {
       // Scan dist/app/<project> directories
-      const projectEntries = fs.readdirSync(shadowProjectsDir, { withFileTypes: true })
+      const projectEntries = fs.readdirSync(shadowProjectsDir, {withFileTypes: true})
 
       for (const projectEntry of projectEntries) {
         if (!projectEntry.isDirectory()) continue
@@ -56,10 +56,10 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         )
       }
     } catch (e) {
-      logger.error('failed to scan shadow projects', { path: shadowProjectsDir, error: e })
+      logger.error('failed to scan shadow projects', {path: shadowProjectsDir, error: e})
     }
 
-    return { readmePrompts }
+    return {readmePrompts}
   }
 
   /**
@@ -82,7 +82,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     readmePrompts: ReadmePrompt[],
     globalScope: InputPluginContext['globalScope'],
   ): Promise<void> {
-    const { fs, path, logger } = ctx
+    const {fs, path, logger} = ctx
     const isRoot = relativePath === ''
 
     // Check for readme.mdx in current directory
@@ -144,13 +144,13 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           dir,
         })
       } catch (e) {
-        logger.warn('failed to read readme', { path: readmePath, error: e })
+        logger.warn('failed to read readme', {path: readmePath, error: e})
       }
     }
 
     // Scan subdirectories for child README files
     try {
-      const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+      const entries = fs.readdirSync(currentDir, {withFileTypes: true})
 
       for (const entry of entries) {
         if (entry.isDirectory()) {
@@ -169,7 +169,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         }
       }
     } catch (e) {
-      logger.warn('failed to scan directory', { path: currentDir, error: e })
+      logger.warn('failed to scan directory', {path: currentDir, error: e})
     }
   }
 }

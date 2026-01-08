@@ -1,8 +1,8 @@
-import type { ILogger } from '@/log'
-import type { PluginKind } from '@/types/Enums'
-import type { Plugin } from '@/types/PluginTypes'
+import type {ILogger} from '@/log'
+import type {PluginKind} from '@/types/Enums'
+import type {Plugin} from '@/types/PluginTypes'
 
-import { createLogger } from '@/log'
+import {createLogger} from '@/log'
 
 /**
  * Abstract base class for all plugins.

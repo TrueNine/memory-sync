@@ -1,7 +1,7 @@
-import type { InputEffectContext, InputEffectResult } from './AbstractInputPlugin'
+import type {InputEffectContext, InputEffectResult} from './AbstractInputPlugin'
 
-import type { CollectedInputContext, InputPluginContext } from '@/types'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import type {CollectedInputContext, InputPluginContext} from '@/types'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**
  * Result of the markdown whitespace cleanup effect.
@@ -47,11 +47,11 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
    * Effect handler that cleans whitespace in markdown files.
    */
   private async cleanupWhitespace(ctx: InputEffectContext): Promise<WhitespaceCleanupEffectResult> {
-    const { fs, path, shadowProjectDir, dryRun, logger } = ctx
+    const {fs, path, shadowProjectDir, dryRun, logger} = ctx
 
     const modifiedFiles: string[] = []
     const skippedFiles: string[] = []
-    const errors: Array<{ path: string, error: Error }> = []
+    const errors: {path: string, error: Error}[] = []
 
     // Directories to scan (Requirement 3.1)
     const dirsToScan = [
@@ -63,7 +63,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     for (const dir of dirsToScan) {
       // Skip non-existent directories gracefully (Requirement 3.6)
       if (!fs.existsSync(dir)) {
-        logger.debug({ action: 'whitespace-cleanup', message: 'Directory does not exist, skipping', dir })
+        logger.debug({action: 'whitespace-cleanup', message: 'Directory does not exist, skipping', dir})
         continue
       }
 
@@ -78,7 +78,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     }
 
     const hasErrors = errors.length > 0
-    if (hasErrors) logger.warn({ action: 'whitespace-cleanup', errors: errors.map(e => ({ path: e.path, error: e.error.message })) })
+    if (hasErrors) logger.warn({action: 'whitespace-cleanup', errors: errors.map(e => ({path: e.path, error: e.error.message}))})
 
     return {
       success: !hasErrors,
@@ -87,7 +87,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
         : `Modified ${modifiedFiles.length} files, skipped ${skippedFiles.length} files`,
       modifiedFiles,
       skippedFiles,
-      ...(hasErrors && { error: new Error(`${errors.length} errors occurred during cleanup`) }),
+      ...hasErrors && {error: new Error(`${errors.length} errors occurred during cleanup`)},
     }
   }
 
@@ -99,17 +99,17 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     dir: string,
     modifiedFiles: string[],
     skippedFiles: string[],
-    errors: Array<{ path: string, error: Error }>,
+    errors: {path: string, error: Error}[],
     dryRun: boolean,
   ): void {
-    const { fs, path, logger } = ctx
+    const {fs, path, logger} = ctx
 
     let entries: import('node:fs').Dirent[]
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true })
+      entries = fs.readdirSync(dir, {withFileTypes: true})
     } catch (error) {
-      errors.push({ path: dir, error: error as Error })
-      logger.warn({ action: 'whitespace-cleanup', message: 'Failed to read directory', path: dir, error: (error as Error).message })
+      errors.push({path: dir, error: error as Error})
+      logger.warn({action: 'whitespace-cleanup', message: 'Failed to read directory', path: dir, error: (error as Error).message})
       return
     }
 
@@ -134,10 +134,10 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     filePath: string,
     modifiedFiles: string[],
     skippedFiles: string[],
-    errors: Array<{ path: string, error: Error }>,
+    errors: {path: string, error: Error}[],
     dryRun: boolean,
   ): void {
-    const { fs, logger } = ctx
+    const {fs, logger} = ctx
 
     try {
       const originalContent = fs.readFileSync(filePath, 'utf8')
@@ -146,22 +146,22 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
       // Skip if no changes needed (Requirement 3.4)
       if (originalContent === cleanedContent) {
         skippedFiles.push(filePath)
-        logger.debug({ action: 'whitespace-cleanup', skipped: filePath, reason: 'no changes needed' })
+        logger.debug({action: 'whitespace-cleanup', skipped: filePath, reason: 'no changes needed'})
         return
       }
 
       // Write cleaned content (Requirement 3.5 for dry-run)
       if (dryRun) {
-        logger.debug({ action: 'whitespace-cleanup', dryRun: true, wouldModify: filePath })
+        logger.debug({action: 'whitespace-cleanup', dryRun: true, wouldModify: filePath})
         modifiedFiles.push(filePath)
       } else {
         fs.writeFileSync(filePath, cleanedContent, 'utf8')
         modifiedFiles.push(filePath)
-        logger.debug({ action: 'whitespace-cleanup', modified: filePath })
+        logger.debug({action: 'whitespace-cleanup', modified: filePath})
       }
     } catch (error) {
-      errors.push({ path: filePath, error: error as Error })
-      logger.warn({ action: 'whitespace-cleanup', message: 'Failed to process file', path: filePath, error: (error as Error).message })
+      errors.push({path: filePath, error: error as Error})
+      logger.warn({action: 'whitespace-cleanup', message: 'Failed to process file', path: filePath, error: (error as Error).message})
     }
   }
 

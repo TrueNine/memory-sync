@@ -5,12 +5,12 @@ import type {
   OutputWriteContext,
   ProjectRootMemoryPrompt,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import fs from 'node:fs'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FilePathKind, PromptKind } from '@/types'
-import { WarpIDEOutputPlugin } from './WarpIDEOutputPlugin'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {FilePathKind, PromptKind} from '@/types'
+import {WarpIDEOutputPlugin} from './WarpIDEOutputPlugin'
 
 // Mock fs module
 vi.mock('node:fs')

@@ -1,9 +1,9 @@
-import type { CollectedInputContext, InputPluginContext, Project, Workspace } from '@/types'
+import type {CollectedInputContext, InputPluginContext, Project, Workspace} from '@/types'
 import * as path from 'node:path'
 import {
   FilePathKind,
 } from '@/types'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export class WorkspaceInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -11,8 +11,8 @@ export class WorkspaceInputPlugin extends AbstractInputPlugin {
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const { userConfigOptions: options } = ctx
-    const { workspaceDir, shadowProjectDir } = this.resolveBasePaths(options)
+    const {userConfigOptions: options} = ctx
+    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
     const externalProjects = options.externalProjects.map(p => {
       const resolved = this.resolvePath(p, workspaceDir, shadowProjectDir)
@@ -39,7 +39,7 @@ export class WorkspaceInputPlugin extends AbstractInputPlugin {
     return {
       workspace,
       shadowSourceProjectDir: shadowProjectDir,
-      ...(externalProjects.length > 0 && { externalProjects }),
+      ...externalProjects.length > 0 && {externalProjects},
     }
   }
 }

@@ -7,13 +7,13 @@ import type {
   WriteResult,
   WriteResults,
 } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { mdxToMd } from '@/compiler'
-import { GlobalScopeCollector } from '@/scope'
-import { FilePathKind } from '@/types'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import {mdxToMd} from '@/compiler'
+import {GlobalScopeCollector} from '@/scope'
+import {FilePathKind} from '@/types'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'
 const GLOBAL_CONFIG_DIR = '.claude'
@@ -34,7 +34,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
@@ -57,8 +57,8 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const { projects } = ctx.collectedInputContext.workspace
-    const { skills } = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
+    const {skills} = ctx.collectedInputContext
 
     for (const project of projects) {
       // Root memory prompt uses project.dirFromWorkspacePath
@@ -123,7 +123,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const { globalMemory } = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedInputContext
     if (globalMemory == null) return []
 
     const globalDir = this.getGlobalConfigDir()
@@ -139,7 +139,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const { workspace, globalMemory, fastCommands, subAgents, skills } = ctx.collectedInputContext
+    const {workspace, globalMemory, fastCommands, subAgents, skills} = ctx.collectedInputContext
     const hasProjectOutputs = workspace.projects.some(
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
     )
@@ -150,13 +150,13 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (hasProjectOutputs || hasGlobalMemory || hasFastCommands || hasSubAgents || hasSkills) return true
 
-    this.log.trace({ action: 'skip', reason: 'noOutputs' })
+    this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { projects } = ctx.collectedInputContext.workspace
-    const { fastCommands, subAgents, skills } = ctx.collectedInputContext
+    const {projects} = ctx.collectedInputContext.workspace
+    const {fastCommands, subAgents, skills} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
@@ -215,15 +215,15 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const { globalMemory } = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (globalMemory == null) return { files: fileResults, dirs: dirResults }
+    if (globalMemory == null) return {files: fileResults, dirs: dirResults}
 
     const globalDir = this.getGlobalConfigDir()
     const fullPath = path.join(globalDir, PROJECT_MEMORY_FILE)
@@ -236,9 +236,9 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'globalMemory', path: fullPath })
+      this.log.trace({action: 'dryRun', type: 'globalMemory', path: fullPath})
       return {
-        files: [{ path: relativePath, success: true, skipped: false }],
+        files: [{path: relativePath, success: true, skipped: false}],
         dirs: dirResults,
       }
     }
@@ -246,15 +246,15 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     try {
       this.ensureDirectory(globalDir)
       fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
-      this.log.trace({ action: 'write', type: 'globalMemory', path: fullPath })
-      fileResults.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
+      fileResults.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'globalMemory', path: fullPath, error: errMsg })
-      fileResults.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'globalMemory', path: fullPath, error: errMsg})
+      fileResults.push({path: relativePath, success: false, error: error as Error})
     }
 
-    return { files: fileResults, dirs: dirResults }
+    return {files: fileResults, dirs: dirResults}
   }
 
   private async writeFastCommand(
@@ -288,9 +288,9 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
         rawContentLength: cmd.rawMdxContent.length,
       })
       try {
-        const scopeCollector = new GlobalScopeCollector({ toolPreset: 'claudeCode' })
+        const scopeCollector = new GlobalScopeCollector({toolPreset: 'claudeCode'})
         const globalScope = scopeCollector.collect()
-        this.log.debug('claudeCode tool scope', { tool: globalScope.tool })
+        this.log.debug('claudeCode tool scope', {tool: globalScope.tool})
         const result = await mdxToMd(cmd.rawMdxContent, {
           globalScope,
           extractMetadata: true,
@@ -299,7 +299,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
         compiledContent = result.content
         compiledFrontMatter = result.metadata.fields as typeof cmd.yamlFrontMatter
         useRecompiledFrontMatter = true
-        this.log.debug('recompiled front matter', { frontMatter: compiledFrontMatter })
+        this.log.debug('recompiled front matter', {frontMatter: compiledFrontMatter})
       } catch (e) {
         this.log.warn('failed to recompile fast command with claudeCode preset, using default', {
           file: cmd.dir.getAbsolutePath(),
@@ -319,19 +319,19 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       : this.buildMarkdownContentWithRaw(compiledContent, compiledFrontMatter, cmd.rawFrontMatter)
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'fastCommand', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'fastCommand', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
       this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'fastCommand', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'fastCommand', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'fastCommand', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'fastCommand', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -343,7 +343,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     agent: SubAgentPrompt,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    const fileName = (agent.dir.path.endsWith('.md')) ? agent.dir.path : `${agent.dir.path}.md`
+    const fileName = agent.dir.path.endsWith('.md') ? agent.dir.path : `${agent.dir.path}.md`
     const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, AGENTS_SUBDIR)
     const fullPath = path.join(targetDir, fileName)
 
@@ -363,19 +363,19 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     )
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'subAgent', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'subAgent', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
       this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'subAgent', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'subAgent', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'subAgent', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'subAgent', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -408,15 +408,15 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     )
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'skill', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'skill', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
       this.ensureDirectory(targetDir)
       fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({ action: 'write', type: 'skill', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'skill', path: fullPath})
+      results.push({path: relativePath, success: true})
 
       // Write reference documents if any
       if (skill.childDocs != null) {
@@ -435,8 +435,8 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'skill', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'skill', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -446,7 +446,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
-    refDoc: { dir: RelativePath, content: unknown },
+    refDoc: {dir: RelativePath, content: unknown},
     projectDir: RelativePath,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
@@ -463,8 +463,8 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'skillRefDoc', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'skillRefDoc', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
@@ -472,12 +472,12 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       const parentDir = path.dirname(fullPath)
       this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, refDoc.content as string, 'utf8')
-      this.log.trace({ action: 'write', type: 'skillRefDoc', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'skillRefDoc', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results
@@ -487,7 +487,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
-    resource: { relativePath: string, content: string },
+    resource: {relativePath: string, content: string},
     projectDir: RelativePath,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
@@ -502,8 +502,8 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (ctx.dryRun === true) {
-      this.log.trace({ action: 'dryRun', type: 'skillResource', path: fullPath })
-      return [{ path: relativePath, success: true, skipped: false }]
+      this.log.trace({action: 'dryRun', type: 'skillResource', path: fullPath})
+      return [{path: relativePath, success: true, skipped: false}]
     }
 
     try {
@@ -511,12 +511,12 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       const parentDir = path.dirname(fullPath)
       this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, resource.content, 'utf8')
-      this.log.trace({ action: 'write', type: 'skillResource', path: fullPath })
-      results.push({ path: relativePath, success: true })
+      this.log.trace({action: 'write', type: 'skillResource', path: fullPath})
+      results.push({path: relativePath, success: true})
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({ action: 'write', type: 'skillResource', path: fullPath, error: errMsg })
-      results.push({ path: relativePath, success: false, error: error as Error })
+      this.log.error({action: 'write', type: 'skillResource', path: fullPath, error: errMsg})
+      results.push({path: relativePath, success: false, error: error as Error})
     }
 
     return results

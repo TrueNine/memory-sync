@@ -1,6 +1,6 @@
-import type { Command, CommandContext, CommandResult } from './Command'
+import type {Command, CommandContext, CommandResult} from './Command'
 import * as path from 'node:path'
-import { checkCanClean, collectAllPluginOutputs, executeOnCleanComplete } from '@/types'
+import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '@/types'
 
 /**
  * Dry-run clean command - simulates clean operations without actual deletion
@@ -9,8 +9,8 @@ export class DryRunCleanCommand implements Command {
   readonly name = 'dry-run-clean'
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
-    const { logger, outputPlugins, createCleanContext } = ctx
-    logger.info('running clean pipeline', { command: 'dry-run-clean', dryRun: true })
+    const {logger, outputPlugins, createCleanContext} = ctx
+    logger.info('running clean pipeline', {command: 'dry-run-clean', dryRun: true})
 
     const cleanCtx = createCleanContext(true)
     const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx)
@@ -24,14 +24,14 @@ export class DryRunCleanCommand implements Command {
     })
 
     const permissions = await checkCanClean(outputPlugins, cleanCtx)
-    const { filesToDelete, dirsToDelete } = await this.collectDeletionTargets(ctx, permissions, cleanCtx)
+    const {filesToDelete, dirsToDelete} = await this.collectDeletionTargets(ctx, permissions, cleanCtx)
 
     this.logDryRunFiles(filesToDelete, logger)
     this.logDryRunDirectories(dirsToDelete, logger)
 
     await executeOnCleanComplete(outputPlugins, cleanCtx)
 
-    logger.info('clean complete', { dryRun: true, filesAffected: filesToDelete.length, dirsAffected: dirsToDelete.length })
+    logger.info('clean complete', {dryRun: true, filesAffected: filesToDelete.length, dirsAffected: dirsToDelete.length})
 
     return {
       success: true,
@@ -43,9 +43,9 @@ export class DryRunCleanCommand implements Command {
 
   private async collectDeletionTargets(
     ctx: CommandContext,
-    permissions: Map<string, { project: boolean, global: boolean }>,
+    permissions: Map<string, {project: boolean, global: boolean}>,
     cleanCtx: ReturnType<CommandContext['createCleanContext']>,
-  ): Promise<{ filesToDelete: string[], dirsToDelete: string[] }> {
+  ): Promise<{filesToDelete: string[], dirsToDelete: string[]}> {
     const filesToDelete: string[] = []
     const dirsToDelete: string[] = []
 
@@ -65,13 +65,13 @@ export class DryRunCleanCommand implements Command {
       }
     }
 
-    return { filesToDelete, dirsToDelete }
+    return {filesToDelete, dirsToDelete}
   }
 
   private logDryRunFiles(files: string[], logger: CommandContext['logger']): void {
     for (const file of files) {
       const resolved = path.isAbsolute(file) ? file : path.resolve(file)
-      logger.info('would delete file', { path: resolved, dryRun: true })
+      logger.info('would delete file', {path: resolved, dryRun: true})
     }
   }
 
@@ -79,7 +79,7 @@ export class DryRunCleanCommand implements Command {
     const sortedDirs = [...dirs].sort((a, b) => b.length - a.length)
     for (const dir of sortedDirs) {
       const resolved = path.isAbsolute(dir) ? dir : path.resolve(dir)
-      logger.info('would delete directory', { path: resolved, dryRun: true })
+      logger.info('would delete directory', {path: resolved, dryRun: true})
     }
   }
 }
