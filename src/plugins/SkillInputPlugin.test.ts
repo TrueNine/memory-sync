@@ -259,13 +259,13 @@ describe('skillInputPlugin', () => {
       // Should have 2 child docs from docs/
       expect(result.childDocs).toHaveLength(2)
       // Normalize paths for cross-platform comparison
-      const childDocPaths = result.childDocs.map(d => d.relativePath.replace(/\\/g, '/'))
+      const childDocPaths = result.childDocs.map(d => d.relativePath.replaceAll('\\', '/'))
       expect(childDocPaths).toContain('docs/guide.mdx')
       expect(childDocPaths).toContain('docs/api.mdx')
 
       // Should have 2 resources from assets/
       expect(result.resources).toHaveLength(2)
-      const resourcePaths = result.resources.map(r => r.relativePath.replace(/\\/g, '/'))
+      const resourcePaths = result.resources.map(r => r.relativePath.replaceAll('\\', '/'))
       expect(resourcePaths).toContain('assets/logo.png')
       expect(resourcePaths).toContain('assets/schema.sql')
     })
