@@ -35,7 +35,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "pnpm typecheck && pnpm lint && tsdown",
+    "build": "pnpm typecheck && pnpm lintfix && tsdown",
     "prepublishOnly": "pnpm build",
     "test": "vitest run",
     "lintfix": "eslint --fix",
