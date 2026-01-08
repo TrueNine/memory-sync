@@ -209,7 +209,7 @@ export function getGlobalLogLevel(): LogLevel | undefined {
 }
 
 export function createLogger(namespace: string, logLevel?: LogLevel): ILogger {
-  const level = logLevel ?? globalLogLevel ?? (process.env.LOG_LEVEL as LogLevel) ?? 'info'
+  const level = logLevel ?? globalLogLevel ?? (process.env['LOG_LEVEL'] as LogLevel) ?? 'info'
 
   return {
     error: createLeveledMethod('error', namespace, level),
