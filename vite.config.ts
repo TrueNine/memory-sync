@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath, URL } from 'node:url'
-import { defineConfig } from 'vite'
+import {readFileSync} from 'node:fs'
+import {fileURLToPath, URL} from 'node:url'
+import {defineConfig} from 'vite'
 
-const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string, name: string }
+const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
 const kiroGlobalPowersRegistry = readFileSync('./public/kiro_global_powers_registry.json', 'utf8')
 const tnmscExample = readFileSync('./public/tnmsc.example.json', 'utf8')
 const gitignoreTemplate = readFileSync('./public/gitignore', 'utf8')
