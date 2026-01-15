@@ -63,7 +63,7 @@
     "@types/estree-jsx": "^1.0.5",
     "@types/fs-extra": "^11.0.4",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^25.0.8",
+    "@types/node": "^25.0.9",
     "@types/picomatch": "^4.0.2",
     "@vitest/coverage-v8": "4.0.17",
     "eslint": "^9.39.2",
