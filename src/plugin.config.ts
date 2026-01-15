@@ -41,8 +41,7 @@ export default defineConfig({
     new VisualStudioCodeIDEConfigOutputPlugin(),
     new ReadmeMdConfigFileOutputPlugin(),
 
-    // Effect Input Plugins (executed in priority order: 10, 20, 30)
-    new SkillNonSrcFileSyncEffectInputPlugin(),
+    new SkillNonSrcFileSyncEffectInputPlugin(), // Effect Input Plugins (executed in priority order: 10, 20, 30)
     new OrphanFileCleanupEffectInputPlugin(),
     new MarkdownWhitespaceCleanupEffectInputPlugin(),
 

@@ -1,7 +1,4 @@
-// component-processor.ts
-// MDX component expansion module for built-in component processing
-
-import type {Root, RootContent} from 'mdast'
+import type {Root, RootContent} from 'mdast' // MDX component expansion module for built-in component processing // component-processor.ts
 import type {
   MdxJsxFlowElement,
   MdxJsxTextElement,
@@ -18,8 +15,7 @@ export function isMdxComponent(
   ctx: ProcessingContext,
 ): boolean {
   if (name === null) return false
-  // Check both the context's components map and the global registry
-  return ctx.components.has(name) || hasComponent(name)
+  return ctx.components.has(name) || hasComponent(name) // Check both the context's components map and the global registry
 }
 
 /**
@@ -30,8 +26,7 @@ async function createProcessChildren(
   processAstFn: (ast: Root, ctx: ProcessingContext) => Promise<Root>,
 ): Promise<(children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>> {
   return async (children: RootContent[], ctx: ProcessingContext): Promise<RootContent[]> => {
-    // Wrap children in a root node for processing
-    const tempRoot: Root = {type: 'root', children}
+    const tempRoot: Root = {type: 'root', children} // Wrap children in a root node for processing
     const processedRoot = await processAstFn(tempRoot, ctx)
     return processedRoot.children
   }
@@ -50,34 +45,29 @@ export async function processComponent(
 
   if (componentName == null || componentName === '') return []
 
-  // Get the component handler from context
-  const handler = ctx.components.get(componentName)
+  const handler = ctx.components.get(componentName) // Get the component handler from context
   if (handler == null) {
-    // Component not found - skip gracefully per Requirements 2.3, 2.4
-    return []
+    return [] // Component not found - skip gracefully per Requirements 2.3, 2.4
   }
 
-  // Check for circular dependency
-  if (ctx.processingStack.includes(componentName)) {
+  if (ctx.processingStack.includes(componentName)) { // Check for circular dependency
     const cycle = [...ctx.processingStack, componentName].join(' → ')
     throw new Error(`Circular dependency detected: ${cycle}`)
   }
 
-  // Create a new context with updated processing stack
-  const componentCtx: ProcessingContext = {
+  const componentCtx: ProcessingContext = { // Create a new context with updated processing stack
     scope: ctx.scope,
     components: ctx.components,
     processingStack: [...ctx.processingStack, componentName],
     ...ctx.basePath != null ? {basePath: ctx.basePath} : {},
   }
 
-  // Create the processChildren function for the handler
-  const processChildren = await createProcessChildren(processAstFn)
+  const processChildren = await createProcessChildren(processAstFn) // Create the processChildren function for the handler
 
-  // Call the component handler with the new signature
-  try {
+  try { // Call the component handler with the new signature
     return await handler(element, componentCtx, processChildren)
-  } catch (err) {
+  }
+  catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const componentStack = ctx.processingStack.join(' → ')
     throw new Error(

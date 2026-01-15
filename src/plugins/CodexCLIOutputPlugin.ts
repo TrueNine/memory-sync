@@ -1,13 +1,4 @@
-// @see https://www.bilibili.com/video/BV1MAY5zWEPS codex 自定义斜杠命令
-// @see https://developers.openai.com/codex/skills/create-skill codex 如何创建 skills
-//
-// Codex CLI configuration:
-// - Global config dir: ~/.codex/
-// - Global prompts dir: ~/.codex/prompts/
-// - Global memory file: ~/.codex/AGENTS.md
-// - Global skills dir: ~/.codex/skills/ (Codex only supports global skills, no project-level skills)
-
-import type {
+import type { // - Global skills dir: ~/.codex/skills/ (Codex only supports global skills, no project-level skills) // - Global memory file: ~/.codex/AGENTS.md // - Global prompts dir: ~/.codex/prompts/ // - Global config dir: ~/.codex/ // Codex CLI configuration: // // @see https://developers.openai.com/codex/skills/create-skill codex 如何创建 skills // @see https://www.bilibili.com/video/BV1MAY5zWEPS codex 自定义斜杠命令
   FastCommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
@@ -38,22 +29,18 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async registerProjectOutputDirs(): Promise<RelativePath[]> {
-    // Codex only supports global prompts and skills, no project-level outputs
-    return []
+    return [] // Codex only supports global prompts and skills, no project-level outputs
   }
 
   async registerProjectOutputFiles(): Promise<RelativePath[]> {
-    // AGENTS.md files are handled by AgentsOutputPlugin (dependency)
-    // Only register fast command files here
-    return []
+    return [] // Only register fast command files here // AGENTS.md files are handled by AgentsOutputPlugin (dependency)
   }
 
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
     const results: RelativePath[] = []
 
-    // Register ~/.codex/prompts/ for cleanup
-    const promptsPath = path.join(globalDir, PROMPTS_SUBDIR)
+    const promptsPath = path.join(globalDir, PROMPTS_SUBDIR) // Register ~/.codex/prompts/ for cleanup
     results.push({
       pathKind: FilePathKind.Relative,
       path: PROMPTS_SUBDIR,
@@ -62,9 +49,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => promptsPath,
     })
 
-    // Register each skill directory individually (not the entire skills/ dir)
-    // This preserves ~/.codex/skills/.system/ which is Codex's built-in system skills
-    const {skills} = ctx.collectedInputContext
+    const {skills} = ctx.collectedInputContext // This preserves ~/.codex/skills/.system/ which is Codex's built-in system skills // Register each skill directory individually (not the entire skills/ dir)
     if (skills != null && skills.length > 0) {
       for (const skill of skills) {
         const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
@@ -83,8 +68,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async registerGlobalOutputFiles(): Promise<RelativePath[]> {
-    // Always register ~/.codex/AGENTS.md for cleanup
-    const globalDir = this.getGlobalConfigDir()
+    const globalDir = this.getGlobalConfigDir() // Always register ~/.codex/AGENTS.md for cleanup
     return [
       {
         pathKind: FilePathKind.Relative,
@@ -102,18 +86,14 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
 
-    // Project AGENTS.md is handled by AgentsOutputPlugin
-    // This plugin handles global outputs only (memory, prompts, skills)
-    if (hasGlobalMemory || hasFastCommands || hasSkills) return true
+    if (hasGlobalMemory || hasFastCommands || hasSkills) return true // This plugin handles global outputs only (memory, prompts, skills) // Project AGENTS.md is handled by AgentsOutputPlugin
 
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeProjectOutputs(): Promise<WriteResults> {
-    // Codex only supports global prompts and skills, no project-level outputs
-    // Project AGENTS.md files are handled by AgentsOutputPlugin (dependency)
-    return {files: [], dirs: []}
+    return {files: [], dirs: []} // Project AGENTS.md files are handled by AgentsOutputPlugin (dependency) // Codex only supports global prompts and skills, no project-level outputs
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
@@ -121,8 +101,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    // Write global memory file
-    if (globalMemory != null) {
+    if (globalMemory != null) { // Write global memory file
       const globalDir = this.getGlobalConfigDir()
       const fullPath = path.join(globalDir, PROJECT_MEMORY_FILE)
       const relativePath: RelativePath = {
@@ -142,7 +121,8 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
           fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
           this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
           fileResults.push({path: relativePath, success: true})
-        } catch (error) {
+        }
+        catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error)
           this.log.error({action: 'write', type: 'globalMemory', path: fullPath, error: errMsg})
           fileResults.push({path: relativePath, success: false, error: error as Error})
@@ -150,8 +130,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    // Write global fast commands to ~/.codex/prompts/
-    if (fastCommands != null && fastCommands.length > 0) {
+    if (fastCommands != null && fastCommands.length > 0) { // Write global fast commands to ~/.codex/prompts/
       const globalDir = this.getGlobalConfigDir()
       for (const cmd of fastCommands) {
         const cmdResults = await this.writeGlobalFastCommand(ctx, globalDir, cmd)
@@ -159,8 +138,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    // Write skills to ~/.codex/skills/ (Codex only supports global skills)
-    if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults}
+    if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults} // Write skills to ~/.codex/skills/ (Codex only supports global skills)
 
     const globalDir = this.getGlobalConfigDir()
     for (const skill of skills) {
@@ -189,8 +167,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter, preferring raw if parsed failed
-    const content = this.buildMarkdownContentWithRaw(
+    const content = this.buildMarkdownContentWithRaw( // Build content with front matter, preferring raw if parsed failed
       cmd.content as string,
       cmd.yamlFrontMatter,
       cmd.rawFrontMatter,
@@ -206,7 +183,8 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({action: 'write', type: 'globalFastCommand', path: fullPath})
       results.push({path: relativePath, success: true})
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'globalFastCommand', path: fullPath, error: errMsg})
       results.push({path: relativePath, success: false, error: error as Error})
@@ -237,8 +215,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build Codex-compatible front matter and content
-    const content = this.buildCodexSkillContent(skill)
+    const content = this.buildCodexSkillContent(skill) // Build Codex-compatible front matter and content
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'globalSkill', path: fullPath})
@@ -251,22 +228,21 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       this.log.trace({action: 'write', type: 'globalSkill', path: fullPath})
       results.push({path: relativePath, success: true})
 
-      // Write reference documents if any
-      if (skill.childDocs != null) {
+      if (skill.childDocs != null) { // Write reference documents if any
         for (const refDoc of skill.childDocs) {
           const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc, globalDir)
           results.push(...refResults)
         }
       }
 
-      // Write resource files if any
-      if (skill.resources != null) {
+      if (skill.resources != null) { // Write resource files if any
         for (const resource of skill.resources) {
           const resourceResults = await this.writeSkillResource(ctx, targetDir, skillName, resource, globalDir)
           results.push(...resourceResults)
         }
       }
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'globalSkill', path: fullPath, error: errMsg})
       results.push({path: relativePath, success: false, error: error as Error})
@@ -294,37 +270,27 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
   private buildCodexSkillContent(skill: SkillPrompt): string {
     const fm = skill.yamlFrontMatter
 
-    // Normalize name: max 64 chars, lowercase, only letters/numbers/hyphens
-    const name = this.normalizeSkillName(fm.name, 64)
-    // Normalize description: max 1024 chars, single line
-    const description = this.normalizeToSingleLine(fm.description, 1024)
+    const name = this.normalizeSkillName(fm.name, 64) // Normalize name: max 64 chars, lowercase, only letters/numbers/hyphens
+    const description = this.normalizeToSingleLine(fm.description, 1024) // Normalize description: max 1024 chars, single line
 
-    // Build metadata object with all available fields
-    const metadata: Record<string, unknown> = {}
+    const metadata: Record<string, unknown> = {} // Build metadata object with all available fields
 
-    // short-description from displayName
-    if (fm.displayName != null) metadata['short-description'] = fm.displayName
+    if (fm.displayName != null) metadata['short-description'] = fm.displayName // short-description from displayName
 
-    // version
-    if (fm.version != null) metadata['version'] = fm.version
+    if (fm.version != null) metadata['version'] = fm.version // version
 
-    // author
-    if (fm.author != null) metadata['author'] = fm.author
+    if (fm.author != null) metadata['author'] = fm.author // author
 
-    // keywords
-    if (fm.keywords != null && fm.keywords.length > 0) metadata['keywords'] = [...fm.keywords]
+    if (fm.keywords != null && fm.keywords.length > 0) metadata['keywords'] = [...fm.keywords] // keywords
 
-    // Build front matter data following Agent Skills spec
-    const fmData: Record<string, unknown> = {
+    const fmData: Record<string, unknown> = { // Build front matter data following Agent Skills spec
       name,
       description,
     }
 
-    // Only add metadata if it has content
-    if (Object.keys(metadata).length > 0) fmData['metadata'] = metadata
+    if (Object.keys(metadata).length > 0) fmData['metadata'] = metadata // Only add metadata if it has content
 
-    // Convert allowTools to allowed-tools (space-delimited string)
-    if (fm.allowTools != null && fm.allowTools.length > 0) fmData['allowed-tools'] = fm.allowTools.join(' ')
+    if (fm.allowTools != null && fm.allowTools.length > 0) fmData['allowed-tools'] = fm.allowTools.join(' ') // Convert allowTools to allowed-tools (space-delimited string)
 
     return buildMarkdownWithFrontMatter(fmData, skill.content as string)
   }
@@ -336,18 +302,13 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
    * - Must not start or end with a hyphen
    */
   private normalizeSkillName(name: string, maxLength: number): string {
-    // Convert to lowercase and replace invalid characters with hyphens
-    let normalized = name
+    let normalized = name // Convert to lowercase and replace invalid characters with hyphens
       .toLowerCase()
-      // Replace invalid characters with hyphens
-      .replaceAll(/[^a-z0-9-]/g, '-')
-      // Collapse multiple hyphens
-      .replaceAll(/-+/g, '-')
-      // Trim leading/trailing hyphens
-      .replaceAll(/^-+|-+$/g, '')
+      .replaceAll(/[^a-z0-9-]/g, '-') // Replace invalid characters with hyphens
+      .replaceAll(/-+/g, '-') // Collapse multiple hyphens
+      .replaceAll(/^-+|-+$/g, '') // Trim leading/trailing hyphens
 
-    // Truncate if exceeds max length, remove trailing hyphens after truncation
-    if (normalized.length > maxLength) normalized = normalized.slice(0, maxLength).replace(/-+$/, '')
+    if (normalized.length > maxLength) normalized = normalized.slice(0, maxLength).replace(/-+$/, '') // Truncate if exceeds max length, remove trailing hyphens after truncation
 
     return normalized
   }
@@ -357,10 +318,8 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
    * and truncating to max length
    */
   private normalizeToSingleLine(text: string, maxLength: number): string {
-    // Replace newlines and multiple spaces with single space
-    const singleLine = text.replaceAll(/[\r\n]+/g, ' ').replaceAll(/\s+/g, ' ').trim()
-    // Truncate if exceeds max length
-    if (singleLine.length > maxLength) return `${singleLine.slice(0, maxLength - 3)}...`
+    const singleLine = text.replaceAll(/[\r\n]+/g, ' ').replaceAll(/\s+/g, ' ').trim() // Replace newlines and multiple spaces with single space
+    if (singleLine.length > maxLength) return `${singleLine.slice(0, maxLength - 3)}...` // Truncate if exceeds max length
     return singleLine
   }
 
@@ -375,8 +334,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     globalDir: string,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    // Convert .mdx to .md for output
-    const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+    const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md') // Convert .mdx to .md for output
     const fullPath = path.join(skillDir, fileName)
 
     const relativePath: RelativePath = {
@@ -393,13 +351,13 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     try {
-      // Ensure parent directory exists for nested reference documents
-      const parentDir = path.dirname(fullPath)
+      const parentDir = path.dirname(fullPath) // Ensure parent directory exists for nested reference documents
       this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, refDoc.content as string, 'utf8')
       this.log.trace({action: 'write', type: 'skillRefDoc', path: fullPath})
       results.push({path: relativePath, success: true})
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg})
       results.push({path: relativePath, success: false, error: error as Error})
@@ -435,13 +393,13 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     try {
-      // Ensure parent directory exists for nested resources
-      const parentDir = path.dirname(fullPath)
+      const parentDir = path.dirname(fullPath) // Ensure parent directory exists for nested resources
       this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, resource.content, 'utf8')
       this.log.trace({action: 'write', type: 'skillResource', path: fullPath})
       results.push({path: relativePath, success: true})
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'skillResource', path: fullPath, error: errMsg})
       results.push({path: relativePath, success: false, error: error as Error})

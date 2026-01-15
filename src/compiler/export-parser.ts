@@ -1,7 +1,4 @@
-// export-parser.ts
-// Extracts metadata from MDX export statements
-
-import type {EvaluationScope, MdxjsEsm} from './types'
+import type {EvaluationScope, MdxjsEsm} from './types' // Extracts metadata from MDX export statements // export-parser.ts
 
 /**
  * Metadata source type
@@ -70,8 +67,7 @@ export function parseExports(
     Object.assign(exportFields, extracted)
   }
 
-  // Determine metadata source
-  const hasExports = Object.keys(exportFields).length > 0
+  const hasExports = Object.keys(exportFields).length > 0 // Determine metadata source
   const hasYaml = yamlFrontMatter != null && Object.keys(yamlFrontMatter).length > 0
 
   let source: MetadataSource
@@ -79,8 +75,7 @@ export function parseExports(
   else if (hasExports) source = 'export'
   else source = 'yaml'
 
-  // Merge: export takes priority over YAML
-  const fields = {...yamlFrontMatter, ...exportFields}
+  const fields = {...yamlFrontMatter, ...exportFields} // Merge: export takes priority over YAML
 
   return {fields, source}
 }
@@ -105,12 +100,9 @@ function extractExportFromNode(
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {}
 
-  // Parse ESM node's value (source code string)
-  const code = node.value.trim()
+  const code = node.value.trim() // Parse ESM node's value (source code string)
 
-  // Handle export default pattern first
-  // export default { ... } or export default { ... } as const
-  const exportDefaultMatch = /^export\s+default\s+/.exec(code)
+  const exportDefaultMatch = /^export\s+default\s+/.exec(code) // export default { ... } or export default { ... } as const // Handle export default pattern first
   if (exportDefaultMatch != null) {
     const valueStartIndex = exportDefaultMatch[0].length
     const valueStr = extractValueString(code, valueStartIndex)
@@ -119,9 +111,9 @@ function extractExportFromNode(
       try {
         const value = parseStaticValue(valueStr.trim(), scope, filePath)
 
-        // export default must be an object to be spread as frontmatter
-        if (typeof value === 'object' && value !== null && !Array.isArray(value)) Object.assign(result, value)
-      } catch (e) {
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) Object.assign(result, value) // export default must be an object to be spread as frontmatter
+      }
+      catch (e) {
         const message = e instanceof Error ? e.message : String(e)
         const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
         throw new Error(`Cannot statically evaluate export default${fileInfo}: ${message}`)
@@ -131,9 +123,7 @@ function extractExportFromNode(
     return result
   }
 
-  // Match export const name = value pattern
-  // Handles multiline and various value types
-  const exportConstRegex = /export\s+const\s+(\w+)\s*=\s*/g
+  const exportConstRegex = /export\s+const\s+(\w+)\s*=\s*/g // Handles multiline and various value types // Match export const name = value pattern
   let match: RegExpExecArray | null = exportConstRegex.exec(code)
 
   while (match !== null) {
@@ -143,8 +133,7 @@ function extractExportFromNode(
       continue
     }
 
-    // Get the value part starting after the match
-    const valueStartIndex = match.index + match[0].length
+    const valueStartIndex = match.index + match[0].length // Get the value part starting after the match
     const valueStr = extractValueString(code, valueStartIndex)
 
     if (valueStr == null) {
@@ -155,10 +144,10 @@ function extractExportFromNode(
     try {
       const value = parseStaticValue(valueStr.trim(), scope, filePath)
 
-      // If it's a metadata object, spread its properties
-      if (name === 'metadata' && typeof value === 'object' && value !== null && !Array.isArray(value)) Object.assign(result, value)
+      if (name === 'metadata' && typeof value === 'object' && value !== null && !Array.isArray(value)) Object.assign(result, value) // If it's a metadata object, spread its properties
       else result[name] = value
-    } catch (e) {
+    }
+    catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
       throw new Error(`Cannot statically evaluate export "${name}"${fileInfo}: ${message}`)
@@ -197,20 +186,17 @@ function extractValueString(code: string, startIndex: number): string | null {
       continue
     }
 
-    // Handle string boundaries
-    if (inString != null) {
+    if (inString != null) { // Handle string boundaries
       if (char === inString) inString = null
       continue
     }
 
-    // Start of string
-    if (char === '"' || char === '\'' || char === '`') {
+    if (char === '"' || char === '\'' || char === '`') { // Start of string
       inString = char
       continue
     }
 
-    // Track nesting depth
-    if (char === '{' || char === '[') {
+    if (char === '{' || char === '[') { // Track nesting depth
       depth++
       continue
     }
@@ -220,21 +206,18 @@ function extractValueString(code: string, startIndex: number): string | null {
       continue
     }
 
-    // End of value: semicolon or newline at depth 0
-    if (depth === 0 && (char === ';' || char === '\n')) {
+    if (depth === 0 && (char === ';' || char === '\n')) { // End of value: semicolon or newline at depth 0
       endIndex = i
       break
     }
 
-    // Handle end of code
-    if (i === code.length - 1) endIndex = code.length
+    if (i === code.length - 1) endIndex = code.length // Handle end of code
   }
 
   if (endIndex <= startIndex) endIndex = code.length
 
   const valueStr = code.slice(startIndex, endIndex).trim()
-  // Remove trailing semicolon if present
-  return valueStr.endsWith(';') ? valueStr.slice(0, -1).trim() : valueStr
+  return valueStr.endsWith(';') ? valueStr.slice(0, -1).trim() : valueStr // Remove trailing semicolon if present
 }
 
 /**
@@ -263,43 +246,32 @@ export function parseStaticValue(
 ): SupportedLiteral {
   const trimmed = valueStr.trim()
 
-  // Handle empty string
-  if (trimmed === '') throw new Error('Empty value cannot be evaluated')
+  if (trimmed === '') throw new Error('Empty value cannot be evaluated') // Handle empty string
 
-  // Boolean literals
-  if (trimmed === 'true') return true
+  if (trimmed === 'true') return true // Boolean literals
   if (trimmed === 'false') return false
 
-  // Null literal
-  if (trimmed === 'null') return null
+  if (trimmed === 'null') return null // Null literal
 
-  // Number literals (including negative and decimal)
-  if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed)
+  if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed) // Number literals (including negative and decimal)
 
-  // String literals with double quotes
-  if (trimmed.startsWith('"') && trimmed.endsWith('"')) return parseStringLiteral(trimmed.slice(1, -1), '"')
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) return parseStringLiteral(trimmed.slice(1, -1), '"') // String literals with double quotes
 
-  // String literals with single quotes
-  if (trimmed.startsWith('\'') && trimmed.endsWith('\'')) return parseStringLiteral(trimmed.slice(1, -1), '\'')
+  if (trimmed.startsWith('\'') && trimmed.endsWith('\'')) return parseStringLiteral(trimmed.slice(1, -1), '\'') // String literals with single quotes
 
-  // Template literals (without expressions)
-  if (trimmed.startsWith('`') && trimmed.endsWith('`')) {
+  if (trimmed.startsWith('`') && trimmed.endsWith('`')) { // Template literals (without expressions)
     const inner = trimmed.slice(1, -1)
     if (inner.includes('${')) throw new Error(`Template literal with expressions cannot be statically evaluated: ${trimmed}`)
     return parseStringLiteral(inner, '`')
   }
 
-  // Array literals
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) return parseArrayLiteral(trimmed, scope, filePath)
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) return parseArrayLiteral(trimmed, scope, filePath) // Array literals
 
-  // Object literals
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return parseObjectLiteral(trimmed, scope, filePath)
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return parseObjectLiteral(trimmed, scope, filePath) // Object literals
 
-  // Variable reference (e.g., tool.readFile, profile.name)
-  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) return evaluateVariableReference(trimmed, scope, filePath)
+  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) return evaluateVariableReference(trimmed, scope, filePath) // Variable reference (e.g., tool.readFile, profile.name)
 
-  // Cannot statically evaluate
-  const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
+  const fileInfo = filePath != null ? ` in file "${filePath}"` : '' // Cannot statically evaluate
   throw new Error(`Expression "${trimmed}" cannot be statically evaluated${fileInfo}`)
 }
 
@@ -311,8 +283,7 @@ export function parseStaticValue(
  * @returns Parsed string value
  */
 function parseStringLiteral(content: string, _quote: string): string {
-  // Handle common escape sequences
-  return content
+  return content // Handle common escape sequences
     .replaceAll('\\n', '\n')
     .replaceAll('\\r', '\r')
     .replaceAll('\\t', '\t')
@@ -377,8 +348,7 @@ function evaluateVariableReference(
     value = obj[prop]
   }
 
-  // Ensure the value is a supported literal type
-  if (
+  if ( // Ensure the value is a supported literal type
     typeof value === 'string'
     || typeof value === 'number'
     || typeof value === 'boolean'
@@ -408,22 +378,19 @@ function parseArrayLiteral(
 ): SupportedLiteral[] {
   const inner = valueStr.slice(1, -1).trim()
 
-  // Empty array
-  if (inner === '') return []
+  if (inner === '') return [] // Empty array
 
-  // Try JSON parse first (handles most cases without variable references)
-  if (scope == null) {
+  if (scope == null) { // Try JSON parse first (handles most cases without variable references)
     try {
       const jsonStr = convertToJson(valueStr)
       const parsed: unknown = JSON.parse(jsonStr)
       if (Array.isArray(parsed)) return parsed as SupportedLiteral[]
-    } catch {
-      // Fall through to manual parsing
     }
+    catch {
+    } // Fall through to manual parsing
   }
 
-  // Manual parsing for arrays with variable references
-  const elements = splitArrayElements(inner)
+  const elements = splitArrayElements(inner) // Manual parsing for arrays with variable references
   return elements.map(el => parseStaticValue(el.trim(), scope, filePath))
 }
 
@@ -442,22 +409,19 @@ function parseObjectLiteral(
 ): {[key: string]: SupportedLiteral} {
   const inner = valueStr.slice(1, -1).trim()
 
-  // Empty object
-  if (inner === '') return {}
+  if (inner === '') return {} // Empty object
 
-  // Try JSON parse first (only if no scope needed)
-  if (scope == null) {
+  if (scope == null) { // Try JSON parse first (only if no scope needed)
     try {
       const jsonStr = convertToJson(valueStr)
       const parsed: unknown = JSON.parse(jsonStr)
       if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) return parsed as {[key: string]: SupportedLiteral}
-    } catch {
-      // Fall through to manual parsing
     }
+    catch {
+    } // Fall through to manual parsing
   }
 
-  // Manual parsing for objects with variable references
-  const result: {[key: string]: SupportedLiteral} = {}
+  const result: {[key: string]: SupportedLiteral} = {} // Manual parsing for objects with variable references
   const pairs = splitObjectPairs(inner)
 
   for (const pair of pairs) {
@@ -467,8 +431,7 @@ function parseObjectLiteral(
     let key = pair.slice(0, colonIndex).trim()
     const value = pair.slice(colonIndex + 1).trim()
 
-    // Remove quotes from key if present
-    if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith('\'') && key.endsWith('\''))) key = key.slice(1, -1)
+    if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith('\'') && key.endsWith('\''))) key = key.slice(1, -1) // Remove quotes from key if present
 
     result[key] = parseStaticValue(value, scope, filePath)
   }
@@ -507,8 +470,7 @@ function convertToJson(jsLiteral: string): string {
       if (char === inString) {
         result += '"'
         inString = null
-      }
-      else if (char === '"' && inString === '\'') result += '\\"'
+      } else if (char === '"' && inString === '\'') result += '\\"'
       else result += char
       continue
     }
@@ -519,22 +481,17 @@ function convertToJson(jsLiteral: string): string {
       continue
     }
 
-    // Handle unquoted keys in objects
-    if (char === ':' && i > 0) {
-      // Look back to find the key start
-      const keyEnd = result.length
+    if (char === ':' && i > 0) { // Handle unquoted keys in objects
+      const keyEnd = result.length // Look back to find the key start
       let keyStart = keyEnd - 1
 
-      // Skip whitespace
-      while (keyStart >= 0 && /\s/.test(result.charAt(keyStart))) keyStart--
+      while (keyStart >= 0 && /\s/.test(result.charAt(keyStart))) keyStart-- // Skip whitespace
 
-      // Find key start (word characters)
-      const keyEndPos = keyStart + 1
+      const keyEndPos = keyStart + 1 // Find key start (word characters)
       while (keyStart >= 0 && /[\w$]/.test(result.charAt(keyStart))) keyStart--
       keyStart++
 
-      // Check if key is already quoted
-      if (keyStart > 0 && result.charAt(keyStart - 1) !== '"') {
+      if (keyStart > 0 && result.charAt(keyStart - 1) !== '"') { // Check if key is already quoted
         const key = result.slice(keyStart, keyEndPos)
         if (key.length > 0 && /^[\w$]+$/.test(key)) result = `${result.slice(0, keyStart)}"${key}"`
       }
@@ -675,7 +632,8 @@ export function isStaticallyEvaluable(valueStr: string): boolean {
   try {
     parseStaticValue(valueStr)
     return true
-  } catch {
+  }
+  catch {
     return false
   }
 }

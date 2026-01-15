@@ -6,7 +6,9 @@ export * from './config'
 export * from './ConfigLoader'
 export * from './constants'
 export * from './log'
-export {default} from './plugin.config'
+export {
+  default,
+} from './plugin.config'
 export * from './ShadowSourceProject'
 
 async function main(): Promise<void> {
@@ -15,8 +17,6 @@ async function main(): Promise<void> {
   await pipeline.run(userPluginConfig)
 }
 
-main().catch((e: unknown) => {
-  console.error(e)
-})
+main().catch((e: unknown) => console.error(e))
 
 export * from './types'

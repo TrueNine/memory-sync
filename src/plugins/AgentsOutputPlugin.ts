@@ -11,9 +11,7 @@ const PROJECT_MEMORY_FILE = 'AGENTS.md'
 
 export class AgentsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('AgentsOutputPlugin', {
-      outputFileName: PROJECT_MEMORY_FILE,
-    })
+    super('AgentsOutputPlugin', {outputFileName: PROJECT_MEMORY_FILE})
   }
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -21,8 +19,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
-      // Root memory prompt uses project.dirFromWorkspacePath
-      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
+      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) { // Root memory prompt uses project.dirFromWorkspacePath
         results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
       }
 
@@ -59,26 +56,14 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
 
       if (projectDir == null) continue
 
-      // Write root memory prompt (only if exists)
-      if (project.rootMemoryPrompt != null) {
-        const result = await this.writePromptFile(
-          ctx,
-          projectDir,
-          project.rootMemoryPrompt.content as string,
-          `project:${projectName}/root`,
-        )
+      if (project.rootMemoryPrompt != null) { // Write root memory prompt (only if exists)
+        const result = await this.writePromptFile(ctx, projectDir, project.rootMemoryPrompt.content as string, `project:${projectName}/root`)
         fileResults.push(result)
       }
 
-      // Write children memory prompts
-      if (project.childMemoryPrompts != null) {
+      if (project.childMemoryPrompts != null) { // Write children memory prompts
         for (const child of project.childMemoryPrompts) {
-          const childResult = await this.writePromptFile(
-            ctx,
-            child.dir,
-            child.content as string,
-            `project:${projectName}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`,
-          )
+          const childResult = await this.writePromptFile(ctx, child.dir, child.content as string, `project:${projectName}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`)
           fileResults.push(childResult)
         }
       }

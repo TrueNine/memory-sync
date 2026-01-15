@@ -12,8 +12,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {FilePathKind, PromptKind} from '@/types'
 import {WarpIDEOutputPlugin} from './WarpIDEOutputPlugin'
 
-// Mock fs module
-vi.mock('node:fs')
+vi.mock('node:fs') // Mock fs module
 
 describe('warpIDEOutputPlugin', () => {
   const mockWorkspaceDir = '/workspace/test'
@@ -26,9 +25,7 @@ describe('warpIDEOutputPlugin', () => {
     vi.mocked(fs.writeFileSync).mockReturnValue(void 0)
   })
 
-  afterEach(() => {
-    vi.clearAllMocks()
-  })
+  afterEach(() => vi.clearAllMocks())
 
   function createMockRelativePath(pathStr: string, basePath: string): RelativePath {
     return {
@@ -340,8 +337,7 @@ describe('warpIDEOutputPlugin', () => {
       const writeCall = vi.mocked(fs.writeFileSync).mock.calls[0]
       const writtenContent = writeCall[1] as string
 
-      // Verify global content comes first
-      const globalIndex = writtenContent.indexOf(globalContent)
+      const globalIndex = writtenContent.indexOf(globalContent) // Verify global content comes first
       const projectIndex = writtenContent.indexOf(projectContent)
 
       expect(globalIndex).toBeGreaterThanOrEqual(0)
@@ -405,8 +401,7 @@ describe('warpIDEOutputPlugin', () => {
       expect(results.files[0].success).toBe(true)
       expect(results.files[1].success).toBe(true)
 
-      // Verify both files have global memory prepended
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(2) // Verify both files have global memory prepended
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
         1,
         expect.stringContaining('project1'),
@@ -455,16 +450,14 @@ describe('warpIDEOutputPlugin', () => {
 
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(2)
 
-      // Root prompt should have global memory
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
+      expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith( // Root prompt should have global memory
         1,
         expect.stringContaining(path.join('project1', 'WARP.md')),
         'Global rules\n\nRoot rules',
         'utf8',
       )
 
-      // Child prompt should NOT have global memory
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
+      expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith( // Child prompt should NOT have global memory
         2,
         expect.stringContaining(path.join('project1', 'src', 'WARP.md')),
         'Child rules',

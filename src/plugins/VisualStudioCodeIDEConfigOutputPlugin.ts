@@ -29,20 +29,16 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     const {projects} = ctx.collectedInputContext.workspace
     const {ideConfigFiles} = ctx.collectedInputContext
 
-    // Only register files if we have VS Code configs to write
-    const hasVSCodeConfigs = ideConfigFiles.some(f => f.type === IDEKind.VSCode)
+    const hasVSCodeConfigs = ideConfigFiles.some(f => f.type === IDEKind.VSCode) // Only register files if we have VS Code configs to write
     if (!hasVSCodeConfigs) return results
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
 
-      // Skip prompt source projects (e.g., aindex) - their files are source files
-      // that should be protected from cleanup
-      if (project.isPromptSourceProject === true) continue
+      if (project.isPromptSourceProject === true) continue // that should be protected from cleanup // Skip prompt source projects (e.g., aindex) - their files are source files
 
-      // Register all VS Code config files for cleanup
-      for (const configFile of VSCODE_CONFIG_FILES) {
+      for (const configFile of VSCODE_CONFIG_FILES) { // Register all VS Code config files for cleanup
         const filePath = this.joinPath(projectDir.path, configFile)
         results.push({
           pathKind: FilePathKind.Relative,
@@ -73,8 +69,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    // Filter VS Code related config files
-    const vscodeConfigs = ideConfigFiles.filter(f => f.type === IDEKind.VSCode)
+    const vscodeConfigs = ideConfigFiles.filter(f => f.type === IDEKind.VSCode) // Filter VS Code related config files
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
@@ -83,12 +78,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
       const projectName = project.name ?? 'unknown'
 
       for (const config of vscodeConfigs) {
-        const result = await this.writeConfigFile(
-          ctx,
-          projectDir,
-          config,
-          `project:${projectName}`,
-        )
+        const result = await this.writeConfigFile(ctx, projectDir, config, `project:${projectName}`)
         fileResults.push(result)
       }
     }
@@ -124,7 +114,8 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
       this.writeFileSync(fullPath, config.content)
       this.log.trace({action: 'write', type: 'config', path: fullPath, label})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'config', path: fullPath, label, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}

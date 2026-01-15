@@ -1,7 +1,4 @@
-// types.ts
-// Shared TypeScript types for the lossless MDX to Markdown converter
-
-import type {RootContent} from 'mdast'
+import type {RootContent} from 'mdast' // Shared TypeScript types for the lossless MDX to Markdown converter // types.ts
 import type {
 
   MdxJsxFlowElement,
@@ -62,9 +59,16 @@ export interface MdxToMdResult {
   content: string
   /** Extracted metadata from export statements */
   metadata: ExportMetadata
-}
+} // Re-export MDX-specific types for convenience
 
-// Re-export MDX-specific types for convenience
-
-export {type Root, type RootContent} from 'mdast'
-export {type MdxFlowExpression, type MdxjsEsm, type MdxJsxFlowElement, type MdxJsxTextElement, type MdxTextExpression} from 'mdast-util-mdx'
+export {
+  type Root,
+  type RootContent,
+} from 'mdast'
+export {
+  type MdxFlowExpression,
+  type MdxjsEsm,
+  type MdxJsxFlowElement,
+  type MdxJsxTextElement,
+  type MdxTextExpression,
+} from 'mdast-util-mdx'

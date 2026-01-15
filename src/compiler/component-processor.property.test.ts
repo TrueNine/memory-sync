@@ -17,8 +17,7 @@ import {processComponent} from './component-processor'
 import {clearComponents, getComponents, registerComponent} from './component-registry'
 
 describe('component-processor property tests', () => {
-  // Clean up after each test
-  afterEach(() => {
+  afterEach(() => { // Clean up after each test
     clearComponents()
   })
 
@@ -31,8 +30,7 @@ describe('component-processor property tests', () => {
    * Validates: Requirements 5.4
    */
   describe('property 7: Circular Dependency Detection', () => {
-    // Generate valid component names (PascalCase)
-    const componentNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
+    const componentNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid component names (PascalCase)
       .filter(s => /^[A-Z][a-zA-Z0-9]*$/.test(s))
 
     /**
@@ -73,11 +71,9 @@ describe('component-processor property tests', () => {
 
       for (const child of ast.children) {
         if (child.type === 'mdxJsxFlowElement' && child.name != null) {
-          // Process JSX elements through processComponent (which checks for cycles)
-          const result = await processComponent(child, ctx, mockProcessAst)
+          const result = await processComponent(child, ctx, mockProcessAst) // Process JSX elements through processComponent (which checks for cycles)
           newChildren.push(...result)
-        }
-        else newChildren.push(child)
+        } else newChildren.push(child)
       }
 
       return {type: 'root', children: newChildren}
@@ -94,17 +90,14 @@ describe('component-processor property tests', () => {
         ctx: ProcessingContext,
         processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>,
       ): Promise<RootContent[]> => {
-        // Create a child element that references the target component
-        const refElement: MdxJsxFlowElement = {
+        const refElement: MdxJsxFlowElement = { // Create a child element that references the target component
           type: 'mdxJsxFlowElement',
           name: targetComponentName,
           attributes: [],
           children: [],
         }
 
-        // Process the child element through processChildren
-        // This will go through mockProcessAst -> processComponent, triggering cycle detection
-        return processChildren([refElement], ctx)
+        return processChildren([refElement], ctx) // This will go through mockProcessAst -> processComponent, triggering cycle detection // Process the child element through processChildren
       }
     }
 
@@ -120,15 +113,13 @@ describe('component-processor property tests', () => {
         fc.asyncProperty(
           componentNameArb,
           async componentName => {
-            // Register a self-referencing component (A -> A)
-            registerComponent(componentName, createReferencingHandler(componentName))
+            registerComponent(componentName, createReferencingHandler(componentName)) // Register a self-referencing component (A -> A)
 
             const components = getComponents()
             const ctx = createMockContext(components)
             const element = createMockElement(componentName)
 
-            // Should throw circular dependency error
-            void expect(
+            void expect( // Should throw circular dependency error
               processComponent(element, ctx, mockProcessAst),
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },
@@ -143,20 +134,17 @@ describe('component-processor property tests', () => {
           componentNameArb,
           componentNameArb.filter(s => s.length > 0),
           async (nameA, nameB) => {
-            // Ensure different names
-            const componentA = `${nameA}A`
+            const componentA = `${nameA}A` // Ensure different names
             const componentB = `${nameB}B`
 
-            // A references B, B references A
-            registerComponent(componentA, createReferencingHandler(componentB))
+            registerComponent(componentA, createReferencingHandler(componentB)) // A references B, B references A
             registerComponent(componentB, createReferencingHandler(componentA))
 
             const components = getComponents()
             const ctx = createMockContext(components)
             const element = createMockElement(componentA)
 
-            // Should throw circular dependency error
-            void expect(
+            void expect( // Should throw circular dependency error
               processComponent(element, ctx, mockProcessAst),
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },
@@ -172,13 +160,11 @@ describe('component-processor property tests', () => {
           componentNameArb,
           componentNameArb,
           async (nameA, nameB, nameC) => {
-            // Ensure different names by appending suffixes
-            const componentA = `${nameA}A`
+            const componentA = `${nameA}A` // Ensure different names by appending suffixes
             const componentB = `${nameB}B`
             const componentC = `${nameC}C`
 
-            // A -> B -> C -> A
-            registerComponent(componentA, createReferencingHandler(componentB))
+            registerComponent(componentA, createReferencingHandler(componentB)) // A -> B -> C -> A
             registerComponent(componentB, createReferencingHandler(componentC))
             registerComponent(componentC, createReferencingHandler(componentA))
 
@@ -186,8 +172,7 @@ describe('component-processor property tests', () => {
             const ctx = createMockContext(components)
             const element = createMockElement(componentA)
 
-            // Should throw circular dependency error
-            void expect(
+            void expect( // Should throw circular dependency error
               processComponent(element, ctx, mockProcessAst),
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },
@@ -201,8 +186,7 @@ describe('component-processor property tests', () => {
         fc.asyncProperty(
           componentNameArb,
           async componentName => {
-            // Register a self-referencing component
-            registerComponent(componentName, createReferencingHandler(componentName))
+            registerComponent(componentName, createReferencingHandler(componentName)) // Register a self-referencing component
 
             const components = getComponents()
             const ctx = createMockContext(components)
@@ -210,13 +194,12 @@ describe('component-processor property tests', () => {
 
             try {
               await processComponent(element, ctx, mockProcessAst)
-              // Should not reach here
-              expect.fail('Should have thrown circular dependency error')
-            } catch (error) {
+              expect.fail('Should have thrown circular dependency error') // Should not reach here
+            }
+            catch (error) {
               expect(error).toBeInstanceOf(Error)
               const errorMessage = (error as Error).message
-              // Error message should contain the component name in the cycle path
-              expect(errorMessage).toContain(componentName)
+              expect(errorMessage).toContain(componentName) // Error message should contain the component name in the cycle path
             }
           },
         ),
@@ -230,20 +213,17 @@ describe('component-processor property tests', () => {
           componentNameArb,
           componentNameArb,
           async (nameA, nameB) => {
-            // Ensure different names
-            const componentA = `${nameA}A`
+            const componentA = `${nameA}A` // Ensure different names
             const componentB = `${nameB}B`
 
-            // A references B, B is terminal (no further references)
-            registerComponent(componentA, createReferencingHandler(componentB))
+            registerComponent(componentA, createReferencingHandler(componentB)) // A references B, B is terminal (no further references)
             registerComponent(componentB, createTerminalHandler())
 
             const components = getComponents()
             const ctx = createMockContext(components)
             const element = createMockElement(componentA)
 
-            // Should NOT throw - no circular dependency
-            const result = await processComponent(element, ctx, mockProcessAst)
+            const result = await processComponent(element, ctx, mockProcessAst) // Should NOT throw - no circular dependency
             expect(result).toEqual([])
           },
         ),
@@ -254,31 +234,24 @@ describe('component-processor property tests', () => {
     it('should detect cycle regardless of chain length before cycle', async () => {
       await fc.assert(
         fc.asyncProperty(
-          // Generate chain length (1-5 components before the cycle)
-          fc.integer({min: 1, max: 5}),
+          fc.integer({min: 1, max: 5}), // Generate chain length (1-5 components before the cycle)
           componentNameArb,
           async (chainLength, baseName) => {
-            // Create a chain: A0 -> A1 -> ... -> An-1 -> A0 (cycle back to start)
-            const componentNames = Array.from(
+            const componentNames = Array.from( // Create a chain: A0 -> A1 -> ... -> An-1 -> A0 (cycle back to start)
               {length: chainLength},
               (_, i) => `${baseName}${i}`,
             )
 
-            // Register chain where last component references first (creating cycle)
-            for (let i = 0; i < componentNames.length; i++) {
+            for (let i = 0; i < componentNames.length; i++) { // Register chain where last component references first (creating cycle)
               const nextIndex = (i + 1) % componentNames.length
-              registerComponent(
-                componentNames[i],
-                createReferencingHandler(componentNames[nextIndex]),
-              )
+              registerComponent(componentNames[i], createReferencingHandler(componentNames[nextIndex]))
             }
 
             const components = getComponents()
             const ctx = createMockContext(components)
             const element = createMockElement(componentNames[0])
 
-            // Should throw circular dependency error
-            void expect(
+            void expect( // Should throw circular dependency error
               processComponent(element, ctx, mockProcessAst),
             ).rejects.toThrow(/[Cc]ircular dependency detected/)
           },

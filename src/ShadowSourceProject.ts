@@ -87,32 +87,26 @@ export function validateShadowSourceProject(
 ): ValidationResult {
   const items: ValidationItem[] = []
 
-  // Validate src directories
-  validateDirectory(rootPath, SHADOW_SOURCE_DIR_NAMES.SRC, structure.src.skills, items)
+  validateDirectory(rootPath, SHADOW_SOURCE_DIR_NAMES.SRC, structure.src.skills, items) // Validate src directories
   validateDirectory(rootPath, SHADOW_SOURCE_DIR_NAMES.SRC, structure.src.commands, items)
   validateDirectory(rootPath, SHADOW_SOURCE_DIR_NAMES.SRC, structure.src.agents, items)
   validateFile(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.SRC_GLOBAL_MEMORY, structure.src.globalMemoryFile, items)
 
-  // Validate dist directories
-  validateDirectory(rootPath, SHADOW_SOURCE_DIR_NAMES.DIST, structure.dist.skills, items)
+  validateDirectory(rootPath, SHADOW_SOURCE_DIR_NAMES.DIST, structure.dist.skills, items) // Validate dist directories
   validateDirectory(rootPath, SHADOW_SOURCE_DIR_NAMES.DIST, structure.dist.commands, items)
   validateDirectory(rootPath, SHADOW_SOURCE_DIR_NAMES.DIST, structure.dist.agents, items)
   validateDirectory(rootPath, SHADOW_SOURCE_DIR_NAMES.DIST, structure.dist.app, items)
   validateFile(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_GLOBAL_MEMORY, structure.dist.globalMemoryFile, items)
 
-  // Validate app directory (standalone)
-  validateDirectoryEntry(rootPath, structure.app, items)
+  validateDirectoryEntry(rootPath, structure.app, items) // Validate app directory (standalone)
 
-  // Validate IDE directories
-  validateDirectoryEntry(rootPath, structure.ide.idea, items)
+  validateDirectoryEntry(rootPath, structure.ide.idea, items) // Validate IDE directories
   validateDirectoryEntry(rootPath, structure.ide.ideaCodeStyles, items)
   validateDirectoryEntry(rootPath, structure.ide.vscode, items)
 
-  // Validate IDE files
-  for (const file of structure.ideFiles) validateFileEntry(rootPath, file, items)
+  for (const file of structure.ideFiles) validateFileEntry(rootPath, file, items) // Validate IDE files
 
-  // Validate ignore files
-  for (const file of structure.ignoreFiles) validateFileEntry(rootPath, file, items)
+  for (const file of structure.ignoreFiles) validateFileEntry(rootPath, file, items) // Validate ignore files
 
   const missingRequired = items.filter(i => !i.exists && i.required)
   const missingOptional = items.filter(i => !i.exists && !i.required)
@@ -136,12 +130,7 @@ function validateDirectory(
   items: ValidationItem[],
 ): void {
   const fullPath = path.join(rootPath, parentDir, entry.name)
-  items.push({
-    path: fullPath,
-    exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory(),
-    required: entry.required,
-    type: 'directory',
-  })
+  items.push({path: fullPath, exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory(), required: entry.required, type: 'directory'})
 }
 
 /**
@@ -153,12 +142,7 @@ function validateDirectoryEntry(
   items: ValidationItem[],
 ): void {
   const fullPath = path.join(rootPath, entry.name)
-  items.push({
-    path: fullPath,
-    exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory(),
-    required: entry.required,
-    type: 'directory',
-  })
+  items.push({path: fullPath, exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory(), required: entry.required, type: 'directory'})
 }
 
 /**
@@ -171,12 +155,7 @@ function validateFile(
   items: ValidationItem[],
 ): void {
   const fullPath = path.join(rootPath, relativePath)
-  items.push({
-    path: fullPath,
-    exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isFile(),
-    required: entry.required,
-    type: 'file',
-  })
+  items.push({path: fullPath, exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isFile(), required: entry.required, type: 'file'})
 }
 
 /**
@@ -188,12 +167,7 @@ function validateFileEntry(
   items: ValidationItem[],
 ): void {
   const fullPath = path.join(rootPath, entry.name)
-  items.push({
-    path: fullPath,
-    exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isFile(),
-    required: entry.required,
-    type: 'file',
-  })
+  items.push({path: fullPath, exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isFile(), required: entry.required, type: 'file'})
 }
 
 /**
@@ -220,8 +194,7 @@ export function generateShadowSourceProject(
   const existedDirs: string[] = []
   const existedFiles: string[] = []
 
-  // Helper to read file from source or return default
-  const getFileContent = (relativePath: string, defaultContent: string): string => {
+  const getFileContent = (relativePath: string, defaultContent: string): string => { // Helper to read file from source or return default
     if (sourceDir == null) return defaultContent
 
     const sourcePath = path.join(sourceDir, relativePath)
@@ -231,8 +204,7 @@ export function generateShadowSourceProject(
     return fs.readFileSync(sourcePath, 'utf8')
   }
 
-  // Helper to create directory
-  const ensureDir = (dirPath: string): void => {
+  const ensureDir = (dirPath: string): void => { // Helper to create directory
     if (fs.existsSync(dirPath)) {
       existedDirs.push(dirPath)
       logger?.debug('directory exists', {path: dirPath})
@@ -243,8 +215,7 @@ export function generateShadowSourceProject(
     }
   }
 
-  // Helper to create file with content from source or default
-  const ensureFile = (filePath: string, relativePath: string, defaultContent: string): void => {
+  const ensureFile = (filePath: string, relativePath: string, defaultContent: string): void => { // Helper to create file with content from source or default
     const dir = path.dirname(filePath)
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, {recursive: true})
@@ -263,89 +234,56 @@ export function generateShadowSourceProject(
     }
   }
 
-  // Create root directory
-  ensureDir(rootPath)
+  ensureDir(rootPath) // Create root directory
 
-  // Create src directories
-  ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.SRC_SKILLS))
+  ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.SRC_SKILLS)) // Create src directories
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.SRC_COMMANDS))
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.SRC_AGENTS))
 
-  // Create app directory (must be created before app/global.cn.mdx)
-  ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.APP))
+  ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.APP)) // Create app directory (must be created before app/global.cn.mdx)
 
-  // Create app/global.cn.mdx
-  ensureFile(
+  ensureFile( // Create app/global.cn.mdx
     path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.SRC_GLOBAL_MEMORY),
     SHADOW_SOURCE_RELATIVE_PATHS.SRC_GLOBAL_MEMORY,
     '# Global Memory\n\n',
   )
 
-  // Create dist directories
-  ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_SKILLS))
+  ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_SKILLS)) // Create dist directories
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_COMMANDS))
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_AGENTS))
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_APP))
 
-  // Create dist/global.mdx
-  ensureFile(
+  ensureFile( // Create dist/global.mdx
     path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_GLOBAL_MEMORY),
     SHADOW_SOURCE_RELATIVE_PATHS.DIST_GLOBAL_MEMORY,
     '# Global Memory\n\n',
   )
 
-  // Create IDE directories
-  ensureDir(path.join(rootPath, SHADOW_SOURCE_DIR_NAMES.IDEA_CODE_STYLES))
+  ensureDir(path.join(rootPath, SHADOW_SOURCE_DIR_NAMES.IDEA_CODE_STYLES)) // Create IDE directories
   ensureDir(path.join(rootPath, SHADOW_SOURCE_DIR_NAMES.VSCODE))
 
-  // Create IDE files
-  ensureFile(
+  ensureFile( // Create IDE files
     path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.EDITOR_CONFIG),
     SHADOW_SOURCE_FILE_NAMES.EDITOR_CONFIG,
     getDefaultEditorConfig(),
   )
-  ensureFile(
-    path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.IDEA_GITIGNORE),
-    SHADOW_SOURCE_FILE_NAMES.IDEA_GITIGNORE,
-    getDefaultIdeaGitignore(),
-  )
-  ensureFile(
-    path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.IDEA_PROJECT_XML),
-    SHADOW_SOURCE_FILE_NAMES.IDEA_PROJECT_XML,
-    getDefaultProjectXml(),
-  )
+  ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.IDEA_GITIGNORE), SHADOW_SOURCE_FILE_NAMES.IDEA_GITIGNORE, getDefaultIdeaGitignore())
+  ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.IDEA_PROJECT_XML), SHADOW_SOURCE_FILE_NAMES.IDEA_PROJECT_XML, getDefaultProjectXml())
   ensureFile(
     path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.IDEA_CODE_STYLE_CONFIG_XML),
     SHADOW_SOURCE_FILE_NAMES.IDEA_CODE_STYLE_CONFIG_XML,
     getDefaultCodeStyleConfigXml(),
   )
-  ensureFile(
-    path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.VSCODE_SETTINGS),
-    SHADOW_SOURCE_FILE_NAMES.VSCODE_SETTINGS,
-    getDefaultVscodeSettings(),
-  )
-  ensureFile(
-    path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.VSCODE_EXTENSIONS),
-    SHADOW_SOURCE_FILE_NAMES.VSCODE_EXTENSIONS,
-    getDefaultVscodeExtensions(),
-  )
+  ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.VSCODE_SETTINGS), SHADOW_SOURCE_FILE_NAMES.VSCODE_SETTINGS, getDefaultVscodeSettings())
+  ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.VSCODE_EXTENSIONS), SHADOW_SOURCE_FILE_NAMES.VSCODE_EXTENSIONS, getDefaultVscodeExtensions())
 
-  // Create ignore files
-  ensureFile(
+  ensureFile( // Create ignore files
     path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.QODER_IGNORE),
     SHADOW_SOURCE_FILE_NAMES.QODER_IGNORE,
     getDefaultIgnoreContent(),
   )
-  ensureFile(
-    path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.CURSOR_IGNORE),
-    SHADOW_SOURCE_FILE_NAMES.CURSOR_IGNORE,
-    getDefaultIgnoreContent(),
-  )
-  ensureFile(
-    path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE),
-    SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE,
-    getDefaultIgnoreContent(),
-  )
+  ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.CURSOR_IGNORE), SHADOW_SOURCE_FILE_NAMES.CURSOR_IGNORE, getDefaultIgnoreContent())
+  ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE), SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE, getDefaultIgnoreContent())
 
   return {
     success: true,
@@ -355,9 +293,7 @@ export function generateShadowSourceProject(
     existedDirs,
     existedFiles,
   }
-}
-
-// Default file content generators
+} // Default file content generators
 
 function getDefaultEditorConfig(): string {
   return `root = true

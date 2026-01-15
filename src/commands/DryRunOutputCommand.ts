@@ -24,20 +24,10 @@ export class DryRunOutputCommand implements Command {
     for (const [pluginName, result] of results) {
       totalFiles += result.files.length
       totalDirs += result.dirs.length
-      logger.info('plugin result', {
-        plugin: pluginName,
-        files: result.files.length,
-        dirs: result.dirs.length,
-        dryRun: true,
-      })
+      logger.info('plugin result', {plugin: pluginName, files: result.files.length, dirs: result.dirs.length, dryRun: true})
     }
 
-    logger.info('complete', {
-      command: 'dry-run-output',
-      totalFiles,
-      totalDirs,
-      dryRun: true,
-    })
+    logger.info('complete', {command: 'dry-run-output', totalFiles, totalDirs, dryRun: true})
 
     return {
       success: true,

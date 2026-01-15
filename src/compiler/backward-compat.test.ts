@@ -18,13 +18,9 @@ import {mdxToMd} from './mdx-to-md'
 import {parseMdx} from './parser'
 
 describe('backward compatibility', () => {
-  beforeEach(() => {
-    registerBuiltInComponents()
-  })
+  beforeEach(() => registerBuiltInComponents())
 
-  afterEach(() => {
-    clearComponents()
-  })
+  afterEach(() => clearComponents())
 
   describe('yAML-only files (Requirement 10.1)', () => {
     it('should parse YAML-only MDX file and return yaml source', async () => {
@@ -44,10 +40,8 @@ This is a test skill content.`
 
       expect(result.content).toContain('# Test Skill')
       expect(result.content).toContain('This is a test skill content.')
-      // YAML-only files should have source 'yaml'
-      expect(result.metadata.source).toBe('yaml')
-      // YAML frontmatter is now extracted and merged
-      expect(result.metadata.fields).toEqual({
+      expect(result.metadata.source).toBe('yaml') // YAML-only files should have source 'yaml'
+      expect(result.metadata.fields).toEqual({ // YAML frontmatter is now extracted and merged
         name: 'test-skill',
         description: 'A test skill',
         keywords: ['test', 'example'],
@@ -92,8 +86,7 @@ description: Skill with empty content
 
       const result = await mdxToMd(content, {extractMetadata: true})
 
-      // YAML frontmatter is extracted
-      expect(result.metadata.source).toBe('yaml')
+      expect(result.metadata.source).toBe('yaml') // YAML frontmatter is extracted
       expect(result.metadata.fields).toEqual({
         name: 'empty-content',
         description: 'Skill with empty content',
@@ -115,8 +108,7 @@ This is a test skill content.`
 
       expect(result.content).toContain('# Test Skill')
       expect(result.content).toContain('This is a test skill content.')
-      // Export-only files should have source 'export'
-      expect(result.metadata.source).toBe('export')
+      expect(result.metadata.source).toBe('export') // Export-only files should have source 'export'
       expect(result.metadata.fields).toEqual({
         name: 'test-skill',
         description: 'A test skill',
@@ -137,8 +129,7 @@ This is a test skill content.`
 
       expect(result.content).toContain('# Metadata Skill Content')
       expect(result.metadata.source).toBe('export')
-      // metadata object should be spread into fields
-      expect(result.metadata.fields).toEqual({
+      expect(result.metadata.fields).toEqual({ // metadata object should be spread into fields
         name: 'metadata-skill',
         description: 'Skill using metadata object',
         enabled: true,
@@ -180,8 +171,7 @@ Some text here.`
 
       const result = await mdxToMd(content, {extractMetadata: true})
 
-      // Export statements should not appear in output
-      expect(result.content).not.toContain('export const')
+      expect(result.content).not.toContain('export const') // Export statements should not appear in output
       expect(result.content).not.toContain('export const name')
       expect(result.content).toContain('# Content')
       expect(result.content).toContain('Some text here.')
@@ -204,23 +194,17 @@ export const exportOnly = true
       const result = await mdxToMd(content, {extractMetadata: true})
 
       expect(result.content).toContain('# Mixed Content')
-      // mdxToMd now merges YAML and export, so source is 'mixed'
-      expect(result.metadata.source).toBe('mixed')
-      // Export takes priority over YAML for same fields
-      expect(result.metadata.fields).toEqual({
-        // export wins over yaml for 'name'
-        name: 'export-name',
-        // from YAML
-        description: 'yaml-description',
+      expect(result.metadata.source).toBe('mixed') // mdxToMd now merges YAML and export, so source is 'mixed'
+      expect(result.metadata.fields).toEqual({ // Export takes priority over YAML for same fields
+        name: 'export-name', // export wins over yaml for 'name'
+        description: 'yaml-description', // from YAML
         yamlOnly: true,
-        // from export
-        exportOnly: true,
+        exportOnly: true, // from export
       })
     })
 
     it('should detect mixed source when yamlFrontMatter is provided to parseExports', () => {
-      // This tests the actual mixed detection at the parseExports level
-      const mdxContent = `export const name = "export-name"
+      const mdxContent = `export const name = "export-name" // This tests the actual mixed detection at the parseExports level
 export const exportOnly = true`
 
       const ast = parseMdx(mdxContent)
@@ -234,15 +218,11 @@ export const exportOnly = true`
         },
       })
 
-      // Should detect mixed source
-      expect(result.source).toBe('mixed')
-      // Export takes priority for 'name'
-      expect(result.fields['name']).toBe('export-name')
-      // YAML-only fields preserved
-      expect(result.fields['description']).toBe('yaml-description')
+      expect(result.source).toBe('mixed') // Should detect mixed source
+      expect(result.fields['name']).toBe('export-name') // Export takes priority for 'name'
+      expect(result.fields['description']).toBe('yaml-description') // YAML-only fields preserved
       expect(result.fields['yamlOnly']).toBe(true)
-      // Export-only fields present
-      expect(result.fields['exportOnly']).toBe(true)
+      expect(result.fields['exportOnly']).toBe(true) // Export-only fields present
     })
   })
 
@@ -261,14 +241,10 @@ export const exportField = "export-value"`
         },
       })
 
-      // Export takes priority over YAML for same key
-      expect(result.fields['name']).toBe('export-name')
-      // YAML-only fields should be preserved
-      expect(result.fields['yamlField']).toBe('yaml-value')
-      // Export-only fields should be present
-      expect(result.fields['exportField']).toBe('export-value')
-      // Source should be 'mixed'
-      expect(result.source).toBe('mixed')
+      expect(result.fields['name']).toBe('export-name') // Export takes priority over YAML for same key
+      expect(result.fields['yamlField']).toBe('yaml-value') // YAML-only fields should be preserved
+      expect(result.fields['exportField']).toBe('export-value') // Export-only fields should be present
+      expect(result.source).toBe('mixed') // Source should be 'mixed'
     })
 
     it('should return yaml source when only YAML front matter exists', () => {

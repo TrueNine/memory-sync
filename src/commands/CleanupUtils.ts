@@ -79,7 +79,8 @@ export function deleteFiles(files: string[], logger: ILogger): {deleted: number,
         logger.debug({action: 'delete', type: 'file', path: resolved})
         deleted++
       }
-    } catch (e) {
+    }
+    catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e)
       logger.warn('failed to delete file', {path: resolved, error: errorMessage})
       errors.push({path: resolved, type: 'file', error: e})
@@ -98,8 +99,7 @@ export function deleteDirectories(dirs: string[], logger: ILogger): {deleted: nu
   let deleted = 0
   const errors: CleanupError[] = []
 
-  // Sort by length descending to handle nested dirs
-  const sortedDirs = [...dirs].sort((a, b) => b.length - a.length)
+  const sortedDirs = [...dirs].sort((a, b) => b.length - a.length) // Sort by length descending to handle nested dirs
 
   for (const dir of sortedDirs) {
     const resolved = path.isAbsolute(dir) ? dir : path.resolve(dir)
@@ -109,7 +109,8 @@ export function deleteDirectories(dirs: string[], logger: ILogger): {deleted: nu
         logger.debug({action: 'delete', type: 'directory', path: resolved})
         deleted++
       }
-    } catch (e) {
+    }
+    catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e)
       logger.warn('failed to delete directory', {path: resolved, error: errorMessage})
       errors.push({path: resolved, type: 'directory', error: e})
@@ -138,8 +139,7 @@ export async function performCleanup(
 ): Promise<CleanupResult> {
   const {executeHooks = true} = options ?? {}
 
-  // Collect outputs for logging
-  const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx)
+  const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx) // Collect outputs for logging
   logger.debug('Collected outputs for cleanup', {
     projectDirs: outputs.projectDirs.length,
     projectFiles: outputs.projectFiles.length,
@@ -147,22 +147,18 @@ export async function performCleanup(
     globalFiles: outputs.globalFiles.length,
   })
 
-  // Check permissions
-  const permissions = await checkCanClean(outputPlugins, cleanCtx)
+  const permissions = await checkCanClean(outputPlugins, cleanCtx) // Check permissions
 
-  // Collect deletion targets
-  const {filesToDelete, dirsToDelete} = await collectDeletionTargets(
+  const {filesToDelete, dirsToDelete} = await collectDeletionTargets( // Collect deletion targets
     outputPlugins,
     permissions,
     cleanCtx,
   )
 
-  // Perform deletions
-  const fileResult = deleteFiles(filesToDelete, logger)
+  const fileResult = deleteFiles(filesToDelete, logger) // Perform deletions
   const dirResult = deleteDirectories(dirsToDelete, logger)
 
-  // Execute hooks if requested
-  if (executeHooks) await executeOnCleanComplete(outputPlugins, cleanCtx)
+  if (executeHooks) await executeOnCleanComplete(outputPlugins, cleanCtx) // Execute hooks if requested
 
   return {
     deletedFiles: fileResult.deleted,

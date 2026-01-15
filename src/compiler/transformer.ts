@@ -1,7 +1,4 @@
-// transformer.ts
-// AST transformation module for lossless MDX to Markdown conversion
-
-import type {Program} from 'estree'
+import type {Program} from 'estree' // AST transformation module for lossless MDX to Markdown conversion // transformer.ts
 import type {Paragraph, Parent, Root, RootContent, Text} from 'mdast'
 import type {MdxJsxFlowElement} from 'mdast-util-mdx'
 import type {ProcessingContext} from './types'
@@ -20,8 +17,7 @@ type ChildNode = RootContent | Text
  * @returns The simplified text (basename only) or original text
  */
 function simplifyLinkText(text: string): string {
-  // Check if text looks like a file path (contains / and ends with .ext)
-  if (!(text.includes('/') && /\.\w+$/.test(text))) return text
+  if (!(text.includes('/') && /\.\w+$/.test(text))) return text // Check if text looks like a file path (contains / and ends with .ext)
 
   const lastSlashIndex = text.lastIndexOf('/')
   return text.slice(lastSlashIndex + 1)
@@ -68,12 +64,10 @@ async function transformNode(
     const flowExpr = node
     const estree = (flowExpr.data as {estree?: Program} | undefined)?.estree
 
-    // Check if this is a JSX comment {/* ... */} - skip it
-    const trimmedValue = flowExpr.value.trim()
+    const trimmedValue = flowExpr.value.trim() // Check if this is a JSX comment {/* ... */} - skip it
     if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) return []
 
-    // Check if expression contains JSX
-    if (hasJsxInEstree(estree)) {
+    if (hasJsxInEstree(estree)) { // Check if expression contains JSX
       return evaluateJsxExpression(flowExpr, ctx, async (children, c) => {
         const tempRoot: Root = {type: 'root', children}
         const processed = await processAst(tempRoot, c)
@@ -81,8 +75,7 @@ async function transformNode(
       })
     }
 
-    // Standard expression evaluation
-    const value = evaluateExpression(flowExpr.value, ctx.scope)
+    const value = evaluateExpression(flowExpr.value, ctx.scope) // Standard expression evaluation
     if (value !== '') {
       const paragraph: Paragraph = {
         type: 'paragraph',
@@ -95,12 +88,10 @@ async function transformNode(
 
   if (node.type === 'mdxJsxFlowElement') return transformJsxElement(node, ctx)
 
-  // Simplify link text that looks like file paths
-  if (node.type === 'link') {
+  if (node.type === 'link') { // Simplify link text that looks like file paths
     const linkNode = node
     const newChildren = await transformChildren(linkNode.children as ChildNode[], ctx)
-    // Simplify text children that look like file paths
-    const simplifiedChildren = newChildren.map(child => {
+    const simplifiedChildren = newChildren.map(child => { // Simplify text children that look like file paths
       if (child.type === 'text') return {...child, value: simplifyLinkText(child.value)}
       return child
     })
@@ -110,10 +101,7 @@ async function transformNode(
   if (!('children' in node && Array.isArray(node.children))) return [node]
 
   const parentNode = node as Parent
-  const newChildren = await transformChildren(
-    parentNode.children as ChildNode[],
-    ctx,
-  )
+  const newChildren = await transformChildren(parentNode.children as ChildNode[], ctx)
   return [{...node, children: newChildren} as RootContent]
 }
 
@@ -144,8 +132,7 @@ async function transformChildren(
   for (const child of children) {
     if (child.type === 'mdxTextExpression') {
       const textExpr = child
-      // Check if this is a JSX comment {/* ... */} - skip it
-      const trimmedValue = textExpr.value.trim()
+      const trimmedValue = textExpr.value.trim() // Check if this is a JSX comment {/* ... */} - skip it
       if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) continue
       const value = evaluateExpression(textExpr.value, ctx.scope)
       const textNode: Text = {type: 'text', value}
@@ -155,8 +142,7 @@ async function transformChildren(
 
     if (child.type === 'mdxJsxTextElement') {
       const textElement = child
-      // Check if it's a registered component first
-      if (textElement.name != null && isMdxComponent(textElement.name, ctx)) {
+      if (textElement.name != null && isMdxComponent(textElement.name, ctx)) { // Check if it's a registered component first
         const componentResult = await processComponent(textElement, ctx, processAst)
         for (const node of componentResult) {
           if (node.type === 'paragraph' && 'children' in node) result.push(...node.children)
@@ -164,8 +150,7 @@ async function transformChildren(
         }
         continue
       }
-      // Otherwise try to convert as standard JSX
-      const converted = convertJsxToMarkdown(textElement, ctx)
+      const converted = convertJsxToMarkdown(textElement, ctx) // Otherwise try to convert as standard JSX
       if (converted != null) {
         for (const node of converted) {
           if (node.type === 'paragraph' && 'children' in node) result.push(...node.children)
@@ -177,12 +162,8 @@ async function transformChildren(
 
     if ('children' in child && Array.isArray(child.children)) {
       const parentChild = child as Parent
-      const newChildren = await transformChildren(
-        parentChild.children as ChildNode[],
-        ctx,
-      )
-      // Simplify link text that looks like file paths
-      if (child.type === 'link') {
+      const newChildren = await transformChildren(parentChild.children as ChildNode[], ctx)
+      if (child.type === 'link') { // Simplify link text that looks like file paths
         const simplifiedChildren = newChildren.map(c => {
           if (c.type === 'text') return {...c, value: simplifyLinkText(c.value)}
           return c

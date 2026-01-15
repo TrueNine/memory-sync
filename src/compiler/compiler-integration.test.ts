@@ -35,28 +35,22 @@ class MockScopePlugin extends AbstractInputPlugin {
   }
 
   collect(_ctx: InputPluginContext): Partial<CollectedInputContext> {
-    // Register scope during collection
-    this.registerScope(this.scopeNamespace, this.scopeValues)
+    this.registerScope(this.scopeNamespace, this.scopeValues) // Register scope during collection
     return {}
   }
 }
 
 describe('compiler Integration', () => {
-  beforeEach(() => {
-    registerBuiltInComponents()
-  })
+  beforeEach(() => registerBuiltInComponents())
 
-  afterEach(() => {
-    clearComponents()
-  })
+  afterEach(() => clearComponents())
 
   describe('globalScopeCollector integration', () => {
     it('should collect complete global scope with all namespaces', () => {
       const collector = new GlobalScopeCollector()
       const scope = collector.collect()
 
-      // Verify os namespace has required properties
-      expect(scope.os).toBeDefined()
+      expect(scope.os).toBeDefined() // Verify os namespace has required properties
       expect(scope.os.platform).toBeDefined()
       expect(scope.os.arch).toBeDefined()
       expect(scope.os.hostname).toBeDefined()
@@ -66,16 +60,13 @@ describe('compiler Integration', () => {
       expect(scope.os.release).toBeDefined()
       expect(scope.os.shellKind).toBeDefined()
 
-      // Verify env namespace exists
-      expect(scope.env).toBeDefined()
+      expect(scope.env).toBeDefined() // Verify env namespace exists
       expect(typeof scope.env).toBe('object')
 
-      // Verify profile namespace exists (empty by default)
-      expect(scope.profile).toBeDefined()
+      expect(scope.profile).toBeDefined() // Verify profile namespace exists (empty by default)
       expect(typeof scope.profile).toBe('object')
 
-      // Verify tool namespace has defaults
-      expect(scope.tool).toBeDefined()
+      expect(scope.tool).toBeDefined() // Verify tool namespace has defaults
       expect(scope.tool.websearch).toBe('web_search')
       expect(scope.tool.webfetch).toBe('web_fetch')
     })
@@ -98,13 +89,10 @@ describe('compiler Integration', () => {
     })
 
     it('should use system default tool references (not user configurable)', () => {
-      // tool is no longer user-configurable, it uses system defaults
-      // Output plugins may override these values for specific AI tools
-      const collector = new GlobalScopeCollector()
+      const collector = new GlobalScopeCollector() // Output plugins may override these values for specific AI tools // tool is no longer user-configurable, it uses system defaults
       const scope = collector.collect()
 
-      // System defaults should be used
-      expect(scope.tool.websearch).toBe('web_search')
+      expect(scope.tool.websearch).toBe('web_search') // System defaults should be used
       expect(scope.tool.webfetch).toBe('web_fetch')
     })
   })
@@ -113,8 +101,7 @@ describe('compiler Integration', () => {
     it('should merge scopes with correct priority order', () => {
       const registry = new ScopeRegistry()
 
-      // Set global scope (lowest priority)
-      const globalScope: MdxGlobalScope = {
+      const globalScope: MdxGlobalScope = { // Set global scope (lowest priority)
         os: {platform: 'linux', shellKind: ShellKind.Bash},
         env: {NODE_ENV: 'test'},
         profile: {name: 'Global User'},
@@ -122,22 +109,16 @@ describe('compiler Integration', () => {
       }
       registry.setGlobalScope(globalScope)
 
-      // Register user config scope
-      registry.register('profile', {name: 'Config User', role: 'developer'}, ScopePriority.UserConfig)
+      registry.register('profile', {name: 'Config User', role: 'developer'}, ScopePriority.UserConfig) // Register user config scope
 
-      // Register plugin scope
-      registry.register('profile', {name: 'Plugin User', team: 'engineering'}, ScopePriority.PluginRegistered)
+      registry.register('profile', {name: 'Plugin User', team: 'engineering'}, ScopePriority.PluginRegistered) // Register plugin scope
 
-      // Merge with compile-time scope
-      const compileTimeScope = {profile: {name: 'Compile User'}}
+      const compileTimeScope = {profile: {name: 'Compile User'}} // Merge with compile-time scope
       const merged = registry.merge(compileTimeScope)
 
-      // Compile-time should win for 'name'
-      expect((merged['profile'] as Record<string, unknown>)['name']).toBe('Compile User')
-      // Plugin scope should provide 'team'
-      expect((merged['profile'] as Record<string, unknown>)['team']).toBe('engineering')
-      // User config should provide 'role'
-      expect((merged['profile'] as Record<string, unknown>)['role']).toBe('developer')
+      expect((merged['profile'] as Record<string, unknown>)['name']).toBe('Compile User') // Compile-time should win for 'name'
+      expect((merged['profile'] as Record<string, unknown>)['team']).toBe('engineering') // Plugin scope should provide 'team'
+      expect((merged['profile'] as Record<string, unknown>)['role']).toBe('developer') // User config should provide 'role'
     })
 
     it('should deep merge nested objects', () => {
@@ -156,14 +137,10 @@ describe('compiler Integration', () => {
       const config = merged['config'] as Record<string, unknown>
       const database = config['database'] as Record<string, unknown>
 
-      // Deep merge should preserve host from first registration
-      expect(database['host']).toBe('localhost')
-      // Deep merge should override port from second registration
-      expect(database['port']).toBe(3306)
-      // Deep merge should add name from second registration
-      expect(database['name']).toBe('mydb')
-      // Cache should be preserved
-      expect((config['cache'] as Record<string, unknown>)['enabled']).toBe(true)
+      expect(database['host']).toBe('localhost') // Deep merge should preserve host from first registration
+      expect(database['port']).toBe(3306) // Deep merge should override port from second registration
+      expect(database['name']).toBe('mydb') // Deep merge should add name from second registration
+      expect((config['cache'] as Record<string, unknown>)['enabled']).toBe(true) // Cache should be preserved
     })
   })
 
@@ -206,8 +183,7 @@ Search Tool: {tool.websearch}`
 
       const result = await mdxToMd(content, {globalScope, scope: customScope})
 
-      // Custom scope should override global scope
-      expect(result).toContain('Hello Custom User')
+      expect(result).toContain('Hello Custom User') // Custom scope should override global scope
     })
 
     it('should extract metadata while using global scope', async () => {
@@ -227,17 +203,14 @@ This skill runs on {os.platform}.`
 
       const result = await mdxToMd(content, {globalScope, extractMetadata: true})
 
-      // Content should have expressions evaluated
-      expect(result.content).toContain('# Hello Test User')
+      expect(result.content).toContain('# Hello Test User') // Content should have expressions evaluated
       expect(result.content).toContain('This skill runs on darwin.')
 
-      // Metadata should be extracted
-      expect(result.metadata.fields['name']).toBe('test-skill')
+      expect(result.metadata.fields['name']).toBe('test-skill') // Metadata should be extracted
       expect(result.metadata.fields['description']).toBe('A test skill')
       expect(result.metadata.source).toBe('export')
 
-      // Export statements should be removed
-      expect(result.content).not.toContain('export const')
+      expect(result.content).not.toContain('export const') // Export statements should be removed
     })
   })
 
@@ -256,12 +229,10 @@ This skill runs on {os.platform}.`
         dependencyContext: {},
       }
 
-      // Execute plugins
-      plugin1.collect(ctx)
+      plugin1.collect(ctx) // Execute plugins
       plugin2.collect(ctx)
 
-      // Get registered scopes
-      const scopes1 = plugin1.getRegisteredScopes()
+      const scopes1 = plugin1.getRegisteredScopes() // Get registered scopes
       const scopes2 = plugin2.getRegisteredScopes()
 
       expect(scopes1).toHaveLength(1)
@@ -287,12 +258,10 @@ This skill runs on {os.platform}.`
         dependencyContext: {},
       }
 
-      // Execute plugins
-      plugin1.collect(ctx)
+      plugin1.collect(ctx) // Execute plugins
       plugin2.collect(ctx)
 
-      // Create registry and register scopes
-      const registry = new ScopeRegistry()
+      const registry = new ScopeRegistry() // Create registry and register scopes
 
       for (const {namespace, values} of plugin1.getRegisteredScopes()) registry.register(namespace, values, ScopePriority.PluginRegistered)
 
@@ -301,35 +270,28 @@ This skill runs on {os.platform}.`
       const merged = registry.merge()
       const shared = merged['shared'] as Record<string, unknown>
 
-      // Both keys should be present
-      expect(shared['key1']).toBe('value1')
+      expect(shared['key1']).toBe('value1') // Both keys should be present
       expect(shared['key2']).toBe('value2')
-      // Later registration should override common key
-      expect(shared['common']).toBe('from-plugin2')
+      expect(shared['common']).toBe('from-plugin2') // Later registration should override common key
     })
 
     it('should integrate plugin scopes with global scope in MDX compilation', async () => {
-      // Create global scope
-      const globalScope: MdxGlobalScope = {
+      const globalScope: MdxGlobalScope = { // Create global scope
         os: {platform: 'linux', shellKind: ShellKind.Bash},
         env: {NODE_ENV: 'test'},
         profile: {name: 'Test User'},
         tool: {websearch: 'search'},
       }
 
-      // Create registry with global scope
-      const registry = new ScopeRegistry()
+      const registry = new ScopeRegistry() // Create registry with global scope
       registry.setGlobalScope(globalScope)
 
-      // Register plugin scopes
-      registry.register('plugin1', {version: '1.0.0'}, ScopePriority.PluginRegistered)
+      registry.register('plugin1', {version: '1.0.0'}, ScopePriority.PluginRegistered) // Register plugin scopes
       registry.register('plugin2', {feature: 'enabled'}, ScopePriority.PluginRegistered)
 
-      // Merge all scopes
-      const mergedScope = registry.merge()
+      const mergedScope = registry.merge() // Merge all scopes
 
-      // Compile MDX with merged scope
-      const content = `# {profile.name}'s Dashboard
+      const content = `# {profile.name}'s Dashboard // Compile MDX with merged scope
 
 Platform: {os.platform}
 Plugin1 Version: {plugin1.version}
@@ -346,8 +308,7 @@ Plugin2 Feature: {plugin2.feature}`
 
   describe('complete configuration to compilation flow', () => {
     it('should flow from user config through scope collection to MDX compilation', async () => {
-      // Step 1: User configuration (tool is no longer user-configurable)
-      const userConfig = {
+      const userConfig = { // Step 1: User configuration (tool is no longer user-configurable)
         profile: {
           name: 'John Doe',
           username: 'johndoe',
@@ -355,25 +316,20 @@ Plugin2 Feature: {plugin2.feature}`
         },
       }
 
-      // Step 2: Collect global scope
-      const collector = new GlobalScopeCollector({userConfig})
+      const collector = new GlobalScopeCollector({userConfig}) // Step 2: Collect global scope
       const globalScope = collector.collect()
 
-      // Step 3: Create registry and set global scope
-      const registry = new ScopeRegistry()
+      const registry = new ScopeRegistry() // Step 3: Create registry and set global scope
       registry.setGlobalScope(globalScope)
 
-      // Step 4: Simulate plugin scope registration
-      registry.register('myPlugin', {
+      registry.register('myPlugin', { // Step 4: Simulate plugin scope registration
         version: '3.0.0',
         config: {debug: true, timeout: 5000},
       }, ScopePriority.PluginRegistered)
 
-      // Step 5: Merge all scopes
-      const mergedScope = registry.merge()
+      const mergedScope = registry.merge() // Step 5: Merge all scopes
 
-      // Step 6: Compile MDX with full scope (using system default tool references)
-      const mdxContent = `export const name = "my-skill"
+      const mdxContent = `export const name = "my-skill" // Step 6: Compile MDX with full scope (using system default tool references)
 export const description = "A skill for {profile.username}"
 
 # Welcome, {profile.name}!
@@ -384,31 +340,24 @@ Fetch tool: {tool.webfetch}
 Plugin version: {myPlugin.version}
 Debug mode: {myPlugin.config.debug}`
 
-      const result = await mdxToMd(mdxContent, {
-        scope: mergedScope,
-        extractMetadata: true,
-      })
+      const result = await mdxToMd(mdxContent, {scope: mergedScope, extractMetadata: true})
 
-      // Verify content compilation
-      expect(result.content).toContain('# Welcome, John Doe!')
+      expect(result.content).toContain('# Welcome, John Doe!') // Verify content compilation
       expect(result.content).toContain('Your role: developer')
       expect(result.content).toContain('Search tool: web_search')
       expect(result.content).toContain('Fetch tool: web_fetch')
       expect(result.content).toContain('Plugin version: 3.0.0')
       expect(result.content).toContain('Debug mode: true')
 
-      // Verify metadata extraction
-      expect(result.metadata.fields['name']).toBe('my-skill')
+      expect(result.metadata.fields['name']).toBe('my-skill') // Verify metadata extraction
       expect(result.metadata.fields['description']).toBe('A skill for {profile.username}')
       expect(result.metadata.source).toBe('export')
 
-      // Verify exports are removed
-      expect(result.content).not.toContain('export const')
+      expect(result.content).not.toContain('export const') // Verify exports are removed
     })
 
     it('should handle empty user config gracefully', async () => {
-      // No user config
-      const collector = new GlobalScopeCollector()
+      const collector = new GlobalScopeCollector() // No user config
       const globalScope = collector.collect()
 
       const registry = new ScopeRegistry()
@@ -421,8 +370,7 @@ Default search: {tool.websearch}`
 
       const result = await mdxToMd(content, {scope: mergedScope})
 
-      // Should use system defaults
-      expect(result).toContain('Platform:')
+      expect(result).toContain('Platform:') // Should use system defaults
       expect(result).toContain('Default search: web_search')
     })
 
@@ -434,21 +382,17 @@ Default search: {tool.websearch}`
         tool: {},
       }
 
-      // First compilation with custom scope
-      const result1 = await mdxToMd('Hello {profile.name}', {
+      const result1 = await mdxToMd('Hello {profile.name}', { // First compilation with custom scope
         globalScope,
         scope: {profile: {name: 'Custom User'}},
       })
 
-      // Second compilation without custom scope
-      const result2 = await mdxToMd('Hello {profile.name}', {
+      const result2 = await mdxToMd('Hello {profile.name}', { // Second compilation without custom scope
         globalScope,
       })
 
-      // First should use custom scope
-      expect(result1).toContain('Hello Custom User')
-      // Second should use global scope (not affected by first)
-      expect(result2).toContain('Hello User')
+      expect(result1).toContain('Hello Custom User') // First should use custom scope
+      expect(result2).toContain('Hello User') // Second should use global scope (not affected by first)
     })
   })
 
@@ -461,8 +405,7 @@ Default search: {tool.websearch}`
         tool: {},
       }
 
-      // This should not throw, undefined values are handled
-      const content = `Platform: {os.platform}`
+      const content = `Platform: {os.platform}` // This should not throw, undefined values are handled
       const result = await mdxToMd(content, {globalScope})
 
       expect(result).toContain('Platform: linux')
@@ -497,8 +440,7 @@ Port: {config.database.connection.port}`
         },
       }
 
-      // Arrays are converted to string representation
-      const content = `Tags: {tags}`
+      const content = `Tags: {tags}` // Arrays are converted to string representation
       const result = await mdxToMd(content, {scope})
 
       expect(result).toContain('Tags:')

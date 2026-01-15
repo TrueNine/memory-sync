@@ -22,8 +22,7 @@ export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
 
     const ignoreFiles: AIAgentIgnoreConfigFile[] = []
 
-    // Read ignore files from shadow source project root directory: $SHADOW_SOURCE_PROJECT/
-    for (const fileName of IGNORE_FILE_NAMES) {
+    for (const fileName of IGNORE_FILE_NAMES) { // Read ignore files from shadow source project root directory: $SHADOW_SOURCE_PROJECT/
       const filePath = path.join(shadowProjectDir, fileName)
 
       if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -31,7 +30,8 @@ export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
           const content = fs.readFileSync(filePath, 'utf8')
           ignoreFiles.push({fileName, content})
           logger.debug('read ignore file', {path: filePath})
-        } catch (e) {
+        }
+        catch (e) {
           logger.warn('failed to read ignore file', {path: filePath, error: e})
         }
       }

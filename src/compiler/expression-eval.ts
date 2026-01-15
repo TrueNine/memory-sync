@@ -1,7 +1,4 @@
-// expression-eval.ts
-// JavaScript expression evaluation module for MDX
-
-import type {EvaluationScope} from './types.js'
+import type {EvaluationScope} from './types.js' // JavaScript expression evaluation module for MDX // expression-eval.ts
 import {UndefinedNamespaceError, UndefinedVariableError} from '@/types/Errors'
 
 /**
@@ -33,9 +30,7 @@ export function evaluateExpression(
 
   if (trimmed === '') return ''
 
-  // Handle simple variable references directly for better error messages
-  // Matches: identifier, identifier.property, identifier.property.nested
-  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) return evaluateSimpleReference(trimmed, scope, options?.filePath)
+  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) return evaluateSimpleReference(trimmed, scope, options?.filePath) // Matches: identifier, identifier.property, identifier.property.nested // Handle simple variable references directly for better error messages
 
   return evaluateComplexExpression(trimmed, scope, options?.filePath)
 }
@@ -52,8 +47,7 @@ function evaluateSimpleReference(
   const rootVar = parts[0]
 
   if (rootVar == null || !(rootVar in scope)) {
-    // Root variable is treated as a namespace
-    throw new UndefinedNamespaceError(rootVar ?? '', reference, filePath)
+    throw new UndefinedNamespaceError(rootVar ?? '', reference, filePath) // Root variable is treated as a namespace
   }
 
   let value: unknown = scope[rootVar]
@@ -93,10 +87,10 @@ function evaluateComplexExpression(
     ) => unknown
     const result: unknown = fn(...scopeValues)
     return convertToString(result)
-  } catch (error) {
+  }
+  catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    // Check if the error is about undefined variable
-    if (message.includes('is not defined')) {
+    if (message.includes('is not defined')) { // Check if the error is about undefined variable
       const match = /(\w+) is not defined/.exec(message)
       if (match?.[1] != null) throw new UndefinedNamespaceError(match[1], expression, filePath)
     }
@@ -120,7 +114,8 @@ function convertToString(value: unknown): string {
   if (typeof value === 'object') {
     try {
       return JSON.stringify(value)
-    } catch {
+    }
+    catch {
       return String(value)
     }
   }

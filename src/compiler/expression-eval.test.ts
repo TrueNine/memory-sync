@@ -96,14 +96,12 @@ describe('expression-eval', () => {
 
   describe('jSX attribute expressions (Requirement 6.2)', () => {
     it('should evaluate expressions used in JSX attributes', () => {
-      // Simulating what would be in an attribute like if={condition}
-      const result = evaluateExpression('condition', {condition: true})
+      const result = evaluateExpression('condition', {condition: true}) // Simulating what would be in an attribute like if={condition}
       expect(result).toBe('true')
     })
 
     it('should evaluate complex attribute expressions', () => {
-      // Simulating what would be in an attribute like value={items.length > 0}
-      const result = evaluateExpression('items.length > 0', {items: [1, 2, 3]})
+      const result = evaluateExpression('items.length > 0', {items: [1, 2, 3]}) // Simulating what would be in an attribute like value={items.length > 0}
       expect(result).toBe('true')
     })
   })
@@ -146,7 +144,8 @@ describe('expression-eval', () => {
     it('should include variable name in UndefinedVariableError', () => {
       try {
         evaluateExpression('user.missing', {user: {}})
-      } catch (error) {
+      }
+      catch (error) {
         expect(error).toBeInstanceOf(UndefinedVariableError)
         expect((error as UndefinedVariableError).variableName).toBe('missing')
         expect((error as UndefinedVariableError).expression).toBe('user.missing')
@@ -156,7 +155,8 @@ describe('expression-eval', () => {
     it('should include namespace in UndefinedNamespaceError', () => {
       try {
         evaluateExpression('unknown', {})
-      } catch (error) {
+      }
+      catch (error) {
         expect(error).toBeInstanceOf(UndefinedNamespaceError)
         expect((error as UndefinedNamespaceError).namespace).toBe('unknown')
         expect((error as UndefinedNamespaceError).expression).toBe('unknown')
@@ -166,7 +166,8 @@ describe('expression-eval', () => {
     it('should include file path in error when provided', () => {
       try {
         evaluateExpression('unknown', {}, {filePath: '/path/to/file.mdx'})
-      } catch (error) {
+      }
+      catch (error) {
         expect(error).toBeInstanceOf(UndefinedNamespaceError)
         expect((error as UndefinedNamespaceError).filePath).toBe('/path/to/file.mdx')
         expect(error.message).toContain('/path/to/file.mdx')
@@ -176,7 +177,8 @@ describe('expression-eval', () => {
     it('should include file path in UndefinedVariableError when provided', () => {
       try {
         evaluateExpression('user.missing', {user: {}}, {filePath: '/path/to/file.mdx'})
-      } catch (error) {
+      }
+      catch (error) {
         expect(error).toBeInstanceOf(UndefinedVariableError)
         expect((error as UndefinedVariableError).filePath).toBe('/path/to/file.mdx')
         expect(error.message).toContain('/path/to/file.mdx')

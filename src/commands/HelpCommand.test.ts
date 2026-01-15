@@ -18,8 +18,7 @@ describe('helpCommand', () => {
 
       const helpText = consoleSpy.mock.calls[0][0] as string
 
-      // Verify all subcommands are listed (Requirements 8.1)
-      expect(helpText).toContain('help')
+      expect(helpText).toContain('help') // Verify all subcommands are listed (Requirements 8.1)
       expect(helpText).toContain('init')
       expect(helpText).toContain('dry-run')
       expect(helpText).toContain('clean')
@@ -35,8 +34,7 @@ describe('helpCommand', () => {
 
       const helpText = consoleSpy.mock.calls[0][0] as string
 
-      // Verify all log level options are listed (Requirements 8.2)
-      expect(helpText).toContain('--trace')
+      expect(helpText).toContain('--trace') // Verify all log level options are listed (Requirements 8.2)
       expect(helpText).toContain('--debug')
       expect(helpText).toContain('--info')
       expect(helpText).toContain('--warn')
@@ -53,8 +51,7 @@ describe('helpCommand', () => {
 
       const helpText = consoleSpy.mock.calls[0][0] as string
 
-      // Verify clean options are shown (Requirements 8.3)
-      expect(helpText).toContain('-n')
+      expect(helpText).toContain('-n') // Verify clean options are shown (Requirements 8.3)
       expect(helpText).toContain('--dry-run')
       expect(helpText).toContain('clean --dry-run')
 
@@ -69,8 +66,7 @@ describe('helpCommand', () => {
 
       const helpText = consoleSpy.mock.calls[0][0] as string
 
-      // Verify examples are included (Requirements 8.4)
-      expect(helpText).toContain('USAGE:')
+      expect(helpText).toContain('USAGE:') // Verify examples are included (Requirements 8.4)
       expect(helpText).toContain('tnmsc help')
       expect(helpText).toContain('tnmsc init')
       expect(helpText).toContain('tnmsc dry-run')

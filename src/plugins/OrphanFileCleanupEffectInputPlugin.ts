@@ -56,8 +56,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     const deletedDirs: string[] = []
     const errors: {path: string, error: Error}[] = []
 
-    // Check if dist/ directory exists (Requirement 2.9)
-    if (!fs.existsSync(distDir)) {
+    if (!fs.existsSync(distDir)) { // Check if dist/ directory exists (Requirement 2.9)
       logger.debug({action: 'orphan-cleanup', message: 'dist/ directory does not exist, skipping', distDir})
       return {
         success: true,
@@ -67,22 +66,11 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
       }
     }
 
-    // Process each subdirectory in dist/
-    const distSubDirs = ['skills', 'commands', 'agents', 'app']
+    const distSubDirs = ['skills', 'commands', 'agents', 'app'] // Process each subdirectory in dist/
 
     for (const subDir of distSubDirs) {
       const distSubDirPath = path.join(distDir, subDir)
-      if (fs.existsSync(distSubDirPath)) {
-        this.cleanupDirectory(
-          ctx,
-          distSubDirPath,
-          subDir,
-          deletedFiles,
-          deletedDirs,
-          errors,
-          dryRun ?? false,
-        )
-      }
+      if (fs.existsSync(distSubDirPath)) this.cleanupDirectory(ctx, distSubDirPath, subDir, deletedFiles, deletedDirs, errors, dryRun ?? false)
     }
 
     const hasErrors = errors.length > 0
@@ -116,7 +104,8 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     let entries: import('node:fs').Dirent[]
     try {
       entries = fs.readdirSync(distDirPath, {withFileTypes: true})
-    } catch (error) {
+    }
+    catch (error) {
       errors.push({path: distDirPath, error: error as Error})
       logger.warn({action: 'orphan-cleanup', message: 'Failed to read directory', path: distDirPath, error: (error as Error).message})
       return
@@ -126,11 +115,9 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
       const entryPath = path.join(distDirPath, entry.name)
 
       if (entry.isDirectory()) {
-        // Recursively clean subdirectories
-        this.cleanupDirectory(ctx, entryPath, dirType, deletedFiles, deletedDirs, errors, dryRun)
+        this.cleanupDirectory(ctx, entryPath, dirType, deletedFiles, deletedDirs, errors, dryRun) // Recursively clean subdirectories
 
-        // Check if directory is now empty and remove it (Requirement 2.7)
-        this.removeEmptyDirectory(ctx, entryPath, deletedDirs, errors, dryRun)
+        this.removeEmptyDirectory(ctx, entryPath, deletedDirs, errors, dryRun) // Check if directory is now empty and remove it (Requirement 2.7)
       } else if (entry.isFile()) {
         const isOrphan = this.isOrphanFile(ctx, entryPath, dirType, shadowProjectDir)
 
@@ -143,7 +130,8 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
               fs.unlinkSync(entryPath)
               deletedFiles.push(entryPath)
               logger.debug({action: 'orphan-cleanup', deleted: entryPath})
-            } catch (error) {
+            }
+            catch (error) {
               errors.push({path: entryPath, error: error as Error})
               logger.warn({action: 'orphan-cleanup', message: 'Failed to delete file', path: entryPath, error: (error as Error).message})
             }
@@ -167,28 +155,22 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     const fileName = path.basename(distFilePath)
     const isMdxFile = fileName.endsWith('.mdx')
 
-    // Get relative path from dist/{dirType}/ to the file
-    const distTypeDir = path.join(shadowProjectDir, 'dist', dirType)
+    const distTypeDir = path.join(shadowProjectDir, 'dist', dirType) // Get relative path from dist/{dirType}/ to the file
     const relativeFromType = path.relative(distTypeDir, distFilePath)
     const relativeDir = path.dirname(relativeFromType)
     const baseName = fileName.replace(/\.mdx$/, '')
 
     if (isMdxFile) {
-      // Apply mapping rules for .mdx files (Requirements 2.2, 2.3, 2.4, 2.5)
-      const possibleSrcPaths = this.getPossibleSourcePaths(path, shadowProjectDir, dirType, baseName, relativeDir)
+      const possibleSrcPaths = this.getPossibleSourcePaths(path, shadowProjectDir, dirType, baseName, relativeDir) // Apply mapping rules for .mdx files (Requirements 2.2, 2.3, 2.4, 2.5)
 
       return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
     }
-    // For non-.mdx files, check direct mapping (Requirement 2.6)
-    // Build possible source paths based on directory type
-    const possibleSrcPaths: string[] = []
+    const possibleSrcPaths: string[] = [] // Build possible source paths based on directory type // For non-.mdx files, check direct mapping (Requirement 2.6)
 
     if (dirType === 'app') {
-      // dist/app/{path} → app/{path}
-      possibleSrcPaths.push(path.join(shadowProjectDir, 'app', relativeFromType))
+      possibleSrcPaths.push(path.join(shadowProjectDir, 'app', relativeFromType)) // dist/app/{path} → app/{path}
     } else {
-      // dist/{type}/{path} → src/{type}/{path}
-      possibleSrcPaths.push(path.join(shadowProjectDir, 'src', dirType, relativeFromType))
+      possibleSrcPaths.push(path.join(shadowProjectDir, 'src', dirType, relativeFromType)) // dist/{type}/{path} → src/{type}/{path}
     }
 
     return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
@@ -206,22 +188,16 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
   ): string[] {
     switch (dirType) {
       case 'skills':
-        // dist/skills/{name}.md → src/skills/{name}/SKILL.cn.mdx OR src/skills/{name}.cn.mdx
-        // dist/skills/{name}/{sub}.md → src/skills/{name}/{sub}.cn.mdx
-        return relativeDir === '.'
-          // Top-level skill file
-          ? [
+        return relativeDir === '.' // dist/skills/{name}/{sub}.md → src/skills/{name}/{sub}.cn.mdx // dist/skills/{name}.md → src/skills/{name}/SKILL.cn.mdx OR src/skills/{name}.cn.mdx
+          ? [ // Top-level skill file
               nodePath.join(shadowProjectDir, 'src', 'skills', baseName, 'SKILL.cn.mdx'),
               nodePath.join(shadowProjectDir, 'src', 'skills', `${baseName}.cn.mdx`),
             ]
-          // Nested skill file (e.g., dist/skills/api-convention/timestamp.md)
-          : [
+          : [ // Nested skill file (e.g., dist/skills/api-convention/timestamp.md)
               nodePath.join(shadowProjectDir, 'src', 'skills', relativeDir, `${baseName}.cn.mdx`),
             ]
       case 'commands':
-        // dist/commands/{name}.md → src/commands/{name}.cn.mdx
-        // dist/commands/{sub}/{name}.md → src/commands/{sub}/{name}.cn.mdx
-        return relativeDir === '.'
+        return relativeDir === '.' // dist/commands/{sub}/{name}.md → src/commands/{sub}/{name}.cn.mdx // dist/commands/{name}.md → src/commands/{name}.cn.mdx
           ? [
               nodePath.join(shadowProjectDir, 'src', 'commands', `${baseName}.cn.mdx`),
             ]
@@ -229,9 +205,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
               nodePath.join(shadowProjectDir, 'src', 'commands', relativeDir, `${baseName}.cn.mdx`),
             ]
       case 'agents':
-        // dist/agents/{name}.md → src/agents/{name}.cn.mdx
-        // dist/agents/{sub}/{name}.md → src/agents/{sub}/{name}.cn.mdx
-        return relativeDir === '.'
+        return relativeDir === '.' // dist/agents/{sub}/{name}.md → src/agents/{sub}/{name}.cn.mdx // dist/agents/{name}.md → src/agents/{name}.cn.mdx
           ? [
               nodePath.join(shadowProjectDir, 'src', 'agents', `${baseName}.cn.mdx`),
             ]
@@ -239,8 +213,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
               nodePath.join(shadowProjectDir, 'src', 'agents', relativeDir, `${baseName}.cn.mdx`),
             ]
       case 'app':
-        // dist/app/{project}/{name}.md → app/{project}/{name}.cn.mdx
-        return relativeDir === '.'
+        return relativeDir === '.' // dist/app/{project}/{name}.md → app/{project}/{name}.cn.mdx
           ? [
               nodePath.join(shadowProjectDir, 'app', `${baseName}.cn.mdx`),
             ]
@@ -275,9 +248,9 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
           logger.debug({action: 'orphan-cleanup', deletedDir: dirPath})
         }
       }
-    } catch (error) {
-      // Directory might not exist or have permission issues
-      errors.push({path: dirPath, error: error as Error})
+    }
+    catch (error) {
+      errors.push({path: dirPath, error: error as Error}) // Directory might not exist or have permission issues
       logger.warn({action: 'orphan-cleanup', message: 'Failed to check/remove directory', path: dirPath, error: (error as Error).message})
     }
   }

@@ -94,7 +94,8 @@ export abstract class RegistryWriter<
     try {
       const content = fs.readFileSync(this.registryPath, 'utf8')
       return JSON.parse(content) as TRegistry
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error('parse failed', {path: this.registryPath, error: errMsg})
       return this.createInitialRegistry()
@@ -111,8 +112,7 @@ export abstract class RegistryWriter<
    * @see Requirements 1.2, 1.6, 1.8, 7.1, 7.2
    */
   protected write(data: TRegistry, dryRun?: boolean): boolean {
-    // Update lastUpdated timestamp
-    const updatedData = {
+    const updatedData = { // Update lastUpdated timestamp
       ...data,
       lastUpdated: new Date().toISOString(),
     } as TRegistry
@@ -127,25 +127,23 @@ export abstract class RegistryWriter<
     try {
       this.ensureRegistryDir()
 
-      // Write to temporary file first
-      const content = JSON.stringify(updatedData, null, 2)
+      const content = JSON.stringify(updatedData, null, 2) // Write to temporary file first
       fs.writeFileSync(tempPath, content, 'utf8')
 
-      // Atomic rename to replace target
-      fs.renameSync(tempPath, this.registryPath)
+      fs.renameSync(tempPath, this.registryPath) // Atomic rename to replace target
 
       this.log.trace({action: 'write', type: 'registry', path: this.registryPath})
       return true
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'registry', path: this.registryPath, error: errMsg})
 
-      // Cleanup temp file if it exists
-      try {
+      try { // Cleanup temp file if it exists
         if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath)
-      } catch {
-        // Ignore cleanup errors
       }
+      catch {
+      } // Ignore cleanup errors
 
       return false
     }
@@ -166,31 +164,20 @@ export abstract class RegistryWriter<
   ): readonly RegistryOperationResult[] {
     const results: RegistryOperationResult[] = []
 
-    // Read existing registry
-    const existing = this.read()
+    const existing = this.read() // Read existing registry
 
-    // Merge new entries
-    const merged = this.merge(existing, entries)
+    const merged = this.merge(existing, entries) // Merge new entries
 
-    // Write updated registry
-    const writeSuccess = this.write(merged, dryRun)
+    const writeSuccess = this.write(merged, dryRun) // Write updated registry
 
-    // Build results for each entry
-    for (const entry of entries) {
+    for (const entry of entries) { // Build results for each entry
       const entryName = this.getEntryName(entry)
       if (writeSuccess) {
-        results.push({
-          success: true,
-          entryName,
-        })
+        results.push({success: true, entryName})
         if (dryRun === true) this.log.trace({action: 'dryRun', type: 'registerEntry', entryName})
         else this.log.trace({action: 'register', type: 'entry', entryName})
       } else {
-        results.push({
-          success: false,
-          entryName,
-          error: new Error(`Failed to write registry file`),
-        })
+        results.push({success: false, entryName, error: new Error(`Failed to write registry file`)})
         this.log.error('register entry failed', {entryName})
       }
     }

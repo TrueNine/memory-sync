@@ -54,8 +54,7 @@ const STEERING_SUBDIR = 'steering'
 const SETTINGS_SUBDIR = 'settings'
 const MCP_CONFIG_FILE = 'mcp.json'
 
-// Kiro Powers constants
-const KIRO_POWERS_DIR = '.kiro/powers/installed'
+const KIRO_POWERS_DIR = '.kiro/powers/installed' // Kiro Powers constants
 const KIRO_POWERS_REPOS_DIR = '.kiro/powers/repos'
 const POWER_FILE_NAME = 'POWER.md'
 
@@ -80,31 +79,22 @@ interface KiroGlobalMcpSettings {
   }
 }
 
-// Kiro supports AGENTS.md at project root, so it relies on AGENTS.md output.
-// Therefore, rootMemoryPrompt handling is not needed here.
-export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
+export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, rootMemoryPrompt handling is not needed here. // Kiro supports AGENTS.md at project root, so it relies on AGENTS.md output.
   constructor() {
-    super('KiroCLIOutputPlugin', {
-      globalConfigDir: GLOBAL_CONFIG_DIR,
-      outputFileName: GLOBAL_MEMORY_FILE,
-    })
+    super('KiroCLIOutputPlugin', {globalConfigDir: GLOBAL_CONFIG_DIR, outputFileName: GLOBAL_MEMORY_FILE})
 
-    // Register clean effect to remove local powers from registry
-    // Requirements: 6.1, 6.2
-    this.registerCleanEffect('registry-cleanup', async ctx => {
+    this.registerCleanEffect('registry-cleanup', async ctx => { // Requirements: 6.1, 6.2 // Register clean effect to remove local powers from registry
       const registryWriter = this.getRegistryWriter(KiroPowersRegistryWriter)
       const success = registryWriter.unregisterLocalPowers(ctx.dryRun)
       if (success) return {success: true, description: 'Reset registry to official state'}
       return {success: false, error: new Error('Failed to clean registry'), description: 'Failed to reset registry'}
     })
 
-    // Register clean effect to reset global mcp.json to empty shell
-    this.registerCleanEffect('mcp-settings-cleanup', async ctx => {
+    this.registerCleanEffect('mcp-settings-cleanup', async ctx => { // Register clean effect to reset global mcp.json to empty shell
       const settingsDir = this.getGlobalSettingsDir()
       const mcpPath = this.joinPath(settingsDir, MCP_CONFIG_FILE)
 
-      // Empty shell structure
-      const emptyMcpSettings: KiroGlobalMcpSettings = {
+      const emptyMcpSettings: KiroGlobalMcpSettings = { // Empty shell structure
         mcpServers: {},
         powers: {
           mcpServers: {},
@@ -121,7 +111,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         this.writeFileSync(mcpPath, JSON.stringify(emptyMcpSettings, null, 2))
         this.log.trace({action: 'clean', type: 'mcpSettingsCleanup', path: mcpPath})
         return {success: true, description: 'Reset mcp.json to empty shell'}
-      } catch (error) {
+      }
+      catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error)
         this.log.error({action: 'clean', type: 'mcpSettingsCleanup', path: mcpPath, error: errMsg})
         return {success: false, error: error as Error, description: 'Failed to reset mcp.json'}
@@ -144,8 +135,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      // Register <project>/.kiro/steering/ for cleanup
-      const steeringDir = this.joinPath(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR)
+      const steeringDir = this.joinPath(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR) // Register <project>/.kiro/steering/ for cleanup
       results.push({
         pathKind: FilePathKind.Relative,
         path: steeringDir,
@@ -165,16 +155,10 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      // Register steering files for each childMemoryPrompt
-      if (project.childMemoryPrompts != null) {
+      if (project.childMemoryPrompts != null) { // Register steering files for each childMemoryPrompt
         for (const child of project.childMemoryPrompts) {
           const fileName = this.buildSteeringFileName(child)
-          const filePath = this.joinPath(
-            project.dirFromWorkspacePath.path,
-            GLOBAL_CONFIG_DIR,
-            STEERING_SUBDIR,
-            fileName,
-          )
+          const filePath = this.joinPath(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR, fileName)
           results.push({
             pathKind: FilePathKind.Relative,
             path: filePath,
@@ -201,9 +185,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       },
     ]
 
-    // Register ALL installed powers for cleanup (not just current skills)
-    // This ensures old/renamed powers are also cleaned up
-    const powersDir = this.getKiroPowersDir()
+    const powersDir = this.getKiroPowersDir() // This ensures old/renamed powers are also cleaned up // Register ALL installed powers for cleanup (not just current skills)
     const installedPowers = this.listInstalledPowers(powersDir)
 
     for (const powerName of installedPowers) {
@@ -217,8 +199,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       })
     }
 
-    // Register repos directory for cleanup
-    const reposDir = this.getKiroPowersReposDir()
+    const reposDir = this.getKiroPowersReposDir() // Register repos directory for cleanup
     results.push({
       pathKind: FilePathKind.Relative,
       path: 'repos',
@@ -242,7 +223,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       return entries
         .filter(entry => entry.isDirectory())
         .map(entry => entry.name)
-    } catch {
+    }
+    catch {
       this.log.debug({action: 'listInstalledPowers', error: 'Failed to read powers directory'})
       return []
     }
@@ -263,8 +245,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       })
     }
 
-    // Register fast command steering files
-    if (fastCommands != null) {
+    if (fastCommands != null) { // Register fast command steering files
       for (const cmd of fastCommands) {
         const fileName = this.buildFastCommandSteeringFileName(cmd)
         results.push({
@@ -277,16 +258,14 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    // Register skill power files (POWER.md, mcp.json, and reference documents)
-    if (skills == null) return results
+    if (skills == null) return results // Register skill power files (POWER.md, mcp.json, and reference documents)
 
     const powersDir = this.getKiroPowersDir()
     for (const skill of skills) {
       const skillName = skill.yamlFrontMatter.name
       const skillPowerDir = this.joinPath(powersDir, skillName)
 
-      // Register POWER.md
-      results.push({
+      results.push({ // Register POWER.md
         pathKind: FilePathKind.Relative,
         path: POWER_FILE_NAME,
         basePath: skillPowerDir,
@@ -294,8 +273,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         getAbsolutePath: () => this.joinPath(skillPowerDir, POWER_FILE_NAME),
       })
 
-      // Register mcp.json if skill has MCP configuration
-      if (skill.mcpConfig != null) {
+      if (skill.mcpConfig != null) { // Register mcp.json if skill has MCP configuration
         results.push({
           pathKind: FilePathKind.Relative,
           path: MCP_CONFIG_FILE,
@@ -305,8 +283,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         })
       }
 
-      // Register reference documents in steering/ subdirectory (convert .mdx to .md)
-      if (skill.childDocs != null) {
+      if (skill.childDocs != null) { // Register reference documents in steering/ subdirectory (convert .mdx to .md)
         const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
         for (const refDoc of skill.childDocs) {
           const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
@@ -320,8 +297,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         }
       }
 
-      // Register resource files in steering/ subdirectory (non-.md files like .kt, .java, .sql, etc.)
-      if (skill.resources != null) {
+      if (skill.resources != null) { // Register resource files in steering/ subdirectory (non-.md files like .kt, .java, .sql, etc.)
         const steeringDir = this.joinPath(skillPowerDir, STEERING_SUBDIR)
         for (const resource of skill.resources) {
           results.push({
@@ -371,8 +347,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      // Write childMemoryPrompts as steering files
-      if (project.childMemoryPrompts != null) {
+      if (project.childMemoryPrompts != null) { // Write childMemoryPrompts as steering files
         for (const child of project.childMemoryPrompts) {
           const result = await this.writeSteeringFile(ctx, project, child)
           fileResults.push(result)
@@ -389,8 +364,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const dirResults: WriteResult[] = []
     const registryResults: RegistryOperationResult[] = []
 
-    // Write global memory
-    if (globalMemory != null) {
+    if (globalMemory != null) { // Write global memory
       const globalDir = this.getGlobalSteeringDir()
       const fullPath = this.joinPath(globalDir, GLOBAL_MEMORY_FILE)
       const relativePath: RelativePath = {
@@ -410,7 +384,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
           this.writeFileSync(fullPath, globalMemory.content as string)
           this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
           fileResults.push({path: relativePath, success: true})
-        } catch (error) {
+        }
+        catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error)
           this.log.error({action: 'write', type: 'globalMemory', path: fullPath, error: errMsg})
           fileResults.push({path: relativePath, success: false, error: error as Error})
@@ -418,16 +393,14 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    // Write fast commands as manual steering files
-    if (fastCommands != null) {
+    if (fastCommands != null) { // Write fast commands as manual steering files
       for (const cmd of fastCommands) {
         const result = await this.writeFastCommandSteeringFile(ctx, cmd)
         fileResults.push(result)
       }
     }
 
-    // Write skills as Kiro Powers and register in registry
-    if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults}
+    if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults} // Write skills as Kiro Powers and register in registry
 
     this.log.debug(`Processing ${skills.length} skills as Kiro Powers`)
     for (const skill of skills) {
@@ -464,8 +437,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     skills: readonly SkillPrompt[],
   ): Promise<WriteResult | null> {
-    // Collect all MCP configurations from skills into powers.mcpServers
-    const powersMcpServers: Record<string, unknown> = {}
+    const powersMcpServers: Record<string, unknown> = {} // Collect all MCP configurations from skills into powers.mcpServers
 
     for (const skill of skills) {
       if (skill.mcpConfig == null) continue
@@ -473,15 +445,13 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       const powerName = skill.yamlFrontMatter.name
       const {mcpServers} = skill.mcpConfig
 
-      // Add each MCP server with key format: power-[powerName]-[mcpName]
-      for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) {
+      for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) { // Add each MCP server with key format: power-[powerName]-[mcpName]
         const key = `power-${powerName}-${mcpName}`
         powersMcpServers[key] = mcpConfig
       }
     }
 
-    // Skip if no MCP configurations
-    if (Object.keys(powersMcpServers).length === 0) return null
+    if (Object.keys(powersMcpServers).length === 0) return null // Skip if no MCP configurations
 
     const settingsDir = this.getGlobalSettingsDir()
     const fullPath = this.joinPath(settingsDir, MCP_CONFIG_FILE)
@@ -494,8 +464,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build global MCP settings structure
-    const globalMcpSettings: KiroGlobalMcpSettings = {
+    const globalMcpSettings: KiroGlobalMcpSettings = { // Build global MCP settings structure
       mcpServers: {},
       powers: {
         mcpServers: powersMcpServers,
@@ -514,7 +483,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       this.writeFileSync(fullPath, content)
       this.log.trace({action: 'write', type: 'globalMcpSettings', path: fullPath, serverCount: Object.keys(powersMcpServers).length})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'globalMcpSettings', path: fullPath, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}
@@ -603,8 +573,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const powerDir = this.joinPath(this.getKiroPowersDir(), skillName)
     const powerFilePath = this.joinPath(powerDir, POWER_FILE_NAME)
 
-    // Create RelativePath for POWER.md
-    const powerRelativePath: RelativePath = {
+    const powerRelativePath: RelativePath = { // Create RelativePath for POWER.md
       pathKind: FilePathKind.Relative,
       path: POWER_FILE_NAME,
       basePath: powerDir,
@@ -612,8 +581,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => powerFilePath,
     }
 
-    // Build POWER.md content with front matter
-    const frontMatterStr = this.buildPowerFrontMatter(skill.yamlFrontMatter)
+    const frontMatterStr = this.buildPowerFrontMatter(skill.yamlFrontMatter) // Build POWER.md content with front matter
     const bodyContent = skill.content as string
     const powerContent = `${frontMatterStr}\n${bodyContent}`
 
@@ -626,20 +594,19 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         this.writeFileSync(powerFilePath, powerContent)
         this.log.trace({action: 'write', type: 'skillPower', path: powerFilePath})
         fileResults.push({path: powerRelativePath, success: true})
-      } catch (error) {
+      }
+      catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error)
         this.log.error({action: 'write', type: 'skillPower', path: powerFilePath, error: errMsg})
         fileResults.push({path: powerRelativePath, success: false, error: error as Error})
       }
     }
 
-    // Write reference documents to steering/ subdirectory (convert .mdx to .md)
-    if (skill.childDocs != null) {
+    if (skill.childDocs != null) { // Write reference documents to steering/ subdirectory (convert .mdx to .md)
       const steeringDir = this.joinPath(powerDir, STEERING_SUBDIR)
 
       for (const refDoc of skill.childDocs) {
-        // Convert .mdx to .md for output
-        const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+        const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md') // Convert .mdx to .md for output
         const refDocFilePath = this.joinPath(steeringDir, refDocFileName)
 
         const refDocRelativePath: RelativePath = {
@@ -650,21 +617,20 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
           getAbsolutePath: () => refDocFilePath,
         }
 
-        // Write reference document content (without front matter)
-        const refDocContent = refDoc.content as string
+        const refDocContent = refDoc.content as string // Write reference document content (without front matter)
 
         if (ctx.dryRun === true) {
           this.log.trace({action: 'dryRun', type: 'refDoc', path: refDocFilePath})
           fileResults.push({path: refDocRelativePath, success: true, skipped: false})
         } else {
           try {
-            // Ensure parent directory exists for nested reference documents
-            const parentDir = this.dirname(refDocFilePath)
+            const parentDir = this.dirname(refDocFilePath) // Ensure parent directory exists for nested reference documents
             this.ensureDirectory(parentDir)
             this.writeFileSync(refDocFilePath, refDocContent)
             this.log.trace({action: 'write', type: 'refDoc', path: refDocFilePath})
             fileResults.push({path: refDocRelativePath, success: true})
-          } catch (error) {
+          }
+          catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error)
             this.log.error({action: 'write', type: 'refDoc', path: refDocFilePath, error: errMsg})
             fileResults.push({path: refDocRelativePath, success: false, error: error as Error})
@@ -673,8 +639,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    // Write resource files to steering/ subdirectory (non-.md files like .kt, .java, .sql, etc.)
-    if (skill.resources != null) {
+    if (skill.resources != null) { // Write resource files to steering/ subdirectory (non-.md files like .kt, .java, .sql, etc.)
       const steeringDir = this.joinPath(powerDir, STEERING_SUBDIR)
 
       for (const resource of skill.resources) {
@@ -693,16 +658,15 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
           fileResults.push({path: resourceRelativePath, success: true, skipped: false})
         } else {
           try {
-            // Ensure parent directory exists for nested resources
-            const parentDir = this.dirname(resourceFilePath)
+            const parentDir = this.dirname(resourceFilePath) // Ensure parent directory exists for nested resources
             this.ensureDirectory(parentDir)
 
-            // Write content directly as-is
-            this.writeFileSync(resourceFilePath, resource.content)
+            this.writeFileSync(resourceFilePath, resource.content) // Write content directly as-is
 
             this.log.trace({action: 'write', type: 'resource', path: resourceFilePath})
             fileResults.push({path: resourceRelativePath, success: true})
-          } catch (error) {
+          }
+          catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error)
             this.log.error({action: 'write', type: 'resource', path: resourceFilePath, error: errMsg})
             fileResults.push({path: resourceRelativePath, success: false, error: error as Error})
@@ -711,15 +675,12 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    // Write mcp.json if skill has MCP configuration
-    if (skill.mcpConfig != null) {
+    if (skill.mcpConfig != null) { // Write mcp.json if skill has MCP configuration
       const mcpResult = await this.writeSkillMcpConfig(ctx, skill, powerDir)
       fileResults.push(mcpResult)
     }
 
-    // Register in Kiro powers registry after writing POWER.md
-    // Requirements: 4.3, 4.4, 4.8
-    const registryWriter = this.getRegistryWriter(KiroPowersRegistryWriter)
+    const registryWriter = this.getRegistryWriter(KiroPowersRegistryWriter) // Requirements: 4.3, 4.4, 4.8 // Register in Kiro powers registry after writing POWER.md
     const powerEntry = registryWriter.buildPowerEntry(skill, powerDir)
     const registryResults = await this.registerInRegistry(registryWriter, [powerEntry], ctx)
     const registryResult = registryResults[0] ?? {
@@ -756,8 +717,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => mcpConfigPath,
     }
 
-    // Use the raw content from the skill's mcp.json (preserves original format)
-    const mcpConfigContent = skill.mcpConfig!.rawContent
+    const mcpConfigContent = skill.mcpConfig!.rawContent // Use the raw content from the skill's mcp.json (preserves original format)
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'mcpConfig', path: mcpConfigPath, skill: skillName})
@@ -769,7 +729,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       this.writeFileSync(mcpConfigPath, mcpConfigContent)
       this.log.trace({action: 'write', type: 'mcpConfig', path: mcpConfigPath, skill: skillName})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'mcpConfig', path: mcpConfigPath, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}
@@ -783,10 +744,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
    * @example 'compile.md' -> 'compile.md'
    */
   private buildFastCommandSteeringFileName(cmd: FastCommandPrompt): string {
-    return this.transformFastCommandName(cmd, {
-      includeSeriesPrefix: true,
-      seriesSeparator: '-',
-    })
+    return this.transformFastCommandName(cmd, {includeSeriesPrefix: true, seriesSeparator: '-'})
   }
 
   /**
@@ -835,7 +793,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       this.writeFileSync(fullPath, content)
       this.log.trace({action: 'write', type: 'fastCommandSteering', path: fullPath})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'fastCommandSteering', path: fullPath, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}
@@ -849,8 +808,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
    */
   private buildSteeringFileName(child: ProjectChildrenMemoryPrompt): string {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
-    // Replace path separators with kebab-case
-    const normalizedPath = childPath
+    const normalizedPath = childPath // Replace path separators with kebab-case
       .replaceAll('\\', '/')
       .replaceAll(/^\/+|\/+$/g, '')
       .replaceAll('/', '-')
@@ -903,7 +861,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       this.writeFileSync(fullPath, content)
       this.log.trace({action: 'write', type: 'steeringFile', path: fullPath})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'steeringFile', path: fullPath, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}

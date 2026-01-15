@@ -51,7 +51,8 @@ function readGlobalConfig(): Record<string, unknown> {
   try {
     const content = fs.readFileSync(configPath, 'utf8')
     return JSON.parse(content) as Record<string, unknown>
-  } catch {
+  }
+  catch {
     return {}
   }
 }
@@ -63,11 +64,9 @@ function writeGlobalConfig(config: Record<string, unknown>): void {
   const configPath = getGlobalConfigPath()
   const configDir = path.dirname(configPath)
 
-  // Ensure directory exists
-  if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, {recursive: true})
+  if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, {recursive: true}) // Ensure directory exists
 
-  // Write with pretty formatting
-  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
+  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8') // Write with pretty formatting
 }
 
 /**
@@ -101,26 +100,22 @@ export class SetCommand implements Command {
       }
     }
 
-    // Read existing config
-    const config = readGlobalConfig()
+    const config = readGlobalConfig() // Read existing config
     const errors: string[] = []
     const updated: string[] = []
 
-    // Process each key-value pair
-    for (const [key, value] of this.options) {
+    for (const [key, value] of this.options) { // Process each key-value pair
       if (!isValidConfigKey(key)) {
         errors.push(`Invalid key: ${key} (valid keys: ${VALID_CONFIG_KEYS.join(', ')})`)
         continue
       }
 
-      // Special validation for logLevel
-      if (key === 'logLevel' && !isValidLogLevel(value)) {
+      if (key === 'logLevel' && !isValidLogLevel(value)) { // Special validation for logLevel
         errors.push(`Invalid logLevel value: ${value} (must be: trace, debug, info, warn, or error)`)
         continue
       }
 
-      // Update config
-      const oldValue = config[key]
+      const oldValue = config[key] // Update config
       config[key] = value
 
       if (oldValue !== value) updated.push(`${key}=${value}`)
@@ -128,14 +123,12 @@ export class SetCommand implements Command {
       logger.info('configuration updated', {key, value})
     }
 
-    // Write config if there are valid updates
-    if (updated.length > 0) {
+    if (updated.length > 0) { // Write config if there are valid updates
       writeGlobalConfig(config)
       logger.info('global config written', {path: getGlobalConfigPath()})
     }
 
-    // Handle errors
-    if (errors.length > 0) {
+    if (errors.length > 0) { // Handle errors
       for (const error of errors) logger.error(error)
     }
 

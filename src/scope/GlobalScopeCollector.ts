@@ -1,7 +1,4 @@
-// src/scope/GlobalScopeCollector.ts
-// Collects and manages global scope variables for MDX expression evaluation.
-
-import type {EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@/globals'
+import type {EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@/globals' // Collects and manages global scope variables for MDX expression evaluation. // src/scope/GlobalScopeCollector.ts
 import type {UserConfigFile} from '@/types/ConfigTypes'
 import * as os from 'node:os'
 import process from 'node:process'

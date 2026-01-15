@@ -32,8 +32,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     const {projects} = ctx.collectedInputContext.workspace
     const {ideConfigFiles} = ctx.collectedInputContext
 
-    // Only register files if we have JetBrains configs to write
-    const hasJetBrainsConfigs = ideConfigFiles.some(
+    const hasJetBrainsConfigs = ideConfigFiles.some( // Only register files if we have JetBrains configs to write
       f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
     )
     if (!hasJetBrainsConfigs) return results
@@ -42,12 +41,9 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
 
-      // Skip prompt source projects (e.g., aindex) - their files are source files
-      // that should be protected from cleanup
-      if (project.isPromptSourceProject === true) continue
+      if (project.isPromptSourceProject === true) continue // that should be protected from cleanup // Skip prompt source projects (e.g., aindex) - their files are source files
 
-      // Register all JetBrains config files for cleanup
-      for (const configFile of JETBRAINS_CONFIG_FILES) {
+      for (const configFile of JETBRAINS_CONFIG_FILES) { // Register all JetBrains config files for cleanup
         const filePath = this.joinPath(projectDir.path, configFile)
         results.push({
           pathKind: FilePathKind.Relative,
@@ -80,8 +76,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    // Filter JetBrains IDE related config files
-    const jetbrainsConfigs = ideConfigFiles.filter(
+    const jetbrainsConfigs = ideConfigFiles.filter( // Filter JetBrains IDE related config files
       f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
     )
 
@@ -92,12 +87,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
       const projectName = project.name ?? 'unknown'
 
       for (const config of jetbrainsConfigs) {
-        const result = await this.writeConfigFile(
-          ctx,
-          projectDir,
-          config,
-          `project:${projectName}`,
-        )
+        const result = await this.writeConfigFile(ctx, projectDir, config, `project:${projectName}`)
         fileResults.push(result)
       }
     }
@@ -111,8 +101,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     config: {type: IDEKind, content: string, dir: {path: string}},
     label: string,
   ): Promise<WriteResult> {
-    // Determine target path based on config type
-    const targetRelativePath = this.getTargetRelativePath(config)
+    const targetRelativePath = this.getTargetRelativePath(config) // Determine target path based on config type
     const fullPath = this.resolvePath(projectDir.basePath, projectDir.path, targetRelativePath)
 
     const relativePath: RelativePath = {
@@ -134,7 +123,8 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
       this.writeFileSync(fullPath, config.content)
       this.log.trace({action: 'write', type: 'config', path: fullPath, label})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'config', path: fullPath, label, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}

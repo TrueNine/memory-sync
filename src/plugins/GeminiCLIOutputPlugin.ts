@@ -15,10 +15,7 @@ const GLOBAL_CONFIG_DIR = '.gemini'
 
 export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('GeminiCLIOutputPlugin', {
-      globalConfigDir: GLOBAL_CONFIG_DIR,
-      outputFileName: PROJECT_MEMORY_FILE,
-    })
+    super('GeminiCLIOutputPlugin', {globalConfigDir: GLOBAL_CONFIG_DIR, outputFileName: PROJECT_MEMORY_FILE})
   }
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -26,8 +23,7 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
     const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
-      // Root memory prompt uses project.dirFromWorkspacePath
-      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
+      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) { // Root memory prompt uses project.dirFromWorkspacePath
         results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
       }
 
@@ -81,26 +77,14 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
 
       if (projectDir == null) continue
 
-      // Write root memory prompt (only if exists)
-      if (project.rootMemoryPrompt != null) {
-        const result = await this.writePromptFile(
-          ctx,
-          projectDir,
-          project.rootMemoryPrompt.content as string,
-          `project:${projectName}/root`,
-        )
+      if (project.rootMemoryPrompt != null) { // Write root memory prompt (only if exists)
+        const result = await this.writePromptFile(ctx, projectDir, project.rootMemoryPrompt.content as string, `project:${projectName}/root`)
         fileResults.push(result)
       }
 
-      // Write children memory prompts
-      if (project.childMemoryPrompts != null) {
+      if (project.childMemoryPrompts != null) { // Write children memory prompts
         for (const child of project.childMemoryPrompts) {
-          const childResult = await this.writePromptFile(
-            ctx,
-            child.dir,
-            child.content as string,
-            `project:${projectName}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`,
-          )
+          const childResult = await this.writePromptFile(ctx, child.dir, child.content as string, `project:${projectName}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`)
           fileResults.push(childResult)
         }
       }
@@ -139,7 +123,8 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
       fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
       this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
       fileResults.push({path: relativePath, success: true})
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'globalMemory', path: fullPath, error: errMsg})
       fileResults.push({path: relativePath, success: false, error: error as Error})

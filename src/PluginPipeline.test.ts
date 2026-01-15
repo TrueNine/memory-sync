@@ -127,7 +127,8 @@ describe('pluginPipeline', () => {
       expect(() => pipeline.validateDependencies(plugins)).toThrow(MissingDependencyError)
       try {
         pipeline.validateDependencies(plugins)
-      } catch (e) {
+      }
+      catch (e) {
         expect(e).toBeInstanceOf(MissingDependencyError)
         const error = e as MissingDependencyError
         expect(error.pluginName).toBe('A')
@@ -172,8 +173,7 @@ describe('pluginPipeline', () => {
 
     it('should sort plugins with linear dependency chain', () => {
       const pipeline = new PluginPipeline()
-      // A depends on B, B depends on C
-      const plugins = [
+      const plugins = [ // A depends on B, B depends on C
         createMockPlugin('A', ['B']),
         createMockPlugin('B', ['C']),
         createMockPlugin('C'),
@@ -181,15 +181,13 @@ describe('pluginPipeline', () => {
       const result = pipeline.topologicalSort(plugins)
       const names = result.map(p => p.name)
 
-      // C must come before B, B must come before A
-      expect(names.indexOf('C')).toBeLessThan(names.indexOf('B'))
+      expect(names.indexOf('C')).toBeLessThan(names.indexOf('B')) // C must come before B, B must come before A
       expect(names.indexOf('B')).toBeLessThan(names.indexOf('A'))
     })
 
     it('should handle diamond dependency pattern', () => {
       const pipeline = new PluginPipeline()
-      // A depends on B and C, both B and C depend on D
-      const plugins = [
+      const plugins = [ // A depends on B and C, both B and C depend on D
         createMockPlugin('A', ['B', 'C']),
         createMockPlugin('B', ['D']),
         createMockPlugin('C', ['D']),
@@ -198,8 +196,7 @@ describe('pluginPipeline', () => {
       const result = pipeline.topologicalSort(plugins)
       const names = result.map(p => p.name)
 
-      // D must come before B and C, B and C must come before A
-      expect(names.indexOf('D')).toBeLessThan(names.indexOf('B'))
+      expect(names.indexOf('D')).toBeLessThan(names.indexOf('B')) // D must come before B and C, B and C must come before A
       expect(names.indexOf('D')).toBeLessThan(names.indexOf('C'))
       expect(names.indexOf('B')).toBeLessThan(names.indexOf('A'))
       expect(names.indexOf('C')).toBeLessThan(names.indexOf('A'))
@@ -207,8 +204,7 @@ describe('pluginPipeline', () => {
 
     it('should preserve registration order for independent plugins', () => {
       const pipeline = new PluginPipeline()
-      // D has no deps, A depends on B, C has no deps
-      const plugins = [
+      const plugins = [ // D has no deps, A depends on B, C has no deps
         createMockPlugin('D'),
         createMockPlugin('A', ['B']),
         createMockPlugin('B'),
@@ -217,16 +213,13 @@ describe('pluginPipeline', () => {
       const result = pipeline.topologicalSort(plugins)
       const names = result.map(p => p.name)
 
-      // B must come before A
-      expect(names.indexOf('B')).toBeLessThan(names.indexOf('A'))
-      // D should come before C (registration order for independent plugins)
-      expect(names.indexOf('D')).toBeLessThan(names.indexOf('C'))
+      expect(names.indexOf('B')).toBeLessThan(names.indexOf('A')) // B must come before A
+      expect(names.indexOf('D')).toBeLessThan(names.indexOf('C')) // D should come before C (registration order for independent plugins)
     })
 
     it('should throw CircularDependencyError for simple cycle', () => {
       const pipeline = new PluginPipeline()
-      // A depends on B, B depends on A
-      const plugins = [
+      const plugins = [ // A depends on B, B depends on A
         createMockPlugin('A', ['B']),
         createMockPlugin('B', ['A']),
       ]
@@ -236,8 +229,7 @@ describe('pluginPipeline', () => {
 
     it('should throw CircularDependencyError for longer cycle', () => {
       const pipeline = new PluginPipeline()
-      // A -> B -> C -> A
-      const plugins = [
+      const plugins = [ // A -> B -> C -> A
         createMockPlugin('A', ['B']),
         createMockPlugin('B', ['C']),
         createMockPlugin('C', ['A']),
@@ -256,11 +248,11 @@ describe('pluginPipeline', () => {
       try {
         pipeline.topologicalSort(plugins)
         expect.fail('Should have thrown CircularDependencyError')
-      } catch (e) {
+      }
+      catch (e) {
         expect(e).toBeInstanceOf(CircularDependencyError)
         const error = e as CircularDependencyError
-        // Cycle should contain both A and B
-        expect(error.cycle).toContain('A')
+        expect(error.cycle).toContain('A') // Cycle should contain both A and B
         expect(error.cycle).toContain('B')
       }
     })
@@ -389,8 +381,7 @@ describe('pluginPipeline', () => {
       const executionOrder: string[] = []
       let aReceivedContext: Partial<CollectedInputContext> | undefined
 
-      // A depends on B and C, both B and C depend on D
-      const plugins = [
+      const plugins = [ // A depends on B and C, both B and C depend on D
         createMockInputPlugin('A', ctx => {
           executionOrder.push('A')
           aReceivedContext = ctx.dependencyContext
@@ -427,15 +418,12 @@ describe('pluginPipeline', () => {
 
       await pipeline.executePluginsInOrder(plugins, createBaseContext())
 
-      // D must execute first
-      expect(executionOrder.indexOf('D')).toBeLessThan(executionOrder.indexOf('B'))
+      expect(executionOrder.indexOf('D')).toBeLessThan(executionOrder.indexOf('B')) // D must execute first
       expect(executionOrder.indexOf('D')).toBeLessThan(executionOrder.indexOf('C'))
-      // B and C must execute before A
-      expect(executionOrder.indexOf('B')).toBeLessThan(executionOrder.indexOf('A'))
+      expect(executionOrder.indexOf('B')).toBeLessThan(executionOrder.indexOf('A')) // B and C must execute before A
       expect(executionOrder.indexOf('C')).toBeLessThan(executionOrder.indexOf('A'))
 
-      // A should receive context from B and C (its direct dependencies)
-      expect(aReceivedContext?.workspace?.projects).toBeDefined()
+      expect(aReceivedContext?.workspace?.projects).toBeDefined() // A should receive context from B and C (its direct dependencies)
       const projectNames = aReceivedContext?.workspace?.projects.map(p => p.name) ?? []
       expect(projectNames).toContain('from-B')
       expect(projectNames).toContain('from-C')

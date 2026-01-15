@@ -56,44 +56,33 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
         try {
           const rawContent = ctx.fs.readFileSync(filePath, 'utf8')
 
-          // Parse YAML front matter first for backward compatibility
-          const parsed = parseMarkdown<FastCommandYAMLFrontMatter>(rawContent)
+          const parsed = parseMarkdown<FastCommandYAMLFrontMatter>(rawContent) // Parse YAML front matter first for backward compatibility
 
-          // Compile MDX with globalScope and extract metadata from exports
-          const compileResult = await mdxToMd(rawContent, {
+          const compileResult = await mdxToMd(rawContent, { // Compile MDX with globalScope and extract metadata from exports
             globalScope,
             extractMetadata: true,
             basePath: fastCommandDir,
           })
 
-          // Merge YAML front matter with export metadata (export takes priority)
-          const mergedFrontMatter: FastCommandYAMLFrontMatter | undefined = parsed.yamlFrontMatter != null || Object.keys(compileResult.metadata.fields).length > 0
+          const mergedFrontMatter: FastCommandYAMLFrontMatter | undefined = parsed.yamlFrontMatter != null || Object.keys(compileResult.metadata.fields).length > 0 // Merge YAML front matter with export metadata (export takes priority)
             ? {
                 ...parsed.yamlFrontMatter,
                 ...compileResult.metadata.fields,
               } as FastCommandYAMLFrontMatter
             : void 0
 
-          // Validate merged metadata (FastCommand has no required fields, but we still validate)
-          if (mergedFrontMatter != null) {
-            const validationResult = validateFastCommandMetadata(
-              mergedFrontMatter as Record<string, unknown>,
-              filePath,
-            )
+          if (mergedFrontMatter != null) { // Validate merged metadata (FastCommand has no required fields, but we still validate)
+            const validationResult = validateFastCommandMetadata(mergedFrontMatter as Record<string, unknown>, filePath)
 
-            // Log validation warnings
-            for (const warning of validationResult.warnings) logger.debug(warning)
+            for (const warning of validationResult.warnings) logger.debug(warning) // Log validation warnings
 
-            // Throw error if validation fails
-            if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, filePath)
+            if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, filePath) // Throw error if validation fails
           }
 
-          // Use compiled content
-          const {content} = compileResult
+          const {content} = compileResult // Use compiled content
           const seriesInfo = this.extractSeriesInfo(entry.name)
 
-          // Log metadata source for debugging
-          logger.debug('fast command metadata extracted', {
+          logger.debug('fast command metadata extracted', { // Log metadata source for debugging
             command: entry.name,
             source: compileResult.metadata.source,
             hasYaml: parsed.yamlFrontMatter != null,
@@ -120,7 +109,8 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
             commandName: seriesInfo.commandName,
             rawMdxContent: rawContent,
           })
-        } catch (e) {
+        }
+        catch (e) {
           logger.error('failed to parse fast command', {file: filePath, error: e})
         }
       }

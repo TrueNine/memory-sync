@@ -38,16 +38,12 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
     const rawContent = fs.readFileSync(globalMemoryFile, 'utf8')
     const parsed = parseMarkdown(rawContent)
 
-    // Compile MDX with globalScope to evaluate expressions like {profile.name}
-    // Only compile if globalScope is provided, otherwise use raw content
-    let compiledContent: string
+    let compiledContent: string // Only compile if globalScope is provided, otherwise use raw content // Compile MDX with globalScope to evaluate expressions like {profile.name}
     if (globalScope != null) {
       try {
-        compiledContent = await mdxToMd(rawContent, {
-          globalScope,
-          basePath: path.dirname(globalMemoryFile),
-        })
-      } catch (e) {
+        compiledContent = await mdxToMd(rawContent, {globalScope, basePath: path.dirname(globalMemoryFile)})
+      }
+      catch (e) {
         if (e instanceof ScopeError) {
           this.log.error(`MDX compilation failed: ${e.message}`)
           this.log.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
@@ -56,8 +52,7 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
         }
         throw e
       }
-    }
-    else compiledContent = parsed.contentWithoutFrontMatter
+    } else compiledContent = parsed.contentWithoutFrontMatter
 
     this.log.debug({action: 'collect', path: globalMemoryFile, contentLength: compiledContent.length})
 

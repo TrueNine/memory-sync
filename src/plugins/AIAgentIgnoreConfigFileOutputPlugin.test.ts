@@ -25,9 +25,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
     vi.clearAllMocks()
   })
 
-  afterEach(() => {
-    vi.clearAllMocks()
-  })
+  afterEach(() => vi.clearAllMocks())
 
   function createMockRelativePath(pathStr: string, basePath: string): RelativePath {
     return {
@@ -102,8 +100,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
   describe('registerProjectOutputFiles', () => {
     it('should register all ignore files for each project regardless of aiAgentIgnoreConfigFiles', async () => {
-      // Even with ignore files provided, should register all known ignore file types
-      const ignoreFiles = createMockIgnoreFiles()
+      const ignoreFiles = createMockIgnoreFiles() // Even with ignore files provided, should register all known ignore file types
       const ctx = createMockOutputPluginContext(ignoreFiles)
 
       const results = await plugin.registerProjectOutputFiles(ctx)
@@ -117,13 +114,11 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
     })
 
     it('should register all ignore files even when aiAgentIgnoreConfigFiles is empty', async () => {
-      // This is the key fix: cleanup should work even without collected ignore files
-      const ctx = createMockOutputPluginContext([])
+      const ctx = createMockOutputPluginContext([]) // This is the key fix: cleanup should work even without collected ignore files
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      // Should still register all known ignore file types for cleanup
-      expect(results).toHaveLength(3)
+      expect(results).toHaveLength(3) // Should still register all known ignore file types for cleanup
       expect(results.map(r => r.path)).toEqual([
         path.join('project1', '.qoderignore'),
         path.join('project1', '.cursorignore'),
@@ -173,9 +168,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
               },
               {
                 name: 'prompt-source-project',
-                // Prompt source project (e.g., aindex) - should be skipped for cleanup
-                // to protect source files
-                isPromptSourceProject: true,
+                isPromptSourceProject: true, // to protect source files // Prompt source project (e.g., aindex) - should be skipped for cleanup
                 dirFromWorkspacePath: createMockRelativePath('prompt-source-project', mockWorkspaceDir),
               },
             ],
@@ -187,9 +180,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      // Should only register files for regular project, NOT prompt source project
-      // because prompt source project files are source files that should be protected
-      expect(results).toHaveLength(3)
+      expect(results).toHaveLength(3) // because prompt source project files are source files that should be protected // Should only register files for regular project, NOT prompt source project
       expect(results.map(r => r.path)).toContain(path.join('project1', '.qoderignore'))
       expect(results.map(r => r.path)).not.toContain(path.join('prompt-source-project', '.qoderignore'))
     })
@@ -258,8 +249,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       await plugin.writeProjectOutputs(ctx)
 
-      // ensureDirectory should not be called since files are written to project root
-      expect(vi.mocked(fs.mkdirSync)).not.toHaveBeenCalled()
+      expect(vi.mocked(fs.mkdirSync)).not.toHaveBeenCalled() // ensureDirectory should not be called since files are written to project root
     })
 
     it('should support dry-run mode', async () => {

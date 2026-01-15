@@ -177,8 +177,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
    */
   protected registerEffect(name: string, handler: InputEffectHandler, priority: number = 0): void {
     this.inputEffects.push({name, handler, priority})
-    // Sort by priority (lower = earlier)
-    this.inputEffects.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+    this.inputEffects.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0)) // Sort by priority (lower = earlier)
   }
 
   /**
@@ -238,7 +237,8 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
           this.log.error({action: 'inputEffect', name: effect.name, status: 'failed', error: errorMsg})
         }
         results.push(result)
-      } catch (error) {
+      }
+      catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
         this.log.error({action: 'inputEffect', name: effect.name, status: 'failed', error: errorMsg})
         results.push({success: false, error: error as Error, description: `Input effect failed: ${effect.name}`})
@@ -264,11 +264,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
    */
   getEffectCount(): number {
     return this.inputEffects.length
-  }
-
-  // ============================================================================
-  // Scope Registration Methods
-  // ============================================================================
+  } // Scope Registration Methods // ============================================================================ // ============================================================================
 
   /**
    * Register custom scope variables for MDX expression evaluation.
@@ -396,13 +392,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     const rawContent = fs.readFileSync(filePath, 'utf8')
     return parseMarkdown<T>(rawContent)
   }
-}
-
-// ============================================================================
-// Effect Utility Functions
-// ============================================================================
-// These functions are designed to be used within effect handlers for common
-// side-effect operations like cleaning stale files, syncing directories, etc.
+} // side-effect operations like cleaning stale files, syncing directories, etc. // These functions are designed to be used within effect handlers for common // ============================================================================ // Effect Utility Functions // ============================================================================
 
 /**
  * Options for cleaning stale dist files.
@@ -468,8 +458,7 @@ export function cleanStaleDistFiles(
     errors: [],
   }
 
-  // Check if directories exist
-  if (!fs.existsSync(distDir)) {
+  if (!fs.existsSync(distDir)) { // Check if directories exist
     logger?.debug({action: 'cleanStaleDistFiles', message: 'dist directory does not exist', distDir})
     return result
   }
@@ -479,18 +468,15 @@ export function cleanStaleDistFiles(
     return result
   }
 
-  // Get all files in dist directory
-  const distEntries = fs.readdirSync(distDir, {withFileTypes: true})
+  const distEntries = fs.readdirSync(distDir, {withFileTypes: true}) // Get all files in dist directory
 
   for (const entry of distEntries) {
     if (entry.isDirectory()) {
-      // For directories, check if corresponding src directory exists
-      const srcSubDir = nodePath.join(srcDir, entry.name)
+      const srcSubDir = nodePath.join(srcDir, entry.name) // For directories, check if corresponding src directory exists
       const distSubDir = nodePath.join(distDir, entry.name)
 
       if (!fs.existsSync(srcSubDir)) {
-        // Source directory doesn't exist, mark for deletion
-        if (dryRun) {
+        if (dryRun) { // Source directory doesn't exist, mark for deletion
           result.wouldDelete.push(distSubDir)
           logger?.debug({action: 'cleanStaleDistFiles', wouldDelete: distSubDir})
         } else {
@@ -498,14 +484,14 @@ export function cleanStaleDistFiles(
             fs.rmSync(distSubDir, {recursive: true, force: true})
             result.deletedFiles.push(distSubDir)
             logger?.debug({action: 'cleanStaleDistFiles', deleted: distSubDir})
-          } catch (error) {
+          }
+          catch (error) {
             result.errors.push({file: distSubDir, error: error as Error})
             logger?.warn({action: 'cleanStaleDistFiles', error: (error as Error).message, file: distSubDir})
           }
         }
       } else {
-        // Recursively clean subdirectory
-        const subResult = cleanStaleDistFiles(ctx, {
+        const subResult = cleanStaleDistFiles(ctx, { // Recursively clean subdirectory
           srcDir: srcSubDir,
           distDir: distSubDir,
           extension,
@@ -517,12 +503,9 @@ export function cleanStaleDistFiles(
         result.errors.push(...subResult.errors)
       }
     } else if (entry.isFile() && entry.name.endsWith(extension)) {
-      // For files, check if corresponding src file exists
-      const distFilePath = nodePath.join(distDir, entry.name)
+      const distFilePath = nodePath.join(distDir, entry.name) // For files, check if corresponding src file exists
 
-      // Try to find corresponding source file
-      // Convention: dist/foo.md -> src/foo/skill.md or src/foo.cn.mdx
-      const baseName = entry.name.replace(extension, '')
+      const baseName = entry.name.replace(extension, '') // Convention: dist/foo.md -> src/foo/skill.md or src/foo.cn.mdx // Try to find corresponding source file
       const possibleSrcPaths = [
         nodePath.join(srcDir, baseName, 'skill.md'),
         nodePath.join(srcDir, `${baseName}.cn.mdx`),
@@ -541,7 +524,8 @@ export function cleanStaleDistFiles(
             fs.unlinkSync(distFilePath)
             result.deletedFiles.push(distFilePath)
             logger?.debug({action: 'cleanStaleDistFiles', deleted: distFilePath})
-          } catch (error) {
+          }
+          catch (error) {
             result.errors.push({file: distFilePath, error: error as Error})
             logger?.warn({action: 'cleanStaleDistFiles', error: (error as Error).message, file: distFilePath})
           }
@@ -604,21 +588,17 @@ export function syncDirectory(
     errors: [],
   }
 
-  // Ensure target directory exists
-  if (!dryRun && !fs.existsSync(targetDir)) fs.mkdirSync(targetDir, {recursive: true})
+  if (!dryRun && !fs.existsSync(targetDir)) fs.mkdirSync(targetDir, {recursive: true}) // Ensure target directory exists
 
-  // Check if source exists
-  if (!fs.existsSync(srcDir)) {
+  if (!fs.existsSync(srcDir)) { // Check if source exists
     logger?.debug({action: 'syncDirectory', message: 'source directory does not exist', srcDir})
     return result
   }
 
-  // Get source files
-  const srcEntries = fs.readdirSync(srcDir, {withFileTypes: true})
+  const srcEntries = fs.readdirSync(srcDir, {withFileTypes: true}) // Get source files
   const srcNames = new Set(srcEntries.map(e => e.name))
 
-  // Copy files from source to target
-  for (const entry of srcEntries) {
+  for (const entry of srcEntries) { // Copy files from source to target
     const srcPath = nodePath.join(srcDir, entry.name)
     const targetPath = nodePath.join(targetDir, entry.name)
 
@@ -628,14 +608,13 @@ export function syncDirectory(
           fs.copyFileSync(srcPath, targetPath)
           result.copiedFiles.push(targetPath)
           logger?.debug({action: 'syncDirectory', copied: targetPath})
-        } catch (error) {
+        }
+        catch (error) {
           result.errors.push({file: targetPath, error: error as Error})
         }
-      }
-      else result.copiedFiles.push(targetPath)
+      } else result.copiedFiles.push(targetPath)
     } else if (entry.isDirectory()) {
-      // Recursively sync subdirectories
-      const subResult = syncDirectory(ctx, {
+      const subResult = syncDirectory(ctx, { // Recursively sync subdirectories
         srcDir: srcPath,
         targetDir: targetPath,
         deleteOrphans,
@@ -648,8 +627,7 @@ export function syncDirectory(
     }
   }
 
-  // Delete orphaned files in target
-  if (!(deleteOrphans && fs.existsSync(targetDir))) return result
+  if (!(deleteOrphans && fs.existsSync(targetDir))) return result // Delete orphaned files in target
 
   const targetEntries = fs.readdirSync(targetDir, {withFileTypes: true})
   for (const entry of targetEntries) {
@@ -661,11 +639,11 @@ export function syncDirectory(
           else fs.unlinkSync(targetPath)
           result.deletedFiles.push(targetPath)
           logger?.debug({action: 'syncDirectory', deleted: targetPath})
-        } catch (error) {
+        }
+        catch (error) {
           result.errors.push({file: targetPath, error: error as Error})
         }
-      }
-      else result.deletedFiles.push(targetPath)
+      } else result.deletedFiles.push(targetPath)
     }
   }
   return result
@@ -755,13 +733,9 @@ export async function executeCommand(options: ExecuteCommandOptions): Promise<Ex
     let stdout = ''
     let stderr = ''
 
-    proc.stdout?.on('data', (data: Buffer) => {
-      stdout += data.toString()
-    })
+    proc.stdout?.on('data', (data: Buffer) => stdout += data.toString())
 
-    proc.stderr?.on('data', (data: Buffer) => {
-      stderr += data.toString()
-    })
+    proc.stderr?.on('data', (data: Buffer) => stderr += data.toString())
 
     proc.on('error', error => {
       logger?.error({action: 'executeCommand', error: error.message, command})
@@ -778,12 +752,7 @@ export async function executeCommand(options: ExecuteCommandOptions): Promise<Ex
       const success = code === 0
       if (success) logger?.debug({action: 'executeCommand', success: true, command})
       else logger?.warn({action: 'executeCommand', success: false, exitCode: code, command, stderr})
-      resolve({
-        success,
-        exitCode: code,
-        stdout,
-        stderr,
-      })
+      resolve({success, exitCode: code, stdout, stderr})
     })
   })
 }

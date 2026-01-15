@@ -1,8 +1,4 @@
-// src/scope/GlobalScopeCollector.property.test.ts
-// Property-based tests for GlobalScopeCollector
-// Feature: compiler-integration
-
-import type {UserConfigFile} from '@/types/ConfigTypes'
+import type {UserConfigFile} from '@/types/ConfigTypes' // Feature: compiler-integration // Property-based tests for GlobalScopeCollector // src/scope/GlobalScopeCollector.property.test.ts
 import * as os from 'node:os'
 import process from 'node:process'
 import * as fc from 'fast-check'
@@ -15,16 +11,12 @@ import {GlobalScopeCollector} from './GlobalScopeCollector'
  * Property-based tests for GlobalScopeCollector
  */
 describe('globalScopeCollector property tests', () => {
-  // Store original env to restore after tests
-  let originalEnv: NodeJS.ProcessEnv
+  let originalEnv: NodeJS.ProcessEnv // Store original env to restore after tests
 
-  beforeEach(() => {
-    originalEnv = {...process.env}
-  })
+  beforeEach(() => originalEnv = {...process.env})
 
   afterEach(() => {
-    // Restore original environment
-    process.env = originalEnv
+    process.env = originalEnv // Restore original environment
   })
 
   /**
@@ -38,8 +30,7 @@ describe('globalScopeCollector property tests', () => {
     it('should collect all required OS properties matching Node.js os module', () => {
       fc.assert(
         fc.property(
-          // Generate arbitrary user configs (or none)
-          fc.option(
+          fc.option( // Generate arbitrary user configs (or none)
             fc.record({
               profile: fc.option(fc.record({name: fc.string()}), {nil: void 0}),
               tool: fc.option(fc.record({websearch: fc.string()}), {nil: void 0}),
@@ -52,8 +43,7 @@ describe('globalScopeCollector property tests', () => {
             })
             const scope = collector.collect()
 
-            // Verify all required OS properties exist
-            expect(scope.os).toBeDefined()
+            expect(scope.os).toBeDefined() // Verify all required OS properties exist
             expect(scope.os.platform).toBeDefined()
             expect(scope.os.arch).toBeDefined()
             expect(scope.os.hostname).toBeDefined()
@@ -63,8 +53,7 @@ describe('globalScopeCollector property tests', () => {
             expect(scope.os.release).toBeDefined()
             expect(scope.os.shellKind).toBeDefined()
 
-            // Verify values match Node.js os module
-            expect(scope.os.platform).toBe(os.platform())
+            expect(scope.os.platform).toBe(os.platform()) // Verify values match Node.js os module
             expect(scope.os.arch).toBe(os.arch())
             expect(scope.os.hostname).toBe(os.hostname())
             expect(scope.os.homedir).toBe(os.homedir())
@@ -84,8 +73,7 @@ describe('globalScopeCollector property tests', () => {
           iterations => {
             const collector = new GlobalScopeCollector()
 
-            // Collect multiple times and verify consistency
-            const results = Array.from({length: iterations}, () => collector.collect())
+            const results = Array.from({length: iterations}, () => collector.collect()) // Collect multiple times and verify consistency
 
             for (let i = 1; i < results.length; i++) {
               expect(results[i].os.platform).toBe(results[0].os.platform)
@@ -107,8 +95,7 @@ describe('globalScopeCollector property tests', () => {
    * Validates: Requirements 1.5
    */
   describe('property 2: Shell Type Detection Correctness', () => {
-    // Shell detection mapping
-    const shellMappings: {pattern: string, expected: ShellKind}[] = [
+    const shellMappings: {pattern: string, expected: ShellKind}[] = [ // Shell detection mapping
       {pattern: 'bash', expected: ShellKind.Bash},
       {pattern: 'zsh', expected: ShellKind.Zsh},
       {pattern: 'fish', expected: ShellKind.Fish},
@@ -118,8 +105,7 @@ describe('globalScopeCollector property tests', () => {
     ]
 
     it('should detect shell type correctly based on SHELL environment variable', () => {
-      // All shell patterns to filter out from prefix/suffix
-      const allShellPatterns = ['bash', 'zsh', 'fish', 'pwsh', 'powershell', 'cmd']
+      const allShellPatterns = ['bash', 'zsh', 'fish', 'pwsh', 'powershell', 'cmd'] // All shell patterns to filter out from prefix/suffix
 
       fc.assert(
         fc.property(
@@ -133,8 +119,7 @@ describe('globalScopeCollector property tests', () => {
             return !allShellPatterns.some(p => lower.includes(p))
           }),
           ({pattern, expected}, prefix, suffix) => {
-            // Set SHELL env var with the pattern
-            process.env['SHELL'] = `${prefix}${pattern}${suffix}`
+            process.env['SHELL'] = `${prefix}${pattern}${suffix}` // Set SHELL env var with the pattern
             delete process.env['ComSpec']
 
             const collector = new GlobalScopeCollector()
@@ -148,8 +133,7 @@ describe('globalScopeCollector property tests', () => {
     })
 
     it('should detect shell type correctly based on ComSpec environment variable', () => {
-      // All shell patterns to filter out from prefix/suffix
-      const allShellPatterns = ['bash', 'zsh', 'fish', 'pwsh', 'powershell', 'cmd']
+      const allShellPatterns = ['bash', 'zsh', 'fish', 'pwsh', 'powershell', 'cmd'] // All shell patterns to filter out from prefix/suffix
 
       fc.assert(
         fc.property(
@@ -163,8 +147,7 @@ describe('globalScopeCollector property tests', () => {
             return !allShellPatterns.some(p => lower.includes(p))
           }),
           ({pattern, expected}, prefix, suffix) => {
-            // Set ComSpec env var with the pattern (Windows)
-            delete process.env['SHELL']
+            delete process.env['SHELL'] // Set ComSpec env var with the pattern (Windows)
             process.env['ComSpec'] = `${prefix}${pattern}${suffix}`
 
             const collector = new GlobalScopeCollector()
@@ -181,8 +164,7 @@ describe('globalScopeCollector property tests', () => {
       fc.assert(
         fc.property(
           fc.string({minLength: 0, maxLength: 30}).filter(s => {
-            // Exclude strings that contain other shell patterns
-            const lower = s.toLowerCase()
+            const lower = s.toLowerCase() // Exclude strings that contain other shell patterns
             return !lower.includes('bash')
               && !lower.includes('zsh')
               && !lower.includes('fish')
@@ -209,8 +191,7 @@ describe('globalScopeCollector property tests', () => {
         fc.property(
           fc.string({minLength: 1, maxLength: 50}).filter(s => {
             const lower = s.toLowerCase()
-            // Exclude all known shell patterns
-            return !lower.includes('bash')
+            return !lower.includes('bash') // Exclude all known shell patterns
               && !lower.includes('zsh')
               && !lower.includes('fish')
               && !lower.includes('pwsh')
@@ -256,15 +237,13 @@ describe('globalScopeCollector property tests', () => {
           fc.constantFrom(...shellMappings),
           fc.constantFrom(...shellMappings),
           ({pattern: shellPattern, expected: shellExpected}, {pattern: comSpecPattern}) => {
-            // Set both env vars with different patterns
-            process.env['SHELL'] = `/usr/bin/${shellPattern}`
+            process.env['SHELL'] = `/usr/bin/${shellPattern}` // Set both env vars with different patterns
             process.env['ComSpec'] = `C:\\Windows\\System32\\${comSpecPattern}.exe`
 
             const collector = new GlobalScopeCollector()
             const scope = collector.collect()
 
-            // SHELL should take precedence (it's checked first via ??)
-            expect(scope.os.shellKind).toBe(shellExpected)
+            expect(scope.os.shellKind).toBe(shellExpected) // SHELL should take precedence (it's checked first via ??)
           },
         ),
         {numRuns: 100},
@@ -282,30 +261,24 @@ describe('globalScopeCollector property tests', () => {
     it('should collect all environment variables from process.env', () => {
       fc.assert(
         fc.property(
-          // Generate random env vars to add
-          // Exclude __proto__ and other special properties that have special behavior in JS
-          fc.dictionary(
+          fc.dictionary( // Exclude __proto__ and other special properties that have special behavior in JS // Generate random env vars to add
             fc.string({minLength: 1, maxLength: 20}).filter(s =>
               /^[A-Z_]\w*$/i.test(s)
               && s !== '__proto__'
               && s !== 'constructor'
-              && s !== 'prototype',
-            ),
+              && s !== 'prototype'),
             fc.string({minLength: 0, maxLength: 100}),
             {minKeys: 0, maxKeys: 10},
           ),
           additionalEnvVars => {
-            // Add random env vars
-            for (const [key, value] of Object.entries(additionalEnvVars)) process.env[key] = value
+            for (const [key, value] of Object.entries(additionalEnvVars)) process.env[key] = value // Add random env vars
 
             const collector = new GlobalScopeCollector()
             const scope = collector.collect()
 
-            // Verify all process.env keys are in scope.env
-            for (const [key, value] of Object.entries(process.env)) expect(scope.env[key]).toBe(value)
+            for (const [key, value] of Object.entries(process.env)) expect(scope.env[key]).toBe(value) // Verify all process.env keys are in scope.env
 
-            // Verify the added env vars are present
-            for (const [key, value] of Object.entries(additionalEnvVars)) expect(scope.env[key]).toBe(value)
+            for (const [key, value] of Object.entries(additionalEnvVars)) expect(scope.env[key]).toBe(value) // Verify the added env vars are present
           },
         ),
         {numRuns: 100},
@@ -315,13 +288,11 @@ describe('globalScopeCollector property tests', () => {
     it('should create a copy of env vars (not a reference)', () => {
       fc.assert(
         fc.property(
-          // Exclude __proto__ and other special properties
-          fc.string({minLength: 1, maxLength: 20}).filter(s =>
+          fc.string({minLength: 1, maxLength: 20}).filter(s => // Exclude __proto__ and other special properties
             /^[A-Z_]\w*$/i.test(s)
             && s !== '__proto__'
             && s !== 'constructor'
-            && s !== 'prototype',
-          ),
+            && s !== 'prototype'),
           fc.string({minLength: 1, maxLength: 50}),
           (key, value) => {
             process.env[key] = value
@@ -329,15 +300,11 @@ describe('globalScopeCollector property tests', () => {
             const collector = new GlobalScopeCollector()
             const scope = collector.collect()
 
-            // Verify the value is collected
-            expect(scope.env[key]).toBe(value)
+            expect(scope.env[key]).toBe(value) // Verify the value is collected
 
-            // Modify process.env after collection
-            process.env[key] = `${value}_modified`
+            process.env[key] = `${value}_modified` // Modify process.env after collection
 
-            // The collected scope should still have the original value
-            // (since it's a spread copy)
-            expect(scope.env[key]).toBe(value)
+            expect(scope.env[key]).toBe(value) // (since it's a spread copy) // The collected scope should still have the original value
           },
         ),
         {numRuns: 100},
@@ -349,9 +316,7 @@ describe('globalScopeCollector property tests', () => {
         fc.property(
           fc.constant(null),
           () => {
-            // Note: We can't actually clear process.env completely in Node.js
-            // but we can verify the collector handles whatever is there
-            const collector = new GlobalScopeCollector()
+            const collector = new GlobalScopeCollector() // but we can verify the collector handles whatever is there // Note: We can't actually clear process.env completely in Node.js
             const scope = collector.collect()
 
             expect(scope.env).toBeDefined()

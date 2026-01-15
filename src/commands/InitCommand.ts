@@ -26,18 +26,15 @@ export class InitCommand implements Command {
 
     logger.info('initializing shadow source project structure', {command: 'init'})
 
-    // Resolve workspace directory from user config
-    const workspaceDir = resolvePath(userConfigOptions.workspaceDir, '', '')
+    const workspaceDir = resolvePath(userConfigOptions.workspaceDir, '', '') // Resolve workspace directory from user config
 
-    // Resolve shadow source project directory from user config
-    const shadowSourceProjectDir = resolvePath(
+    const shadowSourceProjectDir = resolvePath( // Resolve shadow source project directory from user config
       userConfigOptions.shadowSourceProjectDir,
       workspaceDir,
       '',
     )
 
-    // Generate shadow source project structure
-    const result = generateShadowSourceProject(shadowSourceProjectDir, {logger})
+    const result = generateShadowSourceProject(shadowSourceProjectDir, {logger}) // Generate shadow source project structure
 
     const message = result.createdDirs.length === 0 && result.createdFiles.length === 0
       ? `All ${result.existedDirs.length} directories and ${result.existedFiles.length} files already exist`

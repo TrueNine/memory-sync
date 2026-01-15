@@ -1,8 +1,5 @@
-// src/globals/index.ts
-// Global type declarations for MDX expression scope.
-// These types are available to users when writing MDX templates.
-
 /**
+ * // These types are available to users when writing MDX templates. // Global type declarations for MDX expression scope. // src/globals/index.ts
  * User profile information
  * @example {profile.name}, {profile.username}
  */

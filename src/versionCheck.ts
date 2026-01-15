@@ -31,8 +31,7 @@ export interface VersionCheckResult {
  * Returns [major, minor, patch] or null if invalid
  */
 export function parseVersion(version: string): [number, number, number] | null {
-  // Remove leading 'v' if present
-  const cleaned = version.replace(/^v/, '')
+  const cleaned = version.replace(/^v/, '') // Remove leading 'v' if present
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec(cleaned)
   if (match == null) return null
   return [
@@ -72,8 +71,7 @@ const FETCH_TIMEOUT_MS = 3000
 export async function fetchLatestVersion(): Promise<{version: string} | {error: string}> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-  // Unref the timeout so it doesn't prevent process exit
-  if (typeof timeoutId === 'object' && 'unref' in timeoutId) timeoutId.unref()
+  if (typeof timeoutId === 'object' && 'unref' in timeoutId) timeoutId.unref() // Unref the timeout so it doesn't prevent process exit
 
   try {
     const response = await fetch(getNpmRegistryUrl(), {
@@ -86,7 +84,8 @@ export async function fetchLatestVersion(): Promise<{version: string} | {error: 
     const data = await response.json() as {version?: string}
     if (data.version == null) return {error: 'Invalid response: missing version field'}
     return {version: data.version}
-  } catch (err) {
+  }
+  catch (err) {
     clearTimeout(timeoutId)
     if (err instanceof Error) {
       if (err.name === 'TimeoutError' || err.name === 'AbortError') return {error: `Request timeout after ${FETCH_TIMEOUT_MS}ms`}
@@ -109,8 +108,7 @@ export function getLocalVersion(): string {
 export async function checkVersion(): Promise<VersionCheckResult> {
   const localVersion = getLocalVersion()
 
-  // Development version, skip check
-  if (localVersion === 'dev') {
+  if (localVersion === 'dev') { // Development version, skip check
     return {
       status: 'development',
       localVersion,
@@ -144,11 +142,7 @@ export function logVersionCheckResult(result: VersionCheckResult, logger: ILogge
   const {status, localVersion, remoteVersion} = result
 
   switch (status) {
-    case 'outdated':
-      logger.warn(
-        `Version outdated: ${localVersion} → ${remoteVersion}. Run 'npm i -g ${getPackageName()}@latest' to update.`,
-      )
-      break
+    case 'outdated': logger.warn(`Version outdated: ${localVersion} → ${remoteVersion}. Run 'npm i -g ${getPackageName()}@latest' to update.`); break
     case 'current':
       if (result.error != null) logger.error(`Version check failed: ${result.error}`)
       else logger.info(`Version ${localVersion} is up to date.`)
@@ -177,12 +171,9 @@ export function shouldCheckVersion(): boolean {
 export function startupVersionCheck(logger: ILogger): void {
   if (!shouldCheckVersion()) return
 
-  // Run version check in background without blocking process exit
-  // The promise is intentionally not awaited
-  checkVersion()
+  checkVersion() // The promise is intentionally not awaited // Run version check in background without blocking process exit
     .then(result => {
-      // Log warnings for outdated versions or errors on startup
-      if (result.status === 'outdated' || result.error != null) logVersionCheckResult(result, logger)
+      if (result.status === 'outdated' || result.error != null) logVersionCheckResult(result, logger) // Log warnings for outdated versions or errors on startup
     })
     .catch((err: unknown) => {
       const message = err instanceof Error ? err.message : 'Unknown error'

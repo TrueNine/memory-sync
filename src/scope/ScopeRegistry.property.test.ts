@@ -1,8 +1,4 @@
-// src/scope/ScopeRegistry.property.test.ts
-// Property-based tests for ScopeRegistry
-// Feature: compiler-integration
-
-import type {MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@/globals'
+import type {MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@/globals' // Feature: compiler-integration // Property-based tests for ScopeRegistry // src/scope/ScopeRegistry.property.test.ts
 import * as fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
 import {ShellKind} from '@/globals'
@@ -11,12 +7,7 @@ import {ScopePriority, ScopeRegistry} from './ScopeRegistry'
 /**
  * Arbitrary generator for simple values (non-object primitives)
  */
-const simpleValueArb = fc.oneof(
-  fc.string(),
-  fc.integer(),
-  fc.boolean(),
-  fc.constant(null),
-)
+const simpleValueArb = fc.oneof(fc.string(), fc.integer(), fc.boolean(), fc.constant(null))
 
 /**
  * Arbitrary generator for flat record (no nested objects)
@@ -26,8 +17,7 @@ const flatRecordArb = fc.dictionary(
     /^[a-z_]\w*$/i.test(s)
     && s !== '__proto__'
     && s !== 'constructor'
-    && s !== 'prototype',
-  ),
+    && s !== 'prototype'),
   simpleValueArb,
   {minKeys: 1, maxKeys: 5},
 )
@@ -40,8 +30,7 @@ const _nestedRecordArb = fc.dictionary(
     /^[a-z_]\w*$/i.test(s)
     && s !== '__proto__'
     && s !== 'constructor'
-    && s !== 'prototype',
-  ),
+    && s !== 'prototype'),
   fc.oneof(simpleValueArb, flatRecordArb),
   {minKeys: 1, maxKeys: 5},
 )
@@ -57,8 +46,7 @@ const namespaceArb = fc.string({minLength: 1, maxLength: 20}).filter(s =>
   && s !== 'os'
   && s !== 'env'
   && s !== 'profile'
-  && s !== 'tool',
-)
+  && s !== 'tool')
 
 /**
  * Arbitrary generator for OsInfo
@@ -87,10 +75,7 @@ const userProfileArb: fc.Arbitrary<UserProfile> = fc.record({
 /**
  * Arbitrary generator for ToolReferences
  */
-const toolReferencesArb: fc.Arbitrary<ToolReferences> = fc.record({
-  websearch: fc.option(fc.string(), {nil: void 0}),
-  webfetch: fc.option(fc.string(), {nil: void 0}),
-})
+const toolReferencesArb: fc.Arbitrary<ToolReferences> = fc.record({websearch: fc.option(fc.string(), {nil: void 0}), webfetch: fc.option(fc.string(), {nil: void 0})})
 
 /**
  * Arbitrary generator for MdxGlobalScope
@@ -131,16 +116,13 @@ describe('scopeRegistry property tests', () => {
           (namespace, key, systemValue, userValue, pluginValue, compileValue) => {
             const registry = new ScopeRegistry()
 
-            // Register same key with different priorities
-            registry.register(namespace, {[key]: systemValue}, ScopePriority.SystemDefault)
+            registry.register(namespace, {[key]: systemValue}, ScopePriority.SystemDefault) // Register same key with different priorities
             registry.register(namespace, {[key]: userValue}, ScopePriority.UserConfig)
             registry.register(namespace, {[key]: pluginValue}, ScopePriority.PluginRegistered)
 
-            // Merge with compile-time scope
-            const merged = registry.merge({[namespace]: {[key]: compileValue}})
+            const merged = registry.merge({[namespace]: {[key]: compileValue}}) // Merge with compile-time scope
 
-            // Compile-time should win (highest priority)
-            const namespaceResult = merged[namespace] as Record<string, unknown>
+            const namespaceResult = merged[namespace] as Record<string, unknown> // Compile-time should win (highest priority)
             expect(namespaceResult[key]).toBe(compileValue)
           },
         ),
@@ -159,15 +141,13 @@ describe('scopeRegistry property tests', () => {
           (namespace, key, systemValue, userValue, pluginValue) => {
             const registry = new ScopeRegistry()
 
-            // Register same key with different priorities (no compile-time)
-            registry.register(namespace, {[key]: systemValue}, ScopePriority.SystemDefault)
+            registry.register(namespace, {[key]: systemValue}, ScopePriority.SystemDefault) // Register same key with different priorities (no compile-time)
             registry.register(namespace, {[key]: userValue}, ScopePriority.UserConfig)
             registry.register(namespace, {[key]: pluginValue}, ScopePriority.PluginRegistered)
 
             const merged = registry.merge()
 
-            // Plugin priority should win
-            const namespaceResult = merged[namespace] as Record<string, unknown>
+            const namespaceResult = merged[namespace] as Record<string, unknown> // Plugin priority should win
             expect(namespaceResult[key]).toBe(pluginValue)
           },
         ),
@@ -185,14 +165,12 @@ describe('scopeRegistry property tests', () => {
           (namespace, key, systemValue, userValue) => {
             const registry = new ScopeRegistry()
 
-            // Register same key with system and user priorities only
-            registry.register(namespace, {[key]: systemValue}, ScopePriority.SystemDefault)
+            registry.register(namespace, {[key]: systemValue}, ScopePriority.SystemDefault) // Register same key with system and user priorities only
             registry.register(namespace, {[key]: userValue}, ScopePriority.UserConfig)
 
             const merged = registry.merge()
 
-            // User config should win
-            const namespaceResult = merged[namespace] as Record<string, unknown>
+            const namespaceResult = merged[namespace] as Record<string, unknown> // User config should win
             expect(namespaceResult[key]).toBe(userValue)
           },
         ),
@@ -209,19 +187,16 @@ describe('scopeRegistry property tests', () => {
             const registry = new ScopeRegistry()
             registry.setGlobalScope(globalScope)
 
-            // Register override for profile namespace
-            registry.register('profile', {customKey: overrideValue}, ScopePriority.PluginRegistered)
+            registry.register('profile', {customKey: overrideValue}, ScopePriority.PluginRegistered) // Register override for profile namespace
 
             const merged = registry.merge()
 
-            // Global scope values should be present
-            expect(merged['os']).toBeDefined()
+            expect(merged['os']).toBeDefined() // Global scope values should be present
             expect(merged['env']).toBeDefined()
             expect(merged['profile']).toBeDefined()
             expect(merged['tool']).toBeDefined()
 
-            // Override should be merged in
-            const profileResult = merged['profile'] as Record<string, unknown>
+            const profileResult = merged['profile'] as Record<string, unknown> // Override should be merged in
             expect(profileResult['customKey']).toBe(overrideValue)
           },
         ),
@@ -237,8 +212,7 @@ describe('scopeRegistry property tests', () => {
           fc.string({minLength: 1, maxLength: 50}),
           fc.string({minLength: 1, maxLength: 50}),
           fc.string({minLength: 1, maxLength: 50}),
-          // Shuffle the registration order
-          fc.shuffledSubarray([
+          fc.shuffledSubarray([ // Shuffle the registration order
             ScopePriority.SystemDefault,
             ScopePriority.UserConfig,
             ScopePriority.PluginRegistered,
@@ -247,15 +221,13 @@ describe('scopeRegistry property tests', () => {
             const values = [val1, val2, val3]
             const registry = new ScopeRegistry()
 
-            // Register in shuffled order
-            priorities.forEach((priority, index) => {
+            priorities.forEach((priority, index) => { // Register in shuffled order
               registry.register(namespace, {[key]: values[index]}, priority)
             })
 
             const merged = registry.merge()
 
-            // Find which value was registered with highest priority
-            const highestPriorityIndex = priorities.indexOf(ScopePriority.PluginRegistered)
+            const highestPriorityIndex = priorities.indexOf(ScopePriority.PluginRegistered) // Find which value was registered with highest priority
             const expectedValue = values[highestPriorityIndex]
 
             const namespaceResult = merged[namespace] as Record<string, unknown>
@@ -283,25 +255,21 @@ describe('scopeRegistry property tests', () => {
           fc.string({minLength: 1, maxLength: 50}),
           fc.string({minLength: 1, maxLength: 50}),
           (namespace, key1, key2, value1, value2) => {
-            // Ensure keys are different
-            fc.pre(key1 !== key2)
+            fc.pre(key1 !== key2) // Ensure keys are different
 
             const registry = new ScopeRegistry()
 
-            // Register nested object with key1
-            registry.register(namespace, {
+            registry.register(namespace, { // Register nested object with key1
               nested: {[key1]: value1},
             }, ScopePriority.SystemDefault)
 
-            // Register nested object with key2 (should merge, not overwrite)
-            registry.register(namespace, {
+            registry.register(namespace, { // Register nested object with key2 (should merge, not overwrite)
               nested: {[key2]: value2},
             }, ScopePriority.UserConfig)
 
             const merged = registry.merge()
 
-            // Both keys should exist in the nested object
-            const namespaceResult = merged[namespace] as Record<string, unknown>
+            const namespaceResult = merged[namespace] as Record<string, unknown> // Both keys should exist in the nested object
             const nestedResult = namespaceResult['nested'] as Record<string, unknown>
 
             expect(nestedResult[key1]).toBe(value1)
@@ -313,13 +281,11 @@ describe('scopeRegistry property tests', () => {
     })
 
     it('should deep merge multiple levels of nesting', () => {
-      // Safe key generator that excludes prototype pollution keys
-      const safeKeyArb = fc.string({minLength: 1, maxLength: 20}).filter(s =>
+      const safeKeyArb = fc.string({minLength: 1, maxLength: 20}).filter(s => // Safe key generator that excludes prototype pollution keys
         /^[a-z_]\w*$/i.test(s)
         && s !== '__proto__'
         && s !== 'constructor'
-        && s !== 'prototype',
-      )
+        && s !== 'prototype')
 
       fc.assert(
         fc.property(
@@ -333,8 +299,7 @@ describe('scopeRegistry property tests', () => {
 
             const registry = new ScopeRegistry()
 
-            // Register deeply nested object
-            registry.register(namespace, {
+            registry.register(namespace, { // Register deeply nested object
               level1: {
                 level2: {
                   [key1]: value1,
@@ -342,8 +307,7 @@ describe('scopeRegistry property tests', () => {
               },
             }, ScopePriority.SystemDefault)
 
-            // Register another deeply nested object (should merge)
-            registry.register(namespace, {
+            registry.register(namespace, { // Register another deeply nested object (should merge)
               level1: {
                 level2: {
                   [key2]: value2,
@@ -353,8 +317,7 @@ describe('scopeRegistry property tests', () => {
 
             const merged = registry.merge()
 
-            // Both keys should exist at the deepest level
-            const namespaceResult = merged[namespace] as Record<string, unknown>
+            const namespaceResult = merged[namespace] as Record<string, unknown> // Both keys should exist at the deepest level
             const level1 = namespaceResult['level1'] as Record<string, unknown>
             const level2 = level1['level2'] as Record<string, unknown>
 
@@ -376,8 +339,7 @@ describe('scopeRegistry property tests', () => {
           (namespace, key, lowPriorityValue, highPriorityValue) => {
             const registry = new ScopeRegistry()
 
-            // Register nested object with same key at different priorities
-            registry.register(namespace, {
+            registry.register(namespace, { // Register nested object with same key at different priorities
               nested: {[key]: lowPriorityValue},
             }, ScopePriority.SystemDefault)
 
@@ -387,8 +349,7 @@ describe('scopeRegistry property tests', () => {
 
             const merged = registry.merge()
 
-            // Higher priority value should win
-            const namespaceResult = merged[namespace] as Record<string, unknown>
+            const namespaceResult = merged[namespace] as Record<string, unknown> // Higher priority value should win
             const nestedResult = namespaceResult['nested'] as Record<string, unknown>
 
             expect(nestedResult[key]).toBe(highPriorityValue)
@@ -407,20 +368,17 @@ describe('scopeRegistry property tests', () => {
           (namespace, array1, array2) => {
             const registry = new ScopeRegistry()
 
-            // Register array at low priority
-            registry.register(namespace, {
+            registry.register(namespace, { // Register array at low priority
               items: array1,
             }, ScopePriority.SystemDefault)
 
-            // Register different array at high priority
-            registry.register(namespace, {
+            registry.register(namespace, { // Register different array at high priority
               items: array2,
             }, ScopePriority.PluginRegistered)
 
             const merged = registry.merge()
 
-            // Array should be replaced, not merged
-            const namespaceResult = merged[namespace] as Record<string, unknown>
+            const namespaceResult = merged[namespace] as Record<string, unknown> // Array should be replaced, not merged
             expect(namespaceResult['items']).toEqual(array2)
           },
         ),
@@ -441,20 +399,17 @@ describe('scopeRegistry property tests', () => {
 
             const registry = new ScopeRegistry()
 
-            // Register nested object
-            registry.register(namespace, {
+            registry.register(namespace, { // Register nested object
               nested: {[key1]: registeredValue},
             }, ScopePriority.PluginRegistered)
 
-            // Merge with compile-time scope containing different key
-            const merged = registry.merge({
+            const merged = registry.merge({ // Merge with compile-time scope containing different key
               [namespace]: {
                 nested: {[key2]: compileTimeValue},
               },
             })
 
-            // Both keys should exist (deep merge)
-            const namespaceResult = merged[namespace] as Record<string, unknown>
+            const namespaceResult = merged[namespace] as Record<string, unknown> // Both keys should exist (deep merge)
             const nestedResult = namespaceResult['nested'] as Record<string, unknown>
 
             expect(nestedResult[key1]).toBe(registeredValue)
@@ -478,20 +433,17 @@ describe('scopeRegistry property tests', () => {
 
             const registry = new ScopeRegistry()
 
-            // Register primitive value
-            registry.register(namespace, {
+            registry.register(namespace, { // Register primitive value
               [primitiveKey]: primitiveValue,
             }, ScopePriority.SystemDefault)
 
-            // Register object value
-            registry.register(namespace, {
+            registry.register(namespace, { // Register object value
               [objectKey]: objectValue,
             }, ScopePriority.UserConfig)
 
             const merged = registry.merge()
 
-            // Both should exist
-            const namespaceResult = merged[namespace] as Record<string, unknown>
+            const namespaceResult = merged[namespace] as Record<string, unknown> // Both should exist
             expect(namespaceResult[primitiveKey]).toBe(primitiveValue)
             expect(namespaceResult[objectKey]).toEqual(objectValue)
           },
@@ -508,13 +460,11 @@ describe('scopeRegistry property tests', () => {
           (namespace, values) => {
             const registry = new ScopeRegistry()
 
-            // Register to a new namespace (target is undefined/null)
-            registry.register(namespace, values, ScopePriority.PluginRegistered)
+            registry.register(namespace, values, ScopePriority.PluginRegistered) // Register to a new namespace (target is undefined/null)
 
             const merged = registry.merge()
 
-            // Values should be present
-            const namespaceResult = merged[namespace] as Record<string, unknown>
+            const namespaceResult = merged[namespace] as Record<string, unknown> // Values should be present
             for (const [key, value] of Object.entries(values)) expect(namespaceResult[key]).toBe(value)
           },
         ),
@@ -534,27 +484,23 @@ describe('scopeRegistry property tests', () => {
             && s !== 'name'
             && s !== 'username'
             && s !== 'gender'
-            && s !== 'birthday',
-          ),
+            && s !== 'birthday'),
           fc.string({minLength: 1, maxLength: 50}),
           (globalScope, customKey, customValue) => {
             const registry = new ScopeRegistry()
             registry.setGlobalScope(globalScope)
 
-            // Register additional profile key
-            registry.register('profile', {
+            registry.register('profile', { // Register additional profile key
               [customKey]: customValue,
             }, ScopePriority.PluginRegistered)
 
             const merged = registry.merge()
 
-            // Original profile values should be preserved
-            const profileResult = merged['profile'] as Record<string, unknown>
+            const profileResult = merged['profile'] as Record<string, unknown> // Original profile values should be preserved
             if (globalScope.profile.name !== void 0) expect(profileResult['name']).toBe(globalScope.profile.name)
             if (globalScope.profile.username !== void 0) expect(profileResult['username']).toBe(globalScope.profile.username)
 
-            // Custom key should be added
-            expect(profileResult[customKey]).toBe(customValue)
+            expect(profileResult[customKey]).toBe(customValue) // Custom key should be added
           },
         ),
         {numRuns: 100},

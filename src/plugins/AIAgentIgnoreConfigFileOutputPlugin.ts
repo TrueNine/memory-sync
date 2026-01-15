@@ -21,8 +21,7 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
   }
 
   async registerProjectOutputDirs(): Promise<RelativePath[]> {
-    // No directories to clean
-    return []
+    return [] // No directories to clean
   }
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -32,12 +31,9 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      // Skip prompt source projects (e.g., aindex) - their files are source files
-      // that should be protected from cleanup
-      if (project.isPromptSourceProject === true) continue
+      if (project.isPromptSourceProject === true) continue // that should be protected from cleanup // Skip prompt source projects (e.g., aindex) - their files are source files
 
-      // Register all possible ignore files for cleanup
-      for (const fileName of IGNORE_FILE_NAMES) {
+      for (const fileName of IGNORE_FILE_NAMES) { // Register all possible ignore files for cleanup
         const filePath = path.join(project.dirFromWorkspacePath.path, fileName)
         results.push({
           pathKind: FilePathKind.Relative,
@@ -53,13 +49,11 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
   }
 
   async registerGlobalOutputDirs(): Promise<RelativePath[]> {
-    // No global directories to clean
-    return []
+    return [] // No global directories to clean
   }
 
   async registerGlobalOutputFiles(): Promise<RelativePath[]> {
-    // No global files to clean
-    return []
+    return [] // No global files to clean
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
@@ -85,12 +79,7 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
       const projectName = project.name ?? 'unknown'
 
       for (const ignoreFile of aiAgentIgnoreConfigFiles) {
-        const result = await this.writeIgnoreFile(
-          ctx,
-          projectDir,
-          ignoreFile,
-          `project:${projectName}/${ignoreFile.fileName}`,
-        )
+        const result = await this.writeIgnoreFile(ctx, projectDir, ignoreFile, `project:${projectName}/${ignoreFile.fileName}`)
         fileResults.push(result)
       }
     }
@@ -124,7 +113,8 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
       fs.writeFileSync(fullPath, ignoreFile.content, 'utf8')
       this.log.trace({action: 'write', type: 'ignoreFile', path: fullPath, label})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'ignoreFile', path: fullPath, label, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}

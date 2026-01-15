@@ -74,8 +74,7 @@ export const SHADOW_SOURCE_DIR_NAMES = {
   COMMANDS: 'commands',
   AGENTS: 'agents',
   APP: 'app',
-  // IDE directories
-  IDEA: '.idea',
+  IDEA: '.idea', // IDE directories
   IDEA_CODE_STYLES: '.idea/codeStyles',
   VSCODE: '.vscode',
 } as const
@@ -84,20 +83,15 @@ export const SHADOW_SOURCE_DIR_NAMES = {
  * File names used in shadow source project
  */
 export const SHADOW_SOURCE_FILE_NAMES = {
-  // Global memory
-  GLOBAL_MEMORY: 'global.mdx',
+  GLOBAL_MEMORY: 'global.mdx', // Global memory
   GLOBAL_MEMORY_SRC: 'global.cn.mdx',
-  // EditorConfig
-  EDITOR_CONFIG: '.editorconfig',
-  // JetBrains IDE
-  IDEA_GITIGNORE: '.idea/.gitignore',
+  EDITOR_CONFIG: '.editorconfig', // EditorConfig
+  IDEA_GITIGNORE: '.idea/.gitignore', // JetBrains IDE
   IDEA_PROJECT_XML: '.idea/codeStyles/Project.xml',
   IDEA_CODE_STYLE_CONFIG_XML: '.idea/codeStyles/codeStyleConfig.xml',
-  // VS Code
-  VSCODE_SETTINGS: '.vscode/settings.json',
+  VSCODE_SETTINGS: '.vscode/settings.json', // VS Code
   VSCODE_EXTENSIONS: '.vscode/extensions.json',
-  // AI Agent ignore files
-  QODER_IGNORE: '.qoderignore',
+  QODER_IGNORE: '.qoderignore', // AI Agent ignore files
   CURSOR_IGNORE: '.cursorignore',
   WARP_INDEX_IGNORE: '.warpindexignore',
 } as const
@@ -106,19 +100,16 @@ export const SHADOW_SOURCE_FILE_NAMES = {
  * Relative paths from shadow source project root
  */
 export const SHADOW_SOURCE_RELATIVE_PATHS = {
-  // Source paths
-  SRC_SKILLS: 'src/skills',
+  SRC_SKILLS: 'src/skills', // Source paths
   SRC_COMMANDS: 'src/commands',
   SRC_AGENTS: 'src/agents',
   SRC_GLOBAL_MEMORY: 'app/global.cn.mdx',
-  // Distribution paths
-  DIST_SKILLS: 'dist/skills',
+  DIST_SKILLS: 'dist/skills', // Distribution paths
   DIST_COMMANDS: 'dist/commands',
   DIST_AGENTS: 'dist/agents',
   DIST_APP: 'dist/app',
   DIST_GLOBAL_MEMORY: 'dist/global.mdx',
-  // App source path (standalone at root)
-  APP: 'app',
+  APP: 'app', // App source path (standalone at root)
 } as const
 
 /**

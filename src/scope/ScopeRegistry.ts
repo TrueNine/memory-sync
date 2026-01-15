@@ -1,7 +1,4 @@
-// src/scope/ScopeRegistry.ts
-// Manages scope registration and merging with priority-based resolution.
-
-import type {EvaluationScope} from '@/compiler/types'
+import type {EvaluationScope} from '@/compiler/types' // Manages scope registration and merging with priority-based resolution. // src/scope/ScopeRegistry.ts
 import type {MdxGlobalScope} from '@/globals'
 
 /**
@@ -80,31 +77,20 @@ export class ScopeRegistry {
   merge(compileTimeScope?: EvaluationScope): EvaluationScope {
     const result: EvaluationScope = {}
 
-    // 1. First add global scope (lowest priority)
-    if (this.globalScope != null) {
+    if (this.globalScope != null) { // 1. First add global scope (lowest priority)
       result['os'] = {...this.globalScope.os}
       result['env'] = {...this.globalScope.env}
       result['profile'] = {...this.globalScope.profile}
       result['tool'] = {...this.globalScope.tool}
     }
 
-    // 2. Sort by priority and merge registered scopes
-    const sorted = [...this.registrations].sort((a, b) => a.priority - b.priority)
-    for (const reg of sorted) {
-      result[reg.namespace] = this.deepMerge(
-        result[reg.namespace] as Record<string, unknown> | undefined,
-        reg.values,
-      )
-    }
+    const sorted = [...this.registrations].sort((a, b) => a.priority - b.priority) // 2. Sort by priority and merge registered scopes
+    for (const reg of sorted) result[reg.namespace] = this.deepMerge(result[reg.namespace] as Record<string, unknown> | undefined, reg.values)
 
-    // 3. Finally merge compile-time scope (highest priority)
-    if (compileTimeScope != null) {
+    if (compileTimeScope != null) { // 3. Finally merge compile-time scope (highest priority)
       for (const [key, value] of Object.entries(compileTimeScope)) {
         result[key] = typeof value === 'object' && value !== null && !Array.isArray(value)
-          ? this.deepMerge(
-              result[key] as Record<string, unknown> | undefined,
-              value as Record<string, unknown>,
-            )
+          ? this.deepMerge(result[key] as Record<string, unknown> | undefined, value as Record<string, unknown>)
           : value
       }
     }
@@ -132,10 +118,7 @@ export class ScopeRegistry {
         && typeof result[key] === 'object'
         && result[key] !== null
         && !Array.isArray(result[key])
-        ? this.deepMerge(
-            result[key] as Record<string, unknown>,
-            value as Record<string, unknown>,
-          )
+        ? this.deepMerge(result[key] as Record<string, unknown>, value as Record<string, unknown>)
         : value
     }
     return result

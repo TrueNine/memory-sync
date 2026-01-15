@@ -6,16 +6,12 @@ import {describe, expect, it} from 'vitest'
 import {FilePathKind, PromptKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
-// Create a concrete test implementation
-class TestOutputPlugin extends AbstractOutputPlugin {
+class TestOutputPlugin extends AbstractOutputPlugin { // Create a concrete test implementation
   constructor(pluginName: string = 'TestOutputPlugin') {
-    super(pluginName, {
-      outputFileName: 'TEST.md',
-    })
+    super(pluginName, {outputFileName: 'TEST.md'})
   }
 
-  // Expose protected methods for testing
-  public testExtractGlobalMemoryContent(ctx: OutputWriteContext) {
+  public testExtractGlobalMemoryContent(ctx: OutputWriteContext) { // Expose protected methods for testing
     return this.extractGlobalMemoryContent(ctx)
   }
 
@@ -173,65 +169,49 @@ describe('abstractOutputPlugin', () => {
 
     it('should use custom separator when provided', () => {
       const plugin = new TestOutputPlugin()
-      const result = plugin.testCombineGlobalWithContent('Global', 'Project', {
-        separator: '\n---\n',
-      })
+      const result = plugin.testCombineGlobalWithContent('Global', 'Project', {separator: '\n---\n'})
 
       expect(result).toBe('Global\n---\nProject')
     })
 
     it('should place global content after when position is "after"', () => {
       const plugin = new TestOutputPlugin()
-      const result = plugin.testCombineGlobalWithContent('Global', 'Project', {
-        position: 'after',
-      })
+      const result = plugin.testCombineGlobalWithContent('Global', 'Project', {position: 'after'})
 
       expect(result).toBe('Project\n\nGlobal')
     })
 
     it('should place global content before when position is "before"', () => {
       const plugin = new TestOutputPlugin()
-      const result = plugin.testCombineGlobalWithContent('Global', 'Project', {
-        position: 'before',
-      })
+      const result = plugin.testCombineGlobalWithContent('Global', 'Project', {position: 'before'})
 
       expect(result).toBe('Global\n\nProject')
     })
 
     it('should not skip empty content when skipIfEmpty is false', () => {
       const plugin = new TestOutputPlugin()
-      const result = plugin.testCombineGlobalWithContent('', 'Project', {
-        skipIfEmpty: false,
-      })
+      const result = plugin.testCombineGlobalWithContent('', 'Project', {skipIfEmpty: false})
 
       expect(result).toBe('\n\nProject')
     })
 
     it('should not skip whitespace content when skipIfEmpty is false', () => {
       const plugin = new TestOutputPlugin()
-      const result = plugin.testCombineGlobalWithContent('   ', 'Project', {
-        skipIfEmpty: false,
-      })
+      const result = plugin.testCombineGlobalWithContent(' ', 'Project', {skipIfEmpty: false})
 
       expect(result).toBe('   \n\nProject')
     })
 
     it('should treat undefined as empty string when skipIfEmpty is false', () => {
       const plugin = new TestOutputPlugin()
-      const result = plugin.testCombineGlobalWithContent(null as any, 'Project', {
-        skipIfEmpty: false,
-      })
+      const result = plugin.testCombineGlobalWithContent(null as any, 'Project', {skipIfEmpty: false})
 
       expect(result).toBe('\n\nProject')
     })
 
     it('should combine multiple options correctly', () => {
       const plugin = new TestOutputPlugin()
-      const result = plugin.testCombineGlobalWithContent('Global', 'Project', {
-        separator: '\n===\n',
-        position: 'after',
-        skipIfEmpty: true,
-      })
+      const result = plugin.testCombineGlobalWithContent('Global', 'Project', {separator: '\n===\n', position: 'after', skipIfEmpty: true})
 
       expect(result).toBe('Project\n===\nGlobal')
     })
@@ -258,16 +238,13 @@ describe('abstractOutputPlugin', () => {
    * - The separator between series and command name SHALL be configurable
    */
   describe('transformFastCommandName', () => {
-    // Generator for alphanumeric strings without underscore (for series prefix)
-    const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
+    const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generator for alphanumeric strings without underscore (for series prefix)
       .filter(s => /^[a-z0-9]+$/i.test(s))
 
-    // Generator for alphanumeric strings (for command name)
-    const alphanumericCommandName = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
+    const alphanumericCommandName = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'}) // Generator for alphanumeric strings (for command name)
       .filter(s => /^\w+$/.test(s))
 
-    // Generator for separator characters
-    const separatorChar = fc.constantFrom('_', '-', '.', '~')
+    const separatorChar = fc.constantFrom('_', '-', '.', '~') // Generator for separator characters
 
     it('should include series prefix with default separator when includeSeriesPrefix is true or undefined', () => {
       fc.assert(
@@ -278,12 +255,10 @@ describe('abstractOutputPlugin', () => {
             const plugin = new TestOutputPlugin()
             const cmd = createMockFastCommandPrompt(series, commandName)
 
-            // Test with includeSeriesPrefix = true
-            const resultTrue = plugin.testTransformFastCommandName(cmd, {includeSeriesPrefix: true})
+            const resultTrue = plugin.testTransformFastCommandName(cmd, {includeSeriesPrefix: true}) // Test with includeSeriesPrefix = true
             expect(resultTrue).toBe(`${series}_${commandName}.md`)
 
-            // Test with includeSeriesPrefix = undefined (default)
-            const resultDefault = plugin.testTransformFastCommandName(cmd)
+            const resultDefault = plugin.testTransformFastCommandName(cmd) // Test with includeSeriesPrefix = undefined (default)
             expect(resultDefault).toBe(`${series}_${commandName}.md`)
           },
         ),
@@ -318,10 +293,7 @@ describe('abstractOutputPlugin', () => {
             const plugin = new TestOutputPlugin()
             const cmd = createMockFastCommandPrompt(series, commandName)
 
-            const result = plugin.testTransformFastCommandName(cmd, {
-              includeSeriesPrefix: true,
-              seriesSeparator: separator,
-            })
+            const result = plugin.testTransformFastCommandName(cmd, {includeSeriesPrefix: true, seriesSeparator: separator})
             expect(result).toBe(`${series}${separator}${commandName}.md`)
           },
         ),
@@ -339,8 +311,7 @@ describe('abstractOutputPlugin', () => {
             const plugin = new TestOutputPlugin()
             const cmd = createMockFastCommandPrompt(void 0, commandName)
 
-            // Regardless of includeSeriesPrefix setting, should return just commandName
-            const result = plugin.testTransformFastCommandName(cmd, {
+            const result = plugin.testTransformFastCommandName(cmd, { // Regardless of includeSeriesPrefix setting, should return just commandName
               includeSeriesPrefix: includePrefix,
               seriesSeparator: separator,
             })
@@ -351,8 +322,7 @@ describe('abstractOutputPlugin', () => {
       )
     })
 
-    // Unit tests for specific edge cases
-    it('should handle pe_compile correctly with default options', () => {
+    it('should handle pe_compile correctly with default options', () => { // Unit tests for specific edge cases
       const plugin = new TestOutputPlugin()
       const cmd = createMockFastCommandPrompt('pe', 'compile')
 
@@ -393,12 +363,10 @@ describe('abstractOutputPlugin', () => {
    * SHALL take precedence over global settings.
    */
   describe('getFastCommandSeriesOptions and getTransformOptionsFromContext', () => {
-    // Generator for plugin names
-    const pluginNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
+    const pluginNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'}) // Generator for plugin names
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    // Generator for separator characters
-    const separatorGen = fc.constantFrom('_', '-', '.', '~')
+    const separatorGen = fc.constantFrom('_', '-', '.', '~') // Generator for separator characters
 
     it('should return plugin-specific override when it exists', () => {
       fc.assert(
@@ -424,8 +392,7 @@ describe('abstractOutputPlugin', () => {
 
             const result = plugin.testGetFastCommandSeriesOptions(ctx)
 
-            // Plugin-specific override should take precedence
-            expect(result.includeSeriesPrefix).toBe(pluginInclude)
+            expect(result.includeSeriesPrefix).toBe(pluginInclude) // Plugin-specific override should take precedence
             expect(result.seriesSeparator).toBe(pluginSep)
           },
         ),
@@ -448,10 +415,8 @@ describe('abstractOutputPlugin', () => {
 
             const result = plugin.testGetFastCommandSeriesOptions(ctx)
 
-            // Should use global setting
-            expect(result.includeSeriesPrefix).toBe(globalInclude)
-            // seriesSeparator should not be set
-            expect(result.seriesSeparator).not.toBeDefined()
+            expect(result.includeSeriesPrefix).toBe(globalInclude) // Should use global setting
+            expect(result.seriesSeparator).not.toBeDefined() // seriesSeparator should not be set
           },
         ),
         {numRuns: 100},
@@ -496,14 +461,12 @@ describe('abstractOutputPlugin', () => {
               },
             })
 
-            // Config separator should override additional options
-            const result = plugin.testGetTransformOptionsFromContext(ctx, {
+            const result = plugin.testGetTransformOptionsFromContext(ctx, { // Config separator should override additional options
               seriesSeparator: additionalSep,
             })
 
             expect(result.includeSeriesPrefix).toBe(configInclude)
-            // Config separator takes precedence over additional options
-            expect(result.seriesSeparator).toBe(configSep)
+            expect(result.seriesSeparator).toBe(configSep) // Config separator takes precedence over additional options
           },
         ),
         {numRuns: 100},
@@ -518,16 +481,11 @@ describe('abstractOutputPlugin', () => {
           separatorGen,
           (pluginName, additionalInclude, additionalSep) => {
             const plugin = new TestOutputPlugin(pluginName)
-            // No fastCommandSeriesOptions in config
-            const ctx = createMockContext()
+            const ctx = createMockContext() // No fastCommandSeriesOptions in config
 
-            const result = plugin.testGetTransformOptionsFromContext(ctx, {
-              includeSeriesPrefix: additionalInclude,
-              seriesSeparator: additionalSep,
-            })
+            const result = plugin.testGetTransformOptionsFromContext(ctx, {includeSeriesPrefix: additionalInclude, seriesSeparator: additionalSep})
 
-            // Should use additional options as fallback
-            expect(result.includeSeriesPrefix).toBe(additionalInclude)
+            expect(result.includeSeriesPrefix).toBe(additionalInclude) // Should use additional options as fallback
             expect(result.seriesSeparator).toBe(additionalSep)
           },
         ),
@@ -535,8 +493,7 @@ describe('abstractOutputPlugin', () => {
       )
     })
 
-    // Unit tests for specific scenarios
-    it('should handle KiroCLIOutputPlugin style configuration', () => {
+    it('should handle KiroCLIOutputPlugin style configuration', () => { // Unit tests for specific scenarios
       const plugin = new TestOutputPlugin('KiroCLIOutputPlugin')
       const ctx = createMockContext(void 0, {
         fastCommandSeriesOptions: {
@@ -552,8 +509,7 @@ describe('abstractOutputPlugin', () => {
 
       const result = plugin.testGetFastCommandSeriesOptions(ctx)
 
-      // Plugin override should take precedence
-      expect(result.includeSeriesPrefix).toBe(true)
+      expect(result.includeSeriesPrefix).toBe(true) // Plugin override should take precedence
       expect(result.seriesSeparator).toBe('-')
     })
 
@@ -572,8 +528,7 @@ describe('abstractOutputPlugin', () => {
 
       const result = plugin.testGetFastCommandSeriesOptions(ctx)
 
-      // includeSeriesPrefix should fall back to global
-      expect(result.includeSeriesPrefix).toBe(true)
+      expect(result.includeSeriesPrefix).toBe(true) // includeSeriesPrefix should fall back to global
       expect(result.seriesSeparator).toBe('-')
     })
   })

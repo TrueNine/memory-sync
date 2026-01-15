@@ -68,8 +68,7 @@ export function buildFrontMatter(
   frontMatter: Record<string, unknown>,
   options?: BuildMarkdownOptions,
 ): string {
-  // Filter out undefined/null values
-  const cleanedFrontMatter = Object.fromEntries(
+  const cleanedFrontMatter = Object.fromEntries( // Filter out undefined/null values
     Object.entries(frontMatter).filter(([_, v]) => v != null),
   )
 
@@ -164,18 +163,15 @@ export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): 
       rawFrontMatter = yamlNode.value
       try {
         yamlFrontMatter = YAML.parse(yamlNode.value) as Y
-      } catch {
-        // YAML parsing failed, keep raw front matter
       }
-    }
-    else markdownContents.push(node)
+      catch {
+      } // YAML parsing failed, keep raw front matter
+    } else markdownContents.push(node)
   }
 
-  // Calculate content without front matter
-  let contentWithoutFrontMatter = rawContent
+  let contentWithoutFrontMatter = rawContent // Calculate content without front matter
   if (rawFrontMatter != null) {
-    // Remove the YAML front matter block from content
-    const frontMatterRegex = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/
+    const frontMatterRegex = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/ // Remove the YAML front matter block from content
     contentWithoutFrontMatter = rawContent.replace(frontMatterRegex, '')
   }
 

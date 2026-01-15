@@ -9,8 +9,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {createLogger} from '@/log'
 import {AbstractInputPlugin, cleanStaleDistFiles, syncDirectory} from './AbstractInputPlugin'
 
-// Default test options for Required<PluginOptions>
-function createTestOptions(overrides: Partial<PluginOptions> = {}): Required<PluginOptions> {
+function createTestOptions(overrides: Partial<PluginOptions> = {}): Required<PluginOptions> { // Default test options for Required<PluginOptions>
   return {
     workspaceDir: '/test',
     shadowSourceProjectDir: '/test/aindex',
@@ -28,8 +27,7 @@ function createTestOptions(overrides: Partial<PluginOptions> = {}): Required<Plu
   }
 }
 
-// Concrete implementation for testing
-class TestInputPlugin extends AbstractInputPlugin {
+class TestInputPlugin extends AbstractInputPlugin { // Concrete implementation for testing
   public effectResults: InputEffectResult[] = []
 
   constructor(name: string = 'TestInputPlugin', dependsOn?: readonly string[]) {
@@ -40,8 +38,7 @@ class TestInputPlugin extends AbstractInputPlugin {
     return {testData: 'collected'}
   }
 
-  // Expose protected methods for testing
-  public exposeRegisterEffect(
+  public exposeRegisterEffect( // Expose protected methods for testing
     name: string,
     handler: (ctx: InputEffectContext) => Promise<InputEffectResult>,
     priority?: number,
@@ -57,8 +54,7 @@ class TestInputPlugin extends AbstractInputPlugin {
     return this.resolvePath(rawPath, workspaceDir, shadowProjectDir)
   }
 
-  // Expose scope registration methods for testing
-  public exposeRegisterScope(namespace: string, values: Record<string, unknown>): void {
+  public exposeRegisterScope(namespace: string, values: Record<string, unknown>): void { // Expose scope registration methods for testing
     this.registerScope(namespace, values)
   }
 
@@ -240,10 +236,7 @@ describe('abstractInputPlugin', () => {
 
   describe('resolveBasePaths', () => {
     it('should resolve workspace and shadow project paths', () => {
-      const options = createTestOptions({
-        workspaceDir: '/custom/workspace',
-        shadowSourceProjectDir: '/custom/workspace/aindex',
-      })
+      const options = createTestOptions({workspaceDir: '/custom/workspace', shadowSourceProjectDir: '/custom/workspace/aindex'})
 
       const {workspaceDir, shadowProjectDir} = plugin.exposeResolveBasePaths(options)
 
@@ -252,10 +245,7 @@ describe('abstractInputPlugin', () => {
     })
 
     it('should use default paths when not specified', () => {
-      const options = createTestOptions({
-        workspaceDir: '~/project',
-        shadowSourceProjectDir: '$WORKSPACE/aindex',
-      })
+      const options = createTestOptions({workspaceDir: '~/project', shadowSourceProjectDir: '$WORKSPACE/aindex'})
 
       const {workspaceDir, shadowProjectDir} = plugin.exposeResolveBasePaths(options)
 
@@ -342,8 +332,7 @@ describe('abstractInputPlugin', () => {
       plugin.exposeRegisterScope('myPlugin', {key: 'value'})
 
       const scopes = plugin.getRegisteredScopes()
-      // TypeScript should prevent modification, but we verify the array is a copy
-      expect(Array.isArray(scopes)).toBe(true)
+      expect(Array.isArray(scopes)).toBe(true) // TypeScript should prevent modification, but we verify the array is a copy
     })
   })
 })
@@ -363,23 +352,16 @@ describe('cleanStaleDistFiles', () => {
     mockLogger = createLogger('test')
   })
 
-  afterEach(() => {
-    fs.rmSync(tempDir, {recursive: true, force: true})
-  })
+  afterEach(() => fs.rmSync(tempDir, {recursive: true, force: true}))
 
   it('should delete dist files without corresponding src files', () => {
-    // Create src file
-    fs.mkdirSync(path.join(srcDir, 'skill-a'))
+    fs.mkdirSync(path.join(srcDir, 'skill-a')) // Create src file
     fs.writeFileSync(path.join(srcDir, 'skill-a', 'skill.md'), '# Skill A')
 
-    // Create dist files (one valid, one stale)
-    fs.writeFileSync(path.join(distDir, 'skill-a.md'), '# Skill A compiled')
+    fs.writeFileSync(path.join(distDir, 'skill-a.md'), '# Skill A compiled') // Create dist files (one valid, one stale)
     fs.writeFileSync(path.join(distDir, 'skill-b.md'), '# Skill B compiled (stale)')
 
-    const result = cleanStaleDistFiles(
-      {fs, path, logger: mockLogger},
-      {srcDir, distDir, logger: mockLogger},
-    )
+    const result = cleanStaleDistFiles({fs, path, logger: mockLogger}, {srcDir, distDir, logger: mockLogger})
 
     expect(result.deletedFiles).toHaveLength(1)
     expect(result.deletedFiles[0]).toContain('skill-b.md')
@@ -390,10 +372,7 @@ describe('cleanStaleDistFiles', () => {
   it('should handle dry-run mode', () => {
     fs.writeFileSync(path.join(distDir, 'stale.md'), '# Stale')
 
-    const result = cleanStaleDistFiles(
-      {fs, path, logger: mockLogger},
-      {srcDir, distDir, dryRun: true, logger: mockLogger},
-    )
+    const result = cleanStaleDistFiles({fs, path, logger: mockLogger}, {srcDir, distDir, dryRun: true, logger: mockLogger})
 
     expect(result.wouldDelete).toHaveLength(1)
     expect(result.deletedFiles).toHaveLength(0)
@@ -401,20 +380,15 @@ describe('cleanStaleDistFiles', () => {
   })
 
   it('should recursively clean subdirectories', () => {
-    // Create src structure
-    fs.mkdirSync(path.join(srcDir, 'sub', 'skill-a'), {recursive: true})
+    fs.mkdirSync(path.join(srcDir, 'sub', 'skill-a'), {recursive: true}) // Create src structure
     fs.writeFileSync(path.join(srcDir, 'sub', 'skill-a', 'skill.md'), '# Skill A')
 
-    // Create dist structure with stale directory
-    fs.mkdirSync(path.join(distDir, 'sub'), {recursive: true})
+    fs.mkdirSync(path.join(distDir, 'sub'), {recursive: true}) // Create dist structure with stale directory
     fs.writeFileSync(path.join(distDir, 'sub', 'skill-a.md'), '# Skill A')
     fs.mkdirSync(path.join(distDir, 'stale-dir'), {recursive: true})
     fs.writeFileSync(path.join(distDir, 'stale-dir', 'file.md'), '# Stale')
 
-    const result = cleanStaleDistFiles(
-      {fs, path, logger: mockLogger},
-      {srcDir, distDir, logger: mockLogger},
-    )
+    const result = cleanStaleDistFiles({fs, path, logger: mockLogger}, {srcDir, distDir, logger: mockLogger})
 
     expect(result.deletedFiles.some(f => f.includes('stale-dir'))).toBe(true)
     expect(fs.existsSync(path.join(distDir, 'stale-dir'))).toBe(false)
@@ -423,10 +397,7 @@ describe('cleanStaleDistFiles', () => {
   it('should return empty result when dist directory does not exist', () => {
     fs.rmSync(distDir, {recursive: true})
 
-    const result = cleanStaleDistFiles(
-      {fs, path, logger: mockLogger},
-      {srcDir, distDir, logger: mockLogger},
-    )
+    const result = cleanStaleDistFiles({fs, path, logger: mockLogger}, {srcDir, distDir, logger: mockLogger})
 
     expect(result.deletedFiles).toHaveLength(0)
     expect(result.wouldDelete).toHaveLength(0)
@@ -448,18 +419,13 @@ describe('syncDirectory', () => {
     mockLogger = createLogger('test')
   })
 
-  afterEach(() => {
-    fs.rmSync(tempDir, {recursive: true, force: true})
-  })
+  afterEach(() => fs.rmSync(tempDir, {recursive: true, force: true}))
 
   it('should copy files from src to target', () => {
     fs.writeFileSync(path.join(srcDir, 'file1.md'), '# File 1')
     fs.writeFileSync(path.join(srcDir, 'file2.md'), '# File 2')
 
-    const result = syncDirectory(
-      {fs, path, logger: mockLogger},
-      {srcDir, targetDir, logger: mockLogger},
-    )
+    const result = syncDirectory({fs, path, logger: mockLogger}, {srcDir, targetDir, logger: mockLogger})
 
     expect(result.copiedFiles).toHaveLength(2)
     expect(fs.existsSync(path.join(targetDir, 'file1.md'))).toBe(true)
@@ -472,10 +438,7 @@ describe('syncDirectory', () => {
     fs.writeFileSync(path.join(targetDir, 'keep.md'), '# Old Keep')
     fs.writeFileSync(path.join(targetDir, 'orphan.md'), '# Orphan')
 
-    const result = syncDirectory(
-      {fs, path, logger: mockLogger},
-      {srcDir, targetDir, deleteOrphans: true, logger: mockLogger},
-    )
+    const result = syncDirectory({fs, path, logger: mockLogger}, {srcDir, targetDir, deleteOrphans: true, logger: mockLogger})
 
     expect(result.deletedFiles).toHaveLength(1)
     expect(result.deletedFiles[0]).toContain('orphan.md')
@@ -486,10 +449,7 @@ describe('syncDirectory', () => {
   it('should handle dry-run mode', () => {
     fs.writeFileSync(path.join(srcDir, 'file.md'), '# File')
 
-    const result = syncDirectory(
-      {fs, path, logger: mockLogger},
-      {srcDir, targetDir, dryRun: true, logger: mockLogger},
-    )
+    const result = syncDirectory({fs, path, logger: mockLogger}, {srcDir, targetDir, dryRun: true, logger: mockLogger})
 
     expect(result.copiedFiles).toHaveLength(1)
     expect(fs.existsSync(targetDir)).toBe(false)
@@ -499,10 +459,7 @@ describe('syncDirectory', () => {
     fs.mkdirSync(path.join(srcDir, 'sub'), {recursive: true})
     fs.writeFileSync(path.join(srcDir, 'sub', 'nested.md'), '# Nested')
 
-    const result = syncDirectory(
-      {fs, path, logger: mockLogger},
-      {srcDir, targetDir, logger: mockLogger},
-    )
+    const result = syncDirectory({fs, path, logger: mockLogger}, {srcDir, targetDir, logger: mockLogger})
 
     expect(result.copiedFiles.some(f => f.includes('nested.md'))).toBe(true)
     expect(fs.existsSync(path.join(targetDir, 'sub', 'nested.md'))).toBe(true)

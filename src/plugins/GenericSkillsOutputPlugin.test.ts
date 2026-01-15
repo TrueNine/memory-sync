@@ -28,9 +28,7 @@ describe('genericSkillsOutputPlugin', () => {
     vi.mocked(fs.writeFileSync).mockReturnValue(void 0)
   })
 
-  afterEach(() => {
-    vi.clearAllMocks()
-  })
+  afterEach(() => vi.clearAllMocks())
 
   function createMockRelativePath(pathStr: string, basePath: string): RelativePath {
     return {

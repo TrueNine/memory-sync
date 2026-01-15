@@ -56,8 +56,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
     const createdDirs: string[] = []
     const errors: {path: string, error: Error}[] = []
 
-    // Check if src/skills/ directory exists (Requirement 1.6)
-    if (!fs.existsSync(srcSkillsDir)) {
+    if (!fs.existsSync(srcSkillsDir)) { // Check if src/skills/ directory exists (Requirement 1.6)
       logger.debug({action: 'skill-sync', message: 'src/skills/ directory does not exist, skipping', srcSkillsDir})
       return {
         success: true,
@@ -68,8 +67,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
       }
     }
 
-    // Recursively scan and sync files
-    this.syncDirectoryRecursive(
+    this.syncDirectoryRecursive( // Recursively scan and sync files
       ctx,
       srcSkillsDir,
       distSkillsDir,
@@ -115,13 +113,13 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
 
     const currentSrcDir = relativePath ? path.join(srcDir, relativePath) : srcDir
 
-    // Check if source directory exists
-    if (!fs.existsSync(currentSrcDir)) return
+    if (!fs.existsSync(currentSrcDir)) return // Check if source directory exists
 
     let entries: import('node:fs').Dirent[]
     try {
       entries = fs.readdirSync(currentSrcDir, {withFileTypes: true})
-    } catch (error) {
+    }
+    catch (error) {
       errors.push({path: currentSrcDir, error: error as Error})
       logger.warn({action: 'skill-sync', message: 'Failed to read directory', path: currentSrcDir, error: (error as Error).message})
       return
@@ -133,8 +131,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
       const distPath = path.join(distDir, entryRelativePath)
 
       if (entry.isDirectory()) {
-        // Recursively process subdirectories
-        this.syncDirectoryRecursive(
+        this.syncDirectoryRecursive( // Recursively process subdirectories
           ctx,
           srcDir,
           distDir,
@@ -146,11 +143,9 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
           dryRun,
         )
       } else if (entry.isFile()) {
-        // Skip .cn.mdx files (Requirement 1.2)
-        if (entry.name.endsWith('.cn.mdx')) continue
+        if (entry.name.endsWith('.cn.mdx')) continue // Skip .cn.mdx files (Requirement 1.2)
 
-        // Check if target directory needs to be created (Requirement 1.3)
-        const targetDir = path.dirname(distPath)
+        const targetDir = path.dirname(distPath) // Check if target directory needs to be created (Requirement 1.3)
         if (!fs.existsSync(targetDir)) {
           if (dryRun) {
             logger.debug({action: 'skill-sync', dryRun: true, wouldCreateDir: targetDir})
@@ -160,7 +155,8 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
               fs.mkdirSync(targetDir, {recursive: true})
               createdDirs.push(targetDir)
               logger.debug({action: 'skill-sync', createdDir: targetDir})
-            } catch (error) {
+            }
+            catch (error) {
               errors.push({path: targetDir, error: error as Error})
               logger.warn({action: 'skill-sync', message: 'Failed to create directory', path: targetDir, error: (error as Error).message})
               continue
@@ -168,8 +164,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
           }
         }
 
-        // Check if file already exists with identical content (Requirement 1.4)
-        if (fs.existsSync(distPath)) {
+        if (fs.existsSync(distPath)) { // Check if file already exists with identical content (Requirement 1.4)
           try {
             const srcContent = fs.readFileSync(srcPath)
             const distContent = fs.readFileSync(distPath)
@@ -182,14 +177,13 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
               logger.debug({action: 'skill-sync', skipped: distPath, reason: 'identical content'})
               continue
             }
-          } catch (error) {
-            // If we can't read the file, proceed with copy
-            logger.debug({action: 'skill-sync', message: 'Could not compare files, will copy', path: distPath, error: (error as Error).message})
+          }
+          catch (error) {
+            logger.debug({action: 'skill-sync', message: 'Could not compare files, will copy', path: distPath, error: (error as Error).message}) // If we can't read the file, proceed with copy
           }
         }
 
-        // Copy file (Requirement 1.2, 1.5)
-        if (dryRun) {
+        if (dryRun) { // Copy file (Requirement 1.2, 1.5)
           logger.debug({action: 'skill-sync', dryRun: true, wouldCopy: {from: srcPath, to: distPath}})
           copiedFiles.push(distPath)
         } else {
@@ -197,7 +191,8 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
             fs.copyFileSync(srcPath, distPath)
             copiedFiles.push(distPath)
             logger.debug({action: 'skill-sync', copied: {from: srcPath, to: distPath}})
-          } catch (error) {
+          }
+          catch (error) {
             errors.push({path: distPath, error: error as Error})
             logger.warn({action: 'skill-sync', message: 'Failed to copy file', from: srcPath, to: distPath, error: (error as Error).message})
           }

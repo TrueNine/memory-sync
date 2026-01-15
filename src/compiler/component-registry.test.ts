@@ -17,8 +17,7 @@ import {
 } from './component-registry'
 
 describe('component-registry', () => {
-  // Clean up after each test
-  afterEach(() => {
+  afterEach(() => { // Clean up after each test
     clearComponents()
   })
 
@@ -77,10 +76,8 @@ describe('component-registry', () => {
       const components1 = getComponents()
       const components2 = getComponents()
 
-      // Should be different Map instances
-      expect(components1).not.toBe(components2)
-      // But with same content
-      expect(components1.size).toBe(components2.size)
+      expect(components1).not.toBe(components2) // Should be different Map instances
+      expect(components1.size).toBe(components2.size) // But with same content
     })
 
     it('should not allow external mutation of registry', () => {
@@ -90,15 +87,12 @@ describe('component-registry', () => {
       const components = getComponents()
       components.delete('TestComponent')
 
-      // Original registry should be unchanged
-      expect(hasComponent('TestComponent')).toBe(true)
+      expect(hasComponent('TestComponent')).toBe(true) // Original registry should be unchanged
     })
   })
 
   describe('hasComponent', () => {
-    it('should return false for unregistered component', () => {
-      expect(hasComponent('NonExistent')).toBe(false)
-    })
+    it('should return false for unregistered component', () => expect(hasComponent('NonExistent')).toBe(false))
 
     it('should return true for registered component', () => {
       const handler = createMockHandler()

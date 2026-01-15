@@ -53,28 +53,19 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     const skippedFiles: string[] = []
     const errors: {path: string, error: Error}[] = []
 
-    // Directories to scan (Requirement 3.1)
-    const dirsToScan = [
+    const dirsToScan = [ // Directories to scan (Requirement 3.1)
       path.join(shadowProjectDir, 'src'),
       path.join(shadowProjectDir, 'app'),
       path.join(shadowProjectDir, 'dist'),
     ]
 
     for (const dir of dirsToScan) {
-      // Skip non-existent directories gracefully (Requirement 3.6)
-      if (!fs.existsSync(dir)) {
+      if (!fs.existsSync(dir)) { // Skip non-existent directories gracefully (Requirement 3.6)
         logger.debug({action: 'whitespace-cleanup', message: 'Directory does not exist, skipping', dir})
         continue
       }
 
-      this.processDirectory(
-        ctx,
-        dir,
-        modifiedFiles,
-        skippedFiles,
-        errors,
-        dryRun ?? false,
-      )
+      this.processDirectory(ctx, dir, modifiedFiles, skippedFiles, errors, dryRun ?? false)
     }
 
     const hasErrors = errors.length > 0
@@ -107,7 +98,8 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     let entries: import('node:fs').Dirent[]
     try {
       entries = fs.readdirSync(dir, {withFileTypes: true})
-    } catch (error) {
+    }
+    catch (error) {
       errors.push({path: dir, error: error as Error})
       logger.warn({action: 'whitespace-cleanup', message: 'Failed to read directory', path: dir, error: (error as Error).message})
       return
@@ -117,11 +109,9 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
       const entryPath = path.join(dir, entry.name)
 
       if (entry.isDirectory()) {
-        // Recursively process subdirectories
-        this.processDirectory(ctx, entryPath, modifiedFiles, skippedFiles, errors, dryRun)
+        this.processDirectory(ctx, entryPath, modifiedFiles, skippedFiles, errors, dryRun) // Recursively process subdirectories
       } else if (entry.isFile() && entry.name.endsWith('.md')) {
-        // Process markdown files
-        this.processMarkdownFile(ctx, entryPath, modifiedFiles, skippedFiles, errors, dryRun)
+        this.processMarkdownFile(ctx, entryPath, modifiedFiles, skippedFiles, errors, dryRun) // Process markdown files
       }
     }
   }
@@ -143,15 +133,13 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
       const originalContent = fs.readFileSync(filePath, 'utf8')
       const cleanedContent = this.cleanMarkdownContent(originalContent)
 
-      // Skip if no changes needed (Requirement 3.4)
-      if (originalContent === cleanedContent) {
+      if (originalContent === cleanedContent) { // Skip if no changes needed (Requirement 3.4)
         skippedFiles.push(filePath)
         logger.debug({action: 'whitespace-cleanup', skipped: filePath, reason: 'no changes needed'})
         return
       }
 
-      // Write cleaned content (Requirement 3.5 for dry-run)
-      if (dryRun) {
+      if (dryRun) { // Write cleaned content (Requirement 3.5 for dry-run)
         logger.debug({action: 'whitespace-cleanup', dryRun: true, wouldModify: filePath})
         modifiedFiles.push(filePath)
       } else {
@@ -159,7 +147,8 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
         modifiedFiles.push(filePath)
         logger.debug({action: 'whitespace-cleanup', modified: filePath})
       }
-    } catch (error) {
+    }
+    catch (error) {
       errors.push({path: filePath, error: error as Error})
       logger.warn({action: 'whitespace-cleanup', message: 'Failed to process file', path: filePath, error: (error as Error).message})
     }
@@ -172,24 +161,19 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
    * @returns The cleaned markdown content with preserved line endings
    */
   cleanMarkdownContent(content: string): string {
-    // Detect line ending style (Requirement 3.7)
-    const lineEnding = this.detectLineEnding(content)
+    const lineEnding = this.detectLineEnding(content) // Detect line ending style (Requirement 3.7)
 
-    // Split into lines (handle both LF and CRLF)
-    const lines = content.split(/\r?\n/)
+    const lines = content.split(/\r?\n/) // Split into lines (handle both LF and CRLF)
 
-    // Remove trailing whitespace from each line (Requirement 3.2)
-    const trimmedLines = lines.map(line => line.replace(/[ \t]+$/, ''))
+    const trimmedLines = lines.map(line => line.replace(/[ \t]+$/, '')) // Remove trailing whitespace from each line (Requirement 3.2)
 
-    // Reduce excessive blank lines (Requirement 3.3)
-    const result: string[] = []
+    const result: string[] = [] // Reduce excessive blank lines (Requirement 3.3)
     let consecutiveBlankCount = 0
 
     for (const line of trimmedLines) {
       if (line === '') {
         consecutiveBlankCount++
-        // Only keep up to 2 consecutive blank lines
-        if (consecutiveBlankCount <= 2) result.push(line)
+        if (consecutiveBlankCount <= 2) result.push(line) // Only keep up to 2 consecutive blank lines
       } else {
         consecutiveBlankCount = 0
         result.push(line)
@@ -206,10 +190,8 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
    * @returns The detected line ending ('\r\n' for CRLF, '\n' for LF)
    */
   detectLineEnding(content: string): '\r\n' | '\n' {
-    // Check for CRLF first (Windows style)
-    if (content.includes('\r\n')) return '\r\n'
-    // Default to LF (Unix style)
-    return '\n'
+    if (content.includes('\r\n')) return '\r\n' // Check for CRLF first (Windows style)
+    return '\n' // Default to LF (Unix style)
   }
 
   /**

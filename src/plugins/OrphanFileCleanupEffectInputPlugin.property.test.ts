@@ -26,8 +26,7 @@ import {OrphanFileCleanupEffectInputPlugin} from './OrphanFileCleanupEffectInput
  * Validates: Requirements 2.2, 2.3, 2.4, 2.5, 2.7
  */
 
-// Test helpers
-function createMockLogger(): ILogger {
+function createMockLogger(): ILogger { // Test helpers
   return {
     trace: () => { },
     debug: () => { },
@@ -52,25 +51,19 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
   }
 }
 
-// Generators
-const validNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
+const validNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'}) // Generators
   .filter(s => /^[\w-]+$/.test(s))
   .map(s => s.toLowerCase())
 
 const dirTypeGen = fc.constantFrom('skills', 'commands', 'agents', 'app')
 
-// Generate a dist file structure with orphan and valid files
-interface DistFile {
+interface DistFile { // Generate a dist file structure with orphan and valid files
   name: string
   dirType: 'skills' | 'commands' | 'agents' | 'app'
   hasSource: boolean
 }
 
-const distFileGen: fc.Arbitrary<DistFile> = fc.record({
-  name: validNameGen,
-  dirType: dirTypeGen,
-  hasSource: fc.boolean(),
-})
+const distFileGen: fc.Arbitrary<DistFile> = fc.record({name: validNameGen, dirType: dirTypeGen, hasSource: fc.boolean()})
 
 describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
   /**
@@ -87,8 +80,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
         fc.asyncProperty(
           fc.array(distFileGen, {minLength: 1, maxLength: 10})
             .map(files => {
-              // Deduplicate by (name, dirType) to avoid conflicts
-              const seen = new Set<string>()
+              const seen = new Set<string>() // Deduplicate by (name, dirType) to avoid conflicts
               return files.filter(f => {
                 const key = `${f.dirType}:${f.name}`
                 if (seen.has(key)) return false
@@ -98,27 +90,22 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
             })
             .filter(files => files.length > 0),
           async distFiles => {
-            // Create isolated temp directory for this property run
-            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orphan-cleanup-p5-'))
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orphan-cleanup-p5-')) // Create isolated temp directory for this property run
 
             try {
-              // Setup: Create shadow project structure
-              const shadowProjectDir = path.join(tempDir, 'shadow')
+              const shadowProjectDir = path.join(tempDir, 'shadow') // Setup: Create shadow project structure
               const distDir = path.join(shadowProjectDir, 'dist')
               const srcDir = path.join(shadowProjectDir, 'src')
               const appDir = path.join(shadowProjectDir, 'app')
 
-              // Create directories
-              fs.mkdirSync(distDir, {recursive: true})
+              fs.mkdirSync(distDir, {recursive: true}) // Create directories
               fs.mkdirSync(srcDir, {recursive: true})
               fs.mkdirSync(appDir, {recursive: true})
 
-              // Track expected outcomes
-              const expectedDeleted: string[] = []
+              const expectedDeleted: string[] = [] // Track expected outcomes
               const expectedKept: string[] = []
 
-              // Create dist files and optionally their sources
-              for (const file of distFiles) {
+              for (const file of distFiles) { // Create dist files and optionally their sources
                 const distTypePath = path.join(distDir, file.dirType)
                 fs.mkdirSync(distTypePath, {recursive: true})
 
@@ -126,33 +113,28 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
                 fs.writeFileSync(distFilePath, `# ${file.name}`, 'utf8')
 
                 if (file.hasSource) {
-                  // Create corresponding source file
-                  createSourceFile(shadowProjectDir, file.dirType, file.name)
+                  createSourceFile(shadowProjectDir, file.dirType, file.name) // Create corresponding source file
                   expectedKept.push(distFilePath)
-                }
-                else expectedDeleted.push(distFilePath)
+                } else expectedDeleted.push(distFilePath)
               }
 
-              // Execute plugin
-              const plugin = new OrphanFileCleanupEffectInputPlugin()
+              const plugin = new OrphanFileCleanupEffectInputPlugin() // Execute plugin
               const ctx = createEffectContext(tempDir, shadowProjectDir, false)
               const effectMethod = (plugin as any).cleanupOrphanFiles.bind(plugin)
               const result = await effectMethod(ctx)
 
-              // Verify: Orphan files should be deleted
-              for (const filePath of expectedDeleted) {
+              for (const filePath of expectedDeleted) { // Verify: Orphan files should be deleted
                 expect(fs.existsSync(filePath)).toBe(false)
                 expect(result.deletedFiles).toContain(filePath)
               }
 
-              // Verify: Files with sources should be kept
-              for (const filePath of expectedKept) {
+              for (const filePath of expectedKept) { // Verify: Files with sources should be kept
                 expect(fs.existsSync(filePath)).toBe(true)
                 expect(result.deletedFiles).not.toContain(filePath)
               }
-            } finally {
-              // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
+            }
+            finally {
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
           },
         ),
@@ -175,42 +157,35 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
           validNameGen,
           dirTypeGen,
           async (name, dirType) => {
-            // Create isolated temp directory for this property run
-            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orphan-cleanup-p7-'))
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orphan-cleanup-p7-')) // Create isolated temp directory for this property run
 
             try {
-              // Setup: Create shadow project with orphan file in subdirectory
-              const shadowProjectDir = path.join(tempDir, 'shadow')
+              const shadowProjectDir = path.join(tempDir, 'shadow') // Setup: Create shadow project with orphan file in subdirectory
               const distDir = path.join(shadowProjectDir, 'dist')
               const distTypeDir = path.join(distDir, dirType)
               const subDir = path.join(distTypeDir, 'subdir')
 
               fs.mkdirSync(subDir, {recursive: true})
 
-              // Create orphan file in subdirectory (no source)
-              const orphanFilePath = path.join(subDir, `${name}.mdx`)
+              const orphanFilePath = path.join(subDir, `${name}.mdx`) // Create orphan file in subdirectory (no source)
               fs.writeFileSync(orphanFilePath, `# ${name}`, 'utf8')
 
-              // Verify setup: subdirectory exists with file
-              expect(fs.existsSync(subDir)).toBe(true)
+              expect(fs.existsSync(subDir)).toBe(true) // Verify setup: subdirectory exists with file
               expect(fs.existsSync(orphanFilePath)).toBe(true)
 
-              // Execute plugin
-              const plugin = new OrphanFileCleanupEffectInputPlugin()
+              const plugin = new OrphanFileCleanupEffectInputPlugin() // Execute plugin
               const ctx = createEffectContext(tempDir, shadowProjectDir, false)
               const effectMethod = (plugin as any).cleanupOrphanFiles.bind(plugin)
               const result = await effectMethod(ctx)
 
-              // Verify: Orphan file should be deleted
-              expect(fs.existsSync(orphanFilePath)).toBe(false)
+              expect(fs.existsSync(orphanFilePath)).toBe(false) // Verify: Orphan file should be deleted
               expect(result.deletedFiles).toContain(orphanFilePath)
 
-              // Verify: Empty subdirectory should be removed
-              expect(fs.existsSync(subDir)).toBe(false)
+              expect(fs.existsSync(subDir)).toBe(false) // Verify: Empty subdirectory should be removed
               expect(result.deletedDirs).toContain(subDir)
-            } finally {
-              // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
+            }
+            finally {
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
           },
         ),
@@ -224,49 +199,40 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
           validNameGen,
           validNameGen,
           async (orphanName, validName) => {
-            // Ensure different names
-            if (orphanName === validName) return
+            if (orphanName === validName) return // Ensure different names
 
-            // Create isolated temp directory for this property run
-            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orphan-cleanup-p7b-'))
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orphan-cleanup-p7b-')) // Create isolated temp directory for this property run
 
             try {
-              // Setup: Create shadow project with both orphan and valid files
-              const shadowProjectDir = path.join(tempDir, 'shadow')
+              const shadowProjectDir = path.join(tempDir, 'shadow') // Setup: Create shadow project with both orphan and valid files
               const distSkillsDir = path.join(shadowProjectDir, 'dist', 'skills')
               const srcSkillsDir = path.join(shadowProjectDir, 'src', 'skills')
 
               fs.mkdirSync(distSkillsDir, {recursive: true})
               fs.mkdirSync(srcSkillsDir, {recursive: true})
 
-              // Create orphan file (no source)
-              const orphanFilePath = path.join(distSkillsDir, `${orphanName}.mdx`)
+              const orphanFilePath = path.join(distSkillsDir, `${orphanName}.mdx`) // Create orphan file (no source)
               fs.writeFileSync(orphanFilePath, `# ${orphanName}`, 'utf8')
 
-              // Create valid file with source
-              const validFilePath = path.join(distSkillsDir, `${validName}.mdx`)
+              const validFilePath = path.join(distSkillsDir, `${validName}.mdx`) // Create valid file with source
               fs.writeFileSync(validFilePath, `# ${validName}`, 'utf8')
 
-              // Create source for valid file
-              const srcSkillDir = path.join(srcSkillsDir, validName)
+              const srcSkillDir = path.join(srcSkillsDir, validName) // Create source for valid file
               fs.mkdirSync(srcSkillDir, {recursive: true})
               fs.writeFileSync(path.join(srcSkillDir, 'SKILL.cn.mdx'), `# ${validName}`, 'utf8')
 
-              // Execute plugin
-              const plugin = new OrphanFileCleanupEffectInputPlugin()
+              const plugin = new OrphanFileCleanupEffectInputPlugin() // Execute plugin
               const ctx = createEffectContext(tempDir, shadowProjectDir, false)
               const effectMethod = (plugin as any).cleanupOrphanFiles.bind(plugin)
               await effectMethod(ctx)
 
-              // Verify: Orphan file deleted, valid file kept
-              expect(fs.existsSync(orphanFilePath)).toBe(false)
+              expect(fs.existsSync(orphanFilePath)).toBe(false) // Verify: Orphan file deleted, valid file kept
               expect(fs.existsSync(validFilePath)).toBe(true)
 
-              // Verify: Directory should NOT be removed (still has valid file)
-              expect(fs.existsSync(distSkillsDir)).toBe(true)
-            } finally {
-              // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
+              expect(fs.existsSync(distSkillsDir)).toBe(true) // Verify: Directory should NOT be removed (still has valid file)
+            }
+            finally {
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
           },
         ),
@@ -286,29 +252,25 @@ function createSourceFile(
 ): void {
   switch (dirType) {
     case 'skills': {
-      // src/skills/{name}/SKILL.cn.mdx
-      const skillDir = path.join(shadowProjectDir, 'src', 'skills', name)
+      const skillDir = path.join(shadowProjectDir, 'src', 'skills', name) // src/skills/{name}/SKILL.cn.mdx
       fs.mkdirSync(skillDir, {recursive: true})
       fs.writeFileSync(path.join(skillDir, 'SKILL.cn.mdx'), `# ${name}`, 'utf8')
       break
     }
     case 'commands': {
-      // src/commands/{name}.cn.mdx
-      const commandsDir = path.join(shadowProjectDir, 'src', 'commands')
+      const commandsDir = path.join(shadowProjectDir, 'src', 'commands') // src/commands/{name}.cn.mdx
       fs.mkdirSync(commandsDir, {recursive: true})
       fs.writeFileSync(path.join(commandsDir, `${name}.cn.mdx`), `# ${name}`, 'utf8')
       break
     }
     case 'agents': {
-      // src/agents/{name}.cn.mdx
-      const agentsDir = path.join(shadowProjectDir, 'src', 'agents')
+      const agentsDir = path.join(shadowProjectDir, 'src', 'agents') // src/agents/{name}.cn.mdx
       fs.mkdirSync(agentsDir, {recursive: true})
       fs.writeFileSync(path.join(agentsDir, `${name}.cn.mdx`), `# ${name}`, 'utf8')
       break
     }
     case 'app': {
-      // app/{name}.cn.mdx
-      const appDir = path.join(shadowProjectDir, 'app')
+      const appDir = path.join(shadowProjectDir, 'app') // app/{name}.cn.mdx
       fs.mkdirSync(appDir, {recursive: true})
       fs.writeFileSync(path.join(appDir, `${name}.cn.mdx`), `# ${name}`, 'utf8')
       break

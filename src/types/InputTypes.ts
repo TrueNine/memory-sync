@@ -214,8 +214,7 @@ export interface SkillResource {
  * Text file extensions that should be read as UTF-8
  */
 export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
-  // Code files
-  '.kt',
+  '.kt', // Code files
   '.java',
   '.py',
   '.pyi',
@@ -261,8 +260,7 @@ export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
   '.dart',
   '.vue',
   '.svelte',
-  // Data files
-  '.sql',
+  '.sql', // Data files
   '.json',
   '.jsonc',
   '.json5',
@@ -278,13 +276,11 @@ export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
   '.graphql',
   '.gql',
   '.proto',
-  // Document files
-  '.txt',
+  '.txt', // Document files
   '.text',
   '.rtf',
   '.log',
-  // Config files
-  '.ini',
+  '.ini', // Config files
   '.conf',
   '.cfg',
   '.config',
@@ -302,8 +298,7 @@ export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
   '.stylelintrc',
   '.babelrc',
   '.browserslistrc',
-  // Script files
-  '.sh',
+  '.sh', // Script files
   '.bash',
   '.zsh',
   '.fish',
@@ -312,8 +307,7 @@ export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
   '.psd1',
   '.bat',
   '.cmd',
-  // Web files
-  '.html',
+  '.html', // Web files
   '.htm',
   '.xhtml',
   '.css',
@@ -322,8 +316,7 @@ export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
   '.less',
   '.styl',
   '.svg',
-  // Template files
-  '.ejs',
+  '.ejs', // Template files
   '.hbs',
   '.mustache',
   '.pug',
@@ -334,12 +327,10 @@ export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
   '.erb',
   '.haml',
   '.slim',
-  // Declaration files
-  '.d.ts',
+  '.d.ts', // Declaration files
   '.d.mts',
   '.d.cts',
-  // Other text formats
-  '.diff',
+  '.diff', // Other text formats
   '.patch',
   '.asm',
   '.s',
@@ -347,20 +338,16 @@ export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
   '.mk',
   '.dockerfile',
   '.tf',
-  // Terraform
-  '.tfvars',
-  // Prisma
-  '.prisma',
-  // MDX (but not .md which is handled separately)
-  '.mdx',
+  '.tfvars', // Terraform
+  '.prisma', // Prisma
+  '.mdx', // MDX (but not .md which is handled separately)
 ] as const
 
 /**
  * Binary file extensions that should be read as base64
  */
 export const SKILL_RESOURCE_BINARY_EXTENSIONS = [
-  // Documents
-  '.docx',
+  '.docx', // Documents
   '.doc',
   '.xlsx',
   '.xls',
@@ -370,8 +357,7 @@ export const SKILL_RESOURCE_BINARY_EXTENSIONS = [
   '.odt',
   '.ods',
   '.odp',
-  // Images
-  '.png',
+  '.png', // Images
   '.jpg',
   '.jpeg',
   '.gif',
@@ -379,15 +365,13 @@ export const SKILL_RESOURCE_BINARY_EXTENSIONS = [
   '.ico',
   '.bmp',
   '.tiff',
-  // Archives
-  '.zip',
+  '.zip', // Archives
   '.tar',
   '.gz',
   '.bz2',
   '.7z',
   '.rar',
-  // Compiled
-  '.pyd',
+  '.pyd', // Compiled
   '.pyc',
   '.pyo',
   '.class',
@@ -399,20 +383,17 @@ export const SKILL_RESOURCE_BINARY_EXTENSIONS = [
   '.exe',
   '.bin',
   '.wasm',
-  // Fonts
-  '.ttf',
+  '.ttf', // Fonts
   '.otf',
   '.woff',
   '.woff2',
   '.eot',
-  // Audio/Video (usually not needed but for completeness)
-  '.mp3',
+  '.mp3', // Audio/Video (usually not needed but for completeness)
   '.wav',
   '.ogg',
   '.mp4',
   '.webm',
-  // Database
-  '.db',
+  '.db', // Database
   '.sqlite',
   '.sqlite3',
 ] as const

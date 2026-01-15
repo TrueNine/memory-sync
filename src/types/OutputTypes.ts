@@ -1,7 +1,4 @@
-// TODO 加入输出源的收集
-// TODO 加入输出 target 的删除
-
-import type {GlobalConfigDirectoryType} from '@/types/Enums'
+import type {GlobalConfigDirectoryType} from '@/types/Enums' // TODO 加入输出 target 的删除 // TODO 加入输出源的收集
 import type {AbsolutePath, RelativePath} from '@/types/FileSystemTypes'
 
 /**

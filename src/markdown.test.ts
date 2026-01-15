@@ -52,11 +52,7 @@ tags:
     })
 
     it('should filter out undefined and null values', () => {
-      const result = buildFrontMatter({
-        name: 'test',
-        description: null,
-        author: null,
-      })
+      const result = buildFrontMatter({name: 'test', description: null, author: null})
 
       expect(result).toContain('name: test')
       expect(result).not.toContain('description')
@@ -82,10 +78,7 @@ tags:
 
   describe('buildMarkdownWithFrontMatter', () => {
     it('should combine front matter with content', () => {
-      const result = buildMarkdownWithFrontMatter(
-        {title: 'Test'},
-        '# Hello World',
-      )
+      const result = buildMarkdownWithFrontMatter({title: 'Test'}, '# Hello World')
 
       expect(result).toBe('---\ntitle: Test\n---\n# Hello World')
     })
@@ -125,10 +118,7 @@ tags:
     })
 
     it('should filter out null values', () => {
-      const result = buildRawFrontMatter({
-        name: 'test',
-        empty: null,
-      })
+      const result = buildRawFrontMatter({name: 'test', empty: null})
 
       expect(result).toBe('name: test')
     })

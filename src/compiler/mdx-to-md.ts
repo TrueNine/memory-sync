@@ -1,7 +1,4 @@
-// mdx-to-md.ts
-// Main entry point for lossless MDX to Markdown conversion
-
-import type {YAML} from 'mdast'
+import type {YAML} from 'mdast' // Main entry point for lossless MDX to Markdown conversion // mdx-to-md.ts
 import type {EvaluationScope, MdxjsEsm, MdxToMdOptions, MdxToMdResult, ProcessingContext} from './types'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkGfm from 'remark-gfm'
@@ -14,8 +11,7 @@ import {parseExports} from './export-parser'
 import {parseMdx} from './parser'
 import {processAst} from './transformer'
 
-// Register built-in components on module load
-registerBuiltInComponents()
+registerBuiltInComponents() // Register built-in components on module load
 
 /**
  * Merges global scope with custom scope.
@@ -32,20 +28,17 @@ function mergeScopes(
 ): EvaluationScope {
   const result: EvaluationScope = {}
 
-  // 1. Add global scope first (lower priority)
-  if (globalScope != null) {
+  if (globalScope != null) { // 1. Add global scope first (lower priority)
     result['os'] = {...globalScope.os}
     result['env'] = {...globalScope.env}
     result['profile'] = {...globalScope.profile}
     result['tool'] = {...globalScope.tool}
   }
 
-  // 2. Merge custom scope (higher priority)
-  if (customScope != null) {
+  if (customScope != null) { // 2. Merge custom scope (higher priority)
     for (const [key, value] of Object.entries(customScope)) {
       const existingValue = result[key]
-      // Deep merge objects
-      result[key] = typeof value === 'object'
+      result[key] = typeof value === 'object' // Deep merge objects
         && value !== null
         && !Array.isArray(value)
         && typeof existingValue === 'object'
@@ -119,38 +112,31 @@ export async function mdxToMd(
 ): Promise<string | MdxToMdResult> {
   const ast = parseMdx(content)
 
-  // Merge global scope with custom scope
-  const mergedScope = mergeScopes(options?.globalScope, options?.scope)
+  const mergedScope = mergeScopes(options?.globalScope, options?.scope) // Merge global scope with custom scope
 
-  // Load built-in components from registry
-  const components = getComponents()
+  const components = getComponents() // Load built-in components from registry
 
-  // Extract metadata if requested (YAML frontmatter + ESM exports merged)
-  let metadata: MdxToMdResult['metadata'] | undefined
+  let metadata: MdxToMdResult['metadata'] | undefined // Extract metadata if requested (YAML frontmatter + ESM exports merged)
   if (options?.extractMetadata === true) {
-    // 1. Extract YAML frontmatter
-    const yamlNode = ast.children.find((n): n is YAML => n.type === 'yaml')
+    const yamlNode = ast.children.find((n): n is YAML => n.type === 'yaml') // 1. Extract YAML frontmatter
     let yamlFrontMatter: Record<string, unknown> | undefined
     if (yamlNode != null) {
       try {
         yamlFrontMatter = YAML_LIB.parse(yamlNode.value) as Record<string, unknown>
-      } catch {
-        // YAML parsing failed, ignore
       }
+      catch {
+      } // YAML parsing failed, ignore
     }
 
-    // 2. Extract ESM exports
-    const esmNodes = ast.children.filter((n): n is MdxjsEsm => n.type === 'mdxjsEsm')
+    const esmNodes = ast.children.filter((n): n is MdxjsEsm => n.type === 'mdxjsEsm') // 2. Extract ESM exports
 
-    // 3. Merge: export takes priority over YAML
-    metadata = parseExports(esmNodes, {
+    metadata = parseExports(esmNodes, { // 3. Merge: export takes priority over YAML
       ...yamlFrontMatter != null && {yamlFrontMatter},
       scope: mergedScope,
       ...options?.basePath != null && {filePath: options.basePath},
     })
 
-    // 4. Remove YAML and ESM nodes from AST (clean content output)
-    ast.children = ast.children.filter(n => n.type !== 'yaml' && n.type !== 'mdxjsEsm')
+    ast.children = ast.children.filter(n => n.type !== 'yaml' && n.type !== 'mdxjsEsm') // 4. Remove YAML and ESM nodes from AST (clean content output)
   }
 
   const ctx: ProcessingContext = {
@@ -173,8 +159,7 @@ export async function mdxToMd(
       strong: '*',
       rule: '-',
       handlers: {
-        // 自定义 text handler 避免不必要的转义
-        text(node: {value: string}) {
+        text(node: {value: string}) { // 自定义 text handler 避免不必要的转义
           return node.value
         },
       },
@@ -182,8 +167,7 @@ export async function mdxToMd(
 
   const markdown = processor.stringify(processedAst).trim()
 
-  // Return result with metadata if extractMetadata is true
-  if (options?.extractMetadata === true && metadata != null) return {content: markdown, metadata}
+  if (options?.extractMetadata === true && metadata != null) return {content: markdown, metadata} // Return result with metadata if extractMetadata is true
 
   return markdown
 }

@@ -16,12 +16,10 @@ describe('fastCommandInputPlugin', () => {
      * - The commandName SHALL be the substring after the first underscore (or the entire basename if no underscore)
      */
     it('should extract series as substring before first underscore for filenames with underscore', () => {
-      // Generate alphanumeric strings without underscore for series prefix
-      const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
+      const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate alphanumeric strings without underscore for series prefix
         .filter(s => /^[a-z0-9]+$/i.test(s))
 
-      // Generate alphanumeric strings that may contain underscores for command name
-      const alphanumericWithUnderscore = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
+      const alphanumericWithUnderscore = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'}) // Generate alphanumeric strings that may contain underscores for command name
         .filter(s => /^\w+$/.test(s))
 
       fc.assert(
@@ -41,8 +39,7 @@ describe('fastCommandInputPlugin', () => {
     })
 
     it('should return undefined series for filenames without underscore', () => {
-      // Generate alphanumeric strings without underscore
-      const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
+      const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'}) // Generate alphanumeric strings without underscore
         .filter(s => /^[a-z0-9]+$/i.test(s))
 
       fc.assert(
@@ -61,8 +58,7 @@ describe('fastCommandInputPlugin', () => {
     })
 
     it('should use only first underscore as delimiter', () => {
-      // Generate alphanumeric strings without underscore
-      const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
+      const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate alphanumeric strings without underscore
         .filter(s => /^[a-z0-9]+$/i.test(s))
 
       fc.assert(
@@ -71,22 +67,18 @@ describe('fastCommandInputPlugin', () => {
           alphanumericNoUnderscore,
           alphanumericNoUnderscore,
           (seriesPrefix, part1, part2) => {
-            // Create filename with multiple underscores
-            const fileName = `${seriesPrefix}_${part1}_${part2}.mdx`
+            const fileName = `${seriesPrefix}_${part1}_${part2}.mdx` // Create filename with multiple underscores
             const result = plugin.extractSeriesInfo(fileName)
 
-            // Series should be only the first part
-            expect(result.series).toBe(seriesPrefix)
-            // Command name should include everything after first underscore
-            expect(result.commandName).toBe(`${part1}_${part2}`)
+            expect(result.series).toBe(seriesPrefix) // Series should be only the first part
+            expect(result.commandName).toBe(`${part1}_${part2}`) // Command name should include everything after first underscore
           },
         ),
         {numRuns: 100},
       )
     })
 
-    // Unit tests for specific edge cases
-    it('should handle pe_compile.mdx correctly', () => {
+    it('should handle pe_compile.mdx correctly', () => { // Unit tests for specific edge cases
       const result = plugin.extractSeriesInfo('pe_compile.mdx')
       expect(result.series).toBe('pe')
       expect(result.commandName).toBe('compile')

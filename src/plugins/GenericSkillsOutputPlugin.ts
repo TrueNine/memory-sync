@@ -34,10 +34,7 @@ const MCP_CONFIG_FILE = 'mcp.json'
  */
 export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('GenericSkillsOutputPlugin', {
-      globalConfigDir: '',
-      outputFileName: SKILL_FILE_NAME,
-    })
+    super('GenericSkillsOutputPlugin', {globalConfigDir: '', outputFileName: SKILL_FILE_NAME})
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -50,8 +47,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      // Register <project>/.skills/ for cleanup
-      const skillsDir = this.joinPath(project.dirFromWorkspacePath.path, SKILLS_DIR)
+      const skillsDir = this.joinPath(project.dirFromWorkspacePath.path, SKILLS_DIR) // Register <project>/.skills/ for cleanup
       results.push({
         pathKind: FilePathKind.Relative,
         path: skillsDir,
@@ -74,18 +70,13 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      const projectSkillsDir = this.joinPath(
-        project.dirFromWorkspacePath.basePath,
-        project.dirFromWorkspacePath.path,
-        SKILLS_DIR,
-      )
+      const projectSkillsDir = this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path, SKILLS_DIR)
 
       for (const skill of skills) {
         const skillName = skill.yamlFrontMatter.name
         const skillDir = this.joinPath(projectSkillsDir, skillName)
 
-        // Register SKILL.md
-        results.push({
+        results.push({ // Register SKILL.md
           pathKind: FilePathKind.Relative,
           path: this.joinPath(SKILLS_DIR, skillName, SKILL_FILE_NAME),
           basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
@@ -93,8 +84,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
           getAbsolutePath: () => this.joinPath(skillDir, SKILL_FILE_NAME),
         })
 
-        // Register mcp.json if skill has MCP configuration
-        if (skill.mcpConfig != null) {
+        if (skill.mcpConfig != null) { // Register mcp.json if skill has MCP configuration
           results.push({
             pathKind: FilePathKind.Relative,
             path: this.joinPath(SKILLS_DIR, skillName, MCP_CONFIG_FILE),
@@ -104,8 +94,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
           })
         }
 
-        // Register child docs (convert .mdx to .md)
-        if (skill.childDocs != null) {
+        if (skill.childDocs != null) { // Register child docs (convert .mdx to .md)
           for (const childDoc of skill.childDocs) {
             const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
             results.push({
@@ -118,8 +107,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
           }
         }
 
-        // Register resources
-        if (skill.resources != null) {
+        if (skill.resources != null) { // Register resources
           for (const resource of skill.resources) {
             results.push({
               pathKind: FilePathKind.Relative,
@@ -137,13 +125,11 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   }
 
   async registerGlobalOutputDirs(): Promise<RelativePath[]> {
-    // No global outputs for this plugin
-    return []
+    return [] // No global outputs for this plugin
   }
 
   async registerGlobalOutputFiles(): Promise<RelativePath[]> {
-    // No global outputs for this plugin
-    return []
+    return [] // No global outputs for this plugin
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
@@ -172,11 +158,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      const projectSkillsDir = this.joinPath(
-        project.dirFromWorkspacePath.basePath,
-        project.dirFromWorkspacePath.path,
-        SKILLS_DIR,
-      )
+      const projectSkillsDir = this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path, SKILLS_DIR)
 
       for (const skill of skills) {
         const skillResults = await this.writeSkill(ctx, skill, projectSkillsDir)
@@ -188,8 +170,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeGlobalOutputs(): Promise<WriteResults> {
-    // No global outputs for this plugin
-    return {files: [], dirs: []}
+    return {files: [], dirs: []} // No global outputs for this plugin
   }
 
   /**
@@ -210,8 +191,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     const skillDir = this.joinPath(skillsDir, skillName)
     const skillFilePath = this.joinPath(skillDir, SKILL_FILE_NAME)
 
-    // Create RelativePath for SKILL.md
-    const skillRelativePath: RelativePath = {
+    const skillRelativePath: RelativePath = { // Create RelativePath for SKILL.md
       pathKind: FilePathKind.Relative,
       path: SKILL_FILE_NAME,
       basePath: skillDir,
@@ -219,8 +199,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => skillFilePath,
     }
 
-    // Build SKILL.md content with front matter
-    const frontMatterData = this.buildSkillFrontMatter(skill)
+    const frontMatterData = this.buildSkillFrontMatter(skill) // Build SKILL.md content with front matter
     const bodyContent = skill.content as string
     const skillContent = buildMarkdownWithFrontMatter(frontMatterData, bodyContent)
 
@@ -233,29 +212,27 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
         this.writeFileSync(skillFilePath, skillContent)
         this.log.trace({action: 'write', type: 'skill', path: skillFilePath})
         results.push({path: skillRelativePath, success: true})
-      } catch (error) {
+      }
+      catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error)
         this.log.error({action: 'write', type: 'skill', path: skillFilePath, error: errMsg})
         results.push({path: skillRelativePath, success: false, error: error as Error})
       }
     }
 
-    // Write mcp.json if skill has MCP configuration
-    if (skill.mcpConfig != null) {
+    if (skill.mcpConfig != null) { // Write mcp.json if skill has MCP configuration
       const mcpResult = await this.writeMcpConfig(ctx, skill, skillDir)
       results.push(mcpResult)
     }
 
-    // Write child docs
-    if (skill.childDocs != null) {
+    if (skill.childDocs != null) { // Write child docs
       for (const childDoc of skill.childDocs) {
         const childDocResult = await this.writeChildDoc(ctx, childDoc, skillDir, skillName)
         results.push(childDocResult)
       }
     }
 
-    // Write resources
-    if (skill.resources != null) {
+    if (skill.resources != null) { // Write resources
       for (const resource of skill.resources) {
         const resourceResult = await this.writeResource(ctx, resource, skillDir, skillName)
         results.push(resourceResult)
@@ -312,7 +289,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       this.writeFileSync(mcpConfigPath, mcpConfigContent)
       this.log.trace({action: 'write', type: 'mcpConfig', path: mcpConfigPath})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'mcpConfig', path: mcpConfigPath, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}
@@ -329,8 +307,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     skillDir: string,
     skillName: string,
   ): Promise<WriteResult> {
-    // Convert .mdx to .md for output
-    const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
+    const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md') // Convert .mdx to .md for output
     const childDocPath = this.joinPath(skillDir, outputRelativePath)
 
     const relativePath: RelativePath = {
@@ -354,7 +331,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       this.writeFileSync(childDocPath, content)
       this.log.trace({action: 'write', type: 'childDoc', path: childDocPath})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'childDoc', path: childDocPath, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}
@@ -389,16 +367,15 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       const parentDir = this.dirname(resourcePath)
       this.ensureDirectory(parentDir)
 
-      // Handle binary vs text encoding
-      if (resource.encoding === 'base64') {
+      if (resource.encoding === 'base64') { // Handle binary vs text encoding
         const buffer = Buffer.from(resource.content, 'base64')
         this.writeFileSyncBuffer(resourcePath, buffer)
-      }
-      else this.writeFileSync(resourcePath, resource.content)
+      } else this.writeFileSync(resourcePath, resource.content)
 
       this.log.trace({action: 'write', type: 'resource', path: resourcePath})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'resource', path: resourcePath, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}

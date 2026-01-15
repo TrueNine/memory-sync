@@ -100,12 +100,10 @@ export interface ParsedCliArgs {
 function extractUserArgs(argv: readonly string[]): string[] {
   const args = [...argv]
 
-  // 跳过 node/bun/deno 等运行时路径
-  const first = args[0]
+  const first = args[0] // 跳过 node/bun/deno 等运行时路径
   if (first != null && isRuntimeExecutable(first)) args.shift()
 
-  // 跳过脚本路径或 npx 包名
-  const second = args[0]
+  const second = args[0] // 跳过脚本路径或 npx 包名
   if (second != null && isScriptOrPackage(second)) args.shift()
 
   return args
@@ -127,12 +125,9 @@ function isRuntimeExecutable(arg: string): boolean {
  * 判断是否为脚本文件或包名
  */
 function isScriptOrPackage(arg: string): boolean {
-  // 脚本文件
-  if (/\.(?:m?[jt]s|cjs)$/.test(arg)) return true
-  // 包含路径分隔符的文件路径
-  if (/[/\\]/.test(arg) && !arg.startsWith('-')) return true
-  // npx 执行的包名（如 tnmsc、@truenine/memory-sync-cli）
-  return /^(?:@[\w-]+\/)?[\w-]+$/.test(arg) && !arg.startsWith('-')
+  if (/\.(?:m?[jt]s|cjs)$/.test(arg)) return true // 脚本文件
+  if (/[/\\]/.test(arg) && !arg.startsWith('-')) return true // 包含路径分隔符的文件路径
+  return /^(?:@[\w-]+\/)?[\w-]+$/.test(arg) && !arg.startsWith('-') // npx 执行的包名（如 tnmsc、@truenine/memory-sync-cli）
 }
 
 /**
@@ -175,8 +170,7 @@ export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
 
   if (logLevelFlags.length === 0) return void 0
 
-  // Find the most verbose level (lowest priority number)
-  let mostVerbose: LogLevel = logLevelFlags[0]!
+  let mostVerbose: LogLevel = logLevelFlags[0]! // Find the most verbose level (lowest priority number)
   let lowestPriority = LOG_LEVEL_PRIORITY.get(mostVerbose) ?? 4
 
   for (const level of logLevelFlags) {
@@ -212,38 +206,28 @@ export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
 export function resolveCommand(args: ParsedCliArgs): Command {
   const {helpFlag, versionFlag, subcommand, dryRun, unknownCommand, setOption, positional} = args
 
-  // Version flag takes highest priority
-  if (versionFlag) return new VersionCommand()
+  if (versionFlag) return new VersionCommand() // Version flag takes highest priority
 
-  // Help flag takes priority
-  if (helpFlag) return new HelpCommand()
+  if (helpFlag) return new HelpCommand() // Help flag takes priority
 
-  // Unknown command handling
-  if (unknownCommand != null) return new UnknownCommand(unknownCommand)
+  if (unknownCommand != null) return new UnknownCommand(unknownCommand) // Unknown command handling
 
-  // Version subcommand
-  if (subcommand === 'version') return new VersionCommand()
+  if (subcommand === 'version') return new VersionCommand() // Version subcommand
 
-  // Help subcommand
-  if (subcommand === 'help') return new HelpCommand()
+  if (subcommand === 'help') return new HelpCommand() // Help subcommand
 
-  // Outdated subcommand
-  if (subcommand === 'outdated') return new OutdatedCommand()
+  if (subcommand === 'outdated') return new OutdatedCommand() // Outdated subcommand
 
-  // Init subcommand
-  if (subcommand === 'init') return new InitCommand()
+  if (subcommand === 'init') return new InitCommand() // Init subcommand
 
-  // Dry-run subcommand
-  if (subcommand === 'dry-run') return new DryRunOutputCommand()
+  if (subcommand === 'dry-run') return new DryRunOutputCommand() // Dry-run subcommand
 
-  // Clean subcommand with optional dry-run flag
-  if (subcommand === 'clean') {
+  if (subcommand === 'clean') { // Clean subcommand with optional dry-run flag
     if (dryRun) return new DryRunCleanCommand()
     return new CleanCommand()
   }
 
-  // Set subcommand or --set option
-  if (subcommand !== 'set' || setOption.length > 0) return new ExecuteCommand()
+  if (subcommand !== 'set' || setOption.length > 0) return new ExecuteCommand() // Set subcommand or --set option
 
   const parsedPositional: [key: string, value: string][] = []
   for (const arg of positional) {
@@ -287,19 +271,16 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     const arg = args[i]
     if (arg == null) continue
 
-    // Handle -- separator: all following args are positional
-    if (arg === '--') {
+    if (arg === '--') { // Handle -- separator: all following args are positional
       result.positional.push(...args.slice(i + 1).filter((a): a is string => a != null))
       break
     }
 
-    // Long options
-    if (arg.startsWith('--')) {
+    if (arg.startsWith('--')) { // Long options
       const parts = arg.split('=')
       const key = parts[0] ?? ''
 
-      // Check log level flags
-      const logLevel = LOG_LEVEL_FLAGS.get(key)
+      const logLevel = LOG_LEVEL_FLAGS.get(key) // Check log level flags
       if (logLevel != null) {
         result.logLevelFlags.push(logLevel)
         result.logLevel = logLevel
@@ -311,20 +292,17 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
         case '--version': result.versionFlag = true; break
         case '--dry-run': result.dryRun = true; break
         case '--set':
-          // Parse --set key=value from next arg or from = syntax
-          if (parts.length > 1) {
+          if (parts.length > 1) { // Parse --set key=value from next arg or from = syntax
             const keyValue = parts.slice(1).join('=')
             const eqIndex = keyValue.indexOf('=')
             if (eqIndex > 0) result.setOption.push([keyValue.slice(0, eqIndex), keyValue.slice(eqIndex + 1)])
           } else {
-            // Next arg is the value
-            const nextArg = args[i + 1]
+            const nextArg = args[i + 1] // Next arg is the value
             if (nextArg != null) {
               const eqIndex = nextArg.indexOf('=')
               if (eqIndex > 0) {
                 result.setOption.push([nextArg.slice(0, eqIndex), nextArg.slice(eqIndex + 1)])
-                // Skip next arg
-                i++
+                i++ // Skip next arg
               }
             }
           }
@@ -334,8 +312,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
       continue
     }
 
-    // Short options
-    if (arg.startsWith('-') && arg.length > 1) {
+    if (arg.startsWith('-') && arg.length > 1) { // Short options
       const flags = arg.slice(1)
       for (const flag of flags) {
         switch (flag) {
@@ -348,19 +325,16 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
       continue
     }
 
-    // First positional argument: check if it's a subcommand
-    if (!firstPositionalProcessed) {
+    if (!firstPositionalProcessed) { // First positional argument: check if it's a subcommand
       firstPositionalProcessed = true
       if (VALID_SUBCOMMANDS.has(arg)) result.subcommand = arg as Subcommand
       else {
-        // Unknown first positional is captured as unknownCommand
-        result.unknownCommand = arg
+        result.unknownCommand = arg // Unknown first positional is captured as unknownCommand
       }
       continue
     }
 
-    // Remaining positional arguments
-    result.positional.push(arg)
+    result.positional.push(arg) // Remaining positional arguments
   }
 
   return result
@@ -376,8 +350,7 @@ export class PluginPipeline {
     const userArgs = extractUserArgs(filtered)
     this.args = parseArgs(userArgs)
 
-    // Resolve log level from parsed args and set globally
-    const resolvedLogLevel = resolveLogLevel(this.args)
+    const resolvedLogLevel = resolveLogLevel(this.args) // Resolve log level from parsed args and set globally
     if (resolvedLogLevel != null) setGlobalLogLevel(resolvedLogLevel)
     this.logger = createLogger('PluginPipeline', resolvedLogLevel)
     this.logger.debug('initialized', {args: this.args})
@@ -389,9 +362,7 @@ export class PluginPipeline {
   }
 
   async run(config: PipelineConfig): Promise<void> {
-    // Startup version check (runs on even minutes, non-blocking)
-    // Don't await - let it run in background without blocking process exit
-    void startupVersionCheck(this.logger)
+    void startupVersionCheck(this.logger) // Don't await - let it run in background without blocking process exit // Startup version check (runs on even minutes, non-blocking)
 
     const {context, outputPlugins, userConfigOptions} = config
     this.registerOutputPlugins([...outputPlugins])
@@ -473,53 +444,40 @@ export class PluginPipeline {
    * Throws CircularDependencyError if a cycle is detected.
    */
   topologicalSort<T extends PluginKind>(plugins: readonly Plugin<T>[]): Plugin<T>[] {
-    // Validate dependencies first
-    this.validateDependencies(plugins)
+    this.validateDependencies(plugins) // Validate dependencies first
 
-    // Build plugin map for quick lookup
-    const pluginMap = new Map<string, Plugin<T>>()
+    const pluginMap = new Map<string, Plugin<T>>() // Build plugin map for quick lookup
     for (const plugin of plugins) pluginMap.set(plugin.name, plugin)
 
-    // Build in-degree map (count of incoming edges)
-    const inDegree = new Map<string, number>()
+    const inDegree = new Map<string, number>() // Build in-degree map (count of incoming edges)
     for (const plugin of plugins) inDegree.set(plugin.name, 0)
 
-    // Build adjacency list (dependents for each plugin)
-    const dependents = new Map<string, string[]>()
+    const dependents = new Map<string, string[]>() // Build adjacency list (dependents for each plugin)
     for (const plugin of plugins) dependents.set(plugin.name, [])
 
-    // Populate in-degree and dependents
-    for (const plugin of plugins) {
+    for (const plugin of plugins) { // Populate in-degree and dependents
       const deps = plugin.dependsOn ?? []
       for (const dep of deps) {
-        // Increment in-degree for current plugin
-        inDegree.set(plugin.name, (inDegree.get(plugin.name) ?? 0) + 1)
-        // Add current plugin as dependent of dep
-        const depList = dependents.get(dep) ?? []
+        inDegree.set(plugin.name, (inDegree.get(plugin.name) ?? 0) + 1) // Increment in-degree for current plugin
+        const depList = dependents.get(dep) ?? [] // Add current plugin as dependent of dep
         depList.push(plugin.name)
         dependents.set(dep, depList)
       }
     }
 
-    // Initialize queue with plugins that have no dependencies (in-degree = 0)
-    // Use registration order for initial queue
-    const queue: string[] = []
+    const queue: string[] = [] // Use registration order for initial queue // Initialize queue with plugins that have no dependencies (in-degree = 0)
     for (const plugin of plugins) {
       if (inDegree.get(plugin.name) === 0) queue.push(plugin.name)
     }
 
-    // Process queue
-    const result: Plugin<T>[] = []
+    const result: Plugin<T>[] = [] // Process queue
     while (queue.length > 0) {
-      // Take first element to preserve registration order
-      const current = queue.shift()!
+      const current = queue.shift()! // Take first element to preserve registration order
       const plugin = pluginMap.get(current)!
       result.push(plugin)
 
-      // Process dependents in registration order
-      const currentDependents = dependents.get(current) ?? []
-      // Sort dependents by their original registration order
-      const sortedDependents = currentDependents.sort((a, b) => {
+      const currentDependents = dependents.get(current) ?? [] // Process dependents in registration order
+      const sortedDependents = currentDependents.sort((a, b) => { // Sort dependents by their original registration order
         const indexA = plugins.findIndex(p => p.name === a)
         const indexB = plugins.findIndex(p => p.name === b)
         return indexA - indexB
@@ -532,8 +490,7 @@ export class PluginPipeline {
       }
     }
 
-    // Check for cycle: if not all plugins are in result, there's a cycle
-    if (result.length === plugins.length) return result
+    if (result.length === plugins.length) return result // Check for cycle: if not all plugins are in result, there's a cycle
 
     const cyclePath = this.findCyclePath(plugins, inDegree)
     throw new CircularDependencyError(cyclePath)
@@ -547,14 +504,12 @@ export class PluginPipeline {
     plugins: readonly Plugin<T>[],
     inDegree: Map<string, number>,
   ): string[] {
-    // Find nodes that are part of a cycle (in-degree > 0)
-    const cycleNodes = new Set<string>()
+    const cycleNodes = new Set<string>() // Find nodes that are part of a cycle (in-degree > 0)
     for (const [name, degree] of inDegree) {
       if (degree > 0) cycleNodes.add(name)
     }
 
-    // Build dependency map for cycle nodes
-    const deps = new Map<string, string[]>()
+    const deps = new Map<string, string[]>() // Build dependency map for cycle nodes
     for (const plugin of plugins) {
       if (cycleNodes.has(plugin.name)) {
         const pluginDeps = (plugin.dependsOn ?? []).filter(d => cycleNodes.has(d))
@@ -562,14 +517,12 @@ export class PluginPipeline {
       }
     }
 
-    // DFS to find cycle path
-    const visited = new Set<string>()
+    const visited = new Set<string>() // DFS to find cycle path
     const path: string[] = []
 
     const dfs = (node: string): boolean => {
       if (path.includes(node)) {
-        // Found cycle, add closing node to complete the cycle
-        path.push(node)
+        path.push(node) // Found cycle, add closing node to complete the cycle
         return true
       }
       if (visited.has(node)) return false
@@ -585,19 +538,16 @@ export class PluginPipeline {
       return false
     }
 
-    // Start DFS from any cycle node
-    for (const node of cycleNodes) {
+    for (const node of cycleNodes) { // Start DFS from any cycle node
       if (dfs(node)) {
-        // Extract just the cycle portion
-        const cycleStart = path.indexOf(path.at(-1)!)
+        const cycleStart = path.indexOf(path.at(-1)!) // Extract just the cycle portion
         return path.slice(cycleStart)
       }
       visited.clear()
       path.length = 0
     }
 
-    // Fallback: return all cycle nodes
-    return [...cycleNodes]
+    return [...cycleNodes] // Fallback: return all cycle nodes
   }
 
   /**
@@ -620,11 +570,9 @@ export class PluginPipeline {
   ): Promise<Partial<CollectedInputContext>> {
     if (plugins.length === 0) return {}
 
-    // Sort plugins by dependencies (cast is safe since InputPlugin extends Plugin)
-    const sortedPlugins = this.topologicalSort(plugins) as InputPlugin[]
+    const sortedPlugins = this.topologicalSort(plugins) as InputPlugin[] // Sort plugins by dependencies (cast is safe since InputPlugin extends Plugin)
 
-    // Create GlobalScopeCollector and ScopeRegistry for MDX expression evaluation
-    const globalScopeCollector = new GlobalScopeCollector({userConfig})
+    const globalScopeCollector = new GlobalScopeCollector({userConfig}) // Create GlobalScopeCollector and ScopeRegistry for MDX expression evaluation
     const globalScope: MdxGlobalScope = globalScopeCollector.collect()
     const scopeRegistry = new ScopeRegistry()
     scopeRegistry.setGlobalScope(globalScope)
@@ -635,40 +583,30 @@ export class PluginPipeline {
       hasTool: Object.keys(globalScope.tool).length > 0,
     })
 
-    // Track outputs by plugin name for dependency resolution
-    const outputsByPlugin = new Map<string, Partial<CollectedInputContext>>()
+    const outputsByPlugin = new Map<string, Partial<CollectedInputContext>>() // Track outputs by plugin name for dependency resolution
 
-    // Accumulated context from all executed plugins
-    let accumulatedContext: Partial<CollectedInputContext> = {}
+    let accumulatedContext: Partial<CollectedInputContext> = {} // Accumulated context from all executed plugins
 
     for (const plugin of sortedPlugins) {
-      // Build dependency context from direct dependencies only
-      const dependencyContext = this.buildDependencyContext(plugin, outputsByPlugin)
+      const dependencyContext = this.buildDependencyContext(plugin, outputsByPlugin) // Build dependency context from direct dependencies only
 
-      // Create context with dependency outputs, globalScope, and scopeRegistry
-      const ctx: InputPluginContext = {
+      const ctx: InputPluginContext = { // Create context with dependency outputs, globalScope, and scopeRegistry
         ...baseCtx,
         dependencyContext,
         globalScope,
         scopeRegistry,
       }
 
-      // Execute effects before collect() if plugin has any
-      // AbstractInputPlugin provides executeEffects method for effect-based plugins
-      const inputPlugin = plugin as InputPlugin & {executeEffects?: (ctx: InputPluginContext, dryRun: boolean) => Promise<unknown>}
+      const inputPlugin = plugin as InputPlugin & {executeEffects?: (ctx: InputPluginContext, dryRun: boolean) => Promise<unknown>} // AbstractInputPlugin provides executeEffects method for effect-based plugins // Execute effects before collect() if plugin has any
       if (inputPlugin.executeEffects != null) await inputPlugin.executeEffects(ctx, dryRun)
 
-      // Execute plugin
-      const output = await plugin.collect(ctx)
+      const output = await plugin.collect(ctx) // Execute plugin
 
-      // Store output for this plugin
-      outputsByPlugin.set(plugin.name, output)
+      outputsByPlugin.set(plugin.name, output) // Store output for this plugin
 
-      // Merge into accumulated context
-      accumulatedContext = this.mergeContexts(accumulatedContext, output)
+      accumulatedContext = this.mergeContexts(accumulatedContext, output) // Merge into accumulated context
 
-      // Collect registered scopes from plugin and register them to ScopeRegistry
-      const inputPluginWithScopes = plugin as InputPlugin & {getRegisteredScopes?: () => readonly {namespace: string, values: Record<string, unknown>}[]}
+      const inputPluginWithScopes = plugin as InputPlugin & {getRegisteredScopes?: () => readonly {namespace: string, values: Record<string, unknown>}[]} // Collect registered scopes from plugin and register them to ScopeRegistry
       if (inputPluginWithScopes.getRegisteredScopes != null) {
         const registeredScopes = inputPluginWithScopes.getRegisteredScopes()
         for (const {namespace, values} of registeredScopes) {
@@ -691,11 +629,9 @@ export class PluginPipeline {
     const deps = plugin.dependsOn ?? []
     if (deps.length === 0) return {}
 
-    // Collect all transitive dependencies
-    const allDeps = this.collectTransitiveDependencies(plugin, outputsByPlugin)
+    const allDeps = this.collectTransitiveDependencies(plugin, outputsByPlugin) // Collect all transitive dependencies
 
-    // Merge all dependency outputs
-    let merged: Partial<CollectedInputContext> = {}
+    let merged: Partial<CollectedInputContext> = {} // Merge all dependency outputs
     for (const depName of allDeps) {
       const depOutput = outputsByPlugin.get(depName)
       if (depOutput != null) merged = this.mergeContexts(merged, depOutput)
@@ -720,10 +656,7 @@ export class PluginPipeline {
         if (visited.has(dep)) continue
         visited.add(dep)
 
-        // Get the plugin's dependencies recursively
-        // We need to find the plugin to get its dependencies
-        // Since we've already executed it, we can look it up
-        const depOutput = outputsByPlugin.get(dep)
+        const depOutput = outputsByPlugin.get(dep) // Since we've already executed it, we can look it up // We need to find the plugin to get its dependencies // Get the plugin's dependencies recursively
         if (depOutput != null) result.push(dep)
       }
     }
@@ -743,26 +676,22 @@ export class PluginPipeline {
     base: Partial<CollectedInputContext>,
     addition: Partial<CollectedInputContext>,
   ): Partial<CollectedInputContext> {
-    // Build merged workspace
-    let {workspace} = base
+    let {workspace} = base // Build merged workspace
     if (addition.workspace != null) {
       if (workspace != null) {
-        // Merge projects: later projects with same name replace earlier ones
-        const projectMap = new Map<string | undefined, typeof workspace.projects[0]>()
+        const projectMap = new Map<string | undefined, typeof workspace.projects[0]>() // Merge projects: later projects with same name replace earlier ones
         for (const project of workspace.projects) projectMap.set(project.name, project)
         for (const project of addition.workspace.projects) projectMap.set(project.name, project)
         workspace = {
           directory: addition.workspace.directory ?? workspace.directory,
           projects: [...projectMap.values()],
         }
-      }
-      else {
+      } else {
         ; ({workspace} = addition)
       }
     }
 
-    // Build merged arrays
-    const externalProjects: CollectedInputContext['externalProjects'] | undefined
+    const externalProjects: CollectedInputContext['externalProjects'] | undefined // Build merged arrays
       = addition.externalProjects != null
         ? [...base.externalProjects ?? [], ...addition.externalProjects]
         : base.externalProjects
@@ -792,22 +721,18 @@ export class PluginPipeline {
         ? [...base.aiAgentIgnoreConfigFiles ?? [], ...addition.aiAgentIgnoreConfigFiles]
         : base.aiAgentIgnoreConfigFiles
 
-    // globalMemory: last one wins
-    const globalMemory: CollectedInputContext['globalMemory'] | undefined
+    const globalMemory: CollectedInputContext['globalMemory'] | undefined // globalMemory: last one wins
       = addition.globalMemory ?? base.globalMemory
 
-    // shadowSourceProjectDir: last one wins
-    const shadowSourceProjectDir: CollectedInputContext['shadowSourceProjectDir'] | undefined
+    const shadowSourceProjectDir: CollectedInputContext['shadowSourceProjectDir'] | undefined // shadowSourceProjectDir: last one wins
       = addition.shadowSourceProjectDir ?? base.shadowSourceProjectDir
 
-    // readmePrompts: concatenate arrays
-    const readmePrompts: CollectedInputContext['readmePrompts'] | undefined
+    const readmePrompts: CollectedInputContext['readmePrompts'] | undefined // readmePrompts: concatenate arrays
       = addition.readmePrompts != null
         ? [...base.readmePrompts ?? [], ...addition.readmePrompts]
         : base.readmePrompts
 
-    // Build result object using object literal
-    return {
+    return { // Build result object using object literal
       ...workspace != null ? {workspace} : {},
       ...externalProjects != null ? {externalProjects} : {},
       ...ideConfigFiles != null ? {ideConfigFiles} : {},

@@ -97,13 +97,7 @@ describe('md component', () => {
   describe('conditional inclusion with when attribute (Requirement 3.3)', () => {
     it('should include content when when="true"', async () => {
       const children = [createParagraph('Conditional content')]
-      const element = createMdElement(children, [
-        {
-          type: 'mdxJsxAttribute',
-          name: 'when',
-          value: 'true',
-        },
-      ])
+      const element = createMdElement(children, [{type: 'mdxJsxAttribute', name: 'when', value: 'true'}])
       const ctx = createMockContext()
       const processChildren = createMockProcessChildren()
 
@@ -114,13 +108,7 @@ describe('md component', () => {
 
     it('should exclude content when when="false"', async () => {
       const children = [createParagraph('Conditional content')]
-      const element = createMdElement(children, [
-        {
-          type: 'mdxJsxAttribute',
-          name: 'when',
-          value: 'false',
-        },
-      ])
+      const element = createMdElement(children, [{type: 'mdxJsxAttribute', name: 'when', value: 'false'}])
       const ctx = createMockContext()
       const processChildren = createMockProcessChildren()
 
@@ -131,16 +119,7 @@ describe('md component', () => {
 
     it('should evaluate expression condition when true', async () => {
       const children = [createParagraph('Conditional content')]
-      const element = createMdElement(children, [
-        {
-          type: 'mdxJsxAttribute',
-          name: 'when',
-          value: {
-            type: 'mdxJsxAttributeValueExpression',
-            value: 'showContent',
-          },
-        },
-      ])
+      const element = createMdElement(children, [{type: 'mdxJsxAttribute', name: 'when', value: {type: 'mdxJsxAttributeValueExpression', value: 'showContent'}}])
       const ctx = createMockContext({showContent: true})
       const processChildren = createMockProcessChildren()
 
@@ -151,16 +130,7 @@ describe('md component', () => {
 
     it('should evaluate expression condition when false', async () => {
       const children = [createParagraph('Conditional content')]
-      const element = createMdElement(children, [
-        {
-          type: 'mdxJsxAttribute',
-          name: 'when',
-          value: {
-            type: 'mdxJsxAttributeValueExpression',
-            value: 'showContent',
-          },
-        },
-      ])
+      const element = createMdElement(children, [{type: 'mdxJsxAttribute', name: 'when', value: {type: 'mdxJsxAttributeValueExpression', value: 'showContent'}}])
       const ctx = createMockContext({showContent: false})
       const processChildren = createMockProcessChildren()
 
@@ -171,16 +141,7 @@ describe('md component', () => {
 
     it('should treat undefined expression as false', async () => {
       const children = [createParagraph('Conditional content')]
-      const element = createMdElement(children, [
-        {
-          type: 'mdxJsxAttribute',
-          name: 'when',
-          value: {
-            type: 'mdxJsxAttributeValueExpression',
-            value: 'undefinedVar',
-          },
-        },
-      ])
+      const element = createMdElement(children, [{type: 'mdxJsxAttribute', name: 'when', value: {type: 'mdxJsxAttributeValueExpression', value: 'undefinedVar'}}])
       const ctx = createMockContext({})
       const processChildren = createMockProcessChildren()
 
@@ -191,16 +152,7 @@ describe('md component', () => {
 
     it('should handle numeric 1 as truthy', async () => {
       const children = [createParagraph('Conditional content')]
-      const element = createMdElement(children, [
-        {
-          type: 'mdxJsxAttribute',
-          name: 'when',
-          value: {
-            type: 'mdxJsxAttributeValueExpression',
-            value: 'flag',
-          },
-        },
-      ])
+      const element = createMdElement(children, [{type: 'mdxJsxAttribute', name: 'when', value: {type: 'mdxJsxAttributeValueExpression', value: 'flag'}}])
       const ctx = createMockContext({flag: 1})
       const processChildren = createMockProcessChildren()
 
@@ -211,16 +163,7 @@ describe('md component', () => {
 
     it('should handle numeric 0 as falsy', async () => {
       const children = [createParagraph('Conditional content')]
-      const element = createMdElement(children, [
-        {
-          type: 'mdxJsxAttribute',
-          name: 'when',
-          value: {
-            type: 'mdxJsxAttributeValueExpression',
-            value: 'flag',
-          },
-        },
-      ])
+      const element = createMdElement(children, [{type: 'mdxJsxAttribute', name: 'when', value: {type: 'mdxJsxAttributeValueExpression', value: 'flag'}}])
       const ctx = createMockContext({flag: 0})
       const processChildren = createMockProcessChildren()
 

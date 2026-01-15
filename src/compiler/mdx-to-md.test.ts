@@ -11,13 +11,11 @@ import {clearComponents} from './component-registry'
 import {mdxToMd} from './mdx-to-md'
 
 describe('mdxToMd', () => {
-  // Re-register built-in components before each test
-  beforeEach(() => {
+  beforeEach(() => { // Re-register built-in components before each test
     registerBuiltInComponents()
   })
 
-  // Clean up after each test
-  afterEach(() => {
+  afterEach(() => { // Clean up after each test
     clearComponents()
   })
 
@@ -73,11 +71,9 @@ import C from './c'
 
 Some content here.`
       const result = await mdxToMd(input)
-      // Should not have any import-related text
-      expect(result).not.toMatch(/import/i)
+      expect(result).not.toMatch(/import/i) // Should not have any import-related text
       expect(result).not.toMatch(/from/i)
-      // Should have the actual content
-      expect(result).toContain('# Title')
+      expect(result).toContain('# Title') // Should have the actual content
       expect(result).toContain('Some content here.')
     })
   })
@@ -190,23 +186,20 @@ Content inside
 
 # After unknown`
       const result = await mdxToMd(input)
-      // Should not throw, should skip the unknown component
-      expect(result).toContain('# After unknown')
+      expect(result).toContain('# After unknown') // Should not throw, should skip the unknown component
     })
 
     it('should handle HTML-like elements', async () => {
       const input = '<div>Some content</div>'
       const result = await mdxToMd(input)
-      // Should either convert or skip gracefully
-      expect(typeof result).toBe('string')
+      expect(typeof result).toBe('string') // Should either convert or skip gracefully
     })
   })
 
   describe('processing context (Requirement 5)', () => {
     it('should support basePath option', async () => {
       const input = '# Test'
-      // basePath is passed through to context
-      const result = await mdxToMd(input, {basePath: '/some/path'})
+      const result = await mdxToMd(input, {basePath: '/some/path'}) // basePath is passed through to context
       expect(result).toContain('# Test')
     })
   })
@@ -276,10 +269,8 @@ description: A test description
 
 # Content`
       const result = await mdxToMd(input)
-      // Should NOT contain *** (thematic break)
-      expect(result).not.toContain('***')
-      // Should contain proper frontmatter
-      expect(result).toContain('---')
+      expect(result).not.toContain('***') // Should NOT contain *** (thematic break)
+      expect(result).toContain('---') // Should contain proper frontmatter
       expect(result).toContain('name: test')
     })
 
@@ -305,12 +296,10 @@ description: A test skill
 
 # Content`
       const result = await mdxToMd(input, {extractMetadata: true})
-      // Content should NOT contain frontmatter
-      expect(result.content).not.toContain('---')
+      expect(result.content).not.toContain('---') // Content should NOT contain frontmatter
       expect(result.content).not.toContain('name: test-skill')
       expect(result.content).toContain('# Content')
-      // Metadata should contain frontmatter fields
-      expect(result.metadata.fields).toEqual({
+      expect(result.metadata.fields).toEqual({ // Metadata should contain frontmatter fields
         name: 'test-skill',
         description: 'A test skill',
       })
@@ -328,14 +317,11 @@ export const exportField = "export-value"
 
 # Content`
       const result = await mdxToMd(input, {extractMetadata: true})
-      // Content should be clean
-      expect(result.content).not.toContain('---')
+      expect(result.content).not.toContain('---') // Content should be clean
       expect(result.content).not.toContain('export const')
       expect(result.content).toContain('# Content')
-      // Metadata should be merged (export takes priority)
-      expect(result.metadata.fields).toEqual({
-        // export wins over yaml for 'name'
-        name: 'export-name',
+      expect(result.metadata.fields).toEqual({ // Metadata should be merged (export takes priority)
+        name: 'export-name', // export wins over yaml for 'name'
         yamlField: 'yaml-value',
         exportField: 'export-value',
       })

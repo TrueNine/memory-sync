@@ -304,10 +304,7 @@ export async function checkCanClean(
   const result = new Map<string, CleanPermission>()
 
   for (const plugin of plugins) {
-    result.set(plugin.name, {
-      project: await plugin.canCleanProject?.(ctx) ?? true,
-      global: await plugin.canCleanGlobal?.(ctx) ?? true,
-    })
+    result.set(plugin.name, {project: await plugin.canCleanProject?.(ctx) ?? true, global: await plugin.canCleanGlobal?.(ctx) ?? true})
   }
 
   return result
@@ -343,10 +340,7 @@ export async function checkCanWrite(
 
   for (const plugin of plugins) {
     const canWrite = await plugin.canWrite?.(ctx) ?? true
-    result.set(plugin.name, {
-      project: canWrite,
-      global: canWrite,
-    })
+    result.set(plugin.name, {project: canWrite, global: canWrite})
   }
 
   return result

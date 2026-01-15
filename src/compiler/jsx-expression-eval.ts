@@ -1,7 +1,4 @@
-// jsx-expression-eval.ts
-// Evaluates JavaScript expressions containing JSX elements
-
-import type {Expression, Identifier, Program, Property, SpreadElement} from 'estree'
+import type {Expression, Identifier, Program, Property, SpreadElement} from 'estree' // Evaluates JavaScript expressions containing JSX elements // jsx-expression-eval.ts
 import type {
   JSXElement,
   JSXExpressionContainer,
@@ -53,15 +50,13 @@ async function evaluateEstreeExpression(
   ctx: ProcessingContext,
   processAstFn: ProcessAstFn,
 ): Promise<RootContent[]> {
-  // Handle JSX types first
-  if (expr.type === 'JSXElement') return processJsxElement(expr as unknown as JSXElement, ctx, processAstFn)
+  if (expr.type === 'JSXElement') return processJsxElement(expr as unknown as JSXElement, ctx, processAstFn) // Handle JSX types first
   if (expr.type === 'JSXFragment') return processJsxFragment(expr as unknown as JSXFragment, ctx, processAstFn)
   if (expr.type === 'LogicalExpression') return evaluateLogicalExpression(expr, ctx, processAstFn)
   if (expr.type === 'ConditionalExpression') return evaluateConditionalExpression(expr, ctx, processAstFn)
   if (expr.type === 'SequenceExpression') return evaluateSequenceExpression(expr, ctx, processAstFn)
   if (expr.type === 'ArrayExpression') return evaluateArrayExpression(expr, ctx, processAstFn)
-  // For all other expressions, use standard evaluator
-  return evaluateNonJsxExpression(expr, ctx)
+  return evaluateNonJsxExpression(expr, ctx) // For all other expressions, use standard evaluator
 }
 
 async function evaluateLogicalExpression(
@@ -162,8 +157,7 @@ async function evaluateToValue(
     const right = await evaluateToValue(expr.right, ctx, processAstFn)
     if (expr.operator === '===') return left === right
     if (expr.operator === '!==') return left !== right
-    // Use strict equality for == and !=
-    if (expr.operator === '==') return left === right
+    if (expr.operator === '==') return left === right // Use strict equality for == and !=
     if (expr.operator === '!=') return left !== right
     if (expr.operator === '<') return (left as number) < (right as number)
     if (expr.operator === '<=') return (left as number) <= (right as number)
@@ -214,7 +208,8 @@ async function evaluateToValue(
     if (result === 'undefined' || result === '') return void 0
     if (/^-?\d+(?:\.\d+)?$/.test(result)) return Number(result)
     return result
-  } catch {
+  }
+  catch {
     return void 0
   }
 }
@@ -278,8 +273,7 @@ function convertEstreeJsxToMdx(jsxElement: JSXElement, _ctx: ProcessingContext):
   let name: string | null = null
   if (opening.name.type === 'JSXIdentifier') {
     ; ({name} = opening.name)
-  }
-  else if (opening.name.type === 'JSXMemberExpression') name = jsxMemberExpressionToString(opening.name)
+  } else if (opening.name.type === 'JSXMemberExpression') name = jsxMemberExpressionToString(opening.name)
   else if (opening.name.type === 'JSXNamespacedName') name = `${opening.name.namespace.name}:${opening.name.name.name}`
 
   const attributes: MdxJsxFlowElement['attributes'] = []
@@ -303,12 +297,7 @@ function convertEstreeJsxToMdx(jsxElement: JSXElement, _ctx: ProcessingContext):
       }
 
       attributes.push({type: 'mdxJsxAttribute', name: attrName, value: attrValue})
-    } else if (attr.type === 'JSXSpreadAttribute') {
-      attributes.push({
-        type: 'mdxJsxExpressionAttribute',
-        value: `...${estreeToSource(attr.argument)}`,
-      })
-    }
+    } else if (attr.type === 'JSXSpreadAttribute') attributes.push({type: 'mdxJsxExpressionAttribute', value: `...${estreeToSource(attr.argument)}`})
   }
 
   const children: RootContent[] = []
@@ -438,7 +427,8 @@ function evaluateNonJsxExpression(expr: Expression, ctx: ProcessingContext): Roo
   try {
     const result = evaluateExpression(source, ctx.scope)
     return valueToRootContent(result)
-  } catch {
+  }
+  catch {
     return []
   }
 }

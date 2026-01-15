@@ -29,8 +29,7 @@ import {MarkdownWhitespaceCleanupEffectInputPlugin} from './MarkdownWhitespaceCl
  * Validates: Requirements 3.2, 3.3, 3.7
  */
 
-// Test helpers
-function createMockLogger(): ILogger {
+function createMockLogger(): ILogger { // Test helpers
   return {
     trace: () => { },
     debug: () => { },
@@ -53,52 +52,40 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
     shadowProjectDir,
     dryRun,
   }
-}
+} // Generators
 
-// Generators
-
-// Generate a line of text (without line endings)
-const lineContentGen = fc.string({minLength: 0, maxLength: 100, unit: 'grapheme-ascii'})
+const lineContentGen = fc.string({minLength: 0, maxLength: 100, unit: 'grapheme-ascii'}) // Generate a line of text (without line endings)
   .filter(s => !s.includes('\n') && !s.includes('\r'))
 
-// Generate trailing whitespace (spaces and tabs)
-const trailingWhitespaceGen = fc.array(
+const trailingWhitespaceGen = fc.array( // Generate trailing whitespace (spaces and tabs)
   fc.constantFrom(' ', '\t'),
   {minLength: 0, maxLength: 10},
 ).map(chars => chars.join(''))
 
-// Generate a line with optional trailing whitespace
-const lineWithTrailingWhitespaceGen = fc.tuple(lineContentGen, trailingWhitespaceGen)
+const lineWithTrailingWhitespaceGen = fc.tuple(lineContentGen, trailingWhitespaceGen) // Generate a line with optional trailing whitespace
   .map(([content, trailing]) => content + trailing)
 
-// Generate markdown content with various whitespace patterns
-const markdownContentGen = fc.array(lineWithTrailingWhitespaceGen, {minLength: 1, maxLength: 20})
+const markdownContentGen = fc.array(lineWithTrailingWhitespaceGen, {minLength: 1, maxLength: 20}) // Generate markdown content with various whitespace patterns
   .chain(lines =>
-    // Randomly insert extra blank lines between content lines
-    fc.array(
+    fc.array( // Randomly insert extra blank lines between content lines
       fc.tuple(
         fc.constant(null as string | null),
-        // Number of blank lines to insert
-        fc.integer({min: 0, max: 5}),
+        fc.integer({min: 0, max: 5}), // Number of blank lines to insert
       ),
       {minLength: lines.length, maxLength: lines.length},
     ).map(blankCounts => {
       const result: string[] = []
       for (let i = 0; i < lines.length; i++) {
-        // Add blank lines before this line
-        const blankCount = blankCounts[i]?.[1] ?? 0
+        const blankCount = blankCounts[i]?.[1] ?? 0 // Add blank lines before this line
         for (let j = 0; j < blankCount; j++) result.push('')
         result.push(lines[i])
       }
       return result
-    }),
-  )
+    }))
 
-// Generate line ending style
-const lineEndingGen = fc.constantFrom('\n', '\r\n')
+const lineEndingGen = fc.constantFrom('\n', '\r\n') // Generate line ending style
 
-// Generate complete markdown content with specific line ending
-const markdownWithLineEndingGen = fc.tuple(markdownContentGen, lineEndingGen)
+const markdownWithLineEndingGen = fc.tuple(markdownContentGen, lineEndingGen) // Generate complete markdown content with specific line ending
   .map(([lines, lineEnding]) => lines.join(lineEnding))
 
 describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
@@ -117,14 +104,11 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
         fc.asyncProperty(
           markdownWithLineEndingGen,
           async content => {
-            // Process the content
-            const cleaned = plugin.cleanMarkdownContent(content)
+            const cleaned = plugin.cleanMarkdownContent(content) // Process the content
 
-            // Split into lines (handle both LF and CRLF)
-            const lines = cleaned.split(/\r?\n/)
+            const lines = cleaned.split(/\r?\n/) // Split into lines (handle both LF and CRLF)
 
-            // Verify: No line should end with space or tab
-            for (const line of lines) expect(line).not.toMatch(/[ \t]$/)
+            for (const line of lines) expect(line).not.toMatch(/[ \t]$/) // Verify: No line should end with space or tab
           },
         ),
         {numRuns: 100},
@@ -136,12 +120,10 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
         fc.asyncProperty(
           markdownWithLineEndingGen,
           async content => {
-            // Create isolated temp directory for this property run
-            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whitespace-p8-'))
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whitespace-p8-')) // Create isolated temp directory for this property run
 
             try {
-              // Setup: Create shadow project with markdown file
-              const shadowProjectDir = path.join(tempDir, 'shadow')
+              const shadowProjectDir = path.join(tempDir, 'shadow') // Setup: Create shadow project with markdown file
               const srcDir = path.join(shadowProjectDir, 'src')
 
               fs.mkdirSync(srcDir, {recursive: true})
@@ -149,21 +131,18 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               const mdFilePath = path.join(srcDir, 'test.md')
               fs.writeFileSync(mdFilePath, content, 'utf8')
 
-              // Execute plugin
-              const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin()
+              const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin() // Execute plugin
               const ctx = createEffectContext(tempDir, shadowProjectDir, false)
               const effectMethod = (plugin as any).cleanupWhitespace.bind(plugin)
               await effectMethod(ctx)
 
-              // Read the processed file
-              const processedContent = fs.readFileSync(mdFilePath, 'utf8')
+              const processedContent = fs.readFileSync(mdFilePath, 'utf8') // Read the processed file
               const lines = processedContent.split(/\r?\n/)
 
-              // Verify: No line should end with space or tab
-              for (const line of lines) expect(line).not.toMatch(/[ \t]$/)
-            } finally {
-              // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
+              for (const line of lines) expect(line).not.toMatch(/[ \t]$/) // Verify: No line should end with space or tab
+            }
+            finally {
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
           },
         ),
@@ -187,26 +166,21 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
         fc.asyncProperty(
           markdownWithLineEndingGen,
           async content => {
-            // Process the content
-            const cleaned = plugin.cleanMarkdownContent(content)
+            const cleaned = plugin.cleanMarkdownContent(content) // Process the content
 
-            // Split into lines (handle both LF and CRLF)
-            const lines = cleaned.split(/\r?\n/)
+            const lines = cleaned.split(/\r?\n/) // Split into lines (handle both LF and CRLF)
 
-            // Count consecutive blank lines
-            let maxConsecutiveBlank = 0
+            let maxConsecutiveBlank = 0 // Count consecutive blank lines
             let currentConsecutiveBlank = 0
 
             for (const line of lines) {
               if (line === '') {
                 currentConsecutiveBlank++
                 maxConsecutiveBlank = Math.max(maxConsecutiveBlank, currentConsecutiveBlank)
-              }
-              else currentConsecutiveBlank = 0
+              } else currentConsecutiveBlank = 0
             }
 
-            // Verify: At most 2 consecutive blank lines
-            expect(maxConsecutiveBlank).toBeLessThanOrEqual(2)
+            expect(maxConsecutiveBlank).toBeLessThanOrEqual(2) // Verify: At most 2 consecutive blank lines
           },
         ),
         {numRuns: 100},
@@ -218,12 +192,10 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
         fc.asyncProperty(
           markdownWithLineEndingGen,
           async content => {
-            // Create isolated temp directory for this property run
-            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whitespace-p9-'))
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whitespace-p9-')) // Create isolated temp directory for this property run
 
             try {
-              // Setup: Create shadow project with markdown file
-              const shadowProjectDir = path.join(tempDir, 'shadow')
+              const shadowProjectDir = path.join(tempDir, 'shadow') // Setup: Create shadow project with markdown file
               const srcDir = path.join(shadowProjectDir, 'src')
 
               fs.mkdirSync(srcDir, {recursive: true})
@@ -231,33 +203,28 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
               const mdFilePath = path.join(srcDir, 'test.md')
               fs.writeFileSync(mdFilePath, content, 'utf8')
 
-              // Execute plugin
-              const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin()
+              const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin() // Execute plugin
               const ctx = createEffectContext(tempDir, shadowProjectDir, false)
               const effectMethod = (plugin as any).cleanupWhitespace.bind(plugin)
               await effectMethod(ctx)
 
-              // Read the processed file
-              const processedContent = fs.readFileSync(mdFilePath, 'utf8')
+              const processedContent = fs.readFileSync(mdFilePath, 'utf8') // Read the processed file
               const lines = processedContent.split(/\r?\n/)
 
-              // Count consecutive blank lines
-              let maxConsecutiveBlank = 0
+              let maxConsecutiveBlank = 0 // Count consecutive blank lines
               let currentConsecutiveBlank = 0
 
               for (const line of lines) {
                 if (line === '') {
                   currentConsecutiveBlank++
                   maxConsecutiveBlank = Math.max(maxConsecutiveBlank, currentConsecutiveBlank)
-                }
-                else currentConsecutiveBlank = 0
+                } else currentConsecutiveBlank = 0
               }
 
-              // Verify: At most 2 consecutive blank lines
-              expect(maxConsecutiveBlank).toBeLessThanOrEqual(2)
-            } finally {
-              // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
+              expect(maxConsecutiveBlank).toBeLessThanOrEqual(2) // Verify: At most 2 consecutive blank lines
+            }
+            finally {
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
           },
         ),
@@ -281,17 +248,13 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
         fc.asyncProperty(
           markdownContentGen,
           async lines => {
-            // Create content with LF line endings
-            const content = lines.join('\n')
+            const content = lines.join('\n') // Create content with LF line endings
 
-            // Process the content
-            const cleaned = plugin.cleanMarkdownContent(content)
+            const cleaned = plugin.cleanMarkdownContent(content) // Process the content
 
-            // Verify: Should not contain CRLF
-            expect(cleaned).not.toContain('\r\n')
+            expect(cleaned).not.toContain('\r\n') // Verify: Should not contain CRLF
 
-            // Verify: If multi-line, should contain LF
-            if (lines.length > 1) expect(cleaned).toContain('\n')
+            if (lines.length > 1) expect(cleaned).toContain('\n') // Verify: If multi-line, should contain LF
           },
         ),
         {numRuns: 100},
@@ -305,14 +268,11 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
         fc.asyncProperty(
           markdownContentGen,
           async lines => {
-            // Create content with CRLF line endings
-            const content = lines.join('\r\n')
+            const content = lines.join('\r\n') // Create content with CRLF line endings
 
-            // Process the content
-            const cleaned = plugin.cleanMarkdownContent(content)
+            const cleaned = plugin.cleanMarkdownContent(content) // Process the content
 
-            // Verify: If multi-line, should use CRLF
-            if (lines.length <= 1) return
+            if (lines.length <= 1) return // Verify: If multi-line, should use CRLF
 
             const crlfCount = (cleaned.match(/\r\n/g) ?? []).length
             const lfOnlyCount = (cleaned.replaceAll('\r\n', '').match(/\n/g) ?? []).length
@@ -330,47 +290,39 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
           markdownContentGen,
           lineEndingGen,
           async (lines, lineEnding) => {
-            // Create isolated temp directory for this property run
-            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whitespace-p11-'))
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whitespace-p11-')) // Create isolated temp directory for this property run
 
             try {
-              // Setup: Create shadow project with markdown file
-              const shadowProjectDir = path.join(tempDir, 'shadow')
+              const shadowProjectDir = path.join(tempDir, 'shadow') // Setup: Create shadow project with markdown file
               const srcDir = path.join(shadowProjectDir, 'src')
 
               fs.mkdirSync(srcDir, {recursive: true})
 
-              // Create content with specific line ending
-              const content = lines.join(lineEnding)
+              const content = lines.join(lineEnding) // Create content with specific line ending
               const mdFilePath = path.join(srcDir, 'test.md')
               fs.writeFileSync(mdFilePath, content, 'utf8')
 
-              // Execute plugin
-              const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin()
+              const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin() // Execute plugin
               const ctx = createEffectContext(tempDir, shadowProjectDir, false)
               const effectMethod = (plugin as any).cleanupWhitespace.bind(plugin)
               await effectMethod(ctx)
 
-              // Read the processed file
-              const processedContent = fs.readFileSync(mdFilePath, 'utf8')
+              const processedContent = fs.readFileSync(mdFilePath, 'utf8') // Read the processed file
 
-              // Verify line ending preservation
-              if (lines.length > 1) {
+              if (lines.length > 1) { // Verify line ending preservation
                 if (lineEnding === '\r\n') {
-                  // Should use CRLF
-                  const crlfCount = (processedContent.match(/\r\n/g) ?? []).length
+                  const crlfCount = (processedContent.match(/\r\n/g) ?? []).length // Should use CRLF
                   const lfOnlyCount = (processedContent.replaceAll('\r\n', '').match(/\n/g) ?? []).length
                   expect(lfOnlyCount).toBe(0)
                   expect(crlfCount).toBeGreaterThan(0)
                 } else {
-                  // Should use LF (no CRLF)
-                  expect(processedContent).not.toContain('\r\n')
+                  expect(processedContent).not.toContain('\r\n') // Should use LF (no CRLF)
                   expect(processedContent).toContain('\n')
                 }
               }
-            } finally {
-              // Cleanup
-              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
+            }
+            finally {
+              if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
           },
         ),

@@ -4,8 +4,7 @@ import * as path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {ConfigLoader, DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR, loadUserConfig} from './ConfigLoader'
 
-// Mock fs module
-vi.mock('node:fs')
+vi.mock('node:fs') // Mock fs module
 vi.mock('node:os')
 
 describe('configLoader', () => {
@@ -18,9 +17,7 @@ describe('configLoader', () => {
     vi.mocked(fs.readFileSync).mockReturnValue('{}')
   })
 
-  afterEach(() => {
-    vi.clearAllMocks()
-  })
+  afterEach(() => vi.clearAllMocks())
 
   describe('getSearchPaths', () => {
     it('should return default search paths', () => {
@@ -74,10 +71,7 @@ describe('configLoader', () => {
     })
 
     it('should load valid config file', () => {
-      const configContent = JSON.stringify({
-        workspaceDir: '~/myworkspace',
-        logLevel: 'debug',
-      })
+      const configContent = JSON.stringify({workspaceDir: '~/myworkspace', logLevel: 'debug'})
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
       vi.mocked(fs.readFileSync).mockReturnValue(configContent)
@@ -102,8 +96,7 @@ describe('configLoader', () => {
     })
 
     it('should validate string fields', () => {
-      // workspaceDir is invalid (number instead of string)
-      const configContent = JSON.stringify({
+      const configContent = JSON.stringify({ // workspaceDir is invalid (number instead of string)
         workspaceDir: 123,
         shadowSourceProjectDir: '~/shadow',
       })
@@ -115,14 +108,12 @@ describe('configLoader', () => {
       const result = loader.loadFromFile('/test/.tnmsc.json')
 
       expect(result.found).toBe(true)
-      // Invalid field should be ignored
-      expect(result.config.workspaceDir).toBeUndefined()
+      expect(result.config.workspaceDir).toBeUndefined() // Invalid field should be ignored
       expect(result.config.shadowSourceProjectDir).toBe('~/shadow')
     })
 
     it('should validate logLevel values', () => {
-      // logLevel is invalid
-      const configContent = JSON.stringify({
+      const configContent = JSON.stringify({ // logLevel is invalid
         logLevel: 'invalid',
       })
 
@@ -200,9 +191,7 @@ describe('configLoader', () => {
     })
 
     it('should reject invalid profile (non-object)', () => {
-      const configContent = JSON.stringify({
-        profile: 'invalid',
-      })
+      const configContent = JSON.stringify({profile: 'invalid'})
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
       vi.mocked(fs.readFileSync).mockReturnValue(configContent)
@@ -253,9 +242,7 @@ describe('configLoader', () => {
     })
 
     it('should reject invalid tool (non-object)', () => {
-      const configContent = JSON.stringify({
-        tool: 'invalid',
-      })
+      const configContent = JSON.stringify({tool: 'invalid'})
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
       vi.mocked(fs.readFileSync).mockReturnValue(configContent)
@@ -282,8 +269,7 @@ describe('configLoader', () => {
       const result = loader.loadFromFile('/test/.tnmsc.json')
 
       expect(result.found).toBe(true)
-      // Invalid tool should be rejected entirely
-      expect(result.config.tool).toBeUndefined()
+      expect(result.config.tool).toBeUndefined() // Invalid tool should be rejected entirely
     })
   })
 
@@ -300,16 +286,9 @@ describe('configLoader', () => {
     })
 
     it('should merge configs with correct priority', () => {
-      const cwdConfig = JSON.stringify({
-        workspaceDir: '~/cwd-workspace',
-        logLevel: 'debug',
-      })
+      const cwdConfig = JSON.stringify({workspaceDir: '~/cwd-workspace', logLevel: 'debug'})
 
-      const globalConfig = JSON.stringify({
-        workspaceDir: '~/global-workspace',
-        shadowSourceProjectDir: '~/global-shadow',
-        logLevel: 'info',
-      })
+      const globalConfig = JSON.stringify({workspaceDir: '~/global-workspace', shadowSourceProjectDir: '~/global-shadow', logLevel: 'info'})
 
       const cwdPath = path.join(mockCwd, DEFAULT_CONFIG_FILE_NAME)
       const globalPath = path.join(mockHomedir, DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
@@ -326,11 +305,9 @@ describe('configLoader', () => {
       const result = loader.load(mockCwd)
 
       expect(result.found).toBe(true)
-      // CWD config should override global
-      expect(result.config.workspaceDir).toBe('~/cwd-workspace')
+      expect(result.config.workspaceDir).toBe('~/cwd-workspace') // CWD config should override global
       expect(result.config.logLevel).toBe('debug')
-      // Global config should fill in missing values
-      expect(result.config.shadowSourceProjectDir).toBe('~/global-shadow')
+      expect(result.config.shadowSourceProjectDir).toBe('~/global-shadow') // Global config should fill in missing values
       expect(result.sources).toHaveLength(2)
     })
 
@@ -357,8 +334,7 @@ describe('configLoader', () => {
       const loader = new ConfigLoader()
       const result = loader.load(mockCwd)
 
-      // Arrays should be concatenated
-      expect(result.config.externalProjects).toContain('/cwd/project')
+      expect(result.config.externalProjects).toContain('/cwd/project') // Arrays should be concatenated
       expect(result.config.externalProjects).toContain('/global/project')
     })
 
@@ -390,8 +366,7 @@ describe('configLoader', () => {
       const loader = new ConfigLoader()
       const result = loader.load(mockCwd)
 
-      // Should merge patterns for same project
-      expect(result.config.excludePatterns?.['projectA']).toContain('*.log')
+      expect(result.config.excludePatterns?.['projectA']).toContain('*.log') // Should merge patterns for same project
       expect(result.config.excludePatterns?.['projectA']).toContain('node_modules')
       expect(result.config.excludePatterns?.['projectB']).toEqual(['dist'])
     })

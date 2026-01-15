@@ -30,9 +30,7 @@ const PROJECT_MEMORY_FILE = 'WARP.md'
  */
 export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('WarpIDEOutputPlugin', {
-      outputFileName: PROJECT_MEMORY_FILE,
-    })
+    super('WarpIDEOutputPlugin', {outputFileName: PROJECT_MEMORY_FILE})
   }
 
   /**
@@ -52,11 +50,9 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
       if (project.dirFromWorkspacePath == null) continue
 
       if (agentsRegistered) {
-        // When AgentsOutputPlugin is registered, register WARP.md for global prompt output to each project
-        results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
+        results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE)) // When AgentsOutputPlugin is registered, register WARP.md for global prompt output to each project
       } else {
-        // Normal mode: register files for projects with prompts
-        if (project.rootMemoryPrompt != null) results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
+        if (project.rootMemoryPrompt != null) results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE)) // Normal mode: register files for projects with prompts
 
         if (project.childMemoryPrompts != null) {
           for (const child of project.childMemoryPrompts) {
@@ -74,16 +70,14 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     const {workspace, globalMemory} = ctx.collectedInputContext
 
     if (agentsRegistered) {
-      // When AgentsOutputPlugin is registered, only write if we have global memory
-      if (globalMemory == null) {
+      if (globalMemory == null) { // When AgentsOutputPlugin is registered, only write if we have global memory
         this.log.debug('skipped', {reason: 'AgentsOutputPlugin registered but no global memory'})
         return false
       }
       return true
     }
 
-    // Normal mode: check for project outputs
-    const hasProjectOutputs = workspace.projects.some(
+    const hasProjectOutputs = workspace.projects.some( // Normal mode: check for project outputs
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
     )
 
@@ -101,32 +95,21 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     const dirResults: WriteResult[] = []
 
     if (agentsRegistered) {
-      // When AgentsOutputPlugin is registered, write global prompt to each project's WARP.md
-      if (globalMemory == null) return {files: [], dirs: []}
+      if (globalMemory == null) return {files: [], dirs: []} // When AgentsOutputPlugin is registered, write global prompt to each project's WARP.md
 
       for (const project of projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
 
         const projectName = project.name ?? 'unknown'
-        const result = await this.writePromptFile(
-          ctx,
-          projectDir,
-          globalMemory.content as string,
-          `project:${projectName}/global-warp`,
-        )
+        const result = await this.writePromptFile(ctx, projectDir, globalMemory.content as string, `project:${projectName}/global-warp`)
         fileResults.push(result)
       }
 
       return {files: fileResults, dirs: dirResults}
     }
 
-    // Normal mode: write combined content
-    // Note: Child memory prompts are written without global memory prefix,
-    // as Warp supports AGENTS.md natively for hierarchical prompt inheritance.
-    // When users need child-level prompts with global context, they should use
-    // AgentsOutputPlugin which outputs AGENTS.md files that Warp reads directly.
-    const globalMemoryContent = this.extractGlobalMemoryContent(ctx)
+    const globalMemoryContent = this.extractGlobalMemoryContent(ctx) // AgentsOutputPlugin which outputs AGENTS.md files that Warp reads directly. // When users need child-level prompts with global context, they should use // as Warp supports AGENTS.md natively for hierarchical prompt inheritance. // Note: Child memory prompts are written without global memory prefix, // Normal mode: write combined content
 
     for (const project of projects) {
       const projectName = project.name ?? 'unknown'
@@ -134,32 +117,19 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
       if (projectDir == null) continue
 
-      // Write root memory prompt (only if exists)
-      if (project.rootMemoryPrompt != null) {
-        // Combine global memory with root memory prompt using helper method
-        const combinedContent = this.combineGlobalWithContent(
+      if (project.rootMemoryPrompt != null) { // Write root memory prompt (only if exists)
+        const combinedContent = this.combineGlobalWithContent( // Combine global memory with root memory prompt using helper method
           globalMemoryContent,
           project.rootMemoryPrompt.content as string,
         )
 
-        const result = await this.writePromptFile(
-          ctx,
-          projectDir,
-          combinedContent,
-          `project:${projectName}/root`,
-        )
+        const result = await this.writePromptFile(ctx, projectDir, combinedContent, `project:${projectName}/root`)
         fileResults.push(result)
       }
 
-      // Write children memory prompts
-      if (project.childMemoryPrompts != null) {
+      if (project.childMemoryPrompts != null) { // Write children memory prompts
         for (const child of project.childMemoryPrompts) {
-          const childResult = await this.writePromptFile(
-            ctx,
-            child.dir,
-            child.content as string,
-            `project:${projectName}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`,
-          )
+          const childResult = await this.writePromptFile(ctx, child.dir, child.content as string, `project:${projectName}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`)
           fileResults.push(childResult)
         }
       }

@@ -24,20 +24,17 @@ const PROJECT_MEMORY_FILE = 'agt.mdx'
 
 export class ProjectPromptInputPlugin extends AbstractInputPlugin {
   constructor() {
-    // Updated dependency name
-    super('ProjectPromptInputPlugin', ['ShadowProjectInputPlugin'])
+    super('ProjectPromptInputPlugin', ['ShadowProjectInputPlugin']) // Updated dependency name
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
     const {dependencyContext, fs, userConfigOptions: options, path, globalScope} = ctx
     const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
-    // Resolve shadow projects directory
-    const shadowProjectsDirRaw = options.shadowProjectsDir
+    const shadowProjectsDirRaw = options.shadowProjectsDir // Resolve shadow projects directory
     const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
 
-    // Get workspace from dependency context (provided by ShadowProjectInputPlugin)
-    const dependencyWorkspace = dependencyContext.workspace
+    const dependencyWorkspace = dependencyContext.workspace // Get workspace from dependency context (provided by ShadowProjectInputPlugin)
     if (dependencyWorkspace == null) {
       this.log.warn('No workspace found in dependency context, skipping project prompt enhancement')
       return {}
@@ -45,23 +42,17 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
     const projects = dependencyWorkspace.projects ?? []
 
-    // Enhance projects with memory prompts from shadow projects directory
-    // New structure: dist/app/<project>/agt.mdx (no nested dist folder)
-    const enhancedProjects = await Promise.all(projects.map(async project => {
+    const enhancedProjects = await Promise.all(projects.map(async project => { // New structure: dist/app/<project>/agt.mdx (no nested dist folder) // Enhance projects with memory prompts from shadow projects directory
       const projectName = project.name
       if (projectName == null) return project
 
-      // Read directly from shadow projects directory: dist/app/<project>/
-      const shadowProjectPath = path.join(shadowProjectsDir, projectName)
+      const shadowProjectPath = path.join(shadowProjectsDir, projectName) // Read directly from shadow projects directory: dist/app/<project>/
       if (!fs.existsSync(shadowProjectPath) || !fs.statSync(shadowProjectPath).isDirectory()) return project
 
-      // Get target project path for output
-      const targetProjectPath = project.dirFromWorkspacePath?.getAbsolutePath()
+      const targetProjectPath = project.dirFromWorkspacePath?.getAbsolutePath() // Get target project path for output
 
-      // Root prompt: dist/app/<project>/agt.mdx -> <project>/AGENTS.md
-      const rootMemoryPrompt = await this.readRootMemoryPrompt(ctx, shadowProjectPath, globalScope)
-      // Child prompts: dist/app/<project>/<subdir>/agt.mdx -> <project>/<subdir>/AGENTS.md
-      const childMemoryPrompts = targetProjectPath != null
+      const rootMemoryPrompt = await this.readRootMemoryPrompt(ctx, shadowProjectPath, globalScope) // Root prompt: dist/app/<project>/agt.mdx -> <project>/AGENTS.md
+      const childMemoryPrompts = targetProjectPath != null // Child prompts: dist/app/<project>/<subdir>/agt.mdx -> <project>/<subdir>/AGENTS.md
         ? await this.scanChildMemoryPrompts(ctx, shadowProjectPath, targetProjectPath, globalScope)
         : []
 
@@ -72,8 +63,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       }
     }))
 
-    // Return workspace with enhanced projects, preserving the original directory
-    return {
+    return { // Return workspace with enhanced projects, preserving the original directory
       workspace: {
         directory: dependencyWorkspace.directory,
         projects: enhancedProjects,
@@ -95,14 +85,11 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       const rawContent = fs.readFileSync(filePath, 'utf8')
       const parsed = parseMarkdown<YAMLFrontMatter>(rawContent)
 
-      // Compile MDX with globalScope to evaluate expressions like {profile.name}
-      let content: string
+      let content: string // Compile MDX with globalScope to evaluate expressions like {profile.name}
       try {
-        content = await mdxToMd(rawContent, {
-          globalScope,
-          basePath: projectPath,
-        })
-      } catch (e) {
+        content = await mdxToMd(rawContent, {globalScope, basePath: projectPath})
+      }
+      catch (e) {
         if (e instanceof ScopeError) {
           logger.error(`MDX compilation failed in ${filePath}: ${e.message}`)
           logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
@@ -126,7 +113,8 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
           getDirectoryName: () => '',
         },
       }
-    } catch (e) {
+    }
+    catch (e) {
       logger.error(`Failed to read root memory prompt at ${filePath}`, {error: e})
       return void 0
     }
@@ -143,7 +131,8 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
     try {
       await this.scanDirectoryRecursive(ctx, shadowProjectPath, shadowProjectPath, targetProjectPath, prompts, globalScope)
-    } catch (e) {
+    }
+    catch (e) {
       logger.error(`Failed to scan child memory prompts at ${shadowProjectPath}`, {error: e})
     }
 
@@ -164,8 +153,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
 
-      // Skip hidden directories and common non-source directories
-      if (Boolean(entry.name.startsWith('.')) || entry.name === 'node_modules') continue
+      if (Boolean(entry.name.startsWith('.')) || entry.name === 'node_modules') continue // Skip hidden directories and common non-source directories
 
       const childDir = path.join(currentPath, entry.name)
       const memoryFile = path.join(childDir, PROJECT_MEMORY_FILE)
@@ -175,8 +163,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
         if (prompt != null) prompts.push(prompt)
       }
 
-      // Continue scanning subdirectories
-      await this.scanDirectoryRecursive(ctx, shadowProjectPath, childDir, targetProjectPath, prompts, globalScope)
+      await this.scanDirectoryRecursive(ctx, shadowProjectPath, childDir, targetProjectPath, prompts, globalScope) // Continue scanning subdirectories
     }
   }
 
@@ -194,14 +181,11 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       const rawContent = fs.readFileSync(filePath, 'utf8')
       const parsed = parseMarkdown<YAMLFrontMatter>(rawContent)
 
-      // Compile MDX with globalScope to evaluate expressions like {profile.name}
-      let content: string
+      let content: string // Compile MDX with globalScope to evaluate expressions like {profile.name}
       try {
-        content = await mdxToMd(rawContent, {
-          globalScope,
-          basePath: shadowChildDir,
-        })
-      } catch (e) {
+        content = await mdxToMd(rawContent, {globalScope, basePath: shadowChildDir})
+      }
+      catch (e) {
         if (e instanceof ScopeError) {
           logger.error(`MDX compilation failed in ${filePath}: ${e.message}`)
           logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
@@ -210,10 +194,8 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
         throw e
       }
 
-      // Relative path from shadow project root
-      const relativePath = path.relative(shadowProjectPath, shadowChildDir)
-      // Target directory in actual project
-      const targetChildDir = path.join(targetProjectPath, relativePath)
+      const relativePath = path.relative(shadowProjectPath, shadowChildDir) // Relative path from shadow project root
+      const targetChildDir = path.join(targetProjectPath, relativePath) // Target directory in actual project
       const dirName = path.basename(shadowChildDir)
 
       return {
@@ -240,7 +222,8 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
           getAbsolutePath: () => targetChildDir,
         },
       }
-    } catch (e) {
+    }
+    catch (e) {
       logger.error(`Failed to read child memory prompt at ${filePath}`, {error: e})
       return void 0
     }

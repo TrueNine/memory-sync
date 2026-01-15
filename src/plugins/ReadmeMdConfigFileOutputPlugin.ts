@@ -28,9 +28,7 @@ const README_FILE_NAME = 'README.md'
  */
 export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('ReadmeMdConfigFileOutputPlugin', {
-      outputFileName: README_FILE_NAME,
-    })
+    super('ReadmeMdConfigFileOutputPlugin', {outputFileName: README_FILE_NAME})
   }
 
   /**
@@ -130,22 +128,20 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
       ? `project:${readme.projectName}/README.md`
       : `project:${readme.projectName}/${targetDir.path}/README.md`
 
-    // Dry-run mode: log without writing
-    if (ctx.dryRun === true) {
+    if (ctx.dryRun === true) { // Dry-run mode: log without writing
       this.log.trace({action: 'dryRun', type: 'readme', path: fullPath, label})
       return {path: relativePath, success: true, skipped: false}
     }
 
-    // Actual write operation
-    try {
-      // Ensure target directory exists
-      const dir = path.dirname(fullPath)
+    try { // Actual write operation
+      const dir = path.dirname(fullPath) // Ensure target directory exists
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive: true})
 
       fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({action: 'write', type: 'readme', path: fullPath, label})
       return {path: relativePath, success: true}
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'readme', path: fullPath, label, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}

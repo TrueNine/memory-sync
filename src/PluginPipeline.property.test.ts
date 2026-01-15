@@ -30,8 +30,7 @@ describe('parseArgs property tests', () => {
           fc.constantFrom(...logLevelFlags),
           fc.array(fc.string().filter(s => !s.startsWith('-') && s.length > 0), {maxLength: 5}),
           ({flag, level}, otherArgs) => {
-            // Filter out any strings that might be valid subcommands
-            const filteredArgs = otherArgs.filter(
+            const filteredArgs = otherArgs.filter( // Filter out any strings that might be valid subcommands
               arg => !['help', 'init', 'dry-run', 'clean'].includes(arg),
             )
             const args = [flag, ...filteredArgs]
@@ -83,11 +82,7 @@ describe('parseArgs property tests', () => {
       fc.assert(
         fc.property(
           fc.string({minLength: 1}).filter(s =>
-            // Must not be a valid subcommand
-            // Must not start with '-'
-            // Must not be empty
-            !validSubcommands.includes(s) && !s.startsWith('-') && s.trim().length > 0,
-          ),
+            !validSubcommands.includes(s) && !s.startsWith('-') && s.trim().length > 0), // Must not be empty // Must not start with '-' // Must not be a valid subcommand
           unknownCmd => {
             const result = parseArgs([unknownCmd])
             expect(result.unknownCommand).toBe(unknownCmd)
@@ -139,16 +134,13 @@ describe('resolveLogLevel property tests', () => {
     it('should resolve to most verbose level when multiple flags provided', () => {
       fc.assert(
         fc.property(
-          // Generate a non-empty subset of log levels
-          fc.array(fc.constantFrom(...allLogLevels), {minLength: 1, maxLength: 5}),
+          fc.array(fc.constantFrom(...allLogLevels), {minLength: 1, maxLength: 5}), // Generate a non-empty subset of log levels
           levels => {
-            // Build args with log level flags
-            const args = levels.map(level => `--${level}`)
+            const args = levels.map(level => `--${level}`) // Build args with log level flags
             const parsed = parseArgs(args)
             const resolved = resolveLogLevel(parsed)
 
-            // Find expected most verbose level
-            const expectedLevel = levels.reduce((mostVerbose, current) => logLevelPriority[current] < logLevelPriority[mostVerbose]
+            const expectedLevel = levels.reduce((mostVerbose, current) => logLevelPriority[current] < logLevelPriority[mostVerbose] // Find expected most verbose level
               ? current
               : mostVerbose)
 
@@ -164,9 +156,7 @@ describe('resolveLogLevel property tests', () => {
         fc.property(
           fc.array(
             fc.string().filter(s =>
-              // Exclude log level flags
-              !allLogLevels.some(level => s === `--${level}`),
-            ),
+              !allLogLevels.some(level => s === `--${level}`)), // Exclude log level flags
             {maxLength: 10},
           ),
           args => {
@@ -182,11 +172,9 @@ describe('resolveLogLevel property tests', () => {
     it('should always return trace when trace is among the flags', () => {
       fc.assert(
         fc.property(
-          // Generate other log levels (not trace)
-          fc.array(fc.constantFrom('debug', 'info', 'warn', 'error') as fc.Arbitrary<LogLevel>, {maxLength: 4}),
+          fc.array(fc.constantFrom('debug', 'info', 'warn', 'error') as fc.Arbitrary<LogLevel>, {maxLength: 4}), // Generate other log levels (not trace)
           otherLevels => {
-            // Always include trace
-            const args = ['--trace', ...otherLevels.map(level => `--${level}`)]
+            const args = ['--trace', ...otherLevels.map(level => `--${level}`)] // Always include trace
             const parsed = parseArgs(args)
             const resolved = resolveLogLevel(parsed)
 
@@ -233,19 +221,15 @@ describe('resolveCommand property tests', () => {
     it('should return ExecuteCommand for empty/default args', () => {
       fc.assert(
         fc.property(
-          // Generate arrays of non-flag, non-subcommand strings (positional args)
-          fc.array(
+          fc.array( // Generate arrays of non-flag, non-subcommand strings (positional args)
             fc.string().filter(s =>
-              // Exclude flags and valid subcommands
-              !s.startsWith('-')
+              !s.startsWith('-') // Exclude flags and valid subcommands
               && !['help', 'init', 'dry-run', 'clean'].includes(s)
-              && s.trim().length === 0,
-            ),
+              && s.trim().length === 0),
             {maxLength: 5},
           ),
           _emptyArgs => {
-            // Create args with no subcommand, no helpFlag, no unknownCommand
-            const args = createParsedArgs()
+            const args = createParsedArgs() // Create args with no subcommand, no helpFlag, no unknownCommand
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(ExecuteCommand)
           },
@@ -259,8 +243,7 @@ describe('resolveCommand property tests', () => {
         fc.property(
           fc.array(fc.string({minLength: 1}), {maxLength: 5}),
           positionalArgs => {
-            // Create args with positional but no subcommand/flags
-            const args = createParsedArgs({positional: positionalArgs})
+            const args = createParsedArgs({positional: positionalArgs}) // Create args with positional but no subcommand/flags
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(ExecuteCommand)
           },
@@ -286,12 +269,7 @@ describe('resolveCommand property tests', () => {
           fc.boolean(),
           fc.option(fc.string({minLength: 1}), {nil: void 0}),
           (subcommand, dryRun, unknownCommand) => {
-            const args = createParsedArgs({
-              helpFlag: true,
-              subcommand,
-              dryRun,
-              unknownCommand,
-            })
+            const args = createParsedArgs({helpFlag: true, subcommand, dryRun, unknownCommand})
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(HelpCommand)
           },
@@ -352,11 +330,7 @@ describe('resolveCommand property tests', () => {
         fc.property(
           fc.array(fc.string(), {maxLength: 5}),
           unknownFlags => {
-            const args = createParsedArgs({
-              subcommand: 'clean',
-              dryRun: true,
-              unknown: unknownFlags,
-            })
+            const args = createParsedArgs({subcommand: 'clean', dryRun: true, unknown: unknownFlags})
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(DryRunCleanCommand)
           },

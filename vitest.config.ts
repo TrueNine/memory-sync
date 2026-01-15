@@ -15,10 +15,8 @@ export default mergeConfig(
         enabled: true,
         tsconfig: './tsconfig.test.json',
       },
-      // Property-based tests run more iterations
-      testTimeout: 30000,
-      // Minimal output: suppress console logs, show summary only
-      onConsoleLog: () => false,
+      testTimeout: 30000, // Property-based tests run more iterations
+      onConsoleLog: () => false, // Minimal output: suppress console logs, show summary only
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json', 'html'],

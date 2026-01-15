@@ -19,15 +19,11 @@ const COMMANDS_SUBDIR = 'commands'
 const AGENTS_SUBDIR = 'agents'
 const SKILLS_SUBDIR = 'skills'
 
-// Directories to clean under .factory/
-const CLEANUP_SUBDIRS = [COMMANDS_SUBDIR, AGENTS_SUBDIR, SKILLS_SUBDIR] as const
+const CLEANUP_SUBDIRS = [COMMANDS_SUBDIR, AGENTS_SUBDIR, SKILLS_SUBDIR] as const // Directories to clean under .factory/
 
 export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('DroidCLIOutputPlugin', {
-      globalConfigDir: GLOBAL_CONFIG_DIR,
-      outputFileName: GLOBAL_MEMORY_FILE,
-    })
+    super('DroidCLIOutputPlugin', {globalConfigDir: GLOBAL_CONFIG_DIR, outputFileName: GLOBAL_MEMORY_FILE})
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -37,8 +33,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      // Register .factory/commands, .factory/agents, .factory/skills for cleanup
-      for (const subdir of CLEANUP_SUBDIRS) {
+      for (const subdir of CLEANUP_SUBDIRS) { // Register .factory/commands, .factory/agents, .factory/skills for cleanup
         const dirPath = path.join(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, subdir)
         results.push({
           pathKind: FilePathKind.Relative,
@@ -53,8 +48,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  // DroidCLI outputs skills to project directories, register skill files for cleanup
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> { // DroidCLI outputs skills to project directories, register skill files for cleanup
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const {skills} = ctx.collectedInputContext
@@ -62,14 +56,12 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      // Register skill files (SKILL.md, reference docs, and resources)
-      if (skills != null) {
+      if (skills != null) { // Register skill files (SKILL.md, reference docs, and resources)
         for (const skill of skills) {
           const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
           const skillDir = path.join(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
 
-          // Register SKILL.md
-          results.push({
+          results.push({ // Register SKILL.md
             pathKind: FilePathKind.Relative,
             path: path.join(skillDir, 'SKILL.md'),
             basePath: project.dirFromWorkspacePath.basePath,
@@ -77,8 +69,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
             getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, skillDir, 'SKILL.md'),
           })
 
-          // Register reference documents (convert .mdx to .md)
-          if (skill.childDocs != null) {
+          if (skill.childDocs != null) { // Register reference documents (convert .mdx to .md)
             for (const refDoc of skill.childDocs) {
               const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
               const refDocPath = path.join(skillDir, refDocFileName)
@@ -92,8 +83,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
             }
           }
 
-          // Register resource files
-          if (skill.resources != null) {
+          if (skill.resources != null) { // Register resource files
             for (const resource of skill.resources) {
               const resourcePath = path.join(skillDir, resource.relativePath)
               results.push({
@@ -152,24 +142,21 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
 
       if (projectDir == null) continue
 
-      // Write fast commands to .factory/commands/
-      if (fastCommands != null) {
+      if (fastCommands != null) { // Write fast commands to .factory/commands/
         for (const cmd of fastCommands) {
           const cmdResults = await this.writeFastCommand(ctx, projectDir, cmd)
           fileResults.push(...cmdResults)
         }
       }
 
-      // Write sub agents to .factory/agents/
-      if (subAgents != null) {
+      if (subAgents != null) { // Write sub agents to .factory/agents/
         for (const agent of subAgents) {
           const agentResults = await this.writeSubAgent(ctx, projectDir, agent)
           fileResults.push(...agentResults)
         }
       }
 
-      // Write skills to .factory/skills/
-      if (skills != null) {
+      if (skills != null) { // Write skills to .factory/skills/
         for (const skill of skills) {
           const skillResults = await this.writeSkill(ctx, projectDir, skill)
           fileResults.push(...skillResults)
@@ -210,7 +197,8 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
       this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
       fileResults.push({path: relativePath, success: true})
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'globalMemory', path: fullPath, error: errMsg})
       fileResults.push({path: relativePath, success: false, error: error as Error})
@@ -225,8 +213,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     cmd: FastCommandPrompt,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    // Use transformFastCommandName with configuration from context
-    const transformOptions = this.getTransformOptionsFromContext(ctx)
+    const transformOptions = this.getTransformOptionsFromContext(ctx) // Use transformFastCommandName with configuration from context
     const fileName = this.transformFastCommandName(cmd, transformOptions)
     const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR)
     const fullPath = path.join(targetDir, fileName)
@@ -239,8 +226,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter, preferring raw if parsed failed
-    const content = this.buildMarkdownContentWithRaw(
+    const content = this.buildMarkdownContentWithRaw( // Build content with front matter, preferring raw if parsed failed
       cmd.content as string,
       cmd.yamlFrontMatter,
       cmd.rawFrontMatter,
@@ -256,7 +242,8 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({action: 'write', type: 'fastCommand', path: fullPath})
       results.push({path: relativePath, success: true})
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'fastCommand', path: fullPath, error: errMsg})
       results.push({path: relativePath, success: false, error: error as Error})
@@ -283,8 +270,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build content with front matter, preferring raw if parsed failed
-    const content = this.buildMarkdownContentWithRaw(
+    const content = this.buildMarkdownContentWithRaw( // Build content with front matter, preferring raw if parsed failed
       agent.content as string,
       agent.yamlFrontMatter,
       agent.rawFrontMatter,
@@ -300,7 +286,8 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       fs.writeFileSync(fullPath, content, 'utf8')
       this.log.trace({action: 'write', type: 'subAgent', path: fullPath})
       results.push({path: relativePath, success: true})
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'subAgent', path: fullPath, error: errMsg})
       results.push({path: relativePath, success: false, error: error as Error})
@@ -315,8 +302,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     skill: SkillPrompt,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    // skill.dir.path is the skill directory name
-    const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+    const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName() // skill.dir.path is the skill directory name
     const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
     const fullPath = path.join(targetDir, 'SKILL.md')
 
@@ -328,13 +314,11 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    // Build front matter with only name and description for Droid CLI
-    const simplifiedFrontMatter = skill.yamlFrontMatter != null
+    const simplifiedFrontMatter = skill.yamlFrontMatter != null // Build front matter with only name and description for Droid CLI
       ? {name: skill.yamlFrontMatter.name, description: skill.yamlFrontMatter.description}
       : void 0
 
-    // Build content with simplified front matter
-    const content = this.buildMarkdownContent(skill.content as string, simplifiedFrontMatter)
+    const content = this.buildMarkdownContent(skill.content as string, simplifiedFrontMatter) // Build content with simplified front matter
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'skill', path: fullPath})
@@ -347,22 +331,21 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       this.log.trace({action: 'write', type: 'skill', path: fullPath})
       results.push({path: relativePath, success: true})
 
-      // Write reference documents if any
-      if (skill.childDocs != null) {
+      if (skill.childDocs != null) { // Write reference documents if any
         for (const refDoc of skill.childDocs) {
           const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc, projectDir)
           results.push(...refResults)
         }
       }
 
-      // Write resource files if any
-      if (skill.resources != null) {
+      if (skill.resources != null) { // Write resource files if any
         for (const resource of skill.resources) {
           const resourceResults = await this.writeSkillResource(ctx, targetDir, skillName, resource, projectDir)
           results.push(...resourceResults)
         }
       }
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'skill', path: fullPath, error: errMsg})
       results.push({path: relativePath, success: false, error: error as Error})
@@ -379,8 +362,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     projectDir: RelativePath,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    // Convert .mdx to .md for output
-    const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+    const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md') // Convert .mdx to .md for output
     const fullPath = path.join(skillDir, fileName)
 
     const relativePath: RelativePath = {
@@ -397,13 +379,13 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     try {
-      // Ensure parent directory exists for nested reference documents
-      const parentDir = path.dirname(fullPath)
+      const parentDir = path.dirname(fullPath) // Ensure parent directory exists for nested reference documents
       this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, refDoc.content as string, 'utf8')
       this.log.trace({action: 'write', type: 'skillRefDoc', path: fullPath})
       results.push({path: relativePath, success: true})
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg})
       results.push({path: relativePath, success: false, error: error as Error})
@@ -436,13 +418,13 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     try {
-      // Ensure parent directory exists for nested resources
-      const parentDir = path.dirname(fullPath)
+      const parentDir = path.dirname(fullPath) // Ensure parent directory exists for nested resources
       this.ensureDirectory(parentDir)
       fs.writeFileSync(fullPath, resource.content, 'utf8')
       this.log.trace({action: 'write', type: 'skillResource', path: fullPath})
       results.push({path: relativePath, success: true})
-    } catch (error) {
+    }
+    catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'skillResource', path: fullPath, error: errMsg})
       results.push({path: relativePath, success: false, error: error as Error})

@@ -208,13 +208,11 @@ describe('skillInputPlugin', () => {
 
       const result = plugin.scanSkillDirectory('/skill/dir', mockFs, createMockLogger())
 
-      // Should have 1 child doc (guide.mdx, not skill.mdx)
-      expect(result.childDocs).toHaveLength(1)
+      expect(result.childDocs).toHaveLength(1) // Should have 1 child doc (guide.mdx, not skill.mdx)
       expect(result.childDocs[0]?.relativePath).toBe('guide.mdx')
       expect(result.childDocs[0]?.type).toBe(PromptKind.SkillChildDoc)
 
-      // Should have 2 resources (helper.kt, logo.png, not mcp.json)
-      expect(result.resources).toHaveLength(2)
+      expect(result.resources).toHaveLength(2) // Should have 2 resources (helper.kt, logo.png, not mcp.json)
       expect(result.resources.map(r => r.fileName)).toContain('helper.kt')
       expect(result.resources.map(r => r.fileName)).toContain('logo.png')
     })
@@ -256,15 +254,12 @@ describe('skillInputPlugin', () => {
 
       const result = plugin.scanSkillDirectory(skillDir, mockFs, createMockLogger())
 
-      // Should have 2 child docs from docs/
-      expect(result.childDocs).toHaveLength(2)
-      // Normalize paths for cross-platform comparison
-      const childDocPaths = result.childDocs.map(d => d.relativePath.replaceAll('\\', '/'))
+      expect(result.childDocs).toHaveLength(2) // Should have 2 child docs from docs/
+      const childDocPaths = result.childDocs.map(d => d.relativePath.replaceAll('\\', '/')) // Normalize paths for cross-platform comparison
       expect(childDocPaths).toContain('docs/guide.mdx')
       expect(childDocPaths).toContain('docs/api.mdx')
 
-      // Should have 2 resources from assets/
-      expect(result.resources).toHaveLength(2)
+      expect(result.resources).toHaveLength(2) // Should have 2 resources from assets/
       const resourcePaths = result.resources.map(r => r.relativePath.replaceAll('\\', '/'))
       expect(resourcePaths).toContain('assets/logo.png')
       expect(resourcePaths).toContain('assets/schema.sql')

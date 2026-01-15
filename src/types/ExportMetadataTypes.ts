@@ -215,8 +215,7 @@ export function validateExportMetadata<T>(
   const errors: string[] = []
   const warnings: string[] = []
 
-  // Check required fields
-  for (const field of requiredFields) {
+  for (const field of requiredFields) { // Check required fields
     const fieldName = String(field)
     if (!(fieldName in metadata) || metadata[fieldName] == null) {
       const errorMsg = filePath != null
@@ -226,8 +225,7 @@ export function validateExportMetadata<T>(
     }
   }
 
-  // Check optional fields and record warnings for defaults
-  if (optionalDefaults != null) {
+  if (optionalDefaults != null) { // Check optional fields and record warnings for defaults
     for (const [key, defaultValue] of Object.entries(optionalDefaults)) {
       if (!(key in metadata) || metadata[key] == null) {
         const warningMsg = filePath != null
@@ -277,9 +275,7 @@ export function validateFastCommandMetadata(
   metadata: Record<string, unknown>,
   filePath?: string,
 ): MetadataValidationResult {
-  // FastCommand has no required fields from export metadata
-  // description is optional (can come from YAML or be omitted)
-  return validateExportMetadata<FastCommandExportMetadata>(metadata, {
+  return validateExportMetadata<FastCommandExportMetadata>(metadata, { // description is optional (can come from YAML or be omitted) // FastCommand has no required fields from export metadata
     requiredFields: [],
     optionalDefaults: {},
     filePath,

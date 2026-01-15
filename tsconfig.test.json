@@ -3,8 +3,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "lib": ["ESNext", "DOM"],
-    // Test environment specific
-    "types": ["vitest/globals", "node"]
+    "types": ["vitest/globals", "node"] // Test environment specific
   },
   "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "vitest.config.ts", "vite.config.ts", "env.d.ts"],
   "exclude": ["node_modules", "dist"]

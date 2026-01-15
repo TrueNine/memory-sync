@@ -101,20 +101,16 @@ function mergeTwoConfigs(
   return {
     ...base,
     ...override,
-    // Array concatenation for externalProjects
-    externalProjects: [
+    externalProjects: [ // Array concatenation for externalProjects
       ...base.externalProjects,
       ...overrideExternal ?? [],
     ],
-    // Array concatenation for plugins
-    plugins: [
+    plugins: [ // Array concatenation for plugins
       ...base.plugins,
       ...overridePlugins ?? [],
     ],
-    // Deep merge for excludePatterns
-    excludePatterns: mergeExcludePatterns(base.excludePatterns, overrideExclude),
-    // Deep merge for fastCommandSeriesOptions
-    fastCommandSeriesOptions: mergeFastCommandSeriesOptions(base.fastCommandSeriesOptions, overrideFastCommandSeries),
+    excludePatterns: mergeExcludePatterns(base.excludePatterns, overrideExclude), // Deep merge for excludePatterns
+    fastCommandSeriesOptions: mergeFastCommandSeriesOptions(base.fastCommandSeriesOptions, overrideFastCommandSeries), // Deep merge for fastCommandSeriesOptions
   }
 }
 
@@ -136,16 +132,13 @@ function mergeFastCommandSeriesOptions(
   if (override == null) return base ?? {}
   if (base == null) return override
 
-  // Merge pluginOverrides deeply
-  const mergedPluginOverrides: Record<string, FastCommandSeriesPluginOverride> = {}
+  const mergedPluginOverrides: Record<string, FastCommandSeriesPluginOverride> = {} // Merge pluginOverrides deeply
 
-  // Copy base plugin overrides
-  if (base.pluginOverrides != null) {
+  if (base.pluginOverrides != null) { // Copy base plugin overrides
     for (const [key, value] of Object.entries(base.pluginOverrides)) mergedPluginOverrides[key] = {...value}
   }
 
-  // Merge override plugin overrides
-  if (override.pluginOverrides != null) {
+  if (override.pluginOverrides != null) { // Merge override plugin overrides
     for (const [key, value] of Object.entries(override.pluginOverrides)) {
       mergedPluginOverrides[key] = {
         ...mergedPluginOverrides[key],
@@ -154,8 +147,7 @@ function mergeFastCommandSeriesOptions(
     }
   }
 
-  // Build result with conditional properties to satisfy exactOptionalPropertyTypes
-  const includeSeriesPrefix = override.includeSeriesPrefix ?? base.includeSeriesPrefix
+  const includeSeriesPrefix = override.includeSeriesPrefix ?? base.includeSeriesPrefix // Build result with conditional properties to satisfy exactOptionalPropertyTypes
   const hasPluginOverrides = Object.keys(mergedPluginOverrides).length > 0
 
   if (includeSeriesPrefix != null && hasPluginOverrides) return {includeSeriesPrefix, pluginOverrides: mergedPluginOverrides}
@@ -183,12 +175,10 @@ function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): op
  * @param options - Plugin options or DefineConfigOptions
  */
 export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
-  // Validate and ensure global config exists
-  const validationResult = validateAndEnsureGlobalConfig()
+  const validationResult = validateAndEnsureGlobalConfig() // Validate and ensure global config exists
   if (validationResult.shouldExit) process.exit(1)
 
-  // Normalize options
-  let shouldLoadUserConfig: boolean,
+  let shouldLoadUserConfig: boolean, // Normalize options
     cwd: string | undefined,
     pluginOptions: PluginOptions
 
@@ -200,8 +190,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     shouldLoadUserConfig = true
   }
 
-  // Load user config if enabled
-  let userConfigOptions: Partial<PluginOptions> = {}
+  let userConfigOptions: Partial<PluginOptions> = {} // Load user config if enabled
   let userConfigFound = false
   let userConfigSources: readonly string[] = []
   let userConfigFile: UserConfigFile | undefined
@@ -216,13 +205,11 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     }
   }
 
-  // Merge: defaults <- user config <- programmatic options
-  const mergedOptions = mergeConfig(userConfigOptions, pluginOptions)
+  const mergedOptions = mergeConfig(userConfigOptions, pluginOptions) // Merge: defaults <- user config <- programmatic options
   const {plugins = [], logLevel} = mergedOptions
   const logger = createLogger('defineConfig', logLevel)
 
-  // Log configuration loading info
-  if (userConfigFound) logger.info('user config loaded', {sources: userConfigSources})
+  if (userConfigFound) logger.info('user config loaded', {sources: userConfigSources}) // Log configuration loading info
   else {
     logger.info('no user config found, using defaults', {
       workspaceDir: DEFAULT_OPTIONS.workspaceDir,
@@ -236,8 +223,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     })
   }
 
-  // Base context without dependencyContext, globalScope, scopeRegistry (will be provided by pipeline)
-  const baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = {
+  const baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = { // Base context without dependencyContext, globalScope, scopeRegistry (will be provided by pipeline)
     logger,
     userConfigOptions: mergedOptions,
     fs,
@@ -245,17 +231,13 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     glob,
   }
 
-  // Filter plugins by type
-  const inputPlugins = plugins.filter((p): p is InputPlugin => p.type === PluginKind.Input)
+  const inputPlugins = plugins.filter((p): p is InputPlugin => p.type === PluginKind.Input) // Filter plugins by type
   const outputPlugins = plugins.filter((p): p is OutputPlugin => p.type === PluginKind.Output)
 
-  // Use PluginPipeline to execute plugins in dependency order
-  // Pass userConfigFile for GlobalScopeCollector to access profile and tool
-  const pipeline = new PluginPipeline()
+  const pipeline = new PluginPipeline() // Pass userConfigFile for GlobalScopeCollector to access profile and tool // Use PluginPipeline to execute plugins in dependency order
   const merged = await pipeline.executePluginsInOrder(inputPlugins, baseCtx, false, userConfigFile)
 
-  // Validate workspace exists
-  if (merged.workspace == null) throw new Error('Workspace not initialized by any plugin')
+  if (merged.workspace == null) throw new Error('Workspace not initialized by any plugin') // Validate workspace exists
 
   const context: CollectedInputContext = {
     workspace: merged.workspace,
@@ -270,8 +252,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     ...merged.readmePrompts != null && {readmePrompts: merged.readmePrompts},
   }
 
-  // Check version control status for shadow source project
-  if (merged.shadowSourceProjectDir != null) checkVersionControl(merged.shadowSourceProjectDir, logger)
+  if (merged.shadowSourceProjectDir != null) checkVersionControl(merged.shadowSourceProjectDir, logger) // Check version control status for shadow source project
 
   return {context, outputPlugins, userConfigOptions: mergedOptions}
 }

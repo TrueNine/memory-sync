@@ -1,7 +1,4 @@
-// src/components/Md.ts
-// Md component handler - wrapper for conditional Markdown content
-
-import type {RootContent, Text} from 'mdast'
+import type {RootContent, Text} from 'mdast' // Md component handler - wrapper for conditional Markdown content // src/components/Md.ts
 import type {MdxJsxFlowElement, MdxJsxTextElement} from 'mdast-util-mdx'
 import type {ProcessingContext} from '@/compiler/types'
 import {evaluateExpression} from '@/compiler/expression-eval'
@@ -21,8 +18,7 @@ function evaluateWhenCondition(
     attr => attr.type === 'mdxJsxAttribute' && attr.name === 'when',
   )
 
-  // No condition = always true
-  if (whenAttr?.type !== 'mdxJsxAttribute') return true
+  if (whenAttr?.type !== 'mdxJsxAttribute') return true // No condition = always true
 
   if (typeof whenAttr.value === 'string') return whenAttr.value === 'true'
 
@@ -34,7 +30,8 @@ function evaluateWhenCondition(
     try {
       const evaluated = evaluateExpression(whenAttr.value.value, ctx.scope)
       return evaluated === 'true' || evaluated === '1'
-    } catch {
+    }
+    catch {
       return false
     }
   }
@@ -110,8 +107,7 @@ export async function MdLineHandler(
 
   if (element.children.length === 0) return []
 
-  // Extract text content from children
-  const textContent = extractTextContent(element.children, ctx)
+  const textContent = extractTextContent(element.children, ctx) // Extract text content from children
 
   if (textContent === '') return []
 
@@ -133,11 +129,10 @@ function extractTextContent(
     else if (child.type === 'mdxTextExpression') {
       try {
         result += evaluateExpression(child.value, ctx.scope)
-      } catch {
-        // Skip failed expressions
       }
-    }
-    else if ('children' in child && Array.isArray(child.children)) result += extractTextContent(child.children as typeof children, ctx)
+      catch {
+      } // Skip failed expressions
+    } else if ('children' in child && Array.isArray(child.children)) result += extractTextContent(child.children as typeof children, ctx)
   }
 
   return result

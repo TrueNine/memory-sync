@@ -1,7 +1,6 @@
 import process from 'node:process'
 
-// ANSI color codes - internal use only
-const colors = {
+const colors = { // ANSI color codes - internal use only
   reset: '\x1B[0m',
   red: '\x1B[31m',
   yellow: '\x1B[33m',
@@ -15,8 +14,7 @@ const colors = {
   bgRed: '\x1B[41m',
 } as const
 
-// Color helper functions - internal use only
-const colorize = {
+const colorize = { // Color helper functions - internal use only
   red: (text: string) => `${colors.red}${text}${colors.reset}`,
   yellow: (text: string) => `${colors.yellow}${text}${colors.reset}`,
   cyan: (text: string) => `${colors.cyan}${text}${colors.reset}`,
@@ -29,8 +27,7 @@ const colorize = {
   bgRed: (text: string) => `${colors.bgRed}${text}${colors.reset}`,
 }
 
-// Public types
-export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'fatal' | 'silent'
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'fatal' | 'silent' // Public types
 
 export interface ILogger {
   error: (message: string | object, ...meta: unknown[]) => void
@@ -41,8 +38,7 @@ export interface ILogger {
   fatal: (message: string | object, ...meta: unknown[]) => void
 }
 
-// Internal types
-interface LogRecord<M extends string | number | symbol = string> {
+interface LogRecord<M extends string | number | symbol = string> { // Internal types
   $: [datetime: string, level: LogLevel, namespace: string]
   _: M | {[message in M]: object} | object
 }
@@ -53,11 +49,9 @@ interface LeveledLogMethod {
   (infoObject: object): LogRecord
 }
 
-// Internal state
-let globalLogLevel: LogLevel | undefined
+let globalLogLevel: LogLevel | undefined // Internal state
 
-// Internal constants
-const LEVEL_COLORS: Record<string, (s: string) => string> = {
+const LEVEL_COLORS: Record<string, (s: string) => string> = { // Internal constants
   error: colorize.red,
   warn: colorize.yellow,
   info: colorize.cyan,
@@ -76,8 +70,7 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
   trace: 6,
 }
 
-// Internal helper functions
-function colorizeValue(value: unknown): string {
+function colorizeValue(value: unknown): string { // Internal helper functions
   if (value === null) return colorize.dim('null')
   if (typeof value === 'undefined') return colorize.dim('undefined')
   if (typeof value === 'boolean') return colorize.yellow(String(value))
@@ -95,8 +88,7 @@ function toJson5(obj: Record<string, unknown>): string {
   const entries = Object.entries(obj)
   if (entries.length === 0) return '{}'
   const parts = entries.map(([k, v]) => {
-    // JSON5: unquoted keys (pink), quoted keys (yellow)
-    const isValidIdentifier = /^[\w$]+$/.test(k)
+    const isValidIdentifier = /^[\w$]+$/.test(k) // JSON5: unquoted keys (pink), quoted keys (yellow)
     const key = isValidIdentifier ? colorize.magenta(k) : colorize.yellow(`"${k}"`)
     return `${key}:${colorizeValue(v)}`
   })
@@ -128,8 +120,7 @@ function formatLog(
       : message as string,
   }
 
-  // Output to console
-  const base = {
+  const base = { // Output to console
     $: [timestamp, colorFn(level.toUpperCase()), namespace],
   }
   const _ = meta != null && Object.keys(meta).length > 0
@@ -137,8 +128,7 @@ function formatLog(
     : message
   const output = toJson5({...base, _} as unknown as Record<string, unknown>)
 
-  // Use appropriate console method based on level
-  if (level === 'error' || level === 'fatal') console.error(output)
+  if (level === 'error' || level === 'fatal') console.error(output) // Use appropriate console method based on level
   else if (level === 'warn') console.warn(output)
   // eslint-disable-next-line no-console
   else if (level === 'debug' || level === 'trace') console.debug(output)
@@ -157,19 +147,15 @@ function createLeveledMethod(
   const currentPriority = LEVEL_PRIORITY[currentLevel]
 
   return (messageOrObject: unknown, ...meta: unknown[]): LogRecord => {
-    // Check if logging is enabled for this level
-    if (levelPriority > currentPriority) {
-      // Return empty record without logging
-      return {
+    if (levelPriority > currentPriority) { // Check if logging is enabled for this level
+      return { // Return empty record without logging
         $: [getTimestamp(), level, namespace],
         _: messageOrObject as string,
       }
     }
 
-    // Handle different call signatures
-    if (typeof messageOrObject === 'string') {
-      // (message: string, ...meta: unknown[])
-      const metaObj = meta.length === 1 && typeof meta[0] === 'object' && meta[0] !== null
+    if (typeof messageOrObject === 'string') { // Handle different call signatures
+      const metaObj = meta.length === 1 && typeof meta[0] === 'object' && meta[0] !== null // (message: string, ...meta: unknown[])
         ? meta[0] as Record<string, unknown>
         : meta.length > 0
           ? {args: meta}
@@ -178,16 +164,12 @@ function createLeveledMethod(
     }
 
     if (typeof messageOrObject === 'object' && messageOrObject !== null) {
-      // (infoObject: object)
-      return formatLog(level, namespace, '', messageOrObject as Record<string, unknown>)
+      return formatLog(level, namespace, '', messageOrObject as Record<string, unknown>) // (infoObject: object)
     }
 
-    // (message: unknown)
-    return formatLog(level, namespace, messageOrObject)
+    return formatLog(level, namespace, messageOrObject) // (message: unknown)
   }
-}
-
-// Public API functions
+} // Public API functions
 
 /**
  * Set the global log level for all loggers.

@@ -4,26 +4,21 @@
     "noUncheckedSideEffectImports": true,
 
     "incremental": true,
-    // Projects
-    "composite": false,
-    // Language and Environment
-    "target": "ESNext",
+    "composite": false, // Projects
+    "target": "ESNext", // Language and Environment
     "lib": ["ESNext"],
     "moduleDetection": "force",
     "useDefineForClassFields": true,
 
-    // Path Mapping
-    "baseUrl": ".",
-    // Module Resolution
-    "module": "ESNext",
+    "baseUrl": ".", // Path Mapping
+    "module": "ESNext", // Module Resolution
     "moduleResolution": "Bundler",
     "paths": {
       "@/*": ["./src/*"]
     },
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    // Type Checking - Maximum Strictness
-    "strict": true,
+    "strict": true, // Type Checking - Maximum Strictness
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "exactOptionalPropertyTypes": true,
@@ -35,8 +30,7 @@
 
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    // Emit
-    "declaration": true,
+    "declaration": true, // Emit
     "declarationMap": true,
     "importHelpers": true,
     "newLine": "lf",
@@ -47,15 +41,13 @@
     "stripInternal": true,
     "allowSyntheticDefaultImports": true,
 
-    // Interop Constraints
-    "esModuleInterop": true,
+    "esModuleInterop": true, // Interop Constraints
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
 
     "verbatimModuleSyntax": true,
 
-    // Completeness
-    "skipLibCheck": true
+    "skipLibCheck": true // Completeness
   },
   "include": [
     "src/**/*",

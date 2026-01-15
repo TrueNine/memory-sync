@@ -13,20 +13,13 @@ export class ExecuteCommand implements Command {
     const {logger, outputPlugins, createCleanContext, createWriteContext} = ctx
     logger.info('started', {command: 'execute'})
 
-    // Step 1: Pre-cleanup (non-dry-run only)
-    const cleanCtx = createCleanContext(false)
+    const cleanCtx = createCleanContext(false) // Step 1: Pre-cleanup (non-dry-run only)
     const cleanupResult = await performCleanup(outputPlugins, cleanCtx, logger, {
-      // Skip onCleanComplete hooks during pre-cleanup
-      // They will be handled by the write phase
-      executeHooks: false,
+      executeHooks: false, // They will be handled by the write phase // Skip onCleanComplete hooks during pre-cleanup
     })
-    logger.info('cleanup complete', {
-      deletedFiles: cleanupResult.deletedFiles,
-      deletedDirs: cleanupResult.deletedDirs,
-    })
+    logger.info('cleanup complete', {deletedFiles: cleanupResult.deletedFiles, deletedDirs: cleanupResult.deletedDirs})
 
-    // Step 2: Write outputs
-    const writeCtx = createWriteContext(false)
+    const writeCtx = createWriteContext(false) // Step 2: Write outputs
     const permissions = await checkCanWrite(outputPlugins, writeCtx)
     const allowedPlugins = outputPlugins.filter(
       p => permissions.get(p.name)?.project ?? true,

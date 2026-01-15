@@ -1,7 +1,4 @@
-// component-registry.ts
-// Registry for built-in MDX components
-
-import type {ComponentHandler} from './types'
+import type {ComponentHandler} from './types' // Registry for built-in MDX components // component-registry.ts
 
 /** Registry of built-in components */
 const componentRegistry = new Map<string, ComponentHandler>()

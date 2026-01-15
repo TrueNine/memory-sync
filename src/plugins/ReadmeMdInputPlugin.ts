@@ -27,25 +27,21 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
 
     const readmePrompts: ReadmePrompt[] = []
 
-    // Check if shadow projects directory exists
-    if (!fs.existsSync(shadowProjectsDir) || !fs.statSync(shadowProjectsDir).isDirectory()) {
+    if (!fs.existsSync(shadowProjectsDir) || !fs.statSync(shadowProjectsDir).isDirectory()) { // Check if shadow projects directory exists
       logger.debug('shadow projects directory does not exist', {path: shadowProjectsDir})
       return {readmePrompts}
     }
 
     try {
-      // Scan dist/app/<project> directories
-      const projectEntries = fs.readdirSync(shadowProjectsDir, {withFileTypes: true})
+      const projectEntries = fs.readdirSync(shadowProjectsDir, {withFileTypes: true}) // Scan dist/app/<project> directories
 
       for (const projectEntry of projectEntries) {
         if (!projectEntry.isDirectory()) continue
 
         const projectName = projectEntry.name
-        // New structure: dist/app/<project>/ (no nested dist folder)
-        const projectDir = path.join(shadowProjectsDir, projectName)
+        const projectDir = path.join(shadowProjectsDir, projectName) // New structure: dist/app/<project>/ (no nested dist folder)
 
-        // Collect readme.mdx files from project directory
-        await this.collectReadmeFiles(
+        await this.collectReadmeFiles( // Collect readme.mdx files from project directory
           ctx,
           projectDir,
           projectName,
@@ -55,7 +51,8 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           globalScope,
         )
       }
-    } catch (e) {
+    }
+    catch (e) {
       logger.error('failed to scan shadow projects', {path: shadowProjectsDir, error: e})
     }
 
@@ -85,22 +82,17 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     const {fs, path, logger} = ctx
     const isRoot = relativePath === ''
 
-    // Check for readme.mdx in current directory
-    const readmePath = path.join(currentDir, 'readme.mdx')
+    const readmePath = path.join(currentDir, 'readme.mdx') // Check for readme.mdx in current directory
     if (fs.existsSync(readmePath) && fs.statSync(readmePath).isFile()) {
       try {
         const rawContent = fs.readFileSync(readmePath, 'utf8')
 
-        // Compile MDX with globalScope to evaluate expressions like {profile.name}
-        // Only compile if globalScope is provided, otherwise use raw content
-        let content: string
+        let content: string // Only compile if globalScope is provided, otherwise use raw content // Compile MDX with globalScope to evaluate expressions like {profile.name}
         if (globalScope != null) {
           try {
-            content = await mdxToMd(rawContent, {
-              globalScope,
-              basePath: currentDir,
-            })
-          } catch (e) {
+            content = await mdxToMd(rawContent, {globalScope, basePath: currentDir})
+          }
+          catch (e) {
             if (e instanceof ScopeError) {
               logger.error(`MDX compilation failed in ${readmePath}: ${e.message}`)
               logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
@@ -108,11 +100,9 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
             }
             throw e
           }
-        }
-        else content = rawContent
+        } else content = rawContent
 
-        // Calculate target directory
-        const targetPath = isRoot ? projectName : path.join(projectName, relativePath)
+        const targetPath = isRoot ? projectName : path.join(projectName, relativePath) // Calculate target directory
 
         const targetDir: RelativePath = {
           pathKind: FilePathKind.Relative,
@@ -122,8 +112,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           getAbsolutePath: () => path.resolve(workspaceDir, targetPath),
         }
 
-        // Create dir for the README file location
-        const dir: RelativePath = {
+        const dir: RelativePath = { // Create dir for the README file location
           pathKind: FilePathKind.Relative,
           path: path.dirname(readmePath),
           basePath: workspaceDir,
@@ -139,17 +128,16 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           projectName,
           targetDir,
           isRoot,
-          // Required by Prompt interface
-          markdownContents: [],
+          markdownContents: [], // Required by Prompt interface
           dir,
         })
-      } catch (e) {
+      }
+      catch (e) {
         logger.warn('failed to read readme', {path: readmePath, error: e})
       }
     }
 
-    // Scan subdirectories for child README files
-    try {
+    try { // Scan subdirectories for child README files
       const entries = fs.readdirSync(currentDir, {withFileTypes: true})
 
       for (const entry of entries) {
@@ -157,18 +145,11 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           const subRelativePath = isRoot ? entry.name : path.join(relativePath, entry.name)
           const subDir = path.join(currentDir, entry.name)
 
-          await this.collectReadmeFiles(
-            ctx,
-            subDir,
-            projectName,
-            workspaceDir,
-            subRelativePath,
-            readmePrompts,
-            globalScope,
-          )
+          await this.collectReadmeFiles(ctx, subDir, projectName, workspaceDir, subRelativePath, readmePrompts, globalScope)
         }
       }
-    } catch (e) {
+    }
+    catch (e) {
       logger.warn('failed to scan directory', {path: currentDir, error: e})
     }
   }
