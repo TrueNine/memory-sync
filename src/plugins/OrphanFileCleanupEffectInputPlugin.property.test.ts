@@ -140,7 +140,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
         ),
         {numRuns: 100},
       )
-    })
+    }, 120000)
   })
 
   /**

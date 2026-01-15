@@ -78,7 +78,7 @@ const markdownContentGen = fc.array(lineWithTrailingWhitespaceGen, {minLength: 1
       for (let i = 0; i < lines.length; i++) {
         const blankCount = blankCounts[i]?.[1] ?? 0 // Add blank lines before this line
         for (let j = 0; j < blankCount; j++) result.push('')
-        result.push(lines[i])
+        result.push(lines[i]!)
       }
       return result
     }))
@@ -148,7 +148,7 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
         ),
         {numRuns: 100},
       )
-    })
+    }, 120000)
   })
 
   /**

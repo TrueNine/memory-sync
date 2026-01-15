@@ -94,7 +94,7 @@ function createMockContext(globalContent?: string, pluginOptions?: PluginOptions
     } as any,
     dryRun: false,
     pluginOptions,
-  }
+  } as unknown as OutputWriteContext
 }
 
 describe('abstractOutputPlugin', () => {
@@ -119,8 +119,8 @@ describe('abstractOutputPlugin', () => {
 
     it('should return undefined when global memory content is undefined', () => {
       const plugin = new TestOutputPlugin()
-      const ctx = createMockContext()
-      ctx.collectedInputContext.globalMemory = {
+      const ctx = createMockContext();
+      (ctx.collectedInputContext as any).globalMemory = {
         type: PromptKind.GlobalMemory,
         dir: createMockRelativePath('.', '/test'),
         markdownContents: [],
@@ -199,7 +199,7 @@ describe('abstractOutputPlugin', () => {
       const plugin = new TestOutputPlugin()
       const result = plugin.testCombineGlobalWithContent(' ', 'Project', {skipIfEmpty: false})
 
-      expect(result).toBe('   \n\nProject')
+      expect(result).toBe(' \n\nProject')
     })
 
     it('should treat undefined as empty string when skipIfEmpty is false', () => {
@@ -376,7 +376,7 @@ describe('abstractOutputPlugin', () => {
           separatorGen,
           fc.boolean(),
           separatorGen,
-          (pluginName, globalInclude, globalSep, pluginInclude, pluginSep) => {
+          (pluginName, globalInclude, _globalSep, pluginInclude, pluginSep) => {
             const plugin = new TestOutputPlugin(pluginName)
             const ctx = createMockContext(void 0, {
               fastCommandSeriesOptions: {

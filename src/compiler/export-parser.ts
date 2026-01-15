@@ -206,9 +206,16 @@ function extractValueString(code: string, startIndex: number): string | null {
       continue
     }
 
-    if (depth === 0 && (char === ';' || char === '\n')) { // End of value: semicolon or newline at depth 0
-      endIndex = i
-      break
+    if (depth === 0) {
+      if (char === ';' || char === '\n') { // End of value: semicolon or newline at depth 0
+        endIndex = i
+        break
+      }
+
+      if (char === '/' && i + 1 < code.length && code[i + 1] === '/') { // Check for inline comment
+        endIndex = i
+        break
+      }
     }
 
     if (i === code.length - 1) endIndex = code.length // Handle end of code
