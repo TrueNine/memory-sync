@@ -48,7 +48,7 @@ describe('gitExcludeOutputPlugin', () => {
     const ctx = {
       collectedInputContext: {},
       logger: createLogger('test', 'debug'),
-    } as any
+    } as unknown as import('@/types').OutputWriteContext
 
     const writeFileSpy = vi.spyOn(plugin as any, 'writeFile')
 

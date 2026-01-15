@@ -14,11 +14,11 @@ describe('gitIgnoreInputPlugin', () => {
     }
 
     const ctx = { // Mock context
-      fs: mockFs as any,
+      fs: mockFs,
       path,
       logger: createLogger('test', 'debug'),
       userConfigOptions: {},
-    } as any
+    } as unknown as import('@/types').InputPluginContext
 
     const result = plugin.collect(ctx)
 
@@ -37,11 +37,11 @@ describe('gitIgnoreInputPlugin', () => {
     }
 
     const ctx = {
-      fs: mockFs as any,
+      fs: mockFs,
       path,
       logger: createLogger('test', 'debug'),
       userConfigOptions: {},
-    } as any
+    } as unknown as import('@/types').InputPluginContext
 
     const result = plugin.collect(ctx)
 
