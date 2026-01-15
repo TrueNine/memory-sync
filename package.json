@@ -38,7 +38,7 @@
     "build": "pnpm typecheck && pnpm lintfix && tsdown",
     "prepublishOnly": "pnpm build",
     "test": "vitest run",
-    "lintfix": "eslint --fix",
+    "lintfix": "eslint --fix --cache",
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {
