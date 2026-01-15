@@ -79,6 +79,7 @@ export interface CollectedInputContext {
   readonly skills?: readonly SkillPrompt[]
   readonly globalMemory?: GlobalMemoryPrompt
   readonly aiAgentIgnoreConfigFiles?: readonly AIAgentIgnoreConfigFile[]
+  readonly globalGitIgnore?: string
   /**
    * Shadow source project directory absolute path
    * Used to identify and skip shadow source project during cleanup

@@ -8,6 +8,8 @@ import {DroidCLIOutputPlugin} from '@/plugins/DroidCLIOutputPlugin'
 import {FastCommandInputPlugin} from '@/plugins/FastCommandInputPlugin'
 import {GeminiCLIOutputPlugin} from '@/plugins/GeminiCLIOutputPlugin'
 import {GenericSkillsOutputPlugin} from '@/plugins/GenericSkillsOutputPlugin'
+import {GitExcludeOutputPlugin} from '@/plugins/GitExcludeOutputPlugin'
+import {GitIgnoreInputPlugin} from '@/plugins/GitIgnoreInputPlugin'
 import {GlobalMemoryInputPlugin} from '@/plugins/GlobalMemoryInputPlugin'
 import {IdeConfigInputPlugin} from '@/plugins/IdeConfigInputPlugin'
 import {JetBrainsIDECodeStyleConfigOutputPlugin} from '@/plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
@@ -21,9 +23,9 @@ import {ShadowProjectInputPlugin} from '@/plugins/ShadowProjectInputPlugin'
 import {SkillInputPlugin} from '@/plugins/SkillInputPlugin'
 import {SkillNonSrcFileSyncEffectInputPlugin} from '@/plugins/SkillNonSrcFileSyncEffectInputPlugin'
 import {SubAgentInputPlugin} from '@/plugins/SubAgentInputPlugin'
+import {VisualStudioCodeIDEConfigOutputPlugin} from '@/plugins/VisualStudioCodeIDEConfigOutputPlugin'
 import {WarpIDEOutputPlugin} from '@/plugins/WarpIDEOutputPlugin'
 import {WorkspaceInputPlugin} from '@/plugins/WorkspaceInputPlugin'
-import {VisualStudioCodeIDEConfigOutputPlugin} from './plugins/VisualStudioCodeIDEConfigOutputPlugin'
 
 export default defineConfig({
   plugins: [
@@ -36,6 +38,7 @@ export default defineConfig({
     new GenericSkillsOutputPlugin(),
     new KiroCLIOutputPlugin(),
     new WarpIDEOutputPlugin(),
+    new GitExcludeOutputPlugin(),
 
     new JetBrainsIDECodeStyleConfigOutputPlugin(),
     new VisualStudioCodeIDEConfigOutputPlugin(),
@@ -55,5 +58,6 @@ export default defineConfig({
     new GlobalMemoryInputPlugin(),
     new ProjectPromptInputPlugin(),
     new ReadmeMdInputPlugin(),
+    new GitIgnoreInputPlugin(),
   ],
 })
