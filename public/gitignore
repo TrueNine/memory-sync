@@ -1,8 +1,9 @@
-logs/
 CLAUDE.md
 GEMINI.md
 AGENTS.md
 WARP.md
+
+.agent/
 .claude/
 .factory/
 .cursor/
@@ -10,9 +11,13 @@ WARP.md
 .qoder/
 .windsurf/
 .kiro/
-.cache/
+
 .skills/
-.google-devtools-mcp/
+
 nul
 node_modules/
-pnpm-lock.yaml
+
+.cursorignore
+.qoderignore
+.warpindexignore
+.editorconfig
