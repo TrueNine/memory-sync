@@ -81,6 +81,11 @@ export interface CollectedInputContext {
   readonly aiAgentIgnoreConfigFiles?: readonly AIAgentIgnoreConfigFile[]
   readonly globalGitIgnore?: string
   /**
+   * Git exclude patterns from shadow source project (public/exclude).
+   * Will be merged with existing .git/info/exclude content.
+   */
+  readonly shadowGitExclude?: string
+  /**
    * Shadow source project directory absolute path
    * Used to identify and skip shadow source project during cleanup
    */

@@ -1,51 +1,66 @@
-import * as path from 'node:path'
-import {describe, expect, it, vi} from 'vitest'
+import type {InputPluginContext} from '@/types'
+import * as fs from 'node:fs'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {createLogger} from '@/log'
 import {GitIgnoreInputPlugin} from './GitIgnoreInputPlugin'
 
+vi.mock('node:fs')
+
 describe('gitIgnoreInputPlugin', () => {
-  it('should collect globalGitIgnore content when file exists', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('should collect gitignore content from file if it exists', () => {
     const plugin = new GitIgnoreInputPlugin()
-
-    const mockFs = {
-      existsSync: vi.fn().mockReturnValue(true),
-      readFileSync: vi.fn().mockReturnValue('node_modules/\n.env'),
-      statSync: vi.fn(),
-    }
-
-    const ctx = { // Mock context
-      fs: mockFs,
-      path,
+    const ctx = {
       logger: createLogger('test', 'debug'),
-      userConfigOptions: {},
-    } as unknown as import('@/types').InputPluginContext
+      userConfigOptions: {
+        workspaceDir: '/workspace',
+        shadowProjectDir: '/workspace',
+        shadowSkillSourceDir: '/workspace/.skills',
+        shadowFastCommandDir: '/workspace/.claude/commands',
+        shadowSubAgentDir: '/workspace/.claude/agents',
+        globalMemoryFile: '/workspace/GLOBAL.md',
+        shadowProjectsDir: '/workspace',
+        logLevel: 'debug',
+      },
+    } as unknown as InputPluginContext
+
+    vi.mocked(fs.existsSync).mockReturnValue(true)
+    vi.mocked(fs.readFileSync).mockReturnValue('node_modules/\n.env')
 
     const result = plugin.collect(ctx)
 
-    expect(mockFs.existsSync).toHaveBeenCalled()
+    expect(fs.readFileSync).toHaveBeenCalledWith(expect.stringContaining('public/gitignore'), 'utf8')
     expect(result).toEqual({
       globalGitIgnore: 'node_modules/\n.env',
     })
   })
 
-  it('should return empty object when file does not exist', () => {
+  it('should fallback to template if file does not exist', () => {
     const plugin = new GitIgnoreInputPlugin()
-
-    const mockFs = {
-      existsSync: vi.fn().mockReturnValue(false),
-      readFileSync: vi.fn(),
-    }
-
     const ctx = {
-      fs: mockFs,
-      path,
       logger: createLogger('test', 'debug'),
-      userConfigOptions: {},
-    } as unknown as import('@/types').InputPluginContext
+      userConfigOptions: {
+        workspaceDir: '/workspace',
+        shadowProjectDir: '/workspace',
+        shadowSkillSourceDir: '/workspace/.skills',
+        shadowFastCommandDir: '/workspace/.claude/commands',
+        shadowSubAgentDir: '/workspace/.claude/agents',
+        globalMemoryFile: '/workspace/GLOBAL.md',
+        shadowProjectsDir: '/workspace',
+        logLevel: 'debug',
+      },
+    } as unknown as InputPluginContext
+
+    vi.mocked(fs.existsSync).mockReturnValue(false)
 
     const result = plugin.collect(ctx)
 
-    expect(mockFs.existsSync).toHaveBeenCalled()
-    expect(result).toEqual({})
+    expect(fs.existsSync).toHaveBeenCalledWith(expect.stringContaining('public/gitignore'))
+    expect(fs.readFileSync).not.toHaveBeenCalled()
+
+    if (typeof __TEMPLATE_GITIGNORE__ !== 'undefined' && __TEMPLATE_GITIGNORE__) { // Fallback behavior depends on __TEMPLATE_GITIGNORE__ which is global
+      expect(result).toHaveProperty('globalGitIgnore')
+    } else expect(result).toEqual({})
   })
 })

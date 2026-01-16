@@ -8,6 +8,7 @@ import {DroidCLIOutputPlugin} from '@/plugins/DroidCLIOutputPlugin'
 import {FastCommandInputPlugin} from '@/plugins/FastCommandInputPlugin'
 import {GeminiCLIOutputPlugin} from '@/plugins/GeminiCLIOutputPlugin'
 import {GenericSkillsOutputPlugin} from '@/plugins/GenericSkillsOutputPlugin'
+import {GitExcludeInputPlugin} from '@/plugins/GitExcludeInputPlugin'
 import {GitExcludeOutputPlugin} from '@/plugins/GitExcludeOutputPlugin'
 import {GitIgnoreInputPlugin} from '@/plugins/GitIgnoreInputPlugin'
 import {GlobalMemoryInputPlugin} from '@/plugins/GlobalMemoryInputPlugin'
@@ -59,5 +60,6 @@ export default defineConfig({
     new ProjectPromptInputPlugin(),
     new ReadmeMdInputPlugin(),
     new GitIgnoreInputPlugin(),
+    new GitExcludeInputPlugin(),
   ],
 })

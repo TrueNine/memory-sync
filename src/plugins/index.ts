@@ -39,6 +39,15 @@ export {
   GenericSkillsOutputPlugin,
 } from './GenericSkillsOutputPlugin'
 export {
+  GitExcludeInputPlugin,
+} from './GitExcludeInputPlugin' // Git plugins
+export {
+  GitExcludeOutputPlugin,
+} from './GitExcludeOutputPlugin'
+export {
+  GitIgnoreInputPlugin,
+} from './GitIgnoreInputPlugin'
+export {
   MarkdownWhitespaceCleanupEffectInputPlugin,
 } from './MarkdownWhitespaceCleanupEffectInputPlugin' // Effect Input Plugins
 

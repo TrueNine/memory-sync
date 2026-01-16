@@ -732,6 +732,9 @@ export class PluginPipeline {
         ? [...base.readmePrompts ?? [], ...addition.readmePrompts]
         : base.readmePrompts
 
+    const globalGitIgnore: CollectedInputContext['globalGitIgnore'] | undefined // globalGitIgnore: last one wins
+      = addition.globalGitIgnore ?? base.globalGitIgnore
+
     return { // Build result object using object literal
       ...workspace != null ? {workspace} : {},
       ...externalProjects != null ? {externalProjects} : {},
@@ -743,6 +746,7 @@ export class PluginPipeline {
       ...globalMemory != null ? {globalMemory} : {},
       ...shadowSourceProjectDir != null ? {shadowSourceProjectDir} : {},
       ...readmePrompts != null ? {readmePrompts} : {},
+      ...globalGitIgnore != null ? {globalGitIgnore} : {},
     }
   }
 }

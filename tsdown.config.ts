@@ -30,7 +30,7 @@ export default defineConfig([
       __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
       __KIRO_GLOBAL_POWERS_REGISTRY__: kiroGlobalPowersRegistry,
       __TEMPLATE_TNMSC_EXAMPLE__: JSON.stringify(tnmscExample),
-      __TEMPLATE_GITIGNORE__: JSON.stringify(gitignoreTemplate),
+      __TEMPLATE_GITIGNORE__: `\`${gitignoreTemplate.replaceAll('`', '\\`').replaceAll('$', '\\$')}\``,
     },
   },
   {
