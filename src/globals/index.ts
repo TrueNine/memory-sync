@@ -186,6 +186,16 @@ declare global {
     os: OsInfo,
     /** Conditional Markdown component with Line sub-component */
     Md: MdComponent
+
+  /* eslint-disable-next-line ts/no-namespace -- JSX namespace required for MDX component type hints */
+  namespace JSX {
+    interface IntrinsicElements {
+      /** Block-level conditional Markdown wrapper @example <Md when={os.kind === 'mac'}>macOS content</Md> */
+      'Md': MdProps
+      /** Inline conditional text @example <Md.Line when={os.kind === 'win'}>PowerShell</Md.Line> */
+      'Md.Line': MdLineProps
+    }
+  }
 }
 
-export { }
+export {}
