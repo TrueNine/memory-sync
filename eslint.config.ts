@@ -7,6 +7,7 @@ const config = eslint9({
     tsconfigPath: './tsconfig.eslint.json',
   },
   ignores: [
+    'aindex/**',
     '*.md',
     '.kiro/**',
     '.claude/**',
