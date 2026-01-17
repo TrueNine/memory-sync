@@ -9,6 +9,7 @@ const config = eslint9({
   ignores: [
     'aindex/**',
     '*.md',
+    '**/*.md',
     '.kiro/**',
     '.claude/**',
     '.factory/**',
