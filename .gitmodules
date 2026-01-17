@@ -1,0 +1,3 @@
+[submodule "aindex"]
+	path = aindex
+	url = https://github.com/TrueNine/aindex.git
