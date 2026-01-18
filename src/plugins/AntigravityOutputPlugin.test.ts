@@ -1,9 +1,9 @@
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
-import { describe, expect, it, vi } from 'vitest'
-import { FilePathKind } from '@/types'
-import { AntigravityOutputPlugin } from './AntigravityOutputPlugin'
+import {describe, expect, it, vi} from 'vitest'
+import {FilePathKind} from '@/types'
+import {AntigravityOutputPlugin} from './AntigravityOutputPlugin'
 
 vi.mock('node:fs')
 vi.mock('node:os')
@@ -34,9 +34,9 @@ describe('antigravityOutputPlugin', () => {
         getAbsolutePath: () => `${projectBasePath}/my-skill`,
       },
       content: '# My Skill',
-      yamlFrontMatter: { name: 'custom-skill' },
+      yamlFrontMatter: {name: 'custom-skill'},
       resources: [
-        { relativePath: 'res.txt', content: 'resource content' },
+        {relativePath: 'res.txt', content: 'resource content'},
       ],
       childDocs: [
         {
@@ -65,7 +65,7 @@ describe('antigravityOutputPlugin', () => {
         getAbsolutePath: () => `${projectBasePath}/cmd1.md`,
       },
       content: '# Command 1',
-      yamlFrontMatter: { description: 'A description', other: 'ignore' },
+      yamlFrontMatter: {description: 'A description', other: 'ignore'},
     },
     {
       commandName: 'cmd2',
@@ -79,7 +79,7 @@ describe('antigravityOutputPlugin', () => {
       },
       content: '# Command 2',
       rawMdxContent: '---\ntitle: original\n---\n# Command 2 Raw',
-      yamlFrontMatter: { description: 'Desc 2' },
+      yamlFrontMatter: {description: 'Desc 2'},
     },
   ]
 
@@ -123,8 +123,7 @@ describe('antigravityOutputPlugin', () => {
     } as any
 
     const results = await plugin.registerProjectOutputDirs(ctx)
-    // Should still register local project directories for cleanup
-    expect(results).toHaveLength(2)
+    expect(results).toHaveLength(2) // Should still register local project directories for cleanup
     const paths = results.map(r => r.path.replaceAll('\\', '/'))
     expect(paths.some(p => p.includes('.agent/skills'))).toBe(true)
     expect(paths.some(p => p.includes('.agent/workflows'))).toBe(true)
@@ -142,14 +141,12 @@ describe('antigravityOutputPlugin', () => {
 
     const results = await plugin.registerProjectOutputFiles(ctx)
     expect(results).toHaveLength(3)
-    const paths = results.map(r => r.path.replaceAll('\\', '/'))
-    // r.path is now the relative filename
-    expect(paths.some(p => p === 'SKILL.md')).toBe(true)
-    expect(paths.some(p => p === 'doc.md')).toBe(true)
-    expect(paths.some(p => p === 'res.txt')).toBe(true)
+    const paths = new Set(results.map(r => r.path.replaceAll('\\', '/')))
+    expect(paths.has('SKILL.md')).toBe(true) // r.path is now the relative filename
+    expect(paths.has('doc.md')).toBe(true)
+    expect(paths.has('res.txt')).toBe(true)
 
-    // Check if base paths are global
-    const globalPathPart = '.gemini/antigravity/skills'
+    const globalPathPart = '.gemini/antigravity/skills' // Check if base paths are global
     const basePaths = results.map(r => r.basePath.replaceAll('\\', '/'))
     expect(basePaths.every(p => p.includes(globalPathPart))).toBe(true)
   })
@@ -157,9 +154,7 @@ describe('antigravityOutputPlugin', () => {
   it('should write skills correctly to global dir', async () => {
     await plugin.writeProjectOutputs(mockContext)
 
-    // Check for global path write
-    // Global path: /home/user/.gemini/antigravity/skills/custom-skill/SKILL.md
-    const expectedSkillPath = '.gemini/antigravity/skills/custom-skill/SKILL.md'
+    const expectedSkillPath = '.gemini/antigravity/skills/custom-skill/SKILL.md' // Global path: /home/user/.gemini/antigravity/skills/custom-skill/SKILL.md // Check for global path write
 
     const skillCall = vi.mocked(fs.writeFileSync).mock.calls.find(call =>
       String(call[0]).replaceAll('\\', '/').includes(expectedSkillPath))
@@ -181,8 +176,7 @@ describe('antigravityOutputPlugin', () => {
   it('should write workflows (fast commands) correctly to global dir', async () => {
     await plugin.writeProjectOutputs(mockContext)
 
-    // Expected: /home/user/.gemini/antigravity/workflows/custom_cmd1.md
-    const expectedWorkflowPath = '.gemini/antigravity/workflows'
+    const expectedWorkflowPath = '.gemini/antigravity/workflows' // Expected: /home/user/.gemini/antigravity/workflows/custom_cmd1.md
 
     const cmd1Call = vi.mocked(fs.writeFileSync).mock.calls.find(call => {
       const normalizedPath = String(call[0]).replaceAll('\\', '/')
@@ -202,7 +196,7 @@ describe('antigravityOutputPlugin', () => {
   })
 
   it('should not write files in dry run mode', async () => {
-    const dryRunContext = { ...mockContext, dryRun: true }
+    const dryRunContext = {...mockContext, dryRun: true}
     vi.mocked(fs.writeFileSync).mockClear()
 
     const results = await plugin.writeProjectOutputs(dryRunContext)
