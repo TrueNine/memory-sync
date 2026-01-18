@@ -8,11 +8,14 @@ import type {
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const GLOBAL_CONFIG_DIR = '.agent'
+const GLOBAL_GEMINI_DIR = '.gemini'
+const ANTIGRAVITY_DIR = 'antigravity'
 const SKILLS_SUBDIR = 'skills'
 const WORKFLOWS_SUBDIR = 'workflows'
 
@@ -51,55 +54,67 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const {projects} = ctx.collectedInputContext.workspace
-    const {skills} = ctx.collectedInputContext
+    const {skills, fastCommands} = ctx.collectedInputContext
+    const globalAntigravityDir = path.join(os.homedir(), GLOBAL_GEMINI_DIR, ANTIGRAVITY_DIR)
 
-    for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) continue
+    if (skills != null) {
+      for (const skill of skills) {
+        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+        const skillDir = path.join(globalAntigravityDir, SKILLS_SUBDIR, skillName)
 
-      if (skills != null) {
-        for (const skill of skills) {
-          const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-          const skillDir = path.join(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: 'SKILL.md',
+          basePath: skillDir, // For absolute paths, basePath can be the dir
+          getDirectoryName: () => skillName,
+          getAbsolutePath: () => path.join(skillDir, 'SKILL.md'),
+        })
 
-          results.push({
-            pathKind: FilePathKind.Relative,
-            path: path.join(skillDir, 'SKILL.md'),
-            basePath: project.dirFromWorkspacePath.basePath,
-            getDirectoryName: () => skillName,
-            getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, skillDir, 'SKILL.md'),
-          })
-
-          if (skill.childDocs != null) {
-            for (const refDoc of skill.childDocs) {
-              const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
-              const refDocPath = path.join(skillDir, refDocFileName)
-              results.push({
-                pathKind: FilePathKind.Relative,
-                path: refDocPath,
-                basePath: project.dirFromWorkspacePath.basePath,
-                getDirectoryName: () => skillName,
-                getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, refDocPath),
-              })
-            }
+        if (skill.childDocs != null) {
+          for (const refDoc of skill.childDocs) {
+            const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+            const refDocPath = path.join(skillDir, refDocFileName)
+            results.push({
+              pathKind: FilePathKind.Relative,
+              path: refDocFileName,
+              basePath: skillDir,
+              getDirectoryName: () => skillName,
+              getAbsolutePath: () => refDocPath,
+            })
           }
+        }
 
-          if (skill.resources != null) {
-            for (const resource of skill.resources) {
-              const resourcePath = path.join(skillDir, resource.relativePath)
-              results.push({
-                pathKind: FilePathKind.Relative,
-                path: resourcePath,
-                basePath: project.dirFromWorkspacePath.basePath,
-                getDirectoryName: () => skillName,
-                getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, resourcePath),
-              })
-            }
+        if (skill.resources != null) {
+          for (const resource of skill.resources) {
+            const resourcePath = path.join(skillDir, resource.relativePath)
+            results.push({
+              pathKind: FilePathKind.Relative,
+              path: resource.relativePath,
+              basePath: skillDir,
+              getDirectoryName: () => skillName,
+              getAbsolutePath: () => resourcePath,
+            })
           }
         }
       }
     }
 
+    if (fastCommands == null) return results
+
+    const transformOptions = this.getTransformOptionsFromContext(ctx)
+    const workflowsDir = path.join(globalAntigravityDir, WORKFLOWS_SUBDIR)
+    for (const cmd of fastCommands) {
+      const fileName = this.transformFastCommandName(cmd, transformOptions)
+      const fullPath = path.join(workflowsDir, fileName)
+
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: fileName,
+        basePath: workflowsDir,
+        getDirectoryName: () => WORKFLOWS_SUBDIR,
+        getAbsolutePath: () => fullPath,
+      })
+    }
     return results
   }
 
@@ -115,36 +130,33 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedInputContext.workspace
     const {fastCommands, skills} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    for (const project of projects) {
-      const projectDir = project.dirFromWorkspacePath
+    const globalAntigravityDir = path.join(os.homedir(), GLOBAL_GEMINI_DIR, ANTIGRAVITY_DIR)
+    const workflowsDir = path.join(globalAntigravityDir, WORKFLOWS_SUBDIR)
+    const skillsDir = path.join(globalAntigravityDir, SKILLS_SUBDIR)
 
-      if (projectDir == null) continue
-
-      if (fastCommands != null) {
-        for (const cmd of fastCommands) {
-          const cmdResults = await this.writeFastCommand(ctx, projectDir, cmd)
-          fileResults.push(...cmdResults)
-        }
+    if (fastCommands != null) {
+      for (const cmd of fastCommands) {
+        const cmdResults = await this.writeFastCommand(ctx, workflowsDir, cmd)
+        fileResults.push(...cmdResults)
       }
+    }
 
-      if (skills != null) {
-        for (const skill of skills) {
-          const skillResults = await this.writeSkill(ctx, projectDir, skill)
-          fileResults.push(...skillResults)
-        }
+    if (skills != null) {
+      for (const skill of skills) {
+        const skillResults = await this.writeSkill(ctx, skillsDir, skill)
+        fileResults.push(...skillResults)
       }
     }
 
     this.log.info({
       action: 'write',
-      message: `Synced ${fileResults.length} files to ${projects.length} projects`,
+      message: `Synced ${fileResults.length} files to global directory`,
       files: fileResults.length,
-      projects: projects.length,
+      globalDir: globalAntigravityDir,
     })
 
     return {files: fileResults, dirs: dirResults}
@@ -152,19 +164,18 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
 
   private async writeFastCommand(
     ctx: OutputWriteContext,
-    projectDir: RelativePath,
+    targetDir: string,
     cmd: FastCommandPrompt,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const transformOptions = this.getTransformOptionsFromContext(ctx) // But we need to filter frontmatter to only include description // Use rawMdxContent if available as Antigravity treats workflows as MD files
     const fileName = this.transformFastCommandName(cmd, transformOptions) // Ideally user wants: .agent/workflows/<name>.md // Antigravity workflow names shouldn't have prefixes usually, but adhering to pipeline standard
-    const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, WORKFLOWS_SUBDIR)
     const fullPath = path.join(targetDir, fileName)
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, WORKFLOWS_SUBDIR, fileName),
-      basePath: projectDir.basePath,
+      path: fileName,
+      basePath: targetDir,
       getDirectoryName: () => WORKFLOWS_SUBDIR,
       getAbsolutePath: () => fullPath,
     }
@@ -204,18 +215,18 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
 
   private async writeSkill(
     ctx: OutputWriteContext,
-    projectDir: RelativePath,
+    targetBaseDir: string,
     skill: SkillPrompt,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-    const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
+    const targetDir = path.join(targetBaseDir, skillName)
     const fullPath = path.join(targetDir, 'SKILL.md')
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, 'SKILL.md'),
-      basePath: projectDir.basePath,
+      path: 'SKILL.md',
+      basePath: targetDir,
       getDirectoryName: () => skillName,
       getAbsolutePath: () => fullPath,
     }
@@ -235,14 +246,14 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
 
       if (skill.childDocs != null) {
         for (const refDoc of skill.childDocs) {
-          const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc, projectDir)
+          const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc)
           results.push(...refResults)
         }
       }
 
       if (skill.resources != null) {
         for (const resource of skill.resources) {
-          const refResults = await this.writeSkillResource(ctx, targetDir, skillName, resource, projectDir)
+          const refResults = await this.writeSkillResource(ctx, targetDir, skillName, resource)
           results.push(...refResults)
         }
       }
@@ -261,7 +272,6 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     skillDir: string,
     skillName: string,
     refDoc: {dir: RelativePath, content: unknown},
-    projectDir: RelativePath,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
@@ -269,8 +279,8 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, fileName),
-      basePath: projectDir.basePath,
+      path: fileName,
+      basePath: skillDir,
       getDirectoryName: () => skillName,
       getAbsolutePath: () => fullPath,
     }
@@ -301,15 +311,14 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     skillDir: string,
     skillName: string,
     resource: {relativePath: string, content: string},
-    projectDir: RelativePath,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const fullPath = path.join(skillDir, resource.relativePath)
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, resource.relativePath),
-      basePath: projectDir.basePath,
+      path: resource.relativePath,
+      basePath: skillDir,
       getDirectoryName: () => skillName,
       getAbsolutePath: () => fullPath,
     }
