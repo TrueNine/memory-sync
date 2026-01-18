@@ -36,6 +36,9 @@ export {
   AbstractPlugin,
 } from './AbstractPlugin' // Abstract base classes
 export {
+  AntigravityOutputPlugin,
+} from './AntigravityOutputPlugin'
+export {
   GenericSkillsOutputPlugin,
 } from './GenericSkillsOutputPlugin'
 export {

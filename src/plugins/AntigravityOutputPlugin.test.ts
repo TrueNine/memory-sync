@@ -1,0 +1,201 @@
+import type {RelativePath} from '@/types/FileSystemTypes'
+import * as fs from 'node:fs'
+import {describe, expect, it, vi} from 'vitest'
+import {FilePathKind} from '@/types'
+import {AntigravityOutputPlugin} from './AntigravityOutputPlugin'
+
+vi.mock('node:fs')
+
+describe('antigravityOutputPlugin', () => {
+  const plugin = new AntigravityOutputPlugin()
+  const projectBasePath = '/user/project'
+  const projectPath = 'my-project'
+
+  const projectDir: RelativePath = {
+    pathKind: FilePathKind.Relative,
+    path: projectPath,
+    basePath: projectBasePath,
+    getDirectoryName: () => 'my-project',
+    getAbsolutePath: () => `${projectBasePath}/${projectPath}`,
+  }
+
+  const mockSkills: any[] = [
+    {
+      dir: {
+        pathKind: FilePathKind.Relative,
+        path: 'my-skill',
+        basePath: projectBasePath,
+        getDirectoryName: () => 'my-skill',
+        getAbsolutePath: () => `${projectBasePath}/my-skill`,
+      },
+      content: '# My Skill',
+      yamlFrontMatter: {name: 'custom-skill'},
+      resources: [
+        {relativePath: 'res.txt', content: 'resource content'},
+      ],
+      childDocs: [
+        {
+          dir: {
+            pathKind: FilePathKind.Relative,
+            path: 'doc.mdx',
+            basePath: projectBasePath,
+            getDirectoryName: () => 'doc',
+            getAbsolutePath: () => `${projectBasePath}/doc.mdx`,
+          },
+          content: 'doc content',
+        },
+      ],
+    },
+  ]
+
+  const mockFastCommands: any[] = [
+    {
+      commandName: 'cmd1',
+      series: 'custom',
+      dir: {
+        pathKind: FilePathKind.Relative,
+        path: 'cmd1.md',
+        basePath: projectBasePath,
+        getDirectoryName: () => 'cmd1',
+        getAbsolutePath: () => `${projectBasePath}/cmd1.md`,
+      },
+      content: '# Command 1',
+      yamlFrontMatter: {description: 'A description', other: 'ignore'},
+    },
+    {
+      commandName: 'cmd2',
+      series: 'custom',
+      dir: {
+        pathKind: FilePathKind.Relative,
+        path: 'cmd2.md',
+        basePath: projectBasePath,
+        getDirectoryName: () => 'cmd2',
+        getAbsolutePath: () => `${projectBasePath}/cmd2.md`,
+      },
+      content: '# Command 2',
+      rawMdxContent: '---\ntitle: original\n---\n# Command 2 Raw',
+      yamlFrontMatter: {description: 'Desc 2'},
+    },
+  ]
+
+  const mockInputContext: any = {
+    globalMemory: null,
+    workspace: {
+      projects: [
+        {
+          name: 'p1',
+          dirFromWorkspacePath: projectDir,
+          rootMemoryPrompt: null,
+        },
+      ],
+    },
+    skills: mockSkills,
+    fastCommands: mockFastCommands,
+  }
+
+  const mockContext: any = {
+    collectedInputContext: mockInputContext,
+    tools: {
+      readProjectFile: vi.fn(),
+    },
+    config: {
+      plugins: [],
+    },
+    dryRun: false,
+  }
+
+  it('should register output directories for clean', async () => {
+    const ctx = {
+      collectedInputContext: {
+        workspace: {
+          projects: [
+            {
+              dirFromWorkspacePath: projectDir,
+            },
+          ],
+        },
+      },
+    } as any
+
+    const results = await plugin.registerProjectOutputDirs(ctx)
+    expect(results).toHaveLength(2)
+    const paths = results.map(r => r.path.replaceAll('\\', '/')) // Normalize paths for comparison
+    expect(paths.some(p => p.includes('.agent/skills'))).toBe(true)
+    expect(paths.some(p => p.includes('.agent/workflows'))).toBe(true)
+  })
+
+  it('should register output files for skills', async () => {
+    const ctx = {
+      collectedInputContext: {
+        workspace: {
+          projects: [
+            {
+              dirFromWorkspacePath: projectDir,
+            },
+          ],
+        },
+        skills: mockSkills,
+      },
+    } as any
+
+    const results = await plugin.registerProjectOutputFiles(ctx)
+    expect(results).toHaveLength(3)
+    const paths = results.map(r => r.path.replaceAll('\\', '/'))
+    expect(paths.some(p => p.endsWith('SKILL.md'))).toBe(true)
+    expect(paths.some(p => p.endsWith('doc.md'))).toBe(true)
+    expect(paths.some(p => p.endsWith('res.txt'))).toBe(true)
+  })
+
+  it('should write skills correctly', async () => {
+    await plugin.writeProjectOutputs(mockContext)
+
+    const skillCall = vi.mocked(fs.writeFileSync).mock.calls.find(call => // SKILL.md
+      String(call[0]).replaceAll('\\', '/').includes('custom-skill/SKILL.md'))
+    expect(skillCall).toBeDefined()
+    expect(skillCall![1]).toContain('# My Skill')
+
+    const resCall = vi.mocked(fs.writeFileSync).mock.calls.find(call => // Resource
+      String(call[0]).replaceAll('\\', '/').includes('custom-skill/res.txt'))
+    expect(resCall).toBeDefined()
+    expect(resCall![1]).toBe('resource content')
+
+    const docCall = vi.mocked(fs.writeFileSync).mock.calls.find(call => // Reference Doc
+      String(call[0]).replaceAll('\\', '/').includes('custom-skill/doc.md'))
+    expect(docCall).toBeDefined()
+    expect(docCall![1]).toBe('doc content')
+  })
+
+  it('should write workflows (fast commands) correctly with filtered front matter', async () => {
+    await plugin.writeProjectOutputs(mockContext)
+
+    const cmd1Call = vi.mocked(fs.writeFileSync).mock.calls.find(call => { // cmd1 // cmd1 - default includes series prefix: custom_cmd1.md
+      const normalizedPath = String(call[0]).replaceAll('\\', '/')
+      return normalizedPath.includes('custom_cmd1.md')
+    })
+    expect(cmd1Call).toBeDefined()
+    const cmd1Content = cmd1Call![1] as string
+    expect(cmd1Content).toContain('description: A description')
+    expect(cmd1Content).not.toContain('other: ignore')
+
+    const cmd2Call = vi.mocked(fs.writeFileSync).mock.calls.find(call => { // cmd2
+      const normalizedPath = String(call[0]).replaceAll('\\', '/')
+      return normalizedPath.includes('custom_cmd2.md')
+    })
+    expect(cmd2Call).toBeDefined()
+    const cmd2Content = cmd2Call![1] as string
+    expect(cmd2Content).toContain('# Command 2 Raw')
+    expect(cmd2Content).toContain('description: Desc 2')
+    expect(cmd2Content).not.toContain('title: original')
+  })
+
+  it('should not write files in dry run mode', async () => {
+    const dryRunContext = {...mockContext, dryRun: true}
+    vi.mocked(fs.writeFileSync).mockClear()
+
+    const results = await plugin.writeProjectOutputs(dryRunContext)
+
+    expect(fs.writeFileSync).not.toHaveBeenCalled()
+    expect(results.files.length).toBeGreaterThan(0)
+    expect(results.files.every(f => f.success)).toBe(true)
+  })
+})
