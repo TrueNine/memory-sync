@@ -16,6 +16,8 @@ const config = eslint9({
     'src/AGENTS.md',
     'public/**',
     '.skills/**',
+    '**/.skills/**',
+    '.agent/**',
   ],
 })
 

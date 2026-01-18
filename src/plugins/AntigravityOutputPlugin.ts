@@ -140,6 +140,13 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
+    this.log.info({
+      action: 'write',
+      message: `Synced ${fileResults.length} files to ${projects.length} projects`,
+      files: fileResults.length,
+      projects: projects.length,
+    })
+
     return {files: fileResults, dirs: dirResults}
   }
 
