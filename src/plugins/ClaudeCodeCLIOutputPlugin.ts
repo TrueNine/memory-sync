@@ -21,11 +21,28 @@ const COMMANDS_SUBDIR = 'commands'
 const AGENTS_SUBDIR = 'agents'
 const SKILLS_SUBDIR = 'skills'
 
-const CLEANUP_SUBDIRS = [COMMANDS_SUBDIR, AGENTS_SUBDIR, SKILLS_SUBDIR] as const // Directories to clean under .claude/
-
 export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('ClaudeCodeCLIOutputPlugin', {globalConfigDir: GLOBAL_CONFIG_DIR, outputFileName: PROJECT_MEMORY_FILE})
+  }
+
+  async registerGlobalOutputDirs(_ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const globalDir = this.getGlobalConfigDir()
+    const results: RelativePath[] = []
+    const subdirs = [COMMANDS_SUBDIR, AGENTS_SUBDIR, SKILLS_SUBDIR]
+
+    for (const subdir of subdirs) {
+      const fullPath = path.join(globalDir, subdir)
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: subdir,
+        basePath: globalDir,
+        getDirectoryName: () => subdir,
+        getAbsolutePath: () => fullPath,
+      })
+    }
+
+    return results
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -35,7 +52,8 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      for (const subdir of CLEANUP_SUBDIRS) { // Register .claude/commands, .claude/agents, .claude/skills for cleanup
+      const subdirs = [COMMANDS_SUBDIR, AGENTS_SUBDIR, SKILLS_SUBDIR]
+      for (const subdir of subdirs) {
         const dirPath = path.join(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, subdir)
         results.push({
           pathKind: FilePathKind.Relative,
@@ -45,7 +63,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
           getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, dirPath),
         })
       }
-    }
+    } // Also register the .claude directory itself if needed, or rely on subdirs being cleaned up
 
     return results
   }
@@ -53,7 +71,6 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
-    const {skills} = ctx.collectedInputContext
 
     for (const project of projects) {
       if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) { // Root memory prompt uses project.dirFromWorkspacePath
@@ -63,48 +80,6 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
           if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
-        }
-      }
-
-      if (skills != null && project.dirFromWorkspacePath != null) { // Register skill files (SKILL.md, reference docs, and resources)
-        for (const skill of skills) {
-          const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-          const skillDir = path.join(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
-
-          results.push({ // Register SKILL.md
-            pathKind: FilePathKind.Relative,
-            path: path.join(skillDir, 'SKILL.md'),
-            basePath: project.dirFromWorkspacePath.basePath,
-            getDirectoryName: () => skillName,
-            getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, skillDir, 'SKILL.md'),
-          })
-
-          if (skill.childDocs != null) { // Register reference documents (convert .mdx to .md)
-            for (const refDoc of skill.childDocs) {
-              const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
-              const refDocPath = path.join(skillDir, refDocFileName)
-              results.push({
-                pathKind: FilePathKind.Relative,
-                path: refDocPath,
-                basePath: project.dirFromWorkspacePath.basePath,
-                getDirectoryName: () => skillName,
-                getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, refDocPath),
-              })
-            }
-          }
-
-          if (skill.resources != null) { // Register resource files
-            for (const resource of skill.resources) {
-              const resourcePath = path.join(skillDir, resource.relativePath)
-              results.push({
-                pathKind: FilePathKind.Relative,
-                path: resourcePath,
-                basePath: project.dirFromWorkspacePath.basePath,
-                getDirectoryName: () => skillName,
-                getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, resourcePath),
-              })
-            }
-          }
         }
       }
     }
@@ -117,7 +92,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     if (globalMemory == null) return []
 
     const globalDir = this.getGlobalConfigDir()
-    return [
+    const results: RelativePath[] = [
       {
         pathKind: FilePathKind.Relative,
         path: PROJECT_MEMORY_FILE,
@@ -126,6 +101,81 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
         getAbsolutePath: () => path.join(globalDir, PROJECT_MEMORY_FILE),
       },
     ]
+
+    const {fastCommands, subAgents, skills} = ctx.collectedInputContext
+    const transformOptions = {includeSeriesPrefix: true} as const // Default options
+
+    if (fastCommands != null) {
+      for (const cmd of fastCommands) {
+        const fileName = this.transformFastCommandName(cmd, transformOptions)
+        const fullPath = path.join(globalDir, COMMANDS_SUBDIR, fileName)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: path.join(COMMANDS_SUBDIR, fileName),
+          basePath: globalDir,
+          getDirectoryName: () => COMMANDS_SUBDIR,
+          getAbsolutePath: () => fullPath,
+        })
+      }
+    }
+
+    if (subAgents != null) {
+      for (const agent of subAgents) {
+        const fileName = agent.dir.path.endsWith('.md') ? agent.dir.path : `${agent.dir.path}.md`
+        const fullPath = path.join(globalDir, AGENTS_SUBDIR, fileName)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: path.join(AGENTS_SUBDIR, fileName),
+          basePath: globalDir,
+          getDirectoryName: () => AGENTS_SUBDIR,
+          getAbsolutePath: () => fullPath,
+        })
+      }
+    }
+
+    if (skills != null) {
+      for (const skill of skills) {
+        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+        const skillDir = path.join(SKILLS_SUBDIR, skillName)
+
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: path.join(skillDir, 'SKILL.md'),
+          basePath: globalDir,
+          getDirectoryName: () => skillName,
+          getAbsolutePath: () => path.join(globalDir, skillDir, 'SKILL.md'),
+        })
+
+        if (skill.childDocs != null) {
+          for (const refDoc of skill.childDocs) {
+            const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+            const refDocPath = path.join(skillDir, refDocFileName)
+            results.push({
+              pathKind: FilePathKind.Relative,
+              path: refDocPath,
+              basePath: globalDir,
+              getDirectoryName: () => skillName,
+              getAbsolutePath: () => path.join(globalDir, refDocPath),
+            })
+          }
+        }
+
+        if (skill.resources != null) {
+          for (const resource of skill.resources) {
+            const resourcePath = path.join(skillDir, resource.relativePath)
+            results.push({
+              pathKind: FilePathKind.Relative,
+              path: resourcePath,
+              basePath: globalDir,
+              getDirectoryName: () => skillName,
+              getAbsolutePath: () => path.join(globalDir, resourcePath),
+            })
+          }
+        }
+      }
+    }
+
+    return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
@@ -146,7 +196,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {projects} = ctx.collectedInputContext.workspace
-    const {fastCommands, subAgents, skills} = ctx.collectedInputContext
+
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
@@ -167,27 +217,6 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
           fileResults.push(childResult)
         }
       }
-
-      if (fastCommands != null) { // Write fast commands to .claude/commands/
-        for (const cmd of fastCommands) {
-          const cmdResults = await this.writeFastCommand(ctx, projectDir, cmd)
-          fileResults.push(...cmdResults)
-        }
-      }
-
-      if (subAgents != null) { // Write sub agents to .claude/agents/
-        for (const agent of subAgents) {
-          const agentResults = await this.writeSubAgent(ctx, projectDir, agent)
-          fileResults.push(...agentResults)
-        }
-      }
-
-      if (skills != null) { // Write skills to .claude/skills/
-        for (const skill of skills) {
-          const skillResults = await this.writeSkill(ctx, projectDir, skill)
-          fileResults.push(...skillResults)
-        }
-      }
     }
 
     return {files: fileResults, dirs: dirResults}
@@ -200,7 +229,8 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (globalMemory == null) return {files: fileResults, dirs: dirResults}
 
-    const globalDir = this.getGlobalConfigDir()
+    const {fastCommands, subAgents, skills} = ctx.collectedInputContext
+    const globalDir = this.getGlobalConfigDir() // Global Memory Writing
     const fullPath = path.join(globalDir, PROJECT_MEMORY_FILE)
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
@@ -210,24 +240,44 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath,
     }
 
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'globalMemory', path: fullPath})
-      return {
-        files: [{path: relativePath, success: true, skipped: false}],
-        dirs: dirResults,
+    if (globalMemory != null) {
+      if (ctx.dryRun === true) {
+        this.log.trace({action: 'dryRun', type: 'globalMemory', path: fullPath})
+        fileResults.push({path: relativePath, success: true, skipped: false})
+      } else {
+        try {
+          this.ensureDirectory(globalDir)
+          fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
+          this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
+          fileResults.push({path: relativePath, success: true})
+        }
+        catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error)
+          this.log.error({action: 'write', type: 'globalMemory', path: fullPath, error: errMsg})
+          fileResults.push({path: relativePath, success: false, error: error as Error})
+        }
       }
     }
 
-    try {
-      this.ensureDirectory(globalDir)
-      fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
-      this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
-      fileResults.push({path: relativePath, success: true})
+    if (fastCommands != null) {
+      for (const cmd of fastCommands) {
+        const cmdResults = await this.writeFastCommand(ctx, globalDir, cmd)
+        fileResults.push(...cmdResults)
+      }
     }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'globalMemory', path: fullPath, error: errMsg})
-      fileResults.push({path: relativePath, success: false, error: error as Error})
+
+    if (subAgents != null) {
+      for (const agent of subAgents) {
+        const agentResults = await this.writeSubAgent(ctx, globalDir, agent)
+        fileResults.push(...agentResults)
+      }
+    }
+
+    if (skills != null) {
+      for (const skill of skills) {
+        const skillResults = await this.writeSkill(ctx, globalDir, skill)
+        fileResults.push(...skillResults)
+      }
     }
 
     return {files: fileResults, dirs: dirResults}
@@ -235,19 +285,19 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   private async writeFastCommand(
     ctx: OutputWriteContext,
-    projectDir: RelativePath,
+    basePath: string,
     cmd: FastCommandPrompt,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    const transformOptions = this.getTransformOptionsFromContext(ctx) // Use transformFastCommandName with configuration from context
+    const transformOptions = this.getTransformOptionsFromContext(ctx)
     const fileName = this.transformFastCommandName(cmd, transformOptions)
-    const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR)
+    const targetDir = path.join(basePath, COMMANDS_SUBDIR)
     const fullPath = path.join(targetDir, fileName)
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR, fileName),
-      basePath: projectDir.basePath,
+      path: path.join(COMMANDS_SUBDIR, fileName),
+      basePath,
       getDirectoryName: () => COMMANDS_SUBDIR,
       getAbsolutePath: () => fullPath,
     }
@@ -305,18 +355,18 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   private async writeSubAgent(
     ctx: OutputWriteContext,
-    projectDir: RelativePath,
+    basePath: string,
     agent: SubAgentPrompt,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const fileName = agent.dir.path.endsWith('.md') ? agent.dir.path : `${agent.dir.path}.md`
-    const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, AGENTS_SUBDIR)
+    const targetDir = path.join(basePath, AGENTS_SUBDIR)
     const fullPath = path.join(targetDir, fileName)
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, AGENTS_SUBDIR, fileName),
-      basePath: projectDir.basePath,
+      path: path.join(AGENTS_SUBDIR, fileName),
+      basePath,
       getDirectoryName: () => AGENTS_SUBDIR,
       getAbsolutePath: () => fullPath,
     }
@@ -349,18 +399,18 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   private async writeSkill(
     ctx: OutputWriteContext,
-    projectDir: RelativePath,
+    basePath: string,
     skill: SkillPrompt,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName() // skill.dir.path is the skill directory name
-    const targetDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
+    const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+    const targetDir = path.join(basePath, SKILLS_SUBDIR, skillName)
     const fullPath = path.join(targetDir, 'SKILL.md')
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, 'SKILL.md'),
-      basePath: projectDir.basePath,
+      path: path.join(SKILLS_SUBDIR, skillName, 'SKILL.md'),
+      basePath,
       getDirectoryName: () => skillName,
       getAbsolutePath: () => fullPath,
     }
@@ -384,14 +434,14 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
       if (skill.childDocs != null) { // Write reference documents if any
         for (const refDoc of skill.childDocs) {
-          const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc, projectDir)
+          const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc, basePath)
           results.push(...refResults)
         }
       }
 
       if (skill.resources != null) { // Write resource files if any
         for (const resource of skill.resources) {
-          const refResults = await this.writeSkillResource(ctx, targetDir, skillName, resource, projectDir)
+          const refResults = await this.writeSkillResource(ctx, targetDir, skillName, resource, basePath)
           results.push(...refResults)
         }
       }
@@ -410,7 +460,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     skillDir: string,
     skillName: string,
     refDoc: {dir: RelativePath, content: unknown},
-    projectDir: RelativePath,
+    basePath: string,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md') // Convert .mdx to .md for output
@@ -418,8 +468,8 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, fileName),
-      basePath: projectDir.basePath,
+      path: path.join(SKILLS_SUBDIR, skillName, fileName),
+      basePath,
       getDirectoryName: () => skillName,
       getAbsolutePath: () => fullPath,
     }
@@ -450,15 +500,15 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     skillDir: string,
     skillName: string,
     resource: {relativePath: string, content: string},
-    projectDir: RelativePath,
+    basePath: string,
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const fullPath = path.join(skillDir, resource.relativePath)
 
     const relativePath: RelativePath = {
       pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, resource.relativePath),
-      basePath: projectDir.basePath,
+      path: path.join(SKILLS_SUBDIR, skillName, resource.relativePath),
+      basePath,
       getDirectoryName: () => skillName,
       getAbsolutePath: () => fullPath,
     }

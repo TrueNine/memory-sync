@@ -1,5 +1,6 @@
 import type {InputPluginContext} from '@/types'
 import * as fs from 'node:fs'
+import * as path from 'node:path'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {createLogger} from '@/log'
 import {GitIgnoreInputPlugin} from './GitIgnoreInputPlugin'
@@ -15,7 +16,7 @@ describe('gitIgnoreInputPlugin', () => {
       logger: createLogger('test', 'debug'),
       userConfigOptions: {
         workspaceDir: '/workspace',
-        shadowProjectDir: '/workspace',
+        shadowSourceProjectDir: '/workspace',
         shadowSkillSourceDir: '/workspace/.skills',
         shadowFastCommandDir: '/workspace/.claude/commands',
         shadowSubAgentDir: '/workspace/.claude/agents',
@@ -30,7 +31,7 @@ describe('gitIgnoreInputPlugin', () => {
 
     const result = plugin.collect(ctx)
 
-    expect(fs.readFileSync).toHaveBeenCalledWith(expect.stringContaining('public/gitignore'), 'utf8')
+    expect(fs.readFileSync).toHaveBeenCalledWith(expect.stringContaining(path.join('public', 'gitignore')), 'utf8')
     expect(result).toEqual({
       globalGitIgnore: 'node_modules/\n.env',
     })
@@ -42,7 +43,7 @@ describe('gitIgnoreInputPlugin', () => {
       logger: createLogger('test', 'debug'),
       userConfigOptions: {
         workspaceDir: '/workspace',
-        shadowProjectDir: '/workspace',
+        shadowSourceProjectDir: '/workspace',
         shadowSkillSourceDir: '/workspace/.skills',
         shadowFastCommandDir: '/workspace/.claude/commands',
         shadowSubAgentDir: '/workspace/.claude/agents',
@@ -56,7 +57,7 @@ describe('gitIgnoreInputPlugin', () => {
 
     const result = plugin.collect(ctx)
 
-    expect(fs.existsSync).toHaveBeenCalledWith(expect.stringContaining('public/gitignore'))
+    expect(fs.existsSync).toHaveBeenCalledWith(expect.stringContaining(path.join('public', 'gitignore')))
     expect(fs.readFileSync).not.toHaveBeenCalled()
 
     if (typeof __TEMPLATE_GITIGNORE__ !== 'undefined' && __TEMPLATE_GITIGNORE__) { // Fallback behavior depends on __TEMPLATE_GITIGNORE__ which is global
