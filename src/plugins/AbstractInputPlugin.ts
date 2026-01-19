@@ -264,7 +264,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
    */
   getEffectCount(): number {
     return this.inputEffects.length
-  } // Scope Registration Methods // ============================================================================ // ============================================================================
+  }
 
   /**
    * Register custom scope variables for MDX expression evaluation.
@@ -392,7 +392,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     const rawContent = fs.readFileSync(filePath, 'utf8')
     return parseMarkdown<T>(rawContent)
   }
-} // side-effect operations like cleaning stale files, syncing directories, etc. // These functions are designed to be used within effect handlers for common // ============================================================================ // Effect Utility Functions // ============================================================================
+}
 
 /**
  * Options for cleaning stale dist files.
