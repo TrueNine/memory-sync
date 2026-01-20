@@ -6,12 +6,12 @@ import type { // Converts JSX elements to equivalent Markdown AST nodes // jsx-c
   Link,
   Paragraph,
   RootContent,
-  Strong,
+  Strong
 } from 'mdast'
 import type {
   MdxJsxAttribute,
   MdxJsxFlowElement,
-  MdxJsxTextElement,
+  MdxJsxTextElement
 } from 'mdast-util-mdx'
 import type {ProcessingContext} from './types'
 import {evaluateExpression} from './expression-eval'
@@ -21,7 +21,7 @@ import {evaluateExpression} from './expression-eval'
  */
 export function convertJsxToMarkdown(
   element: MdxJsxFlowElement | MdxJsxTextElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): RootContent[] | null {
   const name = element.name?.toLowerCase()
 
@@ -46,11 +46,11 @@ export function convertJsxToMarkdown(
 function getAttributeValue(
   element: MdxJsxFlowElement | MdxJsxTextElement,
   attrName: string,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): string | null {
   const attr = element.attributes.find(
     (a): a is MdxJsxAttribute =>
-      a.type === 'mdxJsxAttribute' && a.name === attrName,
+      a.type === 'mdxJsxAttribute' && a.name === attrName
   )
 
   if (attr == null) return null
@@ -75,7 +75,7 @@ function getAttributeValue(
  */
 function extractTextContent(
   element: MdxJsxFlowElement | MdxJsxTextElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): string {
   let text = ''
 
@@ -90,7 +90,7 @@ function extractTextContent(
 
 function convertPreElement(
   element: MdxJsxFlowElement | MdxJsxTextElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): RootContent[] | null {
   let codeChild: MdxJsxFlowElement | MdxJsxTextElement | null = null
 
@@ -134,7 +134,7 @@ function convertPreElement(
   const codeBlock: Code = {
     type: 'code',
     lang: lang ?? null,
-    value: code.trim(),
+    value: code.trim()
   }
 
   return [codeBlock]
@@ -142,7 +142,7 @@ function convertPreElement(
 
 function convertLinkElement(
   element: MdxJsxFlowElement | MdxJsxTextElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): RootContent[] | null {
   const href = getAttributeValue(element, 'href', ctx)
   if (href == null || href === '') return null
@@ -154,59 +154,59 @@ function convertLinkElement(
     type: 'link',
     url: href,
     title: title ?? null,
-    children: [{type: 'text', value: text}],
+    children: [{type: 'text', value: text}]
   }
 
   const paragraph: Paragraph = {
     type: 'paragraph',
-    children: [link],
+    children: [link]
   }
   return [paragraph]
 }
 
 function convertStrongElement(
   element: MdxJsxFlowElement | MdxJsxTextElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): RootContent[] | null {
   const text = extractTextContent(element, ctx)
 
   const strong: Strong = {
     type: 'strong',
-    children: [{type: 'text', value: text}],
+    children: [{type: 'text', value: text}]
   }
 
   if (element.type !== 'mdxJsxFlowElement') return [{type: 'paragraph', children: [strong]}]
 
   const paragraph: Paragraph = {
     type: 'paragraph',
-    children: [strong],
+    children: [strong]
   }
   return [paragraph]
 }
 
 function convertEmphasisElement(
   element: MdxJsxFlowElement | MdxJsxTextElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): RootContent[] | null {
   const text = extractTextContent(element, ctx)
 
   const emphasis: Emphasis = {
     type: 'emphasis',
-    children: [{type: 'text', value: text}],
+    children: [{type: 'text', value: text}]
   }
 
   if (element.type !== 'mdxJsxFlowElement') return [{type: 'paragraph', children: [emphasis]}]
 
   const paragraph: Paragraph = {
     type: 'paragraph',
-    children: [emphasis],
+    children: [emphasis]
   }
   return [paragraph]
 }
 
 function convertImageElement(
   element: MdxJsxFlowElement | MdxJsxTextElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): RootContent[] | null {
   const src = getAttributeValue(element, 'src', ctx)
   if (src == null || src === '') return null
@@ -218,21 +218,21 @@ function convertImageElement(
     type: 'image',
     url: src,
     alt,
-    title: title ?? null,
+    title: title ?? null
   }
 
   if (element.type !== 'mdxJsxFlowElement') return [{type: 'paragraph', children: [image]}]
 
   const paragraph: Paragraph = {
     type: 'paragraph',
-    children: [image],
+    children: [image]
   }
   return [paragraph]
 }
 
 function convertBlockquoteElement(
   element: MdxJsxFlowElement | MdxJsxTextElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): RootContent[] | null {
   const text = extractTextContent(element, ctx)
 
@@ -241,9 +241,9 @@ function convertBlockquoteElement(
     children: [
       {
         type: 'paragraph',
-        children: [{type: 'text', value: text}],
-      },
-    ],
+        children: [{type: 'text', value: text}]
+      }
+    ]
   }
 
   return [blockquote]

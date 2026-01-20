@@ -1,6 +1,7 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as path from 'node:path'
 import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '@/types'
+import {collectDeletionTargets} from './CleanupUtils'
 
 /**
  * Dry-run clean command - simulates clean operations without actual deletion
@@ -20,11 +21,11 @@ export class DryRunCleanCommand implements Command {
       projectDirs: outputs.projectDirs.length,
       projectFiles: outputs.projectFiles.length,
       globalDirs: outputs.globalDirs.length,
-      globalFiles: outputs.globalFiles.length,
+      globalFiles: outputs.globalFiles.length
     })
 
     const permissions = await checkCanClean(outputPlugins, cleanCtx)
-    const {filesToDelete, dirsToDelete} = await this.collectDeletionTargets(ctx, permissions, cleanCtx)
+    const {filesToDelete, dirsToDelete} = await collectDeletionTargets(outputPlugins, permissions, cleanCtx)
 
     this.logDryRunFiles(filesToDelete, logger)
     this.logDryRunDirectories(dirsToDelete, logger)
@@ -37,35 +38,8 @@ export class DryRunCleanCommand implements Command {
       success: true,
       filesAffected: filesToDelete.length,
       dirsAffected: dirsToDelete.length,
-      message: 'Dry-run complete, no files were deleted',
+      message: 'Dry-run complete, no files were deleted'
     }
-  }
-
-  private async collectDeletionTargets(
-    ctx: CommandContext,
-    permissions: Map<string, {project: boolean, global: boolean}>,
-    cleanCtx: ReturnType<CommandContext['createCleanContext']>,
-  ): Promise<{filesToDelete: string[], dirsToDelete: string[]}> {
-    const filesToDelete: string[] = []
-    const dirsToDelete: string[] = []
-
-    for (const plugin of ctx.outputPlugins) {
-      const perm = permissions.get(plugin.name)
-      if (perm?.project) {
-        const projectFiles = await plugin.registerProjectOutputFiles?.(cleanCtx) ?? []
-        const projectDirs = await plugin.registerProjectOutputDirs?.(cleanCtx) ?? []
-        filesToDelete.push(...projectFiles.map(f => f.getAbsolutePath()))
-        dirsToDelete.push(...projectDirs.map(d => d.getAbsolutePath()))
-      }
-      if (perm?.global) {
-        const globalFiles = await plugin.registerGlobalOutputFiles?.(cleanCtx) ?? []
-        const globalDirs = await plugin.registerGlobalOutputDirs?.(cleanCtx) ?? []
-        filesToDelete.push(...globalFiles.map(f => f.getAbsolutePath()))
-        dirsToDelete.push(...globalDirs.map(d => d.getAbsolutePath()))
-      }
-    }
-
-    return {filesToDelete, dirsToDelete}
   }
 
   private logDryRunFiles(files: string[], logger: CommandContext['logger']): void {

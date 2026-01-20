@@ -13,7 +13,7 @@ function createMockRelativePath(pathStr: string, basePath: string): RelativePath
     path: pathStr,
     basePath,
     getDirectoryName: () => pathStr,
-    getAbsolutePath: () => path.join(basePath, pathStr),
+    getAbsolutePath: () => path.join(basePath, pathStr)
   }
 }
 
@@ -44,23 +44,23 @@ describe('droidCLIOutputPlugin', () => {
       collectedInputContext: {
         workspace: {
           projects: [],
-          directory: createMockRelativePath('.', tempDir),
+          directory: createMockRelativePath('.', tempDir)
         },
         globalMemory: {
           type: PromptKind.GlobalMemory,
           content: 'Global Memory Content',
           filePathKind: FilePathKind.Absolute,
           dir: createMockRelativePath('.', tempDir),
-          markdownContents: [],
+          markdownContents: []
         },
         fastCommands: [],
         subAgents: [],
-        skills: [],
+        skills: []
       } as unknown as CollectedInputContext,
       logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
       fs,
       path,
-      glob: {} as any,
+      glob: {} as any
     }
   })
 
@@ -100,9 +100,9 @@ describe('droidCLIOutputPlugin', () => {
           dir: createMockRelativePath('.', tempDir) as unknown as RootPath,
           markdownContents: [],
           length: 0,
-          yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase},
+          yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase}
         },
-        childMemoryPrompts: [],
+        childMemoryPrompts: []
       }
 
       const ctxWithProject = {
@@ -111,9 +111,9 @@ describe('droidCLIOutputPlugin', () => {
           ...mockContext.collectedInputContext,
           workspace: {
             ...mockContext.collectedInputContext.workspace,
-            projects: [mockProject],
-          },
-        },
+            projects: [mockProject]
+          }
+        }
       }
 
       const dirs = await plugin.registerProjectOutputDirs(ctxWithProject)
@@ -143,15 +143,15 @@ describe('droidCLIOutputPlugin', () => {
         dir: createMockRelativePath('test-cmd', tempDir),
         markdownContents: [],
         length: 0,
-        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, description: 'desc'},
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, description: 'desc'}
       }
 
       const ctxWithCmd = {
         ...mockContext,
         collectedInputContext: {
           ...mockContext.collectedInputContext,
-          fastCommands: [mockCmd],
-        },
+          fastCommands: [mockCmd]
+        }
       }
 
       const files = await plugin.registerGlobalOutputFiles(ctxWithCmd)
@@ -170,15 +170,15 @@ describe('droidCLIOutputPlugin', () => {
         dir: createMockRelativePath('test-agent.md', tempDir),
         markdownContents: [],
         length: 0,
-        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'agent', description: 'desc'},
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'agent', description: 'desc'}
       }
 
       const ctxWithAgent = {
         ...mockContext,
         collectedInputContext: {
           ...mockContext.collectedInputContext,
-          subAgents: [mockAgent],
-        },
+          subAgents: [mockAgent]
+        }
       }
 
       const files = await plugin.registerGlobalOutputFiles(ctxWithAgent)
@@ -197,15 +197,15 @@ describe('droidCLIOutputPlugin', () => {
         dir: createMockRelativePath('test-skill', tempDir),
         markdownContents: [],
         length: 0,
-        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'test-skill', description: 'desc'},
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'test-skill', description: 'desc'}
       }
 
       const ctxWithSkill = {
         ...mockContext,
         collectedInputContext: {
           ...mockContext.collectedInputContext,
-          skills: [mockSkill],
-        },
+          skills: [mockSkill]
+        }
       }
 
       const files = await plugin.registerGlobalOutputFiles(ctxWithSkill)
@@ -222,7 +222,7 @@ describe('droidCLIOutputPlugin', () => {
       const mockProject: Project = {
         name: 'test-project',
         dirFromWorkspacePath: createMockRelativePath('project-a', tempDir),
-        childMemoryPrompts: [],
+        childMemoryPrompts: []
       }
 
       const ctxWithProject = {
@@ -231,9 +231,9 @@ describe('droidCLIOutputPlugin', () => {
           ...mockContext.collectedInputContext,
           workspace: {
             ...mockContext.collectedInputContext.workspace,
-            projects: [mockProject],
-          },
-        },
+            projects: [mockProject]
+          }
+        }
       }
 
       const files = await plugin.registerProjectOutputFiles(ctxWithProject)

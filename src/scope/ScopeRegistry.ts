@@ -22,7 +22,7 @@ export enum ScopePriority {
   /** Values registered by plugins */
   PluginRegistered = 20,
   /** Values passed at MDX compile time */
-  CompileTime = 30,
+  CompileTime = 30
 }
 
 /**
@@ -33,47 +33,26 @@ export class ScopeRegistry {
   private readonly registrations: ScopeRegistration[] = []
   private globalScope: MdxGlobalScope | null = null
 
-  /**
-   * Set the global scope (provided by GlobalScopeCollector)
-   * @param scope The global scope containing os, env, profile, tool namespaces
-   */
   setGlobalScope(scope: MdxGlobalScope): void {
     this.globalScope = scope
   }
 
-  /**
-   * Get the current global scope
-   */
   getGlobalScope(): MdxGlobalScope | null {
     return this.globalScope
   }
 
-  /**
-   * Register scope variables under a namespace
-   * @param namespace The namespace name (e.g., 'myPlugin')
-   * @param values Key-value pairs to register
-   * @param priority Priority level for merge resolution
-   */
   register(
     namespace: string,
     values: Record<string, unknown>,
-    priority: ScopePriority = ScopePriority.PluginRegistered,
+    priority: ScopePriority = ScopePriority.PluginRegistered
   ): void {
     this.registrations.push({namespace, values, priority})
   }
 
-  /**
-   * Get all registrations (for debugging/testing)
-   */
   getRegistrations(): readonly ScopeRegistration[] {
     return this.registrations
   }
 
-  /**
-   * Merge all scopes and return the final EvaluationScope.
-   * Merges in priority order (low to high), with higher priority overriding lower.
-   * @param compileTimeScope Optional scope passed at compile time (highest priority)
-   */
   merge(compileTimeScope?: EvaluationScope): EvaluationScope {
     const result: EvaluationScope = {}
 
@@ -98,15 +77,9 @@ export class ScopeRegistry {
     return result
   }
 
-  /**
-   * Deep merge two objects recursively.
-   * Arrays are replaced, not merged.
-   * @param target The target object (may be undefined)
-   * @param source The source object to merge from
-   */
   private deepMerge(
     target: Record<string, unknown> | undefined,
-    source: Record<string, unknown>,
+    source: Record<string, unknown>
   ): Record<string, unknown> {
     if (target == null) return {...source}
 
@@ -124,9 +97,6 @@ export class ScopeRegistry {
     return result
   }
 
-  /**
-   * Clear all registrations and global scope
-   */
   clear(): void {
     this.registrations.length = 0
     this.globalScope = null

@@ -1,7 +1,7 @@
 import type {FilePathKind} from '@/types/Enums'
 
 /**
- * 通用目录表示
+ * Common directory representation
  */
 export interface Path<K extends FilePathKind = FilePathKind> {
   readonly pathKind: K
@@ -10,18 +10,15 @@ export interface Path<K extends FilePathKind = FilePathKind> {
 }
 
 /**
- * 相对路径目录
+ * Relative path directory
  */
 export interface RelativePath extends Path<FilePathKind.Relative> {
-  /**
-   * 相对路径的基准目录，使用 `/` 进行分割
-   */
   readonly basePath: string
   getAbsolutePath: () => string
 }
 
 /**
- * 绝对路径目录
+ * Absolute path directory
  */
 export type AbsolutePath = Path<FilePathKind.Absolute>
 
@@ -30,7 +27,7 @@ export type RootPath = Path<FilePathKind.Root>
 export interface FileContent<
   C = unknown,
   FK extends FilePathKind = FilePathKind.Relative,
-  F extends Path = RelativePath,
+  F extends Path = RelativePath
 > {
   content: C
   length: number

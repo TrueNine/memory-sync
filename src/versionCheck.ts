@@ -37,14 +37,10 @@ export function parseVersion(version: string): [number, number, number] | null {
   return [
     Number.parseInt(match[1]!, 10),
     Number.parseInt(match[2]!, 10),
-    Number.parseInt(match[3]!, 10),
+    Number.parseInt(match[3]!, 10)
   ]
 }
 
-/**
- * Compare two semver versions
- * Returns: -1 if a < b, 0 if a === b, 1 if a > b
- */
 export function compareVersions(a: string, b: string): -1 | 0 | 1 {
   const parsedA = parseVersion(a)
   const parsedB = parseVersion(b)
@@ -76,7 +72,7 @@ export async function fetchLatestVersion(): Promise<{version: string} | {error: 
   try {
     const response = await fetch(getNpmRegistryUrl(), {
       headers: {Accept: 'application/json'},
-      signal: controller.signal,
+      signal: controller.signal
     })
     clearTimeout(timeoutId)
 
@@ -112,7 +108,7 @@ export async function checkVersion(): Promise<VersionCheckResult> {
     return {
       status: 'development',
       localVersion,
-      remoteVersion: null,
+      remoteVersion: null
     }
   }
 
@@ -123,7 +119,7 @@ export async function checkVersion(): Promise<VersionCheckResult> {
       status: 'current',
       localVersion,
       remoteVersion: null,
-      error: fetchResult.error,
+      error: fetchResult.error
     }
   }
 
@@ -154,10 +150,6 @@ export function logVersionCheckResult(result: VersionCheckResult, logger: ILogge
   }
 }
 
-/**
- * Check if version check should run based on current time
- * Returns true if current minute is even (0, 2, 4, ..., 58)
- */
 export function shouldCheckVersion(): boolean {
   const minute = new Date().getMinutes()
   return minute % 2 === 0

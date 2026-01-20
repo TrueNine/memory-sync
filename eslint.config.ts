@@ -4,7 +4,7 @@ const config = eslint9({
   type: 'lib',
   typescript: {
     strictTypescriptEslint: true,
-    tsconfigPath: './tsconfig.eslint.json',
+    tsconfigPath: './tsconfig.eslint.json'
   },
   ignores: [
     'aindex/**',
@@ -17,8 +17,8 @@ const config = eslint9({
     'public/**',
     '.skills/**',
     '**/.skills/**',
-    '.agent/**',
-  ],
+    '.agent/**'
+  ]
 })
 
 export default config as unknown

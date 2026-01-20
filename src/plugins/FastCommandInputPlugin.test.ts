@@ -6,15 +6,6 @@ describe('fastCommandInputPlugin', () => {
   describe('extractSeriesInfo', () => {
     const plugin = new FastCommandInputPlugin()
 
-    /**
-     * Feature: fast-command-series, Property 4: Series Prefix Extraction
-     * Validates: Requirements 2.1, 2.2, 2.3
-     *
-     * For any fast command filename:
-     * - If the filename contains an underscore, the series SHALL be the substring before the first underscore
-     * - If the filename contains no underscore, the series SHALL be undefined
-     * - The commandName SHALL be the substring after the first underscore (or the entire basename if no underscore)
-     */
     it('should extract series as substring before first underscore for filenames with underscore', () => {
       const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate alphanumeric strings without underscore for series prefix
         .filter(s => /^[a-z0-9]+$/i.test(s))
@@ -32,9 +23,9 @@ describe('fastCommandInputPlugin', () => {
 
             expect(result.series).toBe(seriesPrefix)
             expect(result.commandName).toBe(commandName)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -51,9 +42,9 @@ describe('fastCommandInputPlugin', () => {
 
             expect(result.series).toBeUndefined()
             expect(result.commandName).toBe(baseName)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -72,9 +63,9 @@ describe('fastCommandInputPlugin', () => {
 
             expect(result.series).toBe(seriesPrefix) // Series should be only the first part
             expect(result.commandName).toBe(`${part1}_${part2}`) // Command name should include everything after first underscore
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 

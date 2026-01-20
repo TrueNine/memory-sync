@@ -47,14 +47,14 @@ export const ToolPresets = {
     writeFile: 'write_file',
     executeCommand: 'execute_command',
     todolistWrite: 'todolist_write',
-    grep: 'grep',
+    grep: 'grep'
   },
   /** Claude Code CLI tool names (PascalCase) */
   claudeCode: {
     readFile: 'Read',
     writeFile: 'Write',
     executeCommand: 'Execute',
-    todolistWrite: 'TodoWrite',
+    todolistWrite: 'TodoWrite'
   },
   /** Kiro tool names */
   kiro: {
@@ -64,8 +64,8 @@ export const ToolPresets = {
     writeFile: 'fsWrite',
     executeCommand: 'executeBash',
     todolistWrite: 'todolistWrite',
-    grep: 'grepSearch',
-  },
+    grep: 'grepSearch'
+  }
 } as const satisfies Record<string, Partial<ToolReferences>>
 
 /**
@@ -87,19 +87,14 @@ export enum ShellKind {
   PowerShell = 'powershell',
   Pwsh = 'pwsh',
   Cmd = 'cmd',
-  Unknown = 'unknown',
+  Unknown = 'unknown'
 }
 
-/**
- * Operating system kind enumeration
- * Simplified OS type for conditional logic in templates
- * @example {os.kind === 'mac' ? 'macOS specific' : 'other'}
- */
 export enum OsKind {
   Win = 'win',
   Mac = 'mac',
   Linux = 'linux',
-  Unknown = 'unknown',
+  Unknown = 'unknown'
 }
 
 /**
@@ -119,10 +114,6 @@ export interface OsInfo {
   [key: string]: string | ShellKind | OsKind | undefined
 }
 
-/**
- * Md component props - wrapper for conditional Markdown content
- * @example <Md when={os.kind === 'mac'}>macOS specific content</Md>
- */
 export interface MdProps {
   /** Condition for rendering content. If omitted, content always renders. */
   when?: boolean
@@ -130,10 +121,6 @@ export interface MdProps {
   children?: unknown
 }
 
-/**
- * Md.Line component props - inline conditional text
- * @example <Md.Line when={os.kind === 'win'}>PowerShell</Md.Line>
- */
 export interface MdLineProps {
   /** Condition for rendering content. If omitted, content always renders. */
   when?: boolean
@@ -145,17 +132,7 @@ export interface MdLineProps {
  * Md component type with Line sub-component
  */
 export interface MdComponent {
-  /**
-   * Block-level conditional Markdown wrapper
-   * @param props - Component props including optional `when` condition
-   * @returns Rendered content or nothing if condition is false
-   */
   (props: MdProps): unknown
-  /**
-   * Inline conditional text component
-   * @param props - Component props including optional `when` condition
-   * @returns Inline text or nothing if condition is false
-   */
   Line: (props: MdLineProps) => unknown
 }
 
@@ -190,9 +167,7 @@ declare global {
   /* eslint-disable-next-line ts/no-namespace -- JSX namespace required for MDX component type hints */
   namespace JSX {
     interface IntrinsicElements {
-      /** Block-level conditional Markdown wrapper @example <Md when={os.kind === 'mac'}>macOS content</Md> */
       'Md': MdProps
-      /** Inline conditional text @example <Md.Line when={os.kind === 'win'}>PowerShell</Md.Line> */
       'Md.Line': MdLineProps
     }
   }

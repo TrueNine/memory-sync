@@ -1,7 +1,7 @@
 import type {CollectedInputContext, InputPluginContext, Project, Workspace} from '@/types'
 
 import {
-  FilePathKind,
+  FilePathKind
 } from '@/types'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
@@ -36,8 +36,8 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
                 path: entry.name,
                 basePath: workspaceDir,
                 getDirectoryName: () => entry.name,
-                getAbsolutePath: () => path.resolve(workspaceDir, entry.name),
-              },
+                getAbsolutePath: () => path.resolve(workspaceDir, entry.name)
+              }
             })
           }
         }
@@ -63,8 +63,8 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
                 path: entry.name,
                 basePath: workspaceDir,
                 getDirectoryName: () => entry.name,
-                getAbsolutePath: () => path.resolve(workspaceDir, entry.name),
-              },
+                getAbsolutePath: () => path.resolve(workspaceDir, entry.name)
+              }
             })
           }
         }
@@ -78,9 +78,9 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
       directory: {
         pathKind: FilePathKind.Absolute,
         path: workspaceDir,
-        getDirectoryName: () => path.basename(workspaceDir),
+        getDirectoryName: () => path.basename(workspaceDir)
       },
-      projects: shadowProjects,
+      projects: shadowProjects
     }
 
     return {workspace}

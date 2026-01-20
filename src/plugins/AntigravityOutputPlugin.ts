@@ -4,7 +4,7 @@ import type {
   OutputWriteContext,
   SkillPrompt,
   WriteResult,
-  WriteResults,
+  WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
@@ -26,7 +26,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     super('AntigravityOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: '', // No main output file
-      dependsOn: ['GeminiCLIOutputPlugin'],
+      dependsOn: ['GeminiCLIOutputPlugin']
     })
   }
 
@@ -44,7 +44,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
           path: dirPath,
           basePath: project.dirFromWorkspacePath.basePath,
           getDirectoryName: () => subdir,
-          getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, dirPath),
+          getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, dirPath)
         })
       }
     }
@@ -67,7 +67,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
           path: 'SKILL.md',
           basePath: skillDir, // For absolute paths, basePath can be the dir
           getDirectoryName: () => skillName,
-          getAbsolutePath: () => path.join(skillDir, 'SKILL.md'),
+          getAbsolutePath: () => path.join(skillDir, 'SKILL.md')
         })
 
         if (skill.childDocs != null) {
@@ -79,7 +79,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
               path: refDocFileName,
               basePath: skillDir,
               getDirectoryName: () => skillName,
-              getAbsolutePath: () => refDocPath,
+              getAbsolutePath: () => refDocPath
             })
           }
         }
@@ -92,7 +92,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
               path: resource.relativePath,
               basePath: skillDir,
               getDirectoryName: () => skillName,
-              getAbsolutePath: () => resourcePath,
+              getAbsolutePath: () => resourcePath
             })
           }
         }
@@ -112,7 +112,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
         path: fileName,
         basePath: workflowsDir,
         getDirectoryName: () => WORKFLOWS_SUBDIR,
-        getAbsolutePath: () => fullPath,
+        getAbsolutePath: () => fullPath
       })
     }
     return results
@@ -156,7 +156,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
       action: 'write',
       message: `Synced ${fileResults.length} files to global directory`,
       files: fileResults.length,
-      globalDir: globalAntigravityDir,
+      globalDir: globalAntigravityDir
     })
 
     return {files: fileResults, dirs: dirResults}
@@ -165,7 +165,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
   private async writeFastCommand(
     ctx: OutputWriteContext,
     targetDir: string,
-    cmd: FastCommandPrompt,
+    cmd: FastCommandPrompt
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const transformOptions = this.getTransformOptionsFromContext(ctx) // But we need to filter frontmatter to only include description // Use rawMdxContent if available as Antigravity treats workflows as MD files
@@ -177,10 +177,10 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
       path: fileName,
       basePath: targetDir,
       getDirectoryName: () => WORKFLOWS_SUBDIR,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
-    let finalContent = cmd.content as string // Prepare content with filtered front matter
+    let finalContent = cmd.content // Prepare content with filtered front matter
     const sourceFrontMatter = cmd.yamlFrontMatter
     const filteredFrontMatter: Record<string, unknown> = {}
 
@@ -216,7 +216,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
   private async writeSkill(
     ctx: OutputWriteContext,
     targetBaseDir: string,
-    skill: SkillPrompt,
+    skill: SkillPrompt
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
@@ -228,7 +228,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
       path: 'SKILL.md',
       basePath: targetDir,
       getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     const content = this.buildMarkdownContentWithRaw(skill.content as string, skill.yamlFrontMatter, skill.rawFrontMatter)
@@ -271,7 +271,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
-    refDoc: {dir: RelativePath, content: unknown},
+    refDoc: {dir: RelativePath, content: unknown}
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
@@ -282,7 +282,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
       path: fileName,
       basePath: skillDir,
       getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     if (ctx.dryRun === true) {
@@ -310,7 +310,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
-    resource: {relativePath: string, content: string},
+    resource: {relativePath: string, content: string}
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const fullPath = path.join(skillDir, resource.relativePath)
@@ -320,7 +320,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
       path: resource.relativePath,
       basePath: skillDir,
       getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     if (ctx.dryRun === true) {

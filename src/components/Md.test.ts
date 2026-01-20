@@ -12,46 +12,34 @@ import {describe, expect, it} from 'vitest'
 import {MdHandler} from './Md'
 
 describe('md component', () => {
-  /**
-   * Creates a mock processing context
-   */
   function createMockContext(scope: Record<string, unknown> = {}): ProcessingContext {
     return {
       scope,
       components: new Map(),
-      processingStack: [],
+      processingStack: []
     }
   }
 
-  /**
-   * Creates a mock processChildren function that returns children as-is
-   */
   function createMockProcessChildren(): (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]> {
     return async (children: RootContent[]): Promise<RootContent[]> => children
   }
 
-  /**
-   * Creates a mock Md element with optional attributes and children
-   */
   function createMdElement(
     children: RootContent[] = [],
-    attributes: MdxJsxFlowElement['attributes'] = [],
+    attributes: MdxJsxFlowElement['attributes'] = []
   ): MdxJsxFlowElement {
     return {
       type: 'mdxJsxFlowElement',
       name: 'Md',
       attributes,
-      children,
+      children
     }
   }
 
-  /**
-   * Creates a text paragraph node
-   */
   function createParagraph(text: string): Paragraph {
     return {
       type: 'paragraph',
-      children: [{type: 'text', value: text} as Text],
+      children: [{type: 'text', value: text} as Text]
     }
   }
 
@@ -70,7 +58,7 @@ describe('md component', () => {
     it('should pass through multiple children', async () => {
       const children = [
         createParagraph('First paragraph'),
-        createParagraph('Second paragraph'),
+        createParagraph('Second paragraph')
       ]
       const element = createMdElement(children)
       const ctx = createMockContext()

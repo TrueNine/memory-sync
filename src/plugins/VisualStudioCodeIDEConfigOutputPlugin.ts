@@ -2,7 +2,7 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   WriteResult,
-  WriteResults,
+  WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import {FilePathKind, IDEKind} from '@/types'
@@ -16,7 +16,7 @@ const VSCODE_DIR = '.vscode'
  */
 const VSCODE_CONFIG_FILES = [
   '.vscode/settings.json',
-  '.vscode/extensions.json',
+  '.vscode/extensions.json'
 ] as const
 
 export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin {
@@ -45,7 +45,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
           path: filePath,
           basePath: projectDir.basePath,
           getDirectoryName: () => this.dirname(configFile),
-          getAbsolutePath: () => this.resolvePath(projectDir.basePath, filePath),
+          getAbsolutePath: () => this.resolvePath(projectDir.basePath, filePath)
         })
       }
     }
@@ -90,7 +90,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     ctx: OutputWriteContext,
     projectDir: RelativePath,
     config: {type: IDEKind, content: string, dir: {path: string}},
-    label: string,
+    label: string
   ): Promise<WriteResult> {
     const targetRelativePath = this.getTargetRelativePath(config)
     const fullPath = this.resolvePath(projectDir.basePath, projectDir.path, targetRelativePath)
@@ -100,7 +100,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
       path: this.joinPath(projectDir.path, targetRelativePath),
       basePath: projectDir.basePath,
       getDirectoryName: () => this.dirname(targetRelativePath),
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     if (ctx.dryRun === true) {

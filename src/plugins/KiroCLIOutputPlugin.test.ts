@@ -14,13 +14,13 @@ function createMockRelativePath(pathStr: string, basePath: string): RelativePath
     path: pathStr,
     basePath,
     getDirectoryName: () => pathStr,
-    getAbsolutePath: () => `${basePath}/${pathStr}`,
+    getAbsolutePath: () => `${basePath}/${pathStr}`
   }
 }
 
 function createMockFastCommandPrompt(
   series: string | undefined,
-  commandName: string,
+  commandName: string
 ): FastCommandPrompt {
   return {
     type: PromptKind.FastCommand,
@@ -30,7 +30,7 @@ function createMockFastCommandPrompt(
     length: 0,
     filePathKind: FilePathKind.Relative,
     dir: createMockRelativePath('.', '/test'),
-    markdownContents: [],
+    markdownContents: []
   } as FastCommandPrompt
 }
 
@@ -52,7 +52,7 @@ class TestableKiroCLIOutputPlugin extends KiroCLIOutputPlugin { // Create a test
   public async testWriteSkillMcpConfig(
     ctx: any,
     skill: any,
-    powerDir: string,
+    powerDir: string
   ): Promise<any> {
     return (this as any).writeSkillMcpConfig(ctx, skill, powerDir) // Access private method via any cast
   }
@@ -68,13 +68,6 @@ class TestableKiroCLIOutputPlugin extends KiroCLIOutputPlugin { // Create a test
 }
 
 describe('kiroCLIOutputPlugin', () => {
-  /**
-   * Feature: fast-command-series, Property 6: Kiro Underscore to Hyphen Transformation
-   * Validates: Requirements 4.1, 4.2
-   *
-   * For any fast command processed by KiroCLIOutputPlugin,
-   * all underscores in the output filename SHALL be replaced with hyphens.
-   */
   describe('buildFastCommandSteeringFileName', () => {
     const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generator for alphanumeric strings without underscore (for series prefix)
       .filter(s => /^[a-z0-9]+$/i.test(s))
@@ -94,9 +87,9 @@ describe('kiroCLIOutputPlugin', () => {
             const result = plugin.testBuildFastCommandSteeringFileName(cmd)
 
             expect(result).toBe(`${series}-${commandName}.md`) // Should use hyphen separator instead of underscore
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -111,9 +104,9 @@ describe('kiroCLIOutputPlugin', () => {
             const result = plugin.testBuildFastCommandSteeringFileName(cmd)
 
             expect(result).toBe(`${commandName}.md`) // Should return just commandName without any prefix
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -145,16 +138,12 @@ describe('kiroCLIOutputPlugin', () => {
     })
   })
 
-  /**
-   * Feature: kiro-powers-skill-output, POWER.md Front Matter
-   * Validates: Requirements for YAML front matter output in POWER.md
-   */
   describe('buildPowerFrontMatter', () => {
     it('should include name and description in front matter', () => {
       const plugin = new TestableKiroCLIOutputPlugin()
       const frontMatter = {
         name: 'test-skill',
-        description: 'A test skill',
+        description: 'A test skill'
       } as SkillYAMLFrontMatter
 
       const result = plugin.testBuildPowerFrontMatter(frontMatter)
@@ -169,7 +158,7 @@ describe('kiroCLIOutputPlugin', () => {
       const frontMatter = {
         name: 'test-skill',
         description: 'A test skill',
-        displayName: 'Test Skill Display',
+        displayName: 'Test Skill Display'
       } as SkillYAMLFrontMatter
 
       const result = plugin.testBuildPowerFrontMatter(frontMatter)
@@ -182,7 +171,7 @@ describe('kiroCLIOutputPlugin', () => {
       const frontMatter = {
         name: 'test-skill',
         description: 'A test skill',
-        keywords: ['typescript', 'testing', 'cli'],
+        keywords: ['typescript', 'testing', 'cli']
       } as SkillYAMLFrontMatter
 
       const result = plugin.testBuildPowerFrontMatter(frontMatter)
@@ -198,7 +187,7 @@ describe('kiroCLIOutputPlugin', () => {
       const frontMatter = {
         name: 'test-skill',
         description: 'A test skill',
-        author: 'Test Author',
+        author: 'Test Author'
       } as SkillYAMLFrontMatter
 
       const result = plugin.testBuildPowerFrontMatter(frontMatter)
@@ -210,7 +199,7 @@ describe('kiroCLIOutputPlugin', () => {
       const plugin = new TestableKiroCLIOutputPlugin()
       const frontMatter = {
         name: 'minimal-skill',
-        description: '',
+        description: ''
       } as SkillYAMLFrontMatter
 
       const result = plugin.testBuildPowerFrontMatter(frontMatter)
@@ -227,12 +216,12 @@ describe('kiroCLIOutputPlugin', () => {
         description: 'Full featured skill',
         displayName: 'Full Skill',
         keywords: ['feature', 'complete'],
-        author: 'Developer',
+        author: 'Developer'
       } as SkillYAMLFrontMatter
 
       const result = plugin.testBuildPowerFrontMatter(frontMatter)
 
-      expect(result.startsWith('---')).toBe(true) // Should start and end with ---
+      expect(result.startsWith('---')).toBe(true)
       expect(result.endsWith('---')).toBe(true)
 
       const lines = result.split('\n') // Should have proper line structure
@@ -241,11 +230,6 @@ describe('kiroCLIOutputPlugin', () => {
     })
   })
 
-  /**
-   * Feature: clean-all-installed-powers
-   * Validates: registerGlobalOutputDirs should scan and register ALL installed powers
-   * for cleanup, not just the ones in current skills list
-   */
   describe('registerGlobalOutputDirs - clean all installed powers', () => {
     let tempDir: string
 
@@ -312,13 +296,13 @@ describe('kiroCLIOutputPlugin', () => {
       const ctx: OutputPluginContext = { // Create a minimal context with no skills (simulating clean after skills removed)
         collectedInputContext: {
           workspace: {
-            projects: [],
+            projects: []
           },
-          skills: [], // No current skills - simulating clean after skills removed
+          skills: [] // No current skills - simulating clean after skills removed
         } as unknown as CollectedInputContext,
         logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
         fs,
-        path,
+        path
       }
 
       const result = await plugin.registerGlobalOutputDirs(ctx)
@@ -333,11 +317,6 @@ describe('kiroCLIOutputPlugin', () => {
     })
   })
 
-  /**
-   * Feature: skill-mcp-config-output
-   * Validates: MCP configuration from skills should be written to each power's directory
-   * Path: ~/.kiro/powers/installed/{skill-name}/mcp.json
-   */
   describe('mCP configuration output', () => {
     let tempDir: string
 
@@ -367,16 +346,16 @@ describe('kiroCLIOutputPlugin', () => {
               mcpConfig: {
                 type: PromptKind.SkillMcpConfig,
                 mcpServers: {
-                  'test-server': {command: 'uvx', args: ['test-package']},
+                  'test-server': {command: 'uvx', args: ['test-package']}
                 },
-                rawContent: '{"mcpServers":{"test-server":{"command":"uvx","args":["test-package"]}}}',
-              },
-            },
-          ],
+                rawContent: '{"mcpServers":{"test-server":{"command":"uvx","args":["test-package"]}}}'
+              }
+            }
+          ]
         } as unknown as CollectedInputContext,
         logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
         fs,
-        path,
+        path
       }
 
       const result = await plugin.registerGlobalOutputFiles(ctx)
@@ -402,13 +381,13 @@ describe('kiroCLIOutputPlugin', () => {
               length: 6,
               filePathKind: FilePathKind.Relative,
               dir: createMockRelativePath('test-skill', tempDir),
-              markdownContents: [],
-            }, // No mcpConfig
-          ],
+              markdownContents: []
+            } // No mcpConfig
+          ]
         } as unknown as CollectedInputContext,
         logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
         fs,
-        path,
+        path
       }
 
       const result = await plugin.registerGlobalOutputFiles(ctx)
@@ -426,8 +405,8 @@ describe('kiroCLIOutputPlugin', () => {
 
       const mcpRawContent = JSON.stringify({
         mcpServers: {
-          'my-server': {command: 'uvx', args: ['my-package'], env: {KEY: 'value'}},
-        },
+          'my-server': {command: 'uvx', args: ['my-package'], env: {KEY: 'value'}}
+        }
       }, null, 2)
 
       const skill = {
@@ -437,10 +416,10 @@ describe('kiroCLIOutputPlugin', () => {
         mcpConfig: {
           type: PromptKind.SkillMcpConfig,
           mcpServers: {
-            'my-server': {command: 'uvx', args: ['my-package'], env: {KEY: 'value'}},
+            'my-server': {command: 'uvx', args: ['my-package'], env: {KEY: 'value'}}
           },
-          rawContent: mcpRawContent,
-        },
+          rawContent: mcpRawContent
+        }
       }
 
       const powerDir = path.join(powersDir, 'my-skill')
@@ -475,8 +454,8 @@ describe('kiroCLIOutputPlugin', () => {
               mcpConfig: {
                 type: PromptKind.SkillMcpConfig,
                 mcpServers: {server1: {command: 'cmd1'}},
-                rawContent: '{}',
-              },
+                rawContent: '{}'
+              }
             },
             {
               type: PromptKind.Skill,
@@ -489,8 +468,8 @@ describe('kiroCLIOutputPlugin', () => {
               mcpConfig: {
                 type: PromptKind.SkillMcpConfig,
                 mcpServers: {server2: {command: 'cmd2'}},
-                rawContent: '{}',
-              },
+                rawContent: '{}'
+              }
             },
             {
               type: PromptKind.Skill,
@@ -499,13 +478,13 @@ describe('kiroCLIOutputPlugin', () => {
               length: 9,
               filePathKind: FilePathKind.Relative,
               dir: createMockRelativePath('skill-c', tempDir),
-              markdownContents: [],
-            }, // No mcpConfig
-          ],
+              markdownContents: []
+            } // No mcpConfig
+          ]
         } as unknown as CollectedInputContext,
         logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
         fs,
-        path,
+        path
       }
 
       const result = await plugin.registerGlobalOutputFiles(ctx)

@@ -5,7 +5,7 @@ import type {ILogger} from '@/log'
 import type {
   ShadowSourceDirectoryEntry,
   ShadowSourceFileEntry,
-  ShadowSourceProjectDirectory,
+  ShadowSourceProjectDirectory
 } from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -13,7 +13,7 @@ import {
   DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE,
   SHADOW_SOURCE_DIR_NAMES,
   SHADOW_SOURCE_FILE_NAMES,
-  SHADOW_SOURCE_RELATIVE_PATHS,
+  SHADOW_SOURCE_RELATIVE_PATHS
 } from '@/types'
 
 /**
@@ -34,7 +34,7 @@ export interface VersionControlCheckResult {
  */
 export function checkVersionControl(
   rootPath: string,
-  logger?: ILogger,
+  logger?: ILogger
 ): VersionControlCheckResult {
   const gitPath = path.join(rootPath, '.git')
   const hasGit = fs.existsSync(gitPath)
@@ -83,7 +83,7 @@ export interface GenerationResult {
  */
 export function validateShadowSourceProject(
   rootPath: string,
-  structure: ShadowSourceProjectDirectory = DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE,
+  structure: ShadowSourceProjectDirectory = DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE
 ): ValidationResult {
   const items: ValidationItem[] = []
 
@@ -116,7 +116,7 @@ export function validateShadowSourceProject(
     rootPath,
     items,
     missingRequired,
-    missingOptional,
+    missingOptional
   }
 }
 
@@ -127,7 +127,7 @@ function validateDirectory(
   rootPath: string,
   parentDir: string,
   entry: ShadowSourceDirectoryEntry,
-  items: ValidationItem[],
+  items: ValidationItem[]
 ): void {
   const fullPath = path.join(rootPath, parentDir, entry.name)
   items.push({path: fullPath, exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory(), required: entry.required, type: 'directory'})
@@ -139,7 +139,7 @@ function validateDirectory(
 function validateDirectoryEntry(
   rootPath: string,
   entry: ShadowSourceDirectoryEntry,
-  items: ValidationItem[],
+  items: ValidationItem[]
 ): void {
   const fullPath = path.join(rootPath, entry.name)
   items.push({path: fullPath, exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory(), required: entry.required, type: 'directory'})
@@ -152,7 +152,7 @@ function validateFile(
   rootPath: string,
   relativePath: string,
   entry: ShadowSourceFileEntry,
-  items: ValidationItem[],
+  items: ValidationItem[]
 ): void {
   const fullPath = path.join(rootPath, relativePath)
   items.push({path: fullPath, exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isFile(), required: entry.required, type: 'file'})
@@ -164,7 +164,7 @@ function validateFile(
 function validateFileEntry(
   rootPath: string,
   entry: ShadowSourceFileEntry,
-  items: ValidationItem[],
+  items: ValidationItem[]
 ): void {
   const fullPath = path.join(rootPath, entry.name)
   items.push({path: fullPath, exists: fs.existsSync(fullPath) && fs.statSync(fullPath).isFile(), required: entry.required, type: 'file'})
@@ -186,7 +186,7 @@ export interface GenerationOptions {
  */
 export function generateShadowSourceProject(
   rootPath: string,
-  options: GenerationOptions = {},
+  options: GenerationOptions = {}
 ): GenerationResult {
   const {sourceDir, logger} = options
   const createdDirs: string[] = []
@@ -245,7 +245,7 @@ export function generateShadowSourceProject(
   ensureFile( // Create app/global.cn.mdx
     path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.SRC_GLOBAL_MEMORY),
     SHADOW_SOURCE_RELATIVE_PATHS.SRC_GLOBAL_MEMORY,
-    '# Global Memory\n\n',
+    '# Global Memory\n\n'
   )
 
   ensureDir(path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_SKILLS)) // Create dist directories
@@ -256,7 +256,7 @@ export function generateShadowSourceProject(
   ensureFile( // Create dist/global.mdx
     path.join(rootPath, SHADOW_SOURCE_RELATIVE_PATHS.DIST_GLOBAL_MEMORY),
     SHADOW_SOURCE_RELATIVE_PATHS.DIST_GLOBAL_MEMORY,
-    '# Global Memory\n\n',
+    '# Global Memory\n\n'
   )
 
   ensureDir(path.join(rootPath, SHADOW_SOURCE_DIR_NAMES.IDEA_CODE_STYLES)) // Create IDE directories
@@ -265,14 +265,14 @@ export function generateShadowSourceProject(
   ensureFile( // Create IDE files
     path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.EDITOR_CONFIG),
     SHADOW_SOURCE_FILE_NAMES.EDITOR_CONFIG,
-    getDefaultEditorConfig(),
+    getDefaultEditorConfig()
   )
   ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.IDEA_GITIGNORE), SHADOW_SOURCE_FILE_NAMES.IDEA_GITIGNORE, getDefaultIdeaGitignore())
   ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.IDEA_PROJECT_XML), SHADOW_SOURCE_FILE_NAMES.IDEA_PROJECT_XML, getDefaultProjectXml())
   ensureFile(
     path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.IDEA_CODE_STYLE_CONFIG_XML),
     SHADOW_SOURCE_FILE_NAMES.IDEA_CODE_STYLE_CONFIG_XML,
-    getDefaultCodeStyleConfigXml(),
+    getDefaultCodeStyleConfigXml()
   )
   ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.VSCODE_SETTINGS), SHADOW_SOURCE_FILE_NAMES.VSCODE_SETTINGS, getDefaultVscodeSettings())
   ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.VSCODE_EXTENSIONS), SHADOW_SOURCE_FILE_NAMES.VSCODE_EXTENSIONS, getDefaultVscodeExtensions())
@@ -280,7 +280,7 @@ export function generateShadowSourceProject(
   ensureFile( // Create ignore files
     path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.QODER_IGNORE),
     SHADOW_SOURCE_FILE_NAMES.QODER_IGNORE,
-    getDefaultIgnoreContent(),
+    getDefaultIgnoreContent()
   )
   ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.CURSOR_IGNORE), SHADOW_SOURCE_FILE_NAMES.CURSOR_IGNORE, getDefaultIgnoreContent())
   ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE), SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE, getDefaultIgnoreContent())
@@ -291,7 +291,7 @@ export function generateShadowSourceProject(
     createdDirs,
     createdFiles,
     existedDirs,
-    existedFiles,
+    existedFiles
   }
 } // Default file content generators
 
@@ -344,20 +344,20 @@ function getDefaultVscodeSettings(): string {
       'editor.tabSize': 2,
       'files.eol': '\n',
       'files.trimTrailingWhitespace': true,
-      'files.insertFinalNewline': true,
+      'files.insertFinalNewline': true
     },
     null,
-    2,
+    2
   )
 }
 
 function getDefaultVscodeExtensions(): string {
   return JSON.stringify(
     {
-      recommendations: [],
+      recommendations: []
     },
     null,
-    2,
+    2
   )
 }
 

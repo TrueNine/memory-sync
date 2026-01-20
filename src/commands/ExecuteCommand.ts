@@ -15,14 +15,14 @@ export class ExecuteCommand implements Command {
 
     const cleanCtx = createCleanContext(false) // Step 1: Pre-cleanup (non-dry-run only)
     const cleanupResult = await performCleanup(outputPlugins, cleanCtx, logger, {
-      executeHooks: false, // They will be handled by the write phase // Skip onCleanComplete hooks during pre-cleanup
+      executeHooks: false // They will be handled by the write phase // Skip onCleanComplete hooks during pre-cleanup
     })
     logger.info('cleanup complete', {deletedFiles: cleanupResult.deletedFiles, deletedDirs: cleanupResult.deletedDirs})
 
     const writeCtx = createWriteContext(false) // Step 2: Write outputs
     const permissions = await checkCanWrite(outputPlugins, writeCtx)
     const allowedPlugins = outputPlugins.filter(
-      p => permissions.get(p.name)?.project ?? true,
+      p => permissions.get(p.name)?.project ?? true
     )
 
     const results = await executeWriteOutputs(allowedPlugins, writeCtx)
@@ -39,7 +39,7 @@ export class ExecuteCommand implements Command {
     return {
       success: true,
       filesAffected: totalFiles,
-      dirsAffected: totalDirs,
+      dirsAffected: totalDirs
     }
   }
 }

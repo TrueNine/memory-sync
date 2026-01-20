@@ -26,10 +26,6 @@ export interface CleanupError {
  * Options for cleanup operation
  */
 export interface CleanupOptions {
-  /**
-   * Whether to execute onCleanComplete hooks after cleanup
-   * @default true
-   */
   readonly executeHooks?: boolean
 }
 
@@ -39,7 +35,7 @@ export interface CleanupOptions {
 export async function collectDeletionTargets(
   outputPlugins: readonly OutputPlugin[],
   permissions: Map<string, {project: boolean, global: boolean}>,
-  cleanCtx: OutputCleanContext,
+  cleanCtx: OutputCleanContext
 ): Promise<{filesToDelete: string[], dirsToDelete: string[]}> {
   const filesToDelete: string[] = []
   const dirsToDelete: string[] = []
@@ -135,7 +131,7 @@ export async function performCleanup(
   outputPlugins: readonly OutputPlugin[],
   cleanCtx: OutputCleanContext,
   logger: ILogger,
-  options?: CleanupOptions,
+  options?: CleanupOptions
 ): Promise<CleanupResult> {
   const {executeHooks = true} = options ?? {}
 
@@ -144,7 +140,7 @@ export async function performCleanup(
     projectDirs: outputs.projectDirs.length,
     projectFiles: outputs.projectFiles.length,
     globalDirs: outputs.globalDirs.length,
-    globalFiles: outputs.globalFiles.length,
+    globalFiles: outputs.globalFiles.length
   })
 
   const permissions = await checkCanClean(outputPlugins, cleanCtx) // Check permissions
@@ -152,7 +148,7 @@ export async function performCleanup(
   const {filesToDelete, dirsToDelete} = await collectDeletionTargets( // Collect deletion targets
     outputPlugins,
     permissions,
-    cleanCtx,
+    cleanCtx
   )
 
   const fileResult = deleteFiles(filesToDelete, logger) // Perform deletions
@@ -163,6 +159,6 @@ export async function performCleanup(
   return {
     deletedFiles: fileResult.deleted,
     deletedDirs: dirResult.deleted,
-    errors: [...fileResult.errors, ...dirResult.errors],
+    errors: [...fileResult.errors, ...dirResult.errors]
   }
 }

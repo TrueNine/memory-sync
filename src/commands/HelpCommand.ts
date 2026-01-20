@@ -75,7 +75,7 @@ export class HelpCommand implements Command {
       success: true,
       filesAffected: 0,
       dirsAffected: 0,
-      message: 'Help displayed',
+      message: 'Help displayed'
     }
   }
 }

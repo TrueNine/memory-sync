@@ -2,7 +2,7 @@ import type {
   AIAgentIgnoreConfigFile,
   CollectedInputContext,
   OutputPluginContext,
-  OutputWriteContext,
+  OutputWriteContext
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import fs from 'node:fs'
@@ -33,7 +33,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       path: pathStr,
       basePath,
       getDirectoryName: () => path.basename(pathStr),
-      getAbsolutePath: () => path.join(basePath, pathStr),
+      getAbsolutePath: () => path.join(basePath, pathStr)
     }
   }
 
@@ -41,12 +41,12 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
     return [
       {fileName: '.qoderignore', content: 'qoder patterns'},
       {fileName: '.cursorignore', content: 'cursor patterns'},
-      {fileName: '.warpindexignore', content: 'warp patterns'},
+      {fileName: '.warpindexignore', content: 'warp patterns'}
     ]
   }
 
   function createMockOutputPluginContext(
-    ignoreFiles: AIAgentIgnoreConfigFile[] = [],
+    ignoreFiles: AIAgentIgnoreConfigFile[] = []
   ): OutputPluginContext {
     return {
       collectedInputContext: {
@@ -55,19 +55,19 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
           projects: [
             {
               name: 'test-project',
-              dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
-            },
-          ],
+              dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)
+            }
+          ]
         },
         ideConfigFiles: [],
-        aiAgentIgnoreConfigFiles: ignoreFiles,
-      } as CollectedInputContext,
+        aiAgentIgnoreConfigFiles: ignoreFiles
+      } as CollectedInputContext
     }
   }
 
   function createMockOutputWriteContext(
     ignoreFiles: AIAgentIgnoreConfigFile[] = [],
-    dryRun = false,
+    dryRun = false
   ): OutputWriteContext {
     return {
       collectedInputContext: {
@@ -76,14 +76,14 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
           projects: [
             {
               name: 'test-project',
-              dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
-            },
-          ],
+              dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)
+            }
+          ]
         },
         ideConfigFiles: [],
-        aiAgentIgnoreConfigFiles: ignoreFiles,
+        aiAgentIgnoreConfigFiles: ignoreFiles
       } as CollectedInputContext,
-      dryRun,
+      dryRun
     }
   }
 
@@ -109,7 +109,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       expect(results.map(r => r.path)).toEqual([
         path.join('project1', '.qoderignore'),
         path.join('project1', '.cursorignore'),
-        path.join('project1', '.warpindexignore'),
+        path.join('project1', '.warpindexignore')
       ])
     })
 
@@ -122,7 +122,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       expect(results.map(r => r.path)).toEqual([
         path.join('project1', '.qoderignore'),
         path.join('project1', '.cursorignore'),
-        path.join('project1', '.warpindexignore'),
+        path.join('project1', '.warpindexignore')
       ])
     })
 
@@ -135,17 +135,17 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
             projects: [
               {
                 name: 'project-1',
-                dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
+                dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)
               },
               {
                 name: 'project-2',
-                dirFromWorkspacePath: createMockRelativePath('project2', mockWorkspaceDir),
-              },
-            ],
+                dirFromWorkspacePath: createMockRelativePath('project2', mockWorkspaceDir)
+              }
+            ]
           },
           ideConfigFiles: [],
-          aiAgentIgnoreConfigFiles: ignoreFiles,
-        } as CollectedInputContext,
+          aiAgentIgnoreConfigFiles: ignoreFiles
+        } as CollectedInputContext
       }
 
       const results = await plugin.registerProjectOutputFiles(ctx)
@@ -164,18 +164,18 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
             projects: [
               {
                 name: 'regular-project',
-                dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
+                dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)
               },
               {
                 name: 'prompt-source-project',
                 isPromptSourceProject: true, // to protect source files // Prompt source project (e.g., aindex) - should be skipped for cleanup
-                dirFromWorkspacePath: createMockRelativePath('prompt-source-project', mockWorkspaceDir),
-              },
-            ],
+                dirFromWorkspacePath: createMockRelativePath('prompt-source-project', mockWorkspaceDir)
+              }
+            ]
           },
           ideConfigFiles: [],
-          aiAgentIgnoreConfigFiles: ignoreFiles,
-        } as CollectedInputContext,
+          aiAgentIgnoreConfigFiles: ignoreFiles
+        } as CollectedInputContext
       }
 
       const results = await plugin.registerProjectOutputFiles(ctx)
@@ -227,19 +227,19 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
         1,
         path.join(mockWorkspaceDir, 'project1', '.qoderignore'),
         'qoder patterns',
-        'utf8',
+        'utf8'
       )
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
         2,
         path.join(mockWorkspaceDir, 'project1', '.cursorignore'),
         'cursor patterns',
-        'utf8',
+        'utf8'
       )
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
         3,
         path.join(mockWorkspaceDir, 'project1', '.warpindexignore'),
         'warp patterns',
-        'utf8',
+        'utf8'
       )
     })
 
@@ -298,14 +298,14 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
             directory: createMockRelativePath('.', mockWorkspaceDir),
             projects: [
               {
-                name: 'test-project',
-              },
-            ],
+                name: 'test-project'
+              }
+            ]
           },
           ideConfigFiles: [],
-          aiAgentIgnoreConfigFiles: ignoreFiles,
+          aiAgentIgnoreConfigFiles: ignoreFiles
         } as CollectedInputContext,
-        dryRun: false,
+        dryRun: false
       }
 
       const results = await plugin.writeProjectOutputs(ctx)
@@ -323,18 +323,18 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
             projects: [
               {
                 name: 'project-1',
-                dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
+                dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)
               },
               {
                 name: 'project-2',
-                dirFromWorkspacePath: createMockRelativePath('project2', mockWorkspaceDir),
-              },
-            ],
+                dirFromWorkspacePath: createMockRelativePath('project2', mockWorkspaceDir)
+              }
+            ]
           },
           ideConfigFiles: [],
-          aiAgentIgnoreConfigFiles: ignoreFiles,
+          aiAgentIgnoreConfigFiles: ignoreFiles
         } as CollectedInputContext,
-        dryRun: false,
+        dryRun: false
       }
 
       const results = await plugin.writeProjectOutputs(ctx)

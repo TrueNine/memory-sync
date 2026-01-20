@@ -54,11 +54,6 @@ export interface KiroPowerSource {
 export interface KiroPowerEntry {
   readonly name: string
   readonly description: string
-  /**
-   * MCP server names from skill's mcp.json configuration.
-   * Contains all keys from mcpServers object.
-   * Position: after description, before author (matches Kiro format)
-   */
   readonly mcpServers?: readonly string[]
   readonly author?: string
   readonly keywords: readonly string[]

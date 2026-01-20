@@ -33,7 +33,7 @@ export class GitExcludeInputPlugin extends AbstractInputPlugin {
     this.log.debug({action: 'collect', message: 'Loaded git exclude from shadow project', path: excludePath})
 
     return {
-      shadowGitExclude: content,
+      shadowGitExclude: content
     }
   }
 }

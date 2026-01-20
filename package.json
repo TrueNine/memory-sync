@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10118.11633",
+  "version": "2026.10120.0",
   "packageManager": "pnpm@10.28.0",
   "description": "TrueNine Life CLI Tools",
   "author": "TrueNine",
@@ -58,7 +58,7 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@truenine/eslint9-config": "^2026.10120.103",
+    "@truenine/eslint9-config": "^2026.10120.11726",
     "@types/estree": "^1.0.8",
     "@types/estree-jsx": "^1.0.5",
     "@types/fs-extra": "^11.0.4",
@@ -68,7 +68,7 @@
     "@vitest/coverage-v8": "4.0.17",
     "eslint": "^9.39.2",
     "fast-check": "^4.5.3",
-    "tsdown": "0.20.0-beta.3",
+    "tsdown": "0.20.0-beta.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",

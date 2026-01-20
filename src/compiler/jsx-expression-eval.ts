@@ -5,7 +5,7 @@ import type {
   JSXFragment,
   JSXMemberExpression,
   JSXSpreadChild,
-  JSXText,
+  JSXText
 } from 'estree-jsx'
 import type {RootContent} from 'mdast'
 import type {MdxFlowExpression, MdxJsxFlowElement, MdxTextExpression} from 'mdast-util-mdx'
@@ -31,7 +31,7 @@ export function hasJsxInEstree(estree: Program | undefined): boolean {
 export async function evaluateJsxExpression(
   node: MdxFlowExpression | MdxTextExpression,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
+  processAstFn: ProcessAstFn
 ): Promise<RootContent[]> {
   const estree = (node.data as {estree?: Program} | undefined)?.estree
   if (estree == null || estree.body.length === 0) return []
@@ -48,7 +48,7 @@ export async function evaluateJsxExpression(
 async function evaluateEstreeExpression(
   expr: Expression,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
+  processAstFn: ProcessAstFn
 ): Promise<RootContent[]> {
   if (expr.type === 'JSXElement') return processJsxElement(expr as unknown as JSXElement, ctx, processAstFn) // Handle JSX types first
   if (expr.type === 'JSXFragment') return processJsxFragment(expr as unknown as JSXFragment, ctx, processAstFn)
@@ -62,7 +62,7 @@ async function evaluateEstreeExpression(
 async function evaluateLogicalExpression(
   expr: Expression & {type: 'LogicalExpression'},
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
+  processAstFn: ProcessAstFn
 ): Promise<RootContent[]> {
   const leftValue = await evaluateToValue(expr.left, ctx, processAstFn)
 
@@ -88,7 +88,7 @@ async function evaluateLogicalExpression(
 async function evaluateConditionalExpression(
   expr: Expression & {type: 'ConditionalExpression'},
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
+  processAstFn: ProcessAstFn
 ): Promise<RootContent[]> {
   const testValue = await evaluateToValue(expr.test, ctx, processAstFn)
   if (isTruthy(testValue)) return evaluateEstreeExpression(expr.consequent, ctx, processAstFn)
@@ -98,7 +98,7 @@ async function evaluateConditionalExpression(
 async function evaluateSequenceExpression(
   expr: Expression & {type: 'SequenceExpression'},
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
+  processAstFn: ProcessAstFn
 ): Promise<RootContent[]> {
   const results: RootContent[] = []
   for (const e of expr.expressions) {
@@ -111,7 +111,7 @@ async function evaluateSequenceExpression(
 async function evaluateArrayExpression(
   expr: Expression & {type: 'ArrayExpression'},
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
+  processAstFn: ProcessAstFn
 ): Promise<RootContent[]> {
   const results: RootContent[] = []
   for (const element of expr.elements) {
@@ -130,7 +130,7 @@ async function evaluateArrayExpression(
 async function evaluateToValue(
   expr: Expression,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
+  processAstFn: ProcessAstFn
 ): Promise<unknown> {
   if (isJsxExpression(expr)) return true
 
@@ -217,7 +217,7 @@ async function evaluateToValue(
 async function processJsxElement(
   jsxElement: JSXElement,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
+  processAstFn: ProcessAstFn
 ): Promise<RootContent[]> {
   const mdxElement = convertEstreeJsxToMdx(jsxElement, ctx)
 
@@ -237,7 +237,7 @@ async function processJsxElement(
 async function processJsxFragment(
   fragment: JSXFragment,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
+  processAstFn: ProcessAstFn
 ): Promise<RootContent[]> {
   const results: RootContent[] = []
   for (const child of fragment.children) {
@@ -250,7 +250,7 @@ async function processJsxFragment(
 async function processJsxChild(
   child: JSXChild,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
+  processAstFn: ProcessAstFn
 ): Promise<RootContent[]> {
   if (child.type === 'JSXElement') return processJsxElement(child, ctx, processAstFn)
   if (child.type === 'JSXFragment') return processJsxFragment(child, ctx, processAstFn)
@@ -291,7 +291,7 @@ function convertEstreeJsxToMdx(jsxElement: JSXElement, _ctx: ProcessingContext):
         if (attr.value.expression.type !== 'JSXEmptyExpression') {
           attrValue = {
             type: 'mdxJsxAttributeValueExpression' as const,
-            value: estreeToSource(attr.value.expression),
+            value: estreeToSource(attr.value.expression)
           }
         }
       }

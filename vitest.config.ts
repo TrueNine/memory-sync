@@ -13,7 +13,7 @@ export default mergeConfig(
       root: fileURLToPath(new URL('./', import.meta.url)),
       typecheck: {
         enabled: true,
-        tsconfig: './tsconfig.test.json',
+        tsconfig: './tsconfig.test.json'
       },
       testTimeout: 30000, // Property-based tests run more iterations
       onConsoleLog: () => false, // Minimal output: suppress console logs, show summary only
@@ -24,9 +24,9 @@ export default mergeConfig(
           'node_modules/',
           'dist/',
           '**/*.test.ts',
-          '**/*.property.test.ts',
-        ],
-      },
-    },
-  }),
+          '**/*.property.test.ts'
+        ]
+      }
+    }
+  })
 )

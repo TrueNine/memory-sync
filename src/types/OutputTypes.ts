@@ -1,8 +1,8 @@
-import type {GlobalConfigDirectoryType} from '@/types/Enums' // TODO 加入输出 target 的删除 // TODO 加入输出源的收集
+import type {GlobalConfigDirectoryType} from '@/types/Enums' // TODO Add output target deletion // TODO Add output source collection
 import type {AbsolutePath, RelativePath} from '@/types/FileSystemTypes'
 
 /**
- * 基于 user_home 根目录的全局配置
+ * Global configuration based on user_home root directory
  */
 export interface GlobalConfigDirectoryInUserHome<K = GlobalConfigDirectoryType.UserHome> {
   readonly type: K
@@ -10,7 +10,7 @@ export interface GlobalConfigDirectoryInUserHome<K = GlobalConfigDirectoryType.U
 }
 
 /**
- * 特殊的，绝对路径的全局记忆提示词
+ * Special, absolute path global memory prompt
  */
 export interface GlobalConfigDirectoryInOther<K = GlobalConfigDirectoryType.External> {
   readonly type: K

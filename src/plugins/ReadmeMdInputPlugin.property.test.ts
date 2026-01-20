@@ -15,30 +15,24 @@ import {ReadmeMdInputPlugin} from './ReadmeMdInputPlugin'
 describe('readmeMdInputPlugin property tests', () => {
   const plugin = new ReadmeMdInputPlugin()
 
-  /**
-   * Create a mock InputPluginContext for testing
-   */
   function createMockContext(workspaceDir: string, shadowSourceProjectDir: string): InputPluginContext {
     const options: PluginOptions = {
       workspaceDir,
       shadowSourceProjectDir,
-      shadowProjectsDir: path.join(shadowSourceProjectDir, 'ref'),
+      shadowProjectsDir: path.join(shadowSourceProjectDir, 'ref')
     }
 
     return {
       userConfigOptions: options,
       logger: createLogger('test', 'error'),
       fs,
-      path,
+      path
     }
   }
 
-  /**
-   * Create directory structure for testing
-   */
   function createDirectoryStructure(
     baseDir: string,
-    structure: Record<string, string | null>,
+    structure: Record<string, string | null>
   ): void {
     for (const [filePath, content] of Object.entries(structure)) {
       const fullPath = path.join(baseDir, filePath)
@@ -50,9 +44,6 @@ describe('readmeMdInputPlugin property tests', () => {
     }
   }
 
-  /**
-   * Create isolated temp directory and run test, then cleanup
-   */
   async function withTempDir<T>(fn: (tempDir: string) => Promise<T>): Promise<T> {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-test-'))
     try {
@@ -63,16 +54,6 @@ describe('readmeMdInputPlugin property tests', () => {
     }
   }
 
-  /**
-   * Feature: readme-md-plugin, Property 1: README Discovery Completeness
-   *
-   * For any shadow project directory structure containing readme.mdx files,
-   * the ReadmeMdInputPlugin SHALL discover all readme.mdx files at both
-   * ref/project/readme.mdx (root) and ref/project/subdir/readme.mdx (child) locations,
-   * and continue processing remaining files when individual file reads fail.
-   *
-   * Validates: Requirements 1.1, 1.2, 1.3, 1.5
-   */
   describe('property 1: README Discovery Completeness', () => {
     const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid project names (alphanumeric, no special chars)
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
@@ -125,15 +106,15 @@ describe('readmeMdInputPlugin property tests', () => {
                 const found = readmePrompts.find(
                   r =>
                     r.projectName === expected.projectName
-                    && r.isRoot === expected.isRoot,
+                    && r.isRoot === expected.isRoot
                 )
                 expect(found).toBeDefined()
                 expect(found?.content).toBe(content)
               }
             })
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -151,22 +132,13 @@ describe('readmeMdInputPlugin property tests', () => {
 
               expect(result.readmePrompts).toEqual([])
             })
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: readme-md-plugin, Property 2: Data Structure Correctness
-   *
-   * For any discovered readme.mdx file, the resulting ReadmePrompt SHALL contain
-   * the correct projectName, content, relative path, and isRoot flag that accurately
-   * reflects whether the file is a root README (in project root) or child README (in subdir/).
-   *
-   * Validates: Requirements 2.1, 2.2, 2.3
-   */
   describe('property 2: Data Structure Correctness', () => {
     const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid project names
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
@@ -188,7 +160,7 @@ describe('readmeMdInputPlugin property tests', () => {
             await withTempDir(async tempDir => {
               const structure: Record<string, string | null> = { // Create structure with both root and child README
                 [`ref/${projectName}/readme.mdx`]: rootContent,
-                [`ref/${projectName}/${subdir}/readme.mdx`]: childContent,
+                [`ref/${projectName}/${subdir}/readme.mdx`]: childContent
               }
 
               createDirectoryStructure(tempDir, structure)
@@ -209,9 +181,9 @@ describe('readmeMdInputPlugin property tests', () => {
               expect(childReadme?.content).toBe(childContent)
               expect(childReadme?.targetDir.path).toBe(path.join(projectName, subdir)) // Use path.join for cross-platform path comparison
             })
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -223,7 +195,7 @@ describe('readmeMdInputPlugin property tests', () => {
           async (projectName, content) => {
             await withTempDir(async tempDir => {
               const structure: Record<string, string | null> = {
-                [`ref/${projectName}/readme.mdx`]: content,
+                [`ref/${projectName}/readme.mdx`]: content
               }
 
               createDirectoryStructure(tempDir, structure)
@@ -236,9 +208,9 @@ describe('readmeMdInputPlugin property tests', () => {
               expect(readmePrompts[0].content).toBe(content)
               expect(readmePrompts[0].length).toBe(content.length)
             })
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -264,13 +236,13 @@ describe('readmeMdInputPlugin property tests', () => {
               for (const readme of readmePrompts) {
                 expect(readme.targetDir.basePath).toBe(tempDir) // Verify targetDir structure
                 expect(readme.targetDir.getAbsolutePath()).toBe(
-                  path.resolve(tempDir, readme.targetDir.path),
+                  path.resolve(tempDir, readme.targetDir.path)
                 )
               }
             })
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })

@@ -6,23 +6,13 @@ import type {PluginKind} from '@/types/Enums'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import type {
   CollectedInputContext,
-  Project,
+  Project
 } from '@/types/InputTypes'
 
 export interface Plugin<T extends PluginKind = PluginKind> {
   readonly type: T
-  /**
-   * Plugin name (also serves as plugin id)
-   */
   readonly name: string
-  /**
-   * Logger for the plugin
-   */
   readonly log: ILogger
-  /**
-   * Plugin names this plugin depends on.
-   * Dependencies will be executed before this plugin.
-   */
   readonly dependsOn?: readonly string[]
 }
 
@@ -35,31 +25,14 @@ export interface PluginContext {
 
 export interface InputPluginContext extends PluginContext {
   readonly userConfigOptions: Required<PluginOptions>
-  /**
-   * Accumulated context from all executed dependencies.
-   * Contains merged outputs from plugins that this plugin depends on.
-   */
   readonly dependencyContext: Partial<CollectedInputContext>
 
-  /**
-   * Global scope containing os, env, profile, tool namespaces.
-   * Available for MDX expression evaluation.
-   */
   readonly globalScope?: MdxGlobalScope
 
-  /**
-   * Scope registry for registering and merging scopes.
-   * Plugins can use this to register custom scope variables.
-   */
   readonly scopeRegistry?: ScopeRegistry
 }
 
 export interface InputPlugin extends Plugin<PluginKind.Input> {
-  /**
-   * Collect all inputs from all registered input plugins.
-   * This is the main entry point for the collect command.
-   * Supports both sync and async implementations.
-   */
   collect: (ctx: InputPluginContext) => Partial<CollectedInputContext> | Promise<Partial<CollectedInputContext>>
 }
 
@@ -69,10 +42,6 @@ export interface InputPlugin extends Plugin<PluginKind.Input> {
  * that were collected by other plugins.
  */
 export interface ProjectEnhancerPlugin extends InputPlugin {
-  /**
-   * Enhance projects with additional data.
-   * Called after all projects are collected from all input plugins.
-   */
   enhanceProjects: (ctx: InputPluginContext, projects: readonly Project[]) => Project[]
 }
 
@@ -81,10 +50,6 @@ export interface ProjectEnhancerPlugin extends InputPlugin {
  */
 export interface OutputPluginContext extends PluginContext {
   readonly collectedInputContext: CollectedInputContext
-  /**
-   * Plugin options containing user configuration.
-   * Used by output plugins to access configuration like fastCommandSeriesOptions.
-   */
   readonly pluginOptions?: PluginOptions
 }
 
@@ -92,9 +57,6 @@ export interface OutputPluginContext extends PluginContext {
  * Context for output cleaning operations
  */
 export interface OutputCleanContext extends OutputPluginContext {
-  /**
-   * Whether running in dry-run mode (no actual deletion)
-   */
   readonly dryRun?: boolean
 }
 
@@ -102,16 +64,8 @@ export interface OutputCleanContext extends OutputPluginContext {
  * Context for output writing operations
  */
 export interface OutputWriteContext extends OutputPluginContext {
-  /**
-   * Whether running in dry-run mode (no actual file writes)
-   */
   readonly dryRun?: boolean
 
-  /**
-   * Names of all registered output plugins.
-   * Useful for plugins to check if other plugins are registered
-   * and potentially skip their own output if a more comprehensive plugin is available.
-   */
   readonly registeredPluginNames?: readonly string[]
 }
 
@@ -164,6 +118,86 @@ export type WriteEffectHandler = (ctx: OutputWriteContext) => Awaitable<EffectRe
 export type CleanEffectHandler = (ctx: OutputCleanContext) => Awaitable<EffectResult>
 
 /**
+ * Result of executing an input effect.
+ * Used for preprocessing/cleaning input sources before collection.
+ */
+export interface InputEffectResult {
+  /** Whether the effect executed successfully */
+  readonly success: boolean
+  /** Error details if the effect failed */
+  readonly error?: Error
+  /** Description of what the effect did (for logging) */
+  readonly description?: string
+  /** Files that were modified/created */
+  readonly modifiedFiles?: readonly string[]
+  /** Files that were deleted */
+  readonly deletedFiles?: readonly string[]
+}
+
+/**
+ * Context provided to input effect handlers.
+ * Contains utilities and configuration for effect execution.
+ */
+export interface InputEffectContext {
+  /** Logger instance */
+  readonly logger: ILogger
+  /** File system module */
+  readonly fs: typeof import('node:fs')
+  /** Path module */
+  readonly path: typeof import('node:path')
+  /** Glob module for file matching */
+  readonly glob: typeof import('fast-glob')
+  /** Child process spawn function */
+  readonly spawn: typeof import('node:child_process').spawn
+  /** User configuration options */
+  readonly userConfigOptions: PluginOptions
+  /** Resolved workspace directory */
+  readonly workspaceDir: string
+  /** Resolved shadow project directory */
+  readonly shadowProjectDir: string
+  /** Whether running in dry-run mode */
+  readonly dryRun?: boolean
+}
+
+/**
+ * Handler function for input effects.
+ * Receives the effect context and returns an effect result.
+ */
+export type InputEffectHandler = (ctx: InputEffectContext) => Awaitable<InputEffectResult>
+
+/**
+ * Registration entry for an input effect.
+ */
+export interface InputEffectRegistration {
+  /** Descriptive name for logging */
+  readonly name: string
+  /** The effect handler function */
+  readonly handler: InputEffectHandler
+  /** Priority for execution order (lower = earlier, default: 0) */
+  readonly priority?: number
+}
+
+/**
+ * Result of resolving base paths from plugin options.
+ */
+export interface ResolvedBasePaths {
+  /** The resolved workspace directory path */
+  readonly workspaceDir: string
+  /** The resolved shadow project directory path */
+  readonly shadowProjectDir: string
+}
+
+/**
+ * Represents a registered scope entry from a plugin.
+ */
+export interface PluginScopeRegistration {
+  /** The namespace name (e.g., 'myPlugin') */
+  readonly namespace: string
+  /** Key-value pairs registered under this namespace */
+  readonly values: Record<string, unknown>
+}
+
+/**
  * Registration entry for an effect.
  */
 export interface EffectRegistration<THandler> {
@@ -179,70 +213,26 @@ export interface EffectRegistration<THandler> {
  * All hooks support both sync and async implementations.
  */
 export interface OutputPlugin extends Plugin<PluginKind.Output> {
-  /**
-   * Register project-level output directories created by this plugin.
-   * Called during output collection phase.
-   */
   registerProjectOutputDirs?: (ctx: OutputPluginContext) => Awaitable<readonly RelativePath[]>
 
-  /**
-   * Register project-level output files created by this plugin.
-   * Called during output collection phase.
-   */
   registerProjectOutputFiles?: (ctx: OutputPluginContext) => Awaitable<readonly RelativePath[]>
 
-  /**
-   * Register global output directories created by this plugin.
-   * Called during output collection phase.
-   */
   registerGlobalOutputDirs?: (ctx: OutputPluginContext) => Awaitable<readonly RelativePath[]>
 
-  /**
-   * Register global output files created by this plugin.
-   * Called during output collection phase.
-   */
   registerGlobalOutputFiles?: (ctx: OutputPluginContext) => Awaitable<readonly RelativePath[]>
 
-  /**
-   * Called before cleaning project outputs.
-   * Return false to prevent cleanup for this plugin.
-   */
   canCleanProject?: (ctx: OutputCleanContext) => Awaitable<boolean>
 
-  /**
-   * Called before cleaning global outputs.
-   * Return false to prevent cleanup for this plugin.
-   */
   canCleanGlobal?: (ctx: OutputCleanContext) => Awaitable<boolean>
 
-  /**
-   * Hook called after cleaning completes.
-   * Can be used for post-cleanup tasks.
-   */
   onCleanComplete?: (ctx: OutputCleanContext) => Awaitable<void>
 
-  /**
-   * Called before writing outputs.
-   * Return false to skip writing for this plugin.
-   */
   canWrite?: (ctx: OutputWriteContext) => Awaitable<boolean>
 
-  /**
-   * Write project-level outputs.
-   * In dry-run mode, should only collect what would be written without actual I/O.
-   */
   writeProjectOutputs?: (ctx: OutputWriteContext) => Awaitable<WriteResults>
 
-  /**
-   * Write global-level outputs.
-   * In dry-run mode, should only collect what would be written without actual I/O.
-   */
   writeGlobalOutputs?: (ctx: OutputWriteContext) => Awaitable<WriteResults>
 
-  /**
-   * Hook called after writing completes.
-   * Can be used for post-write tasks like validation.
-   */
   onWriteComplete?: (ctx: OutputWriteContext, results: WriteResults) => Awaitable<void>
 }
 
@@ -263,7 +253,7 @@ export interface CollectedOutputs {
  */
 export async function collectAllPluginOutputs(
   plugins: readonly OutputPlugin[],
-  ctx: OutputPluginContext,
+  ctx: OutputPluginContext
 ): Promise<CollectedOutputs> {
   const projectDirs: RelativePath[] = []
   const projectFiles: RelativePath[] = []
@@ -281,7 +271,7 @@ export async function collectAllPluginOutputs(
     projectDirs,
     projectFiles,
     globalDirs,
-    globalFiles,
+    globalFiles
   }
 }
 
@@ -299,7 +289,7 @@ export interface CleanPermission {
  */
 export async function checkCanClean(
   plugins: readonly OutputPlugin[],
-  ctx: OutputCleanContext,
+  ctx: OutputCleanContext
 ): Promise<Map<string, CleanPermission>> {
   const result = new Map<string, CleanPermission>()
 
@@ -315,7 +305,7 @@ export async function checkCanClean(
  */
 export async function executeOnCleanComplete(
   plugins: readonly OutputPlugin[],
-  ctx: OutputCleanContext,
+  ctx: OutputCleanContext
 ): Promise<void> {
   for (const plugin of plugins) await plugin.onCleanComplete?.(ctx)
 }
@@ -334,7 +324,7 @@ export interface WritePermission {
  */
 export async function checkCanWrite(
   plugins: readonly OutputPlugin[],
-  ctx: OutputWriteContext,
+  ctx: OutputWriteContext
 ): Promise<Map<string, WritePermission>> {
   const result = new Map<string, WritePermission>()
 
@@ -352,7 +342,7 @@ export async function checkCanWrite(
  */
 export async function executeWriteOutputs(
   plugins: readonly OutputPlugin[],
-  ctx: OutputWriteContext,
+  ctx: OutputWriteContext
 ): Promise<Map<string, WriteResults>> {
   const results = new Map<string, WriteResults>()
 
@@ -362,7 +352,7 @@ export async function executeWriteOutputs(
 
     const merged: WriteResults = {
       files: [...projectResults.files, ...globalResults.files],
-      dirs: [...projectResults.dirs, ...globalResults.dirs],
+      dirs: [...projectResults.dirs, ...globalResults.dirs]
     }
 
     results.set(plugin.name, merged)
@@ -373,72 +363,35 @@ export async function executeWriteOutputs(
 }
 
 /**
- * plugin.config.ts 需要处理的配置
- * 由插件系统解读为收集上下文
- * 插件路径自动解析以下展位符为特殊符号
- * - `$WORKSPACE`: 工作目录
- * - `$SHADOW_SOURCE_PROJECT`: 抽取源提示词工作目录（它是一个特殊的 project，方便存放于 git，单独进行管理提示词）
- * - `~`: 用户主目录
+ * Configuration to be processed by plugin.config.ts
+ * Interpreted by plugin system as collection context
+ * Plugin path automatically resolves the following placeholders to special symbols
+ * - `$WORKSPACE`: Working directory
+ * - `$SHADOW_SOURCE_PROJECT`: Extracted source prompt working directory (a special project for git storage and separate prompt management)
+ * - `~`: User home directory
  *
- * @see CollectedInputContext - 被收集的上下文
- * @see PathPlaceholders - 路径占位符
+ * @see CollectedInputContext - Collected context
+ * @see PathPlaceholders - Path placeholders
  */
 export interface PluginOptions {
-  /**
-   * 插件自动扫描其 directChildrenDirectory 为 project
-   * @default ~/project
-   */
   readonly workspaceDir?: string
 
-  /**
-   * @default $WORKSPACE/aindex
-   */
   readonly shadowSourceProjectDir?: string
 
-  /**
-   * @default $SHADOW_SOURCE_PROJECT/dist/skills
-   */
   readonly shadowSkillSourceDir?: string
 
-  /**
-   * @default $SHADOW_SOURCE_PROJECT/dist/commands
-   */
   readonly shadowFastCommandDir?: string
 
-  /**
-   * @default $SHADOW_SOURCE_PROJECT/dist/agents
-   */
   readonly shadowSubAgentDir?: string
 
-  /**
-   * @default $SHADOW_SOURCE_PROJECT/dist/GLOBAL.md
-   */
   readonly globalMemoryFile?: string
 
-  /**
-   * 插件自动扫描其 directChildrenDirectory 为 shadow project，
-   * 只有同时识别为
-   * @default $SHADOW_SOURCE_PROJECT/dist/app
-   */
   readonly shadowProjectsDir?: string
 
-  /**
-   * 一些用户定义的脱离 workspace 的项目，
-   * 如果 shadow project 和 任何 project 重叠，则会：
-   * - 保留 shadow project
-   * - 剔除 同名的 project
-   */
   readonly externalProjects?: readonly string[]
 
-  /**
-   * 不被处理的文件
-   * projectName and excludePatterns
-   */
   readonly excludePatterns?: Record<string, string[]>
 
-  /**
-   * Fast command series options for controlling prefix handling in output filenames
-   */
   readonly fastCommandSeriesOptions?: FastCommandSeriesOptions
 
   plugins?: Plugin[]

@@ -5,8 +5,8 @@
  */
 
 export {
-  KiroPowersRegistryWriter,
+  KiroPowersRegistryWriter
 } from './KiroPowersRegistryWriter'
 export {
-  RegistryWriter,
+  RegistryWriter
 } from './RegistryWriter'

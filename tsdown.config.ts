@@ -20,7 +20,7 @@ export default defineConfig([
       'remark-frontmatter',
       'remark-gfm',
       'remark-parse',
-      'fast-glob',
+      'fast-glob'
     ],
     format: ['esm'],
     minify: true,
@@ -30,14 +30,14 @@ export default defineConfig([
       __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
       __KIRO_GLOBAL_POWERS_REGISTRY__: kiroGlobalPowersRegistry,
       __TEMPLATE_TNMSC_EXAMPLE__: JSON.stringify(tnmscExample),
-      __TEMPLATE_GITIGNORE__: `\`${gitignoreTemplate.replaceAll('`', '\\`').replaceAll('$', '\\$')}\``,
-    },
+      __TEMPLATE_GITIGNORE__: `\`${gitignoreTemplate.replaceAll('`', '\\`').replaceAll('$', '\\$')}\``
+    }
   },
   {
     entry: ['./src/globals/index.ts'],
     outDir: './dist/globals',
     platform: 'node',
     minify: true,
-    dts: {sourcemap: false},
-  },
+    dts: {sourcemap: false}
+  }
 ])

@@ -12,10 +12,10 @@ import {evaluateExpression} from '@/compiler/expression-eval'
  */
 function evaluateWhenCondition(
   element: MdxJsxFlowElement | MdxJsxTextElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): boolean {
   const whenAttr = element.attributes.find(
-    attr => attr.type === 'mdxJsxAttribute' && attr.name === 'when',
+    attr => attr.type === 'mdxJsxAttribute' && attr.name === 'when'
   )
 
   if (whenAttr?.type !== 'mdxJsxAttribute') return true // No condition = always true
@@ -39,69 +39,19 @@ function evaluateWhenCondition(
   return false
 }
 
-/**
- * Md component handler - wrapper for conditional Markdown content.
- *
- * The Md component allows wrapping Markdown content for conditional compilation.
- * It passes through children content directly, optionally filtered by a `when` condition.
- *
- * @example
- * Basic usage - content passes through directly:
- * ```mdx
- * <Md>
- *   # Some markdown content
- *   This will be output directly
- * </Md>
- * ```
- *
- * @example
- * With condition - content only included if condition is true:
- * ```mdx
- * <Md when={someCondition}>
- *   # Only included if condition is true
- * </Md>
- * ```
- *
- * @param element - The JSX element representing the Md component
- * @param ctx - The processing context containing scope and components
- * @param processChildren - Function to recursively process child nodes
- * @returns Processed child nodes, or empty array if condition is false or no children
- */
 export async function MdHandler(
   element: MdxJsxFlowElement | MdxJsxTextElement,
   ctx: ProcessingContext,
-  processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>,
+  processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>
 ): Promise<RootContent[]> {
   if (!evaluateWhenCondition(element, ctx)) return []
   if (element.children.length === 0) return []
   return processChildren(element.children as RootContent[], ctx)
 }
 
-/**
- * Md.Line component handler - inline conditional text.
- *
- * The Md.Line component allows conditional inline text insertion.
- * Unlike Md which is block-level, Md.Line outputs inline text nodes.
- *
- * @example
- * Basic inline conditional:
- * ```mdx
- * 使用 <Md.Line when={os.kind === 'win'}>PowerShell</Md.Line><Md.Line when={os.kind !== 'win'}>终端</Md.Line> 执行命令
- * ```
- *
- * @example
- * Multiple conditions:
- * ```mdx
- * 系统: <Md.Line when={os.kind === 'win'}>Windows</Md.Line><Md.Line when={os.kind === 'mac'}>macOS</Md.Line><Md.Line when={os.kind === 'linux'}>Linux</Md.Line>
- * ```
- *
- * @param element - The JSX element representing the Md.Line component
- * @param ctx - The processing context containing scope and components
- * @returns Text nodes from children, or empty array if condition is false
- */
 export async function MdLineHandler(
   element: MdxJsxFlowElement | MdxJsxTextElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): Promise<RootContent[]> {
   if (!evaluateWhenCondition(element, ctx)) return []
 
@@ -120,7 +70,7 @@ export async function MdLineHandler(
  */
 function extractTextContent(
   children: (MdxJsxFlowElement | MdxJsxTextElement)['children'],
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): string {
   let result = ''
 

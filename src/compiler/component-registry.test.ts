@@ -13,7 +13,7 @@ import {
   clearComponents,
   getComponents,
   hasComponent,
-  registerComponent,
+  registerComponent
 } from './component-registry'
 
 describe('component-registry', () => {
@@ -21,14 +21,11 @@ describe('component-registry', () => {
     clearComponents()
   })
 
-  /**
-   * Creates a mock component handler for testing
-   */
   function createMockHandler(): ComponentHandler {
     return async (
       _element: MdxJsxFlowElement | MdxJsxTextElement,
       _ctx: ProcessingContext,
-      _processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>,
+      _processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>
     ): Promise<RootContent[]> => []
   }
 

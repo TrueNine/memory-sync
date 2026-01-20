@@ -2,7 +2,7 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   WriteResult,
-  WriteResults,
+  WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import {FilePathKind, IDEKind} from '@/types'
@@ -19,7 +19,7 @@ const JETBRAINS_CONFIG_FILES = [
   '.editorconfig',
   '.idea/codeStyles/Project.xml',
   '.idea/codeStyles/codeStyleConfig.xml',
-  '.idea/.gitignore',
+  '.idea/.gitignore'
 ] as const
 
 export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugin {
@@ -33,7 +33,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     const {ideConfigFiles} = ctx.collectedInputContext
 
     const hasJetBrainsConfigs = ideConfigFiles.some( // Only register files if we have JetBrains configs to write
-      f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
+      f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig
     )
     if (!hasJetBrainsConfigs) return results
 
@@ -50,7 +50,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
           path: filePath,
           basePath: projectDir.basePath,
           getDirectoryName: () => this.dirname(configFile),
-          getAbsolutePath: () => this.resolvePath(projectDir.basePath, filePath),
+          getAbsolutePath: () => this.resolvePath(projectDir.basePath, filePath)
         })
       }
     }
@@ -61,7 +61,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {ideConfigFiles} = ctx.collectedInputContext
     const hasIdeaConfigs = ideConfigFiles.some(
-      f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
+      f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig
     )
 
     if (hasIdeaConfigs) return true
@@ -77,7 +77,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     const dirResults: WriteResult[] = []
 
     const jetbrainsConfigs = ideConfigFiles.filter( // Filter JetBrains IDE related config files
-      f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig,
+      f => f.type === IDEKind.IntellijIDEA || f.type === IDEKind.EditorConfig
     )
 
     for (const project of projects) {
@@ -99,7 +99,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     ctx: OutputWriteContext,
     projectDir: RelativePath,
     config: {type: IDEKind, content: string, dir: {path: string}},
-    label: string,
+    label: string
   ): Promise<WriteResult> {
     const targetRelativePath = this.getTargetRelativePath(config) // Determine target path based on config type
     const fullPath = this.resolvePath(projectDir.basePath, projectDir.path, targetRelativePath)
@@ -109,7 +109,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
       path: this.joinPath(projectDir.path, targetRelativePath),
       basePath: projectDir.basePath,
       getDirectoryName: () => this.dirname(targetRelativePath),
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     if (ctx.dryRun === true) {

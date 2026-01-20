@@ -98,7 +98,7 @@ describe('configLoader', () => {
     it('should validate string fields', () => {
       const configContent = JSON.stringify({ // workspaceDir is invalid (number instead of string)
         workspaceDir: 123,
-        shadowSourceProjectDir: '~/shadow',
+        shadowSourceProjectDir: '~/shadow'
       })
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -114,7 +114,7 @@ describe('configLoader', () => {
 
     it('should validate logLevel values', () => {
       const configContent = JSON.stringify({ // logLevel is invalid
-        logLevel: 'invalid',
+        logLevel: 'invalid'
       })
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -129,7 +129,7 @@ describe('configLoader', () => {
 
     it('should validate externalProjects array', () => {
       const configContent = JSON.stringify({
-        externalProjects: ['/path/a', '/path/b'],
+        externalProjects: ['/path/a', '/path/b']
       })
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -146,8 +146,8 @@ describe('configLoader', () => {
       const configContent = JSON.stringify({
         excludePatterns: {
           projectA: ['*.log', 'node_modules'],
-          projectB: ['dist'],
-        },
+          projectB: ['dist']
+        }
       })
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -159,19 +159,19 @@ describe('configLoader', () => {
       expect(result.found).toBe(true)
       expect(result.config.excludePatterns).toEqual({
         projectA: ['*.log', 'node_modules'],
-        projectB: ['dist'],
+        projectB: ['dist']
       })
     })
 
     it('should validate profile object with arbitrary key-value pairs', () => {
       const configContent = JSON.stringify({
         profile: {
-          name: '张三',
+          name: 'Zhang San',
           username: 'zhangsan',
           gender: 'male',
           birthday: '1990-01-01',
-          customField: 'custom value',
-        },
+          customField: 'custom value'
+        }
       })
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -182,11 +182,11 @@ describe('configLoader', () => {
 
       expect(result.found).toBe(true)
       expect(result.config.profile).toEqual({
-        name: '张三',
+        name: 'Zhang San',
         username: 'zhangsan',
         gender: 'male',
         birthday: '1990-01-01',
-        customField: 'custom value',
+        customField: 'custom value'
       })
     })
 
@@ -205,7 +205,7 @@ describe('configLoader', () => {
 
     it('should reject invalid profile (array)', () => {
       const configContent = JSON.stringify({
-        profile: ['invalid'],
+        profile: ['invalid']
       })
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -223,8 +223,8 @@ describe('configLoader', () => {
         tool: {
           websearch: 'search_web',
           webfetch: 'fetch_url',
-          codeSearch: 'search_code',
-        },
+          codeSearch: 'search_code'
+        }
       })
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -237,7 +237,7 @@ describe('configLoader', () => {
       expect(result.config.tool).toEqual({
         websearch: 'search_web',
         webfetch: 'fetch_url',
-        codeSearch: 'search_code',
+        codeSearch: 'search_code'
       })
     })
 
@@ -258,8 +258,8 @@ describe('configLoader', () => {
       const configContent = JSON.stringify({
         tool: {
           websearch: 'search_web',
-          invalidTool: 123,
-        },
+          invalidTool: 123
+        }
       })
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -313,11 +313,11 @@ describe('configLoader', () => {
 
     it('should merge externalProjects arrays', () => {
       const cwdConfig = JSON.stringify({
-        externalProjects: ['/cwd/project'],
+        externalProjects: ['/cwd/project']
       })
 
       const globalConfig = JSON.stringify({
-        externalProjects: ['/global/project'],
+        externalProjects: ['/global/project']
       })
 
       const cwdPath = path.join(mockCwd, DEFAULT_CONFIG_FILE_NAME)
@@ -341,15 +341,15 @@ describe('configLoader', () => {
     it('should deep merge excludePatterns', () => {
       const cwdConfig = JSON.stringify({
         excludePatterns: {
-          projectA: ['*.log'],
-        },
+          projectA: ['*.log']
+        }
       })
 
       const globalConfig = JSON.stringify({
         excludePatterns: {
           projectA: ['node_modules'],
-          projectB: ['dist'],
-        },
+          projectB: ['dist']
+        }
       })
 
       const cwdPath = path.join(mockCwd, DEFAULT_CONFIG_FILE_NAME)

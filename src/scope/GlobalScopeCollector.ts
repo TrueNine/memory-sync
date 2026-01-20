@@ -32,23 +32,16 @@ export class GlobalScopeCollector {
     this.toolPreset = options.toolPreset ?? 'default'
   }
 
-  /**
-   * Collect the complete global scope
-   * @returns MdxGlobalScope containing os, env, profile, tool, and Md namespaces
-   */
   collect(): MdxGlobalScope {
     return {
       os: this.collectOsInfo(),
       env: this.collectEnvContext(),
       profile: this.collectProfile(),
       tool: this.collectToolReferences(),
-      Md: this.createMdComponent(),
+      Md: this.createMdComponent()
     }
   }
 
-  /**
-   * Collect operating system information
-   */
   private collectOsInfo(): OsInfo {
     const platform = os.platform()
     return {
@@ -60,13 +53,10 @@ export class GlobalScopeCollector {
       type: os.type(),
       release: os.release(),
       shellKind: this.detectShellKind(),
-      kind: this.detectOsKind(platform),
+      kind: this.detectOsKind(platform)
     }
   }
 
-  /**
-   * Detect the simplified OS kind from platform
-   */
   private detectOsKind(platform: string): OsKind {
     switch (platform) {
       case 'win32': return OsKind.Win
@@ -80,9 +70,6 @@ export class GlobalScopeCollector {
     }
   }
 
-  /**
-   * Detect the current shell type from environment variables
-   */
   private detectShellKind(): ShellKind {
     const shell = process.env['SHELL'] ?? process.env['ComSpec'] ?? ''
     const s = shell.toLowerCase()
@@ -98,26 +85,15 @@ export class GlobalScopeCollector {
     return ShellKind.Unknown
   }
 
-  /**
-   * Collect environment variables
-   */
   private collectEnvContext(): EnvironmentContext {
     return {...process.env}
   }
 
-  /**
-   * Collect user profile from configuration
-   */
   private collectProfile(): UserProfile {
     if (this.userConfig?.profile != null) return this.userConfig.profile
     return {}
   }
 
-  /**
-   * Collect tool references with system defaults and preset overrides.
-   * Tool references are system-defined and not user-configurable.
-   * Output plugins may override these values for specific AI tools via presets.
-   */
   private collectToolReferences(): ToolReferences {
     const defaults: ToolReferences = {...ToolPresets.default}
     if (this.toolPreset === 'claudeCode') return {...defaults, ...ToolPresets.claudeCode}
@@ -125,10 +101,6 @@ export class GlobalScopeCollector {
     return defaults
   }
 
-  /**
-   * Create the Md component for conditional rendering in MDX.
-   * This is a placeholder implementation - actual rendering is handled by the MDX compiler.
-   */
   private createMdComponent(): MdComponent {
     const mdComponent = ((props: {when?: boolean, children?: unknown}) => {
       if (props.when === false) return null

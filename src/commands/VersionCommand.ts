@@ -23,7 +23,7 @@ export class VersionCommand implements Command {
       success: true,
       filesAffected: 0,
       dirsAffected: 0,
-      message: 'Version displayed',
+      message: 'Version displayed'
     }
   }
 }

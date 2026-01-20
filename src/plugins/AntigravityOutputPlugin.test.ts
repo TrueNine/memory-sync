@@ -21,7 +21,7 @@ describe('antigravityOutputPlugin', () => {
     path: projectPath,
     basePath: projectBasePath,
     getDirectoryName: () => 'my-project',
-    getAbsolutePath: () => `${projectBasePath}/${projectPath}`,
+    getAbsolutePath: () => `${projectBasePath}/${projectPath}`
   }
 
   const mockSkills: any[] = [
@@ -31,12 +31,12 @@ describe('antigravityOutputPlugin', () => {
         path: 'my-skill',
         basePath: projectBasePath,
         getDirectoryName: () => 'my-skill',
-        getAbsolutePath: () => `${projectBasePath}/my-skill`,
+        getAbsolutePath: () => `${projectBasePath}/my-skill`
       },
       content: '# My Skill',
       yamlFrontMatter: {name: 'custom-skill'},
       resources: [
-        {relativePath: 'res.txt', content: 'resource content'},
+        {relativePath: 'res.txt', content: 'resource content'}
       ],
       childDocs: [
         {
@@ -45,12 +45,12 @@ describe('antigravityOutputPlugin', () => {
             path: 'doc.mdx',
             basePath: projectBasePath,
             getDirectoryName: () => 'doc',
-            getAbsolutePath: () => `${projectBasePath}/doc.mdx`,
+            getAbsolutePath: () => `${projectBasePath}/doc.mdx`
           },
-          content: 'doc content',
-        },
-      ],
-    },
+          content: 'doc content'
+        }
+      ]
+    }
   ]
 
   const mockFastCommands: any[] = [
@@ -62,10 +62,10 @@ describe('antigravityOutputPlugin', () => {
         path: 'cmd1.md',
         basePath: projectBasePath,
         getDirectoryName: () => 'cmd1',
-        getAbsolutePath: () => `${projectBasePath}/cmd1.md`,
+        getAbsolutePath: () => `${projectBasePath}/cmd1.md`
       },
       content: '# Command 1',
-      yamlFrontMatter: {description: 'A description', other: 'ignore'},
+      yamlFrontMatter: {description: 'A description', other: 'ignore'}
     },
     {
       commandName: 'cmd2',
@@ -75,12 +75,12 @@ describe('antigravityOutputPlugin', () => {
         path: 'cmd2.md',
         basePath: projectBasePath,
         getDirectoryName: () => 'cmd2',
-        getAbsolutePath: () => `${projectBasePath}/cmd2.md`,
+        getAbsolutePath: () => `${projectBasePath}/cmd2.md`
       },
       content: '# Command 2',
       rawMdxContent: '---\ntitle: original\n---\n# Command 2 Raw',
-      yamlFrontMatter: {description: 'Desc 2'},
-    },
+      yamlFrontMatter: {description: 'Desc 2'}
+    }
   ]
 
   const mockInputContext: any = {
@@ -90,23 +90,23 @@ describe('antigravityOutputPlugin', () => {
         {
           name: 'p1',
           dirFromWorkspacePath: projectDir,
-          rootMemoryPrompt: null,
-        },
-      ],
+          rootMemoryPrompt: null
+        }
+      ]
     },
     skills: mockSkills,
-    fastCommands: mockFastCommands,
+    fastCommands: mockFastCommands
   }
 
   const mockContext: any = {
     collectedInputContext: mockInputContext,
     tools: {
-      readProjectFile: vi.fn(),
+      readProjectFile: vi.fn()
     },
     config: {
-      plugins: [],
+      plugins: []
     },
-    dryRun: false,
+    dryRun: false
   }
 
   it('should register output directories for clean (project local)', async () => {
@@ -115,11 +115,11 @@ describe('antigravityOutputPlugin', () => {
         workspace: {
           projects: [
             {
-              dirFromWorkspacePath: projectDir,
-            },
-          ],
-        },
-      },
+              dirFromWorkspacePath: projectDir
+            }
+          ]
+        }
+      }
     } as any
 
     const results = await plugin.registerProjectOutputDirs(ctx)
@@ -133,10 +133,10 @@ describe('antigravityOutputPlugin', () => {
     const ctx = {
       collectedInputContext: {
         workspace: {
-          projects: [], // even with no projects, global files should be registered if skills exist
+          projects: [] // even with no projects, global files should be registered if skills exist
         },
-        skills: mockSkills,
-      },
+        skills: mockSkills
+      }
     } as any
 
     const results = await plugin.registerProjectOutputFiles(ctx)

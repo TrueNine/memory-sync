@@ -10,14 +10,14 @@ const gitignoreTemplate = readFileSync('./public/gitignore', 'utf8')
 export default defineConfig({
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
   },
   define: {
     __CLI_VERSION__: JSON.stringify(pkg.version),
     __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
     __KIRO_GLOBAL_POWERS_REGISTRY__: kiroGlobalPowersRegistry,
     __TEMPLATE_TNMSC_EXAMPLE__: JSON.stringify(tnmscExample),
-    __TEMPLATE_GITIGNORE__: JSON.stringify(gitignoreTemplate),
-  },
+    __TEMPLATE_GITIGNORE__: JSON.stringify(gitignoreTemplate)
+  }
 })

@@ -2,7 +2,7 @@ import type {CollectedInputContext, InputPluginContext, ProjectIDEConfigFile} fr
 
 import {
   FilePathKind,
-  IDEKind,
+  IDEKind
 } from '@/types'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
@@ -21,7 +21,7 @@ export class IdeConfigInputPlugin extends AbstractInputPlugin {
       '.idea/codeStyles/codeStyleConfig.xml',
       '.idea/.gitignore',
       '.vscode/settings.json',
-      '.vscode/extensions.json',
+      '.vscode/extensions.json'
     ]
 
     const ideConfigFiles: ProjectIDEConfigFile<IDEKind>[] = []
@@ -43,8 +43,8 @@ export class IdeConfigInputPlugin extends AbstractInputPlugin {
           dir: {
             pathKind: FilePathKind.Absolute,
             path: absPath,
-            getDirectoryName: () => path.basename(absPath),
-          },
+            getDirectoryName: () => path.basename(absPath)
+          }
         })
       }
     }

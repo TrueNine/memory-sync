@@ -2,7 +2,7 @@ import type {
   FilePathKind,
   GlobalMemoryPrompt,
   IDEKind,
-  PromptKind,
+  PromptKind
 } from '@/types'
 import type {FileContent, Path, RelativePath} from '@/types/FileSystemTypes'
 import type {
@@ -11,39 +11,14 @@ import type {
   ProjectRootMemoryPrompt,
   Prompt,
   SkillYAMLFrontMatter,
-  SubAgentYAMLFrontMatter,
+  SubAgentYAMLFrontMatter
 } from '@/types/PromptTypes'
 
 export interface Project {
   readonly name?: string
-  /**
-   * 相较于 workspace 的工作目录
-   */
   readonly dirFromWorkspacePath?: RelativePath
-  /**
-   * 工作于当前项目根部的记忆提示词
-   */
   readonly rootMemoryPrompt?: ProjectRootMemoryPrompt
-  /**
-   * 工作于当前项目子目录的记忆提示词
-   */
   readonly childMemoryPrompts?: readonly ProjectChildrenMemoryPrompt[]
-  /**
-   * Indicates whether this project's configuration originates from the shadow source directory (e.g., aindex/ref/).
-   *
-   * When true:
-   * - The project configuration was discovered from the shadow source directory
-   * - `dirFromWorkspacePath` still points to the actual workspace project directory (output target)
-   * - Certain output plugins (e.g., AIAgentIgnoreConfigFileOutputPlugin) should skip this project
-   *   to avoid overwriting source files in the shadow project
-   *
-   * When false or undefined:
-   * - The project is a regular workspace project or external project
-   * - All output plugins should process this project normally
-   *
-   * Note: This flag does NOT mean the output should go to the shadow source directory.
-   * The output target is always determined by `dirFromWorkspacePath`.
-   */
   readonly isPromptSourceProject?: boolean
 }
 
@@ -53,7 +28,7 @@ export interface Workspace {
 }
 
 /**
- * IDE 配置文件
+ * IDE configuration file
  */
 export interface ProjectIDEConfigFile<I extends IDEKind = IDEKind.Original> extends FileContent<string, FilePathKind, Path> {
   readonly type: I
@@ -68,7 +43,7 @@ export interface AIAgentIgnoreConfigFile {
 }
 
 /**
- * 所有收集到的输出信息，提供给插件系统，作为输出插件的输入
+ * All collected output information, provided to plugin system as input for output plugins
  */
 export interface CollectedInputContext {
   readonly workspace: Workspace
@@ -80,48 +55,26 @@ export interface CollectedInputContext {
   readonly globalMemory?: GlobalMemoryPrompt
   readonly aiAgentIgnoreConfigFiles?: readonly AIAgentIgnoreConfigFile[]
   readonly globalGitIgnore?: string
-  /**
-   * Git exclude patterns from shadow source project (public/exclude).
-   * Will be merged with existing .git/info/exclude content.
-   */
   readonly shadowGitExclude?: string
-  /**
-   * Shadow source project directory absolute path
-   * Used to identify and skip shadow source project during cleanup
-   */
   readonly shadowSourceProjectDir?: string
-  /**
-   * README.md prompts collected from shadow project
-   */
   readonly readmePrompts?: readonly ReadmePrompt[]
 }
 
 /**
- * 快捷命令提示词
+ * Fast command prompt
  */
-export interface FastCommandPrompt extends Prompt<PromptKind.FastCommand, FastCommandYAMLFrontMatter> {
+export interface FastCommandPrompt extends Prompt<PromptKind.FastCommand, FastCommandYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
   readonly type: PromptKind.FastCommand
   readonly globalOnly?: true
-  /**
-   * Series prefix extracted from filename (e.g., 'pe' from 'pe_compile.md')
-   * Undefined if filename has no underscore prefix
-   */
   readonly series?: string
-  /**
-   * Command name without series prefix (e.g., 'compile' from 'pe_compile.md')
-   */
   readonly commandName: string
-  /**
-   * Raw MDX content before compilation.
-   * Used by output plugins to recompile with tool-specific presets.
-   */
   readonly rawMdxContent?: string
 }
 
 /**
- * 子代理提示词
+ * Sub-agent prompt
  */
-export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAMLFrontMatter> {
+export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
   readonly type: PromptKind.SubAgent
 }
 
@@ -131,9 +84,6 @@ export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAML
  */
 export interface SkillChildDoc extends Prompt<PromptKind.SkillChildDoc> {
   readonly type: PromptKind.SkillChildDoc
-  /**
-   * Relative path from skill directory (e.g., 'docs/guide.md', 'examples/basic.md')
-   */
   readonly relativePath: string
 }
 
@@ -180,39 +130,13 @@ export type SkillResourceCategory
  */
 export interface SkillResource {
   readonly type: PromptKind.SkillResource
-  /**
-   * File extension (e.g., '.kt', '.java', '.sql', '.docx', '.png')
-   */
   readonly extension: string
-  /**
-   * File name without directory path
-   */
   readonly fileName: string
-  /**
-   * Relative path from skill directory (e.g., 'helper.kt', 'assets/logo.png', 'data/schema.sql')
-   */
   readonly relativePath: string
-  /**
-   * File content
-   * - For text files: UTF-8 encoded string
-   * - For binary files: base64 encoded string
-   */
   readonly content: string
-  /**
-   * Content encoding type
-   */
   readonly encoding: SkillResourceEncoding
-  /**
-   * Resource category for classification
-   */
   readonly category: SkillResourceCategory
-  /**
-   * Content length in bytes (original size for binary files)
-   */
   readonly length: number
-  /**
-   * MIME type if detectable
-   */
   readonly mimeType?: string
 }
 
@@ -346,7 +270,7 @@ export const SKILL_RESOURCE_TEXT_EXTENSIONS = [
   '.tf',
   '.tfvars', // Terraform
   '.prisma', // Prisma
-  '.mdx', // MDX (but not .md which is handled separately)
+  '.mdx' // MDX (but not .md which is handled separately)
 ] as const
 
 /**
@@ -401,7 +325,7 @@ export const SKILL_RESOURCE_BINARY_EXTENSIONS = [
   '.webm',
   '.db', // Database
   '.sqlite',
-  '.sqlite3',
+  '.sqlite3'
 ] as const
 
 export type SkillResourceTextExtension = typeof SKILL_RESOURCE_TEXT_EXTENSIONS[number]
@@ -425,53 +349,16 @@ export interface McpServerConfig {
  */
 export interface SkillMcpConfig {
   readonly type: PromptKind.SkillMcpConfig
-  /**
-   * MCP servers configuration
-   */
   readonly mcpServers: Readonly<Record<string, McpServerConfig>>
-  /**
-   * Raw JSON content
-   */
   readonly rawContent: string
 }
 
-/**
- * skill 主文件（skill.md）
- * skill name 从 front matter 当中进行获取
- *
- * Skill structure:
- * - skill.md: Main skill definition file (required)
- * - mcp.json: MCP server configuration (optional)
- *   - Kiro: supports per-power MCP configuration
- *   - Others: may support lazy loading
- * - childDocs: All .md files in skill directory or subdirectories (optional)
- * - resources: All non-.md files for AI on-demand access (optional)
- *   - Code, data, documents, images, binary files, etc.
- *   - Can be in any subdirectory
- */
 export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatter> {
   readonly type: PromptKind.Skill
-  /**
-   * skill 是需要一个目录来表示是一组 skill
-   */
   readonly dir: RelativePath
   readonly yamlFrontMatter: SkillYAMLFrontMatter
-  /**
-   * MCP configuration (mcp.json)
-   * - Kiro: supports per-power MCP configuration
-   * - Others: may support lazy loading
-   */
   readonly mcpConfig?: SkillMcpConfig
-  /**
-   * Child documents (.md files in skill directory or subdirectories)
-   * Excludes skill.md
-   */
   readonly childDocs?: SkillChildDoc[]
-  /**
-   * Resource files for AI on-demand access
-   * All non-.md files in skill directory or subdirectories
-   * Includes code, data, documents, images, binary files, etc.
-   */
   readonly resources?: SkillResource[]
 }
 
@@ -480,16 +367,7 @@ export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatt
  */
 export interface ReadmePrompt extends Prompt<PromptKind.Readme> {
   readonly type: PromptKind.Readme
-  /**
-   * Project name this README belongs to
-   */
   readonly projectName: string
-  /**
-   * Target output directory relative to workspace
-   */
   readonly targetDir: RelativePath
-  /**
-   * Whether this is a root README (in project root) or child README (in subdirectory)
-   */
   readonly isRoot: boolean
 }

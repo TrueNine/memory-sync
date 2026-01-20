@@ -76,8 +76,8 @@ describe('compiler Integration', () => {
         profile: {
           name: 'Test User',
           username: 'testuser',
-          customField: 'custom value',
-        },
+          customField: 'custom value'
+        }
       }
 
       const collector = new GlobalScopeCollector({userConfig})
@@ -105,7 +105,7 @@ describe('compiler Integration', () => {
         os: {platform: 'linux', shellKind: ShellKind.Bash},
         env: {NODE_ENV: 'test'},
         profile: {name: 'Global User'},
-        tool: {websearch: 'global_search'},
+        tool: {websearch: 'global_search'}
       }
       registry.setGlobalScope(globalScope)
 
@@ -126,11 +126,11 @@ describe('compiler Integration', () => {
 
       registry.register('config', {
         database: {host: 'localhost', port: 5432},
-        cache: {enabled: true},
+        cache: {enabled: true}
       }, ScopePriority.SystemDefault)
 
       registry.register('config', {
-        database: {port: 3306, name: 'mydb'},
+        database: {port: 3306, name: 'mydb'}
       }, ScopePriority.UserConfig)
 
       const merged = registry.merge()
@@ -150,7 +150,7 @@ describe('compiler Integration', () => {
         os: {platform: 'linux', arch: 'x64', shellKind: ShellKind.Bash},
         env: {NODE_ENV: 'production'},
         profile: {name: 'Test User', username: 'testuser'},
-        tool: {websearch: 'web_search', webfetch: 'web_fetch'},
+        tool: {websearch: 'web_search', webfetch: 'web_fetch'}
       }
 
       const content = `# Hello {profile.name}
@@ -172,11 +172,11 @@ Search Tool: {tool.websearch}`
         os: {platform: 'linux', shellKind: ShellKind.Bash},
         env: {},
         profile: {name: 'Global User'},
-        tool: {websearch: 'global_search'},
+        tool: {websearch: 'global_search'}
       }
 
       const customScope = {
-        profile: {name: 'Custom User'},
+        profile: {name: 'Custom User'}
       }
 
       const content = `Hello {profile.name}`
@@ -191,7 +191,7 @@ Search Tool: {tool.websearch}`
         os: {platform: 'darwin', shellKind: ShellKind.Zsh},
         env: {},
         profile: {name: 'Test User'},
-        tool: {},
+        tool: {}
       }
 
       const content = `export const name = "test-skill"
@@ -226,7 +226,7 @@ This skill runs on {os.platform}.`
         path,
         glob,
         userConfigOptions: {} as Required<PluginOptions>,
-        dependencyContext: {},
+        dependencyContext: {}
       }
 
       plugin1.collect(ctx) // Execute plugins
@@ -255,7 +255,7 @@ This skill runs on {os.platform}.`
         path,
         glob,
         userConfigOptions: {} as Required<PluginOptions>,
-        dependencyContext: {},
+        dependencyContext: {}
       }
 
       plugin1.collect(ctx) // Execute plugins
@@ -280,7 +280,7 @@ This skill runs on {os.platform}.`
         os: {platform: 'linux', shellKind: ShellKind.Bash},
         env: {NODE_ENV: 'test'},
         profile: {name: 'Test User'},
-        tool: {websearch: 'search'},
+        tool: {websearch: 'search'}
       }
 
       const registry = new ScopeRegistry() // Create registry with global scope
@@ -312,8 +312,8 @@ Plugin2 Feature: {plugin2.feature}`
         profile: {
           name: 'John Doe',
           username: 'johndoe',
-          role: 'developer',
-        },
+          role: 'developer'
+        }
       }
 
       const collector = new GlobalScopeCollector({userConfig}) // Step 2: Collect global scope
@@ -324,7 +324,7 @@ Plugin2 Feature: {plugin2.feature}`
 
       registry.register('myPlugin', { // Step 4: Simulate plugin scope registration
         version: '3.0.0',
-        config: {debug: true, timeout: 5000},
+        config: {debug: true, timeout: 5000}
       }, ScopePriority.PluginRegistered)
 
       const mergedScope = registry.merge() // Step 5: Merge all scopes
@@ -379,16 +379,16 @@ Default search: {tool.websearch}`
         os: {platform: 'linux', shellKind: ShellKind.Bash},
         env: {},
         profile: {name: 'User'},
-        tool: {},
+        tool: {}
       }
 
       const result1 = await mdxToMd('Hello {profile.name}', { // First compilation with custom scope
         globalScope,
-        scope: {profile: {name: 'Custom User'}},
+        scope: {profile: {name: 'Custom User'}}
       })
 
       const result2 = await mdxToMd('Hello {profile.name}', { // Second compilation without custom scope
-        globalScope,
+        globalScope
       })
 
       expect(result1).toContain('Hello Custom User') // First should use custom scope
@@ -402,7 +402,7 @@ Default search: {tool.websearch}`
         os: {platform: 'linux', shellKind: ShellKind.Bash},
         env: {},
         profile: {},
-        tool: {},
+        tool: {}
       }
 
       const content = `Platform: {os.platform}` // This should not throw, undefined values are handled
@@ -417,10 +417,10 @@ Default search: {tool.websearch}`
           database: {
             connection: {
               host: 'localhost',
-              port: 5432,
-            },
-          },
-        },
+              port: 5432
+            }
+          }
+        }
       }
 
       const content = `Host: {config.database.connection.host}
@@ -436,8 +436,8 @@ Port: {config.database.connection.port}`
       const scope = {
         tags: ['typescript', 'testing', 'integration'],
         config: {
-          features: ['feature1', 'feature2'],
-        },
+          features: ['feature1', 'feature2']
+        }
       }
 
       const content = `Tags: {tags}` // Arrays are converted to string representation

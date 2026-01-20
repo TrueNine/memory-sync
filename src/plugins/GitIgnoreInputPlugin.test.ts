@@ -22,8 +22,8 @@ describe('gitIgnoreInputPlugin', () => {
         shadowSubAgentDir: '/workspace/.claude/agents',
         globalMemoryFile: '/workspace/GLOBAL.md',
         shadowProjectsDir: '/workspace',
-        logLevel: 'debug',
-      },
+        logLevel: 'debug'
+      }
     } as unknown as InputPluginContext
 
     vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -33,7 +33,7 @@ describe('gitIgnoreInputPlugin', () => {
 
     expect(fs.readFileSync).toHaveBeenCalledWith(expect.stringContaining(path.join('public', 'gitignore')), 'utf8')
     expect(result).toEqual({
-      globalGitIgnore: 'node_modules/\n.env',
+      globalGitIgnore: 'node_modules/\n.env'
     })
   })
 
@@ -49,8 +49,8 @@ describe('gitIgnoreInputPlugin', () => {
         shadowSubAgentDir: '/workspace/.claude/agents',
         globalMemoryFile: '/workspace/GLOBAL.md',
         shadowProjectsDir: '/workspace',
-        logLevel: 'debug',
-      },
+        logLevel: 'debug'
+      }
     } as unknown as InputPluginContext
 
     vi.mocked(fs.existsSync).mockReturnValue(false)

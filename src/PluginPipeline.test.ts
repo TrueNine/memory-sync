@@ -11,7 +11,7 @@ import {
   ExecuteCommand,
   HelpCommand,
   InitCommand,
-  UnknownCommand,
+  UnknownCommand
 } from '@/commands'
 import {createLogger} from '@/log'
 import {parseArgs, PluginPipeline, resolveCommand, resolveLogLevel} from '@/PluginPipeline'
@@ -21,7 +21,7 @@ function createMockPlugin(name: string, dependsOn?: readonly string[]): Plugin {
   const base = {
     type: PluginKind.Input,
     name,
-    log: {} as Plugin['log'],
+    log: {} as Plugin['log']
   }
   if (dependsOn) return {...base, dependsOn}
   return base
@@ -30,13 +30,13 @@ function createMockPlugin(name: string, dependsOn?: readonly string[]): Plugin {
 function createMockInputPlugin(
   name: string,
   collectFn: (ctx: InputPluginContext) => Partial<CollectedInputContext>,
-  dependsOn?: readonly string[],
+  dependsOn?: readonly string[]
 ): InputPlugin {
   const base = {
     type: PluginKind.Input as const,
     name,
     log: createLogger(name),
-    collect: collectFn,
+    collect: collectFn
   }
   if (dependsOn) return {...base, dependsOn}
   return base
@@ -48,7 +48,7 @@ function createBaseContext(): Omit<InputPluginContext, 'dependencyContext'> {
     fs,
     path,
     glob,
-    userConfigOptions: {},
+    userConfigOptions: {}
   }
 }
 
@@ -56,7 +56,7 @@ function createMockPath(pathStr: string): CollectedInputContext['workspace']['di
   return {
     pathKind: FilePathKind.Absolute,
     path: pathStr,
-    getDirectoryName: () => pathStr.split('/').pop() ?? '',
+    getDirectoryName: () => pathStr.split('/').pop() ?? ''
   } as CollectedInputContext['workspace']['directory']
 }
 
@@ -72,7 +72,7 @@ describe('pluginPipeline', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockPlugin('A'),
-        createMockPlugin('B'),
+        createMockPlugin('B')
       ]
       const graph = pipeline.buildDependencyGraph(plugins)
 
@@ -86,7 +86,7 @@ describe('pluginPipeline', () => {
       const plugins = [
         createMockPlugin('A', ['B', 'C']),
         createMockPlugin('B', ['C']),
-        createMockPlugin('C'),
+        createMockPlugin('C')
       ]
       const graph = pipeline.buildDependencyGraph(plugins)
 
@@ -102,7 +102,7 @@ describe('pluginPipeline', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockPlugin('A'),
-        createMockPlugin('B'),
+        createMockPlugin('B')
       ]
       expect(() => pipeline.validateDependencies(plugins)).not.toThrow()
     })
@@ -112,7 +112,7 @@ describe('pluginPipeline', () => {
       const plugins = [
         createMockPlugin('A', ['B']),
         createMockPlugin('B', ['C']),
-        createMockPlugin('C'),
+        createMockPlugin('C')
       ]
       expect(() => pipeline.validateDependencies(plugins)).not.toThrow()
     })
@@ -121,7 +121,7 @@ describe('pluginPipeline', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockPlugin('A', ['NonExistent']),
-        createMockPlugin('B'),
+        createMockPlugin('B')
       ]
 
       expect(() => pipeline.validateDependencies(plugins)).toThrow(MissingDependencyError)
@@ -139,7 +139,7 @@ describe('pluginPipeline', () => {
     it('should throw for first missing dependency found', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
-        createMockPlugin('A', ['Missing1', 'Missing2']),
+        createMockPlugin('A', ['Missing1', 'Missing2'])
       ]
 
       expect(() => pipeline.validateDependencies(plugins)).toThrow(MissingDependencyError)
@@ -165,7 +165,7 @@ describe('pluginPipeline', () => {
       const plugins = [
         createMockPlugin('A'),
         createMockPlugin('B'),
-        createMockPlugin('C'),
+        createMockPlugin('C')
       ]
       const result = pipeline.topologicalSort(plugins)
       expect(result.map(p => p.name)).toEqual(['A', 'B', 'C'])
@@ -176,7 +176,7 @@ describe('pluginPipeline', () => {
       const plugins = [ // A depends on B, B depends on C
         createMockPlugin('A', ['B']),
         createMockPlugin('B', ['C']),
-        createMockPlugin('C'),
+        createMockPlugin('C')
       ]
       const result = pipeline.topologicalSort(plugins)
       const names = result.map(p => p.name)
@@ -191,7 +191,7 @@ describe('pluginPipeline', () => {
         createMockPlugin('A', ['B', 'C']),
         createMockPlugin('B', ['D']),
         createMockPlugin('C', ['D']),
-        createMockPlugin('D'),
+        createMockPlugin('D')
       ]
       const result = pipeline.topologicalSort(plugins)
       const names = result.map(p => p.name)
@@ -208,7 +208,7 @@ describe('pluginPipeline', () => {
         createMockPlugin('D'),
         createMockPlugin('A', ['B']),
         createMockPlugin('B'),
-        createMockPlugin('C'),
+        createMockPlugin('C')
       ]
       const result = pipeline.topologicalSort(plugins)
       const names = result.map(p => p.name)
@@ -221,7 +221,7 @@ describe('pluginPipeline', () => {
       const pipeline = new PluginPipeline()
       const plugins = [ // A depends on B, B depends on A
         createMockPlugin('A', ['B']),
-        createMockPlugin('B', ['A']),
+        createMockPlugin('B', ['A'])
       ]
 
       expect(() => pipeline.topologicalSort(plugins)).toThrow(CircularDependencyError)
@@ -232,7 +232,7 @@ describe('pluginPipeline', () => {
       const plugins = [ // A -> B -> C -> A
         createMockPlugin('A', ['B']),
         createMockPlugin('B', ['C']),
-        createMockPlugin('C', ['A']),
+        createMockPlugin('C', ['A'])
       ]
 
       expect(() => pipeline.topologicalSort(plugins)).toThrow(CircularDependencyError)
@@ -242,7 +242,7 @@ describe('pluginPipeline', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockPlugin('A', ['B']),
-        createMockPlugin('B', ['A']),
+        createMockPlugin('B', ['A'])
       ]
 
       try {
@@ -260,7 +260,7 @@ describe('pluginPipeline', () => {
     it('should throw MissingDependencyError for non-existent dependency', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
-        createMockPlugin('A', ['NonExistent']),
+        createMockPlugin('A', ['NonExistent'])
       ]
 
       expect(() => pipeline.topologicalSort(plugins)).toThrow(MissingDependencyError)
@@ -269,7 +269,7 @@ describe('pluginPipeline', () => {
     it('should handle self-dependency as cycle', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
-        createMockPlugin('A', ['A']),
+        createMockPlugin('A', ['A'])
       ]
 
       expect(() => pipeline.topologicalSort(plugins)).toThrow(CircularDependencyError)
@@ -287,8 +287,8 @@ describe('pluginPipeline', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockInputPlugin('A', () => ({
-          workspace: {directory: createMockPath('/test'), projects: []},
-        })),
+          workspace: {directory: createMockPath('/test'), projects: []}
+        }))
       ]
 
       const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
@@ -307,7 +307,7 @@ describe('pluginPipeline', () => {
         createMockInputPlugin('B', () => {
           executionOrder.push('B')
           return {}
-        }),
+        })
       ]
 
       await pipeline.executePluginsInOrder(plugins, createBaseContext())
@@ -320,15 +320,15 @@ describe('pluginPipeline', () => {
         createMockInputPlugin('A', () => ({
           workspace: {
             directory: createMockPath('/test'),
-            projects: [{name: 'project-a'}],
-          },
+            projects: [{name: 'project-a'}]
+          }
         })),
         createMockInputPlugin('B', () => ({
           workspace: {
             directory: createMockPath('/test'),
-            projects: [{name: 'project-b'}],
-          },
-        })),
+            projects: [{name: 'project-b'}]
+          }
+        }))
       ]
 
       const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
@@ -345,13 +345,13 @@ describe('pluginPipeline', () => {
         createMockInputPlugin('B', () => ({
           workspace: {
             directory: createMockPath('/test'),
-            projects: [{name: 'from-B'}],
-          },
+            projects: [{name: 'from-B'}]
+          }
         })),
         createMockInputPlugin('A', ctx => {
           receivedContext = ctx.dependencyContext
           return {}
-        }, ['B']),
+        }, ['B'])
       ]
 
       await pipeline.executePluginsInOrder(plugins, createBaseContext())
@@ -369,7 +369,7 @@ describe('pluginPipeline', () => {
         createMockInputPlugin('A', ctx => {
           receivedContext = ctx.dependencyContext
           return {}
-        }),
+        })
       ]
 
       await pipeline.executePluginsInOrder(plugins, createBaseContext())
@@ -392,8 +392,8 @@ describe('pluginPipeline', () => {
           return {
             workspace: {
               directory: createMockPath('/test'),
-              projects: [{name: 'from-B'}],
-            },
+              projects: [{name: 'from-B'}]
+            }
           }
         }, ['D']),
         createMockInputPlugin('C', () => {
@@ -401,8 +401,8 @@ describe('pluginPipeline', () => {
           return {
             workspace: {
               directory: createMockPath('/test'),
-              projects: [{name: 'from-C'}],
-            },
+              projects: [{name: 'from-C'}]
+            }
           }
         }, ['D']),
         createMockInputPlugin('D', () => {
@@ -410,10 +410,10 @@ describe('pluginPipeline', () => {
           return {
             workspace: {
               directory: createMockPath('/test'),
-              projects: [{name: 'from-D'}],
-            },
+              projects: [{name: 'from-D'}]
+            }
           }
-        }),
+        })
       ]
 
       await pipeline.executePluginsInOrder(plugins, createBaseContext())
@@ -433,11 +433,11 @@ describe('pluginPipeline', () => {
       const pipeline = new PluginPipeline()
       const plugins = [
         createMockInputPlugin('A', () => ({
-          fastCommands: [{type: 1, name: 'cmd-a'} as unknown as CollectedInputContext['fastCommands'] extends readonly (infer T)[] | undefined ? T : never],
+          fastCommands: [{type: 1, name: 'cmd-a'} as unknown as CollectedInputContext['fastCommands'] extends readonly (infer T)[] | undefined ? T : never]
         })),
         createMockInputPlugin('B', () => ({
-          fastCommands: [{type: 1, name: 'cmd-b'} as unknown as CollectedInputContext['fastCommands'] extends readonly (infer T)[] | undefined ? T : never],
-        })),
+          fastCommands: [{type: 1, name: 'cmd-b'} as unknown as CollectedInputContext['fastCommands'] extends readonly (infer T)[] | undefined ? T : never]
+        }))
       ]
 
       const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
@@ -453,7 +453,7 @@ describe('pluginPipeline', () => {
         markdownContents: [],
         dir: createMockPath('/test'),
         length: 6,
-        filePathKind: FilePathKind.Relative,
+        filePathKind: FilePathKind.Relative
       } as unknown as NonNullable<CollectedInputContext['globalMemory']>
       const mockGlobalMemoryB = {
         type: PromptKind.GlobalMemory,
@@ -462,16 +462,16 @@ describe('pluginPipeline', () => {
         markdownContents: [],
         dir: createMockPath('/test'),
         length: 6,
-        filePathKind: FilePathKind.Relative,
+        filePathKind: FilePathKind.Relative
       } as unknown as NonNullable<CollectedInputContext['globalMemory']>
 
       const plugins = [
         createMockInputPlugin('A', () => ({
-          globalMemory: mockGlobalMemoryA,
+          globalMemory: mockGlobalMemoryA
         })),
         createMockInputPlugin('B', () => ({
-          globalMemory: mockGlobalMemoryB,
-        })),
+          globalMemory: mockGlobalMemoryB
+        }))
       ]
 
       const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
@@ -482,7 +482,6 @@ describe('pluginPipeline', () => {
 
 /**
  * Unit tests for argument parsing
- * Requirements: 1.1, 2.1-2.3, 3.1, 4.1, 5.1-5.3, 6.1-6.7
  */
 describe('parseArgs', () => {
   describe('subcommand parsing', () => {
@@ -648,7 +647,7 @@ describe('parseArgs', () => {
         helpFlag: false,
         dryRun: true,
         logLevel: 'debug',
-        unknownCommand: void 0,
+        unknownCommand: void 0
       } satisfies Partial<ParsedCliArgs>)
       expect(result.logLevelFlags).toContain('debug')
       expect(Array.isArray(result.positional)).toBe(true)
@@ -659,7 +658,6 @@ describe('parseArgs', () => {
 
 /**
  * Unit tests for log level resolution
- * Requirements: 6.6, 6.7
  */
 describe('resolveLogLevel', () => {
   function createParsedArgs(overrides: Partial<ParsedCliArgs> = {}): ParsedCliArgs {
@@ -674,7 +672,7 @@ describe('resolveLogLevel', () => {
       unknownCommand: void 0,
       positional: [],
       unknown: [],
-      ...overrides,
+      ...overrides
     }
   }
 
@@ -706,7 +704,6 @@ describe('resolveLogLevel', () => {
 
 /**
  * Unit tests for command resolution
- * Requirements: 1.1, 2.1-2.3, 3.1, 4.1, 5.1-5.3, 7.1
  */
 describe('resolveCommand', () => {
   function createParsedArgs(overrides: Partial<ParsedCliArgs> = {}): ParsedCliArgs {
@@ -721,7 +718,7 @@ describe('resolveCommand', () => {
       unknownCommand: void 0,
       positional: [],
       unknown: [],
-      ...overrides,
+      ...overrides
     }
   }
 

@@ -3,7 +3,7 @@ import type {
   GlobalMemoryPrompt,
   OutputPluginContext,
   OutputWriteContext,
-  ProjectRootMemoryPrompt,
+  ProjectRootMemoryPrompt
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import fs from 'node:fs'
@@ -33,7 +33,7 @@ describe('warpIDEOutputPlugin', () => {
       path: pathStr,
       basePath,
       getDirectoryName: () => path.basename(pathStr),
-      getAbsolutePath: () => path.join(basePath, pathStr),
+      getAbsolutePath: () => path.join(basePath, pathStr)
     }
   }
 
@@ -44,7 +44,7 @@ describe('warpIDEOutputPlugin', () => {
       dir: createMockRelativePath('.', mockWorkspaceDir),
       markdownContents: [],
       length: content.length,
-      filePathKind: FilePathKind.Relative,
+      filePathKind: FilePathKind.Relative
     } as ProjectRootMemoryPrompt
   }
 
@@ -58,27 +58,27 @@ describe('warpIDEOutputPlugin', () => {
       filePathKind: FilePathKind.Relative,
       parentDirectoryPath: {
         type: 'UserHome',
-        directory: createMockRelativePath('.memory', '/home/user'),
-      },
+        directory: createMockRelativePath('.memory', '/home/user')
+      }
     } as GlobalMemoryPrompt
   }
 
   function createMockOutputWriteContext(
     collectedInputContext: Partial<CollectedInputContext>,
     dryRun = false,
-    registeredPluginNames: readonly string[] = [],
+    registeredPluginNames: readonly string[] = []
   ): OutputWriteContext {
     return {
       collectedInputContext: {
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [],
+          projects: []
         },
         ideConfigFiles: [],
-        ...collectedInputContext,
+        ...collectedInputContext
       } as CollectedInputContext,
       dryRun,
-      registeredPluginNames,
+      registeredPluginNames
     }
   }
 
@@ -93,12 +93,12 @@ describe('warpIDEOutputPlugin', () => {
               {
                 name: 'test-project',
                 dirFromWorkspacePath: projectDir,
-                rootMemoryPrompt: createMockRootMemoryPrompt('test content'),
-              },
-            ],
+                rootMemoryPrompt: createMockRootMemoryPrompt('test content')
+              }
+            ]
           },
-          ideConfigFiles: [],
-        } as CollectedInputContext,
+          ideConfigFiles: []
+        } as CollectedInputContext
       }
 
       const results = await plugin.registerProjectOutputFiles(ctx)
@@ -127,14 +127,14 @@ describe('warpIDEOutputPlugin', () => {
                     workingChildDirectoryPath: childDir,
                     markdownContents: [],
                     length: 13,
-                    filePathKind: FilePathKind.Relative,
-                  },
-                ],
-              },
-            ],
+                    filePathKind: FilePathKind.Relative
+                  }
+                ]
+              }
+            ]
           },
-          ideConfigFiles: [],
-        } as CollectedInputContext,
+          ideConfigFiles: []
+        } as CollectedInputContext
       }
 
       const results = await plugin.registerProjectOutputFiles(ctx)
@@ -150,12 +150,12 @@ describe('warpIDEOutputPlugin', () => {
             directory: createMockRelativePath('.', mockWorkspaceDir),
             projects: [
               {
-                name: 'test-project',
-              },
-            ],
+                name: 'test-project'
+              }
+            ]
           },
-          ideConfigFiles: [],
-        } as CollectedInputContext,
+          ideConfigFiles: []
+        } as CollectedInputContext
       }
 
       const results = await plugin.registerProjectOutputFiles(ctx)
@@ -174,13 +174,13 @@ describe('warpIDEOutputPlugin', () => {
               {
                 name: 'test-project',
                 dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
-                rootMemoryPrompt: createMockRootMemoryPrompt('test content'),
-              },
-            ] as any,
-          } as any,
+                rootMemoryPrompt: createMockRootMemoryPrompt('test content')
+              }
+            ] as any
+          } as any
         },
         false,
-        ['AgentsOutputPlugin'],
+        ['AgentsOutputPlugin']
       )
 
       const result = await plugin.canWrite(ctx)
@@ -196,10 +196,10 @@ describe('warpIDEOutputPlugin', () => {
             {
               name: 'test-project',
               dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
-              rootMemoryPrompt: createMockRootMemoryPrompt('test content'),
-            },
-          ] as any,
-        } as any,
+              rootMemoryPrompt: createMockRootMemoryPrompt('test content')
+            }
+          ] as any
+        } as any
       })
 
       const result = await plugin.canWrite(ctx)
@@ -223,12 +223,12 @@ describe('warpIDEOutputPlugin', () => {
                   workingChildDirectoryPath: createMockRelativePath('src', mockWorkspaceDir),
                   markdownContents: [],
                   length: 13,
-                  filePathKind: FilePathKind.Relative,
-                },
-              ],
-            },
-          ] as any,
-        } as any,
+                  filePathKind: FilePathKind.Relative
+                }
+              ]
+            }
+          ] as any
+        } as any
       })
 
       const result = await plugin.canWrite(ctx)
@@ -242,10 +242,10 @@ describe('warpIDEOutputPlugin', () => {
           directory: createMockRelativePath('.', mockWorkspaceDir),
           projects: [
             {
-              name: 'test-project',
-            },
-          ] as any,
-        } as any,
+              name: 'test-project'
+            }
+          ] as any
+        } as any
       })
 
       const result = await plugin.canWrite(ctx)
@@ -264,10 +264,10 @@ describe('warpIDEOutputPlugin', () => {
             {
               name: 'test-project',
               dirFromWorkspacePath: projectDir,
-              rootMemoryPrompt: createMockRootMemoryPrompt('# Project Rules\n\nThis is project content.'),
-            },
-          ] as any,
-        } as any,
+              rootMemoryPrompt: createMockRootMemoryPrompt('# Project Rules\n\nThis is project content.')
+            }
+          ] as any
+        } as any
       })
 
       const results = await plugin.writeProjectOutputs(ctx)
@@ -277,7 +277,7 @@ describe('warpIDEOutputPlugin', () => {
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining('WARP.md'),
         '# Project Rules\n\nThis is project content.',
-        'utf8',
+        'utf8'
       )
     })
 
@@ -293,11 +293,11 @@ describe('warpIDEOutputPlugin', () => {
             {
               name: 'test-project',
               dirFromWorkspacePath: projectDir,
-              rootMemoryPrompt: rootMemory,
-            },
-          ] as any,
+              rootMemoryPrompt: rootMemory
+            }
+          ] as any
         } as any,
-        globalMemory,
+        globalMemory
       })
 
       const results = await plugin.writeProjectOutputs(ctx)
@@ -307,7 +307,7 @@ describe('warpIDEOutputPlugin', () => {
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining('WARP.md'),
         '# Global Rules\n\nThese are global rules.\n\n# Project Rules\n\nThese are project rules.',
-        'utf8',
+        'utf8'
       )
     })
 
@@ -325,11 +325,11 @@ describe('warpIDEOutputPlugin', () => {
             {
               name: 'test-project',
               dirFromWorkspacePath: projectDir,
-              rootMemoryPrompt: rootMemory,
-            },
-          ] as any,
+              rootMemoryPrompt: rootMemory
+            }
+          ] as any
         } as any,
-        globalMemory,
+        globalMemory
       })
 
       await plugin.writeProjectOutputs(ctx)
@@ -357,11 +357,11 @@ describe('warpIDEOutputPlugin', () => {
             {
               name: 'test-project',
               dirFromWorkspacePath: projectDir,
-              rootMemoryPrompt: rootMemory,
-            },
-          ] as any,
+              rootMemoryPrompt: rootMemory
+            }
+          ] as any
         } as any,
-        globalMemory,
+        globalMemory
       })
 
       await plugin.writeProjectOutputs(ctx)
@@ -369,7 +369,7 @@ describe('warpIDEOutputPlugin', () => {
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
         expect.stringContaining('WARP.md'),
         '# Project Rules',
-        'utf8',
+        'utf8'
       )
     })
 
@@ -383,16 +383,16 @@ describe('warpIDEOutputPlugin', () => {
             {
               name: 'project-1',
               dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir),
-              rootMemoryPrompt: createMockRootMemoryPrompt('Project 1 rules'),
+              rootMemoryPrompt: createMockRootMemoryPrompt('Project 1 rules')
             },
             {
               name: 'project-2',
               dirFromWorkspacePath: createMockRelativePath('project2', mockWorkspaceDir),
-              rootMemoryPrompt: createMockRootMemoryPrompt('Project 2 rules'),
-            },
-          ] as any,
+              rootMemoryPrompt: createMockRootMemoryPrompt('Project 2 rules')
+            }
+          ] as any
         } as any,
-        globalMemory,
+        globalMemory
       })
 
       const results = await plugin.writeProjectOutputs(ctx)
@@ -406,13 +406,13 @@ describe('warpIDEOutputPlugin', () => {
         1,
         expect.stringContaining('project1'),
         'Global rules\n\nProject 1 rules',
-        'utf8',
+        'utf8'
       )
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining('project2'),
         'Global rules\n\nProject 2 rules',
-        'utf8',
+        'utf8'
       )
     })
 
@@ -437,13 +437,13 @@ describe('warpIDEOutputPlugin', () => {
                   workingChildDirectoryPath: childDir,
                   markdownContents: [],
                   length: 11,
-                  filePathKind: FilePathKind.Relative,
-                },
-              ],
-            },
-          ] as any,
+                  filePathKind: FilePathKind.Relative
+                }
+              ]
+            }
+          ] as any
         } as any,
-        globalMemory,
+        globalMemory
       })
 
       await plugin.writeProjectOutputs(ctx)
@@ -454,14 +454,14 @@ describe('warpIDEOutputPlugin', () => {
         1,
         expect.stringContaining(path.join('project1', 'WARP.md')),
         'Global rules\n\nRoot rules',
-        'utf8',
+        'utf8'
       )
 
       expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith( // Child prompt should NOT have global memory
         2,
         expect.stringContaining(path.join('project1', 'src', 'WARP.md')),
         'Child rules',
-        'utf8',
+        'utf8'
       )
     })
 
@@ -472,10 +472,10 @@ describe('warpIDEOutputPlugin', () => {
           projects: [
             {
               name: 'test-project',
-              rootMemoryPrompt: createMockRootMemoryPrompt('content'),
-            },
-          ] as any,
-        } as any,
+              rootMemoryPrompt: createMockRootMemoryPrompt('content')
+            }
+          ] as any
+        } as any
       })
 
       const results = await plugin.writeProjectOutputs(ctx)
@@ -494,12 +494,12 @@ describe('warpIDEOutputPlugin', () => {
               {
                 name: 'test-project',
                 dirFromWorkspacePath: projectDir,
-                rootMemoryPrompt: createMockRootMemoryPrompt('test content'),
-              },
-            ] as any,
-          } as any,
+                rootMemoryPrompt: createMockRootMemoryPrompt('test content')
+              }
+            ] as any
+          } as any
         },
-        true,
+        true
       )
 
       const results = await plugin.writeProjectOutputs(ctx)

@@ -2,42 +2,42 @@ export type { // Global scope type exports
   EnvironmentContext,
   MdxGlobalScope,
   ToolReferences,
-  UserProfile,
+  UserProfile
 } from '../globals'
 
 export { // Component registry exports
   clearComponents,
   getComponents,
   hasComponent,
-  registerComponent,
+  registerComponent
 } from './component-registry'
 
 export {
   isStaticallyEvaluable,
   parseExports,
-  parseStaticValue,
+  parseStaticValue
 } from './export-parser' // Export parser exports
 
 export type {
   ExportMetadata,
   MetadataSource,
-  ParseExportOptions,
+  ParseExportOptions
 } from './export-parser'
 export {
-  evaluateExpression,
+  evaluateExpression
 } from './expression-eval' // Expression evaluation export
 
 export {
   evaluateJsxExpression,
-  hasJsxInEstree,
+  hasJsxInEstree
 } from './jsx-expression-eval' // JSX expression evaluation export
 
 export {
-  mdxToMd,
+  mdxToMd
 } from './mdx-to-md' // Main compiler function
 
 export {
-  parseMdx,
+  parseMdx
 } from './parser' // Parser export
 
 export type { // Type exports
@@ -45,7 +45,7 @@ export type { // Type exports
   EvaluationScope,
   MdxToMdOptions,
   MdxToMdResult,
-  ProcessingContext,
+  ProcessingContext
 } from './types'
 
 export type { // Re-export MDX AST types for convenience
@@ -55,5 +55,5 @@ export type { // Re-export MDX AST types for convenience
   MdxJsxTextElement,
   MdxTextExpression,
   Root,
-  RootContent,
+  RootContent
 } from './types'

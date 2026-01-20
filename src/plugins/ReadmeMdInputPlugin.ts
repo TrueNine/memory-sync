@@ -48,7 +48,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           workspaceDir,
           '',
           readmePrompts,
-          globalScope,
+          globalScope
         )
       }
     }
@@ -59,17 +59,6 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     return {readmePrompts}
   }
 
-  /**
-   * Recursively collect readme.mdx files from a directory.
-   *
-   * @param ctx - Input plugin context
-   * @param currentDir - Current directory to scan
-   * @param projectName - Project name
-   * @param workspaceDir - Workspace directory
-   * @param relativePath - Relative path from dist directory
-   * @param readmePrompts - Array to collect README prompts
-   * @param globalScope - Global scope for MDX expression evaluation
-   */
   private async collectReadmeFiles(
     ctx: InputPluginContext,
     currentDir: string,
@@ -77,7 +66,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     workspaceDir: string,
     relativePath: string,
     readmePrompts: ReadmePrompt[],
-    globalScope: InputPluginContext['globalScope'],
+    globalScope: InputPluginContext['globalScope']
   ): Promise<void> {
     const {fs, path, logger} = ctx
     const isRoot = relativePath === ''
@@ -109,7 +98,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           path: targetPath,
           basePath: workspaceDir,
           getDirectoryName: () => isRoot ? projectName : path.basename(relativePath),
-          getAbsolutePath: () => path.resolve(workspaceDir, targetPath),
+          getAbsolutePath: () => path.resolve(workspaceDir, targetPath)
         }
 
         const dir: RelativePath = { // Create dir for the README file location
@@ -117,7 +106,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           path: path.dirname(readmePath),
           basePath: workspaceDir,
           getDirectoryName: () => path.basename(path.dirname(readmePath)),
-          getAbsolutePath: () => path.dirname(readmePath),
+          getAbsolutePath: () => path.dirname(readmePath)
         }
 
         readmePrompts.push({
@@ -129,7 +118,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           targetDir,
           isRoot,
           markdownContents: [], // Required by Prompt interface
-          dir,
+          dir
         })
       }
       catch (e) {

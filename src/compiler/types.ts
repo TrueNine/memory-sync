@@ -2,7 +2,7 @@ import type {RootContent} from 'mdast' // Shared TypeScript types for the lossle
 import type {
 
   MdxJsxFlowElement,
-  MdxJsxTextElement,
+  MdxJsxTextElement
 
 } from 'mdast-util-mdx'
 import type {MdxGlobalScope} from '../globals'
@@ -20,7 +20,7 @@ export interface EvaluationScope {
 export type ComponentHandler = (
   element: MdxJsxFlowElement | MdxJsxTextElement,
   ctx: ProcessingContext,
-  processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>,
+  processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>
 ) => Promise<RootContent[]>
 
 /** Simplified processing context without import tracking */
@@ -41,15 +41,7 @@ export interface MdxToMdOptions {
   scope?: EvaluationScope
   /** Base path for file resolution */
   basePath?: string
-  /**
-   * Global scope containing os, env, profile, tool namespaces.
-   * These values are merged with custom scope (custom scope takes precedence).
-   */
   globalScope?: MdxGlobalScope | undefined
-  /**
-   * Whether to extract metadata from export statements.
-   * When true, returns MdxToMdResult instead of string.
-   */
   extractMetadata?: boolean
 }
 
@@ -63,12 +55,12 @@ export interface MdxToMdResult {
 
 export {
   type Root,
-  type RootContent,
+  type RootContent
 } from 'mdast'
 export {
   type MdxFlowExpression,
   type MdxjsEsm,
   type MdxJsxFlowElement,
   type MdxJsxTextElement,
-  type MdxTextExpression,
+  type MdxTextExpression
 } from 'mdast-util-mdx'

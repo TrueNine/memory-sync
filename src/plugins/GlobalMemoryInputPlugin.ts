@@ -8,7 +8,7 @@ import {parseMarkdown} from '@/markdown'
 import {
   FilePathKind,
   GlobalConfigDirectoryType,
-  PromptKind,
+  PromptKind
 } from '@/types'
 import {ScopeError} from '@/types/Errors'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
@@ -70,7 +70,7 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
           path: path.basename(globalMemoryFile),
           basePath: path.dirname(globalMemoryFile),
           getDirectoryName: () => path.basename(globalMemoryFile),
-          getAbsolutePath: () => globalMemoryFile,
+          getAbsolutePath: () => globalMemoryFile
         },
         parentDirectoryPath: {
           type: GlobalConfigDirectoryType.UserHome,
@@ -79,10 +79,10 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
             path: '',
             basePath: os.homedir(),
             getDirectoryName: () => path.basename(os.homedir()),
-            getAbsolutePath: () => os.homedir(),
-          },
-        },
-      },
+            getAbsolutePath: () => os.homedir()
+          }
+        }
+      }
     }
   }
 }

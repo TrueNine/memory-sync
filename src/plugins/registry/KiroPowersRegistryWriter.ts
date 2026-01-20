@@ -20,63 +20,30 @@ import {RegistryWriter} from '@/plugins'
  * @see Requirements 4.1, 4.2
  */
 export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, KiroPowersRegistry> {
-  /**
-   * Default path to Kiro powers registry file.
-   */
   private static readonly REGISTRY_PATH = '~/.kiro/powers/registry.json'
 
-  /**
-   * Default version for new registry files.
-   */
   private static readonly DEFAULT_VERSION = '1.0.0'
 
-  /**
-   * Creates a new KiroPowersRegistryWriter instance.
-   *
-   * @param logger - Optional logger instance
-   */
   constructor(logger?: ILogger) {
     super(KiroPowersRegistryWriter.REGISTRY_PATH, logger)
   }
 
-  /**
-   * Create initial empty Kiro registry structure.
-   * Matches Kiro's expected format: version, powers, repoSources, lastUpdated
-   *
-   * @returns A new empty Kiro powers registry
-   * @see Requirements 4.1, 4.2
-   */
   protected createInitialRegistry(): KiroPowersRegistry {
     return {
       version: KiroPowersRegistryWriter.DEFAULT_VERSION,
       powers: {},
       repoSources: {},
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date().toISOString()
     }
   }
 
-  /**
-   * Get the name of a power entry for logging purposes.
-   *
-   * @param entry - The power entry
-   * @returns The power name
-   */
   protected getEntryName(entry: KiroPowerEntry): string {
     return entry.name
   }
 
-  /**
-   * Merge new power entries into existing registry.
-   * Also updates repoSources for each power.
-   *
-   * @param existing - The existing registry data
-   * @param entries - The new power entries to merge
-   * @returns The merged registry data
-   * @see Requirements 4.3, 4.4, 4.5, 4.6, 4.7
-   */
   protected merge(
     existing: KiroPowersRegistry,
-    entries: readonly KiroPowerEntry[],
+    entries: readonly KiroPowerEntry[]
   ): KiroPowersRegistry {
     const powers = {...existing.powers} // Start with existing powers and repoSources
     const repoSources = {...existing.repoSources}
@@ -94,25 +61,12 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
       powers,
       repoSources,
       ...existing.kiroRecommendedRepo != null && {
-        kiroRecommendedRepo: existing.kiroRecommendedRepo,
+        kiroRecommendedRepo: existing.kiroRecommendedRepo
       },
-      lastUpdated: existing.lastUpdated,
+      lastUpdated: existing.lastUpdated
     }
   }
 
-  /**
-   * Build a KiroPowerEntry from a SkillPrompt.
-   * Extracts metadata from skill's YAML front matter.
-   *
-   * @param skill - The skill prompt to convert
-   * @param installPath - The installation path for the power
-   * @returns A KiroPowerEntry object
-   *
-   * Field order matches Kiro's expected format:
-   * name → description → mcpServers → author → keywords → displayName → installed → installedAt → installPath → source → sourcePath
-   *
-   * @see Requirements 2.4, 4.8
-   */
   buildPowerEntry(skill: SkillPrompt, installPath: string): KiroPowerEntry {
     const {yamlFrontMatter, mcpConfig} = skill
     const repoId = this.generateEntryId('local')
@@ -120,7 +74,7 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
     const source: KiroPowerSource = { // Build source object with repo type (Kiro uses "repo" for local installations)
       type: 'repo',
       repoId,
-      repoName: installPath,
+      repoName: installPath
     }
 
     const mcpServerNames = mcpConfig != null // Extract MCP server names if skill has MCP configuration
@@ -138,16 +92,10 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
       installedAt: new Date().toISOString(), // Generate installedAt timestamp in ISO 8601 format (Requirements 2.4)
       installPath,
       source,
-      sourcePath: installPath,
+      sourcePath: installPath
     }
   }
 
-  /**
-   * Get the official Kiro powers registry from build-time constant.
-   * Falls back to empty registry if constant is not available (e.g., in tests).
-   *
-   * @returns The official Kiro powers registry
-   */
   private getOfficialRegistry(): KiroPowersRegistry {
     try {
       if (typeof __KIRO_GLOBAL_POWERS_REGISTRY__ !== 'undefined') return JSON.parse(__KIRO_GLOBAL_POWERS_REGISTRY__) as KiroPowersRegistry // __KIRO_GLOBAL_POWERS_REGISTRY__ is injected at build time by tsdown
@@ -158,20 +106,12 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
     return this.createInitialRegistry() // Fallback for tests or when constant is not available
   }
 
-  /**
-   * Reset the registry to official Kiro powers registry state.
-   * Overwrites the entire registry with the official registry from build-time constant.
-   *
-   * @param dryRun - If true, log intended actions without modifying files
-   * @returns True if operation succeeded, false otherwise
-   * @see Requirements 6.1, 6.2, 6.3, 6.4
-   */
   unregisterLocalPowers(dryRun?: boolean): boolean {
     const officialRegistry = this.getOfficialRegistry() // Get official registry from build-time constant
 
     const resetRegistry: KiroPowersRegistry = { // Update lastUpdated timestamp
       ...officialRegistry,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date().toISOString()
     }
 
     this.log.trace({action: dryRun === true ? 'dryRun' : 'reset', type: 'registry', powerCount: Object.keys(resetRegistry.powers).length})
@@ -179,13 +119,6 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
     return this.write(resetRegistry, dryRun) // Write reset registry (respects dry-run)
   }
 
-  /**
-   * Build a KiroRepoSource for a power entry.
-   *
-   * @param power - The power entry to create a repo source for
-   * @returns A KiroRepoSource object
-   * @see Requirements 3.1, 3.4, 3.5
-   */
   private buildRepoSource(power: KiroPowerEntry): KiroRepoSource {
     const now = new Date().toISOString()
 
@@ -196,7 +129,7 @@ export class KiroPowersRegistryWriter extends RegistryWriter<KiroPowerEntry, Kir
       addedAt: now, // Set timestamps (Requirements 3.4)
       powerCount: 1, // Single power per local source
       ...power.sourcePath != null && {path: power.sourcePath}, // Only include path if it has a value (Requirements 3.5)
-      lastSync: now,
+      lastSync: now
     }
   }
 }

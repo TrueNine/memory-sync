@@ -19,13 +19,6 @@ describe('globalScopeCollector property tests', () => {
     process.env = originalEnv // Restore original environment
   })
 
-  /**
-   * Feature: compiler-integration, Property 1: OS 信息收集完整性
-   * For any system environment, GlobalScopeCollector's os namespace should contain
-   * all required properties (platform, arch, hostname, homedir, tmpdir, type, release, shellKind),
-   * and each property value should match the value returned by Node.js os module.
-   * Validates: Requirements 1.1, 1.4
-   */
   describe('property 1: OS Information Collection Completeness', () => {
     it('should collect all required OS properties matching Node.js os module', () => {
       fc.assert(
@@ -33,13 +26,13 @@ describe('globalScopeCollector property tests', () => {
           fc.option( // Generate arbitrary user configs (or none)
             fc.record({
               profile: fc.option(fc.record({name: fc.string()}), {nil: void 0}),
-              tool: fc.option(fc.record({websearch: fc.string()}), {nil: void 0}),
+              tool: fc.option(fc.record({websearch: fc.string()}), {nil: void 0})
             }),
-            {nil: void 0},
+            {nil: void 0}
           ),
           userConfig => {
             const collector = new GlobalScopeCollector({
-              userConfig: userConfig as UserConfigFile | undefined,
+              userConfig: userConfig as UserConfigFile | undefined
             })
             const scope = collector.collect()
 
@@ -60,9 +53,9 @@ describe('globalScopeCollector property tests', () => {
             expect(scope.os.tmpdir).toBe(os.tmpdir())
             expect(scope.os.type).toBe(os.type())
             expect(scope.os.release).toBe(os.release())
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -81,19 +74,13 @@ describe('globalScopeCollector property tests', () => {
               expect(results[i].os.type).toBe(results[0].os.type)
               expect(results[i].os.release).toBe(results[0].os.release)
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: compiler-integration, Property 2: Shell 类型检测正确性
-   * For any SHELL or ComSpec environment variable value, GlobalScopeCollector should
-   * correctly identify the shell type according to the mapping rules.
-   * Validates: Requirements 1.5
-   */
   describe('property 2: Shell Type Detection Correctness', () => {
     const shellMappings: {pattern: string, expected: ShellKind}[] = [ // Shell detection mapping
       {pattern: 'bash', expected: ShellKind.Bash},
@@ -101,7 +88,7 @@ describe('globalScopeCollector property tests', () => {
       {pattern: 'fish', expected: ShellKind.Fish},
       {pattern: 'pwsh', expected: ShellKind.Pwsh},
       {pattern: 'powershell', expected: ShellKind.PowerShell},
-      {pattern: 'cmd', expected: ShellKind.Cmd},
+      {pattern: 'cmd', expected: ShellKind.Cmd}
     ]
 
     it('should detect shell type correctly based on SHELL environment variable', () => {
@@ -126,9 +113,9 @@ describe('globalScopeCollector property tests', () => {
             const scope = collector.collect()
 
             expect(scope.os.shellKind).toBe(expected)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -154,9 +141,9 @@ describe('globalScopeCollector property tests', () => {
             const scope = collector.collect()
 
             expect(scope.os.shellKind).toBe(expected)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -180,9 +167,9 @@ describe('globalScopeCollector property tests', () => {
             const scope = collector.collect()
 
             expect(scope.os.shellKind).toBe(ShellKind.Sh)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -207,9 +194,9 @@ describe('globalScopeCollector property tests', () => {
             const scope = collector.collect()
 
             expect(scope.os.shellKind).toBe(ShellKind.Unknown)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -225,9 +212,9 @@ describe('globalScopeCollector property tests', () => {
             const scope = collector.collect()
 
             expect(scope.os.shellKind).toBe(ShellKind.Unknown)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -244,19 +231,13 @@ describe('globalScopeCollector property tests', () => {
             const scope = collector.collect()
 
             expect(scope.os.shellKind).toBe(shellExpected) // SHELL should take precedence (it's checked first via ??)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: compiler-integration, Property 3: 环境变量收集完整性
-   * For any set of environment variables, GlobalScopeCollector's env namespace
-   * should contain all key-value pairs from process.env with equal values.
-   * Validates: Requirements 1.2
-   */
   describe('property 3: Environment Variable Collection Completeness', () => {
     it('should collect all environment variables from process.env', () => {
       fc.assert(
@@ -268,7 +249,7 @@ describe('globalScopeCollector property tests', () => {
               && s !== 'constructor'
               && s !== 'prototype'),
             fc.string({minLength: 0, maxLength: 100}),
-            {minKeys: 0, maxKeys: 10},
+            {minKeys: 0, maxKeys: 10}
           ),
           additionalEnvVars => {
             for (const [key, value] of Object.entries(additionalEnvVars)) process.env[key] = value // Add random env vars
@@ -279,9 +260,9 @@ describe('globalScopeCollector property tests', () => {
             for (const [key, value] of Object.entries(process.env)) expect(scope.env[key]).toBe(value) // Verify all process.env keys are in scope.env
 
             for (const [key, value] of Object.entries(additionalEnvVars)) expect(scope.env[key]).toBe(value) // Verify the added env vars are present
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -305,9 +286,9 @@ describe('globalScopeCollector property tests', () => {
             process.env[key] = `${value}_modified` // Modify process.env after collection
 
             expect(scope.env[key]).toBe(value) // (since it's a spread copy) // The collected scope should still have the original value
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -321,9 +302,9 @@ describe('globalScopeCollector property tests', () => {
 
             expect(scope.env).toBeDefined()
             expect(typeof scope.env).toBe('object')
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })

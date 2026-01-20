@@ -44,7 +44,7 @@ This is a test skill content.`
       expect(result.metadata.fields).toEqual({ // YAML frontmatter is now extracted and merged
         name: 'test-skill',
         description: 'A test skill',
-        keywords: ['test', 'example'],
+        keywords: ['test', 'example']
       })
     })
 
@@ -74,7 +74,7 @@ tags:
         enabled: true,
         priority: 10,
         config: {debug: true, timeout: 5000},
-        tags: ['typescript', 'testing'],
+        tags: ['typescript', 'testing']
       })
     })
 
@@ -89,7 +89,7 @@ description: Skill with empty content
       expect(result.metadata.source).toBe('yaml') // YAML frontmatter is extracted
       expect(result.metadata.fields).toEqual({
         name: 'empty-content',
-        description: 'Skill with empty content',
+        description: 'Skill with empty content'
       })
     })
   })
@@ -112,7 +112,7 @@ This is a test skill content.`
       expect(result.metadata.fields).toEqual({
         name: 'test-skill',
         description: 'A test skill',
-        keywords: ['test', 'example'],
+        keywords: ['test', 'example']
       })
     })
 
@@ -132,7 +132,7 @@ This is a test skill content.`
       expect(result.metadata.fields).toEqual({ // metadata object should be spread into fields
         name: 'metadata-skill',
         description: 'Skill using metadata object',
-        enabled: true,
+        enabled: true
       })
     })
 
@@ -157,7 +157,7 @@ export const config = { key: "value", nested: { deep: true } }
         disabled: false,
         nothing: null,
         tags: ['a', 'b', 'c'],
-        config: {key: 'value', nested: {deep: true}},
+        config: {key: 'value', nested: {deep: true}}
       })
     })
 
@@ -199,7 +199,7 @@ export const exportOnly = true
         name: 'export-name', // export wins over yaml for 'name'
         description: 'yaml-description', // from YAML
         yamlOnly: true,
-        exportOnly: true, // from export
+        exportOnly: true // from export
       })
     })
 
@@ -214,8 +214,8 @@ export const exportOnly = true`
         yamlFrontMatter: {
           name: 'yaml-name',
           description: 'yaml-description',
-          yamlOnly: true,
-        },
+          yamlOnly: true
+        }
       })
 
       expect(result.source).toBe('mixed') // Should detect mixed source
@@ -237,8 +237,8 @@ export const exportField = "export-value"`
       const result = parseExports(esmNodes, {
         yamlFrontMatter: {
           name: 'yaml-name',
-          yamlField: 'yaml-value',
-        },
+          yamlField: 'yaml-value'
+        }
       })
 
       expect(result.fields['name']).toBe('export-name') // Export takes priority over YAML for same key
@@ -251,13 +251,13 @@ export const exportField = "export-value"`
       const result = parseExports([], {
         yamlFrontMatter: {
           name: 'yaml-name',
-          description: 'yaml-description',
-        },
+          description: 'yaml-description'
+        }
       })
 
       expect(result.fields).toEqual({
         name: 'yaml-name',
-        description: 'yaml-description',
+        description: 'yaml-description'
       })
       expect(result.source).toBe('yaml')
     })
@@ -301,7 +301,7 @@ This is content.`
       expect(result.metadata.fields).toEqual({
         name: 'default-skill',
         description: 'A skill using export default',
-        keywords: ['test', 'default'],
+        keywords: ['test', 'default']
       })
     })
 
@@ -325,9 +325,9 @@ This is content.`
         config: {
           debug: true,
           options: {
-            timeout: 5000,
-          },
-        },
+            timeout: 5000
+          }
+        }
       })
     })
 
@@ -343,8 +343,8 @@ This is content.`
       const result = parseExports(esmNodes, {
         yamlFrontMatter: {
           name: 'yaml-name',
-          yamlOnly: true,
-        },
+          yamlOnly: true
+        }
       })
 
       expect(result.source).toBe('mixed')
@@ -362,7 +362,7 @@ This is content.`
 
       expect(result.metadata.fields).toEqual({
         name: 'inline',
-        count: 42,
+        count: 42
       })
     })
   })
@@ -418,8 +418,8 @@ This is content.`
         name: 'multiline',
         nested: {
           key: 'value',
-          array: [1, 2, 3],
-        },
+          array: [1, 2, 3]
+        }
       })
     })
   })

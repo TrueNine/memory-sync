@@ -3,7 +3,7 @@ import type {UserConfigFile} from '@/types/ConfigTypes'
 export const PathPlaceholders = {
   USER_HOME: '~',
   WORKSPACE: '$WORKSPACE',
-  SHADOW_SOURCE_PROJECT: '$SHADOW_SOURCE_PROJECT',
+  SHADOW_SOURCE_PROJECT: '$SHADOW_SOURCE_PROJECT'
 } as const
 
 /**

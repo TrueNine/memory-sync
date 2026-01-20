@@ -1,14 +1,14 @@
 export { // Public API exports for the scope management module. // src/scope/index.ts
-  GlobalScopeCollector,
+  GlobalScopeCollector
 } from './GlobalScopeCollector'
 export type {
-  GlobalScopeCollectorOptions,
+  GlobalScopeCollectorOptions
 } from './GlobalScopeCollector'
 
 export {
   ScopePriority,
-  ScopeRegistry,
+  ScopeRegistry
 } from './ScopeRegistry'
 export type {
-  ScopeRegistration,
+  ScopeRegistration
 } from './ScopeRegistry'

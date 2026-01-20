@@ -15,7 +15,7 @@ export class OutdatedCommand implements Command {
       success: true,
       filesAffected: 0,
       dirsAffected: 0,
-      message: `Version status: ${result.status}`,
+      message: `Version status: ${result.status}`
     }
   }
 }

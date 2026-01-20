@@ -37,7 +37,7 @@ function createMockLogger(): ILogger { // Test helpers
     warn: () => { },
     error: () => { },
     fatal: () => { },
-    child: () => createMockLogger(),
+    child: () => createMockLogger()
   } as unknown as ILogger
 }
 
@@ -50,7 +50,7 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
     userConfigOptions: {} as PluginOptions,
     workspaceDir,
     shadowProjectDir,
-    dryRun,
+    dryRun
   }
 } // Generators
 
@@ -59,7 +59,7 @@ const lineContentGen = fc.string({minLength: 0, maxLength: 100, unit: 'grapheme-
 
 const trailingWhitespaceGen = fc.array( // Generate trailing whitespace (spaces and tabs)
   fc.constantFrom(' ', '\t'),
-  {minLength: 0, maxLength: 10},
+  {minLength: 0, maxLength: 10}
 ).map(chars => chars.join(''))
 
 const lineWithTrailingWhitespaceGen = fc.tuple(lineContentGen, trailingWhitespaceGen) // Generate a line with optional trailing whitespace
@@ -70,9 +70,9 @@ const markdownContentGen = fc.array(lineWithTrailingWhitespaceGen, {minLength: 1
     fc.array( // Randomly insert extra blank lines between content lines
       fc.tuple(
         fc.constant(null as string | null),
-        fc.integer({min: 0, max: 5}), // Number of blank lines to insert
+        fc.integer({min: 0, max: 5}) // Number of blank lines to insert
       ),
-      {minLength: lines.length, maxLength: lines.length},
+      {minLength: lines.length, maxLength: lines.length}
     ).map(blankCounts => {
       const result: string[] = []
       for (let i = 0; i < lines.length; i++) {
@@ -89,13 +89,6 @@ const markdownWithLineEndingGen = fc.tuple(markdownContentGen, lineEndingGen) //
   .map(([lines, lineEnding]) => lines.join(lineEnding))
 
 describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
-  /**
-   * Feature: effect-input-plugins, Property 8: Trailing whitespace removal
-   * Validates: Requirements 3.2
-   *
-   * For any .md file processed by MarkdownWhitespaceCleanupEffectInputPlugin,
-   * no line in the output should end with space or tab characters.
-   */
   describe('property 8: Trailing whitespace removal', () => {
     it('should remove all trailing whitespace from every line', async () => {
       const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin()
@@ -109,9 +102,9 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             const lines = cleaned.split(/\r?\n/) // Split into lines (handle both LF and CRLF)
 
             for (const line of lines) expect(line).not.toMatch(/[ \t]$/) // Verify: No line should end with space or tab
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -144,20 +137,13 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             finally {
               if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     }, 120000)
   })
 
-  /**
-   * Feature: effect-input-plugins, Property 9: Excessive blank line reduction
-   * Validates: Requirements 3.3
-   *
-   * For any .md file processed by MarkdownWhitespaceCleanupEffectInputPlugin,
-   * the output should contain at most 2 consecutive blank lines.
-   */
   describe('property 9: Excessive blank line reduction', () => {
     it('should reduce consecutive blank lines to at most 2', async () => {
       const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin()
@@ -181,9 +167,9 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             }
 
             expect(maxConsecutiveBlank).toBeLessThanOrEqual(2) // Verify: At most 2 consecutive blank lines
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -226,20 +212,13 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             finally {
               if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: effect-input-plugins, Property 11: Line ending preservation
-   * Validates: Requirements 3.7
-   *
-   * For any .md file processed by MarkdownWhitespaceCleanupEffectInputPlugin,
-   * the line ending style (LF or CRLF) should be preserved in the output.
-   */
   describe('property 11: Line ending preservation', () => {
     it('should preserve LF line endings', async () => {
       const plugin = new MarkdownWhitespaceCleanupEffectInputPlugin()
@@ -255,9 +234,9 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             expect(cleaned).not.toContain('\r\n') // Verify: Should not contain CRLF
 
             if (lines.length > 1) expect(cleaned).toContain('\n') // Verify: If multi-line, should contain LF
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -278,9 +257,9 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             const lfOnlyCount = (cleaned.replaceAll('\r\n', '').match(/\n/g) ?? []).length
             expect(lfOnlyCount).toBe(0)
             expect(crlfCount).toBeGreaterThan(0)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -324,9 +303,9 @@ describe('markdownWhitespaceCleanupEffectInputPlugin Property Tests', () => {
             finally {
               if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })

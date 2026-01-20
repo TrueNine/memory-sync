@@ -34,7 +34,7 @@ function createMockLogger(): ILogger { // Test helpers
     warn: () => { },
     error: () => { },
     fatal: () => { },
-    child: () => createMockLogger(),
+    child: () => createMockLogger()
   } as unknown as ILogger
 }
 
@@ -47,7 +47,7 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
     userConfigOptions: {} as PluginOptions,
     workspaceDir,
     shadowProjectDir,
-    dryRun,
+    dryRun
   }
 }
 
@@ -66,14 +66,6 @@ interface DistFile { // Generate a dist file structure with orphan and valid fil
 const distFileGen: fc.Arbitrary<DistFile> = fc.record({name: validNameGen, dirType: dirTypeGen, hasSource: fc.boolean()})
 
 describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
-  /**
-   * Feature: effect-input-plugins, Property 5: Orphan .mdx file deletion
-   * Validates: Requirements 2.2, 2.3, 2.4, 2.5
-   *
-   * For any .mdx file in dist/skills/, dist/commands/, dist/agents/, or dist/app/,
-   * if no corresponding source file exists according to the mapping rules,
-   * the file should be deleted after OrphanFileCleanupEffectInputPlugin executes.
-   */
   describe('property 5: Orphan .mdx file deletion', () => {
     it('should delete orphan .mdx files and keep files with valid sources', async () => {
       await fc.assert(
@@ -136,20 +128,13 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
             finally {
               if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     }, 120000)
   })
 
-  /**
-   * Feature: effect-input-plugins, Property 7: Empty directory cleanup
-   * Validates: Requirements 2.7
-   *
-   * For any directory in dist/ that becomes empty after orphan file deletion,
-   * the directory should be removed by OrphanFileCleanupEffectInputPlugin.
-   */
   describe('property 7: Empty directory cleanup', () => {
     it('should remove directories that become empty after orphan deletion', async () => {
       await fc.assert(
@@ -187,9 +172,9 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
             finally {
               if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -234,9 +219,9 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
             finally {
               if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
@@ -248,7 +233,7 @@ describe('orphanFileCleanupEffectInputPlugin Property Tests', () => {
 function createSourceFile(
   shadowProjectDir: string,
   dirType: 'skills' | 'commands' | 'agents' | 'app',
-  name: string,
+  name: string
 ): void {
   switch (dirType) {
     case 'skills': {

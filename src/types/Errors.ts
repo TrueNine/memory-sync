@@ -14,7 +14,7 @@ export class CircularDependencyError extends Error {
 export class MissingDependencyError extends Error {
   constructor(
     public readonly pluginName: string,
-    public readonly missingDependency: string,
+    public readonly missingDependency: string
   ) {
     super(`Plugin "${pluginName}" depends on non-existent plugin "${missingDependency}"`)
     this.name = 'MissingDependencyError'
@@ -22,14 +22,14 @@ export class MissingDependencyError extends Error {
 }
 
 /**
- * 作用域相关错误基类
+ * Base class for scope-related errors
  * Base class for scope-related errors
  */
 export class ScopeError extends Error {
   constructor(
     message: string,
     readonly expression?: string,
-    readonly filePath?: string,
+    readonly filePath?: string
   ) {
     super(message)
     this.name = 'ScopeError'
@@ -37,14 +37,14 @@ export class ScopeError extends Error {
 }
 
 /**
- * 未定义变量错误
+ * Undefined variable error
  * Error thrown when referencing an undefined variable in an expression
  */
 export class UndefinedVariableError extends ScopeError {
   constructor(
     readonly variableName: string,
     expression?: string,
-    filePath?: string,
+    filePath?: string
   ) {
     const msg = filePath != null && filePath.length > 0
       ? `Undefined variable "${variableName}" in expression "${expression}" (file: ${filePath})`
@@ -55,14 +55,14 @@ export class UndefinedVariableError extends ScopeError {
 }
 
 /**
- * 未定义命名空间错误
+ * Undefined namespace error
  * Error thrown when referencing an undefined namespace in an expression
  */
 export class UndefinedNamespaceError extends ScopeError {
   constructor(
     readonly namespace: string,
     expression?: string,
-    filePath?: string,
+    filePath?: string
   ) {
     const msg = filePath != null && filePath.length > 0
       ? `Undefined namespace "${namespace}" in expression "${expression}" (file: ${filePath})`
@@ -73,14 +73,14 @@ export class UndefinedNamespaceError extends ScopeError {
 }
 
 /**
- * Export 解析错误
+ * Export parse error
  * Error thrown when an export statement cannot be parsed or statically evaluated
  */
 export class ExportParseError extends Error {
   constructor(
     message: string,
     readonly exportName?: string,
-    readonly filePath?: string,
+    readonly filePath?: string
   ) {
     const hasFilePath = filePath != null && filePath.length > 0
     const hasExportName = exportName != null && exportName.length > 0
@@ -95,13 +95,13 @@ export class ExportParseError extends Error {
 }
 
 /**
- * 元数据验证错误
+ * Metadata validation error
  * Error thrown when export metadata is missing required fields
  */
 export class MetadataValidationError extends Error {
   constructor(
     readonly missingFields: readonly string[],
-    readonly filePath?: string,
+    readonly filePath?: string
   ) {
     const msg = filePath != null && filePath.length > 0
       ? `Missing required metadata fields: ${missingFields.join(', ')} (file: ${filePath})`
@@ -112,14 +112,14 @@ export class MetadataValidationError extends Error {
 }
 
 /**
- * 配置验证错误
+ * Configuration validation error
  * Error thrown when configuration file contains invalid fields
  */
 export class ConfigValidationError extends Error {
   constructor(
     readonly field: string,
     readonly reason: string,
-    readonly filePath?: string,
+    readonly filePath?: string
   ) {
     const msg = filePath != null && filePath.length > 0
       ? `Invalid configuration field "${field}": ${reason} (file: ${filePath})`

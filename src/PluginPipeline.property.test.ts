@@ -9,19 +9,13 @@ import {parseArgs, resolveCommand, resolveLogLevel} from '@/PluginPipeline'
  * Property-based tests for argument parsing
  */
 describe('parseArgs property tests', () => {
-  /**
-   * Feature: cli-refactor, Property 2: Log Level Flag Parsing
-   * For any argument array containing exactly one log level flag,
-   * the parsed result SHALL have logLevel set to the corresponding level.
-   * Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5
-   */
   describe('property 2: Log Level Flag Parsing', () => {
     const logLevelFlags = [
       {flag: '--trace', level: 'trace'},
       {flag: '--debug', level: 'debug'},
       {flag: '--info', level: 'info'},
       {flag: '--warn', level: 'warn'},
-      {flag: '--error', level: 'error'},
+      {flag: '--error', level: 'error'}
     ] as const
 
     it('should parse single log level flag correctly', () => {
@@ -31,24 +25,18 @@ describe('parseArgs property tests', () => {
           fc.array(fc.string().filter(s => !s.startsWith('-') && s.length > 0), {maxLength: 5}),
           ({flag, level}, otherArgs) => {
             const filteredArgs = otherArgs.filter( // Filter out any strings that might be valid subcommands
-              arg => !['help', 'init', 'dry-run', 'clean'].includes(arg),
+              arg => !['help', 'init', 'dry-run', 'clean'].includes(arg)
             )
             const args = [flag, ...filteredArgs]
             const result = parseArgs(args)
             expect(result.logLevel).toBe(level)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: cli-refactor, Property 3: Log Level Default Behavior
-   * For any argument array that does not contain any log level flags,
-   * the parsed result SHALL have logLevel set to undefined.
-   * Validates: Requirements 6.6
-   */
   describe('property 3: Log Level Default Behavior', () => {
     const logLevelFlags = new Set(['--trace', '--debug', '--info', '--warn', '--error'])
 
@@ -57,24 +45,18 @@ describe('parseArgs property tests', () => {
         fc.property(
           fc.array(
             fc.string().filter(s => !logLevelFlags.has(s) && s.length > 0),
-            {maxLength: 10},
+            {maxLength: 10}
           ),
           args => {
             const result = parseArgs(args)
             expect(result.logLevel).toBeUndefined()
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: cli-refactor, Property 5: Unknown Subcommand Detection
-   * For any first positional argument that is not a valid subcommand
-   * and does not start with '-', the parsed result SHALL capture it as unknownCommand.
-   * Validates: Requirements 7.1
-   */
   describe('property 5: Unknown Subcommand Detection', () => {
     const validSubcommands = ['help', 'init', 'dry-run', 'clean']
 
@@ -87,9 +69,9 @@ describe('parseArgs property tests', () => {
             const result = parseArgs([unknownCmd])
             expect(result.unknownCommand).toBe(unknownCmd)
             expect(result.subcommand).toBeUndefined()
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -101,9 +83,9 @@ describe('parseArgs property tests', () => {
             const result = parseArgs([subcommand])
             expect(result.unknownCommand).toBeUndefined()
             expect(result.subcommand).toBe(subcommand)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
@@ -114,13 +96,6 @@ describe('parseArgs property tests', () => {
  * Property-based tests for log level resolution
  */
 describe('resolveLogLevel property tests', () => {
-  /**
-   * Feature: cli-refactor, Property 4: Log Level Priority Resolution
-   * For any argument array containing multiple log level flags,
-   * the resolved log level SHALL be the most verbose level among those specified.
-   * Priority: trace > debug > info > warn > error
-   * Validates: Requirements 6.7
-   */
   describe('property 4: Log Level Priority Resolution', () => {
     const allLogLevels: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error']
     const logLevelPriority: Record<LogLevel, number> = {
@@ -128,7 +103,7 @@ describe('resolveLogLevel property tests', () => {
       debug: 1,
       info: 2,
       warn: 3,
-      error: 4,
+      error: 4
     }
 
     it('should resolve to most verbose level when multiple flags provided', () => {
@@ -145,9 +120,9 @@ describe('resolveLogLevel property tests', () => {
               : mostVerbose)
 
             expect(resolved).toBe(expectedLevel)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -157,15 +132,15 @@ describe('resolveLogLevel property tests', () => {
           fc.array(
             fc.string().filter(s =>
               !allLogLevels.some(level => s === `--${level}`)), // Exclude log level flags
-            {maxLength: 10},
+            {maxLength: 10}
           ),
           args => {
             const parsed = parseArgs(args)
             const resolved = resolveLogLevel(parsed)
             expect(resolved).toBeUndefined()
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -179,9 +154,9 @@ describe('resolveLogLevel property tests', () => {
             const resolved = resolveLogLevel(parsed)
 
             expect(resolved).toBe('trace')
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
@@ -192,9 +167,6 @@ describe('resolveLogLevel property tests', () => {
  * Property-based tests for command resolution
  */
 describe('resolveCommand property tests', () => {
-  /**
-   * Helper to create a ParsedCliArgs object with defaults
-   */
   function createParsedArgs(overrides: Partial<ParsedCliArgs> = {}): ParsedCliArgs {
     return {
       subcommand: void 0,
@@ -207,16 +179,10 @@ describe('resolveCommand property tests', () => {
       unknownCommand: void 0,
       positional: [],
       unknown: [],
-      ...overrides,
+      ...overrides
     }
   }
 
-  /**
-   * Feature: cli-refactor, Property 1: Default Command Resolution
-   * For any empty argument array (no subcommand, no flags),
-   * the command resolver SHALL return ExecuteCommand.
-   * Validates: Requirements 1.1
-   */
   describe('property 1: Default Command Resolution', () => {
     it('should return ExecuteCommand for empty/default args', () => {
       fc.assert(
@@ -226,15 +192,15 @@ describe('resolveCommand property tests', () => {
               !s.startsWith('-') // Exclude flags and valid subcommands
               && !['help', 'init', 'dry-run', 'clean'].includes(s)
               && s.trim().length === 0),
-            {maxLength: 5},
+            {maxLength: 5}
           ),
           _emptyArgs => {
             const args = createParsedArgs() // Create args with no subcommand, no helpFlag, no unknownCommand
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(ExecuteCommand)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -246,19 +212,13 @@ describe('resolveCommand property tests', () => {
             const args = createParsedArgs({positional: positionalArgs}) // Create args with positional but no subcommand/flags
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(ExecuteCommand)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: cli-refactor, Property 6: Help Flag Equivalence
-   * For any argument array, if --help or -h flag is present,
-   * the resolved command SHALL be HelpCommand regardless of other arguments.
-   * Validates: Requirements 2.1, 2.2, 2.3
-   */
   describe('property 6: Help Flag Equivalence', () => {
     const validSubcommands = ['help', 'init', 'dry-run', 'clean'] as const
 
@@ -272,9 +232,9 @@ describe('resolveCommand property tests', () => {
             const args = createParsedArgs({helpFlag: true, subcommand, dryRun, unknownCommand})
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(HelpCommand)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -286,23 +246,17 @@ describe('resolveCommand property tests', () => {
             const args = createParsedArgs({
               helpFlag: true,
               logLevel,
-              logLevelFlags: [logLevel],
+              logLevelFlags: [logLevel]
             })
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(HelpCommand)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: cli-refactor, Property 7: Clean Dry-Run Flag Parsing
-   * For any argument array where subcommand is 'clean' and contains --dry-run or -n flag,
-   * the resolved command SHALL be DryRunCleanCommand.
-   * Validates: Requirements 5.2, 5.3
-   */
   describe('property 7: Clean Dry-Run Flag Parsing', () => {
     it('should return DryRunCleanCommand when clean subcommand with dryRun flag', () => {
       fc.assert(
@@ -315,13 +269,13 @@ describe('resolveCommand property tests', () => {
               dryRun: true,
               logLevel,
               logLevelFlags: logLevel != null ? [logLevel] : [],
-              positional,
+              positional
             })
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(DryRunCleanCommand)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -333,9 +287,9 @@ describe('resolveCommand property tests', () => {
             const args = createParsedArgs({subcommand: 'clean', dryRun: true, unknown: unknownFlags})
             const command = resolveCommand(args)
             expect(command).toBeInstanceOf(DryRunCleanCommand)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })

@@ -8,41 +8,9 @@ import type {
   SkillPrompt,
   SkillYAMLFrontMatter,
   WriteResult,
-  WriteResults,
+  WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
-/**
- * Kiro CLI Output Plugin
- *
- * Kiro Steering Front Matter Format:
- * Steering files are located in `.kiro/steering/*.md`
- *
- * @example Always included (default behavior)
- * ```yaml
- * ---
- * # No front matter needed, or empty front matter
- * ---
- * ```
- *
- * @example Conditionally included when a matching file is read into context
- * ```yaml
- * ---
- * inclusion: fileMatch
- * fileMatchPattern: 'README*'
- * ---
- * ```
- *
- * @example Manually included via context key ('#' in chat)
- * ```yaml
- * ---
- * inclusion: manual
- * ---
- * ```
- *
- * Supported front matter properties:
- * - `inclusion`: 'always' | 'fileMatch' | 'manual' (default: 'always')
- * - `fileMatchPattern`: glob pattern for fileMatch inclusion (e.g. '*.ts', 'src/**')
- */
 import {buildMarkdownWithFrontMatter} from '@/markdown'
 import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
@@ -58,20 +26,6 @@ const KIRO_POWERS_DIR = '.kiro/powers/installed' // Kiro Powers constants
 const KIRO_POWERS_REPOS_DIR = '.kiro/powers/repos'
 const POWER_FILE_NAME = 'POWER.md'
 
-/**
- * Kiro global MCP settings structure
- * Located at ~/.kiro/settings/mcp.json
- *
- * Format:
- * {
- *   "mcpServers": {},
- *   "powers": {
- *     "mcpServers": {
- *       "power-[powerName]-[mcpName]": { ... }
- *     }
- *   }
- * }
- */
 interface KiroGlobalMcpSettings {
   mcpServers: Record<string, unknown>
   powers: {
@@ -97,8 +51,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
       const emptyMcpSettings: KiroGlobalMcpSettings = { // Empty shell structure
         mcpServers: {},
         powers: {
-          mcpServers: {},
-        },
+          mcpServers: {}
+        }
       }
 
       if (ctx.dryRun === true) {
@@ -120,10 +74,6 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
     })
   }
 
-  /**
-   * Get the absolute path to the global settings directory.
-   * @returns The absolute path to ~/.kiro/settings/
-   */
   private getGlobalSettingsDir(): string {
     return this.joinPath(this.getHomeDir(), GLOBAL_CONFIG_DIR, SETTINGS_SUBDIR)
   }
@@ -141,7 +91,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
         path: steeringDir,
         basePath: project.dirFromWorkspacePath.basePath,
         getDirectoryName: () => STEERING_SUBDIR,
-        getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, steeringDir),
+        getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, steeringDir)
       })
     }
 
@@ -164,7 +114,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
             path: filePath,
             basePath: project.dirFromWorkspacePath.basePath,
             getDirectoryName: () => STEERING_SUBDIR,
-            getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, filePath),
+            getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, filePath)
           })
         }
       }
@@ -181,8 +131,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
         path: STEERING_SUBDIR,
         basePath: this.joinPath(this.getGlobalConfigDir()),
         getDirectoryName: () => STEERING_SUBDIR,
-        getAbsolutePath: () => globalDir,
-      },
+        getAbsolutePath: () => globalDir
+      }
     ]
 
     const powersDir = this.getKiroPowersDir() // This ensures old/renamed powers are also cleaned up // Register ALL installed powers for cleanup (not just current skills)
@@ -195,7 +145,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
         path: powerName,
         basePath: powersDir,
         getDirectoryName: () => powerName,
-        getAbsolutePath: () => powerDir,
+        getAbsolutePath: () => powerDir
       })
     }
 
@@ -205,17 +155,12 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
       path: 'repos',
       basePath: this.joinPath(this.getHomeDir(), '.kiro/powers'),
       getDirectoryName: () => 'repos',
-      getAbsolutePath: () => reposDir,
+      getAbsolutePath: () => reposDir
     })
 
     return results
   }
 
-  /**
-   * List all installed power directories in the Kiro powers directory.
-   * @param powersDir - The absolute path to the powers installation directory
-   * @returns Array of power directory names
-   */
   private listInstalledPowers(powersDir: string): string[] {
     try {
       if (!this.existsSync(powersDir)) return []
@@ -241,7 +186,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
         path: GLOBAL_MEMORY_FILE,
         basePath: globalDir,
         getDirectoryName: () => STEERING_SUBDIR,
-        getAbsolutePath: () => this.joinPath(globalDir, GLOBAL_MEMORY_FILE),
+        getAbsolutePath: () => this.joinPath(globalDir, GLOBAL_MEMORY_FILE)
       })
     }
 
@@ -253,7 +198,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
           path: fileName,
           basePath: globalDir,
           getDirectoryName: () => STEERING_SUBDIR,
-          getAbsolutePath: () => this.joinPath(globalDir, fileName),
+          getAbsolutePath: () => this.joinPath(globalDir, fileName)
         })
       }
     }
@@ -270,7 +215,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
         path: POWER_FILE_NAME,
         basePath: skillPowerDir,
         getDirectoryName: () => skillName,
-        getAbsolutePath: () => this.joinPath(skillPowerDir, POWER_FILE_NAME),
+        getAbsolutePath: () => this.joinPath(skillPowerDir, POWER_FILE_NAME)
       })
 
       if (skill.mcpConfig != null) { // Register mcp.json if skill has MCP configuration
@@ -279,7 +224,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
           path: MCP_CONFIG_FILE,
           basePath: skillPowerDir,
           getDirectoryName: () => skillName,
-          getAbsolutePath: () => this.joinPath(skillPowerDir, MCP_CONFIG_FILE),
+          getAbsolutePath: () => this.joinPath(skillPowerDir, MCP_CONFIG_FILE)
         })
       }
 
@@ -292,7 +237,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
             path: this.joinPath(STEERING_SUBDIR, refDocFileName),
             basePath: skillPowerDir,
             getDirectoryName: () => STEERING_SUBDIR,
-            getAbsolutePath: () => this.joinPath(steeringDir, refDocFileName),
+            getAbsolutePath: () => this.joinPath(steeringDir, refDocFileName)
           })
         }
       }
@@ -305,7 +250,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
             path: this.joinPath(STEERING_SUBDIR, resource.relativePath),
             basePath: skillPowerDir,
             getDirectoryName: () => STEERING_SUBDIR,
-            getAbsolutePath: () => this.joinPath(steeringDir, resource.relativePath),
+            getAbsolutePath: () => this.joinPath(steeringDir, resource.relativePath)
           })
         }
       }
@@ -319,7 +264,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
       path: MCP_CONFIG_FILE,
       basePath: settingsDir,
       getDirectoryName: () => SETTINGS_SUBDIR,
-      getAbsolutePath: () => this.joinPath(settingsDir, MCP_CONFIG_FILE),
+      getAbsolutePath: () => this.joinPath(settingsDir, MCP_CONFIG_FILE)
     })
     return results
   }
@@ -327,7 +272,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {workspace, globalMemory, fastCommands, skills} = ctx.collectedInputContext
     const hasChildPrompts = workspace.projects.some(
-      p => (p.childMemoryPrompts?.length ?? 0) > 0,
+      p => (p.childMemoryPrompts?.length ?? 0) > 0
     )
     const hasGlobalMemory = globalMemory != null
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
@@ -372,7 +317,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
         path: GLOBAL_MEMORY_FILE,
         basePath: globalDir,
         getDirectoryName: () => STEERING_SUBDIR,
-        getAbsolutePath: () => fullPath,
+        getAbsolutePath: () => fullPath
       }
 
       if (ctx.dryRun === true) {
@@ -414,28 +359,9 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
     return {files: fileResults, dirs: dirResults}
   }
 
-  /**
-   * Write global MCP settings file at ~/.kiro/settings/mcp.json
-   * Aggregates all skill MCP configurations into the powers.mcpServers section.
-   *
-   * Format:
-   * {
-   *   "mcpServers": {},
-   *   "powers": {
-   *     "mcpServers": {
-   *       "power-[powerName]-[mcpName]": mcpConfig,
-   *       ...
-   *     }
-   *   }
-   * }
-   *
-   * @param ctx - The output write context
-   * @param skills - All skill prompts
-   * @returns WriteResult or null if no MCP configurations
-   */
   private async writeGlobalMcpSettings(
     ctx: OutputWriteContext,
-    skills: readonly SkillPrompt[],
+    skills: readonly SkillPrompt[]
   ): Promise<WriteResult | null> {
     const powersMcpServers: Record<string, unknown> = {} // Collect all MCP configurations from skills into powers.mcpServers
 
@@ -461,14 +387,14 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
       path: MCP_CONFIG_FILE,
       basePath: settingsDir,
       getDirectoryName: () => SETTINGS_SUBDIR,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     const globalMcpSettings: KiroGlobalMcpSettings = { // Build global MCP settings structure
       mcpServers: {},
       powers: {
-        mcpServers: powersMcpServers,
-      },
+        mcpServers: powersMcpServers
+      }
     }
 
     const content = JSON.stringify(globalMcpSettings, null, 2)
@@ -491,14 +417,6 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
     }
   }
 
-  /**
-   * Log registry operation results.
-   * Logs success/failure for each registration attempt.
-   *
-   * @param results - The registry operation results
-   * @param dryRun - Whether this is a dry-run operation
-   * @see Requirements 6.4, 6.5
-   */
   private logRegistryResults(results: readonly RegistryOperationResult[], dryRun?: boolean): void {
     const successCount = results.filter(r => r.success).length
     const failCount = results.filter(r => !r.success).length
@@ -520,53 +438,29 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
     return this.joinPath(this.getGlobalConfigDir(), STEERING_SUBDIR)
   }
 
-  /**
-   * Get the absolute path to the Kiro Powers installation directory.
-   * @returns The absolute path to ~/.kiro/powers/installed/
-   */
   private getKiroPowersDir(): string {
     return this.joinPath(this.getHomeDir(), KIRO_POWERS_DIR)
   }
 
-  /**
-   * Get the absolute path to the Kiro Powers repos directory.
-   * @returns The absolute path to ~/.kiro/powers/repos/
-   */
   private getKiroPowersReposDir(): string {
     return this.joinPath(this.getHomeDir(), KIRO_POWERS_REPOS_DIR)
   }
 
-  /**
-   * Build YAML front matter for Kiro Power POWER.md file.
-   * Includes name, description, keywords, displayName, and author if available.
-   *
-   * @param frontMatter - The skill YAML front matter data
-   * @returns YAML front matter string with leading/trailing delimiters
-   */
   private buildPowerFrontMatter(frontMatter: SkillYAMLFrontMatter): string {
     const fmData: Record<string, unknown> = {
       name: frontMatter.name,
       displayName: frontMatter.displayName,
       description: frontMatter.description,
       keywords: frontMatter.keywords,
-      author: frontMatter.author,
+      author: frontMatter.author
     }
 
     return buildMarkdownWithFrontMatter(fmData, '').trimEnd()
   }
 
-  /**
-   * Write a single skill as a Kiro Power.
-   * Creates the power directory, writes POWER.md (with front matter),
-   * writes all reference documents, and registers in the Kiro powers registry.
-   *
-   * @param ctx - The output write context
-   * @param skill - The skill prompt to write
-   * @returns Object containing file write results and registry operation result
-   */
   private async writeSkillAsPower(
     ctx: OutputWriteContext,
-    skill: SkillPrompt,
+    skill: SkillPrompt
   ): Promise<{fileResults: WriteResult[], registryResult: RegistryOperationResult}> {
     const fileResults: WriteResult[] = []
     const skillName = skill.yamlFrontMatter.name
@@ -578,7 +472,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
       path: POWER_FILE_NAME,
       basePath: powerDir,
       getDirectoryName: () => skillName,
-      getAbsolutePath: () => powerFilePath,
+      getAbsolutePath: () => powerFilePath
     }
 
     const frontMatterStr = this.buildPowerFrontMatter(skill.yamlFrontMatter) // Build POWER.md content with front matter
@@ -614,7 +508,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
           path: this.joinPath(STEERING_SUBDIR, refDocFileName),
           basePath: powerDir,
           getDirectoryName: () => STEERING_SUBDIR,
-          getAbsolutePath: () => refDocFilePath,
+          getAbsolutePath: () => refDocFilePath
         }
 
         const refDocContent = refDoc.content as string // Write reference document content (without front matter)
@@ -650,7 +544,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
           path: this.joinPath(STEERING_SUBDIR, resource.relativePath),
           basePath: powerDir,
           getDirectoryName: () => STEERING_SUBDIR,
-          getAbsolutePath: () => resourceFilePath,
+          getAbsolutePath: () => resourceFilePath
         }
 
         if (ctx.dryRun === true) {
@@ -686,25 +580,16 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
     const registryResult = registryResults[0] ?? {
       success: false,
       entryName: skillName,
-      error: new Error('No registry result returned'),
+      error: new Error('No registry result returned')
     }
 
     return {fileResults, registryResult}
   }
 
-  /**
-   * Write MCP configuration for a single skill to its power directory.
-   * Writes the skill's mcp.json directly to ~/.kiro/powers/installed/{skill-name}/mcp.json
-   *
-   * @param ctx - The output write context
-   * @param skill - The skill prompt containing MCP configuration
-   * @param powerDir - The power directory path
-   * @returns WriteResult indicating success or failure
-   */
   private async writeSkillMcpConfig(
     ctx: OutputWriteContext,
     skill: SkillPrompt,
-    powerDir: string,
+    powerDir: string
   ): Promise<WriteResult> {
     const skillName = skill.yamlFrontMatter.name
     const mcpConfigPath = this.joinPath(powerDir, MCP_CONFIG_FILE)
@@ -714,7 +599,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
       path: MCP_CONFIG_FILE,
       basePath: powerDir,
       getDirectoryName: () => skillName,
-      getAbsolutePath: () => mcpConfigPath,
+      getAbsolutePath: () => mcpConfigPath
     }
 
     const mcpConfigContent = skill.mcpConfig!.rawContent // Use the raw content from the skill's mcp.json (preserves original format)
@@ -737,37 +622,24 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
     }
   }
 
-  /**
-   * Build steering file name from fast command
-   * Uses hyphen separator for Kiro naming conventions (kebab-case)
-   * @example 'pe_compile.md' -> 'pe-compile.md'
-   * @example 'compile.md' -> 'compile.md'
-   */
   private buildFastCommandSteeringFileName(cmd: FastCommandPrompt): string {
     return this.transformFastCommandName(cmd, {includeSeriesPrefix: true, seriesSeparator: '-'})
   }
 
-  /**
-   * Build fast command steering file content with manual inclusion front matter
-   * Uses manual inclusion mode so users can include via '#' in chat
-   */
   private buildFastCommandSteeringContent(cmd: FastCommandPrompt): string {
     const description = cmd.yamlFrontMatter?.description
 
     const fmData: Record<string, unknown> = {
       inclusion: 'manual',
-      description: description != null && description.length > 0 ? description : null,
+      description: description != null && description.length > 0 ? description : null
     }
 
-    return buildMarkdownWithFrontMatter(fmData, cmd.content as string)
+    return buildMarkdownWithFrontMatter(fmData, cmd.content)
   }
 
-  /**
-   * Write fast command as a manual steering file to global steering directory
-   */
   private async writeFastCommandSteeringFile(
     ctx: OutputWriteContext,
-    cmd: FastCommandPrompt,
+    cmd: FastCommandPrompt
   ): Promise<WriteResult> {
     const globalDir = this.getGlobalSteeringDir()
     const fileName = this.buildFastCommandSteeringFileName(cmd)
@@ -778,7 +650,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
       path: fileName,
       basePath: globalDir,
       getDirectoryName: () => STEERING_SUBDIR,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     const content = this.buildFastCommandSteeringContent(cmd)
@@ -801,11 +673,6 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
     }
   }
 
-  /**
-   * Build steering file name from childMemoryPrompt
-   * Format: kiro-<folder-path>.md where nested folders use kebab-case separator
-   * @example 'src/components' -> 'kiro-src-components.md'
-   */
   private buildSteeringFileName(child: ProjectChildrenMemoryPrompt): string {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
     const normalizedPath = childPath // Replace path separators with kebab-case
@@ -815,17 +682,13 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
     return `kiro-${normalizedPath}.md`
   }
 
-  /**
-   * Build steering file content with front matter
-   * Uses fileMatch inclusion mode with glob pattern based on child directory
-   */
   private buildSteeringContent(child: ProjectChildrenMemoryPrompt): string {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
     const normalizedPath = childPath.replaceAll('\\', '/')
 
     const fmData: Record<string, unknown> = {
       inclusion: 'fileMatch',
-      fileMatchPattern: `${normalizedPath}/**`,
+      fileMatchPattern: `${normalizedPath}/**`
     }
 
     return buildMarkdownWithFrontMatter(fmData, child.content as string)
@@ -834,7 +697,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
   private async writeSteeringFile(
     ctx: OutputWriteContext,
     project: Project,
-    child: ProjectChildrenMemoryPrompt,
+    child: ProjectChildrenMemoryPrompt
   ): Promise<WriteResult> {
     const projectDir = project.dirFromWorkspacePath!
     const fileName = this.buildSteeringFileName(child)
@@ -846,7 +709,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin { // Therefore, ro
       path: this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR, fileName),
       basePath: projectDir.basePath,
       getDirectoryName: () => STEERING_SUBDIR,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     const content = this.buildSteeringContent(child)

@@ -34,7 +34,7 @@ function createMockLogger(): ILogger { // Test helpers
     warn: () => { },
     error: () => { },
     fatal: () => { },
-    child: () => createMockLogger(),
+    child: () => createMockLogger()
   } as unknown as ILogger
 }
 
@@ -47,7 +47,7 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
     userConfigOptions: {} as PluginOptions,
     workspaceDir,
     shadowProjectDir,
-    dryRun,
+    dryRun
   }
 }
 
@@ -83,16 +83,16 @@ const skillStructureGen: fc.Arbitrary<SkillStructure> = fc.record({
       fc.record({ // Non-.cn.mdx files (should be synced)
         relativePath: nonSrcMdFileNameGen,
         content: fileContentGen,
-        isSrcMd: fc.constant(false),
+        isSrcMd: fc.constant(false)
       }),
       fc.record({ // .cn.mdx files (should NOT be synced)
         relativePath: srcMdFileNameGen,
         content: fileContentGen,
-        isSrcMd: fc.constant(true),
-      }),
+        isSrcMd: fc.constant(true)
+      })
     ),
-    {minLength: 1, maxLength: 5},
-  ),
+    {minLength: 1, maxLength: 5}
+  )
 }).map(skill => {
   const seen = new Set<string>() // Deduplicate files by relativePath, keeping the first occurrence
   const uniqueFiles = skill.files.filter(file => {
@@ -104,14 +104,6 @@ const skillStructureGen: fc.Arbitrary<SkillStructure> = fc.record({
 }).filter(skill => skill.files.length > 0)
 
 describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
-  /**
-   * Feature: effect-input-plugins, Property 1: Non-.cn.mdx file sync correctness
-   * Validates: Requirements 1.2
-   *
-   * For any file in src/skills/{skill_name}/ that does not end with .cn.mdx,
-   * after the plugin executes, the file should exist at dist/skills/{skill_name}/{relative_path}
-   * with identical content.
-   */
   describe('property 1: Non-.cn.mdx file sync correctness', () => {
     it('should sync all non-.cn.mdx files from src/skills/ to dist/skills/ with identical content', {timeout: 60000}, async () => {
       await fc.assert(
@@ -158,21 +150,13 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
             finally {
               if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: effect-input-plugins, Property 3: Identical content skip (Idempotence)
-   * Validates: Requirements 1.4
-   *
-   * For any file that already exists at the destination with identical content to the source,
-   * running the plugin should not modify the destination file (file modification timestamp
-   * should remain unchanged).
-   */
   describe('property 3: Identical content skip (Idempotence)', () => {
     it('should skip files with identical content and not modify them', async () => {
       await fc.assert(
@@ -219,9 +203,9 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
             finally {
               if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -269,9 +253,9 @@ describe('skillNonSrcFileSyncEffectInputPlugin Property Tests', () => {
             finally {
               if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Cleanup
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })

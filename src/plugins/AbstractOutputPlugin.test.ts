@@ -18,14 +18,14 @@ class TestOutputPlugin extends AbstractOutputPlugin { // Create a concrete test 
   public testCombineGlobalWithContent(
     globalContent: string | undefined,
     projectContent: string,
-    options?: any,
+    options?: any
   ) {
     return this.combineGlobalWithContent(globalContent, projectContent, options)
   }
 
   public testTransformFastCommandName(
     cmd: FastCommandPrompt,
-    options?: FastCommandNameTransformOptions,
+    options?: FastCommandNameTransformOptions
   ) {
     return this.transformFastCommandName(cmd, options)
   }
@@ -36,7 +36,7 @@ class TestOutputPlugin extends AbstractOutputPlugin { // Create a concrete test 
 
   public testGetTransformOptionsFromContext(
     ctx: OutputWriteContext,
-    additionalOptions?: FastCommandNameTransformOptions,
+    additionalOptions?: FastCommandNameTransformOptions
   ) {
     return this.getTransformOptionsFromContext(ctx, additionalOptions)
   }
@@ -48,13 +48,13 @@ function createMockRelativePath(pathStr: string, basePath: string): RelativePath
     path: pathStr,
     basePath,
     getDirectoryName: () => pathStr,
-    getAbsolutePath: () => `${basePath}/${pathStr}`,
+    getAbsolutePath: () => `${basePath}/${pathStr}`
   }
 }
 
 function createMockFastCommandPrompt(
   series: string | undefined,
-  commandName: string,
+  commandName: string
 ): FastCommandPrompt {
   return {
     type: PromptKind.FastCommand,
@@ -64,7 +64,7 @@ function createMockFastCommandPrompt(
     length: 0,
     filePathKind: FilePathKind.Relative,
     dir: createMockRelativePath('.', '/test'),
-    markdownContents: [],
+    markdownContents: []
   } as FastCommandPrompt
 }
 
@@ -74,7 +74,7 @@ function createMockContext(globalContent?: string, pluginOptions?: PluginOptions
     collectedInputContext: {
       workspace: {
         directory: createMockRelativePath('.', '/test'),
-        projects: [],
+        projects: []
       },
       ideConfigFiles: [],
       globalMemory: hasGlobalContent
@@ -87,13 +87,13 @@ function createMockContext(globalContent?: string, pluginOptions?: PluginOptions
             filePathKind: FilePathKind.Relative,
             parentDirectoryPath: {
               type: 'UserHome',
-              directory: createMockRelativePath('.memory', '/home/user'),
-            },
+              directory: createMockRelativePath('.memory', '/home/user')
+            }
           } as any
-        : (null as any),
+        : (null as any)
     } as any,
     dryRun: false,
-    pluginOptions,
+    pluginOptions
   } as unknown as OutputWriteContext
 }
 
@@ -128,8 +128,8 @@ describe('abstractOutputPlugin', () => {
         filePathKind: FilePathKind.Relative,
         parentDirectoryPath: {
           type: 'UserHome',
-          directory: createMockRelativePath('.memory', '/home/user'),
-        },
+          directory: createMockRelativePath('.memory', '/home/user')
+        }
       } as any
 
       const result = plugin.testExtractGlobalMemoryContent(ctx)
@@ -223,20 +223,11 @@ describe('abstractOutputPlugin', () => {
       const result = plugin.testCombineGlobalWithContent(globalContent, projectContent)
 
       expect(result).toBe(
-        '# Global Rules\n\nThese are global.\n\n# Project Rules\n\nThese are project-specific.',
+        '# Global Rules\n\nThese are global.\n\n# Project Rules\n\nThese are project-specific.'
       )
     })
   })
 
-  /**
-   * Feature: fast-command-series, Property 5: Filename Transformation with Configurable Prefix
-   * Validates: Requirements 3.1, 3.2, 3.3, 5.2, 5.3
-   *
-   * For any fast command with series prefix and any configuration:
-   * - When includeSeriesPrefix is true or undefined, the output filename SHALL include the series prefix
-   * - When includeSeriesPrefix is false, the output filename SHALL exclude the series prefix
-   * - The separator between series and command name SHALL be configurable
-   */
   describe('transformFastCommandName', () => {
     const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generator for alphanumeric strings without underscore (for series prefix)
       .filter(s => /^[a-z0-9]+$/i.test(s))
@@ -260,9 +251,9 @@ describe('abstractOutputPlugin', () => {
 
             const resultDefault = plugin.testTransformFastCommandName(cmd) // Test with includeSeriesPrefix = undefined (default)
             expect(resultDefault).toBe(`${series}_${commandName}.md`)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -277,9 +268,9 @@ describe('abstractOutputPlugin', () => {
 
             const result = plugin.testTransformFastCommandName(cmd, {includeSeriesPrefix: false})
             expect(result).toBe(`${commandName}.md`)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -295,9 +286,9 @@ describe('abstractOutputPlugin', () => {
 
             const result = plugin.testTransformFastCommandName(cmd, {includeSeriesPrefix: true, seriesSeparator: separator})
             expect(result).toBe(`${series}${separator}${commandName}.md`)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -313,12 +304,12 @@ describe('abstractOutputPlugin', () => {
 
             const result = plugin.testTransformFastCommandName(cmd, { // Regardless of includeSeriesPrefix setting, should return just commandName
               includeSeriesPrefix: includePrefix,
-              seriesSeparator: separator,
+              seriesSeparator: separator
             })
             expect(result).toBe(`${commandName}.md`)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -355,13 +346,6 @@ describe('abstractOutputPlugin', () => {
     })
   })
 
-  /**
-   * Feature: fast-command-series, Property 7: Per-plugin Configuration Override
-   * Validates: Requirements 5.4
-   *
-   * For any plugin with specific configuration overrides, the plugin-specific settings
-   * SHALL take precedence over global settings.
-   */
   describe('getFastCommandSeriesOptions and getTransformOptionsFromContext', () => {
     const pluginNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'}) // Generator for plugin names
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
@@ -384,19 +368,19 @@ describe('abstractOutputPlugin', () => {
                 pluginOverrides: {
                   [pluginName]: {
                     includeSeriesPrefix: pluginInclude,
-                    seriesSeparator: pluginSep,
-                  },
-                },
-              },
+                    seriesSeparator: pluginSep
+                  }
+                }
+              }
             })
 
             const result = plugin.testGetFastCommandSeriesOptions(ctx)
 
             expect(result.includeSeriesPrefix).toBe(pluginInclude) // Plugin-specific override should take precedence
             expect(result.seriesSeparator).toBe(pluginSep)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -409,17 +393,17 @@ describe('abstractOutputPlugin', () => {
             const plugin = new TestOutputPlugin(pluginName)
             const ctx = createMockContext(void 0, {
               fastCommandSeriesOptions: {
-                includeSeriesPrefix: globalInclude,
-              },
+                includeSeriesPrefix: globalInclude
+              }
             })
 
             const result = plugin.testGetFastCommandSeriesOptions(ctx)
 
             expect(result.includeSeriesPrefix).toBe(globalInclude) // Should use global setting
             expect(result.seriesSeparator).not.toBeDefined() // seriesSeparator should not be set
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -435,9 +419,9 @@ describe('abstractOutputPlugin', () => {
 
             expect(result.includeSeriesPrefix).not.toBeDefined()
             expect(result.seriesSeparator).not.toBeDefined()
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -455,21 +439,21 @@ describe('abstractOutputPlugin', () => {
                 includeSeriesPrefix: configInclude,
                 pluginOverrides: {
                   [pluginName]: {
-                    seriesSeparator: configSep,
-                  },
-                },
-              },
+                    seriesSeparator: configSep
+                  }
+                }
+              }
             })
 
             const result = plugin.testGetTransformOptionsFromContext(ctx, { // Config separator should override additional options
-              seriesSeparator: additionalSep,
+              seriesSeparator: additionalSep
             })
 
             expect(result.includeSeriesPrefix).toBe(configInclude)
             expect(result.seriesSeparator).toBe(configSep) // Config separator takes precedence over additional options
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -487,9 +471,9 @@ describe('abstractOutputPlugin', () => {
 
             expect(result.includeSeriesPrefix).toBe(additionalInclude) // Should use additional options as fallback
             expect(result.seriesSeparator).toBe(additionalSep)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -501,10 +485,10 @@ describe('abstractOutputPlugin', () => {
           pluginOverrides: {
             KiroCLIOutputPlugin: {
               includeSeriesPrefix: true,
-              seriesSeparator: '-',
-            },
-          },
-        },
+              seriesSeparator: '-'
+            }
+          }
+        }
       })
 
       const result = plugin.testGetFastCommandSeriesOptions(ctx)
@@ -520,10 +504,10 @@ describe('abstractOutputPlugin', () => {
           includeSeriesPrefix: true,
           pluginOverrides: {
             TestPlugin: {
-              seriesSeparator: '-',
-            },
-          },
-        },
+              seriesSeparator: '-'
+            }
+          }
+        }
       })
 
       const result = plugin.testGetFastCommandSeriesOptions(ctx)

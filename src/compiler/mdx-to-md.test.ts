@@ -112,8 +112,8 @@ Some content here.`
           profile: {name: 'TestUser'},
           tool: {},
           env: {},
-          os: {},
-        },
+          os: {}
+        }
       })
       expect(result).toContain('Name: TestUser')
     })
@@ -125,8 +125,8 @@ Some content here.`
           profile: {},
           tool: {websearch: 'websearch'},
           env: {},
-          os: {},
-        },
+          os: {}
+        }
       })
       expect(result).toContain('Search: websearch')
     })
@@ -138,9 +138,9 @@ Some content here.`
           profile: {name: 'GlobalName'},
           tool: {},
           env: {},
-          os: {},
+          os: {}
         },
-        scope: {profile: {name: 'OverriddenName'}},
+        scope: {profile: {name: 'OverriddenName'}}
       })
       expect(result).toContain('Name: OverriddenName')
     })
@@ -269,7 +269,7 @@ description: A test description
 
 # Content`
       const result = await mdxToMd(input)
-      expect(result).not.toContain('***') // Should NOT contain *** (thematic break)
+      expect(result).not.toContain('***')
       expect(result).toContain('---') // Should contain proper frontmatter
       expect(result).toContain('name: test')
     })
@@ -301,7 +301,7 @@ description: A test skill
       expect(result.content).toContain('# Content')
       expect(result.metadata.fields).toEqual({ // Metadata should contain frontmatter fields
         name: 'test-skill',
-        description: 'A test skill',
+        description: 'A test skill'
       })
       expect(result.metadata.source).toBe('yaml')
     })
@@ -323,7 +323,7 @@ export const exportField = "export-value"
       expect(result.metadata.fields).toEqual({ // Metadata should be merged (export takes priority)
         name: 'export-name', // export wins over yaml for 'name'
         yamlField: 'yaml-value',
-        exportField: 'export-value',
+        exportField: 'export-value'
       })
       expect(result.metadata.source).toBe('mixed')
     })

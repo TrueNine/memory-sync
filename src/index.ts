@@ -7,7 +7,7 @@ export * from './ConfigLoader'
 export * from './constants'
 export * from './log'
 export {
-  default,
+  default
 } from './plugin.config'
 export * from './ShadowSourceProject'
 

@@ -22,13 +22,6 @@ describe('kiroPowersIntegration', () => {
     if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Clean up temporary directory
   })
 
-  /**
-   * Feature: kiro-powers-skill-output, Property 4: Reference Document Round-Trip
-   * Validates: Requirements 4.5
-   *
-   * For any valid reference document file, reading it via SkillInputPlugin
-   * and then writing it via KiroCLIOutputPlugin SHALL produce a file with identical content.
-   */
   describe('property 4: Reference Document Round-Trip', () => {
     const markdownContentGen = fc.array( // Generator for valid markdown content (without front matter for simplicity)
       fc.oneof(
@@ -39,9 +32,9 @@ describe('kiroPowersIntegration', () => {
         fc.constant('\n'),
         fc.constant('Some text content.\n'),
         fc.constant('Another paragraph.\n'),
-        fc.constant('Code: `example`\n'),
+        fc.constant('Code: `example`\n')
       ),
-      {minLength: 1, maxLength: 10},
+      {minLength: 1, maxLength: 10}
     ).map(parts => parts.join('').trim() || 'Default content')
 
     const fileNameGen = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'}) // Generator for valid file names (alphanumeric with .md extension)
@@ -65,9 +58,9 @@ describe('kiroPowersIntegration', () => {
 
             const readBackContent = fs.readFileSync(outputPath, 'utf8') // Assert: Read back and verify content is identical
             expect(readBackContent).toBe(parsedContent)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -90,20 +83,13 @@ describe('kiroPowersIntegration', () => {
 
             const readBackContent = fs.readFileSync(outputPath, 'utf8') // Assert: Content without front matter should match body content
             expect(readBackContent).toBe(bodyContent)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: kiro-powers-skill-output, Property 6: Reference Document Co-location
-   * Validates: Requirements 2.3
-   *
-   * For any skill with reference documents, all reference documents SHALL be
-   * written to the same directory as the skill's POWER.md file.
-   */
   describe('property 6: Reference Document Co-location', () => {
     const skillNameGen = fc.string({minLength: 1, maxLength: 15, unit: 'grapheme-ascii'}) // Generator for valid skill names (alphanumeric, kebab-case friendly)
       .filter(s => /^[a-z0-9]+$/i.test(s))
@@ -132,8 +118,8 @@ describe('kiroPowersIntegration', () => {
                 path: fileName,
                 basePath: tempDir,
                 getDirectoryName: () => '',
-                getAbsolutePath: () => path.join(tempDir, fileName),
-              },
+                getAbsolutePath: () => path.join(tempDir, fileName)
+              }
             }))
 
             const _skill: SkillPrompt = { // Create mock skill prompt (prefixed with _ as it's used for documentation purposes)
@@ -143,7 +129,7 @@ describe('kiroPowersIntegration', () => {
               filePathKind: FilePathKind.Relative,
               yamlFrontMatter: {
                 name: skillName,
-                description: 'Test skill',
+                description: 'Test skill'
               } as SkillYAMLFrontMatter,
               markdownContents: [],
               dir: {
@@ -151,9 +137,9 @@ describe('kiroPowersIntegration', () => {
                 path: skillName,
                 basePath: tempDir,
                 getDirectoryName: () => skillName,
-                getAbsolutePath: () => path.join(tempDir, skillName),
+                getAbsolutePath: () => path.join(tempDir, skillName)
               },
-              ...referenceDocuments.length > 0 && {referenceDocuments},
+              ...referenceDocuments.length > 0 && {referenceDocuments}
             }
 
             const powersDir = path.join(os.homedir(), '.kiro/powers/installed') // Calculate expected paths
@@ -169,9 +155,9 @@ describe('kiroPowersIntegration', () => {
             }
 
             return true
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -189,7 +175,7 @@ describe('kiroPowersIntegration', () => {
 
             const allPaths = [ // All files should be in the same directory
               path.join(skillPowerDir, 'POWER.md'),
-              ...uniqueFileNames.map(fn => path.join(skillPowerDir, fn)),
+              ...uniqueFileNames.map(fn => path.join(skillPowerDir, fn))
             ]
 
             const directories = allPaths.map(p => path.dirname(p))
@@ -199,9 +185,9 @@ describe('kiroPowersIntegration', () => {
             expect(uniqueDirs[0]).toBe(skillPowerDir)
 
             return true
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })

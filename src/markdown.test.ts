@@ -3,7 +3,7 @@ import {
   buildFrontMatter,
   buildMarkdownWithFrontMatter,
   buildRawFrontMatter,
-  parseMarkdown,
+  parseMarkdown
 } from './markdown'
 
 describe('markdown', () => {
@@ -67,7 +67,7 @@ tags:
 
     it('should handle nested objects', () => {
       const result = buildFrontMatter({
-        metadata: {version: '1.0', author: 'Test'},
+        metadata: {version: '1.0', author: 'Test'}
       })
 
       expect(result).toContain('metadata:')

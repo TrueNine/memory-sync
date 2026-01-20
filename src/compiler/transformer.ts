@@ -29,7 +29,7 @@ function simplifyLinkText(text: string): string {
  */
 export async function processAst(
   ast: Root,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): Promise<Root> {
   return transformNodes(ast, ctx)
 }
@@ -39,7 +39,7 @@ export async function processAst(
  */
 async function transformNodes(
   ast: Root,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): Promise<Root> {
   const newChildren: RootContent[] = []
 
@@ -56,7 +56,7 @@ async function transformNodes(
  */
 async function transformNode(
   node: RootContent,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): Promise<RootContent[]> {
   if (node.type === 'mdxjsEsm') return []
 
@@ -64,7 +64,7 @@ async function transformNode(
     const flowExpr = node
     const estree = (flowExpr.data as {estree?: Program} | undefined)?.estree
 
-    const trimmedValue = flowExpr.value.trim() // Check if this is a JSX comment {/* ... */} - skip it
+    const trimmedValue = flowExpr.value.trim()
     if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) return []
 
     if (hasJsxInEstree(estree)) { // Check if expression contains JSX
@@ -79,7 +79,7 @@ async function transformNode(
     if (value !== '') {
       const paragraph: Paragraph = {
         type: 'paragraph',
-        children: [{type: 'text', value}],
+        children: [{type: 'text', value}]
       }
       return [paragraph]
     }
@@ -110,7 +110,7 @@ async function transformNode(
  */
 async function transformJsxElement(
   element: MdxJsxFlowElement,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): Promise<RootContent[]> {
   if (element.name != null && isMdxComponent(element.name, ctx)) return processComponent(element, ctx, processAst)
 
@@ -125,14 +125,14 @@ async function transformJsxElement(
  */
 async function transformChildren(
   children: ChildNode[],
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): Promise<ChildNode[]> {
   const result: ChildNode[] = []
 
   for (const child of children) {
     if (child.type === 'mdxTextExpression') {
       const textExpr = child
-      const trimmedValue = textExpr.value.trim() // Check if this is a JSX comment {/* ... */} - skip it
+      const trimmedValue = textExpr.value.trim()
       if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) continue
       const value = evaluateExpression(textExpr.value, ctx.scope)
       const textNode: Text = {type: 'text', value}

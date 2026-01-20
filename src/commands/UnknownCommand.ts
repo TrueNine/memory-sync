@@ -16,7 +16,7 @@ export class UnknownCommand implements Command {
     return {
       success: false,
       filesAffected: 0,
-      dirsAffected: 0,
+      dirsAffected: 0
     }
   }
 }

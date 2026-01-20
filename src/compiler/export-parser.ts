@@ -57,7 +57,7 @@ type SupportedLiteral
  */
 export function parseExports(
   esmNodes: MdxjsEsm[],
-  options: ParseExportOptions = {},
+  options: ParseExportOptions = {}
 ): ExportMetadata {
   const exportFields: Record<string, unknown> = {}
   const {yamlFrontMatter, scope, filePath} = options
@@ -96,13 +96,13 @@ export function parseExports(
 function extractExportFromNode(
   node: MdxjsEsm,
   scope?: EvaluationScope,
-  filePath?: string,
+  filePath?: string
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {}
 
   const code = node.value.trim() // Parse ESM node's value (source code string)
 
-  const exportDefaultMatch = /^export\s+default\s+/.exec(code) // export default { ... } or export default { ... } as const // Handle export default pattern first
+  const exportDefaultMatch = /^export\s+default\s+/.exec(code)
   if (exportDefaultMatch != null) {
     const valueStartIndex = exportDefaultMatch[0].length
     const valueStr = extractValueString(code, valueStartIndex)
@@ -249,7 +249,7 @@ function extractValueString(code: string, startIndex: number): string | null {
 export function parseStaticValue(
   valueStr: string,
   scope?: EvaluationScope,
-  filePath?: string,
+  filePath?: string
 ): SupportedLiteral {
   const trimmed = valueStr.trim()
 
@@ -311,7 +311,7 @@ function parseStringLiteral(content: string, _quote: string): string {
 function evaluateVariableReference(
   reference: string,
   scope: EvaluationScope | undefined,
-  filePath?: string,
+  filePath?: string
 ): SupportedLiteral {
   if (scope == null) {
     const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
@@ -325,7 +325,7 @@ function evaluateVariableReference(
     const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
     const availableKeys = Object.keys(scope).join(', ')
     throw new Error(
-      `Undefined namespace "${rootVar}" in expression "${reference}"${fileInfo}. Available: ${availableKeys}`,
+      `Undefined namespace "${rootVar}" in expression "${reference}"${fileInfo}. Available: ${availableKeys}`
     )
   }
 
@@ -349,7 +349,7 @@ function evaluateVariableReference(
       const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
       const availableProps = Object.keys(obj).join(', ')
       throw new Error(
-        `Undefined property "${prop}" in "${reference}"${fileInfo}. Available: ${availableProps}`,
+        `Undefined property "${prop}" in "${reference}"${fileInfo}. Available: ${availableProps}`
       )
     }
     value = obj[prop]
@@ -381,7 +381,7 @@ function evaluateVariableReference(
 function parseArrayLiteral(
   valueStr: string,
   scope?: EvaluationScope,
-  filePath?: string,
+  filePath?: string
 ): SupportedLiteral[] {
   const inner = valueStr.slice(1, -1).trim()
 
@@ -412,7 +412,7 @@ function parseArrayLiteral(
 function parseObjectLiteral(
   valueStr: string,
   scope?: EvaluationScope,
-  filePath?: string,
+  filePath?: string
 ): {[key: string]: SupportedLiteral} {
   const inner = valueStr.slice(1, -1).trim()
 

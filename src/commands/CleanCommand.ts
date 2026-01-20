@@ -19,7 +19,7 @@ export class CleanCommand implements Command {
     return {
       success: true,
       filesAffected: result.deletedFiles,
-      dirsAffected: result.deletedDirs,
+      dirsAffected: result.deletedDirs
     }
   }
 }

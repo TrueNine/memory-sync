@@ -2,40 +2,18 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   WriteResult,
-  WriteResults,
+  WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'WARP.md'
 
-/**
- * Warp IDE output plugin for generating WARP.md files.
- *
- * Note: Warp IDE supports AGENTS.md natively, so this plugin handles child memory prompts
- * differently than other plugins:
- *
- * 1. When AgentsOutputPlugin is NOT registered:
- *    - Root memory prompts are written to project root as WARP.md (combined with global memory)
- *    - Child memory prompts are written to subdirectories as WARP.md (without global memory)
- *
- * 2. When AgentsOutputPlugin IS registered:
- *    - AgentsOutputPlugin handles AGENTS.md output (which Warp reads natively)
- *    - This plugin only writes global memory to each project's WARP.md
- *    - Root memory prompts are effectively converted to global memory by AgentsOutputPlugin
- *    - Child memory prompts are handled by AgentsOutputPlugin via AGENTS.md in subdirectories
- *
- * This design leverages Warp's native AGENTS.md support while providing WARP.md as a fallback
- * or supplementary output format.
- */
 export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('WarpIDEOutputPlugin', {outputFileName: PROJECT_MEMORY_FILE})
   }
 
-  /**
-   * Check if AgentsOutputPlugin is registered
-   */
   private isAgentsPluginRegistered(ctx: OutputPluginContext | OutputWriteContext): boolean {
     if ('registeredPluginNames' in ctx && ctx.registeredPluginNames != null) return ctx.registeredPluginNames.includes('AgentsOutputPlugin')
     return false
@@ -78,7 +56,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     }
 
     const hasProjectOutputs = workspace.projects.some( // Normal mode: check for project outputs
-      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
+      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
     )
 
     if (hasProjectOutputs) return true
@@ -120,7 +98,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
       if (project.rootMemoryPrompt != null) { // Write root memory prompt (only if exists)
         const combinedContent = this.combineGlobalWithContent( // Combine global memory with root memory prompt using helper method
           globalMemoryContent,
-          project.rootMemoryPrompt.content as string,
+          project.rootMemoryPrompt.content as string
         )
 
         const result = await this.writePromptFile(ctx, projectDir, combinedContent, `project:${projectName}/root`)

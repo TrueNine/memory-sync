@@ -13,7 +13,7 @@
 import type {
   KiroPowerEntry,
   KiroPowersRegistry,
-  KiroRepoSource,
+  KiroRepoSource
 } from '@/types/RegistryTypes'
 
 import * as fs from 'node:fs'
@@ -49,12 +49,12 @@ const descriptionGen = fc.string({minLength: 1, maxLength: 100}) // Generator fo
 
 const keywordsGen = fc.array( // Generator for keywords
   fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'}).filter(s => /^[a-z0-9]+$/i.test(s)),
-  {minLength: 0, maxLength: 5},
+  {minLength: 0, maxLength: 5}
 )
 
 const validDateGen = fc.integer({ // Using integer timestamps to ensure valid dates // Generator for valid dates (constrained to avoid invalid date values)
   min: new Date('2020-01-01').getTime(),
-  max: new Date('2030-12-31').getTime(),
+  max: new Date('2030-12-31').getTime()
 }).map(timestamp => new Date(timestamp))
 
 const localPowerEntryGen = fc.record({ // Generator for local power entries (source.repoId starts with 'local-')
@@ -69,19 +69,19 @@ const localPowerEntryGen = fc.record({ // Generator for local power entries (sou
     repoId: fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z0-9]+$/i.test(s))
       .map(s => `local-${s}`), // Ensure repoId starts with 'local-'
-    repoName: fc.string({minLength: 1, maxLength: 30}),
+    repoName: fc.string({minLength: 1, maxLength: 30})
   }),
-  sourcePath: fc.string({minLength: 1, maxLength: 50}).map(s => `/test/source/${s}`),
+  sourcePath: fc.string({minLength: 1, maxLength: 50}).map(s => `/test/source/${s}`)
 }) as fc.Arbitrary<KiroPowerEntry>
 
-const localRepoSourceGen = fc.record({ // Generator for local repoSource entries (type === 'local')
+const localRepoSourceGen = fc.record({
   name: fc.string({minLength: 1, maxLength: 50}),
   type: fc.constant('local' as const),
   enabled: fc.boolean(),
   addedAt: validDateGen.map(d => d.toISOString()),
   powerCount: fc.nat({max: 10}),
   path: fc.string({minLength: 1, maxLength: 50}).map(s => `/test/${s}`),
-  lastSync: validDateGen.map(d => d.toISOString()),
+  lastSync: validDateGen.map(d => d.toISOString())
 }) as fc.Arbitrary<KiroRepoSource>
 
 const repoSourceIdGen = fc.string({minLength: 1, maxLength: 30, unit: 'grapheme-ascii'}) // Generator for repoSource ID
@@ -100,13 +100,6 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
     if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Clean up temp directory
   })
 
-  /**
-   * Feature: plugin-side-effects, Property 6: Registry Reset to Official State
-   * Validates: Requirements 6.1, 6.2
-   *
-   * After cleanup, the registry should be reset to official state
-   * (empty in test environment since __KIRO_GLOBAL_POWERS_REGISTRY__ is not defined)
-   */
   describe('property 6: Registry Reset to Official State', () => {
     it('should reset registry to official state after cleanup (empty in tests)', async () => {
       await fc.assert(
@@ -115,7 +108,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
           async localPowers => {
             const uniqueLocalPowers = localPowers.map((p, i) => ({ // Ensure unique names by adding index suffix
               ...p,
-              name: `${p.name}-local-${i}`,
+              name: `${p.name}-local-${i}`
             }))
 
             const powers: Record<string, KiroPowerEntry> = {} // Build initial registry with local powers
@@ -125,7 +118,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
               version: '1.0.0',
               powers,
               repoSources: {},
-              lastUpdated: new Date().toISOString(),
+              lastUpdated: new Date().toISOString()
             }
 
             fs.writeFileSync(registryPath, JSON.stringify(initialRegistry, null, 2)) // Write initial registry to disk
@@ -141,9 +134,9 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             expect(Object.keys(cleanedRegistry.powers).length).toBe(0)
             expect(Object.keys(cleanedRegistry.repoSources).length).toBe(0)
             expect(cleanedRegistry.lastUpdated).toBeDefined()
-          },
+          }
         ),
-        {numRuns: 50},
+        {numRuns: 50}
       )
     })
 
@@ -152,12 +145,12 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
         fc.asyncProperty(
           fc.array( // Generate 0-5 local repoSources
             fc.tuple(repoSourceIdGen, localRepoSourceGen),
-            {minLength: 1, maxLength: 5},
+            {minLength: 1, maxLength: 5}
           ),
           async localSources => {
             const uniqueLocalSources = localSources.map(([id, source], i) => [ // Ensure unique IDs by adding suffix
               `${id}-local-${i}`,
-              source,
+              source
             ] as const)
 
             const repoSources: Record<string, KiroRepoSource> = {} // Build initial registry with local repoSources
@@ -167,7 +160,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
               version: '1.0.0',
               powers: {},
               repoSources,
-              lastUpdated: new Date().toISOString(),
+              lastUpdated: new Date().toISOString()
             }
 
             fs.writeFileSync(registryPath, JSON.stringify(initialRegistry, null, 2)) // Write initial registry to disk
@@ -180,9 +173,9 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             const cleanedRegistry = JSON.parse(fs.readFileSync(registryPath, 'utf8')) as KiroPowersRegistry // Read cleaned registry
 
             expect(Object.keys(cleanedRegistry.repoSources).length).toBe(0) // All repoSources should be cleared (reset to official state)
-          },
+          }
         ),
-        {numRuns: 50},
+        {numRuns: 50}
       )
     })
 
@@ -193,7 +186,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
           async localPowers => {
             const uniqueLocalPowers = localPowers.map((p, i) => ({ // Ensure unique names
               ...p,
-              name: `${p.name}-${i}`,
+              name: `${p.name}-${i}`
             }))
 
             const powers: Record<string, KiroPowerEntry> = {}
@@ -206,9 +199,9 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
               kiroRecommendedRepo: {
                 url: 'https://example.com/repo',
                 lastFetch: new Date().toISOString(),
-                powerCount: 42,
+                powerCount: 42
               },
-              lastUpdated: new Date().toISOString(),
+              lastUpdated: new Date().toISOString()
             }
 
             fs.writeFileSync(registryPath, JSON.stringify(initialRegistry, null, 2)) // Write and cleanup
@@ -221,9 +214,9 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
             expect(cleanedRegistry.powers).toBeDefined()
             expect(cleanedRegistry.repoSources).toBeDefined()
             expect(cleanedRegistry.lastUpdated).toBeDefined()
-          },
+          }
         ),
-        {numRuns: 50},
+        {numRuns: 50}
       )
     })
 
@@ -247,7 +240,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
           async localPowers => {
             const uniqueLocalPowers = localPowers.map((p, i) => ({ // Ensure unique names
               ...p,
-              name: `${p.name}-${i}`,
+              name: `${p.name}-${i}`
             }))
 
             const powers: Record<string, KiroPowerEntry> = {}
@@ -257,7 +250,7 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
               version: '1.0.0',
               powers,
               repoSources: {},
-              lastUpdated: new Date().toISOString(),
+              lastUpdated: new Date().toISOString()
             }
 
             fs.writeFileSync(registryPath, JSON.stringify(initialRegistry, null, 2)) // Write initial registry
@@ -270,9 +263,9 @@ describe('kiroPowersRegistryWriter Property Tests', () => {
 
             const afterContent = fs.readFileSync(registryPath, 'utf8') // Verify file was not modified
             expect(afterContent).toBe(originalContent)
-          },
+          }
         ),
-        {numRuns: 50},
+        {numRuns: 50}
       )
     })
   })

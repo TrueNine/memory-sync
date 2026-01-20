@@ -23,7 +23,7 @@ const mockUserConfigOptions: Required<PluginOptions> = { // Mock user config opt
   excludePatterns: {},
   fastCommandSeriesOptions: {},
   plugins: [],
-  logLevel: 'error',
+  logLevel: 'error'
 }
 
 function createMockRelativePath(pathStr: string) { // Helper to create mock RelativePath
@@ -32,14 +32,14 @@ function createMockRelativePath(pathStr: string) { // Helper to create mock Rela
     path: pathStr,
     basePath: '/test',
     getDirectoryName: () => pathStr,
-    getAbsolutePath: () => `/test/${pathStr}`,
+    getAbsolutePath: () => `/test/${pathStr}`
   }
 }
 
 function createMockOutputPlugin( // Helper to create mock output plugin with tracking
   name: string,
   files: string[] = [],
-  dirs: string[] = [],
+  dirs: string[] = []
 ): OutputPlugin & {operationOrder: string[]} {
   const operationOrder: string[] = []
 
@@ -68,12 +68,12 @@ function createMockOutputPlugin( // Helper to create mock output plugin with tra
     writeGlobalOutputs: vi.fn(async (): Promise<WriteResults> => {
       operationOrder.push(`${name}:writeGlobalOutputs`)
       return {files: [], dirs: []}
-    }),
+    })
   }
 }
 
 function createMockCommandContext( // Helper to create mock command context
-  outputPlugins: readonly OutputPlugin[],
+  outputPlugins: readonly OutputPlugin[]
 ): CommandContext {
   const collectedInputContext: CollectedInputContext = {
     projects: [],
@@ -83,7 +83,7 @@ function createMockCommandContext( // Helper to create mock command context
     subAgents: [],
     projectPrompts: [],
     ideConfigs: [],
-    aiAgentIgnoreConfigs: [],
+    aiAgentIgnoreConfigs: []
   }
 
   return {
@@ -97,7 +97,7 @@ function createMockCommandContext( // Helper to create mock command context
       path: nodePath,
       glob: fastGlob,
       collectedInputContext,
-      dryRun,
+      dryRun
     }),
     createWriteContext: (dryRun: boolean): OutputWriteContext => ({
       logger: mockLogger,
@@ -106,19 +106,12 @@ function createMockCommandContext( // Helper to create mock command context
       glob: fastGlob,
       collectedInputContext,
       dryRun,
-      registeredPluginNames: outputPlugins.map(p => p.name),
-    }),
+      registeredPluginNames: outputPlugins.map(p => p.name)
+    })
   }
 }
 
 describe('executeCommand', () => {
-  /**
-   * Feature: fast-command-series, Property 1: Pre-cleanup Execution Order
-   * Validates: Requirements 1.1
-   *
-   * For any execute command invocation in non-dry-run mode,
-   * cleanup operations SHALL complete before any write operations begin.
-   */
   describe('pre-cleanup execution order', () => {
     const pluginNameGen = fc.string({minLength: 2, maxLength: 10, unit: 'grapheme-ascii'}) // Generator for plugin names - ensure they start with letter and are unique
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
@@ -168,9 +161,9 @@ describe('executeCommand', () => {
             const lastCleanupIndex = Math.max(...cleanupIndices)
             const firstWriteIndex = Math.min(...writeIndices)
             expect(lastCleanupIndex).toBeLessThan(firstWriteIndex)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -201,7 +194,7 @@ describe('executeCommand', () => {
         writeGlobalOutputs: vi.fn(async () => {
           operationOrder.push('write:global')
           return {files: [], dirs: []}
-        }),
+        })
       }
 
       const ctx = createMockCommandContext([plugin])
@@ -224,13 +217,6 @@ describe('executeCommand', () => {
 })
 
 describe('cleanupUtils', () => {
-  /**
-   * Feature: fast-command-series, Property 2: Cleanup Respects Plugin Registration
-   * Validates: Requirements 1.2
-   *
-   * For any set of enabled output plugins and their registered output files,
-   * cleanup SHALL only delete files that are registered by at least one enabled plugin.
-   */
   describe('cleanup respects plugin registration', () => {
     const filePathGen = fc.string({minLength: 2, maxLength: 20, unit: 'grapheme-ascii'}) // Generator for file paths - ensure unique paths
       .filter(s => /^[a-z][\w.-]*$/i.test(s))
@@ -246,7 +232,7 @@ describe('cleanupUtils', () => {
 
             const permissions = new Map<string, {project: boolean, global: boolean}>([ // Create permissions map - both plugins allowed
               ['plugin1', {project: true, global: true}],
-              ['plugin2', {project: true, global: true}],
+              ['plugin2', {project: true, global: true}]
             ])
 
             const collectedInputContext: CollectedInputContext = {
@@ -257,7 +243,7 @@ describe('cleanupUtils', () => {
               subAgents: [],
               projectPrompts: [],
               ideConfigs: [],
-              aiAgentIgnoreConfigs: [],
+              aiAgentIgnoreConfigs: []
             }
 
             const cleanCtx: OutputCleanContext = {
@@ -266,7 +252,7 @@ describe('cleanupUtils', () => {
               path: nodePath,
               glob: fastGlob,
               collectedInputContext,
-              dryRun: false,
+              dryRun: false
             }
 
             const {collectDeletionTargets} = await import('./CleanupUtils') // Import the function to test
@@ -275,13 +261,13 @@ describe('cleanupUtils', () => {
 
             const allRegisteredFiles = new Set([ // All collected files should be from registered plugins
               ...plugin1Files.map(f => `/test/${f}`),
-              ...plugin2Files.map(f => `/test/${f}`),
+              ...plugin2Files.map(f => `/test/${f}`)
             ])
 
             for (const file of filesToDelete) expect(allRegisteredFiles.has(file)).toBe(true)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -298,7 +284,7 @@ describe('cleanupUtils', () => {
 
             const permissions = new Map<string, {project: boolean, global: boolean}>([ // Only allow first plugin
               ['allowed', {project: true, global: true}],
-              ['denied', {project: false, global: false}],
+              ['denied', {project: false, global: false}]
             ])
 
             const collectedInputContext: CollectedInputContext = {
@@ -309,7 +295,7 @@ describe('cleanupUtils', () => {
               subAgents: [],
               projectPrompts: [],
               ideConfigs: [],
-              aiAgentIgnoreConfigs: [],
+              aiAgentIgnoreConfigs: []
             }
 
             const cleanCtx: OutputCleanContext = {
@@ -318,7 +304,7 @@ describe('cleanupUtils', () => {
               path: nodePath,
               glob: fastGlob,
               collectedInputContext,
-              dryRun: false,
+              dryRun: false
             }
 
             const {collectDeletionTargets} = await import('./CleanupUtils')
@@ -330,9 +316,9 @@ describe('cleanupUtils', () => {
 
             const allowedFilePaths = new Set(allowedFiles.map(f => `/test/${f}`)) // All files should be from allowed plugin
             for (const file of filesToDelete) expect(allowedFilePaths.has(file)).toBe(true)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -342,7 +328,7 @@ describe('cleanupUtils', () => {
 
       const permissions = new Map<string, {project: boolean, global: boolean}>([
         ['allowed', {project: true, global: false}],
-        ['denied', {project: false, global: false}],
+        ['denied', {project: false, global: false}]
       ])
 
       const collectedInputContext: CollectedInputContext = {
@@ -353,7 +339,7 @@ describe('cleanupUtils', () => {
         subAgents: [],
         projectPrompts: [],
         ideConfigs: [],
-        aiAgentIgnoreConfigs: [],
+        aiAgentIgnoreConfigs: []
       }
 
       const cleanCtx: OutputCleanContext = {
@@ -362,7 +348,7 @@ describe('cleanupUtils', () => {
         path: nodePath,
         glob: fastGlob,
         collectedInputContext,
-        dryRun: false,
+        dryRun: false
       }
 
       const {collectDeletionTargets} = await import('./CleanupUtils')
@@ -378,13 +364,6 @@ describe('cleanupUtils', () => {
 })
 
 describe('dryRunOutputCommand', () => {
-  /**
-   * Feature: fast-command-series, Property 3: Dry-run Skips Actual Operations
-   * Validates: Requirements 1.4
-   *
-   * For any execute command invocation in dry-run mode,
-   * no actual file deletions or writes SHALL occur on the filesystem.
-   */
   describe('dry-run skips actual operations', () => {
     const filePathGen = fc.string({minLength: 2, maxLength: 20, unit: 'grapheme-ascii'}) // Generator for file paths
       .filter(s => /^[a-z][\w.-]*$/i.test(s))
@@ -404,7 +383,7 @@ describe('dryRunOutputCommand', () => {
               unlinkSync: vi.fn(() => fsOperations.push('unlinkSync')),
               rmSync: vi.fn(() => fsOperations.push('rmSync')),
               writeFileSync: vi.fn(() => fsOperations.push('writeFileSync')),
-              mkdirSync: vi.fn(() => fsOperations.push('mkdirSync')),
+              mkdirSync: vi.fn(() => fsOperations.push('mkdirSync'))
             }
 
             const plugin: OutputPlugin = { // Create plugin that would write files
@@ -425,15 +404,15 @@ describe('dryRunOutputCommand', () => {
                   files: fileNames.map(f => ({
                     path: createMockRelativePath(f),
                     success: true,
-                    skipped: ctx.dryRun,
+                    skipped: ctx.dryRun
                   })),
-                  dirs: [],
+                  dirs: []
                 }
               }),
               writeGlobalOutputs: vi.fn(async (): Promise<WriteResults> => ({
                 files: [],
-                dirs: [],
-              })),
+                dirs: []
+              }))
             }
 
             const collectedInputContext: CollectedInputContext = {
@@ -444,7 +423,7 @@ describe('dryRunOutputCommand', () => {
               subAgents: [],
               projectPrompts: [],
               ideConfigs: [],
-              aiAgentIgnoreConfigs: [],
+              aiAgentIgnoreConfigs: []
             }
 
             const dryRunWriteCtx: OutputWriteContext = { // Create dry-run write context
@@ -454,7 +433,7 @@ describe('dryRunOutputCommand', () => {
               glob: fastGlob,
               collectedInputContext,
               dryRun: true,
-              registeredPluginNames: ['test-plugin'],
+              registeredPluginNames: ['test-plugin']
             }
 
             const {DryRunOutputCommand} = await import('./DryRunOutputCommand') // Import DryRunOutputCommand
@@ -467,12 +446,12 @@ describe('dryRunOutputCommand', () => {
               userConfigOptions: mockUserConfigOptions,
               createCleanContext: (): OutputCleanContext => ({
                 ...dryRunWriteCtx,
-                dryRun: true,
+                dryRun: true
               }),
               createWriteContext: (): OutputWriteContext => ({
                 ...dryRunWriteCtx,
-                dryRun: true,
-              }),
+                dryRun: true
+              })
             }
 
             await command.execute(ctx)
@@ -480,9 +459,9 @@ describe('dryRunOutputCommand', () => {
             expect(fsOperations).not.toContain('unlinkSync') // In dry-run mode, no actual file operations should occur
             expect(fsOperations).not.toContain('rmSync')
             expect(fsOperations).not.toContain('writeFileSync')
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -500,14 +479,14 @@ describe('dryRunOutputCommand', () => {
           files: [{
             path: createMockRelativePath('test.txt'),
             success: true,
-            skipped: ctx.dryRun,
+            skipped: ctx.dryRun
           }],
-          dirs: [],
+          dirs: []
         })),
         writeGlobalOutputs: vi.fn(async (): Promise<WriteResults> => ({
           files: [],
-          dirs: [],
-        })),
+          dirs: []
+        }))
       }
 
       const collectedInputContext: CollectedInputContext = {
@@ -518,7 +497,7 @@ describe('dryRunOutputCommand', () => {
         subAgents: [],
         projectPrompts: [],
         ideConfigs: [],
-        aiAgentIgnoreConfigs: [],
+        aiAgentIgnoreConfigs: []
       }
 
       const ctx: CommandContext = {
@@ -532,7 +511,7 @@ describe('dryRunOutputCommand', () => {
           path: nodePath,
           glob: fastGlob,
           collectedInputContext,
-          dryRun: true,
+          dryRun: true
         }),
         createWriteContext: (): OutputWriteContext => ({
           logger: mockLogger,
@@ -541,8 +520,8 @@ describe('dryRunOutputCommand', () => {
           glob: fastGlob,
           collectedInputContext,
           dryRun: true,
-          registeredPluginNames: ['test-plugin'],
-        }),
+          registeredPluginNames: ['test-plugin']
+        })
       }
 
       const {DryRunOutputCommand} = await import('./DryRunOutputCommand')
@@ -571,12 +550,12 @@ describe('dryRunOutputCommand', () => {
         canWrite: vi.fn(async () => true),
         writeProjectOutputs: vi.fn(async (): Promise<WriteResults> => ({
           files: [],
-          dirs: [],
+          dirs: []
         })),
         writeGlobalOutputs: vi.fn(async (): Promise<WriteResults> => ({
           files: [],
-          dirs: [],
-        })),
+          dirs: []
+        }))
       }
 
       const collectedInputContext2: CollectedInputContext = {
@@ -587,7 +566,7 @@ describe('dryRunOutputCommand', () => {
         subAgents: [],
         projectPrompts: [],
         ideConfigs: [],
-        aiAgentIgnoreConfigs: [],
+        aiAgentIgnoreConfigs: []
       }
 
       const ctx2: CommandContext = {
@@ -601,7 +580,7 @@ describe('dryRunOutputCommand', () => {
           path: nodePath,
           glob: fastGlob,
           collectedInputContext: collectedInputContext2,
-          dryRun: true,
+          dryRun: true
         }),
         createWriteContext: (): OutputWriteContext => ({
           logger: mockLogger,
@@ -610,8 +589,8 @@ describe('dryRunOutputCommand', () => {
           glob: fastGlob,
           collectedInputContext: collectedInputContext2,
           dryRun: true,
-          registeredPluginNames: ['test-plugin'],
-        }),
+          registeredPluginNames: ['test-plugin']
+        })
       }
 
       const {DryRunOutputCommand} = await import('./DryRunOutputCommand')

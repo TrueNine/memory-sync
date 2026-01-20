@@ -31,7 +31,7 @@ export class InitCommand implements Command {
     const shadowSourceProjectDir = resolvePath( // Resolve shadow source project directory from user config
       userConfigOptions.shadowSourceProjectDir,
       workspaceDir,
-      '',
+      ''
     )
 
     const result = generateShadowSourceProject(shadowSourceProjectDir, {logger}) // Generate shadow source project structure
@@ -44,14 +44,14 @@ export class InitCommand implements Command {
       dirsCreated: result.createdDirs.length,
       filesCreated: result.createdFiles.length,
       dirsExisted: result.existedDirs.length,
-      filesExisted: result.existedFiles.length,
+      filesExisted: result.existedFiles.length
     })
 
     return {
       success: result.success,
       filesAffected: result.createdFiles.length,
       dirsAffected: result.createdDirs.length,
-      message,
+      message
     }
   }
 }

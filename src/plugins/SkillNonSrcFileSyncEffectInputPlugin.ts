@@ -1,7 +1,6 @@
 import type {Buffer} from 'node:buffer'
-import type {InputEffectContext, InputEffectResult} from './AbstractInputPlugin'
 
-import type {CollectedInputContext, InputPluginContext} from '@/types'
+import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '@/types'
 import {createHash} from 'node:crypto'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
@@ -14,37 +13,12 @@ export interface SkillSyncEffectResult extends InputEffectResult {
   readonly createdDirs: string[]
 }
 
-/**
- * Effect Input Plugin that syncs non-.cn.mdx files from src/skills/ to dist/skills/.
- *
- * This plugin copies supporting files (scripts, examples, configs, etc.) from skill source
- * directories to their corresponding distribution directories, preserving relative paths.
- *
- * Features:
- * - Recursively scans src/skills/{skill_name}/ subdirectories
- * - Filters out .cn.mdx files (only syncs non-.cn.mdx files)
- * - Creates target directories as needed
- * - Skips files with identical content (compares hash)
- * - Supports dry-run mode for previewing operations
- *
- * @example
- * ```
- * src/skills/my-skill/
- *   ├── SKILL.cn.mdx        (ignored - .cn.mdx file)
- *   ├── example.ts         (copied to dist/skills/my-skill/example.ts)
- *   └── scripts/
- *       └── helper.sh      (copied to dist/skills/my-skill/scripts/helper.sh)
- * ```
- */
 export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('SkillNonSrcFileSyncEffectInputPlugin')
     this.registerEffect('skill-non-src-file-sync', this.syncNonSrcFiles.bind(this), 10)
   }
 
-  /**
-   * Effect handler that syncs non-.cn.mdx files from src/skills/ to dist/skills/.
-   */
   private async syncNonSrcFiles(ctx: InputEffectContext): Promise<SkillSyncEffectResult> {
     const {fs, path, shadowProjectDir, dryRun, logger} = ctx
 
@@ -63,7 +37,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
         description: 'src/skills/ directory does not exist, nothing to sync',
         copiedFiles,
         skippedFiles,
-        createdDirs,
+        createdDirs
       }
     }
 
@@ -76,7 +50,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
       skippedFiles,
       createdDirs,
       errors,
-      dryRun ?? false,
+      dryRun ?? false
     )
 
     const hasErrors = errors.length > 0
@@ -91,13 +65,10 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
       skippedFiles,
       createdDirs,
       ...hasErrors && {error: new Error(`${errors.length} errors occurred during sync`)},
-      modifiedFiles: copiedFiles,
+      modifiedFiles: copiedFiles
     }
   }
 
-  /**
-   * Recursively sync non-.cn.mdx files from source to destination directory.
-   */
   private syncDirectoryRecursive(
     ctx: InputEffectContext,
     srcDir: string,
@@ -107,7 +78,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
     skippedFiles: string[],
     createdDirs: string[],
     errors: {path: string, error: Error}[],
-    dryRun: boolean,
+    dryRun: boolean
   ): void {
     const {fs, path, logger} = ctx
 
@@ -140,7 +111,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
           skippedFiles,
           createdDirs,
           errors,
-          dryRun,
+          dryRun
         )
       } else if (entry.isFile()) {
         if (entry.name.endsWith('.cn.mdx')) continue // Skip .cn.mdx files (Requirement 1.2)
@@ -201,16 +172,10 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
     }
   }
 
-  /**
-   * Compute SHA-256 hash of file content for comparison.
-   */
   private computeHash(content: Buffer): string {
     return createHash('sha256').update(content).digest('hex')
   }
 
-  /**
-   * Collect method returns empty - this plugin only performs effects.
-   */
   collect(_ctx: InputPluginContext): Partial<CollectedInputContext> {
     return {}
   }

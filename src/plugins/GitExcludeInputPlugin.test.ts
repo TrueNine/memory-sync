@@ -21,8 +21,8 @@ describe('gitExcludeInputPlugin', () => {
         shadowSubAgentDir: '/workspace/.claude/agents',
         globalMemoryFile: '/workspace/GLOBAL.md',
         shadowProjectsDir: '/workspace',
-        logLevel: 'debug',
-      },
+        logLevel: 'debug'
+      }
     } as unknown as InputPluginContext
 
     vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -32,7 +32,7 @@ describe('gitExcludeInputPlugin', () => {
 
     expect(fs.readFileSync).toHaveBeenCalledWith(expect.stringMatching(/public[/\\]exclude/), 'utf8')
     expect(result).toEqual({
-      shadowGitExclude: '.idea/\n*.log',
+      shadowGitExclude: '.idea/\n*.log'
     })
   })
 
@@ -48,8 +48,8 @@ describe('gitExcludeInputPlugin', () => {
         shadowSubAgentDir: '/workspace/.claude/agents',
         globalMemoryFile: '/workspace/GLOBAL.md',
         shadowProjectsDir: '/workspace',
-        logLevel: 'debug',
-      },
+        logLevel: 'debug'
+      }
     } as unknown as InputPluginContext
 
     vi.mocked(fs.existsSync).mockReturnValue(false)
@@ -73,8 +73,8 @@ describe('gitExcludeInputPlugin', () => {
         shadowSubAgentDir: '/workspace/.claude/agents',
         globalMemoryFile: '/workspace/GLOBAL.md',
         shadowProjectsDir: '/workspace',
-        logLevel: 'debug',
-      },
+        logLevel: 'debug'
+      }
     } as unknown as InputPluginContext
 
     vi.mocked(fs.existsSync).mockReturnValue(true)

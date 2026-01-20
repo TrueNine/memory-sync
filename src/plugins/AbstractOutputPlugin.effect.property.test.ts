@@ -42,7 +42,7 @@ function createMockLogger(): ILogger { // Test helpers
     warn: () => { },
     error: () => { },
     fatal: () => { },
-    child: () => createMockLogger(),
+    child: () => createMockLogger()
   } as unknown as ILogger
 }
 
@@ -55,7 +55,7 @@ function createEffectContext(workspaceDir: string, shadowProjectDir: string, dry
     userConfigOptions: {} as PluginOptions,
     workspaceDir,
     shadowProjectDir,
-    dryRun,
+    dryRun
   }
 }
 
@@ -74,9 +74,9 @@ const nonSrcMdFileNameGen = fc.tuple(validNameGen, fileExtensionGen) // Generate
 const markdownWithWhitespaceGen = fc.array( // Generate markdown content with whitespace issues
   fc.tuple(
     fc.string({minLength: 0, maxLength: 50, unit: 'grapheme-ascii'}).filter(s => !s.includes('\n') && !s.includes('\r')),
-    fc.array(fc.constantFrom(' ', '\t'), {minLength: 0, maxLength: 5}).map(arr => arr.join('')),
+    fc.array(fc.constantFrom(' ', '\t'), {minLength: 0, maxLength: 5}).map(arr => arr.join(''))
   ).map(([content, trailing]) => content + trailing),
-  {minLength: 1, maxLength: 10},
+  {minLength: 1, maxLength: 10}
 ).chain(lines =>
   fc.array(fc.integer({min: 0, max: 5}), {minLength: lines.length, maxLength: lines.length})
     .map(blankCounts => {
@@ -128,13 +128,6 @@ function filesystemStatesEqual(before: Map<string, string | 'DIR'>, after: Map<s
 }
 
 describe('effect Input Plugins Dry-Run Property Tests', () => {
-  /**
-   * Feature: effect-input-plugins, Property 4: Dry-run no-op
-   * Validates: Requirements 1.5, 2.8, 3.5
-   *
-   * For any Effect Input Plugin running in dry-run mode, the filesystem state
-   * (files and directories) should remain unchanged after execution.
-   */
   describe('property 4: Dry-run no-op', () => {
     describe('skillNonSrcFileSyncEffectInputPlugin', () => {
       it('should not modify filesystem when running in dry-run mode', {timeout: 60000}, async () => {
@@ -147,7 +140,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                 skillName: validNameGen,
                 files: fc.array(
                   fc.record({name: nonSrcMdFileNameGen, content: fileContentGen}),
-                  {minLength: 1, maxLength: 3},
+                  {minLength: 1, maxLength: 3}
                 ).map(files => {
                   const seen = new Set<string>() // Deduplicate by name
                   return files.filter(f => {
@@ -155,9 +148,9 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
                     seen.add(f.name)
                     return true
                   })
-                }).filter(files => files.length > 0),
+                }).filter(files => files.length > 0)
               }),
-              {minLength: 1, maxLength: 3},
+              {minLength: 1, maxLength: 3}
             ).map(skills => {
               const seen = new Set<string>() // Deduplicate by skillName
               return skills.filter(s => {
@@ -194,9 +187,9 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
               finally {
                 if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
               }
-            },
+            }
           ),
-          {numRuns: 100},
+          {numRuns: 100}
         )
       })
     })
@@ -209,7 +202,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
           fc.asyncProperty(
             fc.array(
               fc.record({name: validNameGen, dirType: fc.constantFrom('skills', 'commands', 'agents', 'app')}),
-              {minLength: 1, maxLength: 5},
+              {minLength: 1, maxLength: 5}
             ).map(files => {
               const seen = new Set<string>() // Deduplicate by (name, dirType)
               return files.filter(f => {
@@ -246,9 +239,9 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
               finally {
                 if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
               }
-            },
+            }
           ),
-          {numRuns: 100},
+          {numRuns: 100}
         )
       })
     })
@@ -261,7 +254,7 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
           fc.asyncProperty(
             fc.array(
               fc.record({name: validNameGen, content: markdownWithWhitespaceGen, dir: fc.constantFrom('src', 'app', 'dist')}),
-              {minLength: 1, maxLength: 5},
+              {minLength: 1, maxLength: 5}
             ).map(files => {
               const seen = new Set<string>() // Deduplicate by (name, dir)
               return files.filter(f => {
@@ -297,9 +290,9 @@ describe('effect Input Plugins Dry-Run Property Tests', () => {
               finally {
                 if (fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
               }
-            },
+            }
           ),
-          {numRuns: 100},
+          {numRuns: 100}
         )
       })
     })

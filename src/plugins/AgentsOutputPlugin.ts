@@ -2,7 +2,7 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   WriteResult,
-  WriteResults,
+  WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
@@ -36,7 +36,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {workspace} = ctx.collectedInputContext
     const hasProjectOutputs = workspace.projects.some(
-      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0,
+      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
     )
 
     if (hasProjectOutputs) return true

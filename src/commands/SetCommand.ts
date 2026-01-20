@@ -15,7 +15,7 @@ const VALID_CONFIG_KEYS = [
   'shadowSubAgentDir',
   'globalMemoryFile',
   'shadowProjectsDir',
-  'logLevel',
+  'logLevel'
 ] as const
 
 type ValidConfigKey = typeof VALID_CONFIG_KEYS[number]
@@ -69,20 +69,11 @@ function writeGlobalConfig(config: Record<string, unknown>): void {
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8') // Write with pretty formatting
 }
 
-/**
- * Set command - set configuration values in global config
- *
- * Usage:
- *   tnmsc --set workspaceDir=/path/to/workspace
- *   tnmsc --set logLevel=debug
- *   tnmsc set workspaceDir=/path/to/workspace
- *   tnmsc set logLevel=debug
- */
 export class SetCommand implements Command {
   readonly name = 'set'
 
   constructor(
-    private readonly options: readonly [key: string, value: string][],
+    private readonly options: readonly [key: string, value: string][]
   ) { }
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
@@ -96,7 +87,7 @@ export class SetCommand implements Command {
         success: false,
         filesAffected: 0,
         dirsAffected: 0,
-        message: 'No options provided',
+        message: 'No options provided'
       }
     }
 
@@ -141,7 +132,7 @@ export class SetCommand implements Command {
       success,
       filesAffected: updated.length > 0 ? 1 : 0,
       dirsAffected: 0,
-      message,
+      message
     }
   }
 }

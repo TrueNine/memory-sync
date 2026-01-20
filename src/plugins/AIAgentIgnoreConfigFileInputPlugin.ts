@@ -1,7 +1,7 @@
 import type {
   AIAgentIgnoreConfigFile,
   CollectedInputContext,
-  InputPluginContext,
+  InputPluginContext
 } from '@/types'
 
 import {AbstractInputPlugin} from './AbstractInputPlugin'
@@ -38,7 +38,7 @@ export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
     }
 
     return {
-      aiAgentIgnoreConfigFiles: ignoreFiles,
+      aiAgentIgnoreConfigFiles: ignoreFiles
     }
   }
 }

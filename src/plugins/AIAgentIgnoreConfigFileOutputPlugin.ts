@@ -2,7 +2,7 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   WriteResult,
-  WriteResults,
+  WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
@@ -40,7 +40,7 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
           path: filePath,
           basePath: project.dirFromWorkspacePath.basePath,
           getDirectoryName: () => path.basename(project.dirFromWorkspacePath!.path),
-          getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, filePath),
+          getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, filePath)
         })
       }
     }
@@ -91,7 +91,7 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     projectDir: RelativePath,
     ignoreFile: {fileName: string, content: string},
-    label: string,
+    label: string
   ): Promise<WriteResult> {
     const filePath = path.join(projectDir.path, ignoreFile.fileName)
     const fullPath = path.join(projectDir.basePath, filePath)
@@ -101,7 +101,7 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
       path: filePath,
       basePath: projectDir.basePath,
       getDirectoryName: () => path.basename(projectDir.path),
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     if (ctx.dryRun === true) {

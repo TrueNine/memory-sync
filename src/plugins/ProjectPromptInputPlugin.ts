@@ -3,7 +3,7 @@ import type {
   InputPluginContext,
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
-  YAMLFrontMatter,
+  YAMLFrontMatter
 } from '@/types'
 
 import process from 'node:process'
@@ -12,7 +12,7 @@ import {mdxToMd} from '@/compiler'
 import {parseMarkdown} from '@/markdown'
 import {
   FilePathKind,
-  PromptKind,
+  PromptKind
 } from '@/types'
 import {ScopeError} from '@/types/Errors'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
@@ -59,22 +59,22 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       return {
         ...project,
         ...rootMemoryPrompt != null && {rootMemoryPrompt},
-        ...childMemoryPrompts.length > 0 && {childMemoryPrompts},
+        ...childMemoryPrompts.length > 0 && {childMemoryPrompts}
       }
     }))
 
     return { // Return workspace with enhanced projects, preserving the original directory
       workspace: {
         directory: dependencyWorkspace.directory,
-        projects: enhancedProjects,
-      },
+        projects: enhancedProjects
+      }
     }
   }
 
   private async readRootMemoryPrompt(
     ctx: InputPluginContext,
     projectPath: string,
-    globalScope: InputPluginContext['globalScope'],
+    globalScope: InputPluginContext['globalScope']
   ): Promise<ProjectRootMemoryPrompt | undefined> {
     const {fs, path, logger} = ctx
     const filePath = path.join(projectPath, PROJECT_MEMORY_FILE)
@@ -110,8 +110,8 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
         dir: {
           pathKind: FilePathKind.Root,
           path: '',
-          getDirectoryName: () => '',
-        },
+          getDirectoryName: () => ''
+        }
       }
     }
     catch (e) {
@@ -124,7 +124,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     ctx: InputPluginContext,
     shadowProjectPath: string,
     targetProjectPath: string,
-    globalScope: InputPluginContext['globalScope'],
+    globalScope: InputPluginContext['globalScope']
   ): Promise<ProjectChildrenMemoryPrompt[]> {
     const {logger} = ctx
     const prompts: ProjectChildrenMemoryPrompt[] = []
@@ -145,7 +145,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     currentPath: string,
     targetProjectPath: string,
     prompts: ProjectChildrenMemoryPrompt[],
-    globalScope: InputPluginContext['globalScope'],
+    globalScope: InputPluginContext['globalScope']
   ): Promise<void> {
     const {fs, path} = ctx
 
@@ -172,7 +172,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     shadowProjectPath: string,
     shadowChildDir: string,
     targetProjectPath: string,
-    globalScope: InputPluginContext['globalScope'],
+    globalScope: InputPluginContext['globalScope']
   ): Promise<ProjectChildrenMemoryPrompt | undefined> {
     const {fs, path, logger} = ctx
     const filePath = path.join(shadowChildDir, PROJECT_MEMORY_FILE)
@@ -212,15 +212,15 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
           path: relativePath,
           basePath: targetProjectPath,
           getDirectoryName: () => dirName,
-          getAbsolutePath: () => targetChildDir,
+          getAbsolutePath: () => targetChildDir
         },
         workingChildDirectoryPath: {
           pathKind: FilePathKind.Relative,
           path: relativePath,
           basePath: targetProjectPath,
           getDirectoryName: () => dirName,
-          getAbsolutePath: () => targetChildDir,
-        },
+          getAbsolutePath: () => targetChildDir
+        }
       }
     }
     catch (e) {

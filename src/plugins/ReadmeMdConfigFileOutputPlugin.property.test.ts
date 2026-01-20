@@ -3,7 +3,7 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   ReadmePrompt,
-  Workspace,
+  Workspace
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 
@@ -28,15 +28,12 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
 
   afterEach(() => fs.rmSync(tempDir, {recursive: true, force: true}))
 
-  /**
-   * Create a mock ReadmePrompt for testing
-   */
   function createReadmePrompt(
     projectName: string,
     content: string,
     isRoot: boolean,
     basePath: string,
-    subdir?: string,
+    subdir?: string
   ): ReadmePrompt {
     const targetPath = isRoot ? projectName : path.join(projectName, subdir ?? '')
 
@@ -45,7 +42,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
       path: targetPath,
       basePath,
       getDirectoryName: () => isRoot ? projectName : path.basename(subdir ?? ''),
-      getAbsolutePath: () => path.resolve(basePath, targetPath),
+      getAbsolutePath: () => path.resolve(basePath, targetPath)
     }
 
     const dir: RelativePath = {
@@ -53,7 +50,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
       path: targetPath,
       basePath,
       getDirectoryName: () => isRoot ? projectName : path.basename(subdir ?? ''),
-      getAbsolutePath: () => path.resolve(basePath, targetPath),
+      getAbsolutePath: () => path.resolve(basePath, targetPath)
     }
 
     return {
@@ -65,31 +62,28 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
       targetDir,
       isRoot,
       markdownContents: [],
-      dir,
+      dir
     }
   }
 
-  /**
-   * Create a mock OutputPluginContext
-   */
   function createMockPluginContext(
     readmePrompts: readonly ReadmePrompt[],
-    basePath: string,
+    basePath: string
   ): OutputPluginContext {
     const workspace: Workspace = {
       directory: {
         pathKind: FilePathKind.Absolute,
         path: basePath,
         getDirectoryName: () => path.basename(basePath),
-        getAbsolutePath: () => basePath,
+        getAbsolutePath: () => basePath
       },
-      projects: [],
+      projects: []
     }
 
     const collectedInputContext: CollectedInputContext = {
       workspace,
       ideConfigFiles: [],
-      readmePrompts,
+      readmePrompts
     }
 
     return {
@@ -97,34 +91,22 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
       logger: createLogger('test', 'error'),
       fs,
       path,
-      glob: {} as typeof import('fast-glob'),
+      glob: {} as typeof import('fast-glob')
     }
   }
 
-  /**
-   * Create a mock OutputWriteContext
-   */
   function createMockWriteContext(
     readmePrompts: readonly ReadmePrompt[],
     basePath: string,
-    dryRun: boolean = false,
+    dryRun: boolean = false
   ): OutputWriteContext {
     const pluginCtx = createMockPluginContext(readmePrompts, basePath)
     return {
       ...pluginCtx,
-      dryRun,
+      dryRun
     }
   }
 
-  /**
-   * Feature: readme-md-plugin, Property 3: Output Path Mapping
-   *
-   * For any ReadmePrompt with projectName P and relative path R,
-   * the ReadmeMdConfigFileOutputPlugin SHALL write root READMEs to
-   * <workspace>/<P>/README.md and child READMEs to <workspace>/<P>/<R>/README.md.
-   *
-   * Validates: Requirements 3.1, 3.2
-   */
   describe('property 3: Output Path Mapping', () => {
     const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid project names
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
@@ -150,11 +132,11 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             expect(registeredPaths[0].path).toBe(path.join(projectName, 'README.md'))
             expect(registeredPaths[0].basePath).toBe(tempDir)
             expect(registeredPaths[0].getAbsolutePath()).toBe(
-              path.join(tempDir, projectName, 'README.md'),
+              path.join(tempDir, projectName, 'README.md')
             )
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -174,11 +156,11 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             expect(registeredPaths[0].path).toBe(path.join(projectName, subdir, 'README.md'))
             expect(registeredPaths[0].basePath).toBe(tempDir)
             expect(registeredPaths[0].getAbsolutePath()).toBe(
-              path.join(tempDir, projectName, subdir, 'README.md'),
+              path.join(tempDir, projectName, subdir, 'README.md')
             )
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -199,9 +181,9 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             const expectedPath = path.join(tempDir, projectName, 'README.md') // Verify file was written to correct location
             expect(fs.existsSync(expectedPath)).toBe(true)
             expect(fs.readFileSync(expectedPath, 'utf8')).toBe(content)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -223,23 +205,13 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             const expectedPath = path.join(tempDir, projectName, subdir, 'README.md') // Verify file was written to correct location
             expect(fs.existsSync(expectedPath)).toBe(true)
             expect(fs.readFileSync(expectedPath, 'utf8')).toBe(content)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: readme-md-plugin, Property 4: Dry-Run Idempotence
-   *
-   * For any set of README prompts, executing in dry-run mode SHALL NOT create
-   * or modify any files on the file system, SHALL return success results for
-   * all planned operations, and the reported operations SHALL match what would
-   * occur in normal write mode.
-   *
-   * Validates: Requirements 4.1, 4.2, 4.3
-   */
   describe('property 4: Dry-Run Idempotence', () => {
     const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid project names
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
@@ -267,9 +239,9 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
 
             const filesAfter = fs.readdirSync(tempDir, {recursive: true}) // Verify no files were created
             expect(filesAfter).toEqual(filesBefore)
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -291,9 +263,9 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
               expect(result.success).toBe(true)
               expect(result.skipped).toBe(false)
             }
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -314,23 +286,13 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             expect(dryRunResults.files.length).toBe(normalResults.files.length) // Both should report same number of operations
 
             for (let i = 0; i < dryRunResults.files.length; i++) expect(dryRunResults.files[i].path.path).toBe(normalResults.files[i].path.path) // Both should report same paths
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })
 
-  /**
-   * Feature: readme-md-plugin, Property 5: Clean Operation Completeness
-   *
-   * For any set of README.md files that were written by the output plugin,
-   * the clean operation SHALL register all output file paths and delete
-   * exactly those files, continuing with remaining files when individual
-   * deletions fail.
-   *
-   * Validates: Requirements 5.1, 5.2, 5.4
-   */
   describe('property 5: Clean Operation Completeness', () => {
     const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid project names
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
@@ -357,9 +319,9 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             expect(registeredPaths.length).toBe(uniqueProjects.length) // Should register exactly one path per README
 
             for (const registeredPath of registeredPaths) expect(registeredPath.path.endsWith('README.md')).toBe(true) // Each path should be a README.md file
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -383,9 +345,9 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
 
             expect(rootPath).toBeDefined()
             expect(childPath).toBeDefined()
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
 
@@ -399,9 +361,9 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             const registeredPaths = await plugin.registerProjectOutputFiles(ctx)
 
             expect(registeredPaths).toEqual([])
-          },
+          }
         ),
-        {numRuns: 100},
+        {numRuns: 100}
       )
     })
   })

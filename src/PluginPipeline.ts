@@ -11,7 +11,7 @@ import type {
   OutputWriteContext,
   Plugin,
   PluginKind,
-  PluginOptions,
+  PluginOptions
 } from '@/types'
 import type {UserConfigFile} from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
@@ -27,13 +27,13 @@ import {
   OutdatedCommand,
   SetCommand,
   UnknownCommand,
-  VersionCommand,
+  VersionCommand
 } from '@/commands'
 import {createLogger, setGlobalLogLevel} from '@/log'
 import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/scope'
 import {
   CircularDependencyError,
-  MissingDependencyError,
+  MissingDependencyError
 } from '@/types'
 import {startupVersionCheck} from '@/versionCheck'
 
@@ -51,66 +51,36 @@ export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error'
  * Command line argument parsing result
  */
 export interface ParsedCliArgs {
-  /**
-   * The subcommand to execute (help, version, init, dry-run, clean, set, or undefined for default)
-   */
   readonly subcommand: Subcommand | undefined
-  /**
-   * Whether help was requested via --help or -h flag
-   */
   readonly helpFlag: boolean
-  /**
-   * Whether version was requested via --version or -v flag
-   */
   readonly versionFlag: boolean
-  /**
-   * Dry run mode for clean command
-   */
   readonly dryRun: boolean
-  /**
-   * Log level configuration (single level for backward compatibility)
-   */
   readonly logLevel: LogLevel | undefined
-  /**
-   * All log level flags provided (for priority resolution)
-   */
   readonly logLevelFlags: readonly LogLevel[]
-  /**
-   * Set option: key=value pair for configuration
-   */
   readonly setOption: readonly [key: string, value: string][]
-  /**
-   * Unknown subcommand if provided
-   */
   readonly unknownCommand: string | undefined
-  /**
-   * Remaining positional arguments
-   */
   readonly positional: readonly string[]
-  /**
-   * Unknown flags
-   */
   readonly unknown: readonly string[]
 }
 
 /**
- * 从 argv 中提取实际的用户参数
- * 兼容多种执行场景：npx、node、tsx、直接执行等
+ * Extract actual user arguments from argv
+ * Compatible with various execution scenarios: npx, node, tsx, direct execution, etc.
  */
 function extractUserArgs(argv: readonly string[]): string[] {
   const args = [...argv]
 
-  const first = args[0] // 跳过 node/bun/deno 等运行时路径
+  const first = args[0] // Skip runtime path (node, bun, deno, etc.)
   if (first != null && isRuntimeExecutable(first)) args.shift()
 
-  const second = args[0] // 跳过脚本路径或 npx 包名
+  const second = args[0] // Skip script path or npx package name
   if (second != null && isScriptOrPackage(second)) args.shift()
 
   return args
 }
 
 /**
- * 判断是否为运行时可执行文件
+ * Determine if it is a runtime executable
  */
 function isRuntimeExecutable(arg: string): boolean {
   const runtimes = ['node', 'nodejs', 'bun', 'deno', 'tsx', 'ts-node', 'npx', 'pnpx', 'yarn', 'pnpm']
@@ -122,12 +92,12 @@ function isRuntimeExecutable(arg: string): boolean {
 }
 
 /**
- * 判断是否为脚本文件或包名
+ * Determine if it is a script file or package name
  */
 function isScriptOrPackage(arg: string): boolean {
-  if (/\.(?:m?[jt]s|cjs)$/.test(arg)) return true // 脚本文件
-  if (/[/\\]/.test(arg) && !arg.startsWith('-')) return true // 包含路径分隔符的文件路径
-  return /^(?:@[\w-]+\/)?[\w-]+$/.test(arg) && !arg.startsWith('-') // npx 执行的包名（如 tnmsc、@truenine/memory-sync-cli）
+  if (/\.(?:m?[jt]s|cjs)$/.test(arg)) return true // Script file
+  if (/[/\\]/.test(arg) && !arg.startsWith('-')) return true // File path containing separators
+  return /^(?:@[\w-]+\/)?[\w-]+$/.test(arg) && !arg.startsWith('-') // npx executed package name (e.g. tnmsc, @truenine/memory-sync-cli)
 }
 
 /**
@@ -143,7 +113,7 @@ const LOG_LEVEL_FLAGS: ReadonlyMap<string, LogLevel> = new Map([
   ['--debug', 'debug'],
   ['--info', 'info'],
   ['--warn', 'warn'],
-  ['--error', 'error'],
+  ['--error', 'error']
 ])
 
 /**
@@ -154,7 +124,7 @@ const LOG_LEVEL_PRIORITY: ReadonlyMap<LogLevel, number> = new Map([
   ['debug', 1],
   ['info', 2],
   ['warn', 3],
-  ['error', 4],
+  ['error', 4]
 ])
 
 /**
@@ -184,25 +154,6 @@ export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
   return mostVerbose
 }
 
-/**
- * Resolve command from parsed arguments.
- * Resolution rules:
- * 1. If versionFlag is true → VersionCommand
- * 2. If helpFlag is true → HelpCommand
- * 3. If unknownCommand is defined → UnknownCommand
- * 4. If subcommand is 'version' → VersionCommand
- * 5. If subcommand is 'help' → HelpCommand
- * 6. If subcommand is 'init' → InitCommand
- * 7. If subcommand is 'dry-run' → DryRunOutputCommand
- * 8. If subcommand is 'clean':
- *    - If dryRun is true → DryRunCleanCommand
- *    - Else → CleanCommand
- * 9. If subcommand is 'set' or setOption is provided → SetCommand
- * 10. Default → ExecuteCommand
- *
- * @param args - Parsed CLI arguments
- * @returns The resolved command
- */
 export function resolveCommand(args: ParsedCliArgs): Command {
   const {helpFlag, versionFlag, subcommand, dryRun, unknownCommand, setOption, positional} = args
 
@@ -262,7 +213,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     setOption: [],
     unknownCommand: void 0,
     positional: [],
-    unknown: [],
+    unknown: []
   }
 
   let firstPositionalProcessed = false
@@ -383,7 +334,7 @@ export class PluginPipeline {
       collectedInputContext: ctx,
       userConfigOptions,
       createCleanContext: (dryRun: boolean) => this.createCleanContext(ctx, dryRun),
-      createWriteContext: (dryRun: boolean) => this.createWriteContext(ctx, dryRun),
+      createWriteContext: (dryRun: boolean) => this.createWriteContext(ctx, dryRun)
     }
   }
 
@@ -394,7 +345,7 @@ export class PluginPipeline {
       path,
       glob,
       collectedInputContext: ctx,
-      dryRun,
+      dryRun
     }
   }
 
@@ -406,14 +357,10 @@ export class PluginPipeline {
       glob,
       collectedInputContext: ctx,
       dryRun,
-      registeredPluginNames: this.outputPlugins.map(p => p.name),
+      registeredPluginNames: this.outputPlugins.map(p => p.name)
     }
   }
 
-  /**
-   * Build dependency graph from plugins.
-   * Returns a Map where key is plugin name and value is array of dependency names.
-   */
   buildDependencyGraph<T extends PluginKind>(plugins: readonly Plugin<T>[]): Map<string, string[]> {
     const graph = new Map<string, string[]>()
     for (const plugin of plugins) {
@@ -423,10 +370,6 @@ export class PluginPipeline {
     return graph
   }
 
-  /**
-   * Validate that all dependencies reference existing plugins.
-   * Throws MissingDependencyError if a plugin depends on a non-existent plugin.
-   */
   validateDependencies<T extends PluginKind>(plugins: readonly Plugin<T>[]): void {
     const pluginNames = new Set(plugins.map(p => p.name))
     for (const plugin of plugins) {
@@ -437,12 +380,6 @@ export class PluginPipeline {
     }
   }
 
-  /**
-   * Topological sort using Kahn's algorithm with cycle detection.
-   * Returns plugins in execution order where dependencies come before dependents.
-   * Preserves registration order for plugins with no dependency relationship.
-   * Throws CircularDependencyError if a cycle is detected.
-   */
   topologicalSort<T extends PluginKind>(plugins: readonly Plugin<T>[]): Plugin<T>[] {
     this.validateDependencies(plugins) // Validate dependencies first
 
@@ -496,13 +433,9 @@ export class PluginPipeline {
     throw new CircularDependencyError(cyclePath)
   }
 
-  /**
-   * Find a cycle path in the dependency graph for error reporting.
-   * Called when topological sort detects remaining nodes with non-zero in-degree.
-   */
   private findCyclePath<T extends PluginKind>(
     plugins: readonly Plugin<T>[],
-    inDegree: Map<string, number>,
+    inDegree: Map<string, number>
   ): string[] {
     const cycleNodes = new Set<string>() // Find nodes that are part of a cycle (in-degree > 0)
     for (const [name, degree] of inDegree) {
@@ -550,23 +483,11 @@ export class PluginPipeline {
     return [...cycleNodes] // Fallback: return all cycle nodes
   }
 
-  /**
-   * Execute plugins in topological order, merging outputs incrementally.
-   * Each plugin receives accumulated context from all its dependencies.
-   * For plugins with registered effects, executes effects before collect().
-   * Creates GlobalScopeCollector and ScopeRegistry for MDX expression evaluation.
-   *
-   * @param plugins - Input plugins to execute (will be sorted by dependencies)
-   * @param baseCtx - Base context without dependencyContext (will be extended for each plugin)
-   * @param dryRun - Whether to run effects in dry-run mode
-   * @param userConfig - Optional user configuration for global scope collection
-   * @returns Merged CollectedInputContext from all plugins
-   */
   async executePluginsInOrder(
     plugins: readonly InputPlugin[],
     baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'>,
     dryRun: boolean = false,
-    userConfig?: UserConfigFile,
+    userConfig?: UserConfigFile
   ): Promise<Partial<CollectedInputContext>> {
     if (plugins.length === 0) return {}
 
@@ -580,7 +501,7 @@ export class PluginPipeline {
     this.logger.debug('global scope collected', {
       osInfo: {platform: globalScope.os.platform, arch: globalScope.os.arch, shellKind: globalScope.os.shellKind},
       hasProfile: Object.keys(globalScope.profile).length > 0,
-      hasTool: Object.keys(globalScope.tool).length > 0,
+      hasTool: Object.keys(globalScope.tool).length > 0
     })
 
     const outputsByPlugin = new Map<string, Partial<CollectedInputContext>>() // Track outputs by plugin name for dependency resolution
@@ -594,7 +515,7 @@ export class PluginPipeline {
         ...baseCtx,
         dependencyContext,
         globalScope,
-        scopeRegistry,
+        scopeRegistry
       }
 
       const inputPlugin = plugin as InputPlugin & {executeEffects?: (ctx: InputPluginContext, dryRun: boolean) => Promise<unknown>} // AbstractInputPlugin provides executeEffects method for effect-based plugins // Execute effects before collect() if plugin has any
@@ -619,12 +540,9 @@ export class PluginPipeline {
     return accumulatedContext
   }
 
-  /**
-   * Build dependency context for a plugin from its direct and transitive dependencies.
-   */
   private buildDependencyContext(
     plugin: InputPlugin,
-    outputsByPlugin: Map<string, Partial<CollectedInputContext>>,
+    outputsByPlugin: Map<string, Partial<CollectedInputContext>>
   ): Partial<CollectedInputContext> {
     const deps = plugin.dependsOn ?? []
     if (deps.length === 0) return {}
@@ -640,13 +558,9 @@ export class PluginPipeline {
     return merged
   }
 
-  /**
-   * Collect all transitive dependencies for a plugin.
-   * Returns dependency names in execution order (dependencies before dependents).
-   */
   private collectTransitiveDependencies(
     plugin: InputPlugin,
-    outputsByPlugin: Map<string, Partial<CollectedInputContext>>,
+    outputsByPlugin: Map<string, Partial<CollectedInputContext>>
   ): string[] {
     const visited = new Set<string>()
     const result: string[] = []
@@ -665,16 +579,9 @@ export class PluginPipeline {
     return result
   }
 
-  /**
-   * Merge two CollectedInputContext objects.
-   * Arrays are concatenated, objects are merged shallowly.
-   * For workspace.projects: later projects with same name replace earlier ones
-   * (this supports enhancer plugins that modify existing projects).
-   * Returns a new object without mutating inputs.
-   */
   private mergeContexts(
     base: Partial<CollectedInputContext>,
-    addition: Partial<CollectedInputContext>,
+    addition: Partial<CollectedInputContext>
   ): Partial<CollectedInputContext> {
     let {workspace} = base // Build merged workspace
     if (addition.workspace != null) {
@@ -684,7 +591,7 @@ export class PluginPipeline {
         for (const project of addition.workspace.projects) projectMap.set(project.name, project)
         workspace = {
           directory: addition.workspace.directory ?? workspace.directory,
-          projects: [...projectMap.values()],
+          projects: [...projectMap.values()]
         }
       } else {
         ; ({workspace} = addition)
@@ -746,7 +653,7 @@ export class PluginPipeline {
       ...globalMemory != null ? {globalMemory} : {},
       ...shadowSourceProjectDir != null ? {shadowSourceProjectDir} : {},
       ...readmePrompts != null ? {readmePrompts} : {},
-      ...globalGitIgnore != null ? {globalGitIgnore} : {},
+      ...globalGitIgnore != null ? {globalGitIgnore} : {}
     }
   }
 }

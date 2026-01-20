@@ -24,7 +24,7 @@ export class GitIgnoreInputPlugin extends AbstractInputPlugin {
 
     if (content && content.length > 0) {
       return {
-        globalGitIgnore: content,
+        globalGitIgnore: content
       }
     }
 

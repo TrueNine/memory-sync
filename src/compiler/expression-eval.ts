@@ -24,7 +24,7 @@ export interface EvaluateExpressionOptions {
 export function evaluateExpression(
   expression: string,
   scope: EvaluationScope,
-  options?: EvaluateExpressionOptions,
+  options?: EvaluateExpressionOptions
 ): string {
   const trimmed = expression.trim()
 
@@ -41,7 +41,7 @@ export function evaluateExpression(
 function evaluateSimpleReference(
   reference: string,
   scope: EvaluationScope,
-  filePath?: string,
+  filePath?: string
 ): string {
   const parts = reference.split('.')
   const rootVar = parts[0]
@@ -58,7 +58,7 @@ function evaluateSimpleReference(
     if (value == null) throw new UndefinedVariableError(prop, reference, filePath)
     if (typeof value !== 'object') {
       throw new TypeError(
-        `Cannot read property "${prop}" of ${typeof value} in expression "${reference}"`,
+        `Cannot read property "${prop}" of ${typeof value} in expression "${reference}"`
       )
     }
     const obj = value as Record<string, unknown>
@@ -75,7 +75,7 @@ function evaluateSimpleReference(
 function evaluateComplexExpression(
   expression: string,
   scope: EvaluationScope,
-  filePath?: string,
+  filePath?: string
 ): string {
   const scopeKeys = Object.keys(scope)
   const scopeValues = scopeKeys.map(k => scope[k])
@@ -96,7 +96,7 @@ function evaluateComplexExpression(
     }
     const fileInfo = filePath != null ? ` (file: ${filePath})` : ''
     throw new Error(
-      `Failed to evaluate expression: "${expression}"${fileInfo}\nCause: ${message}`,
+      `Failed to evaluate expression: "${expression}"${fileInfo}\nCause: ${message}`
     )
   }
 }

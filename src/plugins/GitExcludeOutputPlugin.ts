@@ -2,7 +2,7 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   WriteResult,
-  WriteResults,
+  WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
@@ -46,7 +46,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
           path: excludeFilePath,
           basePath,
           getDirectoryName: () => path.basename(dirPath),
-          getAbsolutePath: () => path.join(basePath, excludeFilePath),
+          getAbsolutePath: () => path.join(basePath, excludeFilePath)
         })
       }
     }
@@ -88,7 +88,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
       result: canWrite,
       hasGitProjects,
       hasWorkspaceGit,
-      reason: canWrite ? 'Found git repositories to update' : 'No git repositories found',
+      reason: canWrite ? 'Found git repositories to update' : 'No git repositories found'
     })
 
     return canWrite
@@ -120,7 +120,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
           action: 'write',
           path: gitInfoExcludePath,
           message: 'Git info directory does not exist, skipping',
-          project: project.name ?? 'unknown',
+          project: project.name ?? 'unknown'
         })
         continue
       }
@@ -146,9 +146,6 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: []}
   }
 
-  /**
-   * Build the managed content section from globalGitIgnore and shadowGitExclude.
-   */
   private buildManagedContent(globalGitIgnore?: string, shadowGitExclude?: string): string {
     const parts: string[] = []
 
@@ -159,10 +156,6 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     return parts.join('\n')
   }
 
-  /**
-   * Merge managed content with existing exclude file content.
-   * Preserves user content outside the managed section.
-   */
   private mergeWithExisting(existingContent: string, managedContent: string): string {
     const startIdx = existingContent.indexOf(MANAGED_SECTION_START)
     const endIdx = existingContent.indexOf(MANAGED_SECTION_END)
@@ -191,7 +184,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     filePath: string,
     managedContent: string,
-    label: string,
+    label: string
   ): Promise<WriteResult> {
     const workspaceDir = ctx.collectedInputContext.workspace.directory.path // Create RelativePath object for the result
     const relativePath: RelativePath = {
@@ -199,7 +192,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
       path: path.relative(workspaceDir, filePath),
       basePath: workspaceDir,
       getDirectoryName: () => path.basename(path.dirname(filePath)),
-      getAbsolutePath: () => filePath,
+      getAbsolutePath: () => filePath
     }
 
     if (ctx.dryRun === true) {

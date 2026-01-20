@@ -49,24 +49,12 @@ function writeGlobalConfig(config: UserConfigFile, logger: ILogger): void {
  * Validation result for global config
  */
 export interface GlobalConfigValidationResult {
-  /**
-   * Whether the config is valid
-   */
   readonly valid: boolean
 
-  /**
-   * Whether the config file exists
-   */
   readonly exists: boolean
 
-  /**
-   * Validation errors if any
-   */
   readonly errors: readonly string[]
 
-  /**
-   * Whether the program should exit
-   */
   readonly shouldExit: boolean
 }
 
@@ -95,9 +83,6 @@ export class ConfigLoader {
     this.logger = createLogger('ConfigLoader')
   }
 
-  /**
-   * Get all config file paths to search (in priority order)
-   */
   getSearchPaths(cwd: string = process.cwd()): string[] {
     const paths: string[] = []
 
@@ -110,9 +95,6 @@ export class ConfigLoader {
     return paths
   }
 
-  /**
-   * Load configuration from a specific file path
-   */
   loadFromFile(filePath: string): ConfigLoadResult {
     const resolvedPath = this.resolveTilde(filePath)
 
@@ -131,10 +113,6 @@ export class ConfigLoader {
     }
   }
 
-  /**
-   * Load and merge all configurations from search paths.
-   * Returns merged config with sources information.
-   */
   load(cwd: string = process.cwd()): MergedConfigResult {
     const searchPaths = this.getSearchPaths(cwd)
     const loadedConfigs: ConfigLoadResult[] = []
@@ -150,13 +128,10 @@ export class ConfigLoader {
     return {
       config: merged,
       sources,
-      found: loadedConfigs.length > 0,
+      found: loadedConfigs.length > 0
     }
   }
 
-  /**
-   * Parse JSON config content with validation
-   */
   private parseConfig(content: string, filePath: string): UserConfigFile {
     try {
       const parsed: unknown = JSON.parse(content)
@@ -171,9 +146,6 @@ export class ConfigLoader {
     }
   }
 
-  /**
-   * Validate config structure and types
-   */
   private validateConfig(raw: Record<string, unknown>, filePath: string): UserConfigFile {
     const config: UserConfigFile = {}
     const errors: string[] = []
@@ -185,7 +157,7 @@ export class ConfigLoader {
       'shadowFastCommandDir',
       'shadowSubAgentDir',
       'globalMemoryFile',
-      'shadowProjectsDir',
+      'shadowProjectsDir'
     ] as const
 
     for (const field of stringFields) {
@@ -259,9 +231,6 @@ export class ConfigLoader {
     return config
   }
 
-  /**
-   * Merge multiple configs (first has highest priority)
-   */
   private mergeConfigs(configs: UserConfigFile[]): UserConfigFile {
     if (configs.length === 0) return {}
 
@@ -273,7 +242,7 @@ export class ConfigLoader {
     return reversed.reduce<UserConfigFile>((acc, config) => {
       const mergedExternalProjects = [
         ...acc.externalProjects ?? [],
-        ...config.externalProjects ?? [],
+        ...config.externalProjects ?? []
       ]
       const mergedExcludePatterns = this.mergeExcludePatterns(acc.excludePatterns, config.excludePatterns)
 
@@ -281,14 +250,14 @@ export class ConfigLoader {
         ...acc,
         ...config,
         ...mergedExternalProjects.length > 0 ? {externalProjects: mergedExternalProjects} : {}, // Merge arrays - only include if non-empty
-        ...mergedExcludePatterns != null ? {excludePatterns: mergedExcludePatterns} : {}, // Deep merge excludePatterns - only include if defined
+        ...mergedExcludePatterns != null ? {excludePatterns: mergedExcludePatterns} : {} // Deep merge excludePatterns - only include if defined
       }
     }, {})
   }
 
   private mergeExcludePatterns(
     a?: Record<string, string[]>,
-    b?: Record<string, string[]>,
+    b?: Record<string, string[]>
   ): Record<string, string[]> | null {
     if (a == null && b == null) return null
     if (a == null) return b ?? null
@@ -309,19 +278,10 @@ export class ConfigLoader {
  * Result of loading and merging all configurations
  */
 export interface MergedConfigResult {
-  /**
-   * Merged configuration
-   */
   readonly config: UserConfigFile
 
-  /**
-   * List of source files that were loaded (in priority order)
-   */
   readonly sources: readonly string[]
 
-  /**
-   * Whether any config file was found
-   */
   readonly found: boolean
 }
 
@@ -363,7 +323,7 @@ export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
       valid: true,
       exists: false,
       errors: [],
-      shouldExit: false,
+      shouldExit: false
     }
   }
 
@@ -402,7 +362,7 @@ export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
     valid: true,
     exists: true,
     errors: [],
-    shouldExit: false,
+    shouldExit: false
   }
 }
 
@@ -419,7 +379,7 @@ function validateConfigStrict(raw: Record<string, unknown>): string[] {
     'shadowFastCommandDir',
     'shadowSubAgentDir',
     'globalMemoryFile',
-    'shadowProjectsDir',
+    'shadowProjectsDir'
   ] as const
 
   for (const field of stringFields) {
@@ -487,6 +447,6 @@ function recreateConfigAndExit(configPath: string, logger: ILogger, errors: stri
     valid: false,
     exists: true,
     errors,
-    shouldExit: true,
+    shouldExit: true
   }
 }

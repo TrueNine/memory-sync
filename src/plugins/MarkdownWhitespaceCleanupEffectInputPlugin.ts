@@ -1,6 +1,9 @@
-import type {InputEffectContext, InputEffectResult} from './AbstractInputPlugin'
-
-import type {CollectedInputContext, InputPluginContext} from '@/types'
+import type {
+  CollectedInputContext,
+  InputEffectContext,
+  InputEffectResult,
+  InputPluginContext
+} from '@/types'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**
@@ -11,41 +14,12 @@ export interface WhitespaceCleanupEffectResult extends InputEffectResult {
   readonly skippedFiles: string[]
 }
 
-/**
- * Effect Input Plugin that cleans trailing whitespace and excessive blank lines in Markdown files.
- *
- * This plugin scans .md files in src/, app/, and dist/ directories and performs:
- * - Removal of trailing whitespace (spaces/tabs) from each line
- * - Reduction of consecutive blank lines > 2 to exactly 2 blank lines
- * - Preservation of original line ending style (LF or CRLF)
- *
- * Features:
- * - Scans src/, app/, dist/ directories recursively for .md files
- * - Detects and preserves line ending style (LF/CRLF)
- * - Skips files that require no changes (preserves timestamps)
- * - Supports dry-run mode for previewing operations
- * - Gracefully handles missing directories
- *
- * @example
- * ```
- * Before:
- *   "Hello World   \n"     (trailing spaces)
- *   "\n\n\n\n"             (4 blank lines)
- *
- * After:
- *   "Hello World\n"        (trailing spaces removed)
- *   "\n\n"                 (reduced to 2 blank lines)
- * ```
- */
 export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('MarkdownWhitespaceCleanupEffectInputPlugin')
     this.registerEffect('markdown-whitespace-cleanup', this.cleanupWhitespace.bind(this), 30)
   }
 
-  /**
-   * Effect handler that cleans whitespace in markdown files.
-   */
   private async cleanupWhitespace(ctx: InputEffectContext): Promise<WhitespaceCleanupEffectResult> {
     const {fs, path, shadowProjectDir, dryRun, logger} = ctx
 
@@ -56,7 +30,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     const dirsToScan = [ // Directories to scan (Requirement 3.1)
       path.join(shadowProjectDir, 'src'),
       path.join(shadowProjectDir, 'app'),
-      path.join(shadowProjectDir, 'dist'),
+      path.join(shadowProjectDir, 'dist')
     ]
 
     for (const dir of dirsToScan) {
@@ -78,20 +52,17 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
         : `Modified ${modifiedFiles.length} files, skipped ${skippedFiles.length} files`,
       modifiedFiles,
       skippedFiles,
-      ...hasErrors && {error: new Error(`${errors.length} errors occurred during cleanup`)},
+      ...hasErrors && {error: new Error(`${errors.length} errors occurred during cleanup`)}
     }
   }
 
-  /**
-   * Recursively process a directory for .md files.
-   */
   private processDirectory(
     ctx: InputEffectContext,
     dir: string,
     modifiedFiles: string[],
     skippedFiles: string[],
     errors: {path: string, error: Error}[],
-    dryRun: boolean,
+    dryRun: boolean
   ): void {
     const {fs, path, logger} = ctx
 
@@ -116,16 +87,13 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     }
   }
 
-  /**
-   * Process a single markdown file for whitespace cleanup.
-   */
   private processMarkdownFile(
     ctx: InputEffectContext,
     filePath: string,
     modifiedFiles: string[],
     skippedFiles: string[],
     errors: {path: string, error: Error}[],
-    dryRun: boolean,
+    dryRun: boolean
   ): void {
     const {fs, logger} = ctx
 
@@ -154,12 +122,6 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     }
   }
 
-  /**
-   * Clean markdown content by removing trailing whitespace and reducing excessive blank lines.
-   *
-   * @param content - The original markdown content
-   * @returns The cleaned markdown content with preserved line endings
-   */
   cleanMarkdownContent(content: string): string {
     const lineEnding = this.detectLineEnding(content) // Detect line ending style (Requirement 3.7)
 
@@ -183,20 +145,11 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     return result.join(lineEnding)
   }
 
-  /**
-   * Detect the line ending style used in the content.
-   *
-   * @param content - The content to analyze
-   * @returns The detected line ending ('\r\n' for CRLF, '\n' for LF)
-   */
   detectLineEnding(content: string): '\r\n' | '\n' {
     if (content.includes('\r\n')) return '\r\n' // Check for CRLF first (Windows style)
     return '\n' // Default to LF (Unix style)
   }
 
-  /**
-   * Collect method returns empty - this plugin only performs effects.
-   */
   collect(_ctx: InputPluginContext): Partial<CollectedInputContext> {
     return {}
   }

@@ -25,7 +25,7 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
   externalProjects: [],
   excludePatterns: {},
   fastCommandSeriesOptions: {},
-  plugins: [],
+  plugins: []
 }
 
 /**
@@ -44,7 +44,7 @@ function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOp
     ...userConfig.externalProjects != null ? {externalProjects: userConfig.externalProjects} : {},
     ...userConfig.excludePatterns != null ? {excludePatterns: userConfig.excludePatterns} : {},
     ...userConfig.fastCommandSeriesOptions != null ? {fastCommandSeriesOptions: userConfig.fastCommandSeriesOptions} : {},
-    ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {},
+    ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
   }
 }
 
@@ -52,26 +52,12 @@ function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOp
  * Options for defineConfig
  */
 export interface DefineConfigOptions {
-  /**
-   * Plugin options (programmatic configuration)
-   */
   readonly pluginOptions?: PluginOptions
 
-  /**
-   * Config loader options
-   */
   readonly configLoaderOptions?: ConfigLoaderOptions
 
-  /**
-   * Whether to load user config files (.tnmsc.json)
-   * @default true
-   */
   readonly loadUserConfig?: boolean
 
-  /**
-   * Current working directory for config file search
-   * @default process.cwd()
-   */
   readonly cwd?: string
 }
 
@@ -85,13 +71,13 @@ export function mergeConfig(
 ): Required<PluginOptions> {
   return configs.reduce<Required<PluginOptions>>(
     (acc, config) => mergeTwoConfigs(acc, config),
-    {...DEFAULT_OPTIONS},
+    {...DEFAULT_OPTIONS}
   )
 }
 
 function mergeTwoConfigs(
   base: Required<PluginOptions>,
-  override: Partial<PluginOptions>,
+  override: Partial<PluginOptions>
 ): Required<PluginOptions> {
   const overrideExternal = override.externalProjects
   const overridePlugins = override.plugins
@@ -103,20 +89,20 @@ function mergeTwoConfigs(
     ...override,
     externalProjects: [ // Array concatenation for externalProjects
       ...base.externalProjects,
-      ...overrideExternal ?? [],
+      ...overrideExternal ?? []
     ],
     plugins: [ // Array concatenation for plugins
       ...base.plugins,
-      ...overridePlugins ?? [],
+      ...overridePlugins ?? []
     ],
     excludePatterns: mergeExcludePatterns(base.excludePatterns, overrideExclude), // Deep merge for excludePatterns
-    fastCommandSeriesOptions: mergeFastCommandSeriesOptions(base.fastCommandSeriesOptions, overrideFastCommandSeries), // Deep merge for fastCommandSeriesOptions
+    fastCommandSeriesOptions: mergeFastCommandSeriesOptions(base.fastCommandSeriesOptions, overrideFastCommandSeries) // Deep merge for fastCommandSeriesOptions
   }
 }
 
 function mergeExcludePatterns(
   a?: Record<string, string[]>,
-  b?: Record<string, string[]>,
+  b?: Record<string, string[]>
 ): Record<string, string[]> {
   const result: Record<string, string[]> = {...a}
   if (b) {
@@ -127,7 +113,7 @@ function mergeExcludePatterns(
 
 function mergeFastCommandSeriesOptions(
   base?: FastCommandSeriesOptions,
-  override?: FastCommandSeriesOptions,
+  override?: FastCommandSeriesOptions
 ): FastCommandSeriesOptions {
   if (override == null) return base ?? {}
   if (base == null) return override
@@ -142,7 +128,7 @@ function mergeFastCommandSeriesOptions(
     for (const [key, value] of Object.entries(override.pluginOverrides)) {
       mergedPluginOverrides[key] = {
         ...mergedPluginOverrides[key],
-        ...value,
+        ...value
       }
     }
   }
@@ -219,7 +205,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
       shadowSubAgentDir: DEFAULT_OPTIONS.shadowSubAgentDir,
       globalMemoryFile: DEFAULT_OPTIONS.globalMemoryFile,
       shadowProjectsDir: DEFAULT_OPTIONS.shadowProjectsDir,
-      logLevel: DEFAULT_OPTIONS.logLevel,
+      logLevel: DEFAULT_OPTIONS.logLevel
     })
   }
 
@@ -228,7 +214,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     userConfigOptions: mergedOptions,
     fs,
     path,
-    glob,
+    glob
   }
 
   const inputPlugins = plugins.filter((p): p is InputPlugin => p.type === PluginKind.Input) // Filter plugins by type
@@ -250,7 +236,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     ...merged.aiAgentIgnoreConfigFiles != null && {aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles},
     ...merged.shadowSourceProjectDir != null && {shadowSourceProjectDir: merged.shadowSourceProjectDir},
     ...merged.readmePrompts != null && {readmePrompts: merged.readmePrompts},
-    ...merged.globalGitIgnore != null && {globalGitIgnore: merged.globalGitIgnore},
+    ...merged.globalGitIgnore != null && {globalGitIgnore: merged.globalGitIgnore}
   }
 
   if (merged.shadowSourceProjectDir != null) checkVersionControl(merged.shadowSourceProjectDir, logger) // Check version control status for shadow source project

@@ -24,7 +24,7 @@ registerBuiltInComponents() // Register built-in components on module load
  */
 function mergeScopes(
   globalScope: MdxToMdOptions['globalScope'],
-  customScope: EvaluationScope | undefined,
+  customScope: EvaluationScope | undefined
 ): EvaluationScope {
   const result: EvaluationScope = {}
 
@@ -46,7 +46,7 @@ function mergeScopes(
         && !Array.isArray(existingValue)
         ? {
             ...(existingValue as Record<string, unknown>),
-            ...(value as Record<string, unknown>),
+            ...(value as Record<string, unknown>)
           }
         : value
     }
@@ -55,60 +55,19 @@ function mergeScopes(
   return result
 }
 
-/**
- * Converts MDX content to Markdown using lossless AST transformation.
- *
- * The compiler automatically:
- * - Loads built-in components from src/components/
- * - Merges global scope with user scope (user values take precedence)
- * - Optionally extracts metadata from export statements
- *
- * @param content - MDX source string
- * @param options - Optional configuration
- * @returns Promise resolving to the Markdown string or MdxToMdResult
- *
- * @example
- * const markdown = await mdxToMd("# Hello {name}")
- *
- * @example
- * // With custom scope values
- * const markdown = await mdxToMd("# Hello {name}", {
- *   scope: { name: "World" }
- * })
- *
- * @example
- * // With global scope
- * const markdown = await mdxToMd("# Hello {profile.name}", {
- *   globalScope: {
- *     profile: { name: "John" },
- *     tool: { websearch: "web_search" },
- *     env: {},
- *     os: { platform: "linux" }
- *   }
- * })
- *
- * @example
- * // Extract metadata from exports
- * const result = await mdxToMd(`
- *   export const title = "My Doc"
- *   # Content
- * `, { extractMetadata: true })
- * // result.content = "# Content"
- * // result.metadata.fields = { title: "My Doc" }
- */
 export async function mdxToMd(
   content: string,
-  options?: MdxToMdOptions & {extractMetadata?: false},
+  options?: MdxToMdOptions & {extractMetadata?: false}
 ): Promise<string>
 
 export async function mdxToMd(
   content: string,
-  options: MdxToMdOptions & {extractMetadata: true},
+  options: MdxToMdOptions & {extractMetadata: true}
 ): Promise<MdxToMdResult>
 
 export async function mdxToMd(
   content: string,
-  options?: MdxToMdOptions,
+  options?: MdxToMdOptions
 ): Promise<string | MdxToMdResult> {
   const ast = parseMdx(content)
 
@@ -133,7 +92,7 @@ export async function mdxToMd(
     metadata = parseExports(esmNodes, { // 3. Merge: export takes priority over YAML
       ...yamlFrontMatter != null && {yamlFrontMatter},
       scope: mergedScope,
-      ...options?.basePath != null && {filePath: options.basePath},
+      ...options?.basePath != null && {filePath: options.basePath}
     })
 
     ast.children = ast.children.filter(n => n.type !== 'yaml' && n.type !== 'mdxjsEsm') // 4. Remove YAML and ESM nodes from AST (clean content output)
@@ -143,7 +102,7 @@ export async function mdxToMd(
     scope: mergedScope,
     components,
     processingStack: [],
-    ...options?.basePath != null && {basePath: options.basePath},
+    ...options?.basePath != null && {basePath: options.basePath}
   }
 
   const processedAst = await processAst(ast, ctx)
@@ -159,10 +118,10 @@ export async function mdxToMd(
       strong: '*',
       rule: '-',
       handlers: {
-        text(node: {value: string}) { // 自定义 text handler 避免不必要的转义
+        text(node: {value: string}) { // Custom text handler to avoid unnecessary escaping
           return node.value
-        },
-      },
+        }
+      }
     })
 
   const markdown = processor.stringify(processedAst).trim()

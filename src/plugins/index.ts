@@ -3,72 +3,53 @@
  * Provides base classes for creating input and output plugins.
  */
 
-export {
-  AbstractInputPlugin,
+export { // Re-export AbstractInputPlugin
+  AbstractInputPlugin
 } from './AbstractInputPlugin'
-export type {
-  CleanStaleDistOptions,
-  CleanStaleDistResult,
-  ExecuteCommandOptions,
-  ExecuteCommandResult,
-  InputEffectContext,
-  InputEffectHandler,
-  InputEffectRegistration,
-  InputEffectResult,
-  PluginScopeRegistration,
-  ResolvedBasePaths,
-  SyncDirectoryOptions,
-  SyncDirectoryResult,
-} from './AbstractInputPlugin'
-export {
-  cleanStaleDistFiles,
-  executeCommand,
-  syncDirectory,
-} from './AbstractInputPlugin'
-export {
-  AbstractOutputPlugin,
+export { // Types are now in @/types
+  AbstractOutputPlugin
 } from './AbstractOutputPlugin'
 export type {
   AbstractOutputPluginOptions,
-  FastCommandNameTransformOptions,
+  FastCommandNameTransformOptions
 } from './AbstractOutputPlugin'
 export {
-  AbstractPlugin,
+  AbstractPlugin
 } from './AbstractPlugin' // Abstract base classes
 export {
-  AntigravityOutputPlugin,
+  AntigravityOutputPlugin
 } from './AntigravityOutputPlugin'
 export {
-  GenericSkillsOutputPlugin,
+  GenericSkillsOutputPlugin
 } from './GenericSkillsOutputPlugin'
 export {
-  GitExcludeInputPlugin,
+  GitExcludeInputPlugin
 } from './GitExcludeInputPlugin' // Git plugins
 export {
-  GitExcludeOutputPlugin,
+  GitExcludeOutputPlugin
 } from './GitExcludeOutputPlugin'
 export {
-  GitIgnoreInputPlugin,
+  GitIgnoreInputPlugin
 } from './GitIgnoreInputPlugin'
 export {
-  MarkdownWhitespaceCleanupEffectInputPlugin,
+  MarkdownWhitespaceCleanupEffectInputPlugin
 } from './MarkdownWhitespaceCleanupEffectInputPlugin' // Effect Input Plugins
 
 export type {
-  WhitespaceCleanupEffectResult,
+  WhitespaceCleanupEffectResult
 } from './MarkdownWhitespaceCleanupEffectInputPlugin'
 export {
-  OrphanFileCleanupEffectInputPlugin,
+  OrphanFileCleanupEffectInputPlugin
 } from './OrphanFileCleanupEffectInputPlugin'
 export type {
-  OrphanCleanupEffectResult,
+  OrphanCleanupEffectResult
 } from './OrphanFileCleanupEffectInputPlugin'
 export {
-  RegistryWriter,
+  RegistryWriter
 } from './registry' // Registry writers
 export {
-  SkillNonSrcFileSyncEffectInputPlugin,
+  SkillNonSrcFileSyncEffectInputPlugin
 } from './SkillNonSrcFileSyncEffectInputPlugin'
 export type {
-  SkillSyncEffectResult,
+  SkillSyncEffectResult
 } from './SkillNonSrcFileSyncEffectInputPlugin'

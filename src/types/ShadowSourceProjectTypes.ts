@@ -76,7 +76,7 @@ export const SHADOW_SOURCE_DIR_NAMES = {
   APP: 'app',
   IDEA: '.idea', // IDE directories
   IDEA_CODE_STYLES: '.idea/codeStyles',
-  VSCODE: '.vscode',
+  VSCODE: '.vscode'
 } as const
 
 /**
@@ -93,7 +93,7 @@ export const SHADOW_SOURCE_FILE_NAMES = {
   VSCODE_EXTENSIONS: '.vscode/extensions.json',
   QODER_IGNORE: '.qoderignore', // AI Agent ignore files
   CURSOR_IGNORE: '.cursorignore',
-  WARP_INDEX_IGNORE: '.warpindexignore',
+  WARP_INDEX_IGNORE: '.warpindexignore'
 } as const
 
 /**
@@ -109,7 +109,7 @@ export const SHADOW_SOURCE_RELATIVE_PATHS = {
   DIST_AGENTS: 'dist/agents',
   DIST_APP: 'dist/app',
   DIST_GLOBAL_MEMORY: 'dist/global.mdx',
-  APP: 'app', // App source path (standalone at root)
+  APP: 'app' // App source path (standalone at root)
 } as const
 
 /**
@@ -121,122 +121,122 @@ export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE: ShadowSourceProjectDirecto
     skills: {
       name: SHADOW_SOURCE_DIR_NAMES.SKILLS,
       required: false,
-      description: 'Skill source files (.cn.mdx)',
+      description: 'Skill source files (.cn.mdx)'
     },
     commands: {
       name: SHADOW_SOURCE_DIR_NAMES.COMMANDS,
       required: false,
-      description: 'Fast command source files (.cn.mdx)',
+      description: 'Fast command source files (.cn.mdx)'
     },
     agents: {
       name: SHADOW_SOURCE_DIR_NAMES.AGENTS,
       required: false,
-      description: 'Sub-agent source files (.cn.mdx)',
+      description: 'Sub-agent source files (.cn.mdx)'
     },
     globalMemoryFile: {
       name: SHADOW_SOURCE_FILE_NAMES.GLOBAL_MEMORY_SRC,
       required: false,
-      description: 'Global memory source file',
-    },
+      description: 'Global memory source file'
+    }
   },
   dist: {
     skills: {
       name: SHADOW_SOURCE_DIR_NAMES.SKILLS,
       required: false,
-      description: 'Compiled skill files (.mdx)',
+      description: 'Compiled skill files (.mdx)'
     },
     commands: {
       name: SHADOW_SOURCE_DIR_NAMES.COMMANDS,
       required: false,
-      description: 'Compiled fast command files (.mdx)',
+      description: 'Compiled fast command files (.mdx)'
     },
     agents: {
       name: SHADOW_SOURCE_DIR_NAMES.AGENTS,
       required: false,
-      description: 'Compiled sub-agent files (.mdx)',
+      description: 'Compiled sub-agent files (.mdx)'
     },
     globalMemoryFile: {
       name: SHADOW_SOURCE_FILE_NAMES.GLOBAL_MEMORY,
       required: false,
-      description: 'Compiled global memory file',
+      description: 'Compiled global memory file'
     },
     app: {
       name: SHADOW_SOURCE_DIR_NAMES.APP,
       required: false,
-      description: 'Compiled project-specific prompts',
-    },
+      description: 'Compiled project-specific prompts'
+    }
   },
   app: {
     name: SHADOW_SOURCE_DIR_NAMES.APP,
     required: false,
-    description: 'Project-specific prompts (standalone directory)',
+    description: 'Project-specific prompts (standalone directory)'
   },
   ide: {
     idea: {
       name: SHADOW_SOURCE_DIR_NAMES.IDEA,
       required: false,
-      description: 'JetBrains IDE configuration directory',
+      description: 'JetBrains IDE configuration directory'
     },
     ideaCodeStyles: {
       name: SHADOW_SOURCE_DIR_NAMES.IDEA_CODE_STYLES,
       required: false,
-      description: 'JetBrains IDE code styles directory',
+      description: 'JetBrains IDE code styles directory'
     },
     vscode: {
       name: SHADOW_SOURCE_DIR_NAMES.VSCODE,
       required: false,
-      description: 'VS Code configuration directory',
-    },
+      description: 'VS Code configuration directory'
+    }
   },
   ideFiles: [
     {
       name: SHADOW_SOURCE_FILE_NAMES.EDITOR_CONFIG,
       required: false,
-      description: 'EditorConfig file',
+      description: 'EditorConfig file'
     },
     {
       name: SHADOW_SOURCE_FILE_NAMES.IDEA_GITIGNORE,
       required: false,
-      description: 'JetBrains IDE .gitignore',
+      description: 'JetBrains IDE .gitignore'
     },
     {
       name: SHADOW_SOURCE_FILE_NAMES.IDEA_PROJECT_XML,
       required: false,
-      description: 'JetBrains IDE Project.xml',
+      description: 'JetBrains IDE Project.xml'
     },
     {
       name: SHADOW_SOURCE_FILE_NAMES.IDEA_CODE_STYLE_CONFIG_XML,
       required: false,
-      description: 'JetBrains IDE codeStyleConfig.xml',
+      description: 'JetBrains IDE codeStyleConfig.xml'
     },
     {
       name: SHADOW_SOURCE_FILE_NAMES.VSCODE_SETTINGS,
       required: false,
-      description: 'VS Code settings.json',
+      description: 'VS Code settings.json'
     },
     {
       name: SHADOW_SOURCE_FILE_NAMES.VSCODE_EXTENSIONS,
       required: false,
-      description: 'VS Code extensions.json',
-    },
+      description: 'VS Code extensions.json'
+    }
   ],
   ignoreFiles: [
     {
       name: SHADOW_SOURCE_FILE_NAMES.QODER_IGNORE,
       required: false,
-      description: 'Qoder ignore file',
+      description: 'Qoder ignore file'
     },
     {
       name: SHADOW_SOURCE_FILE_NAMES.CURSOR_IGNORE,
       required: false,
-      description: 'Cursor ignore file',
+      description: 'Cursor ignore file'
     },
     {
       name: SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE,
       required: false,
-      description: 'Warp index ignore file',
-    },
-  ],
+      description: 'Warp index ignore file'
+    }
+  ]
 } as const
 
 /**

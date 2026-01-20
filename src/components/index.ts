@@ -2,7 +2,7 @@ import {registerComponent} from '../compiler/component-registry' // Entry point 
 import {MdHandler, MdLineHandler} from './Md'
 
 export {
-  registerComponent,
+  registerComponent
 } from '../compiler/component-registry' // Re-export component registration helper for convenience
 
 /**
@@ -17,5 +17,5 @@ export function registerBuiltInComponents(): void {
 
 export {
   MdHandler,
-  MdLineHandler,
+  MdLineHandler
 } from './Md' // Export all built-in component handlers

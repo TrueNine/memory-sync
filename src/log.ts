@@ -11,7 +11,7 @@ const colors = { // ANSI color codes - internal use only
   green: '\x1B[32m',
   white: '\x1B[37m',
   dim: '\x1B[2m',
-  bgRed: '\x1B[41m',
+  bgRed: '\x1B[41m'
 } as const
 
 const colorize = { // Color helper functions - internal use only
@@ -24,7 +24,7 @@ const colorize = { // Color helper functions - internal use only
   green: (text: string) => `${colors.green}${text}${colors.reset}`,
   white: (text: string) => `${colors.white}${text}${colors.reset}`,
   dim: (text: string) => `${colors.dim}${text}${colors.reset}`,
-  bgRed: (text: string) => `${colors.bgRed}${text}${colors.reset}`,
+  bgRed: (text: string) => `${colors.bgRed}${text}${colors.reset}`
 }
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'fatal' | 'silent' // Public types
@@ -57,7 +57,7 @@ const LEVEL_COLORS: Record<string, (s: string) => string> = { // Internal consta
   info: colorize.cyan,
   debug: colorize.magenta,
   trace: colorize.gray,
-  fatal: colorize.bgRed,
+  fatal: colorize.bgRed
 }
 
 const LEVEL_PRIORITY: Record<LogLevel, number> = {
@@ -67,7 +67,7 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
   warn: 3,
   info: 4,
   debug: 5,
-  trace: 6,
+  trace: 6
 }
 
 function colorizeValue(value: unknown): string { // Internal helper functions
@@ -108,7 +108,7 @@ function formatLog(
   level: LogLevel,
   namespace: string,
   message: unknown,
-  meta?: Record<string, unknown>,
+  meta?: Record<string, unknown>
 ): LogRecord {
   const timestamp = getTimestamp()
   const colorFn = LEVEL_COLORS[level] ?? colorize.white
@@ -117,11 +117,11 @@ function formatLog(
     $: [timestamp, level, namespace],
     _: meta != null && Object.keys(meta).length > 0
       ? {[String(message)]: meta}
-      : message as string,
+      : message as string
   }
 
   const base = { // Output to console
-    $: [timestamp, colorFn(level.toUpperCase()), namespace],
+    $: [timestamp, colorFn(level.toUpperCase()), namespace]
   }
   const _ = meta != null && Object.keys(meta).length > 0
     ? {[String(message)]: meta}
@@ -141,7 +141,7 @@ function formatLog(
 function createLeveledMethod(
   level: LogLevel,
   namespace: string,
-  currentLevel: LogLevel,
+  currentLevel: LogLevel
 ): LeveledLogMethod {
   const levelPriority = LEVEL_PRIORITY[level]
   const currentPriority = LEVEL_PRIORITY[currentLevel]
@@ -150,12 +150,12 @@ function createLeveledMethod(
     if (levelPriority > currentPriority) { // Check if logging is enabled for this level
       return { // Return empty record without logging
         $: [getTimestamp(), level, namespace],
-        _: messageOrObject as string,
+        _: messageOrObject as string
       }
     }
 
     if (typeof messageOrObject === 'string') { // Handle different call signatures
-      const metaObj = meta.length === 1 && typeof meta[0] === 'object' && meta[0] !== null // (message: string, ...meta: unknown[])
+      const metaObj = meta.length === 1 && typeof meta[0] === 'object' && meta[0] !== null
         ? meta[0] as Record<string, unknown>
         : meta.length > 0
           ? {args: meta}
@@ -199,6 +199,6 @@ export function createLogger(namespace: string, logLevel?: LogLevel): ILogger {
     info: createLeveledMethod('info', namespace, level),
     debug: createLeveledMethod('debug', namespace, level),
     trace: createLeveledMethod('trace', namespace, level),
-    fatal: createLeveledMethod('fatal', namespace, level),
+    fatal: createLeveledMethod('fatal', namespace, level)
   }
 }

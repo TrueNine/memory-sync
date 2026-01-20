@@ -6,10 +6,6 @@ const mockLogger = createLogger('test', 'error')
 
 describe('helpCommand', () => {
   describe('help text content', () => {
-    /**
-     * Feature: cli-refactor, Requirements 8.1-8.4
-     * Validates that help text contains all required information
-     */
     it('should list all subcommands', async () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => { })
 

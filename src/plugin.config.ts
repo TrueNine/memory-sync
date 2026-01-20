@@ -62,6 +62,6 @@ export default defineConfig({
     new ProjectPromptInputPlugin(),
     new ReadmeMdInputPlugin(),
     new GitIgnoreInputPlugin(),
-    new GitExcludeInputPlugin(),
-  ],
+    new GitExcludeInputPlugin()
+  ]
 })

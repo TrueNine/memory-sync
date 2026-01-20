@@ -1,7 +1,7 @@
 import type {Root, RootContent} from 'mdast' // MDX component expansion module for built-in component processing // component-processor.ts
 import type {
   MdxJsxFlowElement,
-  MdxJsxTextElement,
+  MdxJsxTextElement
 } from 'mdast-util-mdx'
 import type {ProcessingContext} from './types'
 import {hasComponent} from './component-registry'
@@ -12,7 +12,7 @@ import {hasComponent} from './component-registry'
  */
 export function isMdxComponent(
   name: string | null,
-  ctx: ProcessingContext,
+  ctx: ProcessingContext
 ): boolean {
   if (name === null) return false
   return ctx.components.has(name) || hasComponent(name) // Check both the context's components map and the global registry
@@ -23,7 +23,7 @@ export function isMdxComponent(
  * This function is passed to component handlers to allow recursive processing.
  */
 async function createProcessChildren(
-  processAstFn: (ast: Root, ctx: ProcessingContext) => Promise<Root>,
+  processAstFn: (ast: Root, ctx: ProcessingContext) => Promise<Root>
 ): Promise<(children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>> {
   return async (children: RootContent[], ctx: ProcessingContext): Promise<RootContent[]> => {
     const tempRoot: Root = {type: 'root', children} // Wrap children in a root node for processing
@@ -39,7 +39,7 @@ async function createProcessChildren(
 export async function processComponent(
   element: MdxJsxFlowElement | MdxJsxTextElement,
   ctx: ProcessingContext,
-  processAstFn: (ast: Root, ctx: ProcessingContext) => Promise<Root>,
+  processAstFn: (ast: Root, ctx: ProcessingContext) => Promise<Root>
 ): Promise<RootContent[]> {
   const componentName = element.name
 
@@ -59,7 +59,7 @@ export async function processComponent(
     scope: ctx.scope,
     components: ctx.components,
     processingStack: [...ctx.processingStack, componentName],
-    ...ctx.basePath != null ? {basePath: ctx.basePath} : {},
+    ...ctx.basePath != null ? {basePath: ctx.basePath} : {}
   }
 
   const processChildren = await createProcessChildren(processAstFn) // Create the processChildren function for the handler
@@ -73,7 +73,7 @@ export async function processComponent(
     throw new Error(
       `Failed to process component "${componentName}"${componentStack !== '' ? ` (called from: ${componentStack})` : ''
       }:\n${message}`,
-      {cause: err},
+      {cause: err}
     )
   }
 }

@@ -6,25 +6,10 @@ import {unified} from 'unified'
 import * as YAML from 'yaml'
 
 export interface ParsedMarkdown<Y = Record<string, unknown>> {
-  /**
-   * Parsed YAML front matter object
-   */
   readonly yamlFrontMatter?: Y
-  /**
-   * Raw YAML front matter string (without --- delimiters)
-   */
   readonly rawFrontMatter?: string
-  /**
-   * Markdown AST root node
-   */
   readonly markdownAst: Root
-  /**
-   * Markdown content nodes (excluding YAML front matter node)
-   */
   readonly markdownContents: readonly RootContent[]
-  /**
-   * Content string without YAML front matter
-   */
   readonly contentWithoutFrontMatter: string
 }
 
@@ -32,85 +17,32 @@ export interface ParsedMarkdown<Y = Record<string, unknown>> {
  * Options for building markdown content with front matter
  */
 export interface BuildMarkdownOptions {
-  /**
-   * Whether to use single quotes for strings in YAML
-   * @default false (uses double quotes)
-   */
   readonly singleQuote?: boolean
-  /**
-   * Line width for YAML output (0 = no wrapping)
-   * @default 0
-   */
   readonly lineWidth?: number
 }
 
-/**
- * Build YAML front matter string from an object.
- * Uses the yaml library for proper serialization.
- *
- * @param frontMatter - The front matter object to serialize
- * @param options - Optional configuration for YAML output
- * @returns YAML front matter string with --- delimiters
- *
- * @example
- * ```typescript
- * const fm = buildFrontMatter({ name: 'test', keywords: ['a', 'b'] })
- * // Returns:
- * // ---
- * // name: test
- * // keywords:
- * //   - a
- * //   - b
- * // ---
- * ```
- */
 export function buildFrontMatter(
   frontMatter: Record<string, unknown>,
-  options?: BuildMarkdownOptions,
+  options?: BuildMarkdownOptions
 ): string {
   const cleanedFrontMatter = Object.fromEntries( // Filter out undefined/null values
-    Object.entries(frontMatter).filter(([_, v]) => v != null),
+    Object.entries(frontMatter).filter(([_, v]) => v != null)
   )
 
   if (Object.keys(cleanedFrontMatter).length === 0) return '---\n---'
 
   const yamlStr = YAML.stringify(cleanedFrontMatter, {
     singleQuote: options?.singleQuote ?? false,
-    lineWidth: options?.lineWidth ?? 0,
+    lineWidth: options?.lineWidth ?? 0
   }).trimEnd()
 
   return `---\n${yamlStr}\n---`
 }
 
-/**
- * Build complete markdown content with front matter.
- * Combines front matter object with markdown body content.
- *
- * @param frontMatter - The front matter object (or undefined/null to skip)
- * @param content - The markdown body content
- * @param options - Optional configuration for YAML output
- * @returns Complete markdown string with front matter
- *
- * @example
- * ```typescript
- * const md = buildMarkdownWithFrontMatter(
- *   { title: 'My Doc', tags: ['a', 'b'] },
- *   '# Hello World'
- * )
- * // Returns:
- * // ---
- * // title: My Doc
- * // tags:
- * //   - a
- * //   - b
- * // ---
- * // # Hello World
- * ```
- */
 export function buildMarkdownWithFrontMatter(
   frontMatter: Record<string, unknown> | undefined | null,
   content: string,
-  options?: BuildMarkdownOptions,
+  options?: BuildMarkdownOptions
 ): string {
   if (frontMatter == null || Object.keys(frontMatter).length === 0) return content
 
@@ -118,27 +50,19 @@ export function buildMarkdownWithFrontMatter(
   return `${fmStr}\n${content}`
 }
 
-/**
- * Build raw YAML front matter string (without --- delimiters).
- * Useful when you need just the YAML content.
- *
- * @param frontMatter - The front matter object to serialize
- * @param options - Optional configuration for YAML output
- * @returns Raw YAML string without delimiters
- */
 export function buildRawFrontMatter(
   frontMatter: Record<string, unknown>,
-  options?: BuildMarkdownOptions,
+  options?: BuildMarkdownOptions
 ): string {
   const cleanedFrontMatter = Object.fromEntries(
-    Object.entries(frontMatter).filter(([_, v]) => v != null),
+    Object.entries(frontMatter).filter(([_, v]) => v != null)
   )
 
   if (Object.keys(cleanedFrontMatter).length === 0) return ''
 
   return YAML.stringify(cleanedFrontMatter, {
     singleQuote: options?.singleQuote ?? false,
-    lineWidth: options?.lineWidth ?? 0,
+    lineWidth: options?.lineWidth ?? 0
   }).trimEnd()
 }
 
@@ -180,6 +104,39 @@ export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): 
     ...rawFrontMatter != null && {rawFrontMatter},
     markdownAst: ast,
     markdownContents,
-    contentWithoutFrontMatter,
+    contentWithoutFrontMatter
   }
+}
+
+/**
+ * Converts .mdx file references to .md in markdown content.
+ * Only converts local file references (not external URLs).
+ *
+ * Handles:
+ * - Markdown links: [text.mdx](file.mdx) -> [text.md](file.md)
+ * - Markdown images: ![alt](file.mdx) -> ![alt](file.md)
+ * - Link text containing .mdx paths are also transformed
+ * - Preserves anchors and query params: file.mdx#section -> file.md#section
+ *
+ * @param content - The markdown content to transform
+ * @returns The transformed content with .mdx replaced by .md
+ */
+export function transformMdxReferencesToMd(content: string): string {
+  return content.replaceAll( // Capture both the text and URL parts to transform .mdx to .md // Match markdown links and images: [text](url) or ![alt](url)
+    /(!?\[)([^\]]*)(\]\()([^)]+)(\))/g,
+    (_match, prefix: string, text: string, middle: string, url: string, suffix: string) => {
+      const transformedText = text // Transform link text: convert .mdx to .md for path-like text
+        .replaceAll(/\.mdx$/g, '.md')
+        .replaceAll(/\.mdx(?=#|\?|$)/g, '.md')
+
+      if (/^(?:https?:)?\/\//.test(url)) return `${prefix}${transformedText}${middle}${url}${suffix}` // Skip external URLs (http://, https://, //, etc.)
+
+      const transformedUrl = url // Simple replacement: .mdx at end or before # or ? // Convert .mdx to .md for local file references
+        .replace(/\.mdx$/, '.md')
+        .replace(/\.mdx#/, '.md#')
+        .replace(/\.mdx\?/, '.md?')
+
+      return `${prefix}${transformedText}${middle}${transformedUrl}${suffix}`
+    }
+  )
 }

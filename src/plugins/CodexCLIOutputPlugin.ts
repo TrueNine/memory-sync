@@ -1,10 +1,10 @@
-import type { // - Global skills dir: ~/.codex/skills/ (Codex only supports global skills, no project-level skills) // - Global memory file: ~/.codex/AGENTS.md // - Global prompts dir: ~/.codex/prompts/ // - Global config dir: ~/.codex/ // Codex CLI configuration: // // @see https://developers.openai.com/codex/skills/create-skill codex 如何创建 skills // @see https://www.bilibili.com/video/BV1MAY5zWEPS codex 自定义斜杠命令
+import type {
   FastCommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
   SkillPrompt,
   WriteResult,
-  WriteResults,
+  WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
@@ -24,7 +24,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     super('CodexCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: PROJECT_MEMORY_FILE,
-      dependsOn: ['AgentsOutputPlugin'],
+      dependsOn: ['AgentsOutputPlugin']
     })
   }
 
@@ -46,7 +46,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       path: PROMPTS_SUBDIR,
       basePath: globalDir,
       getDirectoryName: () => PROMPTS_SUBDIR,
-      getAbsolutePath: () => promptsPath,
+      getAbsolutePath: () => promptsPath
     })
 
     const {skills} = ctx.collectedInputContext // This preserves ~/.codex/skills/.system/ which is Codex's built-in system skills // Register each skill directory individually (not the entire skills/ dir)
@@ -59,7 +59,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
           path: path.join(SKILLS_SUBDIR, skillName),
           basePath: globalDir,
           getDirectoryName: () => skillName,
-          getAbsolutePath: () => skillPath,
+          getAbsolutePath: () => skillPath
         })
       }
     }
@@ -75,8 +75,8 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
         path: PROJECT_MEMORY_FILE,
         basePath: globalDir,
         getDirectoryName: () => GLOBAL_CONFIG_DIR,
-        getAbsolutePath: () => path.join(globalDir, PROJECT_MEMORY_FILE),
-      },
+        getAbsolutePath: () => path.join(globalDir, PROJECT_MEMORY_FILE)
+      }
     ]
   }
 
@@ -109,7 +109,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
         path: PROJECT_MEMORY_FILE,
         basePath: globalDir,
         getDirectoryName: () => GLOBAL_CONFIG_DIR,
-        getAbsolutePath: () => fullPath,
+        getAbsolutePath: () => fullPath
       }
 
       if (ctx.dryRun === true) {
@@ -151,7 +151,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
   private async writeGlobalFastCommand(
     ctx: OutputWriteContext,
     globalDir: string,
-    cmd: FastCommandPrompt,
+    cmd: FastCommandPrompt
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const transformOptions = this.getTransformOptionsFromContext(ctx)
@@ -164,13 +164,13 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       path: path.join(PROMPTS_SUBDIR, fileName),
       basePath: globalDir,
       getDirectoryName: () => PROMPTS_SUBDIR,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     const content = this.buildMarkdownContentWithRaw( // Build content with front matter, preferring raw if parsed failed
-      cmd.content as string,
+      cmd.content,
       cmd.yamlFrontMatter,
-      cmd.rawFrontMatter,
+      cmd.rawFrontMatter
     )
 
     if (ctx.dryRun === true) {
@@ -193,14 +193,10 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  /**
-   * Write a skill to ~/.codex/skills/<skill-name>/SKILL.md
-   * Codex only supports global skills, no project-level skills
-   */
   private async writeGlobalSkill(
     ctx: OutputWriteContext,
     globalDir: string,
-    skill: SkillPrompt,
+    skill: SkillPrompt
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
@@ -212,7 +208,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       path: path.join(SKILLS_SUBDIR, skillName, SKILL_FILE_NAME),
       basePath: globalDir,
       getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     const content = this.buildCodexSkillContent(skill) // Build Codex-compatible front matter and content
@@ -251,22 +247,6 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  /**
-   * Build Codex-compatible SKILL.md content with front matter
-   * Converts SkillYAMLFrontMatter to CodexSkillYAMLFrontMatter format
-   *
-   * Follows Agent Skills specification: https://agentskills.io/specification
-   *
-   * Required fields:
-   * - name: Max 64 characters. Lowercase letters, numbers, and hyphens only.
-   * - description: Max 1024 characters. Describes what the skill does and when to use it.
-   *
-   * Optional fields:
-   * - license: License name or reference to a bundled license file.
-   * - compatibility: Max 500 characters. Environment requirements.
-   * - metadata: Arbitrary key-value mapping (displayName, version, author, keywords, etc.)
-   * - allowed-tools: Space-delimited list of pre-approved tools (experimental).
-   */
   private buildCodexSkillContent(skill: SkillPrompt): string {
     const fm = skill.yamlFrontMatter
 
@@ -285,7 +265,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
     const fmData: Record<string, unknown> = { // Build front matter data following Agent Skills spec
       name,
-      description,
+      description
     }
 
     if (Object.keys(metadata).length > 0) fmData['metadata'] = metadata // Only add metadata if it has content
@@ -295,12 +275,6 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     return buildMarkdownWithFrontMatter(fmData, skill.content as string)
   }
 
-  /**
-   * Normalize skill name to Agent Skills spec requirements:
-   * - Max 64 characters
-   * - Lowercase letters, numbers, and hyphens only
-   * - Must not start or end with a hyphen
-   */
   private normalizeSkillName(name: string, maxLength: number): string {
     let normalized = name // Convert to lowercase and replace invalid characters with hyphens
       .toLowerCase()
@@ -313,25 +287,18 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     return normalized
   }
 
-  /**
-   * Normalize text to single line by replacing newlines with spaces
-   * and truncating to max length
-   */
   private normalizeToSingleLine(text: string, maxLength: number): string {
     const singleLine = text.replaceAll(/[\r\n]+/g, ' ').replaceAll(/\s+/g, ' ').trim() // Replace newlines and multiple spaces with single space
     if (singleLine.length > maxLength) return `${singleLine.slice(0, maxLength - 3)}...` // Truncate if exceeds max length
     return singleLine
   }
 
-  /**
-   * Write skill reference document
-   */
   private async writeSkillReferenceDocument(
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
     refDoc: {dir: RelativePath, content: unknown},
-    globalDir: string,
+    globalDir: string
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md') // Convert .mdx to .md for output
@@ -342,7 +309,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       path: path.join(SKILLS_SUBDIR, skillName, fileName),
       basePath: globalDir,
       getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     if (ctx.dryRun === true) {
@@ -366,15 +333,12 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  /**
-   * Write skill resource file (non-.md files like .kt, .java, .sql, etc.)
-   */
   private async writeSkillResource(
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
     resource: {relativePath: string, content: string},
-    globalDir: string,
+    globalDir: string
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const fullPath = path.join(skillDir, resource.relativePath)
@@ -384,7 +348,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       path: path.join(SKILLS_SUBDIR, skillName, resource.relativePath),
       basePath: globalDir,
       getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath,
+      getAbsolutePath: () => fullPath
     }
 
     if (ctx.dryRun === true) {

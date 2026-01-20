@@ -22,15 +22,15 @@ describe('gitExcludeOutputPlugin', () => {
               dirFromWorkspacePath: {
                 path: 'project1',
                 basePath: '/ws',
-                getAbsolutePath: () => '/ws/project1',
+                getAbsolutePath: () => '/ws/project1'
               },
-              isPromptSourceProject: false,
-            },
-          ],
-        },
+              isPromptSourceProject: false
+            }
+          ]
+        }
       },
       logger: createLogger('test', 'debug'),
-      dryRun: false,
+      dryRun: false
     } as any
 
     vi.mocked(fs.existsSync).mockImplementation((p: any) => {
@@ -59,11 +59,11 @@ describe('gitExcludeOutputPlugin', () => {
       collectedInputContext: {
         workspace: {
           directory: {path: '/ws'},
-          projects: [],
-        },
+          projects: []
+        }
       },
       logger: createLogger('test', 'debug'),
-      dryRun: false,
+      dryRun: false
     } as any
 
     const result = await plugin.writeProjectOutputs(ctx)
@@ -85,15 +85,15 @@ describe('gitExcludeOutputPlugin', () => {
               dirFromWorkspacePath: {
                 path: 'project1',
                 basePath: '/ws',
-                getAbsolutePath: () => '/ws/project1',
+                getAbsolutePath: () => '/ws/project1'
               },
-              isPromptSourceProject: false,
-            },
-          ],
-        },
+              isPromptSourceProject: false
+            }
+          ]
+        }
       },
       logger: createLogger('test', 'debug'),
-      dryRun: false,
+      dryRun: false
     } as any
 
     vi.mocked(fs.existsSync).mockImplementation((p: any) => {
@@ -127,15 +127,15 @@ describe('gitExcludeOutputPlugin', () => {
               dirFromWorkspacePath: {
                 path: 'project1',
                 basePath: '/ws',
-                getAbsolutePath: () => '/ws/project1',
+                getAbsolutePath: () => '/ws/project1'
               },
-              isPromptSourceProject: false,
-            },
-          ],
-        },
+              isPromptSourceProject: false
+            }
+          ]
+        }
       },
       logger: createLogger('test', 'debug'),
-      dryRun: false,
+      dryRun: false
     } as any
 
     vi.mocked(fs.existsSync).mockImplementation((p: any) => {
@@ -176,15 +176,15 @@ old-content/
               dirFromWorkspacePath: {
                 path: 'project1',
                 basePath: '/ws',
-                getAbsolutePath: () => '/ws/project1',
+                getAbsolutePath: () => '/ws/project1'
               },
-              isPromptSourceProject: false,
-            },
-          ],
-        },
+              isPromptSourceProject: false
+            }
+          ]
+        }
       },
       logger: createLogger('test', 'debug'),
-      dryRun: false,
+      dryRun: false
     } as any
 
     vi.mocked(fs.existsSync).mockImplementation((p: any) => {
