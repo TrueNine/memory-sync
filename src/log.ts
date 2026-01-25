@@ -80,6 +80,17 @@ function colorizeValue(value: unknown): string { // Internal helper functions
     if (value.length === 0) return '[]'
     return `[${value.map(v => colorizeValue(v)).join(',')}]`
   }
+  if (value instanceof Error) {
+    const errorObj: Record<string, unknown> = {
+      name: value.name,
+      message: value.message,
+      stack: value.stack
+    }
+    for (const key of Object.getOwnPropertyNames(value)) { // Include any custom properties
+      if (key !== 'name' && key !== 'message' && key !== 'stack') errorObj[key] = (value as unknown as Record<string, unknown>)[key]
+    }
+    return toJson5(errorObj)
+  }
   if (typeof value === 'object') return toJson5(value as Record<string, unknown>)
   return String(value)
 }

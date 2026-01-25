@@ -30,6 +30,8 @@ export interface ToolReferences {
   todolistWrite?: string
   /** Grep/search tool name */
   grep?: string
+  /** List directory tool name */
+  listDirectory?: string
   /** Allow custom tool references */
   [key: string]: string | undefined
 }
@@ -47,14 +49,16 @@ export const ToolPresets = {
     writeFile: 'write_file',
     executeCommand: 'execute_command',
     todolistWrite: 'todolist_write',
-    grep: 'grep'
+    grep: 'grep',
+    listDirectory: 'list_directory'
   },
   /** Claude Code CLI tool names (PascalCase) */
   claudeCode: {
     readFile: 'Read',
     writeFile: 'Write',
     executeCommand: 'Execute',
-    todolistWrite: 'TodoWrite'
+    todolistWrite: 'TodoWrite',
+    listDirectory: 'List'
   },
   /** Kiro tool names */
   kiro: {
@@ -64,7 +68,8 @@ export const ToolPresets = {
     writeFile: 'fsWrite',
     executeCommand: 'executeBash',
     todolistWrite: 'todolistWrite',
-    grep: 'grepSearch'
+    grep: 'grepSearch',
+    listDirectory: 'listDir'
   }
 } as const satisfies Record<string, Partial<ToolReferences>>
 
@@ -173,4 +178,4 @@ declare global {
   }
 }
 
-export {}
+export { }
