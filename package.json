@@ -58,20 +58,20 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@truenine/eslint9-config": "^2026.10120.11726",
+    "@truenine/eslint9-config": "^2026.10126.10418",
     "@types/estree": "^1.0.8",
     "@types/estree-jsx": "^1.0.5",
     "@types/fs-extra": "^11.0.4",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^25.0.9",
+    "@types/node": "^25.0.10",
     "@types/picomatch": "^4.0.2",
-    "@vitest/coverage-v8": "4.0.17",
+    "@vitest/coverage-v8": "4.0.18",
     "eslint": "^9.39.2",
     "fast-check": "^4.5.3",
-    "tsdown": "0.20.0-beta.4",
+    "tsdown": "0.20.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.18"
   }
 }
