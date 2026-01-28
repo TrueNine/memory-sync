@@ -1,5 +1,6 @@
 import type {
   FastCommandPrompt,
+  FastCommandYAMLFrontMatter,
   OutputPluginContext,
   OutputWriteContext,
   SkillPrompt,
@@ -182,17 +183,20 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
 
     let finalContent = cmd.content // Prepare content with filtered front matter
     const sourceFrontMatter = cmd.yamlFrontMatter
-    const filteredFrontMatter: Record<string, unknown> = {}
+    const filteredFrontMatter: Partial<Pick<FastCommandYAMLFrontMatter, 'description'>> = {}
 
-    if (sourceFrontMatter?.description != null) {
-      filteredFrontMatter['description'] = sourceFrontMatter.description
+    if (typeof sourceFrontMatter?.description === 'string') {
+      filteredFrontMatter.description = sourceFrontMatter.description
     }
+
+    const buildContent = (body: string): string =>
+      this.buildMarkdownContentWithRaw(body, filteredFrontMatter, cmd.rawFrontMatter)
 
     if (cmd.rawMdxContent != null) { // If we have raw MDX content, we prefer that but we need to strip/replace frontmatter
       const contentWithoutFrontMatter = cmd.rawMdxContent.replace(/^---\n[\s\S]*?\n---\n/, '') // Simple regex to strip existing frontmatter if present
-      finalContent = this.buildMarkdownContent(contentWithoutFrontMatter, filteredFrontMatter)
+      finalContent = buildContent(contentWithoutFrontMatter)
     } else {
-      finalContent = this.buildMarkdownContent(finalContent, filteredFrontMatter) // Fallback to compiled content
+      finalContent = buildContent(finalContent) // Fallback to compiled content
     }
 
     if (ctx.dryRun === true) {
