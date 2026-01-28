@@ -1,0 +1,507 @@
+import type {CollectedInputContext, FastCommandPrompt, OutputPluginContext, SkillYAMLFrontMatter} from 'memory-sync-cli/src/types'
+import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
+import * as fc from 'fast-check'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {FilePathKind, PromptKind} from 'memory-sync-cli/src/types'
+import {KiroCLIOutputPlugin} from './KiroCLIOutputPlugin'
+
+function createMockRelativePath(pathStr: string, basePath: string): RelativePath {
+  return {
+    pathKind: FilePathKind.Relative,
+    path: pathStr,
+    basePath,
+    getDirectoryName: () => pathStr,
+    getAbsolutePath: () => `${basePath}/${pathStr}`
+  }
+}
+
+function createMockFastCommandPrompt(
+  series: string | undefined,
+  commandName: string
+): FastCommandPrompt {
+  return {
+    type: PromptKind.FastCommand,
+    series,
+    commandName,
+    content: '',
+    length: 0,
+    filePathKind: FilePathKind.Relative,
+    dir: createMockRelativePath('.', '/test'),
+    markdownContents: []
+  } as FastCommandPrompt
+}
+
+class TestableKiroCLIOutputPlugin extends KiroCLIOutputPlugin { // Create a testable subclass to expose private methods
+  private mockHomeDir: string | null = null
+
+  public testBuildFastCommandSteeringFileName(cmd: FastCommandPrompt): string {
+    return (this as any).buildFastCommandSteeringFileName(cmd) // Access private method via any cast
+  }
+
+  public testBuildPowerFrontMatter(frontMatter: SkillYAMLFrontMatter): string {
+    return (this as any).buildPowerFrontMatter(frontMatter) // Access private method via any cast
+  }
+
+  public testListInstalledPowers(powersDir: string): string[] {
+    return (this as any).listInstalledPowers(powersDir) // Access private method via any cast
+  }
+
+  public async testWriteSkillMcpConfig(
+    ctx: any,
+    skill: any,
+    powerDir: string
+  ): Promise<any> {
+    return (this as any).writeSkillMcpConfig(ctx, skill, powerDir) // Access private method via any cast
+  }
+
+  public setMockHomeDir(dir: string | null): void {
+    this.mockHomeDir = dir
+  }
+
+  protected override getHomeDir(): string { // Override getHomeDir to allow mocking in tests
+    if (this.mockHomeDir != null) return this.mockHomeDir
+    return super.getHomeDir()
+  }
+}
+
+describe('kiroCLIOutputPlugin', () => {
+  describe('buildFastCommandSteeringFileName', () => {
+    const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generator for alphanumeric strings without underscore (for series prefix)
+      .filter(s => /^[a-z0-9]+$/i.test(s))
+
+    const alphanumericCommandName = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'}) // Generator for alphanumeric strings (for command name)
+      .filter(s => /^\w+$/.test(s))
+
+    it('should use hyphen separator between series and command name', () => {
+      fc.assert(
+        fc.property(
+          alphanumericNoUnderscore,
+          alphanumericCommandName,
+          (series, commandName) => {
+            const plugin = new TestableKiroCLIOutputPlugin()
+            const cmd = createMockFastCommandPrompt(series, commandName)
+
+            const result = plugin.testBuildFastCommandSteeringFileName(cmd)
+
+            expect(result).toBe(`${series}-${commandName}.md`) // Should use hyphen separator instead of underscore
+          }
+        ),
+        {numRuns: 100}
+      )
+    })
+
+    it('should return just commandName.md when series is undefined', () => {
+      fc.assert(
+        fc.property(
+          alphanumericCommandName,
+          commandName => {
+            const plugin = new TestableKiroCLIOutputPlugin()
+            const cmd = createMockFastCommandPrompt(void 0, commandName)
+
+            const result = plugin.testBuildFastCommandSteeringFileName(cmd)
+
+            expect(result).toBe(`${commandName}.md`) // Should return just commandName without any prefix
+          }
+        ),
+        {numRuns: 100}
+      )
+    })
+
+    it('should transform pe_compile to pe-compile.md', () => { // Unit tests for specific examples
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const cmd = createMockFastCommandPrompt('pe', 'compile')
+
+      const result = plugin.testBuildFastCommandSteeringFileName(cmd)
+
+      expect(result).toBe('pe-compile.md')
+    })
+
+    it('should transform spec_requirement to spec-requirement.md', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const cmd = createMockFastCommandPrompt('spec', 'requirement')
+
+      const result = plugin.testBuildFastCommandSteeringFileName(cmd)
+
+      expect(result).toBe('spec-requirement.md')
+    })
+
+    it('should handle command without series', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const cmd = createMockFastCommandPrompt(void 0, 'compile')
+
+      const result = plugin.testBuildFastCommandSteeringFileName(cmd)
+
+      expect(result).toBe('compile.md')
+    })
+  })
+
+  describe('buildPowerFrontMatter', () => {
+    it('should include name and description in front matter', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const frontMatter = {
+        name: 'test-skill',
+        description: 'A test skill'
+      } as SkillYAMLFrontMatter
+
+      const result = plugin.testBuildPowerFrontMatter(frontMatter)
+
+      expect(result).toContain('---')
+      expect(result).toContain('name: test-skill')
+      expect(result).toContain('description: A test skill')
+    })
+
+    it('should include displayName when provided', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const frontMatter = {
+        name: 'test-skill',
+        description: 'A test skill',
+        displayName: 'Test Skill Display'
+      } as SkillYAMLFrontMatter
+
+      const result = plugin.testBuildPowerFrontMatter(frontMatter)
+
+      expect(result).toContain('displayName: Test Skill Display')
+    })
+
+    it('should include keywords array when provided', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const frontMatter = {
+        name: 'test-skill',
+        description: 'A test skill',
+        keywords: ['typescript', 'testing', 'cli']
+      } as SkillYAMLFrontMatter
+
+      const result = plugin.testBuildPowerFrontMatter(frontMatter)
+
+      expect(result).toContain('keywords:') // YAML library outputs arrays in block style
+      expect(result).toContain('- typescript')
+      expect(result).toContain('- testing')
+      expect(result).toContain('- cli')
+    })
+
+    it('should include author when provided', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const frontMatter = {
+        name: 'test-skill',
+        description: 'A test skill',
+        author: 'Test Author'
+      } as SkillYAMLFrontMatter
+
+      const result = plugin.testBuildPowerFrontMatter(frontMatter)
+
+      expect(result).toContain('author: Test Author')
+    })
+
+    it('should omit optional fields when not provided', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const frontMatter = {
+        name: 'minimal-skill',
+        description: ''
+      } as SkillYAMLFrontMatter
+
+      const result = plugin.testBuildPowerFrontMatter(frontMatter)
+
+      expect(result).not.toContain('displayName')
+      expect(result).not.toContain('keywords')
+      expect(result).not.toContain('author')
+    })
+
+    it('should produce valid YAML front matter format', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const frontMatter = {
+        name: 'full-skill',
+        description: 'Full featured skill',
+        displayName: 'Full Skill',
+        keywords: ['feature', 'complete'],
+        author: 'Developer'
+      } as SkillYAMLFrontMatter
+
+      const result = plugin.testBuildPowerFrontMatter(frontMatter)
+
+      expect(result.startsWith('---')).toBe(true)
+      expect(result.endsWith('---')).toBe(true)
+
+      const lines = result.split('\n') // Should have proper line structure
+      expect(lines[0]).toBe('---')
+      expect(lines.at(-1)).toBe('---')
+    })
+  })
+
+  describe('registerGlobalOutputDirs - clean all installed powers', () => {
+    let tempDir: string
+
+    beforeEach(() => {
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kiro-test-')) // Create a temporary directory for testing
+    })
+
+    afterEach(() => {
+      if (tempDir && fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true}) // Clean up temporary directory
+    })
+
+    it('should list all installed power directories', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+
+      const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed') // Create mock power directories
+      fs.mkdirSync(powersDir, {recursive: true})
+      fs.mkdirSync(path.join(powersDir, 'power-a'))
+      fs.mkdirSync(path.join(powersDir, 'power-b'))
+      fs.mkdirSync(path.join(powersDir, 'old-power'))
+
+      const result = plugin.testListInstalledPowers(powersDir)
+
+      expect(result).toHaveLength(3)
+      expect(result).toContain('power-a')
+      expect(result).toContain('power-b')
+      expect(result).toContain('old-power')
+    })
+
+    it('should return empty array when powers directory does not exist', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      const nonExistentDir = path.join(tempDir, 'non-existent')
+
+      const result = plugin.testListInstalledPowers(nonExistentDir)
+
+      expect(result).toEqual([])
+    })
+
+    it('should only list directories, not files', () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+
+      const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed') // Create mock power directories and files
+      fs.mkdirSync(powersDir, {recursive: true})
+      fs.mkdirSync(path.join(powersDir, 'valid-power'))
+      fs.writeFileSync(path.join(powersDir, 'not-a-power.txt'), 'content')
+
+      const result = plugin.testListInstalledPowers(powersDir)
+
+      expect(result).toHaveLength(1)
+      expect(result).toContain('valid-power')
+      expect(result).not.toContain('not-a-power.txt')
+    })
+
+    it('should register all installed powers for cleanup in registerGlobalOutputDirs', async () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+
+      const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed') // Create mock power directories
+      fs.mkdirSync(powersDir, {recursive: true})
+      fs.mkdirSync(path.join(powersDir, 'current-skill'))
+      fs.mkdirSync(path.join(powersDir, 'old-removed-skill'))
+      fs.mkdirSync(path.join(powersDir, 'renamed-skill'))
+
+      plugin.setMockHomeDir(tempDir) // Mock the home directory to use our temp dir
+
+      const ctx: OutputPluginContext = { // Create a minimal context with no skills (simulating clean after skills removed)
+        collectedInputContext: {
+          workspace: {
+            projects: []
+          },
+          skills: [] // No current skills - simulating clean after skills removed
+        } as unknown as CollectedInputContext,
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
+        fs,
+        path
+      }
+
+      const result = await plugin.registerGlobalOutputDirs(ctx)
+
+      const powerDirs = result.filter(r => r.basePath.includes('powers') && r.basePath.includes('installed')) // Use path separator agnostic check for cross-platform compatibility // Should include all installed powers, not just current skills
+      expect(powerDirs).toHaveLength(3)
+
+      const powerNames = powerDirs.map(r => r.path)
+      expect(powerNames).toContain('current-skill')
+      expect(powerNames).toContain('old-removed-skill')
+      expect(powerNames).toContain('renamed-skill')
+    })
+  })
+
+  describe('mCP configuration output', () => {
+    let tempDir: string
+
+    beforeEach(() => tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kiro-mcp-test-')))
+
+    afterEach(() => {
+      if (tempDir && fs.existsSync(tempDir)) fs.rmSync(tempDir, {recursive: true, force: true})
+    })
+
+    it('should register mcp.json in power directory when skill has MCP config', async () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      plugin.setMockHomeDir(tempDir)
+
+      const ctx: OutputPluginContext = {
+        collectedInputContext: {
+          workspace: {projects: [], directory: {path: tempDir, pathKind: FilePathKind.Absolute, getDirectoryName: () => 'test'}},
+          ideConfigFiles: [],
+          skills: [
+            {
+              type: PromptKind.Skill,
+              yamlFrontMatter: {name: 'test-skill', description: 'Test'},
+              content: '# Test',
+              length: 6,
+              filePathKind: FilePathKind.Relative,
+              dir: createMockRelativePath('test-skill', tempDir),
+              markdownContents: [],
+              mcpConfig: {
+                type: PromptKind.SkillMcpConfig,
+                mcpServers: {
+                  'test-server': {command: 'uvx', args: ['test-package']}
+                },
+                rawContent: '{"mcpServers":{"test-server":{"command":"uvx","args":["test-package"]}}}'
+              }
+            }
+          ]
+        } as unknown as CollectedInputContext,
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
+        fs,
+        path
+      }
+
+      const result = await plugin.registerGlobalOutputFiles(ctx)
+
+      const mcpFile = result.find(r => r.path === 'mcp.json') // Should include mcp.json in the power directory
+      expect(mcpFile).toBeDefined()
+      expect(mcpFile?.basePath).toMatch(/powers[/\\]installed[/\\]test-skill/) // Use path separator agnostic check for cross-platform compatibility
+    })
+
+    it('should not register mcp.json when skill has no MCP config', async () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      plugin.setMockHomeDir(tempDir)
+
+      const ctx: OutputPluginContext = {
+        collectedInputContext: {
+          workspace: {projects: [], directory: {path: tempDir, pathKind: FilePathKind.Absolute, getDirectoryName: () => 'test'}},
+          ideConfigFiles: [],
+          skills: [
+            {
+              type: PromptKind.Skill,
+              yamlFrontMatter: {name: 'test-skill', description: 'Test'},
+              content: '# Test',
+              length: 6,
+              filePathKind: FilePathKind.Relative,
+              dir: createMockRelativePath('test-skill', tempDir),
+              markdownContents: []
+            } // No mcpConfig
+          ]
+        } as unknown as CollectedInputContext,
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
+        fs,
+        path
+      }
+
+      const result = await plugin.registerGlobalOutputFiles(ctx)
+
+      const mcpFile = result.find(r => r.path === 'mcp.json') // Should NOT include mcp.json
+      expect(mcpFile).toBeUndefined()
+    })
+
+    it('should write mcp.json to each power directory with original content', async () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      plugin.setMockHomeDir(tempDir)
+
+      const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed') // Create powers directory
+      fs.mkdirSync(powersDir, {recursive: true})
+
+      const mcpRawContent = JSON.stringify({
+        mcpServers: {
+          'my-server': {command: 'uvx', args: ['my-package'], env: {KEY: 'value'}}
+        }
+      }, null, 2)
+
+      const skill = {
+        type: PromptKind.Skill,
+        yamlFrontMatter: {name: 'my-skill', description: 'My Skill'},
+        content: '# My Skill',
+        mcpConfig: {
+          type: PromptKind.SkillMcpConfig,
+          mcpServers: {
+            'my-server': {command: 'uvx', args: ['my-package'], env: {KEY: 'value'}}
+          },
+          rawContent: mcpRawContent
+        }
+      }
+
+      const powerDir = path.join(powersDir, 'my-skill')
+      const ctx = {dryRun: false}
+
+      await plugin.testWriteSkillMcpConfig(ctx, skill, powerDir)
+
+      const mcpConfigPath = path.join(powerDir, 'mcp.json') // Check mcp.json was written to power directory
+      expect(fs.existsSync(mcpConfigPath)).toBe(true)
+
+      const writtenContent = fs.readFileSync(mcpConfigPath, 'utf8') // Should preserve original raw content
+      expect(writtenContent).toBe(mcpRawContent)
+    })
+
+    it('should register mcp.json for each skill with MCP config separately', async () => {
+      const plugin = new TestableKiroCLIOutputPlugin()
+      plugin.setMockHomeDir(tempDir)
+
+      const ctx: OutputPluginContext = {
+        collectedInputContext: {
+          workspace: {projects: [], directory: {path: tempDir, pathKind: FilePathKind.Absolute, getDirectoryName: () => 'test'}},
+          ideConfigFiles: [],
+          skills: [
+            {
+              type: PromptKind.Skill,
+              yamlFrontMatter: {name: 'skill-a', description: 'Skill A'},
+              content: '# Skill A',
+              length: 9,
+              filePathKind: FilePathKind.Relative,
+              dir: createMockRelativePath('skill-a', tempDir),
+              markdownContents: [],
+              mcpConfig: {
+                type: PromptKind.SkillMcpConfig,
+                mcpServers: {server1: {command: 'cmd1'}},
+                rawContent: '{}'
+              }
+            },
+            {
+              type: PromptKind.Skill,
+              yamlFrontMatter: {name: 'skill-b', description: 'Skill B'},
+              content: '# Skill B',
+              length: 9,
+              filePathKind: FilePathKind.Relative,
+              dir: createMockRelativePath('skill-b', tempDir),
+              markdownContents: [],
+              mcpConfig: {
+                type: PromptKind.SkillMcpConfig,
+                mcpServers: {server2: {command: 'cmd2'}},
+                rawContent: '{}'
+              }
+            },
+            {
+              type: PromptKind.Skill,
+              yamlFrontMatter: {name: 'skill-c', description: 'Skill C (no MCP)'},
+              content: '# Skill C',
+              length: 9,
+              filePathKind: FilePathKind.Relative,
+              dir: createMockRelativePath('skill-c', tempDir),
+              markdownContents: []
+            } // No mcpConfig
+          ]
+        } as unknown as CollectedInputContext,
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
+        fs,
+        path
+      }
+
+      const result = await plugin.registerGlobalOutputFiles(ctx)
+
+      const mcpFiles = result.filter(r => r.path === 'mcp.json') // Should have mcp.json for skill-a, skill-b (in power dirs), and one global settings/mcp.json
+      expect(mcpFiles).toHaveLength(3) // 2 power mcp.json + 1 global settings/mcp.json = 3
+
+      const powerMcpFiles = mcpFiles.filter(f => f.basePath.includes('powers') && f.basePath.includes('installed')) // Check power directory mcp.json files - use path separator agnostic check
+      expect(powerMcpFiles).toHaveLength(2)
+
+      const mcpBasePaths = powerMcpFiles.map(f => f.basePath)
+      expect(mcpBasePaths.some(p => p.includes('skill-a'))).toBe(true)
+      expect(mcpBasePaths.some(p => p.includes('skill-b'))).toBe(true)
+      expect(mcpBasePaths.some(p => p.includes('skill-c'))).toBe(false)
+
+      const globalMcpFile = mcpFiles.find(f => f.basePath.includes('settings')) // Check global settings/mcp.json
+      expect(globalMcpFile).toBeDefined()
+    })
+  })
+})
