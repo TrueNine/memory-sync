@@ -175,7 +175,7 @@ async function evaluateToValue(
     const left = await evaluateToValue(expr.left, ctx, processAstFn)
     if (expr.operator === '&&') return isTruthy(left) ? evaluateToValue(expr.right, ctx, processAstFn) : left
     if (expr.operator === '||') return isTruthy(left) ? left : evaluateToValue(expr.right, ctx, processAstFn)
-    if (expr.operator === '??') return left ?? evaluateToValue(expr.right, ctx, processAstFn)
+    if (expr.operator === '??') return left ?? evaluateToValue(expr.right, ctx, processAstFn).then()
     return void 0
   }
 
