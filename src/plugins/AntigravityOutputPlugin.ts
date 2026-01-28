@@ -184,7 +184,9 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     const sourceFrontMatter = cmd.yamlFrontMatter
     const filteredFrontMatter: Record<string, unknown> = {}
 
-    if (sourceFrontMatter) filteredFrontMatter['description'] = sourceFrontMatter.description
+    if (sourceFrontMatter?.description != null) {
+      filteredFrontMatter['description'] = sourceFrontMatter.description
+    }
 
     if (cmd.rawMdxContent != null) { // If we have raw MDX content, we prefer that but we need to strip/replace frontmatter
       const contentWithoutFrontMatter = cmd.rawMdxContent.replace(/^---\n[\s\S]*?\n---\n/, '') // Simple regex to strip existing frontmatter if present
