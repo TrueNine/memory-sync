@@ -2,7 +2,6 @@
   "name": "@truenine/memory-sync-cli",
   "type": "module",
   "version": "2026.10125.0",
-  "packageManager": "pnpm@10.28.0",
   "description": "TrueNine Life CLI Tools",
   "author": "TrueNine",
   "license": "UNLICENSED",
@@ -27,9 +26,6 @@
   "files": [
     "../dist"
   ],
-  "engines": {
-    "node": ">= 25.2.1"
-  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"

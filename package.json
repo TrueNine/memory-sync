@@ -1,0 +1,18 @@
+{
+  "name": "@truenine/memory-sync",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [],
+  "author": {
+    "email": "truenine304520@gmail.com",
+    "name": "TrueNine",
+    "url": "https://trueine.org"
+  },
+  "engines": {
+    "node": ">= 18"
+  },
+  "devEngines": {
+    "node": ">= 25.4.0"
+  },
+  "packageManager": "pnpm@10.28.2"
+}
