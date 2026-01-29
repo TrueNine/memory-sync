@@ -1,17 +1,16 @@
 import type {
   FastCommandPrompt,
-  FastCommandYAMLFrontMatter,
   OutputPluginContext,
   OutputWriteContext,
   SkillPrompt,
   WriteResult,
   WriteResults
-} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {FilePathKind} from 'memory-sync-cli/src/types'
+import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const GLOBAL_CONFIG_DIR = '.agent'
@@ -183,11 +182,10 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
 
     let finalContent = cmd.content // Prepare content with filtered front matter
     const sourceFrontMatter = cmd.yamlFrontMatter
-    const filteredFrontMatter: Partial<Pick<FastCommandYAMLFrontMatter, 'description'>> = {}
-
-    if (typeof sourceFrontMatter?.description === 'string') {
-      filteredFrontMatter.description = sourceFrontMatter.description
-    }
+    const filteredFrontMatter: {description?: string}
+      = typeof sourceFrontMatter?.description === 'string'
+        ? {description: sourceFrontMatter.description}
+        : {}
 
     const buildContent = (body: string): string =>
       this.buildMarkdownContentWithRaw(body, filteredFrontMatter, cmd.rawFrontMatter)

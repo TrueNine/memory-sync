@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {createLogger} from 'memory-sync-cli/src/log'
+import {createLogger} from '@/log'
 import {cleanStaleDistFiles, syncDirectory} from './EffectUtils'
 
 describe('cleanStaleDistFiles', () => {

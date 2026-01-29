@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest'
 import {
   SKILL_RESOURCE_BINARY_EXTENSIONS,
   SKILL_RESOURCE_TEXT_EXTENSIONS
-} from 'memory-sync-cli/src/types/InputTypes'
+} from '@/types/InputTypes'
 import {
   getMimeType,
   getResourceCategory,

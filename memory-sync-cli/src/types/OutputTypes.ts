@@ -1,5 +1,5 @@
-import type {GlobalConfigDirectoryType} from 'memory-sync-cli/src/types/Enums' // TODO Add output target deletion // TODO Add output source collection
-import type {AbsolutePath, RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+import type {GlobalConfigDirectoryType} from '@/types/Enums'
+import type {AbsolutePath, RelativePath} from '@/types/FileSystemTypes'
 
 /**
  * Global configuration based on user_home root directory

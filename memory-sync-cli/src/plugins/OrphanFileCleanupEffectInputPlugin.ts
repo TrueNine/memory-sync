@@ -1,4 +1,4 @@
-import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from 'memory-sync-cli/src/types'
+import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '@/types'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**

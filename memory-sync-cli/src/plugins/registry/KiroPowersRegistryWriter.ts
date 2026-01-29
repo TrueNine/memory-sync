@@ -7,11 +7,11 @@
  * @see Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8
  */
 
-import type {ILogger} from 'memory-sync-cli/src/log'
-import type {SkillPrompt} from 'memory-sync-cli/src/types/InputTypes'
-import type {KiroPowerEntry, KiroPowerSource, KiroPowersRegistry, KiroRepoSource} from 'memory-sync-cli/src/types/RegistryTypes'
+import type {ILogger} from '@/log'
+import type {SkillPrompt} from '@/types/InputTypes'
+import type {KiroPowerEntry, KiroPowerSource, KiroPowersRegistry, KiroRepoSource} from '@/types/RegistryTypes'
 
-import {RegistryWriter} from 'memory-sync-cli/src/plugins/index'
+import {RegistryWriter} from '@/plugins/index'
 
 /**
  * Registry writer for Kiro powers.

@@ -1,8 +1,8 @@
-import type {ILogger} from 'memory-sync-cli/src/log'
-import type {PluginKind} from 'memory-sync-cli/src/types/Enums'
-import type {Plugin} from 'memory-sync-cli/src/types/PluginTypes'
+import type {ILogger} from '@/log'
+import type {PluginKind} from '@/types/Enums'
+import type {Plugin} from '@/types/PluginTypes'
 
-import {createLogger} from 'memory-sync-cli/src/log'
+import {createLogger} from '@/log'
 
 export abstract class AbstractPlugin<T extends PluginKind = PluginKind> implements Plugin<T> {
   readonly type: T

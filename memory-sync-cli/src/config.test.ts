@@ -1,5 +1,5 @@
 import {describe, it} from 'vitest'
-import defineConfig from 'memory-sync-cli/src/plugin.config'
+import defineConfig from '@/plugin.config'
 
 describe('a', () => {
   it('a', () => {

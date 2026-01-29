@@ -1,8 +1,8 @@
-import type {InputPluginContext} from 'memory-sync-cli/src/types'
+import type {InputPluginContext} from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
-import {createLogger} from 'memory-sync-cli/src/log'
+import {createLogger} from '@/log'
 import {GitIgnoreInputPlugin} from './GitIgnoreInputPlugin'
 
 vi.mock('node:fs')

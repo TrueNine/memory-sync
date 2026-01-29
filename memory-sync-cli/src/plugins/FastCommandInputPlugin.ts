@@ -1,4 +1,4 @@
-import type {ParsedMarkdown} from 'memory-sync-cli/src/markdown'
+import type {ParsedMarkdown} from '@/markdown'
 import type {
   CollectedInputContext,
   FastCommandPrompt,
@@ -6,12 +6,12 @@ import type {
   MetadataValidationResult,
   PluginOptions,
   ResolvedBasePaths
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 import {
   FilePathKind,
   PromptKind,
   validateFastCommandMetadata
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 import {BaseDirectoryInputPlugin} from './BaseDirectoryInputPlugin'
 
 export interface SeriesInfo {

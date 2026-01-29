@@ -1,8 +1,8 @@
-import type {CollectedInputContext, InputPluginContext, Project, Workspace} from 'memory-sync-cli/src/types'
+import type {CollectedInputContext, InputPluginContext, Project, Workspace} from '@/types'
 
 import {
   FilePathKind
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export class ShadowProjectInputPlugin extends AbstractInputPlugin {

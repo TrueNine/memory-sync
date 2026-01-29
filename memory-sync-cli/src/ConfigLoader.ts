@@ -1,11 +1,11 @@
-import type {ILogger} from 'memory-sync-cli/src/log'
-import type {ConfigLoaderOptions, ConfigLoadResult, UserConfigFile} from 'memory-sync-cli/src/types/ConfigTypes'
+import type {ILogger} from '@/log'
+import type {ConfigLoaderOptions, ConfigLoadResult, UserConfigFile} from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {DEFAULT_USER_CONFIG} from 'memory-sync-cli/src/constants'
-import {createLogger} from 'memory-sync-cli/src/log'
+import {DEFAULT_USER_CONFIG} from '@/constants'
+import {createLogger} from '@/log'
 
 /**
  * Default config file name

@@ -1,14 +1,14 @@
-import type {ParsedMarkdown} from 'memory-sync-cli/src/markdown'
+import type {ParsedMarkdown} from '@/markdown'
 import type {
   CollectedInputContext,
   InputPluginContext,
   PluginOptions,
   ResolvedBasePaths,
   YAMLFrontMatter
-} from 'memory-sync-cli/src/types'
-import {mdxToMd} from 'memory-sync-cli/src/compiler'
-import {parseMarkdown} from 'memory-sync-cli/src/markdown'
-import {MetadataValidationError} from 'memory-sync-cli/src/types'
+} from '@/types'
+import {mdxToMd} from '@/compiler'
+import {parseMarkdown} from '@/markdown'
+import {MetadataValidationError} from '@/types'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**

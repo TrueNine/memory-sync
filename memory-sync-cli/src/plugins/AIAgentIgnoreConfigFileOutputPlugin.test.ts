@@ -3,12 +3,12 @@ import type {
   CollectedInputContext,
   OutputPluginContext,
   OutputWriteContext
-} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import fs from 'node:fs'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {FilePathKind} from 'memory-sync-cli/src/types'
+import {FilePathKind} from '@/types'
 import {AIAgentIgnoreConfigFileOutputPlugin} from './AIAgentIgnoreConfigFileOutputPlugin'
 
 vi.mock('node:fs')

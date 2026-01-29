@@ -10,7 +10,7 @@
     ],
     "moduleDetection": "force",
     "useDefineForClassFields": true,
-    "baseUrl": "..", // Path Mapping
+    "baseUrl": ".", // Path Mapping
     "module": "ESNext", // Module Resolution
     "moduleResolution": "Bundler",
     "paths": {
@@ -56,10 +56,10 @@
     "skipLibCheck": true // Completeness
   },
   "include": [
-    "memory-sync-cli/src/**/*",
+    "src/**/*",
     "env.d.ts",
-    "memory-sync-cli/eslint.config.ts",
-    "memory-sync-cli/tsdown.config.ts",
+    "eslint.config.ts",
+    "tsdown.config.ts",
     "vite.config.ts",
     "vitest.config.ts"
   ],

@@ -2,7 +2,7 @@ import type {
   AIAgentIgnoreConfigFile,
   CollectedInputContext,
   InputPluginContext
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 

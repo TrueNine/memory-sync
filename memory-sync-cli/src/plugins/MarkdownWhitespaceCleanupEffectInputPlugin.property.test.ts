@@ -1,6 +1,6 @@
 import type {InputEffectContext} from './AbstractInputPlugin'
-import type {ILogger} from 'memory-sync-cli/src/log'
-import type {PluginOptions} from 'memory-sync-cli/src/types'
+import type {ILogger} from '@/log'
+import type {PluginOptions} from '@/types'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'

@@ -1,4 +1,4 @@
-import type {ILogger} from 'memory-sync-cli/src/log'
+import type {ILogger} from '@/log'
 
 /**
  * Get package name from build-time injection or fallback

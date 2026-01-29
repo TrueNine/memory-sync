@@ -1,7 +1,7 @@
-import type {Command, CommandContext} from 'memory-sync-cli/src/commands'
-import type {PipelineConfig} from 'memory-sync-cli/src/config'
-import type {MdxGlobalScope} from 'memory-sync-cli/src/globals'
-import type {ILogger} from 'memory-sync-cli/src/log'
+import type {Command, CommandContext} from '@/commands'
+import type {PipelineConfig} from '@/config'
+import type {MdxGlobalScope} from '@/globals'
+import type {ILogger} from '@/log'
 import type {
   CollectedInputContext,
   InputPlugin,
@@ -12,8 +12,8 @@ import type {
   Plugin,
   PluginKind,
   PluginOptions
-} from 'memory-sync-cli/src/types'
-import type {UserConfigFile} from 'memory-sync-cli/src/types/ConfigTypes'
+} from '@/types'
+import type {UserConfigFile} from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
@@ -28,14 +28,14 @@ import {
   SetCommand,
   UnknownCommand,
   VersionCommand
-} from 'memory-sync-cli/src/commands'
-import {createLogger, setGlobalLogLevel} from 'memory-sync-cli/src/log'
-import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from 'memory-sync-cli/src/scope'
+} from '@/commands'
+import {createLogger, setGlobalLogLevel} from '@/log'
+import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/scope'
 import {
   CircularDependencyError,
   MissingDependencyError
-} from 'memory-sync-cli/src/types'
-import {startupVersionCheck} from 'memory-sync-cli/src/versionCheck'
+} from '@/types'
+import {startupVersionCheck} from '@/versionCheck'
 
 /**
  * Valid subcommands for the CLI

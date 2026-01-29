@@ -1,11 +1,11 @@
 import type {AbstractOutputPluginOptions} from './AbstractOutputPlugin'
-import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {mdxToMd} from 'memory-sync-cli/src/compiler'
-import {GlobalScopeCollector} from 'memory-sync-cli/src/scope'
-import {FilePathKind} from 'memory-sync-cli/src/types'
+import {mdxToMd} from '@/compiler'
+import {GlobalScopeCollector} from '@/scope'
+import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 export interface BaseCLIOutputPluginOptions extends AbstractOutputPluginOptions {

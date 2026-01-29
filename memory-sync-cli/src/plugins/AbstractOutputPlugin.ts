@@ -1,6 +1,6 @@
 import type {Buffer} from 'node:buffer'
 import type {RegistryWriter} from './registry/RegistryWriter'
-import type {ILogger} from 'memory-sync-cli/src/log'
+import type {ILogger} from '@/log'
 import type {
   CleanEffectHandler,
   EffectRegistration,
@@ -13,17 +13,17 @@ import type {
   WriteEffectHandler,
   WriteResult,
   WriteResults
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 
-import type {FastCommandSeriesPluginOverride} from 'memory-sync-cli/src/types/ConfigTypes'
-import type {Path, RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
-import type {RegistryData} from 'memory-sync-cli/src/types/RegistryTypes'
+import type {FastCommandSeriesPluginOverride} from '@/types/ConfigTypes'
+import type {Path, RelativePath} from '@/types/FileSystemTypes'
+import type {RegistryData} from '@/types/RegistryTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {buildMarkdownWithFrontMatter} from 'memory-sync-cli/src/markdown'
-import {FilePathKind, PluginKind} from 'memory-sync-cli/src/types'
+import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {FilePathKind, PluginKind} from '@/types'
 import {AbstractPlugin} from './AbstractPlugin'
 
 /**

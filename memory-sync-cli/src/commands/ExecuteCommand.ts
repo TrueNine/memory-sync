@@ -1,5 +1,5 @@
 import type {Command, CommandContext, CommandResult} from './Command'
-import {checkCanWrite, executeWriteOutputs} from 'memory-sync-cli/src/types'
+import {checkCanWrite, executeWriteOutputs} from '@/types'
 import {performCleanup} from './CleanupUtils'
 
 /**

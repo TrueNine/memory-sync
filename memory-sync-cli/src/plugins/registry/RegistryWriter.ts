@@ -7,14 +7,14 @@
  * @see Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 7.1, 7.2
  */
 
-import type {ILogger} from 'memory-sync-cli/src/log'
-import type {RegistryData, RegistryOperationResult} from 'memory-sync-cli/src/types/RegistryTypes'
+import type {ILogger} from '@/log'
+import type {RegistryData, RegistryOperationResult} from '@/types/RegistryTypes'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 
-import {createLogger} from 'memory-sync-cli/src/log'
+import {createLogger} from '@/log'
 
 /**
  * Abstract base class for registry configuration writers.

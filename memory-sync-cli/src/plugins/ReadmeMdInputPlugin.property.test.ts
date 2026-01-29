@@ -1,11 +1,11 @@
-import type {InputPluginContext, PluginOptions} from 'memory-sync-cli/src/types'
+import type {InputPluginContext, PluginOptions} from '@/types'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
-import {createLogger} from 'memory-sync-cli/src/log'
+import {createLogger} from '@/log'
 import {ReadmeMdInputPlugin} from './ReadmeMdInputPlugin'
 
 /**

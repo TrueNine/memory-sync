@@ -3,9 +3,9 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
-import {FilePathKind, IDEKind} from 'memory-sync-cli/src/types'
+} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
+import {FilePathKind, IDEKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const IDEA_DIR = '.idea'

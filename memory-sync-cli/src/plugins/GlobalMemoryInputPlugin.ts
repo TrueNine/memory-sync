@@ -1,16 +1,16 @@
-import type {CollectedInputContext, InputPluginContext} from 'memory-sync-cli/src/types'
+import type {CollectedInputContext, InputPluginContext} from '@/types'
 
 import * as os from 'node:os'
 import process from 'node:process'
 
-import {mdxToMd} from 'memory-sync-cli/src/compiler'
-import {parseMarkdown} from 'memory-sync-cli/src/markdown'
+import {mdxToMd} from '@/compiler'
+import {parseMarkdown} from '@/markdown'
 import {
   FilePathKind,
   GlobalConfigDirectoryType,
   PromptKind
-} from 'memory-sync-cli/src/types'
-import {ScopeError} from 'memory-sync-cli/src/types/Errors'
+} from '@/types'
+import {ScopeError} from '@/types/Errors'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export class GlobalMemoryInputPlugin extends AbstractInputPlugin {

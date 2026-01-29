@@ -1,8 +1,8 @@
-import type {LogLevel, ParsedCliArgs} from 'memory-sync-cli/src/PluginPipeline'
+import type {LogLevel, ParsedCliArgs} from '@/PluginPipeline'
 import fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
-import {DryRunCleanCommand, ExecuteCommand, HelpCommand} from 'memory-sync-cli/src/commands'
-import {parseArgs, resolveCommand, resolveLogLevel} from 'memory-sync-cli/src/PluginPipeline'
+import {DryRunCleanCommand, ExecuteCommand, HelpCommand} from '@/commands'
+import {parseArgs, resolveCommand, resolveLogLevel} from '@/PluginPipeline'
 
 /**
  * Feature: cli-refactor

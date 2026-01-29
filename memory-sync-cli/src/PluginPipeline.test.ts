@@ -1,5 +1,5 @@
-import type {ParsedCliArgs} from 'memory-sync-cli/src/PluginPipeline'
-import type {CollectedInputContext, InputPlugin, InputPluginContext, Plugin} from 'memory-sync-cli/src/types'
+import type {ParsedCliArgs} from '@/PluginPipeline'
+import type {CollectedInputContext, InputPlugin, InputPluginContext, Plugin} from '@/types'
 import fs from 'node:fs'
 import path from 'node:path'
 import glob from 'fast-glob'
@@ -12,10 +12,10 @@ import {
   HelpCommand,
   InitCommand,
   UnknownCommand
-} from 'memory-sync-cli/src/commands'
-import {createLogger} from 'memory-sync-cli/src/log'
-import {parseArgs, PluginPipeline, resolveCommand, resolveLogLevel} from 'memory-sync-cli/src/PluginPipeline'
-import {CircularDependencyError, FilePathKind, MissingDependencyError, PluginKind, PromptKind} from 'memory-sync-cli/src/types'
+} from '@/commands'
+import {createLogger} from '@/log'
+import {parseArgs, PluginPipeline, resolveCommand, resolveLogLevel} from '@/PluginPipeline'
+import {CircularDependencyError, FilePathKind, MissingDependencyError, PluginKind, PromptKind} from '@/types'
 
 function createMockPlugin(name: string, dependsOn?: readonly string[]): Plugin {
   const base = {

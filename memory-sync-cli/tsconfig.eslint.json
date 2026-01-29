@@ -6,15 +6,18 @@
     "skipLibCheck": true
   },
   "include": [
-    "memory-sync-cli/src/**/*.ts",
-    "memory-sync-cli/src/**/*.test.ts",
-    "memory-sync-cli/src/**/*.spec.ts",
+    "src/**/*.ts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
     "env.d.ts",
-    "memory-sync-cli/eslint.config.ts",
-    "memory-sync-cli/tsdown.config.ts",
+    "eslint.config.ts",
+    "tsdown.config.ts",
     "vite.config.ts",
     "vitest.config.ts"
   ],
   "exclude": [
-    "../node_modules", "dist", "coverage"]
+    "../node_modules",
+    "dist",
+    "coverage"
+  ]
 }

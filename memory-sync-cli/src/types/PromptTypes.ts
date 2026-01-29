@@ -1,7 +1,7 @@
 import type {Root, RootContent} from 'mdast'
-import type {ClaudeCodeCLISubAgentColors, CodingAgentTools, FilePathKind, NamingCaseKind, PromptKind} from 'memory-sync-cli/src/types/Enums'
-import type {FileContent, Path, RelativePath, RootPath} from 'memory-sync-cli/src/types/FileSystemTypes'
-import type {GlobalConfigDirectory} from 'memory-sync-cli/src/types/OutputTypes'
+import type {ClaudeCodeCLISubAgentColors, CodingAgentTools, FilePathKind, NamingCaseKind, PromptKind} from '@/types/Enums'
+import type {FileContent, Path, RelativePath, RootPath} from '@/types/FileSystemTypes'
+import type {GlobalConfigDirectory} from '@/types/OutputTypes'
 
 /**
  * Prompt

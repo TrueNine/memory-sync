@@ -1,4 +1,4 @@
-import type {UserProfile} from 'memory-sync-cli/src/globals'
+import type {UserProfile} from '@/globals'
 
 /**
  * User configuration file schema (.tnmsc.json)

@@ -1,12 +1,12 @@
 /**
  * Shadow Source Project validation and generation utilities
  */
-import type {ILogger} from 'memory-sync-cli/src/log'
+import type {ILogger} from '@/log'
 import type {
   ShadowSourceDirectoryEntry,
   ShadowSourceFileEntry,
   ShadowSourceProjectDirectory
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {
@@ -14,7 +14,7 @@ import {
   SHADOW_SOURCE_DIR_NAMES,
   SHADOW_SOURCE_FILE_NAMES,
   SHADOW_SOURCE_RELATIVE_PATHS
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 
 /**
  * Version control check result

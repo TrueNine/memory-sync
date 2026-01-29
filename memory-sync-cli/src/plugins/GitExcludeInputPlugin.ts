@@ -1,4 +1,4 @@
-import type {CollectedInputContext, InputPluginContext} from 'memory-sync-cli/src/types'
+import type {CollectedInputContext, InputPluginContext} from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {AbstractInputPlugin} from './AbstractInputPlugin'

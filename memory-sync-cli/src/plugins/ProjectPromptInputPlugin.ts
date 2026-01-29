@@ -4,17 +4,17 @@ import type {
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
   YAMLFrontMatter
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 
 import process from 'node:process'
 
-import {mdxToMd} from 'memory-sync-cli/src/compiler'
-import {parseMarkdown} from 'memory-sync-cli/src/markdown'
+import {mdxToMd} from '@/compiler'
+import {parseMarkdown} from '@/markdown'
 import {
   FilePathKind,
   PromptKind
-} from 'memory-sync-cli/src/types'
-import {ScopeError} from 'memory-sync-cli/src/types/Errors'
+} from '@/types'
+import {ScopeError} from '@/types/Errors'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**

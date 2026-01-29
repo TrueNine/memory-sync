@@ -1,4 +1,4 @@
-import type {ParsedMarkdown} from 'memory-sync-cli/src/markdown'
+import type {ParsedMarkdown} from '@/markdown'
 import type {
   CollectedInputContext,
   InputEffectContext,
@@ -11,14 +11,14 @@ import type {
   PluginScopeRegistration,
   ResolvedBasePaths,
   YAMLFrontMatter
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 
 import {spawn} from 'node:child_process'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {PathPlaceholders} from 'memory-sync-cli/src/constants'
-import {parseMarkdown} from 'memory-sync-cli/src/markdown'
-import {PluginKind} from 'memory-sync-cli/src/types'
+import {PathPlaceholders} from '@/constants'
+import {parseMarkdown} from '@/markdown'
+import {PluginKind} from '@/types'
 import {AbstractPlugin} from './AbstractPlugin'
 
 export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Input> implements InputPlugin {

@@ -1,9 +1,9 @@
-import type {CollectedInputContext, InputPluginContext, ProjectIDEConfigFile} from 'memory-sync-cli/src/types'
+import type {CollectedInputContext, InputPluginContext, ProjectIDEConfigFile} from '@/types'
 
 import {
   FilePathKind,
   IDEKind
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export class IdeConfigInputPlugin extends AbstractInputPlugin {

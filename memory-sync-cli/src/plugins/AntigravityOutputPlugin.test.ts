@@ -1,8 +1,8 @@
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import {describe, expect, it, vi} from 'vitest'
-import {FilePathKind} from 'memory-sync-cli/src/types'
+import {FilePathKind} from '@/types'
 import {AntigravityOutputPlugin} from './AntigravityOutputPlugin'
 
 vi.mock('node:fs')

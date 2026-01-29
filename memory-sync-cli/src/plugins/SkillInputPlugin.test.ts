@@ -1,8 +1,8 @@
-import type {ILogger} from 'memory-sync-cli/src/log'
+import type {ILogger} from '@/log'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {describe, expect, it, vi} from 'vitest'
-import {PromptKind} from 'memory-sync-cli/src/types'
+import {PromptKind} from '@/types'
 import {SkillInputPlugin} from './SkillInputPlugin'
 
 describe('skillInputPlugin', () => {

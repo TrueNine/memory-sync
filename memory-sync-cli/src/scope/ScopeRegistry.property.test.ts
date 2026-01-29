@@ -1,7 +1,7 @@
-import type {MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from 'memory-sync-cli/src/globals' // Feature: compiler-integration // Property-based tests for ScopeRegistry // src/scope/ScopeRegistry.property.test.ts
+import type {MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@/globals' // Feature: compiler-integration // Property-based tests for ScopeRegistry // src/scope/ScopeRegistry.property.test.ts
 import * as fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
-import {ShellKind} from 'memory-sync-cli/src/globals'
+import {ShellKind} from '@/globals'
 import {ScopePriority, ScopeRegistry} from './ScopeRegistry'
 
 /**

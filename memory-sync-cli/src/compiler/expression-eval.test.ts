@@ -6,7 +6,7 @@
  */
 
 import {describe, expect, it} from 'vitest'
-import {UndefinedNamespaceError, UndefinedVariableError} from 'memory-sync-cli/src/types/Errors'
+import {UndefinedNamespaceError, UndefinedVariableError} from '@/types/Errors'
 import {evaluateExpression} from './expression-eval'
 
 describe('expression-eval', () => {

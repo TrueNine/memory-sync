@@ -1,5 +1,5 @@
-import type {ILogger} from 'memory-sync-cli/src/log'
-import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions} from 'memory-sync-cli/src/types'
+import type {ILogger} from '@/log'
+import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions} from '@/types'
 
 /**
  * Command execution context

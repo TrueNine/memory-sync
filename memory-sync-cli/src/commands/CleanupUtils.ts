@@ -1,8 +1,8 @@
-import type {ILogger} from 'memory-sync-cli/src/log'
-import type {OutputCleanContext, OutputPlugin} from 'memory-sync-cli/src/types'
+import type {ILogger} from '@/log'
+import type {OutputCleanContext, OutputPlugin} from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from 'memory-sync-cli/src/types/PluginTypes'
+import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '@/types/PluginTypes'
 
 /**
  * Result of cleanup operation

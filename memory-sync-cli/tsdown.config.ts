@@ -5,6 +5,7 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: stri
 const kiroGlobalPowersRegistry = readFileSync('./public/kiro_global_powers_registry.json', 'utf8')
 const tnmscExample = readFileSync('./public/tnmsc.example.json', 'utf8')
 const gitignoreTemplate = readFileSync('./public/gitignore', 'utf8')
+const escapedGitignoreTemplate = gitignoreTemplate.replaceAll('`', '\\`').replaceAll('$', '\\$')
 
 export default defineConfig([
   {
@@ -12,6 +13,12 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
+    resolve: {
+      alias: {
+        '@': './src'
+      },
+      extensions: ['.ts', '.js', '.json']
+    },
     noExternal: [
       'mdast',
       'yaml',
@@ -30,13 +37,19 @@ export default defineConfig([
       __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
       __KIRO_GLOBAL_POWERS_REGISTRY__: kiroGlobalPowersRegistry,
       __TEMPLATE_TNMSC_EXAMPLE__: JSON.stringify(tnmscExample),
-      __TEMPLATE_GITIGNORE__: `\`${gitignoreTemplate.replaceAll('`', '\\`').replaceAll('$', '\\$')}\``
+      __TEMPLATE_GITIGNORE__: JSON.stringify(`\`${escapedGitignoreTemplate}\``)
     }
   },
   {
     entry: ['./src/globals/index.ts'],
     outDir: './dist/globals',
     platform: 'node',
+    resolve: {
+      alias: {
+        '@': './src'
+      },
+      extensions: ['.ts', '.js', '.json']
+    },
     minify: true,
     dts: {sourcemap: false}
   }

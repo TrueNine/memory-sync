@@ -14,7 +14,7 @@ import type {
   KiroPowerEntry,
   KiroPowersRegistry,
   KiroRepoSource
-} from 'memory-sync-cli/src/types/RegistryTypes'
+} from '@/types/RegistryTypes'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'

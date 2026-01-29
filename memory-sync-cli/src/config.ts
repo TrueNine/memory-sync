@@ -1,15 +1,15 @@
-import type {CollectedInputContext, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions} from 'memory-sync-cli/src/types'
-import type {ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, UserConfigFile} from 'memory-sync-cli/src/types/ConfigTypes'
+import type {CollectedInputContext, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions} from '@/types'
+import type {ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, UserConfigFile} from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
-import {loadUserConfig, validateAndEnsureGlobalConfig} from 'memory-sync-cli/src/ConfigLoader'
-import {DEFAULT_USER_CONFIG} from 'memory-sync-cli/src/constants'
-import {createLogger} from 'memory-sync-cli/src/log'
-import {PluginPipeline} from 'memory-sync-cli/src/PluginPipeline'
-import {checkVersionControl} from 'memory-sync-cli/src/ShadowSourceProject'
-import {PluginKind} from 'memory-sync-cli/src/types'
+import {loadUserConfig, validateAndEnsureGlobalConfig} from '@/ConfigLoader'
+import {DEFAULT_USER_CONFIG} from '@/constants'
+import {createLogger} from '@/log'
+import {PluginPipeline} from '@/PluginPipeline'
+import {checkVersionControl} from '@/ShadowSourceProject'
+import {PluginKind} from '@/types'
 
 /**
  * Pipeline configuration containing collected context and output plugins

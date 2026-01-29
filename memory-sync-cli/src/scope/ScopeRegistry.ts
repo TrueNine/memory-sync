@@ -1,5 +1,5 @@
-import type {EvaluationScope} from 'memory-sync-cli/src/compiler/types' // Manages scope registration and merging with priority-based resolution. // src/scope/ScopeRegistry.ts
-import type {MdxGlobalScope} from 'memory-sync-cli/src/globals'
+import type {EvaluationScope} from '@/compiler/types' // Manages scope registration and merging with priority-based resolution. // src/scope/ScopeRegistry.ts
+import type {MdxGlobalScope} from '@/globals'
 
 /**
  * Represents a single scope registration

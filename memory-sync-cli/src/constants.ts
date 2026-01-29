@@ -1,4 +1,4 @@
-import type {UserConfigFile} from 'memory-sync-cli/src/types/ConfigTypes'
+import type {UserConfigFile} from '@/types/ConfigTypes'
 
 export const PathPlaceholders = {
   USER_HOME: '~',

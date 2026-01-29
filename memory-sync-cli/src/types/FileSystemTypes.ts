@@ -1,4 +1,4 @@
-import type {FilePathKind} from 'memory-sync-cli/src/types/Enums'
+import type {FilePathKind} from '@/types/Enums'
 
 /**
  * Common directory representation

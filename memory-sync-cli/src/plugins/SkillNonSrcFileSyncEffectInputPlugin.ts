@@ -1,6 +1,6 @@
 import type {Buffer} from 'node:buffer'
 
-import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from 'memory-sync-cli/src/types'
+import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '@/types'
 import {createHash} from 'node:crypto'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 

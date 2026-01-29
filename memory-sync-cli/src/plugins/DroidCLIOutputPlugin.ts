@@ -2,7 +2,7 @@ import type {
   OutputWriteContext,
   SkillPrompt,
   WriteResult
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 import * as path from 'node:path'
 import {BaseCLIOutputPlugin} from './BaseCLIOutputPlugin'
 

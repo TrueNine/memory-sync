@@ -1,13 +1,13 @@
-import type {MdxGlobalScope} from 'memory-sync-cli/src/globals'
-import type {ILogger} from 'memory-sync-cli/src/log'
-import type {ScopeRegistry} from 'memory-sync-cli/src/scope/ScopeRegistry'
-import type {FastCommandSeriesOptions} from 'memory-sync-cli/src/types/ConfigTypes'
-import type {PluginKind} from 'memory-sync-cli/src/types/Enums'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+import type {MdxGlobalScope} from '@/globals'
+import type {ILogger} from '@/log'
+import type {ScopeRegistry} from '@/scope/ScopeRegistry'
+import type {FastCommandSeriesOptions} from '@/types/ConfigTypes'
+import type {PluginKind} from '@/types/Enums'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import type {
   CollectedInputContext,
   Project
-} from 'memory-sync-cli/src/types/InputTypes'
+} from '@/types/InputTypes'
 
 export interface Plugin<T extends PluginKind = PluginKind> {
   readonly type: T

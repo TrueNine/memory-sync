@@ -1,5 +1,5 @@
-import type {SkillResourceCategory} from 'memory-sync-cli/src/types/InputTypes'
-import {SKILL_RESOURCE_BINARY_EXTENSIONS} from 'memory-sync-cli/src/types/InputTypes'
+import type {SkillResourceCategory} from '@/types/InputTypes'
+import {SKILL_RESOURCE_BINARY_EXTENSIONS} from '@/types/InputTypes'
 
 /**
  * Check if a file extension is a binary resource extension.

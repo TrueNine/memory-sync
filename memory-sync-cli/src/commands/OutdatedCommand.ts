@@ -1,5 +1,5 @@
 import type {Command, CommandContext, CommandResult} from './Command'
-import {checkVersion, logVersionCheckResult} from 'memory-sync-cli/src/versionCheck'
+import {checkVersion, logVersionCheckResult} from '@/versionCheck'
 
 /**
  * Outdated command - check if CLI version is outdated

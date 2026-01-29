@@ -4,12 +4,12 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 
 import {Buffer} from 'node:buffer'
-import {buildMarkdownWithFrontMatter} from 'memory-sync-cli/src/markdown'
-import {FilePathKind} from 'memory-sync-cli/src/types'
+import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const SKILLS_DIR = '.skills'

@@ -1,6 +1,6 @@
 import type {Buffer} from 'node:buffer'
-import type {ILogger} from 'memory-sync-cli/src/log'
-import type {InputEffectContext} from 'memory-sync-cli/src/types'
+import type {ILogger} from '@/log'
+import type {InputEffectContext} from '@/types'
 import process from 'node:process'
 
 /**

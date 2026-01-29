@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from 'vitest'
-import {createLogger} from 'memory-sync-cli/src/log'
+import {createLogger} from '@/log'
 import {HelpCommand} from './HelpCommand'
 
 const mockLogger = createLogger('test', 'error')

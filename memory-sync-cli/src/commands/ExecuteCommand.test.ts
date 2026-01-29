@@ -1,12 +1,12 @@
 import type {CommandContext} from './Command'
-import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, WriteResults} from 'memory-sync-cli/src/types'
+import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, WriteResults} from '@/types'
 import * as nodeFs from 'node:fs'
 import * as nodePath from 'node:path'
 import * as fc from 'fast-check'
 import * as fastGlob from 'fast-glob'
 import {describe, expect, it, vi} from 'vitest'
-import {createLogger} from 'memory-sync-cli/src/log'
-import {PluginKind} from 'memory-sync-cli/src/types'
+import {createLogger} from '@/log'
+import {PluginKind} from '@/types'
 import {ExecuteCommand} from './ExecuteCommand'
 
 const mockLogger = createLogger('test', 'error') // Mock logger

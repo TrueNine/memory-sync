@@ -6,13 +6,13 @@ import type {
   SkillPrompt,
   SkillResource,
   SkillYAMLFrontMatter
-} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import {Buffer} from 'node:buffer'
 import fs from 'node:fs'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {FilePathKind, PromptKind} from 'memory-sync-cli/src/types'
+import {FilePathKind, PromptKind} from '@/types'
 import {GenericSkillsOutputPlugin} from './GenericSkillsOutputPlugin'
 
 vi.mock('node:fs')

@@ -1,10 +1,10 @@
-import type {CollectedInputContext, FastCommandPrompt, OutputPluginContext, Project, SkillPrompt, SubAgentPrompt} from 'memory-sync-cli/src/types'
-import type {RelativePath, RootPath} from 'memory-sync-cli/src/types/FileSystemTypes'
+import type {CollectedInputContext, FastCommandPrompt, OutputPluginContext, Project, SkillPrompt, SubAgentPrompt} from '@/types'
+import type {RelativePath, RootPath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {FilePathKind, NamingCaseKind, PromptKind} from 'memory-sync-cli/src/types'
+import {FilePathKind, NamingCaseKind, PromptKind} from '@/types'
 import {DroidCLIOutputPlugin} from './DroidCLIOutputPlugin'
 
 function createMockRelativePath(pathStr: string, basePath: string): RelativePath { // Helper to create mock RelativePath

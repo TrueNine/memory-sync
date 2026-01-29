@@ -7,8 +7,8 @@
  * @see Requirements 5.1, 5.2, 5.3, 5.5
  */
 
-import type {MdxGlobalScope} from 'memory-sync-cli/src/globals'
-import type {CollectedInputContext, InputPluginContext, PluginOptions} from 'memory-sync-cli/src/types'
+import type {MdxGlobalScope} from '@/globals'
+import type {CollectedInputContext, InputPluginContext, PluginOptions} from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'

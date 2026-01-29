@@ -5,12 +5,12 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {buildMarkdownWithFrontMatter} from 'memory-sync-cli/src/markdown'
-import {FilePathKind} from 'memory-sync-cli/src/types'
+import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'

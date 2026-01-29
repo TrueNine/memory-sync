@@ -1,5 +1,5 @@
 import process from 'node:process'
-import {PluginPipeline} from 'memory-sync-cli/src/PluginPipeline'
+import {PluginPipeline} from '@/PluginPipeline'
 import userPluginConfigPromise from './plugin.config'
 
 export * from './config'

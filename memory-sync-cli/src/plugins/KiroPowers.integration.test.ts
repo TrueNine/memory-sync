@@ -1,11 +1,11 @@
-import type {SkillPrompt, SkillReferenceDocument, SkillYAMLFrontMatter} from 'memory-sync-cli/src/types'
+import type {SkillPrompt, SkillReferenceDocument, SkillYAMLFrontMatter} from '@/types'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fc from 'fast-check'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {parseMarkdown} from 'memory-sync-cli/src/markdown'
-import {FilePathKind, PromptKind} from 'memory-sync-cli/src/types'
+import {parseMarkdown} from '@/markdown'
+import {FilePathKind, PromptKind} from '@/types'
 
 /**
  * Integration tests for Kiro Powers Skill Output

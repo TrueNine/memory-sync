@@ -1,11 +1,11 @@
-import type {InputEffectContext, InputEffectResult, InputPluginContext, PluginOptions} from 'memory-sync-cli/src/types'
+import type {InputEffectContext, InputEffectResult, InputPluginContext, PluginOptions} from '@/types'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {beforeEach, describe, expect, it} from 'vitest'
-import {createLogger} from 'memory-sync-cli/src/log'
+import {createLogger} from '@/log'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 function createTestOptions(overrides: Partial<PluginOptions> = {}): Required<PluginOptions> { // Default test options for Required<PluginOptions>

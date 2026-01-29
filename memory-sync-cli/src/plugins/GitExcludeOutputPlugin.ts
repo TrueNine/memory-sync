@@ -3,11 +3,11 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {FilePathKind} from 'memory-sync-cli/src/types'
+import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 /** Marker comment for managed section start */

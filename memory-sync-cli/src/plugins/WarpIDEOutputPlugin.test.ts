@@ -4,12 +4,12 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   ProjectRootMemoryPrompt
-} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import fs from 'node:fs'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {FilePathKind, PromptKind} from 'memory-sync-cli/src/types'
+import {FilePathKind, PromptKind} from '@/types'
 import {WarpIDEOutputPlugin} from './WarpIDEOutputPlugin'
 
 vi.mock('node:fs') // Mock fs module

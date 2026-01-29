@@ -1,11 +1,11 @@
-import type {CollectedInputContext, FastCommandPrompt, OutputPluginContext, SkillYAMLFrontMatter} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+import type {CollectedInputContext, FastCommandPrompt, OutputPluginContext, SkillYAMLFrontMatter} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fc from 'fast-check'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {FilePathKind, PromptKind} from 'memory-sync-cli/src/types'
+import {FilePathKind, PromptKind} from '@/types'
 import {KiroCLIOutputPlugin} from './KiroCLIOutputPlugin'
 
 function createMockRelativePath(pathStr: string, basePath: string): RelativePath {

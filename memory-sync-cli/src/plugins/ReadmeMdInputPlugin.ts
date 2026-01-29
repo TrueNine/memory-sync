@@ -1,10 +1,10 @@
-import type {CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath} from 'memory-sync-cli/src/types'
+import type {CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath} from '@/types'
 
 import process from 'node:process'
 
-import {mdxToMd} from 'memory-sync-cli/src/compiler'
-import {FilePathKind, PromptKind} from 'memory-sync-cli/src/types'
-import {ScopeError} from 'memory-sync-cli/src/types/Errors'
+import {mdxToMd} from '@/compiler'
+import {FilePathKind, PromptKind} from '@/types'
+import {ScopeError} from '@/types/Errors'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**

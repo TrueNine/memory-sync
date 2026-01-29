@@ -1,6 +1,6 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as path from 'node:path'
-import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from 'memory-sync-cli/src/types'
+import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '@/types'
 import {collectDeletionTargets} from './CleanupUtils'
 
 /**

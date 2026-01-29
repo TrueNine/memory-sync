@@ -1,10 +1,10 @@
+import type {FileContent, Path, RelativePath} from '@/types/FileSystemTypes'
 import type {
   FilePathKind,
   GlobalMemoryPrompt,
   IDEKind,
   PromptKind
-} from 'memory-sync-cli/src/types/index'
-import type {FileContent, Path, RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+} from '@/types/index'
 import type {
   FastCommandYAMLFrontMatter,
   ProjectChildrenMemoryPrompt,
@@ -12,7 +12,7 @@ import type {
   Prompt,
   SkillYAMLFrontMatter,
   SubAgentYAMLFrontMatter
-} from 'memory-sync-cli/src/types/PromptTypes'
+} from '@/types/PromptTypes'
 
 export interface Project {
   readonly name?: string

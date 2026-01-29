@@ -1,7 +1,7 @@
 import type {RootContent, Text} from 'mdast' // Md component handler - wrapper for conditional Markdown content // src/components/Md.ts
 import type {MdxJsxFlowElement, MdxJsxTextElement} from 'mdast-util-mdx'
-import type {ProcessingContext} from 'memory-sync-cli/src/compiler/types'
-import {evaluateExpression} from 'memory-sync-cli/src/compiler/expression-eval'
+import type {ProcessingContext} from '@/compiler/types'
+import {evaluateExpression} from '@/compiler/expression-eval'
 
 /**
  * Evaluates the `when` attribute condition.

@@ -1,4 +1,4 @@
-import type {InputPluginContext} from 'memory-sync-cli/src/types'
+import type {InputPluginContext} from '@/types'
 import fs from 'node:fs'
 import path from 'node:path'
 import {beforeEach, describe, expect, it, vi} from 'vitest'

@@ -1,9 +1,9 @@
-import type {UserConfigFile} from 'memory-sync-cli/src/types/ConfigTypes' // Feature: compiler-integration // Property-based tests for GlobalScopeCollector // src/scope/GlobalScopeCollector.property.test.ts
+import type {UserConfigFile} from '@/types/ConfigTypes' // Feature: compiler-integration // Property-based tests for GlobalScopeCollector // src/scope/GlobalScopeCollector.property.test.ts
 import * as os from 'node:os'
 import process from 'node:process'
 import * as fc from 'fast-check'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {ShellKind} from 'memory-sync-cli/src/globals'
+import {ShellKind} from '@/globals'
 import {GlobalScopeCollector} from './GlobalScopeCollector'
 
 /**

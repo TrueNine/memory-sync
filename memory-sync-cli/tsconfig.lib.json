@@ -9,9 +9,13 @@
     "skipLibCheck": true
   },
   "include": [
-    "memory-sync-cli/src/**/*",
+    "src/**/*",
     "env.d.ts"
   ],
   "exclude": [
-    "../node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
+    "../node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
 }

@@ -3,7 +3,7 @@ import type {
   InputEffectContext,
   InputEffectResult,
   InputPluginContext
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**

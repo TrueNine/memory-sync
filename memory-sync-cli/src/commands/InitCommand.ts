@@ -1,8 +1,8 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {PathPlaceholders} from 'memory-sync-cli/src/constants'
-import {generateShadowSourceProject} from 'memory-sync-cli/src/ShadowSourceProject'
+import {PathPlaceholders} from '@/constants'
+import {generateShadowSourceProject} from '@/ShadowSourceProject'
 
 /**
  * Resolve path placeholders and tilde

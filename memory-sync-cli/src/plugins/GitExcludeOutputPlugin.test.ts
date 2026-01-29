@@ -1,6 +1,6 @@
 import * as fs from 'node:fs'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
-import {createLogger} from 'memory-sync-cli/src/log'
+import {createLogger} from '@/log'
 import {GitExcludeOutputPlugin} from './GitExcludeOutputPlugin'
 
 vi.mock('node:fs')

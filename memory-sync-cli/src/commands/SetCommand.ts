@@ -2,7 +2,7 @@ import type {Command, CommandContext, CommandResult} from './Command'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR} from 'memory-sync-cli/src/ConfigLoader'
+import {DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR} from '@/ConfigLoader'
 
 /**
  * Valid configuration keys that can be set

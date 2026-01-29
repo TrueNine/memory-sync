@@ -1,5 +1,5 @@
-import type {ILogger} from 'memory-sync-cli/src/log'
-import type {PluginOptions} from 'memory-sync-cli/src/types/PluginTypes'
+import type {ILogger} from '@/log'
+import type {PluginOptions} from '@/types/PluginTypes'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'

@@ -1,9 +1,9 @@
+import type {FastCommandPrompt, OutputWriteContext, PluginOptions, RelativePath} from '../types'
 import type {FastCommandNameTransformOptions} from './AbstractOutputPlugin'
-import type {FastCommandPrompt, OutputWriteContext, PluginOptions} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+
 import * as fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
-import {FilePathKind, PromptKind} from 'memory-sync-cli/src/types'
+import {FilePathKind, PromptKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 class TestOutputPlugin extends AbstractOutputPlugin { // Create a concrete test implementation

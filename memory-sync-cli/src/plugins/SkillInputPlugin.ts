@@ -1,4 +1,4 @@
-import type {ILogger} from 'memory-sync-cli/src/log'
+import type {ILogger} from '@/log'
 import type {
   CollectedInputContext,
   InputPluginContext,
@@ -9,19 +9,19 @@ import type {
   SkillResource,
   SkillResourceEncoding,
   SkillYAMLFrontMatter
-} from 'memory-sync-cli/src/types'
+} from '@/types'
 
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {mdxToMd} from 'memory-sync-cli/src/compiler'
-import {parseMarkdown, transformMdxReferencesToMd} from 'memory-sync-cli/src/markdown'
+import {mdxToMd} from '@/compiler'
+import {parseMarkdown, transformMdxReferencesToMd} from '@/markdown'
 import {
   FilePathKind,
   MetadataValidationError,
   PromptKind,
   validateSkillMetadata
-} from 'memory-sync-cli/src/types'
-import {getMimeType, getResourceCategory, isBinaryResourceExtension} from 'memory-sync-cli/src/utils/ResourceUtils'
+} from '@/types'
+import {getMimeType, getResourceCategory, isBinaryResourceExtension} from '@/utils/ResourceUtils'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export class SkillInputPlugin extends AbstractInputPlugin {

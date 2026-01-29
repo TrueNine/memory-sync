@@ -4,16 +4,16 @@ import type {
   OutputWriteContext,
   ReadmePrompt,
   Workspace
-} from 'memory-sync-cli/src/types'
-import type {RelativePath} from 'memory-sync-cli/src/types/FileSystemTypes'
+} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fc from 'fast-check'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {createLogger} from 'memory-sync-cli/src/log'
-import {FilePathKind, PromptKind} from 'memory-sync-cli/src/types'
+import {createLogger} from '@/log'
+import {FilePathKind, PromptKind} from '@/types'
 import {ReadmeMdConfigFileOutputPlugin} from './ReadmeMdConfigFileOutputPlugin'
 
 /**

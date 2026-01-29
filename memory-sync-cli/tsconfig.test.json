@@ -2,15 +2,24 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "lib": ["ESNext", "DOM"],
-    "types": ["vitest/globals", "node"] // Test environment specific
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "types": [
+      "vitest/globals",
+      "node"
+    ]
   },
   "include": [
-    "memory-sync-cli/src/**/*.spec.ts",
-    "memory-sync-cli/src/**/*.test.ts",
-    "./vitest.config.ts", "vite.config.ts",
-    "memory-sync-cli/env.d.ts"
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "vitest.config.ts",
+    "vite.config.ts",
+    "env.d.ts"
   ],
   "exclude": [
-    "../node_modules", "dist"]
+    "../node_modules",
+    "dist"
+  ]
 }
