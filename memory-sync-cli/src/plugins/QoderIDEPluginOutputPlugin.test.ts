@@ -137,7 +137,7 @@ function createMockOutputWriteContext(
   }
 }
 
-describe('QoderIDEPluginOutputPlugin', () => {
+describe('qoder IDE plugin output plugin', () => {
   let plugin: TestableQoderIDEPluginOutputPlugin
 
   beforeEach(() => {
@@ -148,9 +148,7 @@ describe('QoderIDEPluginOutputPlugin', () => {
     vi.mocked(fs.writeFileSync).mockReturnValue(void 0)
   })
 
-  afterEach(() => {
-    vi.clearAllMocks()
-  })
+  afterEach(() => vi.clearAllMocks())
 
   describe('registerProjectOutputDirs', () => {
     it('should register .qoder/rules for each project', async () => {
@@ -291,7 +289,7 @@ describe('QoderIDEPluginOutputPlugin', () => {
 
       expect(results.files).toHaveLength(3)
 
-      const calls = vi.mocked(fs.writeFileSync).mock.calls
+      const [calls] = [vi.mocked(fs.writeFileSync).mock.calls]
       expect(calls).toHaveLength(3)
 
       const globalCall = calls.find(call => String(call[0]).includes(path.join('project-a', '.qoder', 'rules', 'global.md')))
