@@ -1,4 +1,5 @@
 import {readFileSync} from 'node:fs'
+import {resolve} from 'node:path'
 import {defineConfig} from 'tsdown'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
@@ -13,11 +14,8 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
-    resolve: {
-      alias: {
-        '@': './src'
-      },
-      extensions: ['.ts', '.js', '.json']
+    alias: {
+      '@': resolve('src')
     },
     noExternal: [
       'mdast',
