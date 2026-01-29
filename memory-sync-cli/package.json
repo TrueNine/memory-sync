@@ -1,8 +1,8 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10125.0",
-  "description": "TrueNine Life CLI Tools",
+  "version": "2026.10129.0",
+  "description": "TrueNine Memory Synchronization CLI Tools",
   "author": "TrueNine",
   "license": "UNLICENSED",
   "homepage": "https://github.com/TrueNine/memory-sync-cli",
@@ -14,7 +14,8 @@
   "exports": {
     ".": "./dist/index.mjs",
     "./globals": {
-      "types": "./dist/globals/index.d.mts"
+      "types": "./dist/globals/index.d.mts",
+      "import": "./dist/globals/index.mjs"
     },
     "./package.json": "./package.json"
   },
