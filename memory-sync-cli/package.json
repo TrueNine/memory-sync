@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10129.110",
+  "version": "2026.10129.11051",
   "description": "TrueNine Memory Synchronization CLI Tools",
   "author": "TrueNine",
   "license": "UNLICENSED",
@@ -47,7 +47,6 @@
   },
   "dependencies": {
     "@clack/prompts": "catalog:",
-    "@truenine/desk-paths": "workspace:*",
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
     "mdast-util-mdx": "catalog:",
@@ -64,6 +63,7 @@
   },
   "devDependencies": {
     "@truenine/eslint9-config": "catalog:",
+    "@truenine/desk-paths": "workspace:*",
     "@types/estree": "catalog:",
     "@types/estree-jsx": "catalog:",
     "@types/fs-extra": "catalog:",
