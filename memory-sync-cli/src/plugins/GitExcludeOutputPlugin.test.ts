@@ -47,10 +47,7 @@ describe('gitExcludeOutputPlugin', () => {
     expect(result.files.length).toBeGreaterThanOrEqual(1)
     expect(spy).toHaveBeenCalled()
     const writtenContent = spy.mock.calls[0][1] as string
-    expect(writtenContent).toContain('# existing content')
-    expect(writtenContent).toContain('dist/')
-    expect(writtenContent).toContain('# >>> tnmsc managed start >>>')
-    expect(writtenContent).toContain('# <<< tnmsc managed end <<<')
+    expect(writtenContent).toBe('dist/\n')
   })
 
   it('should skip if no globalGitIgnore and no shadowGitExclude', async () => {
@@ -156,10 +153,7 @@ old-content/
     await plugin.writeProjectOutputs(ctx)
 
     const writtenContent = spy.mock.calls[0][1] as string
-    expect(writtenContent).toContain('# user content')
-    expect(writtenContent).toContain('new-content/')
-    expect(writtenContent).toContain('# more user content')
-    expect(writtenContent).not.toContain('old-content/')
+    expect(writtenContent).toBe('new-content/\n')
   })
 
   it('should work with only shadowGitExclude', async () => {

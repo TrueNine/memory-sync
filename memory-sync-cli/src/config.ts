@@ -236,7 +236,8 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     ...merged.aiAgentIgnoreConfigFiles != null && {aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles},
     ...merged.shadowSourceProjectDir != null && {shadowSourceProjectDir: merged.shadowSourceProjectDir},
     ...merged.readmePrompts != null && {readmePrompts: merged.readmePrompts},
-    ...merged.globalGitIgnore != null && {globalGitIgnore: merged.globalGitIgnore}
+    ...merged.globalGitIgnore != null && {globalGitIgnore: merged.globalGitIgnore},
+    ...merged.shadowGitExclude != null && {shadowGitExclude: merged.shadowGitExclude}
   }
 
   if (merged.shadowSourceProjectDir != null) checkVersionControl(merged.shadowSourceProjectDir, logger) // Check version control status for shadow source project

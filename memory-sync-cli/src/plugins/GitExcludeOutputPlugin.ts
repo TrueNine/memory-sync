@@ -10,11 +10,6 @@ import * as path from 'node:path'
 import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
-/** Marker comment for managed section start */
-const MANAGED_SECTION_START = '# >>> tnmsc managed start >>>'
-/** Marker comment for managed section end */
-const MANAGED_SECTION_END = '# <<< tnmsc managed end <<<'
-
 export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('GitExcludeOutputPlugin')
@@ -149,35 +144,34 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
   private buildManagedContent(globalGitIgnore?: string, shadowGitExclude?: string): string {
     const parts: string[] = []
 
-    if (globalGitIgnore != null && globalGitIgnore.trim().length > 0) parts.push(globalGitIgnore.trim())
+    if (globalGitIgnore != null && globalGitIgnore.trim().length > 0) {
+      const sanitized = this.sanitizeContent(globalGitIgnore)
+      if (sanitized.length > 0) parts.push(sanitized)
+    }
 
-    if (shadowGitExclude != null && shadowGitExclude.trim().length > 0) parts.push(shadowGitExclude.trim())
+    if (shadowGitExclude != null && shadowGitExclude.trim().length > 0) {
+      const sanitized = this.sanitizeContent(shadowGitExclude)
+      if (sanitized.length > 0) parts.push(sanitized)
+    }
 
     return parts.join('\n')
   }
 
-  private mergeWithExisting(existingContent: string, managedContent: string): string {
-    const startIdx = existingContent.indexOf(MANAGED_SECTION_START)
-    const endIdx = existingContent.indexOf(MANAGED_SECTION_END)
+  private sanitizeContent(content: string): string {
+    const lines = content.split(/\r?\n/)
+    const filtered = lines.filter(line => {
+      const trimmed = line.trim()
+      if (trimmed.length === 0) return true
+      if (trimmed.startsWith('#') && !trimmed.startsWith('\\#')) return false
+      return true
+    })
+    return filtered.join('\n').trim()
+  }
 
-    const managedSection = `${MANAGED_SECTION_START}\n${managedContent}\n${MANAGED_SECTION_END}`
-
-    if (startIdx === -1 || endIdx === -1) {
-      const trimmed = existingContent.trimEnd() // No existing managed section, append to end
-      return trimmed.length > 0
-        ? `${trimmed}\n\n${managedSection}\n`
-        : `${managedSection}\n`
-    }
-
-    const before = existingContent.slice(0, Math.max(0, startIdx)).trimEnd() // Replace existing managed section
-    const after = existingContent.slice(Math.max(0, endIdx + MANAGED_SECTION_END.length)).trimStart()
-
-    const parts: string[] = []
-    if (before.length > 0) parts.push(before)
-    parts.push(managedSection)
-    if (after.length > 0) parts.push(after)
-
-    return `${parts.join('\n\n')}\n`
+  private normalizeContent(content: string): string {
+    const trimmed = content.trim()
+    if (trimmed.length === 0) return ''
+    return `${trimmed}\n`
   }
 
   private async writeGitExcludeFile(
@@ -207,10 +201,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
         this.log.debug({action: 'mkdir', path: gitInfoDir, message: 'Created .git/info directory'})
       }
 
-      let existingContent = '' // Read existing content and merge
-      if (fs.existsSync(filePath)) existingContent = fs.readFileSync(filePath, 'utf8')
-
-      const finalContent = this.mergeWithExisting(existingContent, managedContent)
+      const finalContent = this.normalizeContent(managedContent)
 
       fs.writeFileSync(filePath, finalContent, 'utf8') // Write the exclude file
       this.log.trace({action: 'write', type: 'gitExclude', path: filePath, label})
