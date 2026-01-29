@@ -4,6 +4,8 @@ import type {
   GlobalMemoryPrompt,
   OutputPluginContext,
   OutputWriteContext,
+  ProjectChildrenMemoryPrompt,
+  ProjectRootMemoryPrompt,
   SkillPrompt
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
@@ -29,6 +31,14 @@ function createMockRelativePath(pathStr: string, basePath: string): RelativePath
   }
 }
 
+function createMockRootPath(pathStr: string): {pathKind: FilePathKind.Root, path: string, getDirectoryName: () => string} {
+  return {
+    pathKind: FilePathKind.Root,
+    path: pathStr,
+    getDirectoryName: () => path.basename(pathStr)
+  }
+}
+
 function createGlobalMemoryPrompt(content: string, basePath: string): GlobalMemoryPrompt {
   return {
     type: PromptKind.GlobalMemory,
@@ -42,6 +52,33 @@ function createGlobalMemoryPrompt(content: string, basePath: string): GlobalMemo
       directory: createMockRelativePath('.memory', basePath)
     }
   } as GlobalMemoryPrompt
+}
+
+function createProjectRootMemoryPrompt(content: string, basePath: string): ProjectRootMemoryPrompt {
+  return {
+    type: PromptKind.ProjectRootMemory,
+    content,
+    dir: createMockRootPath(path.join(basePath, 'project')),
+    markdownContents: [],
+    length: content.length,
+    filePathKind: FilePathKind.Relative
+  } as ProjectRootMemoryPrompt
+}
+
+function createProjectChildMemoryPrompt(
+  basePath: string,
+  dirPath: string,
+  content: string
+): ProjectChildrenMemoryPrompt {
+  return {
+    type: PromptKind.ProjectChildrenMemory,
+    content,
+    dir: createMockRelativePath(dirPath, basePath),
+    markdownContents: [],
+    length: content.length,
+    filePathKind: FilePathKind.Relative,
+    workingChildDirectoryPath: createMockRelativePath(dirPath, basePath)
+  } as ProjectChildrenMemoryPrompt
 }
 
 function createFastCommandPrompt(
@@ -201,6 +238,26 @@ describe('jetBrainsAIAssistantCodexOutputPlugin', () => {
 
       expect(result).toBe(true)
     })
+
+    it('should return true when project prompts are present', async () => {
+      const projectDir = createMockRelativePath('project-a', tempDir)
+      const ctx = createMockOutputContext(tempDir, {
+        workspace: {
+          directory: createMockRelativePath('.', tempDir),
+          projects: [
+            {
+              dirFromWorkspacePath: projectDir,
+              rootMemoryPrompt: createProjectRootMemoryPrompt('root', tempDir),
+              childMemoryPrompts: [createProjectChildMemoryPrompt(tempDir, 'src', 'child')]
+            }
+          ]
+        }
+      })
+
+      const result = await plugin.canWrite(ctx)
+
+      expect(result).toBe(true)
+    })
   })
 
   describe('writeGlobalOutputs', () => {
@@ -270,6 +327,69 @@ describe('jetBrainsAIAssistantCodexOutputPlugin', () => {
 
       const otherAgents = path.join(tempDir, 'JetBrains', 'OtherIDE2025.1', 'aia', 'codex', 'AGENTS.md')
       expect(fs.existsSync(otherAgents)).toBe(false)
+    })
+  })
+
+  describe('writeProjectOutputs', () => {
+    it('should write always and glob rules for project prompts', async () => {
+      const projectDir = createMockRelativePath('project-a', tempDir)
+      const rootContent = 'ROOT MEMORY'
+      const childContent = 'CHILD MEMORY'
+      const ctx = createMockOutputContext(tempDir, {
+        workspace: {
+          directory: createMockRelativePath('.', tempDir),
+          projects: [
+            {
+              dirFromWorkspacePath: projectDir,
+              rootMemoryPrompt: createProjectRootMemoryPrompt(rootContent, tempDir),
+              childMemoryPrompts: [createProjectChildMemoryPrompt(tempDir, 'src', childContent)]
+            }
+          ]
+        }
+      })
+
+      const result = await plugin.writeProjectOutputs(ctx)
+
+      expect(result.files.length).toBe(2)
+
+      const rulesDir = path.join(tempDir, 'project-a', '.aiassistant', 'rules')
+      const rootFile = path.join(rulesDir, 'always.md')
+      const childFile = path.join(rulesDir, 'glob-src.md')
+
+      const rootWritten = fs.readFileSync(rootFile, 'utf8')
+      expect(rootWritten).toContain('\u59cb\u7ec8')
+      expect(rootWritten).toContain(rootContent)
+
+      const childWritten = fs.readFileSync(childFile, 'utf8')
+      expect(childWritten).toContain('\u6309\u6587\u4ef6\u6a21\u5f0f')
+      expect(childWritten).toContain('\u6a21\u5f0f')
+      expect(childWritten).toContain('src/**')
+      expect(childWritten).toContain(childContent)
+    })
+
+    it('should skip writes on dry-run for project prompts', async () => {
+      const projectDir = createMockRelativePath('project-a', tempDir)
+      const ctx = createMockOutputContext(
+        tempDir,
+        {
+          workspace: {
+            directory: createMockRelativePath('.', tempDir),
+            projects: [
+              {
+                dirFromWorkspacePath: projectDir,
+                rootMemoryPrompt: createProjectRootMemoryPrompt('root', tempDir),
+                childMemoryPrompts: [createProjectChildMemoryPrompt(tempDir, 'src', 'child')]
+              }
+            ]
+          }
+        },
+        true
+      )
+
+      const result = await plugin.writeProjectOutputs(ctx)
+
+      expect(result.files.length).toBe(2)
+      expect(fs.existsSync(path.join(tempDir, 'project-a', '.aiassistant', 'rules', 'always.md'))).toBe(false)
     })
   })
 })

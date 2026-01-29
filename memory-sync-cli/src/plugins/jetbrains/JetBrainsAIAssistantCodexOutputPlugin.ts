@@ -2,6 +2,8 @@ import type {
   FastCommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
+  Project,
+  ProjectChildrenMemoryPrompt,
   SkillPrompt,
   WriteResult,
   WriteResults
@@ -44,6 +46,13 @@ const SKILLS_SUBDIR = 'skills'
  * or descriptions for a particular skill.
  */
 const SKILL_FILE_NAME = 'SKILL.md'
+const AIASSISTANT_DIR = '.aiassistant'
+const RULES_SUBDIR = 'rules'
+const ROOT_RULE_FILE = 'always.md'
+const CHILD_RULE_FILE_PREFIX = 'glob-'
+const RULE_APPLY_ALWAYS = '\u59CB\u7EC8'
+const RULE_APPLY_GLOB = '\u6309\u6587\u4EF6\u6A21\u5F0F'
+const RULE_GLOB_KEY = '\u6A21\u5F0F'
 /**
  * Represents the directory name used for storing JetBrains-related resources or files.
  * This constant is typically utilized to define or refer to the standardized
@@ -102,12 +111,39 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     })
   }
 
-  async registerProjectOutputDirs(): Promise<RelativePath[]> {
-    return []
+  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results: RelativePath[] = []
+    const {projects} = ctx.collectedInputContext.workspace
+
+    for (const project of projects) {
+      if (project.dirFromWorkspacePath == null) continue
+      results.push(this.createProjectRulesDirRelativePath(project.dirFromWorkspacePath))
+    }
+
+    return results
   }
 
-  async registerProjectOutputFiles(): Promise<RelativePath[]> {
-    return []
+  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results: RelativePath[] = []
+    const {projects} = ctx.collectedInputContext.workspace
+
+    for (const project of projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) continue
+
+      if (project.rootMemoryPrompt != null) {
+        results.push(this.createProjectRuleFileRelativePath(projectDir, ROOT_RULE_FILE))
+      }
+
+      if (project.childMemoryPrompts != null) {
+        for (const child of project.childMemoryPrompts) {
+          const fileName = this.buildChildRuleFileName(child)
+          results.push(this.createProjectRuleFileRelativePath(projectDir, fileName))
+        }
+      }
+    }
+
+    return results
   }
 
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -155,19 +191,46 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {globalMemory, fastCommands, skills} = ctx.collectedInputContext
+    const {globalMemory, fastCommands, skills, workspace} = ctx.collectedInputContext
     const hasGlobalMemory = globalMemory != null
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
+    const hasProjectPrompts = workspace.projects.some(
+      project => project.rootMemoryPrompt != null || (project.childMemoryPrompts?.length ?? 0) > 0
+    )
 
-    if (hasGlobalMemory || hasFastCommands || hasSkills) return true
+    if (hasGlobalMemory || hasFastCommands || hasSkills || hasProjectPrompts) return true
 
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
-  async writeProjectOutputs(): Promise<WriteResults> {
-    return {files: [], dirs: []}
+  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+    const {projects} = ctx.collectedInputContext.workspace
+    const fileResults: WriteResult[] = []
+    const dirResults: WriteResult[] = []
+
+    for (const project of projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) continue
+
+      if (project.rootMemoryPrompt != null) {
+        const content = this.buildAlwaysRuleContent(project.rootMemoryPrompt.content as string)
+        const result = await this.writeProjectRuleFile(ctx, project, ROOT_RULE_FILE, content, 'projectRootRule')
+        fileResults.push(result)
+      }
+
+      if (project.childMemoryPrompts != null) {
+        for (const child of project.childMemoryPrompts) {
+          const fileName = this.buildChildRuleFileName(child)
+          const content = this.buildGlobRuleContent(child)
+          const result = await this.writeProjectRuleFile(ctx, project, fileName, content, 'projectChildRule')
+          fileResults.push(result)
+        }
+      }
+    }
+
+    return {files: fileResults, dirs: dirResults}
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
@@ -241,6 +304,98 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.warn({action: 'scan', type: 'jetbrains', path: baseDir, error: errMsg})
       return []
+    }
+  }
+
+  private createProjectRulesDirRelativePath(projectDir: RelativePath): RelativePath {
+    const rulesDirPath = path.join(projectDir.path, AIASSISTANT_DIR, RULES_SUBDIR)
+    return {
+      pathKind: FilePathKind.Relative,
+      path: rulesDirPath,
+      basePath: projectDir.basePath,
+      getDirectoryName: () => RULES_SUBDIR,
+      getAbsolutePath: () => path.join(projectDir.basePath, rulesDirPath)
+    }
+  }
+
+  private createProjectRuleFileRelativePath(projectDir: RelativePath, fileName: string): RelativePath {
+    const filePath = path.join(projectDir.path, AIASSISTANT_DIR, RULES_SUBDIR, fileName)
+    return {
+      pathKind: FilePathKind.Relative,
+      path: filePath,
+      basePath: projectDir.basePath,
+      getDirectoryName: () => RULES_SUBDIR,
+      getAbsolutePath: () => path.join(projectDir.basePath, filePath)
+    }
+  }
+
+  private buildChildRuleFileName(child: ProjectChildrenMemoryPrompt): string {
+    const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
+    const normalizedPath = childPath
+      .replaceAll('\\', '/')
+      .replaceAll(/^\/+|\/+$/g, '')
+      .replaceAll('/', '-')
+
+    const suffix = normalizedPath.length > 0 ? normalizedPath : 'root'
+    return `${CHILD_RULE_FILE_PREFIX}${suffix}.md`
+  }
+
+  private buildChildRulePattern(child: ProjectChildrenMemoryPrompt): string {
+    const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
+    const normalizedPath = childPath
+      .replaceAll('\\', '/')
+      .replaceAll(/^\/+|\/+$/g, '')
+
+    if (normalizedPath.length === 0) return '**/*'
+    return `${normalizedPath}/**`
+  }
+
+  private buildAlwaysRuleContent(content: string): string {
+    const fmData: Record<string, unknown> = {
+      apply: RULE_APPLY_ALWAYS
+    }
+
+    return buildMarkdownWithFrontMatter(fmData, content)
+  }
+
+  private buildGlobRuleContent(child: ProjectChildrenMemoryPrompt): string {
+    const pattern = this.buildChildRulePattern(child)
+    const fmData: Record<string, unknown> = {
+      apply: RULE_APPLY_GLOB,
+      [RULE_GLOB_KEY]: pattern
+    }
+
+    return buildMarkdownWithFrontMatter(fmData, child.content as string)
+  }
+
+  private async writeProjectRuleFile(
+    ctx: OutputWriteContext,
+    project: Project,
+    fileName: string,
+    content: string,
+    label: string
+  ): Promise<WriteResult> {
+    const projectDir = project.dirFromWorkspacePath!
+    const rulesDir = path.join(projectDir.basePath, projectDir.path, AIASSISTANT_DIR, RULES_SUBDIR)
+    const fullPath = path.join(rulesDir, fileName)
+
+    const relativePath = this.createProjectRuleFileRelativePath(projectDir, fileName)
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: label, path: fullPath})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      this.ensureDirectory(rulesDir)
+      fs.writeFileSync(fullPath, content, 'utf8')
+      this.log.trace({action: 'write', type: label, path: fullPath})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: label, path: fullPath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
     }
   }
 
