@@ -12,10 +12,14 @@
     "directory": "_ai/scripts"
   },
   "exports": {
-    ".": "./dist/index.mjs",
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
     "./globals": {
       "types": "./dist/globals/index.d.mts",
-      "import": "./dist/globals/index.mjs"
+      "import": "./dist/globals/index.mjs",
+      "require": "./dist/globals/index.cjs"
     },
     "./package.json": "./package.json"
   },
@@ -43,6 +47,7 @@
   },
   "dependencies": {
     "@clack/prompts": "catalog:",
+    "@truenine/desk-paths": "workspace:*",
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
     "mdast-util-mdx": "catalog:",
@@ -68,12 +73,7 @@
     "@vitest/coverage-v8": "catalog:",
     "eslint": "catalog:",
     "fast-check": "catalog:",
-    "npm-run-all2": "catalog:",
-    "tsdown": "catalog:",
     "tsx": "catalog:",
-    "turbo": "catalog:",
-    "typescript": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

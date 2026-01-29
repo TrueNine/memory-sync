@@ -1,6 +1,7 @@
 packages:
   - memory-sync-cli
   - aindex
+  - 'packages/*'
 
 catalog:
   '@clack/prompts': ^1.0.0

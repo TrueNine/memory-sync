@@ -25,9 +25,10 @@ export default defineConfig([
       'remark-frontmatter',
       'remark-gfm',
       'remark-parse',
-      'fast-glob'
+      'fast-glob',
+      '@truenine/desk-paths'
     ],
-    format: ['esm'],
+    format: ['esm', 'cjs'],
     minify: true,
     dts: false,
     define: {
@@ -42,12 +43,7 @@ export default defineConfig([
     entry: ['./src/globals/index.ts'],
     outDir: './dist/globals',
     platform: 'node',
-    resolve: {
-      alias: {
-        '@': './src'
-      },
-      extensions: ['.ts', '.js', '.json']
-    },
+    format: ['esm', 'cjs'],
     minify: true,
     dts: {sourcemap: false}
   }
