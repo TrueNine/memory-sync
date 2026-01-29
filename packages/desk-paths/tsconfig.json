@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "noUncheckedSideEffectImports": true,
+    "incremental": true,
+    "composite": false, // Projects
+    "target": "ESNext", // Language and Environment
+    "lib": [
+      "ESNext"
+    ],
+    "moduleDetection": "force",
+    "useDefineForClassFields": true,
+    "baseUrl": ".", // Path Mapping
+    "module": "ESNext", // Module Resolution
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "strict": true, // Type Checking - Maximum Strictness
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "alwaysStrict": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "useUnknownInCatchVariables": true,
+    "declaration": true, // Emit
+    "declarationMap": true,
+    "importHelpers": true,
+    "newLine": "lf",
+    "noEmit": true,
+    "noEmitHelpers": false,
+    "removeComments": false,
+    "sourceMap": true,
+    "stripInternal": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true, // Interop Constraints
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true // Completeness
+  },
+  "include": [
+    "src/**/*",
+    "env.d.ts",
+    "eslint.config.ts",
+    "tsdown.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "dist"
+  ]
+}

@@ -10,8 +10,8 @@ export default defineConfig([
     alias: {
       '@': resolve('src')
     },
-    format: ['esm','cjs'],
+    format: ['esm', 'cjs'],
     minify: false,
-    dts: {sourcemap:true},
-  },
+    dts: {sourcemap: true}
+  }
 ])

@@ -1,23 +1,32 @@
 {
   "name": "@truenine/desk-paths",
+  "type": "module",
   "version": "1.0.0",
+  "packageManager": "pnpm@10.28.2",
   "description": "",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types:require": "./dist/index.cjs",
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.mts",
   "types:require": "dist/index.d.cts",
-  "type": "module",
-  "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "require": "./dist/index.cjs",
-      "import": "./dist/index.mjs",
-      "types:require": "./dist/index.cjs",
-      "types": "./dist/index.d.mts"
-    }
-  },
   "scripts": {
-    "build": "tsdown"
+    "build": "tsdown",
+    "lint": "eslint --cache .",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "check": "run-p typecheck lint",
+    "lintfix": "eslint --fix --cache .",
+    "test": "vitest run",
+    "prepublishOnly": "run-s build"
   },
-  "packageManager": "pnpm@10.28.2"
+  "dependencies": {
+    "@truenine/desk-paths": "workspace:*"
+  }
 }
