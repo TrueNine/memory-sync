@@ -14,6 +14,7 @@ import {GitExcludeOutputPlugin} from '@/plugins/GitExcludeOutputPlugin'
 import {GitIgnoreInputPlugin} from '@/plugins/GitIgnoreInputPlugin'
 import {GlobalMemoryInputPlugin} from '@/plugins/GlobalMemoryInputPlugin'
 import {IdeConfigInputPlugin} from '@/plugins/IdeConfigInputPlugin'
+import {JetBrainsAIAssistantCodexOutputPlugin} from '@/plugins/jetbrains/JetBrainsAIAssistantCodexOutputPlugin'
 import {JetBrainsIDECodeStyleConfigOutputPlugin} from '@/plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
 import {KiroCLIOutputPlugin} from '@/plugins/KiroCLIOutputPlugin'
 import {MarkdownWhitespaceCleanupEffectInputPlugin} from '@/plugins/MarkdownWhitespaceCleanupEffectInputPlugin'
@@ -36,6 +37,7 @@ export default defineConfig({
     new AntigravityOutputPlugin(),
     new ClaudeCodeCLIOutputPlugin(),
     new CodexCLIOutputPlugin(),
+    new JetBrainsAIAssistantCodexOutputPlugin(),
     new DroidCLIOutputPlugin(),
     new GeminiCLIOutputPlugin(),
     new GenericSkillsOutputPlugin(),

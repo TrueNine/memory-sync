@@ -149,10 +149,10 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
       if (sanitized.length > 0) parts.push(sanitized)
     }
 
-    if (shadowGitExclude != null && shadowGitExclude.trim().length > 0) {
-      const sanitized = this.sanitizeContent(shadowGitExclude)
-      if (sanitized.length > 0) parts.push(sanitized)
-    }
+    if (shadowGitExclude == null || shadowGitExclude.trim().length === 0) return parts.join('\n')
+
+    const sanitized = this.sanitizeContent(shadowGitExclude)
+    if (sanitized.length > 0) parts.push(sanitized)
 
     return parts.join('\n')
   }
