@@ -42,7 +42,7 @@
     "lint": "eslint --cache .",
     "prepublishOnly": "run-s build",
     "test": "vitest run",
-    "lint:fix": "eslint --fix --cache .",
+    "lintfix": "eslint --fix --cache .",
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {
@@ -62,8 +62,8 @@
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@truenine/eslint9-config": "catalog:",
     "@truenine/desk-paths": "workspace:*",
+    "@truenine/eslint9-config": "catalog:",
     "@types/estree": "catalog:",
     "@types/estree-jsx": "catalog:",
     "@types/fs-extra": "catalog:",
