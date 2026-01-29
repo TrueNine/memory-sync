@@ -93,7 +93,8 @@ export const SHADOW_SOURCE_FILE_NAMES = {
   VSCODE_EXTENSIONS: '.vscode/extensions.json',
   QODER_IGNORE: '.qoderignore', // AI Agent ignore files
   CURSOR_IGNORE: '.cursorignore',
-  WARP_INDEX_IGNORE: '.warpindexignore'
+  WARP_INDEX_IGNORE: '.warpindexignore',
+  AI_IGNORE: '.aiignore'
 } as const
 
 /**
@@ -235,6 +236,11 @@ export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE: ShadowSourceProjectDirecto
       name: SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE,
       required: false,
       description: 'Warp index ignore file'
+    },
+    {
+      name: SHADOW_SOURCE_FILE_NAMES.AI_IGNORE,
+      required: false,
+      description: 'AI ignore file'
     }
   ]
 } as const

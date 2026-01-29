@@ -284,6 +284,7 @@ export function generateShadowSourceProject(
   )
   ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.CURSOR_IGNORE), SHADOW_SOURCE_FILE_NAMES.CURSOR_IGNORE, getDefaultIgnoreContent())
   ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE), SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE, getDefaultIgnoreContent())
+  ensureFile(path.join(rootPath, SHADOW_SOURCE_FILE_NAMES.AI_IGNORE), SHADOW_SOURCE_FILE_NAMES.AI_IGNORE, getDefaultIgnoreContent())
 
   return {
     success: true,

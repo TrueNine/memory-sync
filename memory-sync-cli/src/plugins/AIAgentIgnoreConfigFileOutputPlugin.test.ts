@@ -41,7 +41,8 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
     return [
       {fileName: '.qoderignore', content: 'qoder patterns'},
       {fileName: '.cursorignore', content: 'cursor patterns'},
-      {fileName: '.warpindexignore', content: 'warp patterns'}
+      {fileName: '.warpindexignore', content: 'warp patterns'},
+      {fileName: '.aiignore', content: 'ai patterns'}
     ]
   }
 
@@ -105,11 +106,12 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(3)
+      expect(results).toHaveLength(4)
       expect(results.map(r => r.path)).toEqual([
         path.join('project1', '.qoderignore'),
         path.join('project1', '.cursorignore'),
-        path.join('project1', '.warpindexignore')
+        path.join('project1', '.warpindexignore'),
+        path.join('project1', '.aiignore')
       ])
     })
 
@@ -118,11 +120,12 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(3) // Should still register all known ignore file types for cleanup
+      expect(results).toHaveLength(4) // Should still register all known ignore file types for cleanup
       expect(results.map(r => r.path)).toEqual([
         path.join('project1', '.qoderignore'),
         path.join('project1', '.cursorignore'),
-        path.join('project1', '.warpindexignore')
+        path.join('project1', '.warpindexignore'),
+        path.join('project1', '.aiignore')
       ])
     })
 
@@ -150,7 +153,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(6)
+      expect(results).toHaveLength(8)
       expect(results.map(r => r.path)).toContain(path.join('project1', '.qoderignore'))
       expect(results.map(r => r.path)).toContain(path.join('project2', '.qoderignore'))
     })
@@ -180,7 +183,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(3) // because prompt source project files are source files that should be protected // Should only register files for regular project, NOT prompt source project
+      expect(results).toHaveLength(4) // because prompt source project files are source files that should be protected // Should only register files for regular project, NOT prompt source project
       expect(results.map(r => r.path)).toContain(path.join('project1', '.qoderignore'))
       expect(results.map(r => r.path)).not.toContain(path.join('prompt-source-project', '.qoderignore'))
     })
@@ -212,9 +215,9 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.writeProjectOutputs(ctx)
 
-      expect(results.files).toHaveLength(3)
+      expect(results.files).toHaveLength(4)
       expect(results.files.every(r => r.success)).toBe(true)
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(3)
+      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(4)
     })
 
     it('should write files to correct project paths', async () => {
@@ -241,6 +244,12 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
         'warp patterns',
         'utf8'
       )
+      expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
+        4,
+        path.join(mockWorkspaceDir, 'project1', '.aiignore'),
+        'ai patterns',
+        'utf8'
+      )
     })
 
     it('should not ensure directory exists (files written to project root)', async () => {
@@ -258,7 +267,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.writeProjectOutputs(ctx)
 
-      expect(results.files).toHaveLength(3)
+      expect(results.files).toHaveLength(4)
       expect(results.files.every(r => r.success && r.skipped === false)).toBe(true)
       expect(vi.mocked(fs.writeFileSync)).not.toHaveBeenCalled()
     })
@@ -273,7 +282,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.writeProjectOutputs(ctx)
 
-      expect(results.files).toHaveLength(3)
+      expect(results.files).toHaveLength(4)
       expect(results.files[0].success).toBe(true)
       expect(results.files[1].success).toBe(false)
       expect(results.files[1].error).toBeDefined()
@@ -339,8 +348,8 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.writeProjectOutputs(ctx)
 
-      expect(results.files).toHaveLength(6)
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(6)
+      expect(results.files).toHaveLength(8)
+      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(8)
     })
   })
 })

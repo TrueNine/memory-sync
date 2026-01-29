@@ -9,7 +9,7 @@ import {AbstractInputPlugin} from './AbstractInputPlugin'
 /**
  * Ignore file names to read from shadow project dist directory
  */
-const IGNORE_FILE_NAMES = ['.qoderignore', '.cursorignore', '.warpindexignore'] as const
+const IGNORE_FILE_NAMES = ['.qoderignore', '.cursorignore', '.warpindexignore', '.aiignore'] as const
 
 export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
   constructor() {
