@@ -131,9 +131,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
 
-      if (project.rootMemoryPrompt != null) {
-        results.push(this.createProjectRuleFileRelativePath(projectDir, ROOT_RULE_FILE))
-      }
+      if (project.rootMemoryPrompt != null) results.push(this.createProjectRuleFileRelativePath(projectDir, ROOT_RULE_FILE))
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {

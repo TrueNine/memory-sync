@@ -357,12 +357,12 @@ describe('jetBrainsAIAssistantCodexOutputPlugin', () => {
       const childFile = path.join(rulesDir, 'glob-src.md')
 
       const rootWritten = fs.readFileSync(rootFile, 'utf8')
-      expect(rootWritten).toContain('\u59cb\u7ec8')
+      expect(rootWritten).toContain('\u59CB\u7EC8')
       expect(rootWritten).toContain(rootContent)
 
       const childWritten = fs.readFileSync(childFile, 'utf8')
-      expect(childWritten).toContain('\u6309\u6587\u4ef6\u6a21\u5f0f')
-      expect(childWritten).toContain('\u6a21\u5f0f')
+      expect(childWritten).toContain('\u6309\u6587\u4EF6\u6A21\u5F0F')
+      expect(childWritten).toContain('\u6A21\u5F0F')
       expect(childWritten).toContain('src/**')
       expect(childWritten).toContain(childContent)
     })

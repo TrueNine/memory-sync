@@ -20,6 +20,7 @@ import {KiroCLIOutputPlugin} from '@/plugins/KiroCLIOutputPlugin'
 import {MarkdownWhitespaceCleanupEffectInputPlugin} from '@/plugins/MarkdownWhitespaceCleanupEffectInputPlugin'
 import {OrphanFileCleanupEffectInputPlugin} from '@/plugins/OrphanFileCleanupEffectInputPlugin'
 import {ProjectPromptInputPlugin} from '@/plugins/ProjectPromptInputPlugin'
+import {QoderIDEPluginOutputPlugin} from '@/plugins/QoderIDEPluginOutputPlugin'
 import {ReadmeMdConfigFileOutputPlugin} from '@/plugins/ReadmeMdConfigFileOutputPlugin'
 import {ReadmeMdInputPlugin} from '@/plugins/ReadmeMdInputPlugin'
 import {ShadowProjectInputPlugin} from '@/plugins/ShadowProjectInputPlugin'
@@ -42,6 +43,7 @@ export default defineConfig({
     new GeminiCLIOutputPlugin(),
     new GenericSkillsOutputPlugin(),
     new KiroCLIOutputPlugin(),
+    new QoderIDEPluginOutputPlugin(),
     new WarpIDEOutputPlugin(),
     new GitExcludeOutputPlugin(),
 
