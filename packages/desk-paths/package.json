@@ -26,7 +26,5 @@
     "test": "vitest run",
     "prepublishOnly": "run-s build"
   },
-  "dependencies": {
-    "@truenine/desk-paths": "workspace:*"
-  }
+  "dependencies": {}
 }

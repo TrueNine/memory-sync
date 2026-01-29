@@ -37,11 +37,14 @@
   },
   "scripts": {
     "build": "run-s check build:bundle",
-    "build:bundle": "pnpm exec tsdown",
+    "build:bundle": "run-s build:deps bundle",
+    "build:deps": "pnpm exec turbo run build --filter=...@truenine/memory-sync-cli --filter=!@truenine/memory-sync-cli",
+    "bundle": "pnpm exec tsdown",
     "check": "run-p typecheck lint",
     "lint": "eslint --cache .",
     "prepublishOnly": "run-s build",
-    "test": "vitest run",
+    "test": "run-s build:deps test:run",
+    "test:run": "vitest run",
     "lintfix": "eslint --fix --cache .",
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },
