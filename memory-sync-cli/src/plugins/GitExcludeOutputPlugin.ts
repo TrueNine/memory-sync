@@ -144,16 +144,17 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
   private buildManagedContent(globalGitIgnore?: string, shadowGitExclude?: string): string {
     const parts: string[] = []
 
-    if (globalGitIgnore != null && globalGitIgnore.trim().length > 0) {
+    if (globalGitIgnore != null && globalGitIgnore.trim().length > 0) { // Handle globalGitIgnore first
       const sanitized = this.sanitizeContent(globalGitIgnore)
       if (sanitized.length > 0) parts.push(sanitized)
     }
 
-    if (shadowGitExclude == null || shadowGitExclude.trim().length === 0) return parts.join('\n')
+    if (shadowGitExclude != null && shadowGitExclude.trim().length > 0) { // Handle shadowGitExclude
+      const sanitized = this.sanitizeContent(shadowGitExclude)
+      if (sanitized.length > 0) parts.push(sanitized)
+    }
 
-    const sanitized = this.sanitizeContent(shadowGitExclude)
-    if (sanitized.length > 0) parts.push(sanitized)
-
+    if (parts.length === 0) return '' // Return early if no content was added
     return parts.join('\n')
   }
 
@@ -162,8 +163,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     const filtered = lines.filter(line => {
       const trimmed = line.trim()
       if (trimmed.length === 0) return true
-      if (trimmed.startsWith('#') && !trimmed.startsWith('\\#')) return false
-      return true
+      return !(trimmed.startsWith('#') && !trimmed.startsWith('\\#'))
     })
     return filtered.join('\n').trim()
   }
