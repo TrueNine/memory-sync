@@ -19,13 +19,13 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "../dist/index.mjs",
-  "module": "../dist/index.mjs",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
   "bin": {
-    "tnmsc": "../dist/index.mjs"
+    "tnmsc": "./dist/index.mjs"
   },
   "files": [
-    "../dist"
+    "dist"
   ],
   "publishConfig": {
     "access": "public",
