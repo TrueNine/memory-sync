@@ -477,6 +477,21 @@ describe('pluginPipeline', () => {
       const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
       expect(result.globalMemory?.content).toBe('from-B')
     })
+
+    it('should use last shadowGitExclude when multiple plugins provide it', async () => {
+      const pipeline = new PluginPipeline()
+      const plugins = [
+        createMockInputPlugin('A', () => ({
+          shadowGitExclude: 'from-A'
+        })),
+        createMockInputPlugin('B', () => ({
+          shadowGitExclude: 'from-B'
+        }))
+      ]
+
+      const result = await pipeline.executePluginsInOrder(plugins, createBaseContext())
+      expect(result.shadowGitExclude).toBe('from-B')
+    })
   })
 })
 

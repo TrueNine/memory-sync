@@ -641,6 +641,8 @@ export class PluginPipeline {
 
     const globalGitIgnore: CollectedInputContext['globalGitIgnore'] | undefined // globalGitIgnore: last one wins
       = addition.globalGitIgnore ?? base.globalGitIgnore
+    const shadowGitExclude: CollectedInputContext['shadowGitExclude'] | undefined // shadowGitExclude: last one wins
+      = addition.shadowGitExclude ?? base.shadowGitExclude
 
     return { // Build result object using object literal
       ...workspace != null ? {workspace} : {},
@@ -653,7 +655,8 @@ export class PluginPipeline {
       ...globalMemory != null ? {globalMemory} : {},
       ...shadowSourceProjectDir != null ? {shadowSourceProjectDir} : {},
       ...readmePrompts != null ? {readmePrompts} : {},
-      ...globalGitIgnore != null ? {globalGitIgnore} : {}
+      ...globalGitIgnore != null ? {globalGitIgnore} : {},
+      ...shadowGitExclude != null ? {shadowGitExclude} : {}
     }
   }
 }
