@@ -1,0 +1,29 @@
+{
+  "name": "@truenine/init-bundle",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types:require": "./dist/index.cjs",
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "types:require": "dist/index.d.cts",
+  "scripts": {
+    "build": "tsdown",
+    "lint": "eslint --cache .",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "check": "run-p typecheck lint",
+    "lintfix": "eslint --fix --cache .",
+    "test": "vitest run",
+    "prepublishOnly": "run-s build"
+  },
+  "dependencies": {}
+}
