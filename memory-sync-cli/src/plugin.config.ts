@@ -18,6 +18,7 @@ import {JetBrainsAIAssistantCodexOutputPlugin} from '@/plugins/jetbrains/JetBrai
 import {JetBrainsIDECodeStyleConfigOutputPlugin} from '@/plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
 import {KiroCLIOutputPlugin} from '@/plugins/KiroCLIOutputPlugin'
 import {MarkdownWhitespaceCleanupEffectInputPlugin} from '@/plugins/MarkdownWhitespaceCleanupEffectInputPlugin'
+import {OpencodeCLIOutputPlugin} from '@/plugins/OpencodeCLIOutputPlugin'
 import {OrphanFileCleanupEffectInputPlugin} from '@/plugins/OrphanFileCleanupEffectInputPlugin'
 import {ProjectPromptInputPlugin} from '@/plugins/ProjectPromptInputPlugin'
 import {QoderIDEPluginOutputPlugin} from '@/plugins/QoderIDEPluginOutputPlugin'
@@ -43,6 +44,7 @@ export default defineConfig({
     new GeminiCLIOutputPlugin(),
     new GenericSkillsOutputPlugin(),
     new KiroCLIOutputPlugin(),
+    new OpencodeCLIOutputPlugin(),
     new QoderIDEPluginOutputPlugin(),
     new WarpIDEOutputPlugin(),
     new GitExcludeOutputPlugin(),

@@ -39,6 +39,9 @@ export type {
   WhitespaceCleanupEffectResult
 } from './MarkdownWhitespaceCleanupEffectInputPlugin'
 export {
+  OpencodeCLIOutputPlugin
+} from './OpencodeCLIOutputPlugin'
+export {
   OrphanFileCleanupEffectInputPlugin
 } from './OrphanFileCleanupEffectInputPlugin'
 export type {
