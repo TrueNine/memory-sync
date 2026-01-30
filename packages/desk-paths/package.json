@@ -2,7 +2,6 @@
   "name": "@truenine/desk-paths",
   "type": "module",
   "version": "1.0.0",
-  "packageManager": "pnpm@10.28.2",
   "description": "",
   "exports": {
     "./package.json": "./package.json",

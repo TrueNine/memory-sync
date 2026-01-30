@@ -1,11 +1,11 @@
 packages:
   - memory-sync-cli
   - aindex
-  - 'packages/*'
+  - packages/*
 
 catalog:
   '@clack/prompts': ^1.0.0
-  '@truenine/eslint9-config': ^2026.10126.10418
+  '@truenine/eslint9-config': ^2026.10130.112
   '@types/estree': ^1.0.8
   '@types/estree-jsx': ^1.0.5
   '@types/fs-extra': ^11.0.4
