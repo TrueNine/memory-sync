@@ -2,14 +2,13 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "composite": true,
-    "rootDir": "./src",
     "noEmit": false,
-    "outDir": "../dist",
+    "outDir": "./dist",
     "skipLibCheck": true
   },
   "include": [
     "src/**/*",
+    "structure.config.ts",
     "env.d.ts"
   ],
   "exclude": [

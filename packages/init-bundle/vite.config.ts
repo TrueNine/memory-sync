@@ -1,12 +1,31 @@
 import {readFileSync} from 'node:fs'
+import {resolve} from 'node:path'
 import {fileURLToPath, URL} from 'node:url'
 import {defineConfig} from 'vite'
+import {AINDEX_BASE, bundlePaths} from './structure.config'
 
-const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
-const kiroGlobalPowersRegistry = readFileSync('./public/kiro_global_powers_registry.json', 'utf8')
-const tnmscExample = readFileSync('./public/tnmsc.example.json', 'utf8')
-const gitignoreTemplate = readFileSync('./public/gitignore', 'utf8')
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
+/**
+ * 生成 INJECTED 对象的内容
+ * key: path（相对于 aindex）
+ * value: 文件内容
+ */
+function generateInjectedContent(): Record<string, string> {
+  const content: Record<string, string> = {}
+
+  for (const path of bundlePaths) {
+    const absolutePath = resolve(__dirname, AINDEX_BASE, path)
+    content[path] = readFileSync(absolutePath, 'utf8')
+  }
+
+  return content
+}
+
+/**
+ * Vite 配置
+ * 与 tsdown 共用相同的注入逻辑
+ */
 export default defineConfig({
   resolve: {
     alias: {
@@ -14,10 +33,6 @@ export default defineConfig({
     }
   },
   define: {
-    __CLI_VERSION__: JSON.stringify(pkg.version),
-    __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
-    __KIRO_GLOBAL_POWERS_REGISTRY__: kiroGlobalPowersRegistry,
-    __TEMPLATE_TNMSC_EXAMPLE__: JSON.stringify(tnmscExample),
-    __TEMPLATE_GITIGNORE__: JSON.stringify(gitignoreTemplate)
+    INJECTED: JSON.stringify(generateInjectedContent())
   }
 })
