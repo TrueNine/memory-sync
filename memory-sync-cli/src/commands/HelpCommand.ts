@@ -17,8 +17,7 @@ USAGE:
   ${CLI_NAME} dry-run                 Preview what would be written
   ${CLI_NAME} clean                   Remove all generated files
   ${CLI_NAME} clean --dry-run         Preview what would be cleaned
-  ${CLI_NAME} --set key=value         Set configuration value
-  ${CLI_NAME} set key=value           Set configuration value (same as --set)
+  ${CLI_NAME} config key=value        Set configuration value
 
 SUBCOMMANDS:
   help       Show this help message
@@ -27,13 +26,13 @@ SUBCOMMANDS:
   init       Initialize directory structure based on configuration
   dry-run    Preview changes without writing files
   clean      Remove all generated output files and directories
-  set        Set configuration values in global config file
+  config     Set configuration values in global config file (~/.aindex/.tnmsc.json)
 
 ALIASES:
   ${CLI_NAME} --help, ${CLI_NAME} -h      Same as '${CLI_NAME} help'
   ${CLI_NAME} --version, ${CLI_NAME} -v   Same as '${CLI_NAME} version'
   ${CLI_NAME} clean -n              Same as '${CLI_NAME} clean --dry-run'
-  ${CLI_NAME} set key=value         Same as '${CLI_NAME} --set key=value'
+  ${CLI_NAME} config key=value      Set config value in global config file
 
 LOG LEVEL OPTIONS:
   --trace        Most verbose output
@@ -45,16 +44,15 @@ LOG LEVEL OPTIONS:
 CLEAN OPTIONS:
   -n, --dry-run  Preview cleanup without removing files
 
-SET OPTIONS:
-  --set key=value    Set a configuration value in global config (~/.aindex/.tnmsc.json)
+CONFIG OPTIONS:
+  key=value          Set a configuration value in global config (~/.aindex/.tnmsc.json)
   Valid keys: workspaceDir, shadowSourceProjectDir, shadowSkillSourceDir,
               shadowFastCommandDir, shadowSubAgentDir, globalMemoryFile,
               shadowProjectsDir, logLevel
 
   Examples:
-    ${CLI_NAME} --set workspaceDir=~/my-project
-    ${CLI_NAME} --set logLevel=debug
-    ${CLI_NAME} set workspaceDir=~/workspace
+    ${CLI_NAME} config workspaceDir=~/my-project
+    ${CLI_NAME} config logLevel=debug
 
 CONFIGURATION:
   Configure via plugin.config.ts in your project root.

@@ -19,13 +19,13 @@ import * as path from 'node:path'
 import glob from 'fast-glob'
 import {
   CleanCommand,
+  ConfigCommand,
   DryRunCleanCommand,
   DryRunOutputCommand,
   ExecuteCommand,
   HelpCommand,
   InitCommand,
   OutdatedCommand,
-  SetCommand,
   UnknownCommand,
   VersionCommand
 } from '@/commands'
@@ -40,7 +40,7 @@ import {startupVersionCheck} from '@/versionCheck'
 /**
  * Valid subcommands for the CLI
  */
-export type Subcommand = 'help' | 'version' | 'outdated' | 'init' | 'dry-run' | 'clean' | 'set'
+export type Subcommand = 'help' | 'version' | 'outdated' | 'init' | 'dry-run' | 'clean' | 'config'
 
 /**
  * Valid log levels for the CLI
@@ -103,7 +103,7 @@ function isScriptOrPackage(arg: string): boolean {
 /**
  * Valid subcommands set for quick lookup
  */
-const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'version', 'outdated', 'init', 'dry-run', 'clean', 'set'])
+const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'version', 'outdated', 'init', 'dry-run', 'clean', 'config'])
 
 /**
  * Log level flags mapping
@@ -178,14 +178,14 @@ export function resolveCommand(args: ParsedCliArgs): Command {
     return new CleanCommand()
   }
 
-  if (subcommand !== 'set' || setOption.length > 0) return new ExecuteCommand() // Set subcommand or --set option
+  if (subcommand !== 'config' || setOption.length > 0) return new ExecuteCommand() // Config subcommand
 
   const parsedPositional: [key: string, value: string][] = []
   for (const arg of positional) {
     const eqIndex = arg.indexOf('=')
     if (eqIndex > 0) parsedPositional.push([arg.slice(0, eqIndex), arg.slice(eqIndex + 1)])
   }
-  return new SetCommand([...setOption, ...parsedPositional])
+  return new ConfigCommand([...setOption, ...parsedPositional])
 }
 
 /**
