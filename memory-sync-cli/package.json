@@ -67,6 +67,7 @@
   "devDependencies": {
     "@truenine/desk-paths": "workspace:*",
     "@truenine/eslint9-config": "catalog:",
+    "@truenine/init-bundle": "workspace:*",
     "@types/estree": "catalog:",
     "@types/estree-jsx": "catalog:",
     "@types/fs-extra": "catalog:",

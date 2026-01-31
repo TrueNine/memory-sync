@@ -1,4 +1,5 @@
 import type {UserConfigFile} from '@/types/ConfigTypes'
+import {bundles} from '@truenine/init-bundle'
 
 export const PathPlaceholders = {
   USER_HOME: '~',
@@ -6,10 +7,5 @@ export const PathPlaceholders = {
   SHADOW_SOURCE_PROJECT: '$SHADOW_SOURCE_PROJECT'
 } as const
 
-/**
- * Default user config values from public/tnmsc.example.json
- * Injected at build time via __TEMPLATE_TNMSC_EXAMPLE__
- */
-export const DEFAULT_USER_CONFIG = JSON.parse(__TEMPLATE_TNMSC_EXAMPLE__) as Readonly<
-  Required<Omit<UserConfigFile, 'externalProjects' | 'excludePatterns'>>
->
+type DefaultUserConfig = Readonly<Required<Omit<UserConfigFile, 'externalProjects' | 'excludePatterns'>>> // Default user config type
+export const DEFAULT_USER_CONFIG = JSON.parse(bundles['public/tnmsc.example.json'].content) as DefaultUserConfig // Imported from @truenine/init-bundle package

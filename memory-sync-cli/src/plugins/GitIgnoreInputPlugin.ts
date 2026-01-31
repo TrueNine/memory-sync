@@ -1,7 +1,13 @@
 import type {CollectedInputContext, InputPluginContext} from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {bundles} from '@truenine/init-bundle'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
+
+function getGitignoreTemplate(): string { // 从 bundles 获取 gitignore 模板内容（public/exclude）
+  const item = bundles['public/exclude']
+  return item?.content ?? ''
+}
 
 export class GitIgnoreInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -18,7 +24,7 @@ export class GitIgnoreInputPlugin extends AbstractInputPlugin {
       content = fs.readFileSync(gitignorePath, 'utf8')
       this.log.debug({action: 'collect', message: 'Loaded gitignore from shadow project file', path: gitignorePath})
     } else {
-      content = __TEMPLATE_GITIGNORE__
+      content = getGitignoreTemplate()
       if (content) this.log.debug({action: 'collect', message: 'Using global gitignore template'})
     }
 

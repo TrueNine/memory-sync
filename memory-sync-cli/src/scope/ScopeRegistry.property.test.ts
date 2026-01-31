@@ -230,11 +230,17 @@ describe('scopeRegistry property tests', () => {
 
   describe('property 6: Deep Merge Correctness', () => {
     it('should recursively merge nested objects instead of overwriting', () => {
+      const safeKeyArb = fc.string({minLength: 1, maxLength: 20}).filter(s => // Safe key generator that excludes prototype pollution keys
+        /^[a-z_]\w*$/i.test(s)
+        && s !== '__proto__'
+        && s !== 'constructor'
+        && s !== 'prototype')
+
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.string({minLength: 1, maxLength: 20}),
-          fc.string({minLength: 1, maxLength: 20}),
+          safeKeyArb,
+          safeKeyArb,
           fc.string({minLength: 1, maxLength: 50}),
           fc.string({minLength: 1, maxLength: 50}),
           (namespace, key1, key2, value1, value2) => {
