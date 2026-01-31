@@ -28,7 +28,7 @@ catalog:
   remark-stringify: ^11.0.0
   tsdown: 0.20.1
   tsx: ^4.21.0
-  turbo: ^2.8.0
+  turbo: ^2.8.1
   typescript: ^5.9.3
   unified: ^11.0.5
   vite: ^7.3.1
