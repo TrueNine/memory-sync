@@ -169,7 +169,7 @@ declare global {
     /** Conditional Markdown component with Line sub-component */
     Md: MdComponent
 
-  /* eslint-disable-next-line ts/no-namespace -- JSX namespace required for MDX component type hints */
+  // eslint-disable-next-line ts/no-namespace
   namespace JSX {
     interface IntrinsicElements {
       'Md': MdProps

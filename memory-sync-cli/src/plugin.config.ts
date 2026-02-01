@@ -5,6 +5,7 @@ import {AIAgentIgnoreConfigFileOutputPlugin} from '@/plugins/AIAgentIgnoreConfig
 import {AntigravityOutputPlugin} from '@/plugins/AntigravityOutputPlugin'
 import {ClaudeCodeCLIOutputPlugin} from '@/plugins/ClaudeCodeCLIOutputPlugin'
 import {CodexCLIOutputPlugin} from '@/plugins/CodexCLIOutputPlugin'
+import {CursorOutputPlugin} from '@/plugins/CursorOutputPlugin'
 import {DroidCLIOutputPlugin} from '@/plugins/DroidCLIOutputPlugin'
 import {FastCommandInputPlugin} from '@/plugins/FastCommandInputPlugin'
 import {GeminiCLIOutputPlugin} from '@/plugins/GeminiCLIOutputPlugin'
@@ -47,6 +48,7 @@ export default defineConfig({
     new OpencodeCLIOutputPlugin(),
     new QoderIDEPluginOutputPlugin(),
     new WarpIDEOutputPlugin(),
+    new CursorOutputPlugin(),
     new GitExcludeOutputPlugin(),
 
     new JetBrainsIDECodeStyleConfigOutputPlugin(),

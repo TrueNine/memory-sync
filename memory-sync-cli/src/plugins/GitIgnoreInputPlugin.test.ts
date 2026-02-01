@@ -60,7 +60,7 @@ describe('gitIgnoreInputPlugin', () => {
     expect(fs.existsSync).toHaveBeenCalledWith(expect.stringContaining(path.join('public', 'gitignore')))
     expect(fs.readFileSync).not.toHaveBeenCalled()
 
-    if (typeof __TEMPLATE_GITIGNORE__ !== 'undefined' && __TEMPLATE_GITIGNORE__) { // Fallback behavior depends on __TEMPLATE_GITIGNORE__ which is global
+    if (typeof __TEMPLATE_GITIGNORE__ !== 'undefined' && Boolean(__TEMPLATE_GITIGNORE__)) { // Fallback behavior depends on __TEMPLATE_GITIGNORE__ which is global
       expect(result).toHaveProperty('globalGitIgnore')
     } else expect(result).toEqual({})
   })
