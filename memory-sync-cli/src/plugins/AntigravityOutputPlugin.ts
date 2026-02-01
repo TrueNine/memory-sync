@@ -215,9 +215,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
 
       const {mcpServers} = skill.mcpConfig
 
-      for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) {
-        mergedMcpServers[mcpName] = this.transformMcpConfigForAntigravity({...mcpConfig})
-      }
+      for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) mergedMcpServers[mcpName] = this.transformMcpConfigForAntigravity({...mcpConfig})
     }
 
     if (Object.keys(mergedMcpServers).length === 0) return null
@@ -253,11 +251,6 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  /**
-   * Transform MCP config to Antigravity-compatible format.
-   * url → httpUrl (Antigravity uses httpUrl for remote servers)
-   * Remove unsupported properties: type, enabled, autoApprove
-   */
   private transformMcpConfigForAntigravity(config: Record<string, unknown>): Record<string, unknown> {
     const result: Record<string, unknown> = {}
 
