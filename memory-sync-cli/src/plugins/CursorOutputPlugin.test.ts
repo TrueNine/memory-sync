@@ -1,12 +1,12 @@
-import { createLogger } from '@/log'
-import type { FastCommandPrompt, OutputPluginContext, OutputWriteContext } from '@/types'
-import { FilePathKind, PromptKind } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { CursorOutputPlugin } from './CursorOutputPlugin'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {createLogger} from '@/log'
+import {FilePathKind, PromptKind} from '@/types'
+import {CursorOutputPlugin} from './CursorOutputPlugin'
 
 function createMockRelativePath(pathStr: string, basePath: string): RelativePath {
   return {

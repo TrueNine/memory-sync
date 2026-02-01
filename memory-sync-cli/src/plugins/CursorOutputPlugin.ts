@@ -1,4 +1,3 @@
-import { buildMarkdownWithFrontMatter } from '@/markdown'
 import type {
   FastCommandPrompt,
   OutputPluginContext,
@@ -7,12 +6,13 @@ import type {
   WriteResult,
   WriteResults
 } from '@/types'
-import { FilePathKind } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
-import { Buffer } from 'node:buffer'
+import type {RelativePath} from '@/types/FileSystemTypes'
+import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {FilePathKind} from '@/types'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const GLOBAL_CONFIG_DIR = '.cursor'
 const MCP_CONFIG_FILE = 'mcp.json'
