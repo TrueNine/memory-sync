@@ -290,8 +290,8 @@ describe('antigravityOutputPlugin', () => {
       expect(mcpCall).toBeDefined()
       const content = JSON.parse(mcpCall![1] as string)
       expect(content.mcpServers).toBeDefined()
-      expect(content.mcpServers['skill-mcp-skill-context7']).toBeDefined()
-      expect(content.mcpServers['skill-mcp-skill-deepwiki']).toBeDefined()
+      expect(content.mcpServers.context7).toBeDefined()
+      expect(content.mcpServers.deepwiki).toBeDefined()
     })
 
     it('should skip writing mcp_config.json when no skill has MCP config', async () => {

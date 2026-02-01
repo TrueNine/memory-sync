@@ -213,12 +213,10 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     for (const skill of skills) {
       if (skill.mcpConfig == null) continue
 
-      const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
       const {mcpServers} = skill.mcpConfig
 
       for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) {
-        const key = `skill-${skillName}-${mcpName}`
-        mergedMcpServers[key] = mcpConfig
+        mergedMcpServers[mcpName] = this.transformMcpConfigForAntigravity({...mcpConfig})
       }
     }
 
@@ -253,6 +251,23 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
       this.log.error({action: 'write', type: 'globalMcpConfig', path: mcpConfigPath, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}
     }
+  }
+
+  /**
+   * Transform MCP config to Antigravity-compatible format.
+   * url → httpUrl (Antigravity uses httpUrl for remote servers)
+   * Remove unsupported properties: type, enabled, autoApprove
+   */
+  private transformMcpConfigForAntigravity(config: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {}
+
+    for (const [key, value] of Object.entries(config)) {
+      if (key === 'url') result['httpUrl'] = value
+      else if (key === 'type' || key === 'enabled' || key === 'autoApprove') continue
+      else result[key] = value
+    }
+
+    return result
   }
 
   private async writeFastCommand(
