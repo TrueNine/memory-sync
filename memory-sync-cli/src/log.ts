@@ -124,18 +124,22 @@ function formatLog(
   const timestamp = getTimestamp()
   const colorFn = LEVEL_COLORS[level] ?? colorize.white
 
+  const messageStr = String(message) // 当 message 为空字符串且有 meta 时，直接使用 meta；否则保持原逻辑
+  const hasMeta = meta != null && Object.keys(meta).length > 0
+  const isEmptyMessage = messageStr === ''
+
   const record: LogRecord = {
     $: [timestamp, level, namespace],
-    _: meta != null && Object.keys(meta).length > 0
-      ? {[String(message)]: meta}
+    _: hasMeta
+      ? isEmptyMessage ? meta : {[messageStr]: meta}
       : message as string
   }
 
   const base = { // Output to console
     $: [timestamp, colorFn(level.toUpperCase()), namespace]
   }
-  const _ = meta != null && Object.keys(meta).length > 0
-    ? {[String(message)]: meta}
+  const _ = hasMeta
+    ? isEmptyMessage ? meta : {[messageStr]: meta}
     : message
   const output = toJson5({...base, _} as unknown as Record<string, unknown>)
 

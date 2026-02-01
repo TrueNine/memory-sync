@@ -120,7 +120,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
         continue
       }
 
-      this.log.info({action: 'write', path: gitInfoExcludePath, message: 'Updating .git/info/exclude', project: project.name ?? 'unknown'})
+      this.log.info({action: 'write', path: gitInfoExcludePath, project: project.name ?? 'unknown'})
 
       const result = await this.writeGitExcludeFile(ctx, gitInfoExcludePath, managedContent, `project:${project.name ?? 'unknown'}`)
       fileResults.push(result)
@@ -135,7 +135,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
 
     if (isWorkspaceAlreadyCovered && fs.existsSync(workspaceGitInfoDir)) return {files: fileResults, dirs: []}
 
-    this.log.info({action: 'write', path: workspaceGitExclude, message: 'Updating workspace .git/info/exclude'})
+    this.log.info({action: 'write', path: workspaceGitExclude, target: 'workspace'})
     const result = await this.writeGitExcludeFile(ctx, workspaceGitExclude, managedContent, 'workspace')
     fileResults.push(result)
     return {files: fileResults, dirs: []}
