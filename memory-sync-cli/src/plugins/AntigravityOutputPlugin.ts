@@ -18,6 +18,7 @@ const GLOBAL_GEMINI_DIR = '.gemini'
 const ANTIGRAVITY_DIR = 'antigravity'
 const SKILLS_SUBDIR = 'skills'
 const WORKFLOWS_SUBDIR = 'workflows'
+const MCP_CONFIG_FILE = 'mcp_config.json'
 
 const CLEANUP_SUBDIRS = [SKILLS_SUBDIR, WORKFLOWS_SUBDIR] as const
 
@@ -27,6 +28,30 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: '', // No main output file
       dependsOn: ['GeminiCLIOutputPlugin']
+    })
+
+    this.registerCleanEffect('mcp-config-cleanup', async ctx => {
+      const globalAntigravityDir = path.join(os.homedir(), GLOBAL_GEMINI_DIR, ANTIGRAVITY_DIR)
+      const mcpConfigPath = path.join(globalAntigravityDir, MCP_CONFIG_FILE)
+
+      const emptyMcpConfig = {mcpServers: {}}
+
+      if (ctx.dryRun === true) {
+        this.log.trace({action: 'dryRun', type: 'mcpConfigCleanup', path: mcpConfigPath})
+        return {success: true, description: 'Would reset mcp_config.json to empty shell'}
+      }
+
+      try {
+        this.ensureDirectory(globalAntigravityDir)
+        fs.writeFileSync(mcpConfigPath, JSON.stringify(emptyMcpConfig, null, 2))
+        this.log.trace({action: 'clean', type: 'mcpConfigCleanup', path: mcpConfigPath})
+        return {success: true, description: 'Reset mcp_config.json to empty shell'}
+      }
+      catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error)
+        this.log.error({action: 'clean', type: 'mcpConfigCleanup', path: mcpConfigPath, error: errMsg})
+        return {success: false, error: error as Error, description: 'Failed to reset mcp_config.json'}
+      }
     })
   }
 
@@ -99,6 +124,18 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
+    const hasAnyMcpConfig = skills?.some(s => s.mcpConfig != null) ?? false
+    if (hasAnyMcpConfig) {
+      const mcpConfigPath = path.join(globalAntigravityDir, MCP_CONFIG_FILE)
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: MCP_CONFIG_FILE,
+        basePath: globalAntigravityDir,
+        getDirectoryName: () => ANTIGRAVITY_DIR,
+        getAbsolutePath: () => mcpConfigPath
+      })
+    }
+
     if (fastCommands == null) return results
 
     const transformOptions = this.getTransformOptionsFromContext(ctx)
@@ -115,6 +152,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
         getAbsolutePath: () => fullPath
       })
     }
+
     return results
   }
 
@@ -150,6 +188,9 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
         const skillResults = await this.writeSkill(ctx, skillsDir, skill)
         fileResults.push(...skillResults)
       }
+
+      const mcpResult = await this.writeGlobalMcpConfig(ctx, globalAntigravityDir, skills)
+      if (mcpResult != null) fileResults.push(mcpResult)
     }
 
     this.log.info({
@@ -160,6 +201,58 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     })
 
     return {files: fileResults, dirs: dirResults}
+  }
+
+  private async writeGlobalMcpConfig(
+    ctx: OutputWriteContext,
+    globalAntigravityDir: string,
+    skills: readonly SkillPrompt[]
+  ): Promise<WriteResult | null> {
+    const mergedMcpServers: Record<string, unknown> = {}
+
+    for (const skill of skills) {
+      if (skill.mcpConfig == null) continue
+
+      const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+      const {mcpServers} = skill.mcpConfig
+
+      for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) {
+        const key = `skill-${skillName}-${mcpName}`
+        mergedMcpServers[key] = mcpConfig
+      }
+    }
+
+    if (Object.keys(mergedMcpServers).length === 0) return null
+
+    const mcpConfigPath = path.join(globalAntigravityDir, MCP_CONFIG_FILE)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: MCP_CONFIG_FILE,
+      basePath: globalAntigravityDir,
+      getDirectoryName: () => ANTIGRAVITY_DIR,
+      getAbsolutePath: () => mcpConfigPath
+    }
+
+    const globalMcpConfig = {mcpServers: mergedMcpServers}
+    const content = JSON.stringify(globalMcpConfig, null, 2)
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'globalMcpConfig', path: mcpConfigPath, serverCount: Object.keys(mergedMcpServers).length})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      this.ensureDirectory(globalAntigravityDir)
+      fs.writeFileSync(mcpConfigPath, content)
+      this.log.trace({action: 'write', type: 'globalMcpConfig', path: mcpConfigPath, serverCount: Object.keys(mergedMcpServers).length})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: 'globalMcpConfig', path: mcpConfigPath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
+    }
   }
 
   private async writeFastCommand(

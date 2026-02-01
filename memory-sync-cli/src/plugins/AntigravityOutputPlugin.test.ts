@@ -205,4 +205,137 @@ describe('antigravityOutputPlugin', () => {
     expect(results.files.length).toBeGreaterThan(0)
     expect(results.files.every(f => f.success)).toBe(true)
   })
+
+  describe('mcp config merging', () => {
+    const skillWithMcp: any = {
+      dir: {
+        pathKind: FilePathKind.Relative,
+        path: 'mcp-skill',
+        basePath: projectBasePath,
+        getDirectoryName: () => 'mcp-skill',
+        getAbsolutePath: () => `${projectBasePath}/mcp-skill`
+      },
+      content: '# MCP Skill',
+      yamlFrontMatter: {name: 'mcp-skill'},
+      mcpConfig: {
+        type: 'SkillMcpConfig',
+        mcpServers: {
+          context7: {command: 'npx', args: ['-y', '@upstash/context7-mcp']},
+          deepwiki: {url: 'https://mcp.deepwiki.com/mcp'}
+        },
+        rawContent: '{"mcpServers":{}}'
+      }
+    }
+
+    const skillWithoutMcp: any = {
+      dir: {
+        pathKind: FilePathKind.Relative,
+        path: 'normal-skill',
+        basePath: projectBasePath,
+        getDirectoryName: () => 'normal-skill',
+        getAbsolutePath: () => `${projectBasePath}/normal-skill`
+      },
+      content: '# Normal Skill',
+      yamlFrontMatter: {name: 'normal-skill'}
+    }
+
+    it('should register mcp_config.json when any skill has MCP config', async () => {
+      const ctx = {
+        collectedInputContext: {
+          workspace: {projects: []},
+          skills: [skillWithMcp]
+        }
+      } as any
+
+      const results = await plugin.registerProjectOutputFiles(ctx)
+      const mcpFile = results.find(r => r.path === 'mcp_config.json')
+
+      expect(mcpFile).toBeDefined()
+      expect(mcpFile!.basePath.replaceAll('\\', '/')).toContain('.gemini/antigravity')
+    })
+
+    it('should NOT register mcp_config.json when no skill has MCP config', async () => {
+      const ctx = {
+        collectedInputContext: {
+          workspace: {projects: []},
+          skills: [skillWithoutMcp]
+        }
+      } as any
+
+      const results = await plugin.registerProjectOutputFiles(ctx)
+      const mcpFile = results.find(r => r.path === 'mcp_config.json')
+
+      expect(mcpFile).toBeUndefined()
+    })
+
+    it('should write merged MCP config with namespaced keys', async () => {
+      vi.mocked(fs.writeFileSync).mockClear()
+
+      const ctx = {
+        collectedInputContext: {
+          globalMemory: null,
+          workspace: {projects: []},
+          skills: [skillWithMcp],
+          fastCommands: null
+        },
+        config: {plugins: []},
+        dryRun: false
+      } as any
+
+      await plugin.writeProjectOutputs(ctx)
+
+      const mcpCall = vi.mocked(fs.writeFileSync).mock.calls.find(call =>
+        String(call[0]).replaceAll('\\', '/').includes('mcp_config.json'))
+
+      expect(mcpCall).toBeDefined()
+      const content = JSON.parse(mcpCall![1] as string)
+      expect(content.mcpServers).toBeDefined()
+      expect(content.mcpServers['skill-mcp-skill-context7']).toBeDefined()
+      expect(content.mcpServers['skill-mcp-skill-deepwiki']).toBeDefined()
+    })
+
+    it('should skip writing mcp_config.json when no skill has MCP config', async () => {
+      vi.mocked(fs.writeFileSync).mockClear()
+
+      const ctx = {
+        collectedInputContext: {
+          globalMemory: null,
+          workspace: {projects: []},
+          skills: [skillWithoutMcp],
+          fastCommands: null
+        },
+        config: {plugins: []},
+        dryRun: false
+      } as any
+
+      await plugin.writeProjectOutputs(ctx)
+
+      const mcpCall = vi.mocked(fs.writeFileSync).mock.calls.find(call =>
+        String(call[0]).replaceAll('\\', '/').includes('mcp_config.json'))
+
+      expect(mcpCall).toBeUndefined()
+    })
+
+    it('should not write mcp_config.json in dry-run mode', async () => {
+      vi.mocked(fs.writeFileSync).mockClear()
+
+      const ctx = {
+        collectedInputContext: {
+          globalMemory: null,
+          workspace: {projects: []},
+          skills: [skillWithMcp],
+          fastCommands: null
+        },
+        config: {plugins: []},
+        dryRun: true
+      } as any
+
+      const results = await plugin.writeProjectOutputs(ctx)
+
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
+      const mcpResult = results.files.find(f => f.path.path === 'mcp_config.json')
+      expect(mcpResult).toBeDefined()
+      expect(mcpResult!.success).toBe(true)
+    })
+  })
 })
