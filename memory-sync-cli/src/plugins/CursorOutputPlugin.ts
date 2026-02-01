@@ -1,23 +1,39 @@
+import { buildMarkdownWithFrontMatter } from '@/markdown'
 import type {
+  FastCommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
   SkillPrompt,
   WriteResult,
   WriteResults
 } from '@/types'
-import type {RelativePath} from '@/types/FileSystemTypes'
+import { FilePathKind } from '@/types'
+import type { RelativePath } from '@/types/FileSystemTypes'
+import { Buffer } from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {FilePathKind} from '@/types'
-import {AbstractOutputPlugin} from './AbstractOutputPlugin'
+import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
 const GLOBAL_CONFIG_DIR = '.cursor'
 const MCP_CONFIG_FILE = 'mcp.json'
+const COMMANDS_SUBDIR = 'commands'
+const SKILLS_CURSOR_SUBDIR = 'skills-cursor'
+const SKILL_FILE_NAME = 'SKILL.md'
+
+const PRESERVED_SKILLS = new Set<string>([
+  'create-rule',
+  'create-skill',
+  'create-subagent',
+  'migrate-to-skills',
+  'update-cursor-settings'
+])
 
 /**
  * Cursor IDE output plugin.
  * Depends on AgentsOutputPlugin so that AGENTS.md is generated before this plugin runs.
  * Writes merged MCP config from skills to ~/.cursor/mcp.json (Cursor global MCP config).
+ * Writes fast commands to ~/.cursor/commands/.
+ * Writes skills to ~/.cursor/skills-cursor/ (preserves built-in skills: create-rule, create-skill, etc.).
  */
 export class CursorOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -51,46 +67,219 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const hasAnyMcpConfig = ctx.collectedInputContext.skills?.some(s => s.mcpConfig != null) ?? false
-
-    if (!hasAnyMcpConfig) return results
-
     const globalDir = this.getGlobalConfigDir()
-    const mcpConfigPath = path.join(globalDir, MCP_CONFIG_FILE)
-    results.push({
-      pathKind: FilePathKind.Relative,
-      path: MCP_CONFIG_FILE,
-      basePath: globalDir,
-      getDirectoryName: () => GLOBAL_CONFIG_DIR,
-      getAbsolutePath: () => mcpConfigPath
-    })
+    const {fastCommands, skills} = ctx.collectedInputContext
+
+    if (fastCommands != null && fastCommands.length > 0) {
+      const commandsDir = this.getGlobalCommandsDir()
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: COMMANDS_SUBDIR,
+        basePath: globalDir,
+        getDirectoryName: () => COMMANDS_SUBDIR,
+        getAbsolutePath: () => commandsDir
+      })
+    }
+
+    if (skills != null && skills.length > 0) {
+      for (const skill of skills) {
+        const skillName = skill.yamlFrontMatter.name
+        if (this.isPreservedSkill(skillName)) continue
+
+        const skillPath = path.join(globalDir, SKILLS_CURSOR_SUBDIR, skillName)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: path.join(SKILLS_CURSOR_SUBDIR, skillName),
+          basePath: globalDir,
+          getDirectoryName: () => skillName,
+          getAbsolutePath: () => skillPath
+        })
+      }
+    }
 
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {skills} = ctx.collectedInputContext
-    const hasSkills = (skills?.length ?? 0) > 0
+  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results: RelativePath[] = []
+    const globalDir = this.getGlobalConfigDir()
+    const {skills, fastCommands} = ctx.collectedInputContext
+    const hasAnyMcpConfig = skills?.some(s => s.mcpConfig != null) ?? false
 
-    if (hasSkills) return true
+    if (hasAnyMcpConfig) {
+      const mcpConfigPath = path.join(globalDir, MCP_CONFIG_FILE)
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: MCP_CONFIG_FILE,
+        basePath: globalDir,
+        getDirectoryName: () => GLOBAL_CONFIG_DIR,
+        getAbsolutePath: () => mcpConfigPath
+      })
+    }
+
+    if (fastCommands != null && fastCommands.length > 0) {
+      const commandsDir = this.getGlobalCommandsDir()
+      const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
+      for (const cmd of fastCommands) {
+        const fileName = this.transformFastCommandName(cmd, transformOptions)
+        const fullPath = path.join(commandsDir, fileName)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: path.join(COMMANDS_SUBDIR, fileName),
+          basePath: globalDir,
+          getDirectoryName: () => COMMANDS_SUBDIR,
+          getAbsolutePath: () => fullPath
+        })
+      }
+    }
+
+    if (skills == null || skills.length === 0) return results
+
+    const skillsCursorDir = this.getSkillsCursorDir()
+    for (const skill of skills) {
+      const skillName = skill.yamlFrontMatter.name
+      if (this.isPreservedSkill(skillName)) continue
+
+      const skillDir = path.join(skillsCursorDir, skillName)
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: path.join(SKILLS_CURSOR_SUBDIR, skillName, SKILL_FILE_NAME),
+        basePath: globalDir,
+        getDirectoryName: () => skillName,
+        getAbsolutePath: () => path.join(skillDir, SKILL_FILE_NAME)
+      })
+
+      if (skill.mcpConfig != null) {
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: path.join(SKILLS_CURSOR_SUBDIR, skillName, MCP_CONFIG_FILE),
+          basePath: globalDir,
+          getDirectoryName: () => skillName,
+          getAbsolutePath: () => path.join(skillDir, MCP_CONFIG_FILE)
+        })
+      }
+
+      if (skill.childDocs != null) {
+        for (const childDoc of skill.childDocs) {
+          const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
+          results.push({
+            pathKind: FilePathKind.Relative,
+            path: path.join(SKILLS_CURSOR_SUBDIR, skillName, outputRelativePath),
+            basePath: globalDir,
+            getDirectoryName: () => skillName,
+            getAbsolutePath: () => path.join(skillDir, outputRelativePath)
+          })
+        }
+      }
+
+      if (skill.resources != null) {
+        for (const resource of skill.resources) {
+          results.push({
+            pathKind: FilePathKind.Relative,
+            path: path.join(SKILLS_CURSOR_SUBDIR, skillName, resource.relativePath),
+            basePath: globalDir,
+            getDirectoryName: () => skillName,
+            getAbsolutePath: () => path.join(skillDir, resource.relativePath)
+          })
+        }
+      }
+    }
+    return results
+  }
+
+  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+    const {skills, fastCommands} = ctx.collectedInputContext
+    const hasSkills = (skills?.length ?? 0) > 0
+    const hasFastCommands = (fastCommands?.length ?? 0) > 0
+
+    if (hasSkills || hasFastCommands) return true
 
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {skills} = ctx.collectedInputContext
+    const {skills, fastCommands} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults}
+    if (skills != null && skills.length > 0) {
+      const mcpResult = await this.writeGlobalMcpConfig(ctx, skills)
+      if (mcpResult != null) fileResults.push(mcpResult)
 
-    const mcpResult = await this.writeGlobalMcpConfig(ctx, skills)
-    if (mcpResult != null) fileResults.push(mcpResult)
+      const skillsCursorDir = this.getSkillsCursorDir()
+      for (const skill of skills) {
+        const skillName = skill.yamlFrontMatter.name
+        if (this.isPreservedSkill(skillName)) continue
 
+        const skillResults = await this.writeGlobalSkill(ctx, skillsCursorDir, skill)
+        fileResults.push(...skillResults)
+      }
+    }
+
+    if (fastCommands == null || fastCommands.length === 0) return {files: fileResults, dirs: dirResults}
+
+    const commandsDir = this.getGlobalCommandsDir()
+    for (const cmd of fastCommands) {
+      const result = await this.writeGlobalFastCommand(ctx, commandsDir, cmd)
+      fileResults.push(result)
+    }
     return {files: fileResults, dirs: dirResults}
+  }
+
+  private isPreservedSkill(name: string): boolean {
+    return PRESERVED_SKILLS.has(name)
+  }
+
+  private getSkillsCursorDir(): string {
+    return path.join(this.getGlobalConfigDir(), SKILLS_CURSOR_SUBDIR)
+  }
+
+  private getGlobalCommandsDir(): string {
+    return path.join(this.getGlobalConfigDir(), COMMANDS_SUBDIR)
+  }
+
+  private async writeGlobalFastCommand(
+    ctx: OutputWriteContext,
+    commandsDir: string,
+    cmd: FastCommandPrompt
+  ): Promise<WriteResult> {
+    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
+    const fileName = this.transformFastCommandName(cmd, transformOptions)
+    const fullPath = path.join(commandsDir, fileName)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(COMMANDS_SUBDIR, fileName),
+      basePath: this.getGlobalConfigDir(),
+      getDirectoryName: () => COMMANDS_SUBDIR,
+      getAbsolutePath: () => fullPath
+    }
+
+    const content = this.buildMarkdownContentWithRaw(
+      cmd.content,
+      cmd.yamlFrontMatter,
+      cmd.rawFrontMatter
+    )
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'globalFastCommand', path: fullPath})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      this.ensureDirectory(commandsDir)
+      fs.writeFileSync(fullPath, content)
+      this.log.trace({action: 'write', type: 'globalFastCommand', path: fullPath})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: 'globalFastCommand', path: fullPath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
+    }
   }
 
   private async writeGlobalMcpConfig(
@@ -173,5 +362,190 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     if (config['headers'] != null) result['headers'] = config['headers']
 
     return result
+  }
+
+  private async writeGlobalSkill(
+    ctx: OutputWriteContext,
+    skillsDir: string,
+    skill: SkillPrompt
+  ): Promise<WriteResult[]> {
+    const results: WriteResult[] = []
+    const skillName = skill.yamlFrontMatter.name
+    const skillDir = path.join(skillsDir, skillName)
+    const skillFilePath = path.join(skillDir, SKILL_FILE_NAME)
+    const globalDir = this.getGlobalConfigDir()
+
+    const skillRelativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(SKILLS_CURSOR_SUBDIR, skillName, SKILL_FILE_NAME),
+      basePath: globalDir,
+      getDirectoryName: () => skillName,
+      getAbsolutePath: () => skillFilePath
+    }
+
+    const frontMatterData = this.buildSkillFrontMatter(skill)
+    const bodyContent = skill.content as string
+    const skillContent = buildMarkdownWithFrontMatter(frontMatterData, bodyContent)
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'skill', path: skillFilePath})
+      results.push({path: skillRelativePath, success: true, skipped: false})
+    } else {
+      try {
+        this.ensureDirectory(skillDir)
+        this.writeFileSync(skillFilePath, skillContent)
+        this.log.trace({action: 'write', type: 'skill', path: skillFilePath})
+        results.push({path: skillRelativePath, success: true})
+      }
+      catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error)
+        this.log.error({action: 'write', type: 'skill', path: skillFilePath, error: errMsg})
+        results.push({path: skillRelativePath, success: false, error: error as Error})
+      }
+    }
+
+    if (skill.mcpConfig != null) {
+      const mcpResult = await this.writeSkillMcpConfig(ctx, skill, skillDir, globalDir)
+      results.push(mcpResult)
+    }
+
+    if (skill.childDocs != null) {
+      for (const childDoc of skill.childDocs) {
+        const childResult = await this.writeSkillChildDoc(ctx, childDoc, skillDir, skillName, globalDir)
+        results.push(childResult)
+      }
+    }
+
+    if (skill.resources != null) {
+      for (const resource of skill.resources) {
+        const resourceResult = await this.writeSkillResource(ctx, resource, skillDir, skillName, globalDir)
+        results.push(resourceResult)
+      }
+    }
+
+    return results
+  }
+
+  private buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
+    const fm = skill.yamlFrontMatter
+    return {
+      name: fm.name,
+      description: fm.description,
+      ...fm.displayName != null && {displayName: fm.displayName},
+      ...fm.keywords != null && fm.keywords.length > 0 && {keywords: fm.keywords},
+      ...fm.author != null && {author: fm.author},
+      ...fm.version != null && {version: fm.version},
+      ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}
+    }
+  }
+
+  private async writeSkillMcpConfig(
+    ctx: OutputWriteContext,
+    skill: SkillPrompt,
+    skillDir: string,
+    globalDir: string
+  ): Promise<WriteResult> {
+    const skillName = skill.yamlFrontMatter.name
+    const mcpConfigPath = path.join(skillDir, MCP_CONFIG_FILE)
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(SKILLS_CURSOR_SUBDIR, skillName, MCP_CONFIG_FILE),
+      basePath: globalDir,
+      getDirectoryName: () => skillName,
+      getAbsolutePath: () => mcpConfigPath
+    }
+    const mcpConfigContent = skill.mcpConfig!.rawContent
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'mcpConfig', path: mcpConfigPath})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      this.ensureDirectory(skillDir)
+      this.writeFileSync(mcpConfigPath, mcpConfigContent)
+      this.log.trace({action: 'write', type: 'mcpConfig', path: mcpConfigPath})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: 'mcpConfig', path: mcpConfigPath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
+    }
+  }
+
+  private async writeSkillChildDoc(
+    ctx: OutputWriteContext,
+    childDoc: {relativePath: string, content: unknown},
+    skillDir: string,
+    skillName: string,
+    globalDir: string
+  ): Promise<WriteResult> {
+    const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
+    const childDocPath = path.join(skillDir, outputRelativePath)
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(SKILLS_CURSOR_SUBDIR, skillName, outputRelativePath),
+      basePath: globalDir,
+      getDirectoryName: () => skillName,
+      getAbsolutePath: () => childDocPath
+    }
+    const content = childDoc.content as string
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'childDoc', path: childDocPath})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      const parentDir = path.dirname(childDocPath)
+      this.ensureDirectory(parentDir)
+      this.writeFileSync(childDocPath, content)
+      this.log.trace({action: 'write', type: 'childDoc', path: childDocPath})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: 'childDoc', path: childDocPath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
+    }
+  }
+
+  private async writeSkillResource(
+    ctx: OutputWriteContext,
+    resource: {relativePath: string, content: string, encoding: 'text' | 'base64'},
+    skillDir: string,
+    skillName: string,
+    globalDir: string
+  ): Promise<WriteResult> {
+    const resourcePath = path.join(skillDir, resource.relativePath)
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(SKILLS_CURSOR_SUBDIR, skillName, resource.relativePath),
+      basePath: globalDir,
+      getDirectoryName: () => skillName,
+      getAbsolutePath: () => resourcePath
+    }
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'resource', path: resourcePath})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      const parentDir = path.dirname(resourcePath)
+      this.ensureDirectory(parentDir)
+      if (resource.encoding === 'base64') {
+        const buffer = Buffer.from(resource.content, 'base64')
+        this.writeFileSyncBuffer(resourcePath, buffer)
+      } else this.writeFileSync(resourcePath, resource.content)
+      this.log.trace({action: 'write', type: 'resource', path: resourcePath})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: 'resource', path: resourcePath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
+    }
   }
 }
