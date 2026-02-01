@@ -10,7 +10,7 @@ catalog:
   '@types/estree-jsx': ^1.0.5
   '@types/fs-extra': ^11.0.4
   '@types/mdast': ^4.0.4
-  '@types/node': ^25.1.0
+  '@types/node': ^25.2.0
   '@types/picomatch': ^4.0.2
   '@vitest/coverage-v8': 4.0.18
   eslint: ^9.39.2

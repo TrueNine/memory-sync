@@ -2,6 +2,7 @@ import type {ILogger} from '@/log'
 import type {OutputCleanContext, OutputPlugin} from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {deletePathSync} from '@truenine/desk-paths'
 import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '@/types/PluginTypes'
 
 /**
@@ -62,6 +63,7 @@ export async function collectDeletionTargets(
 /**
  * Delete files with error handling
  * Logs warnings for failed deletions and continues with remaining files
+ * Uses deletePathSync from @truenine/desk-paths for cross-platform safe deletion
  */
 export function deleteFiles(files: string[], logger: ILogger): {deleted: number, errors: CleanupError[]} {
   let deleted = 0
@@ -71,7 +73,7 @@ export function deleteFiles(files: string[], logger: ILogger): {deleted: number,
     const resolved = path.isAbsolute(file) ? file : path.resolve(file)
     try {
       if (fs.existsSync(resolved)) {
-        fs.unlinkSync(resolved)
+        deletePathSync(resolved)
         logger.debug({action: 'delete', type: 'file', path: resolved})
         deleted++
       }

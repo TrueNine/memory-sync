@@ -22,9 +22,9 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
+import {createSymlink as deskCreateSymlink, isSymlink as deskIsSymlink, lstatSync as deskLstatSync, removeSymlink as deskRemoveSymlink} from '@truenine/desk-paths'
 import {buildMarkdownWithFrontMatter} from '@/markdown'
 import {FilePathKind, PluginKind} from '@/types'
-import {createSymlink as deskCreateSymlink, isSymlink as deskIsSymlink, lstatSync as deskLstatSync, removeSymlink as deskRemoveSymlink} from '@/utils/DeskPaths'
 import {AbstractPlugin} from './AbstractPlugin'
 
 /**

@@ -49,3 +49,131 @@ export function getPlatformFixedDir(): string {
 
   throw new Error(`Unsupported platform: ${process.platform}`)
 }
+
+// =============================================================================
+// Symlink Utilities - Cross-platform symlink creation and management
+// =============================================================================
+
+import * as fs from 'node:fs'
+
+/**
+ * Check if a path is a symbolic link (or junction on Windows).
+ *
+ * @param p - The path to check
+ * @returns true if the path is a symbolic link, false otherwise
+ */
+export function isSymlink(p: string): boolean {
+  try {
+    return fs.lstatSync(p).isSymbolicLink()
+  }
+  catch {
+    return false
+  }
+}
+
+/**
+ * Get file stats without following symlinks.
+ *
+ * @param p - The path to get stats for
+ * @returns The fs.Stats object
+ */
+export function lstatSync(p: string): fs.Stats {
+  return fs.lstatSync(p)
+}
+
+/**
+ * Ensure a directory exists, creating it recursively if needed.
+ */
+function ensureDirectory(dir: string): void {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive: true})
+}
+
+/**
+ * Create a symbolic link with cross-platform support.
+ *
+ * On Windows:
+ * - Uses 'junction' for directories (no admin privileges required)
+ * - Uses 'file' symlink for files (may require admin or developer mode)
+ *
+ * On Unix/macOS:
+ * - Uses standard symbolic links for both files and directories
+ *
+ * @param targetPath - The path the symlink should point to (must be absolute on Windows for junction)
+ * @param symlinkPath - The path where the symlink will be created
+ * @param type - Type of symlink: 'file' or 'dir' (default: 'dir')
+ */
+export function createSymlink(targetPath: string, symlinkPath: string, type: 'file' | 'dir' = 'dir'): void {
+  const parentDir = path.dirname(symlinkPath)
+  ensureDirectory(parentDir)
+
+  if (fs.existsSync(symlinkPath)) { // Remove existing symlink or directory
+    const stat = fs.lstatSync(symlinkPath)
+    if (stat.isSymbolicLink()) {
+      if (process.platform === 'win32') fs.rmSync(symlinkPath, {recursive: true, force: true}) // Windows junction needs rmSync
+      else fs.unlinkSync(symlinkPath)
+    } else if (stat.isDirectory()) fs.rmSync(symlinkPath, {recursive: true})
+    else fs.unlinkSync(symlinkPath)
+  }
+
+  if (process.platform === 'win32' && type === 'dir') fs.symlinkSync(targetPath, symlinkPath, 'junction') // On Windows, use junction for directories (no admin needed)
+  else fs.symlinkSync(targetPath, symlinkPath, type)
+}
+
+/**
+ * Remove a symbolic link (or junction on Windows) if it exists.
+ *
+ * @param symlinkPath - The path of the symlink to remove
+ */
+export function removeSymlink(symlinkPath: string): void {
+  if (!fs.existsSync(symlinkPath)) return
+
+  const stat = fs.lstatSync(symlinkPath)
+  if (stat.isSymbolicLink()) {
+    if (process.platform === 'win32') fs.rmSync(symlinkPath, {recursive: true, force: true}) // Windows junction needs rmSync
+    else fs.unlinkSync(symlinkPath)
+  }
+}
+
+/**
+ * Read the target of a symbolic link.
+ *
+ * @param symlinkPath - The path of the symlink
+ * @returns The target path, or null if not a symlink or an error occurred
+ */
+export function readSymlinkTarget(symlinkPath: string): string | null {
+  try {
+    if (!isSymlink(symlinkPath)) return null
+    return fs.readlinkSync(symlinkPath)
+  }
+  catch {
+    return null
+  }
+}
+
+/**
+ * Check if a path exists (file, directory, or symlink).
+ *
+ * @param p - The path to check
+ * @returns true if the path exists
+ */
+export function existsSync(p: string): boolean {
+  return fs.existsSync(p)
+}
+
+/**
+ * Delete a file, directory, or symlink/junction safely.
+ * Handles Windows junctions properly by using rmSync.
+ *
+ * @param p - The path to delete
+ */
+export function deletePathSync(p: string): void {
+  if (!fs.existsSync(p)) return
+
+  const stat = fs.lstatSync(p)
+  if (stat.isSymbolicLink()) {
+    if (process.platform === 'win32') fs.rmSync(p, {recursive: true, force: true}) // Windows junction
+    else fs.unlinkSync(p)
+  } else if (stat.isDirectory()) fs.rmSync(p, {recursive: true, force: true})
+  else fs.unlinkSync(p)
+}
+
