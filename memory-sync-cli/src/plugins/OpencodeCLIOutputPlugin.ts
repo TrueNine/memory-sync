@@ -1,10 +1,13 @@
-import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext, SkillPrompt, SubAgentPrompt, WriteResult} from '@/types'
+import type {FastCommandPrompt, McpServerConfig, OutputPluginContext, OutputWriteContext, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
+import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {FilePathKind} from '@/types'
 import {BaseCLIOutputPlugin} from './BaseCLIOutputPlugin'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.config/opencode'
+const OPENCODE_CONFIG_FILE = 'opencode.json'
 
 /**
  * Opencode CLI output plugin.
@@ -32,11 +35,49 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
       supportsSkills: true,
       dependsOn: ['AgentsOutputPlugin']
     })
+
+    this.registerCleanEffect('mcp-config-cleanup', async ctx => {
+      const globalDir = this.getGlobalConfigDir()
+      const configPath = path.join(globalDir, OPENCODE_CONFIG_FILE)
+
+      if (ctx.dryRun === true) {
+        this.log.trace({action: 'dryRun', type: 'mcpConfigCleanup', path: configPath})
+        return {success: true, description: 'Would reset opencode.json mcp to empty'}
+      }
+
+      try {
+        if (fs.existsSync(configPath)) {
+          const existingContent = fs.readFileSync(configPath, 'utf8')
+          const existingConfig = JSON.parse(existingContent) as Record<string, unknown>
+          existingConfig['mcp'] = {}
+          fs.writeFileSync(configPath, JSON.stringify(existingConfig, null, 2))
+        }
+        this.log.trace({action: 'clean', type: 'mcpConfigCleanup', path: configPath})
+        return {success: true, description: 'Reset opencode.json mcp to empty'}
+      }
+      catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error)
+        this.log.error({action: 'clean', type: 'mcpConfigCleanup', path: configPath, error: errMsg})
+        return {success: false, error: error as Error, description: 'Failed to reset opencode.json mcp'}
+      }
+    })
   }
 
   override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results = await super.registerGlobalOutputFiles(ctx)
     const globalDir = this.getGlobalConfigDir()
+
+    const hasAnyMcpConfig = ctx.collectedInputContext.skills?.some(s => s.mcpConfig != null) ?? false
+    if (hasAnyMcpConfig) {
+      const configPath = path.join(globalDir, OPENCODE_CONFIG_FILE)
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: OPENCODE_CONFIG_FILE,
+        basePath: globalDir,
+        getDirectoryName: () => GLOBAL_CONFIG_DIR,
+        getAbsolutePath: () => configPath
+      })
+    }
 
     return results.map(result => { // Normalize skill directory names in paths
       const normalizedPath = result.path.replaceAll('\\', '/') // Normalize path separators for consistent checking
@@ -63,6 +104,100 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
         getAbsolutePath: () => path.join(globalDir, newPath.replaceAll('/', path.sep))
       }
     })
+  }
+
+  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+    const baseResults = await super.writeGlobalOutputs(ctx)
+    const files = [...baseResults.files]
+
+    const {skills} = ctx.collectedInputContext
+    if (skills == null) return {files, dirs: baseResults.dirs}
+
+    const mcpResult = await this.writeGlobalMcpConfig(ctx, skills)
+    if (mcpResult != null) files.push(mcpResult)
+    return {files, dirs: baseResults.dirs}
+  }
+
+  private async writeGlobalMcpConfig(
+    ctx: OutputWriteContext,
+    skills: readonly SkillPrompt[]
+  ): Promise<WriteResult | null> {
+    const mergedMcpServers: Record<string, unknown> = {}
+
+    for (const skill of skills) {
+      if (skill.mcpConfig == null) continue
+
+      const {mcpServers} = skill.mcpConfig
+
+      for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) mergedMcpServers[mcpName] = this.transformMcpConfigForOpencode(mcpConfig)
+    }
+
+    if (Object.keys(mergedMcpServers).length === 0) return null
+
+    const globalDir = this.getGlobalConfigDir()
+    const configPath = path.join(globalDir, OPENCODE_CONFIG_FILE)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: OPENCODE_CONFIG_FILE,
+      basePath: globalDir,
+      getDirectoryName: () => GLOBAL_CONFIG_DIR,
+      getAbsolutePath: () => configPath
+    }
+
+    let existingConfig: Record<string, unknown> = {}
+    try {
+      if (fs.existsSync(configPath)) {
+        const content = fs.readFileSync(configPath, 'utf8')
+        existingConfig = JSON.parse(content) as Record<string, unknown>
+      }
+    }
+    catch {
+      existingConfig = {}
+    }
+
+    existingConfig['$schema'] = 'https://opencode.ai/config.json'
+    existingConfig['mcp'] = mergedMcpServers
+
+    const content = JSON.stringify(existingConfig, null, 2)
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'globalMcpConfig', path: configPath, serverCount: Object.keys(mergedMcpServers).length})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      this.ensureDirectory(globalDir)
+      fs.writeFileSync(configPath, content)
+      this.log.trace({action: 'write', type: 'globalMcpConfig', path: configPath, serverCount: Object.keys(mergedMcpServers).length})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: 'globalMcpConfig', path: configPath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
+    }
+  }
+
+  private transformMcpConfigForOpencode(config: McpServerConfig): Record<string, unknown> {
+    const result: Record<string, unknown> = {}
+
+    if (config.command != null) {
+      result['type'] = 'local'
+      const commandArray = [config.command]
+      if (config.args != null) commandArray.push(...config.args)
+      result['command'] = commandArray
+      if (config.env != null) result['environment'] = config.env
+    } else {
+      result['type'] = 'remote'
+      const configRecord = config as unknown as Record<string, unknown>
+      if (configRecord['url'] != null) result['url'] = configRecord['url']
+      else if (configRecord['serverUrl'] != null) result['url'] = configRecord['serverUrl']
+    }
+
+    result['enabled'] = config.disabled !== true
+
+    return result
   }
 
   protected override async writeSubAgent(

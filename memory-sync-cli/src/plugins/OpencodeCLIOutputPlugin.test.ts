@@ -285,4 +285,122 @@ describe('opencodeCLIOutputPlugin', () => {
       }
     })
   })
+
+  describe('mcp config output', () => {
+    it('should register opencode.json when skill has mcp config', async () => {
+      const mockSkill: SkillPrompt = {
+        type: PromptKind.Skill,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-skill', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'test-skill', description: 'desc'},
+        mcpConfig: {
+          type: PromptKind.SkillMcpConfig,
+          rawContent: '{}',
+          mcpServers: {
+            'test-server': {command: 'test-cmd'}
+          }
+        }
+      }
+
+      const ctxWithSkill = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          skills: [mockSkill]
+        }
+      }
+
+      const files = await plugin.registerGlobalOutputFiles(ctxWithSkill)
+      const configFile = files.find(f => f.path === 'opencode.json')
+
+      expect(configFile).toBeDefined()
+      expect(configFile?.basePath).toBe(path.join(tempDir, '.config/opencode'))
+    })
+
+    it('should write correct local mcp config', async () => {
+      const mockSkill: SkillPrompt = {
+        type: PromptKind.Skill,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-skill', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'test-skill', description: 'desc'},
+        mcpConfig: {
+          type: PromptKind.SkillMcpConfig,
+          rawContent: '{}',
+          mcpServers: {
+            'local-server': {
+              command: 'node',
+              args: ['index.js'],
+              env: {KEY: 'value'}
+            }
+          }
+        }
+      }
+
+      const ctxWithSkill = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          skills: [mockSkill]
+        }
+      }
+
+      await plugin.writeGlobalOutputs(ctxWithSkill)
+
+      const configPath = path.join(tempDir, '.config/opencode/opencode.json')
+      expect(fs.existsSync(configPath)).toBe(true)
+
+      const content = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+      expect(content.mcp).toBeDefined()
+      expect(content.mcp['local-server']).toBeDefined()
+      expect(content.mcp['local-server'].type).toBe('local')
+      expect(content.mcp['local-server'].command).toEqual(['node', 'index.js'])
+      expect(content.mcp['local-server'].environment).toEqual({KEY: 'value'})
+      expect(content.mcp['local-server'].enabled).toBe(true)
+    })
+
+    it('should write correct remote mcp config', async () => {
+      const mockSkill: SkillPrompt = {
+        type: PromptKind.Skill,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-skill', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'test-skill', description: 'desc'},
+        mcpConfig: {
+          type: PromptKind.SkillMcpConfig,
+          rawContent: '{}',
+          mcpServers: {
+            'remote-server': {
+              url: 'https://example.com/mcp'
+            } as any
+          }
+        }
+      }
+
+      const ctxWithSkill = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          skills: [mockSkill]
+        }
+      }
+
+      await plugin.writeGlobalOutputs(ctxWithSkill)
+
+      const configPath = path.join(tempDir, '.config/opencode/opencode.json')
+      const content = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+
+      expect(content.mcp['remote-server']).toBeDefined()
+      expect(content.mcp['remote-server'].type).toBe('remote')
+      expect(content.mcp['remote-server'].url).toBe('https://example.com/mcp')
+      expect(content.mcp['remote-server'].enabled).toBe(true)
+    })
+  })
 })
