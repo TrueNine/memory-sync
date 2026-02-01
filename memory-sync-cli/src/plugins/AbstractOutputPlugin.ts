@@ -24,6 +24,7 @@ import * as path from 'node:path'
 import process from 'node:process'
 import {buildMarkdownWithFrontMatter} from '@/markdown'
 import {FilePathKind, PluginKind} from '@/types'
+import {createSymlink as deskCreateSymlink, isSymlink as deskIsSymlink, lstatSync as deskLstatSync, removeSymlink as deskRemoveSymlink} from '@/utils/DeskPaths'
 import {AbstractPlugin} from './AbstractPlugin'
 
 /**
@@ -229,6 +230,22 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   protected existsSync(p: string): boolean {
     return fs.existsSync(p)
+  }
+
+  protected lstatSync(p: string): fs.Stats {
+    return deskLstatSync(p)
+  }
+
+  protected isSymlink(p: string): boolean {
+    return deskIsSymlink(p)
+  }
+
+  protected createSymlink(targetPath: string, symlinkPath: string, type: 'file' | 'dir' = 'dir'): void {
+    deskCreateSymlink(targetPath, symlinkPath, type)
+  }
+
+  protected removeSymlink(symlinkPath: string): void {
+    deskRemoveSymlink(symlinkPath)
   }
 
   protected readdirSync(dir: string, options: {withFileTypes: true}): fs.Dirent[]

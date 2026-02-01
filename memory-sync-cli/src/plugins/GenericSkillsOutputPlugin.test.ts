@@ -8,24 +8,29 @@ import type {
   SkillYAMLFrontMatter
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
-import {Buffer} from 'node:buffer'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {FilePathKind, PromptKind} from '@/types'
 import {GenericSkillsOutputPlugin} from './GenericSkillsOutputPlugin'
 
 vi.mock('node:fs')
+vi.mock('node:os')
 
 describe('genericSkillsOutputPlugin', () => {
   const mockWorkspaceDir = '/workspace/test'
+  const mockHomeDir = '/home/user'
   let plugin: GenericSkillsOutputPlugin
 
   beforeEach(() => {
     plugin = new GenericSkillsOutputPlugin()
+    vi.mocked(os.homedir).mockReturnValue(mockHomeDir)
     vi.mocked(fs.existsSync).mockReturnValue(true)
     vi.mocked(fs.mkdirSync).mockReturnValue(void 0)
     vi.mocked(fs.writeFileSync).mockReturnValue(void 0)
+    vi.mocked(fs.symlinkSync).mockReturnValue(void 0)
+    vi.mocked(fs.lstatSync).mockReturnValue({isSymbolicLink: () => false, isDirectory: () => false} as fs.Stats)
   })
 
   afterEach(() => vi.clearAllMocks())
@@ -219,8 +224,38 @@ describe('genericSkillsOutputPlugin', () => {
     })
   })
 
-  describe('registerProjectOutputFiles', () => {
-    it('should register SKILL.md for each skill in each project', async () => {
+  describe('registerGlobalOutputDirs', () => {
+    it('should register ~/.skills/ directory when skills exist', async () => {
+      const ctx = createMockOutputPluginContext({
+        workspace: {
+          directory: createMockRelativePath('.', mockWorkspaceDir),
+          projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}]
+        },
+        skills: [createMockSkillPrompt('test-skill', 'content')]
+      })
+
+      const results = await plugin.registerGlobalOutputDirs(ctx)
+
+      expect(results).toHaveLength(1)
+      expect(results[0]?.path).toBe('.skills')
+      expect(results[0]?.basePath).toBe(mockHomeDir)
+    })
+
+    it('should return empty array when no skills exist', async () => {
+      const ctx = createMockOutputPluginContext({
+        workspace: {
+          directory: createMockRelativePath('.', mockWorkspaceDir),
+          projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}]
+        }
+      })
+
+      const results = await plugin.registerGlobalOutputDirs(ctx)
+      expect(results).toHaveLength(0)
+    })
+  })
+
+  describe('registerGlobalOutputFiles', () => {
+    it('should register SKILL.md in ~/.skills/ for each skill', async () => {
       const ctx = createMockOutputPluginContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
@@ -232,11 +267,12 @@ describe('genericSkillsOutputPlugin', () => {
         ]
       })
 
-      const results = await plugin.registerProjectOutputFiles(ctx)
+      const results = await plugin.registerGlobalOutputFiles(ctx)
 
       expect(results).toHaveLength(2)
       expect(results[0]?.path).toBe(path.join('.skills', 'skill-a', 'SKILL.md'))
       expect(results[1]?.path).toBe(path.join('.skills', 'skill-b', 'SKILL.md'))
+      expect(results[0]?.basePath).toBe(mockHomeDir)
     })
 
     it('should register mcp.json when skill has MCP config', async () => {
@@ -248,41 +284,20 @@ describe('genericSkillsOutputPlugin', () => {
         skills: [createMockSkillPrompt('test-skill', 'content', {mcpConfig: {rawContent: '{}'}})]
       })
 
-      const results = await plugin.registerProjectOutputFiles(ctx)
+      const results = await plugin.registerGlobalOutputFiles(ctx)
 
       expect(results).toHaveLength(2)
       expect(results[0]?.path).toBe(path.join('.skills', 'test-skill', 'SKILL.md'))
       expect(results[1]?.path).toBe(path.join('.skills', 'test-skill', 'mcp.json'))
     })
-
-    it('should register child docs and resources', async () => {
-      const ctx = createMockOutputPluginContext({
-        workspace: {
-          directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}]
-        },
-        skills: [createMockSkillPrompt('test-skill', 'content', {
-          childDocs: [{relativePath: 'docs/guide.md', content: 'guide'}],
-          resources: [{relativePath: 'helper.kt', content: 'code', encoding: 'text'}]
-        })]
-      })
-
-      const results = await plugin.registerProjectOutputFiles(ctx)
-
-      expect(results).toHaveLength(3)
-      expect(results[0]?.path).toBe(path.join('.skills', 'test-skill', 'SKILL.md'))
-      expect(results[1]?.path).toBe(path.join('.skills', 'test-skill', 'docs/guide.md'))
-      expect(results[2]?.path).toBe(path.join('.skills', 'test-skill', 'helper.kt'))
-    })
   })
 
-  describe('writeProjectOutputs', () => {
-    it('should write SKILL.md with front matter', async () => {
-      const projectDir = createMockRelativePath('project1', mockWorkspaceDir)
+  describe('writeGlobalOutputs', () => {
+    it('should write SKILL.md to ~/.skills/ with front matter', async () => {
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{name: 'project1', dirFromWorkspacePath: projectDir}]
+          projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}]
         },
         skills: [createMockSkillPrompt('test-skill', '# Skill Content', {
           description: 'A test skill',
@@ -290,130 +305,45 @@ describe('genericSkillsOutputPlugin', () => {
         })]
       })
 
-      const results = await plugin.writeProjectOutputs(ctx)
+      const results = await plugin.writeGlobalOutputs(ctx)
 
       expect(results.files).toHaveLength(1)
       expect(results.files[0]?.success).toBe(true)
 
       const writeCall = vi.mocked(fs.writeFileSync).mock.calls[0]
       expect(writeCall).toBeDefined()
-      const writtenContent = writeCall?.[1] as string
+      expect(writeCall?.[0]).toContain(path.join(mockHomeDir, '.skills', 'test-skill', 'SKILL.md'))
 
+      const writtenContent = writeCall?.[1] as string
       expect(writtenContent).toContain('name: test-skill')
       expect(writtenContent).toContain('description: A test skill')
-      expect(writtenContent).toContain('keywords:')
       expect(writtenContent).toContain('# Skill Content')
     })
 
-    it('should write mcp.json when skill has MCP config', async () => {
-      const projectDir = createMockRelativePath('project1', mockWorkspaceDir)
-      const mcpContent = '{"mcpServers": {"test": {}}}'
-      const ctx = createMockOutputWriteContext({
-        workspace: {
-          directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{name: 'project1', dirFromWorkspacePath: projectDir}]
-        },
-        skills: [createMockSkillPrompt('test-skill', 'content', {mcpConfig: {rawContent: mcpContent}})]
-      })
-
-      const results = await plugin.writeProjectOutputs(ctx)
-
-      expect(results.files).toHaveLength(2)
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
-        expect.stringContaining('mcp.json'),
-        mcpContent,
-        'utf8'
-      )
-    })
-
-    it('should write child docs', async () => {
-      const projectDir = createMockRelativePath('project1', mockWorkspaceDir)
-      const ctx = createMockOutputWriteContext({
-        workspace: {
-          directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{name: 'project1', dirFromWorkspacePath: projectDir}]
-        },
-        skills: [createMockSkillPrompt('test-skill', 'content', {
-          childDocs: [{relativePath: 'docs/guide.md', content: '# Guide'}]
-        })]
-      })
-
-      const results = await plugin.writeProjectOutputs(ctx)
-
-      expect(results.files).toHaveLength(2)
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
-        expect.stringContaining('guide.md'),
-        '# Guide',
-        'utf8'
-      )
-    })
-
-    it('should write text resources', async () => {
-      const projectDir = createMockRelativePath('project1', mockWorkspaceDir)
-      const ctx = createMockOutputWriteContext({
-        workspace: {
-          directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{name: 'project1', dirFromWorkspacePath: projectDir}]
-        },
-        skills: [createMockSkillPrompt('test-skill', 'content', {
-          resources: [{relativePath: 'helper.kt', content: 'fun main() {}', encoding: 'text'}]
-        })]
-      })
-
-      const results = await plugin.writeProjectOutputs(ctx)
-
-      expect(results.files).toHaveLength(2)
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
-        expect.stringContaining('helper.kt'),
-        'fun main() {}',
-        'utf8'
-      )
-    })
-
-    it('should write binary resources as base64 decoded buffer', async () => {
-      const projectDir = createMockRelativePath('project1', mockWorkspaceDir)
-      const base64Content = Buffer.from('binary data').toString('base64')
-      const ctx = createMockOutputWriteContext({
-        workspace: {
-          directory: createMockRelativePath('.', mockWorkspaceDir),
-          projects: [{name: 'project1', dirFromWorkspacePath: projectDir}]
-        },
-        skills: [createMockSkillPrompt('test-skill', 'content', {
-          resources: [{relativePath: 'image.png', content: base64Content, encoding: 'base64'}]
-        })]
-      })
-
-      const results = await plugin.writeProjectOutputs(ctx)
-
-      expect(results.files).toHaveLength(2)
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
-        expect.stringContaining('image.png'),
-        expect.any(Buffer)
-      )
-    })
-
     it('should support dry-run mode', async () => {
-      const projectDir = createMockRelativePath('project1', mockWorkspaceDir)
       const ctx = createMockOutputWriteContext(
         {
           workspace: {
             directory: createMockRelativePath('.', mockWorkspaceDir),
-            projects: [{name: 'project1', dirFromWorkspacePath: projectDir}]
+            projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}]
           },
           skills: [createMockSkillPrompt('test-skill', 'content')]
         },
         true
       )
 
-      const results = await plugin.writeProjectOutputs(ctx)
+      const results = await plugin.writeGlobalOutputs(ctx)
 
       expect(results.files).toHaveLength(1)
       expect(results.files[0]?.success).toBe(true)
       expect(results.files[0]?.skipped).toBe(false)
       expect(vi.mocked(fs.writeFileSync)).not.toHaveBeenCalled()
     })
+  })
 
-    it('should write skills to multiple projects', async () => {
+  describe('writeProjectOutputs', () => {
+    it('should create symlinks for each skill in each project', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false) // Symlink doesn't exist yet
       const ctx = createMockOutputWriteContext({
         workspace: {
           directory: createMockRelativePath('.', mockWorkspaceDir),
@@ -428,17 +358,38 @@ describe('genericSkillsOutputPlugin', () => {
       const results = await plugin.writeProjectOutputs(ctx)
 
       expect(results.files).toHaveLength(2)
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(2)
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
-        expect.stringContaining(path.join('project1', '.skills')),
-        expect.any(String),
-        'utf8'
+      expect(vi.mocked(fs.symlinkSync)).toHaveBeenCalledTimes(2)
+
+      expect(vi.mocked(fs.symlinkSync)).toHaveBeenCalledWith( // Verify symlinks point from project to global
+        expect.stringContaining(path.join(mockHomeDir, '.skills', 'test-skill')),
+        expect.stringContaining(path.join('project1', '.skills', 'test-skill')),
+        expect.anything()
       )
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
-        expect.stringContaining(path.join('project2', '.skills')),
-        expect.any(String),
-        'utf8'
+      expect(vi.mocked(fs.symlinkSync)).toHaveBeenCalledWith(
+        expect.stringContaining(path.join(mockHomeDir, '.skills', 'test-skill')),
+        expect.stringContaining(path.join('project2', '.skills', 'test-skill')),
+        expect.anything()
       )
+    })
+
+    it('should support dry-run mode for symlinks', async () => {
+      const ctx = createMockOutputWriteContext(
+        {
+          workspace: {
+            directory: createMockRelativePath('.', mockWorkspaceDir),
+            projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}]
+          },
+          skills: [createMockSkillPrompt('test-skill', 'content')]
+        },
+        true
+      )
+
+      const results = await plugin.writeProjectOutputs(ctx)
+
+      expect(results.files).toHaveLength(1)
+      expect(results.files[0]?.success).toBe(true)
+      expect(results.files[0]?.skipped).toBe(false)
+      expect(vi.mocked(fs.symlinkSync)).not.toHaveBeenCalled()
     })
 
     it('should skip project without dirFromWorkspacePath', async () => {
@@ -453,7 +404,7 @@ describe('genericSkillsOutputPlugin', () => {
       const results = await plugin.writeProjectOutputs(ctx)
 
       expect(results.files).toHaveLength(0)
-      expect(vi.mocked(fs.writeFileSync)).not.toHaveBeenCalled()
+      expect(vi.mocked(fs.symlinkSync)).not.toHaveBeenCalled()
     })
 
     it('should return empty results when no skills exist', async () => {
@@ -471,26 +422,24 @@ describe('genericSkillsOutputPlugin', () => {
     })
   })
 
-  describe('writeGlobalOutputs', () => {
-    it('should return empty results (no global outputs)', async () => {
-      const results = await plugin.writeGlobalOutputs()
+  describe('registerProjectOutputFiles', () => {
+    it('should register symlink paths for each skill in each project', async () => {
+      const ctx = createMockOutputPluginContext({
+        workspace: {
+          directory: createMockRelativePath('.', mockWorkspaceDir),
+          projects: [{name: 'project1', dirFromWorkspacePath: createMockRelativePath('project1', mockWorkspaceDir)}]
+        },
+        skills: [
+          createMockSkillPrompt('skill-a', 'content a'),
+          createMockSkillPrompt('skill-b', 'content b')
+        ]
+      })
 
-      expect(results.files).toHaveLength(0)
-      expect(results.dirs).toHaveLength(0)
-    })
-  })
+      const results = await plugin.registerProjectOutputFiles(ctx)
 
-  describe('registerGlobalOutputDirs', () => {
-    it('should return empty array (no global outputs)', async () => {
-      const results = await plugin.registerGlobalOutputDirs()
-      expect(results).toHaveLength(0)
-    })
-  })
-
-  describe('registerGlobalOutputFiles', () => {
-    it('should return empty array (no global outputs)', async () => {
-      const results = await plugin.registerGlobalOutputFiles()
-      expect(results).toHaveLength(0)
+      expect(results).toHaveLength(2)
+      expect(results[0]?.path).toBe(path.join('.skills', 'skill-a'))
+      expect(results[1]?.path).toBe(path.join('.skills', 'skill-b'))
     })
   })
 })

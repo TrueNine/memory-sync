@@ -12,13 +12,28 @@ import {buildMarkdownWithFrontMatter} from '@/markdown'
 import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
-const SKILLS_DIR = '.skills'
+const PROJECT_SKILLS_DIR = '.skills'
+const GLOBAL_SKILLS_DIR = '.skills'
 const SKILL_FILE_NAME = 'SKILL.md'
 const MCP_CONFIG_FILE = 'mcp.json'
 
+/**
+ * Output plugin that writes skills to a global location (~/.skills/) and
+ * creates symlinks in each project pointing to the global skill directories.
+ *
+ * This approach reduces disk space usage when multiple projects use the same skills.
+ *
+ * Structure:
+ * - Global: ~/.skills/<skill-name>/SKILL.md, mcp.json, child docs, resources
+ * - Project: <project>/.skills/<skill-name> → ~/.skills/<skill-name> (symlink)
+ */
 export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('GenericSkillsOutputPlugin', {globalConfigDir: '', outputFileName: SKILL_FILE_NAME})
+    super('GenericSkillsOutputPlugin', {globalConfigDir: GLOBAL_SKILLS_DIR, outputFileName: SKILL_FILE_NAME})
+  }
+
+  private getGlobalSkillsDir(): string {
+    return this.joinPath(this.getHomeDir(), GLOBAL_SKILLS_DIR)
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -28,15 +43,15 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
     if (skills == null || skills.length === 0) return results
 
-    for (const project of projects) {
+    for (const project of projects) { // Register <project>/.skills/ for cleanup (symlink directory)
       if (project.dirFromWorkspacePath == null) continue
 
-      const skillsDir = this.joinPath(project.dirFromWorkspacePath.path, SKILLS_DIR) // Register <project>/.skills/ for cleanup
+      const skillsDir = this.joinPath(project.dirFromWorkspacePath.path, PROJECT_SKILLS_DIR)
       results.push({
         pathKind: FilePathKind.Relative,
         path: skillsDir,
         basePath: project.dirFromWorkspacePath.basePath,
-        getDirectoryName: () => SKILLS_DIR,
+        getDirectoryName: () => PROJECT_SKILLS_DIR,
         getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, skillsDir)
       })
     }
@@ -51,69 +66,100 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
     if (skills == null || skills.length === 0) return results
 
-    for (const project of projects) {
+    for (const project of projects) { // Register symlink paths (skills in project are now symlinks)
       if (project.dirFromWorkspacePath == null) continue
 
-      const projectSkillsDir = this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path, SKILLS_DIR)
+      const projectSkillsDir = this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path, PROJECT_SKILLS_DIR)
 
       for (const skill of skills) {
         const skillName = skill.yamlFrontMatter.name
         const skillDir = this.joinPath(projectSkillsDir, skillName)
 
-        results.push({ // Register SKILL.md
+        results.push({ // Register skill directory symlink
           pathKind: FilePathKind.Relative,
-          path: this.joinPath(SKILLS_DIR, skillName, SKILL_FILE_NAME),
+          path: this.joinPath(PROJECT_SKILLS_DIR, skillName),
           basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
           getDirectoryName: () => skillName,
-          getAbsolutePath: () => this.joinPath(skillDir, SKILL_FILE_NAME)
+          getAbsolutePath: () => skillDir
         })
-
-        if (skill.mcpConfig != null) { // Register mcp.json if skill has MCP configuration
-          results.push({
-            pathKind: FilePathKind.Relative,
-            path: this.joinPath(SKILLS_DIR, skillName, MCP_CONFIG_FILE),
-            basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
-            getDirectoryName: () => skillName,
-            getAbsolutePath: () => this.joinPath(skillDir, MCP_CONFIG_FILE)
-          })
-        }
-
-        if (skill.childDocs != null) { // Register child docs (convert .mdx to .md)
-          for (const childDoc of skill.childDocs) {
-            const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
-            results.push({
-              pathKind: FilePathKind.Relative,
-              path: this.joinPath(SKILLS_DIR, skillName, outputRelativePath),
-              basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
-              getDirectoryName: () => skillName,
-              getAbsolutePath: () => this.joinPath(skillDir, outputRelativePath)
-            })
-          }
-        }
-
-        if (skill.resources != null) { // Register resources
-          for (const resource of skill.resources) {
-            results.push({
-              pathKind: FilePathKind.Relative,
-              path: this.joinPath(SKILLS_DIR, skillName, resource.relativePath),
-              basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
-              getDirectoryName: () => skillName,
-              getAbsolutePath: () => this.joinPath(skillDir, resource.relativePath)
-            })
-          }
-        }
       }
     }
 
     return results
   }
 
-  async registerGlobalOutputDirs(): Promise<RelativePath[]> {
-    return [] // No global outputs for this plugin
+  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const {skills} = ctx.collectedInputContext
+
+    if (skills == null || skills.length === 0) return []
+
+    const globalSkillsDir = this.getGlobalSkillsDir()
+    return [{
+      pathKind: FilePathKind.Relative,
+      path: GLOBAL_SKILLS_DIR,
+      basePath: this.getHomeDir(),
+      getDirectoryName: () => GLOBAL_SKILLS_DIR,
+      getAbsolutePath: () => globalSkillsDir
+    }]
   }
 
-  async registerGlobalOutputFiles(): Promise<RelativePath[]> {
-    return [] // No global outputs for this plugin
+  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results: RelativePath[] = []
+    const {skills} = ctx.collectedInputContext
+
+    if (skills == null || skills.length === 0) return results
+
+    const globalSkillsDir = this.getGlobalSkillsDir()
+
+    for (const skill of skills) {
+      const skillName = skill.yamlFrontMatter.name
+      const skillDir = this.joinPath(globalSkillsDir, skillName)
+
+      results.push({ // Register SKILL.md
+        pathKind: FilePathKind.Relative,
+        path: this.joinPath(GLOBAL_SKILLS_DIR, skillName, SKILL_FILE_NAME),
+        basePath: this.getHomeDir(),
+        getDirectoryName: () => skillName,
+        getAbsolutePath: () => this.joinPath(skillDir, SKILL_FILE_NAME)
+      })
+
+      if (skill.mcpConfig != null) { // Register mcp.json if skill has MCP configuration
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: this.joinPath(GLOBAL_SKILLS_DIR, skillName, MCP_CONFIG_FILE),
+          basePath: this.getHomeDir(),
+          getDirectoryName: () => skillName,
+          getAbsolutePath: () => this.joinPath(skillDir, MCP_CONFIG_FILE)
+        })
+      }
+
+      if (skill.childDocs != null) { // Register child docs (convert .mdx to .md)
+        for (const childDoc of skill.childDocs) {
+          const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
+          results.push({
+            pathKind: FilePathKind.Relative,
+            path: this.joinPath(GLOBAL_SKILLS_DIR, skillName, outputRelativePath),
+            basePath: this.getHomeDir(),
+            getDirectoryName: () => skillName,
+            getAbsolutePath: () => this.joinPath(skillDir, outputRelativePath)
+          })
+        }
+      }
+
+      if (skill.resources != null) { // Register resources
+        for (const resource of skill.resources) {
+          results.push({
+            pathKind: FilePathKind.Relative,
+            path: this.joinPath(GLOBAL_SKILLS_DIR, skillName, resource.relativePath),
+            basePath: this.getHomeDir(),
+            getDirectoryName: () => skillName,
+            getAbsolutePath: () => this.joinPath(skillDir, resource.relativePath)
+          })
+        }
+      }
+    }
+
+    return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
@@ -139,22 +185,63 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
     if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults}
 
-    for (const project of projects) {
+    const globalSkillsDir = this.getGlobalSkillsDir()
+
+    for (const project of projects) { // Create symlinks for each project
       if (project.dirFromWorkspacePath == null) continue
 
-      const projectSkillsDir = this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path, SKILLS_DIR)
+      const projectSkillsDir = this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path, PROJECT_SKILLS_DIR)
 
       for (const skill of skills) {
-        const skillResults = await this.writeSkill(ctx, skill, projectSkillsDir)
-        fileResults.push(...skillResults)
+        const skillName = skill.yamlFrontMatter.name
+        const globalSkillDir = this.joinPath(globalSkillsDir, skillName)
+        const projectSkillDir = this.joinPath(projectSkillsDir, skillName)
+
+        const relativePath: RelativePath = {
+          pathKind: FilePathKind.Relative,
+          path: this.joinPath(PROJECT_SKILLS_DIR, skillName),
+          basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
+          getDirectoryName: () => skillName,
+          getAbsolutePath: () => projectSkillDir
+        }
+
+        if (ctx.dryRun === true) {
+          this.log.trace({action: 'dryRun', type: 'symlink', target: globalSkillDir, link: projectSkillDir})
+          fileResults.push({path: relativePath, success: true, skipped: false})
+          continue
+        }
+
+        try {
+          this.createSymlink(globalSkillDir, projectSkillDir, 'dir')
+          this.log.trace({action: 'symlink', type: 'skill', target: globalSkillDir, link: projectSkillDir})
+          fileResults.push({path: relativePath, success: true})
+        }
+        catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error)
+          this.log.error({action: 'symlink', type: 'skill', target: globalSkillDir, link: projectSkillDir, error: errMsg})
+          fileResults.push({path: relativePath, success: false, error: error as Error})
+        }
       }
     }
 
     return {files: fileResults, dirs: dirResults}
   }
 
-  async writeGlobalOutputs(): Promise<WriteResults> {
-    return {files: [], dirs: []} // No global outputs for this plugin
+  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+    const {skills} = ctx.collectedInputContext
+    const fileResults: WriteResult[] = []
+    const dirResults: WriteResult[] = []
+
+    if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults}
+
+    const globalSkillsDir = this.getGlobalSkillsDir()
+
+    for (const skill of skills) { // Write all skills to global ~/.skills/ directory
+      const skillResults = await this.writeSkill(ctx, skill, globalSkillsDir)
+      fileResults.push(...skillResults)
+    }
+
+    return {files: fileResults, dirs: dirResults}
   }
 
   private async writeSkill(
