@@ -255,7 +255,7 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     const result: Record<string, unknown> = {}
 
     for (const [key, value] of Object.entries(config)) {
-      if (key === 'url') result['httpUrl'] = value
+      if (key === 'url') result['serverUrl'] = value
       else if (key === 'type' || key === 'enabled' || key === 'autoApprove') continue
       else result[key] = value
     }

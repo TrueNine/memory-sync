@@ -268,7 +268,7 @@ describe('antigravityOutputPlugin', () => {
       expect(mcpFile).toBeUndefined()
     })
 
-    it('should write merged MCP config with namespaced keys', async () => {
+    it('should write merged MCP config with correct format', async () => {
       vi.mocked(fs.writeFileSync).mockClear()
 
       const ctx = {
@@ -292,6 +292,8 @@ describe('antigravityOutputPlugin', () => {
       expect(content.mcpServers).toBeDefined()
       expect(content.mcpServers.context7).toBeDefined()
       expect(content.mcpServers.deepwiki).toBeDefined()
+      expect(content.mcpServers.deepwiki.serverUrl).toBe('https://mcp.deepwiki.com/mcp')
+      expect(content.mcpServers.deepwiki.url).toBeUndefined()
     })
 
     it('should skip writing mcp_config.json when no skill has MCP config', async () => {
