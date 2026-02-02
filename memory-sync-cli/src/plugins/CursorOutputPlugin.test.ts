@@ -1,4 +1,9 @@
-import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext} from '@/types'
+import type {
+  FastCommandPrompt,
+  GlobalMemoryPrompt,
+  OutputPluginContext,
+  OutputWriteContext
+} from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
@@ -16,6 +21,17 @@ function createMockRelativePath(pathStr: string, basePath: string): RelativePath
     getDirectoryName: () => pathStr,
     getAbsolutePath: () => path.join(basePath, pathStr)
   }
+}
+
+function createMockGlobalMemoryPrompt(content: string, basePath: string): GlobalMemoryPrompt {
+  return {
+    type: PromptKind.GlobalMemory,
+    content,
+    length: content.length,
+    filePathKind: FilePathKind.Relative,
+    dir: createMockRelativePath('.', basePath),
+    markdownContents: []
+  } as GlobalMemoryPrompt
 }
 
 function createMockFastCommandPrompt(
@@ -539,13 +555,136 @@ describe('cursor output plugin', () => {
   })
 
   describe('project outputs', () => {
-    it('should not implement writeProjectOutputs', () => expect(plugin.writeProjectOutputs).toBeUndefined())
+    it('should implement writeProjectOutputs', () => expect(plugin.writeProjectOutputs).toBeDefined())
 
-    it('should not register project output files or dirs', () => {
-      expect(plugin.registerProjectOutputFiles).toBeUndefined()
-      expect(plugin.registerProjectOutputDirs).toBeUndefined()
+    it('should implement registerProjectOutputFiles and registerProjectOutputDirs', () => {
+      expect(plugin.registerProjectOutputFiles).toBeDefined()
+      expect(plugin.registerProjectOutputDirs).toBeDefined()
     })
 
     it('should implement registerGlobalOutputDirs for commands dir', () => expect(plugin.registerGlobalOutputDirs).toBeDefined())
+
+    it('should register .cursor/rules dir for each project when globalMemory exists', async () => {
+      const projectDir = createMockRelativePath('project-a', tempDir)
+      const ctx = {
+        collectedInputContext: {
+          workspace: {
+            projects: [{name: 'project-a', dirFromWorkspacePath: projectDir}],
+            directory: createMockRelativePath('.', tempDir)
+          },
+          globalMemory: createMockGlobalMemoryPrompt('Global rules', tempDir)
+        }
+      } as unknown as OutputPluginContext
+
+      const dirs = await plugin.registerProjectOutputDirs(ctx)
+      expect(dirs.length).toBe(1)
+      expect(dirs[0].path).toBe(path.join('project-a', '.cursor', 'rules'))
+      expect(dirs[0].getAbsolutePath()).toBe(path.join(tempDir, 'project-a', '.cursor', 'rules'))
+    })
+
+    it('should register .cursor/rules/global.mdc for each project when globalMemory exists', async () => {
+      const projectDir = createMockRelativePath('project-a', tempDir)
+      const ctx = {
+        collectedInputContext: {
+          workspace: {
+            projects: [{name: 'project-a', dirFromWorkspacePath: projectDir}],
+            directory: createMockRelativePath('.', tempDir)
+          },
+          globalMemory: createMockGlobalMemoryPrompt('Global rules', tempDir)
+        }
+      } as unknown as OutputPluginContext
+
+      const files = await plugin.registerProjectOutputFiles(ctx)
+      expect(files.length).toBe(1)
+      expect(files[0].path).toBe(path.join('project-a', '.cursor', 'rules', 'global.mdc'))
+      expect(files[0].getAbsolutePath()).toBe(path.join(tempDir, 'project-a', '.cursor', 'rules', 'global.mdc'))
+    })
+
+    it('should not register project rules when globalMemory is null', async () => {
+      const projectDir = createMockRelativePath('project-a', tempDir)
+      const ctx = {
+        collectedInputContext: {
+          workspace: {
+            projects: [{name: 'project-a', dirFromWorkspacePath: projectDir}],
+            directory: createMockRelativePath('.', tempDir)
+          },
+          globalMemory: void 0
+        }
+      } as unknown as OutputPluginContext
+
+      const dirs = await plugin.registerProjectOutputDirs(ctx)
+      const files = await plugin.registerProjectOutputFiles(ctx)
+      expect(dirs.length).toBe(0)
+      expect(files.length).toBe(0)
+    })
+
+    it('should return true from canWrite when only globalMemory and projects exist', async () => {
+      const projectDir = createMockRelativePath('project-a', tempDir)
+      const ctx = {
+        collectedInputContext: {
+          workspace: {
+            projects: [{name: 'project-a', dirFromWorkspacePath: projectDir}],
+            directory: createMockRelativePath('.', tempDir)
+          },
+          globalMemory: createMockGlobalMemoryPrompt('Global rules', tempDir),
+          skills: [],
+          fastCommands: []
+        },
+        logger: createLogger('test', 'debug'),
+        dryRun: false
+      } as unknown as OutputWriteContext
+
+      const result = await plugin.canWrite(ctx)
+      expect(result).toBe(true)
+    })
+
+    it('should write global.mdc with alwaysApply true and global content', async () => {
+      const projectDir = createMockRelativePath('project-a', tempDir)
+      const globalContent = '# Global prompt\n\nAlways apply this.'
+      const ctx = {
+        collectedInputContext: {
+          workspace: {
+            projects: [{name: 'project-a', dirFromWorkspacePath: projectDir}],
+            directory: createMockRelativePath('.', tempDir)
+          },
+          globalMemory: createMockGlobalMemoryPrompt(globalContent, tempDir)
+        },
+        logger: createLogger('test', 'debug'),
+        dryRun: false
+      } as unknown as OutputWriteContext
+
+      const results = await plugin.writeProjectOutputs(ctx)
+      expect(results.files.length).toBe(1)
+      expect(results.files[0].success).toBe(true)
+
+      const fullPath = path.join(tempDir, 'project-a', '.cursor', 'rules', 'global.mdc')
+      expect(fs.existsSync(fullPath)).toBe(true)
+      const content = fs.readFileSync(fullPath, 'utf8')
+      expect(content).toContain('alwaysApply: true')
+      expect(content).toContain('Global prompt (synced)')
+      expect(content).toContain(globalContent)
+    })
+
+    it('should not write files on dryRun', async () => {
+      const projectDir = createMockRelativePath('project-a', tempDir)
+      const ctx = {
+        collectedInputContext: {
+          workspace: {
+            projects: [{name: 'project-a', dirFromWorkspacePath: projectDir}],
+            directory: createMockRelativePath('.', tempDir)
+          },
+          globalMemory: createMockGlobalMemoryPrompt('Global rules', tempDir)
+        },
+        logger: createLogger('test', 'debug'),
+        dryRun: true
+      } as unknown as OutputWriteContext
+
+      const results = await plugin.writeProjectOutputs(ctx)
+      expect(results.files.length).toBe(1)
+      expect(results.files[0].success).toBe(true)
+
+      const fullPath = path.join(tempDir, 'project-a', '.cursor', 'rules', 'global.mdc')
+      expect(fs.existsSync(fullPath)).toBe(false)
+    })
   })
 })

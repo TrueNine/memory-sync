@@ -2,6 +2,7 @@ import type {
   FastCommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
+  Project,
   SkillPrompt,
   WriteResult,
   WriteResults
@@ -17,6 +18,8 @@ import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 const GLOBAL_CONFIG_DIR = '.cursor'
 const MCP_CONFIG_FILE = 'mcp.json'
 const COMMANDS_SUBDIR = 'commands'
+const RULES_SUBDIR = 'rules'
+const GLOBAL_RULE_FILE = 'global.mdc'
 const SKILLS_CURSOR_SUBDIR = 'skills-cursor'
 const SKILL_FILE_NAME = 'SKILL.md'
 
@@ -34,6 +37,7 @@ const PRESERVED_SKILLS = new Set<string>([
  * Writes merged MCP config from skills to ~/.cursor/mcp.json (Cursor global MCP config).
  * Writes fast commands to ~/.cursor/commands/.
  * Writes skills to ~/.cursor/skills-cursor/ (preserves built-in skills: create-rule, create-skill, etc.).
+ * Writes global prompt to each project's .cursor/rules/global.mdc with alwaysApply: true (Cursor has no global prompt setting).
  */
 export class CursorOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -189,12 +193,41 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
+  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results: RelativePath[] = []
+    const {workspace, globalMemory} = ctx.collectedInputContext
+    if (globalMemory == null) return results
+
+    for (const project of workspace.projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) continue
+      results.push(this.createProjectRulesDirRelativePath(projectDir))
+    }
+    return results
+  }
+
+  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results: RelativePath[] = []
+    const {workspace, globalMemory} = ctx.collectedInputContext
+    if (globalMemory == null) return results
+
+    for (const project of workspace.projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) continue
+      results.push(this.createProjectRuleFileRelativePath(projectDir, GLOBAL_RULE_FILE))
+    }
+    return results
+  }
+
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {skills, fastCommands} = ctx.collectedInputContext
+    const {workspace, skills, fastCommands, globalMemory} = ctx.collectedInputContext
     const hasSkills = (skills?.length ?? 0) > 0
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
+    const hasGlobalRuleOutput
+      = globalMemory != null
+        && workspace.projects.some(p => p.dirFromWorkspacePath != null)
 
-    if (hasSkills || hasFastCommands) return true
+    if (hasSkills || hasFastCommands || hasGlobalRuleOutput) return true
 
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
@@ -227,6 +260,80 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       fileResults.push(result)
     }
     return {files: fileResults, dirs: dirResults}
+  }
+
+  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+    const fileResults: WriteResult[] = []
+    const dirResults: WriteResult[] = []
+    const {workspace, globalMemory} = ctx.collectedInputContext
+    if (globalMemory == null) return {files: fileResults, dirs: dirResults}
+
+    const content = this.buildGlobalRuleContent(globalMemory.content as string)
+    for (const project of workspace.projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) continue
+      const result = await this.writeProjectGlobalRule(ctx, project, content)
+      fileResults.push(result)
+    }
+    return {files: fileResults, dirs: dirResults}
+  }
+
+  private createProjectRulesDirRelativePath(projectDir: RelativePath): RelativePath {
+    const rulesDirPath = path.join(projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR)
+    return {
+      pathKind: FilePathKind.Relative,
+      path: rulesDirPath,
+      basePath: projectDir.basePath,
+      getDirectoryName: () => RULES_SUBDIR,
+      getAbsolutePath: () => path.join(projectDir.basePath, rulesDirPath)
+    }
+  }
+
+  private createProjectRuleFileRelativePath(projectDir: RelativePath, fileName: string): RelativePath {
+    const filePath = path.join(projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR, fileName)
+    return {
+      pathKind: FilePathKind.Relative,
+      path: filePath,
+      basePath: projectDir.basePath,
+      getDirectoryName: () => RULES_SUBDIR,
+      getAbsolutePath: () => path.join(projectDir.basePath, filePath)
+    }
+  }
+
+  private buildGlobalRuleContent(content: string): string {
+    const fmData: Record<string, unknown> = {
+      description: 'Global prompt (synced)',
+      alwaysApply: true
+    }
+    return buildMarkdownWithFrontMatter(fmData, content)
+  }
+
+  private async writeProjectGlobalRule(
+    ctx: OutputWriteContext,
+    project: Project,
+    content: string
+  ): Promise<WriteResult> {
+    const projectDir = project.dirFromWorkspacePath!
+    const rulesDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR)
+    const fullPath = path.join(rulesDir, GLOBAL_RULE_FILE)
+    const relativePath = this.createProjectRuleFileRelativePath(projectDir, GLOBAL_RULE_FILE)
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'globalRule', path: fullPath})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      this.ensureDirectory(rulesDir)
+      this.writeFileSync(fullPath, content)
+      this.log.trace({action: 'write', type: 'globalRule', path: fullPath})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: 'globalRule', path: fullPath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
+    }
   }
 
   private isPreservedSkill(name: string): boolean {
