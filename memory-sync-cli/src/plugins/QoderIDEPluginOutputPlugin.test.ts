@@ -5,7 +5,8 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   ProjectChildrenMemoryPrompt,
-  ProjectRootMemoryPrompt
+  ProjectRootMemoryPrompt,
+  SkillPrompt
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
@@ -103,6 +104,39 @@ function createMockFastCommandPrompt(
     ...series != null && {series},
     commandName
   } as FastCommandPrompt
+}
+
+function createMockSkillPrompt(
+  name: string,
+  description: string,
+  content: string,
+  options?: {
+    mcpConfig?: {rawContent: string, mcpServers: Record<string, unknown>}
+    childDocs?: {relativePath: string, content: string}[]
+    resources?: {relativePath: string, content: string, encoding: 'text' | 'base64'}[]
+  }
+): SkillPrompt {
+  return {
+    type: PromptKind.Skill,
+    content,
+    length: content.length,
+    filePathKind: FilePathKind.Relative,
+    dir: createMockRelativePath(name, MOCK_WORKSPACE_DIR),
+    markdownContents: [],
+    yamlFrontMatter: {
+      name,
+      description
+    },
+    mcpConfig: options?.mcpConfig != null
+      ? {
+          type: PromptKind.SkillMcpConfig,
+          rawContent: options.mcpConfig.rawContent,
+          mcpServers: options.mcpConfig.mcpServers
+        }
+      : void 0,
+    childDocs: options?.childDocs,
+    resources: options?.resources
+  } as SkillPrompt
 }
 
 function createMockOutputPluginContext(
@@ -216,6 +250,21 @@ describe('qoder IDE plugin output plugin', () => {
       expect(results[0].basePath).toBe(path.join('/home/test', '.qoder'))
       expect(results[0].path).toBe('commands')
     })
+
+    it('should register ~/.qoder/skills/<name> for each skill', async () => {
+      const ctx = createMockOutputPluginContext({
+        skills: [
+          createMockSkillPrompt('my-skill', 'A test skill', 'Skill content'),
+          createMockSkillPrompt('another-skill', 'Another skill', 'More content')
+        ]
+      })
+
+      const results = await plugin.registerGlobalOutputDirs(ctx)
+
+      expect(results).toHaveLength(2)
+      expect(results[0].path).toBe(path.join('skills', 'my-skill'))
+      expect(results[1].path).toBe(path.join('skills', 'another-skill'))
+    })
   })
 
   describe('registerGlobalOutputFiles', () => {
@@ -230,8 +279,58 @@ describe('qoder IDE plugin output plugin', () => {
       const results = await plugin.registerGlobalOutputFiles(ctx)
 
       const paths = results.map(r => r.path)
-      expect(paths).toContain('build_compile.md')
-      expect(paths).toContain('test.md')
+      expect(paths).toContain(path.join('commands', 'build_compile.md'))
+      expect(paths).toContain(path.join('commands', 'test.md'))
+    })
+
+    it('should register skill files under ~/.qoder/skills', async () => {
+      const ctx = createMockOutputPluginContext({
+        skills: [
+          createMockSkillPrompt('my-skill', 'A test skill', 'Skill content')
+        ]
+      })
+
+      const results = await plugin.registerGlobalOutputFiles(ctx)
+
+      const paths = results.map(r => r.path)
+      expect(paths).toContain(path.join('skills', 'my-skill', 'SKILL.md'))
+    })
+
+    it('should register mcp.json when skill has MCP config', async () => {
+      const ctx = createMockOutputPluginContext({
+        skills: [
+          createMockSkillPrompt('my-skill', 'A test skill', 'Skill content', {
+            mcpConfig: {
+              rawContent: '{"mcpServers": {}}',
+              mcpServers: {}
+            }
+          })
+        ]
+      })
+
+      const results = await plugin.registerGlobalOutputFiles(ctx)
+
+      const paths = results.map(r => r.path)
+      expect(paths).toContain(path.join('skills', 'my-skill', 'SKILL.md'))
+      expect(paths).toContain(path.join('skills', 'my-skill', 'mcp.json'))
+    })
+
+    it('should register child docs and resources', async () => {
+      const ctx = createMockOutputPluginContext({
+        skills: [
+          createMockSkillPrompt('my-skill', 'A test skill', 'Skill content', {
+            childDocs: [{relativePath: 'docs/guide.mdx', content: 'Guide content'}],
+            resources: [{relativePath: 'assets/image.png', content: 'base64data', encoding: 'base64'}]
+          })
+        ]
+      })
+
+      const results = await plugin.registerGlobalOutputFiles(ctx)
+
+      const paths = results.map(r => r.path)
+      expect(paths).toContain(path.join('skills', 'my-skill', 'SKILL.md'))
+      expect(paths).toContain(path.join('skills', 'my-skill', 'docs', 'guide.md'))
+      expect(paths).toContain(path.join('skills', 'my-skill', 'assets', 'image.png'))
     })
   })
 
@@ -247,6 +346,19 @@ describe('qoder IDE plugin output plugin', () => {
             }
           ]
         }
+      })
+
+      const result = await plugin.canWrite(ctx)
+      expect(result).toBe(true)
+    })
+
+    it('should return true when skills exist', async () => {
+      const ctx = createMockOutputWriteContext({
+        workspace: {
+          directory: createMockRelativePath('.', MOCK_WORKSPACE_DIR),
+          projects: []
+        },
+        skills: [createMockSkillPrompt('my-skill', 'A test skill', 'Skill content')]
       })
 
       const result = await plugin.canWrite(ctx)
@@ -328,6 +440,46 @@ describe('qoder IDE plugin output plugin', () => {
       expect(String(writeCall?.[0])).toContain(path.join('.qoder', 'commands', 'build_compile.md'))
       expect(String(writeCall?.[1])).toContain('description: Fast command')
       expect(String(writeCall?.[1])).toContain('Run something')
+    })
+
+    it('should write skill files to ~/.qoder/skills/', async () => {
+      const ctx = createMockOutputWriteContext({
+        skills: [
+          createMockSkillPrompt('my-skill', 'A test skill', 'Skill content')
+        ]
+      })
+
+      const results = await plugin.writeGlobalOutputs(ctx)
+
+      expect(results.files).toHaveLength(1)
+
+      const writeCall = vi.mocked(fs.writeFileSync).mock.calls[0]
+      expect(String(writeCall?.[0])).toContain(path.join('.qoder', 'skills', 'my-skill', 'SKILL.md'))
+      expect(String(writeCall?.[1])).toContain('name: my-skill')
+      expect(String(writeCall?.[1])).toContain('description: A test skill')
+      expect(String(writeCall?.[1])).toContain('Skill content')
+    })
+
+    it('should write mcp.json when skill has MCP config', async () => {
+      const ctx = createMockOutputWriteContext({
+        skills: [
+          createMockSkillPrompt('my-skill', 'A test skill', 'Skill content', {
+            mcpConfig: {
+              rawContent: '{"mcpServers": {"test-server": {}}}',
+              mcpServers: {'test-server': {}}
+            }
+          })
+        ]
+      })
+
+      const results = await plugin.writeGlobalOutputs(ctx)
+
+      expect(results.files).toHaveLength(2)
+
+      const writeCalls = vi.mocked(fs.writeFileSync).mock.calls
+      const mcpCall = writeCalls.find(call => String(call[0]).includes('mcp.json'))
+      expect(mcpCall).toBeDefined()
+      expect(String(mcpCall?.[1])).toContain('mcpServers')
     })
   })
 })

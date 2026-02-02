@@ -11,6 +11,8 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
+    /** Explicitly allow bundling deps listed in noExternal; disables "Detected dependencies in bundle" warning */
+    inlineOnly: false,
     alias: {
       '@': resolve('src')
     },
@@ -29,6 +31,8 @@ export default defineConfig([
     format: ['esm', 'cjs'],
     minify: true,
     dts: false,
+    /** Use named export mode so CJS/ESM consumers get consistent API; disables MIXED_EXPORTS warning */
+    outputOptions: {exports: 'named'},
     define: {
       __CLI_VERSION__: JSON.stringify(pkg.version),
       __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
