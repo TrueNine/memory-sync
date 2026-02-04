@@ -14,6 +14,7 @@ describe('gitIgnoreInputPlugin', () => {
     const plugin = new GitIgnoreInputPlugin()
     const ctx = {
       logger: createLogger('test', 'debug'),
+      fs,
       userConfigOptions: {
         workspaceDir: '/workspace',
         shadowSourceProjectDir: '/workspace',
@@ -41,6 +42,7 @@ describe('gitIgnoreInputPlugin', () => {
     const plugin = new GitIgnoreInputPlugin()
     const ctx = {
       logger: createLogger('test', 'debug'),
+      fs,
       userConfigOptions: {
         workspaceDir: '/workspace',
         shadowSourceProjectDir: '/workspace',

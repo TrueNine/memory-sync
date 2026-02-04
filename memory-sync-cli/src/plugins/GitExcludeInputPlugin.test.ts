@@ -13,6 +13,7 @@ describe('gitExcludeInputPlugin', () => {
     const plugin = new GitExcludeInputPlugin()
     const ctx = {
       logger: createLogger('test', 'debug'),
+      fs,
       userConfigOptions: {
         workspaceDir: '/workspace',
         shadowSourceProjectDir: '/workspace',
@@ -40,6 +41,7 @@ describe('gitExcludeInputPlugin', () => {
     const plugin = new GitExcludeInputPlugin()
     const ctx = {
       logger: createLogger('test', 'debug'),
+      fs,
       userConfigOptions: {
         workspaceDir: '/workspace',
         shadowSourceProjectDir: '/workspace',
@@ -65,6 +67,7 @@ describe('gitExcludeInputPlugin', () => {
     const plugin = new GitExcludeInputPlugin()
     const ctx = {
       logger: createLogger('test', 'debug'),
+      fs,
       userConfigOptions: {
         workspaceDir: '/workspace',
         shadowSourceProjectDir: '/workspace',

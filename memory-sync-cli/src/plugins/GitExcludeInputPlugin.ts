@@ -1,7 +1,6 @@
-import type {CollectedInputContext, InputPluginContext} from '@/types'
-import * as fs from 'node:fs'
+import type {CollectedInputContext} from '@/types'
 import * as path from 'node:path'
-import {AbstractInputPlugin} from './AbstractInputPlugin'
+import {BaseFileInputPlugin} from './BaseFileInputPlugin'
 
 /**
  * Input plugin that reads git exclude patterns from shadow source project.
@@ -9,31 +8,16 @@ import {AbstractInputPlugin} from './AbstractInputPlugin'
  *
  * This content will be merged with existing `.git/info/exclude` by GitExcludeOutputPlugin.
  */
-export class GitExcludeInputPlugin extends AbstractInputPlugin {
+export class GitExcludeInputPlugin extends BaseFileInputPlugin {
   constructor() {
     super('GitExcludeInputPlugin')
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const {shadowProjectDir} = this.resolveBasePaths(ctx.userConfigOptions)
-    const excludePath = path.join(shadowProjectDir, 'public', 'exclude')
+  protected getFilePath(shadowProjectDir: string): string {
+    return path.join(shadowProjectDir, 'public', 'exclude')
+  }
 
-    if (!fs.existsSync(excludePath)) {
-      this.log.debug({action: 'collect', message: 'No exclude file found in shadow project', path: excludePath})
-      return {}
-    }
-
-    const content = fs.readFileSync(excludePath, 'utf8')
-
-    if (content.length === 0) {
-      this.log.debug({action: 'collect', message: 'Exclude file is empty', path: excludePath})
-      return {}
-    }
-
-    this.log.debug({action: 'collect', message: 'Loaded git exclude from shadow project', path: excludePath})
-
-    return {
-      shadowGitExclude: content
-    }
+  protected getResultKey(): keyof CollectedInputContext {
+    return 'shadowGitExclude'
   }
 }
