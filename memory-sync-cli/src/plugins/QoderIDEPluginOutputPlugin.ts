@@ -299,7 +299,8 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   private buildAlwaysRuleContent(content: string): string {
     const fmData: Record<string, unknown> = {
-      trigger: TRIGGER_ALWAYS
+      trigger: TRIGGER_ALWAYS,
+      type: 'user_command'
     }
 
     return buildMarkdownWithFrontMatter(fmData, content)
@@ -309,7 +310,8 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     const pattern = this.buildChildRulePattern(child)
     const fmData: Record<string, unknown> = {
       trigger: TRIGGER_GLOB,
-      [RULE_GLOB_KEY]: pattern
+      [RULE_GLOB_KEY]: pattern,
+      type: 'user_command'
     }
 
     return buildMarkdownWithFrontMatter(fmData, child.content as string)
@@ -363,11 +365,8 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       getAbsolutePath: () => fullPath
     }
 
-    const content = this.buildMarkdownContentWithRaw(
-      cmd.content,
-      cmd.yamlFrontMatter,
-      cmd.rawFrontMatter
-    )
+    const frontMatterData = this.buildFastCommandFrontMatter(cmd)
+    const content = buildMarkdownWithFrontMatter(frontMatterData, cmd.content as string)
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'globalFastCommand', path: fullPath})
@@ -458,10 +457,28 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return {
       name: fm.name,
       description: fm.description,
+      type: 'user_command',
       ...fm.displayName != null && {displayName: fm.displayName},
       ...fm.keywords != null && fm.keywords.length > 0 && {keywords: fm.keywords},
       ...fm.author != null && {author: fm.author},
       ...fm.version != null && {version: fm.version},
+      ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}
+    }
+  }
+
+  private buildFastCommandFrontMatter(cmd: FastCommandPrompt): Record<string, unknown> {
+    const fm = cmd.yamlFrontMatter
+    if (fm == null) {
+      return {
+        description: 'Fast command',
+        type: 'user_command'
+      }
+    }
+
+    return {
+      description: fm.description,
+      type: 'user_command',
+      ...fm.argumentHint != null && {argumentHint: fm.argumentHint},
       ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}
     }
   }
