@@ -2,7 +2,6 @@ import type {
   FastCommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
-  Project,
   ProjectChildrenMemoryPrompt,
   SkillPrompt,
   WriteResult,
@@ -12,7 +11,6 @@ import type {RelativePath} from '@/types/FileSystemTypes'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@/markdown'
-import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const QODER_CONFIG_DIR = '.qoder'
@@ -34,15 +32,10 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
-
-    for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) continue
-      results.push(this.createProjectRulesDirRelativePath(project.dirFromWorkspacePath))
-    }
-
-    return results
+    return projects
+      .filter(p => p.dirFromWorkspacePath != null)
+      .map(p => this.createProjectRulesDirPath(p.dirFromWorkspacePath!))
   }
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -54,123 +47,89 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
 
-      if (globalMemory != null) results.push(this.createProjectRuleFileRelativePath(projectDir, GLOBAL_RULE_FILE))
+      if (globalMemory != null) results.push(this.createProjectRuleFilePath(projectDir, GLOBAL_RULE_FILE))
 
-      if (project.rootMemoryPrompt != null) results.push(this.createProjectRuleFileRelativePath(projectDir, PROJECT_RULE_FILE))
+      if (project.rootMemoryPrompt != null) results.push(this.createProjectRuleFilePath(projectDir, PROJECT_RULE_FILE))
 
       if (project.childMemoryPrompts != null) {
-        for (const child of project.childMemoryPrompts) {
-          const fileName = this.buildChildRuleFileName(child)
-          results.push(this.createProjectRuleFileRelativePath(projectDir, fileName))
-        }
+        for (const child of project.childMemoryPrompts) results.push(this.createProjectRuleFilePath(projectDir, this.buildChildRuleFileName(child)))
       }
     }
-
     return results
   }
 
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
     const globalDir = this.getGlobalConfigDir()
     const {fastCommands, skills} = ctx.collectedInputContext
+    const results: RelativePath[] = []
+
+    if (fastCommands != null && fastCommands.length > 0) results.push(this.createRelativePath(COMMANDS_SUBDIR, globalDir, () => COMMANDS_SUBDIR))
+
+    if (skills != null && skills.length > 0) {
+      for (const skill of skills) {
+        const skillName = skill.yamlFrontMatter.name
+        results.push(this.createRelativePath(
+          path.join(SKILLS_SUBDIR, skillName),
+          globalDir,
+          () => skillName
+        ))
+      }
+    }
+    return results
+  }
+
+  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const globalDir = this.getGlobalConfigDir()
+    const {fastCommands, skills} = ctx.collectedInputContext
+    const results: RelativePath[] = []
+    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
 
     if (fastCommands != null && fastCommands.length > 0) {
-      const commandsDir = this.getGlobalCommandsDir()
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: COMMANDS_SUBDIR,
-        basePath: globalDir,
-        getDirectoryName: () => COMMANDS_SUBDIR,
-        getAbsolutePath: () => commandsDir
-      })
+      for (const cmd of fastCommands) {
+        const fileName = this.transformFastCommandName(cmd, transformOptions)
+        results.push(this.createRelativePath(
+          path.join(COMMANDS_SUBDIR, fileName),
+          globalDir,
+          () => COMMANDS_SUBDIR
+        ))
+      }
     }
 
     if (skills != null && skills.length > 0) {
       for (const skill of skills) {
         const skillName = skill.yamlFrontMatter.name
-        const skillPath = path.join(globalDir, SKILLS_SUBDIR, skillName)
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: path.join(SKILLS_SUBDIR, skillName),
-          basePath: globalDir,
-          getDirectoryName: () => skillName,
-          getAbsolutePath: () => skillPath
-        })
-      }
-    }
+        results.push(this.createRelativePath(
+          path.join(SKILLS_SUBDIR, skillName, SKILL_FILE_NAME),
+          globalDir,
+          () => skillName
+        ))
 
-    return results
-  }
-
-  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
-    const globalDir = this.getGlobalConfigDir()
-    const {fastCommands, skills} = ctx.collectedInputContext
-
-    if (fastCommands != null && fastCommands.length > 0) {
-      const commandsDir = this.getGlobalCommandsDir()
-      const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-
-      for (const cmd of fastCommands) {
-        const fileName = this.transformFastCommandName(cmd, transformOptions)
-        const fullPath = path.join(commandsDir, fileName)
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: path.join(COMMANDS_SUBDIR, fileName),
-          basePath: globalDir,
-          getDirectoryName: () => COMMANDS_SUBDIR,
-          getAbsolutePath: () => fullPath
-        })
-      }
-    }
-
-    if (skills == null || skills.length === 0) return results
-
-    const skillsDir = this.getGlobalSkillsDir()
-    for (const skill of skills) {
-      const skillName = skill.yamlFrontMatter.name
-      const skillDir = path.join(skillsDir, skillName)
-
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: path.join(SKILLS_SUBDIR, skillName, SKILL_FILE_NAME),
-        basePath: globalDir,
-        getDirectoryName: () => skillName,
-        getAbsolutePath: () => path.join(skillDir, SKILL_FILE_NAME)
-      })
-
-      if (skill.mcpConfig != null) {
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: path.join(SKILLS_SUBDIR, skillName, MCP_CONFIG_FILE),
-          basePath: globalDir,
-          getDirectoryName: () => skillName,
-          getAbsolutePath: () => path.join(skillDir, MCP_CONFIG_FILE)
-        })
-      }
-
-      if (skill.childDocs != null) {
-        for (const childDoc of skill.childDocs) {
-          const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
-          results.push({
-            pathKind: FilePathKind.Relative,
-            path: path.join(SKILLS_SUBDIR, skillName, outputRelativePath),
-            basePath: globalDir,
-            getDirectoryName: () => skillName,
-            getAbsolutePath: () => path.join(skillDir, outputRelativePath)
-          })
+        if (skill.mcpConfig != null) {
+          results.push(this.createRelativePath(
+            path.join(SKILLS_SUBDIR, skillName, MCP_CONFIG_FILE),
+            globalDir,
+            () => skillName
+          ))
         }
-      }
 
-      if (skill.resources != null) {
-        for (const resource of skill.resources) {
-          results.push({
-            pathKind: FilePathKind.Relative,
-            path: path.join(SKILLS_SUBDIR, skillName, resource.relativePath),
-            basePath: globalDir,
-            getDirectoryName: () => skillName,
-            getAbsolutePath: () => path.join(skillDir, resource.relativePath)
-          })
+        if (skill.childDocs != null) {
+          for (const childDoc of skill.childDocs) {
+            results.push(this.createRelativePath(
+              path.join(SKILLS_SUBDIR, skillName, childDoc.relativePath.replace(/\.mdx$/, '.md')),
+              globalDir,
+              () => skillName
+            ))
+          }
+        }
+
+        if (skill.resources != null) {
+          for (const resource of skill.resources) {
+            results.push(this.createRelativePath(
+              path.join(SKILLS_SUBDIR, skillName, resource.relativePath),
+              globalDir,
+              () => skillName
+            ))
+          }
         }
       }
     }
@@ -180,14 +139,9 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {workspace, globalMemory, fastCommands, skills} = ctx.collectedInputContext
     const hasProjectPrompts = workspace.projects.some(
-      project => project.rootMemoryPrompt != null || (project.childMemoryPrompts?.length ?? 0) > 0
+      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
     )
-    const hasGlobalMemory = globalMemory != null
-    const hasFastCommands = (fastCommands?.length ?? 0) > 0
-    const hasSkills = (skills?.length ?? 0) > 0
-
-    if (hasProjectPrompts || hasGlobalMemory || hasFastCommands || hasSkills) return true
-
+    if (hasProjectPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
@@ -196,156 +150,92 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     const {projects} = ctx.collectedInputContext.workspace
     const {globalMemory} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
 
     for (const project of projects) {
+      if (project.dirFromWorkspacePath == null) continue
       const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
 
       if (globalMemory != null) {
         const content = this.buildAlwaysRuleContent(globalMemory.content as string)
-        const result = await this.writeProjectRuleFile(ctx, project, GLOBAL_RULE_FILE, content, 'globalRule')
-        fileResults.push(result)
+        fileResults.push(await this.writeProjectRuleFile(ctx, projectDir, GLOBAL_RULE_FILE, content, 'globalRule'))
       }
 
       if (project.rootMemoryPrompt != null) {
         const content = this.buildAlwaysRuleContent(project.rootMemoryPrompt.content as string)
-        const result = await this.writeProjectRuleFile(ctx, project, PROJECT_RULE_FILE, content, 'projectRootRule')
-        fileResults.push(result)
+        fileResults.push(await this.writeProjectRuleFile(ctx, projectDir, PROJECT_RULE_FILE, content, 'projectRootRule'))
       }
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
           const fileName = this.buildChildRuleFileName(child)
           const content = this.buildGlobRuleContent(child)
-          const result = await this.writeProjectRuleFile(ctx, project, fileName, content, 'projectChildRule')
-          fileResults.push(result)
+          fileResults.push(await this.writeProjectRuleFile(ctx, projectDir, fileName, content, 'projectChildRule'))
         }
       }
     }
-
-    return {files: fileResults, dirs: dirResults}
+    return {files: fileResults, dirs: []}
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {fastCommands, skills} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
+    const globalDir = this.getGlobalConfigDir()
+    const commandsDir = path.join(globalDir, COMMANDS_SUBDIR)
+    const skillsDir = path.join(globalDir, SKILLS_SUBDIR)
 
     if (fastCommands != null && fastCommands.length > 0) {
-      const commandsDir = this.getGlobalCommandsDir()
-      for (const cmd of fastCommands) {
-        const result = await this.writeGlobalFastCommand(ctx, commandsDir, cmd)
-        fileResults.push(result)
-      }
+      for (const cmd of fastCommands) fileResults.push(await this.writeGlobalFastCommand(ctx, commandsDir, cmd))
     }
 
-    if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults}
-
-    const skillsDir = this.getGlobalSkillsDir()
-    for (const skill of skills) {
-      const skillResults = await this.writeGlobalSkill(ctx, skillsDir, skill)
-      fileResults.push(...skillResults)
+    if (skills != null && skills.length > 0) {
+      for (const skill of skills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
     }
-    return {files: fileResults, dirs: dirResults}
+    return {files: fileResults, dirs: []}
   }
 
-  private getGlobalCommandsDir(): string {
-    return this.joinPath(this.getGlobalConfigDir(), COMMANDS_SUBDIR)
+  private createProjectRulesDirPath(projectDir: RelativePath): RelativePath {
+    return this.createRelativePath(
+      path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR),
+      projectDir.basePath,
+      () => RULES_SUBDIR
+    )
   }
 
-  private createProjectRulesDirRelativePath(projectDir: RelativePath): RelativePath {
-    const rulesDirPath = path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR)
-    return {
-      pathKind: FilePathKind.Relative,
-      path: rulesDirPath,
-      basePath: projectDir.basePath,
-      getDirectoryName: () => RULES_SUBDIR,
-      getAbsolutePath: () => path.join(projectDir.basePath, rulesDirPath)
-    }
-  }
-
-  private createProjectRuleFileRelativePath(projectDir: RelativePath, fileName: string): RelativePath {
-    const filePath = path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, fileName)
-    return {
-      pathKind: FilePathKind.Relative,
-      path: filePath,
-      basePath: projectDir.basePath,
-      getDirectoryName: () => RULES_SUBDIR,
-      getAbsolutePath: () => path.join(projectDir.basePath, filePath)
-    }
+  private createProjectRuleFilePath(projectDir: RelativePath, fileName: string): RelativePath {
+    return this.createRelativePath(
+      path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, fileName),
+      projectDir.basePath,
+      () => RULES_SUBDIR
+    )
   }
 
   private buildChildRuleFileName(child: ProjectChildrenMemoryPrompt): string {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
-    const normalizedPath = childPath
-      .replaceAll('\\', '/')
-      .replaceAll(/^\/+|\/+$/g, '')
-      .replaceAll('/', '-')
-
-    const suffix = normalizedPath.length > 0 ? normalizedPath : 'root'
-    return `${CHILD_RULE_FILE_PREFIX}${suffix}.md`
-  }
-
-  private buildChildRulePattern(child: ProjectChildrenMemoryPrompt): string {
-    const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
-    const normalizedPath = childPath
-      .replaceAll('\\', '/')
-      .replaceAll(/^\/+|\/+$/g, '')
-
-    if (normalizedPath.length === 0) return '**/*'
-    return `${normalizedPath}/**`
+    const normalized = childPath.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '').replaceAll('/', '-')
+    return `${CHILD_RULE_FILE_PREFIX}${normalized.length > 0 ? normalized : 'root'}.md`
   }
 
   private buildAlwaysRuleContent(content: string): string {
-    const fmData: Record<string, unknown> = {
-      trigger: TRIGGER_ALWAYS,
-      type: 'user_command'
-    }
-
-    return buildMarkdownWithFrontMatter(fmData, content)
+    return buildMarkdownWithFrontMatter({trigger: TRIGGER_ALWAYS, type: 'user_command'}, content)
   }
 
   private buildGlobRuleContent(child: ProjectChildrenMemoryPrompt): string {
-    const pattern = this.buildChildRulePattern(child)
-    const fmData: Record<string, unknown> = {
-      trigger: TRIGGER_GLOB,
-      [RULE_GLOB_KEY]: pattern,
-      type: 'user_command'
-    }
-
-    return buildMarkdownWithFrontMatter(fmData, child.content as string)
+    const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
+    const normalized = childPath.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '')
+    const pattern = normalized.length === 0 ? '**/*' : `${normalized}/**`
+    return buildMarkdownWithFrontMatter({trigger: TRIGGER_GLOB, [RULE_GLOB_KEY]: pattern, type: 'user_command'}, child.content as string)
   }
 
   private async writeProjectRuleFile(
     ctx: OutputWriteContext,
-    project: Project,
+    projectDir: RelativePath,
     fileName: string,
     content: string,
     label: string
   ): Promise<WriteResult> {
-    const projectDir = project.dirFromWorkspacePath!
     const rulesDir = path.join(projectDir.basePath, projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR)
     const fullPath = path.join(rulesDir, fileName)
-
-    const relativePath = this.createProjectRuleFileRelativePath(projectDir, fileName)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: label, path: fullPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      this.ensureDirectory(rulesDir)
-      this.writeFileSync(fullPath, content)
-      this.log.trace({action: 'write', type: label, path: fullPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: label, path: fullPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+    return this.writeFile(ctx, fullPath, content, label)
   }
 
   private async writeGlobalFastCommand(
@@ -356,38 +246,9 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
     const fileName = this.transformFastCommandName(cmd, transformOptions)
     const fullPath = path.join(commandsDir, fileName)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: fileName,
-      basePath: commandsDir,
-      getDirectoryName: () => COMMANDS_SUBDIR,
-      getAbsolutePath: () => fullPath
-    }
-
-    const frontMatterData = this.buildFastCommandFrontMatter(cmd)
-    const content = buildMarkdownWithFrontMatter(frontMatterData, cmd.content)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'globalFastCommand', path: fullPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      this.ensureDirectory(commandsDir)
-      this.writeFileSync(fullPath, content)
-      this.log.trace({action: 'write', type: 'globalFastCommand', path: fullPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'globalFastCommand', path: fullPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
-  }
-
-  private getGlobalSkillsDir(): string {
-    return this.joinPath(this.getGlobalConfigDir(), SKILLS_SUBDIR)
+    const fmData = this.buildFastCommandFrontMatter(cmd)
+    const content = buildMarkdownWithFrontMatter(fmData, cmd.content)
+    return this.writeFile(ctx, fullPath, content, 'globalFastCommand')
   }
 
   private async writeGlobalSkill(
@@ -396,59 +257,41 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     skill: SkillPrompt
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    const globalDir = this.getGlobalConfigDir()
     const skillName = skill.yamlFrontMatter.name
     const skillDir = path.join(skillsDir, skillName)
     const skillFilePath = path.join(skillDir, SKILL_FILE_NAME)
 
-    const skillRelativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(SKILLS_SUBDIR, skillName, SKILL_FILE_NAME),
-      basePath: globalDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => skillFilePath
-    }
-
-    const frontMatterData = this.buildSkillFrontMatter(skill)
-    const bodyContent = skill.content as string
-    const skillContent = buildMarkdownWithFrontMatter(frontMatterData, bodyContent)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'skill', path: skillFilePath})
-      results.push({path: skillRelativePath, success: true, skipped: false})
-    } else {
-      try {
-        this.ensureDirectory(skillDir)
-        this.writeFileSync(skillFilePath, skillContent)
-        this.log.trace({action: 'write', type: 'skill', path: skillFilePath})
-        results.push({path: skillRelativePath, success: true})
-      }
-      catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'write', type: 'skill', path: skillFilePath, error: errMsg})
-        results.push({path: skillRelativePath, success: false, error: error as Error})
-      }
-    }
+    const fmData = this.buildSkillFrontMatter(skill)
+    const content = buildMarkdownWithFrontMatter(fmData, skill.content as string)
+    results.push(await this.writeFile(ctx, skillFilePath, content, 'skill'))
 
     if (skill.mcpConfig != null) {
-      const mcpResult = await this.writeSkillMcpConfig(ctx, skill, skillDir, globalDir)
-      results.push(mcpResult)
+      const mcpPath = path.join(skillDir, MCP_CONFIG_FILE)
+      results.push(await this.writeFile(ctx, mcpPath, skill.mcpConfig.rawContent, 'mcpConfig'))
     }
 
     if (skill.childDocs != null) {
       for (const childDoc of skill.childDocs) {
-        const childResult = await this.writeSkillChildDoc(ctx, childDoc, skillDir, skillName, globalDir)
-        results.push(childResult)
+        const childPath = path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md'))
+        results.push(await this.writeFile(ctx, childPath, childDoc.content as string, 'childDoc'))
       }
     }
 
     if (skill.resources != null) {
       for (const resource of skill.resources) {
-        const resourceResult = await this.writeSkillResource(ctx, resource, skillDir, skillName, globalDir)
-        results.push(resourceResult)
+        const resourcePath = path.join(skillDir, resource.relativePath)
+        if (resource.encoding === 'base64') {
+          const buffer = Buffer.from(resource.content, 'base64')
+          const dir = path.dirname(resourcePath)
+          this.ensureDirectory(dir)
+          this.writeFileSyncBuffer(resourcePath, buffer)
+          results.push({
+            path: this.createRelativePath(resource.relativePath, skillDir, () => skillName),
+            success: true
+          })
+        } else results.push(await this.writeFile(ctx, resourcePath, resource.content, 'resource'))
       }
     }
-
     return results
   }
 
@@ -468,135 +311,12 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   private buildFastCommandFrontMatter(cmd: FastCommandPrompt): Record<string, unknown> {
     const fm = cmd.yamlFrontMatter
-    if (fm == null) {
-      return {
-        description: 'Fast command',
-        type: 'user_command'
-      }
-    }
-
+    if (fm == null) return {description: 'Fast command', type: 'user_command'}
     return {
       description: fm.description,
       type: 'user_command',
       ...fm.argumentHint != null && {argumentHint: fm.argumentHint},
       ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}
-    }
-  }
-
-  private async writeSkillMcpConfig(
-    ctx: OutputWriteContext,
-    skill: SkillPrompt,
-    skillDir: string,
-    globalDir: string
-  ): Promise<WriteResult> {
-    const skillName = skill.yamlFrontMatter.name
-    const mcpConfigPath = path.join(skillDir, MCP_CONFIG_FILE)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(SKILLS_SUBDIR, skillName, MCP_CONFIG_FILE),
-      basePath: globalDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => mcpConfigPath
-    }
-
-    const mcpConfigContent = skill.mcpConfig!.rawContent
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'mcpConfig', path: mcpConfigPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      this.ensureDirectory(skillDir)
-      this.writeFileSync(mcpConfigPath, mcpConfigContent)
-      this.log.trace({action: 'write', type: 'mcpConfig', path: mcpConfigPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'mcpConfig', path: mcpConfigPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
-  }
-
-  private async writeSkillChildDoc(
-    ctx: OutputWriteContext,
-    childDoc: {relativePath: string, content: unknown},
-    skillDir: string,
-    skillName: string,
-    globalDir: string
-  ): Promise<WriteResult> {
-    const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
-    const childDocPath = path.join(skillDir, outputRelativePath)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(SKILLS_SUBDIR, skillName, outputRelativePath),
-      basePath: globalDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => childDocPath
-    }
-
-    const content = childDoc.content as string
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'childDoc', path: childDocPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      const parentDir = path.dirname(childDocPath)
-      this.ensureDirectory(parentDir)
-      this.writeFileSync(childDocPath, content)
-      this.log.trace({action: 'write', type: 'childDoc', path: childDocPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'childDoc', path: childDocPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
-  }
-
-  private async writeSkillResource(
-    ctx: OutputWriteContext,
-    resource: {relativePath: string, content: string, encoding: 'text' | 'base64'},
-    skillDir: string,
-    skillName: string,
-    globalDir: string
-  ): Promise<WriteResult> {
-    const resourcePath = path.join(skillDir, resource.relativePath)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(SKILLS_SUBDIR, skillName, resource.relativePath),
-      basePath: globalDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => resourcePath
-    }
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'resource', path: resourcePath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      const parentDir = path.dirname(resourcePath)
-      this.ensureDirectory(parentDir)
-
-      if (resource.encoding === 'base64') {
-        const buffer = Buffer.from(resource.content, 'base64')
-        this.writeFileSyncBuffer(resourcePath, buffer)
-      } else this.writeFileSync(resourcePath, resource.content)
-
-      this.log.trace({action: 'write', type: 'resource', path: resourcePath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'resource', path: resourcePath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
     }
   }
 }

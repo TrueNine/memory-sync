@@ -49,14 +49,6 @@ class TestableKiroCLIOutputPlugin extends KiroCLIOutputPlugin { // Create a test
     return (this as any).listInstalledPowers(powersDir) // Access private method via any cast
   }
 
-  public async testWriteSkillMcpConfig(
-    ctx: any,
-    skill: any,
-    powerDir: string
-  ): Promise<any> {
-    return (this as any).writeSkillMcpConfig(ctx, skill, powerDir) // Access private method via any cast
-  }
-
   public setMockHomeDir(dir: string | null): void {
     this.mockHomeDir = dir
   }
@@ -396,11 +388,11 @@ describe('kiroCLIOutputPlugin', () => {
       expect(mcpFile).toBeUndefined()
     })
 
-    it('should write mcp.json to each power directory with original content', async () => {
+    it('should write mcp.json when calling writeGlobalOutputs with skill that has MCP config', async () => {
       const plugin = new TestableKiroCLIOutputPlugin()
       plugin.setMockHomeDir(tempDir)
 
-      const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed') // Create powers directory
+      const powersDir = path.join(tempDir, '.kiro', 'powers', 'installed', 'my-skill')
       fs.mkdirSync(powersDir, {recursive: true})
 
       const mcpRawContent = JSON.stringify({
@@ -409,28 +401,43 @@ describe('kiroCLIOutputPlugin', () => {
         }
       }, null, 2)
 
-      const skill = {
-        type: PromptKind.Skill,
-        yamlFrontMatter: {name: 'my-skill', description: 'My Skill'},
-        content: '# My Skill',
-        mcpConfig: {
-          type: PromptKind.SkillMcpConfig,
-          mcpServers: {
-            'my-server': {command: 'uvx', args: ['my-package'], env: {KEY: 'value'}}
-          },
-          rawContent: mcpRawContent
-        }
+      const ctx = {
+        dryRun: false,
+        collectedInputContext: {
+          workspace: {projects: [], directory: {path: tempDir, pathKind: FilePathKind.Absolute, getDirectoryName: () => 'test'}},
+          ideConfigFiles: [],
+          globalMemory: void 0,
+          fastCommands: [],
+          skills: [
+            {
+              type: PromptKind.Skill,
+              yamlFrontMatter: {name: 'my-skill', description: 'My Skill'},
+              content: '# My Skill',
+              length: 10,
+              filePathKind: FilePathKind.Relative,
+              dir: createMockRelativePath('my-skill', tempDir),
+              markdownContents: [],
+              mcpConfig: {
+                type: PromptKind.SkillMcpConfig,
+                mcpServers: {
+                  'my-server': {command: 'uvx', args: ['my-package'], env: {KEY: 'value'}}
+                },
+                rawContent: mcpRawContent
+              }
+            }
+          ]
+        },
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as any,
+        fs,
+        path,
+        glob: {} as any
       }
 
-      const powerDir = path.join(powersDir, 'my-skill')
-      const ctx = {dryRun: false}
+      await plugin.writeGlobalOutputs(ctx as any)
 
-      await plugin.testWriteSkillMcpConfig(ctx, skill, powerDir)
-
-      const mcpConfigPath = path.join(powerDir, 'mcp.json') // Check mcp.json was written to power directory
+      const mcpConfigPath = path.join(powersDir, 'mcp.json')
       expect(fs.existsSync(mcpConfigPath)).toBe(true)
-
-      const writtenContent = fs.readFileSync(mcpConfigPath, 'utf8') // Should preserve original raw content
+      const writtenContent = fs.readFileSync(mcpConfigPath, 'utf8')
       expect(writtenContent).toBe(mcpRawContent)
     })
 

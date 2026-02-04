@@ -248,6 +248,39 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     deskRemoveSymlink(symlinkPath)
   }
 
+  protected async writeDirectorySymlink(
+    ctx: OutputWriteContext,
+    targetPath: string,
+    symlinkPath: string,
+    label: string
+  ): Promise<WriteResult> {
+    const dir = path.dirname(symlinkPath)
+    const linkName = path.basename(symlinkPath)
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: linkName,
+      basePath: dir,
+      getDirectoryName: () => path.basename(dir),
+      getAbsolutePath: () => symlinkPath
+    }
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'symlink', target: targetPath, link: symlinkPath, label})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      this.createSymlink(targetPath, symlinkPath, 'dir')
+      this.log.trace({action: 'write', type: 'symlink', target: targetPath, link: symlinkPath, label})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: 'symlink', target: targetPath, link: symlinkPath, label, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
+    }
+  }
+
   protected readdirSync(dir: string, options: {withFileTypes: true}): fs.Dirent[]
   protected readdirSync(dir: string): string[]
   protected readdirSync(dir: string, options?: {withFileTypes?: boolean}): fs.Dirent[] | string[] {

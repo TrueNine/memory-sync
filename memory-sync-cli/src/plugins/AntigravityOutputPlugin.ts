@@ -7,10 +7,8 @@ import type {
   WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
-import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const GLOBAL_CONFIG_DIR = '.agent'
@@ -19,150 +17,97 @@ const ANTIGRAVITY_DIR = 'antigravity'
 const SKILLS_SUBDIR = 'skills'
 const WORKFLOWS_SUBDIR = 'workflows'
 const MCP_CONFIG_FILE = 'mcp_config.json'
-
 const CLEANUP_SUBDIRS = [SKILLS_SUBDIR, WORKFLOWS_SUBDIR] as const
 
 export class AntigravityOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('AntigravityOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
-      outputFileName: '', // No main output file
+      outputFileName: '',
       dependsOn: ['GeminiCLIOutputPlugin']
     })
 
     this.registerCleanEffect('mcp-config-cleanup', async ctx => {
-      const globalAntigravityDir = path.join(os.homedir(), GLOBAL_GEMINI_DIR, ANTIGRAVITY_DIR)
-      const mcpConfigPath = path.join(globalAntigravityDir, MCP_CONFIG_FILE)
-
-      const emptyMcpConfig = {mcpServers: {}}
-
+      const mcpPath = path.join(this.getAntigravityDir(), MCP_CONFIG_FILE)
+      const content = JSON.stringify({mcpServers: {}}, null, 2)
       if (ctx.dryRun === true) {
-        this.log.trace({action: 'dryRun', type: 'mcpConfigCleanup', path: mcpConfigPath})
-        return {success: true, description: 'Would reset mcp_config.json to empty shell'}
+        this.log.trace({action: 'dryRun', type: 'mcpConfigCleanup', path: mcpPath})
+        return {success: true, description: 'Would reset mcp_config.json'}
       }
-
-      try {
-        this.ensureDirectory(globalAntigravityDir)
-        fs.writeFileSync(mcpConfigPath, JSON.stringify(emptyMcpConfig, null, 2))
-        this.log.trace({action: 'clean', type: 'mcpConfigCleanup', path: mcpConfigPath})
-        return {success: true, description: 'Reset mcp_config.json to empty shell'}
-      }
-      catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'clean', type: 'mcpConfigCleanup', path: mcpConfigPath, error: errMsg})
-        return {success: false, error: error as Error, description: 'Failed to reset mcp_config.json'}
-      }
+      const result = await this.writeFile(ctx, mcpPath, content, 'mcpConfigCleanup')
+      if (result.success) return {success: true, description: 'Reset mcp_config.json'}
+      return {success: false, description: 'Failed', error: result.error ?? new Error('Cleanup failed')}
     })
   }
 
+  private getAntigravityDir(): string {
+    return path.join(os.homedir(), GLOBAL_GEMINI_DIR, ANTIGRAVITY_DIR)
+  }
+
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
+    const results: RelativePath[] = []
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
-
       for (const subdir of CLEANUP_SUBDIRS) {
-        const dirPath = path.join(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, subdir)
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: dirPath,
-          basePath: project.dirFromWorkspacePath.basePath,
-          getDirectoryName: () => subdir,
-          getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, dirPath)
-        })
+        results.push(this.createRelativePath(
+          path.join(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, subdir),
+          project.dirFromWorkspacePath.basePath,
+          () => subdir
+        ))
       }
     }
-
     return results
   }
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
     const {skills, fastCommands} = ctx.collectedInputContext
-    const globalAntigravityDir = path.join(os.homedir(), GLOBAL_GEMINI_DIR, ANTIGRAVITY_DIR)
+    const baseDir = this.getAntigravityDir()
+    const results: RelativePath[] = []
 
     if (skills != null) {
       for (const skill of skills) {
         const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-        const skillDir = path.join(globalAntigravityDir, SKILLS_SUBDIR, skillName)
+        const skillDir = path.join(baseDir, SKILLS_SUBDIR, skillName)
 
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: 'SKILL.md',
-          basePath: skillDir, // For absolute paths, basePath can be the dir
-          getDirectoryName: () => skillName,
-          getAbsolutePath: () => path.join(skillDir, 'SKILL.md')
-        })
+        results.push(this.createRelativePath('SKILL.md', skillDir, () => skillName))
 
         if (skill.childDocs != null) {
           for (const refDoc of skill.childDocs) {
-            const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
-            const refDocPath = path.join(skillDir, refDocFileName)
-            results.push({
-              pathKind: FilePathKind.Relative,
-              path: refDocFileName,
-              basePath: skillDir,
-              getDirectoryName: () => skillName,
-              getAbsolutePath: () => refDocPath
-            })
+            results.push(this.createRelativePath(
+              refDoc.dir.path.replace(/\.mdx$/, '.md'),
+              skillDir,
+              () => skillName
+            ))
           }
         }
 
         if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            const resourcePath = path.join(skillDir, resource.relativePath)
-            results.push({
-              pathKind: FilePathKind.Relative,
-              path: resource.relativePath,
-              basePath: skillDir,
-              getDirectoryName: () => skillName,
-              getAbsolutePath: () => resourcePath
-            })
-          }
+          for (const resource of skill.resources) results.push(this.createRelativePath(resource.relativePath, skillDir, () => skillName))
         }
       }
     }
 
-    const hasAnyMcpConfig = skills?.some(s => s.mcpConfig != null) ?? false
-    if (hasAnyMcpConfig) {
-      const mcpConfigPath = path.join(globalAntigravityDir, MCP_CONFIG_FILE)
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: MCP_CONFIG_FILE,
-        basePath: globalAntigravityDir,
-        getDirectoryName: () => ANTIGRAVITY_DIR,
-        getAbsolutePath: () => mcpConfigPath
-      })
-    }
+    if (skills?.some(s => s.mcpConfig != null)) results.push(this.createRelativePath(MCP_CONFIG_FILE, baseDir, () => ANTIGRAVITY_DIR))
 
     if (fastCommands == null) return results
 
     const transformOptions = this.getTransformOptionsFromContext(ctx)
-    const workflowsDir = path.join(globalAntigravityDir, WORKFLOWS_SUBDIR)
+    const workflowsDir = path.join(baseDir, WORKFLOWS_SUBDIR)
     for (const cmd of fastCommands) {
-      const fileName = this.transformFastCommandName(cmd, transformOptions)
-      const fullPath = path.join(workflowsDir, fileName)
-
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: fileName,
-        basePath: workflowsDir,
-        getDirectoryName: () => WORKFLOWS_SUBDIR,
-        getAbsolutePath: () => fullPath
-      })
+      results.push(this.createRelativePath(
+        this.transformFastCommandName(cmd, transformOptions),
+        workflowsDir,
+        () => WORKFLOWS_SUBDIR
+      ))
     }
-
     return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {fastCommands, skills} = ctx.collectedInputContext
-    const hasFastCommands = (fastCommands?.length ?? 0) > 0
-    const hasSkills = (skills?.length ?? 0) > 0
-
-    if (hasFastCommands || hasSkills) return true
-
+    if ((fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
@@ -170,96 +115,52 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {fastCommands, skills} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
-
-    const globalAntigravityDir = path.join(os.homedir(), GLOBAL_GEMINI_DIR, ANTIGRAVITY_DIR)
-    const workflowsDir = path.join(globalAntigravityDir, WORKFLOWS_SUBDIR)
-    const skillsDir = path.join(globalAntigravityDir, SKILLS_SUBDIR)
+    const baseDir = this.getAntigravityDir()
 
     if (fastCommands != null) {
-      for (const cmd of fastCommands) {
-        const cmdResults = await this.writeFastCommand(ctx, workflowsDir, cmd)
-        fileResults.push(...cmdResults)
-      }
+      const workflowsDir = path.join(baseDir, WORKFLOWS_SUBDIR)
+      for (const cmd of fastCommands) fileResults.push(await this.writeFastCommand(ctx, workflowsDir, cmd))
     }
 
     if (skills != null) {
-      for (const skill of skills) {
-        const skillResults = await this.writeSkill(ctx, skillsDir, skill)
-        fileResults.push(...skillResults)
-      }
-
-      const mcpResult = await this.writeGlobalMcpConfig(ctx, globalAntigravityDir, skills)
+      const skillsDir = path.join(baseDir, SKILLS_SUBDIR)
+      for (const skill of skills) fileResults.push(...await this.writeSkill(ctx, skillsDir, skill))
+      const mcpResult = await this.writeGlobalMcpConfig(ctx, baseDir, skills)
       if (mcpResult != null) fileResults.push(mcpResult)
     }
 
-    this.log.info({
-      action: 'write',
-      message: `Synced ${fileResults.length} files to global directory`,
-      files: fileResults.length,
-      globalDir: globalAntigravityDir
-    })
-
-    return {files: fileResults, dirs: dirResults}
+    this.log.info({action: 'write', message: `Synced ${fileResults.length} files`, globalDir: baseDir})
+    return {files: fileResults, dirs: []}
   }
 
   private async writeGlobalMcpConfig(
     ctx: OutputWriteContext,
-    globalAntigravityDir: string,
+    baseDir: string,
     skills: readonly SkillPrompt[]
   ): Promise<WriteResult | null> {
-    const mergedMcpServers: Record<string, unknown> = {}
+    const mergedServers: Record<string, unknown> = {}
 
     for (const skill of skills) {
       if (skill.mcpConfig == null) continue
-
-      const {mcpServers} = skill.mcpConfig
-
-      for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) mergedMcpServers[mcpName] = this.transformMcpConfigForAntigravity({...mcpConfig})
+      for (const [name, config] of Object.entries(skill.mcpConfig.mcpServers)) {
+        mergedServers[name] = this.transformMcpConfig(config as unknown as Record<string, unknown>)
+      }
     }
 
-    if (Object.keys(mergedMcpServers).length === 0) return null
+    if (Object.keys(mergedServers).length === 0) return null
 
-    const mcpConfigPath = path.join(globalAntigravityDir, MCP_CONFIG_FILE)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: MCP_CONFIG_FILE,
-      basePath: globalAntigravityDir,
-      getDirectoryName: () => ANTIGRAVITY_DIR,
-      getAbsolutePath: () => mcpConfigPath
-    }
-
-    const globalMcpConfig = {mcpServers: mergedMcpServers}
-    const content = JSON.stringify(globalMcpConfig, null, 2)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'globalMcpConfig', path: mcpConfigPath, serverCount: Object.keys(mergedMcpServers).length})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      this.ensureDirectory(globalAntigravityDir)
-      fs.writeFileSync(mcpConfigPath, content)
-      this.log.trace({action: 'write', type: 'globalMcpConfig', path: mcpConfigPath, serverCount: Object.keys(mergedMcpServers).length})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'globalMcpConfig', path: mcpConfigPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+    const fullPath = path.join(baseDir, MCP_CONFIG_FILE)
+    const content = JSON.stringify({mcpServers: mergedServers}, null, 2)
+    return this.writeFile(ctx, fullPath, content, 'globalMcpConfig')
   }
 
-  private transformMcpConfigForAntigravity(config: Record<string, unknown>): Record<string, unknown> {
+  private transformMcpConfig(config: Record<string, unknown>): Record<string, unknown> {
     const result: Record<string, unknown> = {}
-
     for (const [key, value] of Object.entries(config)) {
       if (key === 'url') result['serverUrl'] = value
       else if (key === 'type' || key === 'enabled' || key === 'autoApprove') continue
       else result[key] = value
     }
-
     return result
   }
 
@@ -267,55 +168,22 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     targetDir: string,
     cmd: FastCommandPrompt
-  ): Promise<WriteResult[]> {
-    const results: WriteResult[] = []
-    const transformOptions = this.getTransformOptionsFromContext(ctx) // But we need to filter frontmatter to only include description // Use rawMdxContent if available as Antigravity treats workflows as MD files
-    const fileName = this.transformFastCommandName(cmd, transformOptions) // Ideally user wants: .agent/workflows/<name>.md // Antigravity workflow names shouldn't have prefixes usually, but adhering to pipeline standard
+  ): Promise<WriteResult> {
+    const transformOptions = this.getTransformOptionsFromContext(ctx)
+    const fileName = this.transformFastCommandName(cmd, transformOptions)
     const fullPath = path.join(targetDir, fileName)
 
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: fileName,
-      basePath: targetDir,
-      getDirectoryName: () => WORKFLOWS_SUBDIR,
-      getAbsolutePath: () => fullPath
-    }
+    const filteredFm: {description?: string} = typeof cmd.yamlFrontMatter?.description === 'string'
+      ? {description: cmd.yamlFrontMatter.description}
+      : {}
 
-    let finalContent = cmd.content // Prepare content with filtered front matter
-    const sourceFrontMatter = cmd.yamlFrontMatter
-    const filteredFrontMatter: {description?: string}
-      = typeof sourceFrontMatter?.description === 'string'
-        ? {description: sourceFrontMatter.description}
-        : {}
+    let content: string
+    if (cmd.rawMdxContent != null) {
+      const body = cmd.rawMdxContent.replace(/^---\n[\s\S]*?\n---\n/, '')
+      content = this.buildMarkdownContentWithRaw(body, filteredFm, cmd.rawFrontMatter)
+    } else content = this.buildMarkdownContentWithRaw(cmd.content, filteredFm, cmd.rawFrontMatter)
 
-    const buildContent = (body: string): string =>
-      this.buildMarkdownContentWithRaw(body, filteredFrontMatter, cmd.rawFrontMatter)
-
-    if (cmd.rawMdxContent != null) { // If we have raw MDX content, we prefer that but we need to strip/replace frontmatter
-      const contentWithoutFrontMatter = cmd.rawMdxContent.replace(/^---\n[\s\S]*?\n---\n/, '') // Simple regex to strip existing frontmatter if present
-      finalContent = buildContent(contentWithoutFrontMatter)
-    } else {
-      finalContent = buildContent(finalContent) // Fallback to compiled content
-    }
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'fastCommand', path: fullPath})
-      return [{path: relativePath, success: true, skipped: false}]
-    }
-
-    try {
-      this.ensureDirectory(targetDir)
-      fs.writeFileSync(fullPath, finalContent, 'utf8')
-      this.log.trace({action: 'write', type: 'fastCommand', path: fullPath})
-      results.push({path: relativePath, success: true})
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'fastCommand', path: fullPath, error: errMsg})
-      results.push({path: relativePath, success: false, error: error as Error})
-    }
-
-    return results
+    return this.writeFile(ctx, fullPath, content, 'fastCommand')
   }
 
   private async writeSkill(
@@ -325,125 +193,21 @@ export class AntigravityOutputPlugin extends AbstractOutputPlugin {
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-    const targetDir = path.join(targetBaseDir, skillName)
-    const fullPath = path.join(targetDir, 'SKILL.md')
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: 'SKILL.md',
-      basePath: targetDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath
-    }
+    const skillDir = path.join(targetBaseDir, skillName)
+    const skillPath = path.join(skillDir, 'SKILL.md')
 
     const content = this.buildMarkdownContentWithRaw(skill.content as string, skill.yamlFrontMatter, skill.rawFrontMatter)
+    results.push(await this.writeFile(ctx, skillPath, content, 'skill'))
 
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'skill', path: fullPath})
-      return [{path: relativePath, success: true, skipped: false}]
-    }
-
-    try {
-      this.ensureDirectory(targetDir)
-      fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({action: 'write', type: 'skill', path: fullPath})
-      results.push({path: relativePath, success: true})
-
-      if (skill.childDocs != null) {
-        for (const refDoc of skill.childDocs) {
-          const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc)
-          results.push(...refResults)
-        }
-      }
-
-      if (skill.resources != null) {
-        for (const resource of skill.resources) {
-          const refResults = await this.writeSkillResource(ctx, targetDir, skillName, resource)
-          results.push(...refResults)
-        }
+    if (skill.childDocs != null) {
+      for (const refDoc of skill.childDocs) {
+        const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+        results.push(await this.writeFile(ctx, path.join(skillDir, fileName), refDoc.content as string, 'skillRefDoc'))
       }
     }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'skill', path: fullPath, error: errMsg})
-      results.push({path: relativePath, success: false, error: error as Error})
-    }
 
-    return results
-  }
-
-  private async writeSkillReferenceDocument(
-    ctx: OutputWriteContext,
-    skillDir: string,
-    skillName: string,
-    refDoc: {dir: RelativePath, content: unknown}
-  ): Promise<WriteResult[]> {
-    const results: WriteResult[] = []
-    const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
-    const fullPath = path.join(skillDir, fileName)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: fileName,
-      basePath: skillDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath
-    }
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'skillRefDoc', path: fullPath})
-      return [{path: relativePath, success: true, skipped: false}]
-    }
-
-    try {
-      const parentDir = path.dirname(fullPath)
-      this.ensureDirectory(parentDir)
-      fs.writeFileSync(fullPath, refDoc.content as string, 'utf8')
-      this.log.trace({action: 'write', type: 'skillRefDoc', path: fullPath})
-      results.push({path: relativePath, success: true})
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'skillRefDoc', path: fullPath, error: errMsg})
-      results.push({path: relativePath, success: false, error: error as Error})
-    }
-
-    return results
-  }
-
-  private async writeSkillResource(
-    ctx: OutputWriteContext,
-    skillDir: string,
-    skillName: string,
-    resource: {relativePath: string, content: string}
-  ): Promise<WriteResult[]> {
-    const results: WriteResult[] = []
-    const fullPath = path.join(skillDir, resource.relativePath)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: resource.relativePath,
-      basePath: skillDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath
-    }
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'skillResource', path: fullPath})
-      return [{path: relativePath, success: true, skipped: false}]
-    }
-
-    try {
-      const parentDir = path.dirname(fullPath)
-      this.ensureDirectory(parentDir)
-      fs.writeFileSync(fullPath, resource.content, 'utf8')
-      this.log.trace({action: 'write', type: 'skillResource', path: fullPath})
-      results.push({path: relativePath, success: true})
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'skillResource', path: fullPath, error: errMsg})
-      results.push({path: relativePath, success: false, error: error as Error})
+    if (skill.resources != null) {
+      for (const resource of skill.resources) results.push(await this.writeFile(ctx, path.join(skillDir, resource.relativePath), resource.content, 'skillResource'))
     }
 
     return results
