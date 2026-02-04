@@ -366,7 +366,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     }
 
     const frontMatterData = this.buildFastCommandFrontMatter(cmd)
-    const content = buildMarkdownWithFrontMatter(frontMatterData, cmd.content as string)
+    const content = buildMarkdownWithFrontMatter(frontMatterData, cmd.content)
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'globalFastCommand', path: fullPath})

@@ -4,9 +4,7 @@ import {QoderIDEPluginOutputPlugin} from './QoderIDEPluginOutputPlugin'
 describe('qoderidepluginoutputplugin front matter', () => {
   let plugin: QoderIDEPluginOutputPlugin
 
-  beforeEach(() => {
-    plugin = new QoderIDEPluginOutputPlugin()
-  })
+  beforeEach(() => plugin = new QoderIDEPluginOutputPlugin())
 
   describe('buildAlwaysRuleContent', () => {
     it('should include type: user_command in front matter', () => {
