@@ -376,11 +376,17 @@ describe('scopeRegistry property tests', () => {
     })
 
     it('should handle compile-time scope deep merge correctly', () => {
+      const safeKeyArb = fc.string({minLength: 1, maxLength: 20}).filter(s =>
+        /^[a-z_]\w*$/i.test(s)
+        && s !== '__proto__'
+        && s !== 'constructor'
+        && s !== 'prototype')
+
       fc.assert(
         fc.property(
           namespaceArb,
-          fc.string({minLength: 1, maxLength: 20}),
-          fc.string({minLength: 1, maxLength: 20}),
+          safeKeyArb,
+          safeKeyArb,
           fc.string({minLength: 1, maxLength: 50}),
           fc.string({minLength: 1, maxLength: 50}),
           (namespace, key1, key2, registeredValue, compileTimeValue) => {

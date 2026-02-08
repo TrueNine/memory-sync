@@ -22,6 +22,11 @@ import {AbstractInputPlugin} from './AbstractInputPlugin'
  */
 const PROJECT_MEMORY_FILE = 'agt.mdx'
 
+/**
+ * Directories to skip during recursive scanning
+ */
+const SCAN_SKIP_DIRECTORIES: readonly string[] = ['node_modules', '.git'] as const
+
 export class ProjectPromptInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('ProjectPromptInputPlugin', ['ShadowProjectInputPlugin']) // Updated dependency name
@@ -153,7 +158,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
 
-      if (Boolean(entry.name.startsWith('.')) || entry.name === 'node_modules') continue // Skip hidden directories and common non-source directories
+      if (SCAN_SKIP_DIRECTORIES.includes(entry.name)) continue // Skip non-source directories but allow IDE config dirs (.vscode, .idea, etc.)
 
       const childDir = path.join(currentPath, entry.name)
       const memoryFile = path.join(childDir, PROJECT_MEMORY_FILE)

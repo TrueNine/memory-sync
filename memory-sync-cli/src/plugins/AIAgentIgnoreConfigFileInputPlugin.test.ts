@@ -146,9 +146,10 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       const result = plugin.collect(ctx)
 
-      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(3)
+      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(4)
       expect(result.aiAgentIgnoreConfigFiles?.map(f => f.fileName)).toEqual([
         '.cursorignore',
+        '.kiroignore',
         '.warpindexignore',
         '.aiignore'
       ])
@@ -172,9 +173,10 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       const result = plugin.collect(ctx)
 
-      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(3)
+      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(4)
       expect(result.aiAgentIgnoreConfigFiles?.map(f => f.fileName)).toEqual([
         '.qoderignore',
+        '.kiroignore',
         '.warpindexignore',
         '.aiignore'
       ])
@@ -195,7 +197,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       plugin.collect(ctx)
 
-      expect(ctx.logger.debug).toHaveBeenCalledTimes(4)
+      expect(ctx.logger.debug).toHaveBeenCalledTimes(5)
     })
 
     it('should support custom shadowSourceProjectDir', () => {
