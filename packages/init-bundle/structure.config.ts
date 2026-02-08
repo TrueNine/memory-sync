@@ -25,7 +25,6 @@ export const bundlePaths = [
   '.idea/.gitignore',
   '.idea/codeStyles/Project.xml',
   '.idea/codeStyles/codeStyleConfig.xml',
-  'public/project.xml',
 
   // IDE 配置 - VSCode
   '.vscode/settings.json',
