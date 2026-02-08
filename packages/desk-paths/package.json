@@ -25,5 +25,14 @@
     "test": "vitest run",
     "prepublishOnly": "run-s build"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "@truenine/eslint9-config": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "fast-check": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
 }

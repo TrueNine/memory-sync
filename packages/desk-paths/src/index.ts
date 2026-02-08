@@ -83,9 +83,17 @@ export function lstatSync(p: string): fs.Stats {
 
 /**
  * Ensure a directory exists, creating it recursively if needed.
+ * Idempotent: calling multiple times has the same effect as calling once.
+ *
+ * @param dir - The directory path to ensure exists
  */
+export function ensureDir(dir: string): void {
+  fs.mkdirSync(dir, {recursive: true})
+}
+
+/** @internal Used by createSymlink */
 function ensureDirectory(dir: string): void {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive: true})
+  ensureDir(dir)
 }
 
 /**
@@ -177,3 +185,238 @@ export function deletePathSync(p: string): void {
   else fs.unlinkSync(p)
 }
 
+
+// =============================================================================
+// File Operations - Read, Write, Ensure
+// =============================================================================
+
+/**
+ * Write a string or Buffer to a file, auto-creating parent directories.
+ *
+ * @param filePath - Absolute path to the file
+ * @param data - Content to write (string or Buffer)
+ * @param encoding - Encoding for string data (default: 'utf8')
+ */
+export function writeFileSync(filePath: string, data: string | Buffer, encoding: BufferEncoding = 'utf8'): void {
+  const parentDir = path.dirname(filePath)
+  ensureDir(parentDir)
+  if (typeof data === 'string') fs.writeFileSync(filePath, data, encoding)
+  else fs.writeFileSync(filePath, data)
+}
+
+/**
+ * Read a file as a string. Throws with the path included in the error message on failure.
+ *
+ * @param filePath - Absolute path to the file
+ * @param encoding - Encoding (default: 'utf8')
+ * @returns The file content as a string
+ * @throws Error with path context if the file cannot be read
+ */
+export function readFileSync(filePath: string, encoding: BufferEncoding = 'utf8'): string {
+  try {
+    return fs.readFileSync(filePath, encoding)
+  }
+  catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to read file "${filePath}": ${msg}`)
+  }
+}
+
+// =============================================================================
+// Batch Deletion - Delete files and directories with error collection
+// =============================================================================
+
+/**
+ * Error encountered during a batch deletion operation.
+ */
+export interface DeletionError {
+  readonly path: string
+  readonly error: unknown
+}
+
+/**
+ * Result of a batch deletion operation.
+ */
+export interface DeletionResult {
+  readonly deleted: number
+  readonly errors: readonly DeletionError[]
+}
+
+/**
+ * Delete multiple files. Skips non-existent files. Collects errors without throwing.
+ *
+ * @param files - Array of absolute file paths to delete
+ * @returns DeletionResult with count and errors
+ */
+export function deleteFiles(files: readonly string[]): DeletionResult {
+  let deleted = 0
+  const errors: DeletionError[] = []
+
+  for (const file of files) {
+    try {
+      if (fs.existsSync(file)) {
+        deletePathSync(file)
+        deleted++
+      }
+    }
+    catch (e) {
+      errors.push({path: file, error: e})
+    }
+  }
+
+  return {deleted, errors}
+}
+
+/**
+ * Delete multiple directories. Sorts by depth descending so nested dirs are removed first.
+ * Skips non-existent directories. Collects errors without throwing.
+ *
+ * @param dirs - Array of absolute directory paths to delete
+ * @returns DeletionResult with count and errors
+ */
+export function deleteDirectories(dirs: readonly string[]): DeletionResult {
+  let deleted = 0
+  const errors: DeletionError[] = []
+
+  const sorted = [...dirs].sort((a, b) => b.length - a.length)
+
+  for (const dir of sorted) {
+    try {
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, {recursive: true, force: true})
+        deleted++
+      }
+    }
+    catch (e) {
+      errors.push({path: dir, error: e})
+    }
+  }
+
+  return {deleted, errors}
+}
+
+// =============================================================================
+// RelativePath Factory - Construct RelativePath objects
+// =============================================================================
+
+/**
+ * Directory path kind discriminator.
+ */
+export enum FilePathKind {
+  Relative = 'Relative',
+  Absolute = 'Absolute',
+  Root = 'Root'
+}
+
+/**
+ * A path relative to a base directory.
+ */
+export interface RelativePath {
+  readonly pathKind: FilePathKind.Relative
+  readonly path: string
+  readonly basePath: string
+  readonly getDirectoryName: () => string
+  readonly getAbsolutePath: () => string
+}
+
+/**
+ * Create a RelativePath from a path string, base path, and directory name function.
+ *
+ * @param pathStr - The relative path string
+ * @param basePath - The base directory for absolute path resolution
+ * @param dirNameFn - Function returning the directory name
+ * @returns A RelativePath object
+ */
+export function createRelativePath(
+  pathStr: string,
+  basePath: string,
+  dirNameFn: () => string
+): RelativePath {
+  return {
+    pathKind: FilePathKind.Relative,
+    path: pathStr,
+    basePath,
+    getDirectoryName: dirNameFn,
+    getAbsolutePath: () => path.join(basePath, pathStr)
+  }
+}
+
+/**
+ * Create a RelativePath for a file within a parent directory.
+ * The getDirectoryName delegates to the parent directory's getDirectoryName.
+ *
+ * @param dir - Parent directory RelativePath
+ * @param fileName - Name of the file
+ * @returns A RelativePath pointing to the file
+ */
+export function createFileRelativePath(dir: RelativePath, fileName: string): RelativePath {
+  const filePath = path.join(dir.path, fileName)
+  return {
+    pathKind: FilePathKind.Relative,
+    path: filePath,
+    basePath: dir.basePath,
+    getDirectoryName: () => dir.getDirectoryName(),
+    getAbsolutePath: () => path.join(dir.basePath, filePath)
+  }
+}
+
+// =============================================================================
+// Safe Write - Dry-run aware file writing with error handling
+// =============================================================================
+
+/**
+ * Logger interface for safe write operations.
+ */
+export interface WriteLogger {
+  readonly trace: (data: object) => void
+  readonly error: (data: object) => void
+}
+
+/**
+ * Options for writeFileSafe.
+ */
+export interface SafeWriteOptions {
+  readonly fullPath: string
+  readonly content: string | Buffer
+  readonly type: string
+  readonly relativePath: RelativePath
+  readonly dryRun: boolean
+  readonly logger: WriteLogger
+}
+
+/**
+ * Result of a safe write operation.
+ */
+export interface SafeWriteResult {
+  readonly path: RelativePath
+  readonly success: boolean
+  readonly skipped?: boolean
+  readonly error?: Error
+}
+
+/**
+ * Write a file with dry-run support and error handling.
+ * Auto-creates parent directories. Returns a result object instead of throwing.
+ *
+ * @param options - Write options including path, content, dry-run flag, and logger
+ * @returns SafeWriteResult indicating success or failure
+ */
+export function writeFileSafe(options: SafeWriteOptions): SafeWriteResult {
+  const {fullPath, content, type, relativePath, dryRun, logger} = options
+
+  if (dryRun) {
+    logger.trace({action: 'dryRun', type, path: fullPath})
+    return {path: relativePath, success: true, skipped: false}
+  }
+
+  try {
+    writeFileSync(fullPath, content)
+    logger.trace({action: 'write', type, path: fullPath})
+    return {path: relativePath, success: true}
+  }
+  catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error)
+    logger.error({action: 'write', type, path: fullPath, error: errMsg})
+    return {path: relativePath, success: false, error: error as Error}
+  }
+}
