@@ -1,9 +1,8 @@
-import type {ILogger} from '@/log'
-import type {OutputCleanContext, OutputPlugin} from '@/types'
-import * as fs from 'node:fs'
+import type { ILogger } from '@/log'
+import type { OutputCleanContext, OutputPlugin } from '@/types'
+import { checkCanClean, collectAllPluginOutputs, executeOnCleanComplete } from '@/types/PluginTypes'
+import { deleteDirectories as deskDeleteDirectories, deleteFiles as deskDeleteFiles } from '@truenine/desk-paths'
 import * as path from 'node:path'
-import {deletePathSync} from '@truenine/desk-paths'
-import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '@/types/PluginTypes'
 
 /**
  * Result of cleanup operation
@@ -66,26 +65,19 @@ export async function collectDeletionTargets(
  * Uses deletePathSync from @truenine/desk-paths for cross-platform safe deletion
  */
 export function deleteFiles(files: string[], logger: ILogger): {deleted: number, errors: CleanupError[]} {
-  let deleted = 0
-  const errors: CleanupError[] = []
+  const resolved = files.map(f => path.isAbsolute(f) ? f : path.resolve(f))
+  const result = deskDeleteFiles(resolved)
 
-  for (const file of files) {
-    const resolved = path.isAbsolute(file) ? file : path.resolve(file)
-    try {
-      if (fs.existsSync(resolved)) {
-        deletePathSync(resolved)
-        logger.debug({action: 'delete', type: 'file', path: resolved})
-        deleted++
-      }
-    }
-    catch (e) {
-      const errorMessage = e instanceof Error ? e.message : String(e)
-      logger.warn('failed to delete file', {path: resolved, error: errorMessage})
-      errors.push({path: resolved, type: 'file', error: e})
-    }
+  for (const f of resolved) {
+    if (!result.errors.some(e => e.path === f)) logger.debug({action: 'delete', type: 'file', path: f})
   }
+  const errors: CleanupError[] = result.errors.map(e => {
+    const errorMessage = e.error instanceof Error ? e.error.message : String(e.error)
+    logger.warn('failed to delete file', {path: e.path, error: errorMessage})
+    return {path: e.path, type: 'file' as const, error: e.error}
+  })
 
-  return {deleted, errors}
+  return {deleted: result.deleted, errors}
 }
 
 /**
@@ -94,28 +86,19 @@ export function deleteFiles(files: string[], logger: ILogger): {deleted: number,
  * Logs warnings for failed deletions and continues with remaining directories
  */
 export function deleteDirectories(dirs: string[], logger: ILogger): {deleted: number, errors: CleanupError[]} {
-  let deleted = 0
-  const errors: CleanupError[] = []
+  const resolved = dirs.map(d => path.isAbsolute(d) ? d : path.resolve(d))
+  const result = deskDeleteDirectories(resolved)
 
-  const sortedDirs = [...dirs].sort((a, b) => b.length - a.length) // Sort by length descending to handle nested dirs
-
-  for (const dir of sortedDirs) {
-    const resolved = path.isAbsolute(dir) ? dir : path.resolve(dir)
-    try {
-      if (fs.existsSync(resolved)) {
-        fs.rmSync(resolved, {recursive: true, force: true})
-        logger.debug({action: 'delete', type: 'directory', path: resolved})
-        deleted++
-      }
-    }
-    catch (e) {
-      const errorMessage = e instanceof Error ? e.message : String(e)
-      logger.warn('failed to delete directory', {path: resolved, error: errorMessage})
-      errors.push({path: resolved, type: 'directory', error: e})
-    }
+  for (const d of resolved) {
+    if (!result.errors.some(e => e.path === d)) logger.debug({action: 'delete', type: 'directory', path: d})
   }
+  const errors: CleanupError[] = result.errors.map(e => {
+    const errorMessage = e.error instanceof Error ? e.error.message : String(e.error)
+    logger.warn('failed to delete directory', {path: e.path, error: errorMessage})
+    return {path: e.path, type: 'directory' as const, error: e.error}
+  })
 
-  return {deleted, errors}
+  return {deleted: result.deleted, errors}
 }
 
 /**

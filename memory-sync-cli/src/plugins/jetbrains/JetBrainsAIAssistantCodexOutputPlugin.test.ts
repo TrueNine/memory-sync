@@ -1,25 +1,21 @@
 import type {
-  CollectedInputContext,
-  FastCommandPrompt,
-  GlobalMemoryPrompt,
-  OutputPluginContext,
-  OutputWriteContext,
-  ProjectChildrenMemoryPrompt,
-  ProjectRootMemoryPrompt,
-  SkillPrompt
+    CollectedInputContext,
+    FastCommandPrompt,
+    GlobalMemoryPrompt,
+    OutputPluginContext,
+    OutputWriteContext,
+    ProjectChildrenMemoryPrompt,
+    ProjectRootMemoryPrompt,
+    SkillPrompt
 } from '@/types'
-import type {RelativePath} from '@/types/FileSystemTypes'
+import { FilePathKind, PromptKind } from '@/types'
+import type { RelativePath } from '@/types/FileSystemTypes'
+import * as deskPaths from '@truenine/desk-paths'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {FilePathKind, PromptKind} from '@/types'
-import {getPlatformFixedDir} from '@/utils/PlatformPaths'
-import {JetBrainsAIAssistantCodexOutputPlugin} from './JetBrainsAIAssistantCodexOutputPlugin'
-
-vi.mock('@/utils/PlatformPaths', () => ({
-  getPlatformFixedDir: vi.fn()
-}))
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { JetBrainsAIAssistantCodexOutputPlugin } from './JetBrainsAIAssistantCodexOutputPlugin'
 
 function createMockRelativePath(pathStr: string, basePath: string): RelativePath {
   return {
@@ -173,7 +169,7 @@ describe('jetBrainsAIAssistantCodexOutputPlugin', () => {
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jb-codex-test-'))
-    vi.mocked(getPlatformFixedDir).mockReturnValue(tempDir)
+    vi.spyOn(deskPaths, 'getPlatformFixedDir').mockReturnValue(tempDir)
     plugin = new JetBrainsAIAssistantCodexOutputPlugin()
   })
 

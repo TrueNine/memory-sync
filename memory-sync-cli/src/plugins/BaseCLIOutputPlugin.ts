@@ -1,12 +1,11 @@
-import type {AbstractOutputPluginOptions} from './AbstractOutputPlugin'
-import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@/types'
-import type {RelativePath} from '@/types/FileSystemTypes'
-import * as fs from 'node:fs'
+import { mdxToMd } from '@/compiler'
+import { GlobalScopeCollector } from '@/scope'
+import type { FastCommandPrompt, OutputPluginContext, OutputWriteContext, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults } from '@/types'
+import type { RelativePath } from '@/types/FileSystemTypes'
+import { writeFileSync as deskWriteFileSync } from '@truenine/desk-paths'
 import * as path from 'node:path'
-import {mdxToMd} from '@/compiler'
-import {GlobalScopeCollector} from '@/scope'
-import {FilePathKind} from '@/types'
-import {AbstractOutputPlugin} from './AbstractOutputPlugin'
+import type { AbstractOutputPluginOptions } from './AbstractOutputPlugin'
+import { AbstractOutputPlugin } from './AbstractOutputPlugin'
 
 export interface BaseCLIOutputPluginOptions extends AbstractOutputPluginOptions {
   readonly commandsSubDir?: string
@@ -52,14 +51,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
     if (this.supportsSkills) subdirs.push(this.skillsSubDir)
 
     for (const subdir of subdirs) {
-      const fullPath = path.join(globalDir, subdir)
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: subdir,
-        basePath: globalDir,
-        getDirectoryName: () => subdir,
-        getAbsolutePath: () => fullPath
-      })
+      results.push(this.createRelativePath(subdir, globalDir, () => subdir))
     }
 
     return results
@@ -81,13 +73,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
 
       for (const subdir of subdirs) {
         const dirPath = path.join(project.dirFromWorkspacePath.path, this.globalConfigDir, subdir) // Assuming globalConfigDir is something like .claude
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: dirPath,
-          basePath: project.dirFromWorkspacePath.basePath,
-          getDirectoryName: () => subdir,
-          getAbsolutePath: () => path.join(project.dirFromWorkspacePath!.basePath, dirPath)
-        })
+        results.push(this.createRelativePath(dirPath, project.dirFromWorkspacePath.basePath, () => subdir))
       }
     }
 
@@ -119,13 +105,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
 
     const globalDir = this.getGlobalConfigDir()
     const results: RelativePath[] = [
-      {
-        pathKind: FilePathKind.Relative,
-        path: this.outputFileName,
-        basePath: globalDir,
-        getDirectoryName: () => this.globalConfigDir,
-        getAbsolutePath: () => path.join(globalDir, this.outputFileName)
-      }
+      this.createRelativePath(this.outputFileName, globalDir, () => this.globalConfigDir)
     ]
 
     const {fastCommands, subAgents, skills} = ctx.collectedInputContext
@@ -134,28 +114,14 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
     if (this.supportsFastCommands && fastCommands != null) {
       for (const cmd of fastCommands) {
         const fileName = this.transformFastCommandName(cmd, transformOptions)
-        const fullPath = path.join(globalDir, this.commandsSubDir, fileName)
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: path.join(this.commandsSubDir, fileName),
-          basePath: globalDir,
-          getDirectoryName: () => this.commandsSubDir,
-          getAbsolutePath: () => fullPath
-        })
+        results.push(this.createRelativePath(path.join(this.commandsSubDir, fileName), globalDir, () => this.commandsSubDir))
       }
     }
 
     if (this.supportsSubAgents && subAgents != null) {
       for (const agent of subAgents) {
         const fileName = agent.dir.path.endsWith('.md') ? agent.dir.path : `${agent.dir.path}.md`
-        const fullPath = path.join(globalDir, this.agentsSubDir, fileName)
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: path.join(this.agentsSubDir, fileName),
-          basePath: globalDir,
-          getDirectoryName: () => this.agentsSubDir,
-          getAbsolutePath: () => fullPath
-        })
+        results.push(this.createRelativePath(path.join(this.agentsSubDir, fileName), globalDir, () => this.agentsSubDir))
       }
     }
 
@@ -164,38 +130,20 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
         const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
         const skillDir = path.join(this.skillsSubDir, skillName)
 
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: path.join(skillDir, 'SKILL.md'),
-          basePath: globalDir,
-          getDirectoryName: () => skillName,
-          getAbsolutePath: () => path.join(globalDir, skillDir, 'SKILL.md')
-        })
+        results.push(this.createRelativePath(path.join(skillDir, 'SKILL.md'), globalDir, () => skillName))
 
         if (skill.childDocs != null) {
           for (const refDoc of skill.childDocs) {
             const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
             const refDocPath = path.join(skillDir, refDocFileName)
-            results.push({
-              pathKind: FilePathKind.Relative,
-              path: refDocPath,
-              basePath: globalDir,
-              getDirectoryName: () => skillName,
-              getAbsolutePath: () => path.join(globalDir, refDocPath)
-            })
+            results.push(this.createRelativePath(refDocPath, globalDir, () => skillName))
           }
         }
 
         if (skill.resources != null) {
           for (const resource of skill.resources) {
             const resourcePath = path.join(skillDir, resource.relativePath)
-            results.push({
-              pathKind: FilePathKind.Relative,
-              path: resourcePath,
-              basePath: globalDir,
-              getDirectoryName: () => skillName,
-              getAbsolutePath: () => path.join(globalDir, resourcePath)
-            })
+            results.push(this.createRelativePath(resourcePath, globalDir, () => skillName))
           }
         }
       }
@@ -266,13 +214,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (globalMemory != null) { // Write Global Memory File
       const fullPath = path.join(globalDir, this.outputFileName)
-      const relativePath: RelativePath = {
-        pathKind: FilePathKind.Relative,
-        path: this.outputFileName,
-        basePath: globalDir,
-        getDirectoryName: () => this.globalConfigDir,
-        getAbsolutePath: () => fullPath
-      }
+      const relativePath: RelativePath = this.createRelativePath(this.outputFileName, globalDir, () => this.globalConfigDir)
 
       if (ctx.dryRun === true) {
         this.log.trace({action: 'dryRun', type: 'globalMemory', path: fullPath})
@@ -283,8 +225,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
         })
       } else {
         try {
-          this.ensureDirectory(globalDir)
-          fs.writeFileSync(fullPath, globalMemory.content as string, 'utf8')
+          deskWriteFileSync(fullPath, globalMemory.content as string)
           this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
           fileResults.push({path: relativePath, success: true})
         }

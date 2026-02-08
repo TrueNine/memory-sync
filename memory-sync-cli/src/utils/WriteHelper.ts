@@ -1,25 +1,9 @@
-import type {Buffer} from 'node:buffer'
-import type {WriteResult} from '@/types'
-import type {RelativePath} from '@/types/FileSystemTypes'
+import type { RelativePath } from '@/types/FileSystemTypes'
+import { createRelativePath } from '@truenine/desk-paths'
 import * as path from 'node:path'
-import {FilePathKind} from '@/types'
 
-/**
- * Logger interface for write operations
- */
-export interface WriteLogger {
-  trace: (data: object) => void
-  error: (data: object) => void
-}
-
-/**
- * File system interface for write operations
- */
-export interface WriteFs {
-  existsSync: (p: string) => boolean
-  mkdirSync: (p: string, options?: {recursive?: boolean}) => void
-  writeFileSync: (p: string, data: string | Buffer, encoding?: BufferEncoding) => void
-}
+// Re-export from desk-paths
+export { writeFileSafe, type SafeWriteOptions, type SafeWriteResult, type WriteLogger } from '@truenine/desk-paths'
 
 /**
  * Options for creating a RelativePath for output files
@@ -35,64 +19,11 @@ export interface OutputPathOptions {
 
 /**
  * Create a RelativePath object for output file registration.
- * Centralizes the repetitive pattern found in all output plugins.
+ * Delegates to desk-paths createRelativePath.
  */
 export function createOutputPath(options: OutputPathOptions): RelativePath {
   const {relativePath, basePath, dirName} = options
-  const absolutePath = path.join(basePath, relativePath)
-  return {
-    pathKind: FilePathKind.Relative,
-    path: relativePath,
-    basePath,
-    getDirectoryName: () => dirName,
-    getAbsolutePath: () => absolutePath
-  }
-}
-
-/**
- * Options for writing a single file
- */
-export interface WriteFileOptions {
-  /** Full absolute path to write to */
-  readonly fullPath: string
-  /** Content to write */
-  readonly content: string | Buffer
-  /** Type label for logging */
-  readonly type: string
-  /** RelativePath for result */
-  readonly relativePath: RelativePath
-  /** Whether this is a dry run */
-  readonly dryRun: boolean
-  /** Logger instance */
-  readonly logger: WriteLogger
-  /** File system interface */
-  readonly fs: WriteFs
-}
-
-/**
- * Ensure directory exists and write file.
- * Returns a WriteResult indicating success or failure.
- * Centralizes the repetitive try/catch pattern found in all output plugins.
- */
-export function writeFileSafe(options: WriteFileOptions): WriteResult {
-  const {fullPath, content, type, relativePath, dryRun, logger, fs} = options
-
-  if (dryRun) {
-    logger.trace({action: 'dryRun', type, path: fullPath})
-    return {path: relativePath, success: true, skipped: false}
-  }
-
-  try {
-    const parentDir = path.dirname(fullPath)
-    if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, {recursive: true})
-    fs.writeFileSync(fullPath, content, typeof content === 'string' ? 'utf8' : void 0)
-    logger.trace({action: 'write', type, path: fullPath})
-    return {path: relativePath, success: true}
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error)
-    logger.error({action: 'write', type, path: fullPath, error: errMsg})
-    return {path: relativePath, success: false, error: error as Error}
-  }
+  return createRelativePath(relativePath, basePath, () => dirName)
 }
 
 /**

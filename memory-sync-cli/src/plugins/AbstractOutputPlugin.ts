@@ -1,6 +1,4 @@
-import type {Buffer} from 'node:buffer'
-import type {RegistryWriter} from './registry/RegistryWriter'
-import type {ILogger} from '@/log'
+import type { ILogger } from '@/log'
 import type {
   CleanEffectHandler,
   EffectRegistration,
@@ -14,18 +12,29 @@ import type {
   WriteResult,
   WriteResults
 } from '@/types'
+import type { Buffer } from 'node:buffer'
+import type { RegistryWriter } from './registry/RegistryWriter'
 
-import type {FastCommandSeriesPluginOverride} from '@/types/ConfigTypes'
-import type {Path, RelativePath} from '@/types/FileSystemTypes'
-import type {RegistryData} from '@/types/RegistryTypes'
+import { buildMarkdownWithFrontMatter } from '@/markdown'
+import { FilePathKind, PluginKind } from '@/types'
+import type { FastCommandSeriesPluginOverride } from '@/types/ConfigTypes'
+import type { Path, RelativePath } from '@/types/FileSystemTypes'
+import type { RegistryData } from '@/types/RegistryTypes'
+import {
+  createFileRelativePath as deskCreateFileRelativePath,
+  createRelativePath as deskCreateRelativePath,
+  createSymlink as deskCreateSymlink,
+  ensureDir as deskEnsureDir,
+  isSymlink as deskIsSymlink,
+  lstatSync as deskLstatSync,
+  removeSymlink as deskRemoveSymlink,
+  writeFileSync as deskWriteFileSync
+} from '@truenine/desk-paths'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {createSymlink as deskCreateSymlink, isSymlink as deskIsSymlink, lstatSync as deskLstatSync, removeSymlink as deskRemoveSymlink} from '@truenine/desk-paths'
-import {buildMarkdownWithFrontMatter} from '@/markdown'
-import {FilePathKind, PluginKind} from '@/types'
-import {AbstractPlugin} from './AbstractPlugin'
+import { AbstractPlugin } from './AbstractPlugin'
 
 /**
  * Options for transforming fast command names in output filenames.
@@ -172,24 +181,11 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     basePath: string,
     dirNameFn: () => string
   ): RelativePath {
-    return {
-      pathKind: FilePathKind.Relative,
-      path: pathStr,
-      basePath,
-      getDirectoryName: dirNameFn,
-      getAbsolutePath: () => path.join(basePath, pathStr)
-    }
+    return deskCreateRelativePath(pathStr, basePath, dirNameFn)
   }
 
   protected createFileRelativePath(dir: RelativePath, fileName: string): RelativePath {
-    const filePath = path.join(dir.path, fileName)
-    return {
-      pathKind: FilePathKind.Relative,
-      path: filePath,
-      basePath: dir.basePath,
-      getDirectoryName: () => dir.getDirectoryName(),
-      getAbsolutePath: () => path.join(dir.basePath, filePath)
-    }
+    return deskCreateFileRelativePath(dir, fileName)
   }
 
   protected getGlobalConfigDir(): string {
@@ -217,15 +213,15 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   protected writeFileSync(filePath: string, content: string, encoding: BufferEncoding = 'utf8'): void {
-    fs.writeFileSync(filePath, content, encoding)
+    deskWriteFileSync(filePath, content, encoding)
   }
 
   protected writeFileSyncBuffer(filePath: string, buffer: Buffer): void {
-    fs.writeFileSync(filePath, buffer)
+    deskWriteFileSync(filePath, buffer)
   }
 
   protected ensureDirectory(dir: string): void {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive: true})
+    deskEnsureDir(dir)
   }
 
   protected existsSync(p: string): boolean {
@@ -256,13 +252,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   ): Promise<WriteResult> {
     const dir = path.dirname(symlinkPath)
     const linkName = path.basename(symlinkPath)
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: linkName,
-      basePath: dir,
-      getDirectoryName: () => path.basename(dir),
-      getAbsolutePath: () => symlinkPath
-    }
+    const relativePath: RelativePath = deskCreateRelativePath(linkName, dir, () => path.basename(dir))
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'symlink', target: targetPath, link: symlinkPath, label})
@@ -296,13 +286,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   ): Promise<WriteResult> {
     const dir = path.dirname(fullPath) // Create a relative path for the result
     const fileName = path.basename(fullPath)
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: fileName,
-      basePath: dir,
-      getDirectoryName: () => path.basename(dir),
-      getAbsolutePath: () => fullPath
-    }
+    const relativePath: RelativePath = deskCreateRelativePath(fileName, dir, () => path.basename(dir))
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'file', path: fullPath, label})
@@ -310,8 +294,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     }
 
     try {
-      this.ensureDirectory(dir)
-      fs.writeFileSync(fullPath, content, 'utf8')
+      deskWriteFileSync(fullPath, content)
       this.log.trace({action: 'write', type: 'file', path: fullPath, label})
       return {path: relativePath, success: true}
     }
@@ -337,9 +320,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     }
 
     try {
-      const dir = path.dirname(fullPath)
-      this.ensureDirectory(dir)
-      fs.writeFileSync(fullPath, content, 'utf8')
+      deskWriteFileSync(fullPath, content)
       this.log.trace({action: 'write', type: 'promptFile', path: fullPath, label})
       return {path: relativePath, success: true}
     }
