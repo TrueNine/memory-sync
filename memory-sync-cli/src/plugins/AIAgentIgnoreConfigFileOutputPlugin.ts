@@ -13,7 +13,7 @@ import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 /**
  * All ignore file names that this plugin manages
  */
-const IGNORE_FILE_NAMES = ['.qoderignore', '.cursorignore', '.warpindexignore', '.aiignore'] as const
+const IGNORE_FILE_NAMES = ['.qoderignore', '.cursorignore', '.kiroignore', '.warpindexignore', '.aiignore'] as const
 
 export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
   constructor() {
