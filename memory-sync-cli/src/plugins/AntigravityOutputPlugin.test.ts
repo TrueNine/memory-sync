@@ -176,11 +176,11 @@ describe('antigravityOutputPlugin', () => {
   it('should write workflows (fast commands) correctly to global dir', async () => {
     await plugin.writeProjectOutputs(mockContext)
 
-    const expectedWorkflowPath = '.gemini/antigravity/workflows' // Expected: /home/user/.gemini/antigravity/workflows/custom_cmd1.md
+    const expectedWorkflowPath = '.gemini/antigravity/workflows' // Expected: /home/user/.gemini/antigravity/workflows/custom-cmd1.md
 
     const cmd1Call = vi.mocked(fs.writeFileSync).mock.calls.find(call => {
       const normalizedPath = String(call[0]).replaceAll('\\', '/')
-      return normalizedPath.includes(expectedWorkflowPath) && normalizedPath.includes('custom_cmd1.md')
+      return normalizedPath.includes(expectedWorkflowPath) && normalizedPath.includes('custom-cmd1.md')
     })
     expect(cmd1Call).toBeDefined()
     const cmd1Content = cmd1Call![1] as string
@@ -188,7 +188,7 @@ describe('antigravityOutputPlugin', () => {
 
     const cmd2Call = vi.mocked(fs.writeFileSync).mock.calls.find(call => {
       const normalizedPath = String(call[0]).replaceAll('\\', '/')
-      return normalizedPath.includes(expectedWorkflowPath) && normalizedPath.includes('custom_cmd2.md')
+      return normalizedPath.includes(expectedWorkflowPath) && normalizedPath.includes('custom-cmd2.md')
     })
     expect(cmd2Call).toBeDefined()
     const cmd2Content = cmd2Call![1] as string

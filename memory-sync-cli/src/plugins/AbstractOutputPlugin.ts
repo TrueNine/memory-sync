@@ -375,7 +375,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     cmd: FastCommandPrompt,
     options?: FastCommandNameTransformOptions
   ): string {
-    const {includeSeriesPrefix = true, seriesSeparator = '_'} = options ?? {}
+    const {includeSeriesPrefix = true, seriesSeparator = '-'} = options ?? {}
 
     if (!includeSeriesPrefix || cmd.series == null) return `${cmd.commandName}.md` // If prefix should not be included or series is not present, return just commandName
 

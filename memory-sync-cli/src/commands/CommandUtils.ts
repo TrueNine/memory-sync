@@ -72,6 +72,7 @@ export function createCommandResult(
  *
  * @param results - Map of plugin name to their results
  * @param logger - Logger instance for output
+ * @param logger.info - Logger info method
  * @param dryRun - Whether this is a dry-run execution
  */
 export function logPluginResults(

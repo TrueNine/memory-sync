@@ -301,7 +301,7 @@ describe('jetBrainsAIAssistantCodexOutputPlugin', () => {
       expect(fs.readFileSync(ideaAgents, 'utf8')).toBe(globalContent)
       expect(fs.readFileSync(webstormAgents, 'utf8')).toBe(globalContent)
 
-      const commandFile = path.join(ideaDir, 'prompts', 'spec_compile.md')
+      const commandFile = path.join(ideaDir, 'prompts', 'spec-compile.md')
       const commandContent = fs.readFileSync(commandFile, 'utf8')
       expect(commandContent).toContain('---')
       expect(commandContent).toContain('title: Compile')

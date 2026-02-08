@@ -247,10 +247,10 @@ describe('abstractOutputPlugin', () => {
             const cmd = createMockFastCommandPrompt(series, commandName)
 
             const resultTrue = plugin.testTransformFastCommandName(cmd, {includeSeriesPrefix: true}) // Test with includeSeriesPrefix = true
-            expect(resultTrue).toBe(`${series}_${commandName}.md`)
+            expect(resultTrue).toBe(`${series}-${commandName}.md`)
 
             const resultDefault = plugin.testTransformFastCommandName(cmd) // Test with includeSeriesPrefix = undefined (default)
-            expect(resultDefault).toBe(`${series}_${commandName}.md`)
+            expect(resultDefault).toBe(`${series}-${commandName}.md`)
           }
         ),
         {numRuns: 100}
@@ -318,7 +318,7 @@ describe('abstractOutputPlugin', () => {
       const cmd = createMockFastCommandPrompt('pe', 'compile')
 
       const result = plugin.testTransformFastCommandName(cmd)
-      expect(result).toBe('pe_compile.md')
+      expect(result).toBe('pe-compile.md')
     })
 
     it('should handle pe_compile with hyphen separator (Kiro style)', () => {

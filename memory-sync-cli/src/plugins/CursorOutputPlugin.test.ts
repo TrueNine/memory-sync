@@ -173,10 +173,10 @@ describe('cursor output plugin', () => {
       const results = await plugin.registerGlobalOutputFiles(ctx)
       expect(results.length).toBeGreaterThanOrEqual(2)
       const paths = results.map(r => r.path)
-      expect(paths).toContain(path.join('commands', 'build_compile.md'))
+      expect(paths).toContain(path.join('commands', 'build-compile.md'))
       expect(paths).toContain(path.join('commands', 'test.md'))
-      const compileEntry = results.find(r => r.path.includes('build_compile'))
-      expect(compileEntry?.getAbsolutePath()).toBe(path.join(tempDir, '.cursor', 'commands', 'build_compile.md'))
+      const compileEntry = results.find(r => r.path.includes('build-compile'))
+      expect(compileEntry?.getAbsolutePath()).toBe(path.join(tempDir, '.cursor', 'commands', 'build-compile.md'))
     })
 
     it('should register both mcp.json and command files when skills have mcpConfig and fastCommands exist', async () => {
@@ -450,7 +450,7 @@ describe('cursor output plugin', () => {
       const commandsDir = path.join(tempDir, '.cursor', 'commands')
       expect(fs.existsSync(commandsDir)).toBe(true)
 
-      const buildCompilePath = path.join(commandsDir, 'build_compile.md')
+      const buildCompilePath = path.join(commandsDir, 'build-compile.md')
       const testPath = path.join(commandsDir, 'test.md')
       expect(fs.existsSync(buildCompilePath)).toBe(true)
       expect(fs.existsSync(testPath)).toBe(true)

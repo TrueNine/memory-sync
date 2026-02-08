@@ -279,7 +279,7 @@ describe('qoder IDE plugin output plugin', () => {
       const results = await plugin.registerGlobalOutputFiles(ctx)
 
       const paths = results.map(r => r.path)
-      expect(paths).toContain(path.join('commands', 'build_compile.md'))
+      expect(paths).toContain(path.join('commands', 'build-compile.md'))
       expect(paths).toContain(path.join('commands', 'test.md'))
     })
 
@@ -437,7 +437,7 @@ describe('qoder IDE plugin output plugin', () => {
       expect(results.files).toHaveLength(1)
 
       const writeCall = vi.mocked(fs.writeFileSync).mock.calls[0]
-      expect(String(writeCall?.[0])).toContain(path.join('.qoder', 'commands', 'build_compile.md'))
+      expect(String(writeCall?.[0])).toContain(path.join('.qoder', 'commands', 'build-compile.md'))
       expect(String(writeCall?.[1])).toContain('description: Fast command')
       expect(String(writeCall?.[1])).toContain('Run something')
     })
