@@ -1,11 +1,11 @@
-import { mdxToMd } from '@/compiler'
-import { GlobalScopeCollector } from '@/scope'
-import type { FastCommandPrompt, OutputPluginContext, OutputWriteContext, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
-import { writeFileSync as deskWriteFileSync } from '@truenine/desk-paths'
+import type {AbstractOutputPluginOptions} from './AbstractOutputPlugin'
+import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@/types'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as path from 'node:path'
-import type { AbstractOutputPluginOptions } from './AbstractOutputPlugin'
-import { AbstractOutputPlugin } from './AbstractOutputPlugin'
+import {writeFileSync as deskWriteFileSync} from '@truenine/desk-paths'
+import {mdxToMd} from '@/compiler'
+import {GlobalScopeCollector} from '@/scope'
+import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 export interface BaseCLIOutputPluginOptions extends AbstractOutputPluginOptions {
   readonly commandsSubDir?: string
@@ -50,9 +50,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
     if (this.supportsSubAgents) subdirs.push(this.agentsSubDir)
     if (this.supportsSkills) subdirs.push(this.skillsSubDir)
 
-    for (const subdir of subdirs) {
-      results.push(this.createRelativePath(subdir, globalDir, () => subdir))
-    }
+    for (const subdir of subdirs) results.push(this.createRelativePath(subdir, globalDir, () => subdir))
 
     return results
   }

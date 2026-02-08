@@ -1,8 +1,8 @@
-import type { ILogger } from '@/log'
-import type { OutputCleanContext, OutputPlugin } from '@/types'
-import { checkCanClean, collectAllPluginOutputs, executeOnCleanComplete } from '@/types/PluginTypes'
-import { deleteDirectories as deskDeleteDirectories, deleteFiles as deskDeleteFiles } from '@truenine/desk-paths'
+import type {ILogger} from '@/log'
+import type {OutputCleanContext, OutputPlugin} from '@/types'
 import * as path from 'node:path'
+import {deleteDirectories as deskDeleteDirectories, deleteFiles as deskDeleteFiles} from '@truenine/desk-paths'
+import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '@/types/PluginTypes'
 
 /**
  * Result of cleanup operation

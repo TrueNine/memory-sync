@@ -1,4 +1,6 @@
-import type { ILogger } from '@/log'
+import type {Buffer} from 'node:buffer'
+import type {RegistryWriter} from './registry/RegistryWriter'
+import type {ILogger} from '@/log'
 import type {
   CleanEffectHandler,
   EffectRegistration,
@@ -12,14 +14,14 @@ import type {
   WriteResult,
   WriteResults
 } from '@/types'
-import type { Buffer } from 'node:buffer'
-import type { RegistryWriter } from './registry/RegistryWriter'
 
-import { buildMarkdownWithFrontMatter } from '@/markdown'
-import { FilePathKind, PluginKind } from '@/types'
-import type { FastCommandSeriesPluginOverride } from '@/types/ConfigTypes'
-import type { Path, RelativePath } from '@/types/FileSystemTypes'
-import type { RegistryData } from '@/types/RegistryTypes'
+import type {FastCommandSeriesPluginOverride} from '@/types/ConfigTypes'
+import type {Path, RelativePath} from '@/types/FileSystemTypes'
+import type {RegistryData} from '@/types/RegistryTypes'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
+import process from 'node:process'
 import {
   createFileRelativePath as deskCreateFileRelativePath,
   createRelativePath as deskCreateRelativePath,
@@ -30,11 +32,9 @@ import {
   removeSymlink as deskRemoveSymlink,
   writeFileSync as deskWriteFileSync
 } from '@truenine/desk-paths'
-import * as fs from 'node:fs'
-import * as os from 'node:os'
-import * as path from 'node:path'
-import process from 'node:process'
-import { AbstractPlugin } from './AbstractPlugin'
+import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {FilePathKind, PluginKind} from '@/types'
+import {AbstractPlugin} from './AbstractPlugin'
 
 /**
  * Options for transforming fast command names in output filenames.

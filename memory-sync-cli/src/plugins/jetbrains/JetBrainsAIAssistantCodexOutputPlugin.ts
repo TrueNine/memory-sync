@@ -1,20 +1,20 @@
-import { buildMarkdownWithFrontMatter } from '@/markdown'
 import type {
-    FastCommandPrompt,
-    OutputPluginContext,
-    OutputWriteContext,
-    Project,
-    ProjectChildrenMemoryPrompt,
-    SkillPrompt,
-    WriteResult,
-    WriteResults
+  FastCommandPrompt,
+  OutputPluginContext,
+  OutputWriteContext,
+  Project,
+  ProjectChildrenMemoryPrompt,
+  SkillPrompt,
+  WriteResult,
+  WriteResults
 } from '@/types'
-import { FilePathKind } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
-import { getPlatformFixedDir } from '@truenine/desk-paths'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { AbstractOutputPlugin } from '../AbstractOutputPlugin'
+import {getPlatformFixedDir} from '@truenine/desk-paths'
+import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {FilePathKind} from '@/types'
+import {AbstractOutputPlugin} from '../AbstractOutputPlugin'
 
 /**
  * Represents the filename of the project memory file.

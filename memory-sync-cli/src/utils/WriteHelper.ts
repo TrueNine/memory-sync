@@ -1,9 +1,13 @@
-import type { RelativePath } from '@/types/FileSystemTypes'
-import { createRelativePath } from '@truenine/desk-paths'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import * as path from 'node:path'
+import {createRelativePath} from '@truenine/desk-paths'
 
-// Re-export from desk-paths
-export { writeFileSafe, type SafeWriteOptions, type SafeWriteResult, type WriteLogger } from '@truenine/desk-paths'
+export {
+  type SafeWriteOptions,
+  type SafeWriteResult,
+  writeFileSafe,
+  type WriteLogger
+} from '@truenine/desk-paths' // Re-export from desk-paths
 
 /**
  * Options for creating a RelativePath for output files
