@@ -1,12 +1,12 @@
-import { createLogger } from '@/log'
-import type { CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions } from '@/types'
-import * as fastGlob from 'fast-glob'
+import type {CommandContext, CommandResult} from './Command'
+import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions} from '@/types'
 import * as nodeFs from 'node:fs'
 import * as nodePath from 'node:path'
 import process from 'node:process'
-import { describe, expect, it, vi } from 'vitest'
-import type { CommandContext, CommandResult } from './Command'
-import { JsonOutputCommand, toJsonCommandResult } from './JsonOutputCommand'
+import * as fastGlob from 'fast-glob'
+import {describe, expect, it, vi} from 'vitest'
+import {createLogger} from '@/log'
+import {JsonOutputCommand, toJsonCommandResult} from './JsonOutputCommand'
 
 const mockLogger = createLogger('test', 'silent')
 
@@ -216,8 +216,7 @@ describe('jsonOutputCommand', () => {
     const writtenData = stdoutWriteSpy.mock.calls[0]![0] as string
     expect(writtenData.endsWith('\n')).toBe(true)
 
-    // Should not throw when parsing (valid JSON)
-    expect(() => JSON.parse(writtenData.trim())).not.toThrow()
+    expect(() => JSON.parse(writtenData.trim())).not.toThrow() // Should not throw when parsing (valid JSON)
 
     stdoutWriteSpy.mockRestore()
   })
@@ -239,8 +238,7 @@ describe('jsonOutputCommand', () => {
     const command = new JsonOutputCommand(inner)
     const result = await command.execute(createMockCommandContext())
 
-    // The returned result should be the original, not the JSON version
-    expect(result).toBe(innerResult)
+    expect(result).toBe(innerResult) // The returned result should be the original, not the JSON version
     expect(result.success).toBe(false)
     expect(result.message).toBe('Something failed')
 

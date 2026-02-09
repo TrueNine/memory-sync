@@ -1,6 +1,6 @@
-import { PluginKind } from '@/types'
+import type {Command, CommandContext, CommandResult, JsonPluginInfo} from './Command'
 import process from 'node:process'
-import type { Command, CommandContext, CommandResult, JsonPluginInfo } from './Command'
+import {PluginKind} from '@/types'
 
 /**
  * Command that outputs all registered plugin information as JSON.
@@ -25,20 +25,18 @@ export class PluginsCommand implements Command {
         name: plugin.name,
         kind: plugin.type === PluginKind.Input ? 'Input' : 'Output',
         description: plugin.name,
-        dependencies: [...(plugin.dependsOn ?? [])]
+        dependencies: [...plugin.dependsOn ?? []]
       })
     }
 
-    // Also include output plugins that may not be in userConfigOptions.plugins
-    // (they are registered separately via registerOutputPlugins)
-    const registeredNames = new Set(pluginInfos.map(p => p.name))
+    const registeredNames = new Set(pluginInfos.map(p => p.name)) // (they are registered separately via registerOutputPlugins) // Also include output plugins that may not be in userConfigOptions.plugins
     for (const plugin of outputPlugins) {
       if (!registeredNames.has(plugin.name)) {
         pluginInfos.push({
           name: plugin.name,
           kind: 'Output',
           description: plugin.name,
-          dependencies: [...(plugin.dependsOn ?? [])]
+          dependencies: [...plugin.dependsOn ?? []]
         })
       }
     }

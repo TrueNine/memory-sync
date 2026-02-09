@@ -1,4 +1,22 @@
-import type { Command, CommandContext } from '@/commands'
+import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
+import type {Command, CommandContext} from '@/commands'
+import type {PipelineConfig} from '@/config'
+import type {ILogger} from '@/log'
+import type {
+  CollectedInputContext,
+  InputPlugin,
+  InputPluginContext,
+  OutputCleanContext,
+  OutputPlugin,
+  OutputWriteContext,
+  Plugin,
+  PluginKind,
+  PluginOptions
+} from '@/types'
+import type {UserConfigFile} from '@/types/ConfigTypes'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import glob from 'fast-glob'
 import {
   CleanCommand,
   ConfigCommand,
@@ -14,31 +32,13 @@ import {
   UnknownCommand,
   VersionCommand
 } from '@/commands'
-import type { PipelineConfig } from '@/config'
-import type { ILogger } from '@/log'
-import { createLogger, setGlobalLogLevel } from '@/log'
-import { GlobalScopeCollector, ScopePriority, ScopeRegistry } from '@/scope'
-import type {
-  CollectedInputContext,
-  InputPlugin,
-  InputPluginContext,
-  OutputCleanContext,
-  OutputPlugin,
-  OutputWriteContext,
-  Plugin,
-  PluginKind,
-  PluginOptions
-} from '@/types'
+import {createLogger, setGlobalLogLevel} from '@/log'
+import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/scope'
 import {
   CircularDependencyError,
   MissingDependencyError
 } from '@/types'
-import type { UserConfigFile } from '@/types/ConfigTypes'
-import { startupVersionCheck } from '@/versionCheck'
-import type { MdxGlobalScope } from '@truenine/md-compiler/globals'
-import glob from 'fast-glob'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
+import {startupVersionCheck} from '@/versionCheck'
 
 /**
  * Valid subcommands for the CLI

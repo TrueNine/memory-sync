@@ -1,14 +1,14 @@
-import { createLogger } from '@/log'
-import { parseArgs, resolveCommand } from '@/PluginPipeline'
-import type { CollectedInputContext, InputPlugin, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions } from '@/types'
-import { PluginKind } from '@/types'
-import * as fastGlob from 'fast-glob'
+import type {CommandContext, JsonPluginInfo} from './Command'
+import type {CollectedInputContext, InputPlugin, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions} from '@/types'
 import * as nodeFs from 'node:fs'
 import * as nodePath from 'node:path'
 import process from 'node:process'
-import { describe, expect, it, vi } from 'vitest'
-import type { CommandContext, JsonPluginInfo } from './Command'
-import { PluginsCommand } from './PluginsCommand'
+import * as fastGlob from 'fast-glob'
+import {describe, expect, it, vi} from 'vitest'
+import {createLogger} from '@/log'
+import {parseArgs, resolveCommand} from '@/PluginPipeline'
+import {PluginKind} from '@/types'
+import {PluginsCommand} from './PluginsCommand'
 
 const mockLogger = createLogger('test', 'silent')
 
@@ -158,8 +158,7 @@ describe('pluginsCommand', () => {
     const inputPlugin = createMockInputPlugin('TestInput')
     const extraOutputPlugin = createMockOutputPlugin('ExtraOutput')
 
-    // inputPlugin is in plugins, extraOutputPlugin is only in outputPlugins
-    const command = new PluginsCommand()
+    const command = new PluginsCommand() // inputPlugin is in plugins, extraOutputPlugin is only in outputPlugins
     await command.execute(createMockCommandContext([extraOutputPlugin], [inputPlugin]))
 
     const writtenData = stdoutWriteSpy.mock.calls[0]![0] as string
@@ -177,8 +176,7 @@ describe('pluginsCommand', () => {
 
     const outputPlugin = createMockOutputPlugin('SharedPlugin')
 
-    // Same plugin in both userConfigOptions.plugins and outputPlugins
-    const command = new PluginsCommand()
+    const command = new PluginsCommand() // Same plugin in both userConfigOptions.plugins and outputPlugins
     await command.execute(createMockCommandContext([outputPlugin], [outputPlugin]))
 
     const writtenData = stdoutWriteSpy.mock.calls[0]![0] as string

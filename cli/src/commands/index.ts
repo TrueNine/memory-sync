@@ -14,4 +14,3 @@ export * from './OutdatedCommand'
 export * from './PluginsCommand'
 export * from './UnknownCommand'
 export * from './VersionCommand'
-

@@ -1,6 +1,6 @@
-import { ConfigLoader } from '@/ConfigLoader'
+import type {Command, CommandContext, CommandResult, ConfigSource, JsonConfigInfo} from './Command'
 import process from 'node:process'
-import type { Command, CommandContext, CommandResult, ConfigSource, JsonConfigInfo } from './Command'
+import {ConfigLoader} from '@/ConfigLoader'
 
 /**
  * Command that outputs the current merged configuration and its source layers as JSON.
@@ -47,11 +47,6 @@ export class ConfigShowCommand implements Command {
     }
   }
 
-  /**
-   * Infer the config layer from the file path.
-   * CWD configs contain the current working directory path,
-   * global configs reside under the user home directory.
-   */
   private inferLayer(sourcePath: string): ConfigSource['layer'] {
     const cwd = process.cwd()
     if (sourcePath.startsWith(cwd)) return 'cwd'

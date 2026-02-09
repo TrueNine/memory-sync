@@ -1,12 +1,12 @@
-import type { InputPluginContext, PluginOptions } from '@/types'
+import type {InputPluginContext, PluginOptions} from '@/types'
 
-import { createLogger } from '@/log'
-import * as fc from 'fast-check'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { describe, expect, it } from 'vitest'
-import { ReadmeMdInputPlugin } from './ReadmeMdInputPlugin'
+import * as fc from 'fast-check'
+import {describe, expect, it} from 'vitest'
+import {createLogger} from '@/log'
+import {ReadmeMdInputPlugin} from './ReadmeMdInputPlugin'
 
 /**
  * Feature: readme-md-plugin

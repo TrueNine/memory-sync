@@ -1,11 +1,11 @@
-import type { CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath } from '@/types'
+import type {CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath} from '@/types'
 
 import process from 'node:process'
 
-import { FilePathKind, PromptKind } from '@/types'
-import { mdxToMd } from '@truenine/md-compiler'
-import { ScopeError } from '@truenine/md-compiler/errors'
-import { AbstractInputPlugin } from './AbstractInputPlugin'
+import {mdxToMd} from '@truenine/md-compiler'
+import {ScopeError} from '@truenine/md-compiler/errors'
+import {FilePathKind, PromptKind} from '@/types'
+import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**
  * Input plugin for collecting rdm.mdx files from shadow project directories.

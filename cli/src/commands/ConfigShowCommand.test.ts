@@ -1,13 +1,13 @@
-import { createLogger } from '@/log'
-import { parseArgs, resolveCommand } from '@/PluginPipeline'
-import type { CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions } from '@/types'
-import * as fastGlob from 'fast-glob'
+import type {CommandContext} from './Command'
+import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions} from '@/types'
 import * as nodeFs from 'node:fs'
 import * as nodePath from 'node:path'
 import process from 'node:process'
-import { describe, expect, it, vi } from 'vitest'
-import type { CommandContext } from './Command'
-import { ConfigShowCommand } from './ConfigShowCommand'
+import * as fastGlob from 'fast-glob'
+import {describe, expect, it, vi} from 'vitest'
+import {createLogger} from '@/log'
+import {parseArgs, resolveCommand} from '@/PluginPipeline'
+import {ConfigShowCommand} from './ConfigShowCommand'
 
 const mockLogger = createLogger('test', 'silent')
 

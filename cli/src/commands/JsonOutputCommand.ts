@@ -1,5 +1,5 @@
+import type {Command, CommandContext, CommandResult, JsonCommandResult} from './Command'
 import process from 'node:process'
-import type { Command, CommandContext, CommandResult, JsonCommandResult } from './Command'
 
 /**
  * Decorator command that wraps any Command to produce JSON output on stdout.
@@ -40,7 +40,7 @@ export function toJsonCommandResult(result: CommandResult): JsonCommandResult {
     success: result.success,
     filesAffected: result.filesAffected,
     dirsAffected: result.dirsAffected,
-    ...(result.message != null && {message: result.message}),
+    ...result.message != null && {message: result.message},
     pluginResults: [],
     errors: []
   }

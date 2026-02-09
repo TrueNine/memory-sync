@@ -1,14 +1,14 @@
-import { parseArgs } from '@/PluginPipeline'
-import { describe, expect, it } from 'vitest'
 import type {
-    ConfigSource,
-    JsonCommandResult,
-    JsonConfigInfo,
-    JsonPluginInfo,
-    PluginExecutionResult
+  ConfigSource,
+  JsonCommandResult,
+  JsonConfigInfo,
+  JsonPluginInfo,
+  PluginExecutionResult
 } from './Command'
+import {describe, expect, it} from 'vitest'
+import {parseArgs} from '@/PluginPipeline'
 
-describe('JsonCommandResult interface', () => {
+describe('jsonCommandResult interface', () => {
   it('should represent a successful command result with plugin details', () => {
     const result: JsonCommandResult = {
       success: true,
@@ -75,7 +75,7 @@ describe('JsonCommandResult interface', () => {
   })
 })
 
-describe('PluginExecutionResult interface', () => {
+describe('pluginExecutionResult interface', () => {
   it('should represent a successful plugin execution', () => {
     const result: PluginExecutionResult = {
       pluginName: 'ClaudeCodeCLIOutputPlugin',
@@ -105,7 +105,7 @@ describe('PluginExecutionResult interface', () => {
   })
 })
 
-describe('JsonConfigInfo interface', () => {
+describe('jsonConfigInfo interface', () => {
   it('should represent config with multiple sources', () => {
     const configInfo: JsonConfigInfo = {
       merged: {
@@ -131,7 +131,7 @@ describe('JsonConfigInfo interface', () => {
   })
 })
 
-describe('JsonPluginInfo interface', () => {
+describe('jsonPluginInfo interface', () => {
   it('should represent a plugin with dependencies', () => {
     const pluginInfo: JsonPluginInfo = {
       name: 'WarpIDEOutputPlugin',
@@ -156,7 +156,7 @@ describe('JsonPluginInfo interface', () => {
   })
 })
 
-describe('ConfigSource interface', () => {
+describe('configSource interface', () => {
   it('should support all four layer types', () => {
     const layers: ConfigSource['layer'][] = ['programmatic', 'cwd', 'global', 'default']
 
