@@ -1,8 +1,8 @@
 packages:
-  - memory-sync-cli
+  - cli
   - aindex
   - packages/*
-  - ui
+  - gui
 
 catalog:
   '@clack/prompts': ^1.0.0

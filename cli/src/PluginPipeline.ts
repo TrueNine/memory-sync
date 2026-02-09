@@ -1,7 +1,23 @@
-import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
-import type {Command, CommandContext} from '@/commands'
-import type {PipelineConfig} from '@/config'
-import type {ILogger} from '@/log'
+import type { Command, CommandContext } from '@/commands'
+import {
+  CleanCommand,
+  ConfigCommand,
+  ConfigShowCommand,
+  DryRunCleanCommand,
+  DryRunOutputCommand,
+  ExecuteCommand,
+  HelpCommand,
+  InitCommand,
+  JsonOutputCommand,
+  OutdatedCommand,
+  PluginsCommand,
+  UnknownCommand,
+  VersionCommand
+} from '@/commands'
+import type { PipelineConfig } from '@/config'
+import type { ILogger } from '@/log'
+import { createLogger, setGlobalLogLevel } from '@/log'
+import { GlobalScopeCollector, ScopePriority, ScopeRegistry } from '@/scope'
 import type {
   CollectedInputContext,
   InputPlugin,
@@ -13,34 +29,21 @@ import type {
   PluginKind,
   PluginOptions
 } from '@/types'
-import type {UserConfigFile} from '@/types/ConfigTypes'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-import glob from 'fast-glob'
-import {
-  CleanCommand,
-  ConfigCommand,
-  DryRunCleanCommand,
-  DryRunOutputCommand,
-  ExecuteCommand,
-  HelpCommand,
-  InitCommand,
-  OutdatedCommand,
-  UnknownCommand,
-  VersionCommand
-} from '@/commands'
-import {createLogger, setGlobalLogLevel} from '@/log'
-import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/scope'
 import {
   CircularDependencyError,
   MissingDependencyError
 } from '@/types'
-import {startupVersionCheck} from '@/versionCheck'
+import type { UserConfigFile } from '@/types/ConfigTypes'
+import { startupVersionCheck } from '@/versionCheck'
+import type { MdxGlobalScope } from '@truenine/md-compiler/globals'
+import glob from 'fast-glob'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 
 /**
  * Valid subcommands for the CLI
  */
-export type Subcommand = 'help' | 'version' | 'outdated' | 'init' | 'dry-run' | 'clean' | 'config'
+export type Subcommand = 'help' | 'version' | 'outdated' | 'init' | 'dry-run' | 'clean' | 'config' | 'plugins'
 
 /**
  * Valid log levels for the CLI
@@ -55,6 +58,8 @@ export interface ParsedCliArgs {
   readonly helpFlag: boolean
   readonly versionFlag: boolean
   readonly dryRun: boolean
+  readonly jsonFlag: boolean
+  readonly showFlag: boolean
   readonly logLevel: LogLevel | undefined
   readonly logLevelFlags: readonly LogLevel[]
   readonly setOption: readonly [key: string, value: string][]
@@ -103,7 +108,7 @@ function isScriptOrPackage(arg: string): boolean {
 /**
  * Valid subcommands set for quick lookup
  */
-const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'version', 'outdated', 'init', 'dry-run', 'clean', 'config'])
+const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'version', 'outdated', 'init', 'dry-run', 'clean', 'config', 'plugins'])
 
 /**
  * Log level flags mapping
@@ -155,7 +160,7 @@ export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
 }
 
 export function resolveCommand(args: ParsedCliArgs): Command {
-  const {helpFlag, versionFlag, subcommand, dryRun, unknownCommand, setOption, positional} = args
+  const {helpFlag, versionFlag, subcommand, dryRun, unknownCommand, setOption, positional, showFlag} = args
 
   if (versionFlag) return new VersionCommand() // Version flag takes highest priority
 
@@ -178,6 +183,10 @@ export function resolveCommand(args: ParsedCliArgs): Command {
     return new CleanCommand()
   }
 
+  if (subcommand === 'plugins') return new PluginsCommand() // Plugins subcommand
+
+  if (subcommand === 'config' && showFlag) return new ConfigShowCommand() // Config --show subcommand
+
   if (subcommand !== 'config' || setOption.length > 0) return new ExecuteCommand() // Config subcommand
 
   const parsedPositional: [key: string, value: string][] = []
@@ -197,6 +206,8 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     helpFlag: boolean
     versionFlag: boolean
     dryRun: boolean
+    jsonFlag: boolean
+    showFlag: boolean
     logLevel: LogLevel | undefined
     logLevelFlags: LogLevel[]
     setOption: [key: string, value: string][]
@@ -208,6 +219,8 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     helpFlag: false,
     versionFlag: false,
     dryRun: false,
+    jsonFlag: false,
+    showFlag: false,
     logLevel: void 0,
     logLevelFlags: [],
     setOption: [],
@@ -242,6 +255,8 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
         case '--help': result.helpFlag = true; break
         case '--version': result.versionFlag = true; break
         case '--dry-run': result.dryRun = true; break
+        case '--json': result.jsonFlag = true; break
+        case '--show': result.showFlag = true; break
         case '--set':
           if (parts.length > 1) { // Parse --set key=value from next arg or from = syntax
             const keyValue = parts.slice(1).join('=')
@@ -270,6 +285,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
           case 'h': result.helpFlag = true; break
           case 'v': result.versionFlag = true; break
           case 'n': result.dryRun = true; break
+          case 'j': result.jsonFlag = true; break
           default: result.unknown.push(`-${flag}`)
         }
       }
@@ -318,7 +334,15 @@ export class PluginPipeline {
     const {context, outputPlugins, userConfigOptions} = config
     this.registerOutputPlugins([...outputPlugins])
 
-    const command = this.resolveCommand()
+    let command: Command = this.resolveCommand()
+
+    if (this.args.jsonFlag) {
+      setGlobalLogLevel('silent') // Suppress all console logging in JSON mode
+
+      const selfJsonCommands = new Set(['config-show', 'plugins']) // only need log suppression, not JsonOutputCommand wrapping // Commands that handle their own JSON output (config --show, plugins)
+      if (!selfJsonCommands.has(command.name)) command = new JsonOutputCommand(command)
+    }
+
     const commandCtx = this.createCommandContext(context, userConfigOptions)
     await command.execute(commandCtx)
   }
