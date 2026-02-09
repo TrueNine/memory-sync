@@ -1,15 +1,15 @@
-import type {CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath} from '@/types'
+import type { CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath } from '@/types'
 
 import process from 'node:process'
 
-import {mdxToMd} from '@truenine/md-compiler'
-import {ScopeError} from '@truenine/md-compiler/errors'
-import {FilePathKind, PromptKind} from '@/types'
-import {AbstractInputPlugin} from './AbstractInputPlugin'
+import { FilePathKind, PromptKind } from '@/types'
+import { mdxToMd } from '@truenine/md-compiler'
+import { ScopeError } from '@truenine/md-compiler/errors'
+import { AbstractInputPlugin } from './AbstractInputPlugin'
 
 /**
- * Input plugin for collecting readme.mdx files from shadow project directories.
- * Scans dist/app/<project> directories for readme.mdx files and collects them as ReadmePrompt objects.
+ * Input plugin for collecting rdm.mdx files from shadow project directories.
+ * Scans dist/app/<project> directories for rdm.mdx files and collects them as ReadmePrompt objects.
  *
  * Supports both root README files (in project root) and child README files (in subdirectories).
  */
@@ -41,7 +41,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         const projectName = projectEntry.name
         const projectDir = path.join(shadowProjectsDir, projectName) // New structure: dist/app/<project>/ (no nested dist folder)
 
-        await this.collectReadmeFiles( // Collect readme.mdx files from project directory
+        await this.collectReadmeFiles( // Collect rdm.mdx files from project directory
           ctx,
           projectDir,
           projectName,
@@ -71,7 +71,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     const {fs, path, logger} = ctx
     const isRoot = relativePath === ''
 
-    const readmePath = path.join(currentDir, 'readme.mdx') // Check for readme.mdx in current directory
+    const readmePath = path.join(currentDir, 'rdm.mdx') // Check for rdm.mdx in current directory
     if (fs.existsSync(readmePath) && fs.statSync(readmePath).isFile()) {
       try {
         const rawContent = fs.readFileSync(readmePath, 'utf8')

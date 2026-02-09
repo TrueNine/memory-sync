@@ -1,12 +1,12 @@
-import type {InputPluginContext, PluginOptions} from '@/types'
+import type { InputPluginContext, PluginOptions } from '@/types'
 
+import { createLogger } from '@/log'
+import * as fc from 'fast-check'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import * as fc from 'fast-check'
-import {describe, expect, it} from 'vitest'
-import {createLogger} from '@/log'
-import {ReadmeMdInputPlugin} from './ReadmeMdInputPlugin'
+import { describe, expect, it } from 'vitest'
+import { ReadmeMdInputPlugin } from './ReadmeMdInputPlugin'
 
 /**
  * Feature: readme-md-plugin
@@ -64,7 +64,7 @@ describe('readmeMdInputPlugin property tests', () => {
     const readmeContentArb = fc.string({minLength: 1, maxLength: 100}) // Generate README content
       .filter(s => s.trim().length > 0)
 
-    it('should discover all readme.mdx files in generated directory structures', async () => {
+    it('should discover all rdm.mdx files in generated directory structures', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.array(projectNameArb, {minLength: 1, maxLength: 3}), // Generate 1-3 projects
@@ -83,12 +83,12 @@ describe('readmeMdInputPlugin property tests', () => {
                 structure[`ref/${projectName}/.gitkeep`] = '' // Create project directory
 
                 if (includeRoot) { // Add root README if flag is true
-                  structure[`ref/${projectName}/readme.mdx`] = content
+                  structure[`ref/${projectName}/rdm.mdx`] = content
                   expectedReadmes.push({projectName, isRoot: true})
                 }
 
                 for (const subdir of uniqueSubdirs) { // Add child READMEs
-                  structure[`ref/${projectName}/${subdir}/readme.mdx`] = content
+                  structure[`ref/${projectName}/${subdir}/rdm.mdx`] = content
                   expectedReadmes.push({projectName, isRoot: false, subdir})
                 }
               }
@@ -159,8 +159,8 @@ describe('readmeMdInputPlugin property tests', () => {
           async (projectName, subdir, rootContent, childContent) => {
             await withTempDir(async tempDir => {
               const structure: Record<string, string | null> = { // Create structure with both root and child README
-                [`ref/${projectName}/readme.mdx`]: rootContent,
-                [`ref/${projectName}/${subdir}/readme.mdx`]: childContent
+                [`ref/${projectName}/rdm.mdx`]: rootContent,
+                [`ref/${projectName}/${subdir}/rdm.mdx`]: childContent
               }
 
               createDirectoryStructure(tempDir, structure)
@@ -195,7 +195,7 @@ describe('readmeMdInputPlugin property tests', () => {
           async (projectName, content) => {
             await withTempDir(async tempDir => {
               const structure: Record<string, string | null> = {
-                [`ref/${projectName}/readme.mdx`]: content
+                [`ref/${projectName}/rdm.mdx`]: content
               }
 
               createDirectoryStructure(tempDir, structure)
@@ -225,7 +225,7 @@ describe('readmeMdInputPlugin property tests', () => {
               const uniqueSubdirs = [...new Set(subdirs)]
               const structure: Record<string, string | null> = {}
 
-              for (const subdir of uniqueSubdirs) structure[`ref/${projectName}/${subdir}/readme.mdx`] = content
+              for (const subdir of uniqueSubdirs) structure[`ref/${projectName}/${subdir}/rdm.mdx`] = content
 
               createDirectoryStructure(tempDir, structure)
 
