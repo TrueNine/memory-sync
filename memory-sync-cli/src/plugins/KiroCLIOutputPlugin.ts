@@ -11,7 +11,6 @@ import type {
   WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
-import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 import {KiroPowersRegistryWriter} from './registry/KiroPowersRegistryWriter'
 
@@ -21,7 +20,9 @@ const STEERING_SUBDIR = 'steering'
 const SETTINGS_SUBDIR = 'settings'
 const MCP_CONFIG_FILE = 'mcp.json'
 const KIRO_POWERS_DIR = '.kiro/powers/installed'
+const KIRO_SKILLS_DIR = '.kiro/skills'
 const POWER_FILE_NAME = 'POWER.md'
+const SKILL_FILE_NAME = 'SKILL.md'
 
 export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -57,6 +58,10 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
   private getKiroPowersDir(): string {
     return this.joinPath(this.getHomeDir(), KIRO_POWERS_DIR)
+  }
+
+  private getKiroSkillsDir(): string {
+    return this.joinPath(this.getHomeDir(), KIRO_SKILLS_DIR)
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -95,6 +100,9 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const powersDir = this.getKiroPowersDir()
     for (const powerName of this.listInstalledPowers(powersDir)) results.push(this.createRelativePath(powerName, powersDir, () => powerName))
 
+    const skillsDir = this.getKiroSkillsDir()
+    for (const skillName of this.listInstalledPowers(skillsDir)) results.push(this.createRelativePath(skillName, skillsDir, () => skillName))
+
     results.push(this.createRelativePath('repos', this.joinPath(this.getHomeDir(), '.kiro/powers'), () => 'repos'))
     return results
   }
@@ -122,24 +130,45 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     if (skills == null) return results
 
     const powersDir = this.getKiroPowersDir()
+    const skillsDir = this.getKiroSkillsDir()
+
     for (const skill of skills) {
       const skillName = skill.yamlFrontMatter.name
-      const skillDir = this.joinPath(powersDir, skillName)
+      const hasMcp = skill.mcpConfig != null
 
-      results.push(this.createRelativePath(POWER_FILE_NAME, skillDir, () => skillName))
-      if (skill.mcpConfig != null) results.push(this.createRelativePath(MCP_CONFIG_FILE, skillDir, () => skillName))
+      if (hasMcp) {
+        const skillDir = this.joinPath(powersDir, skillName)
+        results.push(this.createRelativePath(POWER_FILE_NAME, skillDir, () => skillName))
+        results.push(this.createRelativePath(MCP_CONFIG_FILE, skillDir, () => skillName))
 
-      if (skill.childDocs != null) {
-        for (const refDoc of skill.childDocs) {
-          results.push(this.createRelativePath(
-            this.joinPath(STEERING_SUBDIR, refDoc.dir.path.replace(/\.mdx$/, '.md')),
-            skillDir,
-            () => STEERING_SUBDIR
-          ))
+        if (skill.childDocs != null) {
+          for (const refDoc of skill.childDocs) {
+            results.push(this.createRelativePath(
+              this.joinPath(STEERING_SUBDIR, refDoc.dir.path.replace(/\.mdx$/, '.md')),
+              skillDir,
+              () => STEERING_SUBDIR
+            ))
+          }
         }
-      }
-      if (skill.resources != null) {
-        for (const res of skill.resources) results.push(this.createRelativePath(this.joinPath(STEERING_SUBDIR, res.relativePath), skillDir, () => STEERING_SUBDIR))
+        if (skill.resources != null) {
+          for (const res of skill.resources) results.push(this.createRelativePath(this.joinPath(STEERING_SUBDIR, res.relativePath), skillDir, () => STEERING_SUBDIR))
+        }
+      } else {
+        const skillDir = this.joinPath(skillsDir, skillName)
+        results.push(this.createRelativePath(SKILL_FILE_NAME, skillDir, () => skillName))
+
+        if (skill.childDocs != null) {
+          for (const refDoc of skill.childDocs) {
+            results.push(this.createRelativePath(
+              refDoc.dir.path.replace(/\.mdx$/, '.md'),
+              skillDir,
+              () => skillName
+            ))
+          }
+        }
+        if (skill.resources != null) {
+          for (const res of skill.resources) results.push(this.createRelativePath(res.relativePath, skillDir, () => skillName))
+        }
       }
     }
     if (skills.some(s => s.mcpConfig != null)) results.push(this.createRelativePath(MCP_CONFIG_FILE, this.getGlobalSettingsDir(), () => SETTINGS_SUBDIR))
@@ -181,11 +210,20 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (skills == null || skills.length === 0) return {files: fileResults, dirs: []}
 
-    for (const skill of skills) {
+    const powerSkills = skills.filter(s => s.mcpConfig != null)
+    const plainSkills = skills.filter(s => s.mcpConfig == null)
+
+    for (const skill of powerSkills) {
       const {fileResults: skillFiles, registryResult} = await this.writeSkillAsPower(ctx, skill)
       fileResults.push(...skillFiles)
       registryResults.push(registryResult)
     }
+
+    for (const skill of plainSkills) {
+      const skillFiles = await this.writeSkillAsKiroSkill(ctx, skill)
+      fileResults.push(...skillFiles)
+    }
+
     const mcpResult = await this.writeGlobalMcpSettings(ctx, skills)
     if (mcpResult != null) fileResults.push(mcpResult)
     this.logRegistryResults(registryResults, ctx.dryRun)
@@ -244,14 +282,48 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     return {fileResults, registryResult}
   }
 
+  private async writeSkillAsKiroSkill(ctx: OutputWriteContext, skill: SkillPrompt): Promise<WriteResult[]> {
+    const fileResults: WriteResult[] = []
+    const skillName = skill.yamlFrontMatter.name
+    const skillDir = this.joinPath(this.getKiroSkillsDir(), skillName)
+    const skillFilePath = this.joinPath(skillDir, SKILL_FILE_NAME)
+
+    const fmStr = this.buildSkillFrontMatter(skill.yamlFrontMatter)
+    const skillContent = `${fmStr}\n${skill.content as string}`
+    fileResults.push(await this.writeFile(ctx, skillFilePath, skillContent, 'kiroSkill'))
+
+    if (skill.childDocs != null) {
+      for (const refDoc of skill.childDocs) {
+        const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+        fileResults.push(await this.writeFile(ctx, this.joinPath(skillDir, fileName), refDoc.content as string, 'refDoc'))
+      }
+    }
+
+    if (skill.resources != null) {
+      for (const res of skill.resources) fileResults.push(await this.writeFile(ctx, this.joinPath(skillDir, res.relativePath), res.content, 'resource'))
+    }
+
+    return fileResults
+  }
+
+  private buildSkillFrontMatter(fm: SkillYAMLFrontMatter): string {
+    return this.buildMarkdownContent('', {
+      name: fm.name,
+      description: fm.description,
+      ...fm.displayName != null && {displayName: fm.displayName},
+      ...fm.keywords != null && fm.keywords.length > 0 && {keywords: fm.keywords},
+      ...fm.author != null && {author: fm.author}
+    }).trimEnd()
+  }
+
   private buildPowerFrontMatter(fm: SkillYAMLFrontMatter): string {
-    return buildMarkdownWithFrontMatter({
+    return this.buildMarkdownContent('', {
       name: fm.name,
       displayName: fm.displayName,
       description: fm.description,
       keywords: fm.keywords,
       author: fm.author
-    }, '').trimEnd()
+    }).trimEnd()
   }
 
   private buildFastCommandSteeringFileName(cmd: FastCommandPrompt): string {
@@ -262,10 +334,10 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const fileName = this.buildFastCommandSteeringFileName(cmd)
     const fullPath = this.joinPath(this.getGlobalSteeringDir(), fileName)
     const desc = cmd.yamlFrontMatter?.description
-    const content = buildMarkdownWithFrontMatter({
+    const content = this.buildMarkdownContent(cmd.content, {
       inclusion: 'manual',
       description: desc != null && desc.length > 0 ? desc : null
-    }, cmd.content)
+    })
     return this.writeFile(ctx, fullPath, content, 'fastCommandSteering')
   }
 
@@ -282,10 +354,10 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const fullPath = this.joinPath(targetDir, fileName)
 
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
-    const content = buildMarkdownWithFrontMatter({
+    const content = this.buildMarkdownContent(child.content as string, {
       inclusion: 'fileMatch',
       fileMatchPattern: `${childPath.replaceAll('\\', '/')}/**`
-    }, child.content as string)
+    })
 
     return this.writeFile(ctx, fullPath, content, 'steeringFile')
   }
