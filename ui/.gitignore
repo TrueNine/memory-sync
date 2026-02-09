@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# TypeScript
+*.tsbuildinfo
+
+# Test
+coverage/
+
+# Misc
+*.tmp
+*.temp
