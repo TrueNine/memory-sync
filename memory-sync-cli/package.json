@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10209.12005",
+  "version": "2026.10209.12055",
   "description": "TrueNine Memory Synchronization CLI Tools",
   "author": "TrueNine",
   "license": "UNLICENSED",
