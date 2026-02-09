@@ -2,9 +2,9 @@ import type {SkillPrompt, SkillReferenceDocument, SkillYAMLFrontMatter} from '@/
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import * as fc from 'fast-check'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {parseMarkdown} from '@/markdown'
 import {FilePathKind, PromptKind} from '@/types'
 
 /**

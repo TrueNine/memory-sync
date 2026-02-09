@@ -32,7 +32,7 @@ import {
   removeSymlink as deskRemoveSymlink,
   writeFileSync as deskWriteFileSync
 } from '@truenine/desk-paths'
-import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {FilePathKind, PluginKind} from '@/types'
 import {AbstractPlugin} from './AbstractPlugin'
 

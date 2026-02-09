@@ -8,13 +8,13 @@ import type {
 
 import process from 'node:process'
 
-import {mdxToMd} from '@/compiler'
-import {parseMarkdown} from '@/markdown'
+import {mdxToMd} from '@truenine/md-compiler'
+import {ScopeError} from '@truenine/md-compiler/errors'
+import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {
   FilePathKind,
   PromptKind
 } from '@/types'
-import {ScopeError} from '@/types/Errors'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**

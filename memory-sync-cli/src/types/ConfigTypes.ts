@@ -1,4 +1,4 @@
-import type {UserProfile} from '@/globals'
+import type {UserProfile} from '@truenine/md-compiler/globals'
 
 /**
  * User configuration file schema (.tnmsc.json)

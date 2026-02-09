@@ -3,12 +3,12 @@
  * 编译 verify.mdx 并输出结果到 verify.testresult.mdx
  */
 
+import { mdxToMd } from '@truenine/md-compiler'
+import type { MdxGlobalScope } from '@truenine/md-compiler/globals'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { mdxToMd } from '../src/compiler'
-import type { MdxGlobalScope } from '../src/globals'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const VERIFY_INPUT = path.join(__dirname, 'verify.mdx')

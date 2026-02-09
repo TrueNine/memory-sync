@@ -11,7 +11,7 @@ import type {
   WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
-import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 import {KiroPowersRegistryWriter} from './registry/KiroPowersRegistryWriter'
 

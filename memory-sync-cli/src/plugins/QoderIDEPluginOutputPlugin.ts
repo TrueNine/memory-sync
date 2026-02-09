@@ -10,7 +10,7 @@ import type {
 import type {RelativePath} from '@/types/FileSystemTypes'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const QODER_CONFIG_DIR = '.qoder'

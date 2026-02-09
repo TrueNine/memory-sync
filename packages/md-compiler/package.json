@@ -1,0 +1,70 @@
+{
+  "name": "@truenine/md-compiler",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types:require": "./dist/index.d.cts",
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./globals": {
+      "types:require": "./dist/globals/index.d.cts",
+      "types": "./dist/globals/index.d.mts",
+      "import": "./dist/globals/index.mjs",
+      "require": "./dist/globals/index.cjs"
+    },
+    "./errors": {
+      "types:require": "./dist/errors/index.d.cts",
+      "types": "./dist/errors/index.d.mts",
+      "import": "./dist/errors/index.mjs",
+      "require": "./dist/errors/index.cjs"
+    },
+    "./markdown": {
+      "types:require": "./dist/markdown/index.d.cts",
+      "types": "./dist/markdown/index.d.mts",
+      "import": "./dist/markdown/index.mjs",
+      "require": "./dist/markdown/index.cjs"
+    }
+  },
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "types:require": "dist/index.d.cts",
+  "scripts": {
+    "build": "run-s check bundle",
+    "bundle": "tsdown",
+    "lint": "eslint --cache .",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "check": "run-p typecheck lint",
+    "lintfix": "eslint --fix --cache .",
+    "test": "vitest run",
+    "prepublishOnly": "run-s build"
+  },
+  "dependencies": {
+    "mdast-util-mdx": "catalog:",
+    "remark-frontmatter": "catalog:",
+    "remark-gfm": "catalog:",
+    "remark-mdx": "catalog:",
+    "remark-parse": "catalog:",
+    "remark-stringify": "catalog:",
+    "unified": "catalog:",
+    "yaml": "catalog:"
+  },
+  "devDependencies": {
+    "@truenine/eslint9-config": "catalog:",
+    "@types/estree": "catalog:",
+    "@types/estree-jsx": "catalog:",
+    "@types/mdast": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "fast-check": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

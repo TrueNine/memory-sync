@@ -1,4 +1,4 @@
-import type { // Converts JSX elements to equivalent Markdown AST nodes // jsx-converter.ts
+import type {
   Blockquote,
   Code,
   Emphasis,

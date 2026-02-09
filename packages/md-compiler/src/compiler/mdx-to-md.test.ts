@@ -6,7 +6,7 @@
  */
 
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {registerBuiltInComponents} from '../components'
+import {registerBuiltInComponents} from '@/components'
 import {clearComponents} from './component-registry'
 import {mdxToMd} from './mdx-to-md'
 

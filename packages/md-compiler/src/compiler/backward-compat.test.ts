@@ -11,7 +11,7 @@
 
 import type {MdxjsEsm} from './types'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {registerBuiltInComponents} from '../components'
+import {registerBuiltInComponents} from '@/components'
 import {clearComponents} from './component-registry'
 import {parseExports} from './export-parser'
 import {mdxToMd} from './mdx-to-md'

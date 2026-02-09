@@ -4,7 +4,7 @@ import {
   buildMarkdownWithFrontMatter,
   buildRawFrontMatter,
   parseMarkdown
-} from './markdown'
+} from './index'
 
 describe('markdown', () => {
   describe('parseMarkdown', () => {
@@ -16,9 +16,7 @@ tags:
   - b
 ---
 # Hello World`
-
       const result = parseMarkdown(content)
-
       expect(result.yamlFrontMatter).toEqual({title: 'Test', tags: ['a', 'b']})
       expect(result.rawFrontMatter).toBe('title: Test\ntags:\n  - a\n  - b')
       expect(result.contentWithoutFrontMatter).toBe('# Hello World')
@@ -26,9 +24,7 @@ tags:
 
     it('should handle markdown without front matter', () => {
       const content = '# Hello World\n\nSome content'
-
       const result = parseMarkdown(content)
-
       expect(result.yamlFrontMatter).toBeUndefined()
       expect(result.rawFrontMatter).toBeUndefined()
       expect(result.contentWithoutFrontMatter).toBe(content)
@@ -38,13 +34,11 @@ tags:
   describe('buildFrontMatter', () => {
     it('should build front matter with simple values', () => {
       const result = buildFrontMatter({name: 'test', description: 'A test'})
-
       expect(result).toBe('---\nname: test\ndescription: A test\n---')
     })
 
     it('should build front matter with array values', () => {
       const result = buildFrontMatter({keywords: ['a', 'b', 'c']})
-
       expect(result).toContain('keywords:')
       expect(result).toContain('- a')
       expect(result).toContain('- b')
@@ -53,7 +47,6 @@ tags:
 
     it('should filter out undefined and null values', () => {
       const result = buildFrontMatter({name: 'test', description: null, author: null})
-
       expect(result).toContain('name: test')
       expect(result).not.toContain('description')
       expect(result).not.toContain('author')
@@ -61,7 +54,6 @@ tags:
 
     it('should return empty front matter for empty object', () => {
       const result = buildFrontMatter({})
-
       expect(result).toBe('---\n---')
     })
 
@@ -69,7 +61,6 @@ tags:
       const result = buildFrontMatter({
         metadata: {version: '1.0', author: 'Test'}
       })
-
       expect(result).toContain('metadata:')
       expect(result).toContain('version: "1.0"')
       expect(result).toContain('author: Test')
@@ -79,26 +70,22 @@ tags:
   describe('buildMarkdownWithFrontMatter', () => {
     it('should combine front matter with content', () => {
       const result = buildMarkdownWithFrontMatter({title: 'Test'}, '# Hello World')
-
       expect(result).toBe('---\ntitle: Test\n---\n# Hello World')
     })
 
     it('should return content only when front matter is null', () => {
       const result = buildMarkdownWithFrontMatter(null, '# Hello World')
-
       expect(result).toBe('# Hello World')
     })
 
     it('should return content only when front matter is undefined', () => {
       const emptyFrontMatter: Record<string, unknown> | null = null
       const result = buildMarkdownWithFrontMatter(emptyFrontMatter, '# Hello World')
-
       expect(result).toBe('# Hello World')
     })
 
     it('should return content only when front matter is empty object', () => {
       const result = buildMarkdownWithFrontMatter({}, '# Hello World')
-
       expect(result).toBe('# Hello World')
     })
   })
@@ -106,20 +93,17 @@ tags:
   describe('buildRawFrontMatter', () => {
     it('should build raw YAML without delimiters', () => {
       const result = buildRawFrontMatter({name: 'test', value: 42})
-
       expect(result).toBe('name: test\nvalue: 42')
       expect(result).not.toContain('---')
     })
 
     it('should return empty string for empty object', () => {
       const result = buildRawFrontMatter({})
-
       expect(result).toBe('')
     })
 
     it('should filter out null values', () => {
       const result = buildRawFrontMatter({name: 'test', empty: null})
-
       expect(result).toBe('name: test')
     })
   })
@@ -129,7 +113,6 @@ tags:
       const original = {title: 'Test', tags: ['a', 'b']}
       const markdown = buildMarkdownWithFrontMatter(original, '# Content')
       const parsed = parseMarkdown(markdown)
-
       expect(parsed.yamlFrontMatter).toEqual(original)
       expect(parsed.contentWithoutFrontMatter).toBe('# Content')
     })

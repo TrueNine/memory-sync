@@ -17,9 +17,10 @@
       "require": "./dist/index.cjs"
     },
     "./globals": {
-      "types": "./dist/globals/index.d.mts",
-      "import": "./dist/globals/index.mjs",
-      "require": "./dist/globals/index.cjs"
+      "types:require": "./dist/globals.d.cts",
+      "types": "./dist/globals.d.mts",
+      "import": "./dist/globals.mjs",
+      "require": "./dist/globals.cjs"
     },
     "./package.json": "./package.json"
   },
@@ -52,26 +53,16 @@
     "@clack/prompts": "catalog:",
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
-    "mdast-util-mdx": "catalog:",
     "picocolors": "catalog:",
     "picomatch": "catalog:",
-    "remark-frontmatter": "catalog:",
-    "remark-gfm": "catalog:",
-    "remark-mdx": "catalog:",
-    "remark-parse": "catalog:",
-    "remark-stringify": "catalog:",
-    "unified": "catalog:",
-    "winston": "catalog:",
-    "yaml": "catalog:"
+    "winston": "catalog:"
   },
   "devDependencies": {
     "@truenine/desk-paths": "workspace:*",
     "@truenine/eslint9-config": "catalog:",
     "@truenine/init-bundle": "workspace:*",
-    "@types/estree": "catalog:",
-    "@types/estree-jsx": "catalog:",
+    "@truenine/md-compiler": "workspace:*",
     "@types/fs-extra": "catalog:",
-    "@types/mdast": "catalog:",
     "@types/node": "catalog:",
     "@types/picomatch": "catalog:",
     "@vitest/coverage-v8": "catalog:",

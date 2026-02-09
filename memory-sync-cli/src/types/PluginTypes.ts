@@ -1,4 +1,4 @@
-import type {MdxGlobalScope} from '@/globals'
+import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {ILogger} from '@/log'
 import type {ScopeRegistry} from '@/scope/ScopeRegistry'
 import type {FastCommandSeriesOptions} from '@/types/ConfigTypes'

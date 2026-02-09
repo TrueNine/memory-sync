@@ -1,4 +1,4 @@
-import type {ParsedMarkdown} from '@/markdown'
+import type {ParsedMarkdown} from '@truenine/md-compiler/markdown'
 import type {
   CollectedInputContext,
   InputEffectContext,
@@ -16,8 +16,8 @@ import type {
 import {spawn} from 'node:child_process'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {PathPlaceholders} from '@/constants'
-import {parseMarkdown} from '@/markdown'
 import {PluginKind} from '@/types'
 import {AbstractPlugin} from './AbstractPlugin'
 

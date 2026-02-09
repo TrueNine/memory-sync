@@ -7,7 +7,7 @@
 
 import type {Paragraph, RootContent, Text} from 'mdast'
 import type {MdxJsxFlowElement} from 'mdast-util-mdx'
-import type {ProcessingContext} from '../compiler/types'
+import type {ProcessingContext} from '@/compiler/types'
 import {describe, expect, it} from 'vitest'
 import {MdHandler} from './Md'
 

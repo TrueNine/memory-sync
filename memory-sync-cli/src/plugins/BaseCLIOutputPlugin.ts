@@ -3,7 +3,7 @@ import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext, SkillPr
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as path from 'node:path'
 import {writeFileSync as deskWriteFileSync} from '@truenine/desk-paths'
-import {mdxToMd} from '@/compiler'
+import {mdxToMd} from '@truenine/md-compiler'
 import {GlobalScopeCollector} from '@/scope'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 

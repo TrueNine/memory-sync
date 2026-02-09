@@ -1,4 +1,4 @@
-import type {ParsedMarkdown} from '@/markdown'
+import type {ParsedMarkdown} from '@truenine/md-compiler/markdown'
 import type {
   CollectedInputContext,
   MetadataValidationResult,

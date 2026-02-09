@@ -1,12 +1,10 @@
 import type {RootContent} from 'mdast' // Shared TypeScript types for the lossless MDX to Markdown converter // types.ts
 import type {
-
   MdxJsxFlowElement,
   MdxJsxTextElement
-
 } from 'mdast-util-mdx'
-import type {MdxGlobalScope} from '../globals'
 import type {ExportMetadata} from './export-parser'
+import type {MdxGlobalScope} from '@/globals'
 
 /** Scope containing values available for expression evaluation */
 export interface EvaluationScope {

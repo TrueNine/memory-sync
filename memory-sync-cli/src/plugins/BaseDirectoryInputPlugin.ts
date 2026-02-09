@@ -1,4 +1,4 @@
-import type {ParsedMarkdown} from '@/markdown'
+import type {ParsedMarkdown} from '@truenine/md-compiler/markdown'
 import type {
   CollectedInputContext,
   InputPluginContext,
@@ -6,9 +6,9 @@ import type {
   ResolvedBasePaths,
   YAMLFrontMatter
 } from '@/types'
-import {mdxToMd} from '@/compiler'
-import {parseMarkdown} from '@/markdown'
-import {MetadataValidationError} from '@/types'
+import {mdxToMd} from '@truenine/md-compiler'
+import {MetadataValidationError} from '@truenine/md-compiler/errors'
+import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**

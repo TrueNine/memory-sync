@@ -1,5 +1,5 @@
-import type {EvaluationScope} from '@/compiler/types' // Manages scope registration and merging with priority-based resolution. // src/scope/ScopeRegistry.ts
-import type {MdxGlobalScope} from '@/globals'
+import type {EvaluationScope} from '@truenine/md-compiler' // Manages scope registration and merging with priority-based resolution. // src/scope/ScopeRegistry.ts
+import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 
 /**
  * Represents a single scope registration

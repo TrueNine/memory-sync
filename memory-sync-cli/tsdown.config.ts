@@ -11,27 +11,20 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
-    /** Explicitly allow bundling deps listed in noExternal; disables "Detected dependencies in bundle" warning */
     inlineOnly: false,
     alias: {
       '@': resolve('src')
     },
     noExternal: [
-      'mdast',
-      'yaml',
       'winston',
-      'unified',
-      'remark-frontmatter',
-      'remark-gfm',
-      'remark-parse',
       'fast-glob',
       '@truenine/desk-paths',
-      '@truenine/init-bundle'
+      '@truenine/init-bundle',
+      '@truenine/md-compiler'
     ],
     format: ['esm', 'cjs'],
     minify: true,
     dts: false,
-    /** Use named export mode so CJS/ESM consumers get consistent API; disables MIXED_EXPORTS warning */
     outputOptions: {exports: 'named'},
     define: {
       __CLI_VERSION__: JSON.stringify(pkg.version),
@@ -40,11 +33,14 @@ export default defineConfig([
     }
   },
   {
-    entry: ['./src/globals/index.ts'],
-    outDir: './dist/globals',
+    entry: ['./src/globals.ts'],
     platform: 'node',
+    sourcemap: false,
+    alias: {
+      '@': resolve('src')
+    },
     format: ['esm', 'cjs'],
-    minify: true,
+    minify: false,
     dts: {sourcemap: false}
   }
 ])

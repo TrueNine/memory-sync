@@ -13,11 +13,11 @@ import type {
 
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {mdxToMd} from '@/compiler'
-import {parseMarkdown, transformMdxReferencesToMd} from '@/markdown'
+import {mdxToMd} from '@truenine/md-compiler'
+import {MetadataValidationError} from '@truenine/md-compiler/errors'
+import {parseMarkdown, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
 import {
   FilePathKind,
-  MetadataValidationError,
   PromptKind,
   validateSkillMetadata
 } from '@/types'

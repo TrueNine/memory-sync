@@ -11,7 +11,7 @@ import type {RelativePath} from '@/types/FileSystemTypes'
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 

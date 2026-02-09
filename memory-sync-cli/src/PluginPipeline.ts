@@ -1,6 +1,6 @@
+import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {Command, CommandContext} from '@/commands'
 import type {PipelineConfig} from '@/config'
-import type {MdxGlobalScope} from '@/globals'
 import type {ILogger} from '@/log'
 import type {
   CollectedInputContext,

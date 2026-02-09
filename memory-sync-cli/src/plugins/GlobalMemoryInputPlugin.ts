@@ -3,14 +3,14 @@ import type {CollectedInputContext, InputPluginContext} from '@/types'
 import * as os from 'node:os'
 import process from 'node:process'
 
-import {mdxToMd} from '@/compiler'
-import {parseMarkdown} from '@/markdown'
+import {mdxToMd} from '@truenine/md-compiler'
+import {ScopeError} from '@truenine/md-compiler/errors'
+import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {
   FilePathKind,
   GlobalConfigDirectoryType,
   PromptKind
 } from '@/types'
-import {ScopeError} from '@/types/Errors'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 export class GlobalMemoryInputPlugin extends AbstractInputPlugin {

@@ -1,8 +1,8 @@
-import type {EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@/globals' // Collects and manages global scope variables for MDX expression evaluation. // src/scope/GlobalScopeCollector.ts
+import type {EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@truenine/md-compiler/globals' // Collects and manages global scope variables for MDX expression evaluation. // src/scope/GlobalScopeCollector.ts
 import type {UserConfigFile} from '@/types/ConfigTypes'
 import * as os from 'node:os'
 import process from 'node:process'
-import {OsKind, ShellKind, ToolPresets} from '@/globals'
+import {OsKind, ShellKind, ToolPresets} from '@truenine/md-compiler/globals'
 
 /**
  * Tool preset names supported by GlobalScopeCollector

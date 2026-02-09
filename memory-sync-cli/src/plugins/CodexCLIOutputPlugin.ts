@@ -8,7 +8,7 @@ import type {
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as path from 'node:path'
-import {buildMarkdownWithFrontMatter} from '@/markdown'
+import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'

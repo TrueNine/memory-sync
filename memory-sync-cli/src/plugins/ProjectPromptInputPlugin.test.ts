@@ -1,4 +1,4 @@
-import type {MdxGlobalScope} from '@/globals'
+import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {ILogger} from '@/log'
 import type {InputPluginContext, PluginOptions, Workspace} from '@/types'
 import * as path from 'node:path'

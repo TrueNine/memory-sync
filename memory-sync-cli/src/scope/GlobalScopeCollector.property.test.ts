@@ -1,9 +1,9 @@
 import type {UserConfigFile} from '@/types/ConfigTypes' // Feature: compiler-integration // Property-based tests for GlobalScopeCollector // src/scope/GlobalScopeCollector.property.test.ts
 import * as os from 'node:os'
 import process from 'node:process'
+import {ShellKind} from '@truenine/md-compiler/globals'
 import * as fc from 'fast-check'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {ShellKind} from '@/globals'
 import {GlobalScopeCollector} from './GlobalScopeCollector'
 
 /**

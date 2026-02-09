@@ -7,19 +7,17 @@
  * @see Requirements 5.1, 5.2, 5.3, 5.5
  */
 
-import type {MdxGlobalScope} from '@/globals'
+import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {CollectedInputContext, InputPluginContext, PluginOptions} from '@/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {clearComponents, mdxToMd, registerBuiltInComponents} from '@truenine/md-compiler'
+import {ShellKind} from '@truenine/md-compiler/globals'
 import glob from 'fast-glob'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {registerBuiltInComponents} from '../components'
-import {ShellKind} from '../globals'
-import {createLogger} from '../log'
-import {AbstractInputPlugin} from '../plugins/AbstractInputPlugin'
-import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '../scope'
-import {clearComponents} from './component-registry'
-import {mdxToMd} from './mdx-to-md'
+import {createLogger} from './log'
+import {AbstractInputPlugin} from './plugins/AbstractInputPlugin'
+import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from './scope'
 
 /**
  * Mock input plugin for testing scope registration
