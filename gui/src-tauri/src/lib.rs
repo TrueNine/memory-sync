@@ -17,6 +17,8 @@ pub fn run() {
             commands::list_plugins,
             commands::clean_outputs,
             commands::get_logs,
+            commands::read_config_file,
+            commands::write_config_file,
         ])
         .setup(|app| {
             tray::create_tray(app)?;

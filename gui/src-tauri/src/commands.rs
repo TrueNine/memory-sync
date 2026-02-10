@@ -281,3 +281,41 @@ pub fn get_logs(cwd: String, command: String) -> Result<Vec<LogEntry>, String> {
     let stdout = run_cli(&args, &cwd)?;
     Ok(parse_all_logs(&stdout))
 }
+
+/// Resolve the config file path for a given scope.
+/// - "cwd" → `{cwd}/.tnmsc.json`
+/// - "global" → `~/.aindex/.tnmsc.json`
+fn resolve_config_path(scope: &str, cwd: &str) -> Result<std::path::PathBuf, String> {
+    match scope {
+        "cwd" => Ok(std::path::PathBuf::from(cwd).join(".tnmsc.json")),
+        "global" => {
+            let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
+            Ok(home.join(".aindex").join(".tnmsc.json"))
+        }
+        _ => Err(format!("Unknown config scope: {scope}")),
+    }
+}
+
+/// Read a config file's raw content. Returns empty string if file doesn't exist.
+#[tauri::command]
+pub fn read_config_file(scope: String, cwd: String) -> Result<String, String> {
+    let path = resolve_config_path(&scope, &cwd)?;
+    if !path.exists() {
+        return Ok(String::new());
+    }
+    std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read {}: {e}", path.display()))
+}
+
+/// Write content to a config file. Creates parent directories if needed.
+#[tauri::command]
+pub fn write_config_file(scope: String, cwd: String, content: String) -> Result<(), String> {
+    let path = resolve_config_path(&scope, &cwd)?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create directory {}: {e}", parent.display()))?;
+    }
+    std::fs::write(&path, &content)
+        .map_err(|e| format!("Failed to write {}: {e}", path.display()))
+}
+

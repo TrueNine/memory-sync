@@ -1,5 +1,5 @@
 [package]
-name = "memory-sync-ui"
+name = "memory-sync-gui"
 version = "0.1.0"
 description = "Memory Sync desktop GUI application"
 authors = ["TrueNine"]
@@ -19,3 +19,4 @@ tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 json5 = "1"
+dirs = "6"
