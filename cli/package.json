@@ -1,15 +1,15 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10210.10233",
-  "description": "TrueNine Memory Synchronization CLI Tools",
+  "version": "2026.10210.11039",
+  "description": "TrueNine Memory Synchronization CLI",
   "author": "TrueNine",
-  "license": "UNLICENSED",
-  "homepage": "https://github.com/TrueNine/memory-sync-cli",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/TrueNine/memory-sync",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TrueNine/memory-sync-cli.git",
-    "directory": "_ai/scripts"
+    "url": "git+https://github.com/TrueNine/memory-sync.git",
+    "directory": "cli"
   },
   "exports": {
     ".": {

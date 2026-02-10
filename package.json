@@ -2,6 +2,7 @@
   "name": "@truenine/memory-sync",
   "version": "1.0.0",
   "description": "",
+  "license": "LGPL-3.0-or-later",
   "keywords": [],
   "scripts": {
     "build": "turbo build"
