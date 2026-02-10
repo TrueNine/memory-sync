@@ -51,11 +51,11 @@
   },
   "dependencies": {
     "@clack/prompts": "catalog:",
+    "@truenine/logger": "workspace:*",
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
     "picocolors": "catalog:",
-    "picomatch": "catalog:",
-    "winston": "catalog:"
+    "picomatch": "catalog:"
   },
   "devDependencies": {
     "@truenine/desk-paths": "workspace:*",

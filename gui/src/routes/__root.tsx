@@ -36,7 +36,11 @@ function RootComponent() {
             checking={false}
           />
         )}
-        {state.kind === 'available' && <Outlet />}
+        {state.kind === 'available' && (
+          <Suspense fallback={<PageLoading />}>
+            <Outlet />
+          </Suspense>
+        )}
       </Layout>
     </I18nContext.Provider>
   )
