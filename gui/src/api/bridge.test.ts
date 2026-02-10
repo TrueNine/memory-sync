@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { PipelineResult, PluginInfo } from '@/api/bridge'
+import type { PipelineResult, PluginExecutionResult } from '@/api/bridge'
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -23,18 +23,18 @@ afterEach(() => {
 describe('executePipeline', () => {
   const mockResult: PipelineResult = {
     success: true,
-    filesAffected: 5,
-    dirsAffected: 2,
-    message: 'Pipeline executed successfully',
+    totalFiles: 5,
+    totalDirs: 2,
+    dryRun: false,
     pluginResults: [
       {
-        pluginName: 'GlobalMemoryInputPlugin',
-        kind: 'Input',
-        status: 'success',
-        filesWritten: 3,
-        duration: 120,
+        plugin: 'GlobalMemoryInputPlugin',
+        files: 3,
+        dirs: 1,
+        dryRun: false,
       },
     ],
+    logs: [],
     errors: [],
   }
 
@@ -72,9 +72,12 @@ describe('executePipeline', () => {
 describe('cleanOutputs', () => {
   const mockResult: PipelineResult = {
     success: true,
-    filesAffected: 3,
-    dirsAffected: 1,
-    message: 'Cleaned successfully',
+    totalFiles: 3,
+    totalDirs: 1,
+    dryRun: false,
+    pluginResults: [],
+    logs: [],
+    errors: [],
   }
 
   it('should invoke clean_outputs with cwd and dryRun', async () => {
@@ -141,18 +144,18 @@ describe('loadConfig', () => {
 })
 
 describe('listPlugins', () => {
-  const mockPlugins: PluginInfo[] = [
+  const mockPlugins: PluginExecutionResult[] = [
     {
-      name: 'GlobalMemoryInputPlugin',
-      kind: 'Input',
-      description: 'Reads global memory files',
-      dependencies: [],
+      plugin: 'GlobalMemoryInputPlugin',
+      files: 5,
+      dirs: 2,
+      dryRun: false,
     },
     {
-      name: 'ClaudeCodeCLIOutputPlugin',
-      kind: 'Output',
-      description: 'Outputs Claude Code CLI format',
-      dependencies: ['GlobalMemoryInputPlugin'],
+      plugin: 'ClaudeCodeCLIOutputPlugin',
+      files: 3,
+      dirs: 1,
+      dryRun: false,
     },
   ]
 
@@ -168,15 +171,15 @@ describe('listPlugins', () => {
     expect(result).toEqual(mockPlugins)
   })
 
-  it('should return typed PluginInfo array', async () => {
+  it('should return typed PluginExecutionResult array', async () => {
     mockedInvoke.mockResolvedValue(mockPlugins)
 
     const result = await listPlugins('/workspace')
 
     expect(result).toHaveLength(2)
-    expect(result[0].name).toBe('GlobalMemoryInputPlugin')
-    expect(result[0].kind).toBe('Input')
-    expect(result[1].dependencies).toContain('GlobalMemoryInputPlugin')
+    expect(result[0].plugin).toBe('GlobalMemoryInputPlugin')
+    expect(result[0].files).toBe(5)
+    expect(result[1].plugin).toBe('ClaudeCodeCLIOutputPlugin')
   })
 
   it('should propagate invoke rejection', async () => {
@@ -185,4 +188,3 @@ describe('listPlugins', () => {
     await expect(listPlugins('/slow')).rejects.toThrow('timeout')
   })
 })
-

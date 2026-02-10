@@ -1,9 +1,11 @@
-import type { FC } from 'react'
+import type { FC, ReactNode } from 'react'
 import { useCallback, useState } from 'react'
 
-import { Outlet } from 'react-router-dom'
-
 import Sidebar from './Sidebar'
+
+interface LayoutProps {
+  readonly children: ReactNode
+}
 
 const COLLAPSED_KEY = 'sidebar-collapsed'
 
@@ -15,7 +17,7 @@ function loadCollapsed(): boolean {
   }
 }
 
-const Layout: FC = () => {
+const Layout: FC<LayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(loadCollapsed)
 
   const toggle = useCallback(() => {
@@ -30,7 +32,7 @@ const Layout: FC = () => {
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
       <Sidebar collapsed={collapsed} onToggle={toggle} />
       <main className="flex-1 overflow-y-auto p-6">
-        <Outlet />
+        {children}
       </main>
     </div>
   )

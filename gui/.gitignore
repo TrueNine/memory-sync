@@ -22,6 +22,9 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 
+# TanStack Router (auto-generated route tree)
+src/routeTree.gen.ts
+
 # Test
 coverage/
 

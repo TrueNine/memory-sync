@@ -1,5 +1,6 @@
 import type { FC } from 'react'
 
+import { Link } from '@tanstack/react-router'
 import {
     ChevronLeft,
     ChevronRight,
@@ -10,24 +11,23 @@ import {
     ScrollText,
     Workflow,
 } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
 
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
-  readonly to: string
+  readonly to: '/' | '/pipeline' | '/config' | '/plugins' | '/logs' | '/settings'
   readonly labelKey: string
   readonly icon: FC<{ className?: string }>
 }
 
 const navItems: readonly NavItem[] = [
-  { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
-  { to: '/pipeline', labelKey: 'nav.pipeline', icon: Workflow },
-  { to: '/config', labelKey: 'nav.config', icon: FileText },
-  { to: '/plugins', labelKey: 'nav.plugins', icon: Plug },
-  { to: '/logs', labelKey: 'nav.logs', icon: ScrollText },
-  { to: '/settings', labelKey: 'nav.settings', icon: Cog },
+  { to: '/' as const, labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { to: '/pipeline' as const, labelKey: 'nav.pipeline', icon: Workflow },
+  { to: '/config' as const, labelKey: 'nav.config', icon: FileText },
+  { to: '/plugins' as const, labelKey: 'nav.plugins', icon: Plug },
+  { to: '/logs' as const, labelKey: 'nav.logs', icon: ScrollText },
+  { to: '/settings' as const, labelKey: 'nav.settings', icon: Cog },
 ]
 
 interface SidebarProps {
@@ -65,23 +65,24 @@ const Sidebar: FC<SidebarProps> = ({ collapsed, onToggle }) => {
         <ul className="flex flex-col gap-1">
           {navItems.map((item) => (
             <li key={item.to}>
-              <NavLink
+              <Link
                 to={item.to}
-                end={item.to === '/'}
+                activeOptions={item.to === '/' ? { exact: true } : undefined}
                 title={collapsed ? t(item.labelKey) : undefined}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center rounded-md text-sm transition-colors',
-                    collapsed ? 'justify-center px-2 py-2' : 'gap-3 px-3 py-2',
-                    isActive
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
-                  )
-                }
+                className={cn(
+                  'flex items-center rounded-md text-sm transition-colors',
+                  collapsed ? 'justify-center px-2 py-2' : 'gap-3 px-3 py-2',
+                )}
+                activeProps={{
+                  className: 'bg-sidebar-accent text-sidebar-accent-foreground font-medium',
+                }}
+                inactiveProps={{
+                  className: 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
+                }}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
                 {!collapsed && <span className="truncate">{t(item.labelKey)}</span>}
-              </NavLink>
+              </Link>
             </li>
           ))}
         </ul>
