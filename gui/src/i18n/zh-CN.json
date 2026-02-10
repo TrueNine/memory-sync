@@ -45,5 +45,9 @@
   "common.success": "成功",
   "tray.execute": "执行同步",
   "tray.show": "打开主窗口",
-  "tray.quit": "退出"
+  "tray.quit": "退出",
+  "cli.missing.title": "未检测到 tnmsc",
+  "cli.missing.description": "Memory Sync 需要 tnmsc 命令行工具才能正常工作。请先安装后再使用。",
+  "cli.missing.install": "安装命令",
+  "cli.missing.retry": "重新检测"
 }

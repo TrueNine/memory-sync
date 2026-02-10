@@ -1,14 +1,4 @@
 /// Memory Sync Tauri application entry point.
-///
-/// Initializes the Tauri app with:
-/// - Shell and updater plugins
-/// - All Tauri commands (execute_pipeline, load_config, list_plugins, clean_outputs)
-/// - System tray with context menu
-/// - Window close interception (minimize to tray instead of exiting)
-///
-/// # Requirements
-///
-/// - 8.5 — Closing the main window minimizes to system tray instead of exiting
 
 mod commands;
 mod tray;
@@ -21,6 +11,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            commands::check_cli,
             commands::execute_pipeline,
             commands::load_config,
             commands::list_plugins,
@@ -28,11 +19,8 @@ pub fn run() {
             commands::get_logs,
         ])
         .setup(|app| {
-            // Create the system tray icon and context menu.
             tray::create_tray(app)?;
 
-            // Intercept the window close event: hide the window instead of
-            // closing it so the application stays resident in the system tray.
             let window = app.get_webview_window("main").unwrap();
             let window_clone = window.clone();
             window.on_window_event(move |event| {

@@ -1,5 +1,11 @@
 import { invoke } from '@tauri-apps/api/core'
 
+export interface CliStatus {
+  readonly available: boolean
+  readonly version?: string
+  readonly error?: string
+}
+
 export interface LogEntry {
   readonly timestamp: string
   readonly level: string
@@ -25,22 +31,26 @@ export interface PipelineResult {
   readonly errors: readonly string[]
 }
 
-export async function executePipeline(cwd: string, dryRun = false): Promise<PipelineResult> {
+export function checkCli(): Promise<CliStatus> {
+  return invoke<CliStatus>('check_cli')
+}
+
+export function executePipeline(cwd: string, dryRun = false): Promise<PipelineResult> {
   return invoke<PipelineResult>('execute_pipeline', { cwd, dryRun })
 }
 
-export async function cleanOutputs(cwd: string, dryRun = false): Promise<PipelineResult> {
+export function cleanOutputs(cwd: string, dryRun = false): Promise<PipelineResult> {
   return invoke<PipelineResult>('clean_outputs', { cwd, dryRun })
 }
 
-export async function loadConfig(cwd: string): Promise<unknown> {
+export function loadConfig(cwd: string): Promise<unknown> {
   return invoke('load_config', { cwd })
 }
 
-export async function listPlugins(cwd: string): Promise<PluginExecutionResult[]> {
+export function listPlugins(cwd: string): Promise<PluginExecutionResult[]> {
   return invoke<PluginExecutionResult[]>('list_plugins', { cwd })
 }
 
-export async function getLogs(cwd: string, command: string): Promise<LogEntry[]> {
+export function getLogs(cwd: string, command: string): Promise<LogEntry[]> {
   return invoke<LogEntry[]>('get_logs', { cwd, command })
 }

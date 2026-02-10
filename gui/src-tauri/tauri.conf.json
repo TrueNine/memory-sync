@@ -24,7 +24,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "externalBin": ["tnmsc"]
+    "externalBin": []
   },
   "plugins": {
     "shell": {
