@@ -63,7 +63,7 @@ const PluginsPage: FC = () => {
             key={plugin.plugin}
             className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4"
           >
-            <span className="text-sm font-medium text-card-foreground">{plugin.plugin}</span>
+            <span className="truncate text-sm font-medium text-card-foreground" title={plugin.plugin}>{plugin.plugin}</span>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>{plugin.files} files</span>
               <span>{plugin.dirs} dirs</span>

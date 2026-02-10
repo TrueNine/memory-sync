@@ -1,8 +1,10 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
+import { Suspense } from 'react'
 
 import CliMissingBanner from '@/components/CliMissingBanner'
 import Layout from '@/components/Layout'
 import NotFound from '@/components/NotFound'
+import PageLoading from '@/components/PageLoading'
 import { useCliStatus } from '@/hooks/useCliStatus'
 import { useTheme } from '@/hooks/useTheme'
 import { I18nContext, useI18nState } from '@/i18n'

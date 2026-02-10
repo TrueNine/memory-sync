@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react'
 
 import { Check, RefreshCw } from 'lucide-react'
 
+import { FONT_OPTIONS, useFont } from '@/hooks/useFont'
 import type { ThemePreference } from '@/hooks/useTheme'
 import { useTheme } from '@/hooks/useTheme'
 import type { Locale } from '@/i18n'
@@ -25,6 +26,7 @@ const localeOptions: readonly { readonly value: Locale; readonly label: string }
 const SettingsPage: FC = () => {
   const { t, locale, setLocale } = useI18n()
   const { preference, setTheme } = useTheme()
+  const { font, setFont } = useFont()
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle')
 
   const checkForUpdates = useCallback(async () => {
@@ -88,7 +90,13 @@ const SettingsPage: FC = () => {
             <button
               key={opt.value}
               type="button"
-              onClick={() => setLocale(opt.value)}
+              onClick={() => {
+                if (opt.value !== locale) {
+                  setLocale(opt.value)
+                  // Monaco NLS is injected at page load — reload to apply editor locale
+                  window.location.reload()
+                }
+              }}
               className={cn(
                 'inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors',
                 locale === opt.value
@@ -98,6 +106,30 @@ const SettingsPage: FC = () => {
             >
               {locale === opt.value && <Check className="h-3.5 w-3.5" />}
               {opt.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Font */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-muted-foreground">{t('settings.font')}</h2>
+        <div className="flex flex-wrap gap-2">
+          {FONT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setFont(opt.value)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors',
+                font === opt.value
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-card text-card-foreground hover:bg-muted',
+              )}
+              style={{ fontFamily: opt.value === 'monospace' ? 'monospace' : `'${opt.value}', monospace` }}
+            >
+              {font === opt.value && <Check className="h-3.5 w-3.5" />}
+              {opt.value === 'monospace' ? t('settings.font.system') : opt.label}
             </button>
           ))}
         </div>

@@ -1,9 +1,14 @@
 import type { FC } from 'react'
 
-import { loader } from '@monaco-editor/react'
+import Editor, { type OnMount, loader } from '@monaco-editor/react'
 import * as monaco from 'monaco-editor'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
+import { useCallback, useRef } from 'react'
+
+import { useFont } from '@/hooks/useFont'
+import { useTheme } from '@/hooks/useTheme'
+import { registerVitesseThemes, vitesseTheme } from '@/themes'
 
 // Configure Monaco to use inline workers instead of external files.
 // Tauri's webview has no `module` global, so the default AMD loader fails.
@@ -17,13 +22,9 @@ self.MonacoEnvironment = {
 }
 
 loader.config({ monaco })
+registerVitesseThemes()
 
 // ---- component below ----
-
-import Editor, { type OnMount } from '@monaco-editor/react'
-import { useCallback, useRef } from 'react'
-
-import { useTheme } from '@/hooks/useTheme'
 
 interface JsonEditorProps {
   readonly value: string
@@ -33,6 +34,7 @@ interface JsonEditorProps {
 
 const JsonEditor: FC<JsonEditorProps> = ({ value, onChange, readOnly = false }) => {
   const { resolved } = useTheme()
+  const { fontCss } = useFont()
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
 
   const handleMount: OnMount = useCallback((editor) => {
@@ -50,7 +52,7 @@ const JsonEditor: FC<JsonEditorProps> = ({ value, onChange, readOnly = false }) 
     <Editor
       height="100%"
       defaultLanguage="json"
-      theme={resolved === 'dark' ? 'vs-dark' : 'vs'}
+      theme={vitesseTheme(resolved)}
       value={value}
       onChange={handleChange}
       onMount={handleMount}
@@ -58,6 +60,8 @@ const JsonEditor: FC<JsonEditorProps> = ({ value, onChange, readOnly = false }) 
         readOnly,
         minimap: { enabled: false },
         fontSize: 13,
+        fontFamily: fontCss,
+        fontLigatures: true,
         lineNumbers: 'on',
         scrollBeyondLastLine: false,
         automaticLayout: true,
@@ -66,6 +70,7 @@ const JsonEditor: FC<JsonEditorProps> = ({ value, onChange, readOnly = false }) 
         formatOnType: true,
         wordWrap: 'on',
         padding: { top: 8, bottom: 8 },
+        scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
       }}
     />
   )

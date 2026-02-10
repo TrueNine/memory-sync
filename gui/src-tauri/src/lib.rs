@@ -19,6 +19,12 @@ pub fn run() {
             commands::get_logs,
             commands::read_config_file,
             commands::write_config_file,
+            commands::open_config_dir,
+            commands::list_aindex_files,
+            commands::read_aindex_file,
+            commands::write_aindex_file,
+            commands::list_category_files,
+            commands::get_aindex_stats,
         ])
         .setup(|app| {
             tray::create_tray(app)?;
