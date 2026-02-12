@@ -58,7 +58,7 @@ jobs:
           - platform: 'ubuntu-22.04'
             args: ''
             rust_targets: ''
-          - platform: 'ubuntu-22.04'
+          - platform: 'ubuntu-22.04-arm64'
             args: '--target aarch64-unknown-linux-gnu'
             rust_targets: 'aarch64-unknown-linux-gnu'
           - platform: 'windows-latest'
@@ -107,31 +107,16 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Install dependencies (ubuntu x86_64)
-        if: matrix.platform == 'ubuntu-22.04' && !contains(matrix.args, 'aarch64')
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Install dependencies (ubuntu aarch64 cross-compile)
-        if: matrix.platform == 'ubuntu-22.04' && contains(matrix.args, 'aarch64')
+      - name: Install dependencies (ubuntu arm64)
+        if: matrix.platform == 'ubuntu-22.04-arm64'
         run: |
-          sudo dpkg --add-architecture arm64
-          sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-            libwebkit2gtk-4.1-dev:arm64 \
-            libappindicator3-dev:arm64 \
-            librsvg2-dev:arm64 \
-            patchelf
-          echo "PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-          echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install workspace dependencies
         run: pnpm install
