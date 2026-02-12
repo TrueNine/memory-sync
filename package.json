@@ -42,7 +42,7 @@
   "devEngines": {
     "node": ">= 25.4.0"
   },
-  "packageManager": "pnpm@10.28.2",
+  "packageManager": "pnpm@10.29.3",
   "devDependencies": {
     "npm-run-all2": "catalog:",
     "tsdown": "catalog:",
