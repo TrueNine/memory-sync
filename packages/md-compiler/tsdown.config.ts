@@ -7,6 +7,7 @@ export default defineConfig([
     platform: 'node',
     sourcemap: true,
     unbundle: false,
+    inlineOnly: false,
     alias: {
       '@': resolve('src')
     },
