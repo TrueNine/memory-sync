@@ -45,7 +45,7 @@
     "node": ">= 25.4.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "GIT_EDITOR=true git submodule update -q --remote --merge aindex > /dev/null 2>&1 && tsx scripts/sync-versions.ts > /dev/null 2>&1 || true"
+    "pre-commit": "GIT_EDITOR=true git submodule update -q --remote --merge aindex > /dev/null 2>&1; pnpm tsx scripts/sync-versions.ts || true"
   },
   "packageManager": "pnpm@10.29.3",
   "devDependencies": {

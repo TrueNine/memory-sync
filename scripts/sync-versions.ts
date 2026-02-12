@@ -107,10 +107,25 @@ try {
   console.log('⚠️ gui/src-tauri/Cargo.toml 不存在，跳过')
 }
 
+// 同步 tauri.conf.json 版本
+const tauriConfPath = resolve('gui/src-tauri/tauri.conf.json')
+try {
+  const tauriConfContent = readFileSync(tauriConfPath, 'utf-8')
+  const tauriConf = JSON.parse(tauriConfContent)
+  if (tauriConf.version !== rootVersion) {
+    console.log(`  ✓ tauri.conf.json: version ${tauriConf.version ?? '(none)'} → ${rootVersion}`)
+    tauriConf.version = rootVersion
+    writeFileSync(tauriConfPath, JSON.stringify(tauriConf, null, 2) + '\n', 'utf-8')
+    changed = true
+  }
+} catch {
+  console.log('⚠️ gui/src-tauri/tauri.conf.json 不存在，跳过')
+}
+
 if (changed) {
   console.log('\n📦 版本已同步，自动暂存修改...')
   try {
-    execSync('git add cli/package.json gui/package.json gui/src-tauri/Cargo.toml', { stdio: 'inherit' })
+    execSync('git add cli/package.json gui/package.json gui/src-tauri/Cargo.toml gui/src-tauri/tauri.conf.json', { stdio: 'inherit' })
     // aindex 是 submodule，需要在子模块内 git add
     try {
       execSync('git -C aindex add package.json', { stdio: 'inherit' })
