@@ -97,16 +97,23 @@ jobs:
         run: pnpm install
 
       - name: Build GUI
-        uses: tauri-apps/tauri-action@v0
+        working-directory: ./gui
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm tauri build ${{ matrix.args }}
+
+      - name: Upload artifacts to Release
+        uses: softprops/action-gh-release@v1
         with:
-          projectPath: ./gui
-          tagName: v${{ needs.check-version.outputs.version }}
-          releaseName: 'v${{ needs.check-version.outputs.version }}'
-          releaseBody: 'See the assets to download and install this version.'
-          releaseDraft: false
-          prerelease: false
-          args: ${{ matrix.args }}
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: v${{ needs.check-version.outputs.version }}
+          files: |
+            gui/src-tauri/target/**/bundle/**/*.dmg
+            gui/src-tauri/target/**/bundle/**/*.app
+            gui/src-tauri/target/**/bundle/**/*.exe
+            gui/src-tauri/target/**/bundle/**/*.msi
+            gui/src-tauri/target/**/bundle/**/*.AppImage
+            gui/src-tauri/target/**/bundle/**/*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
