@@ -3,10 +3,10 @@
  * Provides base classes for creating input and output plugins.
  */
 
-export { // Re-export AbstractInputPlugin
+export {
   AbstractInputPlugin
 } from './AbstractInputPlugin'
-export { // Types are now in @/types
+export {
   AbstractOutputPlugin
 } from './AbstractOutputPlugin'
 export type {
@@ -56,3 +56,6 @@ export {
 export type {
   SkillSyncEffectResult
 } from './SkillNonSrcFileSyncEffectInputPlugin'
+export {
+  WindsurfOutputPlugin
+} from './WindsurfOutputPlugin'

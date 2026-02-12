@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { defineConfig } from 'tsdown'
+import {readFileSync} from 'node:fs'
+import {resolve} from 'node:path'
+import {defineConfig} from 'tsdown'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
 const kiroGlobalPowersRegistry = readFileSync('./public/kiro_global_powers_registry.json', 'utf8')
