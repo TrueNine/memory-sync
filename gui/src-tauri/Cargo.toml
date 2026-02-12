@@ -1,6 +1,6 @@
 [package]
 name = "memory-sync-gui"
-version = "2026.10213.0"
+version = "2026.10213.10110"
 description = "Memory Sync desktop GUI application"
 authors = ["TrueNine"]
 edition = "2021"
