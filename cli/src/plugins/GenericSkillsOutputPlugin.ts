@@ -8,12 +8,14 @@ import type {
 import type {RelativePath} from '@/types/FileSystemTypes'
 
 import {Buffer} from 'node:buffer'
+import * as fs from 'node:fs'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const PROJECT_SKILLS_DIR = '.skills'
-const GLOBAL_SKILLS_DIR = '.skills'
+const GLOBAL_SKILLS_DIR = '.aindex/.skills'
+const OLD_GLOBAL_SKILLS_DIR = '.skills' // 向后兼容：旧的全局 skills 目录
 const SKILL_FILE_NAME = 'SKILL.md'
 const MCP_CONFIG_FILE = 'mcp.json'
 
@@ -30,6 +32,38 @@ const MCP_CONFIG_FILE = 'mcp.json'
 export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('GenericSkillsOutputPlugin', {globalConfigDir: GLOBAL_SKILLS_DIR, outputFileName: SKILL_FILE_NAME})
+
+    this.registerCleanEffect('legacy-global-skills-cleanup', async ctx => { // 向后兼容：clean 时清理旧的 ~/.skills 目录
+      const oldGlobalSkillsDir = this.joinPath(this.getHomeDir(), OLD_GLOBAL_SKILLS_DIR)
+      if (!this.existsSync(oldGlobalSkillsDir)) return {success: true, description: 'Legacy global skills dir does not exist, nothing to clean'}
+      if (ctx.dryRun === true) {
+        this.log.trace({action: 'dryRun', type: 'legacyCleanup', path: oldGlobalSkillsDir})
+        return {success: true, description: `Would clean legacy global skills dir: ${oldGlobalSkillsDir}`}
+      }
+      try {
+        const entries = this.readdirSync(oldGlobalSkillsDir, {withFileTypes: true}) // 只删除 skill 子目录（避免误删用户其他文件）
+        let cleanedCount = 0
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            const skillDir = this.joinPath(oldGlobalSkillsDir, entry.name)
+            const skillFile = this.joinPath(skillDir, SKILL_FILE_NAME)
+            if (this.existsSync(skillFile)) { // 确认是 skill 目录（包含 SKILL.md）才删除
+              fs.rmSync(skillDir, {recursive: true})
+              cleanedCount++
+            }
+          }
+        }
+        const remainingEntries = this.readdirSync(oldGlobalSkillsDir) // 如果目录为空则删除目录本身
+        if (remainingEntries.length === 0) fs.rmdirSync(oldGlobalSkillsDir)
+        this.log.trace({action: 'clean', type: 'legacySkills', dir: oldGlobalSkillsDir, cleanedCount})
+        return {success: true, description: `Cleaned ${cleanedCount} legacy skills from ${oldGlobalSkillsDir}`}
+      }
+      catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error)
+        this.log.error({action: 'clean', type: 'legacySkills', dir: oldGlobalSkillsDir, error: errMsg})
+        return {success: false, description: `Failed to clean legacy skills dir`, error: error as Error}
+      }
+    })
   }
 
   private getGlobalSkillsDir(): string {

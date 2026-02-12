@@ -1,19 +1,19 @@
 import type {
-  CollectedInputContext,
-  OutputPluginContext,
-  OutputWriteContext,
-  SkillChildDoc,
-  SkillPrompt,
-  SkillResource,
-  SkillYAMLFrontMatter
+    CollectedInputContext,
+    OutputPluginContext,
+    OutputWriteContext,
+    SkillChildDoc,
+    SkillPrompt,
+    SkillResource,
+    SkillYAMLFrontMatter
 } from '@/types'
-import type {RelativePath} from '@/types/FileSystemTypes'
+import { FilePathKind, PromptKind } from '@/types'
+import type { RelativePath } from '@/types/FileSystemTypes'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {FilePathKind, PromptKind} from '@/types'
-import {GenericSkillsOutputPlugin} from './GenericSkillsOutputPlugin'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { GenericSkillsOutputPlugin } from './GenericSkillsOutputPlugin'
 
 vi.mock('node:fs')
 vi.mock('node:os')
@@ -237,7 +237,7 @@ describe('genericSkillsOutputPlugin', () => {
       const results = await plugin.registerGlobalOutputDirs(ctx)
 
       expect(results).toHaveLength(1)
-      expect(results[0]?.path).toBe('.skills')
+      expect(results[0]?.path).toBe(path.join('.aindex', '.skills'))
       expect(results[0]?.basePath).toBe(mockHomeDir)
     })
 
@@ -270,8 +270,8 @@ describe('genericSkillsOutputPlugin', () => {
       const results = await plugin.registerGlobalOutputFiles(ctx)
 
       expect(results).toHaveLength(2)
-      expect(results[0]?.path).toBe(path.join('.skills', 'skill-a', 'SKILL.md'))
-      expect(results[1]?.path).toBe(path.join('.skills', 'skill-b', 'SKILL.md'))
+      expect(results[0]?.path).toBe(path.join('.aindex', '.skills', 'skill-a', 'SKILL.md'))
+      expect(results[1]?.path).toBe(path.join('.aindex', '.skills', 'skill-b', 'SKILL.md'))
       expect(results[0]?.basePath).toBe(mockHomeDir)
     })
 
@@ -287,8 +287,8 @@ describe('genericSkillsOutputPlugin', () => {
       const results = await plugin.registerGlobalOutputFiles(ctx)
 
       expect(results).toHaveLength(2)
-      expect(results[0]?.path).toBe(path.join('.skills', 'test-skill', 'SKILL.md'))
-      expect(results[1]?.path).toBe(path.join('.skills', 'test-skill', 'mcp.json'))
+      expect(results[0]?.path).toBe(path.join('.aindex', '.skills', 'test-skill', 'SKILL.md'))
+      expect(results[1]?.path).toBe(path.join('.aindex', '.skills', 'test-skill', 'mcp.json'))
     })
   })
 
@@ -312,7 +312,7 @@ describe('genericSkillsOutputPlugin', () => {
 
       const writeCall = vi.mocked(fs.writeFileSync).mock.calls[0]
       expect(writeCall).toBeDefined()
-      expect(writeCall?.[0]).toContain(path.join(mockHomeDir, '.skills', 'test-skill', 'SKILL.md'))
+      expect(writeCall?.[0]).toContain(path.join(mockHomeDir, '.aindex', '.skills', 'test-skill', 'SKILL.md'))
 
       const writtenContent = writeCall?.[1] as string
       expect(writtenContent).toContain('name: test-skill')
@@ -361,12 +361,12 @@ describe('genericSkillsOutputPlugin', () => {
       expect(vi.mocked(fs.symlinkSync)).toHaveBeenCalledTimes(2)
 
       expect(vi.mocked(fs.symlinkSync)).toHaveBeenCalledWith( // Verify symlinks point from project to global
-        expect.stringContaining(path.join(mockHomeDir, '.skills', 'test-skill')),
+        expect.stringContaining(path.join(mockHomeDir, '.aindex', '.skills', 'test-skill')),
         expect.stringContaining(path.join('project1', '.skills', 'test-skill')),
         expect.anything()
       )
       expect(vi.mocked(fs.symlinkSync)).toHaveBeenCalledWith(
-        expect.stringContaining(path.join(mockHomeDir, '.skills', 'test-skill')),
+        expect.stringContaining(path.join(mockHomeDir, '.aindex', '.skills', 'test-skill')),
         expect.stringContaining(path.join('project2', '.skills', 'test-skill')),
         expect.anything()
       )
