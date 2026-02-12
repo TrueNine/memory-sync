@@ -13,12 +13,12 @@ const mockLogger = createLogger('test', 'error') // Mock logger
 
 const mockUserConfigOptions: Required<PluginOptions> = { // Mock user config options
   workspaceDir: '/test/workspace',
-  shadowSourceProjectDir: '/test/workspace/aindex',
-  shadowSkillSourceDir: '/test/workspace/aindex/dist/skills',
-  shadowFastCommandDir: '/test/workspace/aindex/dist/commands',
-  shadowSubAgentDir: '/test/workspace/aindex/dist/agents',
-  globalMemoryFile: '/test/workspace/aindex/dist/GLOBAL.md',
-  shadowProjectsDir: '/test/workspace/aindex/dist/app',
+  shadowSourceProjectDir: '/test/workspace/tnmsc-shadow',
+  shadowSkillSourceDir: '/test/workspace/tnmsc-shadow/dist/skills',
+  shadowFastCommandDir: '/test/workspace/tnmsc-shadow/dist/commands',
+  shadowSubAgentDir: '/test/workspace/tnmsc-shadow/dist/agents',
+  globalMemoryFile: '/test/workspace/tnmsc-shadow/dist/GLOBAL.md',
+  shadowProjectsDir: '/test/workspace/tnmsc-shadow/dist/app',
   externalProjects: [],
   excludePatterns: {},
   fastCommandSeriesOptions: {},

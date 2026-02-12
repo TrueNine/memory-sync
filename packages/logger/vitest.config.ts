@@ -17,6 +17,7 @@ export default mergeConfig(
       },
       testTimeout: 30000,
       onConsoleLog: () => false,
+      passWithNoTests: true,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json', 'html'],

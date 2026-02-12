@@ -1,4 +1,4 @@
-import type {InputEffectContext, InputEffectResult, InputPluginContext, PluginOptions} from '@/types'
+import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext, PluginOptions} from '@/types'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
@@ -11,7 +11,7 @@ import {AbstractInputPlugin} from './AbstractInputPlugin'
 function createTestOptions(overrides: Partial<PluginOptions> = {}): Required<PluginOptions> { // Default test options for Required<PluginOptions>
   return {
     workspaceDir: '/test',
-    shadowSourceProjectDir: '/test/aindex',
+    shadowSourceProjectDir: '/test/tnmsc-shadow',
     shadowSkillSourceDir: '$SHADOW_SOURCE_PROJECT/dist/skills',
     shadowFastCommandDir: '$SHADOW_SOURCE_PROJECT/dist/commands',
     shadowSubAgentDir: '$SHADOW_SOURCE_PROJECT/dist/agents',
@@ -235,21 +235,21 @@ describe('abstractInputPlugin', () => {
 
   describe('resolveBasePaths', () => {
     it('should resolve workspace and shadow project paths', () => {
-      const options = createTestOptions({workspaceDir: '/custom/workspace', shadowSourceProjectDir: '/custom/workspace/aindex'})
+      const options = createTestOptions({workspaceDir: '/custom/workspace', shadowSourceProjectDir: '/custom/workspace/tnmsc-shadow'})
 
       const {workspaceDir, shadowProjectDir} = plugin.exposeResolveBasePaths(options)
 
       expect(workspaceDir).toBe(path.normalize('/custom/workspace'))
-      expect(shadowProjectDir).toBe(path.normalize('/custom/workspace/aindex'))
+      expect(shadowProjectDir).toBe(path.normalize('/custom/workspace/tnmsc-shadow'))
     })
 
     it('should use default paths when not specified', () => {
-      const options = createTestOptions({workspaceDir: '~/project', shadowSourceProjectDir: '$WORKSPACE/aindex'})
+      const options = createTestOptions({workspaceDir: '~/project', shadowSourceProjectDir: '$WORKSPACE/tnmsc-shadow'})
 
       const {workspaceDir, shadowProjectDir} = plugin.exposeResolveBasePaths(options)
 
       expect(workspaceDir).toContain('project')
-      expect(shadowProjectDir).toContain('aindex')
+      expect(shadowProjectDir).toContain('tnmsc-shadow')
     })
   })
 

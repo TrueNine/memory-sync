@@ -2,20 +2,20 @@
  * 项目结构配置 - 单一数据源
  *
  * 设计原则：
- * 1. 只声明相对于 aindex 的路径列表
+ * 1. 只声明相对于 public 的路径列表
  * 2. key = path，无需重复定义
  * 3. 通过 as const 提供强类型推导
  */
 
 /** 运行时 Bundle 项：包含路径和内容 */
 export interface RuntimeBundleItem {
-  readonly path: string // 相对于 aindex 的路径（= key）
+  readonly path: string // 相对于 public 的路径（= key）
   readonly content: string // 文件内容
 }
 
 /**
  * Bundle 路径列表
- * 每个路径相对于 aindex，同时也是 bundles 的 key
+ * 每个路径相对于 public，同时也是 bundles 的 key
  */
 export const bundlePaths = [
   // 全局记忆模板
@@ -37,6 +37,8 @@ export const bundlePaths = [
   // 独立文件
   'public/tnmsc.example.json',
   'public/exclude',
+  'public/gitignore',
+  'public/kiro_global_powers_registry.json',
 
   // Prompt 指南
   'src/skills/prompt-builder/global-memory-prompt.cn.mdx',
@@ -53,4 +55,4 @@ export type RuntimeBundles = {
 }
 
 // 导出配置的 AINDEX 基础路径（用于构建工具）
-export const AINDEX_BASE = '../../aindex'
+export const PUBLIC_BASE = './public'

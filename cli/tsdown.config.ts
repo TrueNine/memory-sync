@@ -1,9 +1,12 @@
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
+import {bundles} from '@truenine/init-bundle'
 import {defineConfig} from 'tsdown'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
-const kiroGlobalPowersRegistry = readFileSync('./public/kiro_global_powers_registry.json', 'utf8')
+type BundleMap = Readonly<Record<string, {readonly content: string}>>
+const bundleMap = bundles as unknown as BundleMap
+const kiroGlobalPowersRegistry: string = bundleMap['public/kiro_global_powers_registry.json']?.content ?? ''
 
 export default defineConfig([
   {

@@ -30,6 +30,7 @@
   ],
   "scripts": {
     "build": "turbo build",
+    "test": "turbo test",
     "sync-versions": "tsx scripts/sync-versions.ts",
     "postinstall": "simple-git-hooks"
   },
@@ -45,7 +46,7 @@
     "node": ">= 25.4.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "GIT_EDITOR=true git submodule update -q --remote --merge aindex > /dev/null 2>&1; pnpm tsx scripts/sync-versions.ts || true"
+    "pre-commit": "pnpm tsx scripts/sync-versions.ts || true"
   },
   "packageManager": "pnpm@10.29.3",
   "devDependencies": {

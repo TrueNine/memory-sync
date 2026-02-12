@@ -128,9 +128,9 @@ describe('Router uses hash history', () => {
   })
 })
 
-// ── Test 2: Route tree contains all 6 route paths (Req 2.3) ──────────
+// ── Test 2: Route tree contains all 7 route paths (Req 2.3) ──────────
 
-describe('Route tree contains all 6 route paths', () => {
+describe('Route tree contains all 7 route paths', () => {
   const EXPECTED_PATHS = [
     '/',
     '/pipeline',
@@ -138,9 +138,10 @@ describe('Route tree contains all 6 route paths', () => {
     '/plugins',
     '/logs',
     '/settings',
+    '/files',
   ] as const
 
-  it('route tree has children covering all 6 defined paths', () => {
+  it('route tree has children covering all 7 defined paths', () => {
     const children = (
       routeTree as unknown as {
         children?: Record<string, { options?: { path?: string }; id?: string }>
@@ -158,7 +159,7 @@ describe('Route tree contains all 6 route paths', () => {
     }
   })
 
-  it('route tree has exactly 6 child routes', () => {
+  it('route tree has exactly 7 child routes', () => {
     const children = (
       routeTree as unknown as {
         children?: Record<string, unknown>
@@ -166,7 +167,7 @@ describe('Route tree contains all 6 route paths', () => {
     ).children
 
     expect(children).toBeDefined()
-    expect(Object.keys(children!)).toHaveLength(6)
+    expect(Object.keys(children!)).toHaveLength(7)
   })
 })
 

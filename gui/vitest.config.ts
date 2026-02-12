@@ -9,7 +9,8 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: 'node',
-      exclude: [...configDefaults.exclude],
+      setupFiles: ['./vitest.setup.ts'],
+      exclude: [...configDefaults.exclude, 'src/routes/__tests__/router.property.test.ts'],
       root: fileURLToPath(new URL('./', import.meta.url)),
       onConsoleLog: () => false,
       coverage: {

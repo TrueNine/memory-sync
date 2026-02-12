@@ -9,7 +9,7 @@ vi.mock('node:fs')
 describe('aIAgentIgnoreConfigFileInputPlugin', () => {
   let plugin: AIAgentIgnoreConfigFileInputPlugin
   const mockWorkspaceDir = '/workspace'
-  const mockShadowSourceProjectDir = '/workspace/aindex'
+  const mockShadowSourceProjectDir = '/workspace/tnmsc-shadow'
 
   beforeEach(() => {
     plugin = new AIAgentIgnoreConfigFileInputPlugin()
@@ -54,8 +54,8 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
     it('should read all ignore files when they exist', () => {
       const ctx = createMockInputPluginContext()
 
-      vi.mocked(fs.existsSync).mockImplementation((filePath: string) => {
-        const fileName = path.basename(filePath)
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
+        const fileName = path.basename(String(filePath))
         return ['.qoderignore', '.cursorignore', '.warpindexignore', '.aiignore'].includes(fileName)
       })
 
@@ -64,8 +64,8 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
         isDirectory: () => false
       } as any)
 
-      vi.mocked(fs.readFileSync).mockImplementation((filePath: string) => {
-        const fileName = path.basename(filePath)
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
+        const fileName = path.basename(String(filePath))
         if (fileName === '.qoderignore') return 'qoder ignore content'
         if (fileName === '.cursorignore') return 'cursor ignore content'
         if (fileName === '.warpindexignore') return 'warp ignore content'
@@ -98,8 +98,8 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
     it('should read only existing ignore files', () => {
       const ctx = createMockInputPluginContext()
 
-      vi.mocked(fs.existsSync).mockImplementation((filePath: string) => {
-        const fileName = path.basename(filePath)
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
+        const fileName = path.basename(String(filePath))
         return fileName === '.cursorignore'
       })
 
@@ -134,8 +134,8 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
 
-      vi.mocked(fs.statSync).mockImplementation((filePath: string) => {
-        const fileName = path.basename(filePath)
+      vi.mocked(fs.statSync).mockImplementation((filePath: any) => {
+        const fileName = path.basename(String(filePath))
         return {
           isFile: () => fileName !== '.qoderignore',
           isDirectory: () => fileName === '.qoderignore'
@@ -165,8 +165,8 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
         isDirectory: () => false
       } as any)
 
-      vi.mocked(fs.readFileSync).mockImplementation((filePath: string) => {
-        const fileName = path.basename(filePath)
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: any) => {
+        const fileName = path.basename(String(filePath))
         if (fileName === '.cursorignore') throw new Error('Permission denied')
         return 'content'
       })
@@ -240,7 +240,7 @@ dist/`
 
       const result = plugin.collect(ctx)
 
-      expect(result.aiAgentIgnoreConfigFiles?.[0].content).toBe(multilineContent)
+      expect(result.aiAgentIgnoreConfigFiles?.[0]?.content).toBe(multilineContent)
     })
   })
 })

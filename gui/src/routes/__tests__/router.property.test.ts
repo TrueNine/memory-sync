@@ -4,6 +4,16 @@
  * Feature: tanstack-file-router, Property 1: Hash history URL format
  * **Validates: Requirements 2.1**
  */
+
+// Monaco Editor requires window object in Node environment
+// Must mock before any imports that may trigger Monaco loading
+if (typeof globalThis.window === 'undefined') {
+  globalThis.window = globalThis as unknown as Window & typeof globalThis
+}
+if (typeof globalThis.self === 'undefined') {
+  globalThis.self = globalThis as unknown as Window & typeof globalThis
+}
+
 import fc from 'fast-check'
 import { afterEach, describe, expect, it } from 'vitest'
 

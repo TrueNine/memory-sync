@@ -2,10 +2,10 @@
  * Init Bundle - 项目初始化包
  *
  * 导出强类型的 bundles 对象
- * key = path（相对于 aindex 的路径）
+ * key = path（相对于 public 的路径）
  */
 
-import type {BundleKey, RuntimeBundleItem, RuntimeBundles} from '../structure.config'
+import type {RuntimeBundleItem, RuntimeBundles} from '../structure.config'
 import {bundlePaths} from '../structure.config'
 
 declare const INJECTED: Readonly<Record<string, string>> // 构建时注入的 content 映射
@@ -14,7 +14,7 @@ let _injected: Readonly<Record<string, string>> = INJECTED // eslint-disable-lin
 
 /**
  * 强类型的 Bundles 对象
- * key: 相对于 aindex 的路径（如 'app/global.cn.mdx'）
+ * key: 相对于 public 的路径（如 'app/global.cn.mdx'）
  * value: { path, content }
  */
 export const bundles: RuntimeBundles = Object.fromEntries(

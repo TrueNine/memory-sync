@@ -144,6 +144,7 @@ jobs:
           echo "Synced Cargo.toml version to ${version}"
 
       - name: Clean old bundle artifacts
+        shell: bash
         run: rm -rf gui/src-tauri/target/**/bundle
 
       - name: Build GUI

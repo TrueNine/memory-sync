@@ -3,9 +3,11 @@ import * as path from 'node:path'
 import {bundles} from '@truenine/init-bundle'
 import {BaseFileInputPlugin} from './BaseFileInputPlugin'
 
+type BundleMap = Readonly<Record<string, {readonly content: string}>>
+const bundleMap = bundles as unknown as BundleMap
+
 function getGitignoreTemplate(): string { // 从 bundles 获取 gitignore 模板内容（public/exclude）
-  const item = bundles['public/exclude']
-  return item?.content ?? ''
+  return bundleMap['public/gitignore']?.content ?? ''
 }
 
 /**

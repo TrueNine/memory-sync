@@ -1,11 +1,15 @@
 import {readFileSync} from 'node:fs'
 import {fileURLToPath, URL} from 'node:url'
+import {bundles} from '@truenine/init-bundle'
 import {defineConfig} from 'vite'
 
+type BundleMap = Readonly<Record<string, {readonly content: string}>>
+const bundleMap = bundles as unknown as BundleMap
+
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
-const kiroGlobalPowersRegistry = readFileSync('./public/kiro_global_powers_registry.json', 'utf8')
-const tnmscExample = readFileSync('./public/tnmsc.example.json', 'utf8')
-const gitignoreTemplate = readFileSync('./public/gitignore', 'utf8')
+const kiroGlobalPowersRegistry: string = bundleMap['public/kiro_global_powers_registry.json']?.content ?? ''
+const tnmscExample: string = bundleMap['public/tnmsc.example.json']?.content ?? ''
+const gitignoreTemplate: string = bundleMap['public/gitignore']?.content ?? ''
 
 export default defineConfig({
   resolve: {
