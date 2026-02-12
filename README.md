@@ -1,6 +1,6 @@
-# memory-sync-cli
+# memory-sync
 
-Prompt synchronisation tool for cross-AI coding tools. One ruleset, multi-target adaptation.
+Cross-AI-coding-tool prompt synchronisation tool. One ruleset, multi-target adaptation.
 
 ## Quick Start
 
@@ -11,13 +11,13 @@ Node.js >= 25.2.1, pnpm >= 10
 ### Installation
 
 ```bash
-pnpm add -g @truenine/memory-sync-cli
+pnpm add -g @truenine/memory-sync
 ```
 
 Or use directly:
 
 ```bash
-npx @truenine/memory-sync-cli
+npx @truenine/memory-sync
 ```
 
 ### Run
@@ -29,7 +29,7 @@ tnmsc
 ### Update
 
 ```bash
-pnpm update -g @truenine/memory-sync-cli --latest
+pnpm update -g @truenine/memory-sync --latest
 ```
 
 ## GUI Desktop App

@@ -5,6 +5,21 @@ import {GitExcludeOutputPlugin} from './GitExcludeOutputPlugin'
 
 vi.mock('node:fs')
 
+const dirStat = {isDirectory: () => true, isFile: () => false} as any
+const fileStat = {isDirectory: () => false, isFile: () => true} as any
+
+function setupFsMocks(existsFn: (p: string) => boolean, lstatFn?: (p: string) => any): void {
+  vi.mocked(fs.existsSync).mockImplementation((p: any) => existsFn(String(p)))
+  vi.mocked(fs.lstatSync).mockImplementation((p: any) => {
+    if (lstatFn) return lstatFn(String(p))
+    return String(p).endsWith('.git') ? dirStat : fileStat // Default: .git is a directory
+  })
+  vi.mocked(fs.readdirSync).mockReturnValue([] as any) // Default: empty dirs for findAllGitRepos scanning
+  vi.mocked(fs.readFileSync).mockReturnValue('')
+  vi.mocked(fs.writeFileSync).mockImplementation(() => {})
+  vi.mocked(fs.mkdirSync).mockImplementation(() => '')
+}
+
 describe('gitExcludeOutputPlugin', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -33,15 +48,9 @@ describe('gitExcludeOutputPlugin', () => {
       dryRun: false
     } as any
 
-    vi.mocked(fs.existsSync).mockImplementation((p: any) => {
-      const s = String(p)
-      return s.includes('project1') && s.includes('.git') && (s.endsWith('info') || s.endsWith('exclude')) // Only match project .git/info, not workspace root
-    })
+    setupFsMocks(p => p.includes('project1') && p.includes('.git'))
 
-    vi.mocked(fs.readFileSync).mockReturnValue('# existing content\n')
-    const spy = vi.mocked(fs.writeFileSync).mockImplementation(() => {})
-    vi.mocked(fs.mkdirSync).mockImplementation(() => '')
-
+    const spy = vi.mocked(fs.writeFileSync)
     const result = await plugin.writeProjectOutputs(ctx)
 
     expect(result.files.length).toBeGreaterThanOrEqual(1)
@@ -93,15 +102,9 @@ describe('gitExcludeOutputPlugin', () => {
       dryRun: false
     } as any
 
-    vi.mocked(fs.existsSync).mockImplementation((p: any) => {
-      const s = String(p)
-      return s.includes('.git') && s.endsWith('info')
-    })
+    setupFsMocks(p => p.includes('.git'))
 
-    vi.mocked(fs.readFileSync).mockReturnValue('')
-    const spy = vi.mocked(fs.writeFileSync).mockImplementation(() => {})
-    vi.mocked(fs.mkdirSync).mockImplementation(() => '')
-
+    const spy = vi.mocked(fs.writeFileSync)
     await plugin.writeProjectOutputs(ctx)
 
     const writtenContent = spy.mock.calls[0][1] as string
@@ -135,21 +138,9 @@ describe('gitExcludeOutputPlugin', () => {
       dryRun: false
     } as any
 
-    vi.mocked(fs.existsSync).mockImplementation((p: any) => {
-      const s = String(p)
-      return s.includes('.git') && (s.endsWith('info') || s.endsWith('exclude'))
-    })
+    setupFsMocks(p => p.includes('.git'))
 
-    const existingContent = `# user content
-# >>> tnmsc managed start >>>
-old-content/
-# <<< tnmsc managed end <<<
-# more user content`
-
-    vi.mocked(fs.readFileSync).mockReturnValue(existingContent)
-    const spy = vi.mocked(fs.writeFileSync).mockImplementation(() => {})
-    vi.mocked(fs.mkdirSync).mockImplementation(() => '')
-
+    const spy = vi.mocked(fs.writeFileSync)
     await plugin.writeProjectOutputs(ctx)
 
     const writtenContent = spy.mock.calls[0][1] as string
@@ -181,18 +172,106 @@ old-content/
       dryRun: false
     } as any
 
-    vi.mocked(fs.existsSync).mockImplementation((p: any) => {
-      const s = String(p)
-      return s.includes('.git') && s.endsWith('info')
-    })
+    setupFsMocks(p => p.includes('.git'))
 
-    vi.mocked(fs.readFileSync).mockReturnValue('')
-    const spy = vi.mocked(fs.writeFileSync).mockImplementation(() => {})
-    vi.mocked(fs.mkdirSync).mockImplementation(() => '')
-
+    const spy = vi.mocked(fs.writeFileSync)
     await plugin.writeProjectOutputs(ctx)
 
     const writtenContent = spy.mock.calls[0][1] as string
     expect(writtenContent).toContain('.cache/')
+  })
+
+  it('should resolve submodule .git file with gitdir pointer', async () => {
+    const plugin = new GitExcludeOutputPlugin()
+
+    const ctx = {
+      collectedInputContext: {
+        globalGitIgnore: '.kiro/',
+        workspace: {
+          directory: {path: '/ws'},
+          projects: [
+            {
+              name: 'submod',
+              dirFromWorkspacePath: {
+                path: 'submod',
+                basePath: '/ws',
+                getAbsolutePath: () => '/ws/submod'
+              },
+              isPromptSourceProject: false
+            }
+          ]
+        }
+      },
+      logger: createLogger('test', 'debug'),
+      dryRun: false
+    } as any
+
+    vi.mocked(fs.existsSync).mockImplementation((p: any) => {
+      const s = String(p)
+      return s === '/ws/submod/.git' || s === '/ws/.git'
+    })
+    vi.mocked(fs.lstatSync).mockImplementation((p: any) => {
+      const s = String(p)
+      if (s === '/ws/submod/.git') return fileStat // submodule: .git is a file
+      return dirStat // workspace root: .git is a directory
+    })
+    vi.mocked(fs.readFileSync).mockImplementation((p: any) => {
+      if (String(p) === '/ws/submod/.git') return 'gitdir: ../.git/modules/submod'
+      return ''
+    })
+    vi.mocked(fs.readdirSync).mockReturnValue([] as any)
+    vi.mocked(fs.writeFileSync).mockImplementation(() => {})
+    vi.mocked(fs.mkdirSync).mockImplementation(() => '')
+
+    const spy = vi.mocked(fs.writeFileSync)
+    const result = await plugin.writeProjectOutputs(ctx)
+
+    expect(result.files.length).toBeGreaterThanOrEqual(1)
+    expect(spy).toHaveBeenCalled()
+    const writtenPath = String(spy.mock.calls[0][0])
+    expect(writtenPath).toContain('.git/modules/submod/info/exclude') // Should write to resolved gitdir path
+  })
+
+  it('should write to .git/modules/*/info/exclude directly', async () => {
+    const plugin = new GitExcludeOutputPlugin()
+
+    const ctx = {
+      collectedInputContext: {
+        globalGitIgnore: '.kiro/',
+        workspace: {
+          directory: {path: '/ws'},
+          projects: []
+        }
+      },
+      logger: createLogger('test', 'debug'),
+      dryRun: false
+    } as any
+
+    const infoDirent = {name: 'info', isDirectory: () => true, isFile: () => false} as any
+    const modADirent = {name: 'modA', isDirectory: () => true, isFile: () => false} as any
+    const modBDirent = {name: 'modB', isDirectory: () => true, isFile: () => false} as any
+
+    vi.mocked(fs.existsSync).mockImplementation((p: any) => {
+      const s = String(p)
+      return s === '/ws/.git' || s === '/ws/.git/modules'
+    })
+    vi.mocked(fs.lstatSync).mockReturnValue(dirStat)
+    vi.mocked(fs.readdirSync).mockImplementation((p: any) => {
+      const s = String(p)
+      if (s === '/ws/.git/modules') return [modADirent, modBDirent] as any
+      if (s === '/ws/.git/modules/modA') return [infoDirent] as any
+      if (s === '/ws/.git/modules/modB') return [infoDirent] as any
+      return [] as any
+    })
+    vi.mocked(fs.writeFileSync).mockImplementation(() => {})
+    vi.mocked(fs.mkdirSync).mockImplementation(() => '')
+
+    const spy = vi.mocked(fs.writeFileSync)
+    const result = await plugin.writeProjectOutputs(ctx)
+
+    const writtenPaths = spy.mock.calls.map(c => String(c[0]))
+    expect(writtenPaths).toContainEqual(expect.stringContaining('.git/modules/modA/info/exclude'))
+    expect(writtenPaths).toContainEqual(expect.stringContaining('.git/modules/modB/info/exclude'))
+    expect(result.files.length).toBeGreaterThanOrEqual(2)
   })
 })
