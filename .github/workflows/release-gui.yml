@@ -180,7 +180,7 @@ jobs:
           find artifacts -name 'Info.plist' -delete
 
       - name: Publish Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2.5.0
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
           name: v${{ needs.check-version.outputs.version }}
