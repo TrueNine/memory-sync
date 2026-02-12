@@ -10,7 +10,9 @@
 /// ```
 /// We parse these lines with the `json5` crate and extract structured data.
 
+use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
+use std::{env, fs};
 
 use serde::{Deserialize, Serialize};
 
@@ -113,6 +115,68 @@ fn parse_all_logs(raw: &str) -> Vec<LogEntry> {
     cleaned.lines().filter_map(|line| parse_log_line(line.trim())).collect()
 }
 
+fn cli_binary_name() -> String {
+    if cfg!(target_os = "windows") {
+        "tnmsc.exe".to_string()
+    } else {
+        "tnmsc".to_string()
+    }
+}
+
+fn is_executable(path: &Path) -> bool {
+    if !path.is_file() {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(metadata) = path.metadata() {
+            let mode = metadata.permissions().mode();
+            return mode & 0o111 != 0;
+        }
+        false
+    }
+    #[cfg(not(unix))]
+    {
+        true
+    }
+}
+
+fn resolve_cli_path() -> Option<PathBuf> {
+    let bin_name = cli_binary_name();
+    if let Some(paths) = env::var_os("PATH") {
+        for dir in env::split_paths(&paths) {
+            let candidate = dir.join(&bin_name);
+            if is_executable(&candidate) {
+                return Some(candidate);
+            }
+        }
+    }
+
+    let mut fallback_dirs: Vec<PathBuf> = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        fallback_dirs.push(home.join(".local/share/pnpm"));
+        fallback_dirs.push(home.join(".npm-global/bin"));
+        fallback_dirs.push(home.join(".npm/bin"));
+        fallback_dirs.push(home.join(".local/bin"));
+
+        let nvm_dir = home.join(".nvm/versions/node");
+        if let Ok(entries) = fs::read_dir(&nvm_dir) {
+            for entry in entries.flatten() {
+                fallback_dirs.push(entry.path().join("bin"));
+            }
+        }
+    }
+
+    for dir in fallback_dirs {
+        let candidate = dir.join(&bin_name);
+        if is_executable(&candidate) {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
 /// Extract plugin results from log entries.
 fn extract_plugin_results(logs: &[LogEntry]) -> Vec<PluginExecutionResult> {
     logs.iter()
@@ -139,7 +203,8 @@ fn extract_complete(logs: &[LogEntry]) -> Option<serde_json::Value> {
 
 /// Run `tnmsc` from system PATH with the given arguments and return stdout.
 fn run_cli(args: &[&str], cwd: &str) -> Result<String, String> {
-    let output = StdCommand::new("tnmsc")
+    let cli_path = resolve_cli_path().ok_or("tnmsc not found in PATH or common locations")?;
+    let output = StdCommand::new(cli_path)
         .args(args)
         .current_dir(cwd)
         .output()
@@ -165,7 +230,18 @@ fn run_cli(args: &[&str], cwd: &str) -> Result<String, String> {
 /// Check whether `tnmsc` is available on the system PATH.
 #[tauri::command]
 pub fn check_cli() -> CliStatus {
-    match StdCommand::new("tnmsc").arg("version").output() {
+    let cli_path = match resolve_cli_path() {
+        Some(path) => path,
+        None => {
+            return CliStatus {
+                available: false,
+                version: None,
+                error: Some("tnmsc not found in PATH or common locations".into()),
+            };
+        }
+    };
+
+    match StdCommand::new(cli_path).arg("version").output() {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -193,6 +269,84 @@ pub fn check_cli() -> CliStatus {
             version: None,
             error: Some(e.to_string()),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let dir = env::temp_dir().join(format!("tnmsc-test-{name}-{nanos}"));
+        fs::create_dir_all(&dir).expect("create temp dir");
+        dir
+    }
+
+    fn write_executable(path: &Path) {
+        fs::write(path, "#!/bin/sh\necho tnmsc vTEST\n").expect("write fake cli");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(path).expect("metadata").permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(path, perms).expect("set perms");
+        }
+    }
+
+    #[test]
+    fn resolve_cli_path_from_path_env() {
+        let bin_name = cli_binary_name();
+        let dir = temp_dir("path");
+        let bin = dir.join(&bin_name);
+        write_executable(&bin);
+
+        let old_path = env::var_os("PATH");
+        env::set_var("PATH", &dir);
+
+        let resolved = resolve_cli_path();
+
+        if let Some(old) = old_path {
+            env::set_var("PATH", old);
+        } else {
+            env::remove_var("PATH");
+        }
+
+        assert_eq!(resolved, Some(bin));
+    }
+
+    #[test]
+    fn resolve_cli_path_from_fallback_dirs() {
+        let bin_name = cli_binary_name();
+        let home = temp_dir("home");
+        let bin_dir = home.join(".local/share/pnpm");
+        fs::create_dir_all(&bin_dir).expect("create fallback dir");
+        let bin = bin_dir.join(&bin_name);
+        write_executable(&bin);
+
+        let old_path = env::var_os("PATH");
+        let old_home = env::var_os("HOME");
+        env::set_var("PATH", "");
+        env::set_var("HOME", &home);
+
+        let resolved = resolve_cli_path();
+
+        if let Some(old) = old_path {
+            env::set_var("PATH", old);
+        } else {
+            env::remove_var("PATH");
+        }
+        if let Some(old) = old_home {
+            env::set_var("HOME", old);
+        } else {
+            env::remove_var("HOME");
+        }
+
+        assert_eq!(resolved, Some(bin));
     }
 }
 

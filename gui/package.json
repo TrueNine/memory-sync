@@ -12,7 +12,9 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest --run"
+    "test:ui": "vitest --run",
+    "test:tauri": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test": "pnpm run test:ui && pnpm run test:tauri"
   },
   "dependencies": {
     "@monaco-editor/react": "catalog:",
