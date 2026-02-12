@@ -56,7 +56,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
         const fileName = path.basename(String(filePath))
-        return ['.qoderignore', '.cursorignore', '.warpindexignore', '.aiignore'].includes(fileName)
+        return ['.qoderignore', '.cursorignore', '.warpindexignore', '.aiignore', '.codeignore'].includes(fileName)
       })
 
       vi.mocked(fs.statSync).mockReturnValue({
@@ -70,13 +70,14 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
         if (fileName === '.cursorignore') return 'cursor ignore content'
         if (fileName === '.warpindexignore') return 'warp ignore content'
         if (fileName === '.aiignore') return 'ai ignore content'
+        if (fileName === '.codeignore') return 'windsurf code ignore content'
         return ''
       })
 
       const result = plugin.collect(ctx)
 
       expect(result.aiAgentIgnoreConfigFiles).toBeDefined()
-      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(4)
+      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(5)
       expect(result.aiAgentIgnoreConfigFiles).toContainEqual({
         fileName: '.qoderignore',
         content: 'qoder ignore content'
@@ -92,6 +93,10 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       expect(result.aiAgentIgnoreConfigFiles).toContainEqual({
         fileName: '.aiignore',
         content: 'ai ignore content'
+      })
+      expect(result.aiAgentIgnoreConfigFiles).toContainEqual({
+        fileName: '.codeignore',
+        content: 'windsurf code ignore content'
       })
     })
 
@@ -146,12 +151,13 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       const result = plugin.collect(ctx)
 
-      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(4)
+      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(5)
       expect(result.aiAgentIgnoreConfigFiles?.map(f => f.fileName)).toEqual([
         '.cursorignore',
         '.kiroignore',
         '.warpindexignore',
-        '.aiignore'
+        '.aiignore',
+        '.codeignore'
       ])
     })
 
@@ -173,12 +179,13 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       const result = plugin.collect(ctx)
 
-      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(4)
+      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(5)
       expect(result.aiAgentIgnoreConfigFiles?.map(f => f.fileName)).toEqual([
         '.qoderignore',
         '.kiroignore',
         '.warpindexignore',
-        '.aiignore'
+        '.aiignore',
+        '.codeignore'
       ])
       expect(ctx.logger.warn).toHaveBeenCalled()
     })
@@ -197,7 +204,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       plugin.collect(ctx)
 
-      expect(ctx.logger.debug).toHaveBeenCalledTimes(5)
+      expect(ctx.logger.debug).toHaveBeenCalledTimes(6)
     })
 
     it('should support custom shadowSourceProjectDir', () => {
@@ -218,6 +225,30 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       const normalizedCustomDir = path.normalize(customDir) // Normalize the custom dir for cross-platform comparison // Verify that existsSync was called with paths under custom directory
       const existsCallPaths = vi.mocked(fs.existsSync).mock.calls.map(call => path.normalize(call[0] as string))
       expect(existsCallPaths.some(p => p.startsWith(normalizedCustomDir))).toBe(true)
+    })
+
+    it('should read .codeignore file for Windsurf support', () => {
+      const ctx = createMockInputPluginContext()
+
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
+        const fileName = path.basename(String(filePath))
+        return fileName === '.codeignore'
+      })
+
+      vi.mocked(fs.statSync).mockReturnValue({
+        isFile: () => true,
+        isDirectory: () => false
+      } as any)
+
+      vi.mocked(fs.readFileSync).mockReturnValue('windsurf specific ignore patterns')
+
+      const result = plugin.collect(ctx)
+
+      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(1)
+      expect(result.aiAgentIgnoreConfigFiles?.[0]).toEqual({
+        fileName: '.codeignore',
+        content: 'windsurf specific ignore patterns'
+      })
     })
 
     it('should read ignore files with multiline content', () => {
