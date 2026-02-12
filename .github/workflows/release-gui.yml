@@ -143,6 +143,9 @@ jobs:
           rm -f gui/src-tauri/Cargo.toml.bak
           echo "Synced Cargo.toml version to ${version}"
 
+      - name: Clean old bundle artifacts
+        run: rm -rf gui/src-tauri/target/**/bundle
+
       - name: Build GUI
         working-directory: ./gui
         env:
@@ -157,7 +160,6 @@ jobs:
           path: |
             gui/src-tauri/target/**/bundle/**/*.dmg
             gui/src-tauri/target/**/bundle/**/*.exe
-            gui/src-tauri/target/**/bundle/**/*.msi
             gui/src-tauri/target/**/bundle/**/*.AppImage
             gui/src-tauri/target/**/bundle/**/*.deb
             gui/src-tauri/target/**/bundle/**/*.rpm
@@ -187,7 +189,6 @@ jobs:
           files: |
             artifacts/**/*.dmg
             artifacts/**/*.exe
-            artifacts/**/*.msi
             artifacts/**/*.AppImage
             artifacts/**/*.deb
             artifacts/**/*.rpm
