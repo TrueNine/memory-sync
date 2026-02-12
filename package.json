@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync",
-  "version": "1.0.0",
+  "version": "2026.10212.11500",
   "description": "Cross-AI-tool prompt synchronisation toolkit (CLI + Tauri desktop GUI) — one ruleset, multi-target adaptation. Monorepo powered by pnpm + Turbo.",
   "license": "LGPL-3.0-or-later",
   "keywords": [
@@ -29,7 +29,9 @@
     "ruleset-sync"
   ],
   "scripts": {
-    "build": "turbo build"
+    "build": "turbo build",
+    "sync-versions": "node scripts/sync-versions.mjs",
+    "postinstall": "simple-git-hooks"
   },
   "author": {
     "email": "truenine304520@gmail.com",
@@ -42,9 +44,13 @@
   "devEngines": {
     "node": ">= 25.4.0"
   },
+  "simple-git-hooks": {
+    "pre-commit": "git submodule update --remote --merge aindex && node scripts/sync-versions.mjs && git add aindex cli/package.json gui/package.json aindex/package.json"
+  },
   "packageManager": "pnpm@10.29.3",
   "devDependencies": {
     "npm-run-all2": "catalog:",
+    "simple-git-hooks": "^2.13.1",
     "tsdown": "catalog:",
     "turbo": "catalog:",
     "vite": "catalog:",
