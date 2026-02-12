@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import process from 'node:process'
 
 interface PackageEntry {
   readonly path: string

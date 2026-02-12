@@ -49,6 +49,7 @@
   },
   "packageManager": "pnpm@10.29.3",
   "devDependencies": {
+    "@types/node": "catalog:",
     "npm-run-all2": "catalog:",
     "simple-git-hooks": "^2.13.1",
     "tsx": "catalog:",
