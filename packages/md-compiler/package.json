@@ -55,7 +55,7 @@
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@truenine/eslint9-config": "catalog:",
+    "@truenine/eslint10-config": "catalog:",
     "@types/estree": "catalog:",
     "@types/estree-jsx": "catalog:",
     "@types/mdast": "catalog:",

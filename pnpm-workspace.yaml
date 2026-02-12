@@ -13,7 +13,7 @@ catalog:
   '@tauri-apps/cli': ^2.10.0
   '@tauri-apps/plugin-shell': ^2.3.5
   '@tauri-apps/plugin-updater': ^2.10.0
-  '@truenine/eslint9-config': ^2026.10209.11105
+  '@truenine/eslint10-config': ^2026.10209.11105
   '@types/estree': ^1.0.8
   '@types/estree-jsx': ^1.0.5
   '@types/fs-extra': ^11.0.4

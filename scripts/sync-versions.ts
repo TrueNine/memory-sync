@@ -11,15 +11,10 @@ import process from 'node:process'
 interface PackageEntry {
   readonly path: string
   readonly name: string
-  readonly updateDeps: boolean
-  readonly depName?: string
 }
 
 interface PackageJson {
   version?: string
-  dependencies?: Record<string, string>
-  devDependencies?: Record<string, string>
-  peerDependencies?: Record<string, string>
 }
 
 function getCatalogVersion(pkgName: string): string | null {
@@ -32,7 +27,7 @@ function getCatalogVersion(pkgName: string): string | null {
   }
 }
 
-const eslintConfigVersion = getCatalogVersion('@truenine/eslint9-config')
+const eslintConfigVersion = getCatalogVersion('@truenine/eslint10-config')
 const rootPkg: PackageJson = JSON.parse(readFileSync(resolve('package.json'), 'utf-8'))
 const rootVersion = rootPkg.version
 
@@ -43,15 +38,12 @@ if (!rootVersion) {
 
 console.log(`🔄 同步版本: ${rootVersion}`)
 if (eslintConfigVersion) {
-  console.log(`🔄 Catalog @truenine/eslint9-config: ^${eslintConfigVersion}`)
+  console.log(`🔄 Catalog @truenine/eslint10-config: ^${eslintConfigVersion}`)
 }
 
-const DEP_SECTIONS = ['dependencies', 'devDependencies', 'peerDependencies'] as const
-
 const packages: readonly PackageEntry[] = [
-  { path: 'cli/package.json', name: 'cli', updateDeps: false },
-  { path: 'gui/package.json', name: 'gui', updateDeps: false },
-  { path: 'aindex/package.json', name: 'aindex', updateDeps: true, depName: '@truenine/memory-sync-cli' },
+  { path: 'cli/package.json', name: 'cli' },
+  { path: 'gui/package.json', name: 'gui' },
 ]
 
 let changed = false
@@ -65,28 +57,6 @@ for (const pkg of packages) {
     console.log(`  ✓ ${pkg.name}: version ${pkgJson.version} → ${rootVersion}`)
     pkgJson.version = rootVersion
     changed = true
-  }
-
-  if (pkg.updateDeps && pkg.depName) {
-    for (const section of DEP_SECTIONS) {
-      const deps = pkgJson[section]
-      if (deps?.[pkg.depName] && deps[pkg.depName] !== rootVersion) {
-        console.log(`  ✓ ${pkg.name}: ${section}.${pkg.depName} ${deps[pkg.depName]} → ${rootVersion}`)
-        deps[pkg.depName] = rootVersion
-        changed = true
-      }
-    }
-  }
-
-  if (pkg.name === 'aindex' && eslintConfigVersion) {
-    for (const section of DEP_SECTIONS) {
-      const deps = pkgJson[section]
-      if (deps?.['@truenine/eslint9-config'] && deps['@truenine/eslint9-config'] !== eslintConfigVersion) {
-        console.log(`  ✓ ${pkg.name}: ${section}.@truenine/eslint9-config ${deps['@truenine/eslint9-config']} → ${eslintConfigVersion}`)
-        deps['@truenine/eslint9-config'] = eslintConfigVersion
-        changed = true
-      }
-    }
   }
 
   if (changed) {
@@ -127,12 +97,6 @@ if (changed) {
   console.log('\n📦 版本已同步，自动暂存修改...')
   try {
     execSync('git add cli/package.json gui/package.json gui/src-tauri/Cargo.toml gui/src-tauri/tauri.conf.json', { stdio: 'inherit' })
-    // aindex 是 submodule，需要在子模块内 git add
-    try {
-      execSync('git -C aindex add package.json', { stdio: 'inherit' })
-    } catch {
-      console.log('⚠️ aindex submodule git add 失败，请手动执行')
-    }
     console.log('✅ 已暂存修改的文件')
   } catch {
     console.log('⚠️ git add 失败，请手动执行')

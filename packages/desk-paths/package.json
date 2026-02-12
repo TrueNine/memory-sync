@@ -27,7 +27,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@truenine/eslint9-config": "catalog:",
+    "@truenine/eslint10-config": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "fast-check": "catalog:",

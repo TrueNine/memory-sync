@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@truenine/desk-paths": "workspace:*",
-    "@truenine/eslint9-config": "catalog:",
+    "@truenine/eslint10-config": "catalog:",
     "@truenine/init-bundle": "workspace:*",
     "@truenine/logger": "workspace:*",
     "@truenine/md-compiler": "workspace:*",
