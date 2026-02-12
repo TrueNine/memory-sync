@@ -96,6 +96,10 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install
 
+      - name: Ensure material-icons directory exists
+        shell: bash
+        run: mkdir -p gui/public/material-icons
+
       - name: Build GUI
         working-directory: ./gui
         env:
