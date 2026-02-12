@@ -1,6 +1,6 @@
 # memory-sync
 
-Cross-AI-coding-tool prompt synchronisation tool. One ruleset, multi-target adaptation.
+Cross-AI programming tool prompt synchronization tool. One rule set, multi-platform adaptation.
 
 ## Quick Start
 
@@ -34,7 +34,7 @@ pnpm update -g @truenine/memory-sync --latest
 
 ## GUI Desktop App
 
-The GUI package provides a Tauri desktop app. Build under the `gui/` directory:
+GUI package provides Tauri desktop application, build in `gui/` directory:
 
 ```bash
 pnpm tauri:build
