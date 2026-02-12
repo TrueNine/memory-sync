@@ -6,114 +6,45 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  check-version:
-    runs-on: ubuntu-22.04
-    outputs:
-      version_changed: ${{ steps.check.outputs.changed }}
-      version: ${{ steps.version.outputs.version }}
-      npm_exists: ${{ steps.check-npm.outputs.exists }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect version changes
-        id: check
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          changed=false
-          files=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- 'cli/package.json')
-
-          if [[ -n "$files" ]]; then
-            while IFS= read -r file; do
-              prev=$(git show "${{ github.event.before }}:$file" 2>/dev/null || true)
-              curr=$(cat "$file" 2>/dev/null || true)
-
-              if [[ -z "$prev" || -z "$curr" ]]; then
-                changed=true
-                break
-              fi
-
-              prev_ver=$(python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('version',''))" <<<"$prev")
-              curr_ver=$(python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('version',''))" <<<"$curr")
-
-              if [[ "$prev_ver" != "$curr_ver" ]]; then
-                changed=true
-                echo "version=$curr_ver" >> "$GITHUB_OUTPUT"
-                break
-              fi
-            done <<< "$files"
-          fi
-
-          echo "changed=$changed" >> "$GITHUB_OUTPUT"
-
-      - name: Check if version exists on npm
-        id: check-npm
-        run: |
-          version=$(jq -r '.version' cli/package.json)
-          pkg_name=$(jq -r '.name' cli/package.json)
-          if npm view "${pkg_name}@${version}" version &> /dev/null; then
-            echo "Version ${version} already exists on npm, skipping publish"
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Version ${version} does not exist on npm, will publish"
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Get version
-        id: version
-        if: steps.check.outputs.changed == 'true' && steps.check-npm.outputs.exists != 'true'
-        run: |
-          version=$(jq -r '.version' cli/package.json)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-  publish-cli:
-    needs: check-version
-    if: needs.check-version.outputs.version_changed == 'true' && needs.check-version.outputs.npm_exists != 'true'
+  release-cli:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
 
+      - name: Check if should publish
+        id: check
+        run: |
+          version=$(jq -r '.version' cli/package.json)
+          name=$(jq -r '.name' cli/package.json)
+          npm_version=$(npm view "$name" version 2>/dev/null || echo "")
+          if [[ "$version" != "$npm_version" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup pnpm
+        if: steps.check.outputs.publish == 'true'
         uses: pnpm/action-setup@v4
 
       - name: Setup Node
+        if: steps.check.outputs.publish == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 25
           registry-url: https://registry.npmjs.org/
 
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v4
-        name: Setup pnpm cache
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build CLI
-        run: pnpm exec turbo run build --filter=@truenine/memory-sync-cli
+      - name: Install & Build
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          pnpm install
+          pnpm exec turbo run build --filter=@truenine/memory-sync-cli...
 
       - name: Publish to npm
+        if: steps.check.outputs.publish == 'true'
         working-directory: ./cli
         run: npm publish --access public
         env:
