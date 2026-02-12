@@ -109,7 +109,7 @@ jobs:
         run: pnpm install
 
       - name: Build CLI
-        run: pnpm -F @truenine/memory-sync-cli run build
+        run: pnpm exec turbo run build --filter=@truenine/memory-sync-cli
 
       - name: Publish to npm
         working-directory: ./cli
