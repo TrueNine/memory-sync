@@ -1,5 +1,4 @@
 node_modules/
-pnpm-lock.yaml
 dist/
 *.tsbuildinfo
 .DS_Store
@@ -18,3 +17,7 @@ README.md
 .editorconfig
 .eslintcache
 .turbo
+
+# Cargo
+**/target/
+!**/Cargo.lock

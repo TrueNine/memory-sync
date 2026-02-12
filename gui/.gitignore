@@ -35,5 +35,4 @@ coverage/
 # Misc
 *.tmp
 *.temp
-Cargo.lock
 .tanstack/
