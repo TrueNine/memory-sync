@@ -26,6 +26,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version=$(jq -r '.version' cli/package.json)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           if gh release view "v${version}" &> /dev/null; then
             echo "Release v${version} already exists, skipping"
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -38,7 +39,7 @@ jobs:
         id: version
         if: steps.check-release.outputs.exists != 'true'
         run: |
-          version=$(jq -r '.version' cli/package.json)
+          version=${{ steps.check-release.outputs.version }}
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
   build-gui:

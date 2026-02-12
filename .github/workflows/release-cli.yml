@@ -16,13 +16,31 @@ jobs:
 
       - name: Check if should publish
         id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version=$(jq -r '.version' cli/package.json)
           name=$(jq -r '.name' cli/package.json)
           npm_version=$(npm view "$name" version 2>/dev/null || echo "")
-          if [[ "$version" != "$npm_version" ]]; then
+
+          # 检查 GitHub Release 是否已存在
+          gh_release_exists="false"
+          if gh release view "v${version}" &> /dev/null; then
+            gh_release_exists="true"
+          fi
+
+          # 只有当 npm 版本不同且 GitHub Release 不存在时才发布
+          if [[ "$version" != "$npm_version" && "$gh_release_exists" == "false" ]]; then
+            echo "Version $version not published to npm or GitHub, will publish"
             echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
           else
+            if [[ "$version" == "$npm_version" ]]; then
+              echo "Version $version already published to npm, skipping"
+            fi
+            if [[ "$gh_release_exists" == "true" ]]; then
+              echo "GitHub Release v${version} already exists, skipping"
+            fi
             echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
 
