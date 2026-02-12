@@ -41,11 +41,11 @@ jobs:
           version=$(jq -r '.version' cli/package.json)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-  publish-gui:
+  build-gui:
     needs: check-version
     if: needs.check-version.outputs.release_exists != 'true'
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - platform: 'macos-latest'
@@ -87,6 +87,17 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
+      - name: Cache cargo + tauri target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            gui/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('gui/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -107,17 +118,35 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm tauri build ${{ matrix.args }}
 
-      - name: Upload artifacts to Release
-        uses: softprops/action-gh-release@v1
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: v${{ needs.check-version.outputs.version }}
-          name: v${{ needs.check-version.outputs.version }}
-          files: |
+          name: gui-${{ matrix.platform }}${{ matrix.args && format('-{0}', matrix.args) || '' }}
+          path: |
             gui/src-tauri/target/**/bundle/**/*.dmg
             gui/src-tauri/target/**/bundle/**/*.app
             gui/src-tauri/target/**/bundle/**/*.exe
             gui/src-tauri/target/**/bundle/**/*.msi
             gui/src-tauri/target/**/bundle/**/*.AppImage
             gui/src-tauri/target/**/bundle/**/*.deb
+          if-no-files-found: error
+
+  publish-release:
+    needs: [check-version, build-gui]
+    if: needs.check-version.outputs.release_exists != 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: gui-*
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: v${{ needs.check-version.outputs.version }}
+          files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
