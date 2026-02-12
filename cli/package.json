@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10212.114",
+  "version": "2026.10212.11447",
   "description": "TrueNine Memory Synchronization CLI",
   "author": "TrueNine",
   "license": "AGPL-3.0-or-later",
@@ -51,7 +51,6 @@
   },
   "dependencies": {
     "@clack/prompts": "catalog:",
-    "@truenine/logger": "workspace:*",
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
     "picocolors": "catalog:",
@@ -61,6 +60,7 @@
     "@truenine/desk-paths": "workspace:*",
     "@truenine/eslint9-config": "catalog:",
     "@truenine/init-bundle": "workspace:*",
+    "@truenine/logger": "workspace:*",
     "@truenine/md-compiler": "workspace:*",
     "@types/fs-extra": "catalog:",
     "@types/node": "catalog:",
