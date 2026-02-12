@@ -50,12 +50,19 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
+            rust_targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
+            rust_targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
             args: ''
+            rust_targets: ''
+          - platform: 'ubuntu-22.04'
+            args: '--target aarch64-unknown-linux-gnu'
+            rust_targets: 'aarch64-unknown-linux-gnu'
           - platform: 'windows-latest'
             args: ''
+            rust_targets: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -85,7 +92,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.rust_targets }}
 
       - name: Cache cargo + tauri target
         uses: actions/cache@v4
@@ -98,11 +105,32 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: Install dependencies (ubuntu x86_64)
+        if: matrix.platform == 'ubuntu-22.04' && !contains(matrix.args, 'aarch64')
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install dependencies (ubuntu aarch64 cross-compile)
+        if: matrix.platform == 'ubuntu-22.04' && contains(matrix.args, 'aarch64')
+        run: |
+          sudo dpkg --add-architecture arm64
+          sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            libwebkit2gtk-4.1-dev:arm64 \
+            libappindicator3-dev:arm64 \
+            librsvg2-dev:arm64 \
+            patchelf
+          echo "PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
 
       - name: Install workspace dependencies
         run: pnpm install
@@ -132,6 +160,7 @@ jobs:
             gui/src-tauri/target/**/bundle/**/*.msi
             gui/src-tauri/target/**/bundle/**/*.AppImage
             gui/src-tauri/target/**/bundle/**/*.deb
+            gui/src-tauri/target/**/bundle/**/*.rpm
           if-no-files-found: error
 
   publish-release:
@@ -145,6 +174,11 @@ jobs:
           path: artifacts
           pattern: gui-*
 
+      - name: Clean up unnecessary macOS artifacts
+        run: |
+          find artifacts -name '*.icns' -delete
+          find artifacts -name 'Info.plist' -delete
+
       - name: Publish Release
         uses: softprops/action-gh-release@v1
         with:
@@ -156,5 +190,6 @@ jobs:
             artifacts/**/*.msi
             artifacts/**/*.AppImage
             artifacts/**/*.deb
+            artifacts/**/*.rpm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
