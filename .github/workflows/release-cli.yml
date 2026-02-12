@@ -1,5 +1,9 @@
 name: Release CLI
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
@@ -8,7 +12,7 @@ on:
 
 jobs:
   release-cli:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,11 +58,26 @@ jobs:
         with:
           node-version: 25
           registry-url: https://registry.npmjs.org/
+          cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        if: steps.check.outputs.publish == 'true'
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        if: steps.check.outputs.publish == 'true'
+        name: Setup pnpm store cache
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install & Build
         if: steps.check.outputs.publish == 'true'
         run: |
-          pnpm install
+          pnpm install --frozen-lockfile
           pnpm exec turbo run build --filter=@truenine/memory-sync-cli...
 
       - name: Publish to npm
