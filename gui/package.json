@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build --emptyOutDir && tsc --noEmit",
+    "generate:icons": "tauri icon src-tauri/icons/icon-source.png -o src-tauri/icons",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

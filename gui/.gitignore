@@ -8,6 +8,10 @@ dist/
 src-tauri/target/
 src-tauri/gen/
 
+# Generated icons (only icon-source.png is tracked)
+src-tauri/icons/*
+!src-tauri/icons/icon-source.png
+
 # IDE
 .idea/
 .vscode/
