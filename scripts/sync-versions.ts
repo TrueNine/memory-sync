@@ -110,7 +110,13 @@ try {
 if (changed) {
   console.log('\n📦 版本已同步，自动暂存修改...')
   try {
-    execSync('git add cli/package.json gui/package.json aindex/package.json gui/src-tauri/Cargo.toml', { stdio: 'inherit' })
+    execSync('git add cli/package.json gui/package.json gui/src-tauri/Cargo.toml', { stdio: 'inherit' })
+    // aindex 是 submodule，需要在子模块内 git add
+    try {
+      execSync('git -C aindex add package.json', { stdio: 'inherit' })
+    } catch {
+      console.log('⚠️ aindex submodule git add 失败，请手动执行')
+    }
     console.log('✅ 已暂存修改的文件')
   } catch {
     console.log('⚠️ git add 失败，请手动执行')
