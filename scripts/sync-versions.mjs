@@ -86,7 +86,13 @@ for (const pkg of packages) {
 }
 
 if (changed) {
-  console.log('\n📦 版本已同步，记得 git add 更新后的文件')
+  console.log('\n📦 版本已同步，自动暂存修改...')
+  try {
+    execSync('git add cli/package.json gui/package.json aindex/package.json', { stdio: 'inherit' })
+    console.log('✅ 已暂存修改的文件')
+  } catch {
+    console.log('⚠️ git add 失败，请手动执行')
+  }
 } else {
   console.log('\n✅ 所有版本已一致，无需更新')
 }

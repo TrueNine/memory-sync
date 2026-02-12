@@ -45,7 +45,7 @@
     "node": ">= 25.4.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "git submodule update --remote --merge aindex && node scripts/sync-versions.mjs && git add aindex cli/package.json gui/package.json aindex/package.json"
+    "pre-commit": "GIT_EDITOR=true git submodule update -q --remote --merge aindex > /dev/null 2>&1 && node scripts/sync-versions.mjs > /dev/null 2>&1 || true"
   },
   "packageManager": "pnpm@10.29.3",
   "devDependencies": {
