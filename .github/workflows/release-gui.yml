@@ -16,17 +16,34 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       version: ${{ steps.version.outputs.version }}
+      release_exists: ${{ steps.check-release.outputs.exists }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check GitHub Release exists
+        id: check-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(jq -r '.version' cli/package.json)
+          if gh release view "v${version}" &> /dev/null; then
+            echo "Release v${version} already exists, skipping"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Release v${version} does not exist, will build and publish"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Get version
         id: version
+        if: steps.check-release.outputs.exists != 'true'
         run: |
           version=$(jq -r '.version' cli/package.json)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
   publish-gui:
     needs: check-version
+    if: needs.check-version.outputs.release_exists != 'true'
     strategy:
       fail-fast: false
       matrix:

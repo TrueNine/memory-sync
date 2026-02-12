@@ -15,6 +15,7 @@ jobs:
     outputs:
       version_changed: ${{ steps.check.outputs.changed }}
       version: ${{ steps.version.outputs.version }}
+      npm_exists: ${{ steps.check-npm.outputs.exists }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,16 +56,29 @@ jobs:
 
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
+      - name: Check if version exists on npm
+        id: check-npm
+        run: |
+          version=$(jq -r '.version' cli/package.json)
+          pkg_name=$(jq -r '.name' cli/package.json)
+          if npm view "${pkg_name}@${version}" version &> /dev/null; then
+            echo "Version ${version} already exists on npm, skipping publish"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version ${version} does not exist on npm, will publish"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Get version
         id: version
-        if: steps.check.outputs.changed == 'true'
+        if: steps.check.outputs.changed == 'true' && steps.check-npm.outputs.exists != 'true'
         run: |
           version=$(jq -r '.version' cli/package.json)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
   publish-cli:
     needs: check-version
-    if: needs.check-version.outputs.version_changed == 'true'
+    if: needs.check-version.outputs.version_changed == 'true' && needs.check-version.outputs.npm_exists != 'true'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
