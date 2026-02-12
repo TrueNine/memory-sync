@@ -31,6 +31,7 @@ import {SkillNonSrcFileSyncEffectInputPlugin} from '@/plugins/SkillNonSrcFileSyn
 import {SubAgentInputPlugin} from '@/plugins/SubAgentInputPlugin'
 import {VisualStudioCodeIDEConfigOutputPlugin} from '@/plugins/VisualStudioCodeIDEConfigOutputPlugin'
 import {WarpIDEOutputPlugin} from '@/plugins/WarpIDEOutputPlugin'
+import {WindsurfOutputPlugin} from '@/plugins/WindsurfOutputPlugin'
 import {WorkspaceInputPlugin} from '@/plugins/WorkspaceInputPlugin'
 
 export default defineConfig({
@@ -48,6 +49,7 @@ export default defineConfig({
     new OpencodeCLIOutputPlugin(),
     new QoderIDEPluginOutputPlugin(),
     new WarpIDEOutputPlugin(),
+    new WindsurfOutputPlugin(),
     new CursorOutputPlugin(),
     new GitExcludeOutputPlugin(),
 
