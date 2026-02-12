@@ -1,19 +1,19 @@
 import type {
-    CollectedInputContext,
-    OutputPluginContext,
-    OutputWriteContext,
-    SkillChildDoc,
-    SkillPrompt,
-    SkillResource,
-    SkillYAMLFrontMatter
+  CollectedInputContext,
+  OutputPluginContext,
+  OutputWriteContext,
+  SkillChildDoc,
+  SkillPrompt,
+  SkillResource,
+  SkillYAMLFrontMatter
 } from '@/types'
-import { FilePathKind, PromptKind } from '@/types'
-import type { RelativePath } from '@/types/FileSystemTypes'
+import type {RelativePath} from '@/types/FileSystemTypes'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { GenericSkillsOutputPlugin } from './GenericSkillsOutputPlugin'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {FilePathKind, PromptKind} from '@/types'
+import {GenericSkillsOutputPlugin} from './GenericSkillsOutputPlugin'
 
 vi.mock('node:fs')
 vi.mock('node:os')
