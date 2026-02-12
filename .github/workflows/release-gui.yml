@@ -107,6 +107,14 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install
 
+      - name: Sync Tauri version from package.json
+        shell: bash
+        run: |
+          version=$(jq -r '.version' gui/package.json)
+          sed -i.bak "s/^version = \".*\"/version = \"${version}\"/" gui/src-tauri/Cargo.toml
+          rm -f gui/src-tauri/Cargo.toml.bak
+          echo "Synced Cargo.toml version to ${version}"
+
       - name: Build GUI
         working-directory: ./gui
         env:

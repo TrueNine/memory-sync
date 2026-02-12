@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "build": "turbo build",
-    "sync-versions": "node scripts/sync-versions.mjs",
+    "sync-versions": "tsx scripts/sync-versions.ts",
     "postinstall": "simple-git-hooks"
   },
   "author": {
@@ -45,12 +45,13 @@
     "node": ">= 25.4.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "GIT_EDITOR=true git submodule update -q --remote --merge aindex > /dev/null 2>&1 && node scripts/sync-versions.mjs > /dev/null 2>&1 || true"
+    "pre-commit": "GIT_EDITOR=true git submodule update -q --remote --merge aindex > /dev/null 2>&1 && tsx scripts/sync-versions.ts > /dev/null 2>&1 || true"
   },
   "packageManager": "pnpm@10.29.3",
   "devDependencies": {
     "npm-run-all2": "catalog:",
     "simple-git-hooks": "^2.13.1",
+    "tsx": "catalog:",
     "tsdown": "catalog:",
     "turbo": "catalog:",
     "vite": "catalog:",
