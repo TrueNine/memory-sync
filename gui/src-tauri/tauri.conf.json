@@ -24,7 +24,10 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "externalBin": []
+    "externalBin": [],
+    "icon": [
+      "icons/icon.png"
+    ]
   },
   "plugins": {
     "shell": {
