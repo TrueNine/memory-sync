@@ -120,7 +120,6 @@ jobs:
           name: gui-${{ matrix.platform }}${{ matrix.args && format('-{0}', matrix.args) || '' }}
           path: |
             gui/src-tauri/target/**/bundle/**/*.dmg
-            gui/src-tauri/target/**/bundle/**/*.app
             gui/src-tauri/target/**/bundle/**/*.exe
             gui/src-tauri/target/**/bundle/**/*.msi
             gui/src-tauri/target/**/bundle/**/*.AppImage
@@ -143,6 +142,11 @@ jobs:
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
           name: v${{ needs.check-version.outputs.version }}
-          files: artifacts/**/*
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.exe
+            artifacts/**/*.msi
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
