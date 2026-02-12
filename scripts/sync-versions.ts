@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Version Sync Script
- * 提交前自动同步所有子包版本
+ * Auto-sync all sub-package versions before commit
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
@@ -32,11 +32,11 @@ const rootPkg: PackageJson = JSON.parse(readFileSync(resolve('package.json'), 'u
 const rootVersion = rootPkg.version
 
 if (!rootVersion) {
-  console.error('❌ Root package.json 缺少 version 字段')
+  console.error('❌ Root package.json missing version field')
   process.exit(1)
 }
 
-console.log(`🔄 同步版本: ${rootVersion}`)
+console.log(`🔄 Syncing version: ${rootVersion}`)
 if (eslintConfigVersion) {
   console.log(`🔄 Catalog @truenine/eslint10-config: ^${eslintConfigVersion}`)
 }
@@ -64,7 +64,7 @@ for (const pkg of packages) {
   }
 }
 
-// 同步 Cargo.toml 版本
+// Sync Cargo.toml version
 const cargoTomlPath = resolve('gui/src-tauri/Cargo.toml')
 try {
   const cargoContent = readFileSync(cargoTomlPath, 'utf-8')
@@ -75,10 +75,10 @@ try {
     changed = true
   }
 } catch {
-  console.log('⚠️ gui/src-tauri/Cargo.toml 不存在，跳过')
+  console.log('⚠️ gui/src-tauri/Cargo.toml not found, skipping')
 }
 
-// 同步 tauri.conf.json 版本
+// Sync tauri.conf.json version
 const tauriConfPath = resolve('gui/src-tauri/tauri.conf.json')
 try {
   const tauriConfContent = readFileSync(tauriConfPath, 'utf-8')
@@ -90,17 +90,17 @@ try {
     changed = true
   }
 } catch {
-  console.log('⚠️ gui/src-tauri/tauri.conf.json 不存在，跳过')
+  console.log('⚠️ gui/src-tauri/tauri.conf.json not found, skipping')
 }
 
 if (changed) {
-  console.log('\n📦 版本已同步，自动暂存修改...')
+  console.log('\n📦 Versions synced, auto-staging changes...')
   try {
     execSync('git add cli/package.json gui/package.json gui/src-tauri/Cargo.toml gui/src-tauri/tauri.conf.json', { stdio: 'inherit' })
-    console.log('✅ 已暂存修改的文件')
+    console.log('✅ Staged modified files')
   } catch {
-    console.log('⚠️ git add 失败，请手动执行')
+    console.log('⚠️ git add failed, please execute manually')
   }
 } else {
-  console.log('\n✅ 所有版本已一致，无需更新')
+  console.log('\n✅ All versions consistent, no update needed')
 }
