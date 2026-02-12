@@ -4,7 +4,7 @@
   "version": "2026.10212.11500",
   "description": "TrueNine Memory Synchronization CLI",
   "author": "TrueNine",
-  "license": "AGPL-3.0-or-later",
+  "license": "AGPL-3.0-only",
   "homepage": "https://github.com/TrueNine/memory-sync",
   "repository": {
     "type": "git",
