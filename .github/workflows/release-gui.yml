@@ -60,8 +60,6 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
