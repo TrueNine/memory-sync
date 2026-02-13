@@ -3,10 +3,12 @@ import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
+import materialIconsPlugin from './src/vite-plugin-material-icons'
 import monacoLocalePlugin from './src/vite-plugin-monaco-locale'
 
 export default defineConfig({
   plugins: [
+    materialIconsPlugin(),
     monacoLocalePlugin(),
     TanStackRouterVite({
       routesDirectory: './src/routes',
