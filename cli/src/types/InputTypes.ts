@@ -76,6 +76,9 @@ export interface FastCommandPrompt extends Prompt<PromptKind.FastCommand, FastCo
  */
 export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
   readonly type: PromptKind.SubAgent
+  readonly series?: string
+  readonly agentName: string
+  readonly rawMdxContent?: string
 }
 
 /**
