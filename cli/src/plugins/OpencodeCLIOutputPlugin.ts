@@ -205,7 +205,7 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     basePath: string,
     agent: SubAgentPrompt
   ): Promise<WriteResult[]> {
-    const fileName = agent.dir.path.endsWith('.md') ? agent.dir.path : `${agent.dir.path}.md`
+    const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
     const targetDir = path.join(basePath, this.agentsSubDir)
     const fullPath = path.join(targetDir, fileName)
 

@@ -118,7 +118,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (this.supportsSubAgents && subAgents != null) {
       for (const agent of subAgents) {
-        const fileName = agent.dir.path.endsWith('.md') ? agent.dir.path : `${agent.dir.path}.md`
+        const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
         results.push(this.createRelativePath(path.join(this.agentsSubDir, fileName), globalDir, () => this.agentsSubDir))
       }
     }
@@ -308,7 +308,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
     basePath: string,
     agent: SubAgentPrompt
   ): Promise<WriteResult[]> {
-    const fileName = agent.dir.path.endsWith('.md') ? agent.dir.path : `${agent.dir.path}.md`
+    const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
     const targetDir = path.join(basePath, this.agentsSubDir)
     const fullPath = path.join(targetDir, fileName)
 

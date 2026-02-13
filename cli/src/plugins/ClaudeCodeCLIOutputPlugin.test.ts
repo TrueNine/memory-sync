@@ -189,6 +189,33 @@ describe('claudeCodeCLIOutputPlugin', () => {
       expect(agentFile?.basePath).toBe(path.join(tempDir, '.claude'))
     })
 
+    it('should strip .mdx suffix from sub agent path and use .md', async () => {
+      const mockAgent: SubAgentPrompt = {
+        type: PromptKind.SubAgent,
+        content: 'agent content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('code-review.cn.mdx', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'code-review', description: 'desc'}
+      }
+
+      const ctxWithAgent = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          subAgents: [mockAgent]
+        }
+      }
+
+      const files = await plugin.registerGlobalOutputFiles(ctxWithAgent)
+      const agentFile = files.find(f => f.path.includes('agents'))
+
+      expect(agentFile).toBeDefined()
+      expect(agentFile?.path).toContain('code-review.cn.md')
+      expect(agentFile?.path).not.toContain('.mdx')
+    })
+
     it('should register skills in skills subdirectory', async () => {
       const mockSkill: SkillPrompt = {
         type: PromptKind.Skill,
@@ -251,6 +278,39 @@ describe('claudeCodeCLIOutputPlugin', () => {
       expect(files).toHaveLength(1)
       expect(files[0].path).toBe(path.join('project-a', 'CLAUDE.md'))
       expect(files[0].basePath).toBe(tempDir)
+    })
+  })
+
+  describe('writeGlobalOutputs', () => {
+    it('should write sub agent file with .md extension when source has .mdx', async () => {
+      const mockAgent: SubAgentPrompt = {
+        type: PromptKind.SubAgent,
+        content: '# Code Review Agent',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('reviewer.cn.mdx', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'reviewer', description: 'desc'}
+      }
+
+      const writeCtx = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          subAgents: [mockAgent]
+        }
+      }
+
+      const results = await plugin.writeGlobalOutputs(writeCtx)
+      const agentResult = results.files.find(f => f.path.path === 'reviewer.cn.md')
+
+      expect(agentResult).toBeDefined()
+      expect(agentResult?.success).toBe(true)
+
+      const writtenPath = path.join(tempDir, '.claude', 'agents', 'reviewer.cn.md')
+      expect(fs.existsSync(writtenPath)).toBe(true)
+      expect(fs.existsSync(path.join(tempDir, '.claude', 'agents', 'reviewer.cn.mdx'))).toBe(false)
+      expect(fs.existsSync(path.join(tempDir, '.claude', 'agents', 'reviewer.cn.mdx.md'))).toBe(false)
     })
   })
 })

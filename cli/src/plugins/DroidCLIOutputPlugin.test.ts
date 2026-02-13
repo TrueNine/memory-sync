@@ -189,6 +189,33 @@ describe('droidCLIOutputPlugin', () => {
       expect(agentFile?.basePath).toBe(path.join(tempDir, '.factory'))
     })
 
+    it('should strip .mdx suffix from sub agent path and use .md', async () => {
+      const mockAgent: SubAgentPrompt = {
+        type: PromptKind.SubAgent,
+        content: 'agent content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('code-review.cn.mdx', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'code-review', description: 'desc'}
+      }
+
+      const ctxWithAgent = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          subAgents: [mockAgent]
+        }
+      }
+
+      const files = await plugin.registerGlobalOutputFiles(ctxWithAgent)
+      const agentFile = files.find(f => f.path.includes('agents'))
+
+      expect(agentFile).toBeDefined()
+      expect(agentFile?.path).toContain('code-review.cn.md')
+      expect(agentFile?.path).not.toContain('.mdx')
+    })
+
     it('should register skills in skills subdirectory', async () => {
       const mockSkill: SkillPrompt = {
         type: PromptKind.Skill,
