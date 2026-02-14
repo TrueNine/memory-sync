@@ -41,5 +41,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Tauri icons
+        run: pnpm -F @truenine/memory-sync-gui run generate:icons
+
       - name: Run tests
         run: pnpm exec turbo run test
