@@ -19,8 +19,19 @@ describe('mdxToMd property tests', () => {
   afterEach(() => clearComponents())
 
   describe('property 1: mdxToMd behavioral equivalence', () => {
-    /** Generate safe variable names (valid JS identifiers) */
+    /** JavaScript reserved keywords that should not be used as variable names */
+    const reservedKeywords = new Set([
+      'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
+      'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function',
+      'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch',
+      'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
+      'enum', 'await', 'implements', 'interface', 'let', 'package', 'private',
+      'protected', 'public', 'static', 'null', 'true', 'false'
+    ])
+
+    /** Generate safe variable names (valid JS identifiers, excluding reserved keywords) */
     const varNameArb = fc.stringMatching(/^[a-z][a-zA-Z0-9]{0,9}$/)
+      .filter(name => !reservedKeywords.has(name))
 
     // eslint-disable-next-line regexp/use-ignore-case -- fast-check stringMatching does not support the i flag
     const scopeStringValueArb = fc.stringMatching(/^[A-Za-z0-9]([A-Za-z0-9 ]{0,18}[A-Za-z0-9])?$/)
