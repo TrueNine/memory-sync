@@ -130,6 +130,30 @@ async function transformChildren(
   const result: ChildNode[] = []
 
   for (const child of children) {
+    if (child.type === 'mdxFlowExpression') {
+      const flowExpr = child
+      const estree = (flowExpr.data as {estree?: Program} | undefined)?.estree
+      const trimmedValue = flowExpr.value.trim()
+      if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) continue
+      if (hasJsxInEstree(estree)) {
+        const nodes = await evaluateJsxExpression(flowExpr, ctx, async (children, c) => {
+          const tempRoot: Root = {type: 'root', children}
+          const processed = await processAst(tempRoot, c)
+          return processed.children
+        })
+        for (const node of nodes) result.push(node as ChildNode)
+        continue
+      }
+      const value = evaluateExpression(flowExpr.value, ctx.scope)
+      if (value !== '') {
+        result.push({
+          type: 'paragraph',
+          children: [{type: 'text', value}]
+        } as ChildNode)
+      }
+      continue
+    }
+
     if (child.type === 'mdxTextExpression') {
       const textExpr = child
       const trimmedValue = textExpr.value.trim()

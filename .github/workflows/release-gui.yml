@@ -93,6 +93,13 @@ jobs:
         with:
           targets: ${{ matrix.rust_targets }}
 
+      - name: Get Cargo deps hash (exclude root package version for stable cache key)
+        id: cargo-deps-hash
+        run: |
+          # Normalise root package version in Cargo.lock so version bumps don't invalidate cache
+          HASH=$(awk '/^name = "memory-sync-gui"$/{print; getline; sub(/version = ".*"/, "version = \"0.0.0\""); print; next} 1' gui/src-tauri/Cargo.lock | sha256sum | cut -d' ' -f1)
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+
       - name: Cache cargo + tauri target
         uses: actions/cache@v4
         with:
@@ -100,7 +107,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             gui/src-tauri/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('gui/src-tauri/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ steps.cargo-deps-hash.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
