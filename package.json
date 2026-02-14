@@ -31,7 +31,7 @@
   "scripts": {
     "build": "turbo build",
     "test": "turbo test",
-    "sync-versions": "tsx scripts/sync-versions.ts",
+    "sync-versions": "tsx .git-hooks/sync-versions.ts",
     "postinstall": "simple-git-hooks"
   },
   "author": {
@@ -46,7 +46,7 @@
     "node": ">= 25.4.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm tsx scripts/sync-versions.ts || true"
+    "pre-commit": "pnpm tsx .git-hooks/sync-versions.ts || true"
   },
   "packageManager": "pnpm@10.29.3",
   "devDependencies": {
