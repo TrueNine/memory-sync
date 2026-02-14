@@ -36,3 +36,4 @@ coverage/
 *.tmp
 *.temp
 .tanstack/
+dummy-non-existing-folder/
