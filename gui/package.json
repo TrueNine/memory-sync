@@ -1,11 +1,11 @@
 {
   "name": "@truenine/memory-sync-gui",
-  "version": "2026.10214.10234",
+  "version": "2026.10214.1083059",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build --emptyOutDir && tsc --noEmit",
+    "build": "pnpm run generate:icons && vite build --emptyOutDir && tsc --noEmit",
     "generate:icons": "tauri icon src-tauri/icons/icon-source.png -o src-tauri/icons",
     "preview": "vite preview",
     "tauri": "tauri",

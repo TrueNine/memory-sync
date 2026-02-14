@@ -263,7 +263,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
           ? `project:${project.name ?? 'unknown'}`
           : `nested:${path.relative(projectDir, repoDir)}`
 
-        this.log.info({action: 'write', path: gitInfoExcludePath, label})
+        this.log.trace({action: 'write', path: gitInfoExcludePath, label})
 
         const result = await this.writeGitExcludeFile(ctx, gitInfoExcludePath, managedContent, label)
         fileResults.push(result)
@@ -277,7 +277,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
       const workspaceGitExclude = path.join(workspaceGitInfoDir, 'exclude')
 
       if (!writtenPaths.has(workspaceGitExclude)) {
-        this.log.info({action: 'write', path: workspaceGitExclude, target: 'workspace'})
+        this.log.trace({action: 'write', path: workspaceGitExclude, target: 'workspace'})
         const result = await this.writeGitExcludeFile(ctx, workspaceGitExclude, managedContent, 'workspace')
         fileResults.push(result)
         writtenPaths.add(workspaceGitExclude)
@@ -294,7 +294,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
       writtenPaths.add(excludePath)
 
       const label = `workspace-nested:${path.relative(workspaceDir, repoDir)}`
-      this.log.info({action: 'write', path: excludePath, label})
+      this.log.trace({action: 'write', path: excludePath, label})
 
       const result = await this.writeGitExcludeFile(ctx, excludePath, managedContent, label)
       fileResults.push(result)
@@ -308,7 +308,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
         writtenPaths.add(excludePath)
 
         const label = `git-module:${path.relative(dotGitDir, moduleInfoDir)}`
-        this.log.info({action: 'write', path: excludePath, label})
+        this.log.trace({action: 'write', path: excludePath, label})
 
         const result = await this.writeGitExcludeFile(ctx, excludePath, managedContent, label)
         fileResults.push(result)
