@@ -1,0 +1,88 @@
+name: Release CLI
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  release-cli:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Check if should publish
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(jq -r '.version' cli/package.json)
+          name=$(jq -r '.name' cli/package.json)
+          npm_version=$(npm view "$name" version 2>/dev/null || echo "")
+
+          # 检查 GitHub Release 是否已存在
+          gh_release_exists="false"
+          if gh release view "v${version}" &> /dev/null; then
+            gh_release_exists="true"
+          fi
+
+          # 只有当 npm 版本不同且 GitHub Release 不存在时才发布
+          if [[ "$version" != "$npm_version" && "$gh_release_exists" == "false" ]]; then
+            echo "Version $version not published to npm or GitHub, will publish"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          else
+            if [[ "$version" == "$npm_version" ]]; then
+              echo "Version $version already published to npm, skipping"
+            fi
+            if [[ "$gh_release_exists" == "true" ]]; then
+              echo "GitHub Release v${version} already exists, skipping"
+            fi
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup pnpm
+        if: steps.check.outputs.publish == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        if: steps.check.outputs.publish == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          registry-url: https://registry.npmjs.org/
+          cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        if: steps.check.outputs.publish == 'true'
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        if: steps.check.outputs.publish == 'true'
+        name: Setup pnpm store cache
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install & Build
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec turbo run build --filter=@truenine/memory-sync-cli...
+
+      - name: Publish to npm
+        if: steps.check.outputs.publish == 'true'
+        working-directory: ./cli
+        run: pnpm publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,36 @@
+---
+name: Question / 问题咨询
+about: 提问或寻求帮助
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        有问题？我们很乐意帮助！请提供尽可能多的信息。
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 你的问题
+      description: 请详细描述你的问题
+      placeholder: 清晰简洁地描述你的问题
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 上下文信息
+      description: 提供相关的背景信息
+      placeholder: |
+        - 你正在尝试做什么？
+        - 你已经尝试过什么？
+        - 遇到了什么错误？
+
+  - type: input
+    id: environment
+    attributes:
+      label: 环境信息
+      description: 操作系统、版本等信息
+      placeholder: 例如：macOS 14, Node.js 25.2.1
