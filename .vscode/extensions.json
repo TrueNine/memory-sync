@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "ms-ceintl.vscode-language-pack-zh-hans",
+    "dbaeumer.vscode-eslint",
+    "vue.volar",
+    "dcloud-ide.hbuilderx-language-services",
+    "antfu.unocss",
+    "antfu.iconify",
+    "unifiedjs.vscode-mdx",
+    "k--kato.intellij-idea-keybindings",
+    "ms-playwright.playwright",
+    "vitest.explorer",
+    "biomejs.biome",
+    "sst-dev.opencode",
+    "github.vscode-github-actions",
+    "anthropic.claude-code"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "context7": {
+      "type": "local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp",
+        "--api-key",
+        "ctx7sk-4943b3c4-5743-438a-a4e6-86305be1ad9e"
+      ],
+      "enabled": true
+    },
+    "deepwiki": {
+      "url": "https://mcp.deepwiki.com/mcp",
+      "disabled": false
+    }
+  }
+}
