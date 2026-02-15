@@ -10,9 +10,15 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   release-cli:
     runs-on: ubuntu-24.04
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -95,3 +101,11 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "v${version}"
           git push origin "v${version}"
+
+  release-gui:
+    needs: release-cli
+    if: needs.release-cli.outputs.publish == 'true'
+    uses: ./.github/workflows/release-gui.yml
+    with:
+      version: ${{ needs.release-cli.outputs.version }}
+    secrets: inherit
