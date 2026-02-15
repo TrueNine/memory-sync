@@ -127,7 +127,8 @@ jobs:
           version=$(jq -r '.version' cli/package.json)
           sed -i.bak "s/^version = \".*\"/version = \"${version}\"/" gui/src-tauri/Cargo.toml
           rm -f gui/src-tauri/Cargo.toml.bak
-          echo "Synced Cargo.toml version to ${version}"
+          jq --arg v "$version" '.version = $v' gui/src-tauri/tauri.conf.json > gui/src-tauri/tauri.conf.tmp && mv gui/src-tauri/tauri.conf.tmp gui/src-tauri/tauri.conf.json
+          echo "Synced Cargo.toml and tauri.conf.json version to ${version}"
 
       - name: Clean old bundle artifacts
         shell: bash
