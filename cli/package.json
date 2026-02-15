@@ -1,0 +1,73 @@
+{
+  "name": "@truenine/memory-sync-cli",
+  "type": "module",
+  "version": "2026.10214.1083059",
+  "description": "TrueNine Memory Synchronization CLI",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://github.com/TrueNine/memory-sync",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TrueNine/memory-sync.git",
+    "directory": "cli"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./globals": {
+      "types:require": "./dist/globals.d.cts",
+      "types": "./dist/globals.d.mts",
+      "import": "./dist/globals.mjs",
+      "require": "./dist/globals.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "bin": {
+    "tnmsc": "./dist/index.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "run-s build:deps check bundle",
+    "build:deps": "pnpm exec turbo run build --filter=...@truenine/memory-sync-cli --filter=!@truenine/memory-sync-cli",
+    "bundle": "pnpm exec tsdown",
+    "check": "run-p typecheck lint",
+    "lint": "eslint --cache .",
+    "prepublishOnly": "run-s build",
+    "test": "run-s build:deps test:run",
+    "test:run": "vitest run",
+    "lintfix": "eslint --fix --cache .",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json"
+  },
+  "dependencies": {
+    "@clack/prompts": "catalog:",
+    "fast-glob": "catalog:",
+    "fs-extra": "catalog:",
+    "picocolors": "catalog:",
+    "picomatch": "catalog:"
+  },
+  "devDependencies": {
+    "@truenine/desk-paths": "workspace:*",
+    "@truenine/eslint10-config": "catalog:",
+    "@truenine/init-bundle": "workspace:*",
+    "@truenine/logger": "workspace:*",
+    "@truenine/md-compiler": "workspace:*",
+    "@types/fs-extra": "catalog:",
+    "@types/node": "catalog:",
+    "@types/picomatch": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "eslint": "catalog:",
+    "fast-check": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  }
+}

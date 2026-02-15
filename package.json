@@ -1,0 +1,62 @@
+{
+  "name": "@truenine/memory-sync",
+  "version": "2026.10214.1083059",
+  "description": "Cross-AI-tool prompt synchronisation toolkit (CLI + Tauri desktop GUI) — one ruleset, multi-target adaptation. Monorepo powered by pnpm + Turbo.",
+  "license": "AGPL-3.0-only",
+  "keywords": [
+    "ai",
+    "prompt",
+    "sync",
+    "cli",
+    "gui",
+    "tauri",
+    "desktop-app",
+    "memory",
+    "cursor",
+    "kiro",
+    "claude",
+    "gemini",
+    "codex",
+    "warp",
+    "jetbrains",
+    "vscode",
+    "plugin-pipeline",
+    "monorepo",
+    "cross-platform",
+    "developer-tools",
+    "ai-coding-assistant",
+    "prompt-management",
+    "ruleset-sync"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "test": "turbo test",
+    "sync-versions": "tsx .git-hooks/sync-versions.ts",
+    "postinstall": "simple-git-hooks"
+  },
+  "author": {
+    "email": "truenine304520@gmail.com",
+    "name": "TrueNine",
+    "url": "https://trueine.org"
+  },
+  "engines": {
+    "node": ">= 18"
+  },
+  "devEngines": {
+    "node": ">= 25.4.0"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm tsx .git-hooks/sync-versions.ts || true"
+  },
+  "packageManager": "pnpm@10.29.3",
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "npm-run-all2": "catalog:",
+    "simple-git-hooks": "^2.13.1",
+    "tsx": "catalog:",
+    "tsdown": "catalog:",
+    "turbo": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

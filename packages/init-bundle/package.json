@@ -1,0 +1,35 @@
+{
+  "name": "@truenine/init-bundle",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Internal initialization bundle - templates and configs sourced from aindex/",
+  "keywords": [
+    "init",
+    "bundle",
+    "templates",
+    "aindex"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types:require": "./dist/index.d.cts",
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "types:require": "dist/index.d.cts",
+  "scripts": {
+    "build": "tsdown --config-loader unrun",
+    "lint": "eslint --cache .",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "check": "run-p typecheck lint",
+    "lintfix": "eslint --fix --cache .",
+    "test": "vitest run",
+    "prepublishOnly": "run-s build"
+  },
+  "dependencies": {}
+}

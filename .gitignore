@@ -1,0 +1,23 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+*.log
+coverage/
+.nyc_output
+*.tmp
+*.temp
+nul
+.idea/
+.vscode/
+.npmrc
+README.md
+!/README.md
+.editorconfig
+.eslintcache
+.turbo
+
+# Cargo
+**/target/
+!**/Cargo.lock

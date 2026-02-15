@@ -1,0 +1,18 @@
+{
+  "workspaceDir": "~/project",
+  "shadowSourceProjectDir": "$WORKSPACE/tnmsc-shadow",
+  "shadowSkillSourceDir": "$SHADOW_SOURCE_PROJECT/dist/skills",
+  "shadowFastCommandDir": "$SHADOW_SOURCE_PROJECT/dist/commands",
+  "shadowSubAgentDir": "$SHADOW_SOURCE_PROJECT/dist/agents",
+  "globalMemoryFile": "$SHADOW_SOURCE_PROJECT/dist/global.mdx",
+  "shadowProjectsDir": "$SHADOW_SOURCE_PROJECT/dist/app",
+  "externalProjects": [],
+  "excludePatterns": {},
+  "logLevel": "info",
+  "profile": {
+    "name": "Your Name",
+    "username": "your_username",
+    "gender": "male",
+    "birthday": "1990-01-01"
+  }
+}

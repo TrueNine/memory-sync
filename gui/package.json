@@ -1,0 +1,49 @@
+{
+  "name": "@truenine/memory-sync-gui",
+  "version": "2026.10214.1083059",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm run generate:icons && vite build --emptyOutDir && tsc --noEmit",
+    "generate:icons": "tauri icon src-tauri/icons/icon-source.png -o src-tauri/icons",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "typecheck": "tsc --noEmit",
+    "test:ui": "vitest --run",
+    "test:tauri": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test": "pnpm run test:ui && pnpm run test:tauri"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "catalog:",
+    "@tanstack/react-router": "catalog:",
+    "@tanstack/router-plugin": "catalog:",
+    "@tauri-apps/api": "catalog:",
+    "@tauri-apps/plugin-shell": "catalog:",
+    "@tauri-apps/plugin-updater": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "lucide-react": "catalog:",
+    "material-icon-theme": "^5.31.0",
+    "monaco-editor": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "recharts": "^3.7.0",
+    "tailwind-merge": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "@tauri-apps/cli": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "fast-check": "catalog:",
+    "tailwindcss": "catalog:",
+    "tw-animate-css": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

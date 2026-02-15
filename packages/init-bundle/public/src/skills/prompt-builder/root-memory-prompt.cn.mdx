@@ -1,0 +1,63 @@
+Root Memory Prompt 编写指南。
+
+**Location**
+
+`app/*/src/agt.cn.mdx`
+
+**Structure Fields**
+
+| 字段 | 必需 | 说明 |
+|:-----|:-----|:-----|
+| 项目名称 | ✓ | 一级标题 `# {项目名称}` |
+| 项目背景 | ✓ | 简述用途和目标 |
+| 类型 | 可选 | 前端项目、后端服务、CLI 工具... |
+| 技术栈 | 可选 | MUST 包含版本号 |
+| Skills | 可选 | 需使用的 skills 及用途 |
+| MUST Use MCP Servers | 可选 | 需使用的 MCP 服务及用途 |
+| 目录结构 | 可选 | 仅第一层子目录/文件 |
+
+**Template**
+
+```md
+# {项目名称}
+
+{项目背景}
+
+**Type**
+{前端项目 | 后端服务 | CLI 工具 | ...}
+
+**Tech Stack**
+- {框架/语言 版本号}
+
+**Skills**
+- {skill-name}: {何时使用}
+
+**MUST Use MCP Servers**
+- {mcp-name}: {何时使用}
+
+**目录结构**
+- `{dir}/`: {说明}
+```
+
+**Example**
+
+```md
+# compose-server
+
+Kotlin 多模块后端服务，提供 RESTful API 和 WebSocket 支持。
+
+**Type**
+后端服务
+
+**Tech Stack**
+- Kotlin 2.0.21
+- Spring Boot 3.4.1
+- PostgreSQL 16
+
+**Skills**
+- api-convention: 设计 RESTful 接口时
+
+**目录结构**
+- `core/`: 核心业务模块
+- `api/`: HTTP 接口层
+```

@@ -1,0 +1,22 @@
+[package]
+name = "memory-sync-gui"
+version = "2026.10214.1083059"
+description = "Memory Sync desktop GUI application"
+authors = ["TrueNine"]
+edition = "2021"
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell = "2"
+tauri-plugin-updater = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+json5 = "1"
+dirs = "6"

@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Generated icons (only icon-source.png is tracked)
+src-tauri/icons/*
+!src-tauri/icons/icon-source.png
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# TypeScript
+*.tsbuildinfo
+
+# TanStack Router (auto-generated route tree)
+src/routeTree.gen.ts
+
+# Test
+coverage/
+
+# Misc
+*.tmp
+*.temp
+.tanstack/
+dummy-non-existing-folder/
