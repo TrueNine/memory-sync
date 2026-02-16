@@ -25,9 +25,55 @@ describe('parseMdx property tests', () => {
       fc.stringMatching(/^[A-Za-z0-9 ,.!?]{1,60}$/)
     )
 
-    /** MDX expression strings like `{variable}` or `{1 + 2}` */
+    /** JS reserved words that would make acorn throw when used in MDX expressions like {do} */
+    const jsReservedInExpression = new Set([
+      'do',
+      'if',
+      'in',
+      'for',
+      'let',
+      'new',
+      'try',
+      'var',
+      'case',
+      'else',
+      'enum',
+      'null',
+      'break',
+      'catch',
+      'class',
+      'const',
+      'super',
+      'throw',
+      'while',
+      'with',
+      'yield',
+      'delete',
+      'export',
+      'import',
+      'return',
+      'typeof',
+      'default',
+      'finally',
+      'extends',
+      'switch',
+      'function',
+      'continue',
+      'debugger',
+      'interface',
+      'package',
+      'private',
+      'protected',
+      'public',
+      'static',
+      'implements',
+      'instanceof'
+    ])
+    /** MDX expression strings like `{variable}` or `{1 + 2}` (exclude reserved words so acorn does not throw) */
     const mdxExpressionArb = fc.oneof(
-      fc.stringMatching(/^[a-z][a-zA-Z0-9]{0,9}$/).map(v => `{${v}}`),
+      fc.stringMatching(/^[a-z][a-zA-Z0-9]{0,9}$/)
+        .filter(v => !jsReservedInExpression.has(v))
+        .map(v => `{${v}}`),
       fc.integer({min: -100, max: 100}).map(n => `{${n}}`),
       fc.constant('{true}'),
       fc.constant('{false}'),
