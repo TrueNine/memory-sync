@@ -1,0 +1,93 @@
+name: Bug Report
+description: File a bug report for memory-sync (tnmsc CLI / GUI)
+labels: ["pending-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Before you open this issue
+
+        **Please ensure you're using the latest version of memory-sync.** Run `tnmsc --version` (CLI) or check the GUI about screen.
+
+        **Check if your issue is already known.** [Search existing issues](https://github.com/TrueNine/memory-sync/issues?q=is%3Aissue) before opening a new one. If found, subscribe and comment there for updates.
+
+        Thank you for helping keep the issue tracker organized.
+
+        ---
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before opening, please confirm
+      options:
+        - label: I have searched for duplicate or closed issues
+          required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      description: Your OS and version
+      placeholder: "e.g., Windows 11, macOS 14.2, Ubuntu 22.04"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: memory-sync version
+      description: CLI run `tnmsc --version`; GUI check About
+      placeholder: "e.g., 2026.10125.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: context
+    attributes:
+      label: Where did the bug occur?
+      options:
+        - CLI (tnmsc)
+        - GUI (Tauri app)
+        - Both / unsure
+    validations:
+      required: true
+  - type: input
+    id: plugin-context
+    attributes:
+      label: Relevant plugin (if applicable)
+      description: Input/Output plugin involved, e.g. cursor-output, kiro-output, global-memory-input
+      placeholder: "e.g., cursor-output, global-memory-input"
+    validations:
+      required: false
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug Description
+      description: Describe the issue clearly
+      placeholder: "Which feature you used, intended task, and how the bug affected your workflow."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the issue
+      placeholder: |
+        1. Run command or open GUI with [specific details]
+        2. Use config / plugin [be specific]
+        3. Observe [describe the error or unexpected behavior]
+        Include config paths, .tnmsc.json snippets, or CLI args if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: "Describe the intended outcome or behavior."
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Logs, config, screenshots, workarounds
+      placeholder: "Error messages, .tnmsc.json (redact secrets), or environment details."
+    validations:
+      required: false
