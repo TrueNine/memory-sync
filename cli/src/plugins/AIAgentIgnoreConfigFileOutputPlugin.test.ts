@@ -43,7 +43,8 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
       {fileName: '.cursorignore', content: 'cursor patterns'},
       {fileName: '.kiroignore', content: 'kiro patterns'},
       {fileName: '.warpindexignore', content: 'warp patterns'},
-      {fileName: '.aiignore', content: 'ai patterns'}
+      {fileName: '.aiignore', content: 'ai patterns'},
+      {fileName: '.traeignore', content: 'trae patterns'}
     ]
   }
 
@@ -107,13 +108,14 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(5)
+      expect(results).toHaveLength(6)
       expect(results.map(r => r.path)).toEqual([
         path.join('project1', '.qoderignore'),
         path.join('project1', '.cursorignore'),
         path.join('project1', '.kiroignore'),
         path.join('project1', '.warpindexignore'),
-        path.join('project1', '.aiignore')
+        path.join('project1', '.aiignore'),
+        path.join('project1', '.trae', '.ignore')
       ])
     })
 
@@ -122,13 +124,14 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(5) // Should still register all known ignore file types for cleanup
+      expect(results).toHaveLength(6) // Should still register all known ignore file types for cleanup
       expect(results.map(r => r.path)).toEqual([
         path.join('project1', '.qoderignore'),
         path.join('project1', '.cursorignore'),
         path.join('project1', '.kiroignore'),
         path.join('project1', '.warpindexignore'),
-        path.join('project1', '.aiignore')
+        path.join('project1', '.aiignore'),
+        path.join('project1', '.trae', '.ignore')
       ])
     })
 
@@ -156,9 +159,10 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(10)
+      expect(results).toHaveLength(12)
       expect(results.map(r => r.path)).toContain(path.join('project1', '.qoderignore'))
       expect(results.map(r => r.path)).toContain(path.join('project2', '.qoderignore'))
+      expect(results.map(r => r.path)).toContain(path.join('project1', '.trae', '.ignore'))
     })
 
     it('should skip shadow source project since their ignore files are protected source files', async () => {
@@ -186,7 +190,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(5) // because prompt source project files are source files that should be protected // Should only register files for regular project, NOT prompt source project
+      expect(results).toHaveLength(6) // because prompt source project files are source files that should be protected // Should only register files for regular project, NOT prompt source project
       expect(results.map(r => r.path)).toContain(path.join('project1', '.qoderignore'))
       expect(results.map(r => r.path)).not.toContain(path.join('prompt-source-project', '.qoderignore'))
     })
@@ -218,9 +222,9 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.writeProjectOutputs(ctx)
 
-      expect(results.files).toHaveLength(5)
+      expect(results.files).toHaveLength(6)
       expect(results.files.every(r => r.success)).toBe(true)
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(5)
+      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(6)
     })
 
     it('should write files to correct project paths', async () => {
@@ -259,15 +263,25 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
         'ai patterns',
         'utf8'
       )
+      expect(vi.mocked(fs.writeFileSync)).toHaveBeenNthCalledWith(
+        6,
+        path.join(mockWorkspaceDir, 'project1', '.trae', '.ignore'),
+        'trae patterns',
+        'utf8'
+      )
     })
 
-    it('should not ensure directory exists (files written to project root)', async () => {
+    it('should ensure .trae directory exists when writing .trae/.ignore', async () => {
       const ignoreFiles = createMockIgnoreFiles()
       const ctx = createMockOutputWriteContext(ignoreFiles)
 
       await plugin.writeProjectOutputs(ctx)
 
-      expect(vi.mocked(fs.mkdirSync)).not.toHaveBeenCalled() // ensureDirectory should not be called since files are written to project root
+      expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledWith(
+        path.join(mockWorkspaceDir, 'project1', '.trae'),
+        {recursive: true}
+      )
     })
 
     it('should support dry-run mode', async () => {
@@ -276,9 +290,10 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.writeProjectOutputs(ctx)
 
-      expect(results.files).toHaveLength(5)
+      expect(results.files).toHaveLength(6)
       expect(results.files.every(r => r.success && r.skipped === false)).toBe(true)
       expect(vi.mocked(fs.writeFileSync)).not.toHaveBeenCalled()
+      expect(vi.mocked(fs.mkdirSync)).not.toHaveBeenCalled()
     })
 
     it('should handle write errors gracefully', async () => {
@@ -291,7 +306,7 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.writeProjectOutputs(ctx)
 
-      expect(results.files).toHaveLength(5)
+      expect(results.files).toHaveLength(6)
       expect(results.files[0].success).toBe(true)
       expect(results.files[1].success).toBe(false)
       expect(results.files[1].error).toBeDefined()
@@ -357,8 +372,9 @@ describe('aIAgentIgnoreConfigFileOutputPlugin', () => {
 
       const results = await plugin.writeProjectOutputs(ctx)
 
-      expect(results.files).toHaveLength(10)
-      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(10)
+      expect(results.files).toHaveLength(12)
+      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledTimes(12)
+      expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledTimes(2) // .trae per project
     })
   })
 })

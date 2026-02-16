@@ -11,9 +11,23 @@ import {FilePathKind} from '@/types'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 /**
- * All ignore file names that this plugin manages
+ * Input file name for trae → output path .trae/.ignore
  */
-const IGNORE_FILE_NAMES = ['.qoderignore', '.cursorignore', '.kiroignore', '.warpindexignore', '.aiignore'] as const
+const TRAE_INPUT_FILE = '.traeignore'
+const TRAE_OUTPUT_PATH = path.join('.trae', '.ignore')
+
+/**
+ * All output paths this plugin manages (for cleanup).
+ * Root-level ignore files + .trae/.ignore
+ */
+const CLEANUP_OUTPUT_PATHS = [
+  '.qoderignore',
+  '.cursorignore',
+  '.kiroignore',
+  '.warpindexignore',
+  '.aiignore',
+  TRAE_OUTPUT_PATH
+] as const
 
 export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -33,8 +47,8 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
 
       if (project.isPromptSourceProject === true) continue // that should be protected from cleanup // Skip prompt source projects (e.g., aindex) - their files are source files
 
-      for (const fileName of IGNORE_FILE_NAMES) { // Register all possible ignore files for cleanup
-        const filePath = path.join(project.dirFromWorkspacePath.path, fileName)
+      for (const outputPath of CLEANUP_OUTPUT_PATHS) { // Register all possible ignore output paths for cleanup
+        const filePath = path.join(project.dirFromWorkspacePath.path, outputPath)
         results.push({
           pathKind: FilePathKind.Relative,
           path: filePath,
@@ -87,13 +101,18 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: dirResults}
   }
 
+  private getOutputPath(fileName: string): string {
+    return fileName === TRAE_INPUT_FILE ? TRAE_OUTPUT_PATH : fileName
+  }
+
   private async writeIgnoreFile(
     ctx: OutputWriteContext,
     projectDir: RelativePath,
     ignoreFile: {fileName: string, content: string},
     label: string
   ): Promise<WriteResult> {
-    const filePath = path.join(projectDir.path, ignoreFile.fileName)
+    const outputPath = this.getOutputPath(ignoreFile.fileName)
+    const filePath = path.join(projectDir.path, outputPath)
     const fullPath = path.join(projectDir.basePath, filePath)
 
     const relativePath: RelativePath = {
@@ -110,6 +129,10 @@ export class AIAgentIgnoreConfigFileOutputPlugin extends AbstractOutputPlugin {
     }
 
     try {
+      if (outputPath === TRAE_OUTPUT_PATH) {
+        const traeDir = path.join(projectDir.basePath, projectDir.path, '.trae')
+        fs.mkdirSync(traeDir, {recursive: true})
+      }
       fs.writeFileSync(fullPath, ignoreFile.content, 'utf8')
       this.log.trace({action: 'write', type: 'ignoreFile', path: fullPath, label})
       return {path: relativePath, success: true}
