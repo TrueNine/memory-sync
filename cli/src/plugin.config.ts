@@ -29,6 +29,7 @@ import {ShadowProjectInputPlugin} from '@/plugins/ShadowProjectInputPlugin'
 import {SkillInputPlugin} from '@/plugins/SkillInputPlugin'
 import {SkillNonSrcFileSyncEffectInputPlugin} from '@/plugins/SkillNonSrcFileSyncEffectInputPlugin'
 import {SubAgentInputPlugin} from '@/plugins/SubAgentInputPlugin'
+import {TraeIDEOutputPlugin} from '@/plugins/TraeIDEOutputPlugin'
 import {VisualStudioCodeIDEConfigOutputPlugin} from '@/plugins/VisualStudioCodeIDEConfigOutputPlugin'
 import {WarpIDEOutputPlugin} from '@/plugins/WarpIDEOutputPlugin'
 import {WindsurfOutputPlugin} from '@/plugins/WindsurfOutputPlugin'
@@ -48,6 +49,7 @@ export default defineConfig({
     new KiroCLIOutputPlugin(),
     new OpencodeCLIOutputPlugin(),
     new QoderIDEPluginOutputPlugin(),
+    new TraeIDEOutputPlugin(),
     new WarpIDEOutputPlugin(),
     new WindsurfOutputPlugin(),
     new CursorOutputPlugin(),
