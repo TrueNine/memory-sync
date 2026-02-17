@@ -2,6 +2,7 @@ import type {
   FastCommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
+  RulePrompt,
   SkillPrompt,
   WriteResult,
   WriteResults
@@ -20,6 +21,9 @@ const MEMORIES_SUBDIR = 'memories'
 const GLOBAL_MEMORY_FILE = 'global_rules.md'
 const SKILLS_SUBDIR = 'skills'
 const SKILL_FILE_NAME = 'SKILL.md'
+const WINDSURF_RULES_DIR = '.windsurf'
+const WINDSURF_RULES_SUBDIR = 'rules'
+const RULE_FILE_PREFIX = 'rule-'
 
 /**
  * Windsurf IDE output plugin.
@@ -38,7 +42,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const {fastCommands, skills} = ctx.collectedInputContext
+    const {fastCommands, skills, rules} = ctx.collectedInputContext
 
     if (fastCommands != null && fastCommands.length > 0) {
       const workflowsDir = this.getGlobalWorkflowsDir()
@@ -65,6 +69,18 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
+    const globalRules = rules?.filter(r => r.scope === 'global')
+    if (globalRules == null || globalRules.length === 0) return results
+
+    const codeiumDir = this.getCodeiumWindsurfDir()
+    const memoriesDir = path.join(codeiumDir, MEMORIES_SUBDIR)
+    results.push({
+      pathKind: FilePathKind.Relative,
+      path: MEMORIES_SUBDIR,
+      basePath: codeiumDir,
+      getDirectoryName: () => MEMORIES_SUBDIR,
+      getAbsolutePath: () => memoriesDir
+    })
     return results
   }
 
@@ -83,6 +99,23 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
           path: path.join(WORKFLOWS_SUBDIR, fileName),
           basePath: this.getCodeiumWindsurfDir(),
           getDirectoryName: () => WORKFLOWS_SUBDIR,
+          getAbsolutePath: () => fullPath
+        })
+      }
+    }
+
+    const globalRules = ctx.collectedInputContext.rules?.filter(r => r.scope === 'global')
+    if (globalRules != null && globalRules.length > 0) {
+      const codeiumDir = this.getCodeiumWindsurfDir()
+      const memoriesDir = path.join(codeiumDir, MEMORIES_SUBDIR)
+      for (const rule of globalRules) {
+        const fileName = this.buildRuleFileName(rule)
+        const fullPath = path.join(memoriesDir, fileName)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: path.join(MEMORIES_SUBDIR, fileName),
+          basePath: codeiumDir,
+          getDirectoryName: () => MEMORIES_SUBDIR,
           getAbsolutePath: () => fullPath
         })
       }
@@ -132,20 +165,21 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {skills, fastCommands, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {skills, fastCommands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasSkills = (skills?.length ?? 0) > 0
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
+    const hasRules = (rules?.length ?? 0) > 0
     const hasGlobalMemory = globalMemory != null
     const hasCodeIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.codeignore') ?? false
 
-    if (hasSkills || hasFastCommands || hasGlobalMemory || hasCodeIgnore) return true
+    if (hasSkills || hasFastCommands || hasGlobalMemory || hasRules || hasCodeIgnore) return true
 
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {skills, fastCommands, globalMemory} = ctx.collectedInputContext
+    const {skills, fastCommands, globalMemory, rules} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
@@ -162,18 +196,93 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (fastCommands == null || fastCommands.length === 0) return {files: fileResults, dirs: dirResults}
+    if (fastCommands != null && fastCommands.length > 0) {
+      const workflowsDir = this.getGlobalWorkflowsDir()
+      for (const cmd of fastCommands) {
+        const result = await this.writeGlobalWorkflow(ctx, workflowsDir, cmd)
+        fileResults.push(result)
+      }
+    }
 
-    const workflowsDir = this.getGlobalWorkflowsDir()
-    for (const cmd of fastCommands) {
-      const result = await this.writeGlobalWorkflow(ctx, workflowsDir, cmd)
-      fileResults.push(result)
+    const globalRules = rules?.filter(r => r.scope === 'global')
+    if (globalRules != null && globalRules.length > 0) {
+      const memoriesDir = this.getGlobalMemoriesDir()
+      for (const rule of globalRules) {
+        const result = await this.writeRuleFile(ctx, memoriesDir, rule, this.getCodeiumWindsurfDir(), MEMORIES_SUBDIR)
+        fileResults.push(result)
+      }
     }
     return {files: fileResults, dirs: dirResults}
   }
 
+  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results: RelativePath[] = []
+    const {workspace, rules} = ctx.collectedInputContext
+    const projectRules = rules?.filter(r => r.scope === 'project')
+
+    if (projectRules == null || projectRules.length === 0) return results
+
+    for (const project of workspace.projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) continue
+      const rulesDirPath = path.join(projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR)
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: rulesDirPath,
+        basePath: projectDir.basePath,
+        getDirectoryName: () => WINDSURF_RULES_SUBDIR,
+        getAbsolutePath: () => path.join(projectDir.basePath, rulesDirPath)
+      })
+    }
+    return results
+  }
+
+  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results: RelativePath[] = []
+    const {workspace, rules} = ctx.collectedInputContext
+    const projectRules = rules?.filter(r => r.scope === 'project')
+
+    if (projectRules != null && projectRules.length > 0) {
+      for (const project of workspace.projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null) continue
+        for (const rule of projectRules) {
+          const fileName = this.buildRuleFileName(rule)
+          const filePath = path.join(projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR, fileName)
+          results.push({
+            pathKind: FilePathKind.Relative,
+            path: filePath,
+            basePath: projectDir.basePath,
+            getDirectoryName: () => WINDSURF_RULES_SUBDIR,
+            getAbsolutePath: () => path.join(projectDir.basePath, filePath)
+          })
+        }
+      }
+    }
+
+    results.push(...this.registerProjectIgnoreOutputFiles(workspace.projects))
+    return results
+  }
+
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const fileResults = await this.writeProjectIgnoreFiles(ctx)
+    const fileResults: WriteResult[] = []
+    const {workspace, rules} = ctx.collectedInputContext
+
+    const projectRules = rules?.filter(r => r.scope === 'project')
+    if (projectRules != null && projectRules.length > 0) {
+      for (const project of workspace.projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null) continue
+        const rulesDir = path.join(projectDir.basePath, projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR)
+        for (const rule of projectRules) {
+          const result = await this.writeRuleFile(ctx, rulesDir, rule, projectDir.basePath, path.join(projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR))
+          fileResults.push(result)
+        }
+      }
+    }
+
+    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
+    fileResults.push(...ignoreResults)
     return {files: fileResults, dirs: []}
   }
 
@@ -409,6 +518,59 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'resource', path: resourcePath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
+    }
+  }
+
+  private buildRuleFileName(rule: RulePrompt): string {
+    return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.md`
+  }
+
+  private buildRuleContent(rule: RulePrompt): string {
+    const description = rule.yamlFrontMatter?.description ?? ''
+    const patterns = rule.globs.join(', ')
+    const comment = [
+      `<!-- Activation: Glob | Patterns: ${patterns} -->`,
+      `<!-- Description: ${description} -->`,
+      '<!-- Configure activation mode in Windsurf UI: Customizations > Rules -->'
+    ].join('\n')
+    return `${comment}\n\n${rule.content}`
+  }
+
+  private async writeRuleFile(
+    ctx: OutputWriteContext,
+    rulesDir: string,
+    rule: RulePrompt,
+    basePath: string,
+    relativeSubdir: string
+  ): Promise<WriteResult> {
+    const fileName = this.buildRuleFileName(rule)
+    const fullPath = path.join(rulesDir, fileName)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(relativeSubdir, fileName),
+      basePath,
+      getDirectoryName: () => WINDSURF_RULES_SUBDIR,
+      getAbsolutePath: () => fullPath
+    }
+
+    const content = this.buildRuleContent(rule)
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'ruleFile', path: fullPath})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      this.ensureDirectory(rulesDir)
+      this.writeFileSync(fullPath, content)
+      this.log.trace({action: 'write', type: 'ruleFile', path: fullPath})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: 'ruleFile', path: fullPath, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}
     }
   }

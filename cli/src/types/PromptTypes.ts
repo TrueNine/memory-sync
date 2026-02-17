@@ -1,5 +1,5 @@
 import type {Root, RootContent} from '@truenine/md-compiler'
-import type {ClaudeCodeCLISubAgentColors, CodingAgentTools, FilePathKind, NamingCaseKind, PromptKind} from '@/types/Enums'
+import type {ClaudeCodeCLISubAgentColors, CodingAgentTools, FilePathKind, NamingCaseKind, PromptKind, RuleScope} from '@/types/Enums'
 import type {FileContent, Path, RelativePath, RootPath} from '@/types/FileSystemTypes'
 import type {GlobalConfigDirectory} from '@/types/OutputTypes'
 
@@ -120,6 +120,14 @@ export interface KiroPowerYAMLFrontMatter extends SkillsYAMLFrontMatter {
   readonly displayName?: string
   readonly keywords?: readonly string[]
   readonly author?: string
+}
+
+/**
+ * Rule YAML front matter with glob patterns and scope
+ */
+export interface RuleYAMLFrontMatter extends CommonYAMLFrontMatter {
+  readonly globs: readonly string[]
+  readonly scope?: RuleScope
 }
 
 /**

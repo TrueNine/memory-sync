@@ -5,6 +5,7 @@ import type {
   Project,
   ProjectChildrenMemoryPrompt,
   RegistryOperationResult,
+  RulePrompt,
   SkillPrompt,
   SkillYAMLFrontMatter,
   WriteResult,
@@ -23,6 +24,7 @@ const KIRO_POWERS_DIR = '.kiro/powers/installed'
 const KIRO_SKILLS_DIR = '.kiro/skills'
 const POWER_FILE_NAME = 'POWER.md'
 const SKILL_FILE_NAME = 'SKILL.md'
+const RULE_FILE_PREFIX = 'rule-'
 
 export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -77,16 +79,32 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const {projects} = ctx.collectedInputContext.workspace
+    const {rules} = ctx.collectedInputContext
     const results: RelativePath[] = []
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null || project.childMemoryPrompts == null) continue
-      for (const child of project.childMemoryPrompts) {
-        results.push(this.createRelativePath(
-          this.joinPath(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR, this.buildSteeringFileName(child)),
-          project.dirFromWorkspacePath.basePath,
-          () => STEERING_SUBDIR
-        ))
+      if (project.dirFromWorkspacePath == null) continue
+
+      if (project.childMemoryPrompts != null) {
+        for (const child of project.childMemoryPrompts) {
+          results.push(this.createRelativePath(
+            this.joinPath(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR, this.buildSteeringFileName(child)),
+            project.dirFromWorkspacePath.basePath,
+            () => STEERING_SUBDIR
+          ))
+        }
+      }
+
+      const projectRules = rules?.filter(r => r.scope === 'project')
+      if (projectRules != null && projectRules.length > 0) {
+        for (const rule of projectRules) {
+          const fileName = this.buildRuleSteeringFileName(rule)
+          results.push(this.createRelativePath(
+            this.joinPath(project.dirFromWorkspacePath.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR, fileName),
+            project.dirFromWorkspacePath.basePath,
+            () => STEERING_SUBDIR
+          ))
+        }
       }
     }
 
@@ -119,7 +137,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const {globalMemory, fastCommands, skills} = ctx.collectedInputContext
+    const {globalMemory, fastCommands, skills, rules} = ctx.collectedInputContext
     const steeringDir = this.getGlobalSteeringDir()
     const results: RelativePath[] = []
 
@@ -127,6 +145,11 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (fastCommands != null) {
       for (const cmd of fastCommands) results.push(this.createRelativePath(this.buildFastCommandSteeringFileName(cmd), steeringDir, () => STEERING_SUBDIR))
+    }
+
+    const globalRules = rules?.filter(r => r.scope === 'global')
+    if (globalRules != null && globalRules.length > 0) {
+      for (const rule of globalRules) results.push(this.createRelativePath(this.buildRuleSteeringFileName(rule), steeringDir, () => STEERING_SUBDIR))
     }
 
     if (skills == null) return results
@@ -178,22 +201,32 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, fastCommands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, globalMemory, fastCommands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasChildPrompts = workspace.projects.some(p => (p.childMemoryPrompts?.length ?? 0) > 0)
+    const hasRules = (rules?.length ?? 0) > 0
     const hasKiroIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.kiroignore') ?? false
 
-    if (hasChildPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0 || hasKiroIgnore) return true
+    if (hasChildPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0 || hasRules || hasKiroIgnore) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {projects} = ctx.collectedInputContext.workspace
+    const {rules} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
 
     for (const project of projects) {
-      if (project.dirFromWorkspacePath == null || project.childMemoryPrompts == null) continue
-      for (const child of project.childMemoryPrompts) fileResults.push(await this.writeSteeringFile(ctx, project, child))
+      if (project.dirFromWorkspacePath == null) continue
+
+      if (project.childMemoryPrompts != null) {
+        for (const child of project.childMemoryPrompts) fileResults.push(await this.writeSteeringFile(ctx, project, child))
+      }
+
+      const projectRules = rules?.filter(r => r.scope === 'project')
+      if (projectRules != null && projectRules.length > 0) {
+        for (const rule of projectRules) fileResults.push(await this.writeRuleSteeringFile(ctx, project, rule))
+      }
     }
 
     const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
@@ -203,7 +236,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory, fastCommands, skills} = ctx.collectedInputContext
+    const {globalMemory, fastCommands, skills, rules} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const registryResults: RegistryOperationResult[] = []
     const steeringDir = this.getGlobalSteeringDir()
@@ -214,6 +247,16 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (fastCommands != null) {
       for (const cmd of fastCommands) fileResults.push(await this.writeFastCommandSteeringFile(ctx, cmd))
+    }
+
+    const globalRules = rules?.filter(r => r.scope === 'global')
+    if (globalRules != null && globalRules.length > 0) {
+      for (const rule of globalRules) {
+        const fileName = this.buildRuleSteeringFileName(rule)
+        const fullPath = this.joinPath(steeringDir, fileName)
+        const content = this.buildRuleSteeringContent(rule)
+        fileResults.push(await this.writeFile(ctx, fullPath, content, 'ruleSteeringFile'))
+      }
     }
 
     if (skills == null || skills.length === 0) return {files: fileResults, dirs: []}
@@ -353,6 +396,31 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
     const normalized = childPath.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '').replaceAll('/', '-')
     return `kiro-${normalized}.md`
+  }
+
+  private buildRuleSteeringFileName(rule: RulePrompt): string {
+    return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.md`
+  }
+
+  private buildRuleSteeringContent(rule: RulePrompt): string {
+    const fileMatchPattern = rule.globs.length === 1
+      ? rule.globs[0]
+      : `{${rule.globs.join(',')}}`
+
+    return this.buildMarkdownContent(rule.content, {
+      inclusion: 'fileMatch',
+      fileMatchPattern
+    })
+  }
+
+  private async writeRuleSteeringFile(ctx: OutputWriteContext, project: Project, rule: RulePrompt): Promise<WriteResult> {
+    const projectDir = project.dirFromWorkspacePath!
+    const fileName = this.buildRuleSteeringFileName(rule)
+    const targetDir = this.joinPath(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, STEERING_SUBDIR)
+    const fullPath = this.joinPath(targetDir, fileName)
+    const content = this.buildRuleSteeringContent(rule)
+
+    return this.writeFile(ctx, fullPath, content, 'ruleSteeringFile')
   }
 
   private async writeSteeringFile(ctx: OutputWriteContext, project: Project, child: ProjectChildrenMemoryPrompt): Promise<WriteResult> {

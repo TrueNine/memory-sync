@@ -4,6 +4,7 @@
   "shadowSkillSourceDir": "$SHADOW_SOURCE_PROJECT/dist/skills",
   "shadowFastCommandDir": "$SHADOW_SOURCE_PROJECT/dist/commands",
   "shadowSubAgentDir": "$SHADOW_SOURCE_PROJECT/dist/agents",
+  "shadowRulesDir": "$SHADOW_SOURCE_PROJECT/dist/rules",
   "globalMemoryFile": "$SHADOW_SOURCE_PROJECT/dist/global.mdx",
   "shadowProjectsDir": "$SHADOW_SOURCE_PROJECT/dist/app",
   "externalProjects": [],

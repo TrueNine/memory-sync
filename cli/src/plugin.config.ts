@@ -24,6 +24,7 @@ import {ProjectPromptInputPlugin} from '@/plugins/ProjectPromptInputPlugin'
 import {QoderIDEPluginOutputPlugin} from '@/plugins/QoderIDEPluginOutputPlugin'
 import {ReadmeMdConfigFileOutputPlugin} from '@/plugins/ReadmeMdConfigFileOutputPlugin'
 import {ReadmeMdInputPlugin} from '@/plugins/ReadmeMdInputPlugin'
+import {RuleInputPlugin} from '@/plugins/RuleInputPlugin'
 import {ShadowProjectInputPlugin} from '@/plugins/ShadowProjectInputPlugin'
 import {SkillInputPlugin} from '@/plugins/SkillInputPlugin'
 import {SkillNonSrcFileSyncEffectInputPlugin} from '@/plugins/SkillNonSrcFileSyncEffectInputPlugin'
@@ -68,6 +69,7 @@ export default defineConfig({
     new SkillInputPlugin(),
     new FastCommandInputPlugin(),
     new SubAgentInputPlugin(),
+    new RuleInputPlugin(),
     new GlobalMemoryInputPlugin(),
     new ProjectPromptInputPlugin(),
     new ReadmeMdInputPlugin(),
