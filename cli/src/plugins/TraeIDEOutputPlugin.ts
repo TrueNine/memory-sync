@@ -17,7 +17,7 @@ const RULES_SUBDIR = 'rules'
 
 export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('TraeIDEOutputPlugin', {globalConfigDir: GLOBAL_CONFIG_DIR, outputFileName: GLOBAL_MEMORY_FILE})
+    super('TraeIDEOutputPlugin', {globalConfigDir: GLOBAL_CONFIG_DIR, outputFileName: GLOBAL_MEMORY_FILE, indexignore: '.traeignore'})
   }
 
   private getGlobalSteeringDir(): string {
@@ -49,6 +49,8 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
         ))
       }
     }
+
+    results.push(...this.registerProjectIgnoreOutputFiles(projects))
     return results
   }
 
@@ -73,9 +75,10 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, fastCommands} = ctx.collectedInputContext
+    const {workspace, globalMemory, fastCommands, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasChildPrompts = workspace.projects.some(p => (p.childMemoryPrompts?.length ?? 0) > 0)
-    if (hasChildPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0) return true
+    const hasTraeIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.traeignore') ?? false
+    if (hasChildPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || hasTraeIgnore) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
@@ -88,6 +91,10 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       if (project.dirFromWorkspacePath == null || project.childMemoryPrompts == null) continue
       for (const child of project.childMemoryPrompts) fileResults.push(await this.writeSteeringFile(ctx, project, child))
     }
+
+    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
+    fileResults.push(...ignoreResults)
+
     return {files: fileResults, dirs: []}
   }
 

@@ -103,8 +103,8 @@ describe('warpIDEOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(1)
-      expect(results[0].path).toBe(path.join('project1', 'WARP.md'))
+      const paths = results.map(r => r.path)
+      expect(paths).toContain(path.join('project1', 'WARP.md'))
     })
 
     it('should register WARP.md for child memory prompts', async () => {
@@ -139,8 +139,8 @@ describe('warpIDEOutputPlugin', () => {
 
       const results = await plugin.registerProjectOutputFiles(ctx)
 
-      expect(results).toHaveLength(1)
-      expect(results[0].path).toBe(path.join('project1', 'src', 'WARP.md'))
+      const paths = results.map(r => r.path)
+      expect(paths).toContain(path.join('project1', 'src', 'WARP.md'))
     })
 
     it('should return empty array when no prompts exist', async () => {

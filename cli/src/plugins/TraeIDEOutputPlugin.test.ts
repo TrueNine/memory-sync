@@ -33,7 +33,7 @@ function createMockFastCommandPrompt(
 
 class TestableTraeIDEOutputPlugin extends TraeIDEOutputPlugin {
   private mockHomeDir: string | null = null
-  public capturedWriteFile: {path: string; content: string} | null = null
+  public capturedWriteFile: {path: string, content: string} | null = null
 
   public testBuildFastCommandSteeringFileName(cmd: FastCommandPrompt): string {
     return (this as any).buildFastCommandSteeringFileName(cmd)
@@ -58,7 +58,7 @@ class TestableTraeIDEOutputPlugin extends TraeIDEOutputPlugin {
   }
 }
 
-describe('TraeIDEOutputPlugin', () => {
+describe('traeIDEOutputPlugin', () => {
   describe('buildFastCommandSteeringFileName', () => {
     const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z0-9]+$/i.test(s))
@@ -102,7 +102,7 @@ describe('TraeIDEOutputPlugin', () => {
     })
   })
 
-  describe('writeSteeringFile (Child Memory Prompts)', () => {
+  describe('writeSteeringFile (child memory prompts)', () => {
     it('should write to .trae/rules with correct frontmatter', async () => {
       const plugin = new TestableTraeIDEOutputPlugin()
       const project = {
@@ -112,8 +112,8 @@ describe('TraeIDEOutputPlugin', () => {
         }
       } as any
       const child = {
-        dir: { path: 'src/components' },
-        workingChildDirectoryPath: { path: 'src/components' },
+        dir: {path: 'src/components'},
+        workingChildDirectoryPath: {path: 'src/components'},
         content: 'child content'
       } as any
       const ctx = {
@@ -124,12 +124,10 @@ describe('TraeIDEOutputPlugin', () => {
 
       expect(plugin.capturedWriteFile).not.toBeNull()
       const {path, content} = plugin.capturedWriteFile!
-      
-      // Verify path contains .trae/rules
-      expect(path.replaceAll('\\', '/')).toContain('/.trae/rules/')
-      
-      // Verify frontmatter
-      expect(content).toContain('---')
+
+      expect(path.replaceAll('\\', '/')).toContain('/.trae/rules/') // Verify path contains .trae/rules
+
+      expect(content).toContain('---') // Verify frontmatter
       expect(content).toContain('alwaysApply: false')
       expect(content).toContain('globs: src/components/**')
       expect(content).toContain('child content')

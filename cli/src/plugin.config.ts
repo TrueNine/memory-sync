@@ -1,7 +1,6 @@
 import {defineConfig} from '@/config'
 import {AgentsOutputPlugin} from '@/plugins/AgentsOutputPlugin'
 import {AIAgentIgnoreConfigFileInputPlugin} from '@/plugins/AIAgentIgnoreConfigFileInputPlugin'
-import {AIAgentIgnoreConfigFileOutputPlugin} from '@/plugins/AIAgentIgnoreConfigFileOutputPlugin'
 import {AntigravityOutputPlugin} from '@/plugins/AntigravityOutputPlugin'
 import {ClaudeCodeCLIOutputPlugin} from '@/plugins/ClaudeCodeCLIOutputPlugin'
 import {CodexCLIOutputPlugin} from '@/plugins/CodexCLIOutputPlugin'
@@ -38,7 +37,6 @@ import {WorkspaceInputPlugin} from '@/plugins/WorkspaceInputPlugin'
 export default defineConfig({
   plugins: [
     new AgentsOutputPlugin(),
-    new AIAgentIgnoreConfigFileOutputPlugin(),
     new AntigravityOutputPlugin(),
     new ClaudeCodeCLIOutputPlugin(),
     new CodexCLIOutputPlugin(),

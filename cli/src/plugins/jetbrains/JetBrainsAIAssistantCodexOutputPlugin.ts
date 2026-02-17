@@ -107,7 +107,8 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   constructor() {
     super('JetBrainsAIAssistantCodexOutputPlugin', {
       outputFileName: PROJECT_MEMORY_FILE,
-      dependsOn: ['AgentsOutputPlugin']
+      dependsOn: ['AgentsOutputPlugin'],
+      indexignore: '.aiignore'
     })
   }
 
@@ -141,6 +142,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       }
     }
 
+    results.push(...this.registerProjectIgnoreOutputFiles(projects))
     return results
   }
 
@@ -189,15 +191,16 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {globalMemory, fastCommands, skills, workspace} = ctx.collectedInputContext
+    const {globalMemory, fastCommands, skills, workspace, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasGlobalMemory = globalMemory != null
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
     const hasProjectPrompts = workspace.projects.some(
       project => project.rootMemoryPrompt != null || (project.childMemoryPrompts?.length ?? 0) > 0
     )
+    const hasAiIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.aiignore') ?? false
 
-    if (hasGlobalMemory || hasFastCommands || hasSkills || hasProjectPrompts) return true
+    if (hasGlobalMemory || hasFastCommands || hasSkills || hasProjectPrompts || hasAiIgnore) return true
 
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
@@ -227,6 +230,9 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
         }
       }
     }
+
+    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
+    fileResults.push(...ignoreResults)
 
     return {files: fileResults, dirs: dirResults}
   }

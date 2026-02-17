@@ -28,7 +28,7 @@ const RULE_GLOB_KEY = 'glob'
 
 export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('QoderIDEPluginOutputPlugin', {globalConfigDir: QODER_CONFIG_DIR})
+    super('QoderIDEPluginOutputPlugin', {globalConfigDir: QODER_CONFIG_DIR, indexignore: '.qoderignore'})
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -55,6 +55,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
         for (const child of project.childMemoryPrompts) results.push(this.createProjectRuleFilePath(projectDir, this.buildChildRuleFileName(child)))
       }
     }
+    results.push(...this.registerProjectIgnoreOutputFiles(projects))
     return results
   }
 
@@ -137,11 +138,12 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, fastCommands, skills} = ctx.collectedInputContext
+    const {workspace, globalMemory, fastCommands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasProjectPrompts = workspace.projects.some(
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
     )
-    if (hasProjectPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0) return true
+    const hasQoderIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.qoderignore') ?? false
+    if (hasProjectPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0 || hasQoderIgnore) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
@@ -173,6 +175,8 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
         }
       }
     }
+    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
+    fileResults.push(...ignoreResults)
     return {files: fileResults, dirs: []}
   }
 

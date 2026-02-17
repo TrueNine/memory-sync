@@ -31,7 +31,8 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     super('WindsurfOutputPlugin', {
       globalConfigDir: CODEIUM_WINDSURF_DIR,
       outputFileName: '',
-      dependsOn: ['AgentsOutputPlugin']
+      dependsOn: ['AgentsOutputPlugin'],
+      indexignore: '.codeignore'
     })
   }
 
@@ -131,12 +132,13 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {skills, fastCommands, globalMemory} = ctx.collectedInputContext
+    const {skills, fastCommands, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasSkills = (skills?.length ?? 0) > 0
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasGlobalMemory = globalMemory != null
+    const hasCodeIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.codeignore') ?? false
 
-    if (hasSkills || hasFastCommands || hasGlobalMemory) return true
+    if (hasSkills || hasFastCommands || hasGlobalMemory || hasCodeIgnore) return true
 
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
@@ -170,8 +172,9 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: dirResults}
   }
 
-  async writeProjectOutputs(): Promise<WriteResults> {
-    return {files: [], dirs: []}
+  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+    const fileResults = await this.writeProjectIgnoreFiles(ctx)
+    return {files: fileResults, dirs: []}
   }
 
   private getSkillsDir(): string {

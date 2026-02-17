@@ -44,7 +44,8 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     super('CursorOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: '',
-      dependsOn: ['AgentsOutputPlugin']
+      dependsOn: ['AgentsOutputPlugin'],
+      indexignore: '.cursorignore'
     })
 
     this.registerCleanEffect('mcp-config-cleanup', async ctx => {
@@ -216,18 +217,20 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       if (projectDir == null) continue
       results.push(this.createProjectRuleFileRelativePath(projectDir, GLOBAL_RULE_FILE))
     }
+    results.push(...this.registerProjectIgnoreOutputFiles(workspace.projects))
     return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, skills, fastCommands, globalMemory} = ctx.collectedInputContext
+    const {workspace, skills, fastCommands, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasSkills = (skills?.length ?? 0) > 0
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasGlobalRuleOutput
       = globalMemory != null
         && workspace.projects.some(p => p.dirFromWorkspacePath != null)
+    const hasCursorIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.cursorignore') ?? false
 
-    if (hasSkills || hasFastCommands || hasGlobalRuleOutput) return true
+    if (hasSkills || hasFastCommands || hasGlobalRuleOutput || hasCursorIgnore) return true
 
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
@@ -266,15 +269,19 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
     const {workspace, globalMemory} = ctx.collectedInputContext
-    if (globalMemory == null) return {files: fileResults, dirs: dirResults}
-
-    const content = this.buildGlobalRuleContent(globalMemory.content as string)
-    for (const project of workspace.projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-      const result = await this.writeProjectGlobalRule(ctx, project, content)
-      fileResults.push(result)
+    if (globalMemory != null) {
+      const content = this.buildGlobalRuleContent(globalMemory.content as string)
+      for (const project of workspace.projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null) continue
+        const result = await this.writeProjectGlobalRule(ctx, project, content)
+        fileResults.push(result)
+      }
     }
+
+    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
+    fileResults.push(...ignoreResults)
+
     return {files: fileResults, dirs: dirResults}
   }
 

@@ -26,7 +26,7 @@ const SKILL_FILE_NAME = 'SKILL.md'
 
 export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('KiroCLIOutputPlugin', {globalConfigDir: GLOBAL_CONFIG_DIR, outputFileName: GLOBAL_MEMORY_FILE})
+    super('KiroCLIOutputPlugin', {globalConfigDir: GLOBAL_CONFIG_DIR, outputFileName: GLOBAL_MEMORY_FILE, indexignore: '.kiroignore'})
 
     this.registerCleanEffect('registry-cleanup', async ctx => {
       const writer = this.getRegistryWriter(KiroPowersRegistryWriter)
@@ -89,6 +89,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         ))
       }
     }
+
+    results.push(...this.registerProjectIgnoreOutputFiles(projects))
     return results
   }
 
@@ -176,9 +178,11 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, fastCommands, skills} = ctx.collectedInputContext
+    const {workspace, globalMemory, fastCommands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasChildPrompts = workspace.projects.some(p => (p.childMemoryPrompts?.length ?? 0) > 0)
-    if (hasChildPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0) return true
+    const hasKiroIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.kiroignore') ?? false
+
+    if (hasChildPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0 || hasKiroIgnore) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
@@ -191,6 +195,10 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       if (project.dirFromWorkspacePath == null || project.childMemoryPrompts == null) continue
       for (const child of project.childMemoryPrompts) fileResults.push(await this.writeSteeringFile(ctx, project, child))
     }
+
+    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
+    fileResults.push(...ignoreResults)
+
     return {files: fileResults, dirs: []}
   }
 

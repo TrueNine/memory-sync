@@ -11,7 +11,7 @@ const PROJECT_MEMORY_FILE = 'WARP.md'
 
 export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('WarpIDEOutputPlugin', {outputFileName: PROJECT_MEMORY_FILE})
+    super('WarpIDEOutputPlugin', {outputFileName: PROJECT_MEMORY_FILE, indexignore: '.warpindexignore'})
   }
 
   private isAgentsPluginRegistered(ctx: OutputPluginContext | OutputWriteContext): boolean {
@@ -40,12 +40,13 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
+    results.push(...this.registerProjectIgnoreOutputFiles(projects))
     return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const agentsRegistered = this.isAgentsPluginRegistered(ctx)
-    const {workspace, globalMemory} = ctx.collectedInputContext
+    const {workspace, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
 
     if (agentsRegistered) {
       if (globalMemory == null) { // When AgentsOutputPlugin is registered, only write if we have global memory
@@ -59,7 +60,9 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
     )
 
-    if (hasProjectOutputs) return true
+    const hasWarpIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.warpindexignore') ?? false
+
+    if (hasProjectOutputs || hasWarpIgnore) return true
 
     this.log.debug('skipped', {reason: 'no outputs to write'})
     return false
@@ -73,21 +76,24 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     const dirResults: WriteResult[] = []
 
     if (agentsRegistered) {
-      if (globalMemory == null) return {files: [], dirs: []} // When AgentsOutputPlugin is registered, write global prompt to each project's WARP.md
+      if (globalMemory != null) {
+        for (const project of projects) {
+          const projectDir = project.dirFromWorkspacePath
+          if (projectDir == null) continue
 
-      for (const project of projects) {
-        const projectDir = project.dirFromWorkspacePath
-        if (projectDir == null) continue
-
-        const projectName = project.name ?? 'unknown'
-        const result = await this.writePromptFile(ctx, projectDir, globalMemory.content as string, `project:${projectName}/global-warp`)
-        fileResults.push(result)
+          const projectName = project.name ?? 'unknown'
+          const result = await this.writePromptFile(ctx, projectDir, globalMemory.content as string, `project:${projectName}/global-warp`)
+          fileResults.push(result)
+        }
       }
+
+      const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
+      fileResults.push(...ignoreResults)
 
       return {files: fileResults, dirs: dirResults}
     }
 
-    const globalMemoryContent = this.extractGlobalMemoryContent(ctx) // AgentsOutputPlugin which outputs AGENTS.md files that Warp reads directly. // When users need child-level prompts with global context, they should use // as Warp supports AGENTS.md natively for hierarchical prompt inheritance. // Note: Child memory prompts are written without global memory prefix, // Normal mode: write combined content
+    const globalMemoryContent = this.extractGlobalMemoryContent(ctx) // Normal mode: write combined content
 
     for (const project of projects) {
       const projectName = project.name ?? 'unknown'
@@ -96,7 +102,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
       if (projectDir == null) continue
 
       if (project.rootMemoryPrompt != null) { // Write root memory prompt (only if exists)
-        const combinedContent = this.combineGlobalWithContent( // Combine global memory with root memory prompt using helper method
+        const combinedContent = this.combineGlobalWithContent(
           globalMemoryContent,
           project.rootMemoryPrompt.content as string
         )
@@ -112,6 +118,9 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
         }
       }
     }
+
+    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
+    fileResults.push(...ignoreResults)
 
     return {files: fileResults, dirs: dirResults}
   }
