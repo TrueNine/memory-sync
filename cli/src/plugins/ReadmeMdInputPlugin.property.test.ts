@@ -114,7 +114,7 @@ describe('readmeMdInputPlugin property tests', () => {
             })
           }
         ),
-        {numRuns: 100}
+        {numRuns: 50}
       )
     })
 

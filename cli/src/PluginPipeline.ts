@@ -647,6 +647,11 @@ export class PluginPipeline {
         ? [...base.skills ?? [], ...addition.skills]
         : base.skills
 
+    const rules: CollectedInputContext['rules'] | undefined
+      = addition.rules != null
+        ? [...base.rules ?? [], ...addition.rules]
+        : base.rules
+
     const aiAgentIgnoreConfigFiles: CollectedInputContext['aiAgentIgnoreConfigFiles'] | undefined
       = addition.aiAgentIgnoreConfigFiles != null
         ? [...base.aiAgentIgnoreConfigFiles ?? [], ...addition.aiAgentIgnoreConfigFiles]
@@ -675,6 +680,7 @@ export class PluginPipeline {
       ...fastCommands != null ? {fastCommands} : {},
       ...subAgents != null ? {subAgents} : {},
       ...skills != null ? {skills} : {},
+      ...rules != null ? {rules} : {},
       ...aiAgentIgnoreConfigFiles != null ? {aiAgentIgnoreConfigFiles} : {},
       ...globalMemory != null ? {globalMemory} : {},
       ...shadowSourceProjectDir != null ? {shadowSourceProjectDir} : {},

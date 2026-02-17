@@ -1,4 +1,12 @@
-import type {FastCommandPrompt, OutputWriteContext, PluginOptions, RelativePath} from '../types'
+import type {
+  AIAgentIgnoreConfigFile,
+  FastCommandPrompt,
+  OutputWriteContext,
+  PluginOptions,
+  Project,
+  RelativePath,
+  WriteResult
+} from '../types'
 import type {FastCommandNameTransformOptions} from './AbstractOutputPlugin'
 
 import * as fc from 'fast-check'
@@ -39,6 +47,14 @@ class TestOutputPlugin extends AbstractOutputPlugin { // Create a concrete test 
     additionalOptions?: FastCommandNameTransformOptions
   ) {
     return this.getTransformOptionsFromContext(ctx, additionalOptions)
+  }
+
+  public async testWriteProjectIgnoreFiles(ctx: OutputWriteContext): Promise<WriteResult[]> {
+    return this.writeProjectIgnoreFiles(ctx)
+  }
+
+  public testRegisterProjectIgnoreOutputFiles(projects: readonly Project[]): RelativePath[] {
+    return this.registerProjectIgnoreOutputFiles(projects)
   }
 }
 
@@ -514,6 +530,188 @@ describe('abstractOutputPlugin', () => {
 
       expect(result.includeSeriesPrefix).toBe(true) // includeSeriesPrefix should fall back to global
       expect(result.seriesSeparator).toBe('-')
+    })
+  })
+
+  describe('indexignore helpers', () => {
+    function createIgnoreContext(
+      ignoreFileName: string | undefined,
+      projects: readonly Project[]
+    ): OutputWriteContext {
+      const collectedInputContext: any = {
+        workspace: {
+          directory: createMockRelativePath('.', '/test'),
+          projects
+        },
+        ideConfigFiles: [],
+        aiAgentIgnoreConfigFiles: ignoreFileName == null
+          ? []
+          : [{fileName: ignoreFileName, content: 'ignore patterns'}]
+      }
+
+      return {
+        collectedInputContext,
+        dryRun: true
+      } as unknown as OutputWriteContext
+    }
+
+    it('registerProjectIgnoreOutputFiles should return empty array when no indexignore is configured', () => {
+      const plugin = new TestOutputPlugin()
+      const projects: Project[] = [
+        {
+          name: 'p1',
+          dirFromWorkspacePath: createMockRelativePath('project1', '/ws')
+        } as any
+      ]
+
+      const results = plugin.testRegisterProjectIgnoreOutputFiles(projects)
+      expect(results).toHaveLength(0)
+    })
+
+    it('registerProjectIgnoreOutputFiles should register ignore file paths for each non-prompt project', () => {
+      const plugin = new TestOutputPlugin('IgnoreTestPlugin')
+      ;(plugin as any).indexignore = '.cursorignore'
+
+      const projects: Project[] = [
+        {
+          name: 'regular',
+          dirFromWorkspacePath: createMockRelativePath('project1', '/ws')
+        } as any,
+        {
+          name: 'prompt-src',
+          isPromptSourceProject: true,
+          dirFromWorkspacePath: createMockRelativePath('prompt-src', '/ws')
+        } as any
+      ]
+
+      const results = plugin.testRegisterProjectIgnoreOutputFiles(projects)
+      const paths = results.map(r => r.path.replaceAll('\\', '/'))
+      expect(paths).toEqual(['project1/.cursorignore'])
+    })
+
+    it('writeProjectIgnoreFiles should write matching ignore file in dry-run mode', async () => {
+      const plugin = new TestOutputPlugin('IgnoreTestPlugin')
+      ;(plugin as any).indexignore = '.cursorignore'
+
+      const projects: Project[] = [
+        {
+          name: 'regular',
+          dirFromWorkspacePath: createMockRelativePath('project1', '/ws')
+        } as any
+      ]
+
+      const ctx = createIgnoreContext('.cursorignore', projects)
+      const results = await plugin.testWriteProjectIgnoreFiles(ctx)
+
+      expect(results).toHaveLength(1)
+      const first = results[0]!
+      expect(first.success).toBe(true)
+      expect(first.skipped).toBe(false)
+      expect(first.path.path.replaceAll('\\', '/')).toBe('project1/.cursorignore')
+    })
+
+    it('writeProjectIgnoreFiles should skip when no matching ignore file exists', async () => {
+      const plugin = new TestOutputPlugin('IgnoreTestPlugin')
+      ;(plugin as any).indexignore = '.cursorignore'
+
+      const projects: Project[] = [
+        {
+          name: 'regular',
+          dirFromWorkspacePath: createMockRelativePath('project1', '/ws')
+        } as any
+      ]
+
+      const ctx = createIgnoreContext('.otherignore', projects)
+      const results = await plugin.testWriteProjectIgnoreFiles(ctx)
+
+      expect(results).toHaveLength(0)
+    })
+
+    it('registerProjectIgnoreOutputFiles should never create entries for projects without dirFromWorkspacePath', () => {
+      fc.assert(
+        fc.property(
+          fc.array(fc.boolean(), {minLength: 0, maxLength: 5}),
+          flags => {
+            const plugin = new TestOutputPlugin('IgnoreTestPlugin')
+            ;(plugin as any).indexignore = '.cursorignore'
+
+            const projects: Project[] = flags.map((hasDir, idx) => {
+              if (!hasDir) {
+                return {
+                  name: `p${idx}`
+                } as Project
+              }
+              return {
+                name: `p${idx}`,
+                dirFromWorkspacePath: createMockRelativePath(`project${idx}`, '/ws')
+              } as Project
+            })
+
+            const results = plugin.testRegisterProjectIgnoreOutputFiles(projects)
+            const maxExpected = projects.filter(
+              p => p.dirFromWorkspacePath != null && p.isPromptSourceProject !== true
+            ).length
+
+            expect(results.length).toBeLessThanOrEqual(maxExpected)
+            for (const r of results) expect(r.path.endsWith('.cursorignore')).toBe(true)
+          }
+        ),
+        {numRuns: 50}
+      )
+    })
+
+    it('writeProjectIgnoreFiles should either write for all eligible projects or none, depending on presence of matching ignore file', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.array(fc.boolean(), {minLength: 0, maxLength: 5}),
+          fc.boolean(),
+          async (hasDirFlags, includeMatchingIgnore) => {
+            const plugin = new TestOutputPlugin('IgnoreTestPlugin')
+            ;(plugin as any).indexignore = '.cursorignore'
+
+            const projects: Project[] = hasDirFlags.map((hasDir, idx) => {
+              if (!hasDir) {
+                return {
+                  name: `p${idx}`
+                } as Project
+              }
+
+              const isPromptSourceProject = idx % 2 === 1
+              return {
+                name: `p${idx}`,
+                dirFromWorkspacePath: createMockRelativePath(`project${idx}`, '/ws'),
+                isPromptSourceProject
+              } as Project
+            })
+
+            const ignoreFiles: AIAgentIgnoreConfigFile[] = includeMatchingIgnore
+              ? [{fileName: '.cursorignore', content: 'patterns'}]
+              : [{fileName: '.otherignore', content: 'other'}]
+
+            const ctx: OutputWriteContext = {
+              collectedInputContext: {
+                workspace: {
+                  directory: createMockRelativePath('.', '/ws'),
+                  projects
+                },
+                ideConfigFiles: [],
+                aiAgentIgnoreConfigFiles: ignoreFiles
+              } as any,
+              dryRun: true
+            } as any
+
+            const results = await plugin.testWriteProjectIgnoreFiles(ctx)
+
+            const eligibleCount = projects.filter(
+              p => p.dirFromWorkspacePath != null && p.isPromptSourceProject !== true
+            ).length
+
+            if (!includeMatchingIgnore || eligibleCount === 0) expect(results.length).toBe(0)
+            else expect(results.length).toBe(eligibleCount)
+          }
+        ),
+        {numRuns: 50}
+      )
     })
   })
 })

@@ -3,6 +3,7 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   Project,
+  RulePrompt,
   SkillPrompt,
   WriteResult,
   WriteResults
@@ -22,6 +23,7 @@ const RULES_SUBDIR = 'rules'
 const GLOBAL_RULE_FILE = 'global.mdc'
 const SKILLS_CURSOR_SUBDIR = 'skills-cursor'
 const SKILL_FILE_NAME = 'SKILL.md'
+const RULE_FILE_PREFIX = 'rule-'
 
 const PRESERVED_SKILLS = new Set<string>([
   'create-rule',
@@ -44,7 +46,8 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     super('CursorOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: '',
-      dependsOn: ['AgentsOutputPlugin']
+      dependsOn: ['AgentsOutputPlugin'],
+      indexignore: '.cursorignore'
     })
 
     this.registerCleanEffect('mcp-config-cleanup', async ctx => {
@@ -74,7 +77,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const globalDir = this.getGlobalConfigDir()
-    const {fastCommands, skills} = ctx.collectedInputContext
+    const {fastCommands, skills, rules} = ctx.collectedInputContext
 
     if (fastCommands != null && fastCommands.length > 0) {
       const commandsDir = this.getGlobalCommandsDir()
@@ -103,6 +106,17 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
+    const globalRules = rules?.filter(r => r.scope === 'global')
+    if (globalRules == null || globalRules.length === 0) return results
+
+    const globalRulesDir = path.join(globalDir, RULES_SUBDIR)
+    results.push({
+      pathKind: FilePathKind.Relative,
+      path: RULES_SUBDIR,
+      basePath: globalDir,
+      getDirectoryName: () => RULES_SUBDIR,
+      getAbsolutePath: () => globalRulesDir
+    })
     return results
   }
 
@@ -134,6 +148,22 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
           path: path.join(COMMANDS_SUBDIR, fileName),
           basePath: globalDir,
           getDirectoryName: () => COMMANDS_SUBDIR,
+          getAbsolutePath: () => fullPath
+        })
+      }
+    }
+
+    const globalRules = ctx.collectedInputContext.rules?.filter(r => r.scope === 'global')
+    if (globalRules != null && globalRules.length > 0) {
+      const globalRulesDir = path.join(globalDir, RULES_SUBDIR)
+      for (const rule of globalRules) {
+        const fileName = this.buildRuleFileName(rule)
+        const fullPath = path.join(globalRulesDir, fileName)
+        results.push({
+          pathKind: FilePathKind.Relative,
+          path: path.join(RULES_SUBDIR, fileName),
+          basePath: globalDir,
+          getDirectoryName: () => RULES_SUBDIR,
           getAbsolutePath: () => fullPath
         })
       }
@@ -195,8 +225,10 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const {workspace, globalMemory} = ctx.collectedInputContext
-    if (globalMemory == null) return results
+    const {workspace, globalMemory, rules} = ctx.collectedInputContext
+    const hasProjectRules = rules?.some(r => r.scope === 'project') ?? false
+
+    if (globalMemory == null && !hasProjectRules) return results
 
     for (const project of workspace.projects) {
       const projectDir = project.dirFromWorkspacePath
@@ -208,33 +240,53 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const {workspace, globalMemory} = ctx.collectedInputContext
-    if (globalMemory == null) return results
+    const {workspace, globalMemory, rules} = ctx.collectedInputContext
+    const projectRules = rules?.filter(r => r.scope === 'project')
+    const hasProjectRules = projectRules != null && projectRules.length > 0
 
-    for (const project of workspace.projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-      results.push(this.createProjectRuleFileRelativePath(projectDir, GLOBAL_RULE_FILE))
+    if (globalMemory == null && !hasProjectRules) return results
+
+    if (globalMemory != null) {
+      for (const project of workspace.projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null) continue
+        results.push(this.createProjectRuleFileRelativePath(projectDir, GLOBAL_RULE_FILE))
+      }
     }
+
+    if (hasProjectRules) {
+      for (const project of workspace.projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null) continue
+        for (const rule of projectRules) {
+          const fileName = this.buildRuleFileName(rule)
+          results.push(this.createProjectRuleFileRelativePath(projectDir, fileName))
+        }
+      }
+    }
+
+    results.push(...this.registerProjectIgnoreOutputFiles(workspace.projects))
     return results
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, skills, fastCommands, globalMemory} = ctx.collectedInputContext
+    const {workspace, skills, fastCommands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasSkills = (skills?.length ?? 0) > 0
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
+    const hasRules = (rules?.length ?? 0) > 0
     const hasGlobalRuleOutput
       = globalMemory != null
         && workspace.projects.some(p => p.dirFromWorkspacePath != null)
+    const hasCursorIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.cursorignore') ?? false
 
-    if (hasSkills || hasFastCommands || hasGlobalRuleOutput) return true
+    if (hasSkills || hasFastCommands || hasGlobalRuleOutput || hasRules || hasCursorIgnore) return true
 
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {skills, fastCommands} = ctx.collectedInputContext
+    const {skills, fastCommands, rules} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
@@ -252,29 +304,56 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (fastCommands == null || fastCommands.length === 0) return {files: fileResults, dirs: dirResults}
-
-    const commandsDir = this.getGlobalCommandsDir()
-    for (const cmd of fastCommands) {
-      const result = await this.writeGlobalFastCommand(ctx, commandsDir, cmd)
-      fileResults.push(result)
+    if (fastCommands != null && fastCommands.length > 0) {
+      const commandsDir = this.getGlobalCommandsDir()
+      for (const cmd of fastCommands) {
+        const result = await this.writeGlobalFastCommand(ctx, commandsDir, cmd)
+        fileResults.push(result)
+      }
     }
+
+    const globalRules = rules?.filter(r => r.scope === 'global')
+    if (globalRules != null && globalRules.length > 0) {
+      const globalRulesDir = path.join(this.getGlobalConfigDir(), RULES_SUBDIR)
+      for (const rule of globalRules) {
+        const result = await this.writeRuleMdcFile(ctx, globalRulesDir, rule, this.getGlobalConfigDir())
+        fileResults.push(result)
+      }
+    }
+
     return {files: fileResults, dirs: dirResults}
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
-    const {workspace, globalMemory} = ctx.collectedInputContext
-    if (globalMemory == null) return {files: fileResults, dirs: dirResults}
-
-    const content = this.buildGlobalRuleContent(globalMemory.content as string)
-    for (const project of workspace.projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-      const result = await this.writeProjectGlobalRule(ctx, project, content)
-      fileResults.push(result)
+    const {workspace, globalMemory, rules} = ctx.collectedInputContext
+    if (globalMemory != null) {
+      const content = this.buildGlobalRuleContent(globalMemory.content as string)
+      for (const project of workspace.projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null) continue
+        const result = await this.writeProjectGlobalRule(ctx, project, content)
+        fileResults.push(result)
+      }
     }
+
+    const projectRules = rules?.filter(r => r.scope === 'project')
+    if (projectRules != null && projectRules.length > 0) {
+      for (const project of workspace.projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null) continue
+        const rulesDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR)
+        for (const rule of projectRules) {
+          const result = await this.writeRuleMdcFile(ctx, rulesDir, rule, projectDir.basePath)
+          fileResults.push(result)
+        }
+      }
+    }
+
+    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
+    fileResults.push(...ignoreResults)
+
     return {files: fileResults, dirs: dirResults}
   }
 
@@ -652,6 +731,57 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
       this.log.error({action: 'write', type: 'resource', path: resourcePath, error: errMsg})
+      return {path: relativePath, success: false, error: error as Error}
+    }
+  }
+
+  private buildRuleFileName(rule: RulePrompt): string {
+    return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.mdc`
+  }
+
+  private buildRuleMdcContent(rule: RulePrompt): string {
+    const description = rule.yamlFrontMatter?.description ?? ''
+    const fmData: Record<string, unknown> = {
+      description,
+      globs: [...rule.globs],
+      alwaysApply: false
+    }
+    return buildMarkdownWithFrontMatter(fmData, rule.content)
+  }
+
+  private async writeRuleMdcFile(
+    ctx: OutputWriteContext,
+    rulesDir: string,
+    rule: RulePrompt,
+    basePath: string
+  ): Promise<WriteResult> {
+    const fileName = this.buildRuleFileName(rule)
+    const fullPath = path.join(rulesDir, fileName)
+
+    const relativePath: RelativePath = {
+      pathKind: FilePathKind.Relative,
+      path: path.join(GLOBAL_CONFIG_DIR, RULES_SUBDIR, fileName),
+      basePath,
+      getDirectoryName: () => RULES_SUBDIR,
+      getAbsolutePath: () => fullPath
+    }
+
+    const content = this.buildRuleMdcContent(rule)
+
+    if (ctx.dryRun === true) {
+      this.log.trace({action: 'dryRun', type: 'ruleFile', path: fullPath})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try {
+      this.ensureDirectory(rulesDir)
+      this.writeFileSync(fullPath, content)
+      this.log.trace({action: 'write', type: 'ruleFile', path: fullPath})
+      return {path: relativePath, success: true}
+    }
+    catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.log.error({action: 'write', type: 'ruleFile', path: fullPath, error: errMsg})
       return {path: relativePath, success: false, error: error as Error}
     }
   }

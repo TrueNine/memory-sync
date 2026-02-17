@@ -100,17 +100,17 @@ function findGitModuleInfoDirs(dotGitDir: string): string[] {
     if (hasInfo) results.push(path.join(dir, 'info'))
 
     const nestedModules = entries.find(e => e.name === 'modules' && e.isDirectory()) // Recurse into nested modules/
-    if (nestedModules != null) {
-      let subEntries: fs.Dirent[]
-      try {
-        const raw = fs.readdirSync(path.join(dir, 'modules'), {withFileTypes: true})
-        if (!Array.isArray(raw)) return
-        subEntries = raw
-      }
-      catch { return }
-      for (const sub of subEntries) {
-        if (sub.isDirectory()) walk(path.join(dir, 'modules', sub.name))
-      }
+    if (nestedModules == null) return
+
+    let subEntries: fs.Dirent[]
+    try {
+      const raw = fs.readdirSync(path.join(dir, 'modules'), {withFileTypes: true})
+      if (!Array.isArray(raw)) return
+      subEntries = raw
+    }
+    catch { return }
+    for (const sub of subEntries) {
+      if (sub.isDirectory()) walk(path.join(dir, 'modules', sub.name))
     }
   }
 

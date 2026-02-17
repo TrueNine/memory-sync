@@ -237,7 +237,9 @@ describe('genericSkillsOutputPlugin', () => {
       const results = await plugin.registerGlobalOutputDirs(ctx)
 
       expect(results).toHaveLength(1)
-      expect(results[0]?.path).toBe(path.join('.aindex', '.skills'))
+      const pathValue = results[0]?.path.replaceAll('\\', '/')
+      const expected = path.join('.aindex', '.skills').replaceAll('\\', '/')
+      expect(pathValue).toBe(expected)
       expect(results[0]?.basePath).toBe(mockHomeDir)
     })
 

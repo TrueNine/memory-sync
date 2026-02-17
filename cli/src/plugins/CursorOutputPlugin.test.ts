@@ -595,9 +595,14 @@ describe('cursor output plugin', () => {
       } as unknown as OutputPluginContext
 
       const files = await plugin.registerProjectOutputFiles(ctx)
-      expect(files.length).toBe(1)
-      expect(files[0].path).toBe(path.join('project-a', '.cursor', 'rules', 'global.mdc'))
-      expect(files[0].getAbsolutePath()).toBe(path.join(tempDir, 'project-a', '.cursor', 'rules', 'global.mdc'))
+      const paths = files.map(f => f.path.replaceAll('\\', '/'))
+
+      expect(paths).toContain(path.join('project-a', '.cursor', 'rules', 'global.mdc').replaceAll('\\', '/'))
+
+      const globalEntry = files.find(f => f.path.replaceAll('\\', '/') === 'project-a/.cursor/rules/global.mdc')
+      expect(globalEntry?.getAbsolutePath().replaceAll('\\', '/')).toBe(
+        path.join(tempDir, 'project-a', '.cursor', 'rules', 'global.mdc').replaceAll('\\', '/')
+      )
     })
 
     it('should not register project rules when globalMemory is null', async () => {

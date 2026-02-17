@@ -3,13 +3,15 @@ import type {
   FilePathKind,
   GlobalMemoryPrompt,
   IDEKind,
-  PromptKind
+  PromptKind,
+  RuleScope
 } from '@/types/index'
 import type {
   FastCommandYAMLFrontMatter,
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
   Prompt,
+  RuleYAMLFrontMatter,
   SkillYAMLFrontMatter,
   SubAgentYAMLFrontMatter
 } from '@/types/PromptTypes'
@@ -52,12 +54,25 @@ export interface CollectedInputContext {
   readonly fastCommands?: readonly FastCommandPrompt[]
   readonly subAgents?: readonly SubAgentPrompt[]
   readonly skills?: readonly SkillPrompt[]
+  readonly rules?: readonly RulePrompt[]
   readonly globalMemory?: GlobalMemoryPrompt
   readonly aiAgentIgnoreConfigFiles?: readonly AIAgentIgnoreConfigFile[]
   readonly globalGitIgnore?: string
   readonly shadowGitExclude?: string
   readonly shadowSourceProjectDir?: string
   readonly readmePrompts?: readonly ReadmePrompt[]
+}
+
+/**
+ * Rule prompt with glob patterns for file-scoped rule application
+ */
+export interface RulePrompt extends Prompt<PromptKind.Rule, RuleYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
+  readonly type: PromptKind.Rule
+  readonly series: string
+  readonly ruleName: string
+  readonly globs: readonly string[]
+  readonly scope: RuleScope
+  readonly rawMdxContent?: string
 }
 
 /**

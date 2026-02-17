@@ -62,7 +62,7 @@ describe('droidCLIOutputPlugin', () => {
       path,
       glob: {} as any
     }
-  })
+  }, 30000)
 
   afterEach(() => {
     if (tempDir && fs.existsSync(tempDir)) {

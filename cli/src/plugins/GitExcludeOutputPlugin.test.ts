@@ -55,7 +55,8 @@ describe('gitExcludeOutputPlugin', () => {
 
     expect(result.files.length).toBeGreaterThanOrEqual(1)
     expect(spy).toHaveBeenCalled()
-    const writtenContent = spy.mock.calls[0][1] as string
+    const firstCall = spy.mock.calls[0]
+    const writtenContent = (firstCall?.[1] ?? '') as string
     expect(writtenContent).toBe('dist/\n')
   })
 
@@ -107,7 +108,8 @@ describe('gitExcludeOutputPlugin', () => {
     const spy = vi.mocked(fs.writeFileSync)
     await plugin.writeProjectOutputs(ctx)
 
-    const writtenContent = spy.mock.calls[0][1] as string
+    const firstCall = spy.mock.calls[0]
+    const writtenContent = (firstCall?.[1] ?? '') as string
     expect(writtenContent).toContain('node_modules/')
     expect(writtenContent).toContain('.idea/')
     expect(writtenContent).toContain('*.log')
@@ -143,7 +145,8 @@ describe('gitExcludeOutputPlugin', () => {
     const spy = vi.mocked(fs.writeFileSync)
     await plugin.writeProjectOutputs(ctx)
 
-    const writtenContent = spy.mock.calls[0][1] as string
+    const firstCall = spy.mock.calls[0]
+    const writtenContent = (firstCall?.[1] ?? '') as string
     expect(writtenContent).toBe('new-content/\n')
   })
 
@@ -177,7 +180,8 @@ describe('gitExcludeOutputPlugin', () => {
     const spy = vi.mocked(fs.writeFileSync)
     await plugin.writeProjectOutputs(ctx)
 
-    const writtenContent = spy.mock.calls[0][1] as string
+    const firstCall = spy.mock.calls[0]
+    const writtenContent = (firstCall?.[1] ?? '') as string
     expect(writtenContent).toContain('.cache/')
   })
 
@@ -201,35 +205,27 @@ describe('gitExcludeOutputPlugin', () => {
             }
           ]
         }
-      },
-      logger: createLogger('test', 'debug'),
-      dryRun: false
+      }
     } as any
 
     vi.mocked(fs.existsSync).mockImplementation((p: any) => {
-      const s = String(p)
+      const s = String(p).replaceAll('\\', '/')
       return s === '/ws/submod/.git' || s === '/ws/.git'
     })
     vi.mocked(fs.lstatSync).mockImplementation((p: any) => {
-      const s = String(p)
+      const s = String(p).replaceAll('\\', '/')
       if (s === '/ws/submod/.git') return fileStat // submodule: .git is a file
       return dirStat // workspace root: .git is a directory
     })
     vi.mocked(fs.readFileSync).mockImplementation((p: any) => {
-      if (String(p) === '/ws/submod/.git') return 'gitdir: ../.git/modules/submod'
+      const s = String(p).replaceAll('\\', '/')
+      if (s === '/ws/submod/.git') return 'gitdir: ../.git/modules/submod'
       return ''
     })
     vi.mocked(fs.readdirSync).mockReturnValue([] as any)
-    vi.mocked(fs.writeFileSync).mockImplementation(() => {})
-    vi.mocked(fs.mkdirSync).mockImplementation(() => '')
-
-    const spy = vi.mocked(fs.writeFileSync)
-    const result = await plugin.writeProjectOutputs(ctx)
-
-    expect(result.files.length).toBeGreaterThanOrEqual(1)
-    expect(spy).toHaveBeenCalled()
-    const writtenPath = String(spy.mock.calls[0][0])
-    expect(writtenPath).toContain('.git/modules/submod/info/exclude') // Should write to resolved gitdir path
+    const results = await plugin.registerProjectOutputFiles(ctx)
+    const absPaths = results.map(r => r.getAbsolutePath().replaceAll('\\', '/'))
+    expect(absPaths).toContainEqual(expect.stringContaining('.git/modules/submod/info/exclude'))
   })
 
   it('should write to .git/modules/*/info/exclude directly', async () => {
@@ -242,9 +238,7 @@ describe('gitExcludeOutputPlugin', () => {
           directory: {path: '/ws'},
           projects: []
         }
-      },
-      logger: createLogger('test', 'debug'),
-      dryRun: false
+      }
     } as any
 
     const infoDirent = {name: 'info', isDirectory: () => true, isFile: () => false} as any
@@ -252,26 +246,20 @@ describe('gitExcludeOutputPlugin', () => {
     const modBDirent = {name: 'modB', isDirectory: () => true, isFile: () => false} as any
 
     vi.mocked(fs.existsSync).mockImplementation((p: any) => {
-      const s = String(p)
+      const s = String(p).replaceAll('\\', '/')
       return s === '/ws/.git' || s === '/ws/.git/modules'
     })
     vi.mocked(fs.lstatSync).mockReturnValue(dirStat)
     vi.mocked(fs.readdirSync).mockImplementation((p: any) => {
-      const s = String(p)
+      const s = String(p).replaceAll('\\', '/')
       if (s === '/ws/.git/modules') return [modADirent, modBDirent] as any
       if (s === '/ws/.git/modules/modA') return [infoDirent] as any
       if (s === '/ws/.git/modules/modB') return [infoDirent] as any
       return [] as any
     })
-    vi.mocked(fs.writeFileSync).mockImplementation(() => {})
-    vi.mocked(fs.mkdirSync).mockImplementation(() => '')
-
-    const spy = vi.mocked(fs.writeFileSync)
-    const result = await plugin.writeProjectOutputs(ctx)
-
-    const writtenPaths = spy.mock.calls.map(c => String(c[0]))
-    expect(writtenPaths).toContainEqual(expect.stringContaining('.git/modules/modA/info/exclude'))
-    expect(writtenPaths).toContainEqual(expect.stringContaining('.git/modules/modB/info/exclude'))
-    expect(result.files.length).toBeGreaterThanOrEqual(2)
+    const results = await plugin.registerProjectOutputFiles(ctx)
+    const absPaths = results.map(r => r.getAbsolutePath().replaceAll('\\', '/'))
+    expect(absPaths).toContain('/ws/.git/modules/modA/info/exclude')
+    expect(absPaths).toContain('/ws/.git/modules/modB/info/exclude')
   })
 })

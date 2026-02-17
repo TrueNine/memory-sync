@@ -13,8 +13,14 @@ export enum PromptKind {
   SkillChildDoc = 'SkillChildDoc',
   SkillResource = 'SkillResource',
   SkillMcpConfig = 'SkillMcpConfig',
-  Readme = 'Readme'
+  Readme = 'Readme',
+  Rule = 'Rule'
 }
+
+/**
+ * Scope for rule application
+ */
+export type RuleScope = 'project' | 'global'
 
 export enum ClaudeCodeCLISubAgentColors {
   Red = 'Red',

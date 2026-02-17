@@ -6,7 +6,7 @@
  * @module ExportMetadataTypes
  */
 
-import type {CodingAgentTools, NamingCaseKind} from './Enums'
+import type {CodingAgentTools, NamingCaseKind, RuleScope} from './Enums'
 
 /**
  * Base export metadata interface
@@ -32,6 +32,12 @@ export interface FastCommandExportMetadata extends BaseExportMetadata {
   readonly argumentHint?: string
   readonly allowTools?: readonly (CodingAgentTools | string)[]
   readonly globalOnly?: boolean
+}
+
+export interface RuleExportMetadata extends BaseExportMetadata {
+  readonly globs: readonly string[]
+  readonly description: string
+  readonly scope?: RuleScope
 }
 
 export interface SubAgentExportMetadata extends BaseExportMetadata {
@@ -153,6 +159,34 @@ export function validateSubAgentMetadata(
     optionalDefaults: {},
     filePath
   })
+}
+
+/**
+ * Validate rule export metadata
+ *
+ * @param metadata - The metadata object to validate
+ * @param filePath - Optional file path for error messages
+ * @returns Validation result
+ */
+export function validateRuleMetadata(
+  metadata: Record<string, unknown>,
+  filePath?: string
+): MetadataValidationResult {
+  const errors: string[] = []
+  const warnings: string[] = []
+  const prefix = filePath != null ? ` in ${filePath}` : ''
+
+  if (!Array.isArray(metadata['globs']) || metadata['globs'].length === 0) errors.push(`Missing or empty required field "globs"${prefix}`)
+  else if (!metadata['globs'].every((g: unknown) => typeof g === 'string')) errors.push(`Field "globs" must be an array of strings${prefix}`)
+
+  if (typeof metadata['description'] !== 'string' || metadata['description'].length === 0) errors.push(`Missing or empty required field "description"${prefix}`)
+
+  const {scope} = metadata
+  if (scope != null && scope !== 'project' && scope !== 'global') errors.push(`Field "scope" must be "project" or "global"${prefix}`)
+
+  if (scope == null) warnings.push(`Using default value for optional field "scope": "project"${prefix}`)
+
+  return {valid: errors.length === 0, errors, warnings}
 }
 
 /**

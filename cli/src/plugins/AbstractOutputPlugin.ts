@@ -9,6 +9,7 @@ import type {
   OutputCleanContext,
   OutputPlugin,
   OutputWriteContext,
+  Project,
   RegistryOperationResult,
   WriteEffectHandler,
   WriteResult,
@@ -54,6 +55,8 @@ export interface AbstractOutputPluginOptions {
   outputFileName?: string
 
   dependsOn?: readonly string[]
+
+  indexignore?: string
 }
 
 /**
@@ -72,6 +75,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   protected readonly outputFileName: string
 
+  protected readonly indexignore: string | undefined
+
   private readonly registryWriterCache: Map<string, RegistryWriter<unknown>> = new Map()
 
   private readonly writeEffects: EffectRegistration<WriteEffectHandler>[] = []
@@ -82,6 +87,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     super(name, PluginKind.Output, options?.dependsOn)
     this.globalConfigDir = options?.globalConfigDir ?? ''
     this.outputFileName = options?.outputFileName ?? ''
+    this.indexignore = options?.indexignore
   }
 
   protected registerWriteEffect(name: string, handler: WriteEffectHandler): void {
@@ -276,6 +282,90 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   protected readdirSync(dir: string, options?: {withFileTypes?: boolean}): fs.Dirent[] | string[] {
     if (options?.withFileTypes === true) return fs.readdirSync(dir, {withFileTypes: true})
     return fs.readdirSync(dir)
+  }
+
+  protected getIgnoreOutputPath(): string | undefined {
+    if (this.indexignore == null) return void 0
+    if (this.indexignore === '.traeignore') return path.join('.trae', '.ignore')
+    return this.indexignore
+  }
+
+  protected registerProjectIgnoreOutputFiles(projects: readonly Project[]): RelativePath[] {
+    const outputPath = this.getIgnoreOutputPath()
+    if (outputPath == null) return []
+
+    const results: RelativePath[] = []
+
+    for (const project of projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) continue
+      if (project.isPromptSourceProject === true) continue
+
+      const filePath = path.join(projectDir.path, outputPath)
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: filePath,
+        basePath: projectDir.basePath,
+        getDirectoryName: () => path.basename(projectDir.path),
+        getAbsolutePath: () => path.join(projectDir.basePath, filePath)
+      })
+    }
+
+    return results
+  }
+
+  protected async writeProjectIgnoreFiles(ctx: OutputWriteContext): Promise<WriteResult[]> {
+    const outputPath = this.getIgnoreOutputPath()
+    if (outputPath == null) return []
+
+    const {workspace, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const results: WriteResult[] = []
+
+    if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) return results
+
+    const ignoreFile = aiAgentIgnoreConfigFiles.find(file => file.fileName === this.indexignore)
+    if (ignoreFile == null) return results
+
+    for (const project of workspace.projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) continue
+      if (project.isPromptSourceProject === true) continue
+
+      const label = `project:${project.name ?? 'unknown'}/${ignoreFile.fileName}`
+      const filePath = path.join(projectDir.path, outputPath)
+      const fullPath = path.join(projectDir.basePath, filePath)
+
+      const relativePath: RelativePath = {
+        pathKind: FilePathKind.Relative,
+        path: filePath,
+        basePath: projectDir.basePath,
+        getDirectoryName: () => path.basename(projectDir.path),
+        getAbsolutePath: () => fullPath
+      }
+
+      if (ctx.dryRun === true) {
+        this.log.trace({action: 'dryRun', type: 'ignoreFile', path: fullPath, label})
+        results.push({path: relativePath, success: true, skipped: false})
+        continue
+      }
+
+      try {
+        if (outputPath === path.join('.trae', '.ignore')) {
+          const traeDir = path.join(projectDir.basePath, projectDir.path, '.trae')
+          fs.mkdirSync(traeDir, {recursive: true})
+        }
+        fs.writeFileSync(fullPath, ignoreFile.content, 'utf8')
+        this.log.trace({action: 'write', type: 'ignoreFile', path: fullPath, label})
+        results.push({path: relativePath, success: true})
+      }
+      catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error)
+        this.log.error({action: 'write', type: 'ignoreFile', path: fullPath, label, error: errMsg})
+        results.push({path: relativePath, success: false, error: error as Error})
+      }
+    }
+
+    return results
   }
 
   protected async writeFile(

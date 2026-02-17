@@ -8,6 +8,7 @@ import {BaseCLIOutputPlugin} from './BaseCLIOutputPlugin'
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.config/opencode'
 const OPENCODE_CONFIG_FILE = 'opencode.json'
+const OPENCODE_RULES_PLUGIN_NAME = 'opencode-rules@latest'
 
 /**
  * Opencode CLI output plugin.
@@ -50,6 +51,14 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
           const existingContent = fs.readFileSync(configPath, 'utf8')
           const existingConfig = JSON.parse(existingContent) as Record<string, unknown>
           existingConfig['mcp'] = {}
+
+          const pluginField = existingConfig['plugin']
+          if (Array.isArray(pluginField)) {
+            const filtered = pluginField.filter(item => item !== OPENCODE_RULES_PLUGIN_NAME)
+            if (filtered.length > 0) existingConfig['plugin'] = filtered
+            else delete existingConfig['plugin']
+          }
+
           fs.writeFileSync(configPath, JSON.stringify(existingConfig, null, 2))
         }
         this.log.trace({action: 'clean', type: 'mcpConfigCleanup', path: configPath})
@@ -158,6 +167,11 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
 
     existingConfig['$schema'] = 'https://opencode.ai/config.json'
     existingConfig['mcp'] = mergedMcpServers
+
+    const pluginField = existingConfig['plugin']
+    const plugins: string[] = Array.isArray(pluginField) ? pluginField.map(item => String(item)) : []
+    if (!plugins.includes(OPENCODE_RULES_PLUGIN_NAME)) plugins.push(OPENCODE_RULES_PLUGIN_NAME)
+    existingConfig['plugin'] = plugins
 
     const content = JSON.stringify(existingConfig, null, 2)
 

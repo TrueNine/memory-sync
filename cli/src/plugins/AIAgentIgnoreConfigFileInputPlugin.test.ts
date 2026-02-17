@@ -56,7 +56,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
         const fileName = path.basename(String(filePath))
-        return ['.qoderignore', '.cursorignore', '.warpindexignore', '.aiignore', '.codeignore'].includes(fileName)
+        return ['.qoderignore', '.cursorignore', '.warpindexignore', '.aiignore', '.codeignore', '.traeignore'].includes(fileName)
       })
 
       vi.mocked(fs.statSync).mockReturnValue({
@@ -71,13 +71,14 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
         if (fileName === '.warpindexignore') return 'warp ignore content'
         if (fileName === '.aiignore') return 'ai ignore content'
         if (fileName === '.codeignore') return 'windsurf code ignore content'
+        if (fileName === '.traeignore') return 'trae ignore content'
         return ''
       })
 
       const result = plugin.collect(ctx)
 
       expect(result.aiAgentIgnoreConfigFiles).toBeDefined()
-      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(5)
+      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(6)
       expect(result.aiAgentIgnoreConfigFiles).toContainEqual({
         fileName: '.qoderignore',
         content: 'qoder ignore content'
@@ -97,6 +98,10 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       expect(result.aiAgentIgnoreConfigFiles).toContainEqual({
         fileName: '.codeignore',
         content: 'windsurf code ignore content'
+      })
+      expect(result.aiAgentIgnoreConfigFiles).toContainEqual({
+        fileName: '.traeignore',
+        content: 'trae ignore content'
       })
     })
 
@@ -151,13 +156,14 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       const result = plugin.collect(ctx)
 
-      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(5)
+      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(6)
       expect(result.aiAgentIgnoreConfigFiles?.map(f => f.fileName)).toEqual([
         '.cursorignore',
         '.kiroignore',
         '.warpindexignore',
         '.aiignore',
-        '.codeignore'
+        '.codeignore',
+        '.traeignore'
       ])
     })
 
@@ -179,13 +185,14 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       const result = plugin.collect(ctx)
 
-      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(5)
+      expect(result.aiAgentIgnoreConfigFiles).toHaveLength(6)
       expect(result.aiAgentIgnoreConfigFiles?.map(f => f.fileName)).toEqual([
         '.qoderignore',
         '.kiroignore',
         '.warpindexignore',
         '.aiignore',
-        '.codeignore'
+        '.codeignore',
+        '.traeignore'
       ])
       expect(ctx.logger.warn).toHaveBeenCalled()
     })
@@ -204,7 +211,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       plugin.collect(ctx)
 
-      expect(ctx.logger.debug).toHaveBeenCalledTimes(6)
+      expect(ctx.logger.debug).toHaveBeenCalledTimes(7)
     })
 
     it('should support custom shadowSourceProjectDir', () => {

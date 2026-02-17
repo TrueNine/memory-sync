@@ -384,6 +384,8 @@ export interface PluginOptions {
 
   readonly shadowSubAgentDir?: string
 
+  readonly shadowRulesDir?: string
+
   readonly globalMemoryFile?: string
 
   readonly shadowProjectsDir?: string
