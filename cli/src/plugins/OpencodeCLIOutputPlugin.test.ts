@@ -429,6 +429,137 @@ describe('opencodeCLIOutputPlugin', () => {
       expect(content.mcp['remote-server'].url).toBe('https://example.com/mcp')
       expect(content.mcp['remote-server'].enabled).toBe(true)
     })
+
+    it('should add opencode-rules@latest to plugin array when writing mcp config', async () => {
+      const mockSkill: SkillPrompt = {
+        type: PromptKind.Skill,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-skill', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'test-skill', description: 'desc'},
+        mcpConfig: {
+          type: PromptKind.SkillMcpConfig,
+          rawContent: '{}',
+          mcpServers: {
+            'local-server': {
+              command: 'node'
+            }
+          }
+        }
+      }
+
+      const ctxWithSkill = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          skills: [mockSkill]
+        }
+      }
+
+      await plugin.writeGlobalOutputs(ctxWithSkill)
+
+      const configPath = path.join(tempDir, '.config/opencode/opencode.json')
+      const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Record<string, unknown>
+      expect(Array.isArray(content.plugin)).toBe(true)
+      expect((content.plugin as unknown[])).toContain('opencode-rules@latest')
+    })
+
+    it('should preserve existing plugins and append opencode-rules@latest only once', async () => {
+      const opencodeDir = path.join(tempDir, '.config/opencode')
+      fs.mkdirSync(opencodeDir, {recursive: true})
+      const configPath = path.join(opencodeDir, 'opencode.json')
+      fs.writeFileSync(
+        configPath,
+        JSON.stringify({plugin: ['existing-plugin', 'opencode-rules@latest']}, null, 2),
+        'utf8'
+      )
+
+      const mockSkill: SkillPrompt = {
+        type: PromptKind.Skill,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-skill', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'test-skill', description: 'desc'},
+        mcpConfig: {
+          type: PromptKind.SkillMcpConfig,
+          rawContent: '{}',
+          mcpServers: {
+            'local-server': {
+              command: 'node'
+            }
+          }
+        }
+      }
+
+      const ctxWithSkill = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          skills: [mockSkill]
+        }
+      }
+
+      await plugin.writeGlobalOutputs(ctxWithSkill)
+
+      const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Record<string, unknown>
+      expect(content.plugin).toEqual(['existing-plugin', 'opencode-rules@latest'])
+    })
+  })
+
+  describe('clean effect', () => {
+    it('should remove opencode-rules@latest from plugin array on clean', async () => {
+      const opencodeDir = path.join(tempDir, '.config/opencode')
+      fs.mkdirSync(opencodeDir, {recursive: true})
+      const configPath = path.join(opencodeDir, 'opencode.json')
+      fs.writeFileSync(
+        configPath,
+        JSON.stringify({mcp: {some: {command: 'npx'}}, plugin: ['a', 'opencode-rules@latest', 'b']}, null, 2),
+        'utf8'
+      )
+
+      const ctx = {
+        collectedInputContext: {
+          workspace: {projects: [], directory: createMockRelativePath('.', tempDir)}
+        },
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()},
+        dryRun: false
+      } as any
+
+      await plugin.onCleanComplete(ctx)
+
+      const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Record<string, unknown>
+      expect(content.mcp).toEqual({})
+      expect(content.plugin).toEqual(['a', 'b'])
+    })
+
+    it('should delete plugin field when opencode-rules@latest is the only plugin on clean', async () => {
+      const opencodeDir = path.join(tempDir, '.config/opencode')
+      fs.mkdirSync(opencodeDir, {recursive: true})
+      const configPath = path.join(opencodeDir, 'opencode.json')
+      fs.writeFileSync(
+        configPath,
+        JSON.stringify({mcp: {some: {command: 'npx'}}, plugin: ['opencode-rules@latest']}, null, 2),
+        'utf8'
+      )
+
+      const ctx = {
+        collectedInputContext: {
+          workspace: {projects: [], directory: createMockRelativePath('.', tempDir)}
+        },
+        logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()},
+        dryRun: false
+      } as any
+
+      await plugin.onCleanComplete(ctx)
+
+      const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Record<string, unknown>
+      expect(content.mcp).toEqual({})
+      expect(content.plugin).toBeUndefined()
+    })
   })
 
   describe('writeGlobalOutputs sub-agent mdx regression', () => {
