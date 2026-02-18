@@ -1,0 +1,61 @@
+export const metadata = {
+  title: 'memory-sync 文档'
+};
+
+<div className="prose">
+  <span className="badge">
+    <span className="badge-dot" />
+    Next.js 16 · React 19 · MDX 文档站
+  </span>
+
+  <div className="hero-card" style={{ marginTop: '0.85rem' }}>
+    <h1 className="hero-title">memory-sync 文档中心</h1>
+    <div className="hero-subtitle">
+      为多 AI 工具统一配置规则集（Global Memory / Skills / Fast
+      Commands / 子代理等），一次编写，多端复用。
+    </div>
+
+    <div className="hero-actions">
+      <a href="#getting-started" className="button-primary">
+        开始使用（Getting Started）
+      </a>
+      <a
+        href="https://github.com/truenine/memory-sync"
+        target="_blank"
+        rel="noreferrer"
+        className="button-ghost"
+      >
+        在 GitHub 查看源码
+      </a>
+    </div>
+  </div>
+
+  <h2 id="getting-started">快速上手</h2>
+  <div>
+    这里将会是你未来写「正式文档」的位置：安装、初始化、配置、与 Cursor / Claude / Gemini /
+    Warp 等工具联动的完整流程。
+  </div>
+  <ul>
+    <li>安装 CLI：使用 pnpm / npm / npx 安装并运行 <code>tnmsc</code></li>
+    <li>初始化规则仓库：生成示例 Global Memory / Skills / Fast Commands</li>
+    <li>与编辑器配置联动：Cursor / VS Code / JetBrains 等</li>
+  </ul>
+
+  <div>
+    你可以把现有的 <code>tnmsc.example.json</code>、<code>global.cn.mdx</code>{' '}
+    等内容按模块拆分成多篇文档，放在 <code>app</code>{' '}
+    目录中对应的路由（例如 <code>/getting-started</code>、<code>/cli</code>, <code>/gui</code>）。
+  </div>
+
+  <div className="card" style={{ marginTop: '1.5rem' }}>
+    <h3>部署到 Vercel</h3>
+    <div>
+      在 Vercel 上新建项目时，把根目录设置为 <code>doc</code>，构建命令使用 <code>pnpm build</code>{' '}
+      或 <code>npm run build</code>，输出目录保持 Next.js 默认。
+    </div>
+    <div>
+      通过 Preview 部署可以先给少量真实用户访问文档，确认结构和内容后再切换到 Production。
+    </div>
+  </div>
+</div>
+
