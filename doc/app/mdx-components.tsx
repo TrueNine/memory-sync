@@ -1,6 +1,7 @@
-import type { MDXComponents } from '@mdx-js/react';
 import { Callout } from './components/Callout';
 import { Steps, Step } from './components/Steps';
+
+type MDXComponents = Record<string, any>;
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
