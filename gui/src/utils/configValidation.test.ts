@@ -43,28 +43,28 @@ describe('validateConfig — root-level guard', () => {
   })
 })
 
-// ─── string fields ─────────────────────────────────────────────────────
-describe('validateConfig — string fields', () => {
-  const stringFields = [
-    'workspaceDir',
-    'shadowSourceProjectDir',
-    'shadowSkillSourceDir',
-    'shadowFastCommandDir',
-    'shadowSubAgentDir',
-    'globalMemoryFile',
-    'shadowProjectsDir',
-  ] as const
+// ─── workspaceDir ──────────────────────────────────────────────────────
+describe('validateConfig — workspaceDir', () => {
+  it('accepts a valid string', () => {
+    expect(validateConfig({ workspaceDir: '/some/path' })).toHaveLength(0)
+  })
 
-  for (const field of stringFields) {
-    it(`accepts valid string for ${field}`, () => {
-      expect(validateConfig({ [field]: '/some/path' })).toHaveLength(0)
-    })
+  it('rejects non-string', () => {
+    const errors = validateConfig({ workspaceDir: 123 })
+    expect(errorFields(errors)).toContain('workspaceDir')
+  })
+})
 
-    it(`rejects non-string for ${field}`, () => {
-      const errors = validateConfig({ [field]: 123 })
-      expect(errorFields(errors)).toContain(field)
-    })
-  }
+// ─── version ───────────────────────────────────────────────────────────
+describe('validateConfig — version', () => {
+  it('accepts a valid string', () => {
+    expect(validateConfig({ version: '2026.10218.0' })).toHaveLength(0)
+  })
+
+  it('rejects non-string', () => {
+    const errors = validateConfig({ version: 42 })
+    expect(errorFields(errors)).toContain('version')
+  })
 })
 
 // ─── logLevel ──────────────────────────────────────────────────────────
@@ -86,60 +86,60 @@ describe('validateConfig — logLevel', () => {
   })
 })
 
-// ─── externalProjects ──────────────────────────────────────────────────
-describe('validateConfig — externalProjects', () => {
-  it('accepts a string array', () => {
-    expect(validateConfig({ externalProjects: ['/a', '/b'] })).toHaveLength(0)
+// ─── shadowSourceProject ───────────────────────────────────────────────
+describe('validateConfig — shadowSourceProject', () => {
+  const validSsp = {
+    name: 'aindex',
+    skill: { src: 'src/skills', dist: 'dist/skills' },
+    fastCommand: { src: 'src/commands', dist: 'dist/commands' },
+    subAgent: { src: 'src/agents', dist: 'dist/agents' },
+    rule: { src: 'src/rules', dist: 'dist/rules' },
+    globalMemory: { src: 'app/global.cn.mdx', dist: 'dist/global.mdx' },
+    workspaceMemory: { src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx' },
+    project: { src: 'app', dist: 'dist/app' },
+  }
+
+  it('accepts a fully valid shadowSourceProject', () => {
+    expect(validateConfig({ shadowSourceProject: validSsp })).toHaveLength(0)
   })
 
-  it('accepts an empty array', () => {
-    expect(validateConfig({ externalProjects: [] })).toHaveLength(0)
-  })
-
-  it('rejects non-array', () => {
-    const errors = validateConfig({ externalProjects: 'oops' })
-    expect(errorFields(errors)).toContain('externalProjects')
-  })
-
-  it('rejects array with non-string items', () => {
-    const errors = validateConfig({ externalProjects: ['/a', 42] })
-    expect(errorFields(errors)).toContain('externalProjects')
-  })
-})
-
-// ─── excludePatterns ───────────────────────────────────────────────────
-describe('validateConfig — excludePatterns', () => {
-  it('accepts valid object with string arrays', () => {
-    expect(validateConfig({ excludePatterns: { foo: ['a', 'b'], bar: ['c'] } })).toHaveLength(0)
-  })
-
-  it('accepts empty object', () => {
-    expect(validateConfig({ excludePatterns: {} })).toHaveLength(0)
+  it('accepts partial shadowSourceProject with only name', () => {
+    expect(validateConfig({ shadowSourceProject: { name: 'myproject' } })).toHaveLength(0)
   })
 
   it('rejects non-object', () => {
-    const errors = validateConfig({ excludePatterns: 'bad' })
-    expect(errorFields(errors)).toContain('excludePatterns')
+    const errors = validateConfig({ shadowSourceProject: 'invalid' })
+    expect(errorFields(errors)).toContain('shadowSourceProject')
   })
 
   it('rejects array', () => {
-    const errors = validateConfig({ excludePatterns: ['a'] })
-    expect(errorFields(errors)).toContain('excludePatterns')
+    const errors = validateConfig({ shadowSourceProject: ['a'] })
+    expect(errorFields(errors)).toContain('shadowSourceProject')
   })
 
-  it('rejects null', () => {
-    const errors = validateConfig({ excludePatterns: null })
-    expect(errorFields(errors)).toContain('excludePatterns')
+  it('rejects non-string name', () => {
+    const errors = validateConfig({ shadowSourceProject: { name: 123 } })
+    expect(errorFields(errors)).toContain('shadowSourceProject.name')
   })
 
-  it('rejects nested non-string-array values', () => {
-    const errors = validateConfig({ excludePatterns: { ok: ['a'], bad: 42 } })
-    expect(errorFields(errors)).toContain('excludePatterns.bad')
+  it('rejects invalid dir pair (non-object)', () => {
+    const errors = validateConfig({ shadowSourceProject: { name: 'x', skill: 'bad' } })
+    expect(errorFields(errors)).toContain('shadowSourceProject.skill')
   })
 
-  it('rejects nested arrays with non-string items', () => {
-    const errors = validateConfig({ excludePatterns: { x: [1, 2] } })
-    expect(errorFields(errors)).toContain('excludePatterns.x')
+  it('rejects dir pair missing src', () => {
+    const errors = validateConfig({ shadowSourceProject: { name: 'x', skill: { dist: 'dist/skills' } } })
+    expect(errorFields(errors)).toContain('shadowSourceProject.skill.src')
+  })
+
+  it('rejects dir pair missing dist', () => {
+    const errors = validateConfig({ shadowSourceProject: { name: 'x', skill: { src: 'src/skills' } } })
+    expect(errorFields(errors)).toContain('shadowSourceProject.skill.dist')
+  })
+
+  it('rejects dir pair with non-string src', () => {
+    const errors = validateConfig({ shadowSourceProject: { name: 'x', skill: { src: 123, dist: 'dist/skills' } } })
+    expect(errorFields(errors)).toContain('shadowSourceProject.skill.src')
   })
 })
 
@@ -235,17 +235,35 @@ describe('validateConfig — unknown fields', () => {
     const errors = validateConfig({ logLevel: 'info', workspaceDir: '/a' })
     expect(warningFields(errors)).toHaveLength(0)
   })
+
+  it('warns on removed externalProjects field', () => {
+    const errors = validateConfig({ externalProjects: ['/path'] })
+    expect(warningFields(errors)).toContain('externalProjects')
+  })
+
+  it('warns on removed excludePatterns field', () => {
+    const errors = validateConfig({ excludePatterns: {} })
+    expect(warningFields(errors)).toContain('excludePatterns')
+  })
 })
 
 // ─── combined / realistic configs ──────────────────────────────────────
 describe('validateConfig — realistic configs', () => {
   it('validates a fully valid config', () => {
     const config = {
+      version: '2026.10218.0',
       workspaceDir: '/workspace',
-      shadowSourceProjectDir: '/shadow',
+      shadowSourceProject: {
+        name: 'aindex',
+        skill: { src: 'src/skills', dist: 'dist/skills' },
+        fastCommand: { src: 'src/commands', dist: 'dist/commands' },
+        subAgent: { src: 'src/agents', dist: 'dist/agents' },
+        rule: { src: 'src/rules', dist: 'dist/rules' },
+        globalMemory: { src: 'app/global.cn.mdx', dist: 'dist/global.mdx' },
+        workspaceMemory: { src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx' },
+        project: { src: 'app', dist: 'dist/app' },
+      },
       logLevel: 'debug',
-      externalProjects: ['/ext1', '/ext2'],
-      excludePatterns: { node_modules: ['**/*'] },
       profile: { name: 'test' },
       tool: { editor: 'vscode' },
     }
@@ -256,15 +274,13 @@ describe('validateConfig — realistic configs', () => {
     const config = {
       workspaceDir: 123,
       logLevel: 'invalid',
-      externalProjects: 'not-array',
-      excludePatterns: null,
+      shadowSourceProject: 'not-object',
     }
     const errors = validateConfig(config)
     const fields = errorFields(errors)
     expect(fields).toContain('workspaceDir')
     expect(fields).toContain('logLevel')
-    expect(fields).toContain('externalProjects')
-    expect(fields).toContain('excludePatterns')
+    expect(fields).toContain('shadowSourceProject')
   })
 
   it('mixes errors and warnings', () => {

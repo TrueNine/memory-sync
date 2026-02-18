@@ -46,12 +46,19 @@ CLEAN OPTIONS:
 
 CONFIG OPTIONS:
   key=value          Set a configuration value in global config (~/.aindex/.tnmsc.json)
-  Valid keys: workspaceDir, shadowSourceProjectDir, shadowSkillSourceDir,
-              shadowFastCommandDir, shadowSubAgentDir, globalMemoryFile,
-              shadowProjectsDir, logLevel
+  Valid keys: workspaceDir, logLevel,
+              shadowSourceProject.name,
+              shadowSourceProject.skill.src, shadowSourceProject.skill.dist,
+              shadowSourceProject.fastCommand.src, shadowSourceProject.fastCommand.dist,
+              shadowSourceProject.subAgent.src, shadowSourceProject.subAgent.dist,
+              shadowSourceProject.rule.src, shadowSourceProject.rule.dist,
+              shadowSourceProject.globalMemory.src, shadowSourceProject.globalMemory.dist,
+              shadowSourceProject.workspaceMemory.src, shadowSourceProject.workspaceMemory.dist,
+              shadowSourceProject.project.src, shadowSourceProject.project.dist
 
   Examples:
     ${CLI_NAME} config workspaceDir=~/my-project
+    ${CLI_NAME} config shadowSourceProject.name=aindex
     ${CLI_NAME} config logLevel=debug
 
 CONFIGURATION:

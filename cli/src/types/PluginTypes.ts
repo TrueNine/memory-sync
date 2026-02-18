@@ -1,7 +1,7 @@
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {ILogger} from '@/log'
 import type {ScopeRegistry} from '@/scope/ScopeRegistry'
-import type {FastCommandSeriesOptions} from '@/types/ConfigTypes'
+import type {FastCommandSeriesOptions, ShadowSourceProjectConfig} from '@/types/ConfigTypes'
 import type {PluginKind} from '@/types/Enums'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import type {
@@ -365,34 +365,16 @@ export async function executeWriteOutputs(
 /**
  * Configuration to be processed by plugin.config.ts
  * Interpreted by plugin system as collection context
- * Plugin path automatically resolves the following placeholders to special symbols
- * - `$WORKSPACE`: Working directory
- * - `$SHADOW_SOURCE_PROJECT`: Extracted source prompt working directory (a special project for git storage and separate prompt management)
- * - `~`: User home directory
+ * Path placeholder `~` resolves to the user home directory.
  *
  * @see CollectedInputContext - Collected context
- * @see PathPlaceholders - Path placeholders
  */
 export interface PluginOptions {
+  readonly version?: string
+
   readonly workspaceDir?: string
 
-  readonly shadowSourceProjectDir?: string
-
-  readonly shadowSkillSourceDir?: string
-
-  readonly shadowFastCommandDir?: string
-
-  readonly shadowSubAgentDir?: string
-
-  readonly shadowRulesDir?: string
-
-  readonly globalMemoryFile?: string
-
-  readonly shadowProjectsDir?: string
-
-  readonly externalProjects?: readonly string[]
-
-  readonly excludePatterns?: Record<string, string[]>
+  readonly shadowSourceProject?: ShadowSourceProjectConfig
 
   readonly fastCommandSeriesOptions?: FastCommandSeriesOptions
 

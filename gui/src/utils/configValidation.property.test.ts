@@ -21,12 +21,7 @@ const VALID_LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'] as const
  */
 const STRING_FIELDS = [
   'workspaceDir',
-  'shadowSourceProjectDir',
-  'shadowSkillSourceDir',
-  'shadowFastCommandDir',
-  'shadowSubAgentDir',
-  'globalMemoryFile',
-  'shadowProjectsDir',
+  'version',
 ] as const
 
 const OBJECT_FIELDS = ['profile', 'tool', 'fastCommandSeriesOptions'] as const
@@ -84,37 +79,14 @@ const arbInvalidLogLevel: fc.Arbitrary<unknown> = fc.oneof(
 )
 
 /**
- * Arbitrary for an invalid externalProjects value — anything that is
- * not an array of strings.
+ * Arbitrary for an invalid shadowSourceProject value — anything that is not a valid object.
  */
-const arbInvalidExternalProjects: fc.Arbitrary<unknown> = fc.oneof(
-  // Not an array at all
-  fc.string(),
-  fc.integer(),
-  fc.boolean(),
-  fc.constant(null),
-  fc.dictionary(fc.string(), fc.anything()),
-  // Array containing non-strings (at least one non-string element)
-  fc.tuple(fc.array(fc.string()), arbNonString).map(([arr, nonStr]) => [...arr, nonStr]),
-)
-
-/**
- * Arbitrary for an invalid excludePatterns value — anything that is
- * not an object with string-array values.
- */
-const arbInvalidExcludePatterns: fc.Arbitrary<unknown> = fc.oneof(
-  // Not an object at all
+const arbInvalidShadowSourceProject: fc.Arbitrary<unknown> = fc.oneof(
   fc.string(),
   fc.integer(),
   fc.boolean(),
   fc.constant(null),
   fc.array(fc.anything()),
-  // Object with at least one non-string-array value
-  fc.dictionary(
-    fc.string({ minLength: 1, maxLength: 10 }),
-    fc.oneof(fc.integer(), fc.string(), fc.boolean(), fc.constant(null)),
-    { minKeys: 1, maxKeys: 3 },
-  ),
 )
 
 // ── Tests ──────────────────────────────────────────────────────────────
@@ -183,34 +155,16 @@ describe('Property 3: 无效配置产生错误', () => {
   /**
    * **Validates: Requirements 3.4**
    *
-   * For any invalid externalProjects value, validateConfig should
-   * return at least one error for the externalProjects field.
+   * For any invalid shadowSourceProject value (non-object), validateConfig should
+   * return at least one error for the shadowSourceProject field.
    */
-  it('invalid externalProjects values produce errors', () => {
+  it('invalid shadowSourceProject values produce errors', () => {
     fc.assert(
-      fc.property(arbInvalidExternalProjects, (badValue) => {
-        const config = { externalProjects: badValue }
+      fc.property(arbInvalidShadowSourceProject, (badValue) => {
+        const config = { shadowSourceProject: badValue }
         const errors = validateConfig(config)
-        const epErrors = errors.filter((e) => e.field === 'externalProjects' && e.severity === 'error')
-        expect(epErrors.length).toBeGreaterThan(0)
-      }),
-      { numRuns: 200 },
-    )
-  })
-
-  /**
-   * **Validates: Requirements 3.4**
-   *
-   * For any invalid excludePatterns value, validateConfig should
-   * return at least one error mentioning excludePatterns.
-   */
-  it('invalid excludePatterns values produce errors', () => {
-    fc.assert(
-      fc.property(arbInvalidExcludePatterns, (badValue) => {
-        const config = { excludePatterns: badValue }
-        const errors = validateConfig(config)
-        const epErrors = errors.filter((e) => e.field.startsWith('excludePatterns') && e.severity === 'error')
-        expect(epErrors.length).toBeGreaterThan(0)
+        const sspErrors = errors.filter((e) => e.field.startsWith('shadowSourceProject') && e.severity === 'error')
+        expect(sspErrors.length).toBeGreaterThan(0)
       }),
       { numRuns: 200 },
     )

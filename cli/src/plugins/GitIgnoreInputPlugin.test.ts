@@ -7,6 +7,21 @@ import {GitIgnoreInputPlugin} from './GitIgnoreInputPlugin'
 
 vi.mock('node:fs')
 
+const BASE_OPTIONS = {
+  workspaceDir: '/workspace',
+  shadowSourceProject: {
+    name: 'tnmsc-shadow',
+    skill: {src: 'src/skills', dist: 'dist/skills'},
+    fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+    subAgent: {src: 'src/agents', dist: 'dist/agents'},
+    rule: {src: 'src/rules', dist: 'dist/rules'},
+    globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+    workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+    project: {src: 'app', dist: 'dist/app'}
+  },
+  logLevel: 'debug'
+}
+
 describe('gitIgnoreInputPlugin', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -15,16 +30,7 @@ describe('gitIgnoreInputPlugin', () => {
     const ctx = {
       logger: createLogger('test', 'debug'),
       fs,
-      userConfigOptions: {
-        workspaceDir: '/workspace',
-        shadowSourceProjectDir: '/workspace',
-        shadowSkillSourceDir: '/workspace/.skills',
-        shadowFastCommandDir: '/workspace/.claude/commands',
-        shadowSubAgentDir: '/workspace/.claude/agents',
-        globalMemoryFile: '/workspace/GLOBAL.md',
-        shadowProjectsDir: '/workspace',
-        logLevel: 'debug'
-      }
+      userConfigOptions: BASE_OPTIONS
     } as unknown as InputPluginContext
 
     vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -43,16 +49,7 @@ describe('gitIgnoreInputPlugin', () => {
     const ctx = {
       logger: createLogger('test', 'debug'),
       fs,
-      userConfigOptions: {
-        workspaceDir: '/workspace',
-        shadowSourceProjectDir: '/workspace',
-        shadowSkillSourceDir: '/workspace/.skills',
-        shadowFastCommandDir: '/workspace/.claude/commands',
-        shadowSubAgentDir: '/workspace/.claude/agents',
-        globalMemoryFile: '/workspace/GLOBAL.md',
-        shadowProjectsDir: '/workspace',
-        logLevel: 'debug'
-      }
+      userConfigOptions: BASE_OPTIONS
     } as unknown as InputPluginContext
 
     vi.mocked(fs.existsSync).mockReturnValue(false)

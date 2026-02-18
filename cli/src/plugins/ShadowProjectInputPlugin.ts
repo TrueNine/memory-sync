@@ -14,8 +14,7 @@ export class ShadowProjectInputPlugin extends AbstractInputPlugin {
     const {userConfigOptions: options, logger, fs, path} = ctx
     const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
-    const shadowProjectsDirRaw = options.shadowProjectsDir
-    const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
+    const shadowProjectsDir = this.resolveShadowPath(options.shadowSourceProject.project.dist, shadowProjectDir)
 
     const shadowSourceProjectName = path.basename(shadowProjectDir) // Get the shadow source project name (e.g., "aindex") from shadowProjectDir
 

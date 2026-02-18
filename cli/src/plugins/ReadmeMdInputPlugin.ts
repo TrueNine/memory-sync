@@ -22,8 +22,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     const {userConfigOptions: options, logger, fs, path, globalScope} = ctx
     const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
 
-    const shadowProjectsDirRaw = options.shadowProjectsDir
-    const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
+    const shadowProjectsDir = this.resolveShadowPath(options.shadowSourceProject.project.dist, shadowProjectDir)
 
     const readmePrompts: ReadmePrompt[] = []
 

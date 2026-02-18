@@ -1,5 +1,5 @@
 import type {CollectedInputContext, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions} from '@/types'
-import type {ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, UserConfigFile} from '@/types/ConfigTypes'
+import type {ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, ShadowSourceProjectConfig, UserConfigFile} from '@/types/ConfigTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
@@ -20,10 +20,20 @@ export interface PipelineConfig {
   readonly userConfigOptions: Required<PluginOptions>
 }
 
+const DEFAULT_SHADOW_SOURCE_PROJECT: Required<ShadowSourceProjectConfig> = {
+  name: 'tnmsc-shadow',
+  skill: {src: 'src/skills', dist: 'dist/skills'},
+  fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+  subAgent: {src: 'src/agents', dist: 'dist/agents'},
+  rule: {src: 'src/rules', dist: 'dist/rules'},
+  globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+  workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+  project: {src: 'app', dist: 'dist/app'}
+}
+
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
   ...DEFAULT_USER_CONFIG,
-  externalProjects: [],
-  excludePatterns: {},
+  shadowSourceProject: DEFAULT_SHADOW_SOURCE_PROJECT,
   fastCommandSeriesOptions: {},
   plugins: []
 }
@@ -34,16 +44,9 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
  */
 function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOptions> {
   return {
+    ...userConfig.version != null ? {version: userConfig.version} : {},
     ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},
-    ...userConfig.shadowSourceProjectDir != null ? {shadowSourceProjectDir: userConfig.shadowSourceProjectDir} : {},
-    ...userConfig.shadowSkillSourceDir != null ? {shadowSkillSourceDir: userConfig.shadowSkillSourceDir} : {},
-    ...userConfig.shadowFastCommandDir != null ? {shadowFastCommandDir: userConfig.shadowFastCommandDir} : {},
-    ...userConfig.shadowSubAgentDir != null ? {shadowSubAgentDir: userConfig.shadowSubAgentDir} : {},
-    ...userConfig.shadowRulesDir != null ? {shadowRulesDir: userConfig.shadowRulesDir} : {},
-    ...userConfig.globalMemoryFile != null ? {globalMemoryFile: userConfig.globalMemoryFile} : {},
-    ...userConfig.shadowProjectsDir != null ? {shadowProjectsDir: userConfig.shadowProjectsDir} : {},
-    ...userConfig.externalProjects != null ? {externalProjects: userConfig.externalProjects} : {},
-    ...userConfig.excludePatterns != null ? {excludePatterns: userConfig.excludePatterns} : {},
+    ...userConfig.shadowSourceProject != null ? {shadowSourceProject: userConfig.shadowSourceProject} : {},
     ...userConfig.fastCommandSeriesOptions != null ? {fastCommandSeriesOptions: userConfig.fastCommandSeriesOptions} : {},
     ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
   }
@@ -64,7 +67,7 @@ export interface DefineConfigOptions {
 
 /**
  * Merge multiple PluginOptions with default configuration.
- * Later options override earlier ones, arrays are concatenated.
+ * Later options override earlier ones.
  * Similar to vite/vitest mergeConfig.
  */
 export function mergeConfig(
@@ -80,36 +83,36 @@ function mergeTwoConfigs(
   base: Required<PluginOptions>,
   override: Partial<PluginOptions>
 ): Required<PluginOptions> {
-  const overrideExternal = override.externalProjects
   const overridePlugins = override.plugins
-  const overrideExclude = override.excludePatterns
   const overrideFastCommandSeries = override.fastCommandSeriesOptions
 
   return {
     ...base,
     ...override,
-    externalProjects: [ // Array concatenation for externalProjects
-      ...base.externalProjects,
-      ...overrideExternal ?? []
-    ],
+    shadowSourceProject: mergeShadowSourceProject(base.shadowSourceProject, override.shadowSourceProject),
     plugins: [ // Array concatenation for plugins
       ...base.plugins,
       ...overridePlugins ?? []
     ],
-    excludePatterns: mergeExcludePatterns(base.excludePatterns, overrideExclude), // Deep merge for excludePatterns
     fastCommandSeriesOptions: mergeFastCommandSeriesOptions(base.fastCommandSeriesOptions, overrideFastCommandSeries) // Deep merge for fastCommandSeriesOptions
   }
 }
 
-function mergeExcludePatterns(
-  a?: Record<string, string[]>,
-  b?: Record<string, string[]>
-): Record<string, string[]> {
-  const result: Record<string, string[]> = {...a}
-  if (b) {
-    for (const [key, patterns] of Object.entries(b)) result[key] = [...result[key] ?? [], ...patterns]
+function mergeShadowSourceProject(
+  base: ShadowSourceProjectConfig,
+  override?: ShadowSourceProjectConfig
+): ShadowSourceProjectConfig {
+  if (override == null) return base
+  return {
+    name: override.name ?? base.name,
+    skill: {...base.skill, ...override.skill},
+    fastCommand: {...base.fastCommand, ...override.fastCommand},
+    subAgent: {...base.subAgent, ...override.subAgent},
+    rule: {...base.rule, ...override.rule},
+    globalMemory: {...base.globalMemory, ...override.globalMemory},
+    workspaceMemory: {...base.workspaceMemory, ...override.workspaceMemory},
+    project: {...base.project, ...override.project}
   }
-  return result
 }
 
 function mergeFastCommandSeriesOptions(
@@ -200,12 +203,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   else {
     logger.info('no user config found, using defaults', {
       workspaceDir: DEFAULT_OPTIONS.workspaceDir,
-      shadowSourceProjectDir: DEFAULT_OPTIONS.shadowSourceProjectDir,
-      shadowSkillSourceDir: DEFAULT_OPTIONS.shadowSkillSourceDir,
-      shadowFastCommandDir: DEFAULT_OPTIONS.shadowFastCommandDir,
-      shadowSubAgentDir: DEFAULT_OPTIONS.shadowSubAgentDir,
-      globalMemoryFile: DEFAULT_OPTIONS.globalMemoryFile,
-      shadowProjectsDir: DEFAULT_OPTIONS.shadowProjectsDir,
+      shadowSourceProjectName: DEFAULT_OPTIONS.shadowSourceProject.name,
       logLevel: DEFAULT_OPTIONS.logLevel
     })
   }
@@ -229,7 +227,6 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   const context: CollectedInputContext = {
     workspace: merged.workspace,
     ideConfigFiles: merged.ideConfigFiles ?? [],
-    ...merged.externalProjects != null && {externalProjects: merged.externalProjects},
     ...merged.fastCommands != null && {fastCommands: merged.fastCommands},
     ...merged.subAgents != null && {subAgents: merged.subAgents},
     ...merged.skills != null && {skills: merged.skills},

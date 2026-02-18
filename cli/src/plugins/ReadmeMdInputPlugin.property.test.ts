@@ -15,11 +15,19 @@ import {ReadmeMdInputPlugin} from './ReadmeMdInputPlugin'
 describe('readmeMdInputPlugin property tests', () => {
   const plugin = new ReadmeMdInputPlugin()
 
-  function createMockContext(workspaceDir: string, shadowSourceProjectDir: string): InputPluginContext {
+  function createMockContext(workspaceDir: string, _shadowProjectDir: string): InputPluginContext {
     const options: PluginOptions = {
       workspaceDir,
-      shadowSourceProjectDir,
-      shadowProjectsDir: path.join(shadowSourceProjectDir, 'ref')
+      shadowSourceProject: {
+        name: '.',
+        skill: {src: 'src/skills', dist: 'dist/skills'},
+        fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+        subAgent: {src: 'src/agents', dist: 'dist/agents'},
+        rule: {src: 'src/rules', dist: 'dist/rules'},
+        globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+        workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+        project: {src: 'app', dist: 'ref'}
+      }
     }
 
     return {

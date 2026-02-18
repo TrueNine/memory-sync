@@ -25,13 +25,11 @@ export interface SeriesInfo {
 
 export class FastCommandInputPlugin extends BaseDirectoryInputPlugin<FastCommandPrompt, FastCommandYAMLFrontMatter> {
   constructor() {
-    super('FastCommandInputPlugin', {configKey: 'shadowFastCommandDir'})
+    super('FastCommandInputPlugin', {configKey: 'shadowSourceProject.fastCommand.dist'})
   }
 
   protected getTargetDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    const raw = options.shadowFastCommandDir
-    const {workspaceDir, shadowProjectDir} = resolvedPaths
-    return this.resolvePath(raw, workspaceDir, shadowProjectDir)
+    return this.resolveShadowPath(options.shadowSourceProject.fastCommand.dist, resolvedPaths.shadowProjectDir)
   }
 
   protected validateMetadata(metadata: Record<string, unknown>, filePath: string): MetadataValidationResult {

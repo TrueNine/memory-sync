@@ -6,9 +6,10 @@ import {describe, expect, it, vi} from 'vitest'
 import {FilePathKind} from '@/types'
 import {ProjectPromptInputPlugin} from './ProjectPromptInputPlugin'
 
-const SHADOW_PROJECT_DIR = '/shadow'
 const WORKSPACE_DIR = '/workspace'
-const SHADOW_PROJECTS_DIR = '/shadow/dist/app'
+const SHADOW_PROJECT_NAME = 'shadow'
+const SHADOW_PROJECT_DIR = path.join(WORKSPACE_DIR, SHADOW_PROJECT_NAME)
+const SHADOW_PROJECTS_DIR = path.join(SHADOW_PROJECT_DIR, 'dist/app')
 const PROJECT_NAME = 'test-project'
 const SHADOW_PROJECT_PATH = path.join(SHADOW_PROJECTS_DIR, PROJECT_NAME)
 const TARGET_PROJECT_PATH = path.join(WORKSPACE_DIR, PROJECT_NAME)
@@ -31,14 +32,16 @@ function createMockLogger(): ILogger {
 function createMockOptions(): Required<PluginOptions> {
   return {
     workspaceDir: WORKSPACE_DIR,
-    shadowSourceProjectDir: SHADOW_PROJECT_DIR,
-    shadowSkillSourceDir: '/shadow/dist/skills',
-    shadowFastCommandDir: '/shadow/dist/commands',
-    shadowSubAgentDir: '/shadow/dist/agents',
-    globalMemoryFile: '/shadow/dist/global.mdx',
-    shadowProjectsDir: SHADOW_PROJECTS_DIR,
-    externalProjects: [],
-    excludePatterns: {},
+    shadowSourceProject: {
+      name: 'shadow',
+      skill: {src: 'src/skills', dist: 'dist/skills'},
+      fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+      subAgent: {src: 'src/agents', dist: 'dist/agents'},
+      rule: {src: 'src/rules', dist: 'dist/rules'},
+      globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+      workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+      project: {src: 'app', dist: 'dist/app'}
+    },
     fastCommandSeriesOptions: {},
     plugins: [],
     logLevel: 'info'

@@ -1,14 +1,37 @@
 {
+  "version": "2026.10218.12101",
   "workspaceDir": "~/project",
-  "shadowSourceProjectDir": "$WORKSPACE/tnmsc-shadow",
-  "shadowSkillSourceDir": "$SHADOW_SOURCE_PROJECT/dist/skills",
-  "shadowFastCommandDir": "$SHADOW_SOURCE_PROJECT/dist/commands",
-  "shadowSubAgentDir": "$SHADOW_SOURCE_PROJECT/dist/agents",
-  "shadowRulesDir": "$SHADOW_SOURCE_PROJECT/dist/rules",
-  "globalMemoryFile": "$SHADOW_SOURCE_PROJECT/dist/global.mdx",
-  "shadowProjectsDir": "$SHADOW_SOURCE_PROJECT/dist/app",
-  "externalProjects": [],
-  "excludePatterns": {},
+  "shadowSourceProject": {
+    "name": "tnmsc-shadow",
+    "skill": {
+      "src": "src/skills",
+      "dist": "dist/skills"
+    },
+    "fastCommand": {
+      "src": "src/commands",
+      "dist": "dist/commands"
+    },
+    "subAgent": {
+      "src": "src/agents",
+      "dist": "dist/agents"
+    },
+    "rule": {
+      "src": "src/rules",
+      "dist": "dist/rules"
+    },
+    "globalMemory": {
+      "src": "app/global.cn.mdx",
+      "dist": "dist/global.mdx"
+    },
+    "workspaceMemory": {
+      "src": "app/workspace.cn.mdx",
+      "dist": "dist/app/workspace.mdx"
+    },
+    "project": {
+      "src": "app",
+      "dist": "dist/app"
+    }
+  },
   "logLevel": "info",
   "profile": {
     "name": "Your Name",

@@ -97,8 +97,7 @@ describe('configLoader', () => {
 
     it('should validate string fields', () => {
       const configContent = JSON.stringify({ // workspaceDir is invalid (number instead of string)
-        workspaceDir: 123,
-        shadowSourceProjectDir: '~/shadow'
+        workspaceDir: 123
       })
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -109,7 +108,6 @@ describe('configLoader', () => {
 
       expect(result.found).toBe(true)
       expect(result.config.workspaceDir).toBeUndefined() // Invalid field should be ignored
-      expect(result.config.shadowSourceProjectDir).toBe('~/shadow')
     })
 
     it('should validate logLevel values', () => {
@@ -127,26 +125,17 @@ describe('configLoader', () => {
       expect(result.config.logLevel).toBeUndefined()
     })
 
-    it('should validate externalProjects array', () => {
+    it('should validate shadowSourceProject object', () => {
       const configContent = JSON.stringify({
-        externalProjects: ['/path/a', '/path/b']
-      })
-
-      vi.mocked(fs.existsSync).mockReturnValue(true)
-      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
-
-      const loader = new ConfigLoader()
-      const result = loader.loadFromFile('/test/.tnmsc.json')
-
-      expect(result.found).toBe(true)
-      expect(result.config.externalProjects).toEqual(['/path/a', '/path/b'])
-    })
-
-    it('should validate excludePatterns object', () => {
-      const configContent = JSON.stringify({
-        excludePatterns: {
-          projectA: ['*.log', 'node_modules'],
-          projectB: ['dist']
+        shadowSourceProject: {
+          name: 'aindex',
+          skill: {src: 'src/skills', dist: 'dist/skills'},
+          fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+          subAgent: {src: 'src/agents', dist: 'dist/agents'},
+          rule: {src: 'src/rules', dist: 'dist/rules'},
+          globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+          workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+          project: {src: 'app', dist: 'dist/app'}
         }
       })
 
@@ -157,10 +146,21 @@ describe('configLoader', () => {
       const result = loader.loadFromFile('/test/.tnmsc.json')
 
       expect(result.found).toBe(true)
-      expect(result.config.excludePatterns).toEqual({
-        projectA: ['*.log', 'node_modules'],
-        projectB: ['dist']
-      })
+      expect(result.config.shadowSourceProject?.name).toBe('aindex')
+      expect(result.config.shadowSourceProject?.skill).toEqual({src: 'src/skills', dist: 'dist/skills'})
+    })
+
+    it('should reject invalid shadowSourceProject (non-object)', () => {
+      const configContent = JSON.stringify({shadowSourceProject: 'invalid'})
+
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile('/test/.tnmsc.json')
+
+      expect(result.found).toBe(true)
+      expect(result.config.shadowSourceProject).toBeUndefined()
     })
 
     it('should validate profile object with arbitrary key-value pairs', () => {
@@ -288,7 +288,11 @@ describe('configLoader', () => {
     it('should merge configs with correct priority', () => {
       const cwdConfig = JSON.stringify({workspaceDir: '~/cwd-workspace', logLevel: 'debug'})
 
-      const globalConfig = JSON.stringify({workspaceDir: '~/global-workspace', shadowSourceProjectDir: '~/global-shadow', logLevel: 'info'})
+      const globalConfig = JSON.stringify({
+        workspaceDir: '~/global-workspace',
+        shadowSourceProject: {name: 'global-shadow'},
+        logLevel: 'info'
+      })
 
       const cwdPath = path.join(mockCwd, DEFAULT_CONFIG_FILE_NAME)
       const globalPath = path.join(mockHomedir, DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
@@ -307,48 +311,23 @@ describe('configLoader', () => {
       expect(result.found).toBe(true)
       expect(result.config.workspaceDir).toBe('~/cwd-workspace') // CWD config should override global
       expect(result.config.logLevel).toBe('debug')
-      expect(result.config.shadowSourceProjectDir).toBe('~/global-shadow') // Global config should fill in missing values
+      expect(result.config.shadowSourceProject?.name).toBe('global-shadow') // Global config should fill in missing values
       expect(result.sources).toHaveLength(2)
     })
 
-    it('should merge externalProjects arrays', () => {
+    it('should deep merge shadowSourceProject', () => {
       const cwdConfig = JSON.stringify({
-        externalProjects: ['/cwd/project']
-      })
-
-      const globalConfig = JSON.stringify({
-        externalProjects: ['/global/project']
-      })
-
-      const cwdPath = path.join(mockCwd, DEFAULT_CONFIG_FILE_NAME)
-      const globalPath = path.join(mockHomedir, DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
-
-      vi.mocked(fs.existsSync).mockImplementation(p => p === cwdPath || p === globalPath)
-
-      vi.mocked(fs.readFileSync).mockImplementation(p => {
-        if (p === cwdPath) return cwdConfig
-        if (p === globalPath) return globalConfig
-        return '{}'
-      })
-
-      const loader = new ConfigLoader()
-      const result = loader.load(mockCwd)
-
-      expect(result.config.externalProjects).toContain('/cwd/project') // Arrays should be concatenated
-      expect(result.config.externalProjects).toContain('/global/project')
-    })
-
-    it('should deep merge excludePatterns', () => {
-      const cwdConfig = JSON.stringify({
-        excludePatterns: {
-          projectA: ['*.log']
+        shadowSourceProject: {
+          name: 'cwd-shadow',
+          skill: {src: 'custom/skills', dist: 'custom/dist/skills'}
         }
       })
 
       const globalConfig = JSON.stringify({
-        excludePatterns: {
-          projectA: ['node_modules'],
-          projectB: ['dist']
+        shadowSourceProject: {
+          name: 'global-shadow',
+          skill: {src: 'src/skills', dist: 'dist/skills'},
+          fastCommand: {src: 'src/commands', dist: 'dist/commands'}
         }
       })
 
@@ -366,9 +345,9 @@ describe('configLoader', () => {
       const loader = new ConfigLoader()
       const result = loader.load(mockCwd)
 
-      expect(result.config.excludePatterns?.['projectA']).toContain('*.log') // Should merge patterns for same project
-      expect(result.config.excludePatterns?.['projectA']).toContain('node_modules')
-      expect(result.config.excludePatterns?.['projectB']).toEqual(['dist'])
+      expect(result.config.shadowSourceProject?.name).toBe('cwd-shadow') // CWD name overrides global
+      expect(result.config.shadowSourceProject?.skill?.src).toBe('custom/skills') // CWD pair overrides global
+      expect(result.config.shadowSourceProject?.fastCommand?.src).toBe('src/commands') // Global fills in missing pairs
     })
   })
 

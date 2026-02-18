@@ -49,7 +49,6 @@ export interface AIAgentIgnoreConfigFile {
  */
 export interface CollectedInputContext {
   readonly workspace: Workspace
-  readonly externalProjects?: readonly Project[]
   readonly ideConfigFiles: readonly ProjectIDEConfigFile<IDEKind>[]
   readonly fastCommands?: readonly FastCommandPrompt[]
   readonly subAgents?: readonly SubAgentPrompt[]

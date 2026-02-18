@@ -93,10 +93,35 @@ try {
   console.log('⚠️ gui/src-tauri/tauri.conf.json not found, skipping')
 }
 
+// Sync version field in tnmsc.example.json files
+const exampleConfigPaths = [
+  'cli/public/tnmsc.example.json',
+  'packages/init-bundle/public/public/tnmsc.example.json',
+]
+
+for (const examplePath of exampleConfigPaths) {
+  const fullPath = resolve(examplePath)
+  try {
+    const content = readFileSync(fullPath, 'utf-8')
+    const exampleJson = JSON.parse(content) as Record<string, unknown>
+    if (exampleJson['version'] !== rootVersion) {
+      console.log(`  ✓ ${examplePath}: version ${String(exampleJson['version'] ?? '(none)')} → ${rootVersion}`)
+      exampleJson['version'] = rootVersion
+      writeFileSync(fullPath, JSON.stringify(exampleJson, null, 2) + '\n', 'utf-8')
+      changed = true
+    }
+  } catch {
+    console.log(`⚠️ ${examplePath} not found or invalid, skipping`)
+  }
+}
+
 if (changed) {
   console.log('\n📦 Versions synced, auto-staging changes...')
   try {
-    execSync('git add cli/package.json gui/package.json gui/src-tauri/Cargo.toml gui/src-tauri/tauri.conf.json', { stdio: 'inherit' })
+    execSync(
+      'git add cli/package.json gui/package.json gui/src-tauri/Cargo.toml gui/src-tauri/tauri.conf.json cli/public/tnmsc.example.json packages/init-bundle/public/public/tnmsc.example.json',
+      { stdio: 'inherit' }
+    )
     console.log('✅ Staged modified files')
   } catch {
     console.log('⚠️ git add failed, please execute manually')

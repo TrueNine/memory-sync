@@ -568,21 +568,22 @@ fn load_resolved_config() -> Result<ResolvedConfig, String> {
         .unwrap_or_default();
     let workspace = workspace_raw.replace('~', &home);
 
-    let shadow_raw = cfg.get("shadowSourceProjectDir")
+    let shadow_name = cfg
+        .get("shadowSourceProject")
+        .and_then(|v| v.get("name"))
         .and_then(|v| v.as_str())
-        .ok_or("shadowSourceProjectDir not set in config")?;
-    let shadow_source_project = resolve_config_vars(shadow_raw, &workspace);
+        .unwrap_or("tnmsc-shadow");
+    let shadow_source_project = format!("{workspace}/{shadow_name}");
 
     Ok(ResolvedConfig { workspace, shadow_source_project, cfg })
 }
 
-/// Resolve a config value, replacing $WORKSPACE, $SHADOW_SOURCE_PROJECT, and ~.
-fn resolve_full(value: &str, workspace: &str, shadow_source_project: &str) -> String {
+/// Resolve a config value, replacing $WORKSPACE and ~.
+fn resolve_full(value: &str, workspace: &str, _shadow_source_project: &str) -> String {
     let home = dirs::home_dir()
         .map(|h| h.to_string_lossy().to_string())
         .unwrap_or_default();
     value
-        .replace("$SHADOW_SOURCE_PROJECT", shadow_source_project)
         .replace("$WORKSPACE", workspace)
         .replace("~", &home)
 }
@@ -688,26 +689,38 @@ pub fn list_category_files(_cwd: String, category: String) -> Result<Vec<AindexF
     let rc = load_resolved_config()?;
     let base = std::path::PathBuf::from(&rc.shadow_source_project);
 
-    // Map category to config key
-    let config_key = match category.as_str() {
-        "skills" => "shadowSkillSourceDir",
-        "commands" => "shadowFastCommandDir",
-        "agents" => "shadowSubAgentDir",
+    // Map category name to the dist subpath key within shadowSourceProject
+    let (src_key, dist_key) = match category.as_str() {
+        "skills" => ("skill", "skill"),
+        "commands" => ("fastCommand", "fastCommand"),
+        "agents" => ("subAgent", "subAgent"),
+        "rules" => ("rule", "rule"),
         _ => return Err(format!("Unknown category: {category}")),
     };
 
-    // Read the config field, fall back to default $SHADOW_SOURCE_PROJECT/dist/{category}
-    let dir_raw = rc.cfg.get(config_key)
+    let ssp = rc.cfg.get("shadowSourceProject");
+
+    // Read dist path from nested config, fall back to dist/{category}
+    let dist_rel = ssp
+        .and_then(|v| v.get(dist_key))
+        .and_then(|v| v.get("dist"))
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| format!("$SHADOW_SOURCE_PROJECT/dist/{category}"));
+        .unwrap_or(&format!("dist/{category}"))
+        .to_string();
 
     // This is the OUTPUT (dist) directory — translated files live here
-    let dist_dir_str = resolve_full(&dir_raw, &rc.workspace, &rc.shadow_source_project);
-    let dist_dir = std::path::PathBuf::from(&dist_dir_str);
+    let dist_dir = base.join(&dist_rel);
+
+    // Read src path from nested config, fall back to src/{category}
+    let src_rel = ssp
+        .and_then(|v| v.get(src_key))
+        .and_then(|v| v.get("src"))
+        .and_then(|v| v.as_str())
+        .unwrap_or(&format!("src/{category}"))
+        .to_string();
 
     // Source files live under src/{category}/ relative to aindex root
-    let src_dir = base.join("src").join(&category);
+    let src_dir = base.join(&src_rel);
 
     if !src_dir.exists() {
         return Ok(vec![]);

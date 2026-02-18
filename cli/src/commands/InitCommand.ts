@@ -1,16 +1,13 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {PathPlaceholders} from '@/constants'
 import {generateShadowSourceProject} from '@/ShadowSourceProject'
 
 /**
- * Resolve path placeholders and tilde
+ * Resolve tilde and workspace path
  */
-function resolvePath(p: string, workspaceDir: string, shadowSourceProjectDir: string): string {
-  let resolved = p
-  resolved = resolved.replace(PathPlaceholders.SHADOW_SOURCE_PROJECT, shadowSourceProjectDir)
-  resolved = resolved.replace(PathPlaceholders.WORKSPACE, workspaceDir)
+function resolveWorkspacePath(workspaceDir: string): string {
+  let resolved = workspaceDir
   if (resolved.startsWith('~')) resolved = path.join(os.homedir(), resolved.slice(1))
   return path.normalize(resolved)
 }
@@ -26,13 +23,9 @@ export class InitCommand implements Command {
 
     logger.info('initializing shadow source project structure', {command: 'init'})
 
-    const workspaceDir = resolvePath(userConfigOptions.workspaceDir, '', '') // Resolve workspace directory from user config
+    const workspaceDir = resolveWorkspacePath(userConfigOptions.workspaceDir) // Resolve workspace directory from user config
 
-    const shadowSourceProjectDir = resolvePath( // Resolve shadow source project directory from user config
-      userConfigOptions.shadowSourceProjectDir,
-      workspaceDir,
-      ''
-    )
+    const shadowSourceProjectDir = path.join(workspaceDir, userConfigOptions.shadowSourceProject.name) // Resolve shadow source project directory from config name
 
     const result = generateShadowSourceProject(shadowSourceProjectDir, {logger}) // Generate shadow source project structure
 
