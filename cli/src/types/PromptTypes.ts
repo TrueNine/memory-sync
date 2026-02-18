@@ -128,6 +128,7 @@ export interface KiroPowerYAMLFrontMatter extends SkillsYAMLFrontMatter {
 export interface RuleYAMLFrontMatter extends CommonYAMLFrontMatter {
   readonly globs: readonly string[]
   readonly scope?: RuleScope
+  readonly seriName?: string
 }
 
 /**

@@ -12,6 +12,7 @@ import type {
   WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
+import {filterRulesByProjectConfig} from '@/utils/ruleFilter'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 import {KiroPowersRegistryWriter} from './registry/KiroPowersRegistryWriter'
 
@@ -95,8 +96,11 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         }
       }
 
-      const projectRules = rules?.filter(r => r.scope === 'project')
-      if (projectRules != null && projectRules.length > 0) {
+      if (rules != null && rules.length > 0) {
+        const projectRules = filterRulesByProjectConfig(
+          rules.filter(r => r.scope === 'project'),
+          project.projectConfig
+        )
         for (const rule of projectRules) {
           const fileName = this.buildRuleSteeringFileName(rule)
           results.push(this.createRelativePath(
@@ -223,8 +227,11 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         for (const child of project.childMemoryPrompts) fileResults.push(await this.writeSteeringFile(ctx, project, child))
       }
 
-      const projectRules = rules?.filter(r => r.scope === 'project')
-      if (projectRules != null && projectRules.length > 0) {
+      if (rules != null && rules.length > 0) {
+        const projectRules = filterRulesByProjectConfig(
+          rules.filter(r => r.scope === 'project'),
+          project.projectConfig
+        )
         for (const rule of projectRules) fileResults.push(await this.writeRuleSteeringFile(ctx, project, rule))
       }
     }

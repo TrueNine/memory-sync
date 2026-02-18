@@ -74,6 +74,21 @@ export interface FastCommandSeriesOptions {
   readonly pluginOverrides?: Record<string, FastCommandSeriesPluginOverride>
 }
 
+export interface McpProjectConfig {
+  readonly names?: readonly string[]
+}
+
+export interface RulesProjectConfig {
+  readonly include?: readonly string[]
+  readonly exclude?: readonly string[]
+  readonly subSeries?: Readonly<Record<string, readonly string[]>>
+}
+
+export interface ProjectConfig {
+  readonly mcp?: McpProjectConfig
+  readonly rules?: RulesProjectConfig
+}
+
 /**
  * Options for ConfigLoader
  */

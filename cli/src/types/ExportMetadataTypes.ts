@@ -38,6 +38,7 @@ export interface RuleExportMetadata extends BaseExportMetadata {
   readonly globs: readonly string[]
   readonly description: string
   readonly scope?: RuleScope
+  readonly seriName?: string
 }
 
 export interface SubAgentExportMetadata extends BaseExportMetadata {
@@ -181,10 +182,12 @@ export function validateRuleMetadata(
 
   if (typeof metadata['description'] !== 'string' || metadata['description'].length === 0) errors.push(`Missing or empty required field "description"${prefix}`)
 
-  const {scope} = metadata
+  const {scope, seriName} = metadata
   if (scope != null && scope !== 'project' && scope !== 'global') errors.push(`Field "scope" must be "project" or "global"${prefix}`)
 
   if (scope == null) warnings.push(`Using default value for optional field "scope": "project"${prefix}`)
+
+  if (seriName != null && typeof seriName !== 'string') errors.push(`Field "seriName" must be a string${prefix}`)
 
   return {valid: errors.length === 0, errors, warnings}
 }
