@@ -275,7 +275,11 @@ pub fn check_cli() -> CliStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    /// Serialize tests that mutate PATH/HOME so they don't run in parallel and overwrite each other.
+    static ENV_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     fn temp_dir(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
@@ -300,13 +304,18 @@ mod tests {
 
     #[test]
     fn resolve_cli_path_from_path_env() {
+        let _guard = ENV_TEST_LOCK.lock().expect("env test lock");
         let bin_name = cli_binary_name();
         let dir = temp_dir("path");
         let bin = dir.join(&bin_name);
         write_executable(&bin);
 
         let old_path = env::var_os("PATH");
+        let old_home = env::var_os("HOME");
         env::set_var("PATH", &dir);
+        // Isolate from fallback test: use same dir as HOME so fallback dirs
+        // (e.g. $HOME/.local/share/pnpm) do not exist and PATH is the only match.
+        env::set_var("HOME", &dir);
 
         let resolved = resolve_cli_path();
 
@@ -315,12 +324,18 @@ mod tests {
         } else {
             env::remove_var("PATH");
         }
+        if let Some(old) = old_home {
+            env::set_var("HOME", old);
+        } else {
+            env::remove_var("HOME");
+        }
 
         assert_eq!(resolved, Some(bin));
     }
 
     #[test]
     fn resolve_cli_path_from_fallback_dirs() {
+        let _guard = ENV_TEST_LOCK.lock().expect("env test lock");
         let bin_name = cli_binary_name();
         let home = temp_dir("home");
         let bin_dir = home.join(".local/share/pnpm");
