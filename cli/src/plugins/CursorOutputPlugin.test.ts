@@ -143,10 +143,14 @@ describe('cursor output plugin', () => {
         content: '# TypeScript rule'
       })
       const raw = plugin.buildRuleMdcContentForTest(rule)
-      const parsed = parseMarkdown(raw)
-      const fm = parsed.yamlFrontMatter
-      expect(fm).toBeDefined()
-      expect(Object.keys(fm!).sort()).toEqual(['alwaysApply', 'globs'])
+      const lines = raw.split('\n')
+      const start = lines.indexOf('---')
+      const end = lines.indexOf('---', start + 1)
+      expect(start).toBeGreaterThanOrEqual(0)
+      expect(end).toBeGreaterThan(start)
+      const fmLines = lines.slice(start + 1, end).filter(l => l.trim().length > 0)
+      const keys = fmLines.map(l => l.split(':')[0]!.trim()).sort()
+      expect(keys).toEqual(['alwaysApply', 'globs'])
     })
 
     it('should set alwaysApply to false', () => {
@@ -157,9 +161,10 @@ describe('cursor output plugin', () => {
         content: '# Body'
       })
       const raw = plugin.buildRuleMdcContentForTest(rule)
-      const parsed = parseMarkdown(raw)
-      const fm = parsed.yamlFrontMatter as Record<string, unknown>
-      expect(fm.alwaysApply).toBe(false)
+      const lines = raw.split('\n')
+      const fmLine = lines.find(l => l.trimStart().startsWith('alwaysApply:'))
+      expect(fmLine).toBeDefined()
+      expect(fmLine).toBe('alwaysApply: false')
     })
 
     it('should output globs as comma-separated string, not YAML array', () => {
@@ -170,10 +175,10 @@ describe('cursor output plugin', () => {
         content: '# Body'
       })
       const raw = plugin.buildRuleMdcContentForTest(rule)
-      const parsed = parseMarkdown(raw)
-      const fm = parsed.yamlFrontMatter as Record<string, unknown>
-      expect(typeof fm.globs).toBe('string')
-      expect(fm.globs).toBe('**/*.ts, **/*.tsx')
+      const lines = raw.split('\n')
+      const globsLine = lines.find(l => l.trimStart().startsWith('globs:'))
+      expect(globsLine).toBeDefined()
+      expect(globsLine).toBe('globs: **/*.ts, **/*.tsx')
     })
 
     it('should output single glob as string without trailing comma', () => {
@@ -184,9 +189,10 @@ describe('cursor output plugin', () => {
         content: '# Body'
       })
       const raw = plugin.buildRuleMdcContentForTest(rule)
-      const parsed = parseMarkdown(raw)
-      const fm = parsed.yamlFrontMatter as Record<string, unknown>
-      expect(fm.globs).toBe('**/*.ts')
+      const lines = raw.split('\n')
+      const globsLine = lines.find(l => l.trimStart().startsWith('globs:'))
+      expect(globsLine).toBeDefined()
+      expect(globsLine).toBe('globs: **/*.ts')
     })
 
     it('should output empty string for empty globs', () => {
@@ -225,6 +231,20 @@ describe('cursor output plugin', () => {
       const raw = plugin.buildRuleMdcContentForTest(rule)
       const parsed = parseMarkdown(raw)
       expect(parsed.contentWithoutFrontMatter.trim()).toBe(body)
+    })
+
+    it('should not wrap glob patterns with double quotes in front matter', () => {
+      const rule = createMockRulePrompt({
+        series: 'cursor',
+        ruleName: 'sql',
+        globs: ['**/*.sql'],
+        content: '# SQL rule'
+      })
+      const raw = plugin.buildRuleMdcContentForTest(rule)
+      const lines = raw.split('\n')
+      const globsLine = lines.find(l => l.trimStart().startsWith('globs:'))
+      expect(globsLine).toBeDefined()
+      expect(globsLine).toBe('globs: **/*.sql')
     })
   })
 
