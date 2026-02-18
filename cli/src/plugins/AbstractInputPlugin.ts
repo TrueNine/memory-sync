@@ -113,24 +113,26 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
 
   protected resolveBasePaths(options: Required<PluginOptions>): ResolvedBasePaths {
     const workspaceDirRaw = options.workspaceDir
-    const workspaceDir = this.resolvePath(workspaceDirRaw, '', '')
+    const workspaceDir = this.resolvePath(workspaceDirRaw, '')
 
-    const shadowProjectDirRaw = options.shadowSourceProjectDir
-    const shadowProjectDir = this.resolvePath(shadowProjectDirRaw, workspaceDir, '')
+    const shadowProjectName = options.shadowSourceProject.name
+    const shadowProjectDir = path.join(workspaceDir, shadowProjectName)
 
     return {workspaceDir, shadowProjectDir}
   }
 
-  protected resolvePath(rawPath: string, workspaceDir: string, shadowProjectDir: string): string {
+  protected resolvePath(rawPath: string, workspaceDir: string): string {
     let resolved = rawPath
 
     if (resolved.startsWith(PathPlaceholders.USER_HOME)) resolved = resolved.replace(PathPlaceholders.USER_HOME, os.homedir())
 
-    if (resolved.includes(PathPlaceholders.SHADOW_SOURCE_PROJECT)) resolved = resolved.replace(PathPlaceholders.SHADOW_SOURCE_PROJECT, shadowProjectDir)
-
     if (resolved.includes(PathPlaceholders.WORKSPACE)) resolved = resolved.replace(PathPlaceholders.WORKSPACE, workspaceDir)
 
     return path.normalize(resolved)
+  }
+
+  protected resolveShadowPath(relativePath: string, shadowProjectDir: string): string {
+    return path.join(shadowProjectDir, relativePath)
   }
 
   protected readAndParseMarkdown<T extends YAMLFrontMatter>(

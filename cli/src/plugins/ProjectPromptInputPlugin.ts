@@ -34,10 +34,9 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
     const {dependencyContext, fs, userConfigOptions: options, path, globalScope} = ctx
-    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
+    const {shadowProjectDir} = this.resolveBasePaths(options)
 
-    const shadowProjectsDirRaw = options.shadowProjectsDir // Resolve shadow projects directory
-    const shadowProjectsDir = this.resolvePath(shadowProjectsDirRaw, workspaceDir, shadowProjectDir)
+    const shadowProjectsDir = this.resolveShadowPath(options.shadowSourceProject.project.dist, shadowProjectDir) // Resolve shadow projects directory
 
     const dependencyWorkspace = dependencyContext.workspace // Get workspace from dependency context (provided by ShadowProjectInputPlugin)
     if (dependencyWorkspace == null) {

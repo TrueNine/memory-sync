@@ -25,13 +25,11 @@ export interface SubAgentSeriesInfo {
 
 export class SubAgentInputPlugin extends BaseDirectoryInputPlugin<SubAgentPrompt, SubAgentYAMLFrontMatter> {
   constructor() {
-    super('SubAgentInputPlugin', {configKey: 'shadowSubAgentDir'})
+    super('SubAgentInputPlugin', {configKey: 'shadowSourceProject.subAgent.dist'})
   }
 
   protected getTargetDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    const raw = options.shadowSubAgentDir
-    const {workspaceDir, shadowProjectDir} = resolvedPaths
-    return this.resolvePath(raw, workspaceDir, shadowProjectDir)
+    return this.resolveShadowPath(options.shadowSourceProject.subAgent.dist, resolvedPaths.shadowProjectDir)
   }
 
   protected validateMetadata(metadata: Record<string, unknown>, filePath: string): MetadataValidationResult {

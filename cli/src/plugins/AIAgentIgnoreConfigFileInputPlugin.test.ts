@@ -9,20 +9,26 @@ vi.mock('node:fs')
 describe('aIAgentIgnoreConfigFileInputPlugin', () => {
   let plugin: AIAgentIgnoreConfigFileInputPlugin
   const mockWorkspaceDir = '/workspace'
-  const mockShadowSourceProjectDir = '/workspace/tnmsc-shadow'
 
   beforeEach(() => {
     plugin = new AIAgentIgnoreConfigFileInputPlugin()
     vi.clearAllMocks()
   })
 
-  function createMockInputPluginContext(
-    shadowSourceProjectDir: string = mockShadowSourceProjectDir
-  ): InputPluginContext {
+  function createMockInputPluginContext(): InputPluginContext {
     return {
       userConfigOptions: {
         workspaceDir: mockWorkspaceDir,
-        shadowSourceProjectDir
+        shadowSourceProject: {
+          name: 'tnmsc-shadow',
+          skill: {src: 'src/skills', dist: 'dist/skills'},
+          fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+          subAgent: {src: 'src/agents', dist: 'dist/agents'},
+          rule: {src: 'src/rules', dist: 'dist/rules'},
+          globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+          workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+          project: {src: 'app', dist: 'dist/app'}
+        }
       },
       logger: {
         debug: vi.fn(),
@@ -214,9 +220,8 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       expect(ctx.logger.debug).toHaveBeenCalledTimes(7)
     })
 
-    it('should support custom shadowSourceProjectDir', () => {
-      const customDir = '/custom/shadow/project'
-      const ctx = createMockInputPluginContext(customDir)
+    it('should support custom shadow project dir via name', () => {
+      const ctx = createMockInputPluginContext()
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
 
@@ -229,7 +234,8 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       plugin.collect(ctx)
 
-      const normalizedCustomDir = path.normalize(customDir) // Normalize the custom dir for cross-platform comparison // Verify that existsSync was called with paths under custom directory
+      const shadowProjectDir = path.join(mockWorkspaceDir, 'tnmsc-shadow')
+      const normalizedCustomDir = path.normalize(shadowProjectDir)
       const existsCallPaths = vi.mocked(fs.existsSync).mock.calls.map(call => path.normalize(call[0] as string))
       expect(existsCallPaths.some(p => p.startsWith(normalizedCustomDir))).toBe(true)
     })

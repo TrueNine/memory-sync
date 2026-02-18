@@ -54,13 +54,8 @@ const arbConfigSource: fc.Arbitrary<ConfigSource> = fc.record({
   layer: fc.constantFrom('programmatic' as const, 'cwd' as const, 'global' as const, 'default' as const),
   config: fc.record({
     workspaceDir: fc.option(fc.string({minLength: 1, maxLength: 80}), {nil: void 0}),
-    shadowSourceProjectDir: fc.option(fc.string({minLength: 1, maxLength: 80}), {nil: void 0}),
     logLevel: fc.option(
       fc.constantFrom('trace' as const, 'debug' as const, 'info' as const, 'warn' as const, 'error' as const),
-      {nil: void 0}
-    ),
-    externalProjects: fc.option(
-      fc.array(fc.string({minLength: 1, maxLength: 50}), {minLength: 0, maxLength: 5}),
       {nil: void 0}
     )
   })
@@ -70,18 +65,8 @@ const arbConfigSource: fc.Arbitrary<ConfigSource> = fc.record({
 const arbJsonConfigInfo: fc.Arbitrary<JsonConfigInfo> = fc.record({
   merged: fc.record({
     workspaceDir: fc.option(fc.string({minLength: 1, maxLength: 80}), {nil: void 0}),
-    shadowSourceProjectDir: fc.option(fc.string({minLength: 1, maxLength: 80}), {nil: void 0}),
-    shadowSkillSourceDir: fc.option(fc.string({minLength: 1, maxLength: 80}), {nil: void 0}),
-    shadowFastCommandDir: fc.option(fc.string({minLength: 1, maxLength: 80}), {nil: void 0}),
-    shadowSubAgentDir: fc.option(fc.string({minLength: 1, maxLength: 80}), {nil: void 0}),
-    globalMemoryFile: fc.option(fc.string({minLength: 1, maxLength: 80}), {nil: void 0}),
-    shadowProjectsDir: fc.option(fc.string({minLength: 1, maxLength: 80}), {nil: void 0}),
     logLevel: fc.option(
       fc.constantFrom('trace' as const, 'debug' as const, 'info' as const, 'warn' as const, 'error' as const),
-      {nil: void 0}
-    ),
-    externalProjects: fc.option(
-      fc.array(fc.string({minLength: 1, maxLength: 50}), {minLength: 0, maxLength: 5}),
       {nil: void 0}
     )
   }),

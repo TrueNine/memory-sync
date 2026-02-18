@@ -20,13 +20,11 @@ import {BaseDirectoryInputPlugin} from './BaseDirectoryInputPlugin'
 
 export class RuleInputPlugin extends BaseDirectoryInputPlugin<RulePrompt, RuleYAMLFrontMatter> {
   constructor() {
-    super('RuleInputPlugin', {configKey: 'shadowRulesDir'})
+    super('RuleInputPlugin', {configKey: 'shadowSourceProject.rule.dist'})
   }
 
   protected getTargetDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    const raw = options.shadowRulesDir
-    const {workspaceDir, shadowProjectDir} = resolvedPaths
-    return this.resolvePath(raw, workspaceDir, shadowProjectDir)
+    return this.resolveShadowPath(options.shadowSourceProject.rule.dist, resolvedPaths.shadowProjectDir)
   }
 
   protected validateMetadata(metadata: Record<string, unknown>, filePath: string): MetadataValidationResult {

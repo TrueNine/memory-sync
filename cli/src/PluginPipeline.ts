@@ -622,11 +622,6 @@ export class PluginPipeline {
       }
     }
 
-    const externalProjects: CollectedInputContext['externalProjects'] | undefined // Build merged arrays
-      = addition.externalProjects != null
-        ? [...base.externalProjects ?? [], ...addition.externalProjects]
-        : base.externalProjects
-
     const ideConfigFiles: CollectedInputContext['ideConfigFiles'] | undefined
       = addition.ideConfigFiles != null
         ? [...base.ideConfigFiles ?? [], ...addition.ideConfigFiles]
@@ -675,7 +670,6 @@ export class PluginPipeline {
 
     return { // Build result object using object literal
       ...workspace != null ? {workspace} : {},
-      ...externalProjects != null ? {externalProjects} : {},
       ...ideConfigFiles != null ? {ideConfigFiles} : {},
       ...fastCommands != null ? {fastCommands} : {},
       ...subAgents != null ? {subAgents} : {},

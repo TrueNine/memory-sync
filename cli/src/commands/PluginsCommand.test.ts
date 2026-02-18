@@ -50,14 +50,16 @@ function createMockCommandContext(
 
   const mockUserConfigOptions: Required<PluginOptions> = {
     workspaceDir: '/test/workspace',
-    shadowSourceProjectDir: '/test/workspace/tnmsc-shadow',
-    shadowSkillSourceDir: '/test/workspace/tnmsc-shadow/dist/skills',
-    shadowFastCommandDir: '/test/workspace/tnmsc-shadow/dist/commands',
-    shadowSubAgentDir: '/test/workspace/tnmsc-shadow/dist/agents',
-    globalMemoryFile: '/test/workspace/tnmsc-shadow/dist/GLOBAL.md',
-    shadowProjectsDir: '/test/workspace/tnmsc-shadow/dist/app',
-    externalProjects: [],
-    excludePatterns: {},
+    shadowSourceProject: {
+      name: 'tnmsc-shadow',
+      skill: {src: 'src/skills', dist: 'dist/skills'},
+      fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+      subAgent: {src: 'src/agents', dist: 'dist/agents'},
+      rule: {src: 'src/rules', dist: 'dist/rules'},
+      globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+      workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+      project: {src: 'app', dist: 'dist/app'}
+    },
     fastCommandSeriesOptions: {},
     plugins,
     logLevel: 'error'

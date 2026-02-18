@@ -20,14 +20,8 @@ type SaveStatus =
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'] as const
 
-const STRING_FIELDS = [
+const TOP_LEVEL_STRING_FIELDS = [
   'workspaceDir',
-  'shadowSourceProjectDir',
-  'shadowSkillSourceDir',
-  'shadowFastCommandDir',
-  'shadowSubAgentDir',
-  'globalMemoryFile',
-  'shadowProjectsDir',
 ] as const
 
 interface ConfigData {
@@ -91,22 +85,36 @@ const ConfigForm: FC<ConfigFormProps> = ({ data, onChange, t }) => {
     }
   }, [data, onChange])
 
-  const externalProjectsText = Array.isArray(data['externalProjects'])
-    ? (data['externalProjects'] as readonly string[]).join('\n')
-    : ''
+  const updateNestedField = useCallback((parent: string, field: string, value: unknown) => {
+    const parentObj = (typeof data[parent] === 'object' && data[parent] !== null ? data[parent] : {}) as Record<string, unknown>
+    const next = { ...data, [parent]: { ...parentObj, [field]: value === '' ? undefined : value } }
+    onChange(next)
+  }, [data, onChange])
+
+  const shadowSourceProject = (typeof data['shadowSourceProject'] === 'object' && data['shadowSourceProject'] !== null
+    ? data['shadowSourceProject']
+    : {}) as Record<string, unknown>
 
   return (
     <div className="flex flex-col gap-5 overflow-y-auto p-1">
-      {STRING_FIELDS.map((field) => (
+      {TOP_LEVEL_STRING_FIELDS.map((field) => (
         <FormField
           key={field}
           label={t(`config.field.${field}`)}
           description={t(`config.field.${field}.desc`)}
           value={(data[field] as string) ?? ''}
           onChange={(v) => updateField(field, v)}
-          placeholder={`$WORKSPACE, $SHADOW_PROJECT, ~/...`}
+          placeholder="~/project"
         />
       ))}
+
+      <FormField
+        label={t('config.field.shadowSourceProject.name')}
+        description={t('config.field.shadowSourceProject.name.desc')}
+        value={(shadowSourceProject['name'] as string) ?? ''}
+        onChange={(v) => updateNestedField('shadowSourceProject', 'name', v)}
+        placeholder="tnmsc-shadow"
+      />
 
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-foreground">{t('config.field.logLevel')}</label>
@@ -124,25 +132,6 @@ const ConfigForm: FC<ConfigFormProps> = ({ data, onChange, t }) => {
           ))}
         </select>
         <p className="text-xs text-muted-foreground">{t('config.field.logLevel.desc')}</p>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-foreground">{t('config.field.externalProjects')}</label>
-        <textarea
-          value={externalProjectsText}
-          onChange={(e) => {
-            const lines = e.target.value.split('\n').filter((l) => l.trim() !== '')
-            updateField('externalProjects', lines.length > 0 ? lines : undefined)
-          }}
-          rows={4}
-          placeholder="/path/to/project"
-          className={cn(
-            'rounded-md border border-input bg-background px-3 py-2 text-sm font-mono',
-            'placeholder:text-muted-foreground resize-y',
-            'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
-          )}
-        />
-        <p className="text-xs text-muted-foreground">{t('config.field.externalProjects.desc')}</p>
       </div>
     </div>
   )

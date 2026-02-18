@@ -5,16 +5,26 @@ import * as path from 'node:path'
 import {DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR} from '@/ConfigLoader'
 
 /**
- * Valid configuration keys that can be set
+ * Valid configuration keys that can be set via `tnmsc config key=value`.
+ * Nested keys use dot-notation: shadowSourceProject.name, shadowSourceProject.skill.src, etc.
  */
 const VALID_CONFIG_KEYS = [
   'workspaceDir',
-  'shadowSourceProjectDir',
-  'shadowSkillSourceDir',
-  'shadowFastCommandDir',
-  'shadowSubAgentDir',
-  'globalMemoryFile',
-  'shadowProjectsDir',
+  'shadowSourceProject.name',
+  'shadowSourceProject.skill.src',
+  'shadowSourceProject.skill.dist',
+  'shadowSourceProject.fastCommand.src',
+  'shadowSourceProject.fastCommand.dist',
+  'shadowSourceProject.subAgent.src',
+  'shadowSourceProject.subAgent.dist',
+  'shadowSourceProject.rule.src',
+  'shadowSourceProject.rule.dist',
+  'shadowSourceProject.globalMemory.src',
+  'shadowSourceProject.globalMemory.dist',
+  'shadowSourceProject.workspaceMemory.src',
+  'shadowSourceProject.workspaceMemory.dist',
+  'shadowSourceProject.project.src',
+  'shadowSourceProject.project.dist',
   'logLevel'
 ] as const
 
@@ -69,6 +79,33 @@ function writeGlobalConfig(config: Record<string, unknown>): void {
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8') // Write with pretty formatting
 }
 
+/**
+ * Set a nested value in an object using dot-notation key
+ */
+function setNestedValue(obj: Record<string, unknown>, key: string, value: string): void {
+  const parts = key.split('.')
+  let current = obj
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i]!
+    if (typeof current[part] !== 'object' || current[part] === null) current[part] = {}
+    current = current[part] as Record<string, unknown>
+  }
+  current[parts.at(-1)!] = value
+}
+
+/**
+ * Get a nested value from an object using dot-notation key
+ */
+function getNestedValue(obj: Record<string, unknown>, key: string): unknown {
+  const parts = key.split('.')
+  let current: unknown = obj
+  for (const part of parts) {
+    if (typeof current !== 'object' || current === null) return void 0
+    current = (current as Record<string, unknown>)[part]
+  }
+  return current
+}
+
 export class ConfigCommand implements Command {
   readonly name = 'config'
 
@@ -106,8 +143,8 @@ export class ConfigCommand implements Command {
         continue
       }
 
-      const oldValue = config[key] // Update config
-      config[key] = value
+      const oldValue = getNestedValue(config, key) // Update config
+      setNestedValue(config, key, value)
 
       if (oldValue !== value) updated.push(`${key}=${value}`)
 

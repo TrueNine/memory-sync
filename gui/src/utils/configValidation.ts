@@ -10,7 +10,7 @@
 export type ValidationSeverity = 'error' | 'warning'
 
 export interface ValidationError {
-  /** Dot-separated path to the offending field, e.g. "excludePatterns.foo" */
+  /** Dot-separated path to the offending field, e.g. "shadowSourceProject.skill.src" */
   readonly field: string
   /** Human-readable description of the problem */
   readonly message: string
@@ -23,31 +23,14 @@ export interface ValidationError {
  * Used to detect unknown / extra keys.
  */
 const KNOWN_FIELDS: ReadonlySet<string> = new Set([
+  'version',
   'workspaceDir',
-  'shadowSourceProjectDir',
-  'shadowSkillSourceDir',
-  'shadowFastCommandDir',
-  'shadowSubAgentDir',
-  'globalMemoryFile',
-  'shadowProjectsDir',
-  'externalProjects',
-  'excludePatterns',
+  'shadowSourceProject',
   'logLevel',
   'fastCommandSeriesOptions',
   'profile',
   'tool',
 ])
-
-/** String-typed directory / path fields */
-const STRING_FIELDS = [
-  'workspaceDir',
-  'shadowSourceProjectDir',
-  'shadowSkillSourceDir',
-  'shadowFastCommandDir',
-  'shadowSubAgentDir',
-  'globalMemoryFile',
-  'shadowProjectsDir',
-] as const
 
 const VALID_LOG_LEVELS: ReadonlySet<string> = new Set([
   'trace',
@@ -57,15 +40,39 @@ const VALID_LOG_LEVELS: ReadonlySet<string> = new Set([
   'error',
 ])
 
+const SHADOW_SOURCE_PROJECT_PAIR_KEYS = [
+  'skill',
+  'fastCommand',
+  'subAgent',
+  'rule',
+  'globalMemory',
+  'workspaceMemory',
+  'project',
+] as const
+
+/**
+ * Validate a { src, dist } pair object
+ */
+function validateDirPair(value: unknown, fieldPath: string): ValidationError[] {
+  const errors: ValidationError[] = []
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    errors.push({field: fieldPath, message: `${fieldPath} must be an object with "src" and "dist" string fields`, severity: 'error'})
+    return errors
+  }
+  const pair = value as Record<string, unknown>
+  if (!('src' in pair) || typeof pair['src'] !== 'string') {
+    errors.push({field: `${fieldPath}.src`, message: `${fieldPath}.src must be a string`, severity: 'error'})
+  }
+  if (!('dist' in pair) || typeof pair['dist'] !== 'string') {
+    errors.push({field: `${fieldPath}.dist`, message: `${fieldPath}.dist must be a string`, severity: 'error'})
+  }
+  return errors
+}
+
 /**
  * Validate a raw config object and return all validation issues.
  *
- * The function mirrors Core_CLI's `validateConfigStrict` but additionally
- * produces *warnings* for unknown top-level keys so the UI can surface
- * them without blocking a save.
- *
  * @param raw - The config object to validate (typically parsed from JSON).
- *              Accepts `unknown` so callers don't need to pre-cast.
  * @returns An array of {@link ValidationError} items. An empty array means
  *          the config is valid.
  */
@@ -96,10 +103,31 @@ export function validateConfig(raw: unknown): readonly ValidationError[] {
     }
   }
 
-  // ── String fields ────────────────────────────────────────────────────
-  for (const field of STRING_FIELDS) {
-    if (field in obj && typeof obj[field] !== 'string') {
-      errors.push({ field, message: `${field} must be a string`, severity: 'error' })
+  // ── version ──────────────────────────────────────────────────────────
+  if ('version' in obj && typeof obj['version'] !== 'string') {
+    errors.push({ field: 'version', message: 'version must be a string', severity: 'error' })
+  }
+
+  // ── workspaceDir ─────────────────────────────────────────────────────
+  if ('workspaceDir' in obj && typeof obj['workspaceDir'] !== 'string') {
+    errors.push({ field: 'workspaceDir', message: 'workspaceDir must be a string', severity: 'error' })
+  }
+
+  // ── shadowSourceProject ──────────────────────────────────────────────
+  if ('shadowSourceProject' in obj) {
+    const ssp = obj['shadowSourceProject']
+    if (typeof ssp !== 'object' || ssp === null || Array.isArray(ssp)) {
+      errors.push({ field: 'shadowSourceProject', message: 'shadowSourceProject must be an object', severity: 'error' })
+    } else {
+      const sspObj = ssp as Record<string, unknown>
+      if ('name' in sspObj && typeof sspObj['name'] !== 'string') {
+        errors.push({ field: 'shadowSourceProject.name', message: 'shadowSourceProject.name must be a string', severity: 'error' })
+      }
+      for (const key of SHADOW_SOURCE_PROJECT_PAIR_KEYS) {
+        if (key in sspObj) {
+          errors.push(...validateDirPair(sspObj[key], `shadowSourceProject.${key}`))
+        }
+      }
     }
   }
 
@@ -112,39 +140,6 @@ export function validateConfig(raw: unknown): readonly ValidationError[] {
         message: `logLevel must be one of: ${[...VALID_LOG_LEVELS].join(', ')}`,
         severity: 'error',
       })
-    }
-  }
-
-  // ── externalProjects ─────────────────────────────────────────────────
-  if ('externalProjects' in obj) {
-    const v = obj['externalProjects']
-    if (!Array.isArray(v)) {
-      errors.push({ field: 'externalProjects', message: 'externalProjects must be an array', severity: 'error' })
-    } else if (!v.every((p) => typeof p === 'string')) {
-      errors.push({
-        field: 'externalProjects',
-        message: 'externalProjects must be an array of strings',
-        severity: 'error',
-      })
-    }
-  }
-
-  // ── excludePatterns ──────────────────────────────────────────────────
-  if ('excludePatterns' in obj) {
-    const v = obj['excludePatterns']
-    if (typeof v !== 'object' || v === null || Array.isArray(v)) {
-      errors.push({ field: 'excludePatterns', message: 'excludePatterns must be an object', severity: 'error' })
-    } else {
-      const patterns = v as Record<string, unknown>
-      for (const [key, value] of Object.entries(patterns)) {
-        if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) {
-          errors.push({
-            field: `excludePatterns.${key}`,
-            message: `excludePatterns.${key} must be an array of strings`,
-            severity: 'error',
-          })
-        }
-      }
     }
   }
 

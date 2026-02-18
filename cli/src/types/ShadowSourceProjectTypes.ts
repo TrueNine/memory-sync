@@ -40,15 +40,19 @@ export interface ShadowSourceProjectDirectory {
     readonly skills: ShadowSourceDirectoryEntry
     readonly commands: ShadowSourceDirectoryEntry
     readonly agents: ShadowSourceDirectoryEntry
+    readonly rules: ShadowSourceDirectoryEntry
     readonly globalMemoryFile: ShadowSourceFileEntry
+    readonly workspaceMemoryFile: ShadowSourceFileEntry
   }
   /** Distribution directories (after compilation) */
   readonly dist: {
     readonly skills: ShadowSourceDirectoryEntry
     readonly commands: ShadowSourceDirectoryEntry
     readonly agents: ShadowSourceDirectoryEntry
+    readonly rules: ShadowSourceDirectoryEntry
     readonly app: ShadowSourceDirectoryEntry
     readonly globalMemoryFile: ShadowSourceFileEntry
+    readonly workspaceMemoryFile: ShadowSourceFileEntry
   }
   /** App directory (project-specific prompts source, standalone at root) */
   readonly app: ShadowSourceDirectoryEntry
@@ -73,6 +77,7 @@ export const SHADOW_SOURCE_DIR_NAMES = {
   SKILLS: 'skills',
   COMMANDS: 'commands',
   AGENTS: 'agents',
+  RULES: 'rules',
   APP: 'app',
   IDEA: '.idea', // IDE directories
   IDEA_CODE_STYLES: '.idea/codeStyles',
@@ -85,6 +90,8 @@ export const SHADOW_SOURCE_DIR_NAMES = {
 export const SHADOW_SOURCE_FILE_NAMES = {
   GLOBAL_MEMORY: 'global.mdx', // Global memory
   GLOBAL_MEMORY_SRC: 'global.cn.mdx',
+  WORKSPACE_MEMORY: 'workspace.mdx', // Workspace memory
+  WORKSPACE_MEMORY_SRC: 'workspace.cn.mdx',
   EDITOR_CONFIG: '.editorconfig', // EditorConfig
   IDEA_GITIGNORE: '.idea/.gitignore', // JetBrains IDE
   IDEA_PROJECT_XML: '.idea/codeStyles/Project.xml',
@@ -104,12 +111,16 @@ export const SHADOW_SOURCE_RELATIVE_PATHS = {
   SRC_SKILLS: 'src/skills', // Source paths
   SRC_COMMANDS: 'src/commands',
   SRC_AGENTS: 'src/agents',
+  SRC_RULES: 'src/rules',
   SRC_GLOBAL_MEMORY: 'app/global.cn.mdx',
+  SRC_WORKSPACE_MEMORY: 'app/workspace.cn.mdx',
   DIST_SKILLS: 'dist/skills', // Distribution paths
   DIST_COMMANDS: 'dist/commands',
   DIST_AGENTS: 'dist/agents',
+  DIST_RULES: 'dist/rules',
   DIST_APP: 'dist/app',
   DIST_GLOBAL_MEMORY: 'dist/global.mdx',
+  DIST_WORKSPACE_MEMORY: 'dist/app/workspace.mdx',
   APP: 'app' // App source path (standalone at root)
 } as const
 
@@ -134,10 +145,20 @@ export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE: ShadowSourceProjectDirecto
       required: false,
       description: 'Sub-agent source files (.cn.mdx)'
     },
+    rules: {
+      name: SHADOW_SOURCE_DIR_NAMES.RULES,
+      required: false,
+      description: 'Rule source files (.cn.mdx)'
+    },
     globalMemoryFile: {
       name: SHADOW_SOURCE_FILE_NAMES.GLOBAL_MEMORY_SRC,
       required: false,
       description: 'Global memory source file'
+    },
+    workspaceMemoryFile: {
+      name: SHADOW_SOURCE_FILE_NAMES.WORKSPACE_MEMORY_SRC,
+      required: false,
+      description: 'Workspace memory source file'
     }
   },
   dist: {
@@ -156,10 +177,20 @@ export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE: ShadowSourceProjectDirecto
       required: false,
       description: 'Compiled sub-agent files (.mdx)'
     },
+    rules: {
+      name: SHADOW_SOURCE_DIR_NAMES.RULES,
+      required: false,
+      description: 'Compiled rule files (.mdx)'
+    },
     globalMemoryFile: {
       name: SHADOW_SOURCE_FILE_NAMES.GLOBAL_MEMORY,
       required: false,
       description: 'Compiled global memory file'
+    },
+    workspaceMemoryFile: {
+      name: SHADOW_SOURCE_FILE_NAMES.WORKSPACE_MEMORY,
+      required: false,
+      description: 'Compiled workspace memory file'
     },
     app: {
       name: SHADOW_SOURCE_DIR_NAMES.APP,

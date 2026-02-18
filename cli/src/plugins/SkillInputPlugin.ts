@@ -172,10 +172,9 @@ export class SkillInputPlugin extends AbstractInputPlugin {
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
     const {userConfigOptions: options, logger, globalScope} = ctx
-    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
+    const {shadowProjectDir} = this.resolveBasePaths(options)
 
-    const skillDirRaw = options.shadowSkillSourceDir
-    const skillDir = this.resolvePath(skillDirRaw, workspaceDir, shadowProjectDir)
+    const skillDir = this.resolveShadowPath(options.shadowSourceProject.skill.dist, shadowProjectDir)
 
     const skills: SkillPrompt[] = []
     if (!(ctx.fs.existsSync(skillDir) && ctx.fs.statSync(skillDir).isDirectory())) return {skills}

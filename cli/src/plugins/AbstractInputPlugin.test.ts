@@ -11,14 +11,16 @@ import {AbstractInputPlugin} from './AbstractInputPlugin'
 function createTestOptions(overrides: Partial<PluginOptions> = {}): Required<PluginOptions> { // Default test options for Required<PluginOptions>
   return {
     workspaceDir: '/test',
-    shadowSourceProjectDir: '/test/tnmsc-shadow',
-    shadowSkillSourceDir: '$SHADOW_SOURCE_PROJECT/dist/skills',
-    shadowFastCommandDir: '$SHADOW_SOURCE_PROJECT/dist/commands',
-    shadowSubAgentDir: '$SHADOW_SOURCE_PROJECT/dist/agents',
-    globalMemoryFile: '$SHADOW_SOURCE_PROJECT/dist/global.md',
-    shadowProjectsDir: '$SHADOW_SOURCE_PROJECT/dist/app',
-    externalProjects: [],
-    excludePatterns: {},
+    shadowSourceProject: {
+      name: 'tnmsc-shadow',
+      skill: {src: 'src/skills', dist: 'dist/skills'},
+      fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+      subAgent: {src: 'src/agents', dist: 'dist/agents'},
+      rule: {src: 'src/rules', dist: 'dist/rules'},
+      globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+      workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+      project: {src: 'app', dist: 'dist/app'}
+    },
     fastCommandSeriesOptions: {},
     plugins: [],
     logLevel: 'info',
@@ -49,8 +51,12 @@ class TestInputPlugin extends AbstractInputPlugin { // Concrete implementation f
     return this.resolveBasePaths(options)
   }
 
-  public exposeResolvePath(rawPath: string, workspaceDir: string, shadowProjectDir: string): string {
-    return this.resolvePath(rawPath, workspaceDir, shadowProjectDir)
+  public exposeResolvePath(rawPath: string, workspaceDir: string): string {
+    return this.resolvePath(rawPath, workspaceDir)
+  }
+
+  public exposeResolveShadowPath(relativePath: string, shadowProjectDir: string): string {
+    return this.resolveShadowPath(relativePath, shadowProjectDir)
   }
 
   public exposeRegisterScope(namespace: string, values: Record<string, unknown>): void { // Expose scope registration methods for testing
@@ -235,7 +241,7 @@ describe('abstractInputPlugin', () => {
 
   describe('resolveBasePaths', () => {
     it('should resolve workspace and shadow project paths', () => {
-      const options = createTestOptions({workspaceDir: '/custom/workspace', shadowSourceProjectDir: '/custom/workspace/tnmsc-shadow'})
+      const options = createTestOptions({workspaceDir: '/custom/workspace'})
 
       const {workspaceDir, shadowProjectDir} = plugin.exposeResolveBasePaths(options)
 
@@ -243,30 +249,44 @@ describe('abstractInputPlugin', () => {
       expect(shadowProjectDir).toBe(path.normalize('/custom/workspace/tnmsc-shadow'))
     })
 
-    it('should use default paths when not specified', () => {
-      const options = createTestOptions({workspaceDir: '~/project', shadowSourceProjectDir: '$WORKSPACE/tnmsc-shadow'})
+    it('should construct shadow project dir from name', () => {
+      const options = createTestOptions({
+        workspaceDir: '~/project',
+        shadowSourceProject: {
+          name: 'my-shadow',
+          skill: {src: 'src/skills', dist: 'dist/skills'},
+          fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+          subAgent: {src: 'src/agents', dist: 'dist/agents'},
+          rule: {src: 'src/rules', dist: 'dist/rules'},
+          globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+          workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+          project: {src: 'app', dist: 'dist/app'}
+        }
+      })
 
       const {workspaceDir, shadowProjectDir} = plugin.exposeResolveBasePaths(options)
 
       expect(workspaceDir).toContain('project')
-      expect(shadowProjectDir).toContain('tnmsc-shadow')
+      expect(shadowProjectDir).toContain('my-shadow')
     })
   })
 
   describe('resolvePath', () => {
     it('should replace ~ with home directory', () => {
-      const resolved = plugin.exposeResolvePath('~/test', '', '')
+      const resolved = plugin.exposeResolvePath('~/test', '')
       expect(resolved).toBe(path.normalize(`${os.homedir()}/test`))
     })
 
     it('should replace $WORKSPACE placeholder', () => {
-      const resolved = plugin.exposeResolvePath('$WORKSPACE/subdir', '/workspace', '')
+      const resolved = plugin.exposeResolvePath('$WORKSPACE/subdir', '/workspace')
       expect(resolved).toBe(path.normalize('/workspace/subdir'))
     })
+  })
 
-    it('should replace $SHADOW_SOURCE_PROJECT placeholder', () => {
-      const resolved = plugin.exposeResolvePath('$SHADOW_SOURCE_PROJECT/dist', '', '/shadow')
-      expect(resolved).toBe(path.normalize('/shadow/dist'))
+  describe('resolveShadowPath', () => {
+    it('should join shadow project dir with relative path', () => {
+      const resolved = plugin.exposeResolveShadowPath('dist/skills', '/shadow')
+      expect(resolved).toBe(path.join('/shadow', 'dist/skills'))
     })
   })
 
