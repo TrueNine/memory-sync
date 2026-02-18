@@ -71,7 +71,8 @@ jobs:
         shell: bash
         run: |
           # Normalise root package version in Cargo.lock so version bumps don't invalidate cache
-          HASH=$(awk '/^name = "memory-sync-gui"$/{print; getline; sub(/version = ".*"/, "version = \"0.0.0\""); print; next} 1' gui/src-tauri/Cargo.lock | sha256sum | cut -d' ' -f1)
+          # Use openssl (macOS/Linux/Windows) instead of sha256sum (Linux-only)
+          HASH=$(awk '/^name = "memory-sync-gui"$/{print; getline; sub(/version = ".*"/, "version = \"0.0.0\""); print; next} 1' gui/src-tauri/Cargo.lock | openssl dgst -sha256 2>&1 | awk '{print $NF}')
           echo "hash=$HASH" >> $GITHUB_OUTPUT
 
       - name: Cache cargo + tauri target

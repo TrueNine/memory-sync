@@ -93,15 +93,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create and push Git tag
-        if: steps.check.outputs.publish == 'true'
-        run: |
-          version=${{ steps.check.outputs.version }}
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "v${version}"
-          git push origin "v${version}"
-
   release-gui:
     needs: release-cli
     if: needs.release-cli.outputs.publish == 'true'
