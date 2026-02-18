@@ -205,12 +205,12 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     }
 
     const globalRules = rules?.filter(r => r.scope === 'global')
-    if (globalRules != null && globalRules.length > 0) {
-      const memoriesDir = this.getGlobalMemoriesDir()
-      for (const rule of globalRules) {
-        const result = await this.writeRuleFile(ctx, memoriesDir, rule, this.getCodeiumWindsurfDir(), MEMORIES_SUBDIR)
-        fileResults.push(result)
-      }
+    if (globalRules == null || globalRules.length === 0) return {files: fileResults, dirs: dirResults}
+
+    const memoriesDir = this.getGlobalMemoriesDir()
+    for (const rule of globalRules) {
+      const result = await this.writeRuleFile(ctx, memoriesDir, rule, this.getCodeiumWindsurfDir(), MEMORIES_SUBDIR)
+      fileResults.push(result)
     }
     return {files: fileResults, dirs: dirResults}
   }
