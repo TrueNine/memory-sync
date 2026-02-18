@@ -3,9 +3,9 @@ import type {RulePrompt} from '@/types/InputTypes'
 import * as fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
 import {FilePathKind, PromptKind} from '@/types'
-import {expandWithSubSeries, filterRulesByProjectConfig} from './ruleFilter'
+import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from './ruleFilter'
 
-function createMockRulePrompt(seriName: string | undefined): RulePrompt {
+function createMockRulePrompt(seriName: string | undefined, globs: readonly string[] = ['**/*.ts']): RulePrompt {
   const content = '# Rule body'
   return {
     type: PromptKind.Rule,
@@ -14,10 +14,10 @@ function createMockRulePrompt(seriName: string | undefined): RulePrompt {
     filePathKind: FilePathKind.Relative,
     dir: {pathKind: FilePathKind.Relative, path: '.', basePath: '', getDirectoryName: () => '.', getAbsolutePath: () => '.'},
     markdownContents: [],
-    yamlFrontMatter: {description: 'Test rule', globs: ['**/*.ts']},
+    yamlFrontMatter: {description: 'Test rule', globs: [...globs]},
     series: 'test',
     ruleName: 'test-rule',
-    globs: ['**/*.ts'],
+    globs: [...globs],
     scope: 'project',
     seriName
   }
@@ -25,60 +25,17 @@ function createMockRulePrompt(seriName: string | undefined): RulePrompt {
 
 const seriNameGen = fc.stringMatching(/^[a-z0-9]{1,20}$/)
 const seriNameArrayGen = fc.array(seriNameGen, {minLength: 0, maxLength: 10})
+const globGen = fc.stringMatching(/^\*\*\/\*\.[a-z]{1,5}$/)
+const globArrayGen = fc.array(globGen, {minLength: 1, maxLength: 5})
 
-const subSeriesGen = fc.dictionary(seriNameGen, seriNameArrayGen) // Generator for subSeries: Record<string, readonly string[]>
-
-describe('expandWithSubSeries property tests', () => {
-  it('should always include all input names in result', () => {
-    fc.assert(
-      fc.property(seriNameArrayGen, subSeriesGen, (names, subSeries) => {
-        const result = expandWithSubSeries(names, subSeries)
-        for (const name of names) expect(result).toContain(name)
-      }),
-      {numRuns: 100}
-    )
-  })
-
-  it('should never produce duplicates', () => {
-    fc.assert(
-      fc.property(seriNameArrayGen, subSeriesGen, (names, subSeries) => {
-        const result = expandWithSubSeries(names, subSeries)
-        const uniqueResult = [...new Set(result)]
-        expect(result).toHaveLength(uniqueResult.length)
-      }),
-      {numRuns: 100}
-    )
-  })
-
-  it('should be idempotent when subSeries has no matching keys', () => {
-    fc.assert(
-      fc.property(seriNameArrayGen, names => {
-        const emptySubSeries: Record<string, readonly string[]> = {}
-        const result1 = expandWithSubSeries(names, emptySubSeries)
-        const result2 = expandWithSubSeries(result1, emptySubSeries)
-        expect(result1).toEqual(result2)
-      }),
-      {numRuns: 100}
-    )
-  })
-
-  it('should expand result size >= unique input size', () => {
-    fc.assert(
-      fc.property(seriNameArrayGen, subSeriesGen, (names, subSeries) => {
-        const result = expandWithSubSeries(names, subSeries)
-        const uniqueNames = [...new Set(names)]
-        expect(result.length).toBeGreaterThanOrEqual(uniqueNames.length)
-      }),
-      {numRuns: 100}
-    )
-  })
-})
+const subdirGen = fc.stringMatching(/^[a-z][a-z0-9/-]{0,30}$/)
+const subSeriesGen = fc.dictionary(subdirGen, seriNameArrayGen)
 
 describe('filterRulesByProjectConfig property tests', () => {
   it('should return all rules when projectConfig is undefined', async () => {
     await fc.assert(
       fc.asyncProperty(seriNameArrayGen, async seriNames => {
-        const rules = seriNames.map(createMockRulePrompt)
+        const rules = seriNames.map(name => createMockRulePrompt(name))
         const result = filterRulesByProjectConfig(rules, void 0)
         expect(result).toHaveLength(rules.length)
       }),
@@ -93,7 +50,7 @@ describe('filterRulesByProjectConfig property tests', () => {
         seriNameArrayGen,
         seriNameArrayGen,
         async (ruleNames, includeNames, excludeNames) => {
-          const rules = ruleNames.map(createMockRulePrompt)
+          const rules = ruleNames.map(name => createMockRulePrompt(name))
           const projectConfig: ProjectConfig = {
             rules: {include: includeNames, exclude: excludeNames}
           }
@@ -112,7 +69,7 @@ describe('filterRulesByProjectConfig property tests', () => {
         seriNameArrayGen,
         seriNameArrayGen,
         async (ruleNames, includeNames) => {
-          const rules = ruleNames.map(createMockRulePrompt)
+          const rules = ruleNames.map(name => createMockRulePrompt(name))
           const projectConfig: ProjectConfig = {
             rules: {include: includeNames}
           }
@@ -130,7 +87,7 @@ describe('filterRulesByProjectConfig property tests', () => {
         seriNameArrayGen,
         seriNameArrayGen,
         async (ruleNames, excludeNames) => {
-          const rules = ruleNames.map(createMockRulePrompt)
+          const rules = ruleNames.map(name => createMockRulePrompt(name))
           const projectConfig: ProjectConfig = {
             rules: {exclude: excludeNames}
           }
@@ -153,7 +110,7 @@ describe('filterRulesByProjectConfig property tests', () => {
         seriNameArrayGen,
         async (definedNames, includeNames, excludeNames) => {
           const rules = [
-            ...definedNames.map(createMockRulePrompt),
+            ...definedNames.map(name => createMockRulePrompt(name)),
             createMockRulePrompt(void 0)
           ]
           const projectConfig: ProjectConfig = {
@@ -167,24 +124,130 @@ describe('filterRulesByProjectConfig property tests', () => {
       {numRuns: 100}
     )
   })
+})
 
-  it('subSeries expansion should include parent and children', async () => {
-    const parentGen = seriNameGen
-    const childrenGen = fc.array(seriNameGen, {minLength: 1, maxLength: 5})
-
+describe('applySubSeriesGlobPrefix property tests', () => {
+  it('should return original rules when no projectConfig', async () => {
     await fc.assert(
-      fc.asyncProperty(parentGen, childrenGen, async (parent, children) => {
-        const rules = [parent, ...children].map(createMockRulePrompt)
-        const projectConfig: ProjectConfig = {
-          rules: {
-            include: [parent],
-            subSeries: {[parent]: children}
+      fc.asyncProperty(
+        seriNameGen,
+        globArrayGen,
+        async (seriName, globs) => {
+          const rules = [createMockRulePrompt(seriName, globs)]
+          const result = applySubSeriesGlobPrefix(rules, void 0)
+          expect(result).toEqual(rules)
+        }
+      ),
+      {numRuns: 100}
+    )
+  })
+
+  it('should return original rules when no subSeries', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        seriNameGen,
+        globArrayGen,
+        async (seriName, globs) => {
+          const rules = [createMockRulePrompt(seriName, globs)]
+          const projectConfig: ProjectConfig = {rules: {include: [seriName]}}
+          const result = applySubSeriesGlobPrefix(rules, projectConfig)
+          expect(result).toEqual(rules)
+        }
+      ),
+      {numRuns: 100}
+    )
+  })
+
+  it('should not modify rules with undefined seriName', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        globArrayGen,
+        subSeriesGen,
+        async (globs, subSeries) => {
+          const rules = [createMockRulePrompt(void 0, globs)]
+          const projectConfig: ProjectConfig = {rules: {subSeries}}
+          const result = applySubSeriesGlobPrefix(rules, projectConfig)
+          expect(result[0].globs).toEqual(globs)
+        }
+      ),
+      {numRuns: 100}
+    )
+  })
+
+  it('should always produce valid glob patterns', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        seriNameGen,
+        globArrayGen,
+        subdirGen,
+        async (seriName, globs, subdir) => {
+          const rules = [createMockRulePrompt(seriName, globs)]
+          const projectConfig: ProjectConfig = {
+            rules: {subSeries: {[subdir]: [seriName]}}
+          }
+          const result = applySubSeriesGlobPrefix(rules, projectConfig)
+          for (const glob of result[0].globs) {
+            expect(typeof glob).toBe('string')
+            expect(glob.length).toBeGreaterThan(0)
           }
         }
-        const result = filterRulesByProjectConfig(rules, projectConfig)
-        expect(result.map(r => r.seriName)).toContain(parent)
-        for (const child of children) expect(result.map(r => r.seriName)).toContain(child)
-      }),
+      ),
+      {numRuns: 100}
+    )
+  })
+
+  it('should produce same number or more globs when matched', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        seriNameGen,
+        globArrayGen,
+        fc.array(subdirGen, {minLength: 1, maxLength: 5}),
+        async (seriName, globs, subdirs) => {
+          const rules = [createMockRulePrompt(seriName, globs)]
+          const subSeries: Record<string, readonly string[]> = {}
+          for (const subdir of subdirs) {
+            subSeries[subdir] = [seriName]
+          }
+          const projectConfig: ProjectConfig = {rules: {subSeries}}
+          const result = applySubSeriesGlobPrefix(rules, projectConfig)
+          expect(result[0].globs.length).toBeGreaterThanOrEqual(globs.length)
+        }
+      ),
+      {numRuns: 100}
+    )
+  })
+
+  it('should be deterministic', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        seriNameGen,
+        globArrayGen,
+        subSeriesGen,
+        async (seriName, globs, subSeries) => {
+          const rules = [createMockRulePrompt(seriName, globs)]
+          const projectConfig: ProjectConfig = {rules: {subSeries}}
+          const result1 = applySubSeriesGlobPrefix(rules, projectConfig)
+          const result2 = applySubSeriesGlobPrefix(rules, projectConfig)
+          expect(result1).toEqual(result2)
+        }
+      ),
+      {numRuns: 100}
+    )
+  })
+
+  it('should preserve rule count', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.array(seriNameGen, {minLength: 0, maxLength: 10}),
+        globArrayGen,
+        subSeriesGen,
+        async (seriNames, globs, subSeries) => {
+          const rules = seriNames.map(name => createMockRulePrompt(name, globs))
+          const projectConfig: ProjectConfig = {rules: {subSeries}}
+          const result = applySubSeriesGlobPrefix(rules, projectConfig)
+          expect(result).toHaveLength(rules.length)
+        }
+      ),
       {numRuns: 100}
     )
   })

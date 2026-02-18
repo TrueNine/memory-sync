@@ -13,7 +13,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {FilePathKind} from '@/types'
-import {filterRulesByProjectConfig} from '@/utils/ruleFilter'
+import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@/utils/ruleFilter'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const CODEIUM_WINDSURF_DIR = '.codeium/windsurf'
@@ -225,8 +225,11 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     for (const project of workspace.projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
-      const projectRules = filterRulesByProjectConfig(
-        rules.filter(r => r.scope === 'project'),
+      const projectRules = applySubSeriesGlobPrefix(
+        filterRulesByProjectConfig(
+          rules.filter(r => r.scope === 'project'),
+          project.projectConfig
+        ),
         project.projectConfig
       )
       if (projectRules.length === 0) continue
@@ -250,8 +253,11 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
-        const projectRules = filterRulesByProjectConfig(
-          rules.filter(r => r.scope === 'project'),
+        const projectRules = applySubSeriesGlobPrefix(
+          filterRulesByProjectConfig(
+            rules.filter(r => r.scope === 'project'),
+            project.projectConfig
+          ),
           project.projectConfig
         )
         for (const rule of projectRules) {
@@ -280,8 +286,11 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
-        const projectRules = filterRulesByProjectConfig(
-          rules.filter(r => r.scope === 'project'),
+        const projectRules = applySubSeriesGlobPrefix(
+          filterRulesByProjectConfig(
+            rules.filter(r => r.scope === 'project'),
+            project.projectConfig
+          ),
           project.projectConfig
         )
         if (projectRules.length === 0) continue

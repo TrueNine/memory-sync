@@ -1,7 +1,7 @@
 import type {OutputPluginContext, OutputWriteContext, RulePrompt, WriteResults} from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as path from 'node:path'
-import {filterRulesByProjectConfig} from '@/utils/ruleFilter'
+import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@/utils/ruleFilter'
 import {BaseCLIOutputPlugin} from './BaseCLIOutputPlugin'
 
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'
@@ -52,8 +52,11 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     if (rules == null || rules.length === 0) return results
     for (const project of ctx.collectedInputContext.workspace.projects) {
       if (project.dirFromWorkspacePath == null) continue
-      const projectRules = filterRulesByProjectConfig(
-        rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+      const projectRules = applySubSeriesGlobPrefix(
+        filterRulesByProjectConfig(
+          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+          project.projectConfig
+        ),
         project.projectConfig
       )
       if (projectRules.length === 0) continue
@@ -69,8 +72,11 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     if (rules == null || rules.length === 0) return results
     for (const project of ctx.collectedInputContext.workspace.projects) {
       if (project.dirFromWorkspacePath == null) continue
-      const projectRules = filterRulesByProjectConfig(
-        rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+      const projectRules = applySubSeriesGlobPrefix(
+        filterRulesByProjectConfig(
+          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+          project.projectConfig
+        ),
         project.projectConfig
       )
       for (const rule of projectRules) {
@@ -103,8 +109,11 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     const ruleResults = []
     for (const project of ctx.collectedInputContext.workspace.projects) {
       if (project.dirFromWorkspacePath == null) continue
-      const projectRules = filterRulesByProjectConfig(
-        rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+      const projectRules = applySubSeriesGlobPrefix(
+        filterRulesByProjectConfig(
+          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+          project.projectConfig
+        ),
         project.projectConfig
       )
       if (projectRules.length === 0) continue

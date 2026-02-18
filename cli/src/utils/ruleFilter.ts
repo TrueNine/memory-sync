@@ -1,43 +1,78 @@
 import type {ProjectConfig} from '@/types/ConfigTypes'
 import type {RulePrompt} from '@/types/InputTypes'
 
-/**
- * Expand names with their subSeries definitions.
- * Each name in `names` is expanded to include its children from `subSeries`.
- * Expansion is only one level deep.
- */
-export function expandWithSubSeries(
-  names: readonly string[],
-  subSeries: Readonly<Record<string, readonly string[]>>
-): readonly string[] {
-  const result = new Set<string>(names)
-
-  for (const name of names) {
-    if (Object.hasOwn(subSeries, name)) { // (e.g., keys like "constructor" would access Object.prototype.constructor) // Use Object.prototype.hasOwnProperty to avoid prototype pollution
-      const children = subSeries[name]
-      if (children != null) {
-        for (const child of children) result.add(child)
-      }
-    }
-  }
-
-  return [...result]
+function normalizeSubdirPath(subdir: string): string {
+  let normalized = subdir.replaceAll(/\.\/+/g, '')
+  normalized = normalized.replaceAll(/\/+$/g, '')
+  return normalized
 }
 
-/**
- * Filter rules based on project configuration.
- *
- * Logic:
- * 1. If no projectConfig.rules exists, return all rules (backward compatible)
- * 2. Expand include/exclude with subSeries mappings
- * 3. Rules without seriName are always included (backward compatible)
- * 4. Apply include filter first (if exists)
- * 5. Apply exclude filter second (if exists)
- *
- * @param rules - Array of RulePrompt to filter
- * @param projectConfig - Project configuration containing rules config
- * @returns Filtered array of RulePrompt
- */
+function smartConcatGlob(prefix: string, glob: string): string {
+  if (glob.startsWith('**/')) return `${prefix}/${glob}`
+  if (glob.startsWith('*')) return `${prefix}/**/${glob}`
+  return `${prefix}/${glob}`
+}
+
+function extractPrefixAndBaseGlob(glob: string, prefixes: readonly string[]): {prefix: string | null, baseGlob: string} {
+  for (const prefix of prefixes) {
+    const normalizedPrefix = prefix.replaceAll(/\/+$/g, '')
+    const patterns = [
+      {prefix: normalizedPrefix, pattern: `${normalizedPrefix}/`},
+      {prefix: normalizedPrefix, pattern: `${normalizedPrefix}\\`}
+    ]
+    for (const {prefix: p, pattern} of patterns) {
+      if (glob.startsWith(pattern)) return {prefix: p, baseGlob: glob.slice(pattern.length)}
+    }
+    if (glob === normalizedPrefix) return {prefix: normalizedPrefix, baseGlob: '**/*'}
+  }
+  return {prefix: null, baseGlob: glob}
+}
+
+export function applySubSeriesGlobPrefix(
+  rules: readonly RulePrompt[],
+  projectConfig: ProjectConfig | undefined
+): readonly RulePrompt[] {
+  const subSeries = projectConfig?.rules?.subSeries
+  if (subSeries == null || Object.keys(subSeries).length === 0) return rules
+
+  const normalizedSubSeries: Record<string, readonly string[]> = {}
+  for (const [subdir, seriNames] of Object.entries(subSeries)) {
+    const normalizedSubdir = normalizeSubdirPath(subdir)
+    normalizedSubSeries[normalizedSubdir] = seriNames
+  }
+
+  const allPrefixes = Object.keys(normalizedSubSeries)
+
+  return rules.map(rule => {
+    if (rule.seriName == null) return rule
+
+    const matchedPrefixes: string[] = []
+    for (const [subdir, seriNames] of Object.entries(normalizedSubSeries)) {
+      if (seriNames.includes(rule.seriName)) matchedPrefixes.push(subdir)
+    }
+
+    if (matchedPrefixes.length === 0) return rule
+
+    const newGlobs: string[] = []
+    for (const originalGlob of rule.globs) {
+      const {prefix: existingPrefix, baseGlob} = extractPrefixAndBaseGlob(originalGlob, allPrefixes)
+
+      if (existingPrefix != null) newGlobs.push(originalGlob)
+
+      for (const prefix of matchedPrefixes) {
+        if (prefix === existingPrefix) continue
+        const newGlob = smartConcatGlob(prefix, baseGlob)
+        if (!newGlobs.includes(newGlob)) newGlobs.push(newGlob)
+      }
+    }
+
+    return {
+      ...rule,
+      globs: newGlobs
+    }
+  })
+}
+
 export function filterRulesByProjectConfig(
   rules: readonly RulePrompt[],
   projectConfig: ProjectConfig | undefined
@@ -45,25 +80,17 @@ export function filterRulesByProjectConfig(
   const rulesConfig = projectConfig?.rules
   if (rulesConfig == null) return rules
 
-  const {include, exclude, subSeries} = rulesConfig
-
-  let effectiveInclude = include // Expand include with subSeries
-  if (effectiveInclude != null && subSeries != null) effectiveInclude = expandWithSubSeries(effectiveInclude, subSeries)
-
-  let effectiveExclude = exclude // Expand exclude with subSeries
-  if (effectiveExclude != null && subSeries != null) effectiveExclude = expandWithSubSeries(effectiveExclude, subSeries)
+  const {include, exclude} = rulesConfig
 
   return rules.filter(rule => {
-    if (rule.seriName == null) { // seriName undefined → always output (backward compatible)
-      return true
+    if (rule.seriName == null) return true
+
+    if (include != null && include.length > 0) {
+      if (!include.includes(rule.seriName)) return false
     }
 
-    if (effectiveInclude != null && effectiveInclude.length > 0) { // Include filter
-      if (!effectiveInclude.includes(rule.seriName)) return false
-    }
-
-    if (effectiveExclude != null && effectiveExclude.length > 0) { // Exclude filter
-      if (effectiveExclude.includes(rule.seriName)) return false
+    if (exclude != null && exclude.length > 0) {
+      if (exclude.includes(rule.seriName)) return false
     }
 
     return true
