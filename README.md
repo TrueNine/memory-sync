@@ -14,7 +14,7 @@ So as a rat, I eat whatever I can reach: maggots in the sewer, leftovers in the 
 In this ecosystem, giants monopolise the resources, and developers are thrown into the corner like rats.\
 `memory-sync` accepts this cruel reality, does not fantasise about fairness, and focuses on one thing only: **to chew up every fragment of resource you already have, and convert it into portable "memory" that can flow between any AI tool.**
 
-![fat](/.attachments/fat.svg)
+![rat](/.attachments/rat.svg)
 
 What can it help you do?
 
