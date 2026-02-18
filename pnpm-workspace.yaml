@@ -2,6 +2,7 @@ packages:
   - cli
   - packages/*
   - gui
+  - doc
 
 catalog:
   '@clack/prompts': ^1.0.0
