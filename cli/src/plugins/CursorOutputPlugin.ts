@@ -748,13 +748,14 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
 
     const lines = raw.split('\n')
     const transformedLines = lines.map(line => {
-      const match = /^globs:\s*"(.*)"\s*$/.exec(line)
+      const match = /^(\s*globs:\s*)(['"])(.*)\2\s*$/.exec(line)
       if (match == null) return line
 
-      const value = match[1] ?? ''
+      const prefix = match[1] ?? 'globs: '
+      const value = match[3] ?? ''
       if (value.trim().length === 0) return line
 
-      return `globs: ${value}`
+      return `${prefix}${value}`
     })
 
     return transformedLines.join('\n')
