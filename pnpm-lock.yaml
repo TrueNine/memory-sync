@@ -209,7 +209,7 @@ importers:
         version: link:../packages/desk-paths
       '@truenine/eslint10-config':
         specifier: 'catalog:'
-        version: 2026.10209.11105(72b04b6479186e194d70e6033293300e)
+        version: 2026.10209.11105(28fa086349117b748783ea84ec991174)
       '@truenine/init-bundle':
         specifier: workspace:*
         version: link:../packages/init-bundle
@@ -246,9 +246,12 @@ importers:
 
   doc:
     dependencies:
+      '@mdx-js/react':
+        specifier: ^3.1.1
+        version: 3.1.1(@types/react@19.2.14)(react@19.2.4)
       '@next/mdx':
         specifier: ^16.0.0
-        version: 16.1.6
+        version: 16.1.6(@mdx-js/react@3.1.1(@types/react@19.2.14)(react@19.2.4))
       next:
         specifier: ^16.0.0
         version: 16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -358,7 +361,7 @@ importers:
     devDependencies:
       '@truenine/eslint10-config':
         specifier: 'catalog:'
-        version: 2026.10209.11105(28fa086349117b748783ea84ec991174)
+        version: 2026.10209.11105(72b04b6479186e194d70e6033293300e)
       '@types/node':
         specifier: 'catalog:'
         version: 25.2.3
@@ -1093,6 +1096,12 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@mdx-js/react@3.1.1':
+    resolution: {integrity: sha512-f++rKLQgUVYDAtECQ6fn/is15GkEH9+nZPM3MS0RcxVqoTfawHvDlSCH7JbMhAM6uJ32v3eXLvLmLvjGu7PTQw==}
+    peerDependencies:
+      '@types/react': '>=16'
+      react: '>=16'
+
   '@monaco-editor/loader@1.7.0':
     resolution: {integrity: sha512-gIwR1HrJrrx+vfyOhYmCZ0/JcWqG5kbfG7+d3f/C1LXk2EvzAbHSg3MQ5lO2sMlo9izoAZ04shohfKLVT6crVA==}
 
@@ -1778,6 +1787,9 @@ packages:
 
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
+
+  '@types/mdx@2.0.13':
+    resolution: {integrity: sha512-+OWZQfAYyio6YkJb3HLxDrvnx6SWWDbC0zVPfBRzUk0/nqoDyf6dNxQi3eArPe8rJ473nobTMQ/8Zk+LxJ+Yuw==}
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
@@ -4512,6 +4524,12 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@mdx-js/react@3.1.1(@types/react@19.2.14)(react@19.2.4)':
+    dependencies:
+      '@types/mdx': 2.0.13
+      '@types/react': 19.2.14
+      react: 19.2.4
+
   '@monaco-editor/loader@1.7.0':
     dependencies:
       state-local: 1.0.7
@@ -4536,9 +4554,11 @@ snapshots:
     dependencies:
       fast-glob: 3.3.1
 
-  '@next/mdx@16.1.6':
+  '@next/mdx@16.1.6(@mdx-js/react@3.1.1(@types/react@19.2.14)(react@19.2.4))':
     dependencies:
       source-map: 0.7.6
+    optionalDependencies:
+      '@mdx-js/react': 3.1.1(@types/react@19.2.14)(react@19.2.4)
 
   '@next/swc-darwin-arm64@16.1.6':
     optional: true
@@ -5062,6 +5082,8 @@ snapshots:
   '@types/mdast@4.0.4':
     dependencies:
       '@types/unist': 3.0.3
+
+  '@types/mdx@2.0.13': {}
 
   '@types/ms@2.1.0': {}
 

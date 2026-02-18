@@ -10,8 +10,9 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "^16.0.0",
-    "@next/mdx": "^16.0.0",
+    "@mdx-js/react": "catalog:",
+    "@next/mdx": "catalog:",
+    "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

@@ -1,4 +1,4 @@
-import type { MDXComponents } from 'mdx/types';
+import type { MDXComponents } from '@mdx-js/react';
 import { Callout } from './components/Callout';
 import { Steps, Step } from './components/Steps';
 
