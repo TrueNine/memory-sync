@@ -2,12 +2,14 @@ import type {
   FastCommandPrompt,
   GlobalMemoryPrompt,
   OutputPluginContext,
-  OutputWriteContext
+  OutputWriteContext,
+  RulePrompt
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {createLogger} from '@/log'
 import {FilePathKind, PromptKind} from '@/types'
@@ -82,6 +84,29 @@ class TestableCursorOutputPlugin extends CursorOutputPlugin {
     if (this.mockHomeDir != null) return this.mockHomeDir
     return super.getHomeDir()
   }
+
+  public buildRuleMdcContentForTest(rule: RulePrompt): string {
+    return this.buildRuleMdcContent(rule)
+  }
+}
+
+function createMockRulePrompt(
+  options: {series: string, ruleName: string, globs: readonly string[], content?: string}
+): RulePrompt {
+  const content = options.content ?? '# Rule body'
+  return {
+    type: PromptKind.Rule,
+    content,
+    length: content.length,
+    filePathKind: FilePathKind.Relative,
+    dir: createMockRelativePath('.', ''),
+    markdownContents: [],
+    yamlFrontMatter: {description: 'ignored', globs: options.globs},
+    series: options.series,
+    ruleName: options.ruleName,
+    globs: options.globs,
+    scope: 'global'
+  } as RulePrompt
 }
 
 describe('cursor output plugin', () => {
@@ -107,6 +132,100 @@ describe('cursor output plugin', () => {
     it('should have correct plugin name', () => expect(plugin.name).toBe('CursorOutputPlugin'))
 
     it('should depend on AgentsOutputPlugin', () => expect(plugin.dependsOn).toContain('AgentsOutputPlugin'))
+  })
+
+  describe('buildRuleMdcContent (Cursor rules front matter)', () => {
+    it('should output only alwaysApply and globs in front matter', () => {
+      const rule = createMockRulePrompt({
+        series: 'cursor',
+        ruleName: 'ts',
+        globs: ['**/*.ts'],
+        content: '# TypeScript rule'
+      })
+      const raw = plugin.buildRuleMdcContentForTest(rule)
+      const parsed = parseMarkdown(raw)
+      const fm = parsed.yamlFrontMatter
+      expect(fm).toBeDefined()
+      expect(Object.keys(fm!).sort()).toEqual(['alwaysApply', 'globs'])
+    })
+
+    it('should set alwaysApply to false', () => {
+      const rule = createMockRulePrompt({
+        series: 'cursor',
+        ruleName: 'ts',
+        globs: ['**/*.ts'],
+        content: '# Body'
+      })
+      const raw = plugin.buildRuleMdcContentForTest(rule)
+      const parsed = parseMarkdown(raw)
+      const fm = parsed.yamlFrontMatter as Record<string, unknown>
+      expect(fm.alwaysApply).toBe(false)
+    })
+
+    it('should output globs as comma-separated string, not YAML array', () => {
+      const rule = createMockRulePrompt({
+        series: 'cursor',
+        ruleName: 'ts',
+        globs: ['**/*.ts', '**/*.tsx'],
+        content: '# Body'
+      })
+      const raw = plugin.buildRuleMdcContentForTest(rule)
+      const parsed = parseMarkdown(raw)
+      const fm = parsed.yamlFrontMatter as Record<string, unknown>
+      expect(typeof fm.globs).toBe('string')
+      expect(fm.globs).toBe('**/*.ts, **/*.tsx')
+    })
+
+    it('should output single glob as string without trailing comma', () => {
+      const rule = createMockRulePrompt({
+        series: 'cursor',
+        ruleName: 'ts',
+        globs: ['**/*.ts'],
+        content: '# Body'
+      })
+      const raw = plugin.buildRuleMdcContentForTest(rule)
+      const parsed = parseMarkdown(raw)
+      const fm = parsed.yamlFrontMatter as Record<string, unknown>
+      expect(fm.globs).toBe('**/*.ts')
+    })
+
+    it('should output empty string for empty globs', () => {
+      const rule = createMockRulePrompt({
+        series: 'cursor',
+        ruleName: 'empty',
+        globs: [],
+        content: '# Body'
+      })
+      const raw = plugin.buildRuleMdcContentForTest(rule)
+      const parsed = parseMarkdown(raw)
+      const fm = parsed.yamlFrontMatter as Record<string, unknown>
+      expect(fm.globs).toBe('')
+    })
+
+    it('should not contain YAML array syntax for globs in raw output', () => {
+      const rule = createMockRulePrompt({
+        series: 'cursor',
+        ruleName: 'multi',
+        globs: ['src/**', 'lib/**'],
+        content: '# Body'
+      })
+      const raw = plugin.buildRuleMdcContentForTest(rule)
+      expect(raw).not.toMatch(/\n\s*-\s+/)
+      expect(raw).not.toContain('  - ')
+    })
+
+    it('should preserve rule body after front matter', () => {
+      const body = '# My Rule\n\nOnly for **/*.kt.'
+      const rule = createMockRulePrompt({
+        series: 'cursor',
+        ruleName: 'kt',
+        globs: ['**/*.kt'],
+        content: body
+      })
+      const raw = plugin.buildRuleMdcContentForTest(rule)
+      const parsed = parseMarkdown(raw)
+      expect(parsed.contentWithoutFrontMatter.trim()).toBe(body)
+    })
   })
 
   describe('registerGlobalOutputFiles', () => {

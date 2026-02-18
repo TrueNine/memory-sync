@@ -313,14 +313,13 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     }
 
     const globalRules = rules?.filter(r => r.scope === 'global')
-    if (globalRules != null && globalRules.length > 0) {
-      const globalRulesDir = path.join(this.getGlobalConfigDir(), RULES_SUBDIR)
-      for (const rule of globalRules) {
-        const result = await this.writeRuleMdcFile(ctx, globalRulesDir, rule, this.getGlobalConfigDir())
-        fileResults.push(result)
-      }
-    }
+    if (globalRules == null || globalRules.length === 0) return {files: fileResults, dirs: dirResults}
 
+    const globalRulesDir = path.join(this.getGlobalConfigDir(), RULES_SUBDIR)
+    for (const rule of globalRules) {
+      const result = await this.writeRuleMdcFile(ctx, globalRulesDir, rule, this.getGlobalConfigDir())
+      fileResults.push(result)
+    }
     return {files: fileResults, dirs: dirResults}
   }
 
@@ -739,12 +738,11 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.mdc`
   }
 
-  private buildRuleMdcContent(rule: RulePrompt): string {
-    const description = rule.yamlFrontMatter?.description ?? ''
+  /** Cursor rule front matter: only alwaysApply and globs; globs as comma-separated string. */
+  protected buildRuleMdcContent(rule: RulePrompt): string {
     const fmData: Record<string, unknown> = {
-      description,
-      globs: [...rule.globs],
-      alwaysApply: false
+      alwaysApply: false,
+      globs: rule.globs.length > 0 ? rule.globs.join(', ') : ''
     }
     return buildMarkdownWithFrontMatter(fmData, rule.content)
   }
