@@ -1,9 +1,11 @@
-import type {RulePrompt} from '@/types'
+import type {ILogger} from '@/log'
+import type {InputPluginContext, RulePrompt} from '@/types'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {validateRuleMetadata} from '@/types'
+import {RuleInputPlugin} from './RuleInputPlugin'
 
 describe('validateRuleMetadata', () => {
   it('should pass with valid metadata', () => {
@@ -110,6 +112,29 @@ describe('validateRuleMetadata', () => {
     expect(result.valid).toBe(false)
     expect(result.errors.every(e => e.includes('test/file.mdx'))).toBe(true)
   })
+
+  it('should pass when seriName is a valid string', () => {
+    const result = validateRuleMetadata({globs: ['**/*.ts'], description: 'desc', scope: 'project', seriName: 'uniapp3'})
+    expect(result.valid).toBe(true)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('should pass when seriName is absent', () => {
+    const result = validateRuleMetadata({globs: ['**/*.ts'], description: 'desc', scope: 'project'})
+    expect(result.valid).toBe(true)
+  })
+
+  it('should fail when seriName is not a string', () => {
+    const result = validateRuleMetadata({globs: ['**/*.ts'], description: 'desc', scope: 'project', seriName: 42})
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.includes('seriName'))).toBe(true)
+  })
+
+  it('should fail when seriName is an object', () => {
+    const result = validateRuleMetadata({globs: ['**/*.ts'], description: 'desc', seriName: {}})
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.includes('seriName'))).toBe(true)
+  })
 })
 
 describe('ruleInputPlugin - file structure', () => {
@@ -210,6 +235,70 @@ describe('rule scope defaults', () => {
   it('should use explicit global scope', () => {
     const scope: string = 'global'
     expect(scope).toBe('global')
+  })
+})
+
+describe('ruleInputPlugin - seriName propagation', () => {
+  let tempDir: string
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rule-seri-'))
+    fs.mkdirSync(path.join(tempDir, 'shadow', 'rules', 'my-series'), {recursive: true})
+  })
+
+  afterEach(() => fs.rmSync(tempDir, {recursive: true, force: true}))
+
+  function createCtx(): InputPluginContext {
+    return {
+      logger: {debug: vi.fn(), trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn()} as unknown as ILogger,
+      fs,
+      path,
+      glob: vi.fn() as never,
+      userConfigOptions: {
+        workspaceDir: tempDir,
+        shadowSourceProject: {
+          name: 'shadow',
+          skill: {src: 'src/skills', dist: 'dist/skills'},
+          fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+          subAgent: {src: 'src/agents', dist: 'dist/agents'},
+          rule: {src: 'src/rules', dist: 'rules'},
+          globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+          workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+          project: {src: 'app', dist: 'dist/app'}
+        },
+        fastCommandSeriesOptions: {},
+        plugins: [],
+        logLevel: 'info'
+      } as never,
+      dependencyContext: {},
+      globalScope: {
+        profile: {name: 'test', username: 'test', gender: 'male', birthday: '2000-01-01'},
+        tool: {name: 'test'},
+        env: {},
+        os: {platform: 'linux', arch: 'x64', homedir: '/home/test'},
+        Md: vi.fn()
+      } as never
+    }
+  }
+
+  it('should propagate seriName from YAML front matter to RulePrompt', async () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'shadow', 'rules', 'my-series', 'my-rule.mdx'),
+      ['---', 'globs: ["**/*.ts"]', 'description: Test rule', 'scope: project', 'seriName: uniapp3', 'namingCase: kebab-case', '---', '', '# Rule'].join('\n')
+    )
+    const result = await new RuleInputPlugin().collect(createCtx())
+    const rule = result.rules?.[0]
+    expect(rule?.seriName).toBe('uniapp3')
+  })
+
+  it('should leave seriName undefined when not in front matter', async () => {
+    fs.writeFileSync(
+      path.join(tempDir, 'shadow', 'rules', 'my-series', 'no-seri.mdx'),
+      ['---', 'globs: ["**/*.ts"]', 'description: No seri', 'scope: project', 'namingCase: kebab-case', '---', '', '# Rule'].join('\n')
+    )
+    const result = await new RuleInputPlugin().collect(createCtx())
+    const rule = result.rules?.[0]
+    expect(rule?.seriName).toBeUndefined()
   })
 })
 

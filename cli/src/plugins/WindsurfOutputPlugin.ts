@@ -13,6 +13,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {FilePathKind} from '@/types'
+import {filterRulesByProjectConfig} from '@/utils/ruleFilter'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const CODEIUM_WINDSURF_DIR = '.codeium/windsurf'
@@ -218,13 +219,17 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {workspace, rules} = ctx.collectedInputContext
-    const projectRules = rules?.filter(r => r.scope === 'project')
 
-    if (projectRules == null || projectRules.length === 0) return results
+    if (rules == null || rules.length === 0) return results
 
     for (const project of workspace.projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
+      const projectRules = filterRulesByProjectConfig(
+        rules.filter(r => r.scope === 'project'),
+        project.projectConfig
+      )
+      if (projectRules.length === 0) continue
       const rulesDirPath = path.join(projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR)
       results.push({
         pathKind: FilePathKind.Relative,
@@ -240,12 +245,15 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {workspace, rules} = ctx.collectedInputContext
-    const projectRules = rules?.filter(r => r.scope === 'project')
 
-    if (projectRules != null && projectRules.length > 0) {
+    if (rules != null && rules.length > 0) {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
+        const projectRules = filterRulesByProjectConfig(
+          rules.filter(r => r.scope === 'project'),
+          project.projectConfig
+        )
         for (const rule of projectRules) {
           const fileName = this.buildRuleFileName(rule)
           const filePath = path.join(projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR, fileName)
@@ -268,11 +276,15 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     const fileResults: WriteResult[] = []
     const {workspace, rules} = ctx.collectedInputContext
 
-    const projectRules = rules?.filter(r => r.scope === 'project')
-    if (projectRules != null && projectRules.length > 0) {
+    if (rules != null && rules.length > 0) {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
+        const projectRules = filterRulesByProjectConfig(
+          rules.filter(r => r.scope === 'project'),
+          project.projectConfig
+        )
+        if (projectRules.length === 0) continue
         const rulesDir = path.join(projectDir.basePath, projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR)
         for (const rule of projectRules) {
           const result = await this.writeRuleFile(ctx, rulesDir, rule, projectDir.basePath, path.join(projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR))

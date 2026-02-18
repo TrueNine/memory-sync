@@ -14,6 +14,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {FilePathKind} from '@/types'
+import {filterRulesByProjectConfig} from '@/utils/ruleFilter'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const GLOBAL_CONFIG_DIR = '.cursor'
@@ -241,10 +242,8 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {workspace, globalMemory, rules} = ctx.collectedInputContext
-    const projectRules = rules?.filter(r => this.normalizeRuleScope(r) === 'project')
-    const hasProjectRules = projectRules != null && projectRules.length > 0
 
-    if (globalMemory == null && !hasProjectRules) return results
+    if (globalMemory == null && rules == null) return results
 
     if (globalMemory != null) {
       for (const project of workspace.projects) {
@@ -254,10 +253,14 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (hasProjectRules) {
+    if (rules != null && rules.length > 0) {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
+        const projectRules = filterRulesByProjectConfig(
+          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+          project.projectConfig
+        )
         for (const rule of projectRules) {
           const fileName = this.buildRuleFileName(rule)
           results.push(this.createProjectRuleFileRelativePath(projectDir, fileName))
@@ -337,11 +340,15 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const projectRules = rules?.filter(r => this.normalizeRuleScope(r) === 'project')
-    if (projectRules != null && projectRules.length > 0) {
+    if (rules != null && rules.length > 0) {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
+        const projectRules = filterRulesByProjectConfig(
+          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+          project.projectConfig
+        )
+        if (projectRules.length === 0) continue
         const rulesDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR)
         for (const rule of projectRules) {
           const result = await this.writeRuleMdcFile(ctx, rulesDir, rule, projectDir.basePath)

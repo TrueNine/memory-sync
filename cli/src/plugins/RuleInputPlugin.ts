@@ -52,6 +52,7 @@ export class RuleInputPlugin extends BaseDirectoryInputPlugin<RulePrompt, RuleYA
 
     const globs: readonly string[] = yamlFrontMatter?.globs ?? []
     const scope: RuleScope = yamlFrontMatter?.scope ?? 'project'
+    const seriName = yamlFrontMatter?.seriName
 
     return {
       type: PromptKind.Rule,
@@ -73,6 +74,7 @@ export class RuleInputPlugin extends BaseDirectoryInputPlugin<RulePrompt, RuleYA
       ruleName,
       globs,
       scope,
+      ...seriName != null && {seriName},
       rawMdxContent: rawContent
     }
   }

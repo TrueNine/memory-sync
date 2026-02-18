@@ -1,3 +1,4 @@
+import type {ProjectConfig} from '@/types/ConfigTypes'
 import type {FileContent, Path, RelativePath} from '@/types/FileSystemTypes'
 import type {
   FilePathKind,
@@ -22,6 +23,7 @@ export interface Project {
   readonly rootMemoryPrompt?: ProjectRootMemoryPrompt
   readonly childMemoryPrompts?: readonly ProjectChildrenMemoryPrompt[]
   readonly isPromptSourceProject?: boolean
+  readonly projectConfig?: ProjectConfig
 }
 
 export interface Workspace {
@@ -71,6 +73,7 @@ export interface RulePrompt extends Prompt<PromptKind.Rule, RuleYAMLFrontMatter,
   readonly ruleName: string
   readonly globs: readonly string[]
   readonly scope: RuleScope
+  readonly seriName?: string
   readonly rawMdxContent?: string
 }
 

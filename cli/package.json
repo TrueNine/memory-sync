@@ -52,6 +52,7 @@
     "@clack/prompts": "catalog:",
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
+    "jsonc-parser": "catalog:",
     "picocolors": "catalog:",
     "picomatch": "catalog:"
   },
