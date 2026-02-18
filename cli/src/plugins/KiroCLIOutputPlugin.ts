@@ -12,7 +12,7 @@ import type {
   WriteResults
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
-import {filterRulesByProjectConfig} from '@/utils/ruleFilter'
+import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@/utils/ruleFilter'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 import {KiroPowersRegistryWriter} from './registry/KiroPowersRegistryWriter'
 
@@ -97,8 +97,11 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (rules != null && rules.length > 0) {
-        const projectRules = filterRulesByProjectConfig(
-          rules.filter(r => r.scope === 'project'),
+        const projectRules = applySubSeriesGlobPrefix(
+          filterRulesByProjectConfig(
+            rules.filter(r => r.scope === 'project'),
+            project.projectConfig
+          ),
           project.projectConfig
         )
         for (const rule of projectRules) {
@@ -228,8 +231,11 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (rules != null && rules.length > 0) {
-        const projectRules = filterRulesByProjectConfig(
-          rules.filter(r => r.scope === 'project'),
+        const projectRules = applySubSeriesGlobPrefix(
+          filterRulesByProjectConfig(
+            rules.filter(r => r.scope === 'project'),
+            project.projectConfig
+          ),
           project.projectConfig
         )
         for (const rule of projectRules) fileResults.push(await this.writeRuleSteeringFile(ctx, project, rule))

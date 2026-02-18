@@ -123,30 +123,6 @@ describe('cursorOutputPlugin - projectConfig filtering', () => {
       expect(fileNames).toContain('rule-test-rule2.mdc')
     })
 
-    it('should expand include with subSeries', async () => {
-      const rules = [
-        createMockRulePrompt('test', 'rule1', 'uniapp', 'project'),
-        createMockRulePrompt('test', 'rule2', 'uniapp3', 'project'),
-        createMockRulePrompt('test', 'rule3', 'vue', 'project')
-      ]
-      const projects = [
-        createMockProject('proj1', tempDir, 'proj1', {
-          rules: {
-            include: ['uniapp'],
-            subSeries: {uniapp: ['uniapp3']}
-          }
-        })
-      ]
-      const ctx = createMockContext(tempDir, rules, projects)
-
-      const results = await plugin.registerProjectOutputFiles(ctx)
-      const fileNames = collectFileNames(results)
-
-      expect(fileNames).toContain('rule-test-rule1.mdc')
-      expect(fileNames).toContain('rule-test-rule2.mdc')
-      expect(fileNames).not.toContain('rule-test-rule3.mdc')
-    })
-
     it('should include rules without seriName regardless of include filter', async () => {
       const rules = [
         createMockRulePrompt('test', 'rule1', void 0, 'project'),

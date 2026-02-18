@@ -14,7 +14,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {FilePathKind} from '@/types'
-import {filterRulesByProjectConfig} from '@/utils/ruleFilter'
+import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@/utils/ruleFilter'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const GLOBAL_CONFIG_DIR = '.cursor'
@@ -257,8 +257,11 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
-        const projectRules = filterRulesByProjectConfig(
-          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+        const projectRules = applySubSeriesGlobPrefix(
+          filterRulesByProjectConfig(
+            rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+            project.projectConfig
+          ),
           project.projectConfig
         )
         for (const rule of projectRules) {
@@ -344,8 +347,11 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
-        const projectRules = filterRulesByProjectConfig(
-          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+        const projectRules = applySubSeriesGlobPrefix(
+          filterRulesByProjectConfig(
+            rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+            project.projectConfig
+          ),
           project.projectConfig
         )
         if (projectRules.length === 0) continue
