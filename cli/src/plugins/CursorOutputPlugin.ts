@@ -744,7 +744,20 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       alwaysApply: false,
       globs: rule.globs.length > 0 ? rule.globs.join(', ') : ''
     }
-    return buildMarkdownWithFrontMatter(fmData, rule.content)
+    const raw = buildMarkdownWithFrontMatter(fmData, rule.content)
+
+    const lines = raw.split('\n')
+    const transformedLines = lines.map(line => {
+      const match = /^globs:\s*"(.*)"\s*$/.exec(line)
+      if (match == null) return line
+
+      const value = match[1] ?? ''
+      if (value.trim().length === 0) return line
+
+      return `globs: ${value}`
+    })
+
+    return transformedLines.join('\n')
   }
 
   private async writeRuleMdcFile(
