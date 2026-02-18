@@ -9,9 +9,15 @@ catalogs:
     '@clack/prompts':
       specifier: ^1.0.0
       version: 1.0.0
+    '@mdx-js/react':
+      specifier: ^3.1.1
+      version: 3.1.1
     '@monaco-editor/react':
       specifier: ^4.7.0
       version: 4.7.0
+    '@next/mdx':
+      specifier: ^16.1.6
+      version: 16.1.6
     '@tailwindcss/vite':
       specifier: ^4.1.18
       version: 4.1.18
@@ -93,6 +99,9 @@ catalogs:
     monaco-editor:
       specifier: ^0.55.1
       version: 0.55.1
+    next:
+      specifier: ^16.1.6
+      version: 16.1.6
     npm-run-all2:
       specifier: ^8.0.4
       version: 8.0.4
@@ -209,7 +218,7 @@ importers:
         version: link:../packages/desk-paths
       '@truenine/eslint10-config':
         specifier: 'catalog:'
-        version: 2026.10209.11105(28fa086349117b748783ea84ec991174)
+        version: 2026.10209.11105(72b04b6479186e194d70e6033293300e)
       '@truenine/init-bundle':
         specifier: workspace:*
         version: link:../packages/init-bundle
@@ -247,13 +256,13 @@ importers:
   doc:
     dependencies:
       '@mdx-js/react':
-        specifier: ^3.1.1
+        specifier: 'catalog:'
         version: 3.1.1(@types/react@19.2.14)(react@19.2.4)
       '@next/mdx':
-        specifier: ^16.0.0
+        specifier: 'catalog:'
         version: 16.1.6(@mdx-js/react@3.1.1(@types/react@19.2.14)(react@19.2.4))
       next:
-        specifier: ^16.0.0
+        specifier: 'catalog:'
         version: 16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react:
         specifier: 'catalog:'
@@ -361,7 +370,7 @@ importers:
     devDependencies:
       '@truenine/eslint10-config':
         specifier: 'catalog:'
-        version: 2026.10209.11105(72b04b6479186e194d70e6033293300e)
+        version: 2026.10209.11105(28fa086349117b748783ea84ec991174)
       '@types/node':
         specifier: 'catalog:'
         version: 25.2.3
