@@ -44,6 +44,7 @@ if (eslintConfigVersion) {
 const packages: readonly PackageEntry[] = [
   { path: 'cli/package.json', name: 'cli' },
   { path: 'gui/package.json', name: 'gui' },
+  { path: 'doc/package.json', name: 'doc' },
 ]
 
 let changed = false
@@ -119,7 +120,7 @@ if (changed) {
   console.log('\n📦 Versions synced, auto-staging changes...')
   try {
     execSync(
-      'git add cli/package.json gui/package.json gui/src-tauri/Cargo.toml gui/src-tauri/tauri.conf.json cli/public/tnmsc.example.json packages/init-bundle/public/public/tnmsc.example.json',
+      'git add cli/package.json gui/package.json doc/package.json gui/src-tauri/Cargo.toml gui/src-tauri/tauri.conf.json cli/public/tnmsc.example.json packages/init-bundle/public/public/tnmsc.example.json',
       { stdio: 'inherit' }
     )
     console.log('✅ Staged modified files')

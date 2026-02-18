@@ -1,0 +1,32 @@
+---
+title: CLI 使用指南
+description: 介绍 memory-sync CLI（tnmsc）的核心概念、插件管线和典型命令。
+lastUpdated: 2026-02-18
+---
+
+<div className="prose">
+  <h2>概览</h2>
+  <p>
+    memory-sync 的 CLI 命令通常通过 <code>tnmsc</code> 调用，核心是「Input → Transform → Output」插件管线。
+  </p>
+
+  <h3>核心能力</h3>
+  <ul>
+    <li>从本地规则仓库读取 Global Memory / Skills / Fast Commands / Sub-agents / Rules</li>
+    <li>根据配置选择不同输出目标（Cursor、Claude CLI、Gemini CLI、Warp、Kiro 等）</li>
+    <li>保持一份配置，多端适配，减少手工复制粘贴</li>
+  </ul>
+
+  <h2>典型命令结构</h2>
+  <p>本章暂时只描述概念，后续会根据实际 CLI 命令补充具体示例：</p>
+
+  ```bash
+  tnmsc run --config path/to/tnmsc.json --target cursor
+  ```
+
+  <p>
+    关于配置文件字段和 shadow 项目的详细说明，请查看
+    <a href="/config">配置文件说明</a>。
+  </p>
+</div>
+

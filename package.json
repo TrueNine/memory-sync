@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync",
-  "version": "2026.10218.12101",
+  "version": "2026.10218.12326",
   "description": "Cross-AI-tool prompt synchronisation toolkit (CLI + Tauri desktop GUI) — one ruleset, multi-target adaptation. Monorepo powered by pnpm + Turbo.",
   "license": "AGPL-3.0-only",
   "keywords": [
@@ -31,6 +31,8 @@
   "scripts": {
     "build": "turbo build",
     "test": "turbo test",
+    "dev:doc": "pnpm -C doc dev",
+    "build:doc": "pnpm -C doc build",
     "sync-versions": "tsx .git-hooks/sync-versions.ts",
     "postinstall": "simple-git-hooks"
   },
