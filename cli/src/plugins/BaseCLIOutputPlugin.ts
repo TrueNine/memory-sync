@@ -1,5 +1,5 @@
 import type {AbstractOutputPluginOptions} from './AbstractOutputPlugin'
-import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@/types'
+import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as path from 'node:path'
 import {writeFileSync as deskWriteFileSync} from '@truenine/desk-paths'
@@ -378,5 +378,9 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
   ): Promise<WriteResult[]> {
     const fullPath = path.join(skillDir, resource.relativePath)
     return [await this.writeFile(ctx, fullPath, resource.content, 'skillResource')]
+  }
+
+  protected override normalizeRuleScope(rule: RulePrompt): RuleScope {
+    return rule.scope ?? 'project'
   }
 }

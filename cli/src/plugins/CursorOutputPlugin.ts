@@ -106,7 +106,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const globalRules = rules?.filter(r => r.scope === 'global')
+    const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules == null || globalRules.length === 0) return results
 
     const globalRulesDir = path.join(globalDir, RULES_SUBDIR)
@@ -153,7 +153,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const globalRules = ctx.collectedInputContext.rules?.filter(r => r.scope === 'global')
+    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules != null && globalRules.length > 0) {
       const globalRulesDir = path.join(globalDir, RULES_SUBDIR)
       for (const rule of globalRules) {
@@ -226,7 +226,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {workspace, globalMemory, rules} = ctx.collectedInputContext
-    const hasProjectRules = rules?.some(r => r.scope === 'project') ?? false
+    const hasProjectRules = rules?.some(r => this.normalizeRuleScope(r) === 'project') ?? false
 
     if (globalMemory == null && !hasProjectRules) return results
 
@@ -241,7 +241,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {workspace, globalMemory, rules} = ctx.collectedInputContext
-    const projectRules = rules?.filter(r => r.scope === 'project')
+    const projectRules = rules?.filter(r => this.normalizeRuleScope(r) === 'project')
     const hasProjectRules = projectRules != null && projectRules.length > 0
 
     if (globalMemory == null && !hasProjectRules) return results
@@ -312,7 +312,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const globalRules = rules?.filter(r => r.scope === 'global')
+    const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules == null || globalRules.length === 0) return {files: fileResults, dirs: dirResults}
 
     const globalRulesDir = path.join(this.getGlobalConfigDir(), RULES_SUBDIR)
@@ -337,7 +337,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const projectRules = rules?.filter(r => r.scope === 'project')
+    const projectRules = rules?.filter(r => this.normalizeRuleScope(r) === 'project')
     if (projectRules != null && projectRules.length > 0) {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath

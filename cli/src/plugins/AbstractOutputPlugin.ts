@@ -11,6 +11,8 @@ import type {
   OutputWriteContext,
   Project,
   RegistryOperationResult,
+  RulePrompt,
+  RuleScope,
   WriteEffectHandler,
   WriteResult,
   WriteResults
@@ -546,5 +548,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     ctx: OutputWriteContext
   ): Promise<readonly RegistryOperationResult[]> {
     return writer.register(entries, ctx.dryRun)
+  }
+
+  protected normalizeRuleScope(rule: RulePrompt): RuleScope {
+    return rule.scope ?? 'project'
   }
 }

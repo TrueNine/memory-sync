@@ -31,14 +31,14 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
 
   override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results = await super.registerGlobalOutputDirs(ctx)
-    const globalRules = ctx.collectedInputContext.rules?.filter(r => r.scope === 'global')
+    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules != null && globalRules.length > 0) results.push(this.createRelativePath(RULES_SUBDIR, this.getGlobalConfigDir(), () => RULES_SUBDIR))
     return results
   }
 
   override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results = await super.registerGlobalOutputFiles(ctx)
-    const globalRules = ctx.collectedInputContext.rules?.filter(r => r.scope === 'global')
+    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules == null || globalRules.length === 0) return results
     const rulesDir = path.join(this.getGlobalConfigDir(), RULES_SUBDIR)
     for (const rule of globalRules) results.push(this.createRelativePath(this.buildRuleFileName(rule), rulesDir, () => RULES_SUBDIR))
@@ -47,7 +47,7 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
 
   override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results = await super.registerProjectOutputDirs(ctx)
-    const projectRules = ctx.collectedInputContext.rules?.filter(r => r.scope === 'project')
+    const projectRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'project')
     if (projectRules == null || projectRules.length === 0) return results
     for (const project of ctx.collectedInputContext.workspace.projects) {
       if (project.dirFromWorkspacePath == null) continue
@@ -59,7 +59,7 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results = await super.registerProjectOutputFiles(ctx)
-    const projectRules = ctx.collectedInputContext.rules?.filter(r => r.scope === 'project')
+    const projectRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'project')
     if (projectRules == null || projectRules.length === 0) return results
     for (const project of ctx.collectedInputContext.workspace.projects) {
       if (project.dirFromWorkspacePath == null) continue
@@ -78,7 +78,7 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
 
   override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const results = await super.writeGlobalOutputs(ctx)
-    const globalRules = ctx.collectedInputContext.rules?.filter(r => r.scope === 'global')
+    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules == null || globalRules.length === 0) return results
     const rulesDir = path.join(this.getGlobalConfigDir(), RULES_SUBDIR)
     const ruleResults = []
@@ -88,7 +88,7 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const results = await super.writeProjectOutputs(ctx)
-    const projectRules = ctx.collectedInputContext.rules?.filter(r => r.scope === 'project')
+    const projectRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'project')
     if (projectRules == null || projectRules.length === 0) return results
     const ruleResults = []
     for (const project of ctx.collectedInputContext.workspace.projects) {
