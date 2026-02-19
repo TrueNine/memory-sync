@@ -12,6 +12,7 @@ import type {RelativePath} from '@/types/FileSystemTypes'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
+import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@/utils/ruleFilter'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 
 const QODER_CONFIG_DIR = '.qoder'
@@ -59,7 +60,13 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (rules != null && rules.length > 0) { // Handle project rules
-        const projectRules = rules.filter(r => this.normalizeRuleScope(r) === 'project')
+        const projectRules = applySubSeriesGlobPrefix(
+          filterRulesByProjectConfig(
+            rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+            project.projectConfig
+          ),
+          project.projectConfig
+        )
         for (const rule of projectRules) {
           const fileName = this.buildRuleFileName(rule)
           results.push(this.createProjectRuleFilePath(projectDir, fileName))
@@ -208,7 +215,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
         }
       }
 
-      if (rules != null && rules.length > 0) {
+      if (rules != null && rules.length > 0) { // Write project rules
         const projectRules = rules.filter(r => this.normalizeRuleScope(r) === 'project')
         for (const rule of projectRules) {
           const fileName = this.buildRuleFileName(rule)
