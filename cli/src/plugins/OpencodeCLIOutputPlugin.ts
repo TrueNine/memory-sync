@@ -1,14 +1,18 @@
-import type {FastCommandPrompt, McpServerConfig, OutputPluginContext, OutputWriteContext, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@/types'
+import type {FastCommandPrompt, McpServerConfig, OutputPluginContext, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {FilePathKind} from '@/types'
+import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@/utils/ruleFilter'
 import {BaseCLIOutputPlugin} from './BaseCLIOutputPlugin'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.config/opencode'
 const OPENCODE_CONFIG_FILE = 'opencode.json'
 const OPENCODE_RULES_PLUGIN_NAME = 'opencode-rules@latest'
+const PROJECT_RULES_DIR = '.opencode'
+const RULES_SUBDIR = 'rules'
+const RULE_FILE_PREFIX = 'rule-'
 
 /**
  * Opencode CLI output plugin.
@@ -88,6 +92,12 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
       })
     }
 
+    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
+    if (globalRules != null && globalRules.length > 0) {
+      const rulesDir = path.join(globalDir, RULES_SUBDIR)
+      for (const rule of globalRules) results.push(this.createRelativePath(this.buildRuleFileName(rule), rulesDir, () => RULES_SUBDIR))
+    }
+
     return results.map(result => { // Normalize skill directory names in paths
       const normalizedPath = result.path.replaceAll('\\', '/') // Normalize path separators for consistent checking
       const skillsPatternWithSlash = `/${this.skillsSubDir}/`
@@ -120,10 +130,16 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     const files = [...baseResults.files]
 
     const {skills} = ctx.collectedInputContext
-    if (skills == null) return {files, dirs: baseResults.dirs}
+    if (skills != null) {
+      const mcpResult = await this.writeGlobalMcpConfig(ctx, skills)
+      if (mcpResult != null) files.push(mcpResult)
+    }
 
-    const mcpResult = await this.writeGlobalMcpConfig(ctx, skills)
-    if (mcpResult != null) files.push(mcpResult)
+    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
+    if (globalRules == null || globalRules.length === 0) return {files, dirs: baseResults.dirs}
+
+    const rulesDir = path.join(this.getGlobalConfigDir(), RULES_SUBDIR)
+    for (const rule of globalRules) files.push(await this.writeFile(ctx, path.join(rulesDir, this.buildRuleFileName(rule)), this.buildRuleContent(rule), 'rule'))
     return {files, dirs: baseResults.dirs}
   }
 
@@ -388,5 +404,88 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     }
 
     return normalized
+  }
+
+  private buildRuleFileName(rule: RulePrompt): string {
+    return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.md`
+  }
+
+  private buildRuleContent(rule: RulePrompt): string {
+    if (rule.globs.length === 0) return rule.content
+    return this.buildMarkdownContent(rule.content, {globs: [...rule.globs]})
+  }
+
+  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results = await super.registerGlobalOutputDirs(ctx)
+    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
+    if (globalRules != null && globalRules.length > 0) results.push(this.createRelativePath(RULES_SUBDIR, this.getGlobalConfigDir(), () => RULES_SUBDIR))
+    return results
+  }
+
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results = await super.registerProjectOutputDirs(ctx)
+    const {rules} = ctx.collectedInputContext
+    if (rules == null || rules.length === 0) return results
+    for (const project of ctx.collectedInputContext.workspace.projects) {
+      if (project.dirFromWorkspacePath == null) continue
+      const projectRules = applySubSeriesGlobPrefix(
+        filterRulesByProjectConfig(
+          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+          project.projectConfig
+        ),
+        project.projectConfig
+      )
+      if (projectRules.length === 0) continue
+      const dirPath = path.join(project.dirFromWorkspacePath.path, PROJECT_RULES_DIR, RULES_SUBDIR)
+      results.push(this.createRelativePath(dirPath, project.dirFromWorkspacePath.basePath, () => RULES_SUBDIR))
+    }
+    return results
+  }
+
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const results = await super.registerProjectOutputFiles(ctx)
+    const {rules} = ctx.collectedInputContext
+    if (rules == null || rules.length === 0) return results
+    for (const project of ctx.collectedInputContext.workspace.projects) {
+      if (project.dirFromWorkspacePath == null) continue
+      const projectRules = applySubSeriesGlobPrefix(
+        filterRulesByProjectConfig(
+          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+          project.projectConfig
+        ),
+        project.projectConfig
+      )
+      for (const rule of projectRules) {
+        const filePath = path.join(project.dirFromWorkspacePath.path, PROJECT_RULES_DIR, RULES_SUBDIR, this.buildRuleFileName(rule))
+        results.push(this.createRelativePath(filePath, project.dirFromWorkspacePath.basePath, () => RULES_SUBDIR))
+      }
+    }
+    return results
+  }
+
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+    if ((ctx.collectedInputContext.rules?.length ?? 0) > 0) return true
+    return super.canWrite(ctx)
+  }
+
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+    const results = await super.writeProjectOutputs(ctx)
+    const {rules} = ctx.collectedInputContext
+    if (rules == null || rules.length === 0) return results
+    const ruleResults = []
+    for (const project of ctx.collectedInputContext.workspace.projects) {
+      if (project.dirFromWorkspacePath == null) continue
+      const projectRules = applySubSeriesGlobPrefix(
+        filterRulesByProjectConfig(
+          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+          project.projectConfig
+        ),
+        project.projectConfig
+      )
+      if (projectRules.length === 0) continue
+      const rulesDir = path.join(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path, PROJECT_RULES_DIR, RULES_SUBDIR)
+      for (const rule of projectRules) ruleResults.push(await this.writeFile(ctx, path.join(rulesDir, this.buildRuleFileName(rule)), this.buildRuleContent(rule), 'rule'))
+    }
+    return {files: [...results.files, ...ruleResults], dirs: results.dirs}
   }
 }
