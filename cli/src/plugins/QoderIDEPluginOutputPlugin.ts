@@ -216,7 +216,13 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (rules != null && rules.length > 0) { // Write project rules
-        const projectRules = rules.filter(r => this.normalizeRuleScope(r) === 'project')
+        const projectRules = applySubSeriesGlobPrefix(
+          filterRulesByProjectConfig(
+            rules.filter(r => this.normalizeRuleScope(r) === 'project'),
+            project.projectConfig
+          ),
+          project.projectConfig
+        )
         for (const rule of projectRules) {
           const fileName = this.buildRuleFileName(rule)
           const content = this.buildRuleContent(rule)
