@@ -3,6 +3,7 @@ import type {
   OutputPluginContext,
   OutputWriteContext,
   ProjectChildrenMemoryPrompt,
+  RulePrompt,
   SkillPrompt,
   WriteResult,
   WriteResults
@@ -25,6 +26,7 @@ const MCP_CONFIG_FILE = 'mcp.json'
 const TRIGGER_ALWAYS = 'always_on'
 const TRIGGER_GLOB = 'glob'
 const RULE_GLOB_KEY = 'glob'
+const RULE_FILE_PREFIX = 'rule-'
 
 export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -40,7 +42,8 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const {projects} = ctx.collectedInputContext.workspace
+    const {workspace, rules} = ctx.collectedInputContext
+    const {projects} = workspace
     const {globalMemory} = ctx.collectedInputContext
 
     for (const project of projects) {
@@ -54,6 +57,14 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) results.push(this.createProjectRuleFilePath(projectDir, this.buildChildRuleFileName(child)))
       }
+
+      if (rules != null && rules.length > 0) { // Handle project rules
+        const projectRules = rules.filter(r => this.normalizeRuleScope(r) === 'project')
+        for (const rule of projectRules) {
+          const fileName = this.buildRuleFileName(rule)
+          results.push(this.createProjectRuleFilePath(projectDir, fileName))
+        }
+      }
     }
     results.push(...this.registerProjectIgnoreOutputFiles(projects))
     return results
@@ -61,7 +72,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
-    const {fastCommands, skills} = ctx.collectedInputContext
+    const {fastCommands, skills, rules} = ctx.collectedInputContext
     const results: RelativePath[] = []
 
     if (fastCommands != null && fastCommands.length > 0) results.push(this.createRelativePath(COMMANDS_SUBDIR, globalDir, () => COMMANDS_SUBDIR))
@@ -76,12 +87,21 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
         ))
       }
     }
+
+    const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
+    if (globalRules != null && globalRules.length > 0) {
+      results.push(this.createRelativePath(
+        path.join(RULES_SUBDIR),
+        globalDir,
+        () => RULES_SUBDIR
+      ))
+    }
     return results
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
-    const {fastCommands, skills} = ctx.collectedInputContext
+    const {fastCommands, skills, rules} = ctx.collectedInputContext
     const results: RelativePath[] = []
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
 
@@ -92,6 +112,18 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
           path.join(COMMANDS_SUBDIR, fileName),
           globalDir,
           () => COMMANDS_SUBDIR
+        ))
+      }
+    }
+
+    const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
+    if (globalRules != null && globalRules.length > 0) {
+      for (const rule of globalRules) {
+        const fileName = this.buildRuleFileName(rule)
+        results.push(this.createRelativePath(
+          path.join(RULES_SUBDIR, fileName),
+          globalDir,
+          () => RULES_SUBDIR
         ))
       }
     }
@@ -138,19 +170,20 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, fastCommands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, globalMemory, fastCommands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasProjectPrompts = workspace.projects.some(
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
     )
+    const hasRules = (rules?.length ?? 0) > 0
     const hasQoderIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.qoderignore') ?? false
-    if (hasProjectPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0 || hasQoderIgnore) return true
+    if (hasProjectPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0 || hasRules || hasQoderIgnore) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedInputContext.workspace
-    const {globalMemory} = ctx.collectedInputContext
+    const {workspace, globalMemory, rules} = ctx.collectedInputContext
+    const {projects} = workspace
     const fileResults: WriteResult[] = []
 
     for (const project of projects) {
@@ -174,6 +207,15 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
           fileResults.push(await this.writeProjectRuleFile(ctx, projectDir, fileName, content, 'projectChildRule'))
         }
       }
+
+      if (rules != null && rules.length > 0) {
+        const projectRules = rules.filter(r => this.normalizeRuleScope(r) === 'project')
+        for (const rule of projectRules) {
+          const fileName = this.buildRuleFileName(rule)
+          const content = this.buildRuleContent(rule)
+          fileResults.push(await this.writeProjectRuleFile(ctx, projectDir, fileName, content, 'projectRule'))
+        }
+      }
     }
     const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
     fileResults.push(...ignoreResults)
@@ -181,14 +223,20 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {fastCommands, skills} = ctx.collectedInputContext
+    const {fastCommands, skills, rules} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const globalDir = this.getGlobalConfigDir()
     const commandsDir = path.join(globalDir, COMMANDS_SUBDIR)
     const skillsDir = path.join(globalDir, SKILLS_SUBDIR)
+    const rulesDir = path.join(globalDir, RULES_SUBDIR)
 
     if (fastCommands != null && fastCommands.length > 0) {
       for (const cmd of fastCommands) fileResults.push(await this.writeGlobalFastCommand(ctx, commandsDir, cmd))
+    }
+
+    if (rules != null && rules.length > 0) {
+      const globalRules = rules.filter(r => this.normalizeRuleScope(r) === 'global')
+      for (const rule of globalRules) fileResults.push(await this.writeRuleFile(ctx, rulesDir, rule))
     }
 
     if (skills != null && skills.length > 0) {
@@ -253,6 +301,17 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     const fmData = this.buildFastCommandFrontMatter(cmd)
     const content = buildMarkdownWithFrontMatter(fmData, cmd.content)
     return this.writeFile(ctx, fullPath, content, 'globalFastCommand')
+  }
+
+  private async writeRuleFile(
+    ctx: OutputWriteContext,
+    rulesDir: string,
+    rule: RulePrompt
+  ): Promise<WriteResult> {
+    const fileName = this.buildRuleFileName(rule)
+    const fullPath = path.join(rulesDir, fileName)
+    const content = this.buildRuleContent(rule)
+    return this.writeFile(ctx, fullPath, content, 'rule')
   }
 
   private async writeGlobalSkill(
@@ -322,5 +381,22 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       ...fm.argumentHint != null && {argumentHint: fm.argumentHint},
       ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}
     }
+  }
+
+  private buildRuleFileName(rule: RulePrompt): string {
+    return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.md`
+  }
+
+  private buildRuleContent(rule: RulePrompt): string {
+    const fmData: Record<string, unknown> = {
+      trigger: TRIGGER_GLOB,
+      [RULE_GLOB_KEY]: rule.globs.length > 0 ? rule.globs.join(', ') : '**/*',
+      type: 'user_command'
+    }
+    return buildMarkdownWithFrontMatter(fmData, rule.content)
+  }
+
+  protected override normalizeRuleScope(rule: RulePrompt): 'global' | 'project' {
+    return rule.scope || 'global'
   }
 }
