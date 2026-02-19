@@ -10,6 +10,15 @@ const GLOBAL_CONFIG_DIR = '.claude'
 const RULES_SUBDIR = 'rules'
 const RULE_FILE_PREFIX = 'rule-'
 
+/**
+ * Output plugin for Claude Code CLI.
+ *
+ * Outputs rules to `.claude/rules/` directory with frontmatter format.
+ *
+ * @see https://github.com/anthropics/claude-code/issues/26868
+ * Known bug: Claude Code CLI has issues with `.claude/rules` directory handling.
+ * This may affect rule loading behavior in certain scenarios.
+ */
 export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
   constructor() {
     super('ClaudeCodeCLIOutputPlugin', {

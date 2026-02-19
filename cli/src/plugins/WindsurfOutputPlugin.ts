@@ -70,7 +70,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const globalRules = rules?.filter(r => r.scope === 'global')
+    const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules == null || globalRules.length === 0) return results
 
     const codeiumDir = this.getCodeiumWindsurfDir()
@@ -105,7 +105,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const globalRules = ctx.collectedInputContext.rules?.filter(r => r.scope === 'global')
+    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules != null && globalRules.length > 0) {
       const codeiumDir = this.getCodeiumWindsurfDir()
       const memoriesDir = path.join(codeiumDir, MEMORIES_SUBDIR)
@@ -205,7 +205,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const globalRules = rules?.filter(r => r.scope === 'global')
+    const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules == null || globalRules.length === 0) return {files: fileResults, dirs: dirResults}
 
     const memoriesDir = this.getGlobalMemoriesDir()
@@ -227,7 +227,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       if (projectDir == null) continue
       const projectRules = applySubSeriesGlobPrefix(
         filterRulesByProjectConfig(
-          rules.filter(r => r.scope === 'project'),
+          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
           project.projectConfig
         ),
         project.projectConfig
@@ -255,7 +255,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
         if (projectDir == null) continue
         const projectRules = applySubSeriesGlobPrefix(
           filterRulesByProjectConfig(
-            rules.filter(r => r.scope === 'project'),
+            rules.filter(r => this.normalizeRuleScope(r) === 'project'),
             project.projectConfig
           ),
           project.projectConfig
@@ -288,7 +288,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
         if (projectDir == null) continue
         const projectRules = applySubSeriesGlobPrefix(
           filterRulesByProjectConfig(
-            rules.filter(r => r.scope === 'project'),
+            rules.filter(r => this.normalizeRuleScope(r) === 'project'),
             project.projectConfig
           ),
           project.projectConfig
@@ -548,14 +548,25 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   }
 
   private buildRuleContent(rule: RulePrompt): string {
-    const description = rule.yamlFrontMatter?.description ?? ''
-    const patterns = rule.globs.join(', ')
-    const comment = [
-      `<!-- Activation: Glob | Patterns: ${patterns} -->`,
-      `<!-- Description: ${description} -->`,
-      '<!-- Configure activation mode in Windsurf UI: Customizations > Rules -->'
-    ].join('\n')
-    return `${comment}\n\n${rule.content}`
+    const fmData: Record<string, unknown> = {
+      trigger: 'glob',
+      globs: rule.globs.length > 0 ? rule.globs.join(', ') : ''
+    }
+
+    const raw = buildMarkdownWithFrontMatter(fmData, rule.content)
+    const lines = raw.split('\n')
+    const transformedLines = lines.map(line => {
+      const match = /^(\s*globs:\s*)(['"])(.*)\2\s*$/.exec(line)
+      if (match == null) return line
+
+      const prefix = match[1] ?? 'globs: '
+      const value = match[3] ?? ''
+      if (value.trim().length === 0) return line
+
+      return `${prefix}${value}`
+    })
+
+    return transformedLines.join('\n')
   }
 
   private async writeRuleFile(

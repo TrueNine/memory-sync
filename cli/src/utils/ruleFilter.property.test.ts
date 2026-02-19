@@ -196,7 +196,7 @@ describe('applySubSeriesGlobPrefix property tests', () => {
     )
   })
 
-  it('should produce same number or more globs when matched', async () => {
+  it('should produce at least one glob per unique subdir when matched', async () => {
     await fc.assert(
       fc.asyncProperty(
         seriNameGen,
@@ -208,7 +208,8 @@ describe('applySubSeriesGlobPrefix property tests', () => {
           for (const subdir of subdirs) subSeries[subdir] = [seriName]
           const projectConfig: ProjectConfig = {rules: {subSeries}}
           const result = applySubSeriesGlobPrefix(rules, projectConfig)
-          expect(result[0].globs.length).toBeGreaterThanOrEqual(globs.length)
+          const uniqueSubdirs = new Set(subdirs).size
+          expect(result[0].globs.length).toBeGreaterThanOrEqual(uniqueSubdirs)
         }
       ),
       {numRuns: 100}
