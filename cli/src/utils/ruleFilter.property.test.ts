@@ -205,9 +205,7 @@ describe('applySubSeriesGlobPrefix property tests', () => {
         async (seriName, globs, subdirs) => {
           const rules = [createMockRulePrompt(seriName, globs)]
           const subSeries: Record<string, readonly string[]> = {}
-          for (const subdir of subdirs) {
-            subSeries[subdir] = [seriName]
-          }
+          for (const subdir of subdirs) subSeries[subdir] = [seriName]
           const projectConfig: ProjectConfig = {rules: {subSeries}}
           const result = applySubSeriesGlobPrefix(rules, projectConfig)
           expect(result[0].globs.length).toBeGreaterThanOrEqual(globs.length)
