@@ -3,6 +3,7 @@ import type {
   GlobalMemoryPrompt,
   OutputPluginContext,
   OutputWriteContext,
+  RulePrompt,
   SkillPrompt
 } from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
@@ -11,7 +12,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {createLogger} from '@/log'
-import {FilePathKind, PromptKind} from '@/types'
+import {FilePathKind, NamingCaseKind, PromptKind} from '@/types'
 import {WindsurfOutputPlugin} from './WindsurfOutputPlugin'
 
 function createMockRelativePath(pathStr: string, basePath: string): RelativePath {
@@ -24,6 +25,34 @@ function createMockRelativePath(pathStr: string, basePath: string): RelativePath
   }
 }
 
+function createMockRulePrompt(
+  series: string,
+  ruleName: string,
+  globs: readonly string[],
+  scope: 'global' | 'project',
+  seriName?: string
+): RulePrompt {
+  const content = '# Rule body\n\nFollow this rule.'
+  return {
+    type: PromptKind.Rule,
+    content,
+    length: content.length,
+    filePathKind: FilePathKind.Relative,
+    dir: createMockRelativePath('.', ''),
+    markdownContents: [],
+    yamlFrontMatter: {
+      description: 'Rule description',
+      globs,
+      namingCase: NamingCaseKind.KebabCase
+    },
+    series,
+    ruleName,
+    globs,
+    scope,
+    ...seriName != null && {seriName}
+  } as RulePrompt
+}
+
 function createMockGlobalMemoryPrompt(content: string, basePath: string): GlobalMemoryPrompt {
   return {
     type: PromptKind.GlobalMemory,
@@ -31,7 +60,11 @@ function createMockGlobalMemoryPrompt(content: string, basePath: string): Global
     length: content.length,
     filePathKind: FilePathKind.Relative,
     dir: createMockRelativePath('.', basePath),
-    markdownContents: []
+    markdownContents: [],
+    parentDirectoryPath: {
+      type: 'UserHome',
+      directory: createMockRelativePath('.codeium/windsurf', basePath)
+    }
   } as GlobalMemoryPrompt
 }
 
@@ -48,7 +81,7 @@ function createMockFastCommandPrompt(
     filePathKind: FilePathKind.Relative,
     dir: createMockRelativePath('.', basePath),
     markdownContents: [],
-    yamlFrontMatter: {description: 'Fast command'},
+    yamlFrontMatter: {description: 'Fast command', namingCase: NamingCaseKind.KebabCase},
     ...series != null && {series},
     commandName
   } as FastCommandPrompt
@@ -61,7 +94,7 @@ function createMockSkillPrompt(
   options?: {childDocs?: {relativePath: string, content: unknown}[], resources?: {relativePath: string, content: string, encoding: 'text' | 'base64'}[]}
 ): SkillPrompt {
   return {
-    yamlFrontMatter: {name, description: 'A skill'},
+    yamlFrontMatter: {name, description: 'A skill', namingCase: NamingCaseKind.KebabCase},
     dir: createMockRelativePath(name, basePath),
     content,
     length: content.length,
@@ -69,7 +102,7 @@ function createMockSkillPrompt(
     filePathKind: FilePathKind.Relative,
     markdownContents: [],
     ...options
-  } as SkillPrompt
+  } as unknown as SkillPrompt
 }
 
 class TestableWindsurfOutputPlugin extends WindsurfOutputPlugin {
@@ -134,8 +167,8 @@ describe('windsurf output plugin', () => {
 
       const results = await plugin.registerGlobalOutputDirs(ctx)
       expect(results).toHaveLength(1)
-      expect(results[0].path).toBe('global_workflows')
-      expect(results[0].getAbsolutePath()).toBe(path.join(tempDir, '.codeium', 'windsurf', 'global_workflows'))
+      expect(results[0]?.path).toBe('global_workflows')
+      expect(results[0]?.getAbsolutePath()).toBe(path.join(tempDir, '.codeium', 'windsurf', 'global_workflows'))
     })
 
     it('should register skills/<skillName> dir when skills exist', async () => {
@@ -148,8 +181,8 @@ describe('windsurf output plugin', () => {
 
       const results = await plugin.registerGlobalOutputDirs(ctx)
       expect(results).toHaveLength(1)
-      expect(results[0].path).toBe(path.join('skills', 'custom-skill'))
-      expect(results[0].getAbsolutePath()).toBe(path.join(tempDir, '.codeium', 'windsurf', 'skills', 'custom-skill'))
+      expect(results[0]?.path).toBe(path.join('skills', 'custom-skill'))
+      expect(results[0]?.getAbsolutePath()).toBe(path.join(tempDir, '.codeium', 'windsurf', 'skills', 'custom-skill'))
     })
 
     it('should register both workflows and skills dirs when both exist', async () => {
@@ -320,7 +353,7 @@ describe('windsurf output plugin', () => {
 
       const results = await plugin.writeGlobalOutputs(ctx)
       expect(results.files.length).toBeGreaterThanOrEqual(1)
-      expect(results.files[0].success).toBe(true)
+      expect(results.files[0]?.success).toBe(true)
 
       const memoryPath = path.join(tempDir, '.codeium', 'windsurf', 'memories', 'global_rules.md')
       expect(fs.existsSync(memoryPath)).toBe(true)
@@ -442,15 +475,42 @@ describe('windsurf output plugin', () => {
 
       const results = await plugin.writeGlobalOutputs(ctx)
       expect(results.files.length).toBeGreaterThanOrEqual(1)
-      expect(results.files[0].success).toBe(true)
+      expect(results.files[0]?.success).toBe(true)
 
       const memoryPath = path.join(tempDir, '.codeium', 'windsurf', 'memories', 'global_rules.md')
       expect(fs.existsSync(memoryPath)).toBe(false)
     })
+
+    it('should write global rule files with trigger/globs frontmatter', async () => {
+      const ctx = {
+        collectedInputContext: {
+          workspace: {projects: [], directory: createMockRelativePath('.', tempDir)},
+          skills: [],
+          fastCommands: [],
+          rules: [
+            createMockRulePrompt('test', 'glob', ['src/**/*.ts', '**/*.tsx'], 'global')
+          ]
+        },
+        logger: createLogger('test', 'debug'),
+        dryRun: false
+      } as unknown as OutputWriteContext
+
+      const results = await plugin.writeGlobalOutputs(ctx)
+      expect(results.files).toHaveLength(1)
+
+      const rulePath = path.join(tempDir, '.codeium', 'windsurf', 'memories', 'rule-test-glob.md')
+      expect(fs.existsSync(rulePath)).toBe(true)
+
+      const content = fs.readFileSync(rulePath, 'utf8')
+      expect(content).toContain('trigger: glob')
+      expect(content).toContain('globs: src/**/*.ts, **/*.tsx')
+      expect(content).not.toContain('globs: "src/**/*.ts, **/*.tsx"')
+      expect(content).toContain('Follow this rule.')
+    })
   })
 
   describe('writeProjectOutputs', () => {
-    it('should return empty results (no project outputs)', async () => {
+    it('should return empty results when no project rules', async () => {
       const ctx = {
         collectedInputContext: {
           workspace: {projects: [], directory: createMockRelativePath('.', tempDir)},
@@ -463,6 +523,45 @@ describe('windsurf output plugin', () => {
       const results = await plugin.writeProjectOutputs(ctx)
       expect(results.files).toHaveLength(0)
       expect(results.dirs).toHaveLength(0)
+    })
+
+    it('should write project rules and apply seriName include filter from projectConfig', async () => {
+      const ctx = {
+        collectedInputContext: {
+          workspace: {
+            projects: [
+              {
+                name: 'proj1',
+                dirFromWorkspacePath: createMockRelativePath('proj1', tempDir),
+                projectConfig: {rules: {include: ['uniapp']}}
+              }
+            ],
+            directory: createMockRelativePath('.', tempDir)
+          },
+          rules: [
+            createMockRulePrompt('test', 'uniapp-only', ['src/**/*.vue'], 'project', 'uniapp'),
+            createMockRulePrompt('test', 'vue-only', ['src/**/*.ts'], 'project', 'vue')
+          ]
+        },
+        logger: createLogger('test', 'debug'),
+        dryRun: false
+      } as unknown as OutputWriteContext
+
+      const results = await plugin.writeProjectOutputs(ctx)
+      const outputPaths = results.files.map(file => file.path.path.replaceAll('\\', '/'))
+
+      expect(outputPaths.some(p => p.endsWith('rule-test-uniapp-only.md'))).toBe(true)
+      expect(outputPaths.some(p => p.endsWith('rule-test-vue-only.md'))).toBe(false)
+
+      const includedRulePath = path.join(tempDir, 'proj1', '.windsurf', 'rules', 'rule-test-uniapp-only.md')
+      const excludedRulePath = path.join(tempDir, 'proj1', '.windsurf', 'rules', 'rule-test-vue-only.md')
+
+      expect(fs.existsSync(includedRulePath)).toBe(true)
+      expect(fs.existsSync(excludedRulePath)).toBe(false)
+
+      const includedRuleContent = fs.readFileSync(includedRulePath, 'utf8')
+      expect(includedRuleContent).toContain('trigger: glob')
+      expect(includedRuleContent).toContain('globs: src/**/*.vue')
     })
   })
 
