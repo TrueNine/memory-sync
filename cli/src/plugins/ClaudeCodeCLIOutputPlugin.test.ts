@@ -366,6 +366,13 @@ describe('claudeCodeCLIOutputPlugin', () => {
       expect(content).toContain('- "**/*.tsx"')
     })
 
+    it('should double-quote paths that do not start with *', () => {
+      const rule = createMockRulePrompt({series: '01', ruleName: 'ts', globs: ['src/components/*.tsx', 'lib/utils.ts'], content: '# Body'})
+      const content = plugin.testBuildRuleContent(rule)
+      expect(content).toContain('- "src/components/*.tsx"')
+      expect(content).toContain('- "lib/utils.ts"')
+    })
+
     it('should preserve rule body after frontmatter', () => {
       const body = '# My Rule\n\nSome content.'
       const rule = createMockRulePrompt({series: '01', ruleName: 'x', globs: ['*.ts'], content: body})

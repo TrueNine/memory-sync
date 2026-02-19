@@ -54,6 +54,12 @@ export function buildRawFrontMatter(
   }).trimEnd()
 }
 
+export function doubleQuoted(value: string): unknown {
+  const s = new YAML.Scalar(value)
+  s.type = YAML.Scalar.QUOTE_DOUBLE
+  return s
+}
+
 export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): ParsedMarkdown<Y> {
   const ast = parseMdx(rawContent)
   let yamlFrontMatter: Y | undefined,

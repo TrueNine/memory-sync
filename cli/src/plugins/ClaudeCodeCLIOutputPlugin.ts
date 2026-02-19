@@ -1,6 +1,7 @@
 import type {OutputPluginContext, OutputWriteContext, RulePrompt, WriteResults} from '@/types'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import * as path from 'node:path'
+import {buildMarkdownWithFrontMatter, doubleQuoted} from '@truenine/md-compiler/markdown'
 import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@/utils/ruleFilter'
 import {BaseCLIOutputPlugin} from './BaseCLIOutputPlugin'
 
@@ -27,7 +28,7 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
 
   private buildRuleContent(rule: RulePrompt): string {
     if (rule.globs.length === 0) return rule.content
-    return this.buildMarkdownContent(rule.content, {paths: [...rule.globs]})
+    return buildMarkdownWithFrontMatter({paths: rule.globs.map(doubleQuoted)}, rule.content)
   }
 
   override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
