@@ -1,4 +1,4 @@
-import type {ProjectConfig} from '@/types/ConfigTypes'
+import type {ProjectConfig} from '@/types/ConfigTypes.schema'
 import type {FileContent, Path, RelativePath} from '@/types/FileSystemTypes'
 import type {
   FilePathKind,

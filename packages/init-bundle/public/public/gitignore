@@ -26,6 +26,8 @@ node_modules/
 
 .editorconfig
 
+.tnmsc.json
+
 .turbo/
 .next/
 .gradle/

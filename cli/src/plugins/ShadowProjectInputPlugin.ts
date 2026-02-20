@@ -1,5 +1,5 @@
 import type {CollectedInputContext, InputPluginContext, Project, Workspace} from '@/types'
-import type {ProjectConfig} from '@/types/ConfigTypes'
+import type {ProjectConfig} from '@/types/ConfigTypes.schema'
 
 import {parse as parseJsonc} from 'jsonc-parser'
 import {

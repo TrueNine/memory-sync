@@ -18,6 +18,8 @@ README.md
 .eslintcache
 .turbo
 
+.tnmsc.json
+
 # Cargo
 **/target/
 !**/Cargo.lock

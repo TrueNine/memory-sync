@@ -1,5 +1,5 @@
 import type {CollectedInputContext, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions} from '@/types'
-import type {ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, ShadowSourceProjectConfig, UserConfigFile} from '@/types/ConfigTypes'
+import type {ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, ShadowSourceProjectConfig, UserConfigFile} from '@/types/ConfigTypes.schema'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
@@ -36,7 +36,7 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
   shadowSourceProject: DEFAULT_SHADOW_SOURCE_PROJECT,
   fastCommandSeriesOptions: {},
   plugins: []
-}
+} as Required<PluginOptions>
 
 /**
  * Convert UserConfigFile to PluginOptions

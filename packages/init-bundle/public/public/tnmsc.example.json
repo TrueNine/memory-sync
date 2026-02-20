@@ -1,4 +1,5 @@
 {
+  "$schema": "https://unpkg.com/@truenine/memory-sync-cli/dist/tnmsc.schema.json",
   "version": "2026.10220.11748",
   "workspaceDir": "~/project",
   "shadowSourceProject": {

@@ -18,7 +18,7 @@ import type {
   WriteResults
 } from '@/types'
 
-import type {FastCommandSeriesPluginOverride} from '@/types/ConfigTypes'
+import type {FastCommandSeriesPluginOverride} from '@/types/ConfigTypes.schema'
 import type {Path, RelativePath} from '@/types/FileSystemTypes'
 import type {RegistryData} from '@/types/RegistryTypes'
 import * as fs from 'node:fs'

@@ -1,4 +1,4 @@
-import type {ProjectConfig} from '@/types/ConfigTypes'
+import type {ProjectConfig} from '@/types/ConfigTypes.schema'
 import type {RulePrompt} from '@/types/InputTypes'
 import {describe, expect, it} from 'vitest'
 import {FilePathKind, PromptKind} from '@/types'

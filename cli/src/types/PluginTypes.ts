@@ -1,7 +1,7 @@
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {ILogger} from '@/log'
 import type {ScopeRegistry} from '@/scope/ScopeRegistry'
-import type {FastCommandSeriesOptions, ShadowSourceProjectConfig} from '@/types/ConfigTypes'
+import type {FastCommandSeriesOptions, ShadowSourceProjectConfig} from '@/types/ConfigTypes.schema'
 import type {PluginKind} from '@/types/Enums'
 import type {RelativePath} from '@/types/FileSystemTypes'
 import type {
