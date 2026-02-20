@@ -8,6 +8,11 @@ import {InitCommand} from './InitCommand'
 
 vi.mock('node:fs')
 vi.mock('node:os')
+vi.mock('@truenine/desk-paths', () => ({
+  isSymlink: vi.fn(() => false),
+  readSymlinkTarget: vi.fn(() => null),
+  deletePathSync: vi.fn()
+}))
 vi.mock('@/ShadowSourceProject', () => ({
   generateShadowSourceProject: vi.fn(() => ({
     success: true,
@@ -93,52 +98,29 @@ describe('initCommand', () => {
 
   describe('linkCwdConfig — symlink happy path', () => {
     it('creates a symlink at cwd/.tnmsc.json pointing to global config', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false)
+      vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL_CONFIG_PATH)
 
       await new InitCommand().execute(makeCtx())
 
       expect(fs.symlinkSync).toHaveBeenCalledWith(GLOBAL_CONFIG_PATH, CWD_CONFIG_PATH, 'file')
     })
 
-    it('logs info after successful symlink creation', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false)
-      const ctx = makeCtx()
-
-      await new InitCommand().execute(ctx)
-
-      expect(ctx.logger.info).toHaveBeenCalledWith(
-        'linked cwd config to global config',
-        expect.objectContaining({link: CWD_CONFIG_PATH, target: GLOBAL_CONFIG_PATH})
-      )
-    })
-  })
-
-  describe('linkCwdConfig — cwd config already exists', () => {
-    it('skips symlink when cwd config already exists', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true)
-
-      await new InitCommand().execute(makeCtx())
-
-      expect(fs.symlinkSync).not.toHaveBeenCalled()
-      expect(fs.copyFileSync).not.toHaveBeenCalled()
-    })
-
-    it('logs debug when skipping', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true)
+    it('logs debug after successful symlink creation', async () => {
+      vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL_CONFIG_PATH)
       const ctx = makeCtx()
 
       await new InitCommand().execute(ctx)
 
       expect(ctx.logger.debug).toHaveBeenCalledWith(
-        'cwd config already exists, skipping link',
-        expect.objectContaining({path: CWD_CONFIG_PATH})
+        'linked config',
+        expect.objectContaining({link: CWD_CONFIG_PATH, target: GLOBAL_CONFIG_PATH})
       )
     })
   })
 
   describe('linkCwdConfig — symlink fallback to copy', () => {
     it('falls back to copyFileSync when symlinkSync throws', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false)
+      vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL_CONFIG_PATH)
       vi.mocked(fs.symlinkSync).mockImplementation(() => {
         throw new Error('EPERM: operation not permitted')
       })
@@ -148,8 +130,8 @@ describe('initCommand', () => {
       expect(fs.copyFileSync).toHaveBeenCalledWith(GLOBAL_CONFIG_PATH, CWD_CONFIG_PATH)
     })
 
-    it('logs warn before fallback copy', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false)
+    it('logs warn when falling back to copy', async () => {
+      vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL_CONFIG_PATH)
       vi.mocked(fs.symlinkSync).mockImplementation(() => {
         throw new Error('EPERM: operation not permitted')
       })
@@ -158,28 +140,13 @@ describe('initCommand', () => {
       await new InitCommand().execute(ctx)
 
       expect(ctx.logger.warn).toHaveBeenCalledWith(
-        'symlink failed, falling back to file copy',
-        expect.objectContaining({error: 'EPERM: operation not permitted'})
+        'symlink unavailable, copied config (auto-sync disabled)',
+        expect.objectContaining({dest: CWD_CONFIG_PATH})
       )
     })
 
-    it('logs info after successful fallback copy', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false)
-      vi.mocked(fs.symlinkSync).mockImplementation(() => {
-        throw new Error('EPERM: operation not permitted')
-      })
-      const ctx = makeCtx()
-
-      await new InitCommand().execute(ctx)
-
-      expect(ctx.logger.info).toHaveBeenCalledWith(
-        'copied global config to cwd',
-        expect.objectContaining({src: GLOBAL_CONFIG_PATH, dest: CWD_CONFIG_PATH})
-      )
-    })
-
-    it('logs error when both symlink and copy fail', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false)
+    it('logs warn when both symlink and copy fail', async () => {
+      vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL_CONFIG_PATH)
       vi.mocked(fs.symlinkSync).mockImplementation(() => {
         throw new Error('EPERM: operation not permitted')
       })
@@ -190,14 +157,14 @@ describe('initCommand', () => {
 
       await new InitCommand().execute(ctx)
 
-      expect(ctx.logger.error).toHaveBeenCalledWith(
-        'failed to copy global config to cwd',
-        expect.objectContaining({error: 'ENOENT: no such file or directory'})
+      expect(ctx.logger.warn).toHaveBeenCalledWith(
+        'failed to link or copy config',
+        expect.objectContaining({path: CWD_CONFIG_PATH, error: 'ENOENT: no such file or directory'})
       )
     })
 
     it('does not throw when both symlink and copy fail', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false)
+      vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL_CONFIG_PATH)
       vi.mocked(fs.symlinkSync).mockImplementation(() => {
         throw new Error('EPERM')
       })
@@ -213,11 +180,11 @@ describe('initCommand', () => {
     it('uses process.cwd() for cwd config path', async () => {
       const customCwd = '/custom/project/dir'
       vi.spyOn(process, 'cwd').mockReturnValue(customCwd)
-      vi.mocked(fs.existsSync).mockReturnValue(false)
+      const expectedCwdConfig = path.join(customCwd, DEFAULT_CONFIG_FILE_NAME)
+      vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL_CONFIG_PATH)
 
       await new InitCommand().execute(makeCtx())
 
-      const expectedCwdConfig = path.join(customCwd, DEFAULT_CONFIG_FILE_NAME)
       expect(fs.symlinkSync).toHaveBeenCalledWith(
         expect.any(String),
         expectedCwdConfig,
@@ -228,11 +195,11 @@ describe('initCommand', () => {
     it('uses os.homedir() for global config path', async () => {
       const customHome = '/custom/home'
       vi.mocked(os.homedir).mockReturnValue(customHome)
-      vi.mocked(fs.existsSync).mockReturnValue(false)
+      const expectedGlobal = path.join(customHome, DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
+      vi.mocked(fs.existsSync).mockImplementation(p => p === expectedGlobal)
 
       await new InitCommand().execute(makeCtx())
 
-      const expectedGlobal = path.join(customHome, DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
       expect(fs.symlinkSync).toHaveBeenCalledWith(
         expectedGlobal,
         expect.any(String),

@@ -2,10 +2,15 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {ConfigLoader, DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR, loadUserConfig} from './ConfigLoader'
+import {ConfigLoader, DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR, ensureConfigLink, loadUserConfig} from './ConfigLoader'
 
 vi.mock('node:fs') // Mock fs module
 vi.mock('node:os')
+vi.mock('@truenine/desk-paths', () => ({
+  isSymlink: vi.fn(),
+  readSymlinkTarget: vi.fn(),
+  deletePathSync: vi.fn()
+}))
 
 describe('configLoader', () => {
   const mockHomedir = '/home/testuser'
@@ -326,5 +331,137 @@ describe('configLoader', () => {
       expect(result.found).toBe(false)
       expect(result.config).toEqual({})
     })
+  })
+})
+
+describe('ensureConfigLink', () => {
+  let deskPaths: typeof import('@truenine/desk-paths')
+
+  const LOCAL = '/shadow/.tnmsc.json'
+  const GLOBAL = '/home/testuser/.aindex/.tnmsc.json'
+
+  const logger = {
+    trace: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    fatal: vi.fn()
+  }
+
+  beforeEach(async () => {
+    deskPaths = await import('@truenine/desk-paths')
+    vi.mocked(os.homedir).mockReturnValue('/home/testuser')
+    vi.mocked(fs.existsSync).mockReturnValue(false)
+    vi.mocked(fs.symlinkSync).mockImplementation(() => void 0)
+    vi.mocked(fs.copyFileSync).mockImplementation(() => void 0)
+    vi.mocked(deskPaths.isSymlink).mockReturnValue(false)
+    vi.mocked(deskPaths.readSymlinkTarget).mockReturnValue(null)
+    vi.mocked(deskPaths.deletePathSync).mockImplementation(() => void 0)
+  })
+
+  afterEach(() => vi.clearAllMocks())
+
+  it('no-op when global config does not exist', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false)
+
+    ensureConfigLink(LOCAL, GLOBAL, logger)
+
+    expect(fs.symlinkSync).not.toHaveBeenCalled()
+    expect(fs.copyFileSync).not.toHaveBeenCalled()
+  })
+
+  it('creates symlink when local file does not exist', () => {
+    vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL)
+    vi.mocked(deskPaths.isSymlink).mockReturnValue(false)
+
+    ensureConfigLink(LOCAL, GLOBAL, logger)
+
+    expect(fs.symlinkSync).toHaveBeenCalledWith(GLOBAL, LOCAL, 'file')
+  })
+
+  it('no-op when local is a correct symlink pointing to global', () => {
+    vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL || p === LOCAL)
+    vi.mocked(deskPaths.isSymlink).mockReturnValue(true)
+    vi.mocked(deskPaths.readSymlinkTarget).mockReturnValue(GLOBAL)
+
+    ensureConfigLink(LOCAL, GLOBAL, logger)
+
+    expect(fs.symlinkSync).not.toHaveBeenCalled()
+    expect(deskPaths.deletePathSync).not.toHaveBeenCalled()
+  })
+
+  it('deletes stale symlink and recreates when target differs', () => {
+    vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL || p === LOCAL)
+    vi.mocked(deskPaths.isSymlink).mockReturnValue(true)
+    vi.mocked(deskPaths.readSymlinkTarget).mockReturnValue('/other/path/.tnmsc.json')
+
+    ensureConfigLink(LOCAL, GLOBAL, logger)
+
+    expect(deskPaths.deletePathSync).toHaveBeenCalledWith(LOCAL)
+    expect(fs.symlinkSync).toHaveBeenCalledWith(GLOBAL, LOCAL, 'file')
+  })
+
+  it('syncs regular file back to global when local is newer, then recreates symlink', () => {
+    vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL || p === LOCAL)
+    vi.mocked(deskPaths.isSymlink).mockReturnValue(false)
+    vi.mocked(fs.statSync).mockImplementation(p => {
+      if (p === LOCAL) return {mtimeMs: 2000} as fs.Stats
+      return {mtimeMs: 1000} as fs.Stats
+    })
+
+    ensureConfigLink(LOCAL, GLOBAL, logger)
+
+    expect(fs.copyFileSync).toHaveBeenCalledWith(LOCAL, GLOBAL)
+    expect(deskPaths.deletePathSync).toHaveBeenCalledWith(LOCAL)
+    expect(fs.symlinkSync).toHaveBeenCalledWith(GLOBAL, LOCAL, 'file')
+  })
+
+  it('deletes regular file without sync-back when local is older than global', () => {
+    vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL || p === LOCAL)
+    vi.mocked(deskPaths.isSymlink).mockReturnValue(false)
+    vi.mocked(fs.statSync).mockImplementation(p => {
+      if (p === LOCAL) return {mtimeMs: 500} as fs.Stats
+      return {mtimeMs: 1000} as fs.Stats
+    })
+
+    ensureConfigLink(LOCAL, GLOBAL, logger)
+
+    expect(fs.copyFileSync).not.toHaveBeenCalledWith(LOCAL, GLOBAL)
+    expect(deskPaths.deletePathSync).toHaveBeenCalledWith(LOCAL)
+    expect(fs.symlinkSync).toHaveBeenCalledWith(GLOBAL, LOCAL, 'file')
+  })
+
+  it('falls back to copy when symlink fails', () => {
+    vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL)
+    vi.mocked(deskPaths.isSymlink).mockReturnValue(false)
+    vi.mocked(fs.symlinkSync).mockImplementation(() => {
+      throw new Error('EPERM: operation not permitted')
+    })
+
+    ensureConfigLink(LOCAL, GLOBAL, logger)
+
+    expect(fs.copyFileSync).toHaveBeenCalledWith(GLOBAL, LOCAL)
+    expect(logger.warn).toHaveBeenCalledWith(
+      'symlink unavailable, copied config (auto-sync disabled)',
+      expect.objectContaining({dest: LOCAL})
+    )
+  })
+
+  it('logs warn and does not throw when both symlink and copy fail', () => {
+    vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL)
+    vi.mocked(deskPaths.isSymlink).mockReturnValue(false)
+    vi.mocked(fs.symlinkSync).mockImplementation(() => {
+      throw new Error('EPERM')
+    })
+    vi.mocked(fs.copyFileSync).mockImplementation(() => {
+      throw new Error('ENOENT')
+    })
+
+    expect(() => ensureConfigLink(LOCAL, GLOBAL, logger)).not.toThrow()
+    expect(logger.warn).toHaveBeenCalledWith(
+      'failed to link or copy config',
+      expect.objectContaining({path: LOCAL, error: 'ENOENT'})
+    )
   })
 })
