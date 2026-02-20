@@ -248,7 +248,7 @@ export function ensureConfigLink(
       if (target !== null && path.resolve(target) === path.resolve(globalConfigPath)) return // correct symlink, no-op
       deletePathSync(localConfigPath) // stale symlink — delete and fall through
     } else {
-      const localStat = fs.statSync(localConfigPath) // regular file — compare mtime for sync-back
+      const localStat = fs.statSync(localConfigPath) // FIXME: mtime unreliable on editors using write-temp-rename (VSCode, JetBrains); replace with content-hash (sha256)
       const globalStat = fs.statSync(globalConfigPath)
       if (localStat.mtimeMs > globalStat.mtimeMs) {
         fs.copyFileSync(localConfigPath, globalConfigPath) // local is newer: sync back to global
@@ -264,7 +264,7 @@ export function ensureConfigLink(
   }
   catch {
     try {
-      fs.copyFileSync(globalConfigPath, localConfigPath)
+      fs.copyFileSync(globalConfigPath, localConfigPath) // FIXME: fallback copy means subsequent runs overwrite local edits (copy treated as older-than-global)
       logger.warn('symlink unavailable, copied config (auto-sync disabled)', {dest: localConfigPath})
     }
     catch (copyErr) {

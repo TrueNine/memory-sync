@@ -402,7 +402,7 @@ describe('ensureConfigLink', () => {
     expect(fs.symlinkSync).toHaveBeenCalledWith(GLOBAL, LOCAL, 'file')
   })
 
-  it('syncs regular file back to global when local is newer, then recreates symlink', () => {
+  it('syncs regular file back to global when local is newer, then recreates symlink', () => { // FIXME: mtime mock is fragile; replace with content-hash when impl changes
     vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL || p === LOCAL)
     vi.mocked(deskPaths.isSymlink).mockReturnValue(false)
     vi.mocked(fs.statSync).mockImplementation(p => {
@@ -417,7 +417,7 @@ describe('ensureConfigLink', () => {
     expect(fs.symlinkSync).toHaveBeenCalledWith(GLOBAL, LOCAL, 'file')
   })
 
-  it('deletes regular file without sync-back when local is older than global', () => {
+  it('deletes regular file without sync-back when local is older than global', () => { // FIXME: mtime mock is fragile; replace with content-hash when impl changes
     vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL || p === LOCAL)
     vi.mocked(deskPaths.isSymlink).mockReturnValue(false)
     vi.mocked(fs.statSync).mockImplementation(p => {
