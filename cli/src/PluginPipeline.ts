@@ -13,7 +13,7 @@ import type {
   PluginKind,
   PluginOptions
 } from '@/types'
-import type {UserConfigFile} from '@/types/ConfigTypes'
+import type {UserConfigFile} from '@/types/ConfigTypes.schema'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'

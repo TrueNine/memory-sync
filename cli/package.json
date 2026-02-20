@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10220.11748",
+  "version": "2026.10221.10031",
   "description": "TrueNine Memory Synchronization CLI",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -22,6 +22,7 @@
       "import": "./dist/globals.mjs",
       "require": "./dist/globals.cjs"
     },
+    "./schema.json": "./dist/tnmsc.schema.json",
     "./package.json": "./package.json"
   },
   "main": "./dist/index.mjs",
@@ -30,7 +31,8 @@
     "tnmsc": "./dist/index.mjs"
   },
   "files": [
-    "dist"
+    "dist",
+    "dist/tnmsc.schema.json"
   ],
   "publishConfig": {
     "access": "public",
@@ -54,7 +56,8 @@
     "fs-extra": "catalog:",
     "jsonc-parser": "catalog:",
     "picocolors": "catalog:",
-    "picomatch": "catalog:"
+    "picomatch": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@truenine/desk-paths": "workspace:*",
@@ -69,6 +72,7 @@
     "eslint": "catalog:",
     "fast-check": "catalog:",
     "tsx": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "zod-to-json-schema": "catalog:"
   }
 }

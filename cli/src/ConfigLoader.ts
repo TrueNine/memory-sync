@@ -1,11 +1,12 @@
 import type {ILogger} from '@/log'
-import type {ConfigLoaderOptions, ConfigLoadResult, ShadowSourceProjectConfig, ShadowSourceProjectDirPair, UserConfigFile} from '@/types/ConfigTypes'
+import type {ConfigLoaderOptions, ConfigLoadResult, ShadowSourceProjectConfig, UserConfigFile} from '@/types/ConfigTypes.schema'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import {DEFAULT_USER_CONFIG} from '@/constants'
 import {createLogger} from '@/log'
+import {ZUserConfigFile} from '@/types/ConfigTypes.schema'
 
 /**
  * Default config file name
@@ -56,65 +57,6 @@ export interface GlobalConfigValidationResult {
   readonly errors: readonly string[]
 
   readonly shouldExit: boolean
-}
-
-/**
- * Validate a single ShadowSourceProjectDirPair value
- */
-function validateDirPair(value: unknown, fieldPath: string): string[] {
-  const errors: string[] = []
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    errors.push(`${fieldPath} must be an object with "src" and "dist" string fields`)
-    return errors
-  }
-  const pair = value as Record<string, unknown>
-  if (!('src' in pair) || typeof pair['src'] !== 'string') errors.push(`${fieldPath}.src must be a string`)
-  if (!('dist' in pair) || typeof pair['dist'] !== 'string') errors.push(`${fieldPath}.dist must be a string`)
-  return errors
-}
-
-/**
- * Validate a shadowSourceProject config object
- */
-function validateShadowSourceProject(value: unknown, fieldPath: string): {errors: string[], config: ShadowSourceProjectConfig | undefined} {
-  const errors: string[] = []
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    errors.push(`${fieldPath} must be an object`)
-    return {errors, config: void 0}
-  }
-  const obj = value as Record<string, unknown>
-
-  if (!('name' in obj) || typeof obj['name'] !== 'string') errors.push(`${fieldPath}.name must be a string`)
-
-  const pairKeys = ['skill', 'fastCommand', 'subAgent', 'rule', 'globalMemory', 'workspaceMemory', 'project'] as const
-  const validatedPairs: Partial<Record<typeof pairKeys[number], ShadowSourceProjectDirPair>> = {}
-
-  for (const key of pairKeys) {
-    if (key in obj) {
-      const pairErrors = validateDirPair(obj[key], `${fieldPath}.${key}`)
-      errors.push(...pairErrors)
-      if (pairErrors.length === 0) {
-        const pair = obj[key] as {src: string, dist: string}
-        validatedPairs[key] = {src: pair.src, dist: pair.dist}
-      }
-    }
-  }
-
-  if (errors.length > 0) return {errors, config: void 0}
-
-  return {
-    errors,
-    config: {
-      name: obj['name'] as string,
-      skill: validatedPairs.skill ?? {src: 'src/skills', dist: 'dist/skills'},
-      fastCommand: validatedPairs.fastCommand ?? {src: 'src/commands', dist: 'dist/commands'},
-      subAgent: validatedPairs.subAgent ?? {src: 'src/agents', dist: 'dist/agents'},
-      rule: validatedPairs.rule ?? {src: 'src/rules', dist: 'dist/rules'},
-      globalMemory: validatedPairs.globalMemory ?? {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
-      workspaceMemory: validatedPairs.workspaceMemory ?? {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
-      project: validatedPairs.project ?? {src: 'app', dist: 'dist/app'}
-    }
-  }
 }
 
 /**
@@ -192,80 +134,20 @@ export class ConfigLoader {
   }
 
   private parseConfig(content: string, filePath: string): UserConfigFile {
+    let parsed: unknown
     try {
-      const parsed: unknown = JSON.parse(content)
-
-      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('Config must be a JSON object')
-
-      return this.validateConfig(parsed as Record<string, unknown>, filePath)
+      parsed = JSON.parse(content)
     }
     catch (error) {
       if (error instanceof SyntaxError) throw new Error(`Invalid JSON in ${filePath}: ${error.message}`)
       throw error
     }
-  }
 
-  private validateConfig(raw: Record<string, unknown>, filePath: string): UserConfigFile {
-    const config: Partial<UserConfigFile> = {}
-    const errors: string[] = []
-
-    if ('version' in raw) { // version validation
-      if (typeof raw['version'] === 'string') (config as Record<string, unknown>)['version'] = raw['version']
-      else errors.push('version must be a string')
-    }
-
-    if ('workspaceDir' in raw) { // workspaceDir validation
-      if (typeof raw['workspaceDir'] === 'string') (config as Record<string, unknown>)['workspaceDir'] = raw['workspaceDir']
-      else errors.push('workspaceDir must be a string')
-    }
-
-    if ('shadowSourceProject' in raw) { // shadowSourceProject validation
-      const {errors: sspErrors, config: ssp} = validateShadowSourceProject(raw['shadowSourceProject'], 'shadowSourceProject')
-      errors.push(...sspErrors)
-      if (ssp != null) (config as Record<string, unknown>)['shadowSourceProject'] = ssp
-    }
-
-    if ('logLevel' in raw) { // logLevel validation
-      const validLevels = ['trace', 'debug', 'info', 'warn', 'error']
-      const logLevelValue = raw['logLevel']
-      if (typeof logLevelValue === 'string' && validLevels.includes(logLevelValue)) (config as Record<string, unknown>)['logLevel'] = logLevelValue
-      else errors.push(`logLevel must be one of: ${validLevels.join(', ')}`)
-    }
-
-    if ('profile' in raw) { // profile validation - supports arbitrary key-value pairs
-      const profileValue = raw['profile']
-      if (typeof profileValue === 'object' && profileValue !== null && !Array.isArray(profileValue)) (config as Record<string, unknown>)['profile'] = profileValue as UserConfigFile['profile']
-      else errors.push('profile must be an object')
-    }
-
-    if ('tool' in raw) { // tool validation - supports string values for tool references
-      const toolValue = raw['tool']
-      if (typeof toolValue === 'object' && toolValue !== null && !Array.isArray(toolValue)) {
-        const toolObj = toolValue as Record<string, unknown>
-        const validTool: Record<string, string | undefined> = {}
-        let valid = true
-
-        for (const [key, value] of Object.entries(toolObj)) {
-          if (typeof value === 'string' || value === void 0) validTool[key] = value
-          else {
-            errors.push(`tool.${key} must be a string`)
-            valid = false
-          }
-        }
-
-        if (valid) (config as Record<string, unknown>)['tool'] = validTool
-      } else errors.push('tool must be an object')
-    }
-
-    if ('fastCommandSeriesOptions' in raw) { // fastCommandSeriesOptions validation
-      const fcsValue = raw['fastCommandSeriesOptions']
-      if (typeof fcsValue === 'object' && fcsValue !== null && !Array.isArray(fcsValue)) (config as Record<string, unknown>)['fastCommandSeriesOptions'] = fcsValue
-      else errors.push('fastCommandSeriesOptions must be an object')
-    }
-
-    if (errors.length > 0) this.logger.warn('validation warnings', {path: filePath, errors})
-
-    return config as UserConfigFile
+    const result = ZUserConfigFile.safeParse(parsed)
+    if (result.success) return result.data
+    const errors = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`)
+    this.logger.warn('validation warnings', {path: filePath, errors})
+    return ZUserConfigFile.parse({}) // return empty valid config on partial failure
   }
 
   private mergeConfigs(configs: UserConfigFile[]): UserConfigFile {
@@ -390,8 +272,9 @@ export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
     return recreateConfigAndExit(configPath, logger, ['Config must be a JSON object'])
   }
 
-  const errors = validateConfigStrict(parsed as Record<string, unknown>) // Validate fields strictly
-  if (errors.length > 0) {
+  const zodResult = ZUserConfigFile.safeParse(parsed) // Validate fields with Zod
+  if (!zodResult.success) {
+    const errors = zodResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`)
     for (const err of errors) logger.error('config validation error', {path: configPath, error: err})
     return recreateConfigAndExit(configPath, logger, errors)
   }
@@ -402,45 +285,6 @@ export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
     errors: [],
     shouldExit: false
   }
-}
-
-/**
- * Strictly validate config fields
- */
-function validateConfigStrict(raw: Record<string, unknown>): string[] {
-  const errors: string[] = []
-
-  if ('version' in raw && typeof raw['version'] !== 'string') errors.push('version must be a string')
-
-  if ('workspaceDir' in raw && typeof raw['workspaceDir'] !== 'string') errors.push('workspaceDir must be a string')
-
-  if ('shadowSourceProject' in raw) { // shadowSourceProject validation
-    const {errors: sspErrors} = validateShadowSourceProject(raw['shadowSourceProject'], 'shadowSourceProject')
-    errors.push(...sspErrors)
-  }
-
-  if ('logLevel' in raw) { // logLevel validation
-    const validLevels = ['trace', 'debug', 'info', 'warn', 'error']
-    const logLevelValue = raw['logLevel']
-    if (typeof logLevelValue !== 'string' || !validLevels.includes(logLevelValue)) errors.push(`logLevel must be one of: ${validLevels.join(', ')}`)
-  }
-
-  if ('profile' in raw) { // profile validation - must be an object with arbitrary key-value pairs
-    const profileValue = raw['profile']
-    if (typeof profileValue !== 'object' || profileValue === null || Array.isArray(profileValue)) errors.push('profile must be an object')
-  }
-
-  if (!('tool' in raw)) return errors // tool validation - must be an object with string values
-
-  const toolValue = raw['tool']
-  if (typeof toolValue !== 'object' || toolValue === null || Array.isArray(toolValue)) errors.push('tool must be an object')
-  else {
-    const toolObj = toolValue as Record<string, unknown>
-    for (const [key, value] of Object.entries(toolObj)) {
-      if (typeof value !== 'string' && value !== void 0) errors.push(`tool.${key} must be a string`)
-    }
-  }
-  return errors
 }
 
 /**

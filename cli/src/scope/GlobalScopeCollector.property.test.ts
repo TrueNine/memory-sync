@@ -1,4 +1,4 @@
-import type {UserConfigFile} from '@/types/ConfigTypes' // Feature: compiler-integration // Property-based tests for GlobalScopeCollector // src/scope/GlobalScopeCollector.property.test.ts
+import type {UserConfigFile} from '@/types/ConfigTypes.schema' // Feature: compiler-integration // Property-based tests for GlobalScopeCollector // src/scope/GlobalScopeCollector.property.test.ts
 import * as os from 'node:os'
 import process from 'node:process'
 import {ShellKind} from '@truenine/md-compiler/globals'

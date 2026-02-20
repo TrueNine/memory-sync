@@ -1,4 +1,4 @@
-export * from './ConfigTypes'
+export * from './ConfigTypes.schema'
 export * from './Enums'
 export * from './Errors'
 export * from './ExportMetadataTypes'

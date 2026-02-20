@@ -1,7 +1,8 @@
-import {readFileSync} from 'node:fs'
+import {readFileSync, writeFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {bundles} from '@truenine/init-bundle'
 import {defineConfig} from 'tsdown'
+import {TNMSC_JSON_SCHEMA} from './src/schema.ts'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
 type BundleMap = Readonly<Record<string, {readonly content: string}>>
@@ -33,6 +34,11 @@ export default defineConfig([
       __CLI_VERSION__: JSON.stringify(pkg.version),
       __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
       __KIRO_GLOBAL_POWERS_REGISTRY__: kiroGlobalPowersRegistry
+    },
+    hooks: {
+      'build:done'() {
+        writeFileSync('./dist/tnmsc.schema.json', `${JSON.stringify(TNMSC_JSON_SCHEMA, null, 2)}\n`, 'utf8')
+      }
     }
   },
   {

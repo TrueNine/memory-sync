@@ -217,60 +217,6 @@ describe('configLoader', () => {
       expect(result.found).toBe(true)
       expect(result.config.profile).toBeUndefined()
     })
-
-    it('should validate tool object with string values', () => {
-      const configContent = JSON.stringify({
-        tool: {
-          websearch: 'search_web',
-          webfetch: 'fetch_url',
-          codeSearch: 'search_code'
-        }
-      })
-
-      vi.mocked(fs.existsSync).mockReturnValue(true)
-      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
-
-      const loader = new ConfigLoader()
-      const result = loader.loadFromFile('/test/.tnmsc.json')
-
-      expect(result.found).toBe(true)
-      expect(result.config.tool).toEqual({
-        websearch: 'search_web',
-        webfetch: 'fetch_url',
-        codeSearch: 'search_code'
-      })
-    })
-
-    it('should reject invalid tool (non-object)', () => {
-      const configContent = JSON.stringify({tool: 'invalid'})
-
-      vi.mocked(fs.existsSync).mockReturnValue(true)
-      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
-
-      const loader = new ConfigLoader()
-      const result = loader.loadFromFile('/test/.tnmsc.json')
-
-      expect(result.found).toBe(true)
-      expect(result.config.tool).toBeUndefined()
-    })
-
-    it('should reject tool with non-string values', () => {
-      const configContent = JSON.stringify({
-        tool: {
-          websearch: 'search_web',
-          invalidTool: 123
-        }
-      })
-
-      vi.mocked(fs.existsSync).mockReturnValue(true)
-      vi.mocked(fs.readFileSync).mockReturnValue(configContent)
-
-      const loader = new ConfigLoader()
-      const result = loader.loadFromFile('/test/.tnmsc.json')
-
-      expect(result.found).toBe(true)
-      expect(result.config.tool).toBeUndefined() // Invalid tool should be rejected entirely
-    })
   })
 
   describe('load', () => {
@@ -290,7 +236,16 @@ describe('configLoader', () => {
 
       const globalConfig = JSON.stringify({
         workspaceDir: '~/global-workspace',
-        shadowSourceProject: {name: 'global-shadow'},
+        shadowSourceProject: {
+          name: 'global-shadow',
+          skill: {src: 'src/skills', dist: 'dist/skills'},
+          fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+          subAgent: {src: 'src/agents', dist: 'dist/agents'},
+          rule: {src: 'src/rules', dist: 'dist/rules'},
+          globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+          workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+          project: {src: 'app', dist: 'dist/app'}
+        },
         logLevel: 'info'
       })
 
@@ -319,7 +274,13 @@ describe('configLoader', () => {
       const cwdConfig = JSON.stringify({
         shadowSourceProject: {
           name: 'cwd-shadow',
-          skill: {src: 'custom/skills', dist: 'custom/dist/skills'}
+          skill: {src: 'custom/skills', dist: 'custom/dist/skills'},
+          fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+          subAgent: {src: 'src/agents', dist: 'dist/agents'},
+          rule: {src: 'src/rules', dist: 'dist/rules'},
+          globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+          workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+          project: {src: 'app', dist: 'dist/app'}
         }
       })
 
@@ -327,7 +288,12 @@ describe('configLoader', () => {
         shadowSourceProject: {
           name: 'global-shadow',
           skill: {src: 'src/skills', dist: 'dist/skills'},
-          fastCommand: {src: 'src/commands', dist: 'dist/commands'}
+          fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+          subAgent: {src: 'src/agents', dist: 'dist/agents'},
+          rule: {src: 'src/rules', dist: 'dist/rules'},
+          globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
+          workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
+          project: {src: 'app', dist: 'dist/app'}
         }
       })
 
