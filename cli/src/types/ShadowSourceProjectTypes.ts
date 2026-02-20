@@ -101,7 +101,8 @@ export const SHADOW_SOURCE_FILE_NAMES = {
   QODER_IGNORE: '.qoderignore', // AI Agent ignore files
   CURSOR_IGNORE: '.cursorignore',
   WARP_INDEX_IGNORE: '.warpindexignore',
-  AI_IGNORE: '.aiignore'
+  AI_IGNORE: '.aiignore',
+  CODEIUM_IGNORE: '.codeiumignore' // Windsurf ignore file
 } as const
 
 /**
@@ -272,6 +273,11 @@ export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE: ShadowSourceProjectDirecto
       name: SHADOW_SOURCE_FILE_NAMES.AI_IGNORE,
       required: false,
       description: 'AI ignore file'
+    },
+    {
+      name: SHADOW_SOURCE_FILE_NAMES.CODEIUM_IGNORE,
+      required: false,
+      description: 'Windsurf ignore file'
     }
   ]
 } as const
