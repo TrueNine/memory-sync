@@ -62,7 +62,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
         const fileName = path.basename(String(filePath))
-        return ['.qoderignore', '.cursorignore', '.warpindexignore', '.aiignore', '.codeignore', '.traeignore'].includes(fileName)
+        return ['.qoderignore', '.cursorignore', '.warpindexignore', '.aiignore', '.codeiumignore', '.traeignore'].includes(fileName)
       })
 
       vi.mocked(fs.statSync).mockReturnValue({
@@ -76,7 +76,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
         if (fileName === '.cursorignore') return 'cursor ignore content'
         if (fileName === '.warpindexignore') return 'warp ignore content'
         if (fileName === '.aiignore') return 'ai ignore content'
-        if (fileName === '.codeignore') return 'windsurf code ignore content'
+        if (fileName === '.codeiumignore') return 'windsurf code ignore content'
         if (fileName === '.traeignore') return 'trae ignore content'
         return ''
       })
@@ -102,7 +102,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
         content: 'ai ignore content'
       })
       expect(result.aiAgentIgnoreConfigFiles).toContainEqual({
-        fileName: '.codeignore',
+        fileName: '.codeiumignore',
         content: 'windsurf code ignore content'
       })
       expect(result.aiAgentIgnoreConfigFiles).toContainEqual({
@@ -168,7 +168,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
         '.kiroignore',
         '.warpindexignore',
         '.aiignore',
-        '.codeignore',
+        '.codeiumignore',
         '.traeignore'
       ])
     })
@@ -197,7 +197,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
         '.kiroignore',
         '.warpindexignore',
         '.aiignore',
-        '.codeignore',
+        '.codeiumignore',
         '.traeignore'
       ])
       expect(ctx.logger.warn).toHaveBeenCalled()
@@ -240,12 +240,12 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
       expect(existsCallPaths.some(p => p.startsWith(normalizedCustomDir))).toBe(true)
     })
 
-    it('should read .codeignore file for Windsurf support', () => {
+    it('should read .codeiumignore file for Windsurf support', () => {
       const ctx = createMockInputPluginContext()
 
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
         const fileName = path.basename(String(filePath))
-        return fileName === '.codeignore'
+        return fileName === '.codeiumignore'
       })
 
       vi.mocked(fs.statSync).mockReturnValue({
@@ -259,7 +259,7 @@ describe('aIAgentIgnoreConfigFileInputPlugin', () => {
 
       expect(result.aiAgentIgnoreConfigFiles).toHaveLength(1)
       expect(result.aiAgentIgnoreConfigFiles?.[0]).toEqual({
-        fileName: '.codeignore',
+        fileName: '.codeiumignore',
         content: 'windsurf specific ignore patterns'
       })
     })

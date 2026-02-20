@@ -335,6 +335,38 @@ describe('windsurf output plugin', () => {
       const result = await plugin.canWrite(ctx)
       expect(result).toBe(true)
     })
+
+    it('should return true when .codeiumignore exists in aiAgentIgnoreConfigFiles', async () => {
+      const ctx = {
+        collectedInputContext: {
+          workspace: {projects: [], directory: createMockRelativePath('.', tempDir)},
+          skills: [],
+          fastCommands: [],
+          globalMemory: null,
+          rules: [],
+          aiAgentIgnoreConfigFiles: [{fileName: '.codeiumignore', content: 'node_modules/'}]
+        }
+      } as unknown as OutputWriteContext
+
+      const result = await plugin.canWrite(ctx)
+      expect(result).toBe(true)
+    })
+
+    it('should return false when only .codeignore (wrong name) exists in aiAgentIgnoreConfigFiles', async () => { // @see https://docs.windsurf.com/context-awareness/windsurf-ignore#windsurf-ignore
+      const ctx = {
+        collectedInputContext: {
+          workspace: {projects: [], directory: createMockRelativePath('.', tempDir)},
+          skills: [],
+          fastCommands: [],
+          globalMemory: null,
+          rules: [],
+          aiAgentIgnoreConfigFiles: [{fileName: '.codeignore', content: 'node_modules/'}]
+        }
+      } as unknown as OutputWriteContext
+
+      const result = await plugin.canWrite(ctx)
+      expect(result).toBe(false)
+    })
   })
 
   describe('writeGlobalOutputs', () => {
@@ -523,6 +555,67 @@ describe('windsurf output plugin', () => {
       const results = await plugin.writeProjectOutputs(ctx)
       expect(results.files).toHaveLength(0)
       expect(results.dirs).toHaveLength(0)
+    })
+
+    it('should write .codeiumignore to project directories', async () => {
+      const projectDir = path.join(tempDir, 'my-project')
+      fs.mkdirSync(projectDir, {recursive: true})
+
+      const ctx = {
+        collectedInputContext: {
+          workspace: {
+            projects: [
+              {
+                name: 'my-project',
+                dirFromWorkspacePath: createMockRelativePath('my-project', tempDir)
+              }
+            ],
+            directory: createMockRelativePath('.', tempDir)
+          },
+          rules: [],
+          aiAgentIgnoreConfigFiles: [{fileName: '.codeiumignore', content: 'node_modules/\n.env\ndist/'}]
+        },
+        logger: createLogger('test', 'debug'),
+        dryRun: false
+      } as unknown as OutputWriteContext
+
+      const results = await plugin.writeProjectOutputs(ctx)
+
+      const ignorePath = path.join(tempDir, 'my-project', '.codeiumignore')
+      expect(fs.existsSync(ignorePath)).toBe(true)
+      const content = fs.readFileSync(ignorePath, 'utf8')
+      expect(content).toContain('node_modules/')
+      expect(results.files.some(f => f.success)).toBe(true)
+    })
+
+    it('should not write .codeignore (wrong name) to project directories', async () => {
+      const projectDir = path.join(tempDir, 'my-project')
+      fs.mkdirSync(projectDir, {recursive: true})
+
+      const ctx = {
+        collectedInputContext: {
+          workspace: {
+            projects: [
+              {
+                name: 'my-project',
+                dirFromWorkspacePath: createMockRelativePath('my-project', tempDir)
+              }
+            ],
+            directory: createMockRelativePath('.', tempDir)
+          },
+          rules: [],
+          aiAgentIgnoreConfigFiles: [{fileName: '.codeignore', content: 'node_modules/'}]
+        },
+        logger: createLogger('test', 'debug'),
+        dryRun: false
+      } as unknown as OutputWriteContext
+
+      await plugin.writeProjectOutputs(ctx)
+
+      const wrongIgnorePath = path.join(tempDir, 'my-project', '.codeignore')
+      const correctIgnorePath = path.join(tempDir, 'my-project', '.codeiumignore')
+      expect(fs.existsSync(wrongIgnorePath)).toBe(false)
+      expect(fs.existsSync(correctIgnorePath)).toBe(false)
     })
 
     it('should write project rules and apply seriName include filter from projectConfig', async () => {
