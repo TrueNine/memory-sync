@@ -30,6 +30,8 @@ const RULE_FILE_PREFIX = 'rule-'
  * Windsurf IDE output plugin.
  * Writes global configuration to ~/.codeium/windsurf/.
  * Supports global memory, skills, and fast commands (workflows).
+ *
+ * @see https://docs.windsurf.com/context-awareness/windsurf-ignore#windsurf-ignore - Windsurf uses `.codeiumignore`
  */
 export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -37,7 +39,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       globalConfigDir: CODEIUM_WINDSURF_DIR,
       outputFileName: '',
       dependsOn: ['AgentsOutputPlugin'],
-      indexignore: '.codeignore'
+      indexignore: '.codeiumignore'
     })
   }
 
@@ -171,7 +173,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     const hasFastCommands = (fastCommands?.length ?? 0) > 0
     const hasRules = (rules?.length ?? 0) > 0
     const hasGlobalMemory = globalMemory != null
-    const hasCodeIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.codeignore') ?? false
+    const hasCodeIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.codeiumignore') ?? false
 
     if (hasSkills || hasFastCommands || hasGlobalMemory || hasRules || hasCodeIgnore) return true
 

@@ -8,8 +8,10 @@ import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**
  * Ignore file names to read from shadow project dist directory
+ *
+ * @see https://docs.windsurf.com/context-awareness/windsurf-ignore#windsurf-ignore - Windsurf uses `.codeiumignore`
  */
-const IGNORE_FILE_NAMES = ['.qoderignore', '.cursorignore', '.kiroignore', '.warpindexignore', '.aiignore', '.codeignore', '.traeignore'] as const
+const IGNORE_FILE_NAMES = ['.qoderignore', '.cursorignore', '.kiroignore', '.warpindexignore', '.aiignore', '.codeiumignore', '.traeignore'] as const
 
 export class AIAgentIgnoreConfigFileInputPlugin extends AbstractInputPlugin {
   constructor() {
