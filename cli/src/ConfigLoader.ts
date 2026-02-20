@@ -4,6 +4,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
+import {deletePathSync, isSymlink, readSymlinkTarget} from '@truenine/desk-paths'
 import {DEFAULT_USER_CONFIG} from '@/constants'
 import {createLogger} from '@/log'
 import {ZUserConfigFile} from '@/types/ConfigTypes.schema'
@@ -226,10 +227,61 @@ export function loadUserConfig(cwd?: string): MergedConfigResult {
 }
 
 /**
+ * Ensure a local config file is linked (symlink preferred) to the global config.
+ * On every run:
+ * - If local is a correct symlink → no-op
+ * - If local is a stale symlink → delete and recreate
+ * - If local is a regular file newer than global → sync back to global, then recreate link
+ * - If local is a regular file older than global → delete and recreate link
+ * Falls back to a file copy with a warning when symlink creation fails.
+ */
+export function ensureConfigLink(
+  localConfigPath: string,
+  globalConfigPath: string,
+  logger: ILogger
+): void {
+  if (!fs.existsSync(globalConfigPath)) return
+
+  if (fs.existsSync(localConfigPath) || isSymlink(localConfigPath)) {
+    if (isSymlink(localConfigPath)) {
+      const target = readSymlinkTarget(localConfigPath)
+      if (target !== null && path.resolve(target) === path.resolve(globalConfigPath)) return // correct symlink, no-op
+      deletePathSync(localConfigPath) // stale symlink — delete and fall through
+    } else {
+      const localStat = fs.statSync(localConfigPath) // regular file — compare mtime for sync-back
+      const globalStat = fs.statSync(globalConfigPath)
+      if (localStat.mtimeMs > globalStat.mtimeMs) {
+        fs.copyFileSync(localConfigPath, globalConfigPath) // local is newer: sync back to global
+        logger.debug('synced local config back to global', {src: localConfigPath, dest: globalConfigPath})
+      }
+      deletePathSync(localConfigPath)
+    }
+  }
+
+  try {
+    fs.symlinkSync(globalConfigPath, localConfigPath, 'file')
+    logger.debug('linked config', {link: localConfigPath, target: globalConfigPath})
+  }
+  catch {
+    try {
+      fs.copyFileSync(globalConfigPath, localConfigPath)
+      logger.warn('symlink unavailable, copied config (auto-sync disabled)', {dest: localConfigPath})
+    }
+    catch (copyErr) {
+      logger.warn('failed to link or copy config', {
+        path: localConfigPath,
+        error: copyErr instanceof Error ? copyErr.message : String(copyErr)
+      })
+    }
+  }
+}
+
+/**
  * Ensure the shadow source project directory has a .tnmsc.json symlink
  * pointing to the global config. Creates a symlink where possible, falls
  * back to a file copy when symlinks are unavailable (e.g. Windows without
- * Developer Mode). Skips if the file already exists.
+ * Developer Mode). On every run, syncs edits made inside the shadow back
+ * to the global config before relinking.
  */
 export function ensureShadowProjectConfigLink(shadowProjectDir: string, logger: ILogger): void {
   const resolved = shadowProjectDir.startsWith('~')
@@ -239,27 +291,8 @@ export function ensureShadowProjectConfigLink(shadowProjectDir: string, logger: 
   if (!fs.existsSync(resolved)) return
 
   const globalConfigPath = getGlobalConfigPath()
-  if (!fs.existsSync(globalConfigPath)) return
-
   const configPath = path.join(resolved, DEFAULT_CONFIG_FILE_NAME)
-  if (fs.existsSync(configPath)) return
-
-  try {
-    fs.symlinkSync(globalConfigPath, configPath, 'file')
-    logger.debug('linked config to shadow project', {link: configPath, target: globalConfigPath})
-  }
-  catch {
-    try {
-      fs.copyFileSync(globalConfigPath, configPath)
-      logger.debug('copied config to shadow project (symlink unavailable)', {dest: configPath})
-    }
-    catch (copyErr) {
-      logger.warn('failed to link or copy config to shadow project', {
-        path: configPath,
-        error: copyErr instanceof Error ? copyErr.message : String(copyErr)
-      })
-    }
-  }
+  ensureConfigLink(configPath, globalConfigPath, logger)
 }
 
 /**
