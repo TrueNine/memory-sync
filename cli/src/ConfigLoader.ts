@@ -226,6 +226,43 @@ export function loadUserConfig(cwd?: string): MergedConfigResult {
 }
 
 /**
+ * Ensure the shadow source project directory has a .tnmsc.json symlink
+ * pointing to the global config. Creates a symlink where possible, falls
+ * back to a file copy when symlinks are unavailable (e.g. Windows without
+ * Developer Mode). Skips if the file already exists.
+ */
+export function ensureShadowProjectConfigLink(shadowProjectDir: string, logger: ILogger): void {
+  const resolved = shadowProjectDir.startsWith('~')
+    ? path.join(os.homedir(), shadowProjectDir.slice(1))
+    : shadowProjectDir
+
+  if (!fs.existsSync(resolved)) return
+
+  const globalConfigPath = getGlobalConfigPath()
+  if (!fs.existsSync(globalConfigPath)) return
+
+  const configPath = path.join(resolved, DEFAULT_CONFIG_FILE_NAME)
+  if (fs.existsSync(configPath)) return
+
+  try {
+    fs.symlinkSync(globalConfigPath, configPath, 'file')
+    logger.debug('linked config to shadow project', {link: configPath, target: globalConfigPath})
+  }
+  catch {
+    try {
+      fs.copyFileSync(globalConfigPath, configPath)
+      logger.debug('copied config to shadow project (symlink unavailable)', {dest: configPath})
+    }
+    catch (copyErr) {
+      logger.warn('failed to link or copy config to shadow project', {
+        path: configPath,
+        error: copyErr instanceof Error ? copyErr.message : String(copyErr)
+      })
+    }
+  }
+}
+
+/**
  * Validate global config file strictly.
  * - If config doesn't exist: create default config, log warn, continue
  * - If config is invalid (parse error or validation error): delete and recreate, log error, exit

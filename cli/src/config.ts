@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
-import {loadUserConfig, validateAndEnsureGlobalConfig} from '@/ConfigLoader'
+import {ensureShadowProjectConfigLink, loadUserConfig, validateAndEnsureGlobalConfig} from '@/ConfigLoader'
 import {DEFAULT_USER_CONFIG} from '@/constants'
 import {createLogger} from '@/log'
 import {PluginPipeline} from '@/PluginPipeline'
@@ -207,6 +207,8 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
       logLevel: DEFAULT_OPTIONS.logLevel
     })
   }
+
+  ensureShadowProjectConfigLink(path.join(mergedOptions.workspaceDir, mergedOptions.shadowSourceProject.name), logger) // Auto-link .tnmsc.json into shadow source project dir
 
   const baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = { // Base context without dependencyContext, globalScope, scopeRegistry (will be provided by pipeline)
     logger,
