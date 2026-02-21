@@ -31,6 +31,9 @@
   "scripts": {
     "build": "turbo build",
     "test": "turbo test --filter=!@truenine/memory-sync-gui",
+    "lint": "turbo lint",
+    "lintfix": "turbo lintfix",
+    "typecheck": "turbo typecheck",
     "dev:doc": "pnpm -C doc dev",
     "build:doc": "pnpm -C doc build",
     "sync-versions": "tsx .git-hooks/sync-versions.ts",
