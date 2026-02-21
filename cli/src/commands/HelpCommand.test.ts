@@ -1,5 +1,5 @@
+import {createLogger} from '@truenine/plugin-shared'
 import {describe, expect, it, vi} from 'vitest'
-import {createLogger} from '@/log'
 import {HelpCommand} from './HelpCommand'
 
 const mockLogger = createLogger('test', 'error')

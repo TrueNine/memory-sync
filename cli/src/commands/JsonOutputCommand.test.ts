@@ -1,11 +1,11 @@
+import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions} from '@truenine/plugin-shared'
 import type {CommandContext, CommandResult} from './Command'
-import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions} from '@/types'
 import * as nodeFs from 'node:fs'
 import * as nodePath from 'node:path'
 import process from 'node:process'
+import {createLogger} from '@truenine/plugin-shared'
 import * as fastGlob from 'fast-glob'
 import {describe, expect, it, vi} from 'vitest'
-import {createLogger} from '@/log'
 import {JsonOutputCommand, toJsonCommandResult} from './JsonOutputCommand'
 
 const mockLogger = createLogger('test', 'silent')

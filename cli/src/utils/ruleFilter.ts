@@ -1,5 +1,4 @@
-import type {ProjectConfig} from '@/types/ConfigTypes.schema'
-import type {RulePrompt} from '@/types/InputTypes'
+import type {ProjectConfig, RulePrompt} from '@truenine/plugin-shared'
 
 function normalizeSubdirPath(subdir: string): string {
   let normalized = subdir.replaceAll(/\.\/+/g, '')

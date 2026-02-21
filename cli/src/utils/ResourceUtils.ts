@@ -1,5 +1,5 @@
-import type {SkillResourceCategory} from '@/types/InputTypes'
-import {SKILL_RESOURCE_BINARY_EXTENSIONS} from '@/types/InputTypes'
+import type {SkillResourceCategory} from '@truenine/plugin-shared'
+import {SKILL_RESOURCE_BINARY_EXTENSIONS} from '@truenine/plugin-shared'
 
 /**
  * Check if a file extension is a binary resource extension.

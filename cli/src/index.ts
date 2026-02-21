@@ -5,7 +5,6 @@ import userPluginConfigPromise from './plugin.config'
 export * from './config'
 export * from './ConfigLoader'
 export * from './constants'
-export * from './log'
 export {
   default
 } from './plugin.config'
@@ -18,5 +17,3 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => console.error(e))
-
-export * from './types'

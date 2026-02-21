@@ -1,5 +1,5 @@
 import type {Command, CommandContext, CommandResult} from './Command'
-import {checkCanWrite, executeWriteOutputs} from '@/types'
+import {checkCanWrite, executeWriteOutputs} from '@truenine/plugin-shared'
 
 /**
  * Dry-run output command - simulates write operations without actual I/O

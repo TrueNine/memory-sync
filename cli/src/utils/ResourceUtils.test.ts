@@ -1,8 +1,8 @@
-import {describe, expect, it} from 'vitest'
 import {
   SKILL_RESOURCE_BINARY_EXTENSIONS,
   SKILL_RESOURCE_TEXT_EXTENSIONS
-} from '@/types/InputTypes'
+} from '@truenine/plugin-shared'
+import {describe, expect, it} from 'vitest'
 import {
   getMimeType,
   getResourceCategory,

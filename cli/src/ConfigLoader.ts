@@ -1,13 +1,10 @@
-import type {ILogger} from '@/log'
-import type {ConfigLoaderOptions, ConfigLoadResult, ShadowSourceProjectConfig, UserConfigFile} from '@/types/ConfigTypes.schema'
+import type {ConfigLoaderOptions, ConfigLoadResult, ILogger, ShadowSourceProjectConfig, UserConfigFile} from '@truenine/plugin-shared'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import {deletePathSync, isSymlink, readSymlinkTarget} from '@truenine/desk-paths'
-import {DEFAULT_USER_CONFIG} from '@/constants'
-import {createLogger} from '@/log'
-import {ZUserConfigFile} from '@/types/ConfigTypes.schema'
+import {createLogger, DEFAULT_USER_CONFIG, ZUserConfigFile} from '@truenine/plugin-shared'
 
 /**
  * Default config file name

@@ -1,7 +1,8 @@
+import type {CollectedInputContext, InputPlugin, InputPluginContext, Plugin} from '@truenine/plugin-shared'
 import type {ParsedCliArgs} from '@/PluginPipeline'
-import type {CollectedInputContext, InputPlugin, InputPluginContext, Plugin} from '@/types'
 import fs from 'node:fs'
 import path from 'node:path'
+import {CircularDependencyError, createLogger, FilePathKind, MissingDependencyError, PluginKind, PromptKind} from '@truenine/plugin-shared'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {
@@ -13,9 +14,7 @@ import {
   InitCommand,
   UnknownCommand
 } from '@/commands'
-import {createLogger} from '@/log'
 import {parseArgs, PluginPipeline, resolveCommand, resolveLogLevel} from '@/PluginPipeline'
-import {CircularDependencyError, FilePathKind, MissingDependencyError, PluginKind, PromptKind} from '@/types'
 
 function createMockPlugin(name: string, dependsOn?: readonly string[]): Plugin {
   const base = {

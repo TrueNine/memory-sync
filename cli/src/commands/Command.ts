@@ -1,5 +1,4 @@
-import type {ILogger} from '@/log'
-import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from '@/types'
+import type {CollectedInputContext, ILogger, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from '@truenine/plugin-shared'
 
 /**
  * Command execution context

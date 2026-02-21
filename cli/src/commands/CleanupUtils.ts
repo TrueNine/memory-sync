@@ -1,8 +1,7 @@
-import type {ILogger} from '@/log'
-import type {OutputCleanContext, OutputPlugin} from '@/types'
+import type {ILogger, OutputCleanContext, OutputPlugin} from '@truenine/plugin-shared'
 import * as path from 'node:path'
 import {deleteDirectories as deskDeleteDirectories, deleteFiles as deskDeleteFiles} from '@truenine/desk-paths'
-import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '@/types/PluginTypes'
+import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '@truenine/plugin-shared'
 
 /**
  * Result of cleanup operation

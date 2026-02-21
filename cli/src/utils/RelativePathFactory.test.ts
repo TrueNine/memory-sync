@@ -1,5 +1,5 @@
+import {FilePathKind} from '@truenine/plugin-shared'
 import {describe, expect, it} from 'vitest'
-import {FilePathKind} from '@/types/Enums'
 import {
   createFileRelativePath,
   createRelativePath,

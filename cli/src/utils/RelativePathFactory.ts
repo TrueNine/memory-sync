@@ -1,6 +1,6 @@
-import type {RelativePath} from '@/types/FileSystemTypes'
+import type {RelativePath} from '@truenine/plugin-shared'
 import * as path from 'node:path'
-import {FilePathKind} from '@/types/Enums'
+import {FilePathKind} from '@truenine/plugin-shared'
 
 /**
  * Options for creating a RelativePath

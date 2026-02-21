@@ -1,39 +1,41 @@
+import {GenericSkillsOutputPlugin} from '@truenine/plugin-agentskills-compact'
+import {AgentsOutputPlugin} from '@truenine/plugin-agentsmd'
+import {AntigravityOutputPlugin} from '@truenine/plugin-antigravity'
+import {ClaudeCodeCLIOutputPlugin} from '@truenine/plugin-claude-code-cli'
+import {CursorOutputPlugin} from '@truenine/plugin-cursor'
+import {DroidCLIOutputPlugin} from '@truenine/plugin-droid-cli'
+import {EditorConfigOutputPlugin} from '@truenine/plugin-editorconfig'
+import {GeminiCLIOutputPlugin} from '@truenine/plugin-gemini-cli'
+import {GitExcludeOutputPlugin} from '@truenine/plugin-git-exclude'
+import {SkillInputPlugin} from '@truenine/plugin-input-agentskills'
+import {EditorConfigInputPlugin} from '@truenine/plugin-input-editorconfig'
+import {FastCommandInputPlugin} from '@truenine/plugin-input-fast-command'
+import {GitExcludeInputPlugin} from '@truenine/plugin-input-git-exclude'
+import {GitIgnoreInputPlugin} from '@truenine/plugin-input-gitignore'
+import {GlobalMemoryInputPlugin} from '@truenine/plugin-input-global-memory'
+import {JetBrainsConfigInputPlugin} from '@truenine/plugin-input-jetbrains-config'
+import {MarkdownWhitespaceCleanupEffectInputPlugin} from '@truenine/plugin-input-md-cleanup-effect'
+import {OrphanFileCleanupEffectInputPlugin} from '@truenine/plugin-input-orphan-cleanup-effect'
+import {ProjectPromptInputPlugin} from '@truenine/plugin-input-project-prompt'
+import {ReadmeMdInputPlugin} from '@truenine/plugin-input-readme'
+import {RuleInputPlugin} from '@truenine/plugin-input-rule'
+import {ShadowProjectInputPlugin} from '@truenine/plugin-input-shadow-project'
+import {SkillNonSrcFileSyncEffectInputPlugin} from '@truenine/plugin-input-skill-sync-effect'
+import {SubAgentInputPlugin} from '@truenine/plugin-input-subagent'
+import {VSCodeConfigInputPlugin} from '@truenine/plugin-input-vscode-config'
+import {WorkspaceInputPlugin} from '@truenine/plugin-input-workspace'
+import {JetBrainsAIAssistantCodexOutputPlugin} from '@truenine/plugin-jetbrains-ai-codex'
+import {JetBrainsIDECodeStyleConfigOutputPlugin} from '@truenine/plugin-jetbrains-codestyle'
+import {KiroCLIOutputPlugin} from '@truenine/plugin-kiro-ide'
+import {CodexCLIOutputPlugin} from '@truenine/plugin-openai-codex-cli'
+import {OpencodeCLIOutputPlugin} from '@truenine/plugin-opencode-cli'
+import {QoderIDEPluginOutputPlugin} from '@truenine/plugin-qoder-ide'
+import {ReadmeMdConfigFileOutputPlugin} from '@truenine/plugin-readme'
+import {TraeIDEOutputPlugin} from '@truenine/plugin-trae-ide'
+import {VisualStudioCodeIDEConfigOutputPlugin} from '@truenine/plugin-vscode'
+import {WarpIDEOutputPlugin} from '@truenine/plugin-warp-ide'
+import {WindsurfOutputPlugin} from '@truenine/plugin-windsurf'
 import {defineConfig} from '@/config'
-import {AgentsOutputPlugin} from '@/plugins/AgentsOutputPlugin'
-import {AIAgentIgnoreConfigFileInputPlugin} from '@/plugins/AIAgentIgnoreConfigFileInputPlugin'
-import {AntigravityOutputPlugin} from '@/plugins/AntigravityOutputPlugin'
-import {ClaudeCodeCLIOutputPlugin} from '@/plugins/ClaudeCodeCLIOutputPlugin'
-import {CodexCLIOutputPlugin} from '@/plugins/CodexCLIOutputPlugin'
-import {CursorOutputPlugin} from '@/plugins/CursorOutputPlugin'
-import {DroidCLIOutputPlugin} from '@/plugins/DroidCLIOutputPlugin'
-import {FastCommandInputPlugin} from '@/plugins/FastCommandInputPlugin'
-import {GeminiCLIOutputPlugin} from '@/plugins/GeminiCLIOutputPlugin'
-import {GenericSkillsOutputPlugin} from '@/plugins/GenericSkillsOutputPlugin'
-import {GitExcludeInputPlugin} from '@/plugins/GitExcludeInputPlugin'
-import {GitExcludeOutputPlugin} from '@/plugins/GitExcludeOutputPlugin'
-import {GitIgnoreInputPlugin} from '@/plugins/GitIgnoreInputPlugin'
-import {GlobalMemoryInputPlugin} from '@/plugins/GlobalMemoryInputPlugin'
-import {IdeConfigInputPlugin} from '@/plugins/IdeConfigInputPlugin'
-import {JetBrainsAIAssistantCodexOutputPlugin} from '@/plugins/jetbrains/JetBrainsAIAssistantCodexOutputPlugin'
-import {JetBrainsIDECodeStyleConfigOutputPlugin} from '@/plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
-import {KiroCLIOutputPlugin} from '@/plugins/KiroCLIOutputPlugin'
-import {MarkdownWhitespaceCleanupEffectInputPlugin} from '@/plugins/MarkdownWhitespaceCleanupEffectInputPlugin'
-import {OpencodeCLIOutputPlugin} from '@/plugins/OpencodeCLIOutputPlugin'
-import {OrphanFileCleanupEffectInputPlugin} from '@/plugins/OrphanFileCleanupEffectInputPlugin'
-import {ProjectPromptInputPlugin} from '@/plugins/ProjectPromptInputPlugin'
-import {QoderIDEPluginOutputPlugin} from '@/plugins/QoderIDEPluginOutputPlugin'
-import {ReadmeMdConfigFileOutputPlugin} from '@/plugins/ReadmeMdConfigFileOutputPlugin'
-import {ReadmeMdInputPlugin} from '@/plugins/ReadmeMdInputPlugin'
-import {RuleInputPlugin} from '@/plugins/RuleInputPlugin'
-import {ShadowProjectInputPlugin} from '@/plugins/ShadowProjectInputPlugin'
-import {SkillInputPlugin} from '@/plugins/SkillInputPlugin'
-import {SkillNonSrcFileSyncEffectInputPlugin} from '@/plugins/SkillNonSrcFileSyncEffectInputPlugin'
-import {SubAgentInputPlugin} from '@/plugins/SubAgentInputPlugin'
-import {TraeIDEOutputPlugin} from '@/plugins/TraeIDEOutputPlugin'
-import {VisualStudioCodeIDEConfigOutputPlugin} from '@/plugins/VisualStudioCodeIDEConfigOutputPlugin'
-import {WarpIDEOutputPlugin} from '@/plugins/WarpIDEOutputPlugin'
-import {WindsurfOutputPlugin} from '@/plugins/WindsurfOutputPlugin'
-import {WorkspaceInputPlugin} from '@/plugins/WorkspaceInputPlugin'
 
 export default defineConfig({
   plugins: [
@@ -55,6 +57,7 @@ export default defineConfig({
     new GitExcludeOutputPlugin(),
 
     new JetBrainsIDECodeStyleConfigOutputPlugin(),
+    new EditorConfigOutputPlugin(),
     new VisualStudioCodeIDEConfigOutputPlugin(),
     new ReadmeMdConfigFileOutputPlugin(),
 
@@ -64,8 +67,9 @@ export default defineConfig({
 
     new WorkspaceInputPlugin(),
     new ShadowProjectInputPlugin(),
-    new AIAgentIgnoreConfigFileInputPlugin(),
-    new IdeConfigInputPlugin(),
+    new VSCodeConfigInputPlugin(),
+    new JetBrainsConfigInputPlugin(),
+    new EditorConfigInputPlugin(),
     new SkillInputPlugin(),
     new FastCommandInputPlugin(),
     new SubAgentInputPlugin(),

@@ -1,7 +1,6 @@
-import type {ProjectConfig} from '@/types/ConfigTypes.schema'
-import type {RulePrompt} from '@/types/InputTypes'
+import type {ProjectConfig, RulePrompt} from '@truenine/plugin-shared'
+import {FilePathKind, PromptKind} from '@truenine/plugin-shared'
 import {describe, expect, it} from 'vitest'
-import {FilePathKind, PromptKind} from '@/types'
 import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from './ruleFilter'
 
 function createMockRulePrompt(seriName: string | undefined, globs: readonly string[] = ['**/*.ts']): RulePrompt {

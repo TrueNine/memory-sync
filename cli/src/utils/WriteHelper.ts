@@ -1,4 +1,4 @@
-import type {RelativePath} from '@/types/FileSystemTypes'
+import type {RelativePath} from '@truenine/plugin-shared'
 import * as path from 'node:path'
 import {createRelativePath} from '@truenine/desk-paths'
 
