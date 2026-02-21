@@ -55,16 +55,8 @@
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@truenine/eslint10-config": "catalog:",
     "@types/estree": "catalog:",
     "@types/estree-jsx": "catalog:",
-    "@types/mdast": "catalog:",
-    "@types/node": "catalog:",
-    "eslint": "catalog:",
-    "fast-check": "catalog:",
-    "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
+    "@types/mdast": "catalog:"
   }
 }

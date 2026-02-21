@@ -26,13 +26,5 @@
     "prepublishOnly": "run-s build"
   },
   "dependencies": {},
-  "devDependencies": {
-    "@truenine/eslint10-config": "catalog:",
-    "@types/node": "catalog:",
-    "eslint": "catalog:",
-    "fast-check": "catalog:",
-    "typescript": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
-  }
+  "devDependencies": {}
 }

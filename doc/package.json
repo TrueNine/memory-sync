@@ -17,10 +17,8 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
     "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
-    "typescript": "catalog:"
+    "@types/react-dom": "catalog:"
   },
   "engines": {
     "node": ">=20.9.0"

@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "build": "turbo build",
-    "test": "turbo test",
+    "test": "turbo test --filter=!@truenine/memory-sync-gui",
     "dev:doc": "pnpm -C doc dev",
     "build:doc": "pnpm -C doc build",
     "sync-versions": "tsx .git-hooks/sync-versions.ts",
@@ -52,12 +52,16 @@
   },
   "packageManager": "pnpm@10.29.3",
   "devDependencies": {
+    "@truenine/eslint10-config": "catalog:",
     "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "fast-check": "catalog:",
     "npm-run-all2": "catalog:",
     "simple-git-hooks": "^2.13.1",
-    "tsx": "catalog:",
     "tsdown": "catalog:",
+    "tsx": "catalog:",
     "turbo": "catalog:",
+    "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
   }

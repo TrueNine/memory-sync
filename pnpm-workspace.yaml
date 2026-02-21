@@ -10,8 +10,8 @@ catalog:
   '@monaco-editor/react': ^4.7.0
   '@next/mdx': ^16.1.6
   '@tailwindcss/vite': ^4.2.0
-  '@tanstack/react-router': ^1.161.3
-  '@tanstack/router-plugin': ^1.161.3
+  '@tanstack/react-router': ^1.162.1
+  '@tanstack/router-plugin': ^1.162.1
   '@tauri-apps/api': ^2.10.1
   '@tauri-apps/cli': ^2.10.0
   '@tauri-apps/plugin-shell': ^2.3.5
