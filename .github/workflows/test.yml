@@ -38,8 +38,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-test-
+
       - name: Generate Tauri icons
         run: pnpm -F @truenine/memory-sync-gui run generate:icons
 
       - name: Run tests
         run: pnpm exec turbo run test
+
+      - name: Rust tests (excluding GUI)
+        run: cargo test --workspace --exclude memory-sync-gui

@@ -2,7 +2,7 @@ name: Release CLI
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 on:
   push:
@@ -14,52 +14,54 @@ permissions:
   contents: write
 
 jobs:
-  release-cli:
+  # 1. 版本检查（快速，决定是否继续）
+  check-version:
     runs-on: ubuntu-24.04
     outputs:
       publish: ${{ steps.check.outputs.publish }}
       version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_PAT }}
 
       - name: Check if should publish
         id: check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version=$(jq -r '.version' cli/package.json)
           name=$(jq -r '.name' cli/package.json)
-          npm_version=$(npm view "$name" version 2>/dev/null || echo "")
+          npm_version=$(npm view "$name" version --registry https://registry.npmjs.org/ 2>/dev/null || echo "")
 
-          # 检查 GitHub Release 是否已存在
-          gh_release_exists="false"
-          if gh release view "v${version}" &> /dev/null; then
-            gh_release_exists="true"
-          fi
-
-          # 只有当 npm 版本不同且 GitHub Release 不存在时才发布
-          if [[ "$version" != "$npm_version" && "$gh_release_exists" == "false" ]]; then
-            echo "Version $version not published to npm or GitHub, will publish"
+          if [[ "$version" != "$npm_version" ]]; then
+            echo "Version $version not published to npm, will publish"
             echo "publish=true" >> "$GITHUB_OUTPUT"
             echo "version=$version" >> "$GITHUB_OUTPUT"
           else
-            if [[ "$version" == "$npm_version" ]]; then
-              echo "Version $version already published to npm, skipping"
-            fi
-            if [[ "$gh_release_exists" == "true" ]]; then
-              echo "GitHub Release v${version} already exists, skipping"
-            fi
+            echo "Version $version already published to npm, skipping"
             echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # 2. 先发布架构包（用户安装主包时 optionalDependencies 已就绪）
+  release-cli-napi:
+    needs: check-version
+    if: needs.check-version.outputs.publish == 'true'
+    uses: ./.github/workflows/release-cli-napi.yml
+    with:
+      version: ${{ needs.check-version.outputs.version }}
+    secrets: inherit
+
+  # 3. 架构包就绪后，发布主包到 npm
+  publish-cli:
+    needs: [check-version, release-cli-napi]
+    if: needs.check-version.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+
       - name: Setup pnpm
-        if: steps.check.outputs.publish == 'true'
         uses: pnpm/action-setup@v4
 
       - name: Setup Node
-        if: steps.check.outputs.publish == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 25
@@ -67,12 +69,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Get pnpm store directory
-        if: steps.check.outputs.publish == 'true'
         id: pnpm-cache
         run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v4
-        if: steps.check.outputs.publish == 'true'
         name: Setup pnpm store cache
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
@@ -81,22 +81,30 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install & Build
-        if: steps.check.outputs.publish == 'true'
         run: |
           pnpm install --frozen-lockfile
           pnpm exec turbo run build --filter=@truenine/memory-sync-cli...
 
       - name: Publish to npm
-        if: steps.check.outputs.publish == 'true'
         working-directory: ./cli
         run: pnpm publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+  # 4. 构建 CLI 独立二进制（仅 artifact，不发 Release）
+  release-cli-binary:
+    needs: [check-version, release-cli-napi]
+    if: needs.check-version.outputs.publish == 'true'
+    uses: ./.github/workflows/release-cli-binary.yml
+    with:
+      version: ${{ needs.check-version.outputs.version }}
+    secrets: inherit
+
+  # 5. 构建 GUI 并创建 GitHub Release
   release-gui:
-    needs: release-cli
-    if: needs.release-cli.outputs.publish == 'true'
+    needs: check-version
+    if: needs.check-version.outputs.publish == 'true'
     uses: ./.github/workflows/release-gui.yml
     with:
-      version: ${{ needs.release-cli.outputs.version }}
+      version: ${{ needs.check-version.outputs.version }}
     secrets: inherit
