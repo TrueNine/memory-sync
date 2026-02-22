@@ -1,8 +1,6 @@
 node_modules/
 dist/
 *.tsbuildinfo
-.DS_Store
-Thumbs.db
 *.log
 coverage/
 .nyc_output
@@ -17,9 +15,8 @@ README.md
 .editorconfig
 .eslintcache
 .turbo
-
 .tnmsc.json
-
-# Cargo
+cli/npm/**/*.node
+libraries/**/dist/*.node
 **/target/
 !**/Cargo.lock

@@ -37,7 +37,9 @@
     "dev:doc": "pnpm -C doc dev",
     "build:doc": "pnpm -C doc build",
     "sync-versions": "tsx .githooks/sync-versions.ts",
-    "postinstall": "simple-git-hooks"
+    "build:native": "tsx scripts/build-native.ts",
+    "build:native:copy": "tsx scripts/copy-napi.ts",
+    "postinstall": "simple-git-hooks && pnpm run build:native"
   },
   "author": {
     "email": "truenine304520@gmail.com",
@@ -48,13 +50,15 @@
     "node": ">= 22"
   },
   "devEngines": {
-    "node": ">= 25.6.1"
+    "node": ">= 25.6.1",
+    "rust": ">= 1.87.0"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm tsx .githooks/sync-versions.ts || true"
   },
   "packageManager": "pnpm@10.30.1",
   "devDependencies": {
+    "@napi-rs/cli": "^3.5.1",
     "@truenine/eslint10-config": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",

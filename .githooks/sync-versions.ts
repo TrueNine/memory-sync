@@ -3,9 +3,9 @@
  * Version Sync Script
  * Auto-sync all sub-package versions before commit
  */
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs'
 import { execSync } from 'node:child_process'
-import { resolve } from 'node:path'
+import { resolve, join } from 'node:path'
 import process from 'node:process'
 
 interface PackageEntry {
@@ -47,21 +47,74 @@ const packages: readonly PackageEntry[] = [
   { path: 'doc/package.json', name: 'doc' },
 ]
 
+// Discover all libraries and their npm sub-packages
+function discoverLibraryPackages(): PackageEntry[] {
+  const entries: PackageEntry[] = []
+  const librariesDir = resolve('libraries')
+  if (!existsSync(librariesDir)) return entries
+  for (const lib of readdirSync(librariesDir)) {
+    const libDir = join(librariesDir, lib)
+    if (!statSync(libDir).isDirectory()) continue
+    const libPkg = join(libDir, 'package.json')
+    if (existsSync(libPkg)) {
+      entries.push({ path: `libraries/${lib}/package.json`, name: `lib:${lib}` })
+    }
+  }
+  return entries
+}
+
+// Discover npm platform sub-packages under a given directory (e.g. cli/npm/)
+function discoverNpmSubPackages(baseDir: string, prefix: string): PackageEntry[] {
+  const entries: PackageEntry[] = []
+  const npmDir = resolve(baseDir, 'npm')
+  if (!existsSync(npmDir) || !statSync(npmDir).isDirectory()) return entries
+  for (const platform of readdirSync(npmDir)) {
+    const platformDir = join(npmDir, platform)
+    if (!statSync(platformDir).isDirectory()) continue
+    const platformPkg = join(platformDir, 'package.json')
+    if (existsSync(platformPkg)) {
+      entries.push({ path: `${baseDir}/npm/${platform}/package.json`, name: `${prefix}/${platform}` })
+    }
+  }
+  return entries
+}
+
+// Discover all packages under packages/
+function discoverPackagesDir(): PackageEntry[] {
+  const entries: PackageEntry[] = []
+  const packagesDir = resolve('packages')
+  if (!existsSync(packagesDir)) return entries
+  for (const pkg of readdirSync(packagesDir)) {
+    const pkgDir = join(packagesDir, pkg)
+    if (!statSync(pkgDir).isDirectory()) continue
+    const pkgFile = join(pkgDir, 'package.json')
+    if (existsSync(pkgFile)) {
+      entries.push({ path: `packages/${pkg}/package.json`, name: `pkg:${pkg}` })
+    }
+  }
+  return entries
+}
+
+const libraryPackages = discoverLibraryPackages()
+const packagesPackages = discoverPackagesDir()
+const cliNpmPackages = discoverNpmSubPackages('cli', 'cli-napi')
+
 let changed = false
 
-for (const pkg of packages) {
+for (const pkg of [...packages, ...libraryPackages, ...packagesPackages, ...cliNpmPackages]) {
   const fullPath = resolve(pkg.path)
-  const content = readFileSync(fullPath, 'utf-8')
-  const pkgJson: PackageJson = JSON.parse(content)
+  try {
+    const content = readFileSync(fullPath, 'utf-8').replace(/^\uFEFF/, '')
+    const pkgJson: PackageJson = JSON.parse(content)
 
-  if (pkgJson.version !== rootVersion) {
-    console.log(`  ✓ ${pkg.name}: version ${pkgJson.version} → ${rootVersion}`)
-    pkgJson.version = rootVersion
-    changed = true
-  }
-
-  if (changed) {
-    writeFileSync(fullPath, JSON.stringify(pkgJson, null, 2) + '\n', 'utf-8')
+    if (pkgJson.version !== rootVersion) {
+      console.log(`  ✓ ${pkg.name}: version ${pkgJson.version} → ${rootVersion}`)
+      pkgJson.version = rootVersion
+      writeFileSync(fullPath, JSON.stringify(pkgJson, null, 2) + '\n', 'utf-8')
+      changed = true
+    }
+  } catch {
+    console.log(`⚠️ ${pkg.path} not found or invalid, skipping`)
   }
 }
 
@@ -96,8 +149,7 @@ try {
 
 // Sync version field in tnmsc.example.json files
 const exampleConfigPaths = [
-  'cli/public/tnmsc.example.json',
-  'packages/init-bundle/public/public/tnmsc.example.json',
+  'libraries/init-bundle/public/public/tnmsc.example.json',
 ]
 
 for (const examplePath of exampleConfigPaths) {
@@ -119,8 +171,19 @@ for (const examplePath of exampleConfigPaths) {
 if (changed) {
   console.log('\n📦 Versions synced, auto-staging changes...')
   try {
+    const filesToStage = [
+      'cli/package.json',
+      'gui/package.json',
+      'doc/package.json',
+      'gui/src-tauri/Cargo.toml',
+      'gui/src-tauri/tauri.conf.json',
+      'libraries/init-bundle/public/public/tnmsc.example.json',
+      ...libraryPackages.map(p => p.path),
+      ...packagesPackages.map(p => p.path),
+      ...cliNpmPackages.map(p => p.path),
+    ]
     execSync(
-      'git add cli/package.json gui/package.json doc/package.json gui/src-tauri/Cargo.toml gui/src-tauri/tauri.conf.json cli/public/tnmsc.example.json packages/init-bundle/public/public/tnmsc.example.json',
+      `git add ${filesToStage.join(' ')}`,
       { stdio: 'inherit' }
     )
     console.log('✅ Staged modified files')
