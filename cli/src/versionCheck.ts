@@ -1,4 +1,4 @@
-import type {ILogger} from '@/log'
+import type {ILogger} from '@truenine/plugin-shared'
 
 /**
  * Get package name from build-time injection or fallback

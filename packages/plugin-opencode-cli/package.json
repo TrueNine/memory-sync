@@ -1,0 +1,31 @@
+{
+  "name": "@truenine/plugin-opencode-cli",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Opencode CLI output plugin",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "scripts": {
+    "build": "tsdown",
+    "lint": "eslint --cache .",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "check": "run-p typecheck lint",
+    "lintfix": "eslint --fix --cache .",
+    "test": "vitest run",
+    "prepublishOnly": "run-s build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@truenine/md-compiler": "workspace:*",
+    "@truenine/plugin-output-shared": "workspace:*",
+    "@truenine/plugin-shared": "workspace:*",
+    "jsonc-parser": "catalog:"
+  }
+}

@@ -2,7 +2,7 @@
  * Shadow Source Project validation and generation utilities
  * 使用扁平的 bundles 结构直接遍历创建项目目录和文件
  */
-import type {ILogger} from '@/log'
+import type {ILogger} from '@truenine/plugin-shared'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {bundles} from '@truenine/init-bundle'

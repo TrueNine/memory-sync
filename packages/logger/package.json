@@ -6,16 +6,12 @@
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "types:require": "./dist/index.d.cts",
       "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.mjs"
     }
   },
-  "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.mts",
-  "types:require": "dist/index.d.cts",
   "scripts": {
     "build": "tsdown",
     "lint": "eslint --cache .",
@@ -26,13 +22,5 @@
     "prepublishOnly": "run-s build"
   },
   "dependencies": {},
-  "devDependencies": {
-    "@truenine/eslint10-config": "catalog:",
-    "@types/node": "catalog:",
-    "eslint": "catalog:",
-    "fast-check": "catalog:",
-    "typescript": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
-  }
+  "devDependencies": {}
 }

@@ -8,16 +8,16 @@
  */
 
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
-import type {CollectedInputContext, InputPluginContext, PluginOptions} from '@/types'
+import type {CollectedInputContext, InputPluginContext, PluginOptions} from '@truenine/plugin-shared'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {clearComponents, mdxToMd, registerBuiltInComponents} from '@truenine/md-compiler'
 import {ShellKind} from '@truenine/md-compiler/globals'
+import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@truenine/plugin-input-shared/scope'
+import {createLogger} from '@truenine/plugin-shared'
 import glob from 'fast-glob'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {createLogger} from './log'
-import {AbstractInputPlugin} from './plugins/AbstractInputPlugin'
-import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from './scope'
 
 /**
  * Mock input plugin for testing scope registration

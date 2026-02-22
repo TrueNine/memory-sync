@@ -1,3 +1,4 @@
+import process from 'node:process'
 
 const colors = {
   reset: '\x1B[0m',
@@ -88,18 +89,17 @@ function colorizeValue(value: unknown): string {
     for (const key of Object.getOwnPropertyNames(value)) {
       if (key !== 'name' && key !== 'message' && key !== 'stack') errorObj[key] = (value as unknown as Record<string, unknown>)[key]
     }
-    return toJson5(errorObj)
+    return toJson(errorObj)
   }
-  if (typeof value === 'object') return toJson5(value as Record<string, unknown>)
+  if (typeof value === 'object') return toJson(value as Record<string, unknown>)
   return String(value)
 }
 
-function toJson5(obj: Record<string, unknown>): string {
+function toJson(obj: Record<string, unknown>): string {
   const entries = Object.entries(obj)
   if (entries.length === 0) return '{}'
   const parts = entries.map(([k, v]) => {
-    const isValidIdentifier = /^[\w$]+$/.test(k)
-    const key = isValidIdentifier ? colorize.magenta(k) : colorize.yellow(`"${k}"`)
+    const key = colorize.magenta(`"${k}"`)
     return `${key}:${colorizeValue(v)}`
   })
   return `{${parts.join(',')}}`
@@ -140,7 +140,7 @@ function formatLog(
   const _ = hasMeta
     ? isEmptyMessage ? meta : {[messageStr]: meta}
     : message
-  const output = toJson5({...base, _} as unknown as Record<string, unknown>)
+  const output = toJson({...base, _} as unknown as Record<string, unknown>)
 
   if (level === 'error' || level === 'fatal') console.error(output)
   else if (level === 'warn') console.warn(output)
@@ -177,9 +177,7 @@ function createLeveledMethod(
       return formatLog(level, namespace, messageOrObject, metaObj)
     }
 
-    if (typeof messageOrObject === 'object' && messageOrObject !== null) {
-      return formatLog(level, namespace, '', messageOrObject as Record<string, unknown>)
-    }
+    if (typeof messageOrObject === 'object' && messageOrObject !== null) return formatLog(level, namespace, '', messageOrObject as Record<string, unknown>)
 
     return formatLog(level, namespace, messageOrObject)
   }

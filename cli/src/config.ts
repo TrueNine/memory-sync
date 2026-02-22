@@ -1,15 +1,12 @@
-import type {CollectedInputContext, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions} from '@/types'
-import type {ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, ShadowSourceProjectConfig, UserConfigFile} from '@/types/ConfigTypes.schema'
+import type {CollectedInputContext, ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, ShadowSourceProjectConfig, UserConfigFile} from '@truenine/plugin-shared'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
-import glob from 'fast-glob'
-import {ensureShadowProjectConfigLink, loadUserConfig, validateAndEnsureGlobalConfig} from '@/ConfigLoader'
-import {DEFAULT_USER_CONFIG} from '@/constants'
-import {createLogger} from '@/log'
-import {PluginPipeline} from '@/PluginPipeline'
-import {checkVersionControl} from '@/ShadowSourceProject'
-import {PluginKind} from '@/types'
+import {createLogger, DEFAULT_USER_CONFIG, PluginKind} from '@truenine/plugin-shared'
+import * as glob from 'fast-glob'
+import {ensureShadowProjectConfigLink, loadUserConfig, validateAndEnsureGlobalConfig} from './ConfigLoader'
+import {PluginPipeline} from './PluginPipeline'
+import {checkVersionControl} from './ShadowSourceProject'
 
 /**
  * Pipeline configuration containing collected context and output plugins
@@ -228,7 +225,9 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
 
   const context: CollectedInputContext = {
     workspace: merged.workspace,
-    ideConfigFiles: merged.ideConfigFiles ?? [],
+    ...merged.vscodeConfigFiles != null && {vscodeConfigFiles: merged.vscodeConfigFiles},
+    ...merged.jetbrainsConfigFiles != null && {jetbrainsConfigFiles: merged.jetbrainsConfigFiles},
+    ...merged.editorConfigFiles != null && {editorConfigFiles: merged.editorConfigFiles},
     ...merged.fastCommands != null && {fastCommands: merged.fastCommands},
     ...merged.subAgents != null && {subAgents: merged.subAgents},
     ...merged.skills != null && {skills: merged.skills},

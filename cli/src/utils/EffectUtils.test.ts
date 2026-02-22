@@ -1,8 +1,8 @@
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import {createLogger} from '@truenine/plugin-shared'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import {createLogger} from '@/log'
 import {cleanStaleDistFiles, syncDirectory} from './EffectUtils'
 
 describe('cleanStaleDistFiles', () => {

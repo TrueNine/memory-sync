@@ -1,0 +1,3 @@
+export {
+  VisualStudioCodeIDEConfigOutputPlugin
+} from './VisualStudioCodeIDEConfigOutputPlugin'

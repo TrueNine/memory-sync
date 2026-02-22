@@ -1,0 +1,42 @@
+{
+  "name": "@truenine/plugin-output-shared",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Shared abstract base classes and utilities for memory-sync output plugins",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.mts",
+      "import": "./dist/utils/index.mjs"
+    },
+    "./registry": {
+      "types": "./dist/registry/index.d.mts",
+      "import": "./dist/registry/index.mjs"
+    }
+  },
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "scripts": {
+    "build": "tsdown",
+    "lint": "eslint --cache .",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "check": "run-p typecheck lint",
+    "lintfix": "eslint --fix --cache .",
+    "test": "vitest run",
+    "prepublishOnly": "run-s build"
+  },
+  "dependencies": {
+    "picomatch": "catalog:"
+  },
+  "devDependencies": {
+    "@truenine/desk-paths": "workspace:*",
+    "@truenine/md-compiler": "workspace:*",
+    "@truenine/plugin-input-shared": "workspace:*",
+    "@truenine/plugin-shared": "workspace:*",
+    "fast-glob": "catalog:"
+  }
+}

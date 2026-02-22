@@ -1,25 +1,25 @@
 {
   "compilerOptions": {
+    "incremental": true,
     "target": "ES2020",
+    "jsx": "react-jsx",
     "lib": [
       "DOM",
       "DOM.Iterable",
       "ES2020"
     ],
-    "allowJs": false,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "incremental": true,
     "types": [
       "node"
     ],
+    "allowJs": false,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
     "plugins": [
       {
         "name": "next"

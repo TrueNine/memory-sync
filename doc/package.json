@@ -1,13 +1,16 @@
 {
   "name": "@truenine/memory-sync-docs",
+  "version": "2026.10222.10836",
   "private": true,
-  "version": "2026.10221.10208",
   "description": "Documentation site for @truenine/memory-sync, built with Next.js 16 and MDX.",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@mdx-js/react": "catalog:",
@@ -17,12 +20,9 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
+    "@truenine/eslint10-config": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "typescript": "catalog:"
-  },
-  "engines": {
-    "node": ">=20.9.0"
+    "eslint": "catalog:"
   }
 }

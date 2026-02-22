@@ -12,16 +12,12 @@
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "types:require": "./dist/index.d.cts",
       "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.mjs"
     }
   },
-  "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.mts",
-  "types:require": "dist/index.d.cts",
   "scripts": {
     "build": "tsdown --config-loader unrun",
     "lint": "eslint --cache .",

@@ -1,5 +1,5 @@
-import type {OutputPlugin, OutputWriteContext} from '@/types'
-import {checkCanWrite} from '@/types'
+import type {OutputPlugin, OutputWriteContext} from '@truenine/plugin-shared'
+import {checkCanWrite} from '@truenine/plugin-shared'
 
 /**
  * Filter plugins based on write permissions.

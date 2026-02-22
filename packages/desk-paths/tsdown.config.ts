@@ -5,13 +5,14 @@ export default defineConfig([
   {
     entry: ['./src/index.ts', '!**/*.{spec,test}.*'],
     platform: 'node',
-    sourcemap: true,
+    sourcemap: false,
     unbundle: false,
+    inlineOnly: false,
     alias: {
       '@': resolve('src')
     },
-    format: ['esm', 'cjs'],
+    format: ['esm'],
     minify: false,
-    dts: {sourcemap: true}
+    dts: {sourcemap: false}
   }
 ])

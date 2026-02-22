@@ -1,13 +1,11 @@
-import type {ILogger} from '@/log'
-import type {ConfigLoaderOptions, ConfigLoadResult, ShadowSourceProjectConfig, UserConfigFile} from '@/types/ConfigTypes.schema'
+import type {ConfigLoaderOptions, ConfigLoadResult, ILogger, ShadowSourceProjectConfig, UserConfigFile} from '@truenine/plugin-shared'
+import {createHash} from 'node:crypto'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import {deletePathSync, isSymlink, readSymlinkTarget} from '@truenine/desk-paths'
-import {DEFAULT_USER_CONFIG} from '@/constants'
-import {createLogger} from '@/log'
-import {ZUserConfigFile} from '@/types/ConfigTypes.schema'
+import {createLogger, DEFAULT_USER_CONFIG, ZUserConfigFile} from '@truenine/plugin-shared'
 
 /**
  * Default config file name
@@ -248,10 +246,12 @@ export function ensureConfigLink(
       if (target !== null && path.resolve(target) === path.resolve(globalConfigPath)) return // correct symlink, no-op
       deletePathSync(localConfigPath) // stale symlink — delete and fall through
     } else {
-      const localStat = fs.statSync(localConfigPath) // regular file — compare mtime for sync-back
-      const globalStat = fs.statSync(globalConfigPath)
-      if (localStat.mtimeMs > globalStat.mtimeMs) {
-        fs.copyFileSync(localConfigPath, globalConfigPath) // local is newer: sync back to global
+      const localContent = fs.readFileSync(localConfigPath)
+      const globalContent = fs.readFileSync(globalConfigPath)
+      const localHash = createHash('sha256').update(localContent).digest('hex')
+      const globalHash = createHash('sha256').update(globalContent).digest('hex')
+      if (localHash !== globalHash) {
+        fs.copyFileSync(localConfigPath, globalConfigPath) // local differs: sync back to global
         logger.debug('synced local config back to global', {src: localConfigPath, dest: globalConfigPath})
       }
       deletePathSync(localConfigPath)
@@ -264,7 +264,7 @@ export function ensureConfigLink(
   }
   catch {
     try {
-      fs.copyFileSync(globalConfigPath, localConfigPath)
+      fs.copyFileSync(globalConfigPath, localConfigPath) // fallback copy: auto-sync disabled, local edits preserved on next run via content-hash check
       logger.warn('symlink unavailable, copied config (auto-sync disabled)', {dest: localConfigPath})
     }
     catch (copyErr) {

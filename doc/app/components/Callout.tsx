@@ -1,10 +1,10 @@
-'use client';
+'use client'
 
-import type { ReactNode } from 'react';
+import type {ReactNode} from 'react'
 
-type CalloutType = 'info' | 'warning' | 'tip';
+type CalloutType = 'info' | 'warning' | 'tip'
 
-const typeStyles: Record<CalloutType, { label: string; className: string }> = {
+const typeStyles: Record<CalloutType, {label: string, className: string}> = {
   info: {
     label: '提示',
     className: 'border-sky-500/60 bg-sky-950/40 text-sky-100'
@@ -17,16 +17,16 @@ const typeStyles: Record<CalloutType, { label: string; className: string }> = {
     label: '小技巧',
     className: 'border-emerald-500/70 bg-emerald-950/40 text-emerald-100'
   }
-};
-
-interface CalloutProps {
-  readonly type?: CalloutType;
-  readonly title?: string;
-  readonly children: ReactNode;
 }
 
-export function Callout({ type = 'info', title, children }: CalloutProps) {
-  const style = typeStyles[type];
+interface CalloutProps {
+  readonly type?: CalloutType
+  readonly title?: string
+  readonly children: ReactNode
+}
+
+export function Callout({type = 'info', title, children}: CalloutProps) {
+  const style = typeStyles[type]
 
   return (
     <div
@@ -42,6 +42,5 @@ export function Callout({ type = 'info', title, children }: CalloutProps) {
       </div>
       <div className="leading-relaxed">{children}</div>
     </div>
-  );
+  )
 }
-

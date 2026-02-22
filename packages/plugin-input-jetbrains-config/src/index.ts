@@ -1,0 +1,3 @@
+export {
+  JetBrainsConfigInputPlugin
+} from './JetBrainsConfigInputPlugin'

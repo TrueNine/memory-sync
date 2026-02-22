@@ -1,12 +1,11 @@
+import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, WriteResults} from '@truenine/plugin-shared'
 import type {CommandContext} from './Command'
-import type {CollectedInputContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, WriteResults} from '@/types'
 import * as nodeFs from 'node:fs'
 import * as nodePath from 'node:path'
+import {createLogger, PluginKind} from '@truenine/plugin-shared'
 import * as fc from 'fast-check'
 import * as fastGlob from 'fast-glob'
 import {describe, expect, it, vi} from 'vitest'
-import {createLogger} from '@/log'
-import {PluginKind} from '@/types'
 import {ExecuteCommand} from './ExecuteCommand'
 
 const mockLogger = createLogger('test', 'error') // Mock logger

@@ -1,0 +1,3 @@
+export {
+  GitIgnoreInputPlugin
+} from './GitIgnoreInputPlugin'

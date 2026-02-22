@@ -1,4 +1,4 @@
-import type {UserConfigFile} from '@/types/ConfigTypes.schema'
+import type {UserConfigFile} from '@truenine/plugin-shared'
 import {bundles} from '@truenine/init-bundle'
 
 export const PathPlaceholders = {

@@ -1,22 +1,12 @@
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
+import type {CollectedInputContext, ILogger, InputPlugin, InputPluginContext, OutputCleanContext, OutputPlugin, OutputWriteContext, Plugin, PluginKind, PluginOptions, UserConfigFile} from '@truenine/plugin-shared'
 import type {Command, CommandContext} from '@/commands'
 import type {PipelineConfig} from '@/config'
-import type {ILogger} from '@/log'
-import type {
-  CollectedInputContext,
-  InputPlugin,
-  InputPluginContext,
-  OutputCleanContext,
-  OutputPlugin,
-  OutputWriteContext,
-  Plugin,
-  PluginKind,
-  PluginOptions
-} from '@/types'
-import type {UserConfigFile} from '@/types/ConfigTypes.schema'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import glob from 'fast-glob'
+import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@truenine/plugin-input-shared/scope'
+import {CircularDependencyError, createLogger, MissingDependencyError, setGlobalLogLevel} from '@truenine/plugin-shared'
+import * as glob from 'fast-glob'
 import {
   CleanCommand,
   ConfigCommand,
@@ -32,12 +22,6 @@ import {
   UnknownCommand,
   VersionCommand
 } from '@/commands'
-import {createLogger, setGlobalLogLevel} from '@/log'
-import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/scope'
-import {
-  CircularDependencyError,
-  MissingDependencyError
-} from '@/types'
 import {startupVersionCheck} from '@/versionCheck'
 
 /**
@@ -622,10 +606,20 @@ export class PluginPipeline {
       }
     }
 
-    const ideConfigFiles: CollectedInputContext['ideConfigFiles'] | undefined
-      = addition.ideConfigFiles != null
-        ? [...base.ideConfigFiles ?? [], ...addition.ideConfigFiles]
-        : base.ideConfigFiles
+    const vscodeConfigFiles: CollectedInputContext['vscodeConfigFiles'] | undefined
+      = addition.vscodeConfigFiles != null
+        ? [...base.vscodeConfigFiles ?? [], ...addition.vscodeConfigFiles]
+        : base.vscodeConfigFiles
+
+    const jetbrainsConfigFiles: CollectedInputContext['jetbrainsConfigFiles'] | undefined
+      = addition.jetbrainsConfigFiles != null
+        ? [...base.jetbrainsConfigFiles ?? [], ...addition.jetbrainsConfigFiles]
+        : base.jetbrainsConfigFiles
+
+    const editorConfigFiles: CollectedInputContext['editorConfigFiles'] | undefined
+      = addition.editorConfigFiles != null
+        ? [...base.editorConfigFiles ?? [], ...addition.editorConfigFiles]
+        : base.editorConfigFiles
 
     const fastCommands: CollectedInputContext['fastCommands'] | undefined
       = addition.fastCommands != null
@@ -670,7 +664,9 @@ export class PluginPipeline {
 
     return { // Build result object using object literal
       ...workspace != null ? {workspace} : {},
-      ...ideConfigFiles != null ? {ideConfigFiles} : {},
+      ...vscodeConfigFiles != null ? {vscodeConfigFiles} : {},
+      ...jetbrainsConfigFiles != null ? {jetbrainsConfigFiles} : {},
+      ...editorConfigFiles != null ? {editorConfigFiles} : {},
       ...fastCommands != null ? {fastCommands} : {},
       ...subAgents != null ? {subAgents} : {},
       ...skills != null ? {skills} : {},
