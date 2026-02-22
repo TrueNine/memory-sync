@@ -11,6 +11,7 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
+    inlineOnly: false,
     alias: {
       '@': resolve('src')
     },
