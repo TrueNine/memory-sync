@@ -113,6 +113,9 @@ jobs:
           jq --arg v "$version" '.version = $v' gui/src-tauri/tauri.conf.json > gui/src-tauri/tauri.conf.tmp && mv gui/src-tauri/tauri.conf.tmp gui/src-tauri/tauri.conf.json
           echo "Synced version to ${version}"
 
+      - name: Generate route tree
+        run: pnpm -F @truenine/memory-sync-gui run generate:routes
+
       - name: Clean old bundle artifacts
         shell: bash
         run: rm -rf gui/src-tauri/target/**/bundle
@@ -124,16 +127,29 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm tauri build ${{ matrix.args }}
 
+      - name: List bundle output (debug)
+        shell: bash
+        run: |
+          echo "=== Finding all bundle artifacts ==="
+          find gui/src-tauri/target -path '*/bundle/*' -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) 2>/dev/null || echo 'No bundle files found'
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: gui-${{ matrix.platform }}
           path: |
-            gui/src-tauri/target/**/bundle/**/*.dmg
-            gui/src-tauri/target/**/bundle/**/*.exe
-            gui/src-tauri/target/**/bundle/**/*.AppImage
-            gui/src-tauri/target/**/bundle/**/*.deb
-            gui/src-tauri/target/**/bundle/**/*.rpm
+            gui/src-tauri/target/*/release/bundle/**/*.dmg
+            gui/src-tauri/target/release/bundle/**/*.dmg
+            gui/src-tauri/target/*/release/bundle/**/*.exe
+            gui/src-tauri/target/release/bundle/**/*.exe
+            gui/src-tauri/target/*/release/bundle/**/*.msi
+            gui/src-tauri/target/release/bundle/**/*.msi
+            gui/src-tauri/target/*/release/bundle/**/*.AppImage
+            gui/src-tauri/target/release/bundle/**/*.AppImage
+            gui/src-tauri/target/*/release/bundle/**/*.deb
+            gui/src-tauri/target/release/bundle/**/*.deb
+            gui/src-tauri/target/*/release/bundle/**/*.rpm
+            gui/src-tauri/target/release/bundle/**/*.rpm
           if-no-files-found: error
 
   publish-release:
