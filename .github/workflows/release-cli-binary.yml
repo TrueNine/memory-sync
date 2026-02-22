@@ -77,7 +77,7 @@ jobs:
       - name: Install & bundle plugin-runtime
         shell: bash
         run: |
-          pnpm install --frozen-lockfile
+          pnpm install --frozen-lockfile --ignore-scripts
           pnpm exec turbo run build --filter=@truenine/memory-sync-cli...
           ls -la cli/dist/plugin-runtime.mjs
 

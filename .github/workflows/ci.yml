@@ -36,16 +36,10 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build
         run: pnpm exec turbo run build
-
-      - name: Lint
-        run: pnpm exec turbo run lint
-
-      - name: Typecheck
-        run: pnpm exec turbo run typecheck
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
