@@ -6,10 +6,11 @@
       "outputs": ["dist/**", "*.node"]
     },
     "test": {
-      "dependsOn": ["build"],
+      "dependsOn": ["build", "lint", "typecheck"],
       "outputs": []
     },
     "lint": {
+      "dependsOn": ["^build"],
       "outputs": []
     },
     "lintfix": {

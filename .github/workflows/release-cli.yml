@@ -82,7 +82,7 @@ jobs:
 
       - name: Install & Build
         run: |
-          pnpm install --frozen-lockfile
+          pnpm install --frozen-lockfile --ignore-scripts
           pnpm exec turbo run build --filter=@truenine/memory-sync-cli...
 
       - name: Publish to npm

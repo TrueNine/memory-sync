@@ -16,6 +16,7 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "generate:routes": "tsx scripts/generate-routes.ts",
     "typecheck": "tsc --noEmit",
     "test:ui": "vitest --run",
     "test:tauri": "cargo test --manifest-path src-tauri/Cargo.toml",
@@ -40,6 +41,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
+    "@tanstack/router-generator": "^1.162.2",
     "@tauri-apps/cli": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
