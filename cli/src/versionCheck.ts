@@ -140,7 +140,7 @@ export function logVersionCheckResult(result: VersionCheckResult, logger: ILogge
   switch (status) {
     case 'outdated': logger.warn(`Version outdated: ${localVersion} → ${remoteVersion}. Run 'npm i -g ${getPackageName()}@latest' to update.`); break
     case 'current':
-      if (result.error != null) logger.error(`Version check failed: ${result.error}`)
+      if (result.error != null) logger.warn(`Version check skipped: ${result.error}`)
       else logger.info(`Version ${localVersion} is up to date.`)
       break
     case 'development':
@@ -169,6 +169,6 @@ export function startupVersionCheck(logger: ILogger): void {
     })
     .catch((err: unknown) => {
       const message = err instanceof Error ? err.message : 'Unknown error'
-      logger.error(`Version check failed: ${message}`)
+      logger.warn(`Version check skipped: ${message}`)
     })
 }

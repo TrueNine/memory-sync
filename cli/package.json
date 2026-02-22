@@ -40,6 +40,7 @@
   },
   "scripts": {
     "build": "run-s build:deps check bundle",
+    "build:napi": "tsx ../scripts/copy-napi.ts",
     "build:deps": "pnpm exec turbo run build --filter=...@truenine/memory-sync-cli --filter=!@truenine/memory-sync-cli",
     "bundle": "pnpm exec tsdown",
     "check": "run-p typecheck lint",
@@ -54,10 +55,22 @@
     "@clack/prompts": "catalog:",
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
+    "jiti": "2.6.1",
     "jsonc-parser": "catalog:",
+    "lightningcss": "1.31.1",
     "picocolors": "catalog:",
     "picomatch": "catalog:",
+    "tsx": "4.21.0",
+    "vitest": "^4.0.18",
+    "yaml": "2.8.2",
     "zod": "catalog:"
+  },
+  "optionalDependencies": {
+    "@truenine/memory-sync-cli-darwin-arm64": "workspace:*",
+    "@truenine/memory-sync-cli-darwin-x64": "workspace:*",
+    "@truenine/memory-sync-cli-linux-arm64-gnu": "workspace:*",
+    "@truenine/memory-sync-cli-linux-x64-gnu": "workspace:*",
+    "@truenine/memory-sync-cli-win32-x64-msvc": "workspace:*"
   },
   "devDependencies": {
     "@truenine/desk-paths": "workspace:*",
@@ -87,6 +100,7 @@
     "@truenine/plugin-input-rule": "workspace:*",
     "@truenine/plugin-input-shadow-project": "workspace:*",
     "@truenine/plugin-input-shared": "workspace:*",
+    "@truenine/plugin-input-shared-ignore": "workspace:*",
     "@truenine/plugin-input-skill-sync-effect": "workspace:*",
     "@truenine/plugin-input-subagent": "workspace:*",
     "@truenine/plugin-input-vscode-config": "workspace:*",

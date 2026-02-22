@@ -14,6 +14,6 @@ declare const __CLI_PACKAGE_NAME__: string
 
 /**
  * Kiro global powers registry JSON string injected at build time
- * from public/kiro_global_powers_registry.json
+ * from init-bundle (public/kiro_global_powers_registry.json)
  */
 declare const __KIRO_GLOBAL_POWERS_REGISTRY__: string
