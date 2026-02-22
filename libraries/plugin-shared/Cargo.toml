@@ -1,0 +1,15 @@
+[package]
+name = "tnmsc-plugin-shared"
+description = "Shared types and data structures for tnmsc plugins"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
