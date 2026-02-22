@@ -36,7 +36,7 @@
     "typecheck": "turbo typecheck",
     "dev:doc": "pnpm -C doc dev",
     "build:doc": "pnpm -C doc build",
-    "sync-versions": "tsx .git-hooks/sync-versions.ts",
+    "sync-versions": "tsx .githooks/sync-versions.ts",
     "postinstall": "simple-git-hooks"
   },
   "author": {
@@ -51,7 +51,7 @@
     "node": ">= 25.6.1"
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm tsx .git-hooks/sync-versions.ts || true"
+    "pre-commit": "pnpm tsx .githooks/sync-versions.ts || true"
   },
   "packageManager": "pnpm@10.30.1",
   "devDependencies": {
