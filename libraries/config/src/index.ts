@@ -54,11 +54,10 @@ export function loadUserConfig(cwd: string): Record<string, unknown> {
  * Get the global config file path (~/.aindex/.tnmsc.json).
  */
 export function getGlobalConfigPath(): string {
-  if (napiBinding == null) {
-    const home = process.env['HOME'] ?? process.env['USERPROFILE'] ?? '~'
-    return `${home}/.aindex/.tnmsc.json`
-  }
-  return napiBinding.getGlobalConfigPathStr()
+  if (napiBinding != null) return napiBinding.getGlobalConfigPathStr()
+
+  const home = process.env['HOME'] ?? process.env['USERPROFILE'] ?? '~'
+  return `${home}/.aindex/.tnmsc.json`
 }
 
 /**

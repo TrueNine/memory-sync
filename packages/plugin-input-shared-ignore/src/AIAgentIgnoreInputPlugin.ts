@@ -1,6 +1,6 @@
 import type {AIAgentIgnoreConfigFile, CollectedInputContext, InputPluginContext} from '@truenine/plugin-shared'
-import {SHADOW_SOURCE_FILE_NAMES} from '@truenine/plugin-shared'
 import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+import {SHADOW_SOURCE_FILE_NAMES} from '@truenine/plugin-shared'
 
 const IGNORE_FILE_NAMES: readonly string[] = [
   SHADOW_SOURCE_FILE_NAMES.QODER_IGNORE,

@@ -1,1 +1,3 @@
-export {AIAgentIgnoreInputPlugin} from './AIAgentIgnoreInputPlugin'
+export {
+  AIAgentIgnoreInputPlugin
+} from './AIAgentIgnoreInputPlugin'

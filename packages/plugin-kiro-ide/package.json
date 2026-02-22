@@ -1,8 +1,8 @@
 {
-  "private": true,
   "name": "@truenine/plugin-kiro-ide",
   "type": "module",
   "version": "2026.10223.10555",
+  "private": true,
   "description": "Kiro IDE output plugin",
   "exports": {
     "./package.json": "./package.json",

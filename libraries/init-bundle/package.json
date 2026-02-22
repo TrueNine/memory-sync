@@ -1,8 +1,8 @@
 {
-  "private": true,
   "name": "@truenine/init-bundle",
   "type": "module",
   "version": "2026.10223.10555",
+  "private": true,
   "description": "Rust-powered embedded file templates for tnmsc init command",
   "license": "AGPL-3.0-only",
   "exports": {

@@ -1,8 +1,8 @@
 {
-  "private": true,
   "name": "@truenine/plugin-claude-code-cli",
   "type": "module",
   "version": "2026.10223.10555",
+  "private": true,
   "description": "Claude Code CLI output plugin",
   "exports": {
     "./package.json": "./package.json",

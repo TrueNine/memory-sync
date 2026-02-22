@@ -9,7 +9,7 @@ const config = eslint10({
   type: 'lib',
   typescript: {
     strictTypescriptEslint: true,
-    tsconfigPath: resolve(configDir, 'tsconfig.eslint.json'),
+    tsconfigPath: resolve(configDir, 'tsconfig.json'),
     parserOptions: {
       allowDefaultProject: true
     }
@@ -26,7 +26,9 @@ const config = eslint10({
     'public/**',
     '.skills/**',
     '**/.skills/**',
-    '.agent/**'
+    '.agent/**',
+    '**/*.toml',
+    '**/*.d.ts'
   ]
 })
 

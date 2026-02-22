@@ -1,8 +1,8 @@
 {
-  "private": true,
   "name": "@truenine/plugin-shared",
   "type": "module",
   "version": "2026.10223.10555",
+  "private": true,
   "description": "Shared types, enums, errors, and base classes for memory-sync plugins",
   "exports": {
     "./package.json": "./package.json",
