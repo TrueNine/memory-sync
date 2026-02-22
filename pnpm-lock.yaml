@@ -405,6 +405,32 @@ importers:
       zod-to-json-schema:
         specifier: 'catalog:'
         version: 3.25.1(zod@4.3.6)
+    optionalDependencies:
+      '@truenine/memory-sync-cli-darwin-arm64':
+        specifier: workspace:*
+        version: link:npm/darwin-arm64
+      '@truenine/memory-sync-cli-darwin-x64':
+        specifier: workspace:*
+        version: link:npm/darwin-x64
+      '@truenine/memory-sync-cli-linux-arm64-gnu':
+        specifier: workspace:*
+        version: link:npm/linux-arm64-gnu
+      '@truenine/memory-sync-cli-linux-x64-gnu':
+        specifier: workspace:*
+        version: link:npm/linux-x64-gnu
+      '@truenine/memory-sync-cli-win32-x64-msvc':
+        specifier: workspace:*
+        version: link:npm/win32-x64-msvc
+
+  cli/npm/darwin-arm64: {}
+
+  cli/npm/darwin-x64: {}
+
+  cli/npm/linux-arm64-gnu: {}
+
+  cli/npm/linux-x64-gnu: {}
+
+  cli/npm/win32-x64-msvc: {}
 
   doc:
     dependencies:
