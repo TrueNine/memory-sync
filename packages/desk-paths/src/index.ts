@@ -1,3 +1,5 @@
+import type {Buffer} from 'node:buffer'
+import * as fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -50,12 +52,6 @@ export function getPlatformFixedDir(): string {
   throw new Error(`Unsupported platform: ${process.platform}`)
 }
 
-// =============================================================================
-// Symlink Utilities - Cross-platform symlink creation and management
-// =============================================================================
-
-import * as fs from 'node:fs'
-
 /**
  * Check if a path is a symbolic link (or junction on Windows).
  *
@@ -91,7 +87,7 @@ export function ensureDir(dir: string): void {
   fs.mkdirSync(dir, {recursive: true})
 }
 
-/** @internal Used by createSymlink */
+/** @internal */
 function ensureDirectory(dir: string): void {
   ensureDir(dir)
 }
@@ -183,12 +179,7 @@ export function deletePathSync(p: string): void {
     else fs.unlinkSync(p)
   } else if (stat.isDirectory()) fs.rmSync(p, {recursive: true, force: true})
   else fs.unlinkSync(p)
-}
-
-
-// =============================================================================
-// File Operations - Read, Write, Ensure
-// =============================================================================
+} // File Operations - Read, Write, Ensure
 
 /**
  * Write a string or Buffer to a file, auto-creating parent directories.
@@ -220,11 +211,7 @@ export function readFileSync(filePath: string, encoding: BufferEncoding = 'utf8'
     const msg = error instanceof Error ? error.message : String(error)
     throw new Error(`Failed to read file "${filePath}": ${msg}`)
   }
-}
-
-// =============================================================================
-// Batch Deletion - Delete files and directories with error collection
-// =============================================================================
+} // Batch Deletion - Delete files and directories with error collection
 
 /**
  * Error encountered during a batch deletion operation.
@@ -293,11 +280,7 @@ export function deleteDirectories(dirs: readonly string[]): DeletionResult {
   }
 
   return {deleted, errors}
-}
-
-// =============================================================================
-// RelativePath Factory - Construct RelativePath objects
-// =============================================================================
+} // RelativePath Factory - Construct RelativePath objects
 
 /**
  * Directory path kind discriminator.
@@ -358,11 +341,7 @@ export function createFileRelativePath(dir: RelativePath, fileName: string): Rel
     getDirectoryName: () => dir.getDirectoryName(),
     getAbsolutePath: () => path.join(dir.basePath, filePath)
   }
-}
-
-// =============================================================================
-// Safe Write - Dry-run aware file writing with error handling
-// =============================================================================
+} // Safe Write - Dry-run aware file writing with error handling
 
 /**
  * Logger interface for safe write operations.

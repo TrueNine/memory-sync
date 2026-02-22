@@ -25,25 +25,19 @@ describe('init-bundle exports', () => {
         expect(bundle).toHaveProperty('path')
         expect(bundle).toHaveProperty('content')
 
-        // path = key
-        expect(bundle.path).toBe(key)
+        expect(bundle.path).toBe(key) // path = key
 
-        // content 应该是实际内容（非空）
-        expect(bundle.content.length).toBeGreaterThan(0)
+        expect(bundle.content.length).toBeGreaterThan(0) // content 应该是实际内容（非空）
       }
     })
 
     describe('specific bundles', () => {
-      it('app/global.cn.mdx should have matching path', () => {
-        expect(bundles['app/global.cn.mdx'].path).toBe('app/global.cn.mdx')
-      })
+      it('app/global.cn.mdx should have matching path', () => expect(bundles['app/global.cn.mdx'].path).toBe('app/global.cn.mdx'))
 
-      it('.vscode/settings.json should have matching path', () => {
-        expect(bundles['.vscode/settings.json'].path).toBe('.vscode/settings.json')
-      })
+      it('.vscode/settings.json should have matching path', () => expect(bundles['.vscode/settings.json'].path).toBe('.vscode/settings.json'))
 
       it('public/tnmsc.example.json should be valid JSON', () => {
-        const content = bundles['public/tnmsc.example.json'].content
+        const {content} = bundles['public/tnmsc.example.json']
         expect(() => JSON.parse(content)).not.toThrow()
 
         const parsed = JSON.parse(content)
@@ -54,17 +48,17 @@ describe('init-bundle exports', () => {
   })
 
   describe('type exports', () => {
-    it('BundleKey type should work as string literal union', () => {
+    it('bundleKey type should work as string literal union', () => {
       const key: BundleKey = 'app/global.cn.mdx'
       expect(key).toBe('app/global.cn.mdx')
     })
 
-    it('RuntimeBundleItem type should work', () => {
+    it('runtimeBundleItem type should work', () => {
       const item: RuntimeBundleItem = {path: 'test/path', content: 'test content'}
       expect(item.path).toBe('test/path')
     })
 
-    it('RuntimeBundles type should work', () => {
+    it('runtimeBundles type should work', () => {
       const testBundles: RuntimeBundles = bundles
       expect(testBundles['app/global.cn.mdx']).toBeDefined()
     })

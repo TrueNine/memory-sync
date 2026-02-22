@@ -6,34 +6,24 @@
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "types:require": "./dist/index.d.cts",
       "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.mjs"
     },
     "./globals": {
-      "types:require": "./dist/globals/index.d.cts",
       "types": "./dist/globals/index.d.mts",
-      "import": "./dist/globals/index.mjs",
-      "require": "./dist/globals/index.cjs"
+      "import": "./dist/globals/index.mjs"
     },
     "./errors": {
-      "types:require": "./dist/errors/index.d.cts",
       "types": "./dist/errors/index.d.mts",
-      "import": "./dist/errors/index.mjs",
-      "require": "./dist/errors/index.cjs"
+      "import": "./dist/errors/index.mjs"
     },
     "./markdown": {
-      "types:require": "./dist/markdown/index.d.cts",
       "types": "./dist/markdown/index.d.mts",
-      "import": "./dist/markdown/index.mjs",
-      "require": "./dist/markdown/index.cjs"
+      "import": "./dist/markdown/index.mjs"
     }
   },
-  "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.mts",
-  "types:require": "dist/index.d.cts",
   "scripts": {
     "build": "run-s check bundle",
     "bundle": "tsdown",

@@ -18,30 +18,24 @@ export interface RuntimeBundleItem {
  * 每个路径相对于 public，同时也是 bundles 的 key
  */
 export const bundlePaths = [
-  // 全局记忆模板
-  'app/global.cn.mdx',
+  'app/global.cn.mdx', // 全局记忆模板
 
-  // IDE 配置 - JetBrains
-  '.idea/.gitignore',
+  '.idea/.gitignore', // IDE 配置 - JetBrains
   '.idea/codeStyles/Project.xml',
   '.idea/codeStyles/codeStyleConfig.xml',
 
-  // IDE 配置 - VSCode
-  '.vscode/settings.json',
+  '.vscode/settings.json', // IDE 配置 - VSCode
   '.vscode/extensions.json',
 
-  // 通用配置
-  '.editorconfig',
+  '.editorconfig', // 通用配置
   '.gitignore',
 
-  // 独立文件
-  'public/tnmsc.example.json',
+  'public/tnmsc.example.json', // 独立文件
   'public/exclude',
   'public/gitignore',
   'public/kiro_global_powers_registry.json',
 
-  // Prompt 指南
-  'src/skills/prompt-builder/global-memory-prompt.cn.mdx',
+  'src/skills/prompt-builder/global-memory-prompt.cn.mdx', // Prompt 指南
   'src/skills/prompt-builder/root-memory-prompt.cn.mdx',
   'src/skills/prompt-builder/child-memory-prompt.cn.mdx'
 ] as const
@@ -54,5 +48,4 @@ export type RuntimeBundles = {
   readonly [K in BundleKey]: RuntimeBundleItem
 }
 
-// 导出配置的 AINDEX 基础路径（用于构建工具）
-export const PUBLIC_BASE = './public'
+export const PUBLIC_BASE = './public' // 导出配置的 AINDEX 基础路径（用于构建工具）

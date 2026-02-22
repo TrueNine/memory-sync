@@ -1,3 +1,4 @@
+import process from 'node:process'
 
 const colors = {
   reset: '\x1B[0m',
@@ -176,9 +177,7 @@ function createLeveledMethod(
       return formatLog(level, namespace, messageOrObject, metaObj)
     }
 
-    if (typeof messageOrObject === 'object' && messageOrObject !== null) {
-      return formatLog(level, namespace, '', messageOrObject as Record<string, unknown>)
-    }
+    if (typeof messageOrObject === 'object' && messageOrObject !== null) return formatLog(level, namespace, '', messageOrObject as Record<string, unknown>)
 
     return formatLog(level, namespace, messageOrObject)
   }
