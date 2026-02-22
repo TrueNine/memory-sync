@@ -23,7 +23,7 @@ permissions:
 jobs:
   build-gui:
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - platform: 'macos-14'
