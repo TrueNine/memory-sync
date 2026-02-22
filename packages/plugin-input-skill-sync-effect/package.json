@@ -1,0 +1,30 @@
+{
+  "name": "@truenine/plugin-input-skill-sync-effect",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "plugin-input-skill-sync-effect for memory-sync",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "scripts": {
+    "build": "tsdown",
+    "lint": "eslint --cache .",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "check": "run-p typecheck lint",
+    "lintfix": "eslint --fix --cache .",
+    "test": "vitest run",
+    "prepublishOnly": "run-s build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@truenine/plugin-input-shared": "workspace:*",
+    "@truenine/plugin-shared": "workspace:*",
+    "fast-glob": "catalog:"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "@truenine/plugin-shared",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Shared types, enums, errors, and base classes for memory-sync plugins",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.mts",
+      "import": "./dist/types/index.mjs"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.mts",
+      "import": "./dist/testing/index.mjs"
+    }
+  },
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "scripts": {
+    "build": "tsdown",
+    "lint": "eslint --cache .",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "check": "run-p typecheck lint",
+    "lintfix": "eslint --fix --cache .",
+    "test": "vitest run",
+    "prepublishOnly": "run-s build"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@truenine/init-bundle": "workspace:*",
+    "@truenine/logger": "workspace:*",
+    "@truenine/md-compiler": "workspace:*",
+    "fast-glob": "catalog:"
+  }
+}
