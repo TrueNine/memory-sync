@@ -64,6 +64,9 @@ jobs:
       - name: Generate Tauri icons
         run: pnpm -F @truenine/memory-sync-gui run generate:icons
 
+      - name: Generate route tree
+        run: pnpm -F @truenine/memory-sync-gui run generate:routes
+
       - name: Run tests
         run: pnpm exec turbo run test
 
