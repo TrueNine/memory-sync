@@ -1,7 +1,8 @@
 {
   "name": "@truenine/plugin-input-skill-sync-effect",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2026.10222.10836",
+  "private": true,
   "description": "plugin-input-skill-sync-effect for memory-sync",
   "exports": {
     "./package.json": "./package.json",

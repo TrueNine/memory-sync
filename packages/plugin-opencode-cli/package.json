@@ -1,7 +1,8 @@
 {
+  "private": true,
   "name": "@truenine/plugin-opencode-cli",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2026.10222.10836",
   "description": "Opencode CLI output plugin",
   "exports": {
     "./package.json": "./package.json",

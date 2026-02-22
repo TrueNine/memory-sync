@@ -1,7 +1,8 @@
 {
+  "private": true,
   "name": "@truenine/plugin-qoder-ide",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2026.10222.10836",
   "description": "Qoder IDE output plugin",
   "exports": {
     "./package.json": "./package.json",

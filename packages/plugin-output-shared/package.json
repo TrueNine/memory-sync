@@ -1,7 +1,8 @@
 {
+  "private": true,
   "name": "@truenine/plugin-output-shared",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2026.10222.10836",
   "description": "Shared abstract base classes and utilities for memory-sync output plugins",
   "exports": {
     "./package.json": "./package.json",

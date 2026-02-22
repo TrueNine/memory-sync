@@ -1,7 +1,8 @@
 {
+  "private": true,
   "name": "@truenine/plugin-jetbrains-codestyle",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2026.10222.10836",
   "description": "JetBrains IDE code style config output plugin for memory-sync",
   "exports": {
     "./package.json": "./package.json",

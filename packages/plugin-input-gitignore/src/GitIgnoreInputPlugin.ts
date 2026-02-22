@@ -6,8 +6,8 @@ import {BaseFileInputPlugin} from '@truenine/plugin-input-shared'
 type BundleMap = Readonly<Record<string, {readonly content: string}>>
 const bundleMap = bundles as unknown as BundleMap
 
-function getGitignoreTemplate(): string { // 从 bundles 获取 gitignore 模板内容（public/exclude）
-  return bundleMap['public/gitignore']?.content ?? ''
+function getGitignoreTemplate(): string | undefined { // 从 bundles 获取 gitignore 模板内容（public/exclude）
+  return bundleMap['public/gitignore']?.content
 }
 
 /**
@@ -16,7 +16,8 @@ function getGitignoreTemplate(): string { // 从 bundles 获取 gitignore 模板
  */
 export class GitIgnoreInputPlugin extends BaseFileInputPlugin {
   constructor() {
-    super('GitIgnoreInputPlugin', {fallbackContent: getGitignoreTemplate()})
+    const template = getGitignoreTemplate()
+    super('GitIgnoreInputPlugin', template != null ? {fallbackContent: template} : {})
   }
 
   protected getFilePath(shadowProjectDir: string): string {

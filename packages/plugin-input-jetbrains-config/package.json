@@ -1,7 +1,8 @@
 {
+  "private": true,
   "name": "@truenine/plugin-input-jetbrains-config",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2026.10222.10836",
   "description": "plugin-input-jetbrains-config for memory-sync",
   "exports": {
     "./package.json": "./package.json",
