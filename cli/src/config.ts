@@ -29,11 +29,13 @@ const DEFAULT_SHADOW_SOURCE_PROJECT: Required<ShadowSourceProjectConfig> = {
 }
 
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
-  ...DEFAULT_USER_CONFIG,
+  version: DEFAULT_USER_CONFIG.version ?? '0.0.0',
+  workspaceDir: DEFAULT_USER_CONFIG.workspaceDir ?? '~/project',
+  logLevel: DEFAULT_USER_CONFIG.logLevel ?? 'info',
   shadowSourceProject: DEFAULT_SHADOW_SOURCE_PROJECT,
   fastCommandSeriesOptions: {},
   plugins: []
-} as Required<PluginOptions>
+}
 
 /**
  * Convert UserConfigFile to PluginOptions
@@ -205,7 +207,9 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     })
   }
 
-  ensureShadowProjectConfigLink(path.join(mergedOptions.workspaceDir, mergedOptions.shadowSourceProject.name), logger) // Auto-link .tnmsc.json into shadow source project dir
+  if (mergedOptions.workspaceDir != null) { // Auto-link .tnmsc.json into shadow source project dir (skip if workspaceDir unavailable, e.g. CI without napi binary)
+    ensureShadowProjectConfigLink(path.join(mergedOptions.workspaceDir, mergedOptions.shadowSourceProject.name), logger)
+  }
 
   const baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = { // Base context without dependencyContext, globalScope, scopeRegistry (will be provided by pipeline)
     logger,
