@@ -1,0 +1,52 @@
+{
+  "private": true,
+  "name": "@truenine/init-bundle",
+  "type": "module",
+  "version": "2026.10222.10836",
+  "description": "Rust-powered embedded file templates for tnmsc init command",
+  "license": "AGPL-3.0-only",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "napi": {
+    "binaryName": "napi-init-bundle",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin"
+    ]
+  },
+  "scripts": {
+    "build": "tsdown",
+    "build:all": "run-s build:native build",
+    "build:native": "napi build --platform --release --output-dir dist -- --features napi",
+    "build:native:debug": "napi build --platform --output-dir dist -- --features napi",
+    "build:ts": "tsdown",
+    "check": "run-p typecheck lint",
+    "lint": "eslint --cache .",
+    "lintfix": "eslint --fix --cache .",
+    "prepublishOnly": "run-s build",
+    "test": "run-s test:rust test:ts",
+    "test:rust": "tsx ../../scripts/cargo-test.ts",
+    "test:ts": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.5.1",
+    "npm-run-all2": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
