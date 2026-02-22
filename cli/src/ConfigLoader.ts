@@ -1,4 +1,5 @@
 import type {ConfigLoaderOptions, ConfigLoadResult, ILogger, ShadowSourceProjectConfig, UserConfigFile} from '@truenine/plugin-shared'
+import {createHash} from 'node:crypto'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -245,10 +246,12 @@ export function ensureConfigLink(
       if (target !== null && path.resolve(target) === path.resolve(globalConfigPath)) return // correct symlink, no-op
       deletePathSync(localConfigPath) // stale symlink — delete and fall through
     } else {
-      const localStat = fs.statSync(localConfigPath) // FIXME: mtime unreliable on editors using write-temp-rename (VSCode, JetBrains); replace with content-hash (sha256)
-      const globalStat = fs.statSync(globalConfigPath)
-      if (localStat.mtimeMs > globalStat.mtimeMs) {
-        fs.copyFileSync(localConfigPath, globalConfigPath) // local is newer: sync back to global
+      const localContent = fs.readFileSync(localConfigPath)
+      const globalContent = fs.readFileSync(globalConfigPath)
+      const localHash = createHash('sha256').update(localContent).digest('hex')
+      const globalHash = createHash('sha256').update(globalContent).digest('hex')
+      if (localHash !== globalHash) {
+        fs.copyFileSync(localConfigPath, globalConfigPath) // local differs: sync back to global
         logger.debug('synced local config back to global', {src: localConfigPath, dest: globalConfigPath})
       }
       deletePathSync(localConfigPath)
@@ -261,7 +264,7 @@ export function ensureConfigLink(
   }
   catch {
     try {
-      fs.copyFileSync(globalConfigPath, localConfigPath) // FIXME: fallback copy means subsequent runs overwrite local edits (copy treated as older-than-global)
+      fs.copyFileSync(globalConfigPath, localConfigPath) // fallback copy: auto-sync disabled, local edits preserved on next run via content-hash check
       logger.warn('symlink unavailable, copied config (auto-sync disabled)', {dest: localConfigPath})
     }
     catch (copyErr) {

@@ -402,12 +402,12 @@ describe('ensureConfigLink', () => {
     expect(fs.symlinkSync).toHaveBeenCalledWith(GLOBAL, LOCAL, 'file')
   })
 
-  it('syncs regular file back to global when local is newer, then recreates symlink', () => { // FIXME: mtime mock is fragile; replace with content-hash when impl changes
+  it('syncs regular file back to global when local content differs, then recreates symlink', () => {
     vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL || p === LOCAL)
     vi.mocked(deskPaths.isSymlink).mockReturnValue(false)
-    vi.mocked(fs.statSync).mockImplementation(p => {
-      if (p === LOCAL) return {mtimeMs: 2000} as fs.Stats
-      return {mtimeMs: 1000} as fs.Stats
+    vi.mocked(fs.readFileSync).mockImplementation(p => {
+      if (p === LOCAL) return '{"local":true}'
+      return '{"global":true}'
     })
 
     ensureConfigLink(LOCAL, GLOBAL, logger)
@@ -417,13 +417,10 @@ describe('ensureConfigLink', () => {
     expect(fs.symlinkSync).toHaveBeenCalledWith(GLOBAL, LOCAL, 'file')
   })
 
-  it('deletes regular file without sync-back when local is older than global', () => { // FIXME: mtime mock is fragile; replace with content-hash when impl changes
+  it('deletes regular file without sync-back when local content matches global', () => {
     vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL || p === LOCAL)
     vi.mocked(deskPaths.isSymlink).mockReturnValue(false)
-    vi.mocked(fs.statSync).mockImplementation(p => {
-      if (p === LOCAL) return {mtimeMs: 500} as fs.Stats
-      return {mtimeMs: 1000} as fs.Stats
-    })
+    vi.mocked(fs.readFileSync).mockReturnValue('{"same":true}')
 
     ensureConfigLink(LOCAL, GLOBAL, logger)
 
