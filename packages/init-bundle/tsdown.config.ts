@@ -29,6 +29,7 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
+    inlineOnly: false,
     format: ['esm'],
     minify: false,
     dts: {sourcemap: false},
