@@ -1,8 +1,11 @@
 {
   "name": "@truenine/memory-sync-docs",
-  "private": true,
   "version": "2026.10222.10836",
+  "private": true,
   "description": "Documentation site for @truenine/memory-sync, built with Next.js 16 and MDX.",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -21,8 +24,5 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "eslint": "catalog:"
-  },
-  "engines": {
-    "node": ">=20.9.0"
   }
 }

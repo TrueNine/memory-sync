@@ -1,13 +1,13 @@
-import type { ReactNode } from 'react';
-import Link from 'next/link';
-import './globals.css';
+import type {ReactNode} from 'react'
+import Link from 'next/link'
+import './globals.css'
 
 export const metadata = {
   title: 'memory-sync Documentation',
   description: 'Official documentation for @truenine/memory-sync, the cross-AI prompt synchronisation toolkit.'
-};
+}
 
-export default function RootLayout({ children }: { readonly children: ReactNode }) {
+export default function RootLayout({children}: {readonly children: ReactNode}) {
   return (
     <html lang="zh-CN">
       <body>
@@ -91,11 +91,15 @@ export default function RootLayout({ children }: { readonly children: ReactNode 
           </div>
 
           <footer className="docs-footer">
-            <p>© {new Date().getFullYear()} TrueNine · Built with Next.js 16 + MDX · Deployed on Vercel</p>
+            <p>
+              ©
+              {new Date().getFullYear()}
+              {' '}
+              TrueNine · Built with Next.js 16 + MDX · Deployed on Vercel
+            </p>
           </footer>
         </div>
       </body>
     </html>
-  );
+  )
 }
-
