@@ -87,6 +87,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Cache apt packages
+        if: matrix.platform == 'ubuntu-24.04'
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-gtk-${{ runner.os }}-${{ hashFiles('.github/workflows/release-gui.yml') }}
+          restore-keys: apt-gtk-${{ runner.os }}-
+
       - name: Install dependencies (ubuntu x86_64)
         if: matrix.platform == 'ubuntu-24.04'
         run: |
