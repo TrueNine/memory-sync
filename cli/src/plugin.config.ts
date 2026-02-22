@@ -20,6 +20,7 @@ import {ProjectPromptInputPlugin} from '@truenine/plugin-input-project-prompt'
 import {ReadmeMdInputPlugin} from '@truenine/plugin-input-readme'
 import {RuleInputPlugin} from '@truenine/plugin-input-rule'
 import {ShadowProjectInputPlugin} from '@truenine/plugin-input-shadow-project'
+import {AIAgentIgnoreInputPlugin} from '@truenine/plugin-input-shared-ignore'
 import {SkillNonSrcFileSyncEffectInputPlugin} from '@truenine/plugin-input-skill-sync-effect'
 import {SubAgentInputPlugin} from '@truenine/plugin-input-subagent'
 import {VSCodeConfigInputPlugin} from '@truenine/plugin-input-vscode-config'
@@ -78,6 +79,7 @@ export default defineConfig({
     new ProjectPromptInputPlugin(),
     new ReadmeMdInputPlugin(),
     new GitIgnoreInputPlugin(),
-    new GitExcludeInputPlugin()
+    new GitExcludeInputPlugin(),
+    new AIAgentIgnoreInputPlugin()
   ]
 })

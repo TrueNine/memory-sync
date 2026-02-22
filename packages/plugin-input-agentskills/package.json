@@ -1,7 +1,8 @@
 {
   "name": "@truenine/plugin-input-agentskills",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2026.10223.10555",
+  "private": true,
   "description": "plugin-input-agentskills for memory-sync",
   "exports": {
     "./package.json": "./package.json",

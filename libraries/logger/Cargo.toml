@@ -1,0 +1,24 @@
+[package]
+name = "tnmsc-logger"
+description = "Structured JSON logger with ANSI color support for tnmsc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+napi = ["dep:napi", "dep:napi-derive"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+napi = { workspace = true, optional = true }
+napi-derive = { workspace = true, optional = true }
+
+[build-dependencies]
+napi-build = { workspace = true }

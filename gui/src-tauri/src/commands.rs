@@ -303,6 +303,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn resolve_cli_path_from_path_env() {
         let _guard = ENV_TEST_LOCK.lock().expect("env test lock");
         let bin_name = cli_binary_name();
@@ -312,28 +313,33 @@ mod tests {
 
         let old_path = env::var_os("PATH");
         let old_home = env::var_os("HOME");
-        env::set_var("PATH", &dir);
-        // Isolate from fallback test: use same dir as HOME so fallback dirs
-        // (e.g. $HOME/.local/share/pnpm) do not exist and PATH is the only match.
-        env::set_var("HOME", &dir);
+        unsafe {
+            env::set_var("PATH", &dir);
+            // Isolate from fallback test: use same dir as HOME so fallback dirs
+            // (e.g. $HOME/.local/share/pnpm) do not exist and PATH is the only match.
+            env::set_var("HOME", &dir);
+        }
 
         let resolved = resolve_cli_path();
 
-        if let Some(old) = old_path {
-            env::set_var("PATH", old);
-        } else {
-            env::remove_var("PATH");
-        }
-        if let Some(old) = old_home {
-            env::set_var("HOME", old);
-        } else {
-            env::remove_var("HOME");
+        unsafe {
+            if let Some(old) = old_path {
+                env::set_var("PATH", old);
+            } else {
+                env::remove_var("PATH");
+            }
+            if let Some(old) = old_home {
+                env::set_var("HOME", old);
+            } else {
+                env::remove_var("HOME");
+            }
         }
 
         assert_eq!(resolved, Some(bin));
     }
 
     #[test]
+    #[cfg(unix)]
     fn resolve_cli_path_from_fallback_dirs() {
         let _guard = ENV_TEST_LOCK.lock().expect("env test lock");
         let bin_name = cli_binary_name();
@@ -345,20 +351,24 @@ mod tests {
 
         let old_path = env::var_os("PATH");
         let old_home = env::var_os("HOME");
-        env::set_var("PATH", "");
-        env::set_var("HOME", &home);
+        unsafe {
+            env::set_var("PATH", "");
+            env::set_var("HOME", &home);
+        }
 
         let resolved = resolve_cli_path();
 
-        if let Some(old) = old_path {
-            env::set_var("PATH", old);
-        } else {
-            env::remove_var("PATH");
-        }
-        if let Some(old) = old_home {
-            env::set_var("HOME", old);
-        } else {
-            env::remove_var("HOME");
+        unsafe {
+            if let Some(old) = old_path {
+                env::set_var("PATH", old);
+            } else {
+                env::remove_var("PATH");
+            }
+            if let Some(old) = old_home {
+                env::set_var("HOME", old);
+            } else {
+                env::remove_var("HOME");
+            }
         }
 
         assert_eq!(resolved, Some(bin));

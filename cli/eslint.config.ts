@@ -19,14 +19,16 @@ const config = eslint10({
     'aindex/**',
     '*.md',
     '**/*.md',
+    '*.toml',
+    '**/*.toml',
     '.kiro/**',
     '.claude/**',
     '.factory/**',
     'src/AGENTS.md',
-    'public/**',
     '.skills/**',
     '**/.skills/**',
-    '.agent/**'
+    '.agent/**',
+    'scripts/**'
   ]
 })
 

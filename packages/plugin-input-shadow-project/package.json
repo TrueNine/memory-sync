@@ -1,7 +1,8 @@
 {
   "name": "@truenine/plugin-input-shadow-project",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2026.10223.10555",
+  "private": true,
   "description": "plugin-input-shadow-project for memory-sync",
   "exports": {
     "./package.json": "./package.json",

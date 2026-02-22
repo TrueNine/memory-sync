@@ -1,7 +1,8 @@
 {
   "name": "@truenine/plugin-editorconfig",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2026.10223.10555",
+  "private": true,
   "description": "EditorConfig output plugin for memory-sync",
   "exports": {
     "./package.json": "./package.json",

@@ -1,0 +1,29 @@
+[package]
+name = "tnmsc"
+description = "Cross-AI-tool prompt synchronisation CLI"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "tnmsc"
+path = "src/main.rs"
+
+[features]
+default = []
+embedded-runtime = []
+
+[dependencies]
+tnmsc-logger = { workspace = true }
+tnmsc-md-compiler = { workspace = true }
+tnmsc-config = { workspace = true }
+tnmsc-plugin-shared = { workspace = true }
+tnmsc-input-plugins = { workspace = true }
+tnmsc-init-bundle = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+dirs = { workspace = true }
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "rustls", "rustls-native-certs"] }
