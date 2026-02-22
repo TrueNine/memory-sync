@@ -2,7 +2,7 @@
   "private": true,
   "name": "@truenine/plugin-openai-codex-cli",
   "type": "module",
-  "version": "2026.10222.10836",
+  "version": "2026.10223.10555",
   "description": "OpenAI Codex CLI output plugin for memory-sync",
   "exports": {
     "./package.json": "./package.json",
