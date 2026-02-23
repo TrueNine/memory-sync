@@ -131,7 +131,7 @@ jobs:
         shell: bash
         run: |
           echo "=== Finding all bundle artifacts ==="
-          find gui/src-tauri/target -path '*/bundle/*' -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) 2>/dev/null || echo 'No bundle files found'
+          find gui/src-tauri/target -path '*/bundle/*' -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) 2>/dev/null || echo 'No bundle files found'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -142,8 +142,6 @@ jobs:
             gui/src-tauri/target/release/bundle/**/*.dmg
             gui/src-tauri/target/*/release/bundle/**/*.exe
             gui/src-tauri/target/release/bundle/**/*.exe
-            gui/src-tauri/target/*/release/bundle/**/*.msi
-            gui/src-tauri/target/release/bundle/**/*.msi
             gui/src-tauri/target/*/release/bundle/**/*.AppImage
             gui/src-tauri/target/release/bundle/**/*.AppImage
             gui/src-tauri/target/*/release/bundle/**/*.deb

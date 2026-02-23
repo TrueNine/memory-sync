@@ -1,7 +1,7 @@
 {
   "name": "@truenine/plugin-warp-ide",
   "type": "module",
-  "version": "2026.10223.10555",
+  "version": "2026.10223.10941",
   "private": true,
   "description": "Warp IDE output plugin",
   "exports": {
