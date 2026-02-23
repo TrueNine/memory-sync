@@ -119,7 +119,7 @@ describe('initCommand', () => {
   })
 
   describe('linkCwdConfig — symlink fallback to copy', () => {
-    it('falls back to copyFileSync when symlinkSync throws', async () => { // FIXME: fallback copy overwrites local edits on subsequent runs; needs content-hash guard
+    it('falls back to copyFileSync when symlinkSync throws', async () => {
       vi.mocked(fs.existsSync).mockImplementation(p => p === GLOBAL_CONFIG_PATH)
       vi.mocked(fs.symlinkSync).mockImplementation(() => {
         throw new Error('EPERM: operation not permitted')
