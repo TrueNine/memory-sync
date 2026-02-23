@@ -29,12 +29,25 @@ jobs:
           - platform: 'macos-14'
             args: '--target universal-apple-darwin'
             rust_targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
+            artifact_globs: |
+              gui/src-tauri/target/*/release/bundle/**/*.dmg
+              gui/src-tauri/target/release/bundle/**/*.dmg
           - platform: 'ubuntu-24.04'
             args: ''
             rust_targets: ''
+            artifact_globs: |
+              gui/src-tauri/target/*/release/bundle/**/*.AppImage
+              gui/src-tauri/target/release/bundle/**/*.AppImage
+              gui/src-tauri/target/*/release/bundle/**/*.deb
+              gui/src-tauri/target/release/bundle/**/*.deb
+              gui/src-tauri/target/*/release/bundle/**/*.rpm
+              gui/src-tauri/target/release/bundle/**/*.rpm
           - platform: 'windows-latest'
             args: ''
             rust_targets: ''
+            artifact_globs: |
+              gui/src-tauri/target/*/release/bundle/**/*.exe
+              gui/src-tauri/target/release/bundle/**/*.exe
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -137,17 +150,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gui-${{ matrix.platform }}
-          path: |
-            gui/src-tauri/target/*/release/bundle/**/*.dmg
-            gui/src-tauri/target/release/bundle/**/*.dmg
-            gui/src-tauri/target/*/release/bundle/**/*.exe
-            gui/src-tauri/target/release/bundle/**/*.exe
-            gui/src-tauri/target/*/release/bundle/**/*.AppImage
-            gui/src-tauri/target/release/bundle/**/*.AppImage
-            gui/src-tauri/target/*/release/bundle/**/*.deb
-            gui/src-tauri/target/release/bundle/**/*.deb
-            gui/src-tauri/target/*/release/bundle/**/*.rpm
-            gui/src-tauri/target/release/bundle/**/*.rpm
+          path: ${{ matrix.artifact_globs }}
           if-no-files-found: error
 
   publish-release:
