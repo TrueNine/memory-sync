@@ -10,6 +10,7 @@ import type {RelativePath} from '@truenine/plugin-shared/types'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
+import {filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared/utils'
 import {PLUGIN_NAMES} from '@truenine/plugin-shared'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
@@ -43,7 +44,9 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
     const {skills} = ctx.collectedInputContext
     if (skills != null && skills.length > 0) {
-      for (const skill of skills) {
+      const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
+      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
         results.push(this.createRelativePath(
           path.join(SKILLS_SUBDIR, skillName),
@@ -76,6 +79,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {globalMemory, fastCommands, skills} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const globalDir = this.getGlobalConfigDir()
 
@@ -86,14 +90,16 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (fastCommands != null && fastCommands.length > 0) {
-      for (const cmd of fastCommands) {
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      for (const cmd of filteredCommands) {
         const result = await this.writeGlobalFastCommand(ctx, globalDir, cmd)
         fileResults.push(result)
       }
     }
 
     if (skills != null && skills.length > 0) {
-      for (const skill of skills) {
+      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      for (const skill of filteredSkills) {
         const skillResults = await this.writeGlobalSkill(ctx, globalDir, skill)
         fileResults.push(...skillResults)
       }

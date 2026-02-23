@@ -58,9 +58,11 @@ export interface SubAgentYAMLFrontMatter extends ToolAwareYAMLFrontMatter {
   readonly name: string
   readonly model?: string
   readonly color?: ClaudeCodeCLISubAgentColors | string
+  readonly seriName?: string | string[] | null
 }
 
 export interface FastCommandYAMLFrontMatter extends ToolAwareYAMLFrontMatter {
+  readonly seriName?: string | string[] | null
 } // description, argumentHint, allowTools inherited from ToolAwareYAMLFrontMatter
 
 /**
@@ -76,6 +78,7 @@ export interface SkillYAMLFrontMatter extends SkillsYAMLFrontMatter {
   readonly displayName?: string
   readonly author?: string
   readonly version?: string
+  readonly seriName?: string | string[] | null
 }
 
 /**
@@ -128,7 +131,7 @@ export interface KiroPowerYAMLFrontMatter extends SkillsYAMLFrontMatter {
 export interface RuleYAMLFrontMatter extends CommonYAMLFrontMatter {
   readonly globs: readonly string[]
   readonly scope?: RuleScope
-  readonly seriName?: string
+  readonly seriName?: string | string[] | null
 }
 
 /**

@@ -10,6 +10,7 @@ import type {
 import type {RelativePath} from '@truenine/plugin-shared/types'
 import * as path from 'node:path'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
+import {filterCommandsByProjectConfig} from '@truenine/plugin-output-shared/utils'
 
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
 const GLOBAL_CONFIG_DIR = '.trae'
@@ -68,13 +69,15 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const {globalMemory, fastCommands} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const steeringDir = this.getGlobalSteeringDir()
     const results: RelativePath[] = []
 
     if (globalMemory != null) results.push(this.createRelativePath(GLOBAL_MEMORY_FILE, steeringDir, () => STEERING_SUBDIR))
 
     if (fastCommands != null) {
-      for (const cmd of fastCommands) results.push(this.createRelativePath(this.buildFastCommandSteeringFileName(cmd), steeringDir, () => STEERING_SUBDIR))
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      for (const cmd of filteredCommands) results.push(this.createRelativePath(this.buildFastCommandSteeringFileName(cmd), steeringDir, () => STEERING_SUBDIR))
     }
 
     return results
@@ -106,6 +109,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {globalMemory, fastCommands} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const steeringDir = this.getGlobalSteeringDir()
 
@@ -114,7 +118,8 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (fastCommands != null) {
-      for (const cmd of fastCommands) fileResults.push(await this.writeFastCommandSteeringFile(ctx, cmd))
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      for (const cmd of filteredCommands) fileResults.push(await this.writeFastCommandSteeringFile(ctx, cmd))
     }
 
     return {files: fileResults, dirs: []}

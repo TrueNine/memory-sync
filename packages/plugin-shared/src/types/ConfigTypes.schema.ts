@@ -71,11 +71,11 @@ export const ZUserConfigFile = z.object({
 export const ZMcpProjectConfig = z.object({names: z.array(z.string()).optional()})
 
 /**
- * Zod schema for rules project config
+ * Zod schema for per-type series filtering configuration.
+ * Shared by all four prompt type sections (rules, skills, subAgents, commands).
  */
-export const ZRulesProjectConfig = z.object({
-  include: z.array(z.string()).optional(),
-  exclude: z.array(z.string()).optional(),
+export const ZTypeSeriesConfig = z.object({
+  includeSeries: z.array(z.string()).optional(),
   subSeries: z.record(z.string(), z.array(z.string())).optional()
 })
 
@@ -84,7 +84,12 @@ export const ZRulesProjectConfig = z.object({
  */
 export const ZProjectConfig = z.object({
   mcp: ZMcpProjectConfig.optional(),
-  rules: ZRulesProjectConfig.optional()
+  includeSeries: z.array(z.string()).optional(),
+  subSeries: z.record(z.string(), z.array(z.string())).optional(),
+  rules: ZTypeSeriesConfig.optional(),
+  skills: ZTypeSeriesConfig.optional(),
+  subAgents: ZTypeSeriesConfig.optional(),
+  commands: ZTypeSeriesConfig.optional()
 })
 
 /**
@@ -103,7 +108,7 @@ export type FastCommandSeriesPluginOverride = z.infer<typeof ZFastCommandSeriesP
 export type FastCommandSeriesOptions = z.infer<typeof ZFastCommandSeriesOptions>
 export type UserConfigFile = z.infer<typeof ZUserConfigFile>
 export type McpProjectConfig = z.infer<typeof ZMcpProjectConfig>
-export type RulesProjectConfig = z.infer<typeof ZRulesProjectConfig>
+export type TypeSeriesConfig = z.infer<typeof ZTypeSeriesConfig>
 export type ProjectConfig = z.infer<typeof ZProjectConfig>
 export type ConfigLoaderOptions = z.infer<typeof ZConfigLoaderOptions>
 

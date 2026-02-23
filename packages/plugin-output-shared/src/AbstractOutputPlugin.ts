@@ -1,5 +1,5 @@
-import type {CleanEffectHandler, EffectRegistration, EffectResult, FastCommandPrompt, ILogger, OutputCleanContext, OutputPlugin, OutputWriteContext, Project, RegistryOperationResult, RulePrompt, RuleScope, WriteEffectHandler, WriteResult, WriteResults} from '@truenine/plugin-shared'
-import type {FastCommandSeriesPluginOverride, Path, RegistryData, RelativePath} from '@truenine/plugin-shared/types'
+import type {CleanEffectHandler, EffectRegistration, EffectResult, FastCommandPrompt, ILogger, OutputCleanContext, OutputPlugin, OutputPluginContext, OutputWriteContext, Project, RegistryOperationResult, RulePrompt, RuleScope, WriteEffectHandler, WriteResult, WriteResults} from '@truenine/plugin-shared'
+import type {FastCommandSeriesPluginOverride, Path, ProjectConfig, RegistryData, RelativePath} from '@truenine/plugin-shared/types'
 
 import type {Buffer} from 'node:buffer'
 import type {RegistryWriter} from './registry/RegistryWriter'
@@ -75,6 +75,12 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     this.globalConfigDir = options?.globalConfigDir ?? ''
     this.outputFileName = options?.outputFileName ?? ''
     this.indexignore = options?.indexignore
+  }
+
+  protected resolvePromptSourceProjectConfig(ctx: OutputPluginContext | OutputWriteContext): ProjectConfig | undefined {
+    const {projects} = ctx.collectedInputContext.workspace
+    const promptSource = projects.find(p => p.isPromptSourceProject === true)
+    return promptSource?.projectConfig ?? projects[0]?.projectConfig
   }
 
   protected registerWriteEffect(name: string, handler: WriteEffectHandler): void {

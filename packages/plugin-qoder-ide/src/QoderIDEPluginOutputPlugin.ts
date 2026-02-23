@@ -13,7 +13,7 @@ import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@truenine/plugin-output-shared/utils'
+import {applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared/utils'
 
 const QODER_CONFIG_DIR = '.qoder'
 const RULES_SUBDIR = 'rules'
@@ -80,12 +80,17 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
     const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const results: RelativePath[] = []
 
-    if (fastCommands != null && fastCommands.length > 0) results.push(this.createRelativePath(COMMANDS_SUBDIR, globalDir, () => COMMANDS_SUBDIR))
+    if (fastCommands != null && fastCommands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      if (filteredCommands.length > 0) results.push(this.createRelativePath(COMMANDS_SUBDIR, globalDir, () => COMMANDS_SUBDIR))
+    }
 
     if (skills != null && skills.length > 0) {
-      for (const skill of skills) {
+      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
         results.push(this.createRelativePath(
           path.join(SKILLS_SUBDIR, skillName),
@@ -109,11 +114,13 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
     const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const results: RelativePath[] = []
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
 
     if (fastCommands != null && fastCommands.length > 0) {
-      for (const cmd of fastCommands) {
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      for (const cmd of filteredCommands) {
         const fileName = this.transformFastCommandName(cmd, transformOptions)
         results.push(this.createRelativePath(
           path.join(COMMANDS_SUBDIR, fileName),
@@ -135,8 +142,9 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (skills != null && skills.length > 0) {
-      for (const skill of skills) {
+    const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
+    if (filteredSkills.length > 0) {
+      for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
         results.push(this.createRelativePath(
           path.join(SKILLS_SUBDIR, skillName, SKILL_FILE_NAME),
@@ -237,6 +245,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const globalDir = this.getGlobalConfigDir()
     const commandsDir = path.join(globalDir, COMMANDS_SUBDIR)
@@ -244,7 +253,8 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     const rulesDir = path.join(globalDir, RULES_SUBDIR)
 
     if (fastCommands != null && fastCommands.length > 0) {
-      for (const cmd of fastCommands) fileResults.push(await this.writeGlobalFastCommand(ctx, commandsDir, cmd))
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalFastCommand(ctx, commandsDir, cmd))
     }
 
     if (rules != null && rules.length > 0) {
@@ -253,7 +263,8 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (skills != null && skills.length > 0) {
-      for (const skill of skills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
+      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      for (const skill of filteredSkills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
     }
     return {files: fileResults, dirs: []}
   }

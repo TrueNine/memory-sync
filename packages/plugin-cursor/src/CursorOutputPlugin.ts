@@ -14,7 +14,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@truenine/plugin-output-shared/utils'
+import {applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared/utils'
 import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
 
 const GLOBAL_CONFIG_DIR = '.cursor'
@@ -71,14 +71,19 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     const results: RelativePath[] = []
     const globalDir = this.getGlobalConfigDir()
     const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
     if (fastCommands != null && fastCommands.length > 0) {
-      const commandsDir = this.getGlobalCommandsDir()
-      results.push({pathKind: FilePathKind.Relative, path: COMMANDS_SUBDIR, basePath: globalDir, getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => commandsDir})
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      if (filteredCommands.length > 0) {
+        const commandsDir = this.getGlobalCommandsDir()
+        results.push({pathKind: FilePathKind.Relative, path: COMMANDS_SUBDIR, basePath: globalDir, getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => commandsDir})
+      }
     }
 
     if (skills != null && skills.length > 0) {
-      for (const skill of skills) {
+      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
         if (this.isPreservedSkill(skillName)) continue
         const skillPath = path.join(globalDir, SKILLS_CURSOR_SUBDIR, skillName)
@@ -98,7 +103,9 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     const results: RelativePath[] = []
     const globalDir = this.getGlobalConfigDir()
     const {skills, fastCommands} = ctx.collectedInputContext
-    const hasAnyMcpConfig = skills?.some(s => s.mcpConfig != null) ?? false
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
+    const hasAnyMcpConfig = filteredSkills.some(s => s.mcpConfig != null)
 
     if (hasAnyMcpConfig) {
       const mcpConfigPath = path.join(globalDir, MCP_CONFIG_FILE)
@@ -106,9 +113,10 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (fastCommands != null && fastCommands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
       const commandsDir = this.getGlobalCommandsDir()
       const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-      for (const cmd of fastCommands) {
+      for (const cmd of filteredCommands) {
         const fileName = this.transformFastCommandName(cmd, transformOptions)
         const fullPath = path.join(commandsDir, fileName)
         results.push({pathKind: FilePathKind.Relative, path: path.join(COMMANDS_SUBDIR, fileName), basePath: globalDir, getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => fullPath})
@@ -125,10 +133,10 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (skills == null || skills.length === 0) return results
+    if (filteredSkills.length === 0) return results
 
     const skillsCursorDir = this.getSkillsCursorDir()
-    for (const skill of skills) {
+    for (const skill of filteredSkills) {
       const skillName = skill.yamlFrontMatter.name
       if (this.isPreservedSkill(skillName)) continue
       const skillDir = path.join(skillsCursorDir, skillName)
@@ -203,14 +211,16 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {skills, fastCommands, rules} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
     if (skills != null && skills.length > 0) {
-      const mcpResult = await this.writeGlobalMcpConfig(ctx, skills)
+      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      const mcpResult = await this.writeGlobalMcpConfig(ctx, filteredSkills)
       if (mcpResult != null) fileResults.push(mcpResult)
       const skillsCursorDir = this.getSkillsCursorDir()
-      for (const skill of skills) {
+      for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
         if (this.isPreservedSkill(skillName)) continue
         fileResults.push(...await this.writeGlobalSkill(ctx, skillsCursorDir, skill))
@@ -218,8 +228,9 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (fastCommands != null && fastCommands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
       const commandsDir = this.getGlobalCommandsDir()
-      for (const cmd of fastCommands) fileResults.push(await this.writeGlobalFastCommand(ctx, commandsDir, cmd))
+      for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalFastCommand(ctx, commandsDir, cmd))
     }
 
     const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')

@@ -14,6 +14,7 @@ import * as path from 'node:path'
 import {getPlatformFixedDir} from '@truenine/desk-paths'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
+import {filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared/utils'
 import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
 
 /**
@@ -120,6 +121,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const codexDirs = this.resolveCodexDirs()
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
     for (const codexDir of codexDirs) {
       const promptsPath = path.join(codexDir, PROMPTS_SUBDIR)
@@ -134,7 +136,8 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       const {skills} = ctx.collectedInputContext
       if (skills == null || skills.length === 0) continue
 
-      for (const skill of skills) {
+      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
         const skillPath = path.join(codexDir, SKILLS_SUBDIR, skillName)
         results.push({
@@ -210,11 +213,15 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {globalMemory, fastCommands, skills} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
     const codexDirs = this.resolveCodexDirs()
 
     if (codexDirs.length === 0) return {files: fileResults, dirs: dirResults}
+
+    const filteredCommands = fastCommands != null ? filterCommandsByProjectConfig(fastCommands, projectConfig) : []
+    const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
 
     for (const codexDir of codexDirs) {
       if (globalMemory != null) {
@@ -245,16 +252,16 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
         }
       }
 
-      if (fastCommands != null && fastCommands.length > 0) {
-        for (const cmd of fastCommands) {
+      if (filteredCommands.length > 0) {
+        for (const cmd of filteredCommands) {
           const cmdResults = await this.writeGlobalFastCommand(ctx, codexDir, cmd)
           fileResults.push(...cmdResults)
         }
       }
 
-      if (skills == null || skills.length === 0) continue
+      if (filteredSkills.length === 0) continue
 
-      for (const skill of skills) {
+      for (const skill of filteredSkills) {
         const skillResults = await this.writeGlobalSkill(ctx, codexDir, skill)
         fileResults.push(...skillResults)
       }

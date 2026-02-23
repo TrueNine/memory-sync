@@ -173,6 +173,7 @@ export class FastCommandInputPlugin extends BaseDirectoryInputPlugin<FastCommand
     const fileName = slashIndex !== -1 ? entryName.slice(slashIndex + 1) : entryName
 
     const seriesInfo = this.extractSeriesInfo(fileName, parentDirName)
+    const seriName = yamlFrontMatter?.seriName
 
     return {
       type: PromptKind.FastCommand,
@@ -192,6 +193,7 @@ export class FastCommandInputPlugin extends BaseDirectoryInputPlugin<FastCommand
       },
       ...seriesInfo.series != null && {series: seriesInfo.series},
       commandName: seriesInfo.commandName,
+      ...seriName != null && {seriName},
       rawMdxContent: rawContent
     }
   }
