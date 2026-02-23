@@ -20,10 +20,8 @@ tauri-plugin-shell = { workspace = true }
 tauri-plugin-updater = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-json5 = { workspace = true }
 dirs = { workspace = true }
+tnmsc = { workspace = true }
 
-# tnmsc libraries (for future direct integration)
-tnmsc-logger = { workspace = true }
-tnmsc-config = { workspace = true }
-tnmsc-plugin-shared = { workspace = true }
+[dev-dependencies]
+proptest = "1"

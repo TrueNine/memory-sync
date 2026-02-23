@@ -37,6 +37,7 @@
     "@truenine/init-bundle": "workspace:*",
     "@truenine/logger": "workspace:*",
     "@truenine/md-compiler": "workspace:*",
+    "fast-check": "catalog:",
     "fast-glob": "catalog:"
   }
 }

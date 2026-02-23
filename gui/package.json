@@ -46,7 +46,9 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+    "fast-check": "catalog:",
     "tailwindcss": "catalog:",
-    "tw-animate-css": "catalog:"
+    "tw-animate-css": "catalog:",
+    "vitest": "catalog:"
   }
 }
