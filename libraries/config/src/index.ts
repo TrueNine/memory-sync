@@ -6,6 +6,9 @@ interface NapiConfigModule {
   getGlobalConfigPathStr: () => string
   mergeConfigs: (baseJson: string, overJson: string) => string
   loadConfigFromFile: (filePath: string) => string | null
+  matchesSeries: (seriName: string | string[] | null | undefined, effectiveIncludeSeries: string[]) => boolean
+  resolveEffectiveIncludeSeries: (topLevel: string[] | null | undefined, typeSpecific: string[] | null | undefined) => string[]
+  resolveSubSeries: (topLevel: Record<string, string[]> | null | undefined, typeSpecific: Record<string, string[]> | null | undefined) => Record<string, string[]>
 }
 
 let napiBinding: NapiConfigModule | null = null
@@ -78,4 +81,68 @@ export function loadConfigFromFile(filePath: string): Record<string, unknown> | 
   if (napiBinding == null) return null
   const result = napiBinding.loadConfigFromFile(filePath)
   return result != null ? JSON.parse(result) as Record<string, unknown> : null
+}
+
+/**
+ * Compute the effective includeSeries as the set union of top-level and
+ * type-specific arrays. Returns empty array when both are undefined.
+ */
+export function resolveEffectiveIncludeSeries(
+  topLevel?: readonly string[],
+  typeSpecific?: readonly string[]
+): string[] {
+  if (napiBinding != null) {
+    return napiBinding.resolveEffectiveIncludeSeries(
+      topLevel != null ? [...topLevel] : void 0,
+      typeSpecific != null ? [...typeSpecific] : void 0
+    )
+  }
+  if (topLevel == null && typeSpecific == null) return [] // Pure-TS fallback
+  return [...new Set([...topLevel ?? [], ...typeSpecific ?? []])]
+}
+
+/**
+ * Determine whether a prompt item should be included based on its seriName
+ * and the effective includeSeries list.
+ */
+export function matchesSeries(
+  seriName: string | readonly string[] | null | undefined,
+  effectiveIncludeSeries: readonly string[]
+): boolean {
+  if (napiBinding != null) {
+    return napiBinding.matchesSeries(
+      seriName != null ? typeof seriName === 'string' ? seriName : [...seriName] : seriName,
+      [...effectiveIncludeSeries]
+    )
+  }
+  if (seriName == null) return true // Pure-TS fallback
+  if (effectiveIncludeSeries.length === 0) return true
+  if (typeof seriName === 'string') return effectiveIncludeSeries.includes(seriName)
+  return seriName.some(name => effectiveIncludeSeries.includes(name))
+}
+
+/**
+ * Deep-merge two optional subSeries records. For each key present in either
+ * record, the result is the set union of both value arrays.
+ */
+export function resolveSubSeries(
+  topLevel?: Readonly<Record<string, readonly string[]>>,
+  typeSpecific?: Readonly<Record<string, readonly string[]>>
+): Record<string, string[]> {
+  if (napiBinding != null) {
+    const toMutable = (r?: Readonly<Record<string, readonly string[]>>): Record<string, string[]> | undefined => {
+      if (r == null) return void 0
+      const out: Record<string, string[]> = {}
+      for (const [k, v] of Object.entries(r)) out[k] = [...v]
+      return out
+    }
+    return napiBinding.resolveSubSeries(toMutable(topLevel), toMutable(typeSpecific))
+  }
+  if (topLevel == null && typeSpecific == null) return {} // Pure-TS fallback
+  const merged: Record<string, string[]> = {}
+  for (const [key, values] of Object.entries(topLevel ?? {})) merged[key] = [...values]
+  for (const [key, values] of Object.entries(typeSpecific ?? {})) {
+    merged[key] = Object.hasOwn(merged, key) ? [...new Set([...merged[key]!, ...values])] : [...values]
+  }
+  return merged
 }

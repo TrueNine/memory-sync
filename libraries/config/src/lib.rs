@@ -5,6 +5,8 @@
 //! Reads `~/.aindex/.tnmsc.json` (global) and `./.tnmsc.json` (cwd),
 //! merges with priority: CWD > global > defaults.
 
+pub mod series_filter;
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
