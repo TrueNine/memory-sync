@@ -1,4 +1,5 @@
 import type {ProjectConfig, RulePrompt} from '@truenine/plugin-shared'
+import {matchesSeries, resolveEffectiveIncludeSeries, resolveSubSeries} from '@truenine/plugin-output-shared/utils'
 
 function normalizeSubdirPath(subdir: string): string {
   let normalized = subdir.replaceAll(/\.\/+/g, '')
@@ -31,8 +32,8 @@ export function applySubSeriesGlobPrefix(
   rules: readonly RulePrompt[],
   projectConfig: ProjectConfig | undefined
 ): readonly RulePrompt[] {
-  const subSeries = projectConfig?.rules?.subSeries
-  if (subSeries == null || Object.keys(subSeries).length === 0) return rules
+  const subSeries = resolveSubSeries(projectConfig?.subSeries, projectConfig?.rules?.subSeries)
+  if (Object.keys(subSeries).length === 0) return rules
 
   const normalizedSubSeries: Record<string, readonly string[]> = {}
   for (const [subdir, seriNames] of Object.entries(subSeries)) {
@@ -47,7 +48,10 @@ export function applySubSeriesGlobPrefix(
 
     const matchedPrefixes: string[] = []
     for (const [subdir, seriNames] of Object.entries(normalizedSubSeries)) {
-      if (seriNames.includes(rule.seriName)) matchedPrefixes.push(subdir)
+      const matched = Array.isArray(rule.seriName)
+        ? rule.seriName.some(name => seriNames.includes(name))
+        : seriNames.includes(rule.seriName)
+      if (matched) matchedPrefixes.push(subdir)
     }
 
     if (matchedPrefixes.length === 0) return rule
@@ -76,22 +80,6 @@ export function filterRulesByProjectConfig(
   rules: readonly RulePrompt[],
   projectConfig: ProjectConfig | undefined
 ): readonly RulePrompt[] {
-  const rulesConfig = projectConfig?.rules
-  if (rulesConfig == null) return rules
-
-  const {include, exclude} = rulesConfig
-
-  return rules.filter(rule => {
-    if (rule.seriName == null) return true
-
-    if (include != null && include.length > 0) {
-      if (!include.includes(rule.seriName)) return false
-    }
-
-    if (exclude != null && exclude.length > 0) {
-      if (exclude.includes(rule.seriName)) return false
-    }
-
-    return true
-  })
+  const effectiveSeries = resolveEffectiveIncludeSeries(projectConfig?.includeSeries, projectConfig?.rules?.includeSeries)
+  return rules.filter(rule => matchesSeries(rule.seriName, effectiveSeries))
 }

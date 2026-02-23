@@ -3,8 +3,10 @@
 //! Locates the bundled JS entry point and spawns `node` to execute
 //! plugin-dependent commands (execute, dry-run, clean, plugins).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
+
+use crate::{BridgeCommandResult, CliError};
 
 use tnmsc_logger::create_logger;
 use serde_json::Value;
@@ -31,7 +33,7 @@ const PACKAGE_NAME: &str = "@truenine/memory-sync-cli";
 /// 5. `<cwd>/cli/dist/plugin-runtime.mjs` (fallback from repo root cwd)
 /// 6. npm/pnpm global install: `<global_root>/@truenine/memory-sync-cli/dist/plugin-runtime.mjs`
 /// 7. Embedded JS extracted to `~/.aindex/.cache/plugin-runtime-<version>.mjs`
-fn find_plugin_runtime() -> Option<PathBuf> {
+pub(crate) fn find_plugin_runtime() -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
 
     // Relative to binary location
@@ -151,7 +153,7 @@ fn extract_embedded_runtime() -> Option<PathBuf> {
 }
 
 /// Find the `node` executable.
-fn find_node() -> Option<String> {
+pub(crate) fn find_node() -> Option<String> {
     // Try `node` in PATH
     if Command::new("node").arg("--version").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok() {
         return Some("node".to_string());
@@ -236,6 +238,52 @@ pub fn run_node_command(subcommand: &str, json_mode: bool, extra_args: &[&str]) 
             );
             ExitCode::FAILURE
         }
+    }
+}
+
+/// Library mode: capture Node.js subprocess output and return structured result.
+///
+/// Used by GUI backend and other Rust callers via [`crate::run_bridge_command`].
+/// Unlike [`run_node_command`] which inherits stdio for CLI terminal use,
+/// this variant pipes stdout/stderr so the caller can inspect the output.
+pub fn run_node_command_captured(
+    subcommand: &str,
+    cwd: &Path,
+    json_mode: bool,
+    extra_args: &[&str],
+) -> Result<BridgeCommandResult, CliError> {
+    let node = find_node().ok_or(CliError::NodeNotFound)?;
+    let runtime_path = find_plugin_runtime()
+        .ok_or_else(|| CliError::PluginRuntimeNotFound(
+            "plugin-runtime.mjs not found. Install via 'pnpm add -g @truenine/memory-sync-cli' or place plugin-runtime.mjs next to the binary.".into(),
+        ))?;
+
+    let mut cmd = Command::new(&node);
+    cmd.arg(&runtime_path);
+    cmd.arg(subcommand);
+
+    if json_mode {
+        cmd.arg("--json");
+    }
+
+    for arg in extra_args {
+        cmd.arg(arg);
+    }
+
+    cmd.current_dir(cwd);
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let output = cmd.output()?;
+
+    let exit_code = output.status.code().unwrap_or(-1);
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if output.status.success() {
+        Ok(BridgeCommandResult { stdout, stderr, exit_code })
+    } else {
+        Err(CliError::NodeProcessFailed { code: exit_code, stderr })
     }
 }
 

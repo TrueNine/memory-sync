@@ -1,9 +1,9 @@
 import type {ProjectConfig, RulePrompt} from '@truenine/plugin-shared'
-import {FilePathKind, PromptKind} from '@truenine/plugin-shared'
+import {FilePathKind, NamingCaseKind, PromptKind} from '@truenine/plugin-shared'
 import {describe, expect, it} from 'vitest'
 import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from './ruleFilter'
 
-function createMockRulePrompt(seriName: string | undefined, globs: readonly string[] = ['**/*.ts']): RulePrompt {
+function createMockRulePrompt(seriName: string | string[] | null, globs: readonly string[] = ['**/*.ts']): RulePrompt {
   const content = '# Rule body'
   return {
     type: PromptKind.Rule,
@@ -12,7 +12,7 @@ function createMockRulePrompt(seriName: string | undefined, globs: readonly stri
     filePathKind: FilePathKind.Relative,
     dir: {pathKind: FilePathKind.Relative, path: '.', basePath: '', getDirectoryName: () => '.', getAbsolutePath: () => '.'},
     markdownContents: [],
-    yamlFrontMatter: {description: 'Test rule', globs: [...globs]},
+    yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, description: 'Test rule', globs: [...globs]},
     series: 'test',
     ruleName: 'test-rule',
     globs: [...globs],
@@ -26,7 +26,7 @@ describe('filterRulesByProjectConfig', () => {
     const rules = [
       createMockRulePrompt('uniapp'),
       createMockRulePrompt('vue'),
-      createMockRulePrompt(void 0)
+      createMockRulePrompt(null)
     ]
     const result = filterRulesByProjectConfig(rules, void 0)
     expect(result).toHaveLength(3)
@@ -39,97 +39,86 @@ describe('filterRulesByProjectConfig', () => {
     expect(result).toHaveLength(2)
   })
 
-  describe('include filtering', () => {
+  describe('includeSeries filtering', () => {
     it('should include only matching seriName', () => {
       const rules = [createMockRulePrompt('uniapp'), createMockRulePrompt('vue')]
-      const projectConfig: ProjectConfig = {rules: {include: ['uniapp']}}
+      const projectConfig: ProjectConfig = {rules: {includeSeries: ['uniapp']}}
       const result = filterRulesByProjectConfig(rules, projectConfig)
       expect(result).toHaveLength(1)
-      expect(result[0].seriName).toBe('uniapp')
+      expect(result[0]!.seriName).toBe('uniapp')
     })
 
-    it('should include all when seriName is undefined (backward compatible)', () => {
-      const rules = [createMockRulePrompt(void 0), createMockRulePrompt('vue')]
-      const projectConfig: ProjectConfig = {rules: {include: ['uniapp']}}
+    it('should always include rules with null seriName', () => {
+      const rules = [createMockRulePrompt(null), createMockRulePrompt('vue')]
+      const projectConfig: ProjectConfig = {rules: {includeSeries: ['uniapp']}}
       const result = filterRulesByProjectConfig(rules, projectConfig)
       expect(result).toHaveLength(1)
-      expect(result[0].seriName).toBeUndefined()
+      expect(result[0]!.seriName).toBeNull()
     })
 
-    it('should handle empty include array', () => {
+    it('should return all rules when includeSeries is empty', () => {
       const rules = [createMockRulePrompt('uniapp'), createMockRulePrompt('vue')]
-      const projectConfig: ProjectConfig = {rules: {include: []}}
+      const projectConfig: ProjectConfig = {rules: {includeSeries: []}}
       const result = filterRulesByProjectConfig(rules, projectConfig)
       expect(result).toHaveLength(2)
     })
 
-    it('should handle multiple include values', () => {
+    it('should handle multiple includeSeries values', () => {
       const rules = [
         createMockRulePrompt('uniapp'),
         createMockRulePrompt('vue'),
         createMockRulePrompt('react')
       ]
-      const projectConfig: ProjectConfig = {rules: {include: ['uniapp', 'vue']}}
+      const projectConfig: ProjectConfig = {rules: {includeSeries: ['uniapp', 'vue']}}
       const result = filterRulesByProjectConfig(rules, projectConfig)
       expect(result).toHaveLength(2)
       expect(result.map(r => r.seriName)).toContain('uniapp')
       expect(result.map(r => r.seriName)).toContain('vue')
     })
-  })
 
-  describe('exclude filtering', () => {
-    it('should exclude matching seriName', () => {
+    it('should support top-level includeSeries', () => {
       const rules = [createMockRulePrompt('uniapp'), createMockRulePrompt('vue')]
-      const projectConfig: ProjectConfig = {rules: {exclude: ['uniapp']}}
+      const projectConfig: ProjectConfig = {includeSeries: ['uniapp']}
       const result = filterRulesByProjectConfig(rules, projectConfig)
       expect(result).toHaveLength(1)
-      expect(result[0].seriName).toBe('vue')
+      expect(result[0]!.seriName).toBe('uniapp')
     })
 
-    it('should keep undefined seriName even when exclude exists (backward compatible)', () => {
-      const rules = [createMockRulePrompt(void 0), createMockRulePrompt('uniapp')]
-      const projectConfig: ProjectConfig = {rules: {exclude: ['uniapp']}}
-      const result = filterRulesByProjectConfig(rules, projectConfig)
-      expect(result).toHaveLength(1)
-      expect(result[0].seriName).toBeUndefined()
-    })
-
-    it('should handle empty exclude array', () => {
-      const rules = [createMockRulePrompt('uniapp'), createMockRulePrompt('vue')]
-      const projectConfig: ProjectConfig = {rules: {exclude: []}}
-      const result = filterRulesByProjectConfig(rules, projectConfig)
-      expect(result).toHaveLength(2)
-    })
-  })
-
-  describe('include + exclude combination', () => {
-    it('should apply include then exclude', () => {
+    it('should merge top-level and rules-level includeSeries', () => {
       const rules = [
         createMockRulePrompt('uniapp'),
         createMockRulePrompt('vue'),
         createMockRulePrompt('react')
       ]
       const projectConfig: ProjectConfig = {
-        rules: {include: ['uniapp', 'vue'], exclude: ['uniapp']}
+        includeSeries: ['uniapp'],
+        rules: {includeSeries: ['vue']}
       }
       const result = filterRulesByProjectConfig(rules, projectConfig)
+      expect(result).toHaveLength(2)
+      expect(result.map(r => r.seriName)).toContain('uniapp')
+      expect(result.map(r => r.seriName)).toContain('vue')
+    })
+
+    it('should handle seriName as string array', () => {
+      const rules = [createMockRulePrompt(['uniapp', 'vue']), createMockRulePrompt('react')]
+      const projectConfig: ProjectConfig = {rules: {includeSeries: ['uniapp']}}
+      const result = filterRulesByProjectConfig(rules, projectConfig)
       expect(result).toHaveLength(1)
-      expect(result[0].seriName).toBe('vue')
+      expect(result[0]!.seriName).toEqual(['uniapp', 'vue'])
     })
   })
 
   describe('edge cases', () => {
     it('should handle empty rules array', () => {
-      const projectConfig: ProjectConfig = {rules: {include: ['uniapp']}}
+      const projectConfig: ProjectConfig = {rules: {includeSeries: ['uniapp']}}
       const result = filterRulesByProjectConfig([], projectConfig)
       expect(result).toHaveLength(0)
     })
 
-    it('should handle all rules excluded', () => {
+    it('should return no rules when includeSeries has no matches', () => {
       const rules = [createMockRulePrompt('uniapp'), createMockRulePrompt('vue')]
-      const projectConfig: ProjectConfig = {
-        rules: {include: ['uniapp'], exclude: ['uniapp']}
-      }
+      const projectConfig: ProjectConfig = {rules: {includeSeries: ['react']}}
       const result = filterRulesByProjectConfig(rules, projectConfig)
       expect(result).toHaveLength(0)
     })
@@ -146,7 +135,7 @@ describe('applySubSeriesGlobPrefix', () => {
 
     it('should return original rules when no subSeries config', () => {
       const rules = [createMockRulePrompt('uniapp')]
-      const projectConfig: ProjectConfig = {rules: {include: ['uniapp']}}
+      const projectConfig: ProjectConfig = {rules: {includeSeries: ['uniapp']}}
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
       expect(result).toEqual(rules)
     })
@@ -158,8 +147,8 @@ describe('applySubSeriesGlobPrefix', () => {
       expect(result).toEqual(rules)
     })
 
-    it('should return original rules when seriName is undefined', () => {
-      const rules = [createMockRulePrompt(void 0)]
+    it('should return original rules when seriName is null', () => {
+      const rules = [createMockRulePrompt(null)]
       const projectConfig: ProjectConfig = {
         rules: {subSeries: {applet: ['uniapp3']}}
       }
@@ -175,7 +164,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {applet: ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/**/*.vue'])
+      expect(result[0]!.globs).toEqual(['applet/**/*.vue'])
     })
 
     it('should add prefix to multiple globs', () => {
@@ -184,7 +173,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {applet: ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/**/*.vue', 'applet/**/*.ts'])
+      expect(result[0]!.globs).toEqual(['applet/**/*.vue', 'applet/**/*.ts'])
     })
 
     it('should add multiple prefixes when seriName matches multiple subdirs', () => {
@@ -193,7 +182,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {applet: ['uniapp3'], example_applet: ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/**/*.vue', 'example_applet/**/*.vue'])
+      expect(result[0]!.globs).toEqual(['applet/**/*.vue', 'example_applet/**/*.vue'])
     })
 
     it('should return original rule when seriName does not match', () => {
@@ -202,7 +191,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {applet: ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['**/*.vue'])
+      expect(result[0]!.globs).toEqual(['**/*.vue'])
     })
   })
 
@@ -213,7 +202,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {applet: ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/**/*.vue'])
+      expect(result[0]!.globs).toEqual(['applet/**/*.vue'])
     })
 
     it('should convert globs starting with * to **/ format', () => {
@@ -222,7 +211,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {applet: ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/**/*.vue'])
+      expect(result[0]!.globs).toEqual(['applet/**/*.vue'])
     })
 
     it('should handle globs with path prefix', () => {
@@ -231,7 +220,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {applet: ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/src/**/*.ts'])
+      expect(result[0]!.globs).toEqual(['applet/src/**/*.ts'])
     })
   })
 
@@ -242,7 +231,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {applet: ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/**/*.vue'])
+      expect(result[0]!.globs).toEqual(['applet/**/*.vue'])
     })
 
     it('should add only missing prefix when multiple subdirs configured', () => {
@@ -251,7 +240,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {applet: ['uniapp3'], example_applet: ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/**/*.vue', 'example_applet/**/*.vue'])
+      expect(result[0]!.globs).toEqual(['applet/**/*.vue', 'example_applet/**/*.vue'])
     })
   })
 
@@ -262,7 +251,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {'applet/': ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/**/*.vue'])
+      expect(result[0]!.globs).toEqual(['applet/**/*.vue'])
     })
 
     it('should normalize subdir path with ./ prefix', () => {
@@ -271,7 +260,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {'./applet': ['uniapp3']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/**/*.vue'])
+      expect(result[0]!.globs).toEqual(['applet/**/*.vue'])
     })
 
     it('should handle nested subdir paths', () => {
@@ -280,7 +269,7 @@ describe('applySubSeriesGlobPrefix', () => {
         rules: {subSeries: {'frontend/apps': ['vue']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['frontend/apps/**/*.vue'])
+      expect(result[0]!.globs).toEqual(['frontend/apps/**/*.vue'])
     })
   })
 
@@ -297,15 +286,15 @@ describe('applySubSeriesGlobPrefix', () => {
       const rules = [
         createMockRulePrompt('uniapp3', ['**/*.vue']),
         createMockRulePrompt('vue', ['**/*.ts']),
-        createMockRulePrompt(void 0, ['**/*.js'])
+        createMockRulePrompt(null, ['**/*.js'])
       ]
       const projectConfig: ProjectConfig = {
         rules: {subSeries: {applet: ['uniapp3'], example_applet: ['uniapp3', 'vue']}}
       }
       const result = applySubSeriesGlobPrefix(rules, projectConfig)
-      expect(result[0].globs).toEqual(['applet/**/*.vue', 'example_applet/**/*.vue'])
-      expect(result[1].globs).toEqual(['example_applet/**/*.ts'])
-      expect(result[2].globs).toEqual(['**/*.js'])
+      expect(result[0]!.globs).toEqual(['applet/**/*.vue', 'example_applet/**/*.vue'])
+      expect(result[1]!.globs).toEqual(['example_applet/**/*.ts'])
+      expect(result[2]!.globs).toEqual(['**/*.js'])
     })
   })
 })
