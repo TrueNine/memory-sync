@@ -100,9 +100,9 @@ jobs:
       version: ${{ needs.check-version.outputs.version }}
     secrets: inherit
 
-  # 5. 构建 GUI 并创建 GitHub Release
+  # 5. 构建 GUI 并创建 GitHub Release（等 CLI 主包发布完成后再构建）
   release-gui:
-    needs: check-version
+    needs: [check-version, publish-cli]
     if: needs.check-version.outputs.publish == 'true'
     uses: ./.github/workflows/release-gui.yml
     with:
