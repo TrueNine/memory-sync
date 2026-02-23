@@ -529,12 +529,18 @@ importers:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
         version: 5.1.4(vite@7.3.1(@types/node@25.3.0)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.5.3
       tailwindcss:
         specifier: 'catalog:'
         version: 4.2.0
       tw-animate-css:
         specifier: 'catalog:'
         version: 1.4.0
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.18(@types/node@25.3.0)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   libraries/config:
     devDependencies:
@@ -1065,6 +1071,9 @@ importers:
 
   packages/plugin-output-shared:
     dependencies:
+      '@truenine/config':
+        specifier: workspace:*
+        version: link:../../libraries/config
       picomatch:
         specifier: 'catalog:'
         version: 4.0.3
@@ -1081,6 +1090,9 @@ importers:
       '@truenine/plugin-shared':
         specifier: workspace:*
         version: link:../plugin-shared
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.5.3
       fast-glob:
         specifier: 'catalog:'
         version: 3.3.3
@@ -1124,6 +1136,9 @@ importers:
       '@truenine/md-compiler':
         specifier: workspace:*
         version: link:../../libraries/md-compiler
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.5.3
       fast-glob:
         specifier: 'catalog:'
         version: 3.3.3
