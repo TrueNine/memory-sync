@@ -106,6 +106,7 @@ jobs:
         shell: bash
         run: |
           target_dir="cli/npm/${{ matrix.target.suffix }}"
+          mkdir -p "$target_dir"
           for lib in logger md-compiler config init-bundle; do
             cp libraries/$lib/dist/*.node "$target_dir/"
           done
@@ -146,6 +147,7 @@ jobs:
           for artifact_dir in artifacts/cli-napi-*/; do
             suffix=$(basename "$artifact_dir" | sed 's/cli-napi-//')
             target_dir="cli/npm/${suffix}"
+            mkdir -p "$target_dir"
             echo "Copying from ${artifact_dir} to ${target_dir}"
             cp "${artifact_dir}"*.node "$target_dir/" || { echo "ERROR: no .node files found in ${artifact_dir}"; exit 1; }
           done
