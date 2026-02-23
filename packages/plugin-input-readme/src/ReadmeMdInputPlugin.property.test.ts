@@ -1,9 +1,9 @@
-import type {InputPluginContext, PluginOptions} from '@truenine/plugin-shared'
+import type {InputPluginContext, PluginOptions, ReadmeFileKind} from '@truenine/plugin-shared'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {createLogger} from '@truenine/plugin-shared'
+import {createLogger, README_FILE_KIND_MAP} from '@truenine/plugin-shared'
 import * as fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
 import {ReadmeMdInputPlugin} from './ReadmeMdInputPlugin'
@@ -14,6 +14,8 @@ import {ReadmeMdInputPlugin} from './ReadmeMdInputPlugin'
  */
 describe('readmeMdInputPlugin property tests', () => {
   const plugin = new ReadmeMdInputPlugin()
+
+  const allFileKinds = Object.keys(README_FILE_KIND_MAP) as ReadmeFileKind[]
 
   function createMockContext(workspaceDir: string, _shadowProjectDir: string): InputPluginContext {
     const options: PluginOptions = {
@@ -63,50 +65,52 @@ describe('readmeMdInputPlugin property tests', () => {
   }
 
   describe('property 1: README Discovery Completeness', () => {
-    const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid project names (alphanumeric, no special chars)
+    const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    const subdirNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid subdirectory names
+    const subdirNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    const readmeContentArb = fc.string({minLength: 1, maxLength: 100}) // Generate README content
+    const readmeContentArb = fc.string({minLength: 1, maxLength: 100})
       .filter(s => s.trim().length > 0)
+
+    const fileKindArb = fc.constantFrom(...allFileKinds)
 
     it('should discover all rdm.mdx files in generated directory structures', async () => {
       await fc.assert(
         fc.asyncProperty(
-          fc.array(projectNameArb, {minLength: 1, maxLength: 3}), // Generate 1-3 projects
-          fc.array(subdirNameArb, {minLength: 0, maxLength: 2}), // Generate 0-2 subdirectories per project
-          fc.boolean(), // Whether to include root README
-          readmeContentArb, // README content (avoid MDX expressions that need globalScope)
+          fc.array(projectNameArb, {minLength: 1, maxLength: 3}),
+          fc.array(subdirNameArb, {minLength: 0, maxLength: 2}),
+          fc.boolean(),
+          readmeContentArb,
           async (projectNames, subdirs, includeRoot, content) => {
             await withTempDir(async tempDir => {
-              const uniqueProjects = [...new Set(projectNames.map(p => p.toLowerCase()))] // Deduplicate project names (case-insensitive for Windows compatibility)
+              const uniqueProjects = [...new Set(projectNames.map(p => p.toLowerCase()))]
               const uniqueSubdirs = [...new Set(subdirs.map(s => s.toLowerCase()))]
 
-              const structure: Record<string, string | null> = {} // Build directory structure
+              const structure: Record<string, string | null> = {}
               const expectedReadmes: {projectName: string, isRoot: boolean, subdir?: string}[] = []
 
               for (const projectName of uniqueProjects) {
-                structure[`ref/${projectName}/.gitkeep`] = '' // Create project directory
+                structure[`ref/${projectName}/.gitkeep`] = ''
 
-                if (includeRoot) { // Add root README if flag is true
+                if (includeRoot) {
                   structure[`ref/${projectName}/rdm.mdx`] = content
                   expectedReadmes.push({projectName, isRoot: true})
                 }
 
-                for (const subdir of uniqueSubdirs) { // Add child READMEs
+                for (const subdir of uniqueSubdirs) {
                   structure[`ref/${projectName}/${subdir}/rdm.mdx`] = content
                   expectedReadmes.push({projectName, isRoot: false, subdir})
                 }
               }
 
-              createDirectoryStructure(tempDir, structure) // Create the structure
+              createDirectoryStructure(tempDir, structure)
 
-              const ctx = createMockContext(tempDir, tempDir) // Run the plugin (now async)
+              const ctx = createMockContext(tempDir, tempDir)
               const result = await plugin.collect(ctx)
 
-              const readmePrompts = result.readmePrompts ?? [] // Verify all expected READMEs were discovered
+              const readmePrompts = result.readmePrompts ?? []
 
               expect(readmePrompts.length).toBe(expectedReadmes.length)
 
@@ -115,6 +119,7 @@ describe('readmeMdInputPlugin property tests', () => {
                   r =>
                     r.projectName === expected.projectName
                     && r.isRoot === expected.isRoot
+                    && r.fileKind === 'Readme'
                 )
                 expect(found).toBeDefined()
                 expect(found?.content).toBe(content)
@@ -132,7 +137,7 @@ describe('readmeMdInputPlugin property tests', () => {
           projectNameArb,
           async projectName => {
             await withTempDir(async tempDir => {
-              const workspaceDir = path.join(tempDir, projectName) // Create workspace but no ref directory
+              const workspaceDir = path.join(tempDir, projectName)
               fs.mkdirSync(workspaceDir, {recursive: true})
 
               const ctx = createMockContext(workspaceDir, workspaceDir)
@@ -145,19 +150,85 @@ describe('readmeMdInputPlugin property tests', () => {
         {numRuns: 100}
       )
     })
+
+    it('should discover all three file kinds (rdm.mdx, coc.mdx, security.mdx)', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          projectNameArb,
+          readmeContentArb,
+          fc.subarray(allFileKinds, {minLength: 1}),
+          async (projectName, content, fileKinds) => {
+            await withTempDir(async tempDir => {
+              const structure: Record<string, string | null> = {}
+
+              for (const kind of fileKinds) {
+                const srcFile = README_FILE_KIND_MAP[kind].src
+                structure[`ref/${projectName}/${srcFile}`] = `${content}-${kind}`
+              }
+
+              createDirectoryStructure(tempDir, structure)
+
+              const ctx = createMockContext(tempDir, tempDir)
+              const result = await plugin.collect(ctx)
+              const readmePrompts = result.readmePrompts ?? []
+
+              expect(readmePrompts.length).toBe(fileKinds.length)
+
+              for (const kind of fileKinds) {
+                const found = readmePrompts.find(r => r.fileKind === kind)
+                expect(found).toBeDefined()
+                expect(found?.content).toBe(`${content}-${kind}`)
+                expect(found?.projectName).toBe(projectName)
+                expect(found?.isRoot).toBe(true)
+              }
+            })
+          }
+        ),
+        {numRuns: 100}
+      )
+    })
+
+    it('should assign correct fileKind for each source file', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          projectNameArb,
+          fileKindArb,
+          readmeContentArb,
+          async (projectName, fileKind, content) => {
+            await withTempDir(async tempDir => {
+              const srcFile = README_FILE_KIND_MAP[fileKind].src
+              const structure: Record<string, string | null> = {
+                [`ref/${projectName}/${srcFile}`]: content
+              }
+
+              createDirectoryStructure(tempDir, structure)
+
+              const ctx = createMockContext(tempDir, tempDir)
+              const result = await plugin.collect(ctx)
+              const readmePrompts = result.readmePrompts ?? []
+
+              expect(readmePrompts.length).toBe(1)
+              expect(readmePrompts[0].fileKind).toBe(fileKind)
+              expect(readmePrompts[0].content).toBe(content)
+            })
+          }
+        ),
+        {numRuns: 100}
+      )
+    })
   })
 
   describe('property 2: Data Structure Correctness', () => {
-    const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid project names
+    const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    const subdirNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid subdirectory names
+    const subdirNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    const readmeContentArb = fc.string({minLength: 1, maxLength: 100}) // Generate README content
+    const readmeContentArb = fc.string({minLength: 1, maxLength: 100})
       .filter(s => s.trim().length > 0)
 
-    it('should correctly set isRoot flag based on README location', async () => {
+    it('should correctly set isRoot flag based on file location', async () => {
       await fc.assert(
         fc.asyncProperty(
           projectNameArb,
@@ -166,7 +237,7 @@ describe('readmeMdInputPlugin property tests', () => {
           readmeContentArb,
           async (projectName, subdir, rootContent, childContent) => {
             await withTempDir(async tempDir => {
-              const structure: Record<string, string | null> = { // Create structure with both root and child README
+              const structure: Record<string, string | null> = {
                 [`ref/${projectName}/rdm.mdx`]: rootContent,
                 [`ref/${projectName}/${subdir}/rdm.mdx`]: childContent
               }
@@ -177,17 +248,17 @@ describe('readmeMdInputPlugin property tests', () => {
               const result = await plugin.collect(ctx)
               const readmePrompts = result.readmePrompts ?? []
 
-              const rootReadme = readmePrompts.find(r => r.isRoot) // Find root README
+              const rootReadme = readmePrompts.find(r => r.isRoot)
               expect(rootReadme).toBeDefined()
               expect(rootReadme?.projectName).toBe(projectName)
               expect(rootReadme?.content).toBe(rootContent)
               expect(rootReadme?.targetDir.path).toBe(projectName)
 
-              const childReadme = readmePrompts.find(r => !r.isRoot) // Find child README
+              const childReadme = readmePrompts.find(r => !r.isRoot)
               expect(childReadme).toBeDefined()
               expect(childReadme?.projectName).toBe(projectName)
               expect(childReadme?.content).toBe(childContent)
-              expect(childReadme?.targetDir.path).toBe(path.join(projectName, subdir)) // Use path.join for cross-platform path comparison
+              expect(childReadme?.targetDir.path).toBe(path.join(projectName, subdir))
             })
           }
         ),
@@ -242,11 +313,48 @@ describe('readmeMdInputPlugin property tests', () => {
               const readmePrompts = result.readmePrompts ?? []
 
               for (const readme of readmePrompts) {
-                expect(readme.targetDir.basePath).toBe(tempDir) // Verify targetDir structure
+                expect(readme.targetDir.basePath).toBe(tempDir)
                 expect(readme.targetDir.getAbsolutePath()).toBe(
                   path.resolve(tempDir, readme.targetDir.path)
                 )
               }
+            })
+          }
+        ),
+        {numRuns: 100}
+      )
+    })
+
+    it('should discover coc.mdx and security.mdx in child directories', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          projectNameArb,
+          subdirNameArb,
+          readmeContentArb,
+          async (projectName, subdir, content) => {
+            await withTempDir(async tempDir => {
+              const structure: Record<string, string | null> = {
+                [`ref/${projectName}/${subdir}/coc.mdx`]: `coc-${content}`,
+                [`ref/${projectName}/${subdir}/security.mdx`]: `sec-${content}`
+              }
+
+              createDirectoryStructure(tempDir, structure)
+
+              const ctx = createMockContext(tempDir, tempDir)
+              const result = await plugin.collect(ctx)
+              const readmePrompts = result.readmePrompts ?? []
+
+              expect(readmePrompts.length).toBe(2)
+
+              const cocPrompt = readmePrompts.find(r => r.fileKind === 'CodeOfConduct')
+              expect(cocPrompt).toBeDefined()
+              expect(cocPrompt?.isRoot).toBe(false)
+              expect(cocPrompt?.content).toBe(`coc-${content}`)
+
+              const secPrompt = readmePrompts.find(r => r.fileKind === 'Security')
+              expect(secPrompt).toBeDefined()
+              expect(secPrompt?.isRoot).toBe(false)
+              expect(secPrompt?.content).toBe(`sec-${content}`)
             })
           }
         ),

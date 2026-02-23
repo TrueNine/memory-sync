@@ -1,6 +1,7 @@
 import type {
   OutputPluginContext,
   OutputWriteContext,
+  ReadmeFileKind,
   WriteResult,
   WriteResults
 } from '@truenine/plugin-shared'
@@ -9,26 +10,31 @@ import type {RelativePath} from '@truenine/plugin-shared/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {FilePathKind} from '@truenine/plugin-shared'
+import {FilePathKind, README_FILE_KIND_MAP} from '@truenine/plugin-shared'
 
-const README_FILE_NAME = 'README.md'
+function resolveOutputFileName(fileKind?: ReadmeFileKind): string {
+  return README_FILE_KIND_MAP[fileKind ?? 'Readme'].out
+}
 
 /**
- * Output plugin for writing README.md files to project directories.
+ * Output plugin for writing readme-family files to project directories.
  * Reads README prompts collected by ReadmeMdInputPlugin and writes them
  * to the corresponding project directories.
  *
+ * Output mapping:
+ * - fileKind=Readme → README.md
+ * - fileKind=CodeOfConduct → CODE_OF_CONDUCT.md
+ * - fileKind=Security → SECURITY.md
+ *
  * Supports:
- * - Root README files (written to project root)
- * - Child README files (written to project subdirectories)
+ * - Root files (written to project root)
+ * - Child files (written to project subdirectories)
  * - Dry-run mode (preview without writing)
  * - Clean operation (delete generated files)
- *
- * @see Requirements 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 5.4, 6.2
  */
 export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('ReadmeMdConfigFileOutputPlugin', {outputFileName: README_FILE_NAME})
+    super('ReadmeMdConfigFileOutputPlugin', {outputFileName: 'README.md'})
   }
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -39,7 +45,8 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
 
     for (const readme of readmePrompts) {
       const {targetDir} = readme
-      const filePath = path.join(targetDir.path, README_FILE_NAME)
+      const outputFileName = resolveOutputFileName(readme.fileKind)
+      const filePath = path.join(targetDir.path, outputFileName)
 
       results.push({
         pathKind: FilePathKind.Relative,
@@ -79,10 +86,11 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
 
   private async writeReadmeFile(
     ctx: OutputWriteContext,
-    readme: {projectName: string, targetDir: RelativePath, content: unknown, isRoot: boolean}
+    readme: {projectName: string, targetDir: RelativePath, content: unknown, isRoot: boolean, fileKind?: ReadmeFileKind}
   ): Promise<WriteResult> {
     const {targetDir} = readme
-    const filePath = path.join(targetDir.path, README_FILE_NAME)
+    const outputFileName = resolveOutputFileName(readme.fileKind)
+    const filePath = path.join(targetDir.path, outputFileName)
     const fullPath = path.join(targetDir.basePath, filePath)
     const content = readme.content as string
 
@@ -95,8 +103,8 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     }
 
     const label = readme.isRoot
-      ? `project:${readme.projectName}/README.md`
-      : `project:${readme.projectName}/${targetDir.path}/README.md`
+      ? `project:${readme.projectName}/${outputFileName}`
+      : `project:${readme.projectName}/${targetDir.path}/${outputFileName}`
 
     if (ctx.dryRun === true) { // Dry-run mode: log without writing
       this.log.trace({action: 'dryRun', type: 'readme', path: fullPath, label})

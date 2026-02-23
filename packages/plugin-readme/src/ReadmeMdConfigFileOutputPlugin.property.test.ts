@@ -2,6 +2,7 @@ import type {
   CollectedInputContext,
   OutputPluginContext,
   OutputWriteContext,
+  ReadmeFileKind,
   ReadmePrompt,
   RelativePath,
   Workspace
@@ -10,7 +11,7 @@ import type {
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {createLogger, FilePathKind, PromptKind} from '@truenine/plugin-shared'
+import {createLogger, FilePathKind, PromptKind, README_FILE_KIND_MAP} from '@truenine/plugin-shared'
 import * as fc from 'fast-check'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {ReadmeMdConfigFileOutputPlugin} from './ReadmeMdConfigFileOutputPlugin'
@@ -23,6 +24,8 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
   const plugin = new ReadmeMdConfigFileOutputPlugin()
   let tempDir: string
 
+  const allFileKinds = Object.keys(README_FILE_KIND_MAP) as ReadmeFileKind[]
+
   beforeEach(() => tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-output-test-')))
 
   afterEach(() => fs.rmSync(tempDir, {recursive: true, force: true}))
@@ -32,7 +35,8 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
     content: string,
     isRoot: boolean,
     basePath: string,
-    subdir?: string
+    subdir?: string,
+    fileKind: ReadmeFileKind = 'Readme'
   ): ReadmePrompt {
     const targetPath = isRoot ? projectName : path.join(projectName, subdir ?? '')
 
@@ -60,6 +64,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
       projectName,
       targetDir,
       isRoot,
+      fileKind,
       markdownContents: [],
       dir
     }
@@ -107,14 +112,16 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
   }
 
   describe('property 3: Output Path Mapping', () => {
-    const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid project names
+    const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    const subdirNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid subdirectory names
+    const subdirNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    const readmeContentArb = fc.string({minLength: 1, maxLength: 100}) // Generate README content
+    const readmeContentArb = fc.string({minLength: 1, maxLength: 100})
       .filter(s => s.trim().length > 0)
+
+    const fileKindArb = fc.constantFrom(...allFileKinds)
 
     it('should register correct output paths for root READMEs', async () => {
       await fc.assert(
@@ -177,7 +184,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             expect(results.files.length).toBe(1)
             expect(results.files[0].success).toBe(true)
 
-            const expectedPath = path.join(tempDir, projectName, 'README.md') // Verify file was written to correct location
+            const expectedPath = path.join(tempDir, projectName, 'README.md')
             expect(fs.existsSync(expectedPath)).toBe(true)
             expect(fs.readFileSync(expectedPath, 'utf8')).toBe(content)
           }
@@ -201,9 +208,83 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             expect(results.files.length).toBe(1)
             expect(results.files[0].success).toBe(true)
 
-            const expectedPath = path.join(tempDir, projectName, subdir, 'README.md') // Verify file was written to correct location
+            const expectedPath = path.join(tempDir, projectName, subdir, 'README.md')
             expect(fs.existsSync(expectedPath)).toBe(true)
             expect(fs.readFileSync(expectedPath, 'utf8')).toBe(content)
+          }
+        ),
+        {numRuns: 100}
+      )
+    })
+
+    it('should register correct output path per fileKind', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          projectNameArb,
+          readmeContentArb,
+          fileKindArb,
+          async (projectName, content, fileKind) => {
+            const readme = createReadmePrompt(projectName, content, true, tempDir, void 0, fileKind)
+            const ctx = createMockPluginContext([readme], tempDir)
+
+            const registeredPaths = await plugin.registerProjectOutputFiles(ctx)
+            const expectedFileName = README_FILE_KIND_MAP[fileKind].out
+
+            expect(registeredPaths.length).toBe(1)
+            expect(registeredPaths[0].path).toBe(path.join(projectName, expectedFileName))
+          }
+        ),
+        {numRuns: 100}
+      )
+    })
+
+    it('should write correct output file per fileKind', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          projectNameArb,
+          readmeContentArb,
+          fileKindArb,
+          async (projectName, content, fileKind) => {
+            const readme = createReadmePrompt(projectName, content, true, tempDir, void 0, fileKind)
+            const ctx = createMockWriteContext([readme], tempDir, false)
+
+            const results = await plugin.writeProjectOutputs(ctx)
+            const expectedFileName = README_FILE_KIND_MAP[fileKind].out
+
+            expect(results.files.length).toBe(1)
+            expect(results.files[0].success).toBe(true)
+
+            const expectedPath = path.join(tempDir, projectName, expectedFileName)
+            expect(fs.existsSync(expectedPath)).toBe(true)
+            expect(fs.readFileSync(expectedPath, 'utf8')).toBe(content)
+          }
+        ),
+        {numRuns: 100}
+      )
+    })
+
+    it('should write all three file kinds to separate files in same project', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          projectNameArb,
+          readmeContentArb,
+          async (projectName, content) => {
+            const readmes = allFileKinds.map(kind =>
+              createReadmePrompt(projectName, `${content}-${kind}`, true, tempDir, void 0, kind)
+            )
+            const ctx = createMockWriteContext(readmes, tempDir, false)
+
+            const results = await plugin.writeProjectOutputs(ctx)
+
+            expect(results.files.length).toBe(3)
+            expect(results.files.every(r => r.success)).toBe(true)
+
+            for (const kind of allFileKinds) {
+              const expectedFileName = README_FILE_KIND_MAP[kind].out
+              const expectedPath = path.join(tempDir, projectName, expectedFileName)
+              expect(fs.existsSync(expectedPath)).toBe(true)
+              expect(fs.readFileSync(expectedPath, 'utf8')).toBe(`${content}-${kind}`)
+            }
           }
         ),
         {numRuns: 100}
@@ -212,14 +293,16 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
   })
 
   describe('property 4: Dry-Run Idempotence', () => {
-    const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid project names
+    const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    const subdirNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid subdirectory names
+    const subdirNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    const readmeContentArb = fc.string({minLength: 1, maxLength: 100}) // Generate README content
+    const readmeContentArb = fc.string({minLength: 1, maxLength: 100})
       .filter(s => s.trim().length > 0)
+
+    const fileKindArb = fc.constantFrom(...allFileKinds)
 
     it('should not create any files in dry-run mode', async () => {
       await fc.assert(
@@ -228,15 +311,16 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
           readmeContentArb,
           fc.boolean(),
           fc.option(subdirNameArb, {nil: void 0}),
-          async (projectName, content, isRoot, subdir) => {
-            const readme = createReadmePrompt(projectName, content, isRoot, tempDir, isRoot ? void 0 : subdir ?? 'subdir')
+          fileKindArb,
+          async (projectName, content, isRoot, subdir, fileKind) => {
+            const readme = createReadmePrompt(projectName, content, isRoot, tempDir, isRoot ? void 0 : subdir ?? 'subdir', fileKind)
             const ctx = createMockWriteContext([readme], tempDir, true)
 
-            const filesBefore = fs.readdirSync(tempDir, {recursive: true}) // Record files before operation
+            const filesBefore = fs.readdirSync(tempDir, {recursive: true})
 
             await plugin.writeProjectOutputs(ctx)
 
-            const filesAfter = fs.readdirSync(tempDir, {recursive: true}) // Verify no files were created
+            const filesAfter = fs.readdirSync(tempDir, {recursive: true})
             expect(filesAfter).toEqual(filesBefore)
           }
         ),
@@ -257,7 +341,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
 
             const results = await plugin.writeProjectOutputs(ctx)
 
-            expect(results.files.length).toBe(uniqueProjects.length) // All results should be successful
+            expect(results.files.length).toBe(uniqueProjects.length)
             for (const result of results.files) {
               expect(result.success).toBe(true)
               expect(result.skipped).toBe(false)
@@ -276,15 +360,38 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
           async (projectName, content) => {
             const readme = createReadmePrompt(projectName, content, true, tempDir)
 
-            const dryRunCtx = createMockWriteContext([readme], tempDir, true) // Run in dry-run mode
+            const dryRunCtx = createMockWriteContext([readme], tempDir, true)
             const dryRunResults = await plugin.writeProjectOutputs(dryRunCtx)
 
-            const normalCtx = createMockWriteContext([readme], tempDir, false) // Run in normal mode
+            const normalCtx = createMockWriteContext([readme], tempDir, false)
             const normalResults = await plugin.writeProjectOutputs(normalCtx)
 
-            expect(dryRunResults.files.length).toBe(normalResults.files.length) // Both should report same number of operations
+            expect(dryRunResults.files.length).toBe(normalResults.files.length)
 
-            for (let i = 0; i < dryRunResults.files.length; i++) expect(dryRunResults.files[i].path.path).toBe(normalResults.files[i].path.path) // Both should report same paths
+            for (let i = 0; i < dryRunResults.files.length; i++) expect(dryRunResults.files[i].path.path).toBe(normalResults.files[i].path.path)
+          }
+        ),
+        {numRuns: 100}
+      )
+    })
+
+    it('should not create files in dry-run mode for all fileKinds', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          projectNameArb,
+          readmeContentArb,
+          async (projectName, content) => {
+            const readmes = allFileKinds.map(kind =>
+              createReadmePrompt(projectName, `${content}-${kind}`, true, tempDir, void 0, kind)
+            )
+            const ctx = createMockWriteContext(readmes, tempDir, true)
+
+            const filesBefore = fs.readdirSync(tempDir, {recursive: true})
+
+            await plugin.writeProjectOutputs(ctx)
+
+            const filesAfter = fs.readdirSync(tempDir, {recursive: true})
+            expect(filesAfter).toEqual(filesBefore)
           }
         ),
         {numRuns: 100}
@@ -293,13 +400,13 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
   })
 
   describe('property 5: Clean Operation Completeness', () => {
-    const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid project names
+    const projectNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    const subdirNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'}) // Generate valid subdirectory names
+    const subdirNameArb = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z][a-z0-9]*$/i.test(s))
 
-    const readmeContentArb = fc.string({minLength: 1, maxLength: 100}) // Generate README content
+    const readmeContentArb = fc.string({minLength: 1, maxLength: 100})
       .filter(s => s.trim().length > 0)
 
     it('should register all output file paths for cleanup', async () => {
@@ -315,9 +422,9 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
 
             const registeredPaths = await plugin.registerProjectOutputFiles(ctx)
 
-            expect(registeredPaths.length).toBe(uniqueProjects.length) // Should register exactly one path per README
+            expect(registeredPaths.length).toBe(uniqueProjects.length)
 
-            for (const registeredPath of registeredPaths) expect(registeredPath.path.endsWith('README.md')).toBe(true) // Each path should be a README.md file
+            for (const registeredPath of registeredPaths) expect(registeredPath.path.endsWith('README.md')).toBe(true)
           }
         ),
         {numRuns: 100}
@@ -339,7 +446,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
 
             expect(registeredPaths.length).toBe(2)
 
-            const rootPath = registeredPaths.find(p => p.path === path.join(projectName, 'README.md')) // Find root and child paths
+            const rootPath = registeredPaths.find(p => p.path === path.join(projectName, 'README.md'))
             const childPath = registeredPaths.find(p => p.path === path.join(projectName, subdir, 'README.md'))
 
             expect(rootPath).toBeDefined()
@@ -360,6 +467,32 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
             const registeredPaths = await plugin.registerProjectOutputFiles(ctx)
 
             expect(registeredPaths).toEqual([])
+          }
+        ),
+        {numRuns: 100}
+      )
+    })
+
+    it('should register correct paths for all fileKinds', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          projectNameArb,
+          readmeContentArb,
+          async (projectName, content) => {
+            const readmes = allFileKinds.map(kind =>
+              createReadmePrompt(projectName, `${content}-${kind}`, true, tempDir, void 0, kind)
+            )
+            const ctx = createMockPluginContext(readmes, tempDir)
+
+            const registeredPaths = await plugin.registerProjectOutputFiles(ctx)
+
+            expect(registeredPaths.length).toBe(3)
+
+            for (const kind of allFileKinds) {
+              const expectedFileName = README_FILE_KIND_MAP[kind].out
+              const found = registeredPaths.find(p => p.path === path.join(projectName, expectedFileName))
+              expect(found).toBeDefined()
+            }
           }
         ),
         {numRuns: 100}
