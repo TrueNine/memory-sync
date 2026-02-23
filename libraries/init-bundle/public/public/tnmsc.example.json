@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@truenine/memory-sync-cli/dist/tnmsc.schema.json",
-  "version": "2026.10223.10952",
+  "version": "2026.10224.10619",
   "workspaceDir": "~/project",
   "shadowSourceProject": {
     "name": "tnmsc-shadow",
