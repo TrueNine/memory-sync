@@ -1,7 +1,7 @@
 {
   "name": "@truenine/plugin-input-gitignore",
   "type": "module",
-  "version": "2026.10223.10941",
+  "version": "2026.10223.10952",
   "private": true,
   "description": "plugin-input-gitignore for memory-sync",
   "exports": {
