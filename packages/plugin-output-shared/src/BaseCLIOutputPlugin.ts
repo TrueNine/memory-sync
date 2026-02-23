@@ -137,31 +137,30 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (this.supportsSkills && skills != null) {
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
-      for (const skill of filteredSkills) {
-        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-        const skillDir = path.join(this.skillsSubDir, skillName)
+    if (this.supportsSkills && skills == null) return results
 
-        results.push(this.createRelativePath(path.join(skillDir, 'SKILL.md'), globalDir, () => skillName))
+    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    for (const skill of filteredSkills) {
+      const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+      const skillDir = path.join(this.skillsSubDir, skillName)
 
-        if (skill.childDocs != null) {
-          for (const refDoc of skill.childDocs) {
-            const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
-            const refDocPath = path.join(skillDir, refDocFileName)
-            results.push(this.createRelativePath(refDocPath, globalDir, () => skillName))
-          }
+      results.push(this.createRelativePath(path.join(skillDir, 'SKILL.md'), globalDir, () => skillName))
+
+      if (skill.childDocs != null) {
+        for (const refDoc of skill.childDocs) {
+          const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+          const refDocPath = path.join(skillDir, refDocFileName)
+          results.push(this.createRelativePath(refDocPath, globalDir, () => skillName))
         }
+      }
 
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            const resourcePath = path.join(skillDir, resource.relativePath)
-            results.push(this.createRelativePath(resourcePath, globalDir, () => skillName))
-          }
+      if (skill.resources != null) {
+        for (const resource of skill.resources) {
+          const resourcePath = path.join(skillDir, resource.relativePath)
+          results.push(this.createRelativePath(resourcePath, globalDir, () => skillName))
         }
       }
     }
-
     return results
   }
 
@@ -267,14 +266,13 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (this.supportsSkills && skills != null) {
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
-      for (const skill of filteredSkills) {
-        const skillResults = await this.writeSkill(ctx, globalDir, skill)
-        fileResults.push(...skillResults)
-      }
-    }
+    if (this.supportsSkills && skills == null) return {files: fileResults, dirs: dirResults}
 
+    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    for (const skill of filteredSkills) {
+      const skillResults = await this.writeSkill(ctx, globalDir, skill)
+      fileResults.push(...skillResults)
+    }
     return {files: fileResults, dirs: dirResults}
   }
 

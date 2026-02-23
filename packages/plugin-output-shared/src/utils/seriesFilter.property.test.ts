@@ -83,9 +83,7 @@ describe('matchesSeries property tests', () => {
       fc.property(
         fc.oneof(fc.constant(null), fc.constant(void 0)),
         nonEmptySeriesListArb,
-        (seriName, list) => {
-          expect(matchesSeries(seriName, list)).toBe(true)
-        }
+        (seriName, list) => expect(matchesSeries(seriName, list)).toBe(true)
       ),
       {numRuns: 200}
     )
@@ -95,9 +93,7 @@ describe('matchesSeries property tests', () => {
     fc.assert(
       fc.property(
         seriNameArb,
-        seriName => {
-          expect(matchesSeries(seriName, [])).toBe(true)
-        }
+        seriName => expect(matchesSeries(seriName, [])).toBe(true)
       ),
       {numRuns: 200}
     )

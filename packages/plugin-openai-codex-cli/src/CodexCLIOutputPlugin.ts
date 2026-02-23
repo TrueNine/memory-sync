@@ -43,19 +43,18 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     ]
 
     const {skills} = ctx.collectedInputContext
-    if (skills != null && skills.length > 0) {
-      const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
-      for (const skill of filteredSkills) {
-        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-        results.push(this.createRelativePath(
-          path.join(SKILLS_SUBDIR, skillName),
-          globalDir,
-          () => skillName
-        ))
-      }
-    }
+    if (skills == null && skills.length > 0) return results
 
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    for (const skill of filteredSkills) {
+      const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+      results.push(this.createRelativePath(
+        path.join(SKILLS_SUBDIR, skillName),
+        globalDir,
+        () => skillName
+      ))
+    }
     return results
   }
 
@@ -97,14 +96,13 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (skills != null && skills.length > 0) {
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
-      for (const skill of filteredSkills) {
-        const skillResults = await this.writeGlobalSkill(ctx, globalDir, skill)
-        fileResults.push(...skillResults)
-      }
-    }
+    if (skills == null && skills.length > 0) return {files: fileResults, dirs: []}
 
+    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    for (const skill of filteredSkills) {
+      const skillResults = await this.writeGlobalSkill(ctx, globalDir, skill)
+      fileResults.push(...skillResults)
+    }
     return {files: fileResults, dirs: []}
   }
 

@@ -22,9 +22,7 @@ const seriNameArb: fc.Arbitrary<string | string[] | null | undefined> = fc.oneof
 
 const optionalSeriesArb = fc.option(fc.array(seriesNameArb, {minLength: 0, maxLength: 10}), {nil: void 0})
 
-const typeSeriesConfigArb = fc.record({
-  includeSeries: optionalSeriesArb
-})
+const typeSeriesConfigArb = fc.record({includeSeries: optionalSeriesArb})
 
 const projectConfigArb: fc.Arbitrary<ProjectConfig> = fc.record({
   includeSeries: optionalSeriesArb,

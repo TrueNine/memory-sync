@@ -270,8 +270,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
           readmeContentArb,
           async (projectName, content) => {
             const readmes = allFileKinds.map(kind =>
-              createReadmePrompt(projectName, `${content}-${kind}`, true, tempDir, void 0, kind)
-            )
+              createReadmePrompt(projectName, `${content}-${kind}`, true, tempDir, void 0, kind))
             const ctx = createMockWriteContext(readmes, tempDir, false)
 
             const results = await plugin.writeProjectOutputs(ctx)
@@ -382,8 +381,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
           readmeContentArb,
           async (projectName, content) => {
             const readmes = allFileKinds.map(kind =>
-              createReadmePrompt(projectName, `${content}-${kind}`, true, tempDir, void 0, kind)
-            )
+              createReadmePrompt(projectName, `${content}-${kind}`, true, tempDir, void 0, kind))
             const ctx = createMockWriteContext(readmes, tempDir, true)
 
             const filesBefore = fs.readdirSync(tempDir, {recursive: true})
@@ -480,8 +478,7 @@ describe('readmeMdConfigFileOutputPlugin property tests', () => {
           readmeContentArb,
           async (projectName, content) => {
             const readmes = allFileKinds.map(kind =>
-              createReadmePrompt(projectName, `${content}-${kind}`, true, tempDir, void 0, kind)
-            )
+              createReadmePrompt(projectName, `${content}-${kind}`, true, tempDir, void 0, kind))
             const ctx = createMockPluginContext(readmes, tempDir)
 
             const registeredPaths = await plugin.registerProjectOutputFiles(ctx)

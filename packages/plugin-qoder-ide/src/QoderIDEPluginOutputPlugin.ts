@@ -262,10 +262,10 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       for (const rule of globalRules) fileResults.push(await this.writeRuleFile(ctx, rulesDir, rule))
     }
 
-    if (skills != null && skills.length > 0) {
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
-      for (const skill of filteredSkills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
-    }
+    if (skills == null && skills.length > 0) return {files: fileResults, dirs: []}
+
+    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    for (const skill of filteredSkills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
     return {files: fileResults, dirs: []}
   }
 

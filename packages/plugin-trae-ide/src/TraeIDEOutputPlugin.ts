@@ -75,11 +75,10 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
 
     if (globalMemory != null) results.push(this.createRelativePath(GLOBAL_MEMORY_FILE, steeringDir, () => STEERING_SUBDIR))
 
-    if (fastCommands != null) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
-      for (const cmd of filteredCommands) results.push(this.createRelativePath(this.buildFastCommandSteeringFileName(cmd), steeringDir, () => STEERING_SUBDIR))
-    }
+    if (fastCommands == null) return results
 
+    const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    for (const cmd of filteredCommands) results.push(this.createRelativePath(this.buildFastCommandSteeringFileName(cmd), steeringDir, () => STEERING_SUBDIR))
     return results
   }
 
@@ -117,11 +116,10 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       fileResults.push(await this.writeFile(ctx, this.joinPath(steeringDir, GLOBAL_MEMORY_FILE), globalMemory.content as string, 'globalMemory'))
     }
 
-    if (fastCommands != null) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
-      for (const cmd of filteredCommands) fileResults.push(await this.writeFastCommandSteeringFile(ctx, cmd))
-    }
+    if (fastCommands == null) return {files: fileResults, dirs: []}
 
+    const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    for (const cmd of filteredCommands) fileResults.push(await this.writeFastCommandSteeringFile(ctx, cmd))
     return {files: fileResults, dirs: []}
   }
 
