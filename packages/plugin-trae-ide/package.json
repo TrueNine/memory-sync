@@ -1,7 +1,7 @@
 {
   "name": "@truenine/plugin-trae-ide",
   "type": "module",
-  "version": "2026.10223.10555",
+  "version": "2026.10223.10941",
   "private": true,
   "description": "Trae IDE output plugin",
   "exports": {

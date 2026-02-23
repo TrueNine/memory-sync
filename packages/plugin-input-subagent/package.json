@@ -1,7 +1,7 @@
 {
   "name": "@truenine/plugin-input-subagent",
   "type": "module",
-  "version": "2026.10223.10555",
+  "version": "2026.10223.10941",
   "private": true,
   "description": "plugin-input-subagent for memory-sync",
   "exports": {
