@@ -1,0 +1,10 @@
+{
+  "name": "@truenine/memory-sync-cli-linux-arm64-gnu",
+  "version": "2026.10223.10555",
+  "os": ["linux"],
+  "arch": ["arm64"],
+  "license": "AGPL-3.0-only",
+  "main": "noop.cjs",
+  "types": "noop.d.ts",
+  "files": ["*.node", "noop.cjs", "noop.d.ts"]
+}
