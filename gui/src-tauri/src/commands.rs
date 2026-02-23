@@ -1,35 +1,18 @@
 /// Tauri commands that bridge the frontend to the `tnmsc` CLI.
 ///
-/// Instead of using Tauri's sidecar mechanism, we invoke `tnmsc` directly
-/// from the system PATH via `std::process::Command`. This avoids the need
-/// to bundle a native binary and works consistently in dev and production.
-///
-/// The CLI outputs Winston JSON5 log lines to stdout. Each line has the shape:
-/// ```json5
-/// {$:["HH:MM:SS.mmm","LEVEL","loggerName"],_:{...payload...}}
-/// ```
-/// We parse these lines with the `json5` crate and extract structured data.
+/// Commands use the `tnmsc` crate's library API for direct in-process invocation.
+/// Bridge commands (execute, dry-run, clean, plugins) still spawn a Node.js subprocess
+/// internally via `tnmsc::run_bridge_command`, but the GUI no longer searches for or
+/// invokes the CLI binary as a sidecar.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command as StdCommand;
-use std::{env, fs};
 
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
 // Data structures
 // ---------------------------------------------------------------------------
-
-/// Result of a CLI availability check.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CliStatus {
-    pub available: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-}
 
 /// Aggregated result of a pipeline execution or clean operation.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -76,389 +59,87 @@ pub struct LogEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/// Strip ANSI escape sequences from a string.
-fn strip_ansi(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\x1b' {
-            for inner in chars.by_ref() {
-                if inner.is_ascii_alphabetic() {
-                    break;
-                }
-            }
-        } else {
-            out.push(c);
-        }
-    }
-    out
-}
-
-/// Parse a single Winston JSON5 log line into a [`LogEntry`].
-fn parse_log_line(line: &str) -> Option<LogEntry> {
-    let val: serde_json::Value = json5::from_str(line).ok()?;
-    let obj = val.as_object()?;
-    let meta = obj.get("$")?.as_array()?;
-    let timestamp = meta.first()?.as_str()?.to_string();
-    let level = meta.get(1)?.as_str()?.to_string();
-    let logger = meta.get(2)?.as_str()?.to_string();
-    let payload = obj.get("_").cloned().unwrap_or(serde_json::Value::Null);
-    Some(LogEntry { timestamp, level, logger, payload })
-}
-
-/// Parse all log lines from raw CLI stdout.
-fn parse_all_logs(raw: &str) -> Vec<LogEntry> {
-    let cleaned = strip_ansi(raw);
-    cleaned.lines().filter_map(|line| parse_log_line(line.trim())).collect()
-}
-
-fn cli_binary_name() -> String {
-    if cfg!(target_os = "windows") {
-        "tnmsc.exe".to_string()
-    } else {
-        "tnmsc".to_string()
-    }
-}
-
-fn is_executable(path: &Path) -> bool {
-    if !path.is_file() {
-        return false;
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if let Ok(metadata) = path.metadata() {
-            let mode = metadata.permissions().mode();
-            return mode & 0o111 != 0;
-        }
-        false
-    }
-    #[cfg(not(unix))]
-    {
-        true
-    }
-}
-
-fn resolve_cli_path() -> Option<PathBuf> {
-    let bin_name = cli_binary_name();
-    if let Some(paths) = env::var_os("PATH") {
-        for dir in env::split_paths(&paths) {
-            let candidate = dir.join(&bin_name);
-            if is_executable(&candidate) {
-                return Some(candidate);
-            }
-        }
-    }
-
-    let mut fallback_dirs: Vec<PathBuf> = Vec::new();
-    if let Some(home) = dirs::home_dir() {
-        fallback_dirs.push(home.join(".local/share/pnpm"));
-        fallback_dirs.push(home.join(".npm-global/bin"));
-        fallback_dirs.push(home.join(".npm/bin"));
-        fallback_dirs.push(home.join(".local/bin"));
-
-        let nvm_dir = home.join(".nvm/versions/node");
-        if let Ok(entries) = fs::read_dir(&nvm_dir) {
-            for entry in entries.flatten() {
-                fallback_dirs.push(entry.path().join("bin"));
-            }
-        }
-    }
-
-    for dir in fallback_dirs {
-        let candidate = dir.join(&bin_name);
-        if is_executable(&candidate) {
-            return Some(candidate);
-        }
-    }
-    None
-}
-
-/// Extract plugin results from log entries.
-fn extract_plugin_results(logs: &[LogEntry]) -> Vec<PluginExecutionResult> {
-    logs.iter()
-        .filter_map(|entry| {
-            let obj = entry.payload.as_object()?;
-            let pr = obj.get("plugin result")?.as_object()?;
-            Some(PluginExecutionResult {
-                plugin: pr.get("plugin")?.as_str()?.to_string(),
-                files: pr.get("files").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-                dirs: pr.get("dirs").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-                dry_run: pr.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false),
-            })
-        })
-        .collect()
-}
-
-/// Extract the final "complete" summary from log entries.
-fn extract_complete(logs: &[LogEntry]) -> Option<serde_json::Value> {
-    logs.iter().rev().find_map(|entry| {
-        let obj = entry.payload.as_object()?;
-        obj.get("complete").cloned()
-    })
-}
-
-/// Run `tnmsc` from system PATH with the given arguments and return stdout.
-fn run_cli(args: &[&str], cwd: &str) -> Result<String, String> {
-    let cli_path = resolve_cli_path().ok_or("tnmsc not found in PATH or common locations")?;
-    let output = StdCommand::new(cli_path)
-        .args(args)
-        .current_dir(cwd)
-        .output()
-        .map_err(|e| format!("Failed to execute tnmsc: {e}"))?;
-
-    if output.status.code() != Some(0) {
-        let stderr = String::from_utf8(output.stderr)
-            .unwrap_or_else(|_| "<non-UTF-8 stderr>".into());
-        let code = output.status.code()
-            .map(|c| c.to_string())
-            .unwrap_or_else(|| "unknown".into());
-        return Err(format!("tnmsc exited with code {code}: {stderr}"));
-    }
-
-    String::from_utf8(output.stdout)
-        .map_err(|e| format!("tnmsc stdout is not valid UTF-8: {e}"))
-}
-
-// ---------------------------------------------------------------------------
 // Tauri commands
 // ---------------------------------------------------------------------------
-
-/// Check whether `tnmsc` is available on the system PATH.
-#[tauri::command]
-pub fn check_cli() -> CliStatus {
-    let cli_path = match resolve_cli_path() {
-        Some(path) => path,
-        None => {
-            return CliStatus {
-                available: false,
-                version: None,
-                error: Some("tnmsc not found in PATH or common locations".into()),
-            };
-        }
-    };
-
-    match StdCommand::new(cli_path).arg("version").output() {
-        Ok(output) => {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let all = format!("{stdout}{stderr}");
-            let cleaned = strip_ansi(&all);
-            // Extract version string like "tnmsc v2026.10210.10233"
-            let version = cleaned.lines()
-                .find_map(|line| {
-                    let trimmed = line.trim();
-                    if trimmed.starts_with("tnmsc v") || trimmed.contains("tnmsc v") {
-                        Some(trimmed.trim_start_matches("tnmsc ").to_string())
-                    } else {
-                        // Try parsing as JSON5 log line
-                        parse_log_line(trimmed).and_then(|entry| {
-                            entry.payload.as_str()
-                                .filter(|s| s.starts_with("tnmsc v"))
-                                .map(|s| s.trim_start_matches("tnmsc ").to_string())
-                        })
-                    }
-                });
-            CliStatus { available: true, version, error: None }
-        }
-        Err(e) => CliStatus {
-            available: false,
-            version: None,
-            error: Some(e.to_string()),
-        },
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::Mutex;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    /// Serialize tests that mutate PATH/HOME so they don't run in parallel and overwrite each other.
-    static ENV_TEST_LOCK: Mutex<()> = Mutex::new(());
-
-    fn temp_dir(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos();
-        let dir = env::temp_dir().join(format!("tnmsc-test-{name}-{nanos}"));
-        fs::create_dir_all(&dir).expect("create temp dir");
-        dir
-    }
-
-    fn write_executable(path: &Path) {
-        fs::write(path, "#!/bin/sh\necho tnmsc vTEST\n").expect("write fake cli");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(path).expect("metadata").permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions(path, perms).expect("set perms");
-        }
-    }
-
-    #[test]
-    #[cfg(unix)]
-    fn resolve_cli_path_from_path_env() {
-        let _guard = ENV_TEST_LOCK.lock().expect("env test lock");
-        let bin_name = cli_binary_name();
-        let dir = temp_dir("path");
-        let bin = dir.join(&bin_name);
-        write_executable(&bin);
-
-        let old_path = env::var_os("PATH");
-        let old_home = env::var_os("HOME");
-        unsafe {
-            env::set_var("PATH", &dir);
-            // Isolate from fallback test: use same dir as HOME so fallback dirs
-            // (e.g. $HOME/.local/share/pnpm) do not exist and PATH is the only match.
-            env::set_var("HOME", &dir);
-        }
-
-        let resolved = resolve_cli_path();
-
-        unsafe {
-            if let Some(old) = old_path {
-                env::set_var("PATH", old);
-            } else {
-                env::remove_var("PATH");
-            }
-            if let Some(old) = old_home {
-                env::set_var("HOME", old);
-            } else {
-                env::remove_var("HOME");
-            }
-        }
-
-        assert_eq!(resolved, Some(bin));
-    }
-
-    #[test]
-    #[cfg(unix)]
-    fn resolve_cli_path_from_fallback_dirs() {
-        let _guard = ENV_TEST_LOCK.lock().expect("env test lock");
-        let bin_name = cli_binary_name();
-        let home = temp_dir("home");
-        let bin_dir = home.join(".local/share/pnpm");
-        fs::create_dir_all(&bin_dir).expect("create fallback dir");
-        let bin = bin_dir.join(&bin_name);
-        write_executable(&bin);
-
-        let old_path = env::var_os("PATH");
-        let old_home = env::var_os("HOME");
-        unsafe {
-            env::set_var("PATH", "");
-            env::set_var("HOME", &home);
-        }
-
-        let resolved = resolve_cli_path();
-
-        unsafe {
-            if let Some(old) = old_path {
-                env::set_var("PATH", old);
-            } else {
-                env::remove_var("PATH");
-            }
-            if let Some(old) = old_home {
-                env::set_var("HOME", old);
-            } else {
-                env::remove_var("HOME");
-            }
-        }
-
-        assert_eq!(resolved, Some(bin));
-    }
-}
 
 /// Execute the sync pipeline (default command) or dry-run.
 #[tauri::command]
 pub fn execute_pipeline(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
-    let args: Vec<&str> = if dry_run { vec!["dry-run"] } else { vec![] };
-    let stdout = run_cli(&args, &cwd)?;
-    let logs = parse_all_logs(&stdout);
-    let plugin_results = extract_plugin_results(&logs);
-    let complete = extract_complete(&logs);
-    let (total_files, total_dirs, cmd) = match &complete {
-        Some(c) => (
-            c.get("totalFiles").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-            c.get("totalDirs").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-            c.get("command").and_then(|v| v.as_str()).map(String::from),
-        ),
-        None => (0, 0, None),
-    };
-    let errors: Vec<String> = logs.iter()
-        .filter(|e| e.level == "ERROR")
-        .map(|e| format!("[{}] {}", e.logger, e.payload))
-        .collect();
-    Ok(PipelineResult {
-        success: errors.is_empty(), total_files, total_dirs,
-        dry_run, command: cmd, plugin_results, logs, errors,
-    })
+    let subcommand = if dry_run { "dry-run" } else { "execute" };
+    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), true, &[])
+        .map_err(|e| e.to_string())?;
+    serde_json::from_str::<PipelineResult>(&result.stdout)
+        .map_err(|e| format!("Failed to parse pipeline JSON output: {e}"))
 }
 
-/// Load the merged configuration by reading log output.
+/// Load the merged configuration via the tnmsc library API.
 #[tauri::command]
 pub fn load_config(cwd: String) -> Result<serde_json::Value, String> {
-    let stdout = run_cli(&["dry-run"], &cwd)?;
-    let logs = parse_all_logs(&stdout);
-    let config_entries: Vec<serde_json::Value> = logs.iter()
-        .filter(|e| e.logger == "defineConfig")
-        .map(|e| serde_json::json!({
-            "timestamp": e.timestamp, "level": e.level, "data": e.payload,
-        }))
-        .collect();
-    Ok(serde_json::json!({ "configEntries": config_entries, "cwd": cwd }))
+    let result = tnmsc::load_config(Path::new(&cwd))
+        .map_err(|e| e.to_string())?;
+    serde_json::to_value(&result.config)
+        .map_err(|e| e.to_string())
 }
 
-/// List all registered plugins by parsing dry-run output.
+/// List all registered plugins via the tnmsc bridge command.
 #[tauri::command]
 pub fn list_plugins(cwd: String) -> Result<Vec<PluginExecutionResult>, String> {
-    let stdout = run_cli(&["dry-run"], &cwd)?;
-    let logs = parse_all_logs(&stdout);
-    Ok(extract_plugin_results(&logs))
+    let result = tnmsc::run_bridge_command("plugins", Path::new(&cwd), true, &[])
+        .map_err(|e| e.to_string())?;
+    serde_json::from_str::<Vec<PluginExecutionResult>>(&result.stdout)
+        .map_err(|e| format!("Failed to parse plugins JSON output: {e}"))
 }
 
 /// Clean previously generated output files.
 #[tauri::command]
 pub fn clean_outputs(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
-    let args: Vec<&str> = if dry_run {
-        vec!["clean", "--dry-run"]
-    } else {
-        vec!["clean"]
-    };
-    let stdout = run_cli(&args, &cwd)?;
-    let logs = parse_all_logs(&stdout);
-    let plugin_results = extract_plugin_results(&logs);
-    let complete = extract_complete(&logs);
-    let (total_files, total_dirs, cmd) = match &complete {
-        Some(c) => (
-            c.get("totalFiles").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-            c.get("totalDirs").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-            c.get("command").and_then(|v| v.as_str()).map(String::from),
-        ),
-        None => (0, 0, None),
-    };
-    let errors: Vec<String> = logs.iter()
-        .filter(|e| e.level == "ERROR")
-        .map(|e| format!("[{}] {}", e.logger, e.payload))
-        .collect();
-    Ok(PipelineResult {
-        success: errors.is_empty(), total_files, total_dirs,
-        dry_run, command: cmd, plugin_results, logs, errors,
-    })
+    let subcommand = if dry_run { "dry-run-clean" } else { "clean" };
+    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), true, &[])
+        .map_err(|e| e.to_string())?;
+    serde_json::from_str::<PipelineResult>(&result.stdout)
+        .map_err(|e| format!("Failed to parse clean JSON output: {e}"))
 }
 
-/// Get raw log output from any CLI command.
+/// Get log output from a CLI bridge command.
+///
+/// Runs the given command via `tnmsc::run_bridge_command` in non-JSON mode and
+/// parses the stderr output as log entries. Falls back to parsing stdout if
+/// stderr yields no entries.
 #[tauri::command]
 pub fn get_logs(cwd: String, command: String) -> Result<Vec<LogEntry>, String> {
     let args: Vec<&str> = command.split_whitespace().collect();
-    let stdout = run_cli(&args, &cwd)?;
-    Ok(parse_all_logs(&stdout))
+    let subcommand = args.first().copied().unwrap_or("execute");
+    let extra_args: Vec<&str> = args.iter().skip(1).copied().collect();
+    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), false, &extra_args)
+        .map_err(|e| e.to_string())?;
+    // Try parsing stderr first (log output goes to stderr in non-JSON mode),
+    // fall back to stdout if stderr has no parseable entries.
+    let logs = parse_log_lines(&result.stderr);
+    if logs.is_empty() {
+        Ok(parse_log_lines(&result.stdout))
+    } else {
+        Ok(logs)
+    }
+}
+
+/// Parse log lines from raw CLI output using JSON.
+///
+/// Each line is expected to be a JSON object with `$` (metadata array) and `_` (payload).
+/// Format: `{"$":["timestamp","LEVEL","logger"],"_":{...payload...}}`
+fn parse_log_lines(raw: &str) -> Vec<LogEntry> {
+    raw.lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            let val: serde_json::Value = serde_json::from_str(trimmed).ok()?;
+            let obj = val.as_object()?;
+            let meta = obj.get("$")?.as_array()?;
+            let timestamp = meta.first()?.as_str()?.to_string();
+            let level = meta.get(1)?.as_str()?.to_string();
+            let logger = meta.get(2)?.as_str()?.to_string();
+            let payload = obj.get("_").cloned().unwrap_or(serde_json::Value::Null);
+            Some(LogEntry { timestamp, level, logger, payload })
+        })
+        .collect()
 }
 
 /// Resolve the config file path for a given scope.
@@ -539,19 +220,9 @@ pub struct AindexFileEntry {
     pub file_type: String,
 }
 
-/// Resolve variable placeholders in config paths.
-fn resolve_config_vars(value: &str, workspace: &str) -> String {
-    let home = dirs::home_dir()
-        .map(|h| h.to_string_lossy().to_string())
-        .unwrap_or_default();
-    value
-        .replace("$WORKSPACE", workspace)
-        .replace("~", &home)
-}
 
 /// Parsed global config with resolved paths.
 struct ResolvedConfig {
-    workspace: String,
     shadow_source_project: String,
     cfg: serde_json::Value,
 }
@@ -585,18 +256,9 @@ fn load_resolved_config() -> Result<ResolvedConfig, String> {
         .unwrap_or("tnmsc-shadow");
     let shadow_source_project = format!("{workspace}/{shadow_name}");
 
-    Ok(ResolvedConfig { workspace, shadow_source_project, cfg })
+    Ok(ResolvedConfig { shadow_source_project, cfg })
 }
 
-/// Resolve a config value, replacing $WORKSPACE and ~.
-fn resolve_full(value: &str, workspace: &str, _shadow_source_project: &str) -> String {
-    let home = dirs::home_dir()
-        .map(|h| h.to_string_lossy().to_string())
-        .unwrap_or_default();
-    value
-        .replace("$WORKSPACE", workspace)
-        .replace("~", &home)
-}
 
 /// Read the global config and resolve the shadowSourceProjectDir path.
 fn resolve_aindex_root() -> Result<std::path::PathBuf, String> {

@@ -1,11 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
 
-export interface CliStatus {
-  readonly available: boolean
-  readonly version?: string
-  readonly error?: string
-}
-
 export interface LogEntry {
   readonly timestamp: string
   readonly level: string
@@ -29,10 +23,6 @@ export interface PipelineResult {
   readonly pluginResults: readonly PluginExecutionResult[]
   readonly logs: readonly LogEntry[]
   readonly errors: readonly string[]
-}
-
-export function checkCli(): Promise<CliStatus> {
-  return invoke<CliStatus>('check_cli')
 }
 
 export function executePipeline(cwd: string, dryRun = false): Promise<PipelineResult> {
