@@ -1,0 +1,54 @@
+name: Setup Tauri Build
+description: Common Tauri GUI build setup - cargo cache with deps-only hash, version sync, route generation
+
+inputs:
+  rust-targets:
+    description: Rust targets to install (comma-separated)
+    required: false
+    default: ''
+  version:
+    description: Version string to sync into Cargo.toml and tauri.conf.json
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ inputs.rust-targets }}
+
+    - name: Get Cargo deps hash (exclude root package version for stable cache key)
+      id: cargo-deps-hash
+      shell: bash
+      run: |
+        HASH=$(awk '/^name = "memory-sync-gui"$/{print; getline; sub(/version = ".*"/, "version = \"0.0.0\""); print; next} 1' gui/src-tauri/Cargo.lock | openssl dgst -sha256 2>&1 | awk '{print $NF}')
+        echo "hash=$HASH" >> $GITHUB_OUTPUT
+
+    - name: Cache cargo + tauri target
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          gui/src-tauri/target
+        key: ${{ runner.os }}-cargo-${{ steps.cargo-deps-hash.outputs.hash }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Sync Tauri version from CLI
+      shell: bash
+      run: |
+        version="${{ inputs.version }}"
+        sed -i.bak "s/^version = \".*\"/version = \"${version}\"/" gui/src-tauri/Cargo.toml
+        rm -f gui/src-tauri/Cargo.toml.bak
+        jq --arg v "$version" '.version = $v' gui/src-tauri/tauri.conf.json > gui/src-tauri/tauri.conf.tmp && mv gui/src-tauri/tauri.conf.tmp gui/src-tauri/tauri.conf.json
+        echo "Synced version to ${version}"
+
+    - name: Generate route tree
+      shell: bash
+      run: pnpm -F @truenine/memory-sync-gui run generate:routes
+
+    - name: Clean old bundle artifacts
+      shell: bash
+      run: rm -rf gui/src-tauri/target/**/bundle

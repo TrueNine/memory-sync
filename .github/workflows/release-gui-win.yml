@@ -1,0 +1,49 @@
+name: Release GUI Windows
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (without v prefix, e.g. 2026.10213.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-gui-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm
+      - uses: ./.github/actions/setup-tauri
+        with:
+          version: ${{ inputs.version }}
+
+      - name: Build GUI
+        working-directory: ./gui
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm tauri build
+
+      - name: List bundle output (debug)
+        shell: bash
+        run: |
+          echo "=== Finding all bundle artifacts ==="
+          find gui/src-tauri/target -path '*/bundle/*' -type f -name '*.exe' 2>/dev/null || echo 'No bundle files found'
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-windows-latest
+          path: |
+            gui/src-tauri/target/*/release/bundle/**/*.exe
+            gui/src-tauri/target/release/bundle/**/*.exe
+          if-no-files-found: error
