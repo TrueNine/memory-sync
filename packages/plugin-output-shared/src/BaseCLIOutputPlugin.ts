@@ -139,7 +139,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (this.supportsSkills && skills == null) return results
 
-    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    const filteredSkills = filterSkillsByProjectConfig(skills ?? [], projectConfig)
     for (const skill of filteredSkills) {
       const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
       const skillDir = path.join(this.skillsSubDir, skillName)
@@ -268,7 +268,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (this.supportsSkills && skills == null) return {files: fileResults, dirs: dirResults}
 
-    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    const filteredSkills = filterSkillsByProjectConfig(skills ?? [], projectConfig)
     for (const skill of filteredSkills) {
       const skillResults = await this.writeSkill(ctx, globalDir, skill)
       fileResults.push(...skillResults)

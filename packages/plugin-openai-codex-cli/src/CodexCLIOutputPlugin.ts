@@ -43,7 +43,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     ]
 
     const {skills} = ctx.collectedInputContext
-    if (skills == null && skills.length > 0) return results
+    if (skills == null || skills.length === 0) return results
 
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
@@ -96,7 +96,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (skills == null && skills.length > 0) return {files: fileResults, dirs: []}
+    if (skills == null || skills.length === 0) return {files: fileResults, dirs: []}
 
     const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
     for (const skill of filteredSkills) {
