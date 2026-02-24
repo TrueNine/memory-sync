@@ -43,8 +43,8 @@ jobs:
         with:
           name: gui-${{ matrix.os }}
           path: |
-            gui/src-tauri/target/*/release/bundle/**/*.exe
-            gui/src-tauri/target/release/bundle/**/*.exe
+            target/*/release/bundle/**/*.exe
+            target/release/bundle/**/*.exe
           if-no-files-found: error
 
       - name: Upload Linux artifacts
@@ -53,12 +53,12 @@ jobs:
         with:
           name: gui-${{ matrix.os }}
           path: |
-            gui/src-tauri/target/*/release/bundle/**/*.AppImage
-            gui/src-tauri/target/*/release/bundle/**/*.deb
-            gui/src-tauri/target/*/release/bundle/**/*.rpm
-            gui/src-tauri/target/release/bundle/**/*.AppImage
-            gui/src-tauri/target/release/bundle/**/*.deb
-            gui/src-tauri/target/release/bundle/**/*.rpm
+            target/*/release/bundle/**/*.AppImage
+            target/*/release/bundle/**/*.deb
+            target/*/release/bundle/**/*.rpm
+            target/release/bundle/**/*.AppImage
+            target/release/bundle/**/*.deb
+            target/release/bundle/**/*.rpm
           if-no-files-found: error
 
       - name: Upload macOS artifacts
@@ -67,6 +67,6 @@ jobs:
         with:
           name: gui-${{ matrix.os }}
           path: |
-            gui/src-tauri/target/*/release/bundle/**/*.dmg
-            gui/src-tauri/target/release/bundle/**/*.dmg
+            target/*/release/bundle/**/*.dmg
+            target/release/bundle/**/*.dmg
           if-no-files-found: error
