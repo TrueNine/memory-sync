@@ -269,34 +269,18 @@ jobs:
           path: ${{ matrix.archive }}
           if-no-files-found: error
 
-  # 6. 构建 GUI — 三平台并行
-  release-gui-win:
+  # 6. 构建 GUI — 三平台并行（fail-fast: 任一失败则全部取消）
+  build-gui-all:
     needs: [check-gui-version]
     if: needs.check-gui-version.outputs.should_release == 'true'
-    uses: ./.github/workflows/release-gui-win.yml
-    with:
-      version: ${{ needs.check-gui-version.outputs.version }}
-    secrets: inherit
-
-  release-gui-linux:
-    needs: [check-gui-version]
-    if: needs.check-gui-version.outputs.should_release == 'true'
-    uses: ./.github/workflows/release-gui-linux.yml
-    with:
-      version: ${{ needs.check-gui-version.outputs.version }}
-    secrets: inherit
-
-  release-gui-macos:
-    needs: [check-gui-version]
-    if: needs.check-gui-version.outputs.should_release == 'true'
-    uses: ./.github/workflows/release-gui-macos.yml
+    uses: ./.github/workflows/build-gui-all.yml
     with:
       version: ${{ needs.check-gui-version.outputs.version }}
     secrets: inherit
 
   # 7. 收集三平台产物，创建 GitHub Release + tag
   release-gui-collect:
-    needs: [check-gui-version, release-gui-win, release-gui-linux, release-gui-macos]
+    needs: [check-gui-version, build-gui-all]
     if: needs.check-gui-version.outputs.should_release == 'true'
     uses: ./.github/workflows/release-gui-collect.yml
     with:
