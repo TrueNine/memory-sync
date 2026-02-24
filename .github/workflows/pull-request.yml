@@ -1,4 +1,4 @@
-name: Test
+name: Pull Request
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-24.04
     if: github.event.pull_request.merged == false
     steps:
@@ -21,7 +21,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/cache/apt/archives
-          key: apt-gtk-${{ runner.os }}-${{ hashFiles('.github/workflows/test.yml') }}
+          key: apt-gtk-${{ runner.os }}-${{ hashFiles('.github/workflows/pull-request.yml') }}
           restore-keys: apt-gtk-${{ runner.os }}-
 
       - name: Install GTK development dependencies
@@ -53,6 +53,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Build
+        run: pnpm exec turbo run build
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
@@ -63,9 +66,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-pr-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-test-
+            ${{ runner.os }}-cargo-pr-
 
       - name: Generate Tauri icons
         run: pnpm -F @truenine/memory-sync-gui run generate:icons

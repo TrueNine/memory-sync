@@ -1,0 +1,12 @@
+name: Deploy Docs
+
+# TODO: Vercel deployment for doc/ Next.js site
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "TODO"

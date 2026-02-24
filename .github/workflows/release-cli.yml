@@ -39,18 +39,157 @@ jobs:
             echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
 
-  # 2. 先发布架构包（用户安装主包时 optionalDependencies 已就绪）
-  release-cli-napi:
+  # 2. 构建 NAPI 二进制（5 平台矩阵）
+  build-napi:
     needs: check-version
     if: needs.check-version.outputs.publish == 'true'
-    uses: ./.github/workflows/release-cli-napi.yml
-    with:
-      version: ${{ needs.check-version.outputs.version }}
-    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - os: ubuntu-24.04
+            rust: x86_64-unknown-linux-gnu
+            suffix: linux-x64-gnu
+          - os: ubuntu-24.04
+            rust: aarch64-unknown-linux-gnu
+            suffix: linux-arm64-gnu
+            cross: true
+          - os: macos-14
+            rust: aarch64-apple-darwin
+            suffix: darwin-arm64
+          - os: macos-14
+            rust: x86_64-apple-darwin
+            suffix: darwin-x64
+          - os: windows-latest
+            rust: x86_64-pc-windows-msvc
+            suffix: win32-x64-msvc
 
-  # 3. 架构包就绪后，发布主包到 npm
+    runs-on: ${{ matrix.target.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target.rust }}
+
+      - name: Install cross-compilation tools (aarch64-linux)
+        if: matrix.target.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - name: Cache cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target.rust }}-cargo-napi-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target.rust }}-cargo-napi-
+
+      - name: Build all napi libraries
+        shell: bash
+        run: |
+          for lib in logger md-compiler config init-bundle; do
+            echo "Building napi for $lib..."
+            (cd "libraries/$lib" && pnpm exec napi build --platform --release --target ${{ matrix.target.rust }} --output-dir dist -- --features napi)
+          done
+
+      - name: Collect .node files into CLI platform package
+        shell: bash
+        run: |
+          target_dir="cli/npm/${{ matrix.target.suffix }}"
+          mkdir -p "$target_dir"
+          for lib in logger md-compiler config init-bundle; do
+            cp libraries/$lib/dist/*.node "$target_dir/"
+          done
+          echo "Contents of $target_dir:"
+          ls -la "$target_dir/"
+
+      - name: Upload CLI platform package
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-napi-${{ matrix.target.suffix }}
+          path: cli/npm/${{ matrix.target.suffix }}/
+          if-no-files-found: error
+
+  # 3. 收集并发布 NAPI 平台子包到 npm
+  publish-napi:
+    needs: [check-version, build-napi]
+    if: needs.check-version.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          registry-url: https://registry.npmjs.org/
+
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: cli-napi-*
+
+      - name: Distribute artifacts to cli/npm/ directories
+        shell: bash
+        run: |
+          for artifact_dir in artifacts/cli-napi-*/; do
+            suffix=$(basename "$artifact_dir" | sed 's/cli-napi-//')
+            target_dir="cli/npm/${suffix}"
+            mkdir -p "$target_dir"
+            echo "Copying from ${artifact_dir} to ${target_dir}"
+            cp "${artifact_dir}"*.node "$target_dir/" || { echo "ERROR: no .node files found in ${artifact_dir}"; exit 1; }
+          done
+
+      - name: Publish CLI platform sub-packages
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for dir in cli/npm/*/; do
+            if [ -f "${dir}package.json" ]; then
+              echo "Publishing ${dir}..."
+              (cd "$dir" && pnpm publish --access public --no-git-checks) || echo "⚠️ Failed to publish ${dir}, may already exist"
+            fi
+          done
+
+  # 4. 架构包就绪后，发布主包到 npm
   publish-cli:
-    needs: [check-version, release-cli-napi]
+    needs: [check-version, publish-napi]
     if: needs.check-version.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     steps:
@@ -91,20 +230,157 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  # 4. 构建 CLI 独立二进制（仅 artifact，不发 Release）
-  release-cli-binary:
-    needs: [check-version, release-cli-napi]
+  # 5. 构建 CLI 独立二进制（仅 artifact，不发 Release）
+  build-binary:
+    needs: [check-version, publish-napi]
     if: needs.check-version.outputs.publish == 'true'
-    uses: ./.github/workflows/release-cli-binary.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            binary: tnmsc
+            archive: tnmsc-linux-x86_64.tar.gz
+          - platform: ubuntu-24.04
+            target: aarch64-unknown-linux-gnu
+            binary: tnmsc
+            archive: tnmsc-linux-aarch64.tar.gz
+            cross: true
+          - platform: macos-14
+            target: aarch64-apple-darwin
+            binary: tnmsc
+            archive: tnmsc-darwin-aarch64.tar.gz
+          - platform: macos-14
+            target: x86_64-apple-darwin
+            binary: tnmsc
+            archive: tnmsc-darwin-x86_64.tar.gz
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: tnmsc.exe
+            archive: tnmsc-windows-x86_64.zip
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Build plugin-runtime.mjs first (needed for embedded-runtime feature)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install & bundle plugin-runtime
+        shell: bash
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm exec turbo run build --filter=@truenine/memory-sync-cli...
+          ls -la cli/dist/plugin-runtime.mjs
+
+      # 2. Build Rust binary with embedded plugin-runtime.mjs
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (aarch64-linux)
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - name: Cache cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-cli-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-cli-
+
+      - name: Build tnmsc binary (release, with embedded runtime)
+        run: cargo build --release --target ${{ matrix.target }} -p tnmsc --features embedded-runtime
+
+      - name: Run tests (native only)
+        if: ${{ !matrix.cross }}
+        run: cargo test --release --target ${{ matrix.target }} -p tnmsc --features embedded-runtime
+
+      # 3. Package binary + plugin-runtime.mjs
+      - name: Package (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p staging
+          cp target/${{ matrix.target }}/release/${{ matrix.binary }} staging/
+          cp cli/dist/plugin-runtime.mjs staging/
+          cd staging
+          tar czf ../${{ matrix.archive }} *
+
+      - name: Package (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path staging
+          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.binary }}" staging/
+          Copy-Item "cli/dist/plugin-runtime.mjs" staging/
+          Compress-Archive -Path staging/* -DestinationPath ${{ matrix.archive }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.target }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  # 6. 构建 GUI — 三平台并行（等 CLI 主包发布完成后再构建）
+  release-gui-win:
+    needs: [check-version, publish-cli]
+    if: needs.check-version.outputs.publish == 'true'
+    uses: ./.github/workflows/release-gui-win.yml
     with:
       version: ${{ needs.check-version.outputs.version }}
     secrets: inherit
 
-  # 5. 构建 GUI 并创建 GitHub Release（等 CLI 主包发布完成后再构建）
-  release-gui:
+  release-gui-linux:
     needs: [check-version, publish-cli]
     if: needs.check-version.outputs.publish == 'true'
-    uses: ./.github/workflows/release-gui.yml
+    uses: ./.github/workflows/release-gui-linux.yml
+    with:
+      version: ${{ needs.check-version.outputs.version }}
+    secrets: inherit
+
+  release-gui-macos:
+    needs: [check-version, publish-cli]
+    if: needs.check-version.outputs.publish == 'true'
+    uses: ./.github/workflows/release-gui-macos.yml
+    with:
+      version: ${{ needs.check-version.outputs.version }}
+    secrets: inherit
+
+  # 7. 收集三平台产物，创建 GitHub Release + tag
+  release-gui-collect:
+    needs: [check-version, release-gui-win, release-gui-linux, release-gui-macos]
+    if: needs.check-version.outputs.publish == 'true'
+    uses: ./.github/workflows/release-gui-collect.yml
     with:
       version: ${{ needs.check-version.outputs.version }}
     secrets: inherit

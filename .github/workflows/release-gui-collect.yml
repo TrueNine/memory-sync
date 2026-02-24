@@ -1,0 +1,48 @@
+name: Release GUI Collect
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (without v prefix, e.g. 2026.10213.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all GUI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: gui-*
+
+      - name: Clean up unnecessary macOS artifacts
+        run: |
+          find artifacts -name '*.icns' -delete
+          find artifacts -name 'Info.plist' -delete
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2.5.0
+        with:
+          tag_name: v${{ inputs.version }}
+          name: v${{ inputs.version }}
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.exe
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
