@@ -21,69 +21,11 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-node-pnpm
+      - uses: ./.github/actions/setup-tauri
         with:
-          node-version: 25
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v4
-        name: Setup pnpm cache
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
-
-      - name: Get Cargo deps hash (exclude root package version for stable cache key)
-        id: cargo-deps-hash
-        shell: bash
-        run: |
-          HASH=$(awk '/^name = "memory-sync-gui"$/{print; getline; sub(/version = ".*"/, "version = \"0.0.0\""); print; next} 1' gui/src-tauri/Cargo.lock | openssl dgst -sha256 2>&1 | awk '{print $NF}')
-          echo "hash=$HASH" >> $GITHUB_OUTPUT
-
-      - name: Cache cargo + tauri target
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            gui/src-tauri/target
-          key: ${{ runner.os }}-cargo-${{ steps.cargo-deps-hash.outputs.hash }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Sync Tauri version from CLI
-        shell: bash
-        run: |
-          version="${{ inputs.version }}"
-          sed -i.bak "s/^version = \".*\"/version = \"${version}\"/" gui/src-tauri/Cargo.toml
-          rm -f gui/src-tauri/Cargo.toml.bak
-          jq --arg v "$version" '.version = $v' gui/src-tauri/tauri.conf.json > gui/src-tauri/tauri.conf.tmp && mv gui/src-tauri/tauri.conf.tmp gui/src-tauri/tauri.conf.json
-          echo "Synced version to ${version}"
-
-      - name: Generate route tree
-        run: pnpm -F @truenine/memory-sync-gui run generate:routes
-
-      - name: Clean old bundle artifacts
-        shell: bash
-        run: rm -rf gui/src-tauri/target/**/bundle
+          rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          version: ${{ inputs.version }}
 
       - name: Build GUI
         working-directory: ./gui

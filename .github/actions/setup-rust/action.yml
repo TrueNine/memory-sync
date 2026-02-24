@@ -1,0 +1,36 @@
+name: Setup Rust
+description: Install Rust stable toolchain with cargo cache
+
+inputs:
+  targets:
+    description: Additional Rust targets to install (comma-separated)
+    required: false
+    default: ''
+  cache-key:
+    description: Extra cache key suffix for cargo
+    required: false
+    default: 'default'
+  cache-paths:
+    description: Additional paths to cache (newline-separated), appended to ~/.cargo/registry and ~/.cargo/git
+    required: false
+    default: 'target'
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ inputs.targets }}
+
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ${{ inputs.cache-paths }}
+        key: ${{ runner.os }}-cargo-${{ inputs.cache-key }}-${{ hashFiles('Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ inputs.cache-key }}-
+          ${{ runner.os }}-cargo-
