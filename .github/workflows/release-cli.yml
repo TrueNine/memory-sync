@@ -38,6 +38,33 @@ jobs:
             echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # 1.5. GUI 版本检查（独立于 npm，检查 GitHub Release）
+  check-gui-version:
+    runs-on: ubuntu-24.04
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if GUI should be released
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(jq -r '.version' gui/package.json)
+          echo "GUI version: $version"
+
+          # Check if this version tag exists on GitHub
+          if gh release view "v${version}" >/dev/null 2>&1; then
+            echo "Release v${version} already exists on GitHub, skipping GUI"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Release v${version} does not exist, will build GUI"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          fi
+
   # 2. 构建 NAPI 二进制（5 平台矩阵）
   build-napi:
     needs: check-version
@@ -244,34 +271,34 @@ jobs:
 
   # 6. 构建 GUI — 三平台并行
   release-gui-win:
-    needs: [check-version, publish-cli]
-    if: needs.check-version.outputs.publish == 'true'
+    needs: [check-gui-version]
+    if: needs.check-gui-version.outputs.should_release == 'true'
     uses: ./.github/workflows/release-gui-win.yml
     with:
-      version: ${{ needs.check-version.outputs.version }}
+      version: ${{ needs.check-gui-version.outputs.version }}
     secrets: inherit
 
   release-gui-linux:
-    needs: [check-version, publish-cli]
-    if: needs.check-version.outputs.publish == 'true'
+    needs: [check-gui-version]
+    if: needs.check-gui-version.outputs.should_release == 'true'
     uses: ./.github/workflows/release-gui-linux.yml
     with:
-      version: ${{ needs.check-version.outputs.version }}
+      version: ${{ needs.check-gui-version.outputs.version }}
     secrets: inherit
 
   release-gui-macos:
-    needs: [check-version, publish-cli]
-    if: needs.check-version.outputs.publish == 'true'
+    needs: [check-gui-version]
+    if: needs.check-gui-version.outputs.should_release == 'true'
     uses: ./.github/workflows/release-gui-macos.yml
     with:
-      version: ${{ needs.check-version.outputs.version }}
+      version: ${{ needs.check-gui-version.outputs.version }}
     secrets: inherit
 
   # 7. 收集三平台产物，创建 GitHub Release + tag
   release-gui-collect:
-    needs: [check-version, release-gui-win, release-gui-linux, release-gui-macos]
-    if: needs.check-version.outputs.publish == 'true'
+    needs: [check-gui-version, release-gui-win, release-gui-linux, release-gui-macos]
+    if: needs.check-gui-version.outputs.should_release == 'true'
     uses: ./.github/workflows/release-gui-collect.yml
     with:
-      version: ${{ needs.check-version.outputs.version }}
+      version: ${{ needs.check-gui-version.outputs.version }}
     secrets: inherit
