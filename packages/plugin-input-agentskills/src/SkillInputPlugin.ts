@@ -439,6 +439,8 @@ export class SkillInputPlugin extends AbstractInputPlugin {
               hasExport: Object.keys(compileResult.metadata.fields).length > 0
             })
 
+            const {seriName} = mergedFrontMatter
+
             skills.push({
               type: PromptKind.Skill,
               content,
@@ -453,6 +455,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
               ...mcpConfig != null && {mcpConfig},
               ...childDocs.length > 0 && {childDocs},
               ...resources.length > 0 && {resources},
+              ...seriName != null && {seriName},
               dir: {
                 pathKind: FilePathKind.Relative,
                 path: entry.name,

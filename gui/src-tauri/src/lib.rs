@@ -1,6 +1,6 @@
 /// Memory Sync Tauri application entry point.
 
-mod commands;
+pub mod commands;
 mod tray;
 
 use tauri::Manager;
@@ -11,7 +11,6 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
-            commands::check_cli,
             commands::execute_pipeline,
             commands::load_config,
             commands::list_plugins,

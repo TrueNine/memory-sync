@@ -4,8 +4,6 @@
 //! Bridge commands (Node.js): execute, dry-run, clean, plugins
 
 mod cli;
-mod commands;
-mod bridge;
 
 use std::process::ExitCode;
 
@@ -32,18 +30,18 @@ fn main() -> ExitCode {
 
     match command {
         // Pure Rust commands
-        ResolvedCommand::Help => commands::help::execute(),
-        ResolvedCommand::Version => commands::version::execute(),
-        ResolvedCommand::Outdated => commands::outdated::execute(),
-        ResolvedCommand::Init => commands::init::execute(),
-        ResolvedCommand::Config(pairs) => commands::config_cmd::execute(&pairs),
-        ResolvedCommand::ConfigShow => commands::config_show::execute(),
+        ResolvedCommand::Help => tnmsc::commands::help::execute(),
+        ResolvedCommand::Version => tnmsc::commands::version::execute(),
+        ResolvedCommand::Outdated => tnmsc::commands::outdated::execute(),
+        ResolvedCommand::Init => tnmsc::commands::init::execute(),
+        ResolvedCommand::Config(pairs) => tnmsc::commands::config_cmd::execute(&pairs),
+        ResolvedCommand::ConfigShow => tnmsc::commands::config_show::execute(),
 
         // Bridge commands (delegate to Node.js plugin runtime)
-        ResolvedCommand::Execute => commands::bridge::execute(json_mode),
-        ResolvedCommand::DryRun => commands::bridge::dry_run(json_mode),
-        ResolvedCommand::Clean => commands::bridge::clean(json_mode),
-        ResolvedCommand::DryRunClean => commands::bridge::dry_run_clean(json_mode),
-        ResolvedCommand::Plugins => commands::bridge::plugins(json_mode),
+        ResolvedCommand::Execute => tnmsc::commands::bridge::execute(json_mode),
+        ResolvedCommand::DryRun => tnmsc::commands::bridge::dry_run(json_mode),
+        ResolvedCommand::Clean => tnmsc::commands::bridge::clean(json_mode),
+        ResolvedCommand::DryRunClean => tnmsc::commands::bridge::dry_run_clean(json_mode),
+        ResolvedCommand::Plugins => tnmsc::commands::bridge::plugins(json_mode),
     }
 }

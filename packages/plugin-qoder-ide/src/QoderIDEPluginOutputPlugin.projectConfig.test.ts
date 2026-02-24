@@ -72,20 +72,20 @@ describe('qoderIDEPluginOutputPlugin - projectConfig filtering', () => {
         createMockRulePrompt('test', 'rule2', 'vue', 'project')
       ]
       await plugin.writeProjectOutputs(createMockWriteContext(tempDir, rules, [
-        createMockProject('proj1', tempDir, 'proj1', {rules: {include: ['uniapp']}})
+        createMockProject('proj1', tempDir, 'proj1', {rules: {includeSeries: ['uniapp']}})
       ]))
 
       expect(fs.existsSync(ruleFile('proj1', 'test', 'rule1'))).toBe(true)
       expect(fs.existsSync(ruleFile('proj1', 'test', 'rule2'))).toBe(false)
     })
 
-    it('should not write rules matching exclude filter', async () => {
+    it('should not write rules not matching includeSeries filter', async () => {
       const rules = [
         createMockRulePrompt('test', 'rule1', 'uniapp', 'project'),
         createMockRulePrompt('test', 'rule2', 'vue', 'project')
       ]
       await plugin.writeProjectOutputs(createMockWriteContext(tempDir, rules, [
-        createMockProject('proj1', tempDir, 'proj1', {rules: {exclude: ['uniapp']}})
+        createMockProject('proj1', tempDir, 'proj1', {rules: {includeSeries: ['vue']}})
       ]))
 
       expect(fs.existsSync(ruleFile('proj1', 'test', 'rule1'))).toBe(false)
@@ -98,7 +98,7 @@ describe('qoderIDEPluginOutputPlugin - projectConfig filtering', () => {
         createMockRulePrompt('test', 'rule2', 'vue', 'project')
       ]
       await plugin.writeProjectOutputs(createMockWriteContext(tempDir, rules, [
-        createMockProject('proj1', tempDir, 'proj1', {rules: {include: ['uniapp']}})
+        createMockProject('proj1', tempDir, 'proj1', {rules: {includeSeries: ['uniapp']}})
       ]))
 
       expect(fs.existsSync(ruleFile('proj1', 'test', 'rule1'))).toBe(true)

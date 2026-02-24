@@ -4,7 +4,7 @@ import * as fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
 import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from './ruleFilter'
 
-function createMockRulePrompt(seriName: string | undefined, globs: readonly string[] = ['**/*.ts']): RulePrompt {
+function createMockRulePrompt(seriName: string | string[] | undefined, globs: readonly string[] = ['**/*.ts']): RulePrompt {
   const content = '# Rule body'
   return {
     type: PromptKind.Rule,
@@ -47,11 +47,10 @@ describe('filterRulesByProjectConfig property tests', () => {
       fc.asyncProperty(
         seriNameArrayGen,
         seriNameArrayGen,
-        seriNameArrayGen,
-        async (ruleNames, includeNames, excludeNames) => {
+        async (ruleNames, includeNames) => {
           const rules = ruleNames.map(name => createMockRulePrompt(name))
           const projectConfig: ProjectConfig = {
-            rules: {include: includeNames, exclude: excludeNames}
+            rules: {includeSeries: includeNames}
           }
           const result1 = filterRulesByProjectConfig(rules, projectConfig)
           const result2 = filterRulesByProjectConfig(rules, projectConfig)
@@ -62,7 +61,7 @@ describe('filterRulesByProjectConfig property tests', () => {
     )
   })
 
-  it('should return subset when include is specified', async () => {
+  it('should return subset when includeSeries is specified', async () => {
     await fc.assert(
       fc.asyncProperty(
         seriNameArrayGen,
@@ -70,7 +69,7 @@ describe('filterRulesByProjectConfig property tests', () => {
         async (ruleNames, includeNames) => {
           const rules = ruleNames.map(name => createMockRulePrompt(name))
           const projectConfig: ProjectConfig = {
-            rules: {include: includeNames}
+            rules: {includeSeries: includeNames}
           }
           const result = filterRulesByProjectConfig(rules, projectConfig)
           expect(result.length).toBeLessThanOrEqual(rules.length)
@@ -80,20 +79,24 @@ describe('filterRulesByProjectConfig property tests', () => {
     )
   })
 
-  it('should never return rules with excluded seriName', async () => {
+  it('should only return rules with matching seriName when includeSeries is non-empty', async () => {
     await fc.assert(
       fc.asyncProperty(
         seriNameArrayGen,
-        seriNameArrayGen,
-        async (ruleNames, excludeNames) => {
+        fc.array(seriNameGen, {minLength: 1, maxLength: 10}),
+        async (ruleNames, includeNames) => {
           const rules = ruleNames.map(name => createMockRulePrompt(name))
           const projectConfig: ProjectConfig = {
-            rules: {exclude: excludeNames}
+            rules: {includeSeries: includeNames}
           }
           const result = filterRulesByProjectConfig(rules, projectConfig)
-          for (const excluded of excludeNames) {
-            const hasExcluded = result.some(r => r.seriName === excluded)
-            expect(hasExcluded).toBe(false)
+          for (const rule of result) {
+            if (rule.seriName != null) {
+              const matched = typeof rule.seriName === 'string'
+                ? includeNames.includes(rule.seriName)
+                : rule.seriName.some(n => includeNames.includes(n))
+              expect(matched).toBe(true)
+            }
           }
         }
       ),
@@ -106,14 +109,13 @@ describe('filterRulesByProjectConfig property tests', () => {
       fc.asyncProperty(
         seriNameArrayGen,
         seriNameArrayGen,
-        seriNameArrayGen,
-        async (definedNames, includeNames, excludeNames) => {
+        async (definedNames, includeNames) => {
           const rules = [
             ...definedNames.map(name => createMockRulePrompt(name)),
             createMockRulePrompt(void 0)
           ]
           const projectConfig: ProjectConfig = {
-            rules: {include: includeNames, exclude: excludeNames}
+            rules: {includeSeries: includeNames}
           }
           const result = filterRulesByProjectConfig(rules, projectConfig)
           const hasUndefinedSeriName = result.some(r => r.seriName === void 0)
@@ -148,7 +150,7 @@ describe('applySubSeriesGlobPrefix property tests', () => {
         globArrayGen,
         async (seriName, globs) => {
           const rules = [createMockRulePrompt(seriName, globs)]
-          const projectConfig: ProjectConfig = {rules: {include: [seriName]}}
+          const projectConfig: ProjectConfig = {rules: {includeSeries: [seriName]}}
           const result = applySubSeriesGlobPrefix(rules, projectConfig)
           expect(result).toEqual(rules)
         }

@@ -13,7 +13,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@truenine/plugin-output-shared/utils'
+import {applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared/utils'
 import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
 
 const CODEIUM_WINDSURF_DIR = '.codeium/windsurf'
@@ -39,14 +39,19 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
     if (fastCommands != null && fastCommands.length > 0) {
-      const workflowsDir = this.getGlobalWorkflowsDir()
-      results.push({pathKind: FilePathKind.Relative, path: WORKFLOWS_SUBDIR, basePath: this.getCodeiumWindsurfDir(), getDirectoryName: () => WORKFLOWS_SUBDIR, getAbsolutePath: () => workflowsDir})
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      if (filteredCommands.length > 0) {
+        const workflowsDir = this.getGlobalWorkflowsDir()
+        results.push({pathKind: FilePathKind.Relative, path: WORKFLOWS_SUBDIR, basePath: this.getCodeiumWindsurfDir(), getDirectoryName: () => WORKFLOWS_SUBDIR, getAbsolutePath: () => workflowsDir})
+      }
     }
 
     if (skills != null && skills.length > 0) {
-      for (const skill of skills) {
+      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
         const skillPath = path.join(this.getCodeiumWindsurfDir(), SKILLS_SUBDIR, skillName)
         results.push({pathKind: FilePathKind.Relative, path: path.join(SKILLS_SUBDIR, skillName), basePath: this.getCodeiumWindsurfDir(), getDirectoryName: () => skillName, getAbsolutePath: () => skillPath})
@@ -65,11 +70,13 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {skills, fastCommands} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
     if (fastCommands != null && fastCommands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
       const workflowsDir = this.getGlobalWorkflowsDir()
       const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-      for (const cmd of fastCommands) {
+      for (const cmd of filteredCommands) {
         const fileName = this.transformFastCommandName(cmd, transformOptions)
         const fullPath = path.join(workflowsDir, fileName)
         results.push({pathKind: FilePathKind.Relative, path: path.join(WORKFLOWS_SUBDIR, fileName), basePath: this.getCodeiumWindsurfDir(), getDirectoryName: () => WORKFLOWS_SUBDIR, getAbsolutePath: () => fullPath})
@@ -87,11 +94,12 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (skills == null || skills.length === 0) return results
+    const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
+    if (filteredSkills.length === 0) return results
 
     const skillsDir = this.getSkillsDir()
     const codeiumDir = this.getCodeiumWindsurfDir()
-    for (const skill of skills) {
+    for (const skill of filteredSkills) {
       const skillName = skill.yamlFrontMatter.name
       const skillDir = path.join(skillsDir, skillName)
       results.push({pathKind: FilePathKind.Relative, path: path.join(SKILLS_SUBDIR, skillName, SKILL_FILE_NAME), basePath: codeiumDir, getDirectoryName: () => skillName, getAbsolutePath: () => path.join(skillDir, SKILL_FILE_NAME)})
@@ -126,19 +134,22 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {skills, fastCommands, globalMemory, rules} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
     if (globalMemory != null) fileResults.push(await this.writeGlobalMemory(ctx, globalMemory.content as string))
 
     if (skills != null && skills.length > 0) {
+      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
       const skillsDir = this.getSkillsDir()
-      for (const skill of skills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
+      for (const skill of filteredSkills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
     }
 
     if (fastCommands != null && fastCommands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
       const workflowsDir = this.getGlobalWorkflowsDir()
-      for (const cmd of fastCommands) fileResults.push(await this.writeGlobalWorkflow(ctx, workflowsDir, cmd))
+      for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalWorkflow(ctx, workflowsDir, cmd))
     }
 
     const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')

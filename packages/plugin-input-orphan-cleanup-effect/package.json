@@ -1,7 +1,7 @@
 {
   "name": "@truenine/plugin-input-orphan-cleanup-effect",
   "type": "module",
-  "version": "2026.10223.10952",
+  "version": "2026.10224.10619",
   "private": true,
   "description": "plugin-input-orphan-cleanup-effect for memory-sync",
   "exports": {

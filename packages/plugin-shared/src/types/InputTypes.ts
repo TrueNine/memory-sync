@@ -75,7 +75,7 @@ export interface RulePrompt extends Prompt<PromptKind.Rule, RuleYAMLFrontMatter,
   readonly ruleName: string
   readonly globs: readonly string[]
   readonly scope: RuleScope
-  readonly seriName?: string
+  readonly seriName?: string | string[] | null
   readonly rawMdxContent?: string
 }
 
@@ -87,6 +87,7 @@ export interface FastCommandPrompt extends Prompt<PromptKind.FastCommand, FastCo
   readonly globalOnly?: true
   readonly series?: string
   readonly commandName: string
+  readonly seriName?: string | string[] | null
   readonly rawMdxContent?: string
 }
 
@@ -97,6 +98,7 @@ export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAML
   readonly type: PromptKind.SubAgent
   readonly series?: string
   readonly agentName: string
+  readonly seriName?: string | string[] | null
   readonly rawMdxContent?: string
 }
 
@@ -382,14 +384,34 @@ export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatt
   readonly mcpConfig?: SkillMcpConfig
   readonly childDocs?: SkillChildDoc[]
   readonly resources?: SkillResource[]
+  readonly seriName?: string | string[] | null
 }
 
 /**
- * README.md prompt data structure
+ * Readme-family source file kind
+ *
+ * - Readme: rdm.mdx → README.md
+ * - CodeOfConduct: coc.mdx → CODE_OF_CONDUCT.md
+ * - Security: security.mdx → SECURITY.md
+ */
+export type ReadmeFileKind = 'Readme' | 'CodeOfConduct' | 'Security'
+
+/**
+ * Mapping from ReadmeFileKind to source/output file names
+ */
+export const README_FILE_KIND_MAP: Readonly<Record<ReadmeFileKind, {readonly src: string, readonly out: string}>> = {
+  Readme: {src: 'rdm.mdx', out: 'README.md'},
+  CodeOfConduct: {src: 'coc.mdx', out: 'CODE_OF_CONDUCT.md'},
+  Security: {src: 'security.mdx', out: 'SECURITY.md'}
+}
+
+/**
+ * README-family prompt data structure (README.md, CODE_OF_CONDUCT.md, SECURITY.md)
  */
 export interface ReadmePrompt extends Prompt<PromptKind.Readme> {
   readonly type: PromptKind.Readme
   readonly projectName: string
   readonly targetDir: RelativePath
   readonly isRoot: boolean
+  readonly fileKind: ReadmeFileKind
 }

@@ -13,7 +13,7 @@ import type {
 } from '@truenine/plugin-shared'
 import type {RelativePath} from '@truenine/plugin-shared/types'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@truenine/plugin-output-shared/utils'
+import {applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared/utils'
 import {KiroPowersRegistryWriter} from './KiroPowersRegistryWriter'
 
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
@@ -145,13 +145,15 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const {globalMemory, fastCommands, skills, rules} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const steeringDir = this.getGlobalSteeringDir()
     const results: RelativePath[] = []
 
     if (globalMemory != null) results.push(this.createRelativePath(GLOBAL_MEMORY_FILE, steeringDir, () => STEERING_SUBDIR))
 
     if (fastCommands != null) {
-      for (const cmd of fastCommands) results.push(this.createRelativePath(this.buildFastCommandSteeringFileName(cmd), steeringDir, () => STEERING_SUBDIR))
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      for (const cmd of filteredCommands) results.push(this.createRelativePath(this.buildFastCommandSteeringFileName(cmd), steeringDir, () => STEERING_SUBDIR))
     }
 
     const globalRules = rules?.filter(r => r.scope === 'global')
@@ -159,12 +161,13 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       for (const rule of globalRules) results.push(this.createRelativePath(this.buildRuleSteeringFileName(rule), steeringDir, () => STEERING_SUBDIR))
     }
 
-    if (skills == null) return results
+    const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
+    if (filteredSkills.length === 0) return results
 
     const powersDir = this.getKiroPowersDir()
     const skillsDir = this.getKiroSkillsDir()
 
-    for (const skill of skills) {
+    for (const skill of filteredSkills) {
       const skillName = skill.yamlFrontMatter.name
       const hasMcp = skill.mcpConfig != null
 
@@ -203,7 +206,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
         }
       }
     }
-    if (skills.some(s => s.mcpConfig != null)) results.push(this.createRelativePath(MCP_CONFIG_FILE, this.getGlobalSettingsDir(), () => SETTINGS_SUBDIR))
+    if (filteredSkills.some(s => s.mcpConfig != null)) results.push(this.createRelativePath(MCP_CONFIG_FILE, this.getGlobalSettingsDir(), () => SETTINGS_SUBDIR))
     return results
   }
 
@@ -250,6 +253,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {globalMemory, fastCommands, skills, rules} = ctx.collectedInputContext
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const registryResults: RegistryOperationResult[] = []
     const steeringDir = this.getGlobalSteeringDir()
@@ -259,7 +263,8 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (fastCommands != null) {
-      for (const cmd of fastCommands) fileResults.push(await this.writeFastCommandSteeringFile(ctx, cmd))
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      for (const cmd of filteredCommands) fileResults.push(await this.writeFastCommandSteeringFile(ctx, cmd))
     }
 
     const globalRules = rules?.filter(r => r.scope === 'global')
@@ -272,10 +277,11 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (skills == null || skills.length === 0) return {files: fileResults, dirs: []}
+    const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
+    if (filteredSkills.length === 0) return {files: fileResults, dirs: []}
 
-    const powerSkills = skills.filter(s => s.mcpConfig != null)
-    const plainSkills = skills.filter(s => s.mcpConfig == null)
+    const powerSkills = filteredSkills.filter(s => s.mcpConfig != null)
+    const plainSkills = filteredSkills.filter(s => s.mcpConfig == null)
 
     for (const skill of powerSkills) {
       const {fileResults: skillFiles, registryResult} = await this.writeSkillAsPower(ctx, skill)
@@ -288,7 +294,7 @@ export class KiroCLIOutputPlugin extends AbstractOutputPlugin {
       fileResults.push(...skillFiles)
     }
 
-    const mcpResult = await this.writeGlobalMcpSettings(ctx, skills)
+    const mcpResult = await this.writeGlobalMcpSettings(ctx, filteredSkills)
     if (mcpResult != null) fileResults.push(mcpResult)
     this.logRegistryResults(registryResults, ctx.dryRun)
     return {files: fileResults, dirs: []}

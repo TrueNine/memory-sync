@@ -16,6 +16,7 @@ import {writeFileSync as deskWriteFileSync} from '@truenine/desk-paths'
 import {mdxToMd} from '@truenine/md-compiler'
 import {GlobalScopeCollector} from '@truenine/plugin-input-shared/scope'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
+import {filterCommandsByProjectConfig, filterSkillsByProjectConfig, filterSubAgentsByProjectConfig} from './utils'
 
 export interface BaseCLIOutputPluginOptions extends AbstractOutputPluginOptions {
   readonly commandsSubDir?: string
@@ -116,47 +117,51 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
       this.createRelativePath(this.outputFileName, globalDir, () => this.globalConfigDir)
     ]
 
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const {fastCommands, subAgents, skills} = ctx.collectedInputContext
     const transformOptions = {includeSeriesPrefix: true} as const
 
     if (this.supportsFastCommands && fastCommands != null) {
-      for (const cmd of fastCommands) {
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      for (const cmd of filteredCommands) {
         const fileName = this.transformFastCommandName(cmd, transformOptions)
         results.push(this.createRelativePath(path.join(this.commandsSubDir, fileName), globalDir, () => this.commandsSubDir))
       }
     }
 
     if (this.supportsSubAgents && subAgents != null) {
-      for (const agent of subAgents) {
+      const filteredSubAgents = filterSubAgentsByProjectConfig(subAgents, projectConfig)
+      for (const agent of filteredSubAgents) {
         const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
         results.push(this.createRelativePath(path.join(this.agentsSubDir, fileName), globalDir, () => this.agentsSubDir))
       }
     }
 
-    if (this.supportsSkills && skills != null) {
-      for (const skill of skills) {
-        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-        const skillDir = path.join(this.skillsSubDir, skillName)
+    if (this.supportsSkills && skills == null) return results
+    if (skills == null) return results
 
-        results.push(this.createRelativePath(path.join(skillDir, 'SKILL.md'), globalDir, () => skillName))
+    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    for (const skill of filteredSkills) {
+      const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+      const skillDir = path.join(this.skillsSubDir, skillName)
 
-        if (skill.childDocs != null) {
-          for (const refDoc of skill.childDocs) {
-            const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
-            const refDocPath = path.join(skillDir, refDocFileName)
-            results.push(this.createRelativePath(refDocPath, globalDir, () => skillName))
-          }
+      results.push(this.createRelativePath(path.join(skillDir, 'SKILL.md'), globalDir, () => skillName))
+
+      if (skill.childDocs != null) {
+        for (const refDoc of skill.childDocs) {
+          const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+          const refDocPath = path.join(skillDir, refDocFileName)
+          results.push(this.createRelativePath(refDocPath, globalDir, () => skillName))
         }
+      }
 
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            const resourcePath = path.join(skillDir, resource.relativePath)
-            results.push(this.createRelativePath(resourcePath, globalDir, () => skillName))
-          }
+      if (skill.resources != null) {
+        for (const resource of skill.resources) {
+          const resourcePath = path.join(skillDir, resource.relativePath)
+          results.push(this.createRelativePath(resourcePath, globalDir, () => skillName))
         }
       }
     }
-
     return results
   }
 
@@ -219,6 +224,7 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
 
     const {fastCommands, subAgents, skills} = ctx.collectedInputContext
     const globalDir = this.getGlobalConfigDir()
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
     if (globalMemory != null) { // Write Global Memory File
       const fullPath = path.join(globalDir, this.outputFileName)
@@ -246,26 +252,29 @@ export abstract class BaseCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (this.supportsFastCommands && fastCommands != null) {
-      for (const cmd of fastCommands) {
+      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      for (const cmd of filteredCommands) {
         const cmdResults = await this.writeFastCommand(ctx, globalDir, cmd)
         fileResults.push(...cmdResults)
       }
     }
 
     if (this.supportsSubAgents && subAgents != null) {
-      for (const agent of subAgents) {
+      const filteredSubAgents = filterSubAgentsByProjectConfig(subAgents, projectConfig)
+      for (const agent of filteredSubAgents) {
         const agentResults = await this.writeSubAgent(ctx, globalDir, agent)
         fileResults.push(...agentResults)
       }
     }
 
-    if (this.supportsSkills && skills != null) {
-      for (const skill of skills) {
-        const skillResults = await this.writeSkill(ctx, globalDir, skill)
-        fileResults.push(...skillResults)
-      }
-    }
+    if (this.supportsSkills && skills == null) return {files: fileResults, dirs: dirResults}
+    if (skills == null) return {files: fileResults, dirs: dirResults}
 
+    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    for (const skill of filteredSkills) {
+      const skillResults = await this.writeSkill(ctx, globalDir, skill)
+      fileResults.push(...skillResults)
+    }
     return {files: fileResults, dirs: dirResults}
   }
 

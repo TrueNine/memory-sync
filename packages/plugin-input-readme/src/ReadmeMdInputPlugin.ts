@@ -1,17 +1,25 @@
-import type {CollectedInputContext, InputPluginContext, ReadmePrompt, RelativePath} from '@truenine/plugin-shared'
+import type {CollectedInputContext, InputPluginContext, ReadmeFileKind, ReadmePrompt, RelativePath} from '@truenine/plugin-shared'
 
 import process from 'node:process'
 
 import {mdxToMd} from '@truenine/md-compiler'
 import {ScopeError} from '@truenine/md-compiler/errors'
 import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
-import {FilePathKind, PromptKind} from '@truenine/plugin-shared'
+import {FilePathKind, PromptKind, README_FILE_KIND_MAP} from '@truenine/plugin-shared'
+
+const ALL_FILE_KINDS = Object.entries(README_FILE_KIND_MAP) as [ReadmeFileKind, {src: string, out: string}][]
 
 /**
- * Input plugin for collecting rdm.mdx files from shadow project directories.
- * Scans dist/app/<project> directories for rdm.mdx files and collects them as ReadmePrompt objects.
+ * Input plugin for collecting readme-family mdx files from shadow project directories.
+ * Scans dist/app/<project> directories for rdm.mdx, coc.mdx, security.mdx files
+ * and collects them as ReadmePrompt objects.
  *
- * Supports both root README files (in project root) and child README files (in subdirectories).
+ * Supports both root files (in project root) and child files (in subdirectories).
+ *
+ * Source → Output mapping:
+ * - rdm.mdx → README.md
+ * - coc.mdx → CODE_OF_CONDUCT.md
+ * - security.mdx → SECURITY.md
  */
 export class ReadmeMdInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -70,10 +78,12 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     const {fs, path, logger} = ctx
     const isRoot = relativePath === ''
 
-    const readmePath = path.join(currentDir, 'rdm.mdx')
-    if (fs.existsSync(readmePath) && fs.statSync(readmePath).isFile()) {
+    for (const [fileKind, {src}] of ALL_FILE_KINDS) {
+      const filePath = path.join(currentDir, src)
+      if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) continue
+
       try {
-        const rawContent = fs.readFileSync(readmePath, 'utf8')
+        const rawContent = fs.readFileSync(filePath, 'utf8')
 
         let content: string
         if (globalScope != null) {
@@ -82,7 +92,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           }
           catch (e) {
             if (e instanceof ScopeError) {
-              logger.error(`MDX compilation failed in ${readmePath}: ${(e as Error).message}`)
+              logger.error(`MDX compilation failed in ${filePath}: ${(e as Error).message}`)
               logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
               process.exit(1)
             }
@@ -102,10 +112,10 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
 
         const dir: RelativePath = {
           pathKind: FilePathKind.Relative,
-          path: path.dirname(readmePath),
+          path: path.dirname(filePath),
           basePath: workspaceDir,
-          getDirectoryName: () => path.basename(path.dirname(readmePath)),
-          getAbsolutePath: () => path.dirname(readmePath)
+          getDirectoryName: () => path.basename(path.dirname(filePath)),
+          getAbsolutePath: () => path.dirname(filePath)
         }
 
         readmePrompts.push({
@@ -116,12 +126,13 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
           projectName,
           targetDir,
           isRoot,
+          fileKind,
           markdownContents: [],
           dir
         })
       }
       catch (e) {
-        logger.warn('failed to read readme', {path: readmePath, error: e})
+        logger.warn('failed to read readme-family file', {path: filePath, fileKind, error: e})
       }
     }
 

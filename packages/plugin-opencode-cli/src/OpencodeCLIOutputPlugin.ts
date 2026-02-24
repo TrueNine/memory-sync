@@ -3,7 +3,7 @@ import type {RelativePath} from '@truenine/plugin-shared/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {BaseCLIOutputPlugin} from '@truenine/plugin-output-shared'
-import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@truenine/plugin-output-shared/utils'
+import {applySubSeriesGlobPrefix, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared/utils'
 import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
@@ -71,7 +71,11 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     const results = await super.registerGlobalOutputFiles(ctx)
     const globalDir = this.getGlobalConfigDir()
 
-    const hasAnyMcpConfig = ctx.collectedInputContext.skills?.some(s => s.mcpConfig != null) ?? false
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    const filteredSkills = ctx.collectedInputContext.skills != null
+      ? filterSkillsByProjectConfig(ctx.collectedInputContext.skills, projectConfig)
+      : []
+    const hasAnyMcpConfig = filteredSkills.some(s => s.mcpConfig != null)
     if (hasAnyMcpConfig) {
       const configPath = path.join(globalDir, OPENCODE_CONFIG_FILE)
       results.push({
@@ -122,7 +126,9 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
 
     const {skills} = ctx.collectedInputContext
     if (skills != null) {
-      const mcpResult = await this.writeGlobalMcpConfig(ctx, skills)
+      const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
+      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      const mcpResult = await this.writeGlobalMcpConfig(ctx, filteredSkills)
       if (mcpResult != null) files.push(mcpResult)
     }
 

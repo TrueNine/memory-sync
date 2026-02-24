@@ -173,6 +173,7 @@ export class SubAgentInputPlugin extends BaseDirectoryInputPlugin<SubAgentPrompt
     const fileName = slashIndex !== -1 ? entryName.slice(slashIndex + 1) : entryName
 
     const seriesInfo = this.extractSeriesInfo(fileName, parentDirName)
+    const seriName = yamlFrontMatter?.seriName
 
     return {
       type: PromptKind.SubAgent,
@@ -192,6 +193,7 @@ export class SubAgentInputPlugin extends BaseDirectoryInputPlugin<SubAgentPrompt
       },
       ...seriesInfo.series != null && {series: seriesInfo.series},
       agentName: seriesInfo.agentName,
+      ...seriName != null && {seriName},
       rawMdxContent: rawContent
     }
   }

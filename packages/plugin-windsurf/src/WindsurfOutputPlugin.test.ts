@@ -625,7 +625,7 @@ describe('windsurf output plugin', () => {
               {
                 name: 'proj1',
                 dirFromWorkspacePath: createMockRelativePath('proj1', tempDir),
-                projectConfig: {rules: {include: ['uniapp']}}
+                projectConfig: {rules: {includeSeries: ['uniapp']}}
               }
             ],
             directory: createMockRelativePath('.', tempDir)

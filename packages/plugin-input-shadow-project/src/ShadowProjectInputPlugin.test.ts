@@ -72,7 +72,7 @@ function buildMockFs(projectName: string, jsoncContent: string | null) {
 
 describe('shadowProjectInputPlugin - project.jsonc loading', () => {
   it('attaches projectConfig when project.jsonc exists', () => {
-    const config = {rules: {include: ['uniapp3'], exclude: ['backend']}}
+    const config = {rules: {includeSeries: ['uniapp3']}}
     const mockFs = buildMockFs('my-project', JSON.stringify(config))
     const result = new ShadowProjectInputPlugin().collect(createCtx(mockFs))
     const project = result.workspace?.projects.find(p => p.name === 'my-project')
@@ -87,10 +87,10 @@ describe('shadowProjectInputPlugin - project.jsonc loading', () => {
   })
 
   it('parses JSONC with comments correctly', () => {
-    const jsonc = '{\n  // enable uniapp rules\n  "rules": {"include": ["uniapp3"]}\n}'
+    const jsonc = '{\n  // enable uniapp rules\n  "rules": {"includeSeries": ["uniapp3"]}\n}'
     const mockFs = buildMockFs('proj', jsonc)
     const result = new ShadowProjectInputPlugin().collect(createCtx(mockFs))
-    expect(result.workspace?.projects[0]?.projectConfig?.rules?.include).toEqual(['uniapp3'])
+    expect(result.workspace?.projects[0]?.projectConfig?.rules?.includeSeries).toEqual(['uniapp3'])
   })
 
   it('leaves projectConfig undefined and warns on malformed JSONC', () => {

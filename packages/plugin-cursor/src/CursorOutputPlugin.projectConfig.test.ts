@@ -95,7 +95,7 @@ describe('cursorOutputPlugin - projectConfig filtering', () => {
         createMockRulePrompt('test', 'rule2', 'vue', 'project')
       ]
       const projects = [
-        createMockProject('proj1', tempDir, 'proj1', {rules: {include: ['uniapp']}})
+        createMockProject('proj1', tempDir, 'proj1', {rules: {includeSeries: ['uniapp']}})
       ]
       const ctx = createMockContext(tempDir, rules, projects)
 
@@ -106,13 +106,13 @@ describe('cursorOutputPlugin - projectConfig filtering', () => {
       expect(fileNames).not.toContain('rule-test-rule2.mdc')
     })
 
-    it('should filter rules by exclude in projectConfig', async () => {
+    it('should filter rules by includeSeries excluding non-matching series', async () => {
       const rules = [
         createMockRulePrompt('test', 'rule1', 'uniapp', 'project'),
         createMockRulePrompt('test', 'rule2', 'vue', 'project')
       ]
       const projects = [
-        createMockProject('proj1', tempDir, 'proj1', {rules: {exclude: ['uniapp']}})
+        createMockProject('proj1', tempDir, 'proj1', {rules: {includeSeries: ['vue']}})
       ]
       const ctx = createMockContext(tempDir, rules, projects)
 
@@ -129,7 +129,7 @@ describe('cursorOutputPlugin - projectConfig filtering', () => {
         createMockRulePrompt('test', 'rule2', 'vue', 'project')
       ]
       const projects = [
-        createMockProject('proj1', tempDir, 'proj1', {rules: {include: ['uniapp']}})
+        createMockProject('proj1', tempDir, 'proj1', {rules: {includeSeries: ['uniapp']}})
       ]
       const ctx = createMockContext(tempDir, rules, projects)
 
@@ -146,8 +146,8 @@ describe('cursorOutputPlugin - projectConfig filtering', () => {
         createMockRulePrompt('test', 'rule2', 'vue', 'project')
       ]
       const projects = [
-        createMockProject('proj1', tempDir, 'proj1', {rules: {include: ['uniapp']}}),
-        createMockProject('proj2', tempDir, 'proj2', {rules: {include: ['vue']}})
+        createMockProject('proj1', tempDir, 'proj1', {rules: {includeSeries: ['uniapp']}}),
+        createMockProject('proj2', tempDir, 'proj2', {rules: {includeSeries: ['vue']}})
       ]
       const ctx = createMockContext(tempDir, rules, projects)
 
@@ -169,7 +169,7 @@ describe('cursorOutputPlugin - projectConfig filtering', () => {
         createMockRulePrompt('test', 'rule1', 'uniapp', 'project')
       ]
       const projects = [
-        createMockProject('proj1', tempDir, 'proj1', {rules: {include: ['react']}})
+        createMockProject('proj1', tempDir, 'proj1', {rules: {includeSeries: ['react']}})
       ]
       const ctx = createMockContext(tempDir, rules, projects)
 
@@ -186,7 +186,7 @@ describe('cursorOutputPlugin - projectConfig filtering', () => {
         createMockRulePrompt('test', 'rule1', 'uniapp', 'project')
       ]
       const projects = [
-        createMockProject('proj1', tempDir, 'proj1', {rules: {include: ['react']}})
+        createMockProject('proj1', tempDir, 'proj1', {rules: {includeSeries: ['react']}})
       ]
       const ctx = createMockContext(tempDir, rules, projects)
 
@@ -201,7 +201,7 @@ describe('cursorOutputPlugin - projectConfig filtering', () => {
         createMockRulePrompt('test', 'rule1', 'uniapp', 'project')
       ]
       const projects = [
-        createMockProject('proj1', tempDir, 'proj1', {rules: {include: ['uniapp']}})
+        createMockProject('proj1', tempDir, 'proj1', {rules: {includeSeries: ['uniapp']}})
       ]
       const ctx = createMockContext(tempDir, rules, projects)
 
