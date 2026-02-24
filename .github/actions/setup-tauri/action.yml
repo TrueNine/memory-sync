@@ -13,6 +13,18 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libwebkit2gtk-4.1-dev \
+          libappindicator3-dev \
+          librsvg2-dev \
+          patchelf \
+          libssl-dev
+
     - name: Install Rust stable
       uses: dtolnay/rust-toolchain@stable
       with:
