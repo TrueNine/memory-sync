@@ -80,4 +80,4 @@ jobs:
         run: pnpm exec turbo run test
 
       - name: Rust tests (excluding GUI)
-        run: cargo test --workspace --exclude memory-sync-gui
+        run: cargo test --workspace --exclude memory-sync-gui --lib --bins --tests
