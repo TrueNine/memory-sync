@@ -1,0 +1,3 @@
+export {
+  GenericSkillsOutputPlugin
+} from './GenericSkillsOutputPlugin'

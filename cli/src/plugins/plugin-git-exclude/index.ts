@@ -1,0 +1,3 @@
+export {
+  GitExcludeOutputPlugin
+} from './GitExcludeOutputPlugin'
