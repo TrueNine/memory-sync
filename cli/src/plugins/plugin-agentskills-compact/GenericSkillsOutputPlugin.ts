@@ -277,19 +277,6 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  private buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
-    const fm = skill.yamlFrontMatter
-    return {
-      name: fm.name,
-      description: fm.description,
-      ...fm.displayName != null && {displayName: fm.displayName},
-      ...fm.keywords != null && fm.keywords.length > 0 && {keywords: fm.keywords},
-      ...fm.author != null && {author: fm.author},
-      ...fm.version != null && {version: fm.version},
-      ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}
-    }
-  }
-
   private async writeMcpConfig(
     ctx: OutputWriteContext,
     skill: SkillPrompt,

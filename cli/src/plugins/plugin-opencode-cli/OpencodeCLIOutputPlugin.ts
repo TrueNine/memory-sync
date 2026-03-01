@@ -381,11 +381,11 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     return normalized
   }
 
-  private buildRuleFileName(rule: RulePrompt): string {
-    return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.md`
+  protected override buildRuleFileName(rule: RulePrompt, prefix: string = RULE_FILE_PREFIX): string {
+    return `${prefix}${rule.series}-${rule.ruleName}.md`
   }
 
-  private buildRuleContent(rule: RulePrompt): string {
+  protected override buildRuleContent(rule: RulePrompt): string {
     if (rule.globs.length === 0) return rule.content
     return this.buildMarkdownContent(rule.content, {globs: [...rule.globs]})
   }

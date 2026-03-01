@@ -1,3 +1,4 @@
+import type {RuleContentOptions} from '@truenine/plugin-output-shared'
 import type {
   FastCommandPrompt,
   OutputPluginContext,
@@ -302,11 +303,6 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  private buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
-    const fm = skill.yamlFrontMatter
-    return {name: fm.name, description: fm.description, ...fm.displayName != null && {displayName: fm.displayName}, ...fm.keywords != null && fm.keywords.length > 0 && {keywords: fm.keywords}, ...fm.author != null && {author: fm.author}, ...fm.version != null && {version: fm.version}, ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}}
-  }
-
   private async writeSkillChildDoc(ctx: OutputWriteContext, childDoc: {relativePath: string, content: unknown}, skillDir: string, skillName: string, baseDir: string): Promise<WriteResult> {
     const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
     const childDocPath = path.join(skillDir, outputRelativePath)
@@ -348,9 +344,11 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  private buildRuleFileName(rule: RulePrompt): string { return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.md` }
+  protected override buildRuleFileName(rule: RulePrompt, prefix: string = RULE_FILE_PREFIX): string {
+    return `${prefix}${rule.series}-${rule.ruleName}.md`
+  }
 
-  private buildRuleContent(rule: RulePrompt): string {
+  protected override buildRuleContent(rule: RulePrompt, _options?: RuleContentOptions): string {
     const fmData: Record<string, unknown> = {trigger: 'glob', globs: rule.globs.length > 0 ? rule.globs.join(', ') : ''}
     const raw = buildMarkdownWithFrontMatter(fmData, rule.content)
     const lines = raw.split('\n')

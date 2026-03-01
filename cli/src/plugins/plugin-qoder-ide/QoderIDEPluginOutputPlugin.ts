@@ -381,7 +381,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  private buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
+  protected override buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
     const fm = skill.yamlFrontMatter
     return {
       name: fm.name,
@@ -406,11 +406,11 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  private buildRuleFileName(rule: RulePrompt): string {
-    return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.md`
+  protected override buildRuleFileName(rule: RulePrompt, prefix: string = RULE_FILE_PREFIX): string {
+    return `${prefix}${rule.series}-${rule.ruleName}.md`
   }
 
-  private buildRuleContent(rule: RulePrompt): string {
+  protected override buildRuleContent(rule: RulePrompt): string {
     const fmData: Record<string, unknown> = {
       trigger: TRIGGER_GLOB,
       [RULE_GLOB_KEY]: rule.globs.length > 0 ? rule.globs.join(', ') : '**/*',

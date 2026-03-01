@@ -2,7 +2,6 @@ import type {
   FastCommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
-  Project,
   RulePrompt,
   SkillPrompt,
   WriteResult,
@@ -281,28 +280,16 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return buildMarkdownWithFrontMatter({description: 'Global prompt (synced)', alwaysApply: true}, content)
   }
 
-  private async writeProjectGlobalRule(ctx: OutputWriteContext, project: Project, content: string): Promise<WriteResult> {
+  private async writeProjectGlobalRule(ctx: OutputWriteContext, project: {dirFromWorkspacePath?: RelativePath | null}, content: string): Promise<WriteResult> {
     const projectDir = project.dirFromWorkspacePath!
     const rulesDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR)
     const fullPath = path.join(rulesDir, GLOBAL_RULE_FILE)
     const relativePath = this.createProjectRuleFileRelativePath(projectDir, GLOBAL_RULE_FILE)
 
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'globalRule', path: fullPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      this.ensureDirectory(rulesDir)
-      this.writeFileSync(fullPath, content)
-      this.log.trace({action: 'write', type: 'globalRule', path: fullPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'globalRule', path: fullPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+    return this.writeFileWithHandling(ctx, fullPath, content, {
+      type: 'globalRule',
+      relativePath
+    })
   }
 
   private isPreservedSkill(name: string): boolean { return PRESERVED_SKILLS.has(name) }
@@ -313,22 +300,14 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
     const fileName = this.transformFastCommandName(cmd, transformOptions)
     const fullPath = path.join(commandsDir, fileName)
-    const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(COMMANDS_SUBDIR, fileName), basePath: this.getGlobalConfigDir(), getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => fullPath}
+    const globalDir = this.getGlobalConfigDir()
+    const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(COMMANDS_SUBDIR, fileName), basePath: globalDir, getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => fullPath}
     const content = this.buildMarkdownContentWithRaw(cmd.content, cmd.yamlFrontMatter, cmd.rawFrontMatter)
 
-    if (ctx.dryRun === true) { this.log.trace({action: 'dryRun', type: 'globalFastCommand', path: fullPath}); return {path: relativePath, success: true, skipped: false} }
-
-    try {
-      this.ensureDirectory(commandsDir)
-      fs.writeFileSync(fullPath, content)
-      this.log.trace({action: 'write', type: 'globalFastCommand', path: fullPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'globalFastCommand', path: fullPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+    return this.writeFileWithHandling(ctx, fullPath, content, {
+      type: 'globalFastCommand',
+      relativePath
+    })
   }
 
   private async writeGlobalMcpConfig(ctx: OutputWriteContext, skills: readonly SkillPrompt[]): Promise<WriteResult | null> {
@@ -418,11 +397,6 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  private buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
-    const fm = skill.yamlFrontMatter
-    return {name: fm.name, description: fm.description, ...fm.displayName != null && {displayName: fm.displayName}, ...fm.keywords != null && fm.keywords.length > 0 && {keywords: fm.keywords}, ...fm.author != null && {author: fm.author}, ...fm.version != null && {version: fm.version}, ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}}
-  }
-
   private async writeSkillMcpConfig(ctx: OutputWriteContext, skill: SkillPrompt, skillDir: string, globalDir: string): Promise<WriteResult> {
     const skillName = skill.yamlFrontMatter.name
     const mcpConfigPath = path.join(skillDir, MCP_CONFIG_FILE)
@@ -492,8 +466,6 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  private buildRuleFileName(rule: RulePrompt): string { return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.mdc` }
-
   protected buildRuleMdcContent(rule: RulePrompt): string {
     const fmData: Record<string, unknown> = {alwaysApply: false, globs: rule.globs.length > 0 ? rule.globs.join(', ') : ''}
     const raw = buildMarkdownWithFrontMatter(fmData, rule.content)
@@ -510,24 +482,14 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   private async writeRuleMdcFile(ctx: OutputWriteContext, rulesDir: string, rule: RulePrompt, basePath: string): Promise<WriteResult> {
-    const fileName = this.buildRuleFileName(rule)
+    const fileName = this.buildRuleFileName(rule, RULE_FILE_PREFIX)
     const fullPath = path.join(rulesDir, fileName)
     const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(GLOBAL_CONFIG_DIR, RULES_SUBDIR, fileName), basePath, getDirectoryName: () => RULES_SUBDIR, getAbsolutePath: () => fullPath}
     const content = this.buildRuleMdcContent(rule)
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'ruleFile', path: fullPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-    try {
-      this.ensureDirectory(rulesDir)
-      this.writeFileSync(fullPath, content)
-      this.log.trace({action: 'write', type: 'ruleFile', path: fullPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'ruleFile', path: fullPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+
+    return this.writeFileWithHandling(ctx, fullPath, content, {
+      type: 'ruleFile',
+      relativePath
+    })
   }
 }

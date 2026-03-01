@@ -4,7 +4,11 @@ export {
 export type {
   AbstractOutputPluginOptions,
   CombineOptions,
-  FastCommandNameTransformOptions
+  ErrorContext,
+  FastCommandNameTransformOptions,
+  RuleContentOptions,
+  SkillFrontMatterOptions,
+  WriteOperationOptions
 } from './AbstractOutputPlugin'
 export {
   BaseCLIOutputPlugin
