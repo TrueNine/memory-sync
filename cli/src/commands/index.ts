@@ -22,8 +22,6 @@ export * from './DryRunOutputCommand'
 export * from './ExecuteCommand'
 export * from './factories' // Factory implementations
 export * from './HelpCommand'
-export * from './InitCommand'
-
 export * from './JsonOutputCommand'
 export * from './OutdatedCommand'
 export * from './PluginsCommand'

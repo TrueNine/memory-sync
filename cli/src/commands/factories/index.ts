@@ -25,9 +25,6 @@ export {
   HelpCommandFactory
 } from './HelpCommandFactory'
 export {
-  InitCommandFactory
-} from './InitCommandFactory'
-export {
   OutdatedCommandFactory
 } from './OutdatedCommandFactory'
 export {

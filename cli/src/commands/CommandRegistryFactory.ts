@@ -5,7 +5,6 @@ import {ConfigCommandFactory} from './factories/ConfigCommandFactory'
 import {DryRunCommandFactory} from './factories/DryRunCommandFactory'
 import {ExecuteCommandFactory} from './factories/ExecuteCommandFactory'
 import {HelpCommandFactory} from './factories/HelpCommandFactory'
-import {InitCommandFactory} from './factories/InitCommandFactory'
 import {OutdatedCommandFactory} from './factories/OutdatedCommandFactory'
 import {PluginsCommandFactory} from './factories/PluginsCommandFactory'
 import {UnknownCommandFactory} from './factories/UnknownCommandFactory'
@@ -25,7 +24,6 @@ export function createDefaultCommandRegistry(): CommandRegistry {
   registry.register(new UnknownCommandFactory())
 
   registry.registerWithPriority(new OutdatedCommandFactory(), FactoryPriority.Subcommand) // Normal priority: subcommand-based commands
-  registry.registerWithPriority(new InitCommandFactory(), FactoryPriority.Subcommand)
   registry.registerWithPriority(new DryRunCommandFactory(), FactoryPriority.Subcommand)
   registry.registerWithPriority(new CleanCommandFactory(), FactoryPriority.Subcommand)
   registry.registerWithPriority(new PluginsCommandFactory(), FactoryPriority.Subcommand)
