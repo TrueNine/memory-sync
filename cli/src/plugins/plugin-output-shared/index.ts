@@ -28,6 +28,18 @@ export {
   ToolPresets
 } from './constants'
 export {
+  McpConfigManager,
+  transformMcpConfigForCursor,
+  transformMcpConfigForOpencode
+} from './McpConfigManager'
+export type {
+  McpConfigFormat,
+  McpConfigTransformer,
+  McpServerEntry,
+  McpWriteResult,
+  TransformedMcpConfig
+} from './McpConfigManager'
+export {
   applySubSeriesGlobPrefix,
   filterCommandsByProjectConfig,
   filterRulesByProjectConfig,

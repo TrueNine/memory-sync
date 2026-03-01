@@ -20,10 +20,12 @@ import {
   filterSkillsByProjectConfig,
   GlobalConfigDirs,
   IgnoreFiles,
+  McpConfigManager,
   OutputFileNames,
   OutputPrefixes,
   OutputSubdirectories,
-  PreservedSkills
+  PreservedSkills,
+  transformMcpConfigForCursor
 } from '@truenine/plugin-output-shared'
 import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
 
@@ -316,56 +318,24 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   private async writeGlobalMcpConfig(ctx: OutputWriteContext, skills: readonly SkillPrompt[]): Promise<WriteResult | null> {
-    const mergedMcpServers: Record<string, unknown> = {}
-    for (const skill of skills) {
-      if (skill.mcpConfig == null) continue
-      for (const [mcpName, mcpConfig] of Object.entries(skill.mcpConfig.mcpServers)) mergedMcpServers[mcpName] = this.transformMcpConfigForCursor({...(mcpConfig as unknown as Record<string, unknown>)})
-    }
-    if (Object.keys(mergedMcpServers).length === 0) return null
+    const mcpManager = new McpConfigManager({fs, logger: this.log})
+    const servers = mcpManager.collectMcpServers(skills)
+
+    if (servers.size === 0) return null
+
+    const transformed = mcpManager.transformMcpServers(servers, transformMcpConfigForCursor)
 
     const globalDir = this.getGlobalConfigDir()
     const mcpConfigPath = path.join(globalDir, MCP_CONFIG_FILE)
-    const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: MCP_CONFIG_FILE, basePath: globalDir, getDirectoryName: () => GLOBAL_CONFIG_DIR, getAbsolutePath: () => mcpConfigPath}
 
-    let existingConfig: Record<string, unknown> = {}
-    try { if (this.existsSync(mcpConfigPath)) existingConfig = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf8')) as Record<string, unknown> }
-    catch { existingConfig = {} }
+    const result = mcpManager.writeCursorMcpConfig(mcpConfigPath, transformed, ctx.dryRun === true)
 
-    const existingMcpServers = (existingConfig['mcpServers'] as Record<string, unknown>) ?? {}
-    existingConfig['mcpServers'] = {...existingMcpServers, ...mergedMcpServers}
-    const content = JSON.stringify(existingConfig, null, 2)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'globalMcpConfig', path: mcpConfigPath, serverCount: Object.keys(mergedMcpServers).length})
-      return {path: relativePath, success: true, skipped: false}
+    return {
+      path: {pathKind: FilePathKind.Relative, path: MCP_CONFIG_FILE, basePath: globalDir, getDirectoryName: () => GLOBAL_CONFIG_DIR, getAbsolutePath: () => mcpConfigPath},
+      success: result.success,
+      ...result.error != null && {error: result.error},
+      ...ctx.dryRun && {skipped: true}
     }
-
-    try {
-      this.ensureDirectory(globalDir)
-      fs.writeFileSync(mcpConfigPath, content)
-      this.log.trace({action: 'write', type: 'globalMcpConfig', path: mcpConfigPath, serverCount: Object.keys(mergedMcpServers).length})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'globalMcpConfig', path: mcpConfigPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
-  }
-
-  private transformMcpConfigForCursor(config: Record<string, unknown>): Record<string, unknown> {
-    const result: Record<string, unknown> = {}
-    if (config['command'] != null) {
-      result['command'] = config['command']
-      if (config['args'] != null) result['args'] = config['args']
-      if (config['env'] != null) result['env'] = config['env']
-      return result
-    }
-    const url = config['url'] ?? config['serverUrl']
-    if (url == null) return result
-    result['url'] = url
-    if (config['headers'] != null) result['headers'] = config['headers']
-    return result
   }
 
   private async writeGlobalSkill(ctx: OutputWriteContext, skillsDir: string, skill: SkillPrompt): Promise<WriteResult[]> {
@@ -406,21 +376,15 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     const skillName = skill.yamlFrontMatter.name
     const mcpConfigPath = path.join(skillDir, MCP_CONFIG_FILE)
     const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(SKILLS_CURSOR_SUBDIR, skillName, MCP_CONFIG_FILE), basePath: globalDir, getDirectoryName: () => skillName, getAbsolutePath: () => mcpConfigPath}
-    const mcpConfigContent = skill.mcpConfig!.rawContent
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'mcpConfig', path: mcpConfigPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-    try {
-      this.ensureDirectory(skillDir)
-      this.writeFileSync(mcpConfigPath, mcpConfigContent)
-      this.log.trace({action: 'write', type: 'mcpConfig', path: mcpConfigPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'mcpConfig', path: mcpConfigPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
+
+    const mcpManager = new McpConfigManager({fs, logger: this.log})
+    const result = mcpManager.writeSkillMcpConfig(mcpConfigPath, skill.mcpConfig!.rawContent, ctx.dryRun === true)
+
+    return {
+      path: relativePath,
+      success: result.success,
+      ...result.error != null && {error: result.error},
+      ...ctx.dryRun && {skipped: true}
     }
   }
 

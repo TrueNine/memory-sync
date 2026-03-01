@@ -1,8 +1,15 @@
-import type {FastCommandPrompt, McpServerConfig, OutputPluginContext, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@truenine/plugin-shared'
+import type {FastCommandPrompt, OutputPluginContext, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@truenine/plugin-shared'
 import type {RelativePath} from '@truenine/plugin-shared/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {applySubSeriesGlobPrefix, BaseCLIOutputPlugin, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
+import {
+  applySubSeriesGlobPrefix,
+  BaseCLIOutputPlugin,
+  filterRulesByProjectConfig,
+  filterSkillsByProjectConfig,
+  McpConfigManager,
+  transformMcpConfigForOpencode
+} from '@truenine/plugin-output-shared'
 import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
@@ -143,16 +150,12 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     ctx: OutputWriteContext,
     skills: readonly SkillPrompt[]
   ): Promise<WriteResult | null> {
-    const mergedMcpServers: Record<string, unknown> = {}
+    const manager = new McpConfigManager({fs, logger: this.log})
 
-    for (const skill of skills) {
-      if (skill.mcpConfig == null) continue
-      const {mcpServers} = skill.mcpConfig
-      for (const [mcpName, mcpConfig] of Object.entries(mcpServers)) mergedMcpServers[mcpName] = this.transformMcpConfigForOpencode(mcpConfig)
-    }
+    const servers = manager.collectMcpServers(skills)
+    if (servers.size === 0) return null
 
-    if (Object.keys(mergedMcpServers).length === 0) return null
-
+    const transformed = manager.transformMcpServers(servers, transformMcpConfigForOpencode)
     const globalDir = this.getGlobalConfigDir()
     const configPath = path.join(globalDir, OPENCODE_CONFIG_FILE)
 
@@ -164,64 +167,28 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
       getAbsolutePath: () => configPath
     }
 
-    let existingConfig: Record<string, unknown> = {}
-    try {
-      if (fs.existsSync(configPath)) {
-        const content = fs.readFileSync(configPath, 'utf8')
-        existingConfig = JSON.parse(content) as Record<string, unknown>
-      }
-    }
-    catch {
-      existingConfig = {}
-    }
-
-    existingConfig['$schema'] = 'https://opencode.ai/config.json'
-    existingConfig['mcp'] = mergedMcpServers
-
+    const existingConfig = manager.readExistingConfig(configPath)
     const pluginField = existingConfig['plugin']
     const plugins: string[] = Array.isArray(pluginField) ? pluginField.map(item => String(item)) : []
     if (!plugins.includes(OPENCODE_RULES_PLUGIN_NAME)) plugins.push(OPENCODE_RULES_PLUGIN_NAME)
-    existingConfig['plugin'] = plugins
 
-    const content = JSON.stringify(existingConfig, null, 2)
+    const result = manager.writeOpencodeMcpConfig(
+      configPath,
+      transformed,
+      ctx.dryRun === true,
+      {
+        $schema: 'https://opencode.ai/config.json',
+        plugin: plugins
+      }
+    )
 
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'globalMcpConfig', path: configPath, serverCount: Object.keys(mergedMcpServers).length})
-      return {path: relativePath, success: true, skipped: false}
+    if (!result.success) {
+      if (result.error != null) return {path: relativePath, success: false, error: result.error}
+      return {path: relativePath, success: false}
     }
 
-    try {
-      this.ensureDirectory(globalDir)
-      fs.writeFileSync(configPath, content)
-      this.log.trace({action: 'write', type: 'globalMcpConfig', path: configPath, serverCount: Object.keys(mergedMcpServers).length})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'globalMcpConfig', path: configPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
-  }
-
-  private transformMcpConfigForOpencode(config: McpServerConfig): Record<string, unknown> {
-    const result: Record<string, unknown> = {}
-
-    if (config.command != null) {
-      result['type'] = 'local'
-      const commandArray = [config.command]
-      if (config.args != null) commandArray.push(...config.args)
-      result['command'] = commandArray
-      if (config.env != null) result['environment'] = config.env
-    } else {
-      result['type'] = 'remote'
-      const configRecord = config as unknown as Record<string, unknown>
-      if (configRecord['url'] != null) result['url'] = configRecord['url']
-      else if (configRecord['serverUrl'] != null) result['url'] = configRecord['serverUrl']
-    }
-
-    result['enabled'] = config.disabled !== true
-
-    return result
+    if (result.skipped === true) return {path: relativePath, success: true, skipped: true}
+    return {path: relativePath, success: true}
   }
 
   protected override async writeSubAgent(
