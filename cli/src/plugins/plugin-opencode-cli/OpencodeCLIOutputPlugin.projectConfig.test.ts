@@ -2,7 +2,7 @@ import type {OutputPluginContext} from '@truenine/plugin-shared'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {collectFileNames, createMockProject, createMockRulePrompt} from '@truenine/plugin-shared/testing'
+import {collectFileNames, createMockProject, createMockRulePrompt} from '@truenine/plugin-shared'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {OpencodeCLIOutputPlugin} from './OpencodeCLIOutputPlugin'
 

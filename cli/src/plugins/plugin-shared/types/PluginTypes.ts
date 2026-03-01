@@ -8,6 +8,8 @@ import type {
   Project
 } from './InputTypes'
 
+export type FastGlobType = typeof import('fast-glob')
+
 /**
  * Opaque type for ScopeRegistry.
  * Concrete implementation lives in plugin-input-shared.
@@ -27,7 +29,7 @@ export interface PluginContext {
   logger: ILogger
   fs: typeof import('node:fs')
   path: typeof import('node:path')
-  glob: typeof import('fast-glob')
+  glob: FastGlobType
 }
 
 export interface InputPluginContext extends PluginContext {
@@ -153,7 +155,7 @@ export interface InputEffectContext {
   /** Path module */
   readonly path: typeof import('node:path')
   /** Glob module for file matching */
-  readonly glob: typeof import('fast-glob')
+  readonly glob: FastGlobType
   /** Child process spawn function */
   readonly spawn: typeof import('node:child_process').spawn
   /** User configuration options */

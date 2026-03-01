@@ -9,8 +9,7 @@ import type {
 import type {RelativePath} from '@truenine/plugin-shared/types'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared/utils'
+import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
 import {PLUGIN_NAMES} from '@truenine/plugin-shared'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'

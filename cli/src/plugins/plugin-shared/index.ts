@@ -20,4 +20,9 @@ export {
 export type {
   PluginName
 } from './PluginNames'
+export {
+  collectFileNames,
+  createMockProject,
+  createMockRulePrompt
+} from './testing'
 export * from './types'

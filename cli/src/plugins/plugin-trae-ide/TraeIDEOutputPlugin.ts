@@ -9,8 +9,7 @@ import type {
 } from '@truenine/plugin-shared'
 import type {RelativePath} from '@truenine/plugin-shared/types'
 import * as path from 'node:path'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {filterCommandsByProjectConfig} from '@truenine/plugin-output-shared/utils'
+import {AbstractOutputPlugin, filterCommandsByProjectConfig} from '@truenine/plugin-output-shared'
 
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
 const GLOBAL_CONFIG_DIR = '.trae'

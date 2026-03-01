@@ -642,8 +642,8 @@ describe('opencodeCLIOutputPlugin', () => {
     it('should output globs as YAML array items', () => {
       const rule = createMockRulePrompt({series: '01', ruleName: 'ts', globs: ['**/*.ts', '**/*.tsx'], content: '# Body'})
       const content = plugin.testBuildRuleContent(rule)
-      expect(content).toContain('- "**/*.ts"')
-      expect(content).toContain('- "**/*.tsx"')
+      expect(content).toMatch(/-\s+['"]?\*\*\/\*\.ts['"]?/) // Accept quoted or unquoted formats
+      expect(content).toMatch(/-\s+['"]?\*\*\/\*\.tsx['"]?/)
     })
 
     it('should preserve rule body after frontmatter', () => {

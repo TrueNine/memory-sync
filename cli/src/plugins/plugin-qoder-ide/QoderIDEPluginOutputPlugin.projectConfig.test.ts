@@ -2,7 +2,7 @@ import type {OutputWriteContext} from '@truenine/plugin-shared'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {createMockProject, createMockRulePrompt} from '@truenine/plugin-shared/testing'
+import {createMockProject, createMockRulePrompt} from '@truenine/plugin-shared'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {QoderIDEPluginOutputPlugin} from './QoderIDEPluginOutputPlugin'
 

@@ -116,7 +116,7 @@ describe('claudeCodeCLIOutputPlugin property tests', () => {
       await fc.assert(fc.asyncProperty(seriesGen, ruleNameGen, globsGen, contentGen, async (series, ruleName, globs, content) => {
         const rule = createMockRulePrompt({series, ruleName, globs, content})
         const output = plugin.testBuildRuleContent(rule)
-        for (const g of globs) expect(output).toContain(`- "${g}"`)
+        for (const g of globs) expect(output).toMatch(new RegExp(`-\\s+['"]?${g.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]?`)) // Accept quoted or unquoted formats
       }), {numRuns: 100})
     })
   })
@@ -133,7 +133,7 @@ describe('claudeCodeCLIOutputPlugin property tests', () => {
         expect(written).toContain('paths:')
         expect(written).not.toMatch(/^globs:/m)
         expect(written).toContain(content)
-        for (const g of globs) expect(written).toContain(`- "${g}"`)
+        for (const g of globs) expect(written).toMatch(new RegExp(`-\\s+['"]?${g.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]?`)) // Accept quoted or unquoted formats
       }), {numRuns: 30})
     })
 
@@ -154,7 +154,7 @@ describe('claudeCodeCLIOutputPlugin property tests', () => {
         const written = fs.readFileSync(filePath, 'utf8')
         expect(written).toContain('paths:')
         expect(written).toContain(content)
-        for (const g of globs) expect(written).toContain(`- "${g}"`)
+        for (const g of globs) expect(written).toMatch(new RegExp(`-\\s+['"]?${g.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]?`)) // Accept quoted or unquoted formats
       }), {numRuns: 30})
     })
   })

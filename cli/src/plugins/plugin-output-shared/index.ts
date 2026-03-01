@@ -12,3 +12,15 @@ export {
 export type {
   BaseCLIOutputPluginOptions
 } from './BaseCLIOutputPlugin'
+export {
+  applySubSeriesGlobPrefix,
+  filterCommandsByProjectConfig,
+  filterRulesByProjectConfig,
+  filterSkillsByProjectConfig,
+  findAllGitRepos,
+  findGitModuleInfoDirs,
+  matchesSeries,
+  resolveEffectiveIncludeSeries,
+  resolveGitInfoDir,
+  resolveSubSeries
+} from './utils'

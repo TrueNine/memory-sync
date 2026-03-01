@@ -13,3 +13,8 @@ export {
 export type {
   FileInputPluginOptions
 } from './BaseFileInputPlugin'
+export {
+  GlobalScopeCollector,
+  ScopePriority,
+  ScopeRegistry
+} from './scope'

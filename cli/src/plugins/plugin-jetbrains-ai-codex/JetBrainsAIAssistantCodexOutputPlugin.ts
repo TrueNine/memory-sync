@@ -13,8 +13,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {getPlatformFixedDir} from '@truenine/desk-paths'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared/utils'
+import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
 import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
 
 /**

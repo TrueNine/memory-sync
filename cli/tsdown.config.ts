@@ -40,7 +40,6 @@ const pluginAliases: Record<string, string> = {
   '@truenine/plugin-input-workspace': resolve('src/plugins/plugin-input-workspace/index.ts'),
   '@truenine/plugin-jetbrains-ai-codex': resolve('src/plugins/plugin-jetbrains-ai-codex/index.ts'),
   '@truenine/plugin-jetbrains-codestyle': resolve('src/plugins/plugin-jetbrains-codestyle/index.ts'),
-  '@truenine/plugin-kiro-ide': resolve('src/plugins/plugin-kiro-ide/index.ts'),
   '@truenine/plugin-openai-codex-cli': resolve('src/plugins/plugin-openai-codex-cli/index.ts'),
   '@truenine/plugin-opencode-cli': resolve('src/plugins/plugin-opencode-cli/index.ts'),
   '@truenine/plugin-qoder-ide': resolve('src/plugins/plugin-qoder-ide/index.ts'),
@@ -48,7 +47,8 @@ const pluginAliases: Record<string, string> = {
   '@truenine/plugin-trae-ide': resolve('src/plugins/plugin-trae-ide/index.ts'),
   '@truenine/plugin-vscode': resolve('src/plugins/plugin-vscode/index.ts'),
   '@truenine/plugin-warp-ide': resolve('src/plugins/plugin-warp-ide/index.ts'),
-  '@truenine/plugin-windsurf': resolve('src/plugins/plugin-windsurf/index.ts')
+  '@truenine/plugin-windsurf': resolve('src/plugins/plugin-windsurf/index.ts'),
+  '@truenine/config': resolve('src/config/index.ts')
 }
 
 const noExternalDeps = [

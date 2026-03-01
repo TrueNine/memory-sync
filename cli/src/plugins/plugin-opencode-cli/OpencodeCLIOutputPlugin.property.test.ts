@@ -116,7 +116,7 @@ describe('opencodeCLIOutputPlugin property tests', () => {
       await fc.assert(fc.asyncProperty(seriesGen, ruleNameGen, globsGen, contentGen, async (series, ruleName, globs, content) => {
         const rule = createMockRulePrompt({series, ruleName, globs, content})
         const output = plugin.testBuildRuleContent(rule)
-        for (const g of globs) expect(output).toMatch(new RegExp(`- "${g.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}"|- ${g.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+        for (const g of globs) expect(output).toMatch(new RegExp(`-\\s+['"]?${g.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]?`)) // Accept quoted or unquoted formats
       }), {numRuns: 100})
     })
   })

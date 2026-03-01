@@ -54,7 +54,6 @@
       "@truenine/plugin-input-workspace": ["./src/plugins/plugin-input-workspace/index.ts"],
       "@truenine/plugin-jetbrains-ai-codex": ["./src/plugins/plugin-jetbrains-ai-codex/index.ts"],
       "@truenine/plugin-jetbrains-codestyle": ["./src/plugins/plugin-jetbrains-codestyle/index.ts"],
-      "@truenine/plugin-kiro-ide": ["./src/plugins/plugin-kiro-ide/index.ts"],
       "@truenine/plugin-openai-codex-cli": ["./src/plugins/plugin-openai-codex-cli/index.ts"],
       "@truenine/plugin-opencode-cli": ["./src/plugins/plugin-opencode-cli/index.ts"],
       "@truenine/plugin-qoder-ide": ["./src/plugins/plugin-qoder-ide/index.ts"],
@@ -62,7 +61,8 @@
       "@truenine/plugin-trae-ide": ["./src/plugins/plugin-trae-ide/index.ts"],
       "@truenine/plugin-vscode": ["./src/plugins/plugin-vscode/index.ts"],
       "@truenine/plugin-warp-ide": ["./src/plugins/plugin-warp-ide/index.ts"],
-      "@truenine/plugin-windsurf": ["./src/plugins/plugin-windsurf/index.ts"]
+      "@truenine/plugin-windsurf": ["./src/plugins/plugin-windsurf/index.ts"],
+      "@truenine/config": ["./src/config/index.ts"]
     },
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
@@ -105,7 +105,9 @@
     "src/**/*",
     "env.d.ts",
     "eslint.config.ts",
-    "tsdown.config.ts"
+    "tsdown.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
   ],
   "exclude": [
     "../node_modules",

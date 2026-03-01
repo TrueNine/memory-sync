@@ -2,8 +2,7 @@ import type {FastCommandPrompt, McpServerConfig, OutputPluginContext, OutputWrit
 import type {RelativePath} from '@truenine/plugin-shared/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {BaseCLIOutputPlugin} from '@truenine/plugin-output-shared'
-import {applySubSeriesGlobPrefix, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared/utils'
+import {applySubSeriesGlobPrefix, BaseCLIOutputPlugin, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
 import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'

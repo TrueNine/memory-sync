@@ -2,8 +2,7 @@ import type {OutputPluginContext, OutputWriteContext, RulePrompt, WriteResults} 
 import type {RelativePath} from '@truenine/plugin-shared/types'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter, doubleQuoted} from '@truenine/md-compiler/markdown'
-import {BaseCLIOutputPlugin} from '@truenine/plugin-output-shared'
-import {applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@truenine/plugin-output-shared/utils'
+import {applySubSeriesGlobPrefix, BaseCLIOutputPlugin, filterRulesByProjectConfig} from '@truenine/plugin-output-shared'
 
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'
 const GLOBAL_CONFIG_DIR = '.claude'

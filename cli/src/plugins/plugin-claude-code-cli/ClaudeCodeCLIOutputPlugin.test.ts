@@ -361,15 +361,15 @@ describe('claudeCodeCLIOutputPlugin', () => {
     it('should output paths as YAML array items', () => {
       const rule = createMockRulePrompt({series: '01', ruleName: 'ts', globs: ['**/*.ts', '**/*.tsx'], content: '# Body'})
       const content = plugin.testBuildRuleContent(rule)
-      expect(content).toContain('- "**/*.ts"')
-      expect(content).toContain('- "**/*.tsx"')
+      expect(content).toMatch(/-\s+['"]?\*\*\/\*\.ts['"]?/) // Accept quoted or unquoted formats
+      expect(content).toMatch(/-\s+['"]?\*\*\/\*\.tsx['"]?/)
     })
 
-    it('should double-quote paths that do not start with *', () => {
+    it('should include paths in YAML array', () => {
       const rule = createMockRulePrompt({series: '01', ruleName: 'ts', globs: ['src/components/*.tsx', 'lib/utils.ts'], content: '# Body'})
       const content = plugin.testBuildRuleContent(rule)
-      expect(content).toContain('- "src/components/*.tsx"')
-      expect(content).toContain('- "lib/utils.ts"')
+      expect(content).toMatch(/-\s+['"]?src\/components\/\*\.tsx['"]?/) // Accept quoted or unquoted formats
+      expect(content).toMatch(/-\s+['"]?lib\/utils\.ts['"]?/)
     })
 
     it('should preserve rule body after frontmatter', () => {

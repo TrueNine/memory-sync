@@ -7,8 +7,7 @@ import type {
 import type {RelativePath} from '@truenine/plugin-shared/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {findAllGitRepos, findGitModuleInfoDirs, resolveGitInfoDir} from '@truenine/plugin-output-shared/utils'
+import {AbstractOutputPlugin, findAllGitRepos, findGitModuleInfoDirs, resolveGitInfoDir} from '@truenine/plugin-output-shared'
 import {FilePathKind} from '@truenine/plugin-shared'
 
 export class GitExcludeOutputPlugin extends AbstractOutputPlugin {

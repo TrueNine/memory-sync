@@ -14,7 +14,7 @@ import type {AbstractOutputPluginOptions} from './AbstractOutputPlugin'
 import * as path from 'node:path'
 import {writeFileSync as deskWriteFileSync} from '@truenine/desk-paths'
 import {mdxToMd} from '@truenine/md-compiler'
-import {GlobalScopeCollector} from '@truenine/plugin-input-shared/scope'
+import {GlobalScopeCollector} from '@truenine/plugin-input-shared'
 import {AbstractOutputPlugin} from './AbstractOutputPlugin'
 import {filterCommandsByProjectConfig, filterSkillsByProjectConfig, filterSubAgentsByProjectConfig} from './utils'
 
