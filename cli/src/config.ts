@@ -4,7 +4,7 @@ import * as path from 'node:path'
 import process from 'node:process'
 import {createLogger, DEFAULT_USER_CONFIG, PluginKind} from '@truenine/plugin-shared'
 import glob from 'fast-glob'
-import {ensureShadowProjectConfigLink, loadUserConfig, validateAndEnsureGlobalConfig} from './ConfigLoader'
+import {loadUserConfig, validateAndEnsureGlobalConfig} from './ConfigLoader'
 import {PluginPipeline} from './PluginPipeline'
 import {checkVersionControl} from './ShadowSourceProject'
 
@@ -205,10 +205,6 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
       shadowSourceProjectName: DEFAULT_OPTIONS.shadowSourceProject.name,
       logLevel: DEFAULT_OPTIONS.logLevel
     })
-  }
-
-  if (mergedOptions.workspaceDir != null) { // Auto-link .tnmsc.json into shadow source project dir (skip if workspaceDir unavailable, e.g. CI without napi binary)
-    ensureShadowProjectConfigLink(path.join(mergedOptions.workspaceDir, mergedOptions.shadowSourceProject.name), logger)
   }
 
   const baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = { // Base context without dependencyContext, globalScope, scopeRegistry (will be provided by pipeline)
