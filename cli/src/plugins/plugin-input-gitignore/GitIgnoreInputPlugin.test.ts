@@ -10,7 +10,7 @@ vi.mock('node:fs')
 const BASE_OPTIONS = {
   workspaceDir: '/workspace',
   shadowSourceProject: {
-    name: 'tnmsc-shadow',
+    name: 'aindex',
     skill: {src: 'src/skills', dist: 'dist/skills'},
     fastCommand: {src: 'src/commands', dist: 'dist/commands'},
     subAgent: {src: 'src/agents', dist: 'dist/agents'},

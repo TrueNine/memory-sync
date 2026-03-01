@@ -18,7 +18,7 @@ export interface PipelineConfig {
 }
 
 const DEFAULT_SHADOW_SOURCE_PROJECT: Required<ShadowSourceProjectConfig> = {
-  name: 'tnmsc-shadow',
+  name: 'aindex',
   skill: {src: 'src/skills', dist: 'dist/skills'},
   fastCommand: {src: 'src/commands', dist: 'dist/commands'},
   subAgent: {src: 'src/agents', dist: 'dist/agents'},

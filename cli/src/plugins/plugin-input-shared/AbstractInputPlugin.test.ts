@@ -12,7 +12,7 @@ function createTestOptions(overrides: Partial<PluginOptions> = {}): Required<Plu
   return {
     workspaceDir: '/test',
     shadowSourceProject: {
-      name: 'tnmsc-shadow',
+      name: 'aindex',
       skill: {src: 'src/skills', dist: 'dist/skills'},
       fastCommand: {src: 'src/commands', dist: 'dist/commands'},
       subAgent: {src: 'src/agents', dist: 'dist/agents'},
@@ -246,7 +246,7 @@ describe('abstractInputPlugin', () => {
       const {workspaceDir, shadowProjectDir} = plugin.exposeResolveBasePaths(options)
 
       expect(workspaceDir).toBe(path.normalize('/custom/workspace'))
-      expect(shadowProjectDir).toBe(path.normalize('/custom/workspace/tnmsc-shadow'))
+      expect(shadowProjectDir).toBe(path.normalize('/custom/workspace/aindex'))
     })
 
     it('should construct shadow project dir from name', () => {

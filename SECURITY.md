@@ -5,9 +5,9 @@
 Only the latest release receives security fixes. No backport patches for older versions.
 
 | Version | Supported |
-|---------|-----------|
-| Latest | ✅ |
-| Older | ❌ |
+| ------- | --------- |
+| Latest  | ✅         |
+| Older   | ❌         |
 
 ## Reporting a Vulnerability
 
