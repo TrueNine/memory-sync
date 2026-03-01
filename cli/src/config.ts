@@ -2,9 +2,9 @@ import type {CollectedInputContext, ConfigLoaderOptions, FastCommandSeriesOption
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
-import {createLogger, DEFAULT_USER_CONFIG, PluginKind} from '@truenine/plugin-shared'
+import {createLogger, PluginKind} from '@truenine/plugin-shared'
 import glob from 'fast-glob'
-import {loadUserConfig, validateAndEnsureGlobalConfig} from './ConfigLoader'
+import {loadUserConfig, validateGlobalConfig} from './ConfigLoader'
 import {PluginPipeline} from './PluginPipeline'
 import {checkVersionControl} from './ShadowSourceProject'
 
@@ -29,9 +29,9 @@ const DEFAULT_SHADOW_SOURCE_PROJECT: Required<ShadowSourceProjectConfig> = {
 }
 
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
-  version: DEFAULT_USER_CONFIG.version ?? '0.0.0',
-  workspaceDir: DEFAULT_USER_CONFIG.workspaceDir ?? '~/project',
-  logLevel: DEFAULT_USER_CONFIG.logLevel ?? 'info',
+  version: '0.0.0',
+  workspaceDir: '~/project',
+  logLevel: 'info',
   shadowSourceProject: DEFAULT_SHADOW_SOURCE_PROJECT,
   fastCommandSeriesOptions: {},
   plugins: []
@@ -164,8 +164,12 @@ function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): op
  * @param options - Plugin options or DefineConfigOptions
  */
 export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
-  const validationResult = validateAndEnsureGlobalConfig() // Validate and ensure global config exists
-  if (validationResult.shouldExit) process.exit(1)
+  const validationResult = validateGlobalConfig() // Validate global config exists and is valid - do not auto-create
+  if (!validationResult.valid) {
+    const logger = createLogger('defineConfig') // Log all errors before exiting
+    for (const error of validationResult.errors) logger.error(error)
+    process.exit(1)
+  }
 
   let shouldLoadUserConfig: boolean, // Normalize options
     cwd: string | undefined,
@@ -185,27 +189,32 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   let userConfigFile: UserConfigFile | undefined
 
   if (shouldLoadUserConfig) {
-    const userConfigResult = loadUserConfig(cwd)
-    userConfigFound = userConfigResult.found
-    userConfigSources = userConfigResult.sources
-    if (userConfigResult.found) {
-      userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
-      userConfigFile = userConfigResult.config
+    try {
+      const userConfigResult = loadUserConfig(cwd)
+      userConfigFound = userConfigResult.found
+      userConfigSources = userConfigResult.sources
+      if (userConfigResult.found) {
+        userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
+        userConfigFile = userConfigResult.config
+      }
     }
+    catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error) // Config loading failed - throw error instead of using defaults
+      throw new Error(`Failed to load user config: ${errorMessage}`)
+    }
+  }
+
+  if (!userConfigFound) { // Require user config to be found - no fallback to defaults
+    throw new Error(
+      'No user config found. Please create ~/.aindex/.tnmsc.json or a .tnmsc.json in your working directory.'
+    )
   }
 
   const mergedOptions = mergeConfig(userConfigOptions, pluginOptions) // Merge: defaults <- user config <- programmatic options
   const {plugins = [], logLevel} = mergedOptions
   const logger = createLogger('defineConfig', logLevel)
 
-  if (userConfigFound) logger.info('user config loaded', {sources: userConfigSources}) // Log configuration loading info
-  else {
-    logger.info('no user config found, using defaults', {
-      workspaceDir: DEFAULT_OPTIONS.workspaceDir,
-      shadowSourceProjectName: DEFAULT_OPTIONS.shadowSourceProject.name,
-      logLevel: DEFAULT_OPTIONS.logLevel
-    })
-  }
+  logger.info('user config loaded', {sources: userConfigSources})
 
   const baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = { // Base context without dependencyContext, globalScope, scopeRegistry (will be provided by pipeline)
     logger,

@@ -84,18 +84,15 @@ describe('configLoader', () => {
       expect(result.config.logLevel).toBe('debug')
     })
 
-    it('should handle invalid JSON gracefully', () => {
+    it('should throw error for invalid JSON', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true)
       vi.mocked(fs.readFileSync).mockReturnValue('{ invalid json }')
 
       const loader = new ConfigLoader()
-      const result = loader.loadFromFile('/test/.tnmsc.json')
-
-      expect(result.found).toBe(false)
-      expect(result.config).toEqual({})
+      expect(() => loader.loadFromFile('/test/.tnmsc.json')).toThrow('Invalid JSON') // Now throws error instead of returning empty config
     })
 
-    it('should validate string fields', () => {
+    it('should throw error for invalid string fields', () => {
       const configContent = JSON.stringify({ // workspaceDir is invalid (number instead of string)
         workspaceDir: 123
       })
@@ -104,13 +101,10 @@ describe('configLoader', () => {
       vi.mocked(fs.readFileSync).mockReturnValue(configContent)
 
       const loader = new ConfigLoader()
-      const result = loader.loadFromFile('/test/.tnmsc.json')
-
-      expect(result.found).toBe(true)
-      expect(result.config.workspaceDir).toBeUndefined() // Invalid field should be ignored
+      expect(() => loader.loadFromFile('/test/.tnmsc.json')).toThrow('Config validation failed') // Now throws error instead of ignoring invalid field
     })
 
-    it('should validate logLevel values', () => {
+    it('should throw error for invalid logLevel values', () => {
       const configContent = JSON.stringify({ // logLevel is invalid
         logLevel: 'invalid'
       })
@@ -119,10 +113,7 @@ describe('configLoader', () => {
       vi.mocked(fs.readFileSync).mockReturnValue(configContent)
 
       const loader = new ConfigLoader()
-      const result = loader.loadFromFile('/test/.tnmsc.json')
-
-      expect(result.found).toBe(true)
-      expect(result.config.logLevel).toBeUndefined()
+      expect(() => loader.loadFromFile('/test/.tnmsc.json')).toThrow('Config validation failed') // Now throws error instead of ignoring invalid field
     })
 
     it('should validate shadowSourceProject object', () => {
@@ -157,10 +148,7 @@ describe('configLoader', () => {
       vi.mocked(fs.readFileSync).mockReturnValue(configContent)
 
       const loader = new ConfigLoader()
-      const result = loader.loadFromFile('/test/.tnmsc.json')
-
-      expect(result.found).toBe(true)
-      expect(result.config.shadowSourceProject).toBeUndefined()
+      expect(() => loader.loadFromFile('/test/.tnmsc.json')).toThrow('Config validation failed') // Now throws error instead of returning config with undefined shadowSourceProject
     })
 
     it('should validate profile object with arbitrary key-value pairs', () => {
@@ -197,10 +185,7 @@ describe('configLoader', () => {
       vi.mocked(fs.readFileSync).mockReturnValue(configContent)
 
       const loader = new ConfigLoader()
-      const result = loader.loadFromFile('/test/.tnmsc.json')
-
-      expect(result.found).toBe(true)
-      expect(result.config.profile).toBeUndefined()
+      expect(() => loader.loadFromFile('/test/.tnmsc.json')).toThrow('Config validation failed') // Now throws error instead of returning empty config
     })
 
     it('should reject invalid profile (array)', () => {
@@ -212,23 +197,16 @@ describe('configLoader', () => {
       vi.mocked(fs.readFileSync).mockReturnValue(configContent)
 
       const loader = new ConfigLoader()
-      const result = loader.loadFromFile('/test/.tnmsc.json')
-
-      expect(result.found).toBe(true)
-      expect(result.config.profile).toBeUndefined()
+      expect(() => loader.loadFromFile('/test/.tnmsc.json')).toThrow('Config validation failed') // Now throws error instead of returning empty config
     })
   })
 
   describe('load', () => {
-    it('should return empty config when no files found', () => {
+    it('should throw error when no config files found', () => {
       vi.mocked(fs.existsSync).mockReturnValue(false)
 
       const loader = new ConfigLoader()
-      const result = loader.load(mockCwd)
-
-      expect(result.found).toBe(false)
-      expect(result.config).toEqual({})
-      expect(result.sources).toEqual([])
+      expect(() => loader.load(mockCwd)).toThrow('No valid config file found') // Now throws error instead of returning empty config
     })
 
     it('should merge configs with correct priority', () => {
@@ -318,13 +296,10 @@ describe('configLoader', () => {
   })
 
   describe('loadUserConfig helper', () => {
-    it('should use default loader', () => {
+    it('should throw error when no config found', () => {
       vi.mocked(fs.existsSync).mockReturnValue(false)
 
-      const result = loadUserConfig(mockCwd)
-
-      expect(result.found).toBe(false)
-      expect(result.config).toEqual({})
+      expect(() => loadUserConfig(mockCwd)).toThrow('No valid config file found') // Now throws error instead of returning empty config
     })
   })
 })

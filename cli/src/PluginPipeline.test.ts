@@ -11,7 +11,6 @@ import {
   DryRunOutputCommand,
   ExecuteCommand,
   HelpCommand,
-  InitCommand,
   UnknownCommand
 } from '@/commands'
 import {parseArgs, PluginPipeline, resolveCommand, resolveLogLevel} from '@/PluginPipeline'
@@ -773,14 +772,6 @@ describe('resolveCommand', () => {
       const args = createParsedArgs({helpFlag: true, unknownCommand: 'foo'})
       const command = resolveCommand(args)
       expect(command).toBeInstanceOf(HelpCommand)
-    })
-  })
-
-  describe('init command', () => {
-    it('should return InitCommand for init subcommand', () => {
-      const args = createParsedArgs({subcommand: 'init'})
-      const command = resolveCommand(args)
-      expect(command).toBeInstanceOf(InitCommand)
     })
   })
 
