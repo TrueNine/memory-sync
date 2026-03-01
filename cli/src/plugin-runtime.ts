@@ -16,7 +16,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
 import {createLogger, setGlobalLogLevel} from '@truenine/plugin-shared'
-import * as glob from 'fast-glob'
+import glob from 'fast-glob'
 import {
   CleanCommand,
   DryRunCleanCommand,

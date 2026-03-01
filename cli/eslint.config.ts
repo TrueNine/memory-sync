@@ -11,7 +11,7 @@ const config = eslint10({
     strictTypescriptEslint: true,
     tsconfigPath: resolve(configDir, 'tsconfig.eslint.json'),
     parserOptions: {
-      allowDefaultProject: true
+      allowDefaultProject: ['*.config.ts']
     }
   },
   ignores: [

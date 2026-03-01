@@ -1,7 +1,6 @@
 packages:
   - cli
   - cli/npm/*
-  - packages/*
   - libraries/*
   - libraries/logger/npm/*
   - libraries/md-compiler/npm/*

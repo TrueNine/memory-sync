@@ -1,6 +1,6 @@
 import type {Command, CommandContext, CommandResult, JsonPluginInfo} from './Command'
 import process from 'node:process'
-import {PluginKind} from '@truenine/plugin-shared'
+import {PluginKind} from '../plugins/plugin-shared'
 
 /**
  * Command that outputs all registered plugin information as JSON.

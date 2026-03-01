@@ -1,7 +1,7 @@
 {
   "name": "@truenine/config",
   "type": "module",
-  "version": "2026.10224.10619",
+  "version": "2026.10302.10037",
   "private": true,
   "description": "Rust-powered configuration loader for Node.js",
   "license": "AGPL-3.0-only",

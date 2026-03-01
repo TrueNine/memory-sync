@@ -4,9 +4,9 @@ import type {Command, CommandContext} from '@/commands'
 import type {PipelineConfig} from '@/config'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@truenine/plugin-input-shared/scope'
+import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@truenine/plugin-input-shared'
 import {CircularDependencyError, createLogger, MissingDependencyError, setGlobalLogLevel} from '@truenine/plugin-shared'
-import * as glob from 'fast-glob'
+import glob from 'fast-glob'
 import {
   CleanCommand,
   ConfigCommand,

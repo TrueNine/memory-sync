@@ -1,0 +1,50 @@
+{
+  "version": "2026.10218.12101",
+  "workspaceDir": "~/project",
+  "aindex": {
+    "name": "aindex",
+    "skills": {
+      "src": "skills",
+      "dist": "dist/skills"
+    },
+    "commands": {
+      "src": "commands",
+      "dist": "dist/commands"
+    },
+    "subAgents": {
+      "src": "agents",
+      "dist": "dist/agents"
+    },
+    "rules": {
+      "src": "rules",
+      "dist": "dist/rules"
+    },
+    "globalPrompt": {
+      "src": "app/global.cn.mdx",
+      "dist": "dist/global.mdx"
+    },
+    "workspacePrompt": {
+      "src": "app/workspace.cn.mdx",
+      "dist": "dist/workspace.mdx"
+    },
+    "app": {
+      "src": "app",
+      "dist": "dist/app"
+    },
+    "ext": {
+      "src": "ext",
+      "dist": "dist/ext"
+    },
+    "arch": {
+      "src": "arch",
+      "dist": "dist/arch"
+    }
+  },
+  "logLevel": "info",
+  "profile": {
+    "name": "赵日天",
+    "username": "TrueNine",
+    "gender": "male",
+    "birthday": "1997-11-04"
+  }
+}

@@ -27,7 +27,6 @@ import {VSCodeConfigInputPlugin} from '@truenine/plugin-input-vscode-config'
 import {WorkspaceInputPlugin} from '@truenine/plugin-input-workspace'
 import {JetBrainsAIAssistantCodexOutputPlugin} from '@truenine/plugin-jetbrains-ai-codex'
 import {JetBrainsIDECodeStyleConfigOutputPlugin} from '@truenine/plugin-jetbrains-codestyle'
-import {KiroCLIOutputPlugin} from '@truenine/plugin-kiro-ide'
 import {CodexCLIOutputPlugin} from '@truenine/plugin-openai-codex-cli'
 import {OpencodeCLIOutputPlugin} from '@truenine/plugin-opencode-cli'
 import {QoderIDEPluginOutputPlugin} from '@truenine/plugin-qoder-ide'
@@ -48,7 +47,6 @@ export default defineConfig({
     new DroidCLIOutputPlugin(),
     new GeminiCLIOutputPlugin(),
     new GenericSkillsOutputPlugin(),
-    new KiroCLIOutputPlugin(),
     new OpencodeCLIOutputPlugin(),
     new QoderIDEPluginOutputPlugin(),
     new TraeIDEOutputPlugin(),
