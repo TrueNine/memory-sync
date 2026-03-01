@@ -12,25 +12,30 @@ import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
+import {
+  AbstractOutputPlugin,
+  applySubSeriesGlobPrefix,
+  filterCommandsByProjectConfig,
+  filterRulesByProjectConfig,
+  filterSkillsByProjectConfig,
+  GlobalConfigDirs,
+  IgnoreFiles,
+  OutputFileNames,
+  OutputPrefixes,
+  OutputSubdirectories,
+  PreservedSkills
+} from '@truenine/plugin-output-shared'
 import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
 
-const GLOBAL_CONFIG_DIR = '.cursor'
-const MCP_CONFIG_FILE = 'mcp.json'
-const COMMANDS_SUBDIR = 'commands'
-const RULES_SUBDIR = 'rules'
-const GLOBAL_RULE_FILE = 'global.mdc'
-const SKILLS_CURSOR_SUBDIR = 'skills-cursor'
-const SKILL_FILE_NAME = 'SKILL.md'
-const RULE_FILE_PREFIX = 'rule-'
-
-const PRESERVED_SKILLS = new Set<string>([
-  'create-rule',
-  'create-skill',
-  'create-subagent',
-  'migrate-to-skills',
-  'update-cursor-settings'
-])
+const GLOBAL_CONFIG_DIR = GlobalConfigDirs.CURSOR // Constants for local use (consider moving to constants.ts if used by multiple plugins)
+const MCP_CONFIG_FILE = OutputFileNames.MCP_CONFIG
+const COMMANDS_SUBDIR = OutputSubdirectories.COMMANDS
+const RULES_SUBDIR = OutputSubdirectories.RULES
+const GLOBAL_RULE_FILE = OutputFileNames.CURSOR_GLOBAL_RULE
+const SKILLS_CURSOR_SUBDIR = OutputSubdirectories.CURSOR_SKILLS
+const SKILL_FILE_NAME = OutputFileNames.SKILL
+const RULE_FILE_PREFIX = OutputPrefixes.RULE
+const PRESERVED_SKILLS = PreservedSkills.CURSOR
 
 export class CursorOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -38,7 +43,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: '',
       dependsOn: [PLUGIN_NAMES.AgentsOutput],
-      indexignore: '.cursorignore'
+      indexignore: IgnoreFiles.CURSOR
     })
 
     this.registerCleanEffect('mcp-config-cleanup', async ctx => {
