@@ -1,11 +1,10 @@
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {fileURLToPath, URL} from 'node:url'
-import {bundles} from '@truenine/init-bundle'
 import {defineConfig} from 'vite'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
-const kiroGlobalPowersRegistry = bundles['public/kiro_global_powers_registry.json']?.content ?? '{"version":"1.0.0","powers":{},"repoSources":{}}'
+const kiroGlobalPowersRegistry = '{"version":"1.0.0","powers":{},"repoSources":{}}'
 
 const pluginAliases: Record<string, string> = {
   '@truenine/desk-paths': resolve('src/plugins/desk-paths/index.ts'),

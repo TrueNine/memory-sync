@@ -25,7 +25,6 @@ tnmsc-md-compiler = { workspace = true }
 tnmsc-config = { workspace = true }
 tnmsc-plugin-shared = { workspace = true }
 tnmsc-input-plugins = { workspace = true }
-tnmsc-init-bundle = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = "2"

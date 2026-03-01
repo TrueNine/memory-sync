@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
-    "@tanstack/router-generator": "^1.162.2",
+    "@tanstack/router-generator": "^1.164.0",
     "@tauri-apps/cli": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

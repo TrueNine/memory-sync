@@ -62,7 +62,7 @@
     "picocolors": "catalog:",
     "picomatch": "catalog:",
     "tsx": "4.21.0",
-    "vitest": "^4.0.18",
+    "vitest": "catalog:",
     "yaml": "2.8.2",
     "zod": "catalog:"
   },
@@ -74,7 +74,6 @@
     "@truenine/memory-sync-cli-win32-x64-msvc": "workspace:*"
   },
   "devDependencies": {
-    "@truenine/init-bundle": "workspace:*",
     "@truenine/logger": "workspace:*",
     "@truenine/md-compiler": "workspace:*",
     "@types/fs-extra": "catalog:",

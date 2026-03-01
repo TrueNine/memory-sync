@@ -7,7 +7,6 @@ members = [
   "libraries/config",
   "libraries/plugin-shared",
   "libraries/input-plugins",
-  "libraries/init-bundle",
   "gui/src-tauri",
 ]
 
@@ -26,7 +25,6 @@ tnmsc-md-compiler = { path = "libraries/md-compiler" }
 tnmsc-config = { path = "libraries/config" }
 tnmsc-plugin-shared = { path = "libraries/plugin-shared" }
 tnmsc-input-plugins = { path = "libraries/input-plugins" }
-tnmsc-init-bundle = { path = "libraries/init-bundle" }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

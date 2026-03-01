@@ -3,7 +3,7 @@ import {cpSync, existsSync, mkdirSync, readdirSync} from 'node:fs'
 import {join, resolve} from 'node:path'
 import process from 'node:process'
 
-const LIBRARIES = ['logger', 'md-compiler', 'config', 'init-bundle'] as const
+const LIBRARIES = ['logger', 'md-compiler', 'config'] as const
 
 const PLATFORM_MAP: Record<string, string> = {
   'win32-x64': 'win32-x64-msvc',
@@ -53,5 +53,4 @@ if (copied > 0) {
   console.warn('  pnpm -F @truenine/logger run build:native')
   console.warn('  pnpm -F @truenine/md-compiler run build:native')
   console.warn('  pnpm -F @truenine/config run build:native')
-  console.warn('  pnpm -F @truenine/init-bundle run build:native')
 }

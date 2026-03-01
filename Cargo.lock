@@ -4450,7 +4450,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tnmsc-config",
- "tnmsc-init-bundle",
  "tnmsc-input-plugins",
  "tnmsc-logger",
  "tnmsc-md-compiler",
@@ -4472,16 +4471,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tnmsc-init-bundle"
-version = "2026.10222.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "serde_json",
-]
-
-[[package]]
 name = "tnmsc-input-plugins"
 version = "2026.10222.0"
 dependencies = [
@@ -4494,7 +4483,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "tnmsc-config",
- "tnmsc-init-bundle",
  "tnmsc-logger",
  "tnmsc-md-compiler",
  "tnmsc-plugin-shared",

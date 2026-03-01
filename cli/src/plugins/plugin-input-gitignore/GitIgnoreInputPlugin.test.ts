@@ -59,8 +59,6 @@ describe('gitIgnoreInputPlugin', () => {
     expect(fs.existsSync).toHaveBeenCalledWith(expect.stringContaining(path.join('public', 'gitignore')))
     expect(fs.readFileSync).not.toHaveBeenCalled()
 
-    if (result.globalGitIgnore != null && result.globalGitIgnore.length > 0) { // Plugin uses @truenine/init-bundle template as fallback — may or may not have content
-      expect(result).toHaveProperty('globalGitIgnore')
-    } else expect(result).toEqual({})
+    expect(result).toEqual({})
   })
 })

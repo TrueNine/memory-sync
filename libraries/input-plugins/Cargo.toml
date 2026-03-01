@@ -19,7 +19,6 @@ tnmsc-logger = { workspace = true }
 tnmsc-md-compiler = { workspace = true }
 tnmsc-config = { workspace = true }
 tnmsc-plugin-shared = { workspace = true }
-tnmsc-init-bundle = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

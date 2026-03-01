@@ -6,7 +6,7 @@ import {dirname, join, resolve} from 'node:path'
 import process from 'node:process'
 import {fileURLToPath} from 'node:url'
 
-const LIBRARIES = ['logger', 'md-compiler', 'config', 'init-bundle'] as const
+const LIBRARIES = ['logger', 'md-compiler', 'config'] as const
 
 const __dirname = import.meta.dirname ?? dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
