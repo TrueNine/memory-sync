@@ -13,39 +13,36 @@ import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
 import {FilePathKind} from '@truenine/plugin-shared'
 
-const PROJECT_SKILLS_DIR = '.skills'
-const GLOBAL_SKILLS_DIR = '.aindex/.skills'
-const OLD_GLOBAL_SKILLS_DIR = '.skills' // 向后兼容：旧的全局 skills 目录
+const PROJECT_SKILLS_DIR = '.agents/skills'
+const LEGACY_SKILLS_DIR = '.skills' // 旧路径，用于清理
 const SKILL_FILE_NAME = 'SKILL.md'
 const MCP_CONFIG_FILE = 'mcp.json'
 
 /**
- * Output plugin that writes skills to a global location (~/.skills/) and
- * creates symlinks in each project pointing to the global skill directories.
- *
- * This approach reduces disk space usage when multiple projects use the same skills.
+ * Output plugin that writes skills directly to each project's .agents/skills/ directory.
  *
  * Structure:
- * - Global: ~/.skills/<skill-name>/SKILL.md, mcp.json, child docs, resources
- * - Project: <project>/.skills/<skill-name> → ~/.skills/<skill-name> (symlink)
+ * - Project: <project>/.agents/skills/<skill-name>/SKILL.md, mcp.json, child docs, resources
+ *
+ * Also cleans up legacy .skills/ directories from previous versions.
  */
 export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('GenericSkillsOutputPlugin', {globalConfigDir: GLOBAL_SKILLS_DIR, outputFileName: SKILL_FILE_NAME})
+    super('GenericSkillsOutputPlugin', {outputFileName: SKILL_FILE_NAME})
 
     this.registerCleanEffect('legacy-global-skills-cleanup', async ctx => { // 向后兼容：clean 时清理旧的 ~/.skills 目录
-      const oldGlobalSkillsDir = this.joinPath(this.getHomeDir(), OLD_GLOBAL_SKILLS_DIR)
-      if (!this.existsSync(oldGlobalSkillsDir)) return {success: true, description: 'Legacy global skills dir does not exist, nothing to clean'}
+      const legacyGlobalSkillsDir = this.joinPath(this.getHomeDir(), LEGACY_SKILLS_DIR)
+      if (!this.existsSync(legacyGlobalSkillsDir)) return {success: true, description: 'Legacy global skills dir does not exist, nothing to clean'}
       if (ctx.dryRun === true) {
-        this.log.trace({action: 'dryRun', type: 'legacyCleanup', path: oldGlobalSkillsDir})
-        return {success: true, description: `Would clean legacy global skills dir: ${oldGlobalSkillsDir}`}
+        this.log.trace({action: 'dryRun', type: 'legacyCleanup', path: legacyGlobalSkillsDir})
+        return {success: true, description: `Would clean legacy global skills dir: ${legacyGlobalSkillsDir}`}
       }
       try {
-        const entries = this.readdirSync(oldGlobalSkillsDir, {withFileTypes: true}) // 只删除 skill 子目录（避免误删用户其他文件）
+        const entries = this.readdirSync(legacyGlobalSkillsDir, {withFileTypes: true}) // 只删除 skill 子目录（避免误删用户其他文件）
         let cleanedCount = 0
         for (const entry of entries) {
           if (entry.isDirectory()) {
-            const skillDir = this.joinPath(oldGlobalSkillsDir, entry.name)
+            const skillDir = this.joinPath(legacyGlobalSkillsDir, entry.name)
             const skillFile = this.joinPath(skillDir, SKILL_FILE_NAME)
             if (this.existsSync(skillFile)) { // 确认是 skill 目录（包含 SKILL.md）才删除
               fs.rmSync(skillDir, {recursive: true})
@@ -53,21 +50,17 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
             }
           }
         }
-        const remainingEntries = this.readdirSync(oldGlobalSkillsDir) // 如果目录为空则删除目录本身
-        if (remainingEntries.length === 0) fs.rmdirSync(oldGlobalSkillsDir)
-        this.log.trace({action: 'clean', type: 'legacySkills', dir: oldGlobalSkillsDir, cleanedCount})
-        return {success: true, description: `Cleaned ${cleanedCount} legacy skills from ${oldGlobalSkillsDir}`}
+        const remainingEntries = this.readdirSync(legacyGlobalSkillsDir) // 如果目录为空则删除目录本身
+        if (remainingEntries.length === 0) fs.rmdirSync(legacyGlobalSkillsDir)
+        this.log.trace({action: 'clean', type: 'legacySkills', dir: legacyGlobalSkillsDir, cleanedCount})
+        return {success: true, description: `Cleaned ${cleanedCount} legacy skills from ${legacyGlobalSkillsDir}`}
       }
       catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'clean', type: 'legacySkills', dir: oldGlobalSkillsDir, error: errMsg})
+        this.log.error({action: 'clean', type: 'legacySkills', dir: legacyGlobalSkillsDir, error: errMsg})
         return {success: false, description: `Failed to clean legacy skills dir`, error: error as Error}
       }
     })
-  }
-
-  private getGlobalSkillsDir(): string {
-    return this.joinPath(this.getHomeDir(), GLOBAL_SKILLS_DIR)
   }
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -77,16 +70,25 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
     if (skills == null || skills.length === 0) return results
 
-    for (const project of projects) { // Register <project>/.skills/ for cleanup (symlink directory)
+    for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      const skillsDir = this.joinPath(project.dirFromWorkspacePath.path, PROJECT_SKILLS_DIR)
+      const skillsDir = this.joinPath(project.dirFromWorkspacePath.path, PROJECT_SKILLS_DIR) // 注册新的 .agents/skills/ 目录
       results.push({
         pathKind: FilePathKind.Relative,
         path: skillsDir,
         basePath: project.dirFromWorkspacePath.basePath,
         getDirectoryName: () => PROJECT_SKILLS_DIR,
         getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, skillsDir)
+      })
+
+      const legacySkillsDir = this.joinPath(project.dirFromWorkspacePath.path, LEGACY_SKILLS_DIR) // 注册旧的 .skills/ 目录用于清理
+      results.push({
+        pathKind: FilePathKind.Relative,
+        path: legacySkillsDir,
+        basePath: project.dirFromWorkspacePath.basePath,
+        getDirectoryName: () => LEGACY_SKILLS_DIR,
+        getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, legacySkillsDir)
       })
     }
 
@@ -100,100 +102,73 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
     if (skills == null || skills.length === 0) return results
 
-    for (const project of projects) { // Register symlink paths (skills in project are now symlinks)
+    for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      const projectSkillsDir = this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path, PROJECT_SKILLS_DIR)
+      const projectSkillsDir = this.joinPath(
+        project.dirFromWorkspacePath.basePath,
+        project.dirFromWorkspacePath.path,
+        PROJECT_SKILLS_DIR
+      )
 
       for (const skill of skills) {
         const skillName = skill.yamlFrontMatter.name
         const skillDir = this.joinPath(projectSkillsDir, skillName)
 
-        results.push({ // Register skill directory symlink
+        results.push({ // 注册 SKILL.md
           pathKind: FilePathKind.Relative,
-          path: this.joinPath(PROJECT_SKILLS_DIR, skillName),
+          path: this.joinPath(PROJECT_SKILLS_DIR, skillName, SKILL_FILE_NAME),
           basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
           getDirectoryName: () => skillName,
-          getAbsolutePath: () => skillDir
+          getAbsolutePath: () => this.joinPath(skillDir, SKILL_FILE_NAME)
         })
+
+        if (skill.mcpConfig != null) { // 注册 mcp.json（如果有）
+          results.push({
+            pathKind: FilePathKind.Relative,
+            path: this.joinPath(PROJECT_SKILLS_DIR, skillName, MCP_CONFIG_FILE),
+            basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
+            getDirectoryName: () => skillName,
+            getAbsolutePath: () => this.joinPath(skillDir, MCP_CONFIG_FILE)
+          })
+        }
+
+        if (skill.childDocs != null) { // 注册 child docs
+          for (const childDoc of skill.childDocs) {
+            const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
+            results.push({
+              pathKind: FilePathKind.Relative,
+              path: this.joinPath(PROJECT_SKILLS_DIR, skillName, outputRelativePath),
+              basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
+              getDirectoryName: () => skillName,
+              getAbsolutePath: () => this.joinPath(skillDir, outputRelativePath)
+            })
+          }
+        }
+
+        if (skill.resources != null) { // 注册 resources
+          for (const resource of skill.resources) {
+            results.push({
+              pathKind: FilePathKind.Relative,
+              path: this.joinPath(PROJECT_SKILLS_DIR, skillName, resource.relativePath),
+              basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
+              getDirectoryName: () => skillName,
+              getAbsolutePath: () => this.joinPath(skillDir, resource.relativePath)
+            })
+          }
+        }
       }
     }
 
     return results
   }
 
-  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const {skills} = ctx.collectedInputContext
-
-    if (skills == null || skills.length === 0) return []
-
-    const globalSkillsDir = this.getGlobalSkillsDir()
-    return [{
-      pathKind: FilePathKind.Relative,
-      path: GLOBAL_SKILLS_DIR,
-      basePath: this.getHomeDir(),
-      getDirectoryName: () => GLOBAL_SKILLS_DIR,
-      getAbsolutePath: () => globalSkillsDir
-    }]
+  async registerGlobalOutputDirs(): Promise<RelativePath[]> {
+    return [] // 不再使用全局输出目录
   }
 
-  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
-    const {skills} = ctx.collectedInputContext
-
-    if (skills == null || skills.length === 0) return results
-
-    const globalSkillsDir = this.getGlobalSkillsDir()
-
-    for (const skill of skills) {
-      const skillName = skill.yamlFrontMatter.name
-      const skillDir = this.joinPath(globalSkillsDir, skillName)
-
-      results.push({ // Register SKILL.md
-        pathKind: FilePathKind.Relative,
-        path: this.joinPath(GLOBAL_SKILLS_DIR, skillName, SKILL_FILE_NAME),
-        basePath: this.getHomeDir(),
-        getDirectoryName: () => skillName,
-        getAbsolutePath: () => this.joinPath(skillDir, SKILL_FILE_NAME)
-      })
-
-      if (skill.mcpConfig != null) { // Register mcp.json if skill has MCP configuration
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: this.joinPath(GLOBAL_SKILLS_DIR, skillName, MCP_CONFIG_FILE),
-          basePath: this.getHomeDir(),
-          getDirectoryName: () => skillName,
-          getAbsolutePath: () => this.joinPath(skillDir, MCP_CONFIG_FILE)
-        })
-      }
-
-      if (skill.childDocs != null) { // Register child docs (convert .mdx to .md)
-        for (const childDoc of skill.childDocs) {
-          const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
-          results.push({
-            pathKind: FilePathKind.Relative,
-            path: this.joinPath(GLOBAL_SKILLS_DIR, skillName, outputRelativePath),
-            basePath: this.getHomeDir(),
-            getDirectoryName: () => skillName,
-            getAbsolutePath: () => this.joinPath(skillDir, outputRelativePath)
-          })
-        }
-      }
-
-      if (skill.resources != null) { // Register resources
-        for (const resource of skill.resources) {
-          results.push({
-            pathKind: FilePathKind.Relative,
-            path: this.joinPath(GLOBAL_SKILLS_DIR, skillName, resource.relativePath),
-            basePath: this.getHomeDir(),
-            getDirectoryName: () => skillName,
-            getAbsolutePath: () => this.joinPath(skillDir, resource.relativePath)
-          })
-        }
-      }
-    }
-
-    return results
+  async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+    return [] // 不再使用全局输出文件
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
@@ -219,63 +194,26 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
     if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults}
 
-    const globalSkillsDir = this.getGlobalSkillsDir()
-
-    for (const project of projects) { // Create symlinks for each project
+    for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      const projectSkillsDir = this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path, PROJECT_SKILLS_DIR)
+      const projectSkillsDir = this.joinPath(
+        project.dirFromWorkspacePath.basePath,
+        project.dirFromWorkspacePath.path,
+        PROJECT_SKILLS_DIR
+      )
 
       for (const skill of skills) {
-        const skillName = skill.yamlFrontMatter.name
-        const globalSkillDir = this.joinPath(globalSkillsDir, skillName)
-        const projectSkillDir = this.joinPath(projectSkillsDir, skillName)
-
-        const relativePath: RelativePath = {
-          pathKind: FilePathKind.Relative,
-          path: this.joinPath(PROJECT_SKILLS_DIR, skillName),
-          basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
-          getDirectoryName: () => skillName,
-          getAbsolutePath: () => projectSkillDir
-        }
-
-        if (ctx.dryRun === true) {
-          this.log.trace({action: 'dryRun', type: 'symlink', target: globalSkillDir, link: projectSkillDir})
-          fileResults.push({path: relativePath, success: true, skipped: false})
-          continue
-        }
-
-        try {
-          this.createSymlink(globalSkillDir, projectSkillDir, 'dir')
-          this.log.trace({action: 'symlink', type: 'skill', target: globalSkillDir, link: projectSkillDir})
-          fileResults.push({path: relativePath, success: true})
-        }
-        catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error)
-          this.log.error({action: 'symlink', type: 'skill', target: globalSkillDir, link: projectSkillDir, error: errMsg})
-          fileResults.push({path: relativePath, success: false, error: error as Error})
-        }
+        const skillResults = await this.writeSkill(ctx, skill, projectSkillsDir) // 将技能文件直接写入项目目录
+        fileResults.push(...skillResults)
       }
     }
 
     return {files: fileResults, dirs: dirResults}
   }
 
-  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {skills} = ctx.collectedInputContext
-    const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
-
-    if (skills == null || skills.length === 0) return {files: fileResults, dirs: dirResults}
-
-    const globalSkillsDir = this.getGlobalSkillsDir()
-
-    for (const skill of skills) { // Write all skills to global ~/.skills/ directory
-      const skillResults = await this.writeSkill(ctx, skill, globalSkillsDir)
-      fileResults.push(...skillResults)
-    }
-
-    return {files: fileResults, dirs: dirResults}
+  async writeGlobalOutputs(): Promise<WriteResults> {
+    return {files: [], dirs: []} // 不再写入全局输出，所有技能文件直接写入项目目录
   }
 
   private async writeSkill(
