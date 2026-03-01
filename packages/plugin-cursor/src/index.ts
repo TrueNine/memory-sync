@@ -1,3 +1,0 @@
-export {
-  CursorOutputPlugin
-} from './CursorOutputPlugin'

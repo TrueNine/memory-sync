@@ -1,3 +1,0 @@
-export {
-  WindsurfOutputPlugin
-} from './WindsurfOutputPlugin'

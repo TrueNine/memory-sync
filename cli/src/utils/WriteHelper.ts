@@ -1,13 +1,13 @@
-import type {RelativePath} from '@truenine/plugin-shared'
+import type {RelativePath} from '../plugins/plugin-shared'
 import * as path from 'node:path'
-import {createRelativePath} from '@truenine/desk-paths'
+import {createRelativePath} from '../plugins/desk-paths'
 
 export {
   type SafeWriteOptions,
   type SafeWriteResult,
   writeFileSafe,
   type WriteLogger
-} from '@truenine/desk-paths' // Re-export from desk-paths
+} from '../plugins/desk-paths' // Re-export from desk-paths
 
 /**
  * Options for creating a RelativePath for output files

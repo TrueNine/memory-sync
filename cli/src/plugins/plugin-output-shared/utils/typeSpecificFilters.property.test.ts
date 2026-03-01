@@ -1,6 +1,6 @@
 /** Property 6: Type-specific filters use correct config sections. Validates: Requirements 7.1, 7.2, 7.3, 7.4 */
-import type {FastCommandPrompt, RulePrompt, SkillPrompt, SubAgentPrompt} from '@truenine/plugin-shared'
-import type {ProjectConfig} from '@truenine/plugin-shared/types'
+import type {FastCommandPrompt, RulePrompt, SkillPrompt, SubAgentPrompt} from '../../../plugin-shared'
+import type {ProjectConfig} from '../../../plugin-shared/types'
 import * as fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
 

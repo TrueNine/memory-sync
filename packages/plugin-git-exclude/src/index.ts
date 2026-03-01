@@ -1,3 +1,0 @@
-export {
-  GitExcludeOutputPlugin
-} from './GitExcludeOutputPlugin'

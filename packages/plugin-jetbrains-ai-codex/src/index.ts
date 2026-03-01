@@ -1,3 +1,0 @@
-export {
-  JetBrainsAIAssistantCodexOutputPlugin
-} from './JetBrainsAIAssistantCodexOutputPlugin'

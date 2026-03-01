@@ -1,3 +1,0 @@
-export {
-  ShadowProjectInputPlugin
-} from './ShadowProjectInputPlugin'
