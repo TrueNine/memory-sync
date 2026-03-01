@@ -72,9 +72,8 @@ CONFIGURATION:
 export class HelpCommand implements Command {
   readonly name = 'help'
 
-  async execute(_ctx: CommandContext): Promise<CommandResult> {
-    // eslint-disable-next-line no-console
-    console.log(HELP_TEXT)
+  async execute(ctx: CommandContext): Promise<CommandResult> {
+    ctx.logger.info(HELP_TEXT)
 
     return {
       success: true,

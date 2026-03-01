@@ -108,6 +108,8 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  console.error(e)
+  const errorMessage = e instanceof Error ? e.message : String(e)
+  const logger = createLogger('plugin-runtime', 'error')
+  logger.error('unhandled error', {error: errorMessage})
   process.exit(1)
 })

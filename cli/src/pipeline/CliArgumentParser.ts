@@ -1,23 +1,12 @@
 /**
  * CLI Argument Parser Module
  * Handles extraction and parsing of command-line arguments
+ *
+ * Refactored to use Command Factory pattern for command creation
  */
 
 import type {Command} from '@/commands'
-import {
-  CleanCommand,
-  ConfigCommand,
-  ConfigShowCommand,
-  DryRunCleanCommand,
-  DryRunOutputCommand,
-  ExecuteCommand,
-  HelpCommand,
-  InitCommand,
-  OutdatedCommand,
-  PluginsCommand,
-  UnknownCommand,
-  VersionCommand
-} from '@/commands'
+import {createDefaultCommandRegistry} from '@/commands/CommandRegistryFactory'
 
 /**
  * Valid subcommands for the CLI
@@ -246,42 +235,31 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
 }
 
 /**
- * Resolve command from parsed CLI arguments
+ * Singleton instance of the command registry
+ * Lazy-loaded to ensure factories are only created when needed
+ */
+let commandRegistry: ReturnType<typeof createDefaultCommandRegistry> | undefined
+
+/**
+ * Get or create the command registry singleton
+ */
+function getCommandRegistry(): ReturnType<typeof createDefaultCommandRegistry> {
+  commandRegistry ??= createDefaultCommandRegistry()
+  return commandRegistry
+}
+
+/**
+ * Reset the command registry singleton (useful for testing)
+ */
+export function resetCommandRegistry(): void {
+  commandRegistry = void 0
+}
+
+/**
+ * Resolve command from parsed CLI arguments using factory pattern
+ * Delegates command creation to registered factories based on priority
  */
 export function resolveCommand(args: ParsedCliArgs): Command {
-  const {helpFlag, versionFlag, subcommand, dryRun, unknownCommand, setOption, positional, showFlag} = args
-
-  if (versionFlag) return new VersionCommand() // Version flag takes highest priority
-
-  if (helpFlag) return new HelpCommand() // Help flag takes priority
-
-  if (unknownCommand != null) return new UnknownCommand(unknownCommand) // Unknown command handling
-
-  if (subcommand === 'version') return new VersionCommand() // Version subcommand
-
-  if (subcommand === 'help') return new HelpCommand() // Help subcommand
-
-  if (subcommand === 'outdated') return new OutdatedCommand() // Outdated subcommand
-
-  if (subcommand === 'init') return new InitCommand() // Init subcommand
-
-  if (subcommand === 'dry-run') return new DryRunOutputCommand() // Dry-run subcommand
-
-  if (subcommand === 'clean') { // Clean subcommand with optional dry-run flag
-    if (dryRun) return new DryRunCleanCommand()
-    return new CleanCommand()
-  }
-
-  if (subcommand === 'plugins') return new PluginsCommand() // Plugins subcommand
-
-  if (subcommand === 'config' && showFlag) return new ConfigShowCommand() // Config --show subcommand
-
-  if (subcommand !== 'config' || setOption.length > 0) return new ExecuteCommand() // Config subcommand
-
-  const parsedPositional: [key: string, value: string][] = []
-  for (const arg of positional) {
-    const eqIndex = arg.indexOf('=')
-    if (eqIndex > 0) parsedPositional.push([arg.slice(0, eqIndex), arg.slice(eqIndex + 1)])
-  }
-  return new ConfigCommand([...setOption, ...parsedPositional])
+  const registry = getCommandRegistry()
+  return registry.resolve(args)
 }

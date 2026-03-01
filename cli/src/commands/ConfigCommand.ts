@@ -55,12 +55,12 @@ function getGlobalConfigPath(): string {
 /**
  * Read global config file
  */
-function readGlobalConfig(): Record<string, unknown> {
+function readGlobalConfig(): ConfigObject {
   const configPath = getGlobalConfigPath()
   if (!fs.existsSync(configPath)) return {}
   try {
     const content = fs.readFileSync(configPath, 'utf8')
-    return JSON.parse(content) as Record<string, unknown>
+    return JSON.parse(content) as ConfigObject
   }
   catch {
     return {}
@@ -70,7 +70,7 @@ function readGlobalConfig(): Record<string, unknown> {
 /**
  * Write global config file
  */
-function writeGlobalConfig(config: Record<string, unknown>): void {
+function writeGlobalConfig(config: ConfigObject): void {
   const configPath = getGlobalConfigPath()
   const configDir = path.dirname(configPath)
 
@@ -79,16 +79,22 @@ function writeGlobalConfig(config: Record<string, unknown>): void {
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8') // Write with pretty formatting
 }
 
+type ConfigValue = string | ConfigObject
+interface ConfigObject {
+  [key: string]: ConfigValue | undefined
+}
+
 /**
  * Set a nested value in an object using dot-notation key
  */
-function setNestedValue(obj: Record<string, unknown>, key: string, value: string): void {
+function setNestedValue(obj: ConfigObject, key: string, value: string): void {
   const parts = key.split('.')
-  let current = obj
+  let current: ConfigObject = obj
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i]!
-    if (typeof current[part] !== 'object' || current[part] === null) current[part] = {}
-    current = current[part] as Record<string, unknown>
+    const next = current[part]
+    if (typeof next !== 'object' || next === null || Array.isArray(next)) current[part] = {}
+    current = current[part] as ConfigObject
   }
   current[parts.at(-1)!] = value
 }
@@ -96,12 +102,12 @@ function setNestedValue(obj: Record<string, unknown>, key: string, value: string
 /**
  * Get a nested value from an object using dot-notation key
  */
-function getNestedValue(obj: Record<string, unknown>, key: string): unknown {
+function getNestedValue(obj: ConfigObject, key: string): ConfigValue | undefined {
   const parts = key.split('.')
-  let current: unknown = obj
+  let current: ConfigValue | undefined = obj
   for (const part of parts) {
-    if (typeof current !== 'object' || current === null) return void 0
-    current = (current as Record<string, unknown>)[part]
+    if (typeof current !== 'object' || current === null || Array.isArray(current)) return void 0
+    current = current[part]
   }
   return current
 }

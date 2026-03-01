@@ -1,4 +1,5 @@
 import process from 'node:process'
+import {createLogger} from '@truenine/plugin-shared'
 import {PluginPipeline} from '@/PluginPipeline'
 import userPluginConfigPromise from './plugin.config'
 
@@ -16,4 +17,8 @@ async function main(): Promise<void> {
   await pipeline.run(userPluginConfig)
 }
 
-main().catch((e: unknown) => console.error(e))
+main().catch((e: unknown) => {
+  const logger = createLogger('main', 'error')
+  logger.error('unhandled error', {error: e instanceof Error ? e.message : String(e)})
+  process.exit(1)
+})
