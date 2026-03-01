@@ -1,6 +1,12 @@
 export {
-  filterCommandsByProjectConfig
-} from './commandFilter'
+  filterByProjectConfig,
+  filterCommandsByProjectConfig,
+  type FilterConfigPath,
+  filterRulesByProjectConfig,
+  filterSkillsByProjectConfig,
+  filterSubAgentsByProjectConfig,
+  type SeriesFilterable
+} from './filters'
 export {
   findAllGitRepos,
   findGitModuleInfoDirs,
@@ -8,7 +14,6 @@ export {
 } from './gitUtils'
 export {
   applySubSeriesGlobPrefix,
-  filterRulesByProjectConfig,
   getGlobalRules,
   getProjectRules
 } from './ruleFilter'
@@ -17,9 +22,3 @@ export {
   resolveEffectiveIncludeSeries,
   resolveSubSeries
 } from './seriesFilter'
-export {
-  filterSkillsByProjectConfig
-} from './skillFilter'
-export {
-  filterSubAgentsByProjectConfig
-} from './subAgentFilter'

@@ -4,11 +4,13 @@ import type {ProjectConfig} from '../../../plugin-shared/types'
 import * as fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
 
-import {filterCommandsByProjectConfig} from './commandFilter'
-import {filterRulesByProjectConfig} from './ruleFilter'
+import {
+  filterCommandsByProjectConfig,
+  filterRulesByProjectConfig,
+  filterSkillsByProjectConfig,
+  filterSubAgentsByProjectConfig
+} from './filters'
 import {matchesSeries, resolveEffectiveIncludeSeries} from './seriesFilter'
-import {filterSkillsByProjectConfig} from './skillFilter'
-import {filterSubAgentsByProjectConfig} from './subAgentFilter'
 
 const seriesNameArb = fc.string({minLength: 1, maxLength: 20, unit: 'grapheme-ascii'})
   .filter(s => /^[\w-]+$/.test(s) && !['__proto__', 'constructor', 'toString', 'valueOf', 'hasOwnProperty'].includes(s))
