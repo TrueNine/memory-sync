@@ -2071,7 +2071,7 @@ dependencies = [
 
 [[package]]
 name = "memory-sync-gui"
-version = "2026.10224.10619"
+version = "2026.10302.10037"
 dependencies = [
  "dirs",
  "proptest",
