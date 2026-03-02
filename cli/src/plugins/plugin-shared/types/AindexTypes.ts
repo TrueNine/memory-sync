@@ -1,12 +1,12 @@
 /**
- * Shadow Source Project (aindex) directory structure types and constants
+ * Aindex directory structure types and constants
  * Used for directory structure validation and generation
  */
 
 /**
- * File entry in the shadow source project
+ * File entry in the aindex project
  */
-export interface ShadowSourceFileEntry {
+export interface AindexFileEntry {
   /** File name (e.g., 'GLOBAL.md') */
   readonly name: string
   /** Whether this file is required */
@@ -16,9 +16,9 @@ export interface ShadowSourceFileEntry {
 }
 
 /**
- * Directory entry in the shadow source project
+ * Directory entry in the aindex project
  */
-export interface ShadowSourceDirectoryEntry {
+export interface AindexDirectoryEntry {
   /** Directory name (e.g., 'skills') */
   readonly name: string
   /** Whether this directory is required */
@@ -26,52 +26,52 @@ export interface ShadowSourceDirectoryEntry {
   /** Directory description */
   readonly description?: string
   /** Nested directories */
-  readonly directories?: readonly ShadowSourceDirectoryEntry[]
+  readonly directories?: readonly AindexDirectoryEntry[]
   /** Files in this directory */
-  readonly files?: readonly ShadowSourceFileEntry[]
+  readonly files?: readonly AindexFileEntry[]
 }
 
 /**
- * Root structure of the shadow source project
+ * Root structure of the aindex project
  */
-export interface ShadowSourceProjectDirectory {
+export interface AindexDirectory {
   /** Source directories (before compilation) */
   readonly src: {
-    readonly skills: ShadowSourceDirectoryEntry
-    readonly commands: ShadowSourceDirectoryEntry
-    readonly agents: ShadowSourceDirectoryEntry
-    readonly rules: ShadowSourceDirectoryEntry
-    readonly globalMemoryFile: ShadowSourceFileEntry
-    readonly workspaceMemoryFile: ShadowSourceFileEntry
+    readonly skills: AindexDirectoryEntry
+    readonly commands: AindexDirectoryEntry
+    readonly agents: AindexDirectoryEntry
+    readonly rules: AindexDirectoryEntry
+    readonly globalMemoryFile: AindexFileEntry
+    readonly workspaceMemoryFile: AindexFileEntry
   }
   /** Distribution directories (after compilation) */
   readonly dist: {
-    readonly skills: ShadowSourceDirectoryEntry
-    readonly commands: ShadowSourceDirectoryEntry
-    readonly agents: ShadowSourceDirectoryEntry
-    readonly rules: ShadowSourceDirectoryEntry
-    readonly app: ShadowSourceDirectoryEntry
-    readonly globalMemoryFile: ShadowSourceFileEntry
-    readonly workspaceMemoryFile: ShadowSourceFileEntry
+    readonly skills: AindexDirectoryEntry
+    readonly commands: AindexDirectoryEntry
+    readonly agents: AindexDirectoryEntry
+    readonly rules: AindexDirectoryEntry
+    readonly app: AindexDirectoryEntry
+    readonly globalMemoryFile: AindexFileEntry
+    readonly workspaceMemoryFile: AindexFileEntry
   }
   /** App directory (project-specific prompts source, standalone at root) */
-  readonly app: ShadowSourceDirectoryEntry
+  readonly app: AindexDirectoryEntry
   /** IDE configuration directories */
   readonly ide: {
-    readonly idea: ShadowSourceDirectoryEntry
-    readonly ideaCodeStyles: ShadowSourceDirectoryEntry
-    readonly vscode: ShadowSourceDirectoryEntry
+    readonly idea: AindexDirectoryEntry
+    readonly ideaCodeStyles: AindexDirectoryEntry
+    readonly vscode: AindexDirectoryEntry
   }
   /** IDE configuration files */
-  readonly ideFiles: readonly ShadowSourceFileEntry[]
+  readonly ideFiles: readonly AindexFileEntry[]
   /** AI Agent ignore files */
-  readonly ignoreFiles: readonly ShadowSourceFileEntry[]
+  readonly ignoreFiles: readonly AindexFileEntry[]
 }
 
 /**
- * Directory names used in shadow source project
+ * Directory names used in aindex project
  */
-export const SHADOW_SOURCE_DIR_NAMES = {
+export const AINDEX_DIR_NAMES = {
   SRC: 'src',
   DIST: 'dist',
   SKILLS: 'skills',
@@ -85,9 +85,9 @@ export const SHADOW_SOURCE_DIR_NAMES = {
 } as const
 
 /**
- * File names used in shadow source project
+ * File names used in aindex project
  */
-export const SHADOW_SOURCE_FILE_NAMES = {
+export const AINDEX_FILE_NAMES = {
   GLOBAL_MEMORY: 'global.mdx', // Global memory
   GLOBAL_MEMORY_SRC: 'global.cn.mdx',
   WORKSPACE_MEMORY: 'workspace.mdx', // Workspace memory
@@ -106,9 +106,9 @@ export const SHADOW_SOURCE_FILE_NAMES = {
 } as const
 
 /**
- * Relative paths from shadow source project root
+ * Relative paths from aindex project root
  */
-export const SHADOW_SOURCE_RELATIVE_PATHS = {
+export const AINDEX_RELATIVE_PATHS = {
   SRC_SKILLS: 'src/skills', // Source paths
   SRC_COMMANDS: 'src/commands',
   SRC_AGENTS: 'src/agents',
@@ -126,156 +126,156 @@ export const SHADOW_SOURCE_RELATIVE_PATHS = {
 } as const
 
 /**
- * Default shadow source project directory structure
+ * Default aindex directory structure
  * Used for validation and generation
  */
-export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE: ShadowSourceProjectDirectory = {
+export const DEFAULT_AINDEX_STRUCTURE: AindexDirectory = {
   src: {
     skills: {
-      name: SHADOW_SOURCE_DIR_NAMES.SKILLS,
+      name: AINDEX_DIR_NAMES.SKILLS,
       required: false,
       description: 'Skill source files (.cn.mdx)'
     },
     commands: {
-      name: SHADOW_SOURCE_DIR_NAMES.COMMANDS,
+      name: AINDEX_DIR_NAMES.COMMANDS,
       required: false,
       description: 'Fast command source files (.cn.mdx)'
     },
     agents: {
-      name: SHADOW_SOURCE_DIR_NAMES.AGENTS,
+      name: AINDEX_DIR_NAMES.AGENTS,
       required: false,
       description: 'Sub-agent source files (.cn.mdx)'
     },
     rules: {
-      name: SHADOW_SOURCE_DIR_NAMES.RULES,
+      name: AINDEX_DIR_NAMES.RULES,
       required: false,
       description: 'Rule source files (.cn.mdx)'
     },
     globalMemoryFile: {
-      name: SHADOW_SOURCE_FILE_NAMES.GLOBAL_MEMORY_SRC,
+      name: AINDEX_FILE_NAMES.GLOBAL_MEMORY_SRC,
       required: false,
       description: 'Global memory source file'
     },
     workspaceMemoryFile: {
-      name: SHADOW_SOURCE_FILE_NAMES.WORKSPACE_MEMORY_SRC,
+      name: AINDEX_FILE_NAMES.WORKSPACE_MEMORY_SRC,
       required: false,
       description: 'Workspace memory source file'
     }
   },
   dist: {
     skills: {
-      name: SHADOW_SOURCE_DIR_NAMES.SKILLS,
+      name: AINDEX_DIR_NAMES.SKILLS,
       required: false,
       description: 'Compiled skill files (.mdx)'
     },
     commands: {
-      name: SHADOW_SOURCE_DIR_NAMES.COMMANDS,
+      name: AINDEX_DIR_NAMES.COMMANDS,
       required: false,
       description: 'Compiled fast command files (.mdx)'
     },
     agents: {
-      name: SHADOW_SOURCE_DIR_NAMES.AGENTS,
+      name: AINDEX_DIR_NAMES.AGENTS,
       required: false,
       description: 'Compiled sub-agent files (.mdx)'
     },
     rules: {
-      name: SHADOW_SOURCE_DIR_NAMES.RULES,
+      name: AINDEX_DIR_NAMES.RULES,
       required: false,
       description: 'Compiled rule files (.mdx)'
     },
     globalMemoryFile: {
-      name: SHADOW_SOURCE_FILE_NAMES.GLOBAL_MEMORY,
+      name: AINDEX_FILE_NAMES.GLOBAL_MEMORY,
       required: false,
       description: 'Compiled global memory file'
     },
     workspaceMemoryFile: {
-      name: SHADOW_SOURCE_FILE_NAMES.WORKSPACE_MEMORY,
+      name: AINDEX_FILE_NAMES.WORKSPACE_MEMORY,
       required: false,
       description: 'Compiled workspace memory file'
     },
     app: {
-      name: SHADOW_SOURCE_DIR_NAMES.APP,
+      name: AINDEX_DIR_NAMES.APP,
       required: false,
       description: 'Compiled project-specific prompts'
     }
   },
   app: {
-    name: SHADOW_SOURCE_DIR_NAMES.APP,
+    name: AINDEX_DIR_NAMES.APP,
     required: false,
     description: 'Project-specific prompts (standalone directory)'
   },
   ide: {
     idea: {
-      name: SHADOW_SOURCE_DIR_NAMES.IDEA,
+      name: AINDEX_DIR_NAMES.IDEA,
       required: false,
       description: 'JetBrains IDE configuration directory'
     },
     ideaCodeStyles: {
-      name: SHADOW_SOURCE_DIR_NAMES.IDEA_CODE_STYLES,
+      name: AINDEX_DIR_NAMES.IDEA_CODE_STYLES,
       required: false,
       description: 'JetBrains IDE code styles directory'
     },
     vscode: {
-      name: SHADOW_SOURCE_DIR_NAMES.VSCODE,
+      name: AINDEX_DIR_NAMES.VSCODE,
       required: false,
       description: 'VS Code configuration directory'
     }
   },
   ideFiles: [
     {
-      name: SHADOW_SOURCE_FILE_NAMES.EDITOR_CONFIG,
+      name: AINDEX_FILE_NAMES.EDITOR_CONFIG,
       required: false,
       description: 'EditorConfig file'
     },
     {
-      name: SHADOW_SOURCE_FILE_NAMES.IDEA_GITIGNORE,
+      name: AINDEX_FILE_NAMES.IDEA_GITIGNORE,
       required: false,
       description: 'JetBrains IDE .gitignore'
     },
     {
-      name: SHADOW_SOURCE_FILE_NAMES.IDEA_PROJECT_XML,
+      name: AINDEX_FILE_NAMES.IDEA_PROJECT_XML,
       required: false,
       description: 'JetBrains IDE Project.xml'
     },
     {
-      name: SHADOW_SOURCE_FILE_NAMES.IDEA_CODE_STYLE_CONFIG_XML,
+      name: AINDEX_FILE_NAMES.IDEA_CODE_STYLE_CONFIG_XML,
       required: false,
       description: 'JetBrains IDE codeStyleConfig.xml'
     },
     {
-      name: SHADOW_SOURCE_FILE_NAMES.VSCODE_SETTINGS,
+      name: AINDEX_FILE_NAMES.VSCODE_SETTINGS,
       required: false,
       description: 'VS Code settings.json'
     },
     {
-      name: SHADOW_SOURCE_FILE_NAMES.VSCODE_EXTENSIONS,
+      name: AINDEX_FILE_NAMES.VSCODE_EXTENSIONS,
       required: false,
       description: 'VS Code extensions.json'
     }
   ],
   ignoreFiles: [
     {
-      name: SHADOW_SOURCE_FILE_NAMES.QODER_IGNORE,
+      name: AINDEX_FILE_NAMES.QODER_IGNORE,
       required: false,
       description: 'Qoder ignore file'
     },
     {
-      name: SHADOW_SOURCE_FILE_NAMES.CURSOR_IGNORE,
+      name: AINDEX_FILE_NAMES.CURSOR_IGNORE,
       required: false,
       description: 'Cursor ignore file'
     },
     {
-      name: SHADOW_SOURCE_FILE_NAMES.WARP_INDEX_IGNORE,
+      name: AINDEX_FILE_NAMES.WARP_INDEX_IGNORE,
       required: false,
       description: 'Warp index ignore file'
     },
     {
-      name: SHADOW_SOURCE_FILE_NAMES.AI_IGNORE,
+      name: AINDEX_FILE_NAMES.AI_IGNORE,
       required: false,
       description: 'AI ignore file'
     },
     {
-      name: SHADOW_SOURCE_FILE_NAMES.CODEIUM_IGNORE,
+      name: AINDEX_FILE_NAMES.CODEIUM_IGNORE,
       required: false,
       description: 'Windsurf ignore file'
     }
@@ -285,14 +285,48 @@ export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE: ShadowSourceProjectDirecto
 /**
  * Type for directory names
  */
-export type ShadowSourceDirName = (typeof SHADOW_SOURCE_DIR_NAMES)[keyof typeof SHADOW_SOURCE_DIR_NAMES]
+export type AindexDirName = (typeof AINDEX_DIR_NAMES)[keyof typeof AINDEX_DIR_NAMES]
 
 /**
  * Type for file names
  */
-export type ShadowSourceFileName = (typeof SHADOW_SOURCE_FILE_NAMES)[keyof typeof SHADOW_SOURCE_FILE_NAMES]
+export type AindexFileName = (typeof AINDEX_FILE_NAMES)[keyof typeof AINDEX_FILE_NAMES]
 
 /**
  * Type for relative paths
  */
-export type ShadowSourceRelativePath = (typeof SHADOW_SOURCE_RELATIVE_PATHS)[keyof typeof SHADOW_SOURCE_RELATIVE_PATHS]
+export type AindexRelativePath = (typeof AINDEX_RELATIVE_PATHS)[keyof typeof AINDEX_RELATIVE_PATHS]
+
+// ============================================================================
+// Backward compatibility aliases (deprecated, use Aindex* versions instead)
+// ============================================================================
+
+/** @deprecated Use AindexFileEntry instead */
+export type ShadowSourceFileEntry = AindexFileEntry
+
+/** @deprecated Use AindexDirectoryEntry instead */
+export type ShadowSourceDirectoryEntry = AindexDirectoryEntry
+
+/** @deprecated Use AindexDirectory instead */
+export type ShadowSourceProjectDirectory = AindexDirectory
+
+/** @deprecated Use AindexDirName instead */
+export type ShadowSourceDirName = AindexDirName
+
+/** @deprecated Use AindexFileName instead */
+export type ShadowSourceFileName = AindexFileName
+
+/** @deprecated Use AindexRelativePath instead */
+export type ShadowSourceRelativePath = AindexRelativePath
+
+/** @deprecated Use AINDEX_DIR_NAMES instead */
+export const SHADOW_SOURCE_DIR_NAMES = AINDEX_DIR_NAMES
+
+/** @deprecated Use AINDEX_FILE_NAMES instead */
+export const SHADOW_SOURCE_FILE_NAMES = AINDEX_FILE_NAMES
+
+/** @deprecated Use AINDEX_RELATIVE_PATHS instead */
+export const SHADOW_SOURCE_RELATIVE_PATHS = AINDEX_RELATIVE_PATHS
+
+/** @deprecated Use DEFAULT_AINDEX_STRUCTURE instead */
+export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE = DEFAULT_AINDEX_STRUCTURE

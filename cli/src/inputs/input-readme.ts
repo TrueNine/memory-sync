@@ -16,25 +16,25 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
     const {userConfigOptions: options, logger, fs, path, globalScope} = ctx
-    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
 
-    const shadowProjectsDir = this.resolveShadowPath(options.shadowSourceProject.project.dist, shadowProjectDir)
+    const aindexProjectsDir = this.resolveAindexPath(options.aindex.project.dist, aindexDir)
 
     const readmePrompts: ReadmePrompt[] = []
 
-    if (!fs.existsSync(shadowProjectsDir) || !fs.statSync(shadowProjectsDir).isDirectory()) {
-      logger.debug('shadow projects directory does not exist', {path: shadowProjectsDir})
+    if (!fs.existsSync(aindexProjectsDir) || !fs.statSync(aindexProjectsDir).isDirectory()) {
+      logger.debug('aindex projects directory does not exist', {path: aindexProjectsDir})
       return {readmePrompts}
     }
 
     try {
-      const projectEntries = fs.readdirSync(shadowProjectsDir, {withFileTypes: true})
+      const projectEntries = fs.readdirSync(aindexProjectsDir, {withFileTypes: true})
 
       for (const projectEntry of projectEntries) {
         if (!projectEntry.isDirectory()) continue
 
         const projectName = projectEntry.name
-        const projectDir = path.join(shadowProjectsDir, projectName)
+        const projectDir = path.join(aindexProjectsDir, projectName)
 
         await this.collectReadmeFiles(
           ctx,
@@ -48,7 +48,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
       }
     }
     catch (e) {
-      logger.error('failed to scan shadow projects', {path: shadowProjectsDir, error: e})
+      logger.error('failed to scan aindex projects', {path: aindexProjectsDir, error: e})
     }
 
     return {readmePrompts}

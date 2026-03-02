@@ -1,6 +1,6 @@
 import type {ILogger} from '@truenine/logger'
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
-import type {CommandSeriesOptions, ShadowSourceProjectConfig} from './ConfigTypes.schema'
+import type {AindexConfig, CommandSeriesOptions} from './ConfigTypes.schema'
 import type {PluginKind} from './Enums'
 import type {RelativePath} from './FileSystemTypes'
 import type {
@@ -162,8 +162,8 @@ export interface InputEffectContext {
   readonly userConfigOptions: PluginOptions
   /** Resolved workspace directory */
   readonly workspaceDir: string
-  /** Resolved shadow project directory */
-  readonly shadowProjectDir: string
+  /** Resolved aindex directory */
+  readonly aindexDir: string
   /** Whether running in dry-run mode */
   readonly dryRun?: boolean
 }
@@ -192,8 +192,8 @@ export interface InputEffectRegistration {
 export interface ResolvedBasePaths {
   /** The resolved workspace directory path */
   readonly workspaceDir: string
-  /** The resolved shadow project directory path */
-  readonly shadowProjectDir: string
+  /** The resolved aindex directory path */
+  readonly aindexDir: string
 }
 
 /**
@@ -383,7 +383,7 @@ export interface PluginOptions {
 
   readonly workspaceDir?: string
 
-  readonly shadowSourceProject?: ShadowSourceProjectConfig
+  readonly aindex?: AindexConfig
 
   readonly commandSeriesOptions?: CommandSeriesOptions
 

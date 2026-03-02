@@ -1,5 +1,5 @@
 /**
- * Shadow Source Project validation and generation utilities
+ * Aindex validation and generation utilities
  * 使用扁平的 bundles 结构直接遍历创建项目目录和文件
  */
 import type {ILogger} from '@truenine/plugin-shared'
@@ -15,10 +15,10 @@ export interface VersionControlCheckResult {
 }
 
 /**
- * Check if the shadow source project has version control (.git directory)
+ * Check if the aindex has version control (.git directory)
  * Logs info if .git exists, warns if not
  *
- * @param rootPath - Root path of the shadow source project
+ * @param rootPath - Root path of the aindex
  * @param logger - Optional logger instance
  * @returns Version control check result
  */
@@ -30,7 +30,7 @@ export function checkVersionControl(
   const hasGit = fs.existsSync(gitPath)
 
   if (hasGit) logger?.info('version control detected', {path: gitPath})
-  else logger?.warn('no version control detected, please use git to manage your shadow source project', {path: rootPath})
+  else logger?.warn('no version control detected, please use git to manage your aindex', {path: rootPath})
 
   return {hasGit, gitPath}
 }
@@ -56,9 +56,9 @@ export interface GenerationOptions {
 }
 
 /**
- * Generate shadow source project directory structure
+ * Generate aindex directory structure
  */
-export function generateShadowSourceProject(
+export function generateAindex(
   rootPath: string,
   options: GenerationOptions = {}
 ): GenerationResult {

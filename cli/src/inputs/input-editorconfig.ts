@@ -5,11 +5,11 @@ import {FilePathKind, IDEKind} from '@truenine/plugin-shared'
 function readIdeConfigFile<T extends IDEKind>(
   type: T,
   relativePath: string,
-  shadowProjectDir: string,
+  aindexDir: string,
   fs: typeof import('node:fs'),
   path: typeof import('node:path')
 ): ProjectIDEConfigFile<T> | undefined {
-  const absPath = path.join(shadowProjectDir, relativePath)
+  const absPath = path.join(aindexDir, relativePath)
   if (!(fs.existsSync(absPath) && fs.statSync(absPath).isFile())) return void 0
 
   const content = fs.readFileSync(absPath, 'utf8')
@@ -33,10 +33,10 @@ export class EditorConfigInputPlugin extends AbstractInputPlugin {
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
     const {userConfigOptions, fs, path} = ctx
-    const {shadowProjectDir} = this.resolveBasePaths(userConfigOptions)
+    const {aindexDir} = this.resolveBasePaths(userConfigOptions)
 
     const editorConfigFiles: ProjectIDEConfigFile<IDEKind.EditorConfig>[] = []
-    const file = readIdeConfigFile(IDEKind.EditorConfig, '.editorconfig', shadowProjectDir, fs, path)
+    const file = readIdeConfigFile(IDEKind.EditorConfig, '.editorconfig', aindexDir, fs, path)
     if (file != null) editorConfigFiles.push(file)
 
     return {editorConfigFiles}

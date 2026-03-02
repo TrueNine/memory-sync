@@ -79,9 +79,9 @@ const arbInvalidLogLevel: fc.Arbitrary<unknown> = fc.oneof(
 )
 
 /**
- * Arbitrary for an invalid shadowSourceProject value — anything that is not a valid object.
+ * Arbitrary for an invalid aindex value — anything that is not a valid object.
  */
-const arbInvalidShadowSourceProject: fc.Arbitrary<unknown> = fc.oneof(
+const arbInvalidAindex: fc.Arbitrary<unknown> = fc.oneof(
   fc.string(),
   fc.integer(),
   fc.boolean(),
@@ -155,16 +155,16 @@ describe('Property 3: 无效配置产生错误', () => {
   /**
    * **Validates: Requirements 3.4**
    *
-   * For any invalid shadowSourceProject value (non-object), validateConfig should
-   * return at least one error for the shadowSourceProject field.
+   * For any invalid aindex value (non-object), validateConfig should
+   * return at least one error for the aindex field.
    */
-  it('invalid shadowSourceProject values produce errors', () => {
+  it('invalid aindex values produce errors', () => {
     fc.assert(
-      fc.property(arbInvalidShadowSourceProject, (badValue) => {
-        const config = { shadowSourceProject: badValue }
+      fc.property(arbInvalidAindex, (badValue) => {
+        const config = { aindex: badValue }
         const errors = validateConfig(config)
-        const sspErrors = errors.filter((e) => e.field.startsWith('shadowSourceProject') && e.severity === 'error')
-        expect(sspErrors.length).toBeGreaterThan(0)
+        const aindexErrors = errors.filter((e) => e.field.startsWith('aindex') && e.severity === 'error')
+        expect(aindexErrors.length).toBeGreaterThan(0)
       }),
       { numRuns: 200 },
     )

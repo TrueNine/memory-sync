@@ -9,7 +9,7 @@ export * from './constants'
 export {
   default
 } from './plugin.config'
-export * from './ShadowSourceProject'
+export * from './Aindex'
 
 async function main(): Promise<void> {
   const userPluginConfig = await userPluginConfigPromise

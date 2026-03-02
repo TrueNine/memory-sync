@@ -17,10 +17,10 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
   }
 
   private async syncNonSrcFiles(ctx: InputEffectContext): Promise<SkillSyncEffectResult> {
-    const {fs, path, shadowProjectDir, dryRun, logger} = ctx
+    const {fs, path, aindexDir, dryRun, logger} = ctx
 
-    const srcSkillsDir = path.join(shadowProjectDir, 'src', 'skills')
-    const distSkillsDir = path.join(shadowProjectDir, 'dist', 'skills')
+    const srcSkillsDir = path.join(aindexDir, 'src', 'skills')
+    const distSkillsDir = path.join(aindexDir, 'dist', 'skills')
 
     const copiedFiles: string[] = []
     const skippedFiles: string[] = []

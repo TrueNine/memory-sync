@@ -18,16 +18,16 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
   }
 
   private async cleanupWhitespace(ctx: InputEffectContext): Promise<WhitespaceCleanupEffectResult> {
-    const {fs, path, shadowProjectDir, dryRun, logger} = ctx
+    const {fs, path, aindexDir, dryRun, logger} = ctx
 
     const modifiedFiles: string[] = []
     const skippedFiles: string[] = []
     const errors: {path: string, error: Error}[] = []
 
     const dirsToScan = [
-      path.join(shadowProjectDir, 'src'),
-      path.join(shadowProjectDir, 'app'),
-      path.join(shadowProjectDir, 'dist')
+      path.join(aindexDir, 'src'),
+      path.join(aindexDir, 'app'),
+      path.join(aindexDir, 'dist')
     ]
 
     for (const dir of dirsToScan) {

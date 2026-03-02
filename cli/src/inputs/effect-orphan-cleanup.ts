@@ -13,9 +13,9 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
   }
 
   private async cleanupOrphanFiles(ctx: InputEffectContext): Promise<OrphanCleanupEffectResult> {
-    const {fs, path, shadowProjectDir, dryRun, logger, userConfigOptions} = ctx
+    const {fs, path, aindexDir, dryRun, logger, userConfigOptions} = ctx
 
-    const distDir = path.join(shadowProjectDir, 'dist')
+    const distDir = path.join(aindexDir, 'dist')
 
     const deletedFiles: string[] = []
     const deletedDirs: string[] = []
@@ -31,12 +31,12 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
       }
     }
 
-    const shadowConfig = userConfigOptions.shadowSourceProject
+    const aindexConfig = userConfigOptions.aindex
     const srcPaths: Record<string, string> = {
-      skills: shadowConfig?.skill?.src ?? 'src/skills',
-      commands: shadowConfig?.command?.src ?? 'src/commands',
-      agents: shadowConfig?.subAgent?.src ?? 'src/agents',
-      app: shadowConfig?.project?.src ?? 'app'
+      skills: aindexConfig?.skill?.src ?? 'src/skills',
+      commands: aindexConfig?.command?.src ?? 'src/commands',
+      agents: aindexConfig?.subAgent?.src ?? 'src/agents',
+      app: aindexConfig?.project?.src ?? 'app'
     }
 
     const distSubDirs = ['skills', 'commands', 'agents', 'app']
@@ -70,7 +70,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     errors: {path: string, error: Error}[],
     dryRun: boolean
   ): void {
-    const {fs, path, shadowProjectDir, logger} = ctx
+    const {fs, path, aindexDir, logger} = ctx
 
     let entries: import('node:fs').Dirent[]
     try {
@@ -89,7 +89,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
         this.cleanupDirectory(ctx, entryPath, dirType, srcPath, deletedFiles, deletedDirs, errors, dryRun)
         this.removeEmptyDirectory(ctx, entryPath, deletedDirs, errors, dryRun)
       } else if (entry.isFile()) {
-        const isOrphan = this.isOrphanFile(ctx, entryPath, dirType, srcPath, shadowProjectDir)
+        const isOrphan = this.isOrphanFile(ctx, entryPath, dirType, srcPath, aindexDir)
 
         if (isOrphan) {
           if (dryRun) {
@@ -116,30 +116,30 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     distFilePath: string,
     dirType: string,
     srcPath: string,
-    shadowProjectDir: string
+    aindexDir: string
   ): boolean {
     const {fs, path} = ctx
 
     const fileName = path.basename(distFilePath)
     const isMdxFile = fileName.endsWith('.mdx')
 
-    const distTypeDir = path.join(shadowProjectDir, 'dist', dirType)
+    const distTypeDir = path.join(aindexDir, 'dist', dirType)
     const relativeFromType = path.relative(distTypeDir, distFilePath)
     const relativeDir = path.dirname(relativeFromType)
     const baseName = fileName.replace(/\.mdx$/, '')
 
     if (isMdxFile) {
-      const possibleSrcPaths = this.getPossibleSourcePaths(path, shadowProjectDir, dirType, srcPath, baseName, relativeDir)
+      const possibleSrcPaths = this.getPossibleSourcePaths(path, aindexDir, dirType, srcPath, baseName, relativeDir)
       return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
     }
     const possibleSrcPaths: string[] = []
-    possibleSrcPaths.push(path.join(shadowProjectDir, srcPath, relativeFromType))
+    possibleSrcPaths.push(path.join(aindexDir, srcPath, relativeFromType))
     return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
   }
 
   private getPossibleSourcePaths(
     nodePath: typeof import('node:path'),
-    shadowProjectDir: string,
+    aindexDir: string,
     dirType: string,
     srcPath: string,
     baseName: string,
@@ -151,24 +151,24 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
         const skillName = skillParts[0] ?? baseName
         const remainingPath = relativeDir === '.' ? '' : relativeDir.slice(skillName.length + 1)
 
-        if (remainingPath !== '') return [nodePath.join(shadowProjectDir, srcPath, skillName, remainingPath, `${baseName}.cn.mdx`)]
+        if (remainingPath !== '') return [nodePath.join(aindexDir, srcPath, skillName, remainingPath, `${baseName}.cn.mdx`)]
         return [
-          nodePath.join(shadowProjectDir, srcPath, skillName, 'SKILL.cn.mdx'),
-          nodePath.join(shadowProjectDir, srcPath, skillName, 'skill.cn.mdx')
+          nodePath.join(aindexDir, srcPath, skillName, 'SKILL.cn.mdx'),
+          nodePath.join(aindexDir, srcPath, skillName, 'skill.cn.mdx')
         ]
       }
       case 'commands':
         return relativeDir === '.'
-          ? [nodePath.join(shadowProjectDir, srcPath, `${baseName}.cn.mdx`)]
-          : [nodePath.join(shadowProjectDir, srcPath, relativeDir, `${baseName}.cn.mdx`)]
+          ? [nodePath.join(aindexDir, srcPath, `${baseName}.cn.mdx`)]
+          : [nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}.cn.mdx`)]
       case 'agents':
         return relativeDir === '.'
-          ? [nodePath.join(shadowProjectDir, srcPath, `${baseName}.cn.mdx`)]
-          : [nodePath.join(shadowProjectDir, srcPath, relativeDir, `${baseName}.cn.mdx`)]
+          ? [nodePath.join(aindexDir, srcPath, `${baseName}.cn.mdx`)]
+          : [nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}.cn.mdx`)]
       case 'app':
         return relativeDir === '.'
-          ? [nodePath.join(shadowProjectDir, srcPath, `${baseName}.cn.mdx`)]
-          : [nodePath.join(shadowProjectDir, srcPath, relativeDir, `${baseName}.cn.mdx`)]
+          ? [nodePath.join(aindexDir, srcPath, `${baseName}.cn.mdx`)]
+          : [nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}.cn.mdx`)]
       default: return []
     }
   }

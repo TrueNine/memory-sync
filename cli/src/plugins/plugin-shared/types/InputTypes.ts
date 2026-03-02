@@ -77,7 +77,7 @@ export interface CollectedInputContext {
   readonly aiAgentIgnoreConfigFiles?: readonly AIAgentIgnoreConfigFile[]
   readonly globalGitIgnore?: string
   readonly shadowGitExclude?: string
-  readonly shadowSourceProjectDir?: string
+  readonly aindexDir?: string
 }
 
 /**

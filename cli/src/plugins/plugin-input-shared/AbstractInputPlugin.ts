@@ -42,7 +42,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
 
     if (this.inputEffects.length === 0) return results
 
-    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(ctx.userConfigOptions)
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
 
     const effectCtx: InputEffectContext = {
       logger: this.log,
@@ -52,7 +52,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
       spawn,
       userConfigOptions: ctx.userConfigOptions,
       workspaceDir,
-      shadowProjectDir,
+      aindexDir,
       dryRun
     }
 
@@ -117,10 +117,10 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     const workspaceDirRaw = options.workspaceDir
     const workspaceDir = this.resolvePath(workspaceDirRaw, '')
 
-    const shadowProjectName = options.shadowSourceProject.name
-    const shadowProjectDir = path.join(workspaceDir, shadowProjectName)
+    const aindexName = options.aindex.name
+    const aindexDir = path.join(workspaceDir, aindexName)
 
-    return {workspaceDir, shadowProjectDir}
+    return {workspaceDir, aindexDir}
   }
 
   protected resolvePath(rawPath: string, workspaceDir: string): string {
@@ -133,8 +133,8 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     return path.normalize(resolved)
   }
 
-  protected resolveShadowPath(relativePath: string, shadowProjectDir: string): string {
-    return path.join(shadowProjectDir, relativePath)
+  protected resolveAindexPath(relativePath: string, aindexDir: string): string {
+    return path.join(aindexDir, relativePath)
   }
 
   protected readAndParseMarkdown<T extends YAMLFrontMatter>(

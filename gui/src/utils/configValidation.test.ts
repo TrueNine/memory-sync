@@ -86,9 +86,9 @@ describe('validateConfig — logLevel', () => {
   })
 })
 
-// ─── shadowSourceProject ───────────────────────────────────────────────
-describe('validateConfig — shadowSourceProject', () => {
-  const validSsp = {
+// ─── aindex ───────────────────────────────────────────────
+describe('validateConfig — aindex', () => {
+  const validAindex = {
     name: 'aindex',
     skill: { src: 'src/skills', dist: 'dist/skills' },
     fastCommand: { src: 'src/commands', dist: 'dist/commands' },
@@ -99,47 +99,47 @@ describe('validateConfig — shadowSourceProject', () => {
     project: { src: 'app', dist: 'dist/app' },
   }
 
-  it('accepts a fully valid shadowSourceProject', () => {
-    expect(validateConfig({ shadowSourceProject: validSsp })).toHaveLength(0)
+  it('accepts a fully valid aindex', () => {
+    expect(validateConfig({ aindex: validAindex })).toHaveLength(0)
   })
 
-  it('accepts partial shadowSourceProject with only name', () => {
-    expect(validateConfig({ shadowSourceProject: { name: 'myproject' } })).toHaveLength(0)
+  it('accepts partial aindex with only name', () => {
+    expect(validateConfig({ aindex: { name: 'myproject' } })).toHaveLength(0)
   })
 
   it('rejects non-object', () => {
-    const errors = validateConfig({ shadowSourceProject: 'invalid' })
-    expect(errorFields(errors)).toContain('shadowSourceProject')
+    const errors = validateConfig({ aindex: 'invalid' })
+    expect(errorFields(errors)).toContain('aindex')
   })
 
   it('rejects array', () => {
-    const errors = validateConfig({ shadowSourceProject: ['a'] })
-    expect(errorFields(errors)).toContain('shadowSourceProject')
+    const errors = validateConfig({ aindex: ['a'] })
+    expect(errorFields(errors)).toContain('aindex')
   })
 
   it('rejects non-string name', () => {
-    const errors = validateConfig({ shadowSourceProject: { name: 123 } })
-    expect(errorFields(errors)).toContain('shadowSourceProject.name')
+    const errors = validateConfig({ aindex: { name: 123 } })
+    expect(errorFields(errors)).toContain('aindex.name')
   })
 
   it('rejects invalid dir pair (non-object)', () => {
-    const errors = validateConfig({ shadowSourceProject: { name: 'x', skill: 'bad' } })
-    expect(errorFields(errors)).toContain('shadowSourceProject.skill')
+    const errors = validateConfig({ aindex: { name: 'x', skill: 'bad' } })
+    expect(errorFields(errors)).toContain('aindex.skill')
   })
 
   it('rejects dir pair missing src', () => {
-    const errors = validateConfig({ shadowSourceProject: { name: 'x', skill: { dist: 'dist/skills' } } })
-    expect(errorFields(errors)).toContain('shadowSourceProject.skill.src')
+    const errors = validateConfig({ aindex: { name: 'x', skill: { dist: 'dist/skills' } } })
+    expect(errorFields(errors)).toContain('aindex.skill.src')
   })
 
   it('rejects dir pair missing dist', () => {
-    const errors = validateConfig({ shadowSourceProject: { name: 'x', skill: { src: 'src/skills' } } })
-    expect(errorFields(errors)).toContain('shadowSourceProject.skill.dist')
+    const errors = validateConfig({ aindex: { name: 'x', skill: { src: 'src/skills' } } })
+    expect(errorFields(errors)).toContain('aindex.skill.dist')
   })
 
   it('rejects dir pair with non-string src', () => {
-    const errors = validateConfig({ shadowSourceProject: { name: 'x', skill: { src: 123, dist: 'dist/skills' } } })
-    expect(errorFields(errors)).toContain('shadowSourceProject.skill.src')
+    const errors = validateConfig({ aindex: { name: 'x', skill: { src: 123, dist: 'dist/skills' } } })
+    expect(errorFields(errors)).toContain('aindex.skill.src')
   })
 })
 
@@ -253,7 +253,7 @@ describe('validateConfig — realistic configs', () => {
     const config = {
       version: '2026.10218.0',
       workspaceDir: '/workspace',
-      shadowSourceProject: {
+      aindex: {
         name: 'aindex',
         skill: { src: 'src/skills', dist: 'dist/skills' },
         fastCommand: { src: 'src/commands', dist: 'dist/commands' },
@@ -274,13 +274,13 @@ describe('validateConfig — realistic configs', () => {
     const config = {
       workspaceDir: 123,
       logLevel: 'invalid',
-      shadowSourceProject: 'not-object',
+      aindex: 'not-object',
     }
     const errors = validateConfig(config)
     const fields = errorFields(errors)
     expect(fields).toContain('workspaceDir')
     expect(fields).toContain('logLevel')
-    expect(fields).toContain('shadowSourceProject')
+    expect(fields).toContain('aindex')
   })
 
   it('mixes errors and warnings', () => {

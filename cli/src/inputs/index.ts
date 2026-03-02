@@ -39,8 +39,8 @@ export {
   RuleInputPlugin
 } from './input-rule'
 export {
-  ShadowProjectInputPlugin
-} from './input-shadow-project'
+  AindexInputPlugin
+} from './input-aindex'
 export {
   AIAgentIgnoreInputPlugin
 } from './input-shared-ignore'

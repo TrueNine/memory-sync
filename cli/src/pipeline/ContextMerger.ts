@@ -66,9 +66,9 @@ const FIELD_CONFIGS: Record<string, FieldConfig<unknown>> = {
     strategy: 'override',
     getter: ctx => ctx.globalMemory
   },
-  shadowSourceProjectDir: {
+  aindexDir: {
     strategy: 'override',
-    getter: ctx => ctx.shadowSourceProjectDir
+    getter: ctx => ctx.aindexDir
   },
   globalGitIgnore: {
     strategy: 'override',

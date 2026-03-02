@@ -1,4 +1,4 @@
-import type {CollectedInputContext, CommandSeriesOptions, CommandSeriesPluginOverride, ConfigLoaderOptions, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, ShadowSourceProjectConfig, UserConfigFile} from '@truenine/plugin-shared'
+import type {AindexConfig, CollectedInputContext, CommandSeriesOptions, CommandSeriesPluginOverride, ConfigLoaderOptions, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, UserConfigFile} from '@truenine/plugin-shared'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
@@ -6,7 +6,7 @@ import {createLogger, PluginKind} from '@truenine/plugin-shared'
 import glob from 'fast-glob'
 import {loadUserConfig, validateGlobalConfig} from './ConfigLoader'
 import {PluginPipeline} from './PluginPipeline'
-import {checkVersionControl} from './ShadowSourceProject'
+import {checkVersionControl} from './Aindex'
 
 /**
  * Pipeline configuration containing collected context and output plugins
@@ -17,7 +17,7 @@ export interface PipelineConfig {
   readonly userConfigOptions: Required<PluginOptions>
 }
 
-const DEFAULT_SHADOW_SOURCE_PROJECT: Required<ShadowSourceProjectConfig> = {
+const DEFAULT_AINDEX: Required<AindexConfig> = {
   name: 'aindex',
   skill: {src: 'src/skills', dist: 'dist/skills'},
   command: {src: 'src/commands', dist: 'dist/commands'},
@@ -32,7 +32,7 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
   version: '0.0.0',
   workspaceDir: '~/project',
   logLevel: 'info',
-  shadowSourceProject: DEFAULT_SHADOW_SOURCE_PROJECT,
+  aindex: DEFAULT_AINDEX,
   commandSeriesOptions: {},
   plugins: []
 }
@@ -45,7 +45,7 @@ function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOp
   return {
     ...userConfig.version != null ? {version: userConfig.version} : {},
     ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},
-    ...userConfig.shadowSourceProject != null ? {shadowSourceProject: userConfig.shadowSourceProject} : {},
+    ...userConfig.aindex != null ? {aindex: userConfig.aindex} : {},
     ...userConfig.commandSeriesOptions != null ? {commandSeriesOptions: userConfig.commandSeriesOptions} : {},
     ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
   }
@@ -88,7 +88,7 @@ function mergeTwoConfigs(
   return {
     ...base,
     ...override,
-    shadowSourceProject: mergeShadowSourceProject(base.shadowSourceProject, override.shadowSourceProject),
+    aindex: mergeAindex(base.aindex, override.aindex),
     plugins: [ // Array concatenation for plugins
       ...base.plugins,
       ...overridePlugins ?? []
@@ -97,10 +97,10 @@ function mergeTwoConfigs(
   }
 }
 
-function mergeShadowSourceProject(
-  base: ShadowSourceProjectConfig,
-  override?: ShadowSourceProjectConfig
-): ShadowSourceProjectConfig {
+function mergeAindex(
+  base: AindexConfig,
+  override?: AindexConfig
+): AindexConfig {
   if (override == null) return base
   return {
     name: override.name ?? base.name,
@@ -243,13 +243,13 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     ...merged.rules != null && {rules: merged.rules},
     ...merged.globalMemory != null && {globalMemory: merged.globalMemory},
     ...merged.aiAgentIgnoreConfigFiles != null && {aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles},
-    ...merged.shadowSourceProjectDir != null && {shadowSourceProjectDir: merged.shadowSourceProjectDir},
+    ...merged.aindexDir != null && {aindexDir: merged.aindexDir},
     ...merged.readmePrompts != null && {readmePrompts: merged.readmePrompts},
     ...merged.globalGitIgnore != null && {globalGitIgnore: merged.globalGitIgnore},
     ...merged.shadowGitExclude != null && {shadowGitExclude: merged.shadowGitExclude}
   }
 
-  if (merged.shadowSourceProjectDir != null) checkVersionControl(merged.shadowSourceProjectDir, logger) // Check version control status for shadow source project
+  if (merged.aindexDir != null) checkVersionControl(merged.aindexDir, logger) // Check version control status for aindex
 
   return {context, outputPlugins, userConfigOptions: mergedOptions}
 }

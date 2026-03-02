@@ -8,8 +8,8 @@ export class GitIgnoreInputPlugin extends AbstractInputPlugin {
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const {shadowProjectDir} = this.resolveBasePaths(ctx.userConfigOptions)
-    const filePath = path.join(shadowProjectDir, 'public', 'gitignore')
+    const {aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
+    const filePath = path.join(aindexDir, 'public', 'gitignore')
 
     if (!ctx.fs.existsSync(filePath)) {
       this.log.debug({action: 'collect', message: 'File not found', path: filePath})

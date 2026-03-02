@@ -20,9 +20,9 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
     const {userConfigOptions: options, fs, path, globalScope} = ctx
-    const {shadowProjectDir} = this.resolveBasePaths(options)
+    const {aindexDir} = this.resolveBasePaths(options)
 
-    const globalMemoryFile = this.resolveShadowPath(options.shadowSourceProject.globalMemory.dist, shadowProjectDir)
+    const globalMemoryFile = this.resolveAindexPath(options.aindex.globalMemory.dist, aindexDir)
 
     if (!fs.existsSync(globalMemoryFile)) {
       this.log.warn({action: 'collect', reason: 'fileNotFound', path: globalMemoryFile})

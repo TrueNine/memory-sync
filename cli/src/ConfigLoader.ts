@@ -1,4 +1,4 @@
-import type {ConfigLoaderOptions, ConfigLoadResult, ILogger, ShadowSourceProjectConfig, UserConfigFile} from '@truenine/plugin-shared'
+import type {AindexConfig, ConfigLoaderOptions, ConfigLoadResult, ILogger, UserConfigFile} from '@truenine/plugin-shared'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -150,20 +150,20 @@ export class ConfigLoader {
     const reversed = [...configs].reverse() // Reverse to merge from lowest to highest priority
 
     return reversed.reduce<UserConfigFile>((acc, config) => {
-      const mergedShadowSourceProject = this.mergeShadowSourceProject(acc.shadowSourceProject, config.shadowSourceProject)
+      const mergedAindex = this.mergeAindex(acc.aindex, config.aindex)
 
       return {
         ...acc,
         ...config,
-        ...mergedShadowSourceProject != null ? {shadowSourceProject: mergedShadowSourceProject} : {}
+        ...mergedAindex != null ? {aindex: mergedAindex} : {}
       }
     }, {})
   }
 
-  private mergeShadowSourceProject(
-    a?: ShadowSourceProjectConfig,
-    b?: ShadowSourceProjectConfig
-  ): ShadowSourceProjectConfig | undefined {
+  private mergeAindex(
+    a?: AindexConfig,
+    b?: AindexConfig
+  ): AindexConfig | undefined {
     if (a == null && b == null) return void 0
     if (a == null) return b
     if (b == null) return a

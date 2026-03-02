@@ -1,4 +1,4 @@
-﻿#![deny(clippy::all)]
+#![deny(clippy::all)]
 
 //! Configuration loading, merging, and validation.
 //!
@@ -28,7 +28,7 @@ pub const DEFAULT_GLOBAL_CONFIG_DIR: &str = ".aindex";
 // Types — mirrors TS ConfigTypes.schema.ts
 // ---------------------------------------------------------------------------
 
-/// A source/dist path pair. Both paths are relative to the shadow source project root.
+/// A source/dist path pair. Both paths are relative to the aindex project root.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct DirPair {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -51,11 +51,11 @@ impl DirPair {
     }
 }
 
-/// Shadow source project configuration.
+/// Aindex configuration.
 /// All paths are relative to `<workspaceDir>/<name>`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct ShadowSourceProjectConfig {
+pub struct AindexConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -73,6 +73,10 @@ pub struct ShadowSourceProjectConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project: Option<DirPair>,
 }
+
+/// Shadow source project configuration (deprecated, use AindexConfig).
+#[deprecated(since = "2026.10303.0", note = "Use AindexConfig instead")]
+pub type ShadowSourceProjectConfig = AindexConfig;
 
 /// Per-plugin fast command series override options.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -119,7 +123,7 @@ pub struct UserConfigFile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workspace_dir: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub shadow_source_project: Option<ShadowSourceProjectConfig>,
+    pub aindex: Option<AindexConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub log_level: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -188,15 +192,15 @@ pub fn get_global_config_path() -> PathBuf {
 // Merge logic
 // ---------------------------------------------------------------------------
 
-fn merge_shadow_source_project(
-    a: &Option<ShadowSourceProjectConfig>,
-    b: &Option<ShadowSourceProjectConfig>,
-) -> Option<ShadowSourceProjectConfig> {
+fn merge_aindex(
+    a: &Option<AindexConfig>,
+    b: &Option<AindexConfig>,
+) -> Option<AindexConfig> {
     match (a, b) {
         (None, None) => None,
         (Some(v), None) => Some(v.clone()),
         (None, Some(v)) => Some(v.clone()),
-        (Some(base), Some(over)) => Some(ShadowSourceProjectConfig {
+        (Some(base), Some(over)) => Some(AindexConfig {
             name: over.name.clone().or_else(|| base.name.clone()),
             skill: DirPair::merge(&base.skill, &over.skill),
             fast_command: DirPair::merge(&base.fast_command, &over.fast_command),
@@ -209,17 +213,27 @@ fn merge_shadow_source_project(
     }
 }
 
+/// Merge aindex configs (deprecated, use merge_aindex).
+#[deprecated(since = "2026.10303.0", note = "Use merge_aindex instead")]
+#[allow(dead_code)]
+fn merge_shadow_source_project(
+    a: &Option<AindexConfig>,
+    b: &Option<AindexConfig>,
+) -> Option<AindexConfig> {
+    merge_aindex(a, b)
+}
+
 /// Merge two configs. `over` fields take priority over `base`.
 pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserConfigFile {
-    let merged_shadow = merge_shadow_source_project(
-        &base.shadow_source_project,
-        &over.shadow_source_project,
+    let merged_aindex = merge_aindex(
+        &base.aindex,
+        &over.aindex,
     );
 
     UserConfigFile {
         version: over.version.clone().or_else(|| base.version.clone()),
         workspace_dir: over.workspace_dir.clone().or_else(|| base.workspace_dir.clone()),
-        shadow_source_project: merged_shadow,
+        aindex: merged_aindex,
         log_level: over.log_level.clone().or_else(|| base.log_level.clone()),
         fast_command_series_options: over.fast_command_series_options.clone()
             .or_else(|| base.fast_command_series_options.clone()),
@@ -570,16 +584,24 @@ pub fn ensure_config_link(local_path: &Path, global_path: &Path, logger: &Logger
     }
 }
 
-/// Ensure the shadow source project directory has a `.tnmsc.json` symlink
+/// Ensure the aindex project directory has a `.tnmsc.json` symlink
 /// pointing to the global config.
-pub fn ensure_shadow_project_config_link(shadow_project_dir: &str, logger: &Logger) {
-    let resolved = resolve_tilde(shadow_project_dir);
+pub fn ensure_aindex_config_link(aindex_dir: &str, logger: &Logger) {
+    let resolved = resolve_tilde(aindex_dir);
     if !resolved.exists() {
         return;
     }
     let global_path = get_global_config_path();
     let config_path = resolved.join(DEFAULT_CONFIG_FILE_NAME);
     ensure_config_link(&config_path, &global_path, logger);
+}
+
+/// Ensure the shadow source project directory has a `.tnmsc.json` symlink
+/// pointing to the global config (deprecated, use ensure_aindex_config_link).
+#[deprecated(since = "2026.10303.0", note = "Use ensure_aindex_config_link instead")]
+#[allow(dead_code)]
+pub fn ensure_shadow_project_config_link(shadow_project_dir: &str, logger: &Logger) {
+    ensure_aindex_config_link(shadow_project_dir, logger);
 }
 
 /// Validate global config file strictly.
@@ -732,7 +754,7 @@ mod tests {
         let config = UserConfigFile::default();
         assert!(config.version.is_none());
         assert!(config.workspace_dir.is_none());
-        assert!(config.shadow_source_project.is_none());
+        assert!(config.aindex.is_none());
         assert!(config.log_level.is_none());
     }
 
@@ -748,9 +770,9 @@ mod tests {
     }
 
     #[test]
-    fn test_user_config_file_deserialize_with_shadow_project() {
+    fn test_user_config_file_deserialize_with_aindex() {
         let json = r#"{
-            "shadowSourceProject": {
+            "aindex": {
                 "name": "aindex",
                 "skill": {"src": "src/skills", "dist": "dist/skills"},
                 "fastCommand": {"src": "src/commands", "dist": "dist/commands"},
@@ -762,9 +784,9 @@ mod tests {
             }
         }"#;
         let config: UserConfigFile = serde_json::from_str(json).unwrap();
-        let sp = config.shadow_source_project.unwrap();
-        assert_eq!(sp.name.as_deref(), Some("aindex"));
-        assert_eq!(sp.skill.as_ref().unwrap().src.as_deref(), Some("src/skills"));
+        let aindex = config.aindex.unwrap();
+        assert_eq!(aindex.name.as_deref(), Some("aindex"));
+        assert_eq!(aindex.skill.as_ref().unwrap().src.as_deref(), Some("src/skills"));
     }
 
     #[test]
@@ -822,8 +844,8 @@ mod tests {
         let global_config = UserConfigFile {
             workspace_dir: Some("~/global-workspace".into()),
             log_level: Some("info".into()),
-            shadow_source_project: Some(ShadowSourceProjectConfig {
-                name: Some("global-shadow".into()),
+            aindex: Some(AindexConfig {
+                name: Some("global-aindex".into()),
                 ..Default::default()
             }),
             ..Default::default()
@@ -834,16 +856,16 @@ mod tests {
         assert_eq!(result.workspace_dir.as_deref(), Some("~/cwd-workspace"));
         assert_eq!(result.log_level.as_deref(), Some("debug"));
         assert_eq!(
-            result.shadow_source_project.as_ref().and_then(|s| s.name.as_deref()),
-            Some("global-shadow")
+            result.aindex.as_ref().and_then(|s| s.name.as_deref()),
+            Some("global-aindex")
         );
     }
 
     #[test]
-    fn test_merge_shadow_source_project_deep() {
+    fn test_merge_aindex_deep() {
         let cwd_config = UserConfigFile {
-            shadow_source_project: Some(ShadowSourceProjectConfig {
-                name: Some("cwd-shadow".into()),
+            aindex: Some(AindexConfig {
+                name: Some("cwd-aindex".into()),
                 skill: Some(DirPair {
                     src: Some("custom/skills".into()),
                     dist: Some("custom/dist/skills".into()),
@@ -853,8 +875,8 @@ mod tests {
             ..Default::default()
         };
         let global_config = UserConfigFile {
-            shadow_source_project: Some(ShadowSourceProjectConfig {
-                name: Some("global-shadow".into()),
+            aindex: Some(AindexConfig {
+                name: Some("global-aindex".into()),
                 skill: Some(DirPair {
                     src: Some("src/skills".into()),
                     dist: Some("dist/skills".into()),
@@ -869,10 +891,10 @@ mod tests {
         };
 
         let result = merge_configs(&[cwd_config, global_config]);
-        let sp = result.shadow_source_project.unwrap();
-        assert_eq!(sp.name.as_deref(), Some("cwd-shadow"));
-        assert_eq!(sp.skill.as_ref().unwrap().src.as_deref(), Some("custom/skills"));
-        assert_eq!(sp.fast_command.as_ref().unwrap().src.as_deref(), Some("src/commands"));
+        let aindex = result.aindex.unwrap();
+        assert_eq!(aindex.name.as_deref(), Some("cwd-aindex"));
+        assert_eq!(aindex.skill.as_ref().unwrap().src.as_deref(), Some("custom/skills"));
+        assert_eq!(aindex.fast_command.as_ref().unwrap().src.as_deref(), Some("src/commands"));
     }
 
     #[test]

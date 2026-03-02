@@ -27,7 +27,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
   }
 
   private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    return this.resolveShadowPath(options.shadowSourceProject.subAgent.dist, resolvedPaths.shadowProjectDir)
+    return this.resolveAindexPath(options.aindex.subAgent.dist, resolvedPaths.aindexDir)
   }
 
   private createSubAgentPrompt(
@@ -91,13 +91,13 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
-    const srcDir = this.resolveShadowPath(options.shadowSourceProject.subAgent.src, resolvedPaths.shadowProjectDir)
+    const srcDir = this.resolveAindexPath(options.aindex.subAgent.src, resolvedPaths.aindexDir)
     const distDir = this.getDistDir(options, resolvedPaths)
 
     logger.debug('SubAgentInputPlugin collecting', {
       srcDir,
       distDir,
-      shadowProjectDir: resolvedPaths.shadowProjectDir
+      aindexDir: resolvedPaths.aindexDir
     })
 
     const reader = createLocalizedPromptReader(fs, path, logger, globalScope)

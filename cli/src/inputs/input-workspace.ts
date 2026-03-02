@@ -10,7 +10,7 @@ export class WorkspaceInputPlugin extends AbstractInputPlugin {
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
     const {userConfigOptions: options} = ctx
-    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(options)
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
 
     const workspace: Workspace = {
       directory: {
@@ -23,7 +23,7 @@ export class WorkspaceInputPlugin extends AbstractInputPlugin {
 
     return {
       workspace,
-      shadowSourceProjectDir: shadowProjectDir
+      aindexDir: aindexDir
     }
   }
 }

@@ -19,6 +19,7 @@ import {WindsurfOutputPlugin} from '@truenine/plugin-windsurf'
 import {defineConfig} from '@/config'
 import {
   AIAgentIgnoreInputPlugin,
+  AindexInputPlugin,
   CommandInputPlugin,
   EditorConfigInputPlugin,
   GitExcludeInputPlugin,
@@ -30,7 +31,6 @@ import {
   ProjectPromptInputPlugin,
   ReadmeMdInputPlugin,
   RuleInputPlugin,
-  ShadowProjectInputPlugin,
   SkillInputPlugin,
   SkillNonSrcFileSyncEffectInputPlugin,
   SubAgentInputPlugin,
@@ -67,7 +67,7 @@ export default defineConfig({
     new MarkdownWhitespaceCleanupEffectInputPlugin(),
 
     new WorkspaceInputPlugin(),
-    new ShadowProjectInputPlugin(),
+    new AindexInputPlugin(),
     new VSCodeConfigInputPlugin(),
     new JetBrainsConfigInputPlugin(),
     new EditorConfigInputPlugin(),
