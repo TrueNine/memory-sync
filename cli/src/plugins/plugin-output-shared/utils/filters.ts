@@ -1,4 +1,4 @@
-import type {FastCommandPrompt, RulePrompt, SkillPrompt, SubAgentPrompt} from '@truenine/plugin-shared'
+import type {FastCommandPrompt, RulePrompt, SeriName, SkillPrompt, SubAgentPrompt} from '@truenine/plugin-shared'
 import type {ProjectConfig} from '@truenine/plugin-shared/types'
 import {matchesSeries, resolveEffectiveIncludeSeries} from './seriesFilter'
 
@@ -6,7 +6,7 @@ import {matchesSeries, resolveEffectiveIncludeSeries} from './seriesFilter'
  * Interface for items that can be filtered by series name
  */
 export interface SeriesFilterable {
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
 }
 
 /**

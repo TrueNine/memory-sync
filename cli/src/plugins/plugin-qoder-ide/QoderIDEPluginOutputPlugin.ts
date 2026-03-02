@@ -4,6 +4,7 @@ import type {
   OutputWriteContext,
   ProjectChildrenMemoryPrompt,
   RulePrompt,
+  RuleScope,
   SkillPrompt,
   WriteResult,
   WriteResults
@@ -419,7 +420,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return buildMarkdownWithFrontMatter(fmData, rule.content)
   }
 
-  protected override normalizeRuleScope(rule: RulePrompt): 'global' | 'project' {
-    return rule.scope || 'global'
+  protected override normalizeRuleScope(rule: RulePrompt): RuleScope {
+    return rule.scope ?? 'global'
   }
 }

@@ -14,6 +14,7 @@ import type {
   ProjectRootMemoryPrompt,
   Prompt,
   RuleYAMLFrontMatter,
+  SeriName,
   SkillYAMLFrontMatter,
   SubAgentYAMLFrontMatter
 } from './PromptTypes'
@@ -88,7 +89,7 @@ export interface RulePrompt extends Prompt<PromptKind.Rule, RuleYAMLFrontMatter,
   readonly ruleName: string
   readonly globs: readonly string[]
   readonly scope: RuleScope
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
   readonly rawMdxContent?: string
 }
 
@@ -100,7 +101,7 @@ export interface FastCommandPrompt extends Prompt<PromptKind.FastCommand, FastCo
   readonly globalOnly?: true
   readonly series?: string
   readonly commandName: string
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
   readonly rawMdxContent?: string
 }
 
@@ -111,7 +112,7 @@ export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAML
   readonly type: PromptKind.SubAgent
   readonly series?: string
   readonly agentName: string
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
   readonly rawMdxContent?: string
 }
 
@@ -397,7 +398,7 @@ export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatt
   readonly mcpConfig?: SkillMcpConfig
   readonly childDocs?: SkillChildDoc[]
   readonly resources?: SkillResource[]
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
 }
 
 /**

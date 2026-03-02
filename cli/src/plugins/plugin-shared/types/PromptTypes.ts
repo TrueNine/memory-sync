@@ -25,6 +25,12 @@ export interface YAMLFrontMatter<N extends NamingCaseKind = NamingCaseKind.Kebab
   readonly namingCase: N
 }
 
+/**
+ * Series name type - used across multiple prompt types
+ * Extracted to avoid repetition and ensure consistency
+ */
+export type SeriName = string | string[] | null
+
 export interface CommonYAMLFrontMatter<N extends NamingCaseKind = NamingCaseKind.KebabCase> extends YAMLFrontMatter<N> {
   readonly description: string
 }
@@ -58,11 +64,13 @@ export interface SubAgentYAMLFrontMatter extends ToolAwareYAMLFrontMatter {
   readonly name: string
   readonly model?: string
   readonly color?: ClaudeCodeCLISubAgentColors | string
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
+  readonly scope?: RuleScope
 }
 
 export interface FastCommandYAMLFrontMatter extends ToolAwareYAMLFrontMatter {
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
+  readonly scope?: RuleScope
 } // description, argumentHint, allowTools inherited from ToolAwareYAMLFrontMatter
 
 /**
@@ -78,7 +86,8 @@ export interface SkillYAMLFrontMatter extends SkillsYAMLFrontMatter {
   readonly displayName?: string
   readonly author?: string
   readonly version?: string
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
+  readonly scope?: RuleScope
 }
 
 /**
@@ -131,7 +140,7 @@ export interface KiroPowerYAMLFrontMatter extends SkillsYAMLFrontMatter {
 export interface RuleYAMLFrontMatter extends CommonYAMLFrontMatter {
   readonly globs: readonly string[]
   readonly scope?: RuleScope
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
 }
 
 /**

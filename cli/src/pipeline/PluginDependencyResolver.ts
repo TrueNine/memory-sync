@@ -122,6 +122,12 @@ export function topologicalSort<T extends PluginKind>(
   }
 
   const result: Plugin<T>[] = [] // Process queue
+  const pluginIndexMap = new Map<string, number>() // Pre-compute plugin indices for O(1) lookup - fixes O(n²) complexity
+  for (let i = 0; i < plugins.length; i++) {
+    const plugin = plugins[i]
+    if (plugin != null) pluginIndexMap.set(plugin.name, i)
+  }
+
   while (queue.length > 0) {
     const current = queue.shift()! // Take first element to preserve registration order
     const plugin = pluginMap.get(current)!
@@ -129,8 +135,8 @@ export function topologicalSort<T extends PluginKind>(
 
     const currentDependents = dependents.get(current) ?? [] // Process dependents in registration order
     const sortedDependents = currentDependents.sort((a, b) => { // Sort dependents by their original registration order
-      const indexA = plugins.findIndex(p => p.name === a)
-      const indexB = plugins.findIndex(p => p.name === b)
+      const indexA = pluginIndexMap.get(a) ?? -1
+      const indexB = pluginIndexMap.get(b) ?? -1
       return indexA - indexB
     })
 

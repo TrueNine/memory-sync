@@ -7,6 +7,7 @@
  */
 
 import type {CodingAgentTools, NamingCaseKind, RuleScope} from './Enums'
+import type {SeriName} from './PromptTypes'
 
 /**
  * Base export metadata interface
@@ -25,6 +26,8 @@ export interface SkillExportMetadata extends BaseExportMetadata {
   readonly author?: string
   readonly version?: string
   readonly allowTools?: readonly (CodingAgentTools | string)[]
+  readonly seriName?: SeriName
+  readonly scope?: RuleScope
 }
 
 export interface FastCommandExportMetadata extends BaseExportMetadata {
@@ -32,13 +35,15 @@ export interface FastCommandExportMetadata extends BaseExportMetadata {
   readonly argumentHint?: string
   readonly allowTools?: readonly (CodingAgentTools | string)[]
   readonly globalOnly?: boolean
+  readonly seriName?: SeriName
+  readonly scope?: RuleScope
 }
 
 export interface RuleExportMetadata extends BaseExportMetadata {
   readonly globs: readonly string[]
   readonly description: string
   readonly scope?: RuleScope
-  readonly seriName?: string
+  readonly seriName?: SeriName
 }
 
 export interface SubAgentExportMetadata extends BaseExportMetadata {
@@ -49,6 +54,8 @@ export interface SubAgentExportMetadata extends BaseExportMetadata {
   readonly color?: string
   readonly argumentHint?: string
   readonly allowTools?: readonly (CodingAgentTools | string)[]
+  readonly seriName?: SeriName
+  readonly scope?: RuleScope
 }
 
 /**
@@ -199,11 +206,11 @@ export function validateRuleMetadata(
   if (typeof metadata['description'] !== 'string' || metadata['description'].length === 0) errors.push(`Missing or empty required field "description"${prefix}`)
 
   const {scope, seriName} = metadata
-  if (scope != null && scope !== 'project' && scope !== 'global') errors.push(`Field "scope" must be "project" or "global"${prefix}`)
+  if (scope != null && scope !== 'project' && scope !== 'global' && scope !== 'workspace') errors.push(`Field "scope" must be "project", "global" or "workspace"${prefix}`)
 
   if (scope == null) warnings.push(`Using default value for optional field "scope": "project"${prefix}`)
 
-  if (seriName != null && typeof seriName !== 'string') errors.push(`Field "seriName" must be a string${prefix}`)
+  if (seriName != null && typeof seriName !== 'string' && !Array.isArray(seriName)) errors.push(`Field "seriName" must be a string or string array${prefix}`)
 
   return {valid: errors.length === 0, errors, warnings}
 }
