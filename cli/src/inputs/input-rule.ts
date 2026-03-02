@@ -48,7 +48,7 @@ export class RuleInputPlugin extends AbstractInputPlugin {
         localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
         isDirectoryStructure: false,
         createPrompt: async (content, _locale, name) => {
-          const srcFilePath = path.join(srcDir, `${name}.cn.mdx`)
+          const distFilePath = path.join(distDir, `${name}.mdx`)
           let globs: readonly string[] = []
           let scope: RuleScope = 'project'
           let seriName: string | undefined,
@@ -56,7 +56,7 @@ export class RuleInputPlugin extends AbstractInputPlugin {
             rawFrontMatter: string | undefined
 
           try {
-            const rawContent = fs.readFileSync(srcFilePath, 'utf8')
+            const rawContent = fs.readFileSync(distFilePath, 'utf8')
             const {yamlFrontMatter: yfm, rawFrontMatter: rfm} = parseMarkdown(rawContent)
             if (yfm) {
               yamlFrontMatter = yfm

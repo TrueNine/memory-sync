@@ -34,8 +34,8 @@ class TestableTraeIDEOutputPlugin extends TraeIDEOutputPlugin {
   private mockHomeDir: string | null = null
   public capturedWriteFile: {path: string, content: string} | null = null
 
-  public testBuildFastCommandSteeringFileName(cmd: FastCommandPrompt): string {
-    return (this as any).buildFastCommandSteeringFileName(cmd)
+  public testTransformFastCommandName(cmd: FastCommandPrompt): string {
+    return this.transformFastCommandName(cmd, {includeSeriesPrefix: true, seriesSeparator: '-'})
   }
 
   public async testWriteSteeringFile(ctx: OutputWriteContext, project: Project, child: ProjectChildrenMemoryPrompt): Promise<WriteResult> {
@@ -58,7 +58,7 @@ class TestableTraeIDEOutputPlugin extends TraeIDEOutputPlugin {
 }
 
 describe('traeIDEOutputPlugin', () => {
-  describe('buildFastCommandSteeringFileName', () => {
+  describe('transformFastCommandName', () => {
     const alphanumericNoUnderscore = fc.string({minLength: 1, maxLength: 10, unit: 'grapheme-ascii'})
       .filter(s => /^[a-z0-9]+$/i.test(s))
 
@@ -74,7 +74,7 @@ describe('traeIDEOutputPlugin', () => {
             const plugin = new TestableTraeIDEOutputPlugin()
             const cmd = createMockFastCommandPrompt(series, commandName)
 
-            const result = plugin.testBuildFastCommandSteeringFileName(cmd)
+            const result = plugin.testTransformFastCommandName(cmd)
 
             expect(result).toBe(`${series}-${commandName}.md`)
           }
@@ -91,7 +91,7 @@ describe('traeIDEOutputPlugin', () => {
             const plugin = new TestableTraeIDEOutputPlugin()
             const cmd = createMockFastCommandPrompt(void 0, commandName)
 
-            const result = plugin.testBuildFastCommandSteeringFileName(cmd)
+            const result = plugin.testTransformFastCommandName(cmd)
 
             expect(result).toBe(`${commandName}.md`)
           }

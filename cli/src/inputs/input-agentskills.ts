@@ -25,6 +25,58 @@ import {FilePathKind, PromptKind, validateSkillMetadata} from '@truenine/plugin-
 
 export * from './input-agentskills-types' // Re-export from types file
 
+interface WritableSkillMetadata {
+  name?: string
+  description?: string
+  displayName?: string
+  keywords?: string[]
+  author?: string
+  version?: string
+  allowTools?: string[]
+}
+
+const EXPORT_DEFAULT_REGEX = /export\s+default\s*\{([\s\S]*?)\}/u
+const DESCRIPTION_REGEX = /description\s*:\s*['"`]([^'"`]+)['"`]/u
+const NAME_REGEX = /name\s*:\s*['"`]([^'"`]+)['"`]/u
+const DISPLAY_NAME_REGEX = /displayName\s*:\s*['"`]([^'"`]+)['"`]/u
+const KEYWORDS_REGEX = /keywords\s*:\s*\[([^\]]+)\]/u
+const AUTHOR_REGEX = /author\s*:\s*['"`]([^'"`]+)['"`]/u
+const VERSION_REGEX = /version\s*:\s*['"`]([^'"`]+)['"`]/u
+
+function extractSkillMetadataFromExport(content: string): WritableSkillMetadata {
+  const metadata: WritableSkillMetadata = {}
+
+  const exportMatch = EXPORT_DEFAULT_REGEX.exec(content)
+  if (exportMatch?.[1] == null) return metadata
+
+  const objectContent = exportMatch[1]
+
+  const descriptionMatch = DESCRIPTION_REGEX.exec(objectContent)
+  if (descriptionMatch?.[1] != null) metadata.description = descriptionMatch[1]
+
+  const nameMatch = NAME_REGEX.exec(objectContent)
+  if (nameMatch?.[1] != null) metadata.name = nameMatch[1]
+
+  const displayNameMatch = DISPLAY_NAME_REGEX.exec(objectContent)
+  if (displayNameMatch?.[1] != null) metadata.displayName = displayNameMatch[1]
+
+  const keywordsMatch = KEYWORDS_REGEX.exec(objectContent)
+  if (keywordsMatch?.[1] != null) {
+    metadata.keywords = keywordsMatch[1]
+      .split(',')
+      .map(k => k.trim().replaceAll(/['"]/gu, ''))
+      .filter(k => k.length > 0)
+  }
+
+  const authorMatch = AUTHOR_REGEX.exec(objectContent)
+  if (authorMatch?.[1] != null) metadata.author = authorMatch[1]
+
+  const versionMatch = VERSION_REGEX.exec(objectContent)
+  if (versionMatch?.[1] != null) metadata.version = versionMatch[1]
+
+  return metadata
+}
+
 const MIME_TYPES: Record<string, string> = { // MIME types for resources
   '.ts': 'text/typescript',
   '.tsx': 'text/typescript',
@@ -343,13 +395,13 @@ async function createSkillPrompt(
 ): Promise<SkillPrompt> {
   const {logger, globalScope, fs} = ctx
 
-  const srcFilePath = nodePath.join(skillAbsoluteDir, 'skill.cn.mdx')
+  const distFilePath = nodePath.join(skillAbsoluteDir, 'skill.mdx')
   let rawContent = content
   let parsed: ReturnType<typeof parseMarkdown<SkillYAMLFrontMatter>> | undefined
 
-  if (fs.existsSync(srcFilePath)) {
+  if (fs.existsSync(distFilePath)) {
     try {
-      rawContent = fs.readFileSync(srcFilePath, 'utf8')
+      rawContent = fs.readFileSync(distFilePath, 'utf8')
       parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)
 
       const compileResult = await mdxToMd(rawContent, {
@@ -361,14 +413,30 @@ async function createSkillPrompt(
       content = transformMdxReferencesToMd(compileResult.content)
     }
     catch (e) {
-      logger.warn('failed to recompile skill from source', {skill: name, error: e})
+      logger.warn('failed to recompile skill from dist', {skill: name, error: e})
     }
   }
 
+  const exportMetadata = extractSkillMetadataFromExport(rawContent) // Extract metadata from JS export if YAML front matter is not present
+
+  const finalDescription = parsed?.yamlFrontMatter?.description ?? exportMetadata.description
+
+  if (finalDescription == null || finalDescription.trim().length === 0) { // Strict validation: description must exist and not be empty
+    logger.error('SKILL_VALIDATION_FAILED: description is required and cannot be empty', {
+      skill: name,
+      skillDir,
+      yamlDescription: parsed?.yamlFrontMatter?.description,
+      exportDescription: exportMetadata.description,
+      hint: 'Add a non-empty description field to the SKILL.md front matter or export default'
+    })
+    throw new Error(`Skill "${name}" validation failed: description is required and cannot be empty`)
+  }
+
   const mergedFrontMatter: SkillYAMLFrontMatter = {
+    ...exportMetadata,
     ...parsed?.yamlFrontMatter ?? {},
     name,
-    description: ''
+    description: finalDescription
   } as SkillYAMLFrontMatter
 
   return {
@@ -438,6 +506,18 @@ async function processSkillFile(
     ...parsed.yamlFrontMatter,
     ...compileResult.metadata.fields
   } as SkillYAMLFrontMatter
+
+  const finalDescription = mergedFrontMatter.description // Strict validation: description must exist and not be empty
+  if (finalDescription == null || finalDescription.trim().length === 0) {
+    logger.error('SKILL_VALIDATION_FAILED: description is required and cannot be empty', {
+      skill: entryName,
+      skillFilePath,
+      yamlDescription: parsed.yamlFrontMatter?.description,
+      exportDescription: compileResult.metadata.fields['description'],
+      hint: 'Add a non-empty description field to the SKILL.md front matter or export default'
+    })
+    throw new Error(`Skill "${entryName}" validation failed: description is required and cannot be empty`)
+  }
 
   const validationResult = validateSkillMetadata(
     mergedFrontMatter as Record<string, unknown>,
@@ -530,17 +610,17 @@ export class SkillInputPlugin extends AbstractInputPlugin {
         localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
         isDirectoryStructure: true,
         createPrompt: async (content, locale, name) => {
-          const skillSrcDir = pathModule.join(srcSkillDir, name)
-          const processor = new ResourceProcessor({fs, logger, skillDir: skillSrcDir})
-          const {childDocs, resources} = processor.scanSkillDirectory(skillSrcDir)
-          const mcpConfig = readMcpConfig(skillSrcDir, fs, logger)
+          const skillDistDir = pathModule.join(distSkillDir, name)
+          const processor = new ResourceProcessor({fs, logger, skillDir: skillDistDir})
+          const {childDocs, resources} = processor.scanSkillDirectory(skillDistDir)
+          const mcpConfig = readMcpConfig(skillDistDir, fs, logger)
 
           return createSkillPrompt(
             content,
             locale,
             name,
             distSkillDir,
-            skillSrcDir,
+            skillDistDir,
             ctx,
             mcpConfig,
             childDocs,

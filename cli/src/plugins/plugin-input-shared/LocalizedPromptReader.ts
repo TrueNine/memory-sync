@@ -164,15 +164,40 @@ export class LocalizedPromptReader {
     const srcEnPath = this.path.join(srcEntryDir, `${baseFileName}${localeExtensions.en}`)
     const distPath = this.path.join(distEntryDir, `${baseFileName}.mdx`)
 
-    const zhContent = await this.readLocaleContent(srcZhPath, 'zh', createPrompt, name) // Read Chinese source (required)
+    const distContent = await this.readDistContent(distPath, createPrompt, name) // Priority 1: Try dist first (already compiled, no need to recompile)
+    if (distContent) {
+      let children: string[] | undefined // Dist exists, use it directly (skip src entirely)
+      if (isDirectoryStructure) children = this.scanChildren(distEntryDir, baseFileName, localeExtensions.zh)
+
+      return {
+        name,
+        type: kind,
+        src: {
+          zh: distContent,
+          default: distContent,
+          defaultLocale: 'zh'
+        },
+        dist: distContent,
+        metadata: {
+          hasDist: true,
+          hasMultipleLocales: false,
+          isDirectoryStructure,
+          ...children && children.length > 0 && {children}
+        },
+        paths: {
+          zh: srcZhPath,
+          dist: distPath
+        }
+      }
+    }
+
+    const zhContent = await this.readLocaleContent(srcZhPath, 'zh', createPrompt, name) // Read Chinese source (required) // Priority 2: Dist not exists, fall back to src
     if (!zhContent) {
       this.logger.warn(`Missing required Chinese source: ${srcZhPath}`)
       return null
     }
 
     const enContent = await this.readLocaleContent(srcEnPath, 'en', createPrompt, name) // Read English source (optional)
-
-    const distContent = await this.readDistContent(distPath, createPrompt, name) // Read dist content (optional, may not exist yet)
 
     const src: LocalizedPrompt<T, K>['src'] = {
       zh: zhContent,
@@ -182,7 +207,6 @@ export class LocalizedPromptReader {
     }
 
     const hasMultipleLocales = !!enContent
-    const hasDist = !!distContent
 
     let children: string[] | undefined // Determine children (for directory structures)
     if (isDirectoryStructure) children = this.scanChildren(srcEntryDir, baseFileName, localeExtensions.zh)
@@ -191,17 +215,15 @@ export class LocalizedPromptReader {
       name,
       type: kind,
       src,
-      ...distContent && {dist: distContent},
       metadata: {
-        hasDist,
+        hasDist: false,
         hasMultipleLocales,
         isDirectoryStructure,
         ...children && children.length > 0 && {children}
       },
       paths: {
         zh: srcZhPath,
-        ...this.exists(srcEnPath) && {en: srcEnPath},
-        ...distContent && {dist: distPath}
+        ...this.exists(srcEnPath) && {en: srcEnPath}
       }
     }
   }
@@ -223,15 +245,35 @@ export class LocalizedPromptReader {
     const srcEnPath = `${baseName}${localeExtensions.en}`
     const distPath = this.path.join(distDir, `${name}.mdx`)
 
-    const fullSrcZhPath = isSingleFile ? srcZhPath : this.path.join(srcDir, srcZhPath)
+    const distContent = await this.readDistContent(distPath, createPrompt, name) // Priority 1: Try dist first (already compiled, no need to recompile)
+    if (distContent) {
+      return {
+        name,
+        type: kind,
+        src: {
+          zh: distContent,
+          default: distContent,
+          defaultLocale: 'zh'
+        },
+        dist: distContent,
+        metadata: {
+          hasDist: true,
+          hasMultipleLocales: false,
+          isDirectoryStructure: false
+        },
+        paths: {
+          dist: distPath
+        }
+      }
+    }
+
+    const fullSrcZhPath = isSingleFile ? srcZhPath : this.path.join(srcDir, srcZhPath) // Priority 2: Dist not exists, fall back to src
     const fullSrcEnPath = isSingleFile ? srcEnPath : this.path.join(srcDir, srcEnPath)
 
     const zhContent = await this.readLocaleContent(fullSrcZhPath, 'zh', createPrompt, name) // Read Chinese source (required)
     if (!zhContent) return null
 
     const enContent = await this.readLocaleContent(fullSrcEnPath, 'en', createPrompt, name) // Read English source (optional)
-
-    const distContent = await this.readDistContent(distPath, createPrompt, name) // Read dist content (optional)
 
     const src: LocalizedPrompt<T, K>['src'] = {
       zh: zhContent,
@@ -244,16 +286,14 @@ export class LocalizedPromptReader {
       name,
       type: kind,
       src,
-      ...distContent && {dist: distContent},
       metadata: {
-        hasDist: !!distContent,
+        hasDist: false,
         hasMultipleLocales: !!enContent,
         isDirectoryStructure: false
       },
       paths: {
         zh: fullSrcZhPath,
-        ...this.exists(fullSrcEnPath) ? {en: fullSrcEnPath} : {},
-        ...distContent ? {dist: distPath} : {}
+        ...this.exists(fullSrcEnPath) ? {en: fullSrcEnPath} : {}
       }
     }
   }

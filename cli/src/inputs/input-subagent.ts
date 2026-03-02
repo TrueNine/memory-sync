@@ -34,8 +34,8 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     content: string,
     _locale: Locale,
     name: string,
-    srcDir: string,
-    _distDir: string,
+    _srcDir: string,
+    distDir: string,
     ctx: InputPluginContext
   ): SubAgentPrompt {
     const {path} = ctx
@@ -46,7 +46,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
 
     const seriesInfo = this.extractSeriesInfo(fileName, parentDirName)
 
-    const filePath = path.join(srcDir, `${name}.cn.mdx`)
+    const filePath = path.join(distDir, `${name}.mdx`)
     const entryName = `${name}.mdx`
 
     return {
@@ -57,7 +57,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       dir: {
         pathKind: FilePathKind.Relative,
         path: entryName,
-        basePath: srcDir,
+        basePath: distDir,
         getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
         getAbsolutePath: () => filePath
       },

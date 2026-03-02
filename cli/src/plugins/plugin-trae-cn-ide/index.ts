@@ -1,0 +1,3 @@
+export {
+  TraeCNIDEOutputPlugin
+} from './TraeCNIDEOutputPlugin'

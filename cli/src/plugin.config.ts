@@ -38,6 +38,7 @@ import {
   VSCodeConfigInputPlugin,
   WorkspaceInputPlugin
 } from '@/inputs'
+import {TraeCNIDEOutputPlugin} from '@/plugins/plugin-trae-cn-ide'
 
 export default defineConfig({
   plugins: [
@@ -52,6 +53,7 @@ export default defineConfig({
     new OpencodeCLIOutputPlugin(),
     new QoderIDEPluginOutputPlugin(),
     new TraeIDEOutputPlugin(),
+    new TraeCNIDEOutputPlugin(),
     new WarpIDEOutputPlugin(),
     new WindsurfOutputPlugin(),
     new CursorOutputPlugin(),

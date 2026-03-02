@@ -116,14 +116,30 @@ export function validateSkillMetadata(
   metadata: Record<string, unknown>,
   filePath?: string
 ): MetadataValidationResult {
-  return validateExportMetadata<SkillExportMetadata>(metadata, {
-    requiredFields: ['name', 'description'],
-    optionalDefaults: {
-      enabled: true,
-      keywords: []
-    },
-    filePath
-  })
+  const prefix = filePath != null ? ` in ${filePath}` : ''
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  if (!('name' in metadata) || metadata['name'] == null) { // Check name field
+    errors.push(`Missing required field "name"${prefix}`)
+  }
+
+  if (!('description' in metadata) || metadata['description'] == null) { // Check description field - must exist and not be empty
+    errors.push(`Missing required field "description"${prefix}`)
+  } else if (typeof metadata['description'] !== 'string' || metadata['description'].trim().length === 0) {
+    errors.push(`Required field "description" cannot be empty${prefix}`)
+  }
+
+  if (metadata['enabled'] == null) { // Optional fields with defaults
+    warnings.push(`Using default value for optional field "enabled": true${prefix}`)
+  }
+  if (metadata['keywords'] == null) warnings.push(`Using default value for optional field "keywords": []${prefix}`)
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings
+  }
 }
 
 /**
