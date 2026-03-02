@@ -1,3 +1,0 @@
-export {
-  GlobalMemoryInputPlugin
-} from './GlobalMemoryInputPlugin'

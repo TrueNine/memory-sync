@@ -1,3 +1,0 @@
-export {
-  SkillInputPlugin
-} from './SkillInputPlugin'

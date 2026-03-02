@@ -1,3 +1,0 @@
-export {
-  RuleInputPlugin
-} from './RuleInputPlugin'

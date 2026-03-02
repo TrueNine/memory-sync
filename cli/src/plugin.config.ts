@@ -7,24 +7,6 @@ import {DroidCLIOutputPlugin} from '@truenine/plugin-droid-cli'
 import {EditorConfigOutputPlugin} from '@truenine/plugin-editorconfig'
 import {GeminiCLIOutputPlugin} from '@truenine/plugin-gemini-cli'
 import {GitExcludeOutputPlugin} from '@truenine/plugin-git-exclude'
-import {SkillInputPlugin} from '@truenine/plugin-input-agentskills'
-import {EditorConfigInputPlugin} from '@truenine/plugin-input-editorconfig'
-import {FastCommandInputPlugin} from '@truenine/plugin-input-fast-command'
-import {GitExcludeInputPlugin} from '@truenine/plugin-input-git-exclude'
-import {GitIgnoreInputPlugin} from '@truenine/plugin-input-gitignore'
-import {GlobalMemoryInputPlugin} from '@truenine/plugin-input-global-memory'
-import {JetBrainsConfigInputPlugin} from '@truenine/plugin-input-jetbrains-config'
-import {MarkdownWhitespaceCleanupEffectInputPlugin} from '@truenine/plugin-input-md-cleanup-effect'
-import {OrphanFileCleanupEffectInputPlugin} from '@truenine/plugin-input-orphan-cleanup-effect'
-import {ProjectPromptInputPlugin} from '@truenine/plugin-input-project-prompt'
-import {ReadmeMdInputPlugin} from '@truenine/plugin-input-readme'
-import {RuleInputPlugin} from '@truenine/plugin-input-rule'
-import {ShadowProjectInputPlugin} from '@truenine/plugin-input-shadow-project'
-import {AIAgentIgnoreInputPlugin} from '@truenine/plugin-input-shared-ignore'
-import {SkillNonSrcFileSyncEffectInputPlugin} from '@truenine/plugin-input-skill-sync-effect'
-import {SubAgentInputPlugin} from '@truenine/plugin-input-subagent'
-import {VSCodeConfigInputPlugin} from '@truenine/plugin-input-vscode-config'
-import {WorkspaceInputPlugin} from '@truenine/plugin-input-workspace'
 import {JetBrainsAIAssistantCodexOutputPlugin} from '@truenine/plugin-jetbrains-ai-codex'
 import {JetBrainsIDECodeStyleConfigOutputPlugin} from '@truenine/plugin-jetbrains-codestyle'
 import {CodexCLIOutputPlugin} from '@truenine/plugin-openai-codex-cli'
@@ -36,6 +18,26 @@ import {VisualStudioCodeIDEConfigOutputPlugin} from '@truenine/plugin-vscode'
 import {WarpIDEOutputPlugin} from '@truenine/plugin-warp-ide'
 import {WindsurfOutputPlugin} from '@truenine/plugin-windsurf'
 import {defineConfig} from '@/config'
+import {
+  AIAgentIgnoreInputPlugin,
+  EditorConfigInputPlugin,
+  FastCommandInputPlugin,
+  GitExcludeInputPlugin,
+  GitIgnoreInputPlugin,
+  GlobalMemoryInputPlugin,
+  JetBrainsConfigInputPlugin,
+  MarkdownWhitespaceCleanupEffectInputPlugin,
+  OrphanFileCleanupEffectInputPlugin,
+  ProjectPromptInputPlugin,
+  ReadmeMdInputPlugin,
+  RuleInputPlugin,
+  ShadowProjectInputPlugin,
+  SkillInputPlugin,
+  SkillNonSrcFileSyncEffectInputPlugin,
+  SubAgentInputPlugin,
+  VSCodeConfigInputPlugin,
+  WorkspaceInputPlugin
+} from '@/inputs'
 
 export default defineConfig({
   plugins: [
