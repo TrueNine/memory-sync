@@ -27,7 +27,7 @@ export class CommandInputPlugin extends AbstractInputPlugin {
   }
 
   private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    return this.resolveAindexPath(options.aindex.command.dist, resolvedPaths.aindexDir)
+    return this.resolveAindexPath(options.aindex.commands.dist, resolvedPaths.aindexDir)
   }
 
   private createCommandPrompt(
@@ -92,7 +92,7 @@ export class CommandInputPlugin extends AbstractInputPlugin {
     const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
-    const srcDir = this.resolveAindexPath(options.aindex.command.src, resolvedPaths.aindexDir)
+    const srcDir = this.resolveAindexPath(options.aindex.commands.src, resolvedPaths.aindexDir)
     const distDir = this.getDistDir(options, resolvedPaths)
 
     logger.debug('CommandInputPlugin collecting', {

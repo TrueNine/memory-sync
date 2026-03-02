@@ -12,6 +12,9 @@ export {
   SkillInputPlugin
 } from './input-agentskills'
 export {
+  AindexInputPlugin
+} from './input-aindex'
+export {
   CommandInputPlugin
 } from './input-command'
 export {
@@ -38,9 +41,6 @@ export {
 export {
   RuleInputPlugin
 } from './input-rule'
-export {
-  AindexInputPlugin
-} from './input-aindex'
 export {
   AIAgentIgnoreInputPlugin
 } from './input-shared-ignore'

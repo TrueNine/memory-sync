@@ -6,25 +6,28 @@ import {DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR} from '@/ConfigLoade
 
 /**
  * Valid configuration keys that can be set via `tnmsc config key=value`.
- * Nested keys use dot-notation: aindex.name, aindex.skill.src, etc.
+ * Nested keys use dot-notation: aindex.skills.src, aindex.commands.src, etc.
  */
 const VALID_CONFIG_KEYS = [
   'workspaceDir',
-  'aindex.name',
-  'aindex.skill.src',
-  'aindex.skill.dist',
-  'aindex.command.src',
-  'aindex.command.dist',
-  'aindex.subAgent.src',
-  'aindex.subAgent.dist',
-  'aindex.rule.src',
-  'aindex.rule.dist',
-  'aindex.globalMemory.src',
-  'aindex.globalMemory.dist',
-  'aindex.workspaceMemory.src',
-  'aindex.workspaceMemory.dist',
-  'aindex.project.src',
-  'aindex.project.dist',
+  'aindex.skills.src',
+  'aindex.skills.dist',
+  'aindex.commands.src',
+  'aindex.commands.dist',
+  'aindex.subAgents.src',
+  'aindex.subAgents.dist',
+  'aindex.rules.src',
+  'aindex.rules.dist',
+  'aindex.globalPrompt.src',
+  'aindex.globalPrompt.dist',
+  'aindex.workspacePrompt.src',
+  'aindex.workspacePrompt.dist',
+  'aindex.app.src',
+  'aindex.app.dist',
+  'aindex.ext.src',
+  'aindex.ext.dist',
+  'aindex.arch.src',
+  'aindex.arch.dist',
   'logLevel'
 ] as const
 

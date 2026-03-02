@@ -24,11 +24,11 @@ export class RuleInputPlugin extends AbstractInputPlugin {
   }
 
   private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    return this.resolveAindexPath(options.aindex.rule.dist, resolvedPaths.aindexDir)
+    return this.resolveAindexPath(options.aindex.rules.dist, resolvedPaths.aindexDir)
   }
 
   private getSrcDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    return this.resolveAindexPath(options.aindex.rule.src, resolvedPaths.aindexDir)
+    return this.resolveAindexPath(options.aindex.rules.src, resolvedPaths.aindexDir)
   }
 
   override async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {

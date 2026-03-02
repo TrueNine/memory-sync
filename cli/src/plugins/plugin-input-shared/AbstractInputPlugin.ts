@@ -117,8 +117,8 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     const workspaceDirRaw = options.workspaceDir
     const workspaceDir = this.resolvePath(workspaceDirRaw, '')
 
-    const aindexName = options.aindex.name
-    const aindexDir = path.join(workspaceDir, aindexName)
+    const aindexDirName = options.aindex?.dir ?? 'aindex' // 从配置读取 aindex 目录名，默认为 'aindex'
+    const aindexDir = path.join(workspaceDir, aindexDirName)
 
     return {workspaceDir, aindexDir}
   }

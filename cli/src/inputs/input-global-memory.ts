@@ -22,7 +22,7 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
     const {userConfigOptions: options, fs, path, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
 
-    const globalMemoryFile = this.resolveAindexPath(options.aindex.globalMemory.dist, aindexDir)
+    const globalMemoryFile = this.resolveAindexPath(options.aindex.globalPrompt.dist, aindexDir)
 
     if (!fs.existsSync(globalMemoryFile)) {
       this.log.warn({action: 'collect', reason: 'fileNotFound', path: globalMemoryFile})

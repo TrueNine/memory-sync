@@ -39,7 +39,7 @@ export class AindexInputPlugin extends AbstractInputPlugin {
     const {userConfigOptions: options, logger, fs, path} = ctx
     const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
 
-    const aindexProjectsDir = this.resolveAindexPath(options.aindex.project.dist, aindexDir)
+    const aindexProjectsDir = this.resolveAindexPath(options.aindex.app.dist, aindexDir)
 
     const aindexName = path.basename(aindexDir)
 
@@ -51,7 +51,7 @@ export class AindexInputPlugin extends AbstractInputPlugin {
         for (const entry of entries) {
           if (entry.isDirectory()) {
             const isTheAindex = entry.name === aindexName
-            const projectConfig = this.loadProjectConfig(entry.name, aindexDir, options.aindex.project.src, fs, path, logger)
+            const projectConfig = this.loadProjectConfig(entry.name, aindexDir, options.aindex.app.src, fs, path, logger)
 
             aindexProjects.push({
               name: entry.name,
@@ -80,7 +80,7 @@ export class AindexInputPlugin extends AbstractInputPlugin {
         for (const entry of entries) {
           if (entry.isDirectory() && !entry.name.startsWith('.')) {
             const isTheAindex = entry.name === aindexName
-            const projectConfig = this.loadProjectConfig(entry.name, aindexDir, options.aindex.project.src, fs, path, logger)
+            const projectConfig = this.loadProjectConfig(entry.name, aindexDir, options.aindex.app.src, fs, path, logger)
 
             aindexProjects.push({
               name: entry.name,

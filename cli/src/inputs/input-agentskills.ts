@@ -595,8 +595,8 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     const {userConfigOptions: options, logger, fs, path: pathModule, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
 
-    const srcSkillDir = this.resolveAindexPath(options.aindex.skill.src, aindexDir)
-    const distSkillDir = this.resolveAindexPath(options.aindex.skill.dist, aindexDir)
+    const srcSkillDir = this.resolveAindexPath(options.aindex.skills.src, aindexDir)
+    const distSkillDir = this.resolveAindexPath(options.aindex.skills.dist, aindexDir)
 
     const legacySkills: SkillPrompt[] = []
     const reader = createLocalizedPromptReader(fs, pathModule, logger, globalScope)

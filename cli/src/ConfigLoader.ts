@@ -168,14 +168,16 @@ export class ConfigLoader {
     if (a == null) return b
     if (b == null) return a
     return {
-      name: b.name ?? a.name,
-      skill: {...a.skill, ...b.skill},
-      command: {...a.command, ...b.command},
-      subAgent: {...a.subAgent, ...b.subAgent},
-      rule: {...a.rule, ...b.rule},
-      globalMemory: {...a.globalMemory, ...b.globalMemory},
-      workspaceMemory: {...a.workspaceMemory, ...b.workspaceMemory},
-      project: {...a.project, ...b.project}
+      dir: b.dir ?? a.dir,
+      skills: {...a.skills, ...b.skills},
+      commands: {...a.commands, ...b.commands},
+      subAgents: {...a.subAgents, ...b.subAgents},
+      rules: {...a.rules, ...b.rules},
+      globalPrompt: {...a.globalPrompt, ...b.globalPrompt},
+      workspacePrompt: {...a.workspacePrompt, ...b.workspacePrompt},
+      app: {...a.app, ...b.app},
+      ext: {...a.ext, ...b.ext},
+      arch: {...a.arch, ...b.arch}
     }
   }
 

@@ -14,16 +14,19 @@ export const ZShadowSourceProjectDirPair = z.object({
 /**
  * Zod schema for the shadow source project configuration.
  * All paths are relative to `<workspaceDir>/<name>`.
+ * @deprecated Use ZAindexConfig instead.
  */
 export const ZShadowSourceProjectConfig = z.object({
-  name: z.string(),
-  skill: ZShadowSourceProjectDirPair,
-  command: ZShadowSourceProjectDirPair,
-  subAgent: ZShadowSourceProjectDirPair,
-  rule: ZShadowSourceProjectDirPair,
-  globalMemory: ZShadowSourceProjectDirPair,
-  workspaceMemory: ZShadowSourceProjectDirPair,
-  project: ZShadowSourceProjectDirPair
+  dir: z.string().default('aindex'),
+  skills: ZShadowSourceProjectDirPair,
+  commands: ZShadowSourceProjectDirPair,
+  subAgents: ZShadowSourceProjectDirPair,
+  rules: ZShadowSourceProjectDirPair,
+  globalPrompt: ZShadowSourceProjectDirPair,
+  workspacePrompt: ZShadowSourceProjectDirPair,
+  app: ZShadowSourceProjectDirPair,
+  ext: ZShadowSourceProjectDirPair,
+  arch: ZShadowSourceProjectDirPair
 })
 
 /**
@@ -32,14 +35,16 @@ export const ZShadowSourceProjectConfig = z.object({
  * All paths are relative to `<workspaceDir>/<name>`.
  */
 export const ZAindexConfig = z.object({
-  name: z.string(),
-  skill: ZShadowSourceProjectDirPair,
-  command: ZShadowSourceProjectDirPair,
-  subAgent: ZShadowSourceProjectDirPair,
-  rule: ZShadowSourceProjectDirPair,
-  globalMemory: ZShadowSourceProjectDirPair,
-  workspaceMemory: ZShadowSourceProjectDirPair,
-  project: ZShadowSourceProjectDirPair
+  dir: z.string().default('aindex'),
+  skills: ZShadowSourceProjectDirPair,
+  commands: ZShadowSourceProjectDirPair,
+  subAgents: ZShadowSourceProjectDirPair,
+  rules: ZShadowSourceProjectDirPair,
+  globalPrompt: ZShadowSourceProjectDirPair,
+  workspacePrompt: ZShadowSourceProjectDirPair,
+  app: ZShadowSourceProjectDirPair,
+  ext: ZShadowSourceProjectDirPair,
+  arch: ZShadowSourceProjectDirPair
 })
 
 /**
@@ -93,13 +98,11 @@ export const ZUserConfigFile = z.object({
 export function convertUserConfigAindexToShadowSourceProject(
   config: z.infer<typeof ZUserConfigFile>
 ): z.infer<typeof ZUserConfigFile> {
-  // If aindex is explicitly provided, use it directly
-  if (config.aindex != null) {
+  if (config.aindex != null) { // If aindex is explicitly provided, use it directly
     return config
   }
 
-  // If shadowSourceProject is provided but aindex is not, copy it to aindex
-  if (config.shadowSourceProject != null) {
+  if (config.shadowSourceProject != null) { // If shadowSourceProject is provided but aindex is not, copy it to aindex
     return {
       ...config,
       aindex: config.shadowSourceProject

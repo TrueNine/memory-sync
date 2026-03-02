@@ -25,6 +25,7 @@ export interface ValidationError {
 const KNOWN_FIELDS: ReadonlySet<string> = new Set([
   'version',
   'workspaceDir',
+  'aindex',
   'shadowSourceProject',
   'logLevel',
   'fastCommandSeriesOptions',
@@ -41,13 +42,15 @@ const VALID_LOG_LEVELS: ReadonlySet<string> = new Set([
 ])
 
 const AINDEX_PAIR_KEYS = [
-  'skill',
-  'fastCommand',
-  'subAgent',
-  'rule',
-  'globalMemory',
-  'workspaceMemory',
-  'project',
+  'skills',
+  'commands',
+  'subAgents',
+  'rules',
+  'globalPrompt',
+  'workspacePrompt',
+  'app',
+  'ext',
+  'arch',
 ] as const
 
 /**
@@ -120,8 +123,9 @@ export function validateConfig(raw: unknown): readonly ValidationError[] {
       errors.push({ field: 'aindex', message: 'aindex must be an object', severity: 'error' })
     } else {
       const sspObj = ssp as Record<string, unknown>
-      if ('name' in sspObj && typeof sspObj['name'] !== 'string') {
-        errors.push({ field: 'aindex.name', message: 'aindex.name must be a string', severity: 'error' })
+      // Validate dir field (optional string)
+      if ('dir' in sspObj && typeof sspObj['dir'] !== 'string') {
+        errors.push({ field: 'aindex.dir', message: 'aindex.dir must be a string', severity: 'error' })
       }
       for (const key of AINDEX_PAIR_KEYS) {
         if (key in sspObj) {

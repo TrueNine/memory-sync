@@ -33,10 +33,10 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
 
     const aindexConfig = userConfigOptions.aindex
     const srcPaths: Record<string, string> = {
-      skills: aindexConfig?.skill?.src ?? 'src/skills',
-      commands: aindexConfig?.command?.src ?? 'src/commands',
-      agents: aindexConfig?.subAgent?.src ?? 'src/agents',
-      app: aindexConfig?.project?.src ?? 'app'
+      skills: aindexConfig?.skills?.src ?? 'skills',
+      commands: aindexConfig?.commands?.src ?? 'commands',
+      agents: aindexConfig?.subAgents?.src ?? 'subagents',
+      app: aindexConfig?.app?.src ?? 'app'
     }
 
     const distSubDirs = ['skills', 'commands', 'agents', 'app']

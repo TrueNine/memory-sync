@@ -57,21 +57,25 @@ impl DirPair {
 #[serde(rename_all = "camelCase")]
 pub struct AindexConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub dir: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub skill: Option<DirPair>,
+    pub skills: Option<DirPair>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fast_command: Option<DirPair>,
+    pub commands: Option<DirPair>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sub_agent: Option<DirPair>,
+    pub sub_agents: Option<DirPair>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rule: Option<DirPair>,
+    pub rules: Option<DirPair>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub global_memory: Option<DirPair>,
+    pub global_prompt: Option<DirPair>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub workspace_memory: Option<DirPair>,
+    pub workspace_prompt: Option<DirPair>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub project: Option<DirPair>,
+    pub app: Option<DirPair>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ext: Option<DirPair>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arch: Option<DirPair>,
 }
 
 /// Shadow source project configuration (deprecated, use AindexConfig).
@@ -201,14 +205,16 @@ fn merge_aindex(
         (Some(v), None) => Some(v.clone()),
         (None, Some(v)) => Some(v.clone()),
         (Some(base), Some(over)) => Some(AindexConfig {
-            name: over.name.clone().or_else(|| base.name.clone()),
-            skill: DirPair::merge(&base.skill, &over.skill),
-            fast_command: DirPair::merge(&base.fast_command, &over.fast_command),
-            sub_agent: DirPair::merge(&base.sub_agent, &over.sub_agent),
-            rule: DirPair::merge(&base.rule, &over.rule),
-            global_memory: DirPair::merge(&base.global_memory, &over.global_memory),
-            workspace_memory: DirPair::merge(&base.workspace_memory, &over.workspace_memory),
-            project: DirPair::merge(&base.project, &over.project),
+            dir: over.dir.clone().or_else(|| base.dir.clone()),
+            skills: DirPair::merge(&base.skills, &over.skills),
+            commands: DirPair::merge(&base.commands, &over.commands),
+            sub_agents: DirPair::merge(&base.sub_agents, &over.sub_agents),
+            rules: DirPair::merge(&base.rules, &over.rules),
+            global_prompt: DirPair::merge(&base.global_prompt, &over.global_prompt),
+            workspace_prompt: DirPair::merge(&base.workspace_prompt, &over.workspace_prompt),
+            app: DirPair::merge(&base.app, &over.app),
+            ext: DirPair::merge(&base.ext, &over.ext),
+            arch: DirPair::merge(&base.arch, &over.arch),
         }),
     }
 }
@@ -773,20 +779,21 @@ mod tests {
     fn test_user_config_file_deserialize_with_aindex() {
         let json = r#"{
             "aindex": {
-                "name": "aindex",
-                "skill": {"src": "src/skills", "dist": "dist/skills"},
-                "fastCommand": {"src": "src/commands", "dist": "dist/commands"},
-                "subAgent": {"src": "src/agents", "dist": "dist/agents"},
-                "rule": {"src": "src/rules", "dist": "dist/rules"},
-                "globalMemory": {"src": "app/global.cn.mdx", "dist": "dist/global.mdx"},
-                "workspaceMemory": {"src": "app/workspace.cn.mdx", "dist": "dist/app/workspace.mdx"},
-                "project": {"src": "app", "dist": "dist/app"}
+                "skills": {"src": "src/skills", "dist": "dist/skills"},
+                "commands": {"src": "src/commands", "dist": "dist/commands"},
+                "subAgents": {"src": "src/agents", "dist": "dist/agents"},
+                "rules": {"src": "src/rules", "dist": "dist/rules"},
+                "globalPrompt": {"src": "app/global.cn.mdx", "dist": "dist/global.mdx"},
+                "workspacePrompt": {"src": "app/workspace.cn.mdx", "dist": "dist/app/workspace.mdx"},
+                "app": {"src": "app", "dist": "dist/app"},
+                "ext": {"src": "ext", "dist": "dist/ext"},
+                "arch": {"src": "arch", "dist": "dist/arch"}
             }
         }"#;
         let config: UserConfigFile = serde_json::from_str(json).unwrap();
         let aindex = config.aindex.unwrap();
-        assert_eq!(aindex.name.as_deref(), Some("aindex"));
-        assert_eq!(aindex.skill.as_ref().unwrap().src.as_deref(), Some("src/skills"));
+        assert_eq!(aindex.skills.as_ref().unwrap().src.as_deref(), Some("src/skills"));
+        assert_eq!(aindex.commands.as_ref().unwrap().src.as_deref(), Some("src/commands"));
     }
 
     #[test]
@@ -845,7 +852,10 @@ mod tests {
             workspace_dir: Some("~/global-workspace".into()),
             log_level: Some("info".into()),
             aindex: Some(AindexConfig {
-                name: Some("global-aindex".into()),
+                skills: Some(DirPair {
+                    src: Some("global/skills".into()),
+                    dist: Some("global/dist/skills".into()),
+                }),
                 ..Default::default()
             }),
             ..Default::default()
@@ -856,8 +866,8 @@ mod tests {
         assert_eq!(result.workspace_dir.as_deref(), Some("~/cwd-workspace"));
         assert_eq!(result.log_level.as_deref(), Some("debug"));
         assert_eq!(
-            result.aindex.as_ref().and_then(|s| s.name.as_deref()),
-            Some("global-aindex")
+            result.aindex.as_ref().and_then(|s| s.skills.as_ref()).and_then(|p| p.src.as_deref()),
+            Some("global/skills")
         );
     }
 
@@ -865,8 +875,7 @@ mod tests {
     fn test_merge_aindex_deep() {
         let cwd_config = UserConfigFile {
             aindex: Some(AindexConfig {
-                name: Some("cwd-aindex".into()),
-                skill: Some(DirPair {
+                skills: Some(DirPair {
                     src: Some("custom/skills".into()),
                     dist: Some("custom/dist/skills".into()),
                 }),
@@ -876,12 +885,11 @@ mod tests {
         };
         let global_config = UserConfigFile {
             aindex: Some(AindexConfig {
-                name: Some("global-aindex".into()),
-                skill: Some(DirPair {
+                skills: Some(DirPair {
                     src: Some("src/skills".into()),
                     dist: Some("dist/skills".into()),
                 }),
-                fast_command: Some(DirPair {
+                commands: Some(DirPair {
                     src: Some("src/commands".into()),
                     dist: Some("dist/commands".into()),
                 }),
@@ -892,9 +900,8 @@ mod tests {
 
         let result = merge_configs(&[cwd_config, global_config]);
         let aindex = result.aindex.unwrap();
-        assert_eq!(aindex.name.as_deref(), Some("cwd-aindex"));
-        assert_eq!(aindex.skill.as_ref().unwrap().src.as_deref(), Some("custom/skills"));
-        assert_eq!(aindex.fast_command.as_ref().unwrap().src.as_deref(), Some("src/commands"));
+        assert_eq!(aindex.skills.as_ref().unwrap().src.as_deref(), Some("custom/skills"));
+        assert_eq!(aindex.commands.as_ref().unwrap().src.as_deref(), Some("src/commands"));
     }
 
     #[test]

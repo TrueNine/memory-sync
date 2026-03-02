@@ -89,22 +89,23 @@ describe('validateConfig — logLevel', () => {
 // ─── aindex ───────────────────────────────────────────────
 describe('validateConfig — aindex', () => {
   const validAindex = {
-    name: 'aindex',
-    skill: { src: 'src/skills', dist: 'dist/skills' },
-    fastCommand: { src: 'src/commands', dist: 'dist/commands' },
-    subAgent: { src: 'src/agents', dist: 'dist/agents' },
-    rule: { src: 'src/rules', dist: 'dist/rules' },
-    globalMemory: { src: 'app/global.cn.mdx', dist: 'dist/global.mdx' },
-    workspaceMemory: { src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx' },
-    project: { src: 'app', dist: 'dist/app' },
+    skills: { src: 'skills', dist: 'dist/skills' },
+    commands: { src: 'commands', dist: 'dist/commands' },
+    subAgents: { src: 'subagents', dist: 'dist/subagents' },
+    rules: { src: 'rules', dist: 'dist/rules' },
+    globalPrompt: { src: 'global.cn.mdx', dist: 'dist/global.mdx' },
+    workspacePrompt: { src: 'workspace.cn.mdx', dist: 'dist/workspace.mdx' },
+    app: { src: 'app', dist: 'dist/app' },
+    ext: { src: 'ext', dist: 'dist/ext' },
+    arch: { src: 'arch', dist: 'dist/arch' },
   }
 
   it('accepts a fully valid aindex', () => {
     expect(validateConfig({ aindex: validAindex })).toHaveLength(0)
   })
 
-  it('accepts partial aindex with only name', () => {
-    expect(validateConfig({ aindex: { name: 'myproject' } })).toHaveLength(0)
+  it('accepts partial aindex with only skills', () => {
+    expect(validateConfig({ aindex: { skills: { src: 'skills', dist: 'dist/skills' } } })).toHaveLength(0)
   })
 
   it('rejects non-object', () => {
@@ -117,29 +118,24 @@ describe('validateConfig — aindex', () => {
     expect(errorFields(errors)).toContain('aindex')
   })
 
-  it('rejects non-string name', () => {
-    const errors = validateConfig({ aindex: { name: 123 } })
-    expect(errorFields(errors)).toContain('aindex.name')
-  })
-
   it('rejects invalid dir pair (non-object)', () => {
-    const errors = validateConfig({ aindex: { name: 'x', skill: 'bad' } })
-    expect(errorFields(errors)).toContain('aindex.skill')
+    const errors = validateConfig({ aindex: { skills: 'bad' } })
+    expect(errorFields(errors)).toContain('aindex.skills')
   })
 
   it('rejects dir pair missing src', () => {
-    const errors = validateConfig({ aindex: { name: 'x', skill: { dist: 'dist/skills' } } })
-    expect(errorFields(errors)).toContain('aindex.skill.src')
+    const errors = validateConfig({ aindex: { skills: { dist: 'dist/skills' } } })
+    expect(errorFields(errors)).toContain('aindex.skills.src')
   })
 
   it('rejects dir pair missing dist', () => {
-    const errors = validateConfig({ aindex: { name: 'x', skill: { src: 'src/skills' } } })
-    expect(errorFields(errors)).toContain('aindex.skill.dist')
+    const errors = validateConfig({ aindex: { skills: { src: 'skills' } } })
+    expect(errorFields(errors)).toContain('aindex.skills.dist')
   })
 
   it('rejects dir pair with non-string src', () => {
-    const errors = validateConfig({ aindex: { name: 'x', skill: { src: 123, dist: 'dist/skills' } } })
-    expect(errorFields(errors)).toContain('aindex.skill.src')
+    const errors = validateConfig({ aindex: { skills: { src: 123, dist: 'dist/skills' } } })
+    expect(errorFields(errors)).toContain('aindex.skills.src')
   })
 })
 
@@ -254,14 +250,15 @@ describe('validateConfig — realistic configs', () => {
       version: '2026.10218.0',
       workspaceDir: '/workspace',
       aindex: {
-        name: 'aindex',
-        skill: { src: 'src/skills', dist: 'dist/skills' },
-        fastCommand: { src: 'src/commands', dist: 'dist/commands' },
-        subAgent: { src: 'src/agents', dist: 'dist/agents' },
-        rule: { src: 'src/rules', dist: 'dist/rules' },
-        globalMemory: { src: 'app/global.cn.mdx', dist: 'dist/global.mdx' },
-        workspaceMemory: { src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx' },
-        project: { src: 'app', dist: 'dist/app' },
+        skills: { src: 'skills', dist: 'dist/skills' },
+        commands: { src: 'commands', dist: 'dist/commands' },
+        subAgents: { src: 'subagents', dist: 'dist/subagents' },
+        rules: { src: 'rules', dist: 'dist/rules' },
+        globalPrompt: { src: 'global.cn.mdx', dist: 'dist/global.mdx' },
+        workspacePrompt: { src: 'workspace.cn.mdx', dist: 'dist/workspace.mdx' },
+        app: { src: 'app', dist: 'dist/app' },
+        ext: { src: 'ext', dist: 'dist/ext' },
+        arch: { src: 'arch', dist: 'dist/arch' },
       },
       logLevel: 'debug',
       profile: { name: 'test' },

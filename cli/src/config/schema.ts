@@ -6,7 +6,6 @@
  */
 
 import type {
-  AindexConfig,
   LogLevel,
   ModulePaths,
   Profile,
@@ -36,6 +35,7 @@ export const ZModulePaths = z.object({
  * Supports user-defined module paths with src/dist structure.
  */
 export const ZAindexConfig = z.object({
+  dir: z.string().default('aindex'),
   skills: ZModulePaths,
   commands: ZModulePaths,
   subAgents: ZModulePaths,
@@ -45,7 +45,7 @@ export const ZAindexConfig = z.object({
   app: ZModulePaths,
   ext: ZModulePaths,
   arch: ZModulePaths
-}).catchall(ZModulePaths) satisfies z.ZodType<AindexConfig>
+}).catchall(z.union([ZModulePaths, z.string()]))
 
 /**
  * Zod schema for user profile.
@@ -68,7 +68,7 @@ export const ZTnmscConfig = z.object({
   aindex: ZAindexConfig,
   logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error']),
   profile: ZProfile
-}) satisfies z.ZodType<TnmscConfig>
+})
 
 /**
  * Validate a configuration object against the schema.

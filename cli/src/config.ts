@@ -4,9 +4,9 @@ import * as path from 'node:path'
 import process from 'node:process'
 import {createLogger, PluginKind} from '@truenine/plugin-shared'
 import glob from 'fast-glob'
+import {checkVersionControl} from './Aindex'
 import {loadUserConfig, validateGlobalConfig} from './ConfigLoader'
 import {PluginPipeline} from './PluginPipeline'
-import {checkVersionControl} from './Aindex'
 
 /**
  * Pipeline configuration containing collected context and output plugins
@@ -18,14 +18,16 @@ export interface PipelineConfig {
 }
 
 const DEFAULT_AINDEX: Required<AindexConfig> = {
-  name: 'aindex',
-  skill: {src: 'src/skills', dist: 'dist/skills'},
-  command: {src: 'src/commands', dist: 'dist/commands'},
-  subAgent: {src: 'src/agents', dist: 'dist/agents'},
-  rule: {src: 'src/rules', dist: 'dist/rules'},
-  globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
-  workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
-  project: {src: 'app', dist: 'dist/app'}
+  dir: 'aindex',
+  skills: {src: 'skills', dist: 'dist/skills'},
+  commands: {src: 'commands', dist: 'dist/commands'},
+  subAgents: {src: 'subagents', dist: 'dist/subagents'},
+  rules: {src: 'rules', dist: 'dist/rules'},
+  globalPrompt: {src: 'global.cn.mdx', dist: 'dist/global.mdx'},
+  workspacePrompt: {src: 'workspace.cn.mdx', dist: 'dist/workspace.mdx'},
+  app: {src: 'app', dist: 'dist/app'},
+  ext: {src: 'ext', dist: 'dist/ext'},
+  arch: {src: 'arch', dist: 'dist/arch'}
 }
 
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
@@ -103,14 +105,16 @@ function mergeAindex(
 ): AindexConfig {
   if (override == null) return base
   return {
-    name: override.name ?? base.name,
-    skill: {...base.skill, ...override.skill},
-    command: {...base.command, ...override.command},
-    subAgent: {...base.subAgent, ...override.subAgent},
-    rule: {...base.rule, ...override.rule},
-    globalMemory: {...base.globalMemory, ...override.globalMemory},
-    workspaceMemory: {...base.workspaceMemory, ...override.workspaceMemory},
-    project: {...base.project, ...override.project}
+    dir: override.dir ?? base.dir,
+    skills: {...base.skills, ...override.skills},
+    commands: {...base.commands, ...override.commands},
+    subAgents: {...base.subAgents, ...override.subAgents},
+    rules: {...base.rules, ...override.rules},
+    globalPrompt: {...base.globalPrompt, ...override.globalPrompt},
+    workspacePrompt: {...base.workspacePrompt, ...override.workspacePrompt},
+    app: {...base.app, ...override.app},
+    ext: {...base.ext, ...override.ext},
+    arch: {...base.arch, ...override.arch}
   }
 }
 

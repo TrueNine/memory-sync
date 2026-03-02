@@ -23,7 +23,7 @@ export class WorkspaceInputPlugin extends AbstractInputPlugin {
 
     return {
       workspace,
-      aindexDir: aindexDir
+      aindexDir
     }
   }
 }

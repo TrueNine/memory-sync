@@ -3,13 +3,13 @@ import {createLogger} from '@truenine/plugin-shared'
 import {PluginPipeline} from '@/PluginPipeline'
 import userPluginConfigPromise from './plugin.config'
 
+export * from './Aindex'
 export * from './config'
 export * from './ConfigLoader'
 export * from './constants'
 export {
   default
 } from './plugin.config'
-export * from './Aindex'
 
 async function main(): Promise<void> {
   const userPluginConfig = await userPluginConfigPromise

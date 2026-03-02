@@ -47,18 +47,19 @@ CLEAN OPTIONS:
 CONFIG OPTIONS:
   key=value          Set a configuration value in global config (~/.aindex/.tnmsc.json)
   Valid keys: workspaceDir, logLevel,
-              aindex.name,
-              aindex.skill.src, aindex.skill.dist,
-              aindex.command.src, aindex.command.dist,
-              aindex.subAgent.src, aindex.subAgent.dist,
-              aindex.rule.src, aindex.rule.dist,
-              aindex.globalMemory.src, aindex.globalMemory.dist,
-              aindex.workspaceMemory.src, aindex.workspaceMemory.dist,
-              aindex.project.src, aindex.project.dist
+              aindex.skills.src, aindex.skills.dist,
+              aindex.commands.src, aindex.commands.dist,
+              aindex.subAgents.src, aindex.subAgents.dist,
+              aindex.rules.src, aindex.rules.dist,
+              aindex.globalPrompt.src, aindex.globalPrompt.dist,
+              aindex.workspacePrompt.src, aindex.workspacePrompt.dist,
+              aindex.app.src, aindex.app.dist,
+              aindex.ext.src, aindex.ext.dist,
+              aindex.arch.src, aindex.arch.dist
 
   Examples:
     ${CLI_NAME} config workspaceDir=~/my-project
-    ${CLI_NAME} config aindex.name=aindex
+    ${CLI_NAME} config aindex.skills.src=skills
     ${CLI_NAME} config logLevel=debug
 
 CONFIGURATION:

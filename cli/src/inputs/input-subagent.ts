@@ -27,7 +27,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
   }
 
   private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    return this.resolveAindexPath(options.aindex.subAgent.dist, resolvedPaths.aindexDir)
+    return this.resolveAindexPath(options.aindex.subAgents.dist, resolvedPaths.aindexDir)
   }
 
   private createSubAgentPrompt(
@@ -91,7 +91,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
-    const srcDir = this.resolveAindexPath(options.aindex.subAgent.src, resolvedPaths.aindexDir)
+    const srcDir = this.resolveAindexPath(options.aindex.subAgents.src, resolvedPaths.aindexDir)
     const distDir = this.getDistDir(options, resolvedPaths)
 
     logger.debug('SubAgentInputPlugin collecting', {

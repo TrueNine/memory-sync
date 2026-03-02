@@ -11,14 +11,14 @@ const ALL_FILE_KINDS = Object.entries(README_FILE_KIND_MAP) as [ReadmeFileKind, 
 
 export class ReadmeMdInputPlugin extends AbstractInputPlugin {
   constructor() {
-    super('ReadmeMdInputPlugin', ['ShadowProjectInputPlugin'])
+    super('ReadmeMdInputPlugin', ['AindexInputPlugin'])
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
     const {userConfigOptions: options, logger, fs, path, globalScope} = ctx
     const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
 
-    const aindexProjectsDir = this.resolveAindexPath(options.aindex.project.dist, aindexDir)
+    const aindexProjectsDir = this.resolveAindexPath(options.aindex.app.dist, aindexDir)
 
     const readmePrompts: ReadmePrompt[] = []
 

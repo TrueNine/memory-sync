@@ -22,14 +22,14 @@ const SCAN_SKIP_DIRECTORIES: readonly string[] = ['node_modules', '.git'] as con
 
 export class ProjectPromptInputPlugin extends AbstractInputPlugin {
   constructor() {
-    super('ProjectPromptInputPlugin', ['ShadowProjectInputPlugin'])
+    super('ProjectPromptInputPlugin', ['AindexInputPlugin'])
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
     const {dependencyContext, fs, userConfigOptions: options, path, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
 
-    const shadowProjectsDir = this.resolveAindexPath(options.aindex.project.dist, aindexDir)
+    const shadowProjectsDir = this.resolveAindexPath(options.aindex.app.dist, aindexDir)
 
     const dependencyWorkspace = dependencyContext.workspace
     if (dependencyWorkspace == null) {

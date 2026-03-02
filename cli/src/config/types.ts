@@ -22,6 +22,8 @@ export interface ModulePaths {
  * Supports user-defined module paths with src/dist structure.
  */
 export interface AindexConfig {
+  /** Aindex directory name (relative to workspaceDir), default: 'aindex' */
+  readonly dir: string
   /** Skills module paths */
   readonly skills: ModulePaths
   /** Commands module paths */
@@ -41,7 +43,7 @@ export interface AindexConfig {
   /** Architecture module paths */
   readonly arch: ModulePaths
   /** User-defined module paths - allows any additional module configuration */
-  readonly [key: string]: ModulePaths
+  readonly [key: string]: ModulePaths | string
 }
 
 /**

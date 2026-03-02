@@ -295,11 +295,7 @@ export type AindexFileName = (typeof AINDEX_FILE_NAMES)[keyof typeof AINDEX_FILE
 /**
  * Type for relative paths
  */
-export type AindexRelativePath = (typeof AINDEX_RELATIVE_PATHS)[keyof typeof AINDEX_RELATIVE_PATHS]
-
-// ============================================================================
-// Backward compatibility aliases (deprecated, use Aindex* versions instead)
-// ============================================================================
+export type AindexRelativePath = (typeof AINDEX_RELATIVE_PATHS)[keyof typeof AINDEX_RELATIVE_PATHS] // Backward compatibility aliases (deprecated, use Aindex* versions instead)
 
 /** @deprecated Use AindexFileEntry instead */
 export type ShadowSourceFileEntry = AindexFileEntry
