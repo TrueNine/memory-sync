@@ -1,21 +1,19 @@
-import type {ParsedMarkdown} from '@truenine/md-compiler/markdown'
 import type {
   CollectedInputContext,
   FastCommandPrompt,
-  FastCommandYAMLFrontMatter,
   InputPluginContext,
-  MetadataValidationResult,
+  Locale,
+  LocalizedFastCommandPrompt,
   PluginOptions,
   ResolvedBasePaths
 } from '@truenine/plugin-shared'
-import {mdxToMd} from '@truenine/md-compiler'
-import {MetadataValidationError} from '@truenine/md-compiler/errors'
-import {parseMarkdown} from '@truenine/md-compiler/markdown'
-import {BaseDirectoryInputPlugin} from '@truenine/plugin-input-shared'
+import {
+  AbstractInputPlugin,
+  createLocalizedPromptReader
+} from '@truenine/plugin-input-shared'
 import {
   FilePathKind,
-  PromptKind,
-  validateFastCommandMetadata
+  PromptKind
 } from '@truenine/plugin-shared'
 
 export interface SeriesInfo {
@@ -23,21 +21,50 @@ export interface SeriesInfo {
   readonly commandName: string
 }
 
-export class FastCommandInputPlugin extends BaseDirectoryInputPlugin<FastCommandPrompt, FastCommandYAMLFrontMatter> {
+export class FastCommandInputPlugin extends AbstractInputPlugin {
   constructor() {
-    super('FastCommandInputPlugin', {configKey: 'shadowSourceProject.fastCommand.dist'})
+    super('FastCommandInputPlugin')
   }
 
-  protected getTargetDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
+  private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
     return this.resolveShadowPath(options.shadowSourceProject.fastCommand.dist, resolvedPaths.shadowProjectDir)
   }
 
-  protected validateMetadata(metadata: Record<string, unknown>, filePath: string): MetadataValidationResult {
-    return validateFastCommandMetadata(metadata, filePath)
-  }
+  private createFastCommandPrompt(
+    content: string,
+    _locale: Locale,
+    name: string,
+    srcDir: string,
+    _distDir: string,
+    ctx: InputPluginContext,
+    _rawContent?: string
+  ): FastCommandPrompt {
+    const {path} = ctx
 
-  protected createResult(items: FastCommandPrompt[]): Partial<CollectedInputContext> {
-    return {fastCommands: items}
+    const slashIndex = name.indexOf('/')
+    const parentDirName = slashIndex !== -1 ? name.slice(0, slashIndex) : void 0
+    const fileName = slashIndex !== -1 ? name.slice(slashIndex + 1) : name
+
+    const seriesInfo = this.extractSeriesInfo(fileName, parentDirName)
+
+    const filePath = path.join(srcDir, `${name}.cn.mdx`)
+    const entryName = `${name}.mdx`
+
+    return {
+      type: PromptKind.FastCommand,
+      content,
+      length: content.length,
+      filePathKind: FilePathKind.Relative,
+      dir: {
+        pathKind: FilePathKind.Relative,
+        path: entryName,
+        basePath: srcDir,
+        getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
+        getAbsolutePath: () => filePath
+      },
+      ...seriesInfo.series != null && {series: seriesInfo.series},
+      commandName: seriesInfo.commandName
+    } as FastCommandPrompt
   }
 
   extractSeriesInfo(fileName: string, parentDirName?: string): SeriesInfo {
@@ -61,140 +88,53 @@ export class FastCommandInputPlugin extends BaseDirectoryInputPlugin<FastCommand
   }
 
   override async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
-    const {userConfigOptions: options, logger, path, fs} = ctx
+    const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
-    const targetDir = this.getTargetDir(options, resolvedPaths)
-    const items: FastCommandPrompt[] = []
+    const srcDir = this.resolveShadowPath(options.shadowSourceProject.fastCommand.src, resolvedPaths.shadowProjectDir)
+    const distDir = this.getDistDir(options, resolvedPaths)
 
-    if (!(fs.existsSync(targetDir) && fs.statSync(targetDir).isDirectory())) return this.createResult(items)
+    const reader = createLocalizedPromptReader(fs, path, logger, globalScope)
 
-    try {
-      const entries = fs.readdirSync(targetDir, {withFileTypes: true})
-      for (const entry of entries) {
-        if (entry.isFile() && entry.name.endsWith(this.extension)) {
-          const prompt = await this.processFile(entry.name, path.join(targetDir, entry.name), targetDir, void 0, ctx)
-          if (prompt != null) items.push(prompt)
-        } else if (entry.isDirectory()) {
-          const subDirPath = path.join(targetDir, entry.name)
-          try {
-            const subEntries = fs.readdirSync(subDirPath, {withFileTypes: true})
-            for (const subEntry of subEntries) {
-              if (subEntry.isFile() && subEntry.name.endsWith(this.extension)) {
-                const prompt = await this.processFile(subEntry.name, path.join(subDirPath, subEntry.name), targetDir, entry.name, ctx)
-                if (prompt != null) items.push(prompt)
-              }
-            }
-          } catch (e) {
-            logger.error(`Failed to scan subdirectory at ${subDirPath}`, {error: e})
-          }
-        }
+    const {prompts: localizedCommands, errors} = await reader.readFlatFiles(
+      srcDir,
+      distDir,
+      {
+        kind: PromptKind.FastCommand,
+        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        isDirectoryStructure: false,
+        createPrompt: async (content, locale, name) => this.createFastCommandPrompt(
+          content,
+          locale,
+          name,
+          srcDir,
+          distDir,
+          ctx
+        )
       }
-    } catch (e) {
-      logger.error(`Failed to scan directory at ${targetDir}`, {error: e})
+    )
+
+    for (const error of errors) logger.warn('Failed to read command', {path: error.path, phase: error.phase, error: error.error})
+
+    const legacyCommands: FastCommandPrompt[] = []
+    for (const localized of localizedCommands) {
+      const prompt = localized.dist?.prompt ?? localized.src.default.prompt
+      if (prompt) legacyCommands.push(prompt)
     }
 
-    return this.createResult(items)
-  }
-
-  private async processFile(
-    fileName: string,
-    filePath: string,
-    baseDir: string,
-    parentDirName: string | undefined,
-    ctx: InputPluginContext
-  ): Promise<FastCommandPrompt | undefined> {
-    const {logger, globalScope} = ctx
-    const rawContent = ctx.fs.readFileSync(filePath, 'utf8')
-
-    try {
-      const parsed = parseMarkdown<FastCommandYAMLFrontMatter>(rawContent)
-
-      const compileResult = await mdxToMd(rawContent, {
-        globalScope,
-        extractMetadata: true,
-        basePath: parentDirName != null ? ctx.path.join(baseDir, parentDirName) : baseDir
-      })
-
-      const mergedFrontMatter: FastCommandYAMLFrontMatter | undefined = parsed.yamlFrontMatter != null || Object.keys(compileResult.metadata.fields).length > 0
-        ? {
-            ...parsed.yamlFrontMatter,
-            ...compileResult.metadata.fields
-          } as FastCommandYAMLFrontMatter
-        : void 0
-
-      if (mergedFrontMatter != null) {
-        const validationResult = this.validateMetadata(mergedFrontMatter as Record<string, unknown>, filePath)
-
-        for (const warning of validationResult.warnings) logger.debug(warning)
-
-        if (!validationResult.valid) throw new MetadataValidationError([...validationResult.errors], filePath)
-      }
-
-      const {content} = compileResult
-
-      const entryName = parentDirName != null ? `${parentDirName}/${fileName}` : fileName
-
-      logger.debug(`${this.name} metadata extracted`, {
-        file: entryName,
-        source: compileResult.metadata.source,
-        hasYaml: parsed.yamlFrontMatter != null,
-        hasExport: Object.keys(compileResult.metadata.fields).length > 0
-      })
-
-      return this.createPrompt(
-        entryName,
-        filePath,
-        content,
-        mergedFrontMatter,
-        parsed.rawFrontMatter,
-        parsed,
-        baseDir,
-        rawContent
-      )
-    } catch (e) {
-      logger.error(`failed to parse ${this.name} item`, {file: filePath, error: e})
-      return void 0
-    }
-  }
-
-  protected createPrompt(
-    entryName: string,
-    filePath: string,
-    content: string,
-    yamlFrontMatter: FastCommandYAMLFrontMatter | undefined,
-    rawFrontMatter: string | undefined,
-    parsed: ParsedMarkdown<FastCommandYAMLFrontMatter>,
-    baseDir: string,
-    rawContent: string
-  ): FastCommandPrompt {
-    const slashIndex = entryName.indexOf('/')
-    const parentDirName = slashIndex !== -1 ? entryName.slice(0, slashIndex) : void 0
-    const fileName = slashIndex !== -1 ? entryName.slice(slashIndex + 1) : entryName
-
-    const seriesInfo = this.extractSeriesInfo(fileName, parentDirName)
-    const seriName = yamlFrontMatter?.seriName
+    const promptIndex = new Map<string, LocalizedFastCommandPrompt>()
+    for (const cmd of localizedCommands) promptIndex.set(cmd.name, cmd)
 
     return {
-      type: PromptKind.FastCommand,
-      content,
-      length: content.length,
-      filePathKind: FilePathKind.Relative,
-      ...yamlFrontMatter != null && {yamlFrontMatter},
-      ...rawFrontMatter != null && {rawFrontMatter},
-      markdownAst: parsed.markdownAst,
-      markdownContents: parsed.markdownContents,
-      dir: {
-        pathKind: FilePathKind.Relative,
-        path: entryName,
-        basePath: baseDir,
-        getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
-        getAbsolutePath: () => filePath
+      prompts: {
+        skills: [],
+        commands: localizedCommands,
+        subAgents: [],
+        rules: [],
+        readme: []
       },
-      ...seriesInfo.series != null && {series: seriesInfo.series},
-      commandName: seriesInfo.commandName,
-      ...seriName != null && {seriName},
-      rawMdxContent: rawContent
+      promptIndex,
+      fastCommands: legacyCommands
     }
   }
 }

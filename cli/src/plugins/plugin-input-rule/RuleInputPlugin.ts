@@ -1,176 +1,228 @@
 import type {
   CollectedInputContext,
   InputPluginContext,
-  MetadataValidationResult,
+  LocalizedRulePrompt,
   PluginOptions,
   ResolvedBasePaths,
   RulePrompt,
-  RuleScope,
-  RuleYAMLFrontMatter
+  RuleScope
 } from '@truenine/plugin-shared'
 import {mdxToMd} from '@truenine/md-compiler'
-import {MetadataValidationError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
-import {BaseDirectoryInputPlugin} from '@truenine/plugin-input-shared'
+import {
+  AbstractInputPlugin,
+  createLocalizedPromptReader
+} from '@truenine/plugin-input-shared'
 import {
   FilePathKind,
-  PromptKind,
-  validateRuleMetadata
+  PromptKind
 } from '@truenine/plugin-shared'
 
-export class RuleInputPlugin extends BaseDirectoryInputPlugin<RulePrompt, RuleYAMLFrontMatter> {
+export class RuleInputPlugin extends AbstractInputPlugin {
   constructor() {
-    super('RuleInputPlugin', {configKey: 'shadowSourceProject.rule.dist'})
+    super('RuleInputPlugin')
   }
 
-  protected getTargetDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
+  private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
     return this.resolveShadowPath(options.shadowSourceProject.rule.dist, resolvedPaths.shadowProjectDir)
   }
 
-  protected validateMetadata(metadata: Record<string, unknown>, filePath: string): MetadataValidationResult {
-    return validateRuleMetadata(metadata, filePath)
-  }
-
-  protected createResult(items: RulePrompt[]): Partial<CollectedInputContext> {
-    return {rules: items}
-  }
-
-  protected createPrompt(
-    entryName: string,
-    filePath: string,
-    content: string,
-    yamlFrontMatter: RuleYAMLFrontMatter | undefined,
-    rawFrontMatter: string | undefined,
-    parsed: {markdownAst?: unknown, markdownContents: readonly unknown[]},
-    baseDir: string,
-    rawContent: string
-  ): RulePrompt {
-    const slashIndex = entryName.indexOf('/')
-    const series = slashIndex !== -1 ? entryName.slice(0, slashIndex) : ''
-    const fileName = slashIndex !== -1 ? entryName.slice(slashIndex + 1) : entryName
-    const ruleName = fileName.replace(/\.mdx$/, '')
-
-    const globs: readonly string[] = yamlFrontMatter?.globs ?? []
-    const scope: RuleScope = yamlFrontMatter?.scope ?? 'project'
-    const seriName = yamlFrontMatter?.seriName
-
-    return {
-      type: PromptKind.Rule,
-      content,
-      length: content.length,
-      filePathKind: FilePathKind.Relative,
-      ...yamlFrontMatter != null && {yamlFrontMatter},
-      ...rawFrontMatter != null && {rawFrontMatter},
-      markdownAst: parsed.markdownAst as never,
-      markdownContents: parsed.markdownContents as never,
-      dir: {
-        pathKind: FilePathKind.Relative,
-        path: entryName,
-        basePath: baseDir,
-        getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
-        getAbsolutePath: () => filePath
-      },
-      series,
-      ruleName,
-      globs,
-      scope,
-      ...seriName != null && {seriName},
-      rawMdxContent: rawContent
-    }
+  private getSrcDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
+    return this.resolveShadowPath(options.shadowSourceProject.rule.src, resolvedPaths.shadowProjectDir)
   }
 
   override async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
-    const {userConfigOptions: options, logger, path, fs} = ctx
+    const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
-    const targetDir = this.getTargetDir(options, resolvedPaths)
-    const items: RulePrompt[] = []
+    const srcDir = this.getSrcDir(options, resolvedPaths)
+    const distDir = this.getDistDir(options, resolvedPaths)
 
-    if (!(fs.existsSync(targetDir) && fs.statSync(targetDir).isDirectory())) return this.createResult(items)
+    const reader = createLocalizedPromptReader(fs, path, logger, globalScope) // Use LocalizedPromptReader for flat file structure with new architecture
 
-    try {
-      const entries = fs.readdirSync(targetDir, {withFileTypes: true})
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const subDirPath = path.join(targetDir, entry.name)
+    const {prompts: localizedRulesFromSrc, errors} = await reader.readFlatFiles( // First, try to read from src directory structure (new way)
+      srcDir,
+      distDir,
+      {
+        kind: PromptKind.Rule,
+        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        isDirectoryStructure: false,
+        createPrompt: async (content, _locale, name) => {
+          const srcFilePath = path.join(srcDir, `${name}.cn.mdx`) // For src files, extract metadata from the compiled content's source
+          let globs: readonly string[] = []
+          let scope: RuleScope = 'project'
+          let seriName: string | undefined,
+            yamlFrontMatter: Record<string, unknown> | undefined,
+            rawFrontMatter: string | undefined
+
           try {
-            const subEntries = fs.readdirSync(subDirPath, {withFileTypes: true})
-            for (const subEntry of subEntries) {
-              if (subEntry.isFile() && subEntry.name.endsWith(this.extension)) {
-                const prompt = await this.processFile(subEntry.name, path.join(subDirPath, subEntry.name), targetDir, entry.name, ctx)
-                if (prompt != null) items.push(prompt)
-              }
+            const rawContent = fs.readFileSync(srcFilePath, 'utf8')
+            const {yamlFrontMatter: yfm, rawFrontMatter: rfm} = parseMarkdown(rawContent)
+            if (yfm) {
+              yamlFrontMatter = yfm
+              rawFrontMatter = rfm
+              globs = (yfm['globs'] as string[]) ?? []
+              scope = (yfm['scope'] as RuleScope) ?? 'project'
+              seriName = yfm['seriName'] as string | undefined
             }
-          } catch (e) {
-            logger.error(`Failed to scan subdirectory at ${subDirPath}`, {error: e})
           }
+          catch { /* Ignore errors */ }
+
+          const rulePrompt = {
+            type: PromptKind.Rule,
+            content,
+            length: content.length,
+            filePathKind: FilePathKind.Relative,
+            dir: {
+              pathKind: FilePathKind.Relative,
+              path: `${name}.mdx`,
+              basePath: distDir,
+              getDirectoryName: () => name.split('/').pop() ?? name,
+              getAbsolutePath: () => path.join(distDir, `${name}.mdx`)
+            },
+            series: name.includes('/') ? name.split('/')[0] ?? '' : '',
+            ruleName: name.split('/').pop() ?? name,
+            globs,
+            scope,
+            markdownContents: []
+          } as RulePrompt
+
+          if (yamlFrontMatter != null) Object.assign(rulePrompt, {yamlFrontMatter})
+          if (rawFrontMatter != null) Object.assign(rulePrompt, {rawFrontMatter})
+          if (seriName != null) Object.assign(rulePrompt, {seriName})
+
+          return rulePrompt
         }
       }
-    } catch (e) {
-      logger.error(`Failed to scan directory at ${targetDir}`, {error: e})
+    )
+
+    const legacyRules: RulePrompt[] = [] // Also scan dist directory for legacy nested structure (backward compatibility)
+    const localizedRules: LocalizedRulePrompt[] = [...localizedRulesFromSrc]
+
+    if (fs.existsSync(distDir)) {
+      try {
+        const entries = fs.readdirSync(distDir, {withFileTypes: true})
+
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue
+
+          const seriesName = entry.name
+          const seriesDir = path.join(distDir, seriesName)
+
+          const alreadyProcessed = localizedRulesFromSrc.some(r => r.name.startsWith(`${seriesName}/`)) // Skip if already processed from src
+          if (alreadyProcessed) continue
+
+          try {
+            const files = fs.readdirSync(seriesDir, {withFileTypes: true})
+
+            for (const file of files) {
+              if (!file.isFile() || !file.name.endsWith('.mdx')) continue
+
+              const baseName = file.name.slice(0, -'.mdx'.length)
+              const name = `${seriesName}/${baseName}`
+              const distFilePath = path.join(seriesDir, file.name)
+
+              if (localizedRulesFromSrc.some(r => r.name === name)) continue // Check if we already have this from src
+
+              try {
+                const rawContent = fs.readFileSync(distFilePath, 'utf8')
+                const parsed = parseMarkdown(rawContent)
+
+                const content = globalScope != null ? await mdxToMd(rawContent, {globalScope, basePath: seriesDir}) : parsed.contentWithoutFrontMatter ?? rawContent // Compile if needed
+
+                const {yamlFrontMatter} = parsed
+                const globs = (yamlFrontMatter?.['globs'] as string[]) ?? []
+                const scope = (yamlFrontMatter?.['scope'] as RuleScope) ?? 'project'
+                const seriName = yamlFrontMatter?.['seriName'] as string | undefined
+
+                const rulePrompt = {
+                  type: PromptKind.Rule,
+                  content,
+                  length: content.length,
+                  filePathKind: FilePathKind.Relative,
+                  dir: {
+                    pathKind: FilePathKind.Relative,
+                    path: `${name}.mdx`,
+                    basePath: distDir,
+                    getDirectoryName: () => baseName,
+                    getAbsolutePath: () => distFilePath
+                  },
+                  series: seriesName,
+                  ruleName: baseName,
+                  globs,
+                  scope,
+                  markdownContents: []
+                } as RulePrompt
+
+                if (yamlFrontMatter != null) Object.assign(rulePrompt, {yamlFrontMatter})
+                if (parsed.rawFrontMatter != null) Object.assign(rulePrompt, {rawFrontMatter: parsed.rawFrontMatter})
+                if (seriName != null) Object.assign(rulePrompt, {seriName})
+
+                legacyRules.push(rulePrompt)
+
+                const localizedPrompt: LocalizedRulePrompt = {
+                  name,
+                  type: PromptKind.Rule,
+                  src: {
+                    zh: {
+                      content,
+                      lastModified: fs.statSync(distFilePath).mtime,
+                      prompt: rulePrompt,
+                      filePath: distFilePath
+                    },
+                    default: {
+                      content,
+                      lastModified: fs.statSync(distFilePath).mtime,
+                      prompt: rulePrompt,
+                      filePath: distFilePath
+                    },
+                    defaultLocale: 'zh'
+                  },
+                  dist: {
+                    content,
+                    lastModified: fs.statSync(distFilePath).mtime,
+                    prompt: rulePrompt,
+                    filePath: distFilePath
+                  },
+                  metadata: {
+                    hasDist: true,
+                    hasMultipleLocales: false,
+                    isDirectoryStructure: true
+                  },
+                  paths: {
+                    dist: distFilePath
+                  }
+                }
+
+                localizedRules.push(localizedPrompt)
+              } catch (error) {
+                logger.warn('Failed to process rule from dist', {path: distFilePath, error})
+              }
+            }
+          } catch (error) {
+            logger.warn('Failed to scan series directory', {path: seriesDir, error})
+          }
+        }
+      } catch (error) {
+        logger.warn('Failed to scan dist directory', {path: distDir, error})
+      }
     }
 
-    return this.createResult(items)
-  }
+    for (const error of errors) logger.warn('Failed to read rule from src', {path: error.path, phase: error.phase, error: error.error})
 
-  private async processFile(
-    fileName: string,
-    filePath: string,
-    baseDir: string,
-    parentDirName: string,
-    ctx: InputPluginContext
-  ): Promise<RulePrompt | undefined> {
-    const {logger, globalScope} = ctx
-    const rawContent = ctx.fs.readFileSync(filePath, 'utf8')
+    const promptIndex = new Map<string, LocalizedRulePrompt>()
+    for (const rule of localizedRules) promptIndex.set(rule.name, rule)
 
-    try {
-      const parsed = parseMarkdown<RuleYAMLFrontMatter>(rawContent)
-
-      const compileResult = await mdxToMd(rawContent, {
-        globalScope,
-        extractMetadata: true,
-        basePath: ctx.path.join(baseDir, parentDirName)
-      })
-
-      const mergedFrontMatter: RuleYAMLFrontMatter | undefined = parsed.yamlFrontMatter != null || Object.keys(compileResult.metadata.fields).length > 0
-        ? {
-            ...parsed.yamlFrontMatter,
-            ...compileResult.metadata.fields
-          } as RuleYAMLFrontMatter
-        : void 0
-
-      if (mergedFrontMatter != null) {
-        const validationResult = this.validateMetadata(mergedFrontMatter as Record<string, unknown>, filePath)
-
-        for (const warning of validationResult.warnings) logger.debug(warning)
-
-        if (!validationResult.valid) throw new MetadataValidationError([...validationResult.errors], filePath)
-      }
-
-      const {content} = compileResult
-
-      const entryName = `${parentDirName}/${fileName}`
-
-      logger.debug(`${this.name} metadata extracted`, {
-        file: entryName,
-        source: compileResult.metadata.source,
-        hasYaml: parsed.yamlFrontMatter != null,
-        hasExport: Object.keys(compileResult.metadata.fields).length > 0
-      })
-
-      return this.createPrompt(
-        entryName,
-        filePath,
-        content,
-        mergedFrontMatter,
-        parsed.rawFrontMatter,
-        parsed,
-        baseDir,
-        rawContent
-      )
-    } catch (e) {
-      logger.error(`failed to parse ${this.name} item`, {file: filePath, error: e})
-      return void 0
+    return {
+      prompts: {
+        skills: [],
+        commands: [],
+        subAgents: [],
+        rules: localizedRules,
+        readme: []
+      },
+      promptIndex,
+      rules: [...localizedRulesFromSrc.map(r => r.src.default.prompt!).filter(Boolean), ...legacyRules]
     }
   }
 }

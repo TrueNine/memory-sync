@@ -1,21 +1,19 @@
-import type {ParsedMarkdown} from '@truenine/md-compiler/markdown'
 import type {
   CollectedInputContext,
   InputPluginContext,
-  MetadataValidationResult,
+  Locale,
+  LocalizedSubAgentPrompt,
   PluginOptions,
   ResolvedBasePaths,
-  SubAgentPrompt,
-  SubAgentYAMLFrontMatter
+  SubAgentPrompt
 } from '@truenine/plugin-shared'
-import {mdxToMd} from '@truenine/md-compiler'
-import {MetadataValidationError} from '@truenine/md-compiler/errors'
-import {parseMarkdown} from '@truenine/md-compiler/markdown'
-import {BaseDirectoryInputPlugin} from '@truenine/plugin-input-shared'
+import {
+  AbstractInputPlugin,
+  createLocalizedPromptReader
+} from '@truenine/plugin-input-shared'
 import {
   FilePathKind,
-  PromptKind,
-  validateSubAgentMetadata
+  PromptKind
 } from '@truenine/plugin-shared'
 
 export interface SubAgentSeriesInfo {
@@ -23,21 +21,49 @@ export interface SubAgentSeriesInfo {
   readonly agentName: string
 }
 
-export class SubAgentInputPlugin extends BaseDirectoryInputPlugin<SubAgentPrompt, SubAgentYAMLFrontMatter> {
+export class SubAgentInputPlugin extends AbstractInputPlugin {
   constructor() {
-    super('SubAgentInputPlugin', {configKey: 'shadowSourceProject.subAgent.dist'})
+    super('SubAgentInputPlugin')
   }
 
-  protected getTargetDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
+  private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
     return this.resolveShadowPath(options.shadowSourceProject.subAgent.dist, resolvedPaths.shadowProjectDir)
   }
 
-  protected validateMetadata(metadata: Record<string, unknown>, filePath: string): MetadataValidationResult {
-    return validateSubAgentMetadata(metadata, filePath)
-  }
+  private createSubAgentPrompt(
+    content: string,
+    _locale: Locale,
+    name: string,
+    srcDir: string,
+    _distDir: string,
+    ctx: InputPluginContext
+  ): SubAgentPrompt {
+    const {path} = ctx
 
-  protected createResult(items: SubAgentPrompt[]): Partial<CollectedInputContext> {
-    return {subAgents: items}
+    const slashIndex = name.indexOf('/')
+    const parentDirName = slashIndex !== -1 ? name.slice(0, slashIndex) : void 0
+    const fileName = slashIndex !== -1 ? name.slice(slashIndex + 1) : name
+
+    const seriesInfo = this.extractSeriesInfo(fileName, parentDirName)
+
+    const filePath = path.join(srcDir, `${name}.cn.mdx`)
+    const entryName = `${name}.mdx`
+
+    return {
+      type: PromptKind.SubAgent,
+      content,
+      length: content.length,
+      filePathKind: FilePathKind.Relative,
+      dir: {
+        pathKind: FilePathKind.Relative,
+        path: entryName,
+        basePath: srcDir,
+        getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
+        getAbsolutePath: () => filePath
+      },
+      ...seriesInfo.series != null && {series: seriesInfo.series},
+      agentName: seriesInfo.agentName
+    } as SubAgentPrompt
   }
 
   extractSeriesInfo(fileName: string, parentDirName?: string): SubAgentSeriesInfo {
@@ -61,140 +87,53 @@ export class SubAgentInputPlugin extends BaseDirectoryInputPlugin<SubAgentPrompt
   }
 
   override async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
-    const {userConfigOptions: options, logger, path, fs} = ctx
+    const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
-    const targetDir = this.getTargetDir(options, resolvedPaths)
-    const items: SubAgentPrompt[] = []
+    const srcDir = this.resolveShadowPath(options.shadowSourceProject.subAgent.src, resolvedPaths.shadowProjectDir)
+    const distDir = this.getDistDir(options, resolvedPaths)
 
-    if (!(fs.existsSync(targetDir) && fs.statSync(targetDir).isDirectory())) return this.createResult(items)
+    const reader = createLocalizedPromptReader(fs, path, logger, globalScope)
 
-    try {
-      const entries = fs.readdirSync(targetDir, {withFileTypes: true})
-      for (const entry of entries) {
-        if (entry.isFile() && entry.name.endsWith(this.extension)) {
-          const prompt = await this.processFile(entry.name, path.join(targetDir, entry.name), targetDir, void 0, ctx)
-          if (prompt != null) items.push(prompt)
-        } else if (entry.isDirectory()) {
-          const subDirPath = path.join(targetDir, entry.name)
-          try {
-            const subEntries = fs.readdirSync(subDirPath, {withFileTypes: true})
-            for (const subEntry of subEntries) {
-              if (subEntry.isFile() && subEntry.name.endsWith(this.extension)) {
-                const prompt = await this.processFile(subEntry.name, path.join(subDirPath, subEntry.name), targetDir, entry.name, ctx)
-                if (prompt != null) items.push(prompt)
-              }
-            }
-          } catch (e) {
-            logger.error(`Failed to scan subdirectory at ${subDirPath}`, {error: e})
-          }
-        }
+    const {prompts: localizedSubAgents, errors} = await reader.readFlatFiles(
+      srcDir,
+      distDir,
+      {
+        kind: PromptKind.SubAgent,
+        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        isDirectoryStructure: false,
+        createPrompt: async (content, locale, name) => this.createSubAgentPrompt(
+          content,
+          locale,
+          name,
+          srcDir,
+          distDir,
+          ctx
+        )
       }
-    } catch (e) {
-      logger.error(`Failed to scan directory at ${targetDir}`, {error: e})
+    )
+
+    for (const error of errors) logger.warn('Failed to read subAgent', {path: error.path, phase: error.phase, error: error.error})
+
+    const legacySubAgents: SubAgentPrompt[] = []
+    for (const localized of localizedSubAgents) {
+      const prompt = localized.dist?.prompt ?? localized.src.default.prompt
+      if (prompt) legacySubAgents.push(prompt)
     }
 
-    return this.createResult(items)
-  }
-
-  private async processFile(
-    fileName: string,
-    filePath: string,
-    baseDir: string,
-    parentDirName: string | undefined,
-    ctx: InputPluginContext
-  ): Promise<SubAgentPrompt | undefined> {
-    const {logger, globalScope} = ctx
-    const rawContent = ctx.fs.readFileSync(filePath, 'utf8')
-
-    try {
-      const parsed = parseMarkdown<SubAgentYAMLFrontMatter>(rawContent)
-
-      const compileResult = await mdxToMd(rawContent, {
-        globalScope,
-        extractMetadata: true,
-        basePath: parentDirName != null ? ctx.path.join(baseDir, parentDirName) : baseDir
-      })
-
-      const mergedFrontMatter: SubAgentYAMLFrontMatter | undefined = parsed.yamlFrontMatter != null || Object.keys(compileResult.metadata.fields).length > 0
-        ? {
-            ...parsed.yamlFrontMatter,
-            ...compileResult.metadata.fields
-          } as SubAgentYAMLFrontMatter
-        : void 0
-
-      if (mergedFrontMatter != null) {
-        const validationResult = this.validateMetadata(mergedFrontMatter as Record<string, unknown>, filePath)
-
-        for (const warning of validationResult.warnings) logger.debug(warning)
-
-        if (!validationResult.valid) throw new MetadataValidationError([...validationResult.errors], filePath)
-      }
-
-      const {content} = compileResult
-
-      const entryName = parentDirName != null ? `${parentDirName}/${fileName}` : fileName
-
-      logger.debug(`${this.name} metadata extracted`, {
-        file: entryName,
-        source: compileResult.metadata.source,
-        hasYaml: parsed.yamlFrontMatter != null,
-        hasExport: Object.keys(compileResult.metadata.fields).length > 0
-      })
-
-      return this.createPrompt(
-        entryName,
-        filePath,
-        content,
-        mergedFrontMatter,
-        parsed.rawFrontMatter,
-        parsed,
-        baseDir,
-        rawContent
-      )
-    } catch (e) {
-      logger.error(`failed to parse ${this.name} item`, {file: filePath, error: e})
-      return void 0
-    }
-  }
-
-  protected createPrompt(
-    entryName: string,
-    filePath: string,
-    content: string,
-    yamlFrontMatter: SubAgentYAMLFrontMatter | undefined,
-    rawFrontMatter: string | undefined,
-    parsed: ParsedMarkdown<SubAgentYAMLFrontMatter>,
-    baseDir: string,
-    rawContent: string
-  ): SubAgentPrompt {
-    const slashIndex = entryName.indexOf('/')
-    const parentDirName = slashIndex !== -1 ? entryName.slice(0, slashIndex) : void 0
-    const fileName = slashIndex !== -1 ? entryName.slice(slashIndex + 1) : entryName
-
-    const seriesInfo = this.extractSeriesInfo(fileName, parentDirName)
-    const seriName = yamlFrontMatter?.seriName
+    const promptIndex = new Map<string, LocalizedSubAgentPrompt>()
+    for (const sub of localizedSubAgents) promptIndex.set(sub.name, sub)
 
     return {
-      type: PromptKind.SubAgent,
-      content,
-      length: content.length,
-      filePathKind: FilePathKind.Relative,
-      ...yamlFrontMatter != null && {yamlFrontMatter},
-      ...rawFrontMatter != null && {rawFrontMatter},
-      markdownAst: parsed.markdownAst,
-      markdownContents: parsed.markdownContents,
-      dir: {
-        pathKind: FilePathKind.Relative,
-        path: entryName,
-        basePath: baseDir,
-        getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
-        getAbsolutePath: () => filePath
+      prompts: {
+        skills: [],
+        commands: [],
+        subAgents: localizedSubAgents,
+        rules: [],
+        readme: []
       },
-      ...seriesInfo.series != null && {series: seriesInfo.series},
-      agentName: seriesInfo.agentName,
-      ...seriName != null && {seriName},
-      rawMdxContent: rawContent
+      promptIndex,
+      subAgents: legacySubAgents
     }
   }
 }

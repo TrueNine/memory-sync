@@ -14,6 +14,15 @@ export type {
   FileInputPluginOptions
 } from './BaseFileInputPlugin'
 export {
+  createLocalizedPromptReader,
+  LocalizedPromptReader
+} from './LocalizedPromptReader'
+export type {
+  DirectoryReadResult,
+  LocalizedReadOptions,
+  ReadError
+} from './LocalizedPromptReader'
+export {
   GlobalScopeCollector,
   ScopePriority,
   ScopeRegistry

@@ -6,6 +6,7 @@ import type {
   RuleScope
 } from './Enums'
 import type {FileContent, Path, RelativePath} from './FileSystemTypes'
+import type {LocalizedPrompt, PromptsContext} from './LocalizedTypes'
 import type {
   FastCommandYAMLFrontMatter,
   GlobalMemoryPrompt,
@@ -51,19 +52,31 @@ export interface AIAgentIgnoreConfigFile {
  */
 export interface CollectedInputContext {
   readonly workspace: Workspace
+  readonly prompts?: PromptsContext // New unified prompts container with localization support
+  readonly promptIndex?: Map<string, LocalizedPrompt> // Quick lookup index for all localized prompts
+
+  /** Legacy fields (deprecated, kept for backward compatibility) */
+  /** @deprecated Use prompts.skills instead */
+  readonly skills?: readonly SkillPrompt[]
+  /** @deprecated Use prompts.commands instead */
+  readonly fastCommands?: readonly FastCommandPrompt[]
+  /** @deprecated Use prompts.subAgents instead */
+  readonly subAgents?: readonly SubAgentPrompt[]
+  /** @deprecated Use prompts.rules instead */
+  readonly rules?: readonly RulePrompt[]
+  /** @deprecated Use prompts.readme instead */
+  readonly readmePrompts?: readonly ReadmePrompt[]
+  /** @deprecated Use prompts.globalMemory instead */
+  readonly globalMemory?: GlobalMemoryPrompt
+
+  /** Other non-prompt fields */
   readonly vscodeConfigFiles?: readonly ProjectIDEConfigFile<IDEKind.VSCode>[]
   readonly jetbrainsConfigFiles?: readonly ProjectIDEConfigFile<IDEKind.IntellijIDEA>[]
   readonly editorConfigFiles?: readonly ProjectIDEConfigFile<IDEKind.EditorConfig>[]
-  readonly fastCommands?: readonly FastCommandPrompt[]
-  readonly subAgents?: readonly SubAgentPrompt[]
-  readonly skills?: readonly SkillPrompt[]
-  readonly rules?: readonly RulePrompt[]
-  readonly globalMemory?: GlobalMemoryPrompt
   readonly aiAgentIgnoreConfigFiles?: readonly AIAgentIgnoreConfigFile[]
   readonly globalGitIgnore?: string
   readonly shadowGitExclude?: string
   readonly shadowSourceProjectDir?: string
-  readonly readmePrompts?: readonly ReadmePrompt[]
 }
 
 /**

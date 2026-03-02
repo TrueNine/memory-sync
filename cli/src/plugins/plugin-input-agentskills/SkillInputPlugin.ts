@@ -1,18 +1,27 @@
-import type {CollectedInputContext, ILogger, InputPluginContext, McpServerConfig, SkillMcpConfig, SkillPrompt, SkillYAMLFrontMatter} from '@truenine/plugin-shared'
-import type {Dirent} from 'node:fs'
+import type {
+  CollectedInputContext,
+  ILogger,
+  InputPluginContext,
+  LocalizedPrompt,
+  LocalizedSkillPrompt,
+  McpServerConfig,
+  SkillMcpConfig,
+  SkillPrompt,
+  SkillYAMLFrontMatter
+} from '@truenine/plugin-shared'
 import type {ResourceScanResult} from './ResourceProcessor'
 import * as path from 'node:path'
 import {mdxToMd} from '@truenine/md-compiler'
 import {MetadataValidationError} from '@truenine/md-compiler/errors'
 import {parseMarkdown, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+import {AbstractInputPlugin, createLocalizedPromptReader} from '@truenine/plugin-input-shared'
 import {FilePathKind, PromptKind, validateSkillMetadata} from '@truenine/plugin-shared'
 import {ResourceProcessor} from './ResourceProcessor'
 
 export {
   getResourceCategory,
   isBinaryResourceExtension
-} from './config/fileTypes' // Re-export for backward compatibility
+} from './config/fileTypes'
 
 /**
  * Read MCP configuration from mcp.json file
@@ -53,7 +62,75 @@ function readMcpConfig(
 }
 
 /**
- * Process skill file and extract metadata
+ * Create SkillPrompt from compiled content
+ */
+async function createSkillPrompt(
+  content: string,
+  _locale: 'zh' | 'en',
+  name: string,
+  skillDir: string,
+  skillAbsoluteDir: string,
+  ctx: InputPluginContext,
+  mcpConfig?: SkillMcpConfig,
+  childDocs: SkillPrompt['childDocs'] = [],
+  resources: SkillPrompt['resources'] = [],
+  seriName?: string | string[] | null
+): Promise<SkillPrompt> {
+  const {logger, globalScope, fs} = ctx
+
+  const srcFilePath = path.join(skillAbsoluteDir, 'skill.cn.mdx') // Find the source file to get metadata
+  let rawContent = content
+  let parsed: ReturnType<typeof parseMarkdown<SkillYAMLFrontMatter>> | undefined
+
+  if (fs.existsSync(srcFilePath)) {
+    try {
+      rawContent = fs.readFileSync(srcFilePath, 'utf8')
+      parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)
+
+      const compileResult = await mdxToMd(rawContent, { // Re-compile if reading from source
+        globalScope,
+        extractMetadata: true,
+        basePath: skillAbsoluteDir
+      })
+
+      content = transformMdxReferencesToMd(compileResult.content)
+    }
+    catch (e) {
+      logger.warn('failed to recompile skill from source', {skill: name, error: e})
+    }
+  }
+
+  const mergedFrontMatter: SkillYAMLFrontMatter = {
+    ...parsed?.yamlFrontMatter ?? {},
+    name,
+    description: ''
+  } as SkillYAMLFrontMatter
+
+  return { // Build result with all optional fields using spread
+    type: PromptKind.Skill,
+    content,
+    length: content.length,
+    filePathKind: FilePathKind.Relative,
+    yamlFrontMatter: mergedFrontMatter,
+    markdownAst: parsed?.markdownAst,
+    markdownContents: parsed?.markdownContents ?? [],
+    dir: {
+      pathKind: FilePathKind.Relative,
+      path: name,
+      basePath: skillDir,
+      getDirectoryName: () => name,
+      getAbsolutePath: () => path.join(skillDir, name)
+    },
+    ...parsed?.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
+    ...mcpConfig != null && {mcpConfig},
+    ...childDocs != null && childDocs.length > 0 && {childDocs},
+    ...resources != null && resources.length > 0 && {resources},
+    ...seriName != null && {seriName}
+  } as SkillPrompt
+}
+
+/**
+ * Process skill file and extract metadata (legacy, for backward compatibility)
  */
 async function processSkillFile(
   skillFilePath: string,
@@ -149,23 +226,6 @@ async function processSkillFile(
   }
 }
 
-/**
- * Check if directory entry is a valid skill
- */
-/**
- * Check if directory entry is a valid skill
- */
-function isValidSkillDirectory(
-  entry: Dirent,
-  skillDir: string,
-  fs: typeof import('node:fs')
-): boolean {
-  if (!entry.isDirectory()) return false
-
-  const skillFilePath = path.join(skillDir, entry.name, 'skill.mdx')
-  return fs.existsSync(skillFilePath) && fs.statSync(skillFilePath).isFile()
-}
-
 export class SkillInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('SkillInputPlugin')
@@ -186,51 +246,104 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     currentRelativePath: string = ''
   ): ResourceScanResult {
     const processor = new ResourceProcessor({fs, logger, skillDir})
-    return processor.scanSkillDirectory(skillDir, currentRelativePath) // When called recursively, currentRelativePath is set and we join paths // When called from tests with empty currentRelativePath, we need to use skillDir as currentDir
+    return processor.scanSkillDirectory(skillDir, currentRelativePath)
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
-    const {userConfigOptions: options, logger} = ctx
+    const {userConfigOptions: options, logger, fs, path: pathModule, globalScope} = ctx
     const {shadowProjectDir} = this.resolveBasePaths(options)
 
-    const skillDir = this.resolveShadowPath(options.shadowSourceProject.skill.dist, shadowProjectDir)
-    const skills: SkillPrompt[] = []
+    const srcSkillDir = this.resolveShadowPath(options.shadowSourceProject.skill.src, shadowProjectDir) // Get both src and dist paths
+    const distSkillDir = this.resolveShadowPath(options.shadowSourceProject.skill.dist, shadowProjectDir)
 
-    if (!(ctx.fs.existsSync(skillDir) && ctx.fs.statSync(skillDir).isDirectory())) { // Early return if skill directory doesn't exist
-      return {skills}
-    }
+    const legacySkills: SkillPrompt[] = []
 
-    let entries: Dirent[]
-    try {
-      entries = ctx.fs.readdirSync(skillDir, {withFileTypes: true})
-    }
-    catch (e) {
-      logger.warn('failed to read skill directory', {skillDir, error: e})
-      return {skills}
-    }
+    const reader = createLocalizedPromptReader(fs, pathModule, logger, globalScope) // Use LocalizedPromptReader for new architecture
 
-    for (const entry of entries) {
-      if (!isValidSkillDirectory(entry, skillDir, ctx.fs)) continue
+    const {prompts: localizedSkills, errors} = await reader.readDirectoryStructure(
+      srcSkillDir,
+      distSkillDir,
+      {
+        kind: PromptKind.Skill,
+        entryFileName: 'skill',
+        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        isDirectoryStructure: true,
+        createPrompt: async (content, locale, name) => {
+          const skillSrcDir = pathModule.join(srcSkillDir, name) // Get extras from source directory
 
-      const entryName = entry.name
-      const skillFilePath = ctx.path.join(skillDir, entryName, 'skill.mdx')
-      const skillAbsoluteDir = ctx.path.join(skillDir, entryName)
+          const processor = new ResourceProcessor({fs, logger, skillDir: skillSrcDir})
+          const {childDocs, resources} = processor.scanSkillDirectory(skillSrcDir)
+          const mcpConfig = readMcpConfig(skillSrcDir, fs, logger)
 
-      try {
-        const skill = await processSkillFile(
-          skillFilePath,
-          skillDir,
-          entryName,
-          skillAbsoluteDir,
-          ctx
-        )
-        if (skill) skills.push(skill)
+          return createSkillPrompt(
+            content,
+            locale,
+            name,
+            distSkillDir,
+            skillSrcDir,
+            ctx,
+            mcpConfig,
+            childDocs,
+            resources
+          )
+        }
       }
-      catch (e) {
-        logger.error('failed to parse skill', {file: skillFilePath, error: e})
+    )
+
+    for (const error of errors) { // Log errors but don't fail
+      logger.warn('Failed to read skill', {path: error.path, phase: error.phase, error: error.error})
+    }
+
+    for (const localized of localizedSkills) { // Build legacy skills array from localized prompts (for backward compatibility)
+      const prompt = localized.dist?.prompt ?? localized.src.default.prompt // Prefer dist content, fallback to src.default
+
+      if (prompt) legacySkills.push(prompt)
+    }
+
+    if (fs.existsSync(distSkillDir)) { // Also scan dist directory for skills that might not have src (edge case)
+      const distEntries = fs.readdirSync(distSkillDir, {withFileTypes: true})
+      const existingNames = new Set(localizedSkills.map(s => s.name))
+
+      for (const entry of distEntries) {
+        if (!entry.isDirectory()) continue
+        if (existingNames.has(entry.name)) continue
+
+        const entryName = entry.name
+        const skillFilePath = pathModule.join(distSkillDir, entryName, 'skill.mdx')
+        const skillAbsoluteDir = pathModule.join(distSkillDir, entryName)
+
+        if (!fs.existsSync(skillFilePath)) continue
+
+        try {
+          const skill = await processSkillFile(
+            skillFilePath,
+            distSkillDir,
+            entryName,
+            skillAbsoluteDir,
+            ctx
+          )
+          if (skill) legacySkills.push(skill)
+        }
+        catch (e) {
+          logger.error('failed to parse skill', {file: skillFilePath, error: e})
+        }
       }
     }
 
-    return {skills}
+    const promptIndex = new Map<string, LocalizedPrompt>() // Build prompt index
+    for (const skill of localizedSkills) promptIndex.set(skill.name, skill)
+
+    return {
+      prompts: { // New architecture - partial prompts context (other arrays filled by other plugins)
+        skills: localizedSkills as LocalizedSkillPrompt[],
+        commands: [],
+        subAgents: [],
+        rules: [],
+        readme: []
+      },
+      promptIndex,
+
+      skills: legacySkills // Legacy (backward compatibility)
+    }
   }
 }
