@@ -99,7 +99,7 @@ export interface RulePrompt extends Prompt<PromptKind.Rule, RuleYAMLFrontMatter,
 export interface CommandPrompt extends Prompt<PromptKind.Command, CommandYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
   readonly type: PromptKind.Command
   readonly globalOnly?: true
-  readonly series?: string
+  readonly commandPrefix?: string
   readonly commandName: string
   readonly seriName?: SeriName
   readonly rawMdxContent?: string
@@ -110,7 +110,7 @@ export interface CommandPrompt extends Prompt<PromptKind.Command, CommandYAMLFro
  */
 export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
   readonly type: PromptKind.SubAgent
-  readonly series?: string
+  readonly agentPrefix?: string
   readonly agentName: string
   readonly seriName?: SeriName
   readonly rawMdxContent?: string

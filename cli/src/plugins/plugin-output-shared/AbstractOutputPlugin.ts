@@ -413,6 +413,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     }
 
     try {
+      this.ensureDirectory(dir) // Ensure parent directory exists before writing
       deskWriteFileSync(fullPath, content)
       this.log.trace({action: 'write', type: 'file', path: fullPath, label})
       return {path: relativePath, success: true}
@@ -496,9 +497,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   ): string {
     const {includeSeriesPrefix = true, seriesSeparator = '-'} = options ?? {}
 
-    if (!includeSeriesPrefix || cmd.series == null) return `${cmd.commandName}.md` // If prefix should not be included or series is not present, return just commandName
+    if (!includeSeriesPrefix || cmd.commandPrefix == null) return `${cmd.commandName}.md` // If prefix should not be included or prefix is not present, return just commandName
 
-    return `${cmd.series}${seriesSeparator}${cmd.commandName}.md`
+    return `${cmd.commandPrefix}${seriesSeparator}${cmd.commandName}.md`
   }
 
   protected getCommandSeriesOptions(ctx: OutputWriteContext): CommandSeriesPluginOverride {

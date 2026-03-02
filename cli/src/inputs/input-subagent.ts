@@ -16,8 +16,8 @@ import {
   PromptKind
 } from '@truenine/plugin-shared'
 
-export interface SubAgentSeriesInfo {
-  readonly series?: string
+export interface AgentPrefixInfo {
+  readonly agentPrefix?: string
   readonly agentName: string
 }
 
@@ -40,11 +40,12 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
   ): SubAgentPrompt {
     const {path} = ctx
 
-    const slashIndex = name.indexOf('/')
-    const parentDirName = slashIndex !== -1 ? name.slice(0, slashIndex) : void 0
-    const fileName = slashIndex !== -1 ? name.slice(slashIndex + 1) : name
+    const normalizedName = name.replaceAll('\\', '/') // Normalize Windows backslashes to forward slashes
+    const slashIndex = normalizedName.indexOf('/')
+    const parentDirName = slashIndex !== -1 ? normalizedName.slice(0, slashIndex) : void 0
+    const fileName = slashIndex !== -1 ? normalizedName.slice(slashIndex + 1) : normalizedName
 
-    const seriesInfo = this.extractSeriesInfo(fileName, parentDirName)
+    const prefixInfo = this.extractPrefixInfo(fileName, parentDirName)
 
     const filePath = path.join(distDir, `${name}.mdx`)
     const entryName = `${name}.mdx`
@@ -61,17 +62,17 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
         getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
         getAbsolutePath: () => filePath
       },
-      ...seriesInfo.series != null && {series: seriesInfo.series},
-      agentName: seriesInfo.agentName
+      ...prefixInfo.agentPrefix != null && {agentPrefix: prefixInfo.agentPrefix},
+      agentName: prefixInfo.agentName
     } as SubAgentPrompt
   }
 
-  extractSeriesInfo(fileName: string, parentDirName?: string): SubAgentSeriesInfo {
+  extractPrefixInfo(fileName: string, parentDirName?: string): AgentPrefixInfo {
     const baseName = fileName.replace(/\.mdx$/, '')
 
     if (parentDirName != null) {
       return {
-        series: parentDirName,
+        agentPrefix: parentDirName,
         agentName: baseName
       }
     }
@@ -81,7 +82,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     if (underscoreIndex === -1) return {agentName: baseName}
 
     return {
-      series: baseName.slice(0, Math.max(0, underscoreIndex)),
+      agentPrefix: baseName.slice(0, Math.max(0, underscoreIndex)),
       agentName: baseName.slice(Math.max(0, underscoreIndex + 1))
     }
   }

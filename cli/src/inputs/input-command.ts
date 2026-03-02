@@ -16,8 +16,8 @@ import {
   PromptKind
 } from '@truenine/plugin-shared'
 
-export interface SeriesInfo {
-  readonly series?: string
+export interface CommandPrefixInfo {
+  readonly commandPrefix?: string
   readonly commandName: string
 }
 
@@ -41,11 +41,12 @@ export class CommandInputPlugin extends AbstractInputPlugin {
   ): CommandPrompt {
     const {path} = ctx
 
-    const slashIndex = name.indexOf('/')
-    const parentDirName = slashIndex !== -1 ? name.slice(0, slashIndex) : void 0
-    const fileName = slashIndex !== -1 ? name.slice(slashIndex + 1) : name
+    const normalizedName = name.replaceAll('\\', '/') // Normalize Windows backslashes to forward slashes
+    const slashIndex = normalizedName.indexOf('/')
+    const parentDirName = slashIndex !== -1 ? normalizedName.slice(0, slashIndex) : void 0
+    const fileName = slashIndex !== -1 ? normalizedName.slice(slashIndex + 1) : normalizedName
 
-    const seriesInfo = this.extractSeriesInfo(fileName, parentDirName)
+    const prefixInfo = this.extractPrefixInfo(fileName, parentDirName)
 
     const filePath = path.join(distDir, `${name}.mdx`)
     const entryName = `${name}.mdx`
@@ -62,17 +63,17 @@ export class CommandInputPlugin extends AbstractInputPlugin {
         getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
         getAbsolutePath: () => filePath
       },
-      ...seriesInfo.series != null && {series: seriesInfo.series},
-      commandName: seriesInfo.commandName
+      ...prefixInfo.commandPrefix != null && {commandPrefix: prefixInfo.commandPrefix},
+      commandName: prefixInfo.commandName
     } as CommandPrompt
   }
 
-  extractSeriesInfo(fileName: string, parentDirName?: string): SeriesInfo {
+  extractPrefixInfo(fileName: string, parentDirName?: string): CommandPrefixInfo {
     const baseName = fileName.replace(/\.mdx$/, '')
 
     if (parentDirName != null) {
       return {
-        series: parentDirName,
+        commandPrefix: parentDirName,
         commandName: baseName
       }
     }
@@ -82,7 +83,7 @@ export class CommandInputPlugin extends AbstractInputPlugin {
     if (underscoreIndex === -1) return {commandName: baseName}
 
     return {
-      series: baseName.slice(0, Math.max(0, underscoreIndex)),
+      commandPrefix: baseName.slice(0, Math.max(0, underscoreIndex)),
       commandName: baseName.slice(Math.max(0, underscoreIndex + 1))
     }
   }

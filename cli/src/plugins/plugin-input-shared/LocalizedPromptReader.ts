@@ -104,41 +104,59 @@ export class LocalizedPromptReader {
 
     const zhExtension = options.localeExtensions.zh // Find all .cn.mdx files (Chinese source files)
 
-    try {
-      const entries = this.fs.readdirSync(srcDir, {withFileTypes: true})
-      for (const entry of entries) {
-        if (!entry.isFile() || !entry.name.endsWith(zhExtension)) continue
+    const scanDirectory = async (currentSrcDir: string, currentDistDir: string, relativePath: string = ''): Promise<void> => {
+      try {
+        const entries = this.fs.readdirSync(currentSrcDir, {withFileTypes: true})
+        for (const entry of entries) {
+          const entryRelativePath = relativePath
+            ? this.path.join(relativePath, entry.name)
+            : entry.name
 
-        const baseName = entry.name.slice(0, -zhExtension.length) // Extract name without extension (e.g., "compile.cn.mdx" -> "compile")
-        const srcFilePath = this.path.join(srcDir, entry.name)
+          if (entry.isDirectory()) {
+            const subSrcDir = this.path.join(currentSrcDir, entry.name) // Recursively scan subdirectories
+            const subDistDir = this.path.join(currentDistDir, entry.name)
+            await scanDirectory(subSrcDir, subDistDir, entryRelativePath)
+            continue
+          }
 
-        try {
-          const localized = await this.readFlatEntry(
-            baseName,
-            srcDir,
-            distDir,
-            baseName,
-            options
-          )
+          if (!entry.isFile() || !entry.name.endsWith(zhExtension)) continue
 
-          if (localized) prompts.push(localized)
-        } catch (error) {
-          errors.push({
-            path: srcFilePath,
-            error: error as Error,
-            phase: 'read'
-          })
-          this.logger.error(`Failed to read file: ${entry.name}`, {error})
+          const baseName = entry.name.slice(0, -zhExtension.length) // Extract name without extension (e.g., "compile.cn.mdx" -> "compile")
+          const srcFilePath = this.path.join(currentSrcDir, entry.name)
+          const fullName = relativePath // Use relative path as the name to preserve series/subdirectory info (e.g., "auqt/boot")
+            ? this.path.join(relativePath, baseName)
+            : baseName
+
+          try {
+            const localized = await this.readFlatEntry(
+              fullName,
+              srcDir,
+              distDir,
+              fullName,
+              options
+            )
+
+            if (localized) prompts.push(localized)
+          } catch (error) {
+            errors.push({
+              path: srcFilePath,
+              error: error as Error,
+              phase: 'read'
+            })
+            this.logger.error(`Failed to read file: ${entry.name}`, {error})
+          }
         }
+      } catch (error) {
+        errors.push({
+          path: currentSrcDir,
+          error: error as Error,
+          phase: 'scan'
+        })
+        this.logger.error(`Failed to scan directory: ${currentSrcDir}`, {error})
       }
-    } catch (error) {
-      errors.push({
-        path: srcDir,
-        error: error as Error,
-        phase: 'scan'
-      })
-      this.logger.error(`Failed to scan directory: ${srcDir}`, {error})
     }
+
+    await scanDirectory(srcDir, distDir)
 
     return {prompts, errors}
   }
