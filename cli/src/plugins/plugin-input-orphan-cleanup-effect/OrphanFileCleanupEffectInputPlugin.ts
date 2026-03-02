@@ -153,19 +153,16 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     relativeDir: string
   ): string[] {
     switch (dirType) {
-      case 'skills': { // Skill structure: dist/skills/{name}/{file}.mdx -> src/skills/{name}/{file}.cn.mdx
+      case 'skills': { // Skill structure: dist/skills/{name}.mdx -> src/skills/{name}/SKILL.cn.mdx
         const skillParts = relativeDir === '.' ? [baseName] : relativeDir.split(nodePath.sep)
         const skillName = skillParts[0] ?? baseName
         const remainingPath = relativeDir === '.' ? '' : relativeDir.slice(skillName.length + 1) // +1 for separator
 
         if (remainingPath !== '') return [nodePath.join(shadowProjectDir, srcPath, skillName, remainingPath, `${baseName}.cn.mdx`)] // Nested child doc
-        if (baseName === 'skill' || baseName === 'SKILL') { // Main skill file
-          return [
-            nodePath.join(shadowProjectDir, srcPath, skillName, 'skill.cn.mdx'),
-            nodePath.join(shadowProjectDir, srcPath, skillName, 'SKILL.cn.mdx')
-          ]
-        }
-        return [nodePath.join(shadowProjectDir, srcPath, skillName, `${baseName}.cn.mdx`)] // Direct child doc in skill root
+        return [ // Main skill file: dist/skills/{skillName}.mdx -> src/skills/{skillName}/SKILL.cn.mdx
+          nodePath.join(shadowProjectDir, srcPath, skillName, 'SKILL.cn.mdx'),
+          nodePath.join(shadowProjectDir, srcPath, skillName, 'skill.cn.mdx')
+        ]
       }
       case 'commands':
         return relativeDir === '.'
