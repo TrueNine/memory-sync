@@ -1,5 +1,5 @@
 import type {
-  FastCommandPrompt,
+  CommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
   SkillPrompt,
@@ -65,8 +65,8 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {globalMemory, fastCommands, skills} = ctx.collectedInputContext
-    if (globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0) return true
+    const {globalMemory, commands, skills} = ctx.collectedInputContext
+    if (globalMemory != null || (commands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
@@ -76,7 +76,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory, fastCommands, skills} = ctx.collectedInputContext
+    const {globalMemory, commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const globalDir = this.getGlobalConfigDir()
@@ -87,10 +87,10 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       fileResults.push(result)
     }
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       for (const cmd of filteredCommands) {
-        const result = await this.writeGlobalFastCommand(ctx, globalDir, cmd)
+        const result = await this.writeGlobalCommand(ctx, globalDir, cmd)
         fileResults.push(result)
       }
     }
@@ -105,13 +105,13 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: []}
   }
 
-  private async writeGlobalFastCommand(
+  private async writeGlobalCommand(
     ctx: OutputWriteContext,
     globalDir: string,
-    cmd: FastCommandPrompt
+    cmd: CommandPrompt
   ): Promise<WriteResult> {
     const transformOptions = this.getTransformOptionsFromContext(ctx)
-    const fileName = this.transformFastCommandName(cmd, transformOptions)
+    const fileName = this.transformCommandName(cmd, transformOptions)
     const fullPath = path.join(globalDir, PROMPTS_SUBDIR, fileName)
     const content = this.buildMarkdownContentWithRaw(cmd.content, cmd.yamlFrontMatter, cmd.rawFrontMatter)
     return this.writeFile(ctx, fullPath, content, 'globalFastCommand')

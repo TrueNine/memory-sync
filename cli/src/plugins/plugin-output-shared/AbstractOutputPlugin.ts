@@ -1,5 +1,5 @@
-import type {CleanEffectHandler, EffectRegistration, EffectResult, FastCommandPrompt, ILogger, OutputCleanContext, OutputPlugin, OutputPluginContext, OutputWriteContext, Project, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, WriteEffectHandler, WriteResult, WriteResults} from '@truenine/plugin-shared'
-import type {FastCommandSeriesPluginOverride, Path, ProjectConfig, RegistryData, RelativePath} from '@truenine/plugin-shared/types'
+import type {CleanEffectHandler, CommandPrompt, CommandSeriesPluginOverride, EffectRegistration, EffectResult, ILogger, OutputCleanContext, OutputPlugin, OutputPluginContext, OutputWriteContext, Project, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, WriteEffectHandler, WriteResult, WriteResults} from '@truenine/plugin-shared'
+import type {Path, ProjectConfig, RegistryData, RelativePath} from '@truenine/plugin-shared/types'
 
 import type {Buffer} from 'node:buffer'
 import type {RegistryWriter} from './registry/RegistryWriter'
@@ -65,10 +65,10 @@ export interface ErrorContext {
 }
 
 /**
- * Options for transforming fast command names in output filenames.
- * Used by transformFastCommandName method to control prefix handling.
+ * Options for transforming command names in output filenames.
+ * Used by transformCommandName method to control prefix handling.
  */
-export interface FastCommandNameTransformOptions {
+export interface CommandNameTransformOptions {
   readonly includeSeriesPrefix?: boolean
   readonly seriesSeparator?: string
 }
@@ -490,9 +490,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return `${effectiveGlobalContent}${separator}${projectContent}` // Default: 'before'
   }
 
-  protected transformFastCommandName(
-    cmd: FastCommandPrompt,
-    options?: FastCommandNameTransformOptions
+  protected transformCommandName(
+    cmd: CommandPrompt,
+    options?: CommandNameTransformOptions
   ): string {
     const {includeSeriesPrefix = true, seriesSeparator = '-'} = options ?? {}
 
@@ -501,8 +501,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return `${cmd.series}${seriesSeparator}${cmd.commandName}.md`
   }
 
-  protected getFastCommandSeriesOptions(ctx: OutputWriteContext): FastCommandSeriesPluginOverride {
-    const globalOptions = ctx.pluginOptions?.fastCommandSeriesOptions
+  protected getCommandSeriesOptions(ctx: OutputWriteContext): CommandSeriesPluginOverride {
+    const globalOptions = ctx.pluginOptions?.commandSeriesOptions
     const pluginOverride = globalOptions?.pluginOverrides?.[this.name]
 
     const includeSeriesPrefix = pluginOverride?.includeSeriesPrefix ?? globalOptions?.includeSeriesPrefix // Only include properties that have defined values to satisfy exactOptionalPropertyTypes // Plugin-specific overrides take precedence over global settings
@@ -516,9 +516,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   protected getTransformOptionsFromContext(
     ctx: OutputWriteContext,
-    additionalOptions?: FastCommandNameTransformOptions
-  ): FastCommandNameTransformOptions {
-    const seriesOptions = this.getFastCommandSeriesOptions(ctx)
+    additionalOptions?: CommandNameTransformOptions
+  ): CommandNameTransformOptions {
+    const seriesOptions = this.getCommandSeriesOptions(ctx)
 
     const includeSeriesPrefix = seriesOptions.includeSeriesPrefix ?? additionalOptions?.includeSeriesPrefix // Only include properties that have defined values to satisfy exactOptionalPropertyTypes // Merge: additionalOptions (plugin defaults) <- seriesOptions (config overrides)
     const seriesSeparator = seriesOptions.seriesSeparator ?? additionalOptions?.seriesSeparator

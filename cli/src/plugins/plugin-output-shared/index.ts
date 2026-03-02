@@ -4,8 +4,8 @@ export {
 export type {
   AbstractOutputPluginOptions,
   CombineOptions,
+  CommandNameTransformOptions,
   ErrorContext,
-  FastCommandNameTransformOptions,
   RuleContentOptions,
   SkillFrontMatterOptions,
   WriteOperationOptions
@@ -44,6 +44,7 @@ export {
   filterCommandsByProjectConfig,
   filterRulesByProjectConfig,
   filterSkillsByProjectConfig,
+  filterSubAgentsByProjectConfig,
   findAllGitRepos,
   findGitModuleInfoDirs,
   matchesSeries,

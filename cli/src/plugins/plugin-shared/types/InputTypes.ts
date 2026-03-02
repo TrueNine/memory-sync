@@ -8,7 +8,7 @@ import type {
 import type {FileContent, Path, RelativePath} from './FileSystemTypes'
 import type {LocalizedPrompt, PromptsContext} from './LocalizedTypes'
 import type {
-  FastCommandYAMLFrontMatter,
+  CommandYAMLFrontMatter,
   GlobalMemoryPrompt,
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
@@ -60,7 +60,7 @@ export interface CollectedInputContext {
   /** @deprecated Use prompts.skills instead */
   readonly skills?: readonly SkillPrompt[]
   /** @deprecated Use prompts.commands instead */
-  readonly fastCommands?: readonly FastCommandPrompt[]
+  readonly commands?: readonly CommandPrompt[]
   /** @deprecated Use prompts.subAgents instead */
   readonly subAgents?: readonly SubAgentPrompt[]
   /** @deprecated Use prompts.rules instead */
@@ -94,10 +94,10 @@ export interface RulePrompt extends Prompt<PromptKind.Rule, RuleYAMLFrontMatter,
 }
 
 /**
- * Fast command prompt
+ * Command prompt
  */
-export interface FastCommandPrompt extends Prompt<PromptKind.FastCommand, FastCommandYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
-  readonly type: PromptKind.FastCommand
+export interface CommandPrompt extends Prompt<PromptKind.Command, CommandYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
+  readonly type: PromptKind.Command
   readonly globalOnly?: true
   readonly series?: string
   readonly commandName: string

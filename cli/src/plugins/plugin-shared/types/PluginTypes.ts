@@ -1,6 +1,6 @@
 import type {ILogger} from '@truenine/logger'
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
-import type {FastCommandSeriesOptions, ShadowSourceProjectConfig} from './ConfigTypes.schema'
+import type {CommandSeriesOptions, ShadowSourceProjectConfig} from './ConfigTypes.schema'
 import type {PluginKind} from './Enums'
 import type {RelativePath} from './FileSystemTypes'
 import type {
@@ -385,7 +385,7 @@ export interface PluginOptions {
 
   readonly shadowSourceProject?: ShadowSourceProjectConfig
 
-  readonly fastCommandSeriesOptions?: FastCommandSeriesOptions
+  readonly commandSeriesOptions?: CommandSeriesOptions
 
   plugins?: Plugin[]
   logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'

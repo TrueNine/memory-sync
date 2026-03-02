@@ -12,11 +12,11 @@ export {
   SkillInputPlugin
 } from './input-agentskills'
 export {
+  CommandInputPlugin
+} from './input-command'
+export {
   EditorConfigInputPlugin
 } from './input-editorconfig'
-export {
-  FastCommandInputPlugin
-} from './input-fast-command'
 export {
   GitExcludeInputPlugin
 } from './input-git-exclude'

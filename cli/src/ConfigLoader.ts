@@ -170,7 +170,7 @@ export class ConfigLoader {
     return {
       name: b.name ?? a.name,
       skill: {...a.skill, ...b.skill},
-      fastCommand: {...a.fastCommand, ...b.fastCommand},
+      command: {...a.command, ...b.command},
       subAgent: {...a.subAgent, ...b.subAgent},
       rule: {...a.rule, ...b.rule},
       globalMemory: {...a.globalMemory, ...b.globalMemory},

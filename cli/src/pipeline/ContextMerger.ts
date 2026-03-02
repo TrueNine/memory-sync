@@ -38,9 +38,9 @@ const FIELD_CONFIGS: Record<string, FieldConfig<unknown>> = {
     strategy: 'concat',
     getter: ctx => ctx.editorConfigFiles
   },
-  fastCommands: {
+  commands: {
     strategy: 'concat',
-    getter: ctx => ctx.fastCommands
+    getter: ctx => ctx.commands
   },
   subAgents: {
     strategy: 'concat',

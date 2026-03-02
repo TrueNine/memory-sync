@@ -1,5 +1,5 @@
 import type {
-  FastCommandPrompt,
+  CommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
   RulePrompt,
@@ -75,11 +75,11 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const globalDir = this.getGlobalConfigDir()
-    const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       if (filteredCommands.length > 0) {
         const commandsDir = this.getGlobalCommandsDir()
         results.push({pathKind: FilePathKind.Relative, path: COMMANDS_SUBDIR, basePath: globalDir, getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => commandsDir})
@@ -107,7 +107,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const globalDir = this.getGlobalConfigDir()
-    const {skills, fastCommands} = ctx.collectedInputContext
+    const {skills, commands} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
     const hasAnyMcpConfig = filteredSkills.some(s => s.mcpConfig != null)
@@ -117,12 +117,12 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       results.push({pathKind: FilePathKind.Relative, path: MCP_CONFIG_FILE, basePath: globalDir, getDirectoryName: () => GLOBAL_CONFIG_DIR, getAbsolutePath: () => mcpConfigPath})
     }
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       const commandsDir = this.getGlobalCommandsDir()
       const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
       for (const cmd of filteredCommands) {
-        const fileName = this.transformFastCommandName(cmd, transformOptions)
+        const fileName = this.transformCommandName(cmd, transformOptions)
         const fullPath = path.join(commandsDir, fileName)
         results.push({pathKind: FilePathKind.Relative, path: path.join(COMMANDS_SUBDIR, fileName), basePath: globalDir, getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => fullPath})
       }
@@ -203,9 +203,9 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, skills, fastCommands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, skills, commands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasSkills = (skills?.length ?? 0) > 0
-    const hasFastCommands = (fastCommands?.length ?? 0) > 0
+    const hasFastCommands = (commands?.length ?? 0) > 0
     const hasRules = (rules?.length ?? 0) > 0
     const hasGlobalRuleOutput = globalMemory != null && workspace.projects.some(p => p.dirFromWorkspacePath != null)
     const hasCursorIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.cursorignore') ?? false
@@ -215,7 +215,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {skills, fastCommands, rules} = ctx.collectedInputContext
+    const {skills, commands, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
@@ -232,10 +232,10 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       const commandsDir = this.getGlobalCommandsDir()
-      for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalFastCommand(ctx, commandsDir, cmd))
+      for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalCommand(ctx, commandsDir, cmd))
     }
 
     const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
@@ -303,9 +303,9 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   private getSkillsCursorDir(): string { return path.join(this.getGlobalConfigDir(), SKILLS_CURSOR_SUBDIR) }
   private getGlobalCommandsDir(): string { return path.join(this.getGlobalConfigDir(), COMMANDS_SUBDIR) }
 
-  private async writeGlobalFastCommand(ctx: OutputWriteContext, commandsDir: string, cmd: FastCommandPrompt): Promise<WriteResult> {
+  private async writeGlobalCommand(ctx: OutputWriteContext, commandsDir: string, cmd: CommandPrompt): Promise<WriteResult> {
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-    const fileName = this.transformFastCommandName(cmd, transformOptions)
+    const fileName = this.transformCommandName(cmd, transformOptions)
     const fullPath = path.join(commandsDir, fileName)
     const globalDir = this.getGlobalConfigDir()
     const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(COMMANDS_SUBDIR, fileName), basePath: globalDir, getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => fullPath}

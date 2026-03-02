@@ -1,9 +1,9 @@
 import type {
   CollectedInputContext,
-  FastCommandPrompt,
+  CommandPrompt,
   InputPluginContext,
   Locale,
-  LocalizedFastCommandPrompt,
+  LocalizedCommandPrompt,
   PluginOptions,
   ResolvedBasePaths
 } from '@truenine/plugin-shared'
@@ -21,16 +21,16 @@ export interface SeriesInfo {
   readonly commandName: string
 }
 
-export class FastCommandInputPlugin extends AbstractInputPlugin {
+export class CommandInputPlugin extends AbstractInputPlugin {
   constructor() {
-    super('FastCommandInputPlugin')
+    super('CommandInputPlugin')
   }
 
   private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    return this.resolveShadowPath(options.shadowSourceProject.fastCommand.dist, resolvedPaths.shadowProjectDir)
+    return this.resolveShadowPath(options.shadowSourceProject.command.dist, resolvedPaths.shadowProjectDir)
   }
 
-  private createFastCommandPrompt(
+  private createCommandPrompt(
     content: string,
     _locale: Locale,
     name: string,
@@ -38,7 +38,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
     distDir: string,
     ctx: InputPluginContext,
     _rawContent?: string
-  ): FastCommandPrompt {
+  ): CommandPrompt {
     const {path} = ctx
 
     const slashIndex = name.indexOf('/')
@@ -51,7 +51,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
     const entryName = `${name}.mdx`
 
     return {
-      type: PromptKind.FastCommand,
+      type: PromptKind.Command,
       content,
       length: content.length,
       filePathKind: FilePathKind.Relative,
@@ -64,7 +64,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
       },
       ...seriesInfo.series != null && {series: seriesInfo.series},
       commandName: seriesInfo.commandName
-    } as FastCommandPrompt
+    } as CommandPrompt
   }
 
   extractSeriesInfo(fileName: string, parentDirName?: string): SeriesInfo {
@@ -91,8 +91,14 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
     const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
-    const srcDir = this.resolveShadowPath(options.shadowSourceProject.fastCommand.src, resolvedPaths.shadowProjectDir)
+    const srcDir = this.resolveShadowPath(options.shadowSourceProject.command.src, resolvedPaths.shadowProjectDir)
     const distDir = this.getDistDir(options, resolvedPaths)
+
+    logger.debug('CommandInputPlugin collecting', {
+      srcDir,
+      distDir,
+      shadowProjectDir: resolvedPaths.shadowProjectDir
+    })
 
     const reader = createLocalizedPromptReader(fs, path, logger, globalScope)
 
@@ -100,10 +106,10 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
       srcDir,
       distDir,
       {
-        kind: PromptKind.FastCommand,
+        kind: PromptKind.Command,
         localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
         isDirectoryStructure: false,
-        createPrompt: async (content, locale, name) => this.createFastCommandPrompt(
+        createPrompt: async (content, locale, name) => this.createCommandPrompt(
           content,
           locale,
           name,
@@ -114,15 +120,25 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
       }
     )
 
+    logger.debug('CommandInputPlugin read complete', {
+      commandCount: localizedCommands.length,
+      errorCount: errors.length
+    })
+
     for (const error of errors) logger.warn('Failed to read command', {path: error.path, phase: error.phase, error: error.error})
 
-    const legacyCommands: FastCommandPrompt[] = []
+    const legacyCommands: CommandPrompt[] = []
     for (const localized of localizedCommands) {
       const prompt = localized.dist?.prompt ?? localized.src.default.prompt
       if (prompt) legacyCommands.push(prompt)
     }
 
-    const promptIndex = new Map<string, LocalizedFastCommandPrompt>()
+    logger.debug('CommandInputPlugin legacy commands', {
+      count: legacyCommands.length,
+      commands: legacyCommands.map(c => c.commandName)
+    })
+
+    const promptIndex = new Map<string, LocalizedCommandPrompt>()
     for (const cmd of localizedCommands) promptIndex.set(cmd.name, cmd)
 
     return {
@@ -134,7 +150,7 @@ export class FastCommandInputPlugin extends AbstractInputPlugin {
         readme: []
       },
       promptIndex,
-      fastCommands: legacyCommands
+      commands: legacyCommands
     }
   }
 }

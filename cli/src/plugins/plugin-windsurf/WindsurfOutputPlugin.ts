@@ -1,6 +1,6 @@
 import type {RuleContentOptions} from '@truenine/plugin-output-shared'
 import type {
-  FastCommandPrompt,
+  CommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
   RulePrompt,
@@ -38,11 +38,11 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       if (filteredCommands.length > 0) {
         const workflowsDir = this.getGlobalWorkflowsDir()
         results.push({pathKind: FilePathKind.Relative, path: WORKFLOWS_SUBDIR, basePath: this.getCodeiumWindsurfDir(), getDirectoryName: () => WORKFLOWS_SUBDIR, getAbsolutePath: () => workflowsDir})
@@ -69,15 +69,15 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
-    const {skills, fastCommands} = ctx.collectedInputContext
+    const {skills, commands} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       const workflowsDir = this.getGlobalWorkflowsDir()
       const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
       for (const cmd of filteredCommands) {
-        const fileName = this.transformFastCommandName(cmd, transformOptions)
+        const fileName = this.transformCommandName(cmd, transformOptions)
         const fullPath = path.join(workflowsDir, fileName)
         results.push({pathKind: FilePathKind.Relative, path: path.join(WORKFLOWS_SUBDIR, fileName), basePath: this.getCodeiumWindsurfDir(), getDirectoryName: () => WORKFLOWS_SUBDIR, getAbsolutePath: () => fullPath})
       }
@@ -119,21 +119,21 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {skills, fastCommands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {skills, commands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasSkills = (skills?.length ?? 0) > 0
-    const hasFastCommands = (fastCommands?.length ?? 0) > 0
+    const hasCommands = (commands?.length ?? 0) > 0
     const hasRules = (rules?.length ?? 0) > 0
     const hasGlobalMemory = globalMemory != null
     const hasCodeIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.codeiumignore') ?? false
 
-    if (hasSkills || hasFastCommands || hasGlobalMemory || hasRules || hasCodeIgnore) return true
+    if (hasSkills || hasCommands || hasGlobalMemory || hasRules || hasCodeIgnore) return true
 
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {skills, fastCommands, globalMemory, rules} = ctx.collectedInputContext
+    const {skills, commands, globalMemory, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
@@ -146,8 +146,8 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       for (const skill of filteredSkills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
     }
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       const workflowsDir = this.getGlobalWorkflowsDir()
       for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalWorkflow(ctx, workflowsDir, cmd))
     }
@@ -242,9 +242,9 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  private async writeGlobalWorkflow(ctx: OutputWriteContext, workflowsDir: string, cmd: FastCommandPrompt): Promise<WriteResult> {
+  private async writeGlobalWorkflow(ctx: OutputWriteContext, workflowsDir: string, cmd: CommandPrompt): Promise<WriteResult> {
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-    const fileName = this.transformFastCommandName(cmd, transformOptions)
+    const fileName = this.transformCommandName(cmd, transformOptions)
     const fullPath = path.join(workflowsDir, fileName)
     const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(WORKFLOWS_SUBDIR, fileName), basePath: this.getCodeiumWindsurfDir(), getDirectoryName: () => WORKFLOWS_SUBDIR, getAbsolutePath: () => fullPath}
     const content = this.buildMarkdownContentWithRaw(cmd.content, cmd.yamlFrontMatter, cmd.rawFrontMatter)

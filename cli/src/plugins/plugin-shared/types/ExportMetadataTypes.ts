@@ -30,7 +30,7 @@ export interface SkillExportMetadata extends BaseExportMetadata {
   readonly scope?: RuleScope
 }
 
-export interface FastCommandExportMetadata extends BaseExportMetadata {
+export interface CommandExportMetadata extends BaseExportMetadata {
   readonly description?: string
   readonly argumentHint?: string
   readonly allowTools?: readonly (CodingAgentTools | string)[]
@@ -156,11 +156,11 @@ export function validateSkillMetadata(
  * @param filePath - Optional file path for error messages
  * @returns Validation result
  */
-export function validateFastCommandMetadata(
+export function validateCommandMetadata(
   metadata: Record<string, unknown>,
   filePath?: string
 ): MetadataValidationResult {
-  return validateExportMetadata<FastCommandExportMetadata>(metadata, { // description is optional (can come from YAML or be omitted) // FastCommand has no required fields from export metadata
+  return validateExportMetadata<CommandExportMetadata>(metadata, { // description is optional (can come from YAML or be omitted) // Command has no required fields from export metadata
     requiredFields: [],
     optionalDefaults: {},
     filePath

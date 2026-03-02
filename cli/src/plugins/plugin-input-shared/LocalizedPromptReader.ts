@@ -16,6 +16,10 @@ import {parseMarkdown} from '@truenine/md-compiler/markdown' // Re-export types 
  * Universal reader for localized prompts
  * Handles reading src (multiple locales) and dist (compiled) content
  * Supports directory structures (skills) and flat files (commands, subAgents)
+ *
+ * Note: src and dist are treated as coexisting sources, not fallbacks.
+ * Both are read independently. If dist exists, it's included in the result.
+ * If src exists, it's compiled and included. Neither replaces the other.
  */
 export class LocalizedPromptReader {
   constructor(
@@ -90,13 +94,18 @@ export class LocalizedPromptReader {
     const prompts: LocalizedPrompt<T, K>[] = []
     const errors: ReadError[] = []
 
-    if (!this.exists(srcDir)) return {prompts, errors}
+    const srcExists = this.exists(srcDir)
+    const distExists = this.exists(distDir)
+
+    this.logger.debug(`readFlatFiles: srcDir=${srcDir}, exists=${srcExists}`)
+    this.logger.debug(`readFlatFiles: distDir=${distDir}, exists=${distExists}`)
+
+    if (!srcExists) return {prompts, errors}
 
     const zhExtension = options.localeExtensions.zh // Find all .cn.mdx files (Chinese source files)
 
     try {
       const entries = this.fs.readdirSync(srcDir, {withFileTypes: true})
-
       for (const entry of entries) {
         if (!entry.isFile() || !entry.name.endsWith(zhExtension)) continue
 
@@ -159,71 +168,58 @@ export class LocalizedPromptReader {
   ): Promise<LocalizedPrompt<T, K> | null> {
     const {localeExtensions, entryFileName, createPrompt, kind} = options
 
-    const baseFileName = entryFileName ?? name // For flat: read src/{name}.cn.mdx and src/{name}.mdx // For skills: read src/{name}/skill.cn.mdx and src/{name}/skill.mdx
+    const baseFileName = entryFileName ?? name
     const srcZhPath = this.path.join(srcEntryDir, `${baseFileName}${localeExtensions.zh}`)
     const srcEnPath = this.path.join(srcEntryDir, `${baseFileName}${localeExtensions.en}`)
     const distPath = this.path.join(distEntryDir, `${baseFileName}.mdx`)
 
-    const distContent = await this.readDistContent(distPath, createPrompt, name) // Priority 1: Try dist first (already compiled, no need to recompile)
-    if (distContent) {
-      let children: string[] | undefined // Dist exists, use it directly (skip src entirely)
-      if (isDirectoryStructure) children = this.scanChildren(distEntryDir, baseFileName, localeExtensions.zh)
+    const distContent = await this.readDistContent(distPath, createPrompt, name) // Read both src and dist independently - no fallback logic
+    const zhContent = await this.readLocaleContent(srcZhPath, 'zh', createPrompt, name)
+    const enContent = await this.readLocaleContent(srcEnPath, 'en', createPrompt, name)
 
-      return {
-        name,
-        type: kind,
-        src: {
-          zh: distContent,
-          default: distContent,
-          defaultLocale: 'zh'
-        },
-        dist: distContent,
-        metadata: {
-          hasDist: true,
-          hasMultipleLocales: false,
-          isDirectoryStructure,
-          ...children && children.length > 0 && {children}
-        },
-        paths: {
-          zh: srcZhPath,
-          dist: distPath
-        }
-      }
-    }
+    const hasDist = distContent != null
+    const hasSrcZh = zhContent != null
+    const hasSrcEn = enContent != null
 
-    const zhContent = await this.readLocaleContent(srcZhPath, 'zh', createPrompt, name) // Read Chinese source (required) // Priority 2: Dist not exists, fall back to src
-    if (!zhContent) {
-      this.logger.warn(`Missing required Chinese source: ${srcZhPath}`)
+    if (!hasDist && !hasSrcZh) { // If neither src nor dist exists, return null
+      this.logger.warn(`Missing both dist and Chinese source for: ${name}`)
       return null
     }
 
-    const enContent = await this.readLocaleContent(srcEnPath, 'en', createPrompt, name) // Read English source (optional)
+    const src: LocalizedPrompt<T, K>['src'] = hasSrcZh // Build src content object
+      ? {
+          zh: zhContent,
+          ...hasSrcEn && {en: enContent},
+          default: zhContent,
+          defaultLocale: 'zh'
+        }
+      : {
+          zh: distContent!,
+          default: distContent!,
+          defaultLocale: 'zh'
+        }
 
-    const src: LocalizedPrompt<T, K>['src'] = {
-      zh: zhContent,
-      ...enContent && {en: enContent},
-      default: zhContent,
-      defaultLocale: 'zh'
+    let children: string[] | undefined
+    if (isDirectoryStructure) {
+      const scanDir = hasDist ? distEntryDir : srcEntryDir // Scan children from dist if available, otherwise from src
+      children = this.scanChildren(scanDir, baseFileName, localeExtensions.zh)
     }
-
-    const hasMultipleLocales = !!enContent
-
-    let children: string[] | undefined // Determine children (for directory structures)
-    if (isDirectoryStructure) children = this.scanChildren(srcEntryDir, baseFileName, localeExtensions.zh)
 
     return {
       name,
       type: kind,
       src,
+      ...hasDist && {dist: distContent},
       metadata: {
-        hasDist: false,
-        hasMultipleLocales,
+        hasDist,
+        hasMultipleLocales: hasSrcEn,
         isDirectoryStructure,
         ...children && children.length > 0 && {children}
       },
       paths: {
-        zh: srcZhPath,
-        ...this.exists(srcEnPath) && {en: srcEnPath}
+        ...(hasSrcZh || !hasDist) && {zh: srcZhPath},
+        ...hasSrcEn && {en: srcEnPath},
+        ...hasDist && {dist: distPath}
       }
     }
   }
@@ -245,55 +241,49 @@ export class LocalizedPromptReader {
     const srcEnPath = `${baseName}${localeExtensions.en}`
     const distPath = this.path.join(distDir, `${name}.mdx`)
 
-    const distContent = await this.readDistContent(distPath, createPrompt, name) // Priority 1: Try dist first (already compiled, no need to recompile)
-    if (distContent) {
-      return {
-        name,
-        type: kind,
-        src: {
-          zh: distContent,
-          default: distContent,
-          defaultLocale: 'zh'
-        },
-        dist: distContent,
-        metadata: {
-          hasDist: true,
-          hasMultipleLocales: false,
-          isDirectoryStructure: false
-        },
-        paths: {
-          dist: distPath
-        }
-      }
-    }
-
-    const fullSrcZhPath = isSingleFile ? srcZhPath : this.path.join(srcDir, srcZhPath) // Priority 2: Dist not exists, fall back to src
+    const fullSrcZhPath = isSingleFile ? srcZhPath : this.path.join(srcDir, srcZhPath)
     const fullSrcEnPath = isSingleFile ? srcEnPath : this.path.join(srcDir, srcEnPath)
 
-    const zhContent = await this.readLocaleContent(fullSrcZhPath, 'zh', createPrompt, name) // Read Chinese source (required)
-    if (!zhContent) return null
+    const distContent = await this.readDistContent(distPath, createPrompt, name) // Read both src and dist independently - no fallback logic
+    const zhContent = await this.readLocaleContent(fullSrcZhPath, 'zh', createPrompt, name)
+    const enContent = await this.readLocaleContent(fullSrcEnPath, 'en', createPrompt, name)
 
-    const enContent = await this.readLocaleContent(fullSrcEnPath, 'en', createPrompt, name) // Read English source (optional)
+    const hasDist = distContent != null
+    const hasSrcZh = zhContent != null
+    const hasSrcEn = enContent != null
 
-    const src: LocalizedPrompt<T, K>['src'] = {
-      zh: zhContent,
-      ...enContent && {en: enContent},
-      default: zhContent,
-      defaultLocale: 'zh'
+    if (!hasDist && !hasSrcZh) { // If neither src nor dist exists, return null
+      this.logger.warn(`Missing both dist and Chinese source for: ${name}`)
+      return null
     }
+
+    const src: LocalizedPrompt<T, K>['src'] = hasSrcZh // Build src content object
+      ? {
+          zh: zhContent,
+          ...hasSrcEn && {en: enContent},
+          default: zhContent,
+          defaultLocale: 'zh'
+        }
+      : {
+          zh: distContent!,
+          default: distContent!,
+          defaultLocale: 'zh'
+        }
 
     return {
       name,
       type: kind,
       src,
+      ...hasDist && {dist: distContent},
       metadata: {
-        hasDist: false,
-        hasMultipleLocales: !!enContent,
+        hasDist,
+        hasMultipleLocales: hasSrcEn,
         isDirectoryStructure: false
       },
       paths: {
-        zh: fullSrcZhPath,
-        ...this.exists(fullSrcEnPath) ? {en: fullSrcEnPath} : {}
+        ...(hasSrcZh || !hasDist) && {zh: fullSrcZhPath},
+        ...hasSrcEn && {en: fullSrcEnPath},
+        ...hasDist && {dist: distPath}
       }
     }
   }

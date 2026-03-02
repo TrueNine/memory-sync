@@ -1,5 +1,5 @@
 import type {
-  FastCommandPrompt,
+  CommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
   Project,
@@ -164,9 +164,9 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {globalMemory, fastCommands, skills, workspace, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {globalMemory, commands, skills, workspace, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasGlobalMemory = globalMemory != null
-    const hasFastCommands = (fastCommands?.length ?? 0) > 0
+    const hasFastCommands = (commands?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
     const hasProjectPrompts = workspace.projects.some(
       project => project.rootMemoryPrompt != null || (project.childMemoryPrompts?.length ?? 0) > 0
@@ -211,7 +211,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory, fastCommands, skills} = ctx.collectedInputContext
+    const {globalMemory, commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
@@ -219,7 +219,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
 
     if (codexDirs.length === 0) return {files: fileResults, dirs: dirResults}
 
-    const filteredCommands = fastCommands != null ? filterCommandsByProjectConfig(fastCommands, projectConfig) : []
+    const filteredCommands = commands != null ? filterCommandsByProjectConfig(commands, projectConfig) : []
     const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
 
     for (const codexDir of codexDirs) {
@@ -253,7 +253,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
 
       if (filteredCommands.length > 0) {
         for (const cmd of filteredCommands) {
-          const cmdResults = await this.writeGlobalFastCommand(ctx, codexDir, cmd)
+          const cmdResults = await this.writeGlobalCommand(ctx, codexDir, cmd)
           fileResults.push(...cmdResults)
         }
       }
@@ -384,14 +384,14 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     return IDE_DIR_PREFIXES.some(prefix => dirName.startsWith(prefix))
   }
 
-  private async writeGlobalFastCommand(
+  private async writeGlobalCommand(
     ctx: OutputWriteContext,
     codexDir: string,
-    cmd: FastCommandPrompt
+    cmd: CommandPrompt
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const transformOptions = this.getTransformOptionsFromContext(ctx)
-    const fileName = this.transformFastCommandName(cmd, transformOptions)
+    const fileName = this.transformCommandName(cmd, transformOptions)
     const targetDir = path.join(codexDir, PROMPTS_SUBDIR)
     const fullPath = path.join(targetDir, fileName)
 

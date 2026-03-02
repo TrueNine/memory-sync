@@ -1,6 +1,5 @@
 import {GenericSkillsOutputPlugin} from '@truenine/plugin-agentskills-compact'
 import {AgentsOutputPlugin} from '@truenine/plugin-agentsmd'
-import {AntigravityOutputPlugin} from '@truenine/plugin-antigravity'
 import {ClaudeCodeCLIOutputPlugin} from '@truenine/plugin-claude-code-cli'
 import {CursorOutputPlugin} from '@truenine/plugin-cursor'
 import {DroidCLIOutputPlugin} from '@truenine/plugin-droid-cli'
@@ -20,8 +19,8 @@ import {WindsurfOutputPlugin} from '@truenine/plugin-windsurf'
 import {defineConfig} from '@/config'
 import {
   AIAgentIgnoreInputPlugin,
+  CommandInputPlugin,
   EditorConfigInputPlugin,
-  FastCommandInputPlugin,
   GitExcludeInputPlugin,
   GitIgnoreInputPlugin,
   GlobalMemoryInputPlugin,
@@ -43,7 +42,6 @@ import {TraeCNIDEOutputPlugin} from '@/plugins/plugin-trae-cn-ide'
 export default defineConfig({
   plugins: [
     new AgentsOutputPlugin(),
-    new AntigravityOutputPlugin(),
     new ClaudeCodeCLIOutputPlugin(),
     new CodexCLIOutputPlugin(),
     new JetBrainsAIAssistantCodexOutputPlugin(),
@@ -74,7 +72,7 @@ export default defineConfig({
     new JetBrainsConfigInputPlugin(),
     new EditorConfigInputPlugin(),
     new SkillInputPlugin(),
-    new FastCommandInputPlugin(),
+    new CommandInputPlugin(),
     new SubAgentInputPlugin(),
     new RuleInputPlugin(),
     new GlobalMemoryInputPlugin(),

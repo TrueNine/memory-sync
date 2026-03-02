@@ -14,7 +14,7 @@ export class DroidCLIOutputPlugin extends BaseCLIOutputPlugin {
     super('DroidCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: GLOBAL_MEMORY_FILE,
-      supportsFastCommands: true,
+      supportsCommands: true,
       supportsSubAgents: true,
       supportsSkills: true
     }) // Droid uses default subdir names

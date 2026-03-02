@@ -19,10 +19,9 @@ export interface ModulePaths {
 /**
  * Aindex configuration containing all module paths.
  * This replaces the previous shadowSourceProject configuration.
+ * Supports user-defined module paths with src/dist structure.
  */
 export interface AindexConfig {
-  /** Name of the aindex configuration */
-  readonly name: string
   /** Skills module paths */
   readonly skills: ModulePaths
   /** Commands module paths */
@@ -41,6 +40,8 @@ export interface AindexConfig {
   readonly ext: ModulePaths
   /** Architecture module paths */
   readonly arch: ModulePaths
+  /** User-defined module paths - allows any additional module configuration */
+  readonly [key: string]: ModulePaths
 }
 
 /**

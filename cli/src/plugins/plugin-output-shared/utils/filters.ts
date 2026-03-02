@@ -1,4 +1,4 @@
-import type {FastCommandPrompt, RulePrompt, SeriName, SkillPrompt, SubAgentPrompt} from '@truenine/plugin-shared'
+import type {CommandPrompt, RulePrompt, SeriName, SkillPrompt, SubAgentPrompt} from '@truenine/plugin-shared'
 import type {ProjectConfig} from '@truenine/plugin-shared/types'
 import {matchesSeries, resolveEffectiveIncludeSeries} from './seriesFilter'
 
@@ -27,13 +27,13 @@ export function filterByProjectConfig<T extends SeriesFilterable>(
 }
 
 /**
- * Filter fast commands by project configuration
+ * Filter commands by project configuration
  * @deprecated Use filterByProjectConfig(commands, config, 'commands') instead
  */
 export function filterCommandsByProjectConfig(
-  commands: readonly FastCommandPrompt[],
+  commands: readonly CommandPrompt[],
   projectConfig: ProjectConfig | undefined
-): readonly FastCommandPrompt[] {
+): readonly CommandPrompt[] {
   return filterByProjectConfig(commands, projectConfig, 'commands')
 }
 

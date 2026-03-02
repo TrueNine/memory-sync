@@ -93,6 +93,12 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     const srcDir = this.resolveShadowPath(options.shadowSourceProject.subAgent.src, resolvedPaths.shadowProjectDir)
     const distDir = this.getDistDir(options, resolvedPaths)
 
+    logger.debug('SubAgentInputPlugin collecting', {
+      srcDir,
+      distDir,
+      shadowProjectDir: resolvedPaths.shadowProjectDir
+    })
+
     const reader = createLocalizedPromptReader(fs, path, logger, globalScope)
 
     const {prompts: localizedSubAgents, errors} = await reader.readFlatFiles(
@@ -100,7 +106,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       distDir,
       {
         kind: PromptKind.SubAgent,
-        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        localeExtensions: {zh: '.md', en: '.mdx'},
         isDirectoryStructure: false,
         createPrompt: async (content, locale, name) => this.createSubAgentPrompt(
           content,
@@ -113,6 +119,11 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       }
     )
 
+    logger.debug('SubAgentInputPlugin read complete', {
+      subAgentCount: localizedSubAgents.length,
+      errorCount: errors.length
+    })
+
     for (const error of errors) logger.warn('Failed to read subAgent', {path: error.path, phase: error.phase, error: error.error})
 
     const legacySubAgents: SubAgentPrompt[] = []
@@ -120,6 +131,11 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       const prompt = localized.dist?.prompt ?? localized.src.default.prompt
       if (prompt) legacySubAgents.push(prompt)
     }
+
+    logger.debug('SubAgentInputPlugin legacy subAgents', {
+      count: legacySubAgents.length,
+      agents: legacySubAgents.map(a => a.agentName)
+    })
 
     const promptIndex = new Map<string, LocalizedSubAgentPrompt>()
     for (const sub of localizedSubAgents) promptIndex.set(sub.name, sub)

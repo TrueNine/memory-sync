@@ -7,7 +7,7 @@ export enum PromptKind {
   GlobalMemory = 'GlobalMemory',
   ProjectRootMemory = 'ProjectRootMemory',
   ProjectChildrenMemory = 'ProjectChildrenMemory',
-  FastCommand = 'FastCommand',
+  Command = 'Command',
   SubAgent = 'SubAgent',
   Skill = 'Skill',
   SkillChildDoc = 'SkillChildDoc',

@@ -7,6 +7,9 @@ import {applySubSeriesGlobPrefix, BaseCLIOutputPlugin, filterRulesByProjectConfi
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'
 const GLOBAL_CONFIG_DIR = '.claude'
 const RULES_SUBDIR = 'rules'
+const COMMANDS_SUBDIR = 'commands'
+const AGENTS_SUBDIR = 'agents'
+const SKILLS_SUBDIR = 'skills'
 const RULE_FILE_PREFIX = 'rule-'
 
 /**
@@ -24,9 +27,12 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: PROJECT_MEMORY_FILE,
       toolPreset: 'claudeCode',
-      supportsFastCommands: true,
+      supportsCommands: true,
       supportsSubAgents: true,
-      supportsSkills: true
+      supportsSkills: true,
+      commandsSubDir: COMMANDS_SUBDIR,
+      agentsSubDir: AGENTS_SUBDIR,
+      skillsSubDir: SKILLS_SUBDIR
     })
   }
 

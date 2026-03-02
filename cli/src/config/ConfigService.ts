@@ -121,23 +121,11 @@ export class ConfigService {
   }
 
   safeLoad(): ConfigLoadResult {
-    try {
-      const config = this.load()
-      return {
-        config,
-        source: this.configPath,
-        found: true
-      }
-    }
-    catch (error) {
-      if (error instanceof ConfigFileNotFoundError) {
-        return { // Return a default-like config for missing files
-          config: this.getDefaultConfig(),
-          source: this.configPath,
-          found: false
-        }
-      }
-      throw error
+    const config = this.load()
+    return {
+      config,
+      source: this.configPath,
+      found: true
     }
   }
 
@@ -172,32 +160,6 @@ export class ConfigService {
     this.configPath = configPath
     this.config = null // Reset loaded config
     this.loadError = null
-  }
-
-  private getDefaultConfig(): TnmscConfig {
-    return {
-      version: '2026.00000.00000',
-      workspaceDir: '~/project',
-      logLevel: 'info',
-      aindex: {
-        name: 'aindex',
-        skills: {src: 'skills', dist: 'dist/skills'},
-        commands: {src: 'commands', dist: 'dist/commands'},
-        subAgents: {src: 'agents', dist: 'dist/agents'},
-        rules: {src: 'rules', dist: 'dist/rules'},
-        globalPrompt: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
-        workspacePrompt: {src: 'app/workspace.cn.mdx', dist: 'dist/workspace.mdx'},
-        app: {src: 'app', dist: 'dist/app'},
-        ext: {src: 'ext', dist: 'dist/ext'},
-        arch: {src: 'arch', dist: 'dist/arch'}
-      },
-      profile: {
-        name: '',
-        username: '',
-        gender: '',
-        birthday: ''
-      }
-    }
   }
 }
 

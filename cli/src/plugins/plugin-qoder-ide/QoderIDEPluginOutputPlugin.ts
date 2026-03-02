@@ -1,5 +1,5 @@
 import type {
-  FastCommandPrompt,
+  CommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
   ProjectChildrenMemoryPrompt,
@@ -79,12 +79,12 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
-    const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const results: RelativePath[] = []
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       if (filteredCommands.length > 0) results.push(this.createRelativePath(COMMANDS_SUBDIR, globalDir, () => COMMANDS_SUBDIR))
     }
 
@@ -113,15 +113,15 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
-    const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const results: RelativePath[] = []
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       for (const cmd of filteredCommands) {
-        const fileName = this.transformFastCommandName(cmd, transformOptions)
+        const fileName = this.transformCommandName(cmd, transformOptions)
         results.push(this.createRelativePath(
           path.join(COMMANDS_SUBDIR, fileName),
           globalDir,
@@ -185,13 +185,13 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, fastCommands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, globalMemory, commands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasProjectPrompts = workspace.projects.some(
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
     )
     const hasRules = (rules?.length ?? 0) > 0
     const hasQoderIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.qoderignore') ?? false
-    if (hasProjectPrompts || globalMemory != null || (fastCommands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0 || hasRules || hasQoderIgnore) return true
+    if (hasProjectPrompts || globalMemory != null || (commands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0 || hasRules || hasQoderIgnore) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
@@ -244,7 +244,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const globalDir = this.getGlobalConfigDir()
@@ -252,9 +252,9 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     const skillsDir = path.join(globalDir, SKILLS_SUBDIR)
     const rulesDir = path.join(globalDir, RULES_SUBDIR)
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
-      for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalFastCommand(ctx, commandsDir, cmd))
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+      for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalCommand(ctx, commandsDir, cmd))
     }
 
     if (rules != null && rules.length > 0) {
@@ -314,15 +314,15 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return this.writeFile(ctx, fullPath, content, label)
   }
 
-  private async writeGlobalFastCommand(
+  private async writeGlobalCommand(
     ctx: OutputWriteContext,
     commandsDir: string,
-    cmd: FastCommandPrompt
+    cmd: CommandPrompt
   ): Promise<WriteResult> {
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-    const fileName = this.transformFastCommandName(cmd, transformOptions)
+    const fileName = this.transformCommandName(cmd, transformOptions)
     const fullPath = path.join(commandsDir, fileName)
-    const fmData = this.buildFastCommandFrontMatter(cmd)
+    const fmData = this.buildCommandFrontMatter(cmd)
     const content = buildMarkdownWithFrontMatter(fmData, cmd.content)
     return this.writeFile(ctx, fullPath, content, 'globalFastCommand')
   }
@@ -396,7 +396,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  private buildFastCommandFrontMatter(cmd: FastCommandPrompt): Record<string, unknown> {
+  private buildCommandFrontMatter(cmd: CommandPrompt): Record<string, unknown> {
     const fm = cmd.yamlFrontMatter
     if (fm == null) return {description: 'Fast command', type: 'user_command'}
     return {

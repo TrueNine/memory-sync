@@ -1,4 +1,4 @@
-import type {CollectedInputContext, ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, ShadowSourceProjectConfig, UserConfigFile} from '@truenine/plugin-shared'
+import type {CollectedInputContext, CommandSeriesOptions, CommandSeriesPluginOverride, ConfigLoaderOptions, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, ShadowSourceProjectConfig, UserConfigFile} from '@truenine/plugin-shared'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
@@ -20,7 +20,7 @@ export interface PipelineConfig {
 const DEFAULT_SHADOW_SOURCE_PROJECT: Required<ShadowSourceProjectConfig> = {
   name: 'aindex',
   skill: {src: 'src/skills', dist: 'dist/skills'},
-  fastCommand: {src: 'src/commands', dist: 'dist/commands'},
+  command: {src: 'src/commands', dist: 'dist/commands'},
   subAgent: {src: 'src/agents', dist: 'dist/agents'},
   rule: {src: 'src/rules', dist: 'dist/rules'},
   globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
@@ -33,7 +33,7 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
   workspaceDir: '~/project',
   logLevel: 'info',
   shadowSourceProject: DEFAULT_SHADOW_SOURCE_PROJECT,
-  fastCommandSeriesOptions: {},
+  commandSeriesOptions: {},
   plugins: []
 }
 
@@ -46,7 +46,7 @@ function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOp
     ...userConfig.version != null ? {version: userConfig.version} : {},
     ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},
     ...userConfig.shadowSourceProject != null ? {shadowSourceProject: userConfig.shadowSourceProject} : {},
-    ...userConfig.fastCommandSeriesOptions != null ? {fastCommandSeriesOptions: userConfig.fastCommandSeriesOptions} : {},
+    ...userConfig.commandSeriesOptions != null ? {commandSeriesOptions: userConfig.commandSeriesOptions} : {},
     ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
   }
 }
@@ -83,7 +83,7 @@ function mergeTwoConfigs(
   override: Partial<PluginOptions>
 ): Required<PluginOptions> {
   const overridePlugins = override.plugins
-  const overrideFastCommandSeries = override.fastCommandSeriesOptions
+  const overrideCommandSeries = override.commandSeriesOptions
 
   return {
     ...base,
@@ -93,7 +93,7 @@ function mergeTwoConfigs(
       ...base.plugins,
       ...overridePlugins ?? []
     ],
-    fastCommandSeriesOptions: mergeFastCommandSeriesOptions(base.fastCommandSeriesOptions, overrideFastCommandSeries) // Deep merge for fastCommandSeriesOptions
+    commandSeriesOptions: mergeCommandSeriesOptions(base.commandSeriesOptions, overrideCommandSeries) // Deep merge for commandSeriesOptions
   }
 }
 
@@ -105,7 +105,7 @@ function mergeShadowSourceProject(
   return {
     name: override.name ?? base.name,
     skill: {...base.skill, ...override.skill},
-    fastCommand: {...base.fastCommand, ...override.fastCommand},
+    command: {...base.command, ...override.command},
     subAgent: {...base.subAgent, ...override.subAgent},
     rule: {...base.rule, ...override.rule},
     globalMemory: {...base.globalMemory, ...override.globalMemory},
@@ -114,14 +114,14 @@ function mergeShadowSourceProject(
   }
 }
 
-function mergeFastCommandSeriesOptions(
-  base?: FastCommandSeriesOptions,
-  override?: FastCommandSeriesOptions
-): FastCommandSeriesOptions {
+function mergeCommandSeriesOptions(
+  base?: CommandSeriesOptions,
+  override?: CommandSeriesOptions
+): CommandSeriesOptions {
   if (override == null) return base ?? {}
   if (base == null) return override
 
-  const mergedPluginOverrides: Record<string, FastCommandSeriesPluginOverride> = {} // Merge pluginOverrides deeply
+  const mergedPluginOverrides: Record<string, CommandSeriesPluginOverride> = {} // Merge pluginOverrides deeply
 
   if (base.pluginOverrides != null) { // Copy base plugin overrides
     for (const [key, value] of Object.entries(base.pluginOverrides)) mergedPluginOverrides[key] = {...value}
@@ -237,7 +237,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     ...merged.vscodeConfigFiles != null && {vscodeConfigFiles: merged.vscodeConfigFiles},
     ...merged.jetbrainsConfigFiles != null && {jetbrainsConfigFiles: merged.jetbrainsConfigFiles},
     ...merged.editorConfigFiles != null && {editorConfigFiles: merged.editorConfigFiles},
-    ...merged.fastCommands != null && {fastCommands: merged.fastCommands},
+    ...merged.commands != null && {commands: merged.commands},
     ...merged.subAgents != null && {subAgents: merged.subAgents},
     ...merged.skills != null && {skills: merged.skills},
     ...merged.rules != null && {rules: merged.rules},

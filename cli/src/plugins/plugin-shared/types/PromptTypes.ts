@@ -68,7 +68,7 @@ export interface SubAgentYAMLFrontMatter extends ToolAwareYAMLFrontMatter {
   readonly scope?: RuleScope
 }
 
-export interface FastCommandYAMLFrontMatter extends ToolAwareYAMLFrontMatter {
+export interface CommandYAMLFrontMatter extends ToolAwareYAMLFrontMatter {
   readonly seriName?: SeriName
   readonly scope?: RuleScope
 } // description, argumentHint, allowTools inherited from ToolAwareYAMLFrontMatter

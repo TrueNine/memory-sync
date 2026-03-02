@@ -80,9 +80,9 @@ export type LocalizedSkillPrompt = LocalizedPrompt<
   PromptKind.Skill
 >
 
-export type LocalizedFastCommandPrompt = LocalizedPrompt<
-  import('./InputTypes').FastCommandPrompt,
-  PromptKind.FastCommand
+export type LocalizedCommandPrompt = LocalizedPrompt<
+  import('./InputTypes').CommandPrompt,
+  PromptKind.Command
 >
 
 export type LocalizedSubAgentPrompt = LocalizedPrompt<
@@ -108,8 +108,8 @@ export interface PromptsContext {
   /** Skill prompts with localization */
   readonly skills: LocalizedSkillPrompt[]
 
-  /** Fast command prompts with localization */
-  readonly commands: LocalizedFastCommandPrompt[]
+  /** Command prompts with localization */
+  readonly commands: LocalizedCommandPrompt[]
 
   /** Sub-agent prompts with localization */
   readonly subAgents: LocalizedSubAgentPrompt[]

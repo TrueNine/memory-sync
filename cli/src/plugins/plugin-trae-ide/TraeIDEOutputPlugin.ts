@@ -1,5 +1,5 @@
 import type {
-  FastCommandPrompt,
+  CommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
   Project,
@@ -39,7 +39,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const {projects} = ctx.collectedInputContext.workspace
-    const {fastCommands, skills} = ctx.collectedInputContext
+    const {commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const results: RelativePath[] = []
 
@@ -53,8 +53,8 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
         () => RULES_SUBDIR
       ))
 
-      if (fastCommands != null && fastCommands.length > 0) { // Register commands dir (new: per-project)
-        const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      if (commands != null && commands.length > 0) { // Register commands dir (new: per-project)
+        const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
         if (filteredCommands.length > 0) {
           results.push(this.createRelativePath(
             this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR),
@@ -82,7 +82,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const {projects} = ctx.collectedInputContext.workspace
-    const {fastCommands, skills} = ctx.collectedInputContext
+    const {commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const results: RelativePath[] = []
 
@@ -100,11 +100,11 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
         }
       }
 
-      if (fastCommands != null && fastCommands.length > 0) { // Fast commands (new: per-project)
-        const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+      if (commands != null && commands.length > 0) { // Commands (new: per-project)
+        const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
         const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
         for (const cmd of filteredCommands) {
-          const fileName = this.transformFastCommandName(cmd, transformOptions)
+          const fileName = this.transformCommandName(cmd, transformOptions)
           results.push(this.createRelativePath(
             this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR, fileName),
             projectDir.basePath,
@@ -167,19 +167,19 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, fastCommands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, globalMemory, commands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasChildPrompts = workspace.projects.some(p => (p.childMemoryPrompts?.length ?? 0) > 0)
-    const hasFastCommands = (fastCommands?.length ?? 0) > 0
+    const hasCommands = (commands?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
     const hasTraeIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.traeignore') ?? false
-    if (hasChildPrompts || globalMemory != null || hasFastCommands || hasSkills || hasTraeIgnore) return true
+    if (hasChildPrompts || globalMemory != null || hasCommands || hasSkills || hasTraeIgnore) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {projects} = ctx.collectedInputContext.workspace
-    const {fastCommands, skills} = ctx.collectedInputContext
+    const {commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
 
@@ -191,9 +191,9 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
         for (const child of project.childMemoryPrompts) fileResults.push(await this.writeSteeringFile(ctx, project, child))
       }
 
-      if (fastCommands != null && fastCommands.length > 0) { // Fast commands (new: per-project)
-        const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
-        for (const cmd of filteredCommands) fileResults.push(await this.writeProjectFastCommand(ctx, projectDir, cmd))
+      if (commands != null && commands.length > 0) { // Commands (new: per-project)
+        const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+        for (const cmd of filteredCommands) fileResults.push(await this.writeProjectCommand(ctx, projectDir, cmd))
       }
 
       if (skills != null && skills.length > 0) { // Skills (new: per-project)
@@ -220,9 +220,9 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: []}
   }
 
-  private async writeProjectFastCommand(ctx: OutputWriteContext, projectDir: RelativePath, cmd: FastCommandPrompt): Promise<WriteResult> {
+  private async writeProjectCommand(ctx: OutputWriteContext, projectDir: RelativePath, cmd: CommandPrompt): Promise<WriteResult> {
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-    const fileName = this.transformFastCommandName(cmd, transformOptions)
+    const fileName = this.transformCommandName(cmd, transformOptions)
     const commandsDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR)
     const fullPath = path.join(commandsDir, fileName)
 
@@ -237,7 +237,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     const content = this.buildMarkdownContentWithRaw(cmd.content, cmd.yamlFrontMatter, cmd.rawFrontMatter)
 
     return this.writeFileWithHandling(ctx, fullPath, content, {
-      type: 'projectFastCommand',
+      type: 'projectCommand',
       relativePath
     })
   }

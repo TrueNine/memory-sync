@@ -34,7 +34,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     const shadowConfig = userConfigOptions.shadowSourceProject
     const srcPaths: Record<string, string> = {
       skills: shadowConfig?.skill?.src ?? 'src/skills',
-      commands: shadowConfig?.fastCommand?.src ?? 'src/commands',
+      commands: shadowConfig?.command?.src ?? 'src/commands',
       agents: shadowConfig?.subAgent?.src ?? 'src/agents',
       app: shadowConfig?.project?.src ?? 'app'
     }
