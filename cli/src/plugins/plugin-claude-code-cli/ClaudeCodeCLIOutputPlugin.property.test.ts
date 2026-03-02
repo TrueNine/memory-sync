@@ -122,18 +122,13 @@ describe('claudeCodeCLIOutputPlugin property tests', () => {
   })
 
   describe('write output format verification', () => {
-    it('should write global rule files with correct format to ~/.claude/rules/', async () => {
+    it('should NOT write global rule files (all rules go to project level)', async () => {
       await fc.assert(fc.asyncProperty(seriesGen, ruleNameGen, globsGen, contentGen, async (series, ruleName, globs, content) => {
         const rule = createMockRulePrompt({series, ruleName, globs, scope: 'global', content})
         const ctx = {...mockContext, collectedInputContext: {...mockContext.collectedInputContext, rules: [rule]}} as any
         await plugin.writeGlobalOutputs(ctx)
         const filePath = path.join(tempDir, '.claude', 'rules', `rule-${series}-${ruleName}.md`)
-        expect(fs.existsSync(filePath)).toBe(true)
-        const written = fs.readFileSync(filePath, 'utf8')
-        expect(written).toContain('paths:')
-        expect(written).not.toMatch(/^globs:/m)
-        expect(written).toContain(content)
-        for (const g of globs) expect(written).toMatch(new RegExp(`-\\s+['"]?${g.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]?`)) // Accept quoted or unquoted formats
+        expect(fs.existsSync(filePath)).toBe(false)
       }), {numRuns: 30})
     })
 

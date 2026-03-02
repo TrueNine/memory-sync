@@ -99,16 +99,9 @@ describe('claudeCodeCLIOutputPlugin', () => {
   })
 
   describe('registerGlobalOutputDirs', () => {
-    it('should register commands, agents, and skills subdirectories in .claude', async () => {
+    it('should return empty array since all outputs go to project level', async () => {
       const dirs = await plugin.registerGlobalOutputDirs(mockContext)
-
-      const dirPaths = dirs.map(d => d.path)
-      expect(dirPaths).toContain('commands')
-      expect(dirPaths).toContain('agents')
-      expect(dirPaths).toContain('skills')
-
-      const expectedBasePath = path.join(tempDir, '.claude')
-      dirs.forEach(d => expect(d.basePath).toBe(expectedBasePath))
+      expect(dirs).toHaveLength(0)
     })
   })
 
@@ -142,7 +135,7 @@ describe('claudeCodeCLIOutputPlugin', () => {
       }
 
       const dirs = await plugin.registerProjectOutputDirs(ctxWithProject)
-      const dirPaths = dirs.map(d => d.path) // (Or possibly more if logic changed, but based on code, it loops subdirs) // Expect 3 dirs: .claude/commands, .claude/agents, .claude/skills
+      const dirPaths = dirs.map(d => d.path)
 
       expect(dirPaths.some(p => p.includes(path.join('.claude', 'commands')))).toBe(true)
       expect(dirPaths.some(p => p.includes(path.join('.claude', 'agents')))).toBe(true)
@@ -158,7 +151,7 @@ describe('claudeCodeCLIOutputPlugin', () => {
       expect(outputFile?.basePath).toBe(path.join(tempDir, '.claude'))
     })
 
-    it('should register fast commands in commands subdirectory', async () => {
+    it('should not register fast commands globally (only project level)', async () => {
       const mockCmd: FastCommandPrompt = {
         type: PromptKind.FastCommand,
         commandName: 'test-cmd',
@@ -181,12 +174,10 @@ describe('claudeCodeCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithCmd)
       const cmdFile = files.find(f => f.path.includes('test-cmd.md'))
 
-      expect(cmdFile).toBeDefined()
-      expect(cmdFile?.path).toContain('commands')
-      expect(cmdFile?.basePath).toBe(path.join(tempDir, '.claude'))
+      expect(cmdFile).toBeUndefined()
     })
 
-    it('should register sub agents in agents subdirectory', async () => {
+    it('should not register sub agents globally (only project level)', async () => {
       const mockAgent: SubAgentPrompt = {
         type: PromptKind.SubAgent,
         content: 'content',
@@ -208,39 +199,10 @@ describe('claudeCodeCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithAgent)
       const agentFile = files.find(f => f.path.includes('test-agent.md'))
 
-      expect(agentFile).toBeDefined()
-      expect(agentFile?.path).toContain('agents')
-      expect(agentFile?.basePath).toBe(path.join(tempDir, '.claude'))
+      expect(agentFile).toBeUndefined()
     })
 
-    it('should strip .mdx suffix from sub agent path and use .md', async () => {
-      const mockAgent: SubAgentPrompt = {
-        type: PromptKind.SubAgent,
-        content: 'agent content',
-        filePathKind: FilePathKind.Relative,
-        dir: createMockRelativePath('code-review.cn.mdx', tempDir),
-        markdownContents: [],
-        length: 0,
-        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'code-review', description: 'desc'}
-      }
-
-      const ctxWithAgent = {
-        ...mockContext,
-        collectedInputContext: {
-          ...mockContext.collectedInputContext,
-          subAgents: [mockAgent]
-        }
-      }
-
-      const files = await plugin.registerGlobalOutputFiles(ctxWithAgent)
-      const agentFile = files.find(f => f.path.includes('agents'))
-
-      expect(agentFile).toBeDefined()
-      expect(agentFile?.path).toContain('code-review.cn.md')
-      expect(agentFile?.path).not.toContain('.mdx')
-    })
-
-    it('should register skills in skills subdirectory', async () => {
+    it('should not register skills globally (only project level)', async () => {
       const mockSkill: SkillPrompt = {
         type: PromptKind.Skill,
         content: 'content',
@@ -262,14 +224,12 @@ describe('claudeCodeCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithSkill)
       const skillFile = files.find(f => f.path.includes('SKILL.md'))
 
-      expect(skillFile).toBeDefined()
-      expect(skillFile?.path).toContain('skills')
-      expect(skillFile?.basePath).toBe(path.join(tempDir, '.claude'))
+      expect(skillFile).toBeUndefined()
     })
   })
 
   describe('registerProjectOutputFiles', () => {
-    it('should only register project CLAUDE.md files', async () => {
+    it('should register project CLAUDE.md and project-level commands/agents/skills', async () => {
       const mockProject: Project = {
         name: 'test-project',
         dirFromWorkspacePath: createMockRelativePath('project-a', tempDir),
@@ -286,6 +246,37 @@ describe('claudeCodeCLIOutputPlugin', () => {
         sourceFiles: []
       }
 
+      const mockCmd: FastCommandPrompt = {
+        type: PromptKind.FastCommand,
+        commandName: 'test-cmd',
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-cmd', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, description: 'desc'}
+      }
+
+      const mockAgent: SubAgentPrompt = {
+        type: PromptKind.SubAgent,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('code-review.cn.mdx', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'code-review', description: 'desc'}
+      }
+
+      const mockSkill: SkillPrompt = {
+        type: PromptKind.Skill,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-skill', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'test-skill', description: 'desc'}
+      }
+
       const ctxWithProject = {
         ...mockContext,
         collectedInputContext: {
@@ -293,20 +284,35 @@ describe('claudeCodeCLIOutputPlugin', () => {
           workspace: {
             ...mockContext.collectedInputContext.workspace,
             projects: [mockProject]
-          }
+          },
+          fastCommands: [mockCmd],
+          subAgents: [mockAgent],
+          skills: [mockSkill]
         }
       }
 
       const files = await plugin.registerProjectOutputFiles(ctxWithProject)
 
-      expect(files).toHaveLength(1)
-      expect(files[0].path).toBe(path.join('project-a', 'CLAUDE.md'))
-      expect(files[0].basePath).toBe(tempDir)
+      const claudeFile = files.find(f => f.path.includes('CLAUDE.md')) // Check CLAUDE.md
+      expect(claudeFile).toBeDefined()
+
+      const cmdFile = files.find(f => f.path.includes('test-cmd.md')) // Check command
+      expect(cmdFile).toBeDefined()
+      expect(cmdFile?.path).toContain('commands')
+
+      const agentFile = files.find(f => f.path.includes('code-review.cn.md')) // Check agent (should have .md not .mdx)
+      expect(agentFile).toBeDefined()
+      expect(agentFile?.path).toContain('agents')
+      expect(agentFile?.path).not.toContain('.mdx')
+
+      const skillFile = files.find(f => f.path.includes('SKILL.md')) // Check skill
+      expect(skillFile).toBeDefined()
+      expect(skillFile?.path).toContain('skills')
     })
   })
 
   describe('writeGlobalOutputs', () => {
-    it('should write sub agent file with .md extension when source has .mdx', async () => {
+    it('should not write sub agents globally (only project level)', async () => {
       const mockAgent: SubAgentPrompt = {
         type: PromptKind.SubAgent,
         content: '# Code Review Agent',
@@ -328,13 +334,10 @@ describe('claudeCodeCLIOutputPlugin', () => {
       const results = await plugin.writeGlobalOutputs(writeCtx)
       const agentResult = results.files.find(f => f.path.path === 'reviewer.cn.md')
 
-      expect(agentResult).toBeDefined()
-      expect(agentResult?.success).toBe(true)
+      expect(agentResult).toBeUndefined()
 
-      const writtenPath = path.join(tempDir, '.claude', 'agents', 'reviewer.cn.md')
-      expect(fs.existsSync(writtenPath)).toBe(true)
-      expect(fs.existsSync(path.join(tempDir, '.claude', 'agents', 'reviewer.cn.mdx'))).toBe(false)
-      expect(fs.existsSync(path.join(tempDir, '.claude', 'agents', 'reviewer.cn.mdx.md'))).toBe(false)
+      const writtenPath = path.join(tempDir, '.claude', 'agents', 'reviewer.cn.md') // Verify file was not written globally
+      expect(fs.existsSync(writtenPath)).toBe(false)
     })
   })
 
@@ -389,38 +392,43 @@ describe('claudeCodeCLIOutputPlugin', () => {
   })
 
   describe('rules registration', () => {
-    it('should register rules subdir in global output dirs when global rules exist', async () => {
+    it('should not register rules globally (only project level)', async () => {
       const ctx = {
         ...mockContext,
         collectedInputContext: {...mockContext.collectedInputContext, rules: [createMockRulePrompt({series: '01', ruleName: 'ts', globs: ['**/*.ts'], scope: 'global'})]}
       }
       const dirs = await plugin.registerGlobalOutputDirs(ctx)
-      expect(dirs.map(d => d.path)).toContain('rules')
-    })
-
-    it('should not register rules subdir when no global rules', async () => {
-      const dirs = await plugin.registerGlobalOutputDirs(mockContext)
       expect(dirs.map(d => d.path)).not.toContain('rules')
     })
 
-    it('should register global rule files in ~/.claude/rules/', async () => {
+    it('should register rules at project level', async () => {
+      const mockProject: Project = {
+        name: 'proj',
+        dirFromWorkspacePath: createMockRelativePath('proj', tempDir),
+        rootMemoryPrompt: {type: PromptKind.ProjectRootMemory, content: '', filePathKind: FilePathKind.Root, dir: createMockRelativePath('.', tempDir) as unknown as RootPath, markdownContents: [], length: 0, yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase}},
+        childMemoryPrompts: [],
+        sourceFiles: []
+      }
+      const ctx = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          workspace: {...mockContext.collectedInputContext.workspace, projects: [mockProject]},
+          rules: [createMockRulePrompt({series: '01', ruleName: 'ts', globs: ['**/*.ts'], scope: 'global'})]
+        }
+      }
+      const dirs = await plugin.registerProjectOutputDirs(ctx)
+      expect(dirs.map(d => d.path)).toContain(path.join('proj', '.claude', 'rules'))
+    })
+
+    it('should not register global rule files (only project level)', async () => {
       const ctx = {
         ...mockContext,
         collectedInputContext: {...mockContext.collectedInputContext, rules: [createMockRulePrompt({series: '01', ruleName: 'ts', globs: ['**/*.ts'], scope: 'global'})]}
       }
       const files = await plugin.registerGlobalOutputFiles(ctx)
       const ruleFile = files.find(f => f.path === 'rule-01-ts.md')
-      expect(ruleFile).toBeDefined()
-      expect(ruleFile?.basePath).toBe(path.join(tempDir, '.claude', 'rules'))
-    })
-
-    it('should not register project rules as global files', async () => {
-      const ctx = {
-        ...mockContext,
-        collectedInputContext: {...mockContext.collectedInputContext, rules: [createMockRulePrompt({series: '01', ruleName: 'ts', globs: ['**/*.ts'], scope: 'project'})]}
-      }
-      const files = await plugin.registerGlobalOutputFiles(ctx)
-      expect(files.find(f => f.path.includes('rule-'))).toBeUndefined()
+      expect(ruleFile).toBeUndefined()
     })
   })
 
@@ -439,7 +447,7 @@ describe('claudeCodeCLIOutputPlugin', () => {
   })
 
   describe('writeGlobalOutputs with rules', () => {
-    it('should write global rule file to ~/.claude/rules/', async () => {
+    it('should not write global rule files (only project level)', async () => {
       const ctx = {
         ...mockContext,
         collectedInputContext: {
@@ -449,33 +457,15 @@ describe('claudeCodeCLIOutputPlugin', () => {
       }
       const results = await plugin.writeGlobalOutputs(ctx as any)
       const ruleResult = results.files.find(f => f.path.path === 'rule-01-ts.md')
-      expect(ruleResult?.success).toBe(true)
+      expect(ruleResult).toBeUndefined()
 
       const filePath = path.join(tempDir, '.claude', 'rules', 'rule-01-ts.md')
-      expect(fs.existsSync(filePath)).toBe(true)
-      const content = fs.readFileSync(filePath, 'utf8')
-      expect(content).toContain('paths:')
-      expect(content).toContain('# TS rule')
-    })
-
-    it('should write rule without frontmatter when globs is empty', async () => {
-      const ctx = {
-        ...mockContext,
-        collectedInputContext: {
-          ...mockContext.collectedInputContext,
-          rules: [createMockRulePrompt({series: '01', ruleName: 'general', globs: [], scope: 'global', content: '# Always apply'})]
-        }
-      }
-      await plugin.writeGlobalOutputs(ctx as any)
-      const filePath = path.join(tempDir, '.claude', 'rules', 'rule-01-general.md')
-      const content = fs.readFileSync(filePath, 'utf8')
-      expect(content).toBe('# Always apply')
-      expect(content).not.toContain('---')
+      expect(fs.existsSync(filePath)).toBe(false)
     })
   })
 
   describe('writeProjectOutputs with rules', () => {
-    it('should write project rule file to {project}/.claude/rules/', async () => {
+    it('should write all rules to {project}/.claude/rules/ (including previously global scoped)', async () => {
       const mockProject: Project = {
         name: 'proj',
         dirFromWorkspacePath: createMockRelativePath('proj', tempDir),
@@ -488,17 +478,43 @@ describe('claudeCodeCLIOutputPlugin', () => {
         collectedInputContext: {
           ...mockContext.collectedInputContext,
           workspace: {...mockContext.collectedInputContext.workspace, projects: [mockProject]},
-          rules: [createMockRulePrompt({series: '02', ruleName: 'api', globs: ['src/api/**'], scope: 'project', content: '# API rules'})]
+          rules: [
+            createMockRulePrompt({series: '01', ruleName: 'ts', globs: ['**/*.ts'], scope: 'global', content: '# TS rule'}),
+            createMockRulePrompt({series: '02', ruleName: 'api', globs: ['src/api/**'], scope: 'project', content: '# API rules'})
+          ]
         }
       }
       const results = await plugin.writeProjectOutputs(ctx as any)
+      expect(results.files.some(f => f.path.path === 'rule-01-ts.md' && f.success)).toBe(true)
       expect(results.files.some(f => f.path.path === 'rule-02-api.md' && f.success)).toBe(true)
 
-      const filePath = path.join(tempDir, 'proj', '.claude', 'rules', 'rule-02-api.md')
-      expect(fs.existsSync(filePath)).toBe(true)
+      const filePath1 = path.join(tempDir, 'proj', '.claude', 'rules', 'rule-01-ts.md')
+      const filePath2 = path.join(tempDir, 'proj', '.claude', 'rules', 'rule-02-api.md')
+      expect(fs.existsSync(filePath1)).toBe(true)
+      expect(fs.existsSync(filePath2)).toBe(true)
+    })
+
+    it('should write rule without frontmatter when globs is empty', async () => {
+      const mockProject: Project = {
+        name: 'proj',
+        dirFromWorkspacePath: createMockRelativePath('proj', tempDir),
+        rootMemoryPrompt: {type: PromptKind.ProjectRootMemory, content: '', filePathKind: FilePathKind.Root, dir: createMockRelativePath('.', tempDir) as unknown as RootPath, markdownContents: [], length: 0, yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase}},
+        childMemoryPrompts: [],
+        sourceFiles: []
+      }
+      const ctx = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          workspace: {...mockContext.collectedInputContext.workspace, projects: [mockProject]},
+          rules: [createMockRulePrompt({series: '01', ruleName: 'general', globs: [], scope: 'global', content: '# Always apply'})]
+        }
+      }
+      await plugin.writeProjectOutputs(ctx as any)
+      const filePath = path.join(tempDir, 'proj', '.claude', 'rules', 'rule-01-general.md')
       const content = fs.readFileSync(filePath, 'utf8')
-      expect(content).toContain('paths:')
-      expect(content).toContain('# API rules')
+      expect(content).toBe('# Always apply')
+      expect(content).not.toContain('---')
     })
   })
 })

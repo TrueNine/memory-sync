@@ -105,16 +105,9 @@ describe('opencodeCLIOutputPlugin', () => {
   })
 
   describe('registerGlobalOutputDirs', () => {
-    it('should register commands, agents, and skills subdirectories in .config/opencode', async () => {
+    it('should return empty array since all outputs go to project level', async () => {
       const dirs = await plugin.registerGlobalOutputDirs(mockContext)
-
-      const dirPaths = dirs.map(d => d.path)
-      expect(dirPaths).toContain('commands')
-      expect(dirPaths).toContain('agents')
-      expect(dirPaths).toContain('skills')
-
-      const expectedBasePath = path.join(tempDir, '.config/opencode')
-      dirs.forEach(d => expect(d.basePath).toBe(expectedBasePath))
+      expect(dirs).toHaveLength(0)
     })
   })
 
@@ -164,7 +157,7 @@ describe('opencodeCLIOutputPlugin', () => {
       expect(outputFile?.basePath).toBe(path.join(tempDir, '.config/opencode'))
     })
 
-    it('should register fast commands in commands subdirectory', async () => {
+    it('should NOT register fast commands globally (only project level)', async () => {
       const mockCmd: FastCommandPrompt = {
         type: PromptKind.FastCommand,
         commandName: 'test-cmd',
@@ -187,12 +180,10 @@ describe('opencodeCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithCmd)
       const cmdFile = files.find(f => f.path.includes('test-cmd.md'))
 
-      expect(cmdFile).toBeDefined()
-      expect(cmdFile?.path).toContain('commands')
-      expect(cmdFile?.basePath).toBe(path.join(tempDir, '.config/opencode'))
+      expect(cmdFile).toBeUndefined()
     })
 
-    it('should register agents in agents subdirectory', async () => {
+    it('should NOT register agents globally (only project level)', async () => {
       const mockAgent: SubAgentPrompt = {
         type: PromptKind.SubAgent,
         content: 'content',
@@ -214,12 +205,10 @@ describe('opencodeCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithAgent)
       const agentFile = files.find(f => f.path.includes('review-agent.md'))
 
-      expect(agentFile).toBeDefined()
-      expect(agentFile?.path).toContain('agents')
-      expect(agentFile?.basePath).toBe(path.join(tempDir, '.config/opencode'))
+      expect(agentFile).toBeUndefined()
     })
 
-    it('should strip .mdx suffix from agent path and use .md', async () => {
+    it('should NOT register agents globally (mdx test)', async () => {
       const mockAgent: SubAgentPrompt = {
         type: PromptKind.SubAgent,
         content: 'agent content',
@@ -241,12 +230,10 @@ describe('opencodeCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithAgent)
       const agentFile = files.find(f => f.path.includes('agents'))
 
-      expect(agentFile).toBeDefined()
-      expect(agentFile?.path).toContain('code-review.cn.md')
-      expect(agentFile?.path).not.toContain('.mdx')
+      expect(agentFile).toBeUndefined()
     })
 
-    it('should register skills in skills subdirectory', async () => {
+    it('should NOT register skills globally (only project level)', async () => {
       const mockSkill: SkillPrompt = {
         type: PromptKind.Skill,
         content: 'content',
@@ -268,18 +255,56 @@ describe('opencodeCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithSkill)
       const skillFile = files.find(f => f.path.includes('SKILL.md'))
 
-      expect(skillFile).toBeDefined()
-      expect(skillFile?.path).toContain('skills')
-      expect(skillFile?.basePath).toBe(path.join(tempDir, '.config/opencode'))
+      expect(skillFile).toBeUndefined()
     })
   })
 
   describe('registerProjectOutputFiles', () => {
-    it('should return empty array (no project-level AGENTS.md)', async () => {
+    it('should register project-level commands, agents, and skills', async () => {
       const mockProject: Project = {
         name: 'test-project',
         dirFromWorkspacePath: createMockRelativePath('project-a', tempDir),
+        rootMemoryPrompt: {
+          type: PromptKind.ProjectRootMemory,
+          content: 'content',
+          filePathKind: FilePathKind.Relative,
+          dir: createMockRelativePath('.', tempDir) as any,
+          markdownContents: [],
+          length: 0,
+          yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase}
+        },
         childMemoryPrompts: []
+      }
+
+      const mockCmd: FastCommandPrompt = {
+        type: PromptKind.FastCommand,
+        commandName: 'test-cmd',
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-cmd', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, description: 'desc'}
+      }
+
+      const mockAgent: SubAgentPrompt = {
+        type: PromptKind.SubAgent,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-agent.md', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'agent', description: 'desc'}
+      }
+
+      const mockSkill: SkillPrompt = {
+        type: PromptKind.Skill,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-skill', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'test-skill', description: 'desc'}
       }
 
       const ctxWithProject = {
@@ -289,17 +314,31 @@ describe('opencodeCLIOutputPlugin', () => {
           workspace: {
             ...mockContext.collectedInputContext.workspace,
             projects: [mockProject]
-          }
+          },
+          fastCommands: [mockCmd],
+          subAgents: [mockAgent],
+          skills: [mockSkill]
         }
       }
 
       const files = await plugin.registerProjectOutputFiles(ctxWithProject)
-      expect(files).toEqual([])
+
+      const cmdFile = files.find(f => f.path.includes('test-cmd.md')) // Check command
+      expect(cmdFile).toBeDefined()
+      expect(cmdFile?.path).toContain('commands')
+
+      const agentFile = files.find(f => f.path.includes('test-agent.md')) // Check agent
+      expect(agentFile).toBeDefined()
+      expect(agentFile?.path).toContain('agents')
+
+      const skillFile = files.find(f => f.path.includes('SKILL.md')) // Check skill
+      expect(skillFile).toBeDefined()
+      expect(skillFile?.path).toContain('skills')
     })
   })
 
   describe('skill name normalization', () => {
-    it('should normalize skill names to opencode format', async () => {
+    it('should normalize skill names to opencode format at project level', async () => {
       const testCases = [
         {input: 'My Skill', expected: 'my-skill'},
         {input: 'Skill__Name', expected: 'skill-name'},
@@ -320,15 +359,34 @@ describe('opencodeCLIOutputPlugin', () => {
           yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: input, description: 'desc'}
         }
 
+        const mockProject: Project = {
+          name: 'test-project',
+          dirFromWorkspacePath: createMockRelativePath('project-a', tempDir),
+          rootMemoryPrompt: {
+            type: PromptKind.ProjectRootMemory,
+            content: 'content',
+            filePathKind: FilePathKind.Relative,
+            dir: createMockRelativePath('.', tempDir) as any,
+            markdownContents: [],
+            length: 0,
+            yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase}
+          },
+          childMemoryPrompts: []
+        }
+
         const ctxWithSkill = {
           ...mockContext,
           collectedInputContext: {
             ...mockContext.collectedInputContext,
+            workspace: {
+              ...mockContext.collectedInputContext.workspace,
+              projects: [mockProject]
+            },
             skills: [mockSkill]
           }
         }
 
-        const files = await plugin.registerGlobalOutputFiles(ctxWithSkill)
+        const files = await plugin.registerProjectOutputFiles(ctxWithSkill)
         const skillFile = files.find(f => f.path.includes('SKILL.md'))
 
         expect(skillFile).toBeDefined()
@@ -586,8 +644,23 @@ describe('opencodeCLIOutputPlugin', () => {
     })
   })
 
-  describe('writeGlobalOutputs sub-agent mdx regression', () => {
-    it('should write sub agent file with .md extension when source has .mdx', async () => {
+  describe('writeProjectOutputs sub-agent mdx regression', () => {
+    it('should write sub agent file with .md extension when source has .mdx at project level', async () => {
+      const mockProject: Project = {
+        name: 'test-project',
+        dirFromWorkspacePath: createMockRelativePath('project-a', tempDir),
+        rootMemoryPrompt: {
+          type: PromptKind.ProjectRootMemory,
+          content: 'content',
+          filePathKind: FilePathKind.Relative,
+          dir: createMockRelativePath('.', tempDir) as any,
+          markdownContents: [],
+          length: 0,
+          yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase}
+        },
+        childMemoryPrompts: []
+      }
+
       const mockAgent: SubAgentPrompt = {
         type: PromptKind.SubAgent,
         content: '# Code Review Agent',
@@ -602,20 +675,24 @@ describe('opencodeCLIOutputPlugin', () => {
         ...mockContext,
         collectedInputContext: {
           ...mockContext.collectedInputContext,
+          workspace: {
+            ...mockContext.collectedInputContext.workspace,
+            projects: [mockProject]
+          },
           subAgents: [mockAgent]
         }
       }
 
-      const results = await plugin.writeGlobalOutputs(writeCtx)
+      const results = await plugin.writeProjectOutputs(writeCtx)
       const agentResult = results.files.find(f => f.path.path === 'reviewer.cn.md')
 
       expect(agentResult).toBeDefined()
       expect(agentResult?.success).toBe(true)
 
-      const writtenPath = path.join(tempDir, '.config/opencode', 'agents', 'reviewer.cn.md')
+      const writtenPath = path.join(tempDir, 'project-a', '.config/opencode', 'agents', 'reviewer.cn.md')
       expect(fs.existsSync(writtenPath)).toBe(true)
-      expect(fs.existsSync(path.join(tempDir, '.config/opencode', 'agents', 'reviewer.cn.mdx'))).toBe(false)
-      expect(fs.existsSync(path.join(tempDir, '.config/opencode', 'agents', 'reviewer.cn.mdx.md'))).toBe(false)
+      expect(fs.existsSync(path.join(tempDir, 'project-a', '.config/opencode', 'agents', 'reviewer.cn.mdx'))).toBe(false)
+      expect(fs.existsSync(path.join(tempDir, 'project-a', '.config/opencode', 'agents', 'reviewer.cn.mdx.md'))).toBe(false)
     })
   })
 

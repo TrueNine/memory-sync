@@ -74,16 +74,9 @@ describe('droidCLIOutputPlugin', () => {
   })
 
   describe('registerGlobalOutputDirs', () => {
-    it('should register commands, agents, and skills subdirectories in .factory', async () => {
+    it('should return empty array since all outputs go to project level', async () => {
       const dirs = await plugin.registerGlobalOutputDirs(mockContext)
-
-      const dirPaths = dirs.map(d => d.path)
-      expect(dirPaths).toContain('commands')
-      expect(dirPaths).toContain('agents')
-      expect(dirPaths).toContain('skills')
-
-      const expectedBasePath = path.join(tempDir, '.factory')
-      dirs.forEach(d => expect(d.basePath).toBe(expectedBasePath))
+      expect(dirs).toHaveLength(0)
     })
   })
 
@@ -133,7 +126,7 @@ describe('droidCLIOutputPlugin', () => {
       expect(outputFile?.basePath).toBe(path.join(tempDir, '.factory'))
     })
 
-    it('should register fast commands in commands subdirectory', async () => {
+    it('should NOT register fast commands globally (only project level)', async () => {
       const mockCmd: FastCommandPrompt = {
         type: PromptKind.FastCommand,
         commandName: 'test-cmd',
@@ -156,12 +149,10 @@ describe('droidCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithCmd)
       const cmdFile = files.find(f => f.path.includes('test-cmd.md'))
 
-      expect(cmdFile).toBeDefined()
-      expect(cmdFile?.path).toContain('commands')
-      expect(cmdFile?.basePath).toBe(path.join(tempDir, '.factory'))
+      expect(cmdFile).toBeUndefined()
     })
 
-    it('should register sub agents in agents subdirectory', async () => {
+    it('should NOT register sub agents globally (only project level)', async () => {
       const mockAgent: SubAgentPrompt = {
         type: PromptKind.SubAgent,
         content: 'content',
@@ -183,12 +174,10 @@ describe('droidCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithAgent)
       const agentFile = files.find(f => f.path.includes('test-agent.md'))
 
-      expect(agentFile).toBeDefined()
-      expect(agentFile?.path).toContain('agents')
-      expect(agentFile?.basePath).toBe(path.join(tempDir, '.factory'))
+      expect(agentFile).toBeUndefined()
     })
 
-    it('should strip .mdx suffix from sub agent path and use .md', async () => {
+    it('should NOT register sub agents globally (mdx test)', async () => {
       const mockAgent: SubAgentPrompt = {
         type: PromptKind.SubAgent,
         content: 'agent content',
@@ -210,12 +199,10 @@ describe('droidCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithAgent)
       const agentFile = files.find(f => f.path.includes('agents'))
 
-      expect(agentFile).toBeDefined()
-      expect(agentFile?.path).toContain('code-review.cn.md')
-      expect(agentFile?.path).not.toContain('.mdx')
+      expect(agentFile).toBeUndefined()
     })
 
-    it('should register skills in skills subdirectory', async () => {
+    it('should NOT register skills globally (only project level)', async () => {
       const mockSkill: SkillPrompt = {
         type: PromptKind.Skill,
         content: 'content',
@@ -237,18 +224,56 @@ describe('droidCLIOutputPlugin', () => {
       const files = await plugin.registerGlobalOutputFiles(ctxWithSkill)
       const skillFile = files.find(f => f.path.includes('SKILL.md'))
 
-      expect(skillFile).toBeDefined()
-      expect(skillFile?.path).toContain('skills')
-      expect(skillFile?.basePath).toBe(path.join(tempDir, '.factory'))
+      expect(skillFile).toBeUndefined()
     })
   })
 
   describe('registerProjectOutputFiles', () => {
-    it('should return empty array', async () => {
+    it('should register project-level commands, agents, and skills', async () => {
       const mockProject: Project = {
         name: 'test-project',
         dirFromWorkspacePath: createMockRelativePath('project-a', tempDir),
+        rootMemoryPrompt: {
+          type: PromptKind.ProjectRootMemory,
+          content: 'content',
+          filePathKind: FilePathKind.Relative,
+          dir: createMockRelativePath('.', tempDir) as unknown as RootPath,
+          markdownContents: [],
+          length: 0,
+          yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase}
+        },
         childMemoryPrompts: []
+      }
+
+      const mockCmd: FastCommandPrompt = {
+        type: PromptKind.FastCommand,
+        commandName: 'test-cmd',
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-cmd', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, description: 'desc'}
+      }
+
+      const mockAgent: SubAgentPrompt = {
+        type: PromptKind.SubAgent,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-agent.md', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'agent', description: 'desc'}
+      }
+
+      const mockSkill: SkillPrompt = {
+        type: PromptKind.Skill,
+        content: 'content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('test-skill', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'test-skill', description: 'desc'}
       }
 
       const ctxWithProject = {
@@ -258,12 +283,72 @@ describe('droidCLIOutputPlugin', () => {
           workspace: {
             ...mockContext.collectedInputContext.workspace,
             projects: [mockProject]
-          }
+          },
+          fastCommands: [mockCmd],
+          subAgents: [mockAgent],
+          skills: [mockSkill]
         }
       }
 
       const files = await plugin.registerProjectOutputFiles(ctxWithProject)
-      expect(files).toEqual([])
+
+      const cmdFile = files.find(f => f.path.includes('test-cmd.md')) // Check command
+      expect(cmdFile).toBeDefined()
+      expect(cmdFile?.path).toContain('commands')
+
+      const agentFile = files.find(f => f.path.includes('test-agent.md')) // Check agent
+      expect(agentFile).toBeDefined()
+      expect(agentFile?.path).toContain('agents')
+
+      const skillFile = files.find(f => f.path.includes('SKILL.md')) // Check skill
+      expect(skillFile).toBeDefined()
+      expect(skillFile?.path).toContain('skills')
+    })
+
+    it('should strip .mdx suffix from sub agent path at project level', async () => {
+      const mockProject: Project = {
+        name: 'test-project',
+        dirFromWorkspacePath: createMockRelativePath('project-a', tempDir),
+        rootMemoryPrompt: {
+          type: PromptKind.ProjectRootMemory,
+          content: 'content',
+          filePathKind: FilePathKind.Relative,
+          dir: createMockRelativePath('.', tempDir) as unknown as RootPath,
+          markdownContents: [],
+          length: 0,
+          yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase}
+        },
+        childMemoryPrompts: []
+      }
+
+      const mockAgent: SubAgentPrompt = {
+        type: PromptKind.SubAgent,
+        content: 'agent content',
+        filePathKind: FilePathKind.Relative,
+        dir: createMockRelativePath('code-review.cn.mdx', tempDir),
+        markdownContents: [],
+        length: 0,
+        yamlFrontMatter: {namingCase: NamingCaseKind.KebabCase, name: 'code-review', description: 'desc'}
+      }
+
+      const ctxWithProject = {
+        ...mockContext,
+        collectedInputContext: {
+          ...mockContext.collectedInputContext,
+          workspace: {
+            ...mockContext.collectedInputContext.workspace,
+            projects: [mockProject]
+          },
+          subAgents: [mockAgent]
+        }
+      }
+
+      const files = await plugin.registerProjectOutputFiles(ctxWithProject)
+      const agentFile = files.find(f => f.path.includes('agents'))
+
+      expect(agentFile).toBeDefined()
+      expect(agentFile?.path).toContain('code-review.cn.md')
+      expect(agentFile?.path).not.toContain('.mdx')
     })
   })
 })

@@ -126,6 +126,51 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     })
   }
 
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+    const baseResults = await super.registerProjectOutputFiles(ctx)
+
+    const {rules} = ctx.collectedInputContext // Add project rules
+    if (rules != null && rules.length > 0) {
+      for (const project of ctx.collectedInputContext.workspace.projects) {
+        if (project.dirFromWorkspacePath == null) continue
+        const projectRules = applySubSeriesGlobPrefix(
+          filterRulesByProjectConfig(rules, project.projectConfig),
+          project.projectConfig
+        )
+        for (const rule of projectRules) {
+          const filePath = path.join(project.dirFromWorkspacePath.path, PROJECT_RULES_DIR, RULES_SUBDIR, this.buildRuleFileName(rule))
+          baseResults.push(this.createRelativePath(filePath, project.dirFromWorkspacePath.basePath, () => RULES_SUBDIR))
+        }
+      }
+    }
+
+    return baseResults.map(result => { // Normalize skill directory names in paths for opencode format
+      const normalizedPath = result.path.replaceAll('\\', '/')
+      const skillsPatternWithSlash = `/${this.skillsSubDir}/`
+      const skillsPatternStart = `${this.skillsSubDir}/`
+
+      if (!(normalizedPath.includes(skillsPatternWithSlash) || normalizedPath.startsWith(skillsPatternStart))) return result
+
+      const pathParts = normalizedPath.split('/')
+      const skillsIndex = pathParts.indexOf(this.skillsSubDir)
+      if (skillsIndex < 0 || skillsIndex + 1 >= pathParts.length) return result
+
+      const skillName = pathParts[skillsIndex + 1]
+      if (skillName == null) return result
+
+      const normalizedSkillName = this.validateAndNormalizeSkillName(skillName)
+      const newPathParts = [...pathParts]
+      newPathParts[skillsIndex + 1] = normalizedSkillName
+      const newPath = newPathParts.join('/')
+      return {
+        ...result,
+        path: newPath,
+        getDirectoryName: () => normalizedSkillName,
+        getAbsolutePath: () => path.join(result.basePath, newPath.replaceAll('/', path.sep))
+      }
+    })
+  }
+
   override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const baseResults = await super.writeGlobalOutputs(ctx)
     const files = [...baseResults.files]
@@ -380,27 +425,6 @@ export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
       if (projectRules.length === 0) continue
       const dirPath = path.join(project.dirFromWorkspacePath.path, PROJECT_RULES_DIR, RULES_SUBDIR)
       results.push(this.createRelativePath(dirPath, project.dirFromWorkspacePath.basePath, () => RULES_SUBDIR))
-    }
-    return results
-  }
-
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results = await super.registerProjectOutputFiles(ctx)
-    const {rules} = ctx.collectedInputContext
-    if (rules == null || rules.length === 0) return results
-    for (const project of ctx.collectedInputContext.workspace.projects) {
-      if (project.dirFromWorkspacePath == null) continue
-      const projectRules = applySubSeriesGlobPrefix(
-        filterRulesByProjectConfig(
-          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
-          project.projectConfig
-        ),
-        project.projectConfig
-      )
-      for (const rule of projectRules) {
-        const filePath = path.join(project.dirFromWorkspacePath.path, PROJECT_RULES_DIR, RULES_SUBDIR, this.buildRuleFileName(rule))
-        results.push(this.createRelativePath(filePath, project.dirFromWorkspacePath.basePath, () => RULES_SUBDIR))
-      }
     }
     return results
   }
