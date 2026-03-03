@@ -1,9 +1,9 @@
-import type {ConfigLoaderOptions, ConfigLoadResult, ILogger, ShadowSourceProjectConfig, UserConfigFile} from '@truenine/plugin-shared'
+import type {AindexConfig, ConfigLoaderOptions, ConfigLoadResult, ILogger, UserConfigFile} from './plugins/plugin-shared'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {createLogger, DEFAULT_USER_CONFIG, ZUserConfigFile} from '@truenine/plugin-shared'
+import {convertUserConfigAindexToShadowSourceProject, createLogger, DEFAULT_USER_CONFIG, ZUserConfigFile} from './plugins/plugin-shared'
 
 /**
  * Default config file name
@@ -25,22 +25,10 @@ export function getGlobalConfigPath(): string {
 /**
  * Get default user config content
  * Uses build-time injected template from public/tnmsc.example.json
+ * @deprecated Config is now required - no default config is provided
  */
 export function getDefaultUserConfig(): UserConfigFile {
   return {...DEFAULT_USER_CONFIG}
-}
-
-/**
- * Write global config file
- */
-function writeGlobalConfig(config: UserConfigFile, logger: ILogger): void {
-  const configPath = getGlobalConfigPath()
-  const configDir = path.dirname(configPath)
-
-  if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, {recursive: true}) // Ensure directory exists
-
-  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8') // Write with pretty formatting
-  logger.info('global config created', {path: configPath})
 }
 
 /**
@@ -106,8 +94,8 @@ export class ConfigLoader {
       return {config, source: resolvedPath, found: true}
     }
     catch (error) {
-      this.logger.warn('load failed', {path: resolvedPath, error})
-      return {config: {}, source: null, found: false}
+      const errorMessage = error instanceof Error ? error.message : String(error) // Parse/validation failure - throw error instead of silently returning empty config
+      throw new Error(`Failed to load config from ${resolvedPath}: ${errorMessage}`)
     }
   }
 
@@ -120,13 +108,17 @@ export class ConfigLoader {
       if (result.found) loadedConfigs.push(result)
     }
 
+    if (loadedConfigs.length === 0) { // No config found - throw error instead of returning empty config
+      throw new Error(`No valid config file found. Searched: ${searchPaths.join(', ')}`)
+    }
+
     const merged = this.mergeConfigs(loadedConfigs.map(r => r.config)) // Merge configs (first has highest priority)
     const sources = loadedConfigs.map(r => r.source).filter((s): s is string => s !== null)
 
     return {
       config: merged,
       sources,
-      found: loadedConfigs.length > 0
+      found: true
     }
   }
 
@@ -141,10 +133,12 @@ export class ConfigLoader {
     }
 
     const result = ZUserConfigFile.safeParse(parsed)
-    if (result.success) return result.data
-    const errors = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`)
-    this.logger.warn('validation warnings', {path: filePath, errors})
-    return ZUserConfigFile.parse({}) // return empty valid config on partial failure
+    if (result.success) {
+      return convertUserConfigAindexToShadowSourceProject(result.data) // Convert aindex format to shadowSourceProject format if needed
+    }
+
+    const errors = result.error.issues.map((i: {path: (string | number)[], message: string}) => `${i.path.join('.')}: ${i.message}`) // Validation failed - throw error instead of returning empty config
+    throw new Error(`Config validation failed in ${filePath}:\n${errors.join('\n')}`)
   }
 
   private mergeConfigs(configs: UserConfigFile[]): UserConfigFile {
@@ -156,32 +150,34 @@ export class ConfigLoader {
     const reversed = [...configs].reverse() // Reverse to merge from lowest to highest priority
 
     return reversed.reduce<UserConfigFile>((acc, config) => {
-      const mergedShadowSourceProject = this.mergeShadowSourceProject(acc.shadowSourceProject, config.shadowSourceProject)
+      const mergedAindex = this.mergeAindex(acc.aindex, config.aindex)
 
       return {
         ...acc,
         ...config,
-        ...mergedShadowSourceProject != null ? {shadowSourceProject: mergedShadowSourceProject} : {}
+        ...mergedAindex != null ? {aindex: mergedAindex} : {}
       }
     }, {})
   }
 
-  private mergeShadowSourceProject(
-    a?: ShadowSourceProjectConfig,
-    b?: ShadowSourceProjectConfig
-  ): ShadowSourceProjectConfig | undefined {
+  private mergeAindex(
+    a?: AindexConfig,
+    b?: AindexConfig
+  ): AindexConfig | undefined {
     if (a == null && b == null) return void 0
     if (a == null) return b
     if (b == null) return a
     return {
-      name: b.name ?? a.name,
-      skill: {...a.skill, ...b.skill},
-      fastCommand: {...a.fastCommand, ...b.fastCommand},
-      subAgent: {...a.subAgent, ...b.subAgent},
-      rule: {...a.rule, ...b.rule},
-      globalMemory: {...a.globalMemory, ...b.globalMemory},
-      workspaceMemory: {...a.workspaceMemory, ...b.workspaceMemory},
-      project: {...a.project, ...b.project}
+      dir: b.dir ?? a.dir,
+      skills: {...a.skills, ...b.skills},
+      commands: {...a.commands, ...b.commands},
+      subAgents: {...a.subAgents, ...b.subAgents},
+      rules: {...a.rules, ...b.rules},
+      globalPrompt: {...a.globalPrompt, ...b.globalPrompt},
+      workspacePrompt: {...a.workspacePrompt, ...b.workspacePrompt},
+      app: {...a.app, ...b.app},
+      ext: {...a.ext, ...b.ext},
+      arch: {...a.arch, ...b.arch}
     }
   }
 
@@ -224,56 +220,76 @@ export function loadUserConfig(cwd?: string): MergedConfigResult {
 
 /**
  * Validate global config file strictly.
- * - If config doesn't exist: create default config, log warn, continue
- * - If config is invalid (parse error or validation error): delete and recreate, log error, exit
+ * - If config doesn't exist: return invalid result (do not auto-create)
+ * - If config is invalid (parse error or validation error): return invalid result (do not recreate)
  *
  * @returns Validation result indicating whether program should continue or exit
  */
-export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
+export function validateGlobalConfig(): GlobalConfigValidationResult {
   const logger = createLogger('ConfigLoader')
   const configPath = getGlobalConfigPath()
 
-  if (!fs.existsSync(configPath)) { // Check if config file exists
-    logger.warn('global config not found, creating default config', {path: configPath})
-    writeGlobalConfig(getDefaultUserConfig(), logger)
+  if (!fs.existsSync(configPath)) { // Check if config file exists - do not auto-create
+    const error = `Global config not found at ${configPath}. Please create it manually.`
+    logger.error(error)
     return {
-      valid: true,
+      valid: false,
       exists: false,
-      errors: [],
-      shouldExit: false
+      errors: [error],
+      shouldExit: true
     }
   }
 
-  let content: string // Try to read and parse config
+  let content: string
   try {
     content = fs.readFileSync(configPath, 'utf8')
   }
   catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     logger.error('failed to read global config', {path: configPath, error: errorMessage})
-    return recreateConfigAndExit(configPath, logger, [`Failed to read config: ${errorMessage}`])
+    return {
+      valid: false,
+      exists: true,
+      errors: [`Failed to read config: ${errorMessage}`],
+      shouldExit: true
+    }
   }
 
-  let parsed: unknown // Try to parse JSON
+  let parsed: unknown
   try {
     parsed = JSON.parse(content)
   }
   catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     logger.error('invalid JSON in global config', {path: configPath, error: errorMessage})
-    return recreateConfigAndExit(configPath, logger, [`Invalid JSON: ${errorMessage}`])
+    return {
+      valid: false,
+      exists: true,
+      errors: [`Invalid JSON: ${errorMessage}`],
+      shouldExit: true
+    }
   }
 
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) { // Validate structure
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     logger.error('global config must be a JSON object', {path: configPath})
-    return recreateConfigAndExit(configPath, logger, ['Config must be a JSON object'])
+    return {
+      valid: false,
+      exists: true,
+      errors: ['Config must be a JSON object'],
+      shouldExit: true
+    }
   }
 
-  const zodResult = ZUserConfigFile.safeParse(parsed) // Validate fields with Zod
+  const zodResult = ZUserConfigFile.safeParse(parsed)
   if (!zodResult.success) {
-    const errors = zodResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`)
+    const errors = zodResult.error.issues.map((i: {path: (string | number)[], message: string}) => `${i.path.join('.')}: ${i.message}`)
     for (const err of errors) logger.error('config validation error', {path: configPath, error: err})
-    return recreateConfigAndExit(configPath, logger, errors)
+    return {
+      valid: false,
+      exists: true,
+      errors,
+      shouldExit: true
+    }
   }
 
   return {
@@ -285,24 +301,9 @@ export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
 }
 
 /**
- * Delete invalid config, recreate with defaults, and return exit result
+ * @deprecated Use validateGlobalConfig() instead. This function is kept for backward compatibility
+ * but no longer auto-creates default config.
  */
-function recreateConfigAndExit(configPath: string, logger: ILogger, errors: string[]): GlobalConfigValidationResult {
-  try {
-    fs.unlinkSync(configPath)
-    logger.info('deleted invalid config', {path: configPath})
-  }
-  catch {
-    logger.warn('failed to delete invalid config', {path: configPath})
-  }
-
-  writeGlobalConfig(getDefaultUserConfig(), logger)
-  logger.error('recreated default config, please review and restart', {path: configPath})
-
-  return {
-    valid: false,
-    exists: true,
-    errors,
-    shouldExit: true
-  }
+export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
+  return validateGlobalConfig()
 }

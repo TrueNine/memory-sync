@@ -1,10 +1,11 @@
 //! tnmsc library — exposes core functionality for GUI backend direct invocation.
 //!
-//! Pure Rust commands: version, load_config, config_show, init, outdated
+//! Pure Rust commands: version, load_config, config_show, outdated
 //! Bridge commands (Node.js): run_bridge_command
 
 pub mod bridge;
 pub mod commands;
+pub mod core;
 
 use std::path::Path;
 
@@ -41,14 +42,6 @@ pub struct BridgeCommandResult {
     pub exit_code: i32,
 }
 
-/// Result of the `init` command.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InitResult {
-    pub created_files: Vec<String>,
-    pub skipped_files: Vec<String>,
-}
-
 /// Result of the `outdated` check.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,41 +61,14 @@ pub fn version() -> &'static str {
 }
 
 /// Load and merge configuration from the given working directory.
-pub fn load_config(cwd: &Path) -> Result<tnmsc_config::MergedConfigResult, CliError> {
-    Ok(tnmsc_config::ConfigLoader::with_defaults().load(cwd))
+pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliError> {
+    Ok(core::config::ConfigLoader::with_defaults().load(cwd))
 }
 
 /// Return the merged configuration as a pretty-printed JSON string.
 pub fn config_show(cwd: &Path) -> Result<String, CliError> {
-    let result = tnmsc_config::ConfigLoader::with_defaults().load(cwd);
+    let result = core::config::ConfigLoader::with_defaults().load(cwd);
     serde_json::to_string_pretty(&result.config).map_err(CliError::from)
-}
-
-/// Run the `init` command: write bundled template files into `cwd`.
-///
-/// Returns which files were created and which were skipped (already exist).
-pub fn init(cwd: &Path) -> Result<InitResult, CliError> {
-    let bundles = tnmsc_init_bundle::BUNDLES;
-    let mut created_files = Vec::new();
-    let mut skipped_files = Vec::new();
-
-    for bundle in bundles {
-        let target = cwd.join(bundle.path);
-        if let Some(parent) = target.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        if target.exists() {
-            skipped_files.push(bundle.path.to_string());
-            continue;
-        }
-        std::fs::write(&target, bundle.content)?;
-        created_files.push(bundle.path.to_string());
-    }
-
-    Ok(InitResult {
-        created_files,
-        skipped_files,
-    })
 }
 
 /// Check whether the current CLI version is outdated against the npm registry.
@@ -200,41 +166,6 @@ mod property_tests {
             let json_str = result.unwrap();
             let parsed: Result<serde_json::Value, _> = serde_json::from_str(&json_str);
             prop_assert!(parsed.is_ok(), "config_show output should be valid JSON, got: {}", json_str);
-        }
-
-        // ---- init(cwd) ----
-
-        /// For any fresh temporary directory, init returns Ok(InitResult) with
-        /// created_files and skipped_files as Vec<String>.
-        #[test]
-        fn prop_init_returns_init_result_with_vec_fields(_seed in 0u64..50) {
-            let tmp = TempDir::new().expect("failed to create tempdir");
-            let result = init(tmp.path());
-            prop_assert!(result.is_ok(), "init should return Ok for a fresh tempdir, got: {:?}", result.err());
-            let init_result = result.unwrap();
-            let _total = init_result.created_files.len() + init_result.skipped_files.len();
-            for f in &init_result.created_files {
-                prop_assert!(!f.is_empty(), "created file path should not be empty");
-            }
-            for f in &init_result.skipped_files {
-                prop_assert!(!f.is_empty(), "skipped file path should not be empty");
-            }
-        }
-
-        /// Calling init twice on the same directory: second call should skip all files
-        /// that were created in the first call.
-        #[test]
-        fn prop_init_idempotent_skips_existing(_seed in 0u64..50) {
-            let tmp = TempDir::new().expect("failed to create tempdir");
-            let first = init(tmp.path()).expect("first init should succeed");
-            let second = init(tmp.path()).expect("second init should succeed");
-            prop_assert!(second.created_files.is_empty(),
-                "second init should create no new files, but created: {:?}", second.created_files);
-            prop_assert_eq!(
-                first.created_files.len(),
-                second.skipped_files.len(),
-                "all files from first run should be skipped in second run"
-            );
         }
 
         // ---- outdated() ----

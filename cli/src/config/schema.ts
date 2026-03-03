@@ -6,7 +6,6 @@
  */
 
 import type {
-  AindexConfig,
   LogLevel,
   ModulePaths,
   Profile,
@@ -33,9 +32,10 @@ export const ZModulePaths = z.object({
 
 /**
  * Zod schema for aindex configuration.
+ * Supports user-defined module paths with src/dist structure.
  */
 export const ZAindexConfig = z.object({
-  name: z.string().min(1, 'Aindex name cannot be empty'),
+  dir: z.string().default('aindex'),
   skills: ZModulePaths,
   commands: ZModulePaths,
   subAgents: ZModulePaths,
@@ -45,7 +45,7 @@ export const ZAindexConfig = z.object({
   app: ZModulePaths,
   ext: ZModulePaths,
   arch: ZModulePaths
-}) satisfies z.ZodType<AindexConfig>
+}).catchall(z.union([ZModulePaths, z.string()]))
 
 /**
  * Zod schema for user profile.
@@ -68,7 +68,7 @@ export const ZTnmscConfig = z.object({
   aindex: ZAindexConfig,
   logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error']),
   profile: ZProfile
-}) satisfies z.ZodType<TnmscConfig>
+})
 
 /**
  * Validate a configuration object against the schema.
@@ -116,37 +116,6 @@ export function formatValidationErrors(error: z.ZodError): string[] {
  */
 export function isValidLogLevel(value: unknown): value is LogLevel {
   return typeof value === 'string' && VALID_LOG_LEVELS.has(value as LogLevel)
-}
-
-/**
- * Get the default configuration values.
- *
- * @returns A partial configuration with default values
- */
-export function getDefaultConfig(): Partial<TnmscConfig> {
-  return {
-    version: '2026.00000.00000',
-    workspaceDir: '~/project',
-    logLevel: 'info',
-    aindex: {
-      name: 'aindex',
-      skills: {src: 'skills', dist: 'dist/skills'},
-      commands: {src: 'commands', dist: 'dist/commands'},
-      subAgents: {src: 'agents', dist: 'dist/agents'},
-      rules: {src: 'rules', dist: 'dist/rules'},
-      globalPrompt: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
-      workspacePrompt: {src: 'app/workspace.cn.mdx', dist: 'dist/workspace.mdx'},
-      app: {src: 'app', dist: 'dist/app'},
-      ext: {src: 'ext', dist: 'dist/ext'},
-      arch: {src: 'arch', dist: 'dist/arch'}
-    },
-    profile: {
-      name: '',
-      username: '',
-      gender: '',
-      birthday: ''
-    }
-  }
 }
 
 export { // Re-export types for convenience

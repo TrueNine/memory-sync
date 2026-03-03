@@ -2071,7 +2071,7 @@ dependencies = [
 
 [[package]]
 name = "memory-sync-gui"
-version = "2026.10302.10037"
+version = "2026.10303.10919"
 dependencies = [
  "dirs",
  "proptest",
@@ -4443,61 +4443,18 @@ version = "2026.10222.0"
 dependencies = [
  "clap",
  "dirs",
+ "napi",
+ "napi-build",
+ "napi-derive",
  "proptest",
  "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror 2.0.18",
- "tnmsc-config",
- "tnmsc-init-bundle",
- "tnmsc-input-plugins",
  "tnmsc-logger",
  "tnmsc-md-compiler",
- "tnmsc-plugin-shared",
-]
-
-[[package]]
-name = "tnmsc-config"
-version = "2026.10222.0"
-dependencies = [
- "dirs",
- "napi",
- "napi-build",
- "napi-derive",
- "serde",
- "serde_json",
- "sha2",
- "tnmsc-logger",
-]
-
-[[package]]
-name = "tnmsc-init-bundle"
-version = "2026.10222.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "serde_json",
-]
-
-[[package]]
-name = "tnmsc-input-plugins"
-version = "2026.10222.0"
-dependencies = [
- "base64 0.22.1",
- "glob",
- "napi",
- "napi-build",
- "napi-derive",
- "serde",
- "serde_json",
- "sha2",
- "tnmsc-config",
- "tnmsc-init-bundle",
- "tnmsc-logger",
- "tnmsc-md-compiler",
- "tnmsc-plugin-shared",
 ]
 
 [[package]]
@@ -4524,14 +4481,6 @@ dependencies = [
  "serde_json",
  "serde_yml",
  "tnmsc-logger",
-]
-
-[[package]]
-name = "tnmsc-plugin-shared"
-version = "2026.10222.0"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]

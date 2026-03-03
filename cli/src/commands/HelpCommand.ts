@@ -47,18 +47,19 @@ CLEAN OPTIONS:
 CONFIG OPTIONS:
   key=value          Set a configuration value in global config (~/.aindex/.tnmsc.json)
   Valid keys: workspaceDir, logLevel,
-              shadowSourceProject.name,
-              shadowSourceProject.skill.src, shadowSourceProject.skill.dist,
-              shadowSourceProject.fastCommand.src, shadowSourceProject.fastCommand.dist,
-              shadowSourceProject.subAgent.src, shadowSourceProject.subAgent.dist,
-              shadowSourceProject.rule.src, shadowSourceProject.rule.dist,
-              shadowSourceProject.globalMemory.src, shadowSourceProject.globalMemory.dist,
-              shadowSourceProject.workspaceMemory.src, shadowSourceProject.workspaceMemory.dist,
-              shadowSourceProject.project.src, shadowSourceProject.project.dist
+              aindex.skills.src, aindex.skills.dist,
+              aindex.commands.src, aindex.commands.dist,
+              aindex.subAgents.src, aindex.subAgents.dist,
+              aindex.rules.src, aindex.rules.dist,
+              aindex.globalPrompt.src, aindex.globalPrompt.dist,
+              aindex.workspacePrompt.src, aindex.workspacePrompt.dist,
+              aindex.app.src, aindex.app.dist,
+              aindex.ext.src, aindex.ext.dist,
+              aindex.arch.src, aindex.arch.dist
 
   Examples:
     ${CLI_NAME} config workspaceDir=~/my-project
-    ${CLI_NAME} config shadowSourceProject.name=aindex
+    ${CLI_NAME} config aindex.skills.src=skills
     ${CLI_NAME} config logLevel=debug
 
 CONFIGURATION:
@@ -72,9 +73,8 @@ CONFIGURATION:
 export class HelpCommand implements Command {
   readonly name = 'help'
 
-  async execute(_ctx: CommandContext): Promise<CommandResult> {
-    // eslint-disable-next-line no-console
-    console.log(HELP_TEXT)
+  async execute(ctx: CommandContext): Promise<CommandResult> {
+    ctx.logger.info(HELP_TEXT)
 
     return {
       success: true,

@@ -3,7 +3,11 @@ import {cpSync, existsSync, mkdirSync, readdirSync} from 'node:fs'
 import {join, resolve} from 'node:path'
 import process from 'node:process'
 
-const LIBRARIES = ['logger', 'md-compiler', 'config', 'init-bundle'] as const
+const NATIVE_MODULES = [
+  {name: 'logger', distDir: 'libraries/logger/dist'},
+  {name: 'md-compiler', distDir: 'libraries/md-compiler/dist'},
+  {name: 'cli', distDir: 'cli/dist'},
+] as const
 
 const PLATFORM_MAP: Record<string, string> = {
   'win32-x64': 'win32-x64-msvc',
@@ -26,22 +30,22 @@ mkdirSync(targetDir, {recursive: true})
 
 let copied = 0
 
-for (const lib of LIBRARIES) {
-  const libDist = join(root, 'libraries', lib, 'dist')
-  if (!existsSync(libDist)) {
-    console.warn(`[copy-napi] ${lib}: dist/ not found, skipping (run napi build first)`)
+for (const mod of NATIVE_MODULES) {
+  const modDist = join(root, mod.distDir)
+  if (!existsSync(modDist)) {
+    console.warn(`[copy-napi] ${mod.name}: dist/ not found, skipping (run napi build first)`)
     continue
   }
-  const nodeFiles = readdirSync(libDist).filter(f => f.endsWith('.node'))
+  const nodeFiles = readdirSync(modDist).filter(f => f.endsWith('.node'))
   if (nodeFiles.length === 0) {
-    console.warn(`[copy-napi] ${lib}: no .node files in dist/, skipping (run napi build first)`)
+    console.warn(`[copy-napi] ${mod.name}: no .node files in dist/, skipping (run napi build first)`)
     continue
   }
   for (const file of nodeFiles) {
-    const src = join(libDist, file)
+    const src = join(modDist, file)
     const dst = join(targetDir, file)
     cpSync(src, dst)
-    console.log(`[copy-napi] ${lib}: ${file} → cli/npm/${suffix}/`)
+    console.log(`[copy-napi] ${mod.name}: ${file} → cli/npm/${suffix}/`)
     copied++
   }
 }
@@ -52,6 +56,5 @@ if (copied > 0) {
   console.warn('[copy-napi] No .node files found. Build napi first:')
   console.warn('  pnpm -F @truenine/logger run build:native')
   console.warn('  pnpm -F @truenine/md-compiler run build:native')
-  console.warn('  pnpm -F @truenine/config run build:native')
-  console.warn('  pnpm -F @truenine/init-bundle run build:native')
+  console.warn('  pnpm -C cli exec napi build --platform --release --output-dir dist -- --features napi')
 }

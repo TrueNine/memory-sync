@@ -1,7 +1,7 @@
-import type {CleanEffectHandler, EffectRegistration, EffectResult, FastCommandPrompt, ILogger, OutputCleanContext, OutputPlugin, OutputPluginContext, OutputWriteContext, Project, RegistryOperationResult, RulePrompt, RuleScope, WriteEffectHandler, WriteResult, WriteResults} from '@truenine/plugin-shared'
-import type {FastCommandSeriesPluginOverride, Path, ProjectConfig, RegistryData, RelativePath} from '@truenine/plugin-shared/types'
-
 import type {Buffer} from 'node:buffer'
+import type {CleanEffectHandler, CommandPrompt, CommandSeriesPluginOverride, EffectRegistration, EffectResult, ILogger, OutputCleanContext, OutputPlugin, OutputPluginContext, OutputWriteContext, Project, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, WriteEffectHandler, WriteResult, WriteResults} from '../plugin-shared'
+
+import type {Path, ProjectConfig, RegistryData, RelativePath} from '../plugin-shared/types'
 import type {RegistryWriter} from './registry/RegistryWriter'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
@@ -22,13 +22,53 @@ import {
   AbstractPlugin,
   FilePathKind,
   PluginKind
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 
 /**
- * Options for transforming fast command names in output filenames.
- * Used by transformFastCommandName method to control prefix handling.
+ * Options for building skill front matter
  */
-export interface FastCommandNameTransformOptions {
+export interface SkillFrontMatterOptions {
+  readonly includeTools?: boolean
+  readonly toolFormat?: 'array' | 'string'
+  readonly additionalFields?: Record<string, unknown>
+}
+
+/**
+ * Options for building rule content
+ */
+export interface RuleContentOptions {
+  readonly fileExtension: '.mdc' | '.md'
+  readonly alwaysApply: boolean
+  readonly globJoinPattern: ', ' | '|' | string
+  readonly frontMatterFormatter?: (globs: string) => unknown
+  readonly additionalFrontMatter?: Record<string, unknown>
+}
+
+/**
+ * Options for executing write operations with dry-run support
+ */
+export interface WriteOperationOptions {
+  readonly ctx: OutputWriteContext
+  readonly type: string
+  readonly fullPath: string
+  readonly relativePath: RelativePath
+  readonly label?: string | undefined
+}
+
+/**
+ * Context for error handling
+ */
+export interface ErrorContext {
+  readonly action: string
+  readonly path?: string
+  readonly [key: string]: unknown
+}
+
+/**
+ * Options for transforming command names in output filenames.
+ * Used by transformCommandName method to control prefix handling.
+ */
+export interface CommandNameTransformOptions {
   readonly includeSeriesPrefix?: boolean
   readonly seriesSeparator?: string
 }
@@ -373,6 +413,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     }
 
     try {
+      this.ensureDirectory(dir) // Ensure parent directory exists before writing
       deskWriteFileSync(fullPath, content)
       this.log.trace({action: 'write', type: 'file', path: fullPath, label})
       return {path: relativePath, success: true}
@@ -450,19 +491,19 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return `${effectiveGlobalContent}${separator}${projectContent}` // Default: 'before'
   }
 
-  protected transformFastCommandName(
-    cmd: FastCommandPrompt,
-    options?: FastCommandNameTransformOptions
+  protected transformCommandName(
+    cmd: CommandPrompt,
+    options?: CommandNameTransformOptions
   ): string {
     const {includeSeriesPrefix = true, seriesSeparator = '-'} = options ?? {}
 
-    if (!includeSeriesPrefix || cmd.series == null) return `${cmd.commandName}.md` // If prefix should not be included or series is not present, return just commandName
+    if (!includeSeriesPrefix || cmd.commandPrefix == null) return `${cmd.commandName}.md` // If prefix should not be included or prefix is not present, return just commandName
 
-    return `${cmd.series}${seriesSeparator}${cmd.commandName}.md`
+    return `${cmd.commandPrefix}${seriesSeparator}${cmd.commandName}.md`
   }
 
-  protected getFastCommandSeriesOptions(ctx: OutputWriteContext): FastCommandSeriesPluginOverride {
-    const globalOptions = ctx.pluginOptions?.fastCommandSeriesOptions
+  protected getCommandSeriesOptions(ctx: OutputWriteContext): CommandSeriesPluginOverride {
+    const globalOptions = ctx.pluginOptions?.commandSeriesOptions
     const pluginOverride = globalOptions?.pluginOverrides?.[this.name]
 
     const includeSeriesPrefix = pluginOverride?.includeSeriesPrefix ?? globalOptions?.includeSeriesPrefix // Only include properties that have defined values to satisfy exactOptionalPropertyTypes // Plugin-specific overrides take precedence over global settings
@@ -476,9 +517,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   protected getTransformOptionsFromContext(
     ctx: OutputWriteContext,
-    additionalOptions?: FastCommandNameTransformOptions
-  ): FastCommandNameTransformOptions {
-    const seriesOptions = this.getFastCommandSeriesOptions(ctx)
+    additionalOptions?: CommandNameTransformOptions
+  ): CommandNameTransformOptions {
+    const seriesOptions = this.getCommandSeriesOptions(ctx)
 
     const includeSeriesPrefix = seriesOptions.includeSeriesPrefix ?? additionalOptions?.includeSeriesPrefix // Only include properties that have defined values to satisfy exactOptionalPropertyTypes // Merge: additionalOptions (plugin defaults) <- seriesOptions (config overrides)
     const seriesSeparator = seriesOptions.seriesSeparator ?? additionalOptions?.seriesSeparator
@@ -539,5 +580,122 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   protected normalizeRuleScope(rule: RulePrompt): RuleScope {
     return rule.scope ?? 'project'
+  }
+
+  protected handleError(
+    error: unknown,
+    context: ErrorContext
+  ): {success: false, error: Error} {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    this.log.error({...context, error: errorMsg})
+    return {success: false, error: error as Error}
+  }
+
+  protected async executeWriteOperation<T extends WriteResult>(
+    options: WriteOperationOptions,
+    execute: () => Promise<T>
+  ): Promise<WriteResult> {
+    const {ctx, type, fullPath, relativePath, label} = options
+
+    if (ctx.dryRun === true) { // Handle dry-run mode
+      this.log.trace({action: 'dryRun', type, path: fullPath, label})
+      return {path: relativePath, success: true, skipped: false}
+    }
+
+    try { // Execute with standardized error handling
+      const result = await execute()
+      this.log.trace({action: 'write', type, path: fullPath, label})
+      return result
+    } catch (error) {
+      return {...this.handleError(error, {action: 'write', type, path: fullPath, label}), path: relativePath}
+    }
+  }
+
+  protected buildSkillFrontMatter(
+    skill: SkillPrompt,
+    options?: SkillFrontMatterOptions
+  ): Record<string, unknown> {
+    const fm = skill.yamlFrontMatter
+    const result: Record<string, unknown> = {
+      name: fm.name,
+      description: fm.description
+    }
+
+    if ('displayName' in fm && fm.displayName != null) { // Conditionally add optional fields
+      result['displayName'] = fm.displayName
+    }
+    if ('keywords' in fm && fm.keywords != null && fm.keywords.length > 0) result['keywords'] = fm.keywords
+    if ('author' in fm && fm.author != null) result['author'] = fm.author
+    if ('version' in fm && fm.version != null) result['version'] = fm.version
+
+    const includeTools = options?.includeTools ?? true // Handle tools based on options
+    if (includeTools && 'allowTools' in fm && fm.allowTools != null && fm.allowTools.length > 0) {
+      const toolFormat = options?.toolFormat ?? 'array'
+      result['allowTools'] = toolFormat === 'string' ? fm.allowTools.join(',') : fm.allowTools
+    }
+
+    if (options?.additionalFields != null) { // Add any additional custom fields
+      Object.assign(result, options.additionalFields)
+    }
+
+    return result
+  }
+
+  protected buildRuleContent(
+    rule: RulePrompt,
+    options: RuleContentOptions
+  ): string {
+    const globsFormatted = rule.globs.length > 0
+      ? rule.globs.join(options.globJoinPattern)
+      : ''
+
+    const fmData: Record<string, unknown> = {
+      alwaysApply: options.alwaysApply,
+      globs: options.frontMatterFormatter
+        ? options.frontMatterFormatter(globsFormatted)
+        : globsFormatted,
+      ...options.additionalFrontMatter
+    }
+
+    return buildMarkdownWithFrontMatter(fmData, rule.content)
+  }
+
+  protected buildRuleFileName(
+    rule: RulePrompt,
+    prefix: string = 'rule-'
+  ): string {
+    return `${prefix}${rule.series}-${rule.ruleName}.mdc`
+  }
+
+  protected async writeFileWithHandling(
+    ctx: OutputWriteContext,
+    fullPath: string,
+    content: string,
+    options: {
+      type: string
+      label?: string
+      relativePath: RelativePath
+    }
+  ): Promise<WriteResult> {
+    const result = await this.executeWriteOperation(
+      {
+        ctx,
+        type: options.type,
+        fullPath,
+        relativePath: options.relativePath,
+        label: options.label
+      },
+      async () => {
+        this.ensureDirectory(path.dirname(fullPath))
+        this.writeFileSync(fullPath, content)
+        return {path: options.relativePath, success: true as const}
+      }
+    )
+
+    if ('success' in result && !result.success) { // If executeWriteOperation returned a WriteResult (error case), pass it through
+      return result
+    }
+
+    return {path: options.relativePath, success: true}
   }
 }

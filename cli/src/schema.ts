@@ -1,5 +1,5 @@
-import {ZUserConfigFile} from '@truenine/plugin-shared'
 import {zodToJsonSchema} from 'zod-to-json-schema'
+import {ZUserConfigFile} from './plugins/plugin-shared'
 
 /**
  * JSON Schema for .tnmsc.json — auto-generated from ZUserConfigFile via zod-to-json-schema.

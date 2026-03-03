@@ -4,13 +4,13 @@ import type {
   ReadmeFileKind,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {FilePathKind, README_FILE_KIND_MAP} from '@truenine/plugin-shared'
+import {FilePathKind, README_FILE_KIND_MAP} from '../plugin-shared'
 
 function resolveOutputFileName(fileKind?: ReadmeFileKind): string {
   return README_FILE_KIND_MAP[fileKind ?? 'Readme'].out

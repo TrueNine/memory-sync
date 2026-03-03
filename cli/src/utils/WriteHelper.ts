@@ -38,9 +38,9 @@ export function createSkillDirPath(basePath: string, skillsSubDir: string, skill
 }
 
 /**
- * Create a fast command output path
+ * Create a command output path
  */
-export function createFastCommandOutputPath(
+export function createCommandOutputPath(
   globalDir: string,
   commandsSubDir: string,
   fileName: string

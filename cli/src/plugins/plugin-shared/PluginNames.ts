@@ -10,6 +10,7 @@ export const PLUGIN_NAMES = {
   DroidCLIOutput: 'DroidCLIOutputPlugin',
   WarpIDEOutput: 'WarpIDEOutputPlugin',
   TraeIDEOutput: 'TraeIDEOutputPlugin',
+  TraeCNIDEOutput: 'TraeCNIDEOutputPlugin',
   QoderIDEOutput: 'QoderIDEPluginOutputPlugin',
   JetBrainsCodeStyleOutput: 'JetBrainsIDECodeStyleConfigOutputPlugin',
   JetBrainsAICodexOutput: 'JetBrainsAIAssistantCodexOutputPlugin',

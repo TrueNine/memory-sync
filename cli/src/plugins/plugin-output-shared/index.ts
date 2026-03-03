@@ -4,7 +4,11 @@ export {
 export type {
   AbstractOutputPluginOptions,
   CombineOptions,
-  FastCommandNameTransformOptions
+  CommandNameTransformOptions,
+  ErrorContext,
+  RuleContentOptions,
+  SkillFrontMatterOptions,
+  WriteOperationOptions
 } from './AbstractOutputPlugin'
 export {
   BaseCLIOutputPlugin
@@ -13,10 +17,34 @@ export type {
   BaseCLIOutputPluginOptions
 } from './BaseCLIOutputPlugin'
 export {
+  FileExtensions,
+  FrontMatterFields,
+  GlobalConfigDirs,
+  IgnoreFiles,
+  OutputFileNames,
+  OutputPrefixes,
+  OutputSubdirectories,
+  PreservedSkills,
+  ToolPresets
+} from './constants'
+export {
+  McpConfigManager,
+  transformMcpConfigForCursor,
+  transformMcpConfigForOpencode
+} from './McpConfigManager'
+export type {
+  McpConfigFormat,
+  McpConfigTransformer,
+  McpServerEntry,
+  McpWriteResult,
+  TransformedMcpConfig
+} from './McpConfigManager'
+export {
   applySubSeriesGlobPrefix,
   filterCommandsByProjectConfig,
   filterRulesByProjectConfig,
   filterSkillsByProjectConfig,
+  filterSubAgentsByProjectConfig,
   findAllGitRepos,
   findGitModuleInfoDirs,
   matchesSeries,

@@ -2,7 +2,7 @@ import type {
   OutputWriteContext,
   SkillPrompt,
   WriteResult
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 import * as path from 'node:path'
 import {BaseCLIOutputPlugin} from '@truenine/plugin-output-shared'
 
@@ -14,7 +14,7 @@ export class DroidCLIOutputPlugin extends BaseCLIOutputPlugin {
     super('DroidCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: GLOBAL_MEMORY_FILE,
-      supportsFastCommands: true,
+      supportsCommands: true,
       supportsSubAgents: true,
       supportsSkills: true
     }) // Droid uses default subdir names

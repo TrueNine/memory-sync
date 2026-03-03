@@ -10,7 +10,6 @@ pub fn execute() -> ExitCode {
     println!("  (default)    Sync AI memory and configuration files");
     println!("  dry-run      Preview changes without writing files");
     println!("  clean        Remove all generated output files");
-    println!("  init         Initialize directory structure");
     println!("  config       Set or show configuration values");
     println!("  plugins      List all registered plugins");
     println!("  version      Show version information");

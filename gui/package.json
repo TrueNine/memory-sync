@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-gui",
-  "version": "2026.10302.10037",
+  "version": "2026.10303.10919",
   "private": true,
   "engines": {
     "node": ">=25.2.1",
@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
-    "@tanstack/router-generator": "^1.162.2",
+    "@tanstack/router-generator": "^1.164.0",
     "@tauri-apps/cli": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

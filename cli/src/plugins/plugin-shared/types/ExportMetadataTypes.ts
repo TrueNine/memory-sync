@@ -7,6 +7,7 @@
  */
 
 import type {CodingAgentTools, NamingCaseKind, RuleScope} from './Enums'
+import type {SeriName} from './PromptTypes'
 
 /**
  * Base export metadata interface
@@ -25,20 +26,24 @@ export interface SkillExportMetadata extends BaseExportMetadata {
   readonly author?: string
   readonly version?: string
   readonly allowTools?: readonly (CodingAgentTools | string)[]
+  readonly seriName?: SeriName
+  readonly scope?: RuleScope
 }
 
-export interface FastCommandExportMetadata extends BaseExportMetadata {
+export interface CommandExportMetadata extends BaseExportMetadata {
   readonly description?: string
   readonly argumentHint?: string
   readonly allowTools?: readonly (CodingAgentTools | string)[]
   readonly globalOnly?: boolean
+  readonly seriName?: SeriName
+  readonly scope?: RuleScope
 }
 
 export interface RuleExportMetadata extends BaseExportMetadata {
   readonly globs: readonly string[]
   readonly description: string
   readonly scope?: RuleScope
-  readonly seriName?: string
+  readonly seriName?: SeriName
 }
 
 export interface SubAgentExportMetadata extends BaseExportMetadata {
@@ -49,6 +54,8 @@ export interface SubAgentExportMetadata extends BaseExportMetadata {
   readonly color?: string
   readonly argumentHint?: string
   readonly allowTools?: readonly (CodingAgentTools | string)[]
+  readonly seriName?: SeriName
+  readonly scope?: RuleScope
 }
 
 /**
@@ -116,14 +123,30 @@ export function validateSkillMetadata(
   metadata: Record<string, unknown>,
   filePath?: string
 ): MetadataValidationResult {
-  return validateExportMetadata<SkillExportMetadata>(metadata, {
-    requiredFields: ['name', 'description'],
-    optionalDefaults: {
-      enabled: true,
-      keywords: []
-    },
-    filePath
-  })
+  const prefix = filePath != null ? ` in ${filePath}` : ''
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  if (!('name' in metadata) || metadata['name'] == null) { // Check name field
+    errors.push(`Missing required field "name"${prefix}`)
+  }
+
+  if (!('description' in metadata) || metadata['description'] == null) { // Check description field - must exist and not be empty
+    errors.push(`Missing required field "description"${prefix}`)
+  } else if (typeof metadata['description'] !== 'string' || metadata['description'].trim().length === 0) {
+    errors.push(`Required field "description" cannot be empty${prefix}`)
+  }
+
+  if (metadata['enabled'] == null) { // Optional fields with defaults
+    warnings.push(`Using default value for optional field "enabled": true${prefix}`)
+  }
+  if (metadata['keywords'] == null) warnings.push(`Using default value for optional field "keywords": []${prefix}`)
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings
+  }
 }
 
 /**
@@ -133,11 +156,11 @@ export function validateSkillMetadata(
  * @param filePath - Optional file path for error messages
  * @returns Validation result
  */
-export function validateFastCommandMetadata(
+export function validateCommandMetadata(
   metadata: Record<string, unknown>,
   filePath?: string
 ): MetadataValidationResult {
-  return validateExportMetadata<FastCommandExportMetadata>(metadata, { // description is optional (can come from YAML or be omitted) // FastCommand has no required fields from export metadata
+  return validateExportMetadata<CommandExportMetadata>(metadata, { // description is optional (can come from YAML or be omitted) // Command has no required fields from export metadata
     requiredFields: [],
     optionalDefaults: {},
     filePath
@@ -183,11 +206,11 @@ export function validateRuleMetadata(
   if (typeof metadata['description'] !== 'string' || metadata['description'].length === 0) errors.push(`Missing or empty required field "description"${prefix}`)
 
   const {scope, seriName} = metadata
-  if (scope != null && scope !== 'project' && scope !== 'global') errors.push(`Field "scope" must be "project" or "global"${prefix}`)
+  if (scope != null && scope !== 'project' && scope !== 'global' && scope !== 'workspace') errors.push(`Field "scope" must be "project", "global" or "workspace"${prefix}`)
 
   if (scope == null) warnings.push(`Using default value for optional field "scope": "project"${prefix}`)
 
-  if (seriName != null && typeof seriName !== 'string') errors.push(`Field "seriName" must be a string${prefix}`)
+  if (seriName != null && typeof seriName !== 'string' && !Array.isArray(seriName)) errors.push(`Field "seriName" must be a string or string array${prefix}`)
 
   return {valid: errors.length === 0, errors, warnings}
 }

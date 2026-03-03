@@ -1,12 +1,12 @@
-import type {CollectedInputContext, ConfigLoaderOptions, FastCommandSeriesOptions, FastCommandSeriesPluginOverride, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, ShadowSourceProjectConfig, UserConfigFile} from '@truenine/plugin-shared'
+import type {AindexConfig, CollectedInputContext, CommandSeriesOptions, CommandSeriesPluginOverride, ConfigLoaderOptions, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, UserConfigFile} from './plugins/plugin-shared'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
-import {createLogger, DEFAULT_USER_CONFIG, PluginKind} from '@truenine/plugin-shared'
 import glob from 'fast-glob'
-import {loadUserConfig, validateAndEnsureGlobalConfig} from './ConfigLoader'
+import {checkVersionControl} from './Aindex'
+import {loadUserConfig, validateGlobalConfig} from './ConfigLoader'
 import {PluginPipeline} from './PluginPipeline'
-import {checkVersionControl} from './ShadowSourceProject'
+import {createLogger, PluginKind} from './plugins/plugin-shared'
 
 /**
  * Pipeline configuration containing collected context and output plugins
@@ -17,23 +17,25 @@ export interface PipelineConfig {
   readonly userConfigOptions: Required<PluginOptions>
 }
 
-const DEFAULT_SHADOW_SOURCE_PROJECT: Required<ShadowSourceProjectConfig> = {
-  name: 'aindex',
-  skill: {src: 'src/skills', dist: 'dist/skills'},
-  fastCommand: {src: 'src/commands', dist: 'dist/commands'},
-  subAgent: {src: 'src/agents', dist: 'dist/agents'},
-  rule: {src: 'src/rules', dist: 'dist/rules'},
-  globalMemory: {src: 'app/global.cn.mdx', dist: 'dist/global.mdx'},
-  workspaceMemory: {src: 'app/workspace.cn.mdx', dist: 'dist/app/workspace.mdx'},
-  project: {src: 'app', dist: 'dist/app'}
+const DEFAULT_AINDEX: Required<AindexConfig> = {
+  dir: 'aindex',
+  skills: {src: 'skills', dist: 'dist/skills'},
+  commands: {src: 'commands', dist: 'dist/commands'},
+  subAgents: {src: 'subagents', dist: 'dist/subagents'},
+  rules: {src: 'rules', dist: 'dist/rules'},
+  globalPrompt: {src: 'global.cn.mdx', dist: 'dist/global.mdx'},
+  workspacePrompt: {src: 'workspace.cn.mdx', dist: 'dist/workspace.mdx'},
+  app: {src: 'app', dist: 'dist/app'},
+  ext: {src: 'ext', dist: 'dist/ext'},
+  arch: {src: 'arch', dist: 'dist/arch'}
 }
 
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
-  version: DEFAULT_USER_CONFIG.version ?? '0.0.0',
-  workspaceDir: DEFAULT_USER_CONFIG.workspaceDir ?? '~/project',
-  logLevel: DEFAULT_USER_CONFIG.logLevel ?? 'info',
-  shadowSourceProject: DEFAULT_SHADOW_SOURCE_PROJECT,
-  fastCommandSeriesOptions: {},
+  version: '0.0.0',
+  workspaceDir: '~/project',
+  logLevel: 'info',
+  aindex: DEFAULT_AINDEX,
+  commandSeriesOptions: {},
   plugins: []
 }
 
@@ -45,8 +47,8 @@ function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOp
   return {
     ...userConfig.version != null ? {version: userConfig.version} : {},
     ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},
-    ...userConfig.shadowSourceProject != null ? {shadowSourceProject: userConfig.shadowSourceProject} : {},
-    ...userConfig.fastCommandSeriesOptions != null ? {fastCommandSeriesOptions: userConfig.fastCommandSeriesOptions} : {},
+    ...userConfig.aindex != null ? {aindex: userConfig.aindex} : {},
+    ...userConfig.commandSeriesOptions != null ? {commandSeriesOptions: userConfig.commandSeriesOptions} : {},
     ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
   }
 }
@@ -83,45 +85,47 @@ function mergeTwoConfigs(
   override: Partial<PluginOptions>
 ): Required<PluginOptions> {
   const overridePlugins = override.plugins
-  const overrideFastCommandSeries = override.fastCommandSeriesOptions
+  const overrideCommandSeries = override.commandSeriesOptions
 
   return {
     ...base,
     ...override,
-    shadowSourceProject: mergeShadowSourceProject(base.shadowSourceProject, override.shadowSourceProject),
+    aindex: mergeAindex(base.aindex, override.aindex),
     plugins: [ // Array concatenation for plugins
       ...base.plugins,
       ...overridePlugins ?? []
     ],
-    fastCommandSeriesOptions: mergeFastCommandSeriesOptions(base.fastCommandSeriesOptions, overrideFastCommandSeries) // Deep merge for fastCommandSeriesOptions
+    commandSeriesOptions: mergeCommandSeriesOptions(base.commandSeriesOptions, overrideCommandSeries) // Deep merge for commandSeriesOptions
   }
 }
 
-function mergeShadowSourceProject(
-  base: ShadowSourceProjectConfig,
-  override?: ShadowSourceProjectConfig
-): ShadowSourceProjectConfig {
+function mergeAindex(
+  base: AindexConfig,
+  override?: AindexConfig
+): AindexConfig {
   if (override == null) return base
   return {
-    name: override.name ?? base.name,
-    skill: {...base.skill, ...override.skill},
-    fastCommand: {...base.fastCommand, ...override.fastCommand},
-    subAgent: {...base.subAgent, ...override.subAgent},
-    rule: {...base.rule, ...override.rule},
-    globalMemory: {...base.globalMemory, ...override.globalMemory},
-    workspaceMemory: {...base.workspaceMemory, ...override.workspaceMemory},
-    project: {...base.project, ...override.project}
+    dir: override.dir ?? base.dir,
+    skills: {...base.skills, ...override.skills},
+    commands: {...base.commands, ...override.commands},
+    subAgents: {...base.subAgents, ...override.subAgents},
+    rules: {...base.rules, ...override.rules},
+    globalPrompt: {...base.globalPrompt, ...override.globalPrompt},
+    workspacePrompt: {...base.workspacePrompt, ...override.workspacePrompt},
+    app: {...base.app, ...override.app},
+    ext: {...base.ext, ...override.ext},
+    arch: {...base.arch, ...override.arch}
   }
 }
 
-function mergeFastCommandSeriesOptions(
-  base?: FastCommandSeriesOptions,
-  override?: FastCommandSeriesOptions
-): FastCommandSeriesOptions {
+function mergeCommandSeriesOptions(
+  base?: CommandSeriesOptions,
+  override?: CommandSeriesOptions
+): CommandSeriesOptions {
   if (override == null) return base ?? {}
   if (base == null) return override
 
-  const mergedPluginOverrides: Record<string, FastCommandSeriesPluginOverride> = {} // Merge pluginOverrides deeply
+  const mergedPluginOverrides: Record<string, CommandSeriesPluginOverride> = {} // Merge pluginOverrides deeply
 
   if (base.pluginOverrides != null) { // Copy base plugin overrides
     for (const [key, value] of Object.entries(base.pluginOverrides)) mergedPluginOverrides[key] = {...value}
@@ -164,8 +168,12 @@ function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): op
  * @param options - Plugin options or DefineConfigOptions
  */
 export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
-  const validationResult = validateAndEnsureGlobalConfig() // Validate and ensure global config exists
-  if (validationResult.shouldExit) process.exit(1)
+  const validationResult = validateGlobalConfig() // Validate global config exists and is valid - do not auto-create
+  if (!validationResult.valid) {
+    const logger = createLogger('defineConfig') // Log all errors before exiting
+    for (const error of validationResult.errors) logger.error(error)
+    process.exit(1)
+  }
 
   let shouldLoadUserConfig: boolean, // Normalize options
     cwd: string | undefined,
@@ -185,27 +193,32 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   let userConfigFile: UserConfigFile | undefined
 
   if (shouldLoadUserConfig) {
-    const userConfigResult = loadUserConfig(cwd)
-    userConfigFound = userConfigResult.found
-    userConfigSources = userConfigResult.sources
-    if (userConfigResult.found) {
-      userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
-      userConfigFile = userConfigResult.config
+    try {
+      const userConfigResult = loadUserConfig(cwd)
+      userConfigFound = userConfigResult.found
+      userConfigSources = userConfigResult.sources
+      if (userConfigResult.found) {
+        userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
+        userConfigFile = userConfigResult.config
+      }
     }
+    catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error) // Config loading failed - throw error instead of using defaults
+      throw new Error(`Failed to load user config: ${errorMessage}`)
+    }
+  }
+
+  if (!userConfigFound) { // Require user config to be found - no fallback to defaults
+    throw new Error(
+      'No user config found. Please create ~/.aindex/.tnmsc.json or a .tnmsc.json in your working directory.'
+    )
   }
 
   const mergedOptions = mergeConfig(userConfigOptions, pluginOptions) // Merge: defaults <- user config <- programmatic options
   const {plugins = [], logLevel} = mergedOptions
   const logger = createLogger('defineConfig', logLevel)
 
-  if (userConfigFound) logger.info('user config loaded', {sources: userConfigSources}) // Log configuration loading info
-  else {
-    logger.info('no user config found, using defaults', {
-      workspaceDir: DEFAULT_OPTIONS.workspaceDir,
-      shadowSourceProjectName: DEFAULT_OPTIONS.shadowSourceProject.name,
-      logLevel: DEFAULT_OPTIONS.logLevel
-    })
-  }
+  logger.info('user config loaded', {sources: userConfigSources})
 
   const baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = { // Base context without dependencyContext, globalScope, scopeRegistry (will be provided by pipeline)
     logger,
@@ -228,19 +241,19 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     ...merged.vscodeConfigFiles != null && {vscodeConfigFiles: merged.vscodeConfigFiles},
     ...merged.jetbrainsConfigFiles != null && {jetbrainsConfigFiles: merged.jetbrainsConfigFiles},
     ...merged.editorConfigFiles != null && {editorConfigFiles: merged.editorConfigFiles},
-    ...merged.fastCommands != null && {fastCommands: merged.fastCommands},
+    ...merged.commands != null && {commands: merged.commands},
     ...merged.subAgents != null && {subAgents: merged.subAgents},
     ...merged.skills != null && {skills: merged.skills},
     ...merged.rules != null && {rules: merged.rules},
     ...merged.globalMemory != null && {globalMemory: merged.globalMemory},
     ...merged.aiAgentIgnoreConfigFiles != null && {aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles},
-    ...merged.shadowSourceProjectDir != null && {shadowSourceProjectDir: merged.shadowSourceProjectDir},
+    ...merged.aindexDir != null && {aindexDir: merged.aindexDir},
     ...merged.readmePrompts != null && {readmePrompts: merged.readmePrompts},
     ...merged.globalGitIgnore != null && {globalGitIgnore: merged.globalGitIgnore},
     ...merged.shadowGitExclude != null && {shadowGitExclude: merged.shadowGitExclude}
   }
 
-  if (merged.shadowSourceProjectDir != null) checkVersionControl(merged.shadowSourceProjectDir, logger) // Check version control status for shadow source project
+  if (merged.aindexDir != null) checkVersionControl(merged.aindexDir, logger) // Check version control status for aindex
 
   return {context, outputPlugins, userConfigOptions: mergedOptions}
 }

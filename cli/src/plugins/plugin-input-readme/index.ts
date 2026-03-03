@@ -1,3 +1,0 @@
-export {
-  ReadmeMdInputPlugin
-} from './ReadmeMdInputPlugin'

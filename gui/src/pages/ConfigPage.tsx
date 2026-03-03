@@ -91,8 +91,8 @@ const ConfigForm: FC<ConfigFormProps> = ({ data, onChange, t }) => {
     onChange(next)
   }, [data, onChange])
 
-  const shadowSourceProject = (typeof data['shadowSourceProject'] === 'object' && data['shadowSourceProject'] !== null
-    ? data['shadowSourceProject']
+  const aindex = (typeof data['aindex'] === 'object' && data['aindex'] !== null
+    ? data['aindex']
     : {}) as Record<string, unknown>
 
   return (
@@ -109,11 +109,11 @@ const ConfigForm: FC<ConfigFormProps> = ({ data, onChange, t }) => {
       ))}
 
       <FormField
-        label={t('config.field.shadowSourceProject.name')}
-        description={t('config.field.shadowSourceProject.name.desc')}
-        value={(shadowSourceProject['name'] as string) ?? ''}
-        onChange={(v) => updateNestedField('shadowSourceProject', 'name', v)}
-        placeholder="tnmsc-shadow"
+        label={t('config.field.aindex.name')}
+        description={t('config.field.aindex.name.desc')}
+        value={(aindex['name'] as string) ?? ''}
+        onChange={(v) => updateNestedField('aindex', 'name', v)}
+        placeholder="aindex"
       />
 
       <div className="flex flex-col gap-1.5">

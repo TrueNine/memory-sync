@@ -1,37 +1,43 @@
 import type {
-  FastCommandPrompt,
+  CommandPrompt,
   OutputPluginContext,
   OutputWriteContext,
-  Project,
   RulePrompt,
   SkillPrompt,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
-import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
+import {
+  AbstractOutputPlugin,
+  applySubSeriesGlobPrefix,
+  filterCommandsByProjectConfig,
+  filterRulesByProjectConfig,
+  filterSkillsByProjectConfig,
+  GlobalConfigDirs,
+  IgnoreFiles,
+  McpConfigManager,
+  OutputFileNames,
+  OutputPrefixes,
+  OutputSubdirectories,
+  PreservedSkills,
+  transformMcpConfigForCursor
+} from '@truenine/plugin-output-shared'
+import {FilePathKind, PLUGIN_NAMES} from '../plugin-shared'
 
-const GLOBAL_CONFIG_DIR = '.cursor'
-const MCP_CONFIG_FILE = 'mcp.json'
-const COMMANDS_SUBDIR = 'commands'
-const RULES_SUBDIR = 'rules'
-const GLOBAL_RULE_FILE = 'global.mdc'
-const SKILLS_CURSOR_SUBDIR = 'skills-cursor'
-const SKILL_FILE_NAME = 'SKILL.md'
-const RULE_FILE_PREFIX = 'rule-'
-
-const PRESERVED_SKILLS = new Set<string>([
-  'create-rule',
-  'create-skill',
-  'create-subagent',
-  'migrate-to-skills',
-  'update-cursor-settings'
-])
+const GLOBAL_CONFIG_DIR = GlobalConfigDirs.CURSOR // Constants for local use (consider moving to constants.ts if used by multiple plugins)
+const MCP_CONFIG_FILE = OutputFileNames.MCP_CONFIG
+const COMMANDS_SUBDIR = OutputSubdirectories.COMMANDS
+const RULES_SUBDIR = OutputSubdirectories.RULES
+const GLOBAL_RULE_FILE = OutputFileNames.CURSOR_GLOBAL_RULE
+const SKILLS_CURSOR_SUBDIR = OutputSubdirectories.CURSOR_SKILLS
+const SKILL_FILE_NAME = OutputFileNames.SKILL
+const RULE_FILE_PREFIX = OutputPrefixes.RULE
+const PRESERVED_SKILLS = PreservedSkills.CURSOR
 
 export class CursorOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -39,7 +45,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: '',
       dependsOn: [PLUGIN_NAMES.AgentsOutput],
-      indexignore: '.cursorignore'
+      indexignore: IgnoreFiles.CURSOR
     })
 
     this.registerCleanEffect('mcp-config-cleanup', async ctx => {
@@ -69,11 +75,11 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const globalDir = this.getGlobalConfigDir()
-    const {fastCommands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       if (filteredCommands.length > 0) {
         const commandsDir = this.getGlobalCommandsDir()
         results.push({pathKind: FilePathKind.Relative, path: COMMANDS_SUBDIR, basePath: globalDir, getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => commandsDir})
@@ -101,7 +107,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const globalDir = this.getGlobalConfigDir()
-    const {skills, fastCommands} = ctx.collectedInputContext
+    const {skills, commands} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
     const hasAnyMcpConfig = filteredSkills.some(s => s.mcpConfig != null)
@@ -111,12 +117,12 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       results.push({pathKind: FilePathKind.Relative, path: MCP_CONFIG_FILE, basePath: globalDir, getDirectoryName: () => GLOBAL_CONFIG_DIR, getAbsolutePath: () => mcpConfigPath})
     }
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       const commandsDir = this.getGlobalCommandsDir()
       const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
       for (const cmd of filteredCommands) {
-        const fileName = this.transformFastCommandName(cmd, transformOptions)
+        const fileName = this.transformCommandName(cmd, transformOptions)
         const fullPath = path.join(commandsDir, fileName)
         results.push({pathKind: FilePathKind.Relative, path: path.join(COMMANDS_SUBDIR, fileName), basePath: globalDir, getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => fullPath})
       }
@@ -197,9 +203,9 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, skills, fastCommands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, skills, commands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasSkills = (skills?.length ?? 0) > 0
-    const hasFastCommands = (fastCommands?.length ?? 0) > 0
+    const hasFastCommands = (commands?.length ?? 0) > 0
     const hasRules = (rules?.length ?? 0) > 0
     const hasGlobalRuleOutput = globalMemory != null && workspace.projects.some(p => p.dirFromWorkspacePath != null)
     const hasCursorIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.cursorignore') ?? false
@@ -209,7 +215,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {skills, fastCommands, rules} = ctx.collectedInputContext
+    const {skills, commands, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
@@ -226,10 +232,10 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (fastCommands != null && fastCommands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(fastCommands, projectConfig)
+    if (commands != null && commands.length > 0) {
+      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       const commandsDir = this.getGlobalCommandsDir()
-      for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalFastCommand(ctx, commandsDir, cmd))
+      for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalCommand(ctx, commandsDir, cmd))
     }
 
     const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
@@ -281,107 +287,55 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return buildMarkdownWithFrontMatter({description: 'Global prompt (synced)', alwaysApply: true}, content)
   }
 
-  private async writeProjectGlobalRule(ctx: OutputWriteContext, project: Project, content: string): Promise<WriteResult> {
+  private async writeProjectGlobalRule(ctx: OutputWriteContext, project: {dirFromWorkspacePath?: RelativePath | null}, content: string): Promise<WriteResult> {
     const projectDir = project.dirFromWorkspacePath!
     const rulesDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR)
     const fullPath = path.join(rulesDir, GLOBAL_RULE_FILE)
     const relativePath = this.createProjectRuleFileRelativePath(projectDir, GLOBAL_RULE_FILE)
 
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'globalRule', path: fullPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      this.ensureDirectory(rulesDir)
-      this.writeFileSync(fullPath, content)
-      this.log.trace({action: 'write', type: 'globalRule', path: fullPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'globalRule', path: fullPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+    return this.writeFileWithHandling(ctx, fullPath, content, {
+      type: 'globalRule',
+      relativePath
+    })
   }
 
   private isPreservedSkill(name: string): boolean { return PRESERVED_SKILLS.has(name) }
   private getSkillsCursorDir(): string { return path.join(this.getGlobalConfigDir(), SKILLS_CURSOR_SUBDIR) }
   private getGlobalCommandsDir(): string { return path.join(this.getGlobalConfigDir(), COMMANDS_SUBDIR) }
 
-  private async writeGlobalFastCommand(ctx: OutputWriteContext, commandsDir: string, cmd: FastCommandPrompt): Promise<WriteResult> {
+  private async writeGlobalCommand(ctx: OutputWriteContext, commandsDir: string, cmd: CommandPrompt): Promise<WriteResult> {
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-    const fileName = this.transformFastCommandName(cmd, transformOptions)
+    const fileName = this.transformCommandName(cmd, transformOptions)
     const fullPath = path.join(commandsDir, fileName)
-    const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(COMMANDS_SUBDIR, fileName), basePath: this.getGlobalConfigDir(), getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => fullPath}
+    const globalDir = this.getGlobalConfigDir()
+    const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(COMMANDS_SUBDIR, fileName), basePath: globalDir, getDirectoryName: () => COMMANDS_SUBDIR, getAbsolutePath: () => fullPath}
     const content = this.buildMarkdownContentWithRaw(cmd.content, cmd.yamlFrontMatter, cmd.rawFrontMatter)
 
-    if (ctx.dryRun === true) { this.log.trace({action: 'dryRun', type: 'globalFastCommand', path: fullPath}); return {path: relativePath, success: true, skipped: false} }
-
-    try {
-      this.ensureDirectory(commandsDir)
-      fs.writeFileSync(fullPath, content)
-      this.log.trace({action: 'write', type: 'globalFastCommand', path: fullPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'globalFastCommand', path: fullPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+    return this.writeFileWithHandling(ctx, fullPath, content, {
+      type: 'globalFastCommand',
+      relativePath
+    })
   }
 
   private async writeGlobalMcpConfig(ctx: OutputWriteContext, skills: readonly SkillPrompt[]): Promise<WriteResult | null> {
-    const mergedMcpServers: Record<string, unknown> = {}
-    for (const skill of skills) {
-      if (skill.mcpConfig == null) continue
-      for (const [mcpName, mcpConfig] of Object.entries(skill.mcpConfig.mcpServers)) mergedMcpServers[mcpName] = this.transformMcpConfigForCursor({...(mcpConfig as unknown as Record<string, unknown>)})
-    }
-    if (Object.keys(mergedMcpServers).length === 0) return null
+    const mcpManager = new McpConfigManager({fs, logger: this.log})
+    const servers = mcpManager.collectMcpServers(skills)
+
+    if (servers.size === 0) return null
+
+    const transformed = mcpManager.transformMcpServers(servers, transformMcpConfigForCursor)
 
     const globalDir = this.getGlobalConfigDir()
     const mcpConfigPath = path.join(globalDir, MCP_CONFIG_FILE)
-    const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: MCP_CONFIG_FILE, basePath: globalDir, getDirectoryName: () => GLOBAL_CONFIG_DIR, getAbsolutePath: () => mcpConfigPath}
 
-    let existingConfig: Record<string, unknown> = {}
-    try { if (this.existsSync(mcpConfigPath)) existingConfig = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf8')) as Record<string, unknown> }
-    catch { existingConfig = {} }
+    const result = mcpManager.writeCursorMcpConfig(mcpConfigPath, transformed, ctx.dryRun === true)
 
-    const existingMcpServers = (existingConfig['mcpServers'] as Record<string, unknown>) ?? {}
-    existingConfig['mcpServers'] = {...existingMcpServers, ...mergedMcpServers}
-    const content = JSON.stringify(existingConfig, null, 2)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'globalMcpConfig', path: mcpConfigPath, serverCount: Object.keys(mergedMcpServers).length})
-      return {path: relativePath, success: true, skipped: false}
+    return {
+      path: {pathKind: FilePathKind.Relative, path: MCP_CONFIG_FILE, basePath: globalDir, getDirectoryName: () => GLOBAL_CONFIG_DIR, getAbsolutePath: () => mcpConfigPath},
+      success: result.success,
+      ...result.error != null && {error: result.error},
+      ...ctx.dryRun && {skipped: true}
     }
-
-    try {
-      this.ensureDirectory(globalDir)
-      fs.writeFileSync(mcpConfigPath, content)
-      this.log.trace({action: 'write', type: 'globalMcpConfig', path: mcpConfigPath, serverCount: Object.keys(mergedMcpServers).length})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'globalMcpConfig', path: mcpConfigPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
-  }
-
-  private transformMcpConfigForCursor(config: Record<string, unknown>): Record<string, unknown> {
-    const result: Record<string, unknown> = {}
-    if (config['command'] != null) {
-      result['command'] = config['command']
-      if (config['args'] != null) result['args'] = config['args']
-      if (config['env'] != null) result['env'] = config['env']
-      return result
-    }
-    const url = config['url'] ?? config['serverUrl']
-    if (url == null) return result
-    result['url'] = url
-    if (config['headers'] != null) result['headers'] = config['headers']
-    return result
   }
 
   private async writeGlobalSkill(ctx: OutputWriteContext, skillsDir: string, skill: SkillPrompt): Promise<WriteResult[]> {
@@ -418,30 +372,19 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  private buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
-    const fm = skill.yamlFrontMatter
-    return {name: fm.name, description: fm.description, ...fm.displayName != null && {displayName: fm.displayName}, ...fm.keywords != null && fm.keywords.length > 0 && {keywords: fm.keywords}, ...fm.author != null && {author: fm.author}, ...fm.version != null && {version: fm.version}, ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}}
-  }
-
   private async writeSkillMcpConfig(ctx: OutputWriteContext, skill: SkillPrompt, skillDir: string, globalDir: string): Promise<WriteResult> {
     const skillName = skill.yamlFrontMatter.name
     const mcpConfigPath = path.join(skillDir, MCP_CONFIG_FILE)
     const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(SKILLS_CURSOR_SUBDIR, skillName, MCP_CONFIG_FILE), basePath: globalDir, getDirectoryName: () => skillName, getAbsolutePath: () => mcpConfigPath}
-    const mcpConfigContent = skill.mcpConfig!.rawContent
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'mcpConfig', path: mcpConfigPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-    try {
-      this.ensureDirectory(skillDir)
-      this.writeFileSync(mcpConfigPath, mcpConfigContent)
-      this.log.trace({action: 'write', type: 'mcpConfig', path: mcpConfigPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'mcpConfig', path: mcpConfigPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
+
+    const mcpManager = new McpConfigManager({fs, logger: this.log})
+    const result = mcpManager.writeSkillMcpConfig(mcpConfigPath, skill.mcpConfig!.rawContent, ctx.dryRun === true)
+
+    return {
+      path: relativePath,
+      success: result.success,
+      ...result.error != null && {error: result.error},
+      ...ctx.dryRun && {skipped: true}
     }
   }
 
@@ -492,8 +435,6 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  private buildRuleFileName(rule: RulePrompt): string { return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.mdc` }
-
   protected buildRuleMdcContent(rule: RulePrompt): string {
     const fmData: Record<string, unknown> = {alwaysApply: false, globs: rule.globs.length > 0 ? rule.globs.join(', ') : ''}
     const raw = buildMarkdownWithFrontMatter(fmData, rule.content)
@@ -510,24 +451,14 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   private async writeRuleMdcFile(ctx: OutputWriteContext, rulesDir: string, rule: RulePrompt, basePath: string): Promise<WriteResult> {
-    const fileName = this.buildRuleFileName(rule)
+    const fileName = this.buildRuleFileName(rule, RULE_FILE_PREFIX)
     const fullPath = path.join(rulesDir, fileName)
     const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(GLOBAL_CONFIG_DIR, RULES_SUBDIR, fileName), basePath, getDirectoryName: () => RULES_SUBDIR, getAbsolutePath: () => fullPath}
     const content = this.buildRuleMdcContent(rule)
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'ruleFile', path: fullPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-    try {
-      this.ensureDirectory(rulesDir)
-      this.writeFileSync(fullPath, content)
-      this.log.trace({action: 'write', type: 'ruleFile', path: fullPath})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'ruleFile', path: fullPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+
+    return this.writeFileWithHandling(ctx, fullPath, content, {
+      type: 'ruleFile',
+      relativePath
+    })
   }
 }

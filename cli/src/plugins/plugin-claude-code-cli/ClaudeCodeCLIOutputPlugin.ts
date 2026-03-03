@@ -1,5 +1,5 @@
-import type {OutputPluginContext, OutputWriteContext, RulePrompt, WriteResults} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+import type {OutputPluginContext, OutputWriteContext, RulePrompt, WriteResults} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter, doubleQuoted} from '@truenine/md-compiler/markdown'
 import {applySubSeriesGlobPrefix, BaseCLIOutputPlugin, filterRulesByProjectConfig} from '@truenine/plugin-output-shared'
@@ -7,6 +7,9 @@ import {applySubSeriesGlobPrefix, BaseCLIOutputPlugin, filterRulesByProjectConfi
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'
 const GLOBAL_CONFIG_DIR = '.claude'
 const RULES_SUBDIR = 'rules'
+const COMMANDS_SUBDIR = 'commands'
+const AGENTS_SUBDIR = 'agents'
+const SKILLS_SUBDIR = 'skills'
 const RULE_FILE_PREFIX = 'rule-'
 
 /**
@@ -24,35 +27,30 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: PROJECT_MEMORY_FILE,
       toolPreset: 'claudeCode',
-      supportsFastCommands: true,
+      supportsCommands: true,
       supportsSubAgents: true,
-      supportsSkills: true
+      supportsSkills: true,
+      commandsSubDir: COMMANDS_SUBDIR,
+      agentsSubDir: AGENTS_SUBDIR,
+      skillsSubDir: SKILLS_SUBDIR
     })
   }
 
-  private buildRuleFileName(rule: RulePrompt): string {
-    return `${RULE_FILE_PREFIX}${rule.series}-${rule.ruleName}.md`
+  protected override buildRuleFileName(rule: RulePrompt, prefix: string = RULE_FILE_PREFIX): string {
+    return `${prefix}${rule.series}-${rule.ruleName}.md`
   }
 
-  private buildRuleContent(rule: RulePrompt): string {
+  protected override buildRuleContent(rule: RulePrompt): string {
     if (rule.globs.length === 0) return rule.content
     return buildMarkdownWithFrontMatter({paths: rule.globs.map(doubleQuoted)}, rule.content)
   }
 
-  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results = await super.registerGlobalOutputDirs(ctx)
-    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
-    if (globalRules != null && globalRules.length > 0) results.push(this.createRelativePath(RULES_SUBDIR, this.getGlobalConfigDir(), () => RULES_SUBDIR))
-    return results
+  override async registerGlobalOutputDirs(_ctx: OutputPluginContext): Promise<RelativePath[]> {
+    return []
   }
 
   override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results = await super.registerGlobalOutputFiles(ctx)
-    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
-    if (globalRules == null || globalRules.length === 0) return results
-    const rulesDir = path.join(this.getGlobalConfigDir(), RULES_SUBDIR)
-    for (const rule of globalRules) results.push(this.createRelativePath(this.buildRuleFileName(rule), rulesDir, () => RULES_SUBDIR))
-    return results
+    return super.registerGlobalOutputFiles(ctx)
   }
 
   override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
@@ -62,10 +60,7 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     for (const project of ctx.collectedInputContext.workspace.projects) {
       if (project.dirFromWorkspacePath == null) continue
       const projectRules = applySubSeriesGlobPrefix(
-        filterRulesByProjectConfig(
-          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
-          project.projectConfig
-        ),
+        filterRulesByProjectConfig(rules, project.projectConfig),
         project.projectConfig
       )
       if (projectRules.length === 0) continue
@@ -82,10 +77,7 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     for (const project of ctx.collectedInputContext.workspace.projects) {
       if (project.dirFromWorkspacePath == null) continue
       const projectRules = applySubSeriesGlobPrefix(
-        filterRulesByProjectConfig(
-          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
-          project.projectConfig
-        ),
+        filterRulesByProjectConfig(rules, project.projectConfig),
         project.projectConfig
       )
       for (const rule of projectRules) {
@@ -102,13 +94,7 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
   }
 
   override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const results = await super.writeGlobalOutputs(ctx)
-    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
-    if (globalRules == null || globalRules.length === 0) return results
-    const rulesDir = path.join(this.getGlobalConfigDir(), RULES_SUBDIR)
-    const ruleResults = []
-    for (const rule of globalRules) ruleResults.push(await this.writeFile(ctx, path.join(rulesDir, this.buildRuleFileName(rule)), this.buildRuleContent(rule), 'rule'))
-    return {files: [...results.files, ...ruleResults], dirs: results.dirs}
+    return super.writeGlobalOutputs(ctx)
   }
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
@@ -119,10 +105,7 @@ export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
     for (const project of ctx.collectedInputContext.workspace.projects) {
       if (project.dirFromWorkspacePath == null) continue
       const projectRules = applySubSeriesGlobPrefix(
-        filterRulesByProjectConfig(
-          rules.filter(r => this.normalizeRuleScope(r) === 'project'),
-          project.projectConfig
-        ),
+        filterRulesByProjectConfig(rules, project.projectConfig),
         project.projectConfig
       )
       if (projectRules.length === 0) continue

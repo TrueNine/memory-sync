@@ -1,5 +1,5 @@
 import type {EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@truenine/md-compiler/globals' // Collects and manages global scope variables for MDX expression evaluation. // src/scope/GlobalScopeCollector.ts
-import type {UserConfigFile} from '@truenine/plugin-shared'
+import type {UserConfigFile} from '../../plugin-shared'
 import * as os from 'node:os'
 import process from 'node:process'
 import {OsKind, ShellKind, ToolPresets} from '@truenine/md-compiler/globals'

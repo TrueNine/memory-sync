@@ -1,17 +1,13 @@
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {fileURLToPath, URL} from 'node:url'
-import {bundles} from '@truenine/init-bundle'
 import {defineConfig} from 'vite'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
-const kiroGlobalPowersRegistry = bundles['public/kiro_global_powers_registry.json']?.content ?? '{"version":"1.0.0","powers":{},"repoSources":{}}'
+const kiroGlobalPowersRegistry = '{"version":"1.0.0","powers":{},"repoSources":{}}'
 
 const pluginAliases: Record<string, string> = {
   '@truenine/desk-paths': resolve('src/plugins/desk-paths/index.ts'),
-  '@truenine/plugin-shared': resolve('src/plugins/plugin-shared/index.ts'),
-  '@truenine/plugin-shared/types': resolve('src/plugins/plugin-shared/types/index.ts'),
-  '@truenine/plugin-shared/testing': resolve('src/plugins/plugin-shared/testing/index.ts'),
   '@truenine/plugin-output-shared': resolve('src/plugins/plugin-output-shared/index.ts'),
   '@truenine/plugin-output-shared/utils': resolve('src/plugins/plugin-output-shared/utils/index.ts'),
   '@truenine/plugin-output-shared/registry': resolve('src/plugins/plugin-output-shared/registry/index.ts'),
@@ -53,8 +49,7 @@ const pluginAliases: Record<string, string> = {
   '@truenine/plugin-trae-ide': resolve('src/plugins/plugin-trae-ide/index.ts'),
   '@truenine/plugin-vscode': resolve('src/plugins/plugin-vscode/index.ts'),
   '@truenine/plugin-warp-ide': resolve('src/plugins/plugin-warp-ide/index.ts'),
-  '@truenine/plugin-windsurf': resolve('src/plugins/plugin-windsurf/index.ts'),
-  '@truenine/config': resolve('src/config/index.ts')
+  '@truenine/plugin-windsurf': resolve('src/plugins/plugin-windsurf/index.ts')
 }
 
 export default defineConfig({

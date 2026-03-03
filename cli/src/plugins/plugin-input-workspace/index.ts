@@ -1,3 +1,0 @@
-export {
-  WorkspaceInputPlugin
-} from './WorkspaceInputPlugin'

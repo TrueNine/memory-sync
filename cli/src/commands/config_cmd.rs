@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
-use tnmsc_config::ConfigLoader;
 use tnmsc_logger::create_logger;
+use crate::core::config::{ConfigLoader, get_global_config_path};
 
 pub fn execute(pairs: &[(String, String)]) -> ExitCode {
     let logger = create_logger("config", None);
@@ -32,7 +32,7 @@ pub fn execute(pairs: &[(String, String)]) -> ExitCode {
         }
     }
 
-    let config_path = tnmsc_config::get_global_config_path();
+    let config_path = get_global_config_path();
     match serde_json::to_string_pretty(&config) {
         Ok(json) => {
             if let Some(parent) = config_path.parent() {

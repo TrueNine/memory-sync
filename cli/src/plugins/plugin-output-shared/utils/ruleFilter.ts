@@ -1,6 +1,7 @@
-import type {RulePrompt} from '@truenine/plugin-shared'
-import type {Project, ProjectConfig} from '@truenine/plugin-shared/types'
-import {matchesSeries, resolveEffectiveIncludeSeries, resolveSubSeries} from './seriesFilter'
+import type {RulePrompt} from '../../plugin-shared'
+import type {Project, ProjectConfig} from '../../plugin-shared/types'
+import {filterByProjectConfig} from './filters'
+import {resolveSubSeries} from './seriesFilter'
 
 export function normalizeSubdirPath(subdir: string): string {
   let normalized = subdir.replaceAll(/\.\/+/g, '')
@@ -77,14 +78,6 @@ export function applySubSeriesGlobPrefix(
   })
 }
 
-export function filterRulesByProjectConfig(
-  rules: readonly RulePrompt[],
-  projectConfig: ProjectConfig | undefined
-): readonly RulePrompt[] {
-  const effectiveSeries = resolveEffectiveIncludeSeries(projectConfig?.includeSeries, projectConfig?.rules?.includeSeries)
-  return rules.filter(rule => matchesSeries(rule.seriName, effectiveSeries))
-}
-
 function normalizeRuleScope(rule: RulePrompt): string {
   return rule.scope ?? 'project'
 }
@@ -94,7 +87,7 @@ function normalizeRuleScope(rule: RulePrompt): string {
  */
 export function getProjectRules(rules: readonly RulePrompt[], project: Project): readonly RulePrompt[] {
   const projectRules = rules.filter(r => normalizeRuleScope(r) === 'project')
-  return applySubSeriesGlobPrefix(filterRulesByProjectConfig(projectRules, project.projectConfig), project.projectConfig)
+  return applySubSeriesGlobPrefix(filterByProjectConfig(projectRules, project.projectConfig, 'rules'), project.projectConfig)
 }
 
 /**

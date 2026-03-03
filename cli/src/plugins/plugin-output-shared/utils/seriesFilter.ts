@@ -1,5 +1,6 @@
-/** Core series filtering helpers. Delegates to Rust NAPI via `@truenine/config` when available, falls back to pure-TS implementations otherwise. */
+/** Core series filtering helpers. Delegates to the unified CLI Rust NAPI when available, falls back to pure-TS implementations otherwise. */
 import {createRequire} from 'node:module'
+import process from 'node:process'
 
 function resolveEffectiveIncludeSeriesTS(topLevel?: readonly string[], typeSpecific?: readonly string[]): string[] {
   if (topLevel == null && typeSpecific == null) return []
@@ -32,13 +33,46 @@ interface SeriesFilterFns {
   resolveSubSeries: typeof resolveSubSeriesTS
 }
 
+function isSeriesFilterFns(candidate: unknown): candidate is SeriesFilterFns {
+  if (candidate == null || typeof candidate !== 'object') return false
+  const c = candidate as Record<string, unknown>
+  return typeof c['matchesSeries'] === 'function'
+    && typeof c['resolveEffectiveIncludeSeries'] === 'function'
+    && typeof c['resolveSubSeries'] === 'function'
+}
+
 function tryLoadNapi(): SeriesFilterFns | undefined {
+  const suffixMap: Record<string, string> = {
+    'win32-x64': 'win32-x64-msvc',
+    'linux-x64': 'linux-x64-gnu',
+    'linux-arm64': 'linux-arm64-gnu',
+    'darwin-arm64': 'darwin-arm64',
+    'darwin-x64': 'darwin-x64'
+  }
+  const suffix = suffixMap[`${process.platform}-${process.arch}`]
+  if (suffix == null) return void 0
+
+  const packageName = `@truenine/memory-sync-cli-${suffix}`
+  const binaryFile = `napi-memory-sync-cli.${suffix}.node`
+
   try {
     const _require = createRequire(import.meta.url)
-    const napi = _require('@truenine/config') as SeriesFilterFns
-    if (typeof napi.matchesSeries === 'function'
-      && typeof napi.resolveEffectiveIncludeSeries === 'function'
-      && typeof napi.resolveSubSeries === 'function') return napi
+    const candidates = [
+      packageName,
+      `${packageName}/${binaryFile}`,
+      `./${binaryFile}`
+    ]
+
+    for (const specifier of candidates) {
+      try {
+        const loaded = _require(specifier) as unknown
+        const possible = [loaded, (loaded as {default?: unknown})?.default, (loaded as {config?: unknown})?.config]
+        for (const candidate of possible) {
+          if (isSeriesFilterFns(candidate)) return candidate
+        }
+      }
+      catch {}
+    }
   }
   catch { /* NAPI unavailable — pure-TS fallback will be used */ }
   return void 0

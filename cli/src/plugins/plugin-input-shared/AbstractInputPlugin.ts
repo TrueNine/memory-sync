@@ -11,7 +11,7 @@ import type {
   PluginScopeRegistration,
   ResolvedBasePaths,
   YAMLFrontMatter
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 
 import {spawn} from 'node:child_process'
 import * as os from 'node:os'
@@ -21,7 +21,7 @@ import {
   AbstractPlugin,
   PathPlaceholders,
   PluginKind
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 
 export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Input> implements InputPlugin {
   private readonly inputEffects: InputEffectRegistration[] = []
@@ -42,7 +42,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
 
     if (this.inputEffects.length === 0) return results
 
-    const {workspaceDir, shadowProjectDir} = this.resolveBasePaths(ctx.userConfigOptions)
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
 
     const effectCtx: InputEffectContext = {
       logger: this.log,
@@ -52,7 +52,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
       spawn,
       userConfigOptions: ctx.userConfigOptions,
       workspaceDir,
-      shadowProjectDir,
+      aindexDir,
       dryRun
     }
 
@@ -117,10 +117,10 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     const workspaceDirRaw = options.workspaceDir
     const workspaceDir = this.resolvePath(workspaceDirRaw, '')
 
-    const shadowProjectName = options.shadowSourceProject.name
-    const shadowProjectDir = path.join(workspaceDir, shadowProjectName)
+    const aindexDirName = options.aindex?.dir ?? 'aindex' // 从配置读取 aindex 目录名，默认为 'aindex'
+    const aindexDir = path.join(workspaceDir, aindexDirName)
 
-    return {workspaceDir, shadowProjectDir}
+    return {workspaceDir, aindexDir}
   }
 
   protected resolvePath(rawPath: string, workspaceDir: string): string {
@@ -133,8 +133,8 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     return path.normalize(resolved)
   }
 
-  protected resolveShadowPath(relativePath: string, shadowProjectDir: string): string {
-    return path.join(shadowProjectDir, relativePath)
+  protected resolveAindexPath(relativePath: string, aindexDir: string): string {
+    return path.join(aindexDir, relativePath)
   }
 
   protected readAndParseMarkdown<T extends YAMLFrontMatter>(

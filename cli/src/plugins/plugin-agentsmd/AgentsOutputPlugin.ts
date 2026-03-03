@@ -3,8 +3,8 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'

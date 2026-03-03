@@ -1,14 +1,12 @@
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
-import {bundles} from '@truenine/init-bundle'
 import {defineConfig} from 'tsdown'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
-const kiroGlobalPowersRegistry = bundles['public/kiro_global_powers_registry.json']?.content ?? '{"version":"1.0.0","powers":{},"repoSources":{}}'
+const kiroGlobalPowersRegistry = '{"version":"1.0.0","powers":{},"repoSources":{}}'
 
 const pluginAliases: Record<string, string> = {
   '@truenine/desk-paths': resolve('src/plugins/desk-paths/index.ts'),
-  '@truenine/plugin-shared': resolve('src/plugins/plugin-shared/index.ts'),
   '@truenine/plugin-output-shared': resolve('src/plugins/plugin-output-shared/index.ts'),
   '@truenine/plugin-input-shared': resolve('src/plugins/plugin-input-shared/index.ts'),
   '@truenine/plugin-agentskills-compact': resolve('src/plugins/plugin-agentskills-compact/index.ts'),
@@ -47,15 +45,13 @@ const pluginAliases: Record<string, string> = {
   '@truenine/plugin-trae-ide': resolve('src/plugins/plugin-trae-ide/index.ts'),
   '@truenine/plugin-vscode': resolve('src/plugins/plugin-vscode/index.ts'),
   '@truenine/plugin-warp-ide': resolve('src/plugins/plugin-warp-ide/index.ts'),
-  '@truenine/plugin-windsurf': resolve('src/plugins/plugin-windsurf/index.ts'),
-  '@truenine/config': resolve('src/config/index.ts')
+  '@truenine/plugin-windsurf': resolve('src/plugins/plugin-windsurf/index.ts')
 }
 
 const noExternalDeps = [
   '@truenine/logger',
   'fast-glob',
   '@truenine/desk-paths',
-  '@truenine/init-bundle',
   '@truenine/md-compiler',
   ...Object.keys(pluginAliases)
 ]

@@ -1,7 +1,7 @@
 import type {
   CollectedInputContext,
   InputPluginContext
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**
@@ -28,8 +28,8 @@ export abstract class BaseFileInputPlugin<TResult = string> extends AbstractInpu
   }
 
   collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const {shadowProjectDir} = this.resolveBasePaths(ctx.userConfigOptions)
-    const filePath = this.getFilePath(shadowProjectDir)
+    const {aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
+    const filePath = this.getFilePath(aindexDir)
 
     if (!ctx.fs.existsSync(filePath)) {
       if (this.options.fallbackContent != null) {

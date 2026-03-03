@@ -7,7 +7,7 @@ export enum PromptKind {
   GlobalMemory = 'GlobalMemory',
   ProjectRootMemory = 'ProjectRootMemory',
   ProjectChildrenMemory = 'ProjectChildrenMemory',
-  FastCommand = 'FastCommand',
+  Command = 'Command',
   SubAgent = 'SubAgent',
   Skill = 'Skill',
   SkillChildDoc = 'SkillChildDoc',
@@ -18,9 +18,9 @@ export enum PromptKind {
 }
 
 /**
- * Scope for rule application
+ * Scope for prompt application (rules, skills, commands, subAgents)
  */
-export type RuleScope = 'project' | 'global'
+export type RuleScope = 'project' | 'global' | 'workspace'
 
 export enum ClaudeCodeCLISubAgentColors {
   Red = 'Red',

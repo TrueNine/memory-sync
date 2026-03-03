@@ -30,17 +30,17 @@ lastUpdated: 2026-02-18
   }
   ```
 
-  <h2>shadowSourceProject 配置</h2>
+  <h2>aindex 配置</h2>
   <p>
-    <code>shadowSourceProject</code> 描述了一套「影子项目」目录结构，用于统一管理 Skills、Commands、Agents、Rules 以及 Global Memory 等文件。
+    <code>aindex</code> 描述了一套 Aindex 目录结构，用于统一管理 Skills、Commands、Agents、Rules 以及 Global Memory 等文件。
   </p>
 
   ```json
   {
-    "shadowSourceProject": {
-      "name": "tnmsc-shadow",
+    "aindex": {
+      "name": "aindex",
       "skill": { "src": "src/skills", "dist": "dist/skills" },
-      "fastCommand": { "src": "src/commands", "dist": "dist/commands" },
+      "command": { "src": "src/commands", "dist": "dist/commands" },
       "subAgent": { "src": "src/agents", "dist": "dist/agents" },
       "rule": { "src": "src/rules", "dist": "dist/rules" },
       "globalMemory": {

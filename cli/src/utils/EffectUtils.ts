@@ -1,5 +1,5 @@
-import type {ILogger, InputEffectContext} from '@truenine/plugin-shared'
 import type {Buffer} from 'node:buffer'
+import type {ILogger, InputEffectContext} from '../plugins/plugin-shared'
 import process from 'node:process'
 
 /**

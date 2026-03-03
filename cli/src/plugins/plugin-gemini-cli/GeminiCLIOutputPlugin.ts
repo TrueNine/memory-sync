@@ -8,7 +8,7 @@ export class GeminiCLIOutputPlugin extends BaseCLIOutputPlugin {
     super('GeminiCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: PROJECT_MEMORY_FILE,
-      supportsFastCommands: false,
+      supportsCommands: false,
       supportsSubAgents: false,
       supportsSkills: false
     })

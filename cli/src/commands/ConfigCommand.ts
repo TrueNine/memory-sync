@@ -6,25 +6,28 @@ import {DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR} from '@/ConfigLoade
 
 /**
  * Valid configuration keys that can be set via `tnmsc config key=value`.
- * Nested keys use dot-notation: shadowSourceProject.name, shadowSourceProject.skill.src, etc.
+ * Nested keys use dot-notation: aindex.skills.src, aindex.commands.src, etc.
  */
 const VALID_CONFIG_KEYS = [
   'workspaceDir',
-  'shadowSourceProject.name',
-  'shadowSourceProject.skill.src',
-  'shadowSourceProject.skill.dist',
-  'shadowSourceProject.fastCommand.src',
-  'shadowSourceProject.fastCommand.dist',
-  'shadowSourceProject.subAgent.src',
-  'shadowSourceProject.subAgent.dist',
-  'shadowSourceProject.rule.src',
-  'shadowSourceProject.rule.dist',
-  'shadowSourceProject.globalMemory.src',
-  'shadowSourceProject.globalMemory.dist',
-  'shadowSourceProject.workspaceMemory.src',
-  'shadowSourceProject.workspaceMemory.dist',
-  'shadowSourceProject.project.src',
-  'shadowSourceProject.project.dist',
+  'aindex.skills.src',
+  'aindex.skills.dist',
+  'aindex.commands.src',
+  'aindex.commands.dist',
+  'aindex.subAgents.src',
+  'aindex.subAgents.dist',
+  'aindex.rules.src',
+  'aindex.rules.dist',
+  'aindex.globalPrompt.src',
+  'aindex.globalPrompt.dist',
+  'aindex.workspacePrompt.src',
+  'aindex.workspacePrompt.dist',
+  'aindex.app.src',
+  'aindex.app.dist',
+  'aindex.ext.src',
+  'aindex.ext.dist',
+  'aindex.arch.src',
+  'aindex.arch.dist',
   'logLevel'
 ] as const
 
@@ -55,12 +58,12 @@ function getGlobalConfigPath(): string {
 /**
  * Read global config file
  */
-function readGlobalConfig(): Record<string, unknown> {
+function readGlobalConfig(): ConfigObject {
   const configPath = getGlobalConfigPath()
   if (!fs.existsSync(configPath)) return {}
   try {
     const content = fs.readFileSync(configPath, 'utf8')
-    return JSON.parse(content) as Record<string, unknown>
+    return JSON.parse(content) as ConfigObject
   }
   catch {
     return {}
@@ -70,7 +73,7 @@ function readGlobalConfig(): Record<string, unknown> {
 /**
  * Write global config file
  */
-function writeGlobalConfig(config: Record<string, unknown>): void {
+function writeGlobalConfig(config: ConfigObject): void {
   const configPath = getGlobalConfigPath()
   const configDir = path.dirname(configPath)
 
@@ -79,16 +82,22 @@ function writeGlobalConfig(config: Record<string, unknown>): void {
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8') // Write with pretty formatting
 }
 
+type ConfigValue = string | ConfigObject
+interface ConfigObject {
+  [key: string]: ConfigValue | undefined
+}
+
 /**
  * Set a nested value in an object using dot-notation key
  */
-function setNestedValue(obj: Record<string, unknown>, key: string, value: string): void {
+function setNestedValue(obj: ConfigObject, key: string, value: string): void {
   const parts = key.split('.')
-  let current = obj
+  let current: ConfigObject = obj
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i]!
-    if (typeof current[part] !== 'object' || current[part] === null) current[part] = {}
-    current = current[part] as Record<string, unknown>
+    const next = current[part]
+    if (typeof next !== 'object' || next === null || Array.isArray(next)) current[part] = {}
+    current = current[part] as ConfigObject
   }
   current[parts.at(-1)!] = value
 }
@@ -96,12 +105,12 @@ function setNestedValue(obj: Record<string, unknown>, key: string, value: string
 /**
  * Get a nested value from an object using dot-notation key
  */
-function getNestedValue(obj: Record<string, unknown>, key: string): unknown {
+function getNestedValue(obj: ConfigObject, key: string): ConfigValue | undefined {
   const parts = key.split('.')
-  let current: unknown = obj
+  let current: ConfigValue | undefined = obj
   for (const part of parts) {
-    if (typeof current !== 'object' || current === null) return void 0
-    current = (current as Record<string, unknown>)[part]
+    if (typeof current !== 'object' || current === null || Array.isArray(current)) return void 0
+    current = current[part]
   }
   return current
 }

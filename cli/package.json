@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10302.10037",
+  "version": "2026.10303.10919",
   "description": "TrueNine Memory Synchronization CLI",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -34,6 +34,16 @@
     "dist",
     "dist/tnmsc.schema.json"
   ],
+  "napi": {
+    "binaryName": "napi-memory-sync-cli",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin"
+    ]
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -62,7 +72,7 @@
     "picocolors": "catalog:",
     "picomatch": "catalog:",
     "tsx": "4.21.0",
-    "vitest": "^4.0.18",
+    "vitest": "catalog:",
     "yaml": "2.8.2",
     "zod": "catalog:"
   },
@@ -74,7 +84,6 @@
     "@truenine/memory-sync-cli-win32-x64-msvc": "workspace:*"
   },
   "devDependencies": {
-    "@truenine/init-bundle": "workspace:*",
     "@truenine/logger": "workspace:*",
     "@truenine/md-compiler": "workspace:*",
     "@types/fs-extra": "catalog:",

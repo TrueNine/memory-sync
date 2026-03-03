@@ -1,4 +1,4 @@
-import type {OutputCleanContext, OutputWriteContext} from '@truenine/plugin-shared'
+import type {OutputCleanContext, OutputWriteContext} from './plugins/plugin-shared'
 /**
  * Plugin Runtime Entry Point
  *
@@ -15,7 +15,6 @@ import type {PipelineConfig} from '@/config'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
-import {createLogger, setGlobalLogLevel} from '@truenine/plugin-shared'
 import glob from 'fast-glob'
 import {
   CleanCommand,
@@ -26,6 +25,7 @@ import {
   PluginsCommand
 } from '@/commands'
 import userPluginConfigPromise from './plugin.config'
+import {createLogger, setGlobalLogLevel} from './plugins/plugin-shared'
 
 /**
  * Parse runtime arguments.
@@ -108,6 +108,8 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  console.error(e)
+  const errorMessage = e instanceof Error ? e.message : String(e)
+  const logger = createLogger('plugin-runtime', 'error')
+  logger.error('unhandled error', {error: errorMessage})
   process.exit(1)
 })

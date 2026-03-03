@@ -1,3 +1,0 @@
-export {
-  EditorConfigInputPlugin
-} from './EditorConfigInputPlugin'

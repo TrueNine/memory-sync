@@ -25,6 +25,7 @@ export interface ValidationError {
 const KNOWN_FIELDS: ReadonlySet<string> = new Set([
   'version',
   'workspaceDir',
+  'aindex',
   'shadowSourceProject',
   'logLevel',
   'fastCommandSeriesOptions',
@@ -40,14 +41,16 @@ const VALID_LOG_LEVELS: ReadonlySet<string> = new Set([
   'error',
 ])
 
-const SHADOW_SOURCE_PROJECT_PAIR_KEYS = [
-  'skill',
-  'fastCommand',
-  'subAgent',
-  'rule',
-  'globalMemory',
-  'workspaceMemory',
-  'project',
+const AINDEX_PAIR_KEYS = [
+  'skills',
+  'commands',
+  'subAgents',
+  'rules',
+  'globalPrompt',
+  'workspacePrompt',
+  'app',
+  'ext',
+  'arch',
 ] as const
 
 /**
@@ -113,19 +116,20 @@ export function validateConfig(raw: unknown): readonly ValidationError[] {
     errors.push({ field: 'workspaceDir', message: 'workspaceDir must be a string', severity: 'error' })
   }
 
-  // ── shadowSourceProject ──────────────────────────────────────────────
-  if ('shadowSourceProject' in obj) {
-    const ssp = obj['shadowSourceProject']
+  // ── aindex ──────────────────────────────────────────────
+  if ('aindex' in obj) {
+    const ssp = obj['aindex']
     if (typeof ssp !== 'object' || ssp === null || Array.isArray(ssp)) {
-      errors.push({ field: 'shadowSourceProject', message: 'shadowSourceProject must be an object', severity: 'error' })
+      errors.push({ field: 'aindex', message: 'aindex must be an object', severity: 'error' })
     } else {
       const sspObj = ssp as Record<string, unknown>
-      if ('name' in sspObj && typeof sspObj['name'] !== 'string') {
-        errors.push({ field: 'shadowSourceProject.name', message: 'shadowSourceProject.name must be a string', severity: 'error' })
+      // Validate dir field (optional string)
+      if ('dir' in sspObj && typeof sspObj['dir'] !== 'string') {
+        errors.push({ field: 'aindex.dir', message: 'aindex.dir must be a string', severity: 'error' })
       }
-      for (const key of SHADOW_SOURCE_PROJECT_PAIR_KEYS) {
+      for (const key of AINDEX_PAIR_KEYS) {
         if (key in sspObj) {
-          errors.push(...validateDirPair(sspObj[key], `shadowSourceProject.${key}`))
+          errors.push(...validateDirPair(sspObj[key], `aindex.${key}`))
         }
       }
     }

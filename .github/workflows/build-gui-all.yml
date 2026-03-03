@@ -18,16 +18,23 @@ jobs:
         include:
           - os: windows-latest
             platform: windows
+            rust-targets: ''
+            tauri-command: pnpm tauri build
           - os: ubuntu-24.04
             platform: linux
+            rust-targets: ''
+            tauri-command: pnpm tauri build
           - os: macos-14
             platform: macos
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            tauri-command: pnpm tauri build --target universal-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm
       - uses: ./.github/actions/setup-tauri
         with:
+          rust-targets: ${{ matrix.rust-targets }}
           version: ${{ inputs.version }}
 
       - name: Build GUI
@@ -35,7 +42,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm tauri build
+        run: ${{ matrix.tauri-command }}
 
       - name: Upload Windows artifacts
         if: matrix.platform == 'windows'
@@ -43,8 +50,8 @@ jobs:
         with:
           name: gui-${{ matrix.os }}
           path: |
-            target/*/release/bundle/**/*.exe
-            target/release/bundle/**/*.exe
+            gui/src-tauri/target/*/release/bundle/**/*.exe
+            gui/src-tauri/target/release/bundle/**/*.exe
           if-no-files-found: error
 
       - name: Upload Linux artifacts
@@ -53,12 +60,12 @@ jobs:
         with:
           name: gui-${{ matrix.os }}
           path: |
-            target/*/release/bundle/**/*.AppImage
-            target/*/release/bundle/**/*.deb
-            target/*/release/bundle/**/*.rpm
-            target/release/bundle/**/*.AppImage
-            target/release/bundle/**/*.deb
-            target/release/bundle/**/*.rpm
+            gui/src-tauri/target/*/release/bundle/**/*.AppImage
+            gui/src-tauri/target/*/release/bundle/**/*.deb
+            gui/src-tauri/target/*/release/bundle/**/*.rpm
+            gui/src-tauri/target/release/bundle/**/*.AppImage
+            gui/src-tauri/target/release/bundle/**/*.deb
+            gui/src-tauri/target/release/bundle/**/*.rpm
           if-no-files-found: error
 
       - name: Upload macOS artifacts
@@ -67,6 +74,6 @@ jobs:
         with:
           name: gui-${{ matrix.os }}
           path: |
-            target/*/release/bundle/**/*.dmg
-            target/release/bundle/**/*.dmg
+            gui/src-tauri/target/*/release/bundle/**/*.dmg
+            gui/src-tauri/target/release/bundle/**/*.dmg
           if-no-files-found: error

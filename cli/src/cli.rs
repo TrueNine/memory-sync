@@ -52,9 +52,6 @@ pub enum CliCommand {
     /// Check if CLI version is outdated against npm registry
     Outdated,
 
-    /// Initialize directory structure based on configuration
-    Init,
-
     /// Preview changes without writing files
     #[command(name = "dry-run")]
     DryRun,
@@ -158,7 +155,6 @@ pub enum ResolvedCommand {
     Help,
     Version,
     Outdated,
-    Init,
     Execute,
     DryRun,
     Clean,
@@ -198,7 +194,6 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
         Some(CliCommand::Help) => ResolvedCommand::Help,
         Some(CliCommand::Version) => ResolvedCommand::Version,
         Some(CliCommand::Outdated) => ResolvedCommand::Outdated,
-        Some(CliCommand::Init) => ResolvedCommand::Init,
         Some(CliCommand::DryRun) => ResolvedCommand::DryRun,
         Some(CliCommand::Clean(args)) => {
             if args.dry_run {
@@ -254,12 +249,6 @@ mod tests {
     fn test_outdated_subcommand() {
         let cli = parse(&["tnmsc", "outdated"]);
         assert_eq!(resolve_command(&cli), ResolvedCommand::Outdated);
-    }
-
-    #[test]
-    fn test_init_subcommand() {
-        let cli = parse(&["tnmsc", "init"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::Init);
     }
 
     #[test]

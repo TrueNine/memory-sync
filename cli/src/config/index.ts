@@ -64,7 +64,6 @@ export { // Export path resolution utilities
 
 export { // Export schema and validation
   formatValidationErrors,
-  getDefaultConfig,
   isValidLogLevel,
   safeValidateConfig,
   validateConfig,

@@ -4,14 +4,14 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {FilePathKind} from '@truenine/plugin-shared'
+import {FilePathKind} from '../plugin-shared'
 
 const PROJECT_SKILLS_DIR = '.agents/skills'
 const LEGACY_SKILLS_DIR = '.skills' // 旧路径，用于清理
@@ -275,19 +275,6 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     }
 
     return results
-  }
-
-  private buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
-    const fm = skill.yamlFrontMatter
-    return {
-      name: fm.name,
-      description: fm.description,
-      ...fm.displayName != null && {displayName: fm.displayName},
-      ...fm.keywords != null && fm.keywords.length > 0 && {keywords: fm.keywords},
-      ...fm.author != null && {author: fm.author},
-      ...fm.version != null && {version: fm.version},
-      ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}
-    }
   }
 
   private async writeMcpConfig(

@@ -6,7 +6,11 @@ import {dirname, join, resolve} from 'node:path'
 import process from 'node:process'
 import {fileURLToPath} from 'node:url'
 
-const LIBRARIES = ['logger', 'md-compiler', 'config', 'init-bundle'] as const
+const NATIVE_MODULES = [
+  {name: 'logger', dir: 'libraries/logger'},
+  {name: 'md-compiler', dir: 'libraries/md-compiler'},
+  {name: 'cli', dir: 'cli'},
+] as const
 
 const __dirname = import.meta.dirname ?? dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
@@ -48,22 +52,22 @@ const envWithCargo = {
 }
 
 let failed = false
-for (const lib of LIBRARIES) {
-  const libDir = join(root, 'libraries', lib)
-  console.log(`[build-native] Building ${lib}...`)
+for (const mod of NATIVE_MODULES) {
+  const moduleDir = join(root, mod.dir)
+  console.log(`[build-native] Building ${mod.name}...`)
   try {
     execSync(
       'npx napi build --platform --release --output-dir dist -- --features napi',
-      {stdio: 'inherit', cwd: libDir, env: envWithCargo},
+      {stdio: 'inherit', cwd: moduleDir, env: envWithCargo},
     )
   } catch {
-    console.error(`[build-native] ${lib}: build failed`)
+    console.error(`[build-native] ${mod.name}: build failed`)
     failed = true
   }
 }
 
 if (failed) {
-  console.warn('[build-native] Some libraries failed to build, skipping copy')
+  console.warn('[build-native] Some native modules failed to build, skipping copy')
   console.warn('[build-native] Ensure Rust toolchain + linker are available, then run: pnpm run build:native')
   process.exit(0)
 }

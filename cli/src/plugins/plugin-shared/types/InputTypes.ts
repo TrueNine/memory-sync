@@ -6,13 +6,15 @@ import type {
   RuleScope
 } from './Enums'
 import type {FileContent, Path, RelativePath} from './FileSystemTypes'
+import type {LocalizedPrompt, PromptsContext} from './LocalizedTypes'
 import type {
-  FastCommandYAMLFrontMatter,
+  CommandYAMLFrontMatter,
   GlobalMemoryPrompt,
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
   Prompt,
   RuleYAMLFrontMatter,
+  SeriName,
   SkillYAMLFrontMatter,
   SubAgentYAMLFrontMatter
 } from './PromptTypes'
@@ -51,19 +53,31 @@ export interface AIAgentIgnoreConfigFile {
  */
 export interface CollectedInputContext {
   readonly workspace: Workspace
+  readonly prompts?: PromptsContext // New unified prompts container with localization support
+  readonly promptIndex?: Map<string, LocalizedPrompt> // Quick lookup index for all localized prompts
+
+  /** Legacy fields (deprecated, kept for backward compatibility) */
+  /** @deprecated Use prompts.skills instead */
+  readonly skills?: readonly SkillPrompt[]
+  /** @deprecated Use prompts.commands instead */
+  readonly commands?: readonly CommandPrompt[]
+  /** @deprecated Use prompts.subAgents instead */
+  readonly subAgents?: readonly SubAgentPrompt[]
+  /** @deprecated Use prompts.rules instead */
+  readonly rules?: readonly RulePrompt[]
+  /** @deprecated Use prompts.readme instead */
+  readonly readmePrompts?: readonly ReadmePrompt[]
+  /** @deprecated Use prompts.globalMemory instead */
+  readonly globalMemory?: GlobalMemoryPrompt
+
+  /** Other non-prompt fields */
   readonly vscodeConfigFiles?: readonly ProjectIDEConfigFile<IDEKind.VSCode>[]
   readonly jetbrainsConfigFiles?: readonly ProjectIDEConfigFile<IDEKind.IntellijIDEA>[]
   readonly editorConfigFiles?: readonly ProjectIDEConfigFile<IDEKind.EditorConfig>[]
-  readonly fastCommands?: readonly FastCommandPrompt[]
-  readonly subAgents?: readonly SubAgentPrompt[]
-  readonly skills?: readonly SkillPrompt[]
-  readonly rules?: readonly RulePrompt[]
-  readonly globalMemory?: GlobalMemoryPrompt
   readonly aiAgentIgnoreConfigFiles?: readonly AIAgentIgnoreConfigFile[]
   readonly globalGitIgnore?: string
   readonly shadowGitExclude?: string
-  readonly shadowSourceProjectDir?: string
-  readonly readmePrompts?: readonly ReadmePrompt[]
+  readonly aindexDir?: string
 }
 
 /**
@@ -75,19 +89,19 @@ export interface RulePrompt extends Prompt<PromptKind.Rule, RuleYAMLFrontMatter,
   readonly ruleName: string
   readonly globs: readonly string[]
   readonly scope: RuleScope
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
   readonly rawMdxContent?: string
 }
 
 /**
- * Fast command prompt
+ * Command prompt
  */
-export interface FastCommandPrompt extends Prompt<PromptKind.FastCommand, FastCommandYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
-  readonly type: PromptKind.FastCommand
+export interface CommandPrompt extends Prompt<PromptKind.Command, CommandYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
+  readonly type: PromptKind.Command
   readonly globalOnly?: true
-  readonly series?: string
+  readonly commandPrefix?: string
   readonly commandName: string
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
   readonly rawMdxContent?: string
 }
 
@@ -96,9 +110,9 @@ export interface FastCommandPrompt extends Prompt<PromptKind.FastCommand, FastCo
  */
 export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
   readonly type: PromptKind.SubAgent
-  readonly series?: string
+  readonly agentPrefix?: string
   readonly agentName: string
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
   readonly rawMdxContent?: string
 }
 
@@ -384,7 +398,7 @@ export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatt
   readonly mcpConfig?: SkillMcpConfig
   readonly childDocs?: SkillChildDoc[]
   readonly resources?: SkillResource[]
-  readonly seriName?: string | string[] | null
+  readonly seriName?: SeriName
 }
 
 /**
