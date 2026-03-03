@@ -22,6 +22,9 @@ jobs:
         with:
           cache-key: pr
 
+      - name: Build native modules
+        run: pnpm run build:native
+
       - name: Build
         run: pnpm run build
 
