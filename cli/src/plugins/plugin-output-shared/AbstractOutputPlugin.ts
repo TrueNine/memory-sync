@@ -722,10 +722,10 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   protected buildRuleFileName(rule: RulePrompt): string {
     const prefix = `${this.rulesConfig.prefix ?? 'rule'}${this.rulesConfig.linkSymbol ?? '-'}`
-    const fileName = `${prefix}${rule.series}${this.rulesConfig.linkSymbol ?? '-'}${rule.ruleName}${this.rulesConfig.ext ?? '.md'}`
+    const fileName = `${prefix}${rule.prefix}${this.rulesConfig.linkSymbol ?? '-'}${rule.ruleName}${this.rulesConfig.ext ?? '.md'}`
     this.log.trace('buildRuleFileName', {
       plugin: this.name,
-      series: rule.series,
+      rulePrefix: rule.prefix,
       ruleName: rule.ruleName,
       prefix: this.rulesConfig.prefix ?? 'rule',
       linkSymbol: this.rulesConfig.linkSymbol ?? '-',
@@ -1164,7 +1164,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
           for (const rule of filteredRules) {
             const fileName = this.buildRuleFileName(rule)
             const rulePath = path.join(rulesDir, fileName)
-            this.log.debug('rule file path', {plugin: this.name, projectName, series: rule.series, ruleName: rule.ruleName, fileName, rulePath})
+            this.log.debug('rule file path', {plugin: this.name, projectName, prefix: rule.prefix, ruleName: rule.ruleName, fileName, rulePath})
             const result = await this.writeFile(ctx, rulePath, this.buildRuleContent(rule), 'rule')
             fileResults.push(result)
             this.log.debug('wrote rule', {plugin: this.name, projectName, ruleName: rule.ruleName, success: result.success})

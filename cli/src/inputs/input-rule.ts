@@ -71,7 +71,7 @@ export class RuleInputPlugin extends AbstractInputPlugin {
           catch { /* Ignore errors */ }
 
           const normalizedName = name.replaceAll('\\', '/') // Normalize path separator for cross-platform compatibility
-          const series = normalizedName.includes('/') ? normalizedName.split('/')[0] ?? '' : ''
+          const prefix = normalizedName.includes('/') ? normalizedName.split('/')[0] ?? '' : ''
           const ruleName = normalizedName.split('/').pop() ?? normalizedName
 
           const rulePrompt = {
@@ -86,7 +86,7 @@ export class RuleInputPlugin extends AbstractInputPlugin {
               getDirectoryName: () => ruleName,
               getAbsolutePath: () => path.join(distDir, `${name}.mdx`)
             },
-            series,
+            prefix,
             ruleName,
             globs,
             scope,

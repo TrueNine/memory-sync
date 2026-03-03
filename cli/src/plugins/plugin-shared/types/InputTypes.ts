@@ -85,7 +85,7 @@ export interface CollectedInputContext {
  */
 export interface RulePrompt extends Prompt<PromptKind.Rule, RuleYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
   readonly type: PromptKind.Rule
-  readonly series: string
+  readonly prefix: string
   readonly ruleName: string
   readonly globs: readonly string[]
   readonly scope: RuleScope

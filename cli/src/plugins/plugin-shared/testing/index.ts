@@ -3,7 +3,7 @@ import type {Project, RulePrompt} from '../types/InputTypes'
 import {FilePathKind, NamingCaseKind, PromptKind} from '../types/Enums'
 
 export function createMockRulePrompt(
-  series: string,
+  prefix: string,
   ruleName: string,
   seriName: string | undefined,
   scope: 'global' | 'project' = 'project'
@@ -27,7 +27,7 @@ export function createMockRulePrompt(
       globs: ['**/*.ts'],
       namingCase: NamingCaseKind.KebabCase
     },
-    series,
+    prefix,
     ruleName,
     globs: ['**/*.ts'],
     scope

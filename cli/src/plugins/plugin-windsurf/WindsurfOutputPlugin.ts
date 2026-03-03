@@ -345,7 +345,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   }
 
   protected override buildRuleFileName(rule: RulePrompt, prefix: string = RULE_FILE_PREFIX): string {
-    return `${prefix}${rule.series}-${rule.ruleName}.md`
+    return `${prefix}${rule.prefix}-${rule.ruleName}.md`
   }
 
   protected override buildRuleContent(rule: RulePrompt, _options?: RuleContentOptions): string {
