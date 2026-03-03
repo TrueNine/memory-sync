@@ -22,6 +22,9 @@ jobs:
       version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
 
       - name: Check if should publish
         id: check
@@ -103,20 +106,31 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-      - name: Build all napi libraries
+      - name: Build all napi native modules
         shell: bash
         run: |
-          for lib in logger md-compiler config init-bundle; do
-            echo "Building napi for $lib..."
-            (cd "libraries/$lib" && pnpm exec napi build --platform --release --target ${{ matrix.target.rust }} --output-dir dist -- --features napi)
+          module_dirs=(libraries/logger libraries/md-compiler cli)
+          for module_dir in "${module_dirs[@]}"; do
+            echo "Building napi in ${module_dir}..."
+            (
+              cd "${module_dir}" && \
+              pnpm exec napi build --platform --release --target ${{ matrix.target.rust }} --output-dir dist -- --features napi
+            )
           done
       - name: Collect .node files into CLI platform package
         shell: bash
         run: |
           target_dir="cli/npm/${{ matrix.target.suffix }}"
           mkdir -p "$target_dir"
-          for lib in logger md-compiler config init-bundle; do
-            cp libraries/$lib/dist/*.node "$target_dir/"
+          shopt -s nullglob
+          module_dirs=(libraries/logger libraries/md-compiler cli)
+          for module_dir in "${module_dirs[@]}"; do
+            node_files=("${module_dir}"/dist/*.node)
+            if [ "${#node_files[@]}" -eq 0 ]; then
+              echo "ERROR: no .node files found in ${module_dir}/dist"
+              exit 1
+            fi
+            cp "${node_files[@]}" "$target_dir/"
           done
           echo "Contents of $target_dir:"
           ls -la "$target_dir/"
@@ -185,7 +199,7 @@ jobs:
           node-version: 25
           registry-url: https://registry.npmjs.org/
       - name: Build
-        run: pnpm exec turbo run build --filter=@truenine/memory-sync-cli...
+        run: pnpm -F @truenine/memory-sync-cli run build
       - name: Publish to npm
         working-directory: ./cli
         run: pnpm publish --access public --no-git-checks
@@ -228,7 +242,7 @@ jobs:
       - name: Build plugin-runtime
         shell: bash
         run: |
-          pnpm exec turbo run build --filter=@truenine/memory-sync-cli...
+          pnpm -F @truenine/memory-sync-cli run build
           ls -la cli/dist/plugin-runtime.mjs
       - uses: ./.github/actions/setup-rust
         with:

@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - main
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -13,39 +13,26 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-24.04
-    if: github.event.pull_request.merged == false
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache apt packages
-        uses: actions/cache@v4
-        with:
-          path: /var/cache/apt/archives
-          key: apt-gtk-${{ runner.os }}-${{ hashFiles('.github/workflows/pull-request.yml') }}
-          restore-keys: apt-gtk-${{ runner.os }}-
-
-      - name: Install GTK development dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libglib2.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config
-
       - uses: ./.github/actions/setup-node-pnpm
-
-      - name: Build
-        run: pnpm exec turbo run build
 
       - uses: ./.github/actions/setup-rust
         with:
           cache-key: pr
 
-      - name: Generate Tauri icons
-        run: pnpm -F @truenine/memory-sync-gui run generate:icons
+      - name: Build
+        run: pnpm run build
 
-      - name: Generate route tree
-        run: pnpm -F @truenine/memory-sync-gui run generate:routes
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run typecheck
 
       - name: Run tests
-        run: pnpm exec turbo run test
+        run: pnpm run test
 
       - name: Rust tests (excluding GUI)
         run: cargo test --workspace --exclude memory-sync-gui --lib --bins --tests

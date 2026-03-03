@@ -18,7 +18,10 @@ runs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
+        sudo apt-get install -y --no-install-recommends \
+          libgtk-3-dev \
+          libglib2.0-dev \
+          pkg-config \
           libwebkit2gtk-4.1-dev \
           libappindicator3-dev \
           librsvg2-dev \
@@ -48,7 +51,7 @@ runs:
         restore-keys: |
           ${{ runner.os }}-cargo-
 
-    - name: Sync Tauri version from CLI
+    - name: Sync Tauri version
       shell: bash
       run: |
         version="${{ inputs.version }}"
@@ -63,4 +66,7 @@ runs:
 
     - name: Clean old bundle artifacts
       shell: bash
-      run: rm -rf gui/src-tauri/target/**/bundle
+      run: |
+        if [ -d "gui/src-tauri/target" ]; then
+          find gui/src-tauri/target -type d -name bundle -prune -exec rm -rf {} +
+        fi
