@@ -45,7 +45,10 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: '',
       dependsOn: [PLUGIN_NAMES.AgentsOutput],
-      indexignore: IgnoreFiles.CURSOR
+      indexignore: IgnoreFiles.CURSOR,
+      supportsRules: true,
+      rulesSubDir: RULES_SUBDIR,
+      rulePrefix: RULE_FILE_PREFIX
     })
 
     this.registerCleanEffect('mcp-config-cleanup', async ctx => {
@@ -451,7 +454,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   private async writeRuleMdcFile(ctx: OutputWriteContext, rulesDir: string, rule: RulePrompt, basePath: string): Promise<WriteResult> {
-    const fileName = this.buildRuleFileName(rule, RULE_FILE_PREFIX)
+    const fileName = this.buildRuleFileName(rule)
     const fullPath = path.join(rulesDir, fileName)
     const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(GLOBAL_CONFIG_DIR, RULES_SUBDIR, fileName), basePath, getDirectoryName: () => RULES_SUBDIR, getAbsolutePath: () => fullPath}
     const content = this.buildRuleMdcContent(rule)
