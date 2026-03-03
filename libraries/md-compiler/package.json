@@ -40,7 +40,7 @@
     ]
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "tsx ../../scripts/build-quiet.ts",
     "build:all": "run-s build:native build",
     "build:native": "napi build --platform --release --output-dir dist -- --features napi",
     "build:native:debug": "napi build --platform --output-dir dist -- --features napi",

@@ -52,7 +52,7 @@
     "build": "run-s build:deps build:napi bundle generate:schema check",
     "build:napi": "tsx ../scripts/copy-napi.ts",
     "build:deps": "pnpm -F @truenine/logger -F @truenine/md-compiler run build",
-    "bundle": "pnpm exec tsdown",
+    "bundle": "tsx ../scripts/build-quiet.ts",
     "check": "run-p typecheck lint",
     "generate:schema": "tsx scripts/generate-schema.ts",
     "lint": "eslint --cache .",
