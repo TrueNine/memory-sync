@@ -309,7 +309,7 @@ export class LocalizedPromptReader {
   private async readLocaleContent<T extends Prompt>(
     filePath: string,
     locale: Locale,
-    createPrompt: (content: string, locale: Locale, name: string) => T | Promise<T>,
+    createPrompt: (content: string, locale: Locale, name: string, metadata?: Record<string, unknown>) => T | Promise<T>,
     name: string
   ): Promise<LocalizedContent<T> | null> {
     if (!this.exists(filePath)) return null
@@ -326,7 +326,7 @@ export class LocalizedPromptReader {
 
       const parsed = parseMarkdown(rawMdx) // Parse front matter
 
-      const prompt = await createPrompt(compileResult.content, locale, name) // Create prompt object
+      const prompt = await createPrompt(compileResult.content, locale, name, compileResult.metadata.fields) // Create prompt object
 
       const result: LocalizedContent<T> = {
         content: compileResult.content,
@@ -349,7 +349,7 @@ export class LocalizedPromptReader {
 
   private async readDistContent<T extends Prompt>(
     filePath: string,
-    createPrompt: (content: string, locale: Locale, name: string) => T | Promise<T>,
+    createPrompt: (content: string, locale: Locale, name: string, metadata?: Record<string, unknown>) => T | Promise<T>,
     name: string
   ): Promise<LocalizedContent<T> | null> {
     if (!this.exists(filePath)) return null
@@ -358,7 +358,7 @@ export class LocalizedPromptReader {
       const content = this.fs.readFileSync(filePath, 'utf8')
       const stats = this.fs.statSync(filePath)
 
-      const prompt = await createPrompt(content, 'zh', name) // Create prompt from dist content (no compilation needed)
+      const prompt = await createPrompt(content, 'zh', name, void 0) // Create prompt from dist content (no compilation needed)
 
       return {
         content,

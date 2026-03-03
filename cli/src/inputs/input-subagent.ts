@@ -109,7 +109,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
         kind: PromptKind.SubAgent,
         localeExtensions: {zh: '.md', en: '.mdx'},
         isDirectoryStructure: false,
-        createPrompt: async (content, locale, name) => this.createSubAgentPrompt(
+        createPrompt: async (content, locale, name, _metadata) => this.createSubAgentPrompt(
           content,
           locale,
           name,

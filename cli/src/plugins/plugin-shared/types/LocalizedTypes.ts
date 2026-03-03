@@ -151,7 +151,7 @@ export interface LocalizedReadOptions<T extends Prompt, K extends PromptKind> {
   readonly entryFileName?: string
 
   /** Create prompt from content */
-  readonly createPrompt: (content: string, locale: Locale, name: string) => T | Promise<T>
+  readonly createPrompt: (content: string, locale: Locale, name: string, metadata?: Record<string, unknown>) => T | Promise<T>
 
   /** Prompt kind */
   readonly kind: K

@@ -46,7 +46,7 @@ export class RuleInputPlugin extends AbstractInputPlugin {
         kind: PromptKind.Rule,
         localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
         isDirectoryStructure: false,
-        createPrompt: async (content, _locale, name) => {
+        createPrompt: async (content, _locale, name, _metadata) => {
           const distFilePath = path.join(distDir, `${name}.mdx`)
           let globs: readonly string[] = []
           let scope: RuleScope = 'project'

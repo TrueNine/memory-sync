@@ -391,13 +391,15 @@ async function createSkillPrompt(
   mcpConfig?: SkillMcpConfig,
   childDocs: SkillPrompt['childDocs'] = [],
   resources: SkillPrompt['resources'] = [],
-  seriName?: string | string[] | null
+  seriName?: string | string[] | null,
+  compiledMetadata?: Record<string, unknown>
 ): Promise<SkillPrompt> {
   const {logger, globalScope, fs} = ctx
 
   const distFilePath = nodePath.join(skillAbsoluteDir, 'skill.mdx')
   let rawContent = content
-  let parsed: ReturnType<typeof parseMarkdown<SkillYAMLFrontMatter>> | undefined
+  let parsed: ReturnType<typeof parseMarkdown<SkillYAMLFrontMatter>> | undefined,
+    distMetadata: Record<string, unknown> | undefined
 
   if (fs.existsSync(distFilePath)) {
     try {
@@ -411,22 +413,23 @@ async function createSkillPrompt(
       })
 
       content = transformMdxReferencesToMd(compileResult.content)
+      distMetadata = compileResult.metadata.fields
     }
     catch (e) {
       logger.warn('failed to recompile skill from dist', {skill: name, error: e})
     }
   }
 
-  const exportMetadata = extractSkillMetadataFromExport(rawContent) // Extract metadata from JS export if YAML front matter is not present
+  const exportMetadata = distMetadata ?? compiledMetadata ?? extractSkillMetadataFromExport(rawContent) // Use metadata from dist file, or from compiled MDX, or extract from raw content
 
-  const finalDescription = parsed?.yamlFrontMatter?.description ?? exportMetadata.description
+  const finalDescription = parsed?.yamlFrontMatter?.description ?? exportMetadata?.description as string | undefined
 
   if (finalDescription == null || finalDescription.trim().length === 0) { // Strict validation: description must exist and not be empty
     logger.error('SKILL_VALIDATION_FAILED: description is required and cannot be empty', {
       skill: name,
       skillDir,
       yamlDescription: parsed?.yamlFrontMatter?.description,
-      exportDescription: exportMetadata.description,
+      exportDescription: exportMetadata?.description,
       hint: 'Add a non-empty description field to the SKILL.md front matter or export default'
     })
     throw new Error(`Skill "${name}" validation failed: description is required and cannot be empty`)
@@ -609,11 +612,19 @@ export class SkillInputPlugin extends AbstractInputPlugin {
         entryFileName: 'skill',
         localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
         isDirectoryStructure: true,
-        createPrompt: async (content, locale, name) => {
+        createPrompt: async (content, locale, name, metadata) => {
           const skillDistDir = pathModule.join(distSkillDir, name)
-          const processor = new ResourceProcessor({fs, logger, skillDir: skillDistDir})
-          const {childDocs, resources} = processor.scanSkillDirectory(skillDistDir)
-          const mcpConfig = readMcpConfig(skillDistDir, fs, logger)
+          let childDocs: SkillChildDoc[] = []
+          let resources: SkillResource[] = []
+          let mcpConfig: SkillMcpConfig | undefined
+
+          if (fs.existsSync(skillDistDir)) {
+            const processor = new ResourceProcessor({fs, logger, skillDir: skillDistDir})
+            const {childDocs: scannedChildDocs, resources: scannedResources} = processor.scanSkillDirectory(skillDistDir)
+            childDocs = scannedChildDocs
+            resources = scannedResources
+            mcpConfig = readMcpConfig(skillDistDir, fs, logger)
+          }
 
           return createSkillPrompt(
             content,
@@ -624,7 +635,9 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             ctx,
             mcpConfig,
             childDocs,
-            resources
+            resources,
+            void 0,
+            metadata
           )
         }
       }

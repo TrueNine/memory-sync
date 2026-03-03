@@ -110,7 +110,7 @@ export class CommandInputPlugin extends AbstractInputPlugin {
         kind: PromptKind.Command,
         localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
         isDirectoryStructure: false,
-        createPrompt: async (content, locale, name) => this.createCommandPrompt(
+        createPrompt: async (content, locale, name, _metadata) => this.createCommandPrompt(
           content,
           locale,
           name,
