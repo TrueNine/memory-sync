@@ -280,67 +280,6 @@ export function deleteDirectories(dirs: readonly string[]): DeletionResult {
   }
 
   return {deleted, errors}
-} // RelativePath Factory - Construct RelativePath objects
-
-/**
- * Directory path kind discriminator.
- */
-export enum FilePathKind {
-  Relative = 'Relative',
-  Absolute = 'Absolute',
-  Root = 'Root'
-}
-
-/**
- * A path relative to a base directory.
- */
-export interface RelativePath {
-  readonly pathKind: FilePathKind.Relative
-  readonly path: string
-  readonly basePath: string
-  readonly getDirectoryName: () => string
-  readonly getAbsolutePath: () => string
-}
-
-/**
- * Create a RelativePath from a path string, base path, and directory name function.
- *
- * @param pathStr - The relative path string
- * @param basePath - The base directory for absolute path resolution
- * @param dirNameFn - Function returning the directory name
- * @returns A RelativePath object
- */
-export function createRelativePath(
-  pathStr: string,
-  basePath: string,
-  dirNameFn: () => string
-): RelativePath {
-  return {
-    pathKind: FilePathKind.Relative,
-    path: pathStr,
-    basePath,
-    getDirectoryName: dirNameFn,
-    getAbsolutePath: () => path.join(basePath, pathStr)
-  }
-}
-
-/**
- * Create a RelativePath for a file within a parent directory.
- * The getDirectoryName delegates to the parent directory's getDirectoryName.
- *
- * @param dir - Parent directory RelativePath
- * @param fileName - Name of the file
- * @returns A RelativePath pointing to the file
- */
-export function createFileRelativePath(dir: RelativePath, fileName: string): RelativePath {
-  const filePath = path.join(dir.path, fileName)
-  return {
-    pathKind: FilePathKind.Relative,
-    path: filePath,
-    basePath: dir.basePath,
-    getDirectoryName: () => dir.getDirectoryName(),
-    getAbsolutePath: () => path.join(dir.basePath, filePath)
-  }
 } // Safe Write - Dry-run aware file writing with error handling
 
 /**
@@ -358,7 +297,8 @@ export interface SafeWriteOptions {
   readonly fullPath: string
   readonly content: string | Buffer
   readonly type: string
-  readonly relativePath: RelativePath
+  /** 相对路径字符串 (相对于输出目标目录) */
+  readonly relativePath: string
   readonly dryRun: boolean
   readonly logger: WriteLogger
 }
@@ -367,7 +307,8 @@ export interface SafeWriteOptions {
  * Result of a safe write operation.
  */
 export interface SafeWriteResult {
-  readonly path: RelativePath
+  /** 相对路径字符串 (相对于输出目标目录) */
+  readonly path: string
   readonly success: boolean
   readonly skipped?: boolean
   readonly error?: Error
