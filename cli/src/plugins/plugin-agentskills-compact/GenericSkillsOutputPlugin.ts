@@ -63,7 +63,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const {skills} = ctx.collectedInputContext
@@ -95,7 +95,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const {skills} = ctx.collectedInputContext
@@ -163,15 +163,15 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputDirs(): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(): Promise<RelativePath[]> {
     return [] // 不再使用全局输出目录
   }
 
-  async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
     return [] // 不再使用全局输出文件
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {skills} = ctx.collectedInputContext
     const {projects} = ctx.collectedInputContext.workspace
 
@@ -186,7 +186,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {projects} = ctx.collectedInputContext.workspace
     const {skills} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
@@ -204,7 +204,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       )
 
       for (const skill of skills) {
-        const skillResults = await this.writeSkill(ctx, skill, projectSkillsDir) // 将技能文件直接写入项目目录
+        const skillResults = await this.writeSkillToDir(ctx, skill, projectSkillsDir) // 将技能文件直接写入项目目录
         fileResults.push(...skillResults)
       }
     }
@@ -212,11 +212,11 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: dirResults}
   }
 
-  async writeGlobalOutputs(): Promise<WriteResults> {
+  override async writeGlobalOutputs(): Promise<WriteResults> {
     return {files: [], dirs: []} // 不再写入全局输出，所有技能文件直接写入项目目录
   }
 
-  private async writeSkill(
+  private async writeSkillToDir(
     ctx: OutputWriteContext,
     skill: SkillPrompt,
     skillsDir: string

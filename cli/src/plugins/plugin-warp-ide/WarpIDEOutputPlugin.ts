@@ -20,7 +20,15 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(): Promise<RelativePath[]> {
+    return []
+  }
+
+  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+    return []
+  }
+
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const agentsRegistered = this.isAgentsPluginRegisteredInCtx(ctx)
@@ -45,7 +53,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const agentsRegistered = this.shouldSkipDueToPlugin(ctx, PLUGIN_NAMES.AgentsOutput)
     const {workspace, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
 
@@ -69,7 +77,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const agentsRegistered = this.shouldSkipDueToPlugin(ctx, PLUGIN_NAMES.AgentsOutput)
     const {workspace, globalMemory} = ctx.collectedInputContext
     const {projects} = workspace

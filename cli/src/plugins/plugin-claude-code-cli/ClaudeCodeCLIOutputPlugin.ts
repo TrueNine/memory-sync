@@ -2,7 +2,7 @@ import type {OutputPluginContext, OutputWriteContext, RulePrompt, WriteResults} 
 import type {RelativePath} from '../plugin-shared/types'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter, doubleQuoted} from '@truenine/md-compiler/markdown'
-import {applySubSeriesGlobPrefix, BaseCLIOutputPlugin, filterRulesByProjectConfig} from '@truenine/plugin-output-shared'
+import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterRulesByProjectConfig} from '@truenine/plugin-output-shared'
 
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'
 const GLOBAL_CONFIG_DIR = '.claude'
@@ -21,7 +21,7 @@ const RULE_FILE_PREFIX = 'rule-'
  * Known bug: Claude Code CLI has issues with `.claude/rules` directory handling.
  * This may affect rule loading behavior in certain scenarios.
  */
-export class ClaudeCodeCLIOutputPlugin extends BaseCLIOutputPlugin {
+export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('ClaudeCodeCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,

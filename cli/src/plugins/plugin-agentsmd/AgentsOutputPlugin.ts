@@ -14,7 +14,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     super('AgentsOutputPlugin', {outputFileName: PROJECT_MEMORY_FILE})
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
 
@@ -33,7 +33,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {workspace} = ctx.collectedInputContext
     const hasProjectOutputs = workspace.projects.some(
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
@@ -45,7 +45,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {projects} = ctx.collectedInputContext.workspace
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []

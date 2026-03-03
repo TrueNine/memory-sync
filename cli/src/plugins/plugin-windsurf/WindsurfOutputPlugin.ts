@@ -36,7 +36,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
@@ -67,7 +67,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {skills, commands} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
@@ -118,7 +118,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {skills, commands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasSkills = (skills?.length ?? 0) > 0
     const hasCommands = (commands?.length ?? 0) > 0
@@ -132,7 +132,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {skills, commands, globalMemory, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
@@ -160,7 +160,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: dirResults}
   }
 
-  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {workspace, rules} = ctx.collectedInputContext
     if (rules == null || rules.length === 0) return results
@@ -176,7 +176,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {workspace, rules} = ctx.collectedInputContext
 
@@ -197,7 +197,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const fileResults: WriteResult[] = []
     const {workspace, rules} = ctx.collectedInputContext
 
@@ -297,7 +297,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (skill.resources != null) {
-      for (const resource of skill.resources) results.push(await this.writeSkillResource(ctx, resource, skillDir, skillName, codeiumDir))
+      for (const resource of skill.resources) results.push(await this.writeWindsurfSkillResource(ctx, resource, skillDir, skillName, codeiumDir))
     }
 
     return results
@@ -324,7 +324,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  private async writeSkillResource(ctx: OutputWriteContext, resource: {relativePath: string, content: string, encoding: 'text' | 'base64'}, skillDir: string, skillName: string, baseDir: string): Promise<WriteResult> {
+  private async writeWindsurfSkillResource(ctx: OutputWriteContext, resource: {relativePath: string, content: string, encoding: 'text' | 'base64'}, skillDir: string, skillName: string, baseDir: string): Promise<WriteResult> {
     const resourcePath = path.join(skillDir, resource.relativePath)
     const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(SKILLS_SUBDIR, skillName, resource.relativePath), basePath: baseDir, getDirectoryName: () => skillName, getAbsolutePath: () => resourcePath}
 

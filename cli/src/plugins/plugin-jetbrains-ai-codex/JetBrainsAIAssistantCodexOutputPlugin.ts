@@ -83,7 +83,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     })
   }
 
-  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
 
@@ -95,7 +95,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     return results
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
 
@@ -117,7 +117,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     return results
   }
 
-  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const codexDirs = this.resolveCodexDirs()
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
@@ -152,7 +152,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     return results
   }
 
-  async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
     const codexDirs = this.resolveCodexDirs()
     return codexDirs.map(codexDir => ({
       pathKind: FilePathKind.Relative,
@@ -163,7 +163,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     }))
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {globalMemory, commands, skills, workspace, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasGlobalMemory = globalMemory != null
     const hasFastCommands = (commands?.length ?? 0) > 0
@@ -179,7 +179,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     return false
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {projects} = ctx.collectedInputContext.workspace
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
@@ -210,7 +210,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     return {files: fileResults, dirs: dirResults}
   }
 
-  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {globalMemory, commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
@@ -525,7 +525,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     return singleLine
   }
 
-  private async writeSkillReferenceDocument(
+  protected override async writeSkillReferenceDocument(
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
@@ -565,7 +565,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     return results
   }
 
-  private async writeSkillResource(
+  protected override async writeSkillResource(
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,

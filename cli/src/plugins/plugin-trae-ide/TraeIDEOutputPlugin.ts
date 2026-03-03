@@ -37,7 +37,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return this.joinPath(this.getGlobalConfigDir(), STEERING_SUBDIR)
   }
 
-  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const {projects} = ctx.collectedInputContext.workspace
     const {commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
@@ -80,7 +80,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const {projects} = ctx.collectedInputContext.workspace
     const {commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
@@ -151,13 +151,13 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputDirs(): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(): Promise<RelativePath[]> {
     return [
       this.createRelativePath(STEERING_SUBDIR, this.getGlobalConfigDir(), () => STEERING_SUBDIR)
     ]
   }
 
-  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const {globalMemory} = ctx.collectedInputContext
     const results: RelativePath[] = []
 
@@ -166,7 +166,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {workspace, globalMemory, commands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasChildPrompts = workspace.projects.some(p => (p.childMemoryPrompts?.length ?? 0) > 0)
     const hasCommands = (commands?.length ?? 0) > 0
@@ -177,7 +177,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {projects} = ctx.collectedInputContext.workspace
     const {commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
@@ -208,7 +208,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: []}
   }
 
-  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {globalMemory} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const steeringDir = this.getGlobalSteeringDir()
@@ -280,7 +280,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (skill.resources != null) {
-      for (const resource of skill.resources) results.push(await this.writeSkillResource(ctx, resource, skillDir, skillName, projectDir))
+      for (const resource of skill.resources) results.push(await this.writeTraeSkillResource(ctx, resource, skillDir, skillName, projectDir))
     }
 
     return results
@@ -317,7 +317,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  private async writeSkillResource(ctx: OutputWriteContext, resource: {relativePath: string, content: string, encoding: 'text' | 'base64'}, skillDir: string, skillName: string, projectDir: RelativePath): Promise<WriteResult> {
+  private async writeTraeSkillResource(ctx: OutputWriteContext, resource: {relativePath: string, content: string, encoding: 'text' | 'base64'}, skillDir: string, skillName: string, projectDir: RelativePath): Promise<WriteResult> {
     const resourcePath = path.join(skillDir, resource.relativePath)
 
     const relativePath: RelativePath = {

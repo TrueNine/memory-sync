@@ -72,7 +72,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const globalDir = this.getGlobalConfigDir()
     const {commands, skills, rules} = ctx.collectedInputContext
@@ -104,7 +104,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const globalDir = this.getGlobalConfigDir()
     const {skills, commands} = ctx.collectedInputContext
@@ -163,7 +163,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {workspace, globalMemory, rules} = ctx.collectedInputContext
     const hasProjectRules = rules?.some(r => this.normalizeRuleScope(r) === 'project') ?? false
@@ -176,7 +176,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {workspace, globalMemory, rules} = ctx.collectedInputContext
     if (globalMemory == null && rules == null) return results
@@ -202,7 +202,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {workspace, skills, commands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasSkills = (skills?.length ?? 0) > 0
     const hasFastCommands = (commands?.length ?? 0) > 0
@@ -214,7 +214,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {skills, commands, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
@@ -246,7 +246,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: dirResults}
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
     const {workspace, globalMemory, rules} = ctx.collectedInputContext
@@ -368,7 +368,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
 
     if (skill.mcpConfig != null) results.push(await this.writeSkillMcpConfig(ctx, skill, skillDir, globalDir))
     if (skill.childDocs != null) { for (const childDoc of skill.childDocs) results.push(await this.writeSkillChildDoc(ctx, childDoc, skillDir, skillName, globalDir)) }
-    if (skill.resources != null) { for (const resource of skill.resources) results.push(await this.writeSkillResource(ctx, resource, skillDir, skillName, globalDir)) }
+    if (skill.resources != null) { for (const resource of skill.resources) results.push(await this.writeCursorSkillResource(ctx, resource, skillDir, skillName, globalDir)) }
     return results
   }
 
@@ -411,7 +411,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  private async writeSkillResource(ctx: OutputWriteContext, resource: {relativePath: string, content: string, encoding: 'text' | 'base64'}, skillDir: string, skillName: string, globalDir: string): Promise<WriteResult> {
+  private async writeCursorSkillResource(ctx: OutputWriteContext, resource: {relativePath: string, content: string, encoding: 'text' | 'base64'}, skillDir: string, skillName: string, globalDir: string): Promise<WriteResult> {
     const resourcePath = path.join(skillDir, resource.relativePath)
     const relativePath: RelativePath = {pathKind: FilePathKind.Relative, path: path.join(SKILLS_CURSOR_SUBDIR, skillName, resource.relativePath), basePath: globalDir, getDirectoryName: () => skillName, getAbsolutePath: () => resourcePath}
     if (ctx.dryRun === true) {

@@ -24,21 +24,21 @@ export class TraeCNIDEOutputPlugin extends AbstractOutputPlugin {
     return this.joinPath(this.getGlobalConfigDir(), USER_RULES_SUBDIR)
   }
 
-  async registerProjectOutputDirs(): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(): Promise<RelativePath[]> {
     return []
   }
 
-  async registerProjectOutputFiles(): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(): Promise<RelativePath[]> {
     return []
   }
 
-  async registerGlobalOutputDirs(): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(): Promise<RelativePath[]> {
     return [
       this.createRelativePath(USER_RULES_SUBDIR, this.getGlobalConfigDir(), () => USER_RULES_SUBDIR)
     ]
   }
 
-  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const {globalMemory} = ctx.collectedInputContext
     const results: RelativePath[] = []
 
@@ -47,18 +47,18 @@ export class TraeCNIDEOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {globalMemory} = ctx.collectedInputContext
     if (globalMemory != null) return true
     this.log.trace({action: 'skip', reason: 'noGlobalMemory'})
     return false
   }
 
-  async writeProjectOutputs(): Promise<WriteResults> {
+  override async writeProjectOutputs(): Promise<WriteResults> {
     return {files: [], dirs: []}
   }
 
-  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {globalMemory} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []
     const userRulesDir = this.getGlobalUserRulesDir()

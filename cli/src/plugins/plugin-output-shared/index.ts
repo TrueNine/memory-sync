@@ -10,13 +10,7 @@ export type {
   SkillFrontMatterOptions,
   WriteOperationOptions
 } from './AbstractOutputPlugin'
-export {
-  BaseCLIOutputPlugin
-} from './BaseCLIOutputPlugin'
-export type {
-  BaseCLIOutputPluginOptions
-} from './BaseCLIOutputPlugin'
-export {
+export { // Use AbstractOutputPlugin with CLI-specific options instead // BaseCLIOutputPlugin has been merged into AbstractOutputPlugin
   FileExtensions,
   FrontMatterFields,
   GlobalConfigDirs,

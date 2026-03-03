@@ -15,11 +15,19 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     super('GitExcludeOutputPlugin')
   }
 
-  async registerProjectOutputDirs(): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+    return [] // No global files to output
+  }
+
+  override async writeGlobalOutputs(): Promise<WriteResults> {
+    return {files: [], dirs: []} // No global outputs to write
+  }
+
+  override async registerProjectOutputDirs(): Promise<RelativePath[]> {
     return [] // No directories to clean
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
 
@@ -69,15 +77,11 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputDirs(): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(): Promise<RelativePath[]> {
     return [] // No global directories to clean
   }
 
-  async registerGlobalOutputFiles(): Promise<RelativePath[]> {
-    return [] // No global files to clean - workspace exclude is handled in writeProjectOutputs
-  }
-
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {globalGitIgnore, shadowGitExclude} = ctx.collectedInputContext
     const hasContent = (globalGitIgnore != null && globalGitIgnore.length > 0)
       || (shadowGitExclude != null && shadowGitExclude.length > 0)
@@ -110,7 +114,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     return canWrite
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const fileResults: WriteResult[] = []
     const {globalGitIgnore, shadowGitExclude} = ctx.collectedInputContext
 

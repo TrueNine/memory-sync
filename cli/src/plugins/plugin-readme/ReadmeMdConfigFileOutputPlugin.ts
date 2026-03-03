@@ -37,7 +37,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     super('ReadmeMdConfigFileOutputPlugin', {outputFileName: 'README.md'})
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {readmePrompts} = ctx.collectedInputContext
 
@@ -60,7 +60,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {readmePrompts} = ctx.collectedInputContext
 
     if (readmePrompts?.length !== 0) return true
@@ -69,7 +69,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
     const {readmePrompts} = ctx.collectedInputContext

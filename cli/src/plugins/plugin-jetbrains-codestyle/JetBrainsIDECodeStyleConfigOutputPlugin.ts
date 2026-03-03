@@ -27,7 +27,15 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     super('JetBrainsIDECodeStyleConfigOutputPlugin')
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+    return [] // No global files to output
+  }
+
+  override async writeGlobalOutputs(): Promise<WriteResults> {
+    return {files: [], dirs: []} // No global outputs to write
+  }
+
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedInputContext
@@ -57,7 +65,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedInputContext
     const hasIdeaConfigs = (jetbrainsConfigFiles != null && jetbrainsConfigFiles.length > 0)
       || (editorConfigFiles != null && editorConfigFiles.length > 0)
@@ -68,7 +76,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
     return false
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {projects} = ctx.collectedInputContext.workspace
     const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []

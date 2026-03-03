@@ -24,7 +24,15 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     super('VisualStudioCodeIDEConfigOutputPlugin')
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+    return [] // No global files to output
+  }
+
+  override async writeGlobalOutputs(): Promise<WriteResults> {
+    return {files: [], dirs: []} // No global outputs to write
+  }
+
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const {vscodeConfigFiles} = ctx.collectedInputContext
@@ -53,7 +61,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {vscodeConfigFiles} = ctx.collectedInputContext
     const hasVSCodeConfigs = vscodeConfigFiles != null && vscodeConfigFiles.length > 0
 
@@ -63,7 +71,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     return false
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {projects} = ctx.collectedInputContext.workspace
     const {vscodeConfigFiles} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []

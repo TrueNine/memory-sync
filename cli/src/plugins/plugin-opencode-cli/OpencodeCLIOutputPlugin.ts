@@ -3,8 +3,8 @@ import type {RelativePath} from '../plugin-shared/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {
+  AbstractOutputPlugin,
   applySubSeriesGlobPrefix,
-  BaseCLIOutputPlugin,
   filterCommandsByProjectConfig,
   filterRulesByProjectConfig,
   filterSkillsByProjectConfig,
@@ -26,7 +26,7 @@ const RULE_FILE_PREFIX = 'rule-'
  * Opencode CLI output plugin.
  * Outputs global memory, commands, agents, and skills to ~/.config/opencode/
  */
-export class OpencodeCLIOutputPlugin extends BaseCLIOutputPlugin {
+export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('OpencodeCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,

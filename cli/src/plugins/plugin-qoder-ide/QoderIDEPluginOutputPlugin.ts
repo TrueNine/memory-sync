@@ -34,14 +34,14 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     super('QoderIDEPluginOutputPlugin', {globalConfigDir: QODER_CONFIG_DIR, indexignore: '.qoderignore'})
   }
 
-  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const {projects} = ctx.collectedInputContext.workspace
     return projects
       .filter(p => p.dirFromWorkspacePath != null)
       .map(p => this.createProjectRulesDirPath(p.dirFromWorkspacePath!))
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {workspace, rules} = ctx.collectedInputContext
     const {projects} = workspace
@@ -77,7 +77,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
     const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
@@ -111,7 +111,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
     const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
@@ -184,7 +184,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {workspace, globalMemory, commands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
     const hasProjectPrompts = workspace.projects.some(
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
@@ -196,7 +196,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {workspace, globalMemory, rules} = ctx.collectedInputContext
     const {projects} = workspace
     const fileResults: WriteResult[] = []
@@ -243,7 +243,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: []}
   }
 
-  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []

@@ -24,15 +24,15 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  async registerProjectOutputDirs(): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(): Promise<RelativePath[]> {
     return [] // Codex only supports global prompts and skills
   }
 
-  async registerProjectOutputFiles(): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(): Promise<RelativePath[]> {
     return [] // AGENTS.md files are handled by AgentsOutputPlugin
   }
 
-  async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
     const results: RelativePath[] = [
       this.createRelativePath(PROMPTS_SUBDIR, globalDir, () => PROMPTS_SUBDIR)
@@ -54,25 +54,25 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
     const globalDir = this.getGlobalConfigDir()
     return [
       this.createRelativePath(PROJECT_MEMORY_FILE, globalDir, () => GLOBAL_CONFIG_DIR)
     ]
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {globalMemory, commands} = ctx.collectedInputContext
     if (globalMemory != null || (commands?.length ?? 0) > 0) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
   }
 
-  async writeProjectOutputs(): Promise<WriteResults> {
+  override async writeProjectOutputs(): Promise<WriteResults> {
     return {files: [], dirs: []} // Handled by AgentsOutputPlugin
   }
 
-  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {globalMemory, commands} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []

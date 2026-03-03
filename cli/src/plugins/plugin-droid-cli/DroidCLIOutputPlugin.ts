@@ -4,12 +4,12 @@ import type {
   WriteResult
 } from '../plugin-shared'
 import * as path from 'node:path'
-import {BaseCLIOutputPlugin} from '@truenine/plugin-output-shared'
+import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.factory'
 
-export class DroidCLIOutputPlugin extends BaseCLIOutputPlugin {
+export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('DroidCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,

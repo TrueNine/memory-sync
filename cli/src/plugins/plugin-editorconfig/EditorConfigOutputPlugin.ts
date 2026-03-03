@@ -19,7 +19,15 @@ export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
     super('EditorConfigOutputPlugin')
   }
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+    return [] // No global files to output
+  }
+
+  override async writeGlobalOutputs(): Promise<WriteResults> {
+    return {files: [], dirs: []} // No global outputs to write
+  }
+
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
     const results: RelativePath[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const {editorConfigFiles} = ctx.collectedInputContext
@@ -44,7 +52,7 @@ export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
+  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const {editorConfigFiles} = ctx.collectedInputContext
     if (editorConfigFiles != null && editorConfigFiles.length > 0) return true
 
@@ -52,7 +60,7 @@ export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const {projects} = ctx.collectedInputContext.workspace
     const {editorConfigFiles} = ctx.collectedInputContext
     const fileResults: WriteResult[] = []

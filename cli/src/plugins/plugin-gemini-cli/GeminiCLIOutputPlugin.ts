@@ -1,9 +1,9 @@
-import {BaseCLIOutputPlugin} from '@truenine/plugin-output-shared'
+import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
 
 const PROJECT_MEMORY_FILE = 'GEMINI.md'
 const GLOBAL_CONFIG_DIR = '.gemini'
 
-export class GeminiCLIOutputPlugin extends BaseCLIOutputPlugin {
+export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('GeminiCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
