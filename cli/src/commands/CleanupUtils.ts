@@ -44,14 +44,14 @@ export async function collectDeletionTargets(
     if (perm?.project) {
       const projectFiles = await plugin.registerProjectOutputFiles?.(cleanCtx) ?? []
       const projectDirs = await plugin.registerProjectOutputDirs?.(cleanCtx) ?? []
-      filesToDelete.push(...projectFiles.map(f => f.getAbsolutePath()))
-      dirsToDelete.push(...projectDirs.map(d => d.getAbsolutePath()))
+      filesToDelete.push(...projectFiles)
+      dirsToDelete.push(...projectDirs)
     }
     if (perm?.global) {
       const globalFiles = await plugin.registerGlobalOutputFiles?.(cleanCtx) ?? []
       const globalDirs = await plugin.registerGlobalOutputDirs?.(cleanCtx) ?? []
-      filesToDelete.push(...globalFiles.map(f => f.getAbsolutePath()))
-      dirsToDelete.push(...globalDirs.map(d => d.getAbsolutePath()))
+      filesToDelete.push(...globalFiles)
+      dirsToDelete.push(...globalDirs)
     }
   }
 
