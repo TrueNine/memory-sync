@@ -54,6 +54,24 @@ export interface RuleContentOptions {
 }
 
 /**
+ * Rule output configuration (declarative)
+ */
+export interface RuleOutputConfig {
+  /** Enable rule output, default false */
+  readonly enabled?: boolean
+  /** Rules subdirectory, default 'rules' */
+  readonly subDir?: string
+  /** Link symbol between series and ruleName, default '-' */
+  readonly linkSymbol?: string
+  /** Rule file prefix, default 'rule' */
+  readonly prefix?: string
+  /** Rule file extension, default '.md' */
+  readonly ext?: string
+  /** Custom frontmatter transformer */
+  readonly transformFrontMatter?: (rule: RulePrompt) => Record<string, unknown>
+}
+
+/**
  * Options for executing write operations with dry-run support
  */
 export interface WriteOperationOptions {
@@ -109,17 +127,7 @@ export interface AbstractOutputPluginOptions {
   toolPreset?: string
 
   /** Rule output configuration (declarative) */
-  supportsRules?: boolean // Enable rule output, default false
-
-  rulesSubDir?: string // Rules subdirectory, default 'rules'
-
-  ruleLinkSymbol?: string // Link symbol between series and ruleName, default '-'
-
-  rulePrefix?: string // Rule file prefix, default 'rule'
-
-  ruleExt?: string // Rule file extension, default '.md'
-
-  transformRuleFrontMatter?: (rule: RulePrompt) => Record<string, unknown> // Custom frontmatter transformer
+  rules?: RuleOutputConfig
 }
 
 /**
@@ -154,18 +162,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   protected readonly toolPreset: string | undefined
 
-  /** Rule output configuration properties */
-  protected readonly supportsRules: boolean
-
-  protected readonly rulesSubDir: string
-
-  protected readonly ruleLinkSymbol: string
-
-  protected readonly rulePrefix: string
-
-  protected readonly ruleExt: string
-
-  protected readonly transformRuleFrontMatter: ((rule: RulePrompt) => Record<string, unknown>) | undefined
+  /** Rule output configuration */
+  protected readonly rulesConfig: RuleOutputConfig
 
   private readonly registryWriterCache: Map<string, RegistryWriter<unknown>> = new Map()
 
@@ -187,12 +185,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     this.supportsSkills = options?.supportsSkills ?? false
     this.toolPreset = options?.toolPreset
 
-    this.supportsRules = options?.supportsRules ?? false // Initialize rule output config
-    this.rulesSubDir = options?.rulesSubDir ?? 'rules'
-    this.ruleLinkSymbol = options?.ruleLinkSymbol ?? '-'
-    this.rulePrefix = options?.rulePrefix ?? 'rule'
-    this.ruleExt = options?.ruleExt ?? '.md'
-    this.transformRuleFrontMatter = options?.transformRuleFrontMatter
+    this.rulesConfig = options?.rules ?? {enabled: false} // Initialize rule output config with defaults
   }
 
   protected resolvePromptSourceProjectConfig(ctx: OutputPluginContext | OutputWriteContext): ProjectConfig | undefined {
@@ -720,16 +713,26 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   protected buildRuleContent(rule: RulePrompt): string {
-    const fmData = this.transformRuleFrontMatter // Use custom frontmatter transformer if provided
-      ? this.transformRuleFrontMatter(rule)
+    const fmData = this.rulesConfig.transformFrontMatter // Use custom frontmatter transformer if provided
+      ? this.rulesConfig.transformFrontMatter(rule)
       : {globs: rule.globs.join(', ')}
 
     return buildMarkdownWithFrontMatter(fmData, rule.content)
   }
 
   protected buildRuleFileName(rule: RulePrompt): string {
-    const prefix = `${this.rulePrefix}${this.ruleLinkSymbol}`
-    return `${prefix}${rule.series}${this.ruleLinkSymbol}${rule.ruleName}${this.ruleExt}`
+    const prefix = `${this.rulesConfig.prefix ?? 'rule'}${this.rulesConfig.linkSymbol ?? '-'}`
+    const fileName = `${prefix}${rule.series}${this.rulesConfig.linkSymbol ?? '-'}${rule.ruleName}${this.rulesConfig.ext ?? '.md'}`
+    this.log.trace('buildRuleFileName', {
+      plugin: this.name,
+      series: rule.series,
+      ruleName: rule.ruleName,
+      prefix: this.rulesConfig.prefix ?? 'rule',
+      linkSymbol: this.rulesConfig.linkSymbol ?? '-',
+      ext: this.rulesConfig.ext ?? '.md',
+      result: fileName
+    })
+    return fileName
   }
 
   protected async writeFileWithHandling(
@@ -783,7 +786,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       supportsCommands: this.supportsCommands,
       supportsSubAgents: this.supportsSubAgents,
       supportsSkills: this.supportsSkills,
-      supportsRules: this.supportsRules,
+      supportsRules: this.rulesConfig.enabled,
       subdirs,
       commandsCount: ctx.collectedInputContext.commands?.length ?? 0,
       subAgentsCount: ctx.collectedInputContext.subAgents?.length ?? 0,
@@ -806,7 +809,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       }
     }
 
-    if (this.supportsRules && ctx.collectedInputContext.rules != null && ctx.collectedInputContext.rules.length > 0) { // Register rules subdirs
+    if (this.rulesConfig.enabled && ctx.collectedInputContext.rules != null && ctx.collectedInputContext.rules.length > 0) { // Register rules subdirs
       for (const project of projects) {
         if (project.dirFromWorkspacePath == null) continue
         const projectRules = applySubSeriesGlobPrefix(
@@ -814,8 +817,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
           project.projectConfig
         )
         if (projectRules.length === 0) continue
-        const dirPath = path.join(project.dirFromWorkspacePath.path, this.globalConfigDir, this.rulesSubDir)
-        results.push(this.createRelativePath(dirPath, project.dirFromWorkspacePath.basePath, () => this.rulesSubDir))
+        const dirPath = path.join(project.dirFromWorkspacePath.path, this.globalConfigDir, this.rulesConfig.subDir ?? 'rules')
+        results.push(this.createRelativePath(dirPath, project.dirFromWorkspacePath.basePath, () => this.rulesConfig.subDir ?? 'rules'))
         this.log.debug('registered rules dir', {plugin: this.name, project: project.name, dirPath})
       }
     }
@@ -952,7 +955,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         })
       }
 
-      if (this.supportsRules && ctx.collectedInputContext.rules != null && ctx.collectedInputContext.rules.length > 0) { // Register rule files
+      if (this.rulesConfig.enabled && ctx.collectedInputContext.rules != null && ctx.collectedInputContext.rules.length > 0) { // Register rule files
         const projectRules = applySubSeriesGlobPrefix(
           filterRulesByProjectConfig(ctx.collectedInputContext.rules, projectConfig),
           projectConfig
@@ -964,14 +967,14 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
           filteredRules: projectRules.length
         })
         for (const rule of projectRules) {
-          const filePath = path.join(project.dirFromWorkspacePath.path, this.globalConfigDir, this.rulesSubDir, this.buildRuleFileName(rule))
-          results.push(this.createRelativePath(filePath, project.dirFromWorkspacePath.basePath, () => this.rulesSubDir))
+          const filePath = path.join(project.dirFromWorkspacePath.path, this.globalConfigDir, this.rulesConfig.subDir ?? 'rules', this.buildRuleFileName(rule))
+          results.push(this.createRelativePath(filePath, project.dirFromWorkspacePath.basePath, () => this.rulesConfig.subDir ?? 'rules'))
           this.log.debug('registered rule file', {plugin: this.name, project: project.name, ruleName: rule.ruleName})
         }
       } else {
         this.log.debug('rules skipped', {
           plugin: this.name,
-          supportsRules: this.supportsRules,
+          supportsRules: this.rulesConfig.enabled,
           hasRules: ctx.collectedInputContext.rules != null
         })
       }
@@ -1004,7 +1007,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const hasProjectLevelCommands = this.supportsCommands && (commands?.length ?? 0) > 0 && workspace.projects.length > 0
     const hasProjectLevelSubAgents = this.supportsSubAgents && (subAgents?.length ?? 0) > 0 && workspace.projects.length > 0
     const hasProjectLevelSkills = this.supportsSkills && (skills?.length ?? 0) > 0 && workspace.projects.length > 0
-    const hasProjectLevelRules = this.supportsRules && (rules?.length ?? 0) > 0 && workspace.projects.length > 0
+    const hasProjectLevelRules = this.rulesConfig.enabled && (rules?.length ?? 0) > 0 && workspace.projects.length > 0
 
     this.log.debug('canWrite check', {
       plugin: this.name,
@@ -1022,7 +1025,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       supportsCommands: this.supportsCommands,
       supportsSubAgents: this.supportsSubAgents,
       supportsSkills: this.supportsSkills,
-      supportsRules: this.supportsRules
+      supportsRules: this.rulesConfig.enabled
     })
 
     if (hasProjectOutputs || hasGlobalMemory || hasProjectLevelCommands || hasProjectLevelSubAgents || hasProjectLevelSkills || hasProjectLevelRules) return true
@@ -1143,7 +1146,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         })
       }
 
-      if (this.supportsRules && ctx.collectedInputContext.rules != null && ctx.collectedInputContext.rules.length > 0) { // Write rules
+      if (this.rulesConfig.enabled && ctx.collectedInputContext.rules != null && ctx.collectedInputContext.rules.length > 0) { // Write rules
         const allRules = ctx.collectedInputContext.rules
         const filteredRules = applySubSeriesGlobPrefix(
           filterRulesByProjectConfig(allRules, projectConfig),
@@ -1156,9 +1159,12 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
           filteredRules: filteredRules.length
         })
         if (filteredRules.length > 0) {
-          const rulesDir = path.join(projectDir.basePath, projectDir.path, this.globalConfigDir, this.rulesSubDir)
+          const rulesDir = path.join(projectDir.basePath, projectDir.path, this.globalConfigDir, this.rulesConfig.subDir ?? 'rules')
+          this.log.debug('rules output dir', {plugin: this.name, projectName, rulesDir})
           for (const rule of filteredRules) {
-            const rulePath = path.join(rulesDir, this.buildRuleFileName(rule))
+            const fileName = this.buildRuleFileName(rule)
+            const rulePath = path.join(rulesDir, fileName)
+            this.log.debug('rule file path', {plugin: this.name, projectName, series: rule.series, ruleName: rule.ruleName, fileName, rulePath})
             const result = await this.writeFile(ctx, rulePath, this.buildRuleContent(rule), 'rule')
             fileResults.push(result)
             this.log.debug('wrote rule', {plugin: this.name, projectName, ruleName: rule.ruleName, success: result.success})
@@ -1167,7 +1173,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       } else {
         this.log.debug('rules not written', {
           plugin: this.name,
-          supportsRules: this.supportsRules,
+          supportsRules: this.rulesConfig.enabled,
           hasRules: ctx.collectedInputContext.rules != null
         })
       }

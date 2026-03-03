@@ -34,10 +34,12 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       supportsCommands: true,
       supportsSubAgents: true,
       supportsSkills: true,
-      supportsRules: true,
-      rulesSubDir: RULES_SUBDIR,
       dependsOn: [PLUGIN_NAMES.AgentsOutput],
-      transformRuleFrontMatter: (rule: RulePrompt) => ({globs: rule.globs.length > 0 ? [...rule.globs] : void 0})
+      rules: {
+        enabled: true,
+        subDir: RULES_SUBDIR,
+        transformFrontMatter: (rule: RulePrompt) => ({globs: rule.globs.length > 0 ? [...rule.globs] : void 0})
+      }
     })
 
     this.registerCleanEffect('mcp-config-cleanup', async ctx => {
@@ -215,13 +217,12 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     const files = [...baseResults.files]
 
     const {skills} = ctx.collectedInputContext
-    if (skills != null) {
-      const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
-      const mcpResult = await this.writeGlobalMcpConfig(ctx, filteredSkills)
-      if (mcpResult != null) files.push(mcpResult)
-    }
+    if (skills == null) return {files, dirs: baseResults.dirs}
 
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    const mcpResult = await this.writeGlobalMcpConfig(ctx, filteredSkills)
+    if (mcpResult != null) files.push(mcpResult)
     return {files, dirs: baseResults.dirs}
   }
 

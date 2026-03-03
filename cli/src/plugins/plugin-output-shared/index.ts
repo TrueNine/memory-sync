@@ -7,6 +7,7 @@ export type {
   CommandNameTransformOptions,
   ErrorContext,
   RuleContentOptions,
+  RuleOutputConfig,
   SkillFrontMatterOptions,
   WriteOperationOptions
 } from './AbstractOutputPlugin'

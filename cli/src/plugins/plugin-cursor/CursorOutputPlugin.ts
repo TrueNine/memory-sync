@@ -22,7 +22,6 @@ import {
   IgnoreFiles,
   McpConfigManager,
   OutputFileNames,
-  OutputPrefixes,
   OutputSubdirectories,
   PreservedSkills,
   transformMcpConfigForCursor
@@ -36,7 +35,6 @@ const RULES_SUBDIR = OutputSubdirectories.RULES
 const GLOBAL_RULE_FILE = OutputFileNames.CURSOR_GLOBAL_RULE
 const SKILLS_CURSOR_SUBDIR = OutputSubdirectories.CURSOR_SKILLS
 const SKILL_FILE_NAME = OutputFileNames.SKILL
-const RULE_FILE_PREFIX = OutputPrefixes.RULE
 const PRESERVED_SKILLS = PreservedSkills.CURSOR
 
 export class CursorOutputPlugin extends AbstractOutputPlugin {
@@ -46,9 +44,11 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       outputFileName: '',
       dependsOn: [PLUGIN_NAMES.AgentsOutput],
       indexignore: IgnoreFiles.CURSOR,
-      supportsRules: true,
-      rulesSubDir: RULES_SUBDIR,
-      rulePrefix: RULE_FILE_PREFIX
+      rules: {
+        enabled: true,
+        subDir: RULES_SUBDIR,
+        prefix: 'rule' // Note: 'rule' not 'rule-' - linkSymbol adds the separator
+      }
     })
 
     this.registerCleanEffect('mcp-config-cleanup', async ctx => {

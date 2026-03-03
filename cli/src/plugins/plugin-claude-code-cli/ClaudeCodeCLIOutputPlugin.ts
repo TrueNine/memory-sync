@@ -26,11 +26,13 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       supportsCommands: true,
       supportsSubAgents: true,
       supportsSkills: true,
-      supportsRules: true,
       commandsSubDir: COMMANDS_SUBDIR,
       agentsSubDir: AGENTS_SUBDIR,
       skillsSubDir: SKILLS_SUBDIR,
-      transformRuleFrontMatter: (rule: RulePrompt) => ({paths: rule.globs.map(doubleQuoted)}) // Custom frontmatter transformer for Claude Code CLI format
+      rules: {
+        enabled: true,
+        transformFrontMatter: (rule: RulePrompt) => rule.globs.length > 0 ? {paths: rule.globs.map(doubleQuoted)} : {} // Custom frontmatter transformer for Claude Code CLI format
+      }
     })
   }
 }
