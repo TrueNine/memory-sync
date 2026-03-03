@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import {cpSync, existsSync, mkdirSync, readdirSync} from 'node:fs'
-import {join, resolve} from 'node:path'
+import {dirname, join, resolve} from 'node:path'
+import {fileURLToPath} from 'node:url'
 import process from 'node:process'
 
 const NATIVE_MODULES = [
@@ -17,7 +18,8 @@ const PLATFORM_MAP: Record<string, string> = {
   'darwin-x64': 'darwin-x64',
 }
 
-const root = resolve(import.meta.dirname, '..')
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const root = resolve(__dirname, '..')
 const suffix = PLATFORM_MAP[`${process.platform}-${process.arch}`]
 
 if (suffix == null) {
