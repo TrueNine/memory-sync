@@ -17,6 +17,7 @@ import {
   ConfigValidationError
 } from './errors'
 import {clearPathCache} from './pathResolver'
+import {PathResolver} from './paths'
 import {validateConfig} from './schema'
 
 /**
@@ -53,6 +54,7 @@ export class ConfigService {
   private config: TnmscConfig | null = null
   private configPath: string
   private loadError: ConfigError | null = null
+  private pathResolver: PathResolver | null = null
 
   private constructor(options: ConfigServiceOptions = {}) {
     this.configPath = options.configPath ?? getDefaultConfigPath()
@@ -131,7 +133,19 @@ export class ConfigService {
 
   reload(): TnmscConfig {
     this.config = null
+    this.pathResolver = null
     return this.load()
+  }
+
+  getPathResolver(): PathResolver {
+    if (this.config === null) {
+      throw new ConfigError(
+        'Configuration has not been loaded. Call load() first.',
+        this.configPath
+      )
+    }
+    this.pathResolver ??= new PathResolver(this.config)
+    return this.pathResolver
   }
 
   getConfig(): TnmscConfig {
@@ -160,6 +174,7 @@ export class ConfigService {
     this.configPath = configPath
     this.config = null // Reset loaded config
     this.loadError = null
+    this.pathResolver = null
   }
 }
 

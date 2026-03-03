@@ -62,6 +62,22 @@ export { // Export path resolution utilities
   resolveWorkspacePath
 } from './pathResolver'
 
+export { // Export new path system
+  PathResolver
+} from './paths'
+
+export type {
+  AindexConfigPath,
+  AindexPath,
+  AnyPath,
+  HomedirPath,
+  KnowledgePath,
+  ProjectPath,
+  TypedPath,
+  WorkspacePath,
+  XdgConfigPath
+} from './paths'
+
 export { // Export schema and validation
   formatValidationErrors,
   isValidLogLevel,

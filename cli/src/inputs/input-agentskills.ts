@@ -166,26 +166,6 @@ const SKILL_RESOURCE_BINARY_EXTENSIONS = new Set([ // Binary extensions
   '.odp'
 ])
 
-type ResourceCategory = 'image' | 'code' | 'data' | 'document' | 'config' | 'script' | 'binary' | 'other'
-
-const FILE_TYPE_CATEGORIES: Record<string, readonly string[]> = {
-  image: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.bmp', '.tiff', '.svg'],
-  code: ['.kt', '.java', '.py', '.pyi', '.pyx', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.go', '.rs', '.c', '.cpp', '.cc', '.h', '.hpp', '.hxx', '.cs', '.fs', '.fsx', '.vb', '.rb', '.php', '.swift', '.scala', '.groovy', '.lua', '.r', '.jl', '.ex', '.exs', '.erl', '.clj', '.cljs', '.hs', '.ml', '.mli', '.nim', '.zig', '.v', '.dart', '.vue', '.svelte', '.d.ts', '.d.mts', '.d.cts'],
-  data: ['.sql', '.json', '.jsonc', '.json5', '.xml', '.xsd', '.xsl', '.xslt', '.yaml', '.yml', '.toml', '.csv', '.tsv', '.graphql', '.gql', '.proto'],
-  document: ['.txt', '.text', '.rtf', '.log', '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.pdf', '.odt', '.ods', '.odp'],
-  config: ['.ini', '.conf', '.cfg', '.config', '.properties', '.env', '.envrc', '.editorconfig', '.gitignore', '.gitattributes', '.npmrc', '.nvmrc', '.npmignore', '.eslintrc', '.prettierrc', '.stylelintrc', '.babelrc', '.browserslistrc'],
-  script: ['.sh', '.bash', '.zsh', '.fish', '.ps1', '.psm1', '.psd1', '.bat', '.cmd'],
-  binary: ['.exe', '.dll', '.so', '.dylib', '.bin', '.wasm', '.class', '.jar', '.war', '.pyd', '.pyc', '.pyo', '.zip', '.tar', '.gz', '.bz2', '.7z', '.rar', '.ttf', '.otf', '.woff', '.woff2', '.eot', '.db', '.sqlite', '.sqlite3']
-}
-
-function getResourceCategory(ext: string): ResourceCategory {
-  const lowerExt = ext.toLowerCase()
-  for (const [category, extensions] of Object.entries(FILE_TYPE_CATEGORIES)) {
-    if (extensions.includes(lowerExt)) return category as ResourceCategory
-  }
-  return 'other'
-}
-
 function isBinaryResourceExtension(ext: string): boolean {
   return SKILL_RESOURCE_BINARY_EXTENSIONS.has(ext.toLowerCase())
 }
@@ -281,7 +261,6 @@ class ResourceProcessor {
         relativePath,
         content,
         encoding,
-        category: getResourceCategory(ext),
         length,
         ...mimeType != null && {mimeType}
       }
