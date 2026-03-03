@@ -1,7 +1,7 @@
 import type {
   CollectedInputContext,
   InputPluginContext
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 import {AbstractInputPlugin} from './AbstractInputPlugin'
 
 /**

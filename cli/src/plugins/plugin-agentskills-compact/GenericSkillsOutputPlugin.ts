@@ -4,14 +4,14 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {FilePathKind} from '@truenine/plugin-shared'
+import {FilePathKind} from '../plugin-shared'
 
 const PROJECT_SKILLS_DIR = '.agents/skills'
 const LEGACY_SKILLS_DIR = '.skills' // 旧路径，用于清理

@@ -3,7 +3,7 @@
  * Handles merging of partial CollectedInputContext objects
  */
 
-import type {CollectedInputContext, Workspace} from '@truenine/plugin-shared'
+import type {CollectedInputContext, Workspace} from '../plugins/plugin-shared'
 
 /**
  * Merge strategy types for context fields

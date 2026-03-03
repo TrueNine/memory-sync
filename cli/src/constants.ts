@@ -1,4 +1,4 @@
-import type {UserConfigFile} from '@truenine/plugin-shared'
+import type {UserConfigFile} from './plugins/plugin-shared'
 
 export const PathPlaceholders = {
   USER_HOME: '~',

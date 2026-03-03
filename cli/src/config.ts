@@ -1,12 +1,12 @@
-import type {AindexConfig, CollectedInputContext, CommandSeriesOptions, CommandSeriesPluginOverride, ConfigLoaderOptions, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, UserConfigFile} from '@truenine/plugin-shared'
+import type {AindexConfig, CollectedInputContext, CommandSeriesOptions, CommandSeriesPluginOverride, ConfigLoaderOptions, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, UserConfigFile} from './plugins/plugin-shared'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
-import {createLogger, PluginKind} from '@truenine/plugin-shared'
 import glob from 'fast-glob'
 import {checkVersionControl} from './Aindex'
 import {loadUserConfig, validateGlobalConfig} from './ConfigLoader'
 import {PluginPipeline} from './PluginPipeline'
+import {createLogger, PluginKind} from './plugins/plugin-shared'
 
 /**
  * Pipeline configuration containing collected context and output plugins

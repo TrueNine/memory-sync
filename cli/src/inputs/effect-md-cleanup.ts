@@ -3,7 +3,7 @@ import type {
   InputEffectContext,
   InputEffectResult,
   InputPluginContext
-} from '@truenine/plugin-shared'
+} from '../plugins/plugin-shared'
 import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
 
 export interface WhitespaceCleanupEffectResult extends InputEffectResult {

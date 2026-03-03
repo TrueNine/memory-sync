@@ -1,4 +1,4 @@
-import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '@truenine/plugin-shared'
+import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-shared'
 import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
 
 export interface OrphanCleanupEffectResult extends InputEffectResult {

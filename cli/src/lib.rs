@@ -5,6 +5,7 @@
 
 pub mod bridge;
 pub mod commands;
+pub mod core;
 
 use std::path::Path;
 
@@ -60,13 +61,13 @@ pub fn version() -> &'static str {
 }
 
 /// Load and merge configuration from the given working directory.
-pub fn load_config(cwd: &Path) -> Result<tnmsc_config::MergedConfigResult, CliError> {
-    Ok(tnmsc_config::ConfigLoader::with_defaults().load(cwd))
+pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliError> {
+    Ok(core::config::ConfigLoader::with_defaults().load(cwd))
 }
 
 /// Return the merged configuration as a pretty-printed JSON string.
 pub fn config_show(cwd: &Path) -> Result<String, CliError> {
-    let result = tnmsc_config::ConfigLoader::with_defaults().load(cwd);
+    let result = core::config::ConfigLoader::with_defaults().load(cwd);
     serde_json::to_string_pretty(&result.config).map_err(CliError::from)
 }
 

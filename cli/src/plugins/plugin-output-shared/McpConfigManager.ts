@@ -1,4 +1,4 @@
-import type {ILogger, McpServerConfig, SkillPrompt} from '@truenine/plugin-shared'
+import type {ILogger, McpServerConfig, SkillPrompt} from '../plugin-shared'
 import * as path from 'node:path'
 
 /**

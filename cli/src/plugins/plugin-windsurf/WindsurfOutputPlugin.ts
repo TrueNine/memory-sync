@@ -7,14 +7,14 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
-import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
+import {FilePathKind, PLUGIN_NAMES} from '../plugin-shared'
 
 const CODEIUM_WINDSURF_DIR = '.codeium/windsurf'
 const WORKFLOWS_SUBDIR = 'global_workflows'

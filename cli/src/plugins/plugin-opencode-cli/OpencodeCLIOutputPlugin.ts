@@ -1,5 +1,5 @@
-import type {CommandPrompt, OutputPluginContext, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+import type {CommandPrompt, OutputPluginContext, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {
@@ -12,7 +12,7 @@ import {
   McpConfigManager,
   transformMcpConfigForOpencode
 } from '@truenine/plugin-output-shared'
-import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
+import {FilePathKind, PLUGIN_NAMES} from '../plugin-shared'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.config/opencode'

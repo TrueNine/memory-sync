@@ -6,7 +6,7 @@ import type {
   LocalizedCommandPrompt,
   PluginOptions,
   ResolvedBasePaths
-} from '@truenine/plugin-shared'
+} from '../plugins/plugin-shared'
 import {
   AbstractInputPlugin,
   createLocalizedPromptReader
@@ -14,7 +14,7 @@ import {
 import {
   FilePathKind,
   PromptKind
-} from '@truenine/plugin-shared'
+} from '../plugins/plugin-shared'
 
 export interface CommandPrefixInfo {
   readonly commandPrefix?: string

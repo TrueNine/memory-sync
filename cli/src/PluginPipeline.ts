@@ -1,12 +1,11 @@
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
-import type {CollectedInputContext, ILogger, InputPlugin, InputPluginContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from '@truenine/plugin-shared'
+import type {CollectedInputContext, ILogger, InputPlugin, InputPluginContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from './plugins/plugin-shared'
 import type {Command, CommandContext} from '@/commands'
 import type {PipelineConfig} from '@/config'
 import type {ParsedCliArgs} from '@/pipeline'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@truenine/plugin-input-shared'
-import {createLogger, setGlobalLogLevel} from '@truenine/plugin-shared'
 import glob from 'fast-glob'
 import {
   buildDependencyGraph,
@@ -20,6 +19,7 @@ import {
   validateDependencies
 } from '@/pipeline'
 import {startupVersionCheck} from '@/versionCheck'
+import {createLogger, setGlobalLogLevel} from './plugins/plugin-shared'
 
 export type {
   LogLevel,

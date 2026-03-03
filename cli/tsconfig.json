@@ -19,8 +19,6 @@
       ],
       "@truenine/desk-paths": ["./src/plugins/desk-paths/index.ts"],
       "@truenine/desk-paths/*": ["./src/plugins/desk-paths/*"],
-      "@truenine/plugin-shared": ["./src/plugins/plugin-shared/index.ts"],
-      "@truenine/plugin-shared/*": ["./src/plugins/plugin-shared/*"],
       "@truenine/plugin-output-shared": ["./src/plugins/plugin-output-shared/index.ts"],
       "@truenine/plugin-output-shared/*": ["./src/plugins/plugin-output-shared/*"],
       "@truenine/plugin-input-shared": ["./src/plugins/plugin-input-shared/index.ts"],
@@ -43,8 +41,7 @@
       "@truenine/plugin-trae-ide": ["./src/plugins/plugin-trae-ide/index.ts"],
       "@truenine/plugin-vscode": ["./src/plugins/plugin-vscode/index.ts"],
       "@truenine/plugin-warp-ide": ["./src/plugins/plugin-warp-ide/index.ts"],
-      "@truenine/plugin-windsurf": ["./src/plugins/plugin-windsurf/index.ts"],
-      "@truenine/config": ["./src/config/index.ts"]
+      "@truenine/plugin-windsurf": ["./src/plugins/plugin-windsurf/index.ts"]
     },
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,

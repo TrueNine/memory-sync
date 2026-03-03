@@ -1,7 +1,7 @@
-import type {CleanEffectHandler, CommandPrompt, CommandSeriesPluginOverride, EffectRegistration, EffectResult, ILogger, OutputCleanContext, OutputPlugin, OutputPluginContext, OutputWriteContext, Project, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, WriteEffectHandler, WriteResult, WriteResults} from '@truenine/plugin-shared'
-import type {Path, ProjectConfig, RegistryData, RelativePath} from '@truenine/plugin-shared/types'
-
 import type {Buffer} from 'node:buffer'
+import type {CleanEffectHandler, CommandPrompt, CommandSeriesPluginOverride, EffectRegistration, EffectResult, ILogger, OutputCleanContext, OutputPlugin, OutputPluginContext, OutputWriteContext, Project, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, WriteEffectHandler, WriteResult, WriteResults} from '../plugin-shared'
+
+import type {Path, ProjectConfig, RegistryData, RelativePath} from '../plugin-shared/types'
 import type {RegistryWriter} from './registry/RegistryWriter'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
@@ -22,7 +22,7 @@ import {
   AbstractPlugin,
   FilePathKind,
   PluginKind
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 
 /**
  * Options for building skill front matter

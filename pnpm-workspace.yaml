@@ -4,8 +4,6 @@ packages:
   - libraries/*
   - libraries/logger/npm/*
   - libraries/md-compiler/npm/*
-  - libraries/config/npm/*
-  - libraries/input-plugins/npm/*
   - gui
   - doc
 

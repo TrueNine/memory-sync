@@ -1,7 +1,7 @@
-import type {CollectedInputContext, InputPluginContext, Workspace} from '@truenine/plugin-shared'
+import type {CollectedInputContext, InputPluginContext, Workspace} from '../plugins/plugin-shared'
 import * as path from 'node:path'
 import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
-import {FilePathKind} from '@truenine/plugin-shared'
+import {FilePathKind} from '../plugins/plugin-shared'
 
 export class WorkspaceInputPlugin extends AbstractInputPlugin {
   constructor() {

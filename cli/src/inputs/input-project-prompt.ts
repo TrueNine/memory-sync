@@ -4,7 +4,7 @@ import type {
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
   YAMLFrontMatter
-} from '@truenine/plugin-shared'
+} from '../plugins/plugin-shared'
 
 import process from 'node:process'
 
@@ -15,7 +15,7 @@ import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
 import {
   FilePathKind,
   PromptKind
-} from '@truenine/plugin-shared'
+} from '../plugins/plugin-shared'
 
 const PROJECT_MEMORY_FILE = 'agt.mdx'
 const SCAN_SKIP_DIRECTORIES: readonly string[] = ['node_modules', '.git'] as const

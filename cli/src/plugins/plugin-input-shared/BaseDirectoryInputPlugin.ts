@@ -5,7 +5,7 @@ import type {
   PluginOptions,
   ResolvedBasePaths,
   YAMLFrontMatter
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 import {mdxToMd} from '@truenine/md-compiler'
 import {MetadataValidationError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'

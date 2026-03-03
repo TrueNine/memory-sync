@@ -4,9 +4,6 @@ members = [
   "cli",
   "libraries/logger",
   "libraries/md-compiler",
-  "libraries/config",
-  "libraries/plugin-shared",
-  "libraries/input-plugins",
   "gui/src-tauri",
 ]
 
@@ -22,9 +19,6 @@ repository = "https://github.com/TrueNine/memory-sync"
 tnmsc = { path = "cli" }
 tnmsc-logger = { path = "libraries/logger" }
 tnmsc-md-compiler = { path = "libraries/md-compiler" }
-tnmsc-config = { path = "libraries/config" }
-tnmsc-plugin-shared = { path = "libraries/plugin-shared" }
-tnmsc-input-plugins = { path = "libraries/input-plugins" }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

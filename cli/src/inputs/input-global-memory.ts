@@ -1,4 +1,4 @@
-import type {CollectedInputContext, InputPluginContext} from '@truenine/plugin-shared'
+import type {CollectedInputContext, InputPluginContext} from '../plugins/plugin-shared'
 
 import * as os from 'node:os'
 import process from 'node:process'
@@ -11,7 +11,7 @@ import {
   FilePathKind,
   GlobalConfigDirectoryType,
   PromptKind
-} from '@truenine/plugin-shared'
+} from '../plugins/plugin-shared'
 
 export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
   constructor() {

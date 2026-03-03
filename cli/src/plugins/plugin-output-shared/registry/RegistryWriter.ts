@@ -7,14 +7,14 @@
  * @see Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 7.1, 7.2
  */
 
-import type {ILogger} from '@truenine/plugin-shared'
-import type {RegistryData, RegistryOperationResult} from '@truenine/plugin-shared/types'
+import type {ILogger} from '../../plugin-shared'
+import type {RegistryData, RegistryOperationResult} from '../../plugin-shared/types'
 
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 
-import {createLogger} from '@truenine/plugin-shared'
+import {createLogger} from '../../plugin-shared'
 
 /**
  * Abstract base class for registry configuration writers.

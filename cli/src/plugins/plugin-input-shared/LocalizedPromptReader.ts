@@ -8,7 +8,7 @@ import type {
   Prompt,
   PromptKind,
   ReadError
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 import {mdxToMd} from '@truenine/md-compiler'
 import {parseMarkdown} from '@truenine/md-compiler/markdown' // Re-export types for convenience
 
@@ -25,7 +25,7 @@ export class LocalizedPromptReader {
   constructor(
     private fs: typeof import('node:fs'),
     private path: typeof import('node:path'),
-    private logger: import('@truenine/plugin-shared').ILogger,
+    private logger: import('../plugin-shared').ILogger,
     private globalScope?: MdxGlobalScope
   ) {}
 
@@ -428,7 +428,7 @@ export class LocalizedPromptReader {
 export function createLocalizedPromptReader(
   fs: typeof import('node:fs'),
   path: typeof import('node:path'),
-  logger: import('@truenine/plugin-shared').ILogger,
+  logger: import('../plugin-shared').ILogger,
   globalScope?: MdxGlobalScope
 ): LocalizedPromptReader {
   return new LocalizedPromptReader(fs, path, logger, globalScope)
@@ -438,4 +438,4 @@ export {
   type DirectoryReadResult,
   type LocalizedReadOptions,
   type ReadError
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'

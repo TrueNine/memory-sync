@@ -34,6 +34,16 @@
     "dist",
     "dist/tnmsc.schema.json"
   ],
+  "napi": {
+    "binaryName": "napi-memory-sync-cli",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin"
+    ]
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"

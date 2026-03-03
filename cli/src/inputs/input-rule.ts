@@ -6,7 +6,7 @@ import type {
   ResolvedBasePaths,
   RulePrompt,
   RuleScope
-} from '@truenine/plugin-shared'
+} from '../plugins/plugin-shared'
 import {mdxToMd} from '@truenine/md-compiler'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {
@@ -16,7 +16,7 @@ import {
 import {
   FilePathKind,
   PromptKind
-} from '@truenine/plugin-shared'
+} from '../plugins/plugin-shared'
 
 export class RuleInputPlugin extends AbstractInputPlugin {
   constructor() {

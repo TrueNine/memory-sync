@@ -3,12 +3,12 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {AbstractOutputPlugin, findAllGitRepos, findGitModuleInfoDirs, resolveGitInfoDir} from '@truenine/plugin-output-shared'
-import {FilePathKind} from '@truenine/plugin-shared'
+import {FilePathKind} from '../plugin-shared'
 
 export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
   constructor() {

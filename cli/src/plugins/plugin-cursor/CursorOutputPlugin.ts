@@ -6,8 +6,8 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -27,7 +27,7 @@ import {
   PreservedSkills,
   transformMcpConfigForCursor
 } from '@truenine/plugin-output-shared'
-import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
+import {FilePathKind, PLUGIN_NAMES} from '../plugin-shared'
 
 const GLOBAL_CONFIG_DIR = GlobalConfigDirs.CURSOR // Constants for local use (consider moving to constants.ts if used by multiple plugins)
 const MCP_CONFIG_FILE = OutputFileNames.MCP_CONFIG

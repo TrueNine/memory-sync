@@ -1,9 +1,9 @@
-import type {AindexConfig, ConfigLoaderOptions, ConfigLoadResult, ILogger, UserConfigFile} from '@truenine/plugin-shared'
+import type {AindexConfig, ConfigLoaderOptions, ConfigLoadResult, ILogger, UserConfigFile} from './plugins/plugin-shared'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {convertUserConfigAindexToShadowSourceProject, createLogger, DEFAULT_USER_CONFIG, ZUserConfigFile} from '@truenine/plugin-shared'
+import {convertUserConfigAindexToShadowSourceProject, createLogger, DEFAULT_USER_CONFIG, ZUserConfigFile} from './plugins/plugin-shared'
 
 /**
  * Default config file name

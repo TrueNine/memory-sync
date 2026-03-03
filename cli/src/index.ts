@@ -1,7 +1,7 @@
 import process from 'node:process'
-import {createLogger} from '@truenine/plugin-shared'
 import {PluginPipeline} from '@/PluginPipeline'
 import userPluginConfigPromise from './plugin.config'
+import {createLogger} from './plugins/plugin-shared'
 
 export * from './Aindex'
 export * from './config'

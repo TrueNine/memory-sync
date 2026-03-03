@@ -8,8 +8,8 @@ import type {
   SubAgentPrompt,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import type {AbstractOutputPluginOptions} from './AbstractOutputPlugin'
 import * as path from 'node:path'
 import {writeFileSync as deskWriteFileSync} from '@truenine/desk-paths'

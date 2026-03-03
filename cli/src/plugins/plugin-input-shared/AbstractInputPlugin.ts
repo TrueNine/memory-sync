@@ -11,7 +11,7 @@ import type {
   PluginScopeRegistration,
   ResolvedBasePaths,
   YAMLFrontMatter
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 
 import {spawn} from 'node:child_process'
 import * as os from 'node:os'
@@ -21,7 +21,7 @@ import {
   AbstractPlugin,
   PathPlaceholders,
   PluginKind
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 
 export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Input> implements InputPlugin {
   private readonly inputEffects: InputEffectRegistration[] = []

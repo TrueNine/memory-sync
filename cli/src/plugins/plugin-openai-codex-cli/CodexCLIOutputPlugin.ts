@@ -4,11 +4,11 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import * as path from 'node:path'
 import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
-import {PLUGIN_NAMES} from '@truenine/plugin-shared'
+import {PLUGIN_NAMES} from '../plugin-shared'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.codex'

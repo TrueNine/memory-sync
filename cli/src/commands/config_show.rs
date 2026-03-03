@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
-use tnmsc_config::ConfigLoader;
 use tnmsc_logger::create_logger;
+use crate::core::config::ConfigLoader;
 
 pub fn execute() -> ExitCode {
     let logger = create_logger("config-show", None);

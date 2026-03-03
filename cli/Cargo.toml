@@ -10,6 +10,7 @@ repository.workspace = true
 [lib]
 name = "tnmsc"
 path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
 
 [[bin]]
 name = "tnmsc"
@@ -18,21 +19,24 @@ path = "src/main.rs"
 [features]
 default = []
 embedded-runtime = []
+napi = ["dep:napi", "dep:napi-derive"]
 
 [dependencies]
 tnmsc-logger = { workspace = true }
 tnmsc-md-compiler = { workspace = true }
-tnmsc-config = { workspace = true }
-tnmsc-plugin-shared = { workspace = true }
-tnmsc-input-plugins = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = "2"
 clap = { workspace = true }
 dirs = { workspace = true }
+sha2 = { workspace = true }
+napi = { workspace = true, optional = true }
+napi-derive = { workspace = true, optional = true }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "rustls", "rustls-native-certs"] }
 
 [dev-dependencies]
 proptest = "1"
 tempfile = "3"
-tnmsc-config = { workspace = true }
+
+[build-dependencies]
+napi-build = { workspace = true }

@@ -1,3 +1,4 @@
+import type {Dirent} from 'node:fs'
 import type {
   CollectedInputContext,
   ILogger,
@@ -11,8 +12,7 @@ import type {
   SkillResource,
   SkillResourceEncoding,
   SkillYAMLFrontMatter
-} from '@truenine/plugin-shared'
-import type {Dirent} from 'node:fs'
+} from '../plugins/plugin-shared'
 import type {ResourceScanResult} from './input-agentskills-types'
 
 import {Buffer} from 'node:buffer'
@@ -21,7 +21,7 @@ import {mdxToMd} from '@truenine/md-compiler'
 import {MetadataValidationError} from '@truenine/md-compiler/errors'
 import {parseMarkdown, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
 import {AbstractInputPlugin, createLocalizedPromptReader} from '@truenine/plugin-input-shared'
-import {FilePathKind, PromptKind, validateSkillMetadata} from '@truenine/plugin-shared'
+import {FilePathKind, PromptKind, validateSkillMetadata} from '../plugins/plugin-shared'
 
 export * from './input-agentskills-types' // Re-export from types file
 

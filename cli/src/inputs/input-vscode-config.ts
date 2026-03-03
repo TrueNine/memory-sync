@@ -1,6 +1,6 @@
-import type {CollectedInputContext, InputPluginContext, ProjectIDEConfigFile} from '@truenine/plugin-shared'
+import type {CollectedInputContext, InputPluginContext, ProjectIDEConfigFile} from '../plugins/plugin-shared'
 import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
-import {FilePathKind, IDEKind} from '@truenine/plugin-shared'
+import {FilePathKind, IDEKind} from '../plugins/plugin-shared'
 
 function readIdeConfigFile<T extends IDEKind>(
   type: T,

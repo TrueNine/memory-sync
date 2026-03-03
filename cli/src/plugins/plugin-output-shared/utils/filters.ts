@@ -1,5 +1,5 @@
-import type {CommandPrompt, RulePrompt, SeriName, SkillPrompt, SubAgentPrompt} from '@truenine/plugin-shared'
-import type {ProjectConfig} from '@truenine/plugin-shared/types'
+import type {CommandPrompt, RulePrompt, SeriName, SkillPrompt, SubAgentPrompt} from '../../plugin-shared'
+import type {ProjectConfig} from '../../plugin-shared/types'
 import {matchesSeries, resolveEffectiveIncludeSeries} from './seriesFilter'
 
 /**

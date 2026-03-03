@@ -7,14 +7,14 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {getPlatformFixedDir} from '@truenine/desk-paths'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
-import {FilePathKind, PLUGIN_NAMES} from '@truenine/plugin-shared'
+import {FilePathKind, PLUGIN_NAMES} from '../plugin-shared'
 
 /**
  * Represents the filename of the project memory file.

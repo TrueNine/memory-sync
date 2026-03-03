@@ -3,8 +3,8 @@
  * Handles dependency graph building, validation, and topological sorting
  */
 
-import type {Plugin, PluginKind} from '@truenine/plugin-shared'
-import {CircularDependencyError, MissingDependencyError} from '@truenine/plugin-shared'
+import type {Plugin, PluginKind} from '../plugins/plugin-shared'
+import {CircularDependencyError, MissingDependencyError} from '../plugins/plugin-shared'
 
 /**
  * Build dependency graph from plugins

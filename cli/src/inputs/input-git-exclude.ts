@@ -1,4 +1,4 @@
-import type {CollectedInputContext, InputPluginContext} from '@truenine/plugin-shared'
+import type {CollectedInputContext, InputPluginContext} from '../plugins/plugin-shared'
 import * as path from 'node:path'
 import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
 

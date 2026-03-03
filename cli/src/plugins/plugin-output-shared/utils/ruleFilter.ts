@@ -1,5 +1,5 @@
-import type {RulePrompt} from '@truenine/plugin-shared'
-import type {Project, ProjectConfig} from '@truenine/plugin-shared/types'
+import type {RulePrompt} from '../../plugin-shared'
+import type {Project, ProjectConfig} from '../../plugin-shared/types'
 import {filterByProjectConfig} from './filters'
 import {resolveSubSeries} from './seriesFilter'
 

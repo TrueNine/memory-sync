@@ -1,6 +1,6 @@
-import type {AIAgentIgnoreConfigFile, CollectedInputContext, InputPluginContext} from '@truenine/plugin-shared'
+import type {AIAgentIgnoreConfigFile, CollectedInputContext, InputPluginContext} from '../plugins/plugin-shared'
 import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
-import {AINDEX_FILE_NAMES} from '@truenine/plugin-shared'
+import {AINDEX_FILE_NAMES} from '../plugins/plugin-shared'
 
 const IGNORE_FILE_NAMES: readonly string[] = [
   AINDEX_FILE_NAMES.QODER_IGNORE,

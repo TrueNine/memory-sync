@@ -1,5 +1,5 @@
-import type {OutputPluginContext, OutputWriteContext, RulePrompt, WriteResults} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+import type {OutputPluginContext, OutputWriteContext, RulePrompt, WriteResults} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter, doubleQuoted} from '@truenine/md-compiler/markdown'
 import {applySubSeriesGlobPrefix, BaseCLIOutputPlugin, filterRulesByProjectConfig} from '@truenine/plugin-output-shared'

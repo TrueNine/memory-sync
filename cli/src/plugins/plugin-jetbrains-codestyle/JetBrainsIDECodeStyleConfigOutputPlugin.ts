@@ -3,10 +3,10 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '@truenine/plugin-shared'
-import type {RelativePath} from '@truenine/plugin-shared/types'
+} from '../plugin-shared'
+import type {RelativePath} from '../plugin-shared/types'
 import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {FilePathKind, IDEKind} from '@truenine/plugin-shared'
+import {FilePathKind, IDEKind} from '../plugin-shared'
 
 const IDEA_DIR = '.idea'
 const CODE_STYLES_DIR = 'codeStyles'

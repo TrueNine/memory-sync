@@ -2,7 +2,7 @@ import type {
   OutputWriteContext,
   SkillPrompt,
   WriteResult
-} from '@truenine/plugin-shared'
+} from '../plugin-shared'
 import * as path from 'node:path'
 import {BaseCLIOutputPlugin} from '@truenine/plugin-output-shared'
 

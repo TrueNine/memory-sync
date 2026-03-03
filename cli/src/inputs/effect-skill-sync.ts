@@ -1,6 +1,6 @@
-import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '@truenine/plugin-shared'
-
 import type {Buffer} from 'node:buffer'
+
+import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-shared'
 import {createHash} from 'node:crypto'
 import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
 
