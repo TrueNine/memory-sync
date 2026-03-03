@@ -8,15 +8,14 @@ import * as path from 'node:path'
 import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@truenine/plugin-input-shared'
 import glob from 'fast-glob'
 import {
-  buildDependencyGraph,
+  buildDependencyContext,
   extractUserArgs,
   mergeContexts,
   parseArgs,
 
   resolveCommand,
   resolveLogLevel,
-  topologicalSort,
-  validateDependencies
+  topologicalSort
 } from '@/pipeline'
 import {startupVersionCheck} from '@/versionCheck'
 import {createLogger, setGlobalLogLevel} from './plugins/plugin-shared'
@@ -123,18 +122,6 @@ export class PluginPipeline {
     }
   }
 
-  topologicalSort<T extends {name: string, dependsOn?: readonly string[]}>(plugins: readonly T[]): T[] {
-    return topologicalSort(plugins as unknown as Parameters<typeof topologicalSort>[0]) as unknown as T[] // Delegate to the modular implementation
-  }
-
-  buildDependencyGraph<T extends {name: string, dependsOn?: readonly string[]}>(plugins: readonly T[]): Map<string, Set<string>> {
-    return buildDependencyGraph(plugins as unknown as Parameters<typeof buildDependencyGraph>[0]) as unknown as Map<string, Set<string>> // Delegate to the modular implementation
-  }
-
-  validateDependencies<T extends {name: string, dependsOn?: readonly string[]}>(plugins: readonly T[]): void {
-    validateDependencies(plugins as unknown as Parameters<typeof validateDependencies>[0]) // Delegate to the modular implementation
-  }
-
   async executePluginsInOrder(
     plugins: readonly InputPlugin[],
     baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'>,
@@ -196,38 +183,6 @@ export class PluginPipeline {
     plugin: InputPlugin,
     outputsByPlugin: Map<string, Partial<CollectedInputContext>>
   ): Partial<CollectedInputContext> {
-    const deps = plugin.dependsOn ?? []
-    if (deps.length === 0) return {}
-
-    const allDeps = this.collectTransitiveDependencies(plugin, outputsByPlugin) // Collect all transitive dependencies
-
-    let merged: Partial<CollectedInputContext> = {} // Merge all dependency outputs
-    for (const depName of allDeps) {
-      const depOutput = outputsByPlugin.get(depName)
-      if (depOutput != null) merged = mergeContexts(merged, depOutput)
-    }
-
-    return merged
-  }
-
-  private collectTransitiveDependencies(
-    plugin: InputPlugin,
-    outputsByPlugin: Map<string, Partial<CollectedInputContext>>
-  ): string[] {
-    const visited = new Set<string>()
-    const result: string[] = []
-
-    const visit = (deps: readonly string[]): void => {
-      for (const dep of deps) {
-        if (visited.has(dep)) continue
-        visited.add(dep)
-
-        const depOutput = outputsByPlugin.get(dep)
-        if (depOutput != null) result.push(dep)
-      }
-    }
-
-    visit(plugin.dependsOn ?? [])
-    return result
+    return buildDependencyContext(plugin, outputsByPlugin, mergeContexts)
   }
 }
