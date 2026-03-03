@@ -1,7 +1,7 @@
 {
   "name": "@truenine/md-compiler",
   "type": "module",
-  "version": "2026.10303.10139",
+  "version": "2026.10303.10919",
   "private": true,
   "description": "Rust-powered MDX→Markdown compiler for Node.js with pure-TS fallback",
   "license": "AGPL-3.0-only",
