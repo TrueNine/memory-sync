@@ -1,6 +1,4 @@
-import type {RelativePath} from '../plugins/plugin-shared'
 import * as path from 'node:path'
-import {createRelativePath} from '../plugins/desk-paths'
 
 export {
   type SafeWriteOptions,
@@ -10,24 +8,24 @@ export {
 } from '../plugins/desk-paths' // Re-export from desk-paths
 
 /**
- * Options for creating a RelativePath for output files
+ * Options for creating a relative path for output files
  */
 export interface OutputPathOptions {
   /** Relative path from basePath */
   readonly relativePath: string
   /** Base directory for absolute path resolution */
   readonly basePath: string
-  /** Directory name to return from getDirectoryName() */
+  /** Directory name */
   readonly dirName: string
 }
 
 /**
- * Create a RelativePath object for output file registration.
- * Delegates to desk-paths createRelativePath.
+ * Create a relative path string for output file registration.
+ * Simply joins basePath with relativePath.
  */
-export function createOutputPath(options: OutputPathOptions): RelativePath {
-  const {relativePath, basePath, dirName} = options
-  return createRelativePath(relativePath, basePath, () => dirName)
+export function createOutputPath(options: OutputPathOptions): string {
+  const {relativePath, basePath} = options
+  return path.join(basePath, relativePath)
 }
 
 /**
@@ -44,15 +42,11 @@ export function createCommandOutputPath(
   globalDir: string,
   commandsSubDir: string,
   fileName: string
-): {relativePath: RelativePath, fullPath: string} {
+): {relativePath: string, fullPath: string} {
   const fullPath = path.join(globalDir, commandsSubDir, fileName)
   return {
     fullPath,
-    relativePath: createOutputPath({
-      relativePath: path.join(commandsSubDir, fileName),
-      basePath: globalDir,
-      dirName: commandsSubDir
-    })
+    relativePath: path.join(commandsSubDir, fileName)
   }
 }
 
@@ -64,15 +58,11 @@ export function createSkillOutputPath(
   skillsSubDir: string,
   skillName: string,
   fileName: string
-): {relativePath: RelativePath, fullPath: string} {
+): {relativePath: string, fullPath: string} {
   const skillPath = path.join(skillsSubDir, skillName, fileName)
   const fullPath = path.join(globalDir, skillPath)
   return {
     fullPath,
-    relativePath: createOutputPath({
-      relativePath: skillPath,
-      basePath: globalDir,
-      dirName: skillName
-    })
+    relativePath: skillPath
   }
 }
