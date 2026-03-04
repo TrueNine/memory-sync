@@ -1,12 +1,9 @@
 import type {
-  OutputPluginContext,
+  OutputFileDeclaration,
   OutputWriteContext,
-  ReadmeFileKind,
-  WriteResult,
-  WriteResults
+  ReadmeFileKind
 } from '../plugin-core'
 
-import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {AbstractOutputPlugin, README_FILE_KIND_MAP} from '../plugin-core'
 
@@ -32,83 +29,33 @@ function resolveOutputFileName(fileKind?: ReadmeFileKind): string {
  */
 export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('ReadmeMdConfigFileOutputPlugin', {outputFileName: 'README.md'})
+    super('ReadmeMdConfigFileOutputPlugin', {outputFileName: 'README.md', capabilities: {}})
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
+  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const declarations: OutputFileDeclaration[] = []
     const {readmePrompts} = ctx.collectedOutputContext
-
-    if (readmePrompts == null || readmePrompts.length === 0) return results
+    if (readmePrompts == null || readmePrompts.length === 0) return declarations
 
     for (const readme of readmePrompts) {
-      const {targetDir} = readme
       const outputFileName = resolveOutputFileName(readme.fileKind)
-      const filePath = path.join(targetDir.path, outputFileName)
-
-      results.push(filePath)
+      const filePath = path.join(readme.targetDir.basePath, readme.targetDir.path, outputFileName)
+      declarations.push({
+        path: filePath,
+        scope: 'project',
+        source: {content: readme.content as string}
+      })
     }
 
-    return results
+    return declarations
   }
 
-  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {readmePrompts} = ctx.collectedOutputContext
-
-    if (readmePrompts?.length !== 0) return true
-
-    this.log.debug('skipped', {reason: 'no README prompts to write'})
-    return false
-  }
-
-  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
-    const {readmePrompts} = ctx.collectedOutputContext
-
-    if (readmePrompts == null || readmePrompts.length === 0) return {files: fileResults, dirs: dirResults}
-
-    for (const readme of readmePrompts) {
-      const result = await this.writeReadmeFile(ctx, readme)
-      fileResults.push(result)
-    }
-
-    return {files: fileResults, dirs: dirResults}
-  }
-
-  private async writeReadmeFile(
-    ctx: OutputWriteContext,
-    readme: {projectName: string, targetDir: {path: string, basePath: string}, content: unknown, isRoot: boolean, fileKind?: ReadmeFileKind}
-  ): Promise<WriteResult> {
-    const {targetDir} = readme
-    const outputFileName = resolveOutputFileName(readme.fileKind)
-    const filePath = path.join(targetDir.path, outputFileName)
-    const fullPath = path.join(targetDir.basePath, filePath)
-    const content = readme.content as string
-
-    const relativePath = filePath
-
-    const label = readme.isRoot
-      ? `project:${readme.projectName}/${outputFileName}`
-      : `project:${readme.projectName}/${targetDir.path}/${outputFileName}`
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'readme', path: fullPath, label})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      const dir = path.dirname(fullPath)
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive: true})
-
-      fs.writeFileSync(fullPath, content, 'utf8')
-      this.log.trace({action: 'write', type: 'readme', path: fullPath, label})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'readme', path: fullPath, label, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+  override async convertContent(
+    declaration: OutputFileDeclaration,
+    _ctx: OutputWriteContext
+  ): Promise<string> {
+    const source = declaration.source as {content?: string}
+    if (source.content == null) throw new Error(`Unsupported declaration source for ${this.name}`)
+    return source.content
   }
 }

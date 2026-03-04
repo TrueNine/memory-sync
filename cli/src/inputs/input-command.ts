@@ -1,5 +1,6 @@
 import type {
   CommandPrompt,
+  CommandYAMLFrontMatter,
   InputCollectedContext,
   InputPluginContext,
   Locale
@@ -22,7 +23,8 @@ export class CommandInputPlugin extends AbstractInputPlugin {
     _locale: Locale,
     name: string,
     distDir: string,
-    ctx: InputPluginContext
+    ctx: InputPluginContext,
+    metadata?: Record<string, unknown>
   ): CommandPrompt {
     const {path} = ctx
 
@@ -40,8 +42,9 @@ export class CommandInputPlugin extends AbstractInputPlugin {
 
     const filePath = path.join(distDir, `${name}.mdx`)
     const entryName = `${name}.mdx`
+    const yamlFrontMatter = metadata as CommandYAMLFrontMatter | undefined
 
-    return {
+    const prompt: CommandPrompt = {
       type: PromptKind.Command,
       content,
       length: content.length,
@@ -56,6 +59,13 @@ export class CommandInputPlugin extends AbstractInputPlugin {
       ...commandPrefix != null && {commandPrefix},
       commandName
     } as CommandPrompt
+
+    if (yamlFrontMatter == null) return prompt
+
+    Object.assign(prompt, {yamlFrontMatter})
+    if (yamlFrontMatter.seriName != null) Object.assign(prompt, {seriName: yamlFrontMatter.seriName})
+    if (yamlFrontMatter.scope === 'global') Object.assign(prompt, {globalOnly: true})
+    return prompt
   }
 
   override async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
@@ -80,12 +90,13 @@ export class CommandInputPlugin extends AbstractInputPlugin {
         kind: PromptKind.Command,
         localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
         isDirectoryStructure: false,
-        createPrompt: (content, locale, name, _metadata) => this.createCommandPrompt(
+        createPrompt: (content, locale, name, metadata) => this.createCommandPrompt(
           content,
           locale,
           name,
           distDir,
-          ctx
+          ctx,
+          metadata
         )
       }
     )

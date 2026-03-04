@@ -256,6 +256,7 @@ class ResourceProcessor {
         extension: ext,
         fileName,
         relativePath,
+        sourcePath: filePath,
         content,
         encoding,
         length,

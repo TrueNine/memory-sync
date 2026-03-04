@@ -34,9 +34,6 @@ export type SubAgentFrontMatterField = string | ((subAgent: SubAgentPrompt) => u
  * SubAgent output configuration for declarative configuration
  */
 export interface SubAgentOutputConfig {
-  /** Whether SubAgent output is enabled */
-  readonly enabled: boolean
-
   /** Output subdirectory name (relative to IDE config directory) */
   readonly subDir?: string
 
@@ -51,8 +48,6 @@ export interface SubAgentOutputConfig {
 
   /** Frontmatter configuration */
   readonly frontMatter?: {
-    /** Whether to add frontmatter */
-    readonly enabled: boolean
     /** Custom field mappings */
     readonly fields?: Record<string, SubAgentFrontMatterField>
     /** Fields to exclude */

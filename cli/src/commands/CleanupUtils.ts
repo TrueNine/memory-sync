@@ -1,7 +1,10 @@
 import type {ILogger, OutputCleanContext, OutputPlugin} from '../plugins/plugin-core'
 import * as path from 'node:path'
+import process from 'node:process'
 import {deleteDirectories as deskDeleteDirectories, deleteFiles as deskDeleteFiles} from '../plugins/desk-paths'
-import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '../plugins/plugin-core'
+import {
+  collectAllPluginOutputs
+} from '../plugins/plugin-core'
 
 /**
  * Result of cleanup operation
@@ -21,11 +24,69 @@ export interface CleanupError {
   readonly error: unknown
 }
 
-/**
- * Options for cleanup operation
- */
-export interface CleanupOptions {
-  readonly executeHooks?: boolean
+interface DirPathLike {
+  readonly path: string
+  readonly pathKind?: string
+  readonly basePath?: string
+  readonly getAbsolutePath?: () => string
+}
+
+function normalizeForComparison(p: string): string {
+  const normalized = path.normalize(path.resolve(p))
+  if (process.platform === 'win32') return normalized.toLowerCase()
+  return normalized
+}
+
+function resolveAbsolutePathFromDir(dir: DirPathLike | undefined): string | undefined {
+  if (dir == null) return void 0
+
+  if (typeof dir.getAbsolutePath === 'function') {
+    try {
+      const absolute = dir.getAbsolutePath()
+      if (absolute.length > 0) return path.resolve(absolute)
+    }
+    catch {}
+  }
+
+  if (dir.pathKind === 'absolute') return path.resolve(dir.path)
+  if (typeof dir.basePath === 'string' && dir.basePath.length > 0) return path.resolve(dir.basePath, dir.path)
+  return void 0
+}
+
+function collectInputSourcePaths(cleanCtx: OutputCleanContext): Set<string> {
+  const collected = cleanCtx.collectedOutputContext
+  const protectedPaths = new Set<string>()
+
+  const addResolvedPath = (rawPath: string | undefined): void => {
+    if (rawPath == null || rawPath.length === 0) return
+    protectedPaths.add(normalizeForComparison(rawPath))
+  }
+
+  const addPathFromDir = (dir: DirPathLike | undefined): void => {
+    const resolved = resolveAbsolutePathFromDir(dir)
+    if (resolved == null) return
+    addResolvedPath(resolved)
+  }
+
+  addPathFromDir(collected.globalMemory?.dir as DirPathLike | undefined)
+
+  for (const command of collected.commands ?? []) addPathFromDir(command.dir as DirPathLike | undefined)
+  for (const subAgent of collected.subAgents ?? []) addPathFromDir(subAgent.dir as DirPathLike | undefined)
+  for (const rule of collected.rules ?? []) addPathFromDir(rule.dir as DirPathLike | undefined)
+
+  for (const skill of collected.skills ?? []) {
+    addPathFromDir(skill.dir as DirPathLike | undefined)
+    for (const childDoc of skill.childDocs ?? []) addPathFromDir(childDoc.dir as DirPathLike | undefined)
+    for (const resource of skill.resources ?? []) addResolvedPath(resource.sourcePath)
+  }
+
+  for (const config of collected.vscodeConfigFiles ?? []) addPathFromDir(config.dir as DirPathLike | undefined)
+  for (const config of collected.jetbrainsConfigFiles ?? []) addPathFromDir(config.dir as DirPathLike | undefined)
+  for (const config of collected.editorConfigFiles ?? []) addPathFromDir(config.dir as DirPathLike | undefined)
+
+  for (const ignoreFile of collected.aiAgentIgnoreConfigFiles ?? []) addResolvedPath(ignoreFile.sourcePath)
+
+  return protectedPaths
 }
 
 /**
@@ -33,29 +94,30 @@ export interface CleanupOptions {
  */
 export async function collectDeletionTargets(
   outputPlugins: readonly OutputPlugin[],
-  permissions: Map<string, {project: boolean, global: boolean}>,
   cleanCtx: OutputCleanContext
-): Promise<{filesToDelete: string[], dirsToDelete: string[]}> {
-  const filesToDelete: string[] = []
-  const dirsToDelete: string[] = []
+): Promise<{filesToDelete: string[], dirsToDelete: string[], protectedFiles: string[]}> {
+  const filesToDelete = new Map<string, string>()
+  const dirsToDelete = new Set<string>()
+  const protectedFiles = new Map<string, string>()
+  const protectedInputPaths = collectInputSourcePaths(cleanCtx)
 
   for (const plugin of outputPlugins) {
-    const perm = permissions.get(plugin.name)
-    if (perm?.project) {
-      const projectFiles = await plugin.registerProjectOutputFiles?.(cleanCtx) ?? []
-      const projectDirs = await plugin.registerProjectOutputDirs?.(cleanCtx) ?? []
-      filesToDelete.push(...projectFiles)
-      dirsToDelete.push(...projectDirs)
-    }
-    if (perm?.global) {
-      const globalFiles = await plugin.registerGlobalOutputFiles?.(cleanCtx) ?? []
-      const globalDirs = await plugin.registerGlobalOutputDirs?.(cleanCtx) ?? []
-      filesToDelete.push(...globalFiles)
-      dirsToDelete.push(...globalDirs)
+    const declarations = await plugin.declareOutputFiles({...cleanCtx, dryRun: true})
+    for (const declaration of declarations) {
+      const normalizedDeclarationPath = normalizeForComparison(declaration.path)
+      if (protectedInputPaths.has(normalizedDeclarationPath)) {
+        protectedFiles.set(normalizedDeclarationPath, declaration.path)
+        continue
+      }
+      filesToDelete.set(normalizedDeclarationPath, declaration.path)
     }
   }
 
-  return {filesToDelete, dirsToDelete}
+  return {
+    filesToDelete: [...filesToDelete.values()],
+    dirsToDelete: [...dirsToDelete],
+    protectedFiles: [...protectedFiles.values()]
+  }
 }
 
 /**
@@ -108,37 +170,34 @@ export function deleteDirectories(dirs: string[], logger: ILogger): {deleted: nu
  * @param outputPlugins - Output plugins to clean
  * @param cleanCtx - Clean context
  * @param logger - Logger instance
- * @param options - Cleanup options
  * @returns Cleanup result with counts and errors
  */
 export async function performCleanup(
   outputPlugins: readonly OutputPlugin[],
   cleanCtx: OutputCleanContext,
-  logger: ILogger,
-  options?: CleanupOptions
+  logger: ILogger
 ): Promise<CleanupResult> {
-  const {executeHooks = true} = options ?? {}
-
   const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx) // Collect outputs for logging
   logger.debug('Collected outputs for cleanup', {
     projectDirs: outputs.projectDirs.length,
     projectFiles: outputs.projectFiles.length,
+    workspaceDirs: outputs.workspaceDirs.length,
+    workspaceFiles: outputs.workspaceFiles.length,
     globalDirs: outputs.globalDirs.length,
     globalFiles: outputs.globalFiles.length
   })
 
-  const permissions = await checkCanClean(outputPlugins, cleanCtx) // Check permissions
-
-  const {filesToDelete, dirsToDelete} = await collectDeletionTargets( // Collect deletion targets
+  const {filesToDelete, dirsToDelete, protectedFiles} = await collectDeletionTargets( // Collect deletion targets
     outputPlugins,
-    permissions,
     cleanCtx
   )
+  if (protectedFiles.length > 0) {
+    logger.info('skipped protected input files during cleanup', {count: protectedFiles.length})
+    for (const protectedFile of protectedFiles) logger.debug('protected file', {path: protectedFile})
+  }
 
   const fileResult = deleteFiles(filesToDelete, logger) // Perform deletions
   const dirResult = deleteDirectories(dirsToDelete, logger)
-
-  if (executeHooks) await executeOnCleanComplete(outputPlugins, cleanCtx) // Execute hooks if requested
 
   return {
     deletedFiles: fileResult.deleted,

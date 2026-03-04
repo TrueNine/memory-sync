@@ -40,6 +40,33 @@ export const ZCommandSeriesOptions = z.object({
 })
 
 /**
+ * Zod schema for output scope value.
+ */
+export const ZOutputScope = z.enum(['project', 'workspace', 'global'])
+
+/**
+ * Zod schema for selecting one or more scopes.
+ */
+export const ZOutputScopeSelection = z.union([ZOutputScope, z.array(ZOutputScope).min(1)])
+
+/**
+ * Zod schema for per-plugin topic scope overrides.
+ */
+export const ZPluginOutputScopeTopics = z.object({
+  prompt: ZOutputScopeSelection.optional(),
+  rules: ZOutputScopeSelection.optional(),
+  commands: ZOutputScopeSelection.optional(),
+  subagents: ZOutputScopeSelection.optional(),
+  skills: ZOutputScopeSelection.optional(),
+  mcp: ZOutputScopeSelection.optional()
+})
+
+/**
+ * Zod schema for output scope override configuration.
+ */
+export const ZOutputScopeOptions = z.object({plugins: z.record(z.string(), ZPluginOutputScopeTopics).optional()})
+
+/**
  * Zod schema for user profile information.
  */
 export const ZUserProfile = z.object({
@@ -58,6 +85,7 @@ export const ZUserConfigFile = z.object({
   aindex: ZAindexConfig.optional(),
   logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error']).optional(),
   commandSeriesOptions: ZCommandSeriesOptions.optional(),
+  outputScopes: ZOutputScopeOptions.optional(),
   profile: ZUserProfile.optional()
 })
 
@@ -101,6 +129,10 @@ export type AindexDirPair = z.infer<typeof ZAindexDirPair>
 export type AindexConfig = z.infer<typeof ZAindexConfig>
 export type CommandSeriesPluginOverride = z.infer<typeof ZCommandSeriesPluginOverride>
 export type CommandSeriesOptions = z.infer<typeof ZCommandSeriesOptions>
+export type OutputScope = z.infer<typeof ZOutputScope>
+export type OutputScopeSelection = z.infer<typeof ZOutputScopeSelection>
+export type PluginOutputScopeTopics = z.infer<typeof ZPluginOutputScopeTopics>
+export type OutputScopeOptions = z.infer<typeof ZOutputScopeOptions>
 export type UserConfigFile = z.infer<typeof ZUserConfigFile>
 export type McpProjectConfig = z.infer<typeof ZMcpProjectConfig>
 export type TypeSeriesConfig = z.infer<typeof ZTypeSeriesConfig>

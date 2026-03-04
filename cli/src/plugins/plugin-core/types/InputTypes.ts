@@ -47,6 +47,7 @@ export interface ProjectIDEConfigFile<I extends IDEKind = IDEKind.Original> exte
 export interface AIAgentIgnoreConfigFile {
   readonly fileName: string
   readonly content: string
+  readonly sourcePath?: string
 }
 
 /**
@@ -179,6 +180,7 @@ export interface SkillResource {
   readonly extension: string
   readonly fileName: string
   readonly relativePath: string
+  readonly sourcePath?: string
   readonly content: string
   readonly encoding: SkillResourceEncoding
   readonly length: number

@@ -38,11 +38,12 @@ export type {
   AbstractOutputPluginOptions,
   CombineOptions,
   CommandNameTransformOptions,
-  ErrorContext,
+  CommandOutputConfig,
   RuleContentOptions,
   RuleOutputConfig,
   SkillFrontMatterOptions,
-  WriteOperationOptions
+  SkillsOutputConfig,
+  SubAgentsOutputConfig
 } from './output/AbstractOutputPlugin'
 
 export {
@@ -75,6 +76,11 @@ export type {
   FilterConfigPath,
   SeriesFilterable
 } from './output/utils/filters'
+
+export {
+  DEFAULT_SCOPE_PRIORITY,
+  resolveTopicScopes
+} from './output/utils/scopePolicy'
 
 export {
   GlobalScopeCollector

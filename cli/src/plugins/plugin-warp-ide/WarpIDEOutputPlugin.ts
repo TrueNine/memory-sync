@@ -1,8 +1,6 @@
 import type {
-  OutputPluginContext,
-  OutputWriteContext,
-  WriteResult,
-  WriteResults
+  OutputFileDeclaration,
+  OutputWriteContext
 } from '../plugin-core'
 import {AbstractOutputPlugin, PLUGIN_NAMES} from '../plugin-core'
 
@@ -10,125 +8,92 @@ const PROJECT_MEMORY_FILE = 'WARP.md'
 
 export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('WarpIDEOutputPlugin', {outputFileName: PROJECT_MEMORY_FILE, indexignore: '.warpindexignore'})
+    super('WarpIDEOutputPlugin', {
+      outputFileName: PROJECT_MEMORY_FILE,
+      indexignore: '.warpindexignore',
+      capabilities: {
+        prompt: {
+          scopes: ['project', 'global'],
+          singleScope: false
+        }
+      }
+    })
   }
 
-  private isAgentsPluginRegisteredInCtx(ctx: OutputPluginContext | OutputWriteContext): boolean {
-    if ('registeredPluginNames' in ctx && ctx.registeredPluginNames != null) return ctx.registeredPluginNames.includes(PLUGIN_NAMES.AgentsOutput)
-    return false
-  }
+  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const declarations: OutputFileDeclaration[] = []
+    const {workspace, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
+    const {projects} = workspace
+    const agentsRegistered = this.shouldSkipDueToPlugin(ctx, PLUGIN_NAMES.AgentsOutput)
+    const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project', 'global']))
 
-  override async registerGlobalOutputDirs(): Promise<string[]> {
-    return []
-  }
+    if (agentsRegistered) {
+      if (globalMemory != null && activePromptScopes.has('global')) {
+        for (const project of projects) {
+          const projectDir = project.dirFromWorkspacePath
+          if (projectDir == null) continue
+          declarations.push({
+            path: this.resolveFullPath(projectDir),
+            scope: 'project',
+            source: {content: globalMemory.content as string}
+          })
+        }
+      }
+    } else {
+      const globalMemoryContent = this.extractGlobalMemoryContent(ctx)
+      for (const project of projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null) continue
 
-  override async registerGlobalOutputFiles(): Promise<string[]> {
-    return []
-  }
+        if (project.rootMemoryPrompt != null && activePromptScopes.has('project')) {
+          const combinedContent = this.combineGlobalWithContent(
+            globalMemoryContent,
+            project.rootMemoryPrompt.content as string
+          )
+          declarations.push({
+            path: this.resolveFullPath(projectDir),
+            scope: 'project',
+            source: {content: combinedContent}
+          })
+        }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
-    const {projects} = ctx.collectedOutputContext.workspace
-    const agentsRegistered = this.isAgentsPluginRegisteredInCtx(ctx)
-
-    for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) continue
-
-      if (agentsRegistered) {
-        results.push(this.createFileRelativePath(project.dirFromWorkspacePath.path, PROJECT_MEMORY_FILE)) // When AgentsOutputPlugin is registered, register WARP.md for global prompt output to each project
-      } else {
-        if (project.rootMemoryPrompt != null) results.push(this.createFileRelativePath(project.dirFromWorkspacePath.path, PROJECT_MEMORY_FILE)) // Normal mode: register files for projects with prompts
-
-        if (project.childMemoryPrompts != null) {
+        if (project.childMemoryPrompts != null && activePromptScopes.has('project')) {
           for (const child of project.childMemoryPrompts) {
-            if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir.path, PROJECT_MEMORY_FILE))
+            declarations.push({
+              path: this.resolveFullPath(child.dir),
+              scope: 'project',
+              source: {content: child.content as string}
+            })
           }
         }
       }
     }
 
-    results.push(...this.registerProjectIgnoreOutputFiles(projects))
-    return results
+    const ignoreOutputPath = this.getIgnoreOutputPath()
+    const ignoreFile = this.indexignore == null
+      ? void 0
+      : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
+    if (ignoreOutputPath != null && ignoreFile != null) {
+      for (const project of projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null || project.isPromptSourceProject === true) continue
+        declarations.push({
+          path: this.resolvePath(projectDir.basePath, projectDir.path, ignoreOutputPath),
+          scope: 'project',
+          source: {content: ignoreFile.content}
+        })
+      }
+    }
+
+    return declarations
   }
 
-  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const agentsRegistered = this.shouldSkipDueToPlugin(ctx, PLUGIN_NAMES.AgentsOutput)
-    const {workspace, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
-
-    if (agentsRegistered) {
-      if (globalMemory == null) { // When AgentsOutputPlugin is registered, only write if we have global memory
-        this.log.debug('skipped', {reason: 'AgentsOutputPlugin registered but no global memory'})
-        return false
-      }
-      return true
-    }
-
-    const hasProjectOutputs = workspace.projects.some( // Normal mode: check for project outputs
-      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
-    )
-
-    const hasWarpIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.warpindexignore') ?? false
-
-    if (hasProjectOutputs || hasWarpIgnore) return true
-
-    this.log.debug('skipped', {reason: 'no outputs to write'})
-    return false
-  }
-
-  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const agentsRegistered = this.shouldSkipDueToPlugin(ctx, PLUGIN_NAMES.AgentsOutput)
-    const {workspace, globalMemory} = ctx.collectedOutputContext
-    const {projects} = workspace
-    const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
-
-    if (agentsRegistered) {
-      if (globalMemory != null) {
-        for (const project of projects) {
-          const projectDir = project.dirFromWorkspacePath
-          if (projectDir == null) continue
-
-          const projectName = project.name ?? 'unknown'
-          const result = await this.writePromptFile(ctx, projectDir, globalMemory.content as string, `project:${projectName}/global-warp`)
-          fileResults.push(result)
-        }
-      }
-
-      const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
-      fileResults.push(...ignoreResults)
-
-      return {files: fileResults, dirs: dirResults}
-    }
-
-    const globalMemoryContent = this.extractGlobalMemoryContent(ctx) // Normal mode: write combined content
-
-    for (const project of projects) {
-      const projectName = project.name ?? 'unknown'
-      const projectDir = project.dirFromWorkspacePath
-
-      if (projectDir == null) continue
-
-      if (project.rootMemoryPrompt != null) { // Write root memory prompt (only if exists)
-        const combinedContent = this.combineGlobalWithContent(
-          globalMemoryContent,
-          project.rootMemoryPrompt.content as string
-        )
-
-        const result = await this.writePromptFile(ctx, projectDir, combinedContent, `project:${projectName}/root`)
-        fileResults.push(result)
-      }
-
-      if (project.childMemoryPrompts != null) { // Write children memory prompts
-        for (const child of project.childMemoryPrompts) {
-          const childResult = await this.writePromptFile(ctx, child.dir, child.content as string, `project:${projectName}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`)
-          fileResults.push(childResult)
-        }
-      }
-    }
-
-    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
-    fileResults.push(...ignoreResults)
-
-    return {files: fileResults, dirs: dirResults}
+  override async convertContent(
+    declaration: OutputFileDeclaration,
+    _ctx: OutputWriteContext
+  ): Promise<string> {
+    const source = declaration.source as {content?: string}
+    if (source.content == null) throw new Error(`Unsupported declaration source for ${this.name}`)
+    return source.content
   }
 }

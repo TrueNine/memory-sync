@@ -1,123 +1,47 @@
 import type {
-  OutputPluginContext,
-  OutputWriteContext,
-  WriteResult,
-  WriteResults
+  OutputFileDeclaration,
+  OutputWriteContext
 } from '../plugin-core'
 import {AbstractOutputPlugin, IDEKind} from '../plugin-core'
 
 const IDEA_DIR = '.idea'
 const CODE_STYLES_DIR = 'codeStyles'
 
-/**
- * Default JetBrains IDE config files that this plugin manages.
- * These are the relative paths within each project directory.
- */
-const JETBRAINS_CONFIG_FILES = [
-  '.editorconfig',
-  '.idea/codeStyles/Project.xml',
-  '.idea/codeStyles/codeStyleConfig.xml',
-  '.idea/.gitignore'
-] as const
-
 export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('JetBrainsIDECodeStyleConfigOutputPlugin')
+    super('JetBrainsIDECodeStyleConfigOutputPlugin', {capabilities: {}})
   }
 
-  override async registerGlobalOutputFiles(): Promise<string[]> {
-    return [] // No global files to output
-  }
-
-  override async writeGlobalOutputs(): Promise<WriteResults> {
-    return {files: [], dirs: []} // No global outputs to write
-  }
-
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
+  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const declarations: OutputFileDeclaration[] = []
     const {projects} = ctx.collectedOutputContext.workspace
     const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedOutputContext
-
-    const hasJetBrainsConfigs = (jetbrainsConfigFiles != null && jetbrainsConfigFiles.length > 0)
-      || (editorConfigFiles != null && editorConfigFiles.length > 0)
-    if (!hasJetBrainsConfigs) return results
+    const jetbrainsConfigs = [...jetbrainsConfigFiles ?? [], ...editorConfigFiles ?? []]
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
-
-      if (project.isPromptSourceProject === true) continue
-
-      for (const configFile of JETBRAINS_CONFIG_FILES) results.push(this.joinPath(projectDir.path, configFile))
-    }
-
-    return results
-  }
-
-  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedOutputContext
-    const hasIdeaConfigs = (jetbrainsConfigFiles != null && jetbrainsConfigFiles.length > 0)
-      || (editorConfigFiles != null && editorConfigFiles.length > 0)
-
-    if (hasIdeaConfigs) return true
-
-    this.log.debug('skipped', {reason: 'no JetBrains IDE config files found'})
-    return false
-  }
-
-  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedOutputContext.workspace
-    const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedOutputContext
-    const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
-
-    const jetbrainsConfigs = [
-      ...jetbrainsConfigFiles ?? [],
-      ...editorConfigFiles ?? []
-    ]
-
-    for (const project of projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-
-      const projectName = project.name ?? 'unknown'
 
       for (const config of jetbrainsConfigs) {
-        const result = await this.writeConfigFile(ctx, projectDir, config, `project:${projectName}`)
-        fileResults.push(result)
+        const targetRelativePath = this.getTargetRelativePath(config)
+        declarations.push({
+          path: this.resolvePath(projectDir.basePath, projectDir.path, targetRelativePath),
+          scope: 'project',
+          source: {content: config.content}
+        })
       }
     }
 
-    return {files: fileResults, dirs: dirResults}
+    return declarations
   }
 
-  private async writeConfigFile(
-    ctx: OutputWriteContext,
-    projectDir: {path: string, basePath: string},
-    config: {type: IDEKind, content: string, dir: {path: string}},
-    label: string
-  ): Promise<WriteResult> {
-    const targetRelativePath = this.getTargetRelativePath(config)
-    const fullPath = this.resolvePath(projectDir.basePath, projectDir.path, targetRelativePath)
-    const relativePath = this.joinPath(projectDir.path, targetRelativePath)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'config', path: fullPath, label})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      const dir = this.dirname(fullPath)
-      this.ensureDirectory(dir)
-      this.writeFileSync(fullPath, config.content)
-      this.log.trace({action: 'write', type: 'config', path: fullPath, label})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'config', path: fullPath, label, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+  override async convertContent(
+    declaration: OutputFileDeclaration,
+    _ctx: OutputWriteContext
+  ): Promise<string> {
+    const source = declaration.source as {content?: string}
+    if (source.content == null) throw new Error(`Unsupported declaration source for ${this.name}`)
+    return source.content
   }
 
   private getTargetRelativePath(config: {type: IDEKind, dir: {path: string}}): string {

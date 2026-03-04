@@ -8,8 +8,12 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
     super('GeminiCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: PROJECT_MEMORY_FILE,
-      supportsCommands: false,
-      supportsSkills: false
+      capabilities: {
+        prompt: {
+          scopes: ['project', 'global'],
+          singleScope: false
+        }
+      }
     })
   }
 }

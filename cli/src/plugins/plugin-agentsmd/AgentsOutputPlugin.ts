@@ -1,8 +1,6 @@
 import type {
-  OutputPluginContext,
-  OutputWriteContext,
-  WriteResult,
-  WriteResults
+  OutputFileDeclaration,
+  OutputWriteContext
 } from '../plugin-core'
 import {AbstractOutputPlugin} from '../plugin-core'
 
@@ -10,21 +8,39 @@ const PROJECT_MEMORY_FILE = 'AGENTS.md'
 
 export class AgentsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('AgentsOutputPlugin', {outputFileName: PROJECT_MEMORY_FILE})
+    super('AgentsOutputPlugin', {
+      outputFileName: PROJECT_MEMORY_FILE,
+      capabilities: {
+        prompt: {
+          scopes: ['project'],
+          singleScope: false
+        }
+      }
+    })
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
+  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const results: OutputFileDeclaration[] = []
     const {projects} = ctx.collectedOutputContext.workspace
+    const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project']))
+    if (!activePromptScopes.has('project')) return results
 
-    for (const project of projects) {
+    for (const [projectIndex, project] of projects.entries()) {
       if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
-        results.push(this.joinPath(project.dirFromWorkspacePath.path, PROJECT_MEMORY_FILE))
+        results.push({
+          path: this.resolveFullPath(project.dirFromWorkspacePath),
+          scope: 'project',
+          source: {type: 'projectRootMemory', projectIndex}
+        })
       }
 
       if (project.childMemoryPrompts != null) {
-        for (const child of project.childMemoryPrompts) {
-          if (child.dir?.path != null) results.push(this.joinPath(child.dir.path, PROJECT_MEMORY_FILE))
+        for (const [childIndex, child] of project.childMemoryPrompts.entries()) {
+          results.push({
+            path: this.resolveFullPath(child.dir),
+            scope: 'project',
+            source: {type: 'projectChildMemory', projectIndex, childIndex}
+          })
         }
       }
     }
@@ -32,42 +48,30 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace} = ctx.collectedOutputContext
-    const hasProjectOutputs = workspace.projects.some(
-      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
-    )
-
-    if (hasProjectOutputs) return true
-
-    this.log.trace({action: 'skip', reason: 'noOutputs'})
-    return false
-  }
-
-  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
+  override async convertContent(
+    declaration: OutputFileDeclaration,
+    ctx: OutputWriteContext
+  ): Promise<string> {
     const {projects} = ctx.collectedOutputContext.workspace
-    const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
+    const source = declaration.source as {type?: string, projectIndex?: number, childIndex?: number}
+    const projectIndex = source.projectIndex ?? -1
+    if (projectIndex < 0 || projectIndex >= projects.length) throw new Error(`Invalid project index in declaration for ${this.name}`)
 
-    for (const project of projects) {
-      const projectName = project.name ?? 'unknown'
-      const projectDir = project.dirFromWorkspacePath
+    const project = projects[projectIndex]
+    if (project == null) throw new Error(`Project not found for declaration in ${this.name}`)
 
-      if (projectDir == null) continue
-
-      if (project.rootMemoryPrompt != null) { // Write root memory prompt (only if exists)
-        const result = await this.writePromptFile(ctx, projectDir, project.rootMemoryPrompt.content as string, `project:${projectName}/root`)
-        fileResults.push(result)
-      }
-
-      if (project.childMemoryPrompts != null) { // Write children memory prompts
-        for (const child of project.childMemoryPrompts) {
-          const childResult = await this.writePromptFile(ctx, child.dir, child.content as string, `project:${projectName}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`)
-          fileResults.push(childResult)
-        }
-      }
+    if (source.type === 'projectRootMemory') {
+      if (project.rootMemoryPrompt == null) throw new Error(`Root memory prompt missing for project index ${projectIndex}`)
+      return project.rootMemoryPrompt.content as string
     }
 
-    return {files: fileResults, dirs: dirResults}
+    if (source.type === 'projectChildMemory') {
+      const childIndex = source.childIndex ?? -1
+      const child = project.childMemoryPrompts?.[childIndex]
+      if (child == null) throw new Error(`Child memory prompt missing for project ${projectIndex}, child ${childIndex}`)
+      return child.content as string
+    }
+
+    throw new Error(`Unsupported declaration source for ${this.name}`)
   }
 }

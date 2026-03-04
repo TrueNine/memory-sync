@@ -1,24 +1,3 @@
-import type {OutputPlugin, OutputWriteContext} from '../plugins/plugin-core'
-import {checkCanWrite} from '../plugins/plugin-core'
-
-/**
- * Filter plugins based on write permissions.
- * Returns only plugins that are allowed to write to the specified scope.
- *
- * @param plugins - All output plugins to filter
- * @param ctx - Write context for permission checking
- * @param scope - Which scope to check ('project' or 'global')
- * @returns Filtered array of plugins with write permission
- */
-export async function filterPluginsByWritePermission(
-  plugins: readonly OutputPlugin[],
-  ctx: OutputWriteContext,
-  scope: 'project' | 'global' = 'project'
-): Promise<OutputPlugin[]> {
-  const permissions = await checkCanWrite([...plugins], ctx)
-  return plugins.filter(p => permissions.get(p.name)?.[scope] ?? true)
-}
-
 /**
  * Result summary from aggregating plugin outputs
  */

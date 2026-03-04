@@ -1,5 +1,7 @@
 import type {Command, CommandContext, CommandResult} from './Command'
-import {checkCanWrite, executeWriteOutputs} from '../plugins/plugin-core'
+import {
+  executeDeclarativeWriteOutputs
+} from '../plugins/plugin-core'
 
 /**
  * Dry-run output command - simulates write operations without actual I/O
@@ -12,12 +14,7 @@ export class DryRunOutputCommand implements Command {
     logger.info('started', {command: 'dry-run-output', dryRun: true})
 
     const writeCtx = createWriteContext(true)
-    const permissions = await checkCanWrite(outputPlugins, writeCtx)
-    const allowedPlugins = outputPlugins.filter(
-      p => Boolean(permissions.get(p.name)?.project ?? true)
-    )
-
-    const results = await executeWriteOutputs(allowedPlugins, writeCtx)
+    const results = await executeDeclarativeWriteOutputs(outputPlugins, writeCtx)
 
     let totalFiles = 0
     let totalDirs = 0

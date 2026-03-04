@@ -1,12 +1,9 @@
 import type {
   CommandPrompt,
-  OutputPluginContext,
+  OutputFileDeclaration,
   OutputWriteContext,
-  Project,
   ProjectChildrenMemoryPrompt,
-  SkillPrompt,
-  WriteResult,
-  WriteResults
+  SkillPrompt
 } from '../plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
@@ -21,9 +18,43 @@ const COMMANDS_SUBDIR = 'commands'
 const SKILLS_SUBDIR = 'skills'
 const SKILL_FILE_NAME = 'SKILL.md'
 
+type TraeOutputSource
+  = | {readonly kind: 'globalMemory', readonly content: string}
+    | {readonly kind: 'steeringRule', readonly content: string}
+    | {readonly kind: 'command', readonly command: CommandPrompt}
+    | {readonly kind: 'skillMain', readonly skill: SkillPrompt}
+    | {readonly kind: 'skillChildDoc', readonly content: string}
+    | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
+    | {readonly kind: 'ignoreFile', readonly content: string}
+
 export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('TraeIDEOutputPlugin', {globalConfigDir: GLOBAL_CONFIG_DIR, outputFileName: GLOBAL_MEMORY_FILE, indexignore: '.traeignore'})
+    super('TraeIDEOutputPlugin', {
+      globalConfigDir: GLOBAL_CONFIG_DIR,
+      outputFileName: GLOBAL_MEMORY_FILE,
+      indexignore: '.traeignore',
+      commands: {
+        subDir: COMMANDS_SUBDIR,
+        transformFrontMatter: (_cmd, context) => context.sourceFrontMatter ?? {}
+      },
+      skills: {
+        subDir: SKILLS_SUBDIR
+      },
+      capabilities: {
+        prompt: {
+          scopes: ['project', 'global'],
+          singleScope: false
+        },
+        commands: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        },
+        skills: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        }
+      }
+    })
   }
 
   protected override getIgnoreOutputPath(): string | undefined {
@@ -35,251 +66,149 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return this.joinPath(this.getGlobalConfigDir(), STEERING_SUBDIR)
   }
 
-  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
+  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const declarations: OutputFileDeclaration[] = []
     const {projects} = ctx.collectedOutputContext.workspace
-    const {commands, skills} = ctx.collectedOutputContext
+    const {commands, skills, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const results: string[] = []
+    const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project', 'global']))
+
+    if (globalMemory != null && activePromptScopes.has('global')) {
+      declarations.push({
+        path: this.joinPath(this.getGlobalSteeringDir(), GLOBAL_MEMORY_FILE),
+        scope: 'global',
+        source: {
+          kind: 'globalMemory',
+          content: globalMemory.content as string
+        } satisfies TraeOutputSource
+      })
+    }
+
+    const scopedCommands = commands != null
+      ? this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, cmd => this.resolveCommandSourceScope(cmd), this.getTopicScopeOverride(ctx, 'commands'))
+      : {items: [] as readonly CommandPrompt[]}
+    const filteredCommands = filterByProjectConfig(scopedCommands.items, projectConfig, 'commands')
+    const scopedSkills = skills != null
+      ? this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
+      : {items: [] as readonly SkillPrompt[]}
+    const filteredSkills = filterByProjectConfig(scopedSkills.items, projectConfig, 'skills')
+    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
+      const projectBase = path.join(projectDir.basePath, projectDir.path)
 
-      results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR))
-
-      if (commands != null && commands.length > 0) {
-        const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
-        if (filteredCommands.length > 0) results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR))
-      }
-
-      if (skills != null && skills.length > 0) {
-        const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
-        for (const skill of filteredSkills) {
-          const skillName = skill.yamlFrontMatter.name
-          results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName))
-        }
-      }
-    }
-
-    return results
-  }
-
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const {projects} = ctx.collectedOutputContext.workspace
-    const {commands, skills} = ctx.collectedOutputContext
-    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const results: string[] = []
-
-    for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) continue
-      const projectDir = project.dirFromWorkspacePath
-
-      if (project.childMemoryPrompts != null) {
+      if (project.childMemoryPrompts != null && activePromptScopes.has('project')) {
         for (const child of project.childMemoryPrompts) {
-          results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR, this.buildSteeringFileName(child)))
+          const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
+          const globPattern = `${childPath.replaceAll('\\', '/')}/**`
+          const steeringContent = [
+            '---',
+            'alwaysApply: false',
+            `globs: ${globPattern}`,
+            '---',
+            '',
+            child.content
+          ].join('\n')
+
+          declarations.push({
+            path: path.join(projectBase, GLOBAL_CONFIG_DIR, RULES_SUBDIR, this.buildSteeringFileName(child)),
+            scope: 'project',
+            source: {
+              kind: 'steeringRule',
+              content: steeringContent
+            } satisfies TraeOutputSource
+          })
         }
       }
 
-      if (commands != null && commands.length > 0) {
-        const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
-        const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-        for (const cmd of filteredCommands) {
-          const fileName = this.transformCommandName(cmd, transformOptions)
-          results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR, fileName))
-        }
+      for (const cmd of filteredCommands) {
+        const fileName = this.transformCommandName(cmd, transformOptions)
+        declarations.push({
+          path: path.join(projectBase, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR, fileName),
+          scope: 'project',
+          source: {kind: 'command', command: cmd} satisfies TraeOutputSource
+        })
       }
 
-      if (skills != null && skills.length > 0) {
-        const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
-        for (const skill of filteredSkills) {
-          const skillName = skill.yamlFrontMatter.name
-          results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, SKILL_FILE_NAME))
+      for (const skill of filteredSkills) {
+        const skillName = skill.yamlFrontMatter.name
+        const skillDir = path.join(projectBase, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
+        declarations.push({
+          path: path.join(skillDir, SKILL_FILE_NAME),
+          scope: 'project',
+          source: {kind: 'skillMain', skill} satisfies TraeOutputSource
+        })
 
-          if (skill.childDocs != null) {
-            for (const childDoc of skill.childDocs) {
-              const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
-              results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, outputRelativePath))
-            }
+        if (skill.childDocs != null) {
+          for (const childDoc of skill.childDocs) {
+            declarations.push({
+              path: path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
+              scope: 'project',
+              source: {
+                kind: 'skillChildDoc',
+                content: childDoc.content as string
+              } satisfies TraeOutputSource
+            })
           }
+        }
 
-          if (skill.resources != null) {
-            for (const resource of skill.resources) results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, resource.relativePath))
+        if (skill.resources != null) {
+          for (const resource of skill.resources) {
+            declarations.push({
+              path: path.join(skillDir, resource.relativePath),
+              scope: 'project',
+              source: {
+                kind: 'skillResource',
+                content: resource.content,
+                encoding: resource.encoding
+              } satisfies TraeOutputSource
+            })
           }
         }
       }
     }
 
-    results.push(...this.registerProjectIgnoreOutputFiles(projects))
-    return results
-  }
-
-  override async registerGlobalOutputDirs(): Promise<string[]> {
-    return [
-      this.joinPath(this.getGlobalConfigDir(), STEERING_SUBDIR)
-    ]
-  }
-
-  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const {globalMemory} = ctx.collectedOutputContext
-    const results: string[] = []
-
-    if (globalMemory != null) results.push(this.joinPath(this.getGlobalSteeringDir(), GLOBAL_MEMORY_FILE))
-
-    return results
-  }
-
-  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, commands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
-    const hasChildPrompts = workspace.projects.some(p => (p.childMemoryPrompts?.length ?? 0) > 0)
-    const hasCommands = (commands?.length ?? 0) > 0
-    const hasSkills = (skills?.length ?? 0) > 0
-    const hasTraeIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.traeignore') ?? false
-    if (hasChildPrompts || globalMemory != null || hasCommands || hasSkills || hasTraeIgnore) return true
-    this.log.trace({action: 'skip', reason: 'noOutputs'})
-    return false
-  }
-
-  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedOutputContext.workspace
-    const {commands, skills} = ctx.collectedOutputContext
-    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const fileResults: WriteResult[] = []
-
-    for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) continue
-      const projectDir = project.dirFromWorkspacePath
-
-      if (project.childMemoryPrompts != null) { // Child memory prompts (existing)
-        for (const child of project.childMemoryPrompts) fileResults.push(await this.writeSteeringFile(ctx, project, child))
-      }
-
-      if (commands != null && commands.length > 0) { // Commands (new: per-project)
-        const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
-        for (const cmd of filteredCommands) fileResults.push(await this.writeProjectCommand(ctx, projectDir, cmd))
-      }
-
-      if (skills != null && skills.length > 0) { // Skills (new: per-project)
-        const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
-        for (const skill of filteredSkills) fileResults.push(...await this.writeProjectSkill(ctx, projectDir, skill))
+    const ignoreOutputPath = this.getIgnoreOutputPath()
+    const ignoreFile = this.indexignore == null
+      ? void 0
+      : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
+    if (ignoreOutputPath != null && ignoreFile != null) {
+      for (const project of projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null || project.isPromptSourceProject === true) continue
+        declarations.push({
+          path: path.join(projectDir.basePath, projectDir.path, ignoreOutputPath),
+          scope: 'project',
+          source: {
+            kind: 'ignoreFile',
+            content: ignoreFile.content
+          } satisfies TraeOutputSource
+        })
       }
     }
 
-    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
-    fileResults.push(...ignoreResults)
-
-    return {files: fileResults, dirs: []}
+    return declarations
   }
 
-  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory} = ctx.collectedOutputContext
-    const fileResults: WriteResult[] = []
-    const steeringDir = this.getGlobalSteeringDir()
-
-    if (globalMemory != null) {
-      fileResults.push(await this.writeFile(ctx, this.joinPath(steeringDir, GLOBAL_MEMORY_FILE), globalMemory.content as string, 'globalMemory'))
-    }
-
-    return {files: fileResults, dirs: []}
-  }
-
-  private async writeProjectCommand(ctx: OutputWriteContext, projectDir: {path: string, basePath: string}, cmd: CommandPrompt): Promise<WriteResult> {
-    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-    const fileName = this.transformCommandName(cmd, transformOptions)
-    const commandsDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR)
-    const fullPath = path.join(commandsDir, fileName)
-    const relativePath = path.join(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR, fileName)
-
-    const content = this.buildMarkdownContentWithRaw(cmd.content, cmd.yamlFrontMatter, cmd.rawFrontMatter)
-
-    return this.writeFileWithHandling(ctx, fullPath, content, {
-      type: 'projectCommand',
-      relativePath
-    })
-  }
-
-  private async writeProjectSkill(ctx: OutputWriteContext, projectDir: {path: string, basePath: string}, skill: SkillPrompt): Promise<WriteResult[]> {
-    const results: WriteResult[] = []
-    const skillName = skill.yamlFrontMatter.name
-    const skillDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
-    const skillFilePath = path.join(skillDir, SKILL_FILE_NAME)
-    const relativePath = path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, SKILL_FILE_NAME)
-
-    const frontMatterData = this.buildSkillFrontMatter(skill)
-    const skillContent = buildMarkdownWithFrontMatter(frontMatterData, skill.content as string)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'projectSkill', path: skillFilePath})
-      results.push({path: relativePath, success: true, skipped: false})
-    } else {
-      try {
-        this.ensureDirectory(skillDir)
-        this.writeFileSync(skillFilePath, skillContent)
-        this.log.trace({action: 'write', type: 'projectSkill', path: skillFilePath})
-        results.push({path: relativePath, success: true})
-      } catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'write', type: 'projectSkill', path: skillFilePath, error: errMsg})
-        results.push({path: relativePath, success: false, error: error as Error})
+  override async convertContent(
+    declaration: OutputFileDeclaration,
+    _ctx: OutputWriteContext
+  ): Promise<string | Buffer> {
+    const source = declaration.source as TraeOutputSource
+    switch (source.kind) {
+      case 'globalMemory':
+      case 'steeringRule':
+      case 'skillChildDoc':
+      case 'ignoreFile': return source.content
+      case 'command': return this.buildCommandContent(source.command)
+      case 'skillMain': {
+        const frontMatterData = this.buildSkillFrontMatter(source.skill)
+        return buildMarkdownWithFrontMatter(frontMatterData, source.skill.content as string)
       }
-    }
-
-    if (skill.childDocs != null) {
-      for (const childDoc of skill.childDocs) results.push(await this.writeSkillChildDoc(ctx, childDoc, skillDir, skillName, projectDir))
-    }
-
-    if (skill.resources != null) {
-      for (const resource of skill.resources) results.push(await this.writeTraeSkillResource(ctx, resource, skillDir, skillName, projectDir))
-    }
-
-    return results
-  }
-
-  private async writeSkillChildDoc(ctx: OutputWriteContext, childDoc: {relativePath: string, content: unknown}, skillDir: string, skillName: string, projectDir: {path: string, basePath: string}): Promise<WriteResult> {
-    const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
-    const childDocPath = path.join(skillDir, outputRelativePath)
-    const relativePath = path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, outputRelativePath)
-
-    const content = childDoc.content as string
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'skillChildDoc', path: childDocPath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      const parentDir = path.dirname(childDocPath)
-      this.ensureDirectory(parentDir)
-      this.writeFileSync(childDocPath, content)
-      this.log.trace({action: 'write', type: 'skillChildDoc', path: childDocPath})
-      return {path: relativePath, success: true}
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'skillChildDoc', path: childDocPath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
-  }
-
-  private async writeTraeSkillResource(ctx: OutputWriteContext, resource: {relativePath: string, content: string, encoding: 'text' | 'base64'}, skillDir: string, skillName: string, projectDir: {path: string, basePath: string}): Promise<WriteResult> {
-    const resourcePath = path.join(skillDir, resource.relativePath)
-    const relativePath = path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, resource.relativePath)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'skillResource', path: resourcePath})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      const parentDir = path.dirname(resourcePath)
-      this.ensureDirectory(parentDir)
-      if (resource.encoding === 'base64') {
-        const buffer = Buffer.from(resource.content, 'base64')
-        this.writeFileSyncBuffer(resourcePath, buffer)
-      } else this.writeFileSync(resourcePath, resource.content)
-      this.log.trace({action: 'write', type: 'skillResource', path: resourcePath})
-      return {path: relativePath, success: true}
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'skillResource', path: resourcePath, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
+      case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
+      default: throw new Error(`Unsupported declaration source for ${this.name}`)
     }
   }
 
@@ -297,26 +226,5 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
     const normalized = childPath.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '').replaceAll('/', '-')
     return `trae-${normalized}.md`
-  }
-
-  private async writeSteeringFile(ctx: OutputWriteContext, project: Project, child: ProjectChildrenMemoryPrompt): Promise<WriteResult> {
-    const projectDir = project.dirFromWorkspacePath!
-    const fileName = this.buildSteeringFileName(child)
-    const targetDir = this.joinPath(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR)
-    const fullPath = this.joinPath(targetDir, fileName)
-
-    const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
-    const globPattern = `${childPath.replaceAll('\\', '/')}/**`
-
-    const content = [
-      '---',
-      'alwaysApply: false',
-      `globs: ${globPattern}`,
-      '---',
-      '',
-      child.content
-    ].join('\n')
-
-    return this.writeFile(ctx, fullPath, content, 'steeringFile')
   }
 }

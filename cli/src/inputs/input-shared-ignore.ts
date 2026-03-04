@@ -31,7 +31,7 @@ export class AIAgentIgnoreInputPlugin extends AbstractInputPlugin {
         this.log.debug({action: 'collect', message: 'Ignore file is empty', path: filePath})
         continue
       }
-      results.push({fileName, content})
+      results.push({fileName, content, sourcePath: filePath})
       this.log.debug({action: 'collect', message: 'Loaded ignore file', path: filePath, fileName})
     }
 

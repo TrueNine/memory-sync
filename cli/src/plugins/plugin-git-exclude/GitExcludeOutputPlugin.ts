@@ -1,161 +1,62 @@
 import type {
-  OutputPluginContext,
-  OutputWriteContext,
-  WriteResult,
-  WriteResults
+  OutputFileDeclaration,
+  OutputWriteContext
 } from '../plugin-core'
-import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {AbstractOutputPlugin, findAllGitRepos, findGitModuleInfoDirs, resolveGitInfoDir} from '../plugin-core'
 
 export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('GitExcludeOutputPlugin')
+    super('GitExcludeOutputPlugin', {capabilities: {}})
   }
 
-  override async registerGlobalOutputFiles(): Promise<string[]> {
-    return [] // No global files to output
-  }
-
-  override async writeGlobalOutputs(): Promise<WriteResults> {
-    return {files: [], dirs: []} // No global outputs to write
-  }
-
-  override async registerProjectOutputDirs(): Promise<string[]> {
-    return [] // No directories to clean
-  }
-
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
-    const {projects} = ctx.collectedOutputContext.workspace
-
-    for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) continue
-      if (project.isPromptSourceProject === true) continue // Skip prompt source projects
-
-      const projectDirPath = project.dirFromWorkspacePath
-      const projectDir = projectDirPath.getAbsolutePath()
-      const {basePath} = projectDirPath
-      const gitRepoDirs = [projectDir, ...findAllGitRepos(projectDir)] // project root + nested submodules/repos
-
-      for (const repoDir of gitRepoDirs) {
-        const gitInfoDir = resolveGitInfoDir(repoDir)
-        if (gitInfoDir == null) continue
-
-        const excludeFilePath = path.join(gitInfoDir, 'exclude')
-        const relExcludePath = path.relative(basePath, excludeFilePath)
-
-        results.push(relExcludePath)
-      }
-    }
-
-    const wsDir = ctx.collectedOutputContext.workspace.directory.path // Also register .git/modules/ exclude files
-    const wsDotGit = path.join(wsDir, '.git')
-    if (fs.existsSync(wsDotGit) && fs.lstatSync(wsDotGit).isDirectory()) {
-      for (const moduleInfoDir of findGitModuleInfoDirs(wsDotGit)) {
-        const excludeFilePath = path.join(moduleInfoDir, 'exclude')
-        const relExcludePath = path.relative(wsDir, excludeFilePath)
-
-        results.push(relExcludePath)
-      }
-    }
-
-    return results
-  }
-
-  override async registerGlobalOutputDirs(): Promise<string[]> {
-    return [] // No global directories to clean
-  }
-
-  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {globalGitIgnore, shadowGitExclude} = ctx.collectedOutputContext
-    const hasContent = (globalGitIgnore != null && globalGitIgnore.length > 0)
-      || (shadowGitExclude != null && shadowGitExclude.length > 0)
-
-    if (!hasContent) {
-      this.log.debug({action: 'canWrite', result: false, reason: 'No gitignore or exclude content found'})
-      return false
-    }
-
-    const {projects} = ctx.collectedOutputContext.workspace
-    const hasGitProjects = projects.some(project => {
-      if (project.dirFromWorkspacePath == null) return false
-      const projectDir = project.dirFromWorkspacePath.getAbsolutePath()
-      if (resolveGitInfoDir(projectDir) != null) return true // Check project root
-      return findAllGitRepos(projectDir).some(d => resolveGitInfoDir(d) != null) // Check nested repos
-    })
-
-    const workspaceDir = ctx.collectedOutputContext.workspace.directory.path
-    const hasWorkspaceGit = resolveGitInfoDir(workspaceDir) != null
-
-    const canWrite = hasGitProjects || hasWorkspaceGit
-    this.log.debug({
-      action: 'canWrite',
-      result: canWrite,
-      hasGitProjects,
-      hasWorkspaceGit,
-      reason: canWrite ? 'Found git repositories to update' : 'No git repositories found'
-    })
-
-    return canWrite
-  }
-
-  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const fileResults: WriteResult[] = []
-    const {globalGitIgnore, shadowGitExclude} = ctx.collectedOutputContext
-
+  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const declarations: OutputFileDeclaration[] = []
+    const {workspace, globalGitIgnore, shadowGitExclude} = ctx.collectedOutputContext
     const managedContent = this.buildManagedContent(globalGitIgnore, shadowGitExclude)
+    if (managedContent.length === 0) return declarations
 
-    if (managedContent.length === 0) {
-      this.log.debug({action: 'write', message: 'No gitignore or exclude content found, skipping'})
-      return {files: [], dirs: []}
-    }
-
-    const {workspace} = ctx.collectedOutputContext
+    const finalContent = this.normalizeContent(managedContent)
+    const writtenPaths = new Set<string>()
     const {projects} = workspace
-    const writtenPaths = new Set<string>() // Track written paths to avoid duplicates
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
       const projectDir = project.dirFromWorkspacePath.getAbsolutePath()
-      const gitRepoDirs = [projectDir, ...findAllGitRepos(projectDir)] // project root + nested submodules/repos
+      const gitRepoDirs = [projectDir, ...findAllGitRepos(projectDir)]
 
       for (const repoDir of gitRepoDirs) {
         const gitInfoDir = resolveGitInfoDir(repoDir)
         if (gitInfoDir == null) continue
 
-        const gitInfoExcludePath = path.join(gitInfoDir, 'exclude')
+        const excludePath = path.join(gitInfoDir, 'exclude')
+        if (writtenPaths.has(excludePath)) continue
+        writtenPaths.add(excludePath)
 
-        if (writtenPaths.has(gitInfoExcludePath)) continue
-        writtenPaths.add(gitInfoExcludePath)
-
-        const label = repoDir === projectDir
-          ? `project:${project.name ?? 'unknown'}`
-          : `nested:${path.relative(projectDir, repoDir)}`
-
-        this.log.trace({action: 'write', path: gitInfoExcludePath, label})
-
-        const result = await this.writeGitExcludeFile(ctx, gitInfoExcludePath, managedContent, label)
-        fileResults.push(result)
+        declarations.push({
+          path: excludePath,
+          scope: 'project',
+          source: {content: finalContent}
+        })
       }
     }
 
     const workspaceDir = workspace.directory.path
-    const workspaceGitInfoDir = resolveGitInfoDir(workspaceDir) // workspace root .git (may also be submodule host)
-
+    const workspaceGitInfoDir = resolveGitInfoDir(workspaceDir)
     if (workspaceGitInfoDir != null) {
-      const workspaceGitExclude = path.join(workspaceGitInfoDir, 'exclude')
-
-      if (!writtenPaths.has(workspaceGitExclude)) {
-        this.log.trace({action: 'write', path: workspaceGitExclude, target: 'workspace'})
-        const result = await this.writeGitExcludeFile(ctx, workspaceGitExclude, managedContent, 'workspace')
-        fileResults.push(result)
-        writtenPaths.add(workspaceGitExclude)
+      const workspaceExcludePath = path.join(workspaceGitInfoDir, 'exclude')
+      if (!writtenPaths.has(workspaceExcludePath)) {
+        writtenPaths.add(workspaceExcludePath)
+        declarations.push({
+          path: workspaceExcludePath,
+          scope: 'workspace',
+          source: {content: finalContent}
+        })
       }
     }
 
-    const workspaceNestedRepos = findAllGitRepos(workspaceDir) // nested repos under workspace root not covered by projects
+    const workspaceNestedRepos = findAllGitRepos(workspaceDir)
     for (const repoDir of workspaceNestedRepos) {
       const gitInfoDir = resolveGitInfoDir(repoDir)
       if (gitInfoDir == null) continue
@@ -163,30 +64,37 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
       const excludePath = path.join(gitInfoDir, 'exclude')
       if (writtenPaths.has(excludePath)) continue
       writtenPaths.add(excludePath)
-
-      const label = `workspace-nested:${path.relative(workspaceDir, repoDir)}`
-      this.log.trace({action: 'write', path: excludePath, label})
-
-      const result = await this.writeGitExcludeFile(ctx, excludePath, managedContent, label)
-      fileResults.push(result)
+      declarations.push({
+        path: excludePath,
+        scope: 'workspace',
+        source: {content: finalContent}
+      })
     }
 
-    const dotGitDir = path.join(workspaceDir, '.git') // Scan .git/modules/ for submodule info dirs
-    if (fs.existsSync(dotGitDir) && fs.lstatSync(dotGitDir).isDirectory()) {
+    const dotGitDir = path.join(workspaceDir, '.git')
+    if (this.existsSync(dotGitDir) && this.lstatSync(dotGitDir).isDirectory()) {
       for (const moduleInfoDir of findGitModuleInfoDirs(dotGitDir)) {
         const excludePath = path.join(moduleInfoDir, 'exclude')
         if (writtenPaths.has(excludePath)) continue
         writtenPaths.add(excludePath)
-
-        const label = `git-module:${path.relative(dotGitDir, moduleInfoDir)}`
-        this.log.trace({action: 'write', path: excludePath, label})
-
-        const result = await this.writeGitExcludeFile(ctx, excludePath, managedContent, label)
-        fileResults.push(result)
+        declarations.push({
+          path: excludePath,
+          scope: 'workspace',
+          source: {content: finalContent}
+        })
       }
     }
 
-    return {files: fileResults, dirs: []}
+    return declarations
+  }
+
+  override async convertContent(
+    declaration: OutputFileDeclaration,
+    _ctx: OutputWriteContext
+  ): Promise<string> {
+    const source = declaration.source as {content?: string}
+    if (source.content == null) throw new Error(`Unsupported declaration source for ${this.name}`)
+    return source.content
   }
 
   private buildManagedContent(globalGitIgnore?: string, shadowGitExclude?: string): string {
@@ -220,39 +128,5 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     const trimmed = content.trim()
     if (trimmed.length === 0) return ''
     return `${trimmed}\n`
-  }
-
-  private async writeGitExcludeFile(
-    ctx: OutputWriteContext,
-    filePath: string,
-    managedContent: string,
-    label: string
-  ): Promise<WriteResult> {
-    const workspaceDir = ctx.collectedOutputContext.workspace.directory.path // Create relative path for the result
-    const relativePath = path.relative(workspaceDir, filePath)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'gitExclude', path: filePath, label})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      const gitInfoDir = path.dirname(filePath) // Ensure the .git/info directory exists
-      if (!fs.existsSync(gitInfoDir)) {
-        fs.mkdirSync(gitInfoDir, {recursive: true})
-        this.log.debug({action: 'mkdir', path: gitInfoDir, message: 'Created .git/info directory'})
-      }
-
-      const finalContent = this.normalizeContent(managedContent)
-
-      fs.writeFileSync(filePath, finalContent, 'utf8') // Write the exclude file
-      this.log.trace({action: 'write', type: 'gitExclude', path: filePath, label})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'gitExclude', path: filePath, label, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
   }
 }

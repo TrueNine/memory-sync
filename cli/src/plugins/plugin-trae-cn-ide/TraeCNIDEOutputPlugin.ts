@@ -1,8 +1,6 @@
 import type {
-  OutputPluginContext,
-  OutputWriteContext,
-  WriteResult,
-  WriteResults
+  OutputFileDeclaration,
+  OutputWriteContext
 } from '../plugin-core'
 import {AbstractOutputPlugin} from '../plugin-core'
 
@@ -15,7 +13,13 @@ export class TraeCNIDEOutputPlugin extends AbstractOutputPlugin {
     super('TraeCNIDEOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: GLOBAL_MEMORY_FILE,
-      dependsOn: ['TraeIDEOutputPlugin']
+      dependsOn: ['TraeIDEOutputPlugin'],
+      capabilities: {
+        prompt: {
+          scopes: ['global'],
+          singleScope: false
+        }
+      }
     })
   }
 
@@ -23,49 +27,26 @@ export class TraeCNIDEOutputPlugin extends AbstractOutputPlugin {
     return this.joinPath(this.getGlobalConfigDir(), USER_RULES_SUBDIR)
   }
 
-  override async registerProjectOutputDirs(): Promise<string[]> {
-    return []
-  }
+  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['global']))
+    if (!activePromptScopes.has('global')) return []
 
-  override async registerProjectOutputFiles(): Promise<string[]> {
-    return []
-  }
-
-  override async registerGlobalOutputDirs(): Promise<string[]> {
-    return [
-      this.joinPath(this.getGlobalConfigDir(), USER_RULES_SUBDIR)
-    ]
-  }
-
-  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const {globalMemory} = ctx.collectedOutputContext
-    const results: string[] = []
+    if (globalMemory == null) return []
 
-    if (globalMemory != null) results.push(this.joinPath(this.getGlobalUserRulesDir(), GLOBAL_MEMORY_FILE))
-
-    return results
+    return [{
+      path: this.joinPath(this.getGlobalUserRulesDir(), GLOBAL_MEMORY_FILE),
+      scope: 'global',
+      source: {content: globalMemory.content as string}
+    }]
   }
 
-  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {globalMemory} = ctx.collectedOutputContext
-    if (globalMemory != null) return true
-    this.log.trace({action: 'skip', reason: 'noGlobalMemory'})
-    return false
-  }
-
-  override async writeProjectOutputs(): Promise<WriteResults> {
-    return {files: [], dirs: []}
-  }
-
-  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory} = ctx.collectedOutputContext
-    const fileResults: WriteResult[] = []
-    const userRulesDir = this.getGlobalUserRulesDir()
-
-    if (globalMemory != null) {
-      fileResults.push(await this.writeFile(ctx, this.joinPath(userRulesDir, GLOBAL_MEMORY_FILE), globalMemory.content as string, 'globalMemory'))
-    }
-
-    return {files: fileResults, dirs: []}
+  override async convertContent(
+    declaration: OutputFileDeclaration,
+    _ctx: OutputWriteContext
+  ): Promise<string> {
+    const source = declaration.source as {content?: string}
+    if (source.content == null) throw new Error(`Unsupported declaration source for ${this.name}`)
+    return source.content
   }
 }

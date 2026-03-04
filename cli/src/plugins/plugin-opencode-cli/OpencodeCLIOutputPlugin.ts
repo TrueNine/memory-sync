@@ -1,5 +1,5 @@
-import type {CommandPrompt, OutputPluginContext, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '../plugin-core'
-import * as fs from 'node:fs'
+import type {CommandPrompt, OutputFileDeclaration, OutputWriteContext, SkillPrompt, SubAgentPrompt} from '../plugin-core'
+import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {
   AbstractOutputPlugin,
@@ -14,7 +14,45 @@ const GLOBAL_CONFIG_DIR = '.config/opencode'
 const OPENCODE_CONFIG_FILE = 'opencode.json'
 const OPENCODE_RULES_PLUGIN_NAME = 'opencode-rules@latest'
 const PROJECT_RULES_DIR = '.opencode'
-const RULES_SUBDIR = 'rules'
+const COMMANDS_SUBDIR = 'commands'
+const AGENTS_SUBDIR = 'agents'
+
+type OpencodeOutputSource
+  = | {readonly kind: 'globalMemory', readonly content: string}
+    | {readonly kind: 'projectRootMemory', readonly content: string}
+    | {readonly kind: 'projectChildMemory', readonly content: string}
+    | {readonly kind: 'command', readonly command: CommandPrompt}
+    | {readonly kind: 'subAgent', readonly agent: SubAgentPrompt}
+    | {readonly kind: 'skillMain', readonly skill: SkillPrompt, readonly normalizedSkillName: string}
+    | {readonly kind: 'skillReference', readonly content: string}
+    | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
+    | {readonly kind: 'globalMcpConfig', readonly mcpServers: Record<string, Record<string, unknown>>}
+
+function transformOpencodeCommandFrontMatter(
+  _cmd: CommandPrompt,
+  context: {
+    readonly sourceFrontMatter?: Record<string, unknown>
+  }
+): Record<string, unknown> {
+  const frontMatter: Record<string, unknown> = {}
+  const source = context.sourceFrontMatter
+
+  if (source?.['description'] != null) frontMatter['description'] = source['description']
+  if (source?.['agent'] != null) frontMatter['agent'] = source['agent']
+  if (source?.['model'] != null) frontMatter['model'] = source['model']
+
+  if (source?.['allowTools'] != null && Array.isArray(source['allowTools'])) {
+    const tools: Record<string, boolean> = {}
+    for (const tool of source['allowTools']) tools[String(tool)] = true
+    frontMatter['tools'] = tools
+  }
+
+  for (const [key, value] of Object.entries(source ?? {})) {
+    if (!['description', 'agent', 'model', 'allowTools', 'namingCase', 'argumentHint'].includes(key)) frontMatter[key] = value
+  }
+
+  return frontMatter
+}
 
 /**
  * Opencode CLI output plugin.
@@ -25,237 +63,223 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     super('OpencodeCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: GLOBAL_MEMORY_FILE,
-      commandsSubDir: 'commands',
-      skillsSubDir: 'skills',
-      supportsCommands: true,
-      supportsSkills: true,
+      commands: {
+        subDir: COMMANDS_SUBDIR,
+        transformFrontMatter: transformOpencodeCommandFrontMatter
+      },
+      subagents: {
+        subDir: AGENTS_SUBDIR
+      },
+      skills: {
+        subDir: 'skills'
+      },
       dependsOn: [PLUGIN_NAMES.AgentsOutput],
-      rules: {
-        enabled: true,
-        subDir: RULES_SUBDIR,
-        transformFrontMatter: (rule: RulePrompt) => ({globs: [...rule.globs]})
-      }
-    })
-
-    this.registerCleanEffect('mcp-config-cleanup', async ctx => {
-      const globalDir = this.getGlobalConfigDir()
-      const configPath = path.join(globalDir, OPENCODE_CONFIG_FILE)
-
-      if (ctx.dryRun === true) {
-        this.log.trace({action: 'dryRun', type: 'mcpConfigCleanup', path: configPath})
-        return {success: true, description: 'Would reset opencode.json mcp to empty'}
-      }
-
-      try {
-        if (fs.existsSync(configPath)) {
-          const existingContent = fs.readFileSync(configPath, 'utf8')
-          const existingConfig = JSON.parse(existingContent) as Record<string, unknown>
-          existingConfig['mcp'] = {}
-
-          const pluginField = existingConfig['plugin']
-          if (Array.isArray(pluginField)) {
-            const filtered = pluginField.filter(item => item !== OPENCODE_RULES_PLUGIN_NAME)
-            if (filtered.length > 0) existingConfig['plugin'] = filtered
-            else delete existingConfig['plugin']
-          }
-
-          fs.writeFileSync(configPath, JSON.stringify(existingConfig, null, 2))
+      capabilities: {
+        prompt: {
+          scopes: ['project', 'global'],
+          singleScope: false
+        },
+        commands: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        },
+        subagents: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        },
+        skills: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        },
+        mcp: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
         }
-        this.log.trace({action: 'clean', type: 'mcpConfigCleanup', path: configPath})
-        return {success: true, description: 'Reset opencode.json mcp to empty'}
-      }
-      catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'clean', type: 'mcpConfigCleanup', path: configPath, error: errMsg})
-        return {success: false, error: error as Error, description: 'Failed to reset opencode.json mcp'}
       }
     })
   }
 
-  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const results = await super.registerGlobalOutputFiles(ctx)
+  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const declarations: OutputFileDeclaration[] = []
+    const {workspace, globalMemory, commands, subAgents, skills} = ctx.collectedOutputContext
     const globalDir = this.getGlobalConfigDir()
+    const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project', 'global']))
+    const selectedCommands = commands != null
+      ? this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, cmd => this.resolveCommandSourceScope(cmd), this.getTopicScopeOverride(ctx, 'commands'))
+      : {items: [] as readonly CommandPrompt[]}
+    const selectedSubAgents = subAgents != null
+      ? this.selectSingleScopeItems(subAgents, this.subAgentsConfig.sourceScopes, subAgent => this.resolveSubAgentSourceScope(subAgent), this.getTopicScopeOverride(ctx, 'subagents'))
+      : {items: [] as readonly SubAgentPrompt[]}
+    const selectedSkills = skills != null
+      ? this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
+      : {items: [] as readonly SkillPrompt[]}
+    const selectedMcpSkills = skills != null
+      ? this.selectSingleScopeItems(
+          skills,
+          this.skillsConfig.sourceScopes,
+          skill => this.resolveSkillSourceScope(skill),
+          this.getTopicScopeOverride(ctx, 'mcp') ?? this.getTopicScopeOverride(ctx, 'skills')
+        )
+      : {items: [] as readonly SkillPrompt[]}
 
-    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const filteredSkills = ctx.collectedOutputContext.skills != null
-      ? filterByProjectConfig(ctx.collectedOutputContext.skills, projectConfig, 'skills')
-      : []
-    const hasAnyMcpConfig = filteredSkills.some(s => s.mcpConfig != null)
-    if (hasAnyMcpConfig) results.push(path.join(globalDir, OPENCODE_CONFIG_FILE))
+    if (globalMemory != null && activePromptScopes.has('global')) {
+      declarations.push({
+        path: path.join(globalDir, GLOBAL_MEMORY_FILE),
+        scope: 'global',
+        source: {
+          kind: 'globalMemory',
+          content: globalMemory.content as string
+        } satisfies OpencodeOutputSource
+      })
+    }
 
-    return results.map(result => { // Normalize skill directory names in paths
-      const normalizedPath = result.replaceAll('\\', '/')
-      const skillsPatternWithSlash = `/${this.skillsSubDir}/`
-      const skillsPatternStart = `${this.skillsSubDir}/`
+    if (selectedMcpSkills.items.length > 0) {
+      const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
+      const filteredSkills = filterByProjectConfig(selectedMcpSkills.items, projectConfig, 'skills')
+      const manager = new McpConfigManager({fs: ctx.fs, logger: this.log})
+      const servers = manager.collectMcpServers(filteredSkills)
+      if (servers.size > 0) {
+        declarations.push({
+          path: path.join(globalDir, OPENCODE_CONFIG_FILE),
+          scope: 'global',
+          source: {
+            kind: 'globalMcpConfig',
+            mcpServers: manager.transformMcpServers(servers, transformMcpConfigForOpencode)
+          } satisfies OpencodeOutputSource
+        })
+      }
+    }
 
-      if (!(normalizedPath.includes(skillsPatternWithSlash) || normalizedPath.startsWith(skillsPatternStart))) return result
+    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
+    for (const project of workspace.projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) continue
+      const basePath = path.join(projectDir.basePath, projectDir.path, PROJECT_RULES_DIR)
 
-      const pathParts = normalizedPath.split('/')
-      const skillsIndex = pathParts.indexOf(this.skillsSubDir)
-      if (skillsIndex < 0 || skillsIndex + 1 >= pathParts.length) return result
-
-      const skillName = pathParts[skillsIndex + 1]
-      if (skillName == null) return result
-
-      const normalizedSkillName = this.validateAndNormalizeSkillName(skillName)
-      const newPathParts = [...pathParts]
-      newPathParts[skillsIndex + 1] = normalizedSkillName
-      const newPath = newPathParts.join('/')
-      return newPath
-    })
-  }
-
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
-    const {projects} = ctx.collectedOutputContext.workspace
-
-    for (const project of projects) {
-      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
-        results.push(this.createFileRelativePath(project.dirFromWorkspacePath.path, this.outputFileName))
+      if (project.rootMemoryPrompt != null && activePromptScopes.has('project')) {
+        declarations.push({
+          path: this.resolveFullPath(projectDir),
+          scope: 'project',
+          source: {
+            kind: 'projectRootMemory',
+            content: project.rootMemoryPrompt.content as string
+          } satisfies OpencodeOutputSource
+        })
       }
 
-      if (project.childMemoryPrompts != null) {
+      if (project.childMemoryPrompts != null && activePromptScopes.has('project')) {
         for (const child of project.childMemoryPrompts) {
-          if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir.path, this.outputFileName))
+          declarations.push({
+            path: this.resolveFullPath(child.dir),
+            scope: 'project',
+            source: {
+              kind: 'projectChildMemory',
+              content: child.content as string
+            } satisfies OpencodeOutputSource
+          })
         }
       }
 
-      if (project.dirFromWorkspacePath == null) continue
-
-      const {projectConfig} = project
-      const basePath = path.join(project.dirFromWorkspacePath.path, PROJECT_RULES_DIR)
-      const transformOptions = {includeSeriesPrefix: true} as const
-
-      if (this.supportsCommands && ctx.collectedOutputContext.commands != null) {
-        const filteredCommands = filterByProjectConfig(ctx.collectedOutputContext.commands, projectConfig, 'commands')
+      if (this.commandOutputEnabled && selectedCommands.items.length > 0) {
+        const filteredCommands = filterByProjectConfig(selectedCommands.items, project.projectConfig, 'commands')
         for (const cmd of filteredCommands) {
-          const fileName = this.transformCommandName(cmd, transformOptions)
-          results.push(this.createRelativePath(path.join(basePath, this.commandsSubDir, fileName), project.dirFromWorkspacePath.basePath, () => this.commandsSubDir))
+          declarations.push({
+            path: path.join(basePath, this.commandsConfig.subDir, this.transformCommandName(cmd, transformOptions)),
+            scope: 'project',
+            source: {kind: 'command', command: cmd} satisfies OpencodeOutputSource
+          })
         }
       }
 
-      if (this.supportsSubAgents && ctx.collectedOutputContext.subAgents != null) {
-        const filteredSubAgents = filterByProjectConfig(ctx.collectedOutputContext.subAgents, projectConfig, 'subAgents')
+      if (this.subAgentOutputEnabled && selectedSubAgents.items.length > 0) {
+        const filteredSubAgents = filterByProjectConfig(selectedSubAgents.items, project.projectConfig, 'subAgents')
+        const {subDir} = this.subAgentsConfig
         for (const agent of filteredSubAgents) {
-          const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
-          const subDir = this.agentsSubDir
-          results.push(this.createRelativePath(path.join(basePath, subDir, fileName), project.dirFromWorkspacePath.basePath, () => subDir))
+          declarations.push({
+            path: path.join(basePath, subDir, agent.dir.path.replace(/\.mdx$/, '.md')),
+            scope: 'project',
+            source: {kind: 'subAgent', agent} satisfies OpencodeOutputSource
+          })
         }
       }
 
-      if (this.supportsSkills && ctx.collectedOutputContext.skills != null) {
-        const filteredSkills = filterByProjectConfig(ctx.collectedOutputContext.skills, projectConfig, 'skills')
+      if (this.skillOutputEnabled && selectedSkills.items.length > 0) {
+        const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
         for (const skill of filteredSkills) {
-          const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-          const skillDir = path.join(basePath, this.skillsSubDir, skillName)
+          const normalizedSkillName = this.validateAndNormalizeSkillName((skill.yamlFrontMatter?.name as string | undefined) ?? skill.dir.getDirectoryName())
+          const skillDir = path.join(basePath, this.skillsConfig.subDir, normalizedSkillName)
 
-          results.push(this.createRelativePath(path.join(skillDir, 'SKILL.md'), project.dirFromWorkspacePath.basePath, () => skillName))
+          declarations.push({
+            path: path.join(skillDir, 'SKILL.md'),
+            scope: 'project',
+            source: {
+              kind: 'skillMain',
+              skill,
+              normalizedSkillName
+            } satisfies OpencodeOutputSource
+          })
 
           if (skill.childDocs != null) {
             for (const refDoc of skill.childDocs) {
-              const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
-              results.push(this.createRelativePath(path.join(skillDir, refDocFileName), project.dirFromWorkspacePath.basePath, () => skillName))
+              declarations.push({
+                path: path.join(skillDir, refDoc.dir.path.replace(/\.mdx$/, '.md')),
+                scope: 'project',
+                source: {
+                  kind: 'skillReference',
+                  content: refDoc.content as string
+                } satisfies OpencodeOutputSource
+              })
             }
           }
 
           if (skill.resources != null) {
             for (const resource of skill.resources) {
-              results.push(this.createRelativePath(path.join(skillDir, resource.relativePath), project.dirFromWorkspacePath.basePath, () => skillName))
+              declarations.push({
+                path: path.join(skillDir, resource.relativePath),
+                scope: 'project',
+                source: {
+                  kind: 'skillResource',
+                  content: resource.content,
+                  encoding: resource.encoding
+                } satisfies OpencodeOutputSource
+              })
             }
           }
         }
       }
     }
 
-    return results.map(result => {
-      const normalizedPath = result.replaceAll('\\', '/')
-      const skillsPatternWithSlash = `/${this.skillsSubDir}/`
-      const skillsPatternStart = `${this.skillsSubDir}/`
-
-      if (!(normalizedPath.includes(skillsPatternWithSlash) || normalizedPath.startsWith(skillsPatternStart))) return result
-
-      const pathParts = normalizedPath.split('/')
-      const skillsIndex = pathParts.indexOf(this.skillsSubDir)
-      if (skillsIndex < 0 || skillsIndex + 1 >= pathParts.length) return result
-
-      const skillName = pathParts[skillsIndex + 1]
-      if (skillName == null) return result
-
-      const normalizedSkillName = this.validateAndNormalizeSkillName(skillName)
-      const newPathParts = [...pathParts]
-      newPathParts[skillsIndex + 1] = normalizedSkillName
-      const newPath = newPathParts.join('/')
-      return newPath
-    })
+    return declarations
   }
 
-  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const baseResults = await super.writeGlobalOutputs(ctx)
-    const files = [...baseResults.files]
-
-    const {skills} = ctx.collectedOutputContext
-    if (skills == null) return {files, dirs: baseResults.dirs}
-
-    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
-    const mcpResult = await this.writeGlobalMcpConfig(ctx, filteredSkills)
-    if (mcpResult != null) files.push(mcpResult)
-    return {files, dirs: baseResults.dirs}
-  }
-
-  private async writeGlobalMcpConfig(
-    ctx: OutputWriteContext,
-    skills: readonly SkillPrompt[]
-  ): Promise<WriteResult | null> {
-    const manager = new McpConfigManager({fs, logger: this.log})
-
-    const servers = manager.collectMcpServers(skills)
-    if (servers.size === 0) return null
-
-    const transformed = manager.transformMcpServers(servers, transformMcpConfigForOpencode)
-    const globalDir = this.getGlobalConfigDir()
-    const configPath = path.join(globalDir, OPENCODE_CONFIG_FILE)
-
-    const relativePath = path.join(globalDir, OPENCODE_CONFIG_FILE)
-
-    const existingConfig = manager.readExistingConfig(configPath)
-    const pluginField = existingConfig['plugin']
-    const plugins: string[] = Array.isArray(pluginField) ? pluginField.map(item => String(item)) : []
-    if (!plugins.includes(OPENCODE_RULES_PLUGIN_NAME)) plugins.push(OPENCODE_RULES_PLUGIN_NAME)
-
-    const result = manager.writeOpencodeMcpConfig(
-      configPath,
-      transformed,
-      ctx.dryRun === true,
-      {
-        $schema: 'https://opencode.ai/config.json',
-        plugin: plugins
+  override async convertContent(
+    declaration: OutputFileDeclaration,
+    _ctx: OutputWriteContext
+  ): Promise<string | Buffer> {
+    const source = declaration.source as OpencodeOutputSource
+    switch (source.kind) {
+      case 'globalMemory':
+      case 'projectRootMemory':
+      case 'projectChildMemory':
+      case 'skillReference': return source.content
+      case 'command': return this.buildCommandContent(source.command)
+      case 'subAgent': {
+        const frontMatter = this.buildOpencodeAgentFrontMatter(source.agent)
+        return this.buildMarkdownContent(source.agent.content, frontMatter)
       }
-    )
-
-    if (!result.success) {
-      if (result.error != null) return {path: relativePath, success: false, error: result.error}
-      return {path: relativePath, success: false}
+      case 'skillMain': {
+        const frontMatter = this.buildOpencodeSkillFrontMatter(source.skill, source.normalizedSkillName)
+        return this.buildMarkdownContent(source.skill.content as string, frontMatter)
+      }
+      case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
+      case 'globalMcpConfig':
+        return JSON.stringify({
+          $schema: 'https://opencode.ai/config.json',
+          plugin: [OPENCODE_RULES_PLUGIN_NAME],
+          mcp: source.mcpServers
+        }, null, 2)
+      default: throw new Error(`Unsupported declaration source for ${this.name}`)
     }
-
-    if (result.skipped === true) return {path: relativePath, success: true, skipped: true}
-    return {path: relativePath, success: true}
-  }
-
-  protected override async writeSubAgent(
-    ctx: OutputWriteContext,
-    basePath: string,
-    agent: SubAgentPrompt
-  ): Promise<WriteResult[]> {
-    const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
-    const subDir = this.agentsSubDir
-    const targetDir = path.join(basePath, subDir)
-    const fullPath = path.join(targetDir, fileName)
-
-    const opencodeFrontMatter = this.buildOpencodeAgentFrontMatter(agent)
-    const content = this.buildMarkdownContent(agent.content, opencodeFrontMatter)
-
-    return [await this.writeFile(ctx, fullPath, content, 'subAgent')]
   }
 
   private buildOpencodeAgentFrontMatter(agent: SubAgentPrompt): Record<string, unknown> {
@@ -286,76 +310,6 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     return frontMatter
-  }
-
-  protected override async writeCommand(
-    ctx: OutputWriteContext,
-    basePath: string,
-    cmd: CommandPrompt
-  ): Promise<WriteResult[]> {
-    const transformOptions = this.getTransformOptionsFromContext(ctx)
-    const fileName = this.transformCommandName(cmd, transformOptions)
-    const targetDir = path.join(basePath, this.commandsSubDir)
-    const fullPath = path.join(targetDir, fileName)
-
-    const opencodeFrontMatter = this.buildOpencodeCommandFrontMatter(cmd)
-    const content = this.buildMarkdownContent(cmd.content, opencodeFrontMatter)
-
-    return [await this.writeFile(ctx, fullPath, content, 'command')]
-  }
-
-  private buildOpencodeCommandFrontMatter(cmd: CommandPrompt): Record<string, unknown> {
-    const frontMatter: Record<string, unknown> = {}
-    const source = cmd.yamlFrontMatter as Record<string, unknown> | undefined
-
-    if (source?.['description'] != null) frontMatter['description'] = source['description']
-    if (source?.['agent'] != null) frontMatter['agent'] = source['agent']
-    if (source?.['model'] != null) frontMatter['model'] = source['model']
-
-    if (source?.['allowTools'] != null && Array.isArray(source['allowTools'])) {
-      const tools: Record<string, boolean> = {}
-      for (const tool of source['allowTools']) tools[String(tool)] = true
-      frontMatter['tools'] = tools
-    }
-
-    for (const [key, value] of Object.entries(source ?? {})) {
-      if (!['description', 'agent', 'model', 'allowTools', 'namingCase', 'argumentHint'].includes(key)) frontMatter[key] = value
-    }
-
-    return frontMatter
-  }
-
-  protected override async writeSkill(
-    ctx: OutputWriteContext,
-    basePath: string,
-    skill: SkillPrompt
-  ): Promise<WriteResult[]> {
-    const results: WriteResult[] = []
-    const skillName = this.validateAndNormalizeSkillName((skill.yamlFrontMatter?.name as string | undefined) ?? skill.dir.getDirectoryName())
-    const targetDir = path.join(basePath, this.skillsSubDir, skillName)
-    const fullPath = path.join(targetDir, 'SKILL.md')
-
-    const opencodeFrontMatter = this.buildOpencodeSkillFrontMatter(skill, skillName)
-    const content = this.buildMarkdownContent(skill.content as string, opencodeFrontMatter)
-
-    const mainFileResult = await this.writeFile(ctx, fullPath, content, 'skill')
-    results.push(mainFileResult)
-
-    if (skill.childDocs != null) {
-      for (const refDoc of skill.childDocs) {
-        const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, {dir: refDoc.dir.path, content: refDoc.content}, basePath)
-        results.push(...refResults)
-      }
-    }
-
-    if (skill.resources != null) {
-      for (const resource of skill.resources) {
-        const refResults = await this.writeSkillResource(ctx, targetDir, skillName, resource, basePath)
-        results.push(...refResults)
-      }
-    }
-
-    return results
   }
 
   private buildOpencodeSkillFrontMatter(skill: SkillPrompt, skillName: string): Record<string, unknown> {
@@ -398,76 +352,5 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     return normalized
-  }
-
-  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
-    const {projects} = ctx.collectedOutputContext.workspace
-
-    const subdirs: string[] = []
-    if (this.supportsCommands) subdirs.push(this.commandsSubDir)
-    if (this.supportsSubAgents) subdirs.push(this.agentsSubDir)
-    if (this.supportsSkills) subdirs.push(this.skillsSubDir)
-
-    for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) continue
-      for (const subdir of subdirs) {
-        const dirPath = path.join(project.dirFromWorkspacePath.path, PROJECT_RULES_DIR, subdir)
-        results.push(dirPath)
-      }
-    }
-
-    return results
-  }
-
-  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
-
-    for (const project of ctx.collectedOutputContext.workspace.projects) {
-      if (project.dirFromWorkspacePath == null) continue
-
-      const projectDir = project.dirFromWorkspacePath
-      const {projectConfig} = project
-      const basePath = path.join(projectDir.basePath, projectDir.path, PROJECT_RULES_DIR)
-
-      if (project.rootMemoryPrompt != null) {
-        const result = await this.writePromptFile(ctx, projectDir, project.rootMemoryPrompt.content as string, `project:${project.name}/root`)
-        fileResults.push(result)
-      }
-
-      if (project.childMemoryPrompts != null) {
-        for (const child of project.childMemoryPrompts) {
-          const childResult = await this.writePromptFile(ctx, child.dir, child.content as string, `project:${project.name}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`)
-          fileResults.push(childResult)
-        }
-      }
-
-      if (this.supportsCommands && ctx.collectedOutputContext.commands != null) {
-        const filteredCommands = filterByProjectConfig(ctx.collectedOutputContext.commands, projectConfig, 'commands')
-        for (const cmd of filteredCommands) {
-          const cmdResults = await this.writeCommand(ctx, basePath, cmd)
-          fileResults.push(...cmdResults)
-        }
-      }
-
-      if (this.supportsSubAgents && ctx.collectedOutputContext.subAgents != null) {
-        const filteredSubAgents = filterByProjectConfig(ctx.collectedOutputContext.subAgents, projectConfig, 'subAgents')
-        for (const agent of filteredSubAgents) {
-          const agentResults = await this.writeSubAgent(ctx, basePath, agent)
-          fileResults.push(...agentResults)
-        }
-      }
-
-      if (this.supportsSkills && ctx.collectedOutputContext.skills != null) {
-        const filteredSkills = filterByProjectConfig(ctx.collectedOutputContext.skills, projectConfig, 'skills')
-        for (const skill of filteredSkills) {
-          const skillResults = await this.writeSkill(ctx, basePath, skill)
-          fileResults.push(...skillResults)
-        }
-      }
-    }
-
-    return {files: fileResults, dirs: dirResults}
   }
 }

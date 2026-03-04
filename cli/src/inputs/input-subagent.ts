@@ -2,7 +2,8 @@ import type {
   InputCollectedContext,
   InputPluginContext,
   Locale,
-  SubAgentPrompt
+  SubAgentPrompt,
+  SubAgentYAMLFrontMatter
 } from '../plugins/plugin-core'
 import {
   AbstractInputPlugin,
@@ -22,7 +23,8 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     _locale: Locale,
     name: string,
     distDir: string,
-    ctx: InputPluginContext
+    ctx: InputPluginContext,
+    metadata?: Record<string, unknown>
   ): SubAgentPrompt {
     const {path} = ctx
 
@@ -40,8 +42,9 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
 
     const filePath = path.join(distDir, `${name}.mdx`)
     const entryName = `${name}.mdx`
+    const yamlFrontMatter = metadata as SubAgentYAMLFrontMatter | undefined
 
-    return {
+    const prompt: SubAgentPrompt = {
       type: PromptKind.SubAgent,
       content,
       length: content.length,
@@ -56,6 +59,12 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       ...agentPrefix != null && {agentPrefix},
       agentName
     } as SubAgentPrompt
+
+    if (yamlFrontMatter == null) return prompt
+
+    Object.assign(prompt, {yamlFrontMatter})
+    if (yamlFrontMatter.seriName != null) Object.assign(prompt, {seriName: yamlFrontMatter.seriName})
+    return prompt
   }
 
   override async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
@@ -80,12 +89,13 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
         kind: PromptKind.SubAgent,
         localeExtensions: {zh: '.md', en: '.mdx'},
         isDirectoryStructure: false,
-        createPrompt: (content, locale, name, _metadata) => this.createSubAgentPrompt(
+        createPrompt: (content, locale, name, metadata) => this.createSubAgentPrompt(
           content,
           locale,
           name,
           distDir,
-          ctx
+          ctx,
+          metadata
         )
       }
     )

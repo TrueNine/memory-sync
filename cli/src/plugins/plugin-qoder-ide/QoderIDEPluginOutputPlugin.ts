@@ -1,13 +1,11 @@
 import type {
   CommandPrompt,
-  OutputPluginContext,
+  OutputFileDeclaration,
   OutputWriteContext,
   ProjectChildrenMemoryPrompt,
   RulePrompt,
   RuleScope,
-  SkillPrompt,
-  WriteResult,
-  WriteResults
+  SkillPrompt
 } from '../plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
@@ -28,198 +26,265 @@ const TRIGGER_GLOB = 'glob'
 const RULE_GLOB_KEY = 'glob'
 const RULE_FILE_PREFIX = 'rule-'
 
+type QoderOutputSource
+  = | {readonly kind: 'command', readonly command: CommandPrompt}
+    | {readonly kind: 'ruleContent', readonly content: string}
+    | {readonly kind: 'rulePrompt', readonly rule: RulePrompt}
+    | {readonly kind: 'skillMain', readonly skill: SkillPrompt}
+    | {readonly kind: 'skillMcpConfig', readonly rawContent: string}
+    | {readonly kind: 'skillChildDoc', readonly content: string}
+    | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
+    | {readonly kind: 'ignoreFile', readonly content: string}
+
+function transformQoderCommandFrontMatter(
+  _cmd: CommandPrompt,
+  context: {
+    readonly sourceFrontMatter?: Record<string, unknown>
+  }
+): Record<string, unknown> {
+  const source = context.sourceFrontMatter
+
+  const frontMatter: Record<string, unknown> = {
+    description: 'Fast command',
+    type: 'user_command'
+  }
+
+  if (source?.['description'] != null) frontMatter['description'] = source['description']
+  if (source?.['argumentHint'] != null) frontMatter['argumentHint'] = source['argumentHint']
+  if (source?.['allowTools'] != null && Array.isArray(source['allowTools']) && source['allowTools'].length > 0) frontMatter['allowTools'] = source['allowTools']
+
+  return frontMatter
+}
+
 export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('QoderIDEPluginOutputPlugin', {globalConfigDir: QODER_CONFIG_DIR, indexignore: '.qoderignore'})
+    super('QoderIDEPluginOutputPlugin', {
+      globalConfigDir: QODER_CONFIG_DIR,
+      indexignore: '.qoderignore',
+      commands: {
+        subDir: COMMANDS_SUBDIR,
+        transformFrontMatter: transformQoderCommandFrontMatter
+      },
+      skills: {
+        subDir: SKILLS_SUBDIR
+      },
+      rules: {
+        subDir: RULES_SUBDIR,
+        sourceScopes: ['project', 'global']
+      },
+      capabilities: {
+        prompt: {
+          scopes: ['project', 'global'],
+          singleScope: false
+        },
+        rules: {
+          scopes: ['project', 'global'],
+          singleScope: false
+        },
+        commands: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        },
+        skills: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        },
+        mcp: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        }
+      }
+    })
   }
 
-  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
-    const {projects} = ctx.collectedOutputContext.workspace
-    return projects
-      .filter(p => p.dirFromWorkspacePath != null)
-      .map(p => path.join(p.dirFromWorkspacePath!.path, QODER_CONFIG_DIR, RULES_SUBDIR))
-  }
-
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
-    const {workspace, rules} = ctx.collectedOutputContext
+  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const declarations: OutputFileDeclaration[] = []
+    const {workspace, globalMemory, commands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const {projects} = workspace
-    const {globalMemory} = ctx.collectedOutputContext
+    const globalDir = this.getGlobalConfigDir()
+    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
+    const activeRuleScopes = new Set(rules != null ? this.selectRuleScopes(ctx, rules) : [])
+    const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project', 'global']))
+
+    if (commands != null && commands.length > 0) {
+      const scopedCommands = this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, cmd => this.resolveCommandSourceScope(cmd), this.getTopicScopeOverride(ctx, 'commands'))
+      const filteredCommands = filterByProjectConfig(scopedCommands.items, projectConfig, 'commands')
+      for (const cmd of filteredCommands) {
+        declarations.push({
+          path: path.join(globalDir, COMMANDS_SUBDIR, this.transformCommandName(cmd, transformOptions)),
+          scope: 'global',
+          source: {kind: 'command', command: cmd} satisfies QoderOutputSource
+        })
+      }
+    }
+
+    if (rules != null && rules.length > 0 && activeRuleScopes.has('global')) {
+      const globalRules = rules.filter(r => this.normalizeSourceScope(this.normalizeRuleScope(r)) === 'global')
+      for (const rule of globalRules) {
+        declarations.push({
+          path: path.join(globalDir, RULES_SUBDIR, this.buildRuleFileName(rule)),
+          scope: 'global',
+          source: {kind: 'rulePrompt', rule} satisfies QoderOutputSource
+        })
+      }
+    }
+
+    if (skills != null && skills.length > 0) {
+      const scopedSkills = this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
+      const filteredSkills = filterByProjectConfig(scopedSkills.items, projectConfig, 'skills')
+      const scopedMcpSkills = this.selectSingleScopeItems(
+        skills,
+        this.skillsConfig.sourceScopes,
+        skill => this.resolveSkillSourceScope(skill),
+        this.getTopicScopeOverride(ctx, 'mcp') ?? this.getTopicScopeOverride(ctx, 'skills')
+      )
+      const filteredMcpSkills = filterByProjectConfig(scopedMcpSkills.items, projectConfig, 'skills')
+      for (const skill of filteredSkills) {
+        const skillName = skill.yamlFrontMatter.name
+        const skillDir = path.join(globalDir, SKILLS_SUBDIR, skillName)
+        declarations.push({
+          path: path.join(skillDir, SKILL_FILE_NAME),
+          scope: 'global',
+          source: {kind: 'skillMain', skill} satisfies QoderOutputSource
+        })
+
+        if (skill.mcpConfig != null && filteredMcpSkills.includes(skill)) {
+          declarations.push({
+            path: path.join(skillDir, MCP_CONFIG_FILE),
+            scope: 'global',
+            source: {
+              kind: 'skillMcpConfig',
+              rawContent: skill.mcpConfig.rawContent
+            } satisfies QoderOutputSource
+          })
+        }
+
+        if (skill.childDocs != null) {
+          for (const childDoc of skill.childDocs) {
+            declarations.push({
+              path: path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
+              scope: 'global',
+              source: {
+                kind: 'skillChildDoc',
+                content: childDoc.content as string
+              } satisfies QoderOutputSource
+            })
+          }
+        }
+
+        if (skill.resources != null) {
+          for (const resource of skill.resources) {
+            declarations.push({
+              path: path.join(skillDir, resource.relativePath),
+              scope: 'global',
+              source: {
+                kind: 'skillResource',
+                content: resource.content,
+                encoding: resource.encoding
+              } satisfies QoderOutputSource
+            })
+          }
+        }
+      }
+    }
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
+      const projectRulesDir = path.join(projectDir.basePath, projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR)
 
-      if (globalMemory != null) results.push(path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, GLOBAL_RULE_FILE))
-
-      if (project.rootMemoryPrompt != null) results.push(path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, PROJECT_RULE_FILE))
-
-      if (project.childMemoryPrompts != null) {
-        for (const child of project.childMemoryPrompts) results.push(path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, this.buildChildRuleFileName(child)))
+      if (globalMemory != null && activePromptScopes.has('global')) {
+        declarations.push({
+          path: path.join(projectRulesDir, GLOBAL_RULE_FILE),
+          scope: 'project',
+          source: {
+            kind: 'ruleContent',
+            content: this.buildAlwaysRuleContent(globalMemory.content as string)
+          } satisfies QoderOutputSource
+        })
       }
 
-      if (rules != null && rules.length > 0) { // Handle project rules
-        const projectRules = applySubSeriesGlobPrefix(
-          filterByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig, 'rules'),
-          project.projectConfig
-        )
-        for (const rule of projectRules) {
-          const fileName = this.buildRuleFileName(rule)
-          results.push(path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, fileName))
-        }
-      }
-    }
-    results.push(...this.registerProjectIgnoreOutputFiles(projects))
-    return results
-  }
-
-  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
-    const globalDir = this.getGlobalConfigDir()
-    const {commands, skills, rules} = ctx.collectedOutputContext
-    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const results: string[] = []
-
-    if (commands != null && commands.length > 0) {
-      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
-      if (filteredCommands.length > 0) results.push(path.join(globalDir, COMMANDS_SUBDIR))
-    }
-
-    if (skills != null && skills.length > 0) {
-      const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
-      for (const skill of filteredSkills) {
-        const skillName = skill.yamlFrontMatter.name
-        results.push(path.join(globalDir, SKILLS_SUBDIR, skillName))
-      }
-    }
-
-    const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
-    if (globalRules != null && globalRules.length > 0) results.push(path.join(globalDir, RULES_SUBDIR))
-    return results
-  }
-
-  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const globalDir = this.getGlobalConfigDir()
-    const {commands, skills, rules} = ctx.collectedOutputContext
-    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const results: string[] = []
-    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-
-    if (commands != null && commands.length > 0) {
-      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
-      for (const cmd of filteredCommands) {
-        const fileName = this.transformCommandName(cmd, transformOptions)
-        results.push(path.join(globalDir, COMMANDS_SUBDIR, fileName))
-      }
-    }
-
-    const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
-    if (globalRules != null && globalRules.length > 0) {
-      for (const rule of globalRules) {
-        const fileName = this.buildRuleFileName(rule)
-        results.push(path.join(globalDir, RULES_SUBDIR, fileName))
-      }
-    }
-
-    const filteredSkills = skills != null ? filterByProjectConfig(skills, projectConfig, 'skills') : []
-    if (filteredSkills.length > 0) {
-      for (const skill of filteredSkills) {
-        const skillName = skill.yamlFrontMatter.name
-        results.push(path.join(globalDir, SKILLS_SUBDIR, skillName, SKILL_FILE_NAME))
-
-        if (skill.mcpConfig != null) results.push(path.join(globalDir, SKILLS_SUBDIR, skillName, MCP_CONFIG_FILE))
-
-        if (skill.childDocs != null) {
-          for (const childDoc of skill.childDocs) results.push(path.join(globalDir, SKILLS_SUBDIR, skillName, childDoc.relativePath.replace(/\.mdx$/, '.md')))
-        }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) results.push(path.join(globalDir, SKILLS_SUBDIR, skillName, resource.relativePath))
-        }
-      }
-    }
-    return results
-  }
-
-  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, commands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
-    const hasProjectPrompts = workspace.projects.some(
-      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
-    )
-    const hasRules = (rules?.length ?? 0) > 0
-    const hasQoderIgnore = aiAgentIgnoreConfigFiles?.some(f => f.fileName === '.qoderignore') ?? false
-    if (hasProjectPrompts || globalMemory != null || (commands?.length ?? 0) > 0 || (skills?.length ?? 0) > 0 || hasRules || hasQoderIgnore) return true
-    this.log.trace({action: 'skip', reason: 'noOutputs'})
-    return false
-  }
-
-  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {workspace, globalMemory, rules} = ctx.collectedOutputContext
-    const {projects} = workspace
-    const fileResults: WriteResult[] = []
-
-    for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) continue
-      const projectDir = project.dirFromWorkspacePath
-
-      if (globalMemory != null) {
-        const content = this.buildAlwaysRuleContent(globalMemory.content as string)
-        fileResults.push(await this.writeProjectRuleFile(ctx, projectDir, GLOBAL_RULE_FILE, content, 'globalRule'))
+      if (project.rootMemoryPrompt != null && activePromptScopes.has('project')) {
+        declarations.push({
+          path: path.join(projectRulesDir, PROJECT_RULE_FILE),
+          scope: 'project',
+          source: {
+            kind: 'ruleContent',
+            content: this.buildAlwaysRuleContent(project.rootMemoryPrompt.content as string)
+          } satisfies QoderOutputSource
+        })
       }
 
-      if (project.rootMemoryPrompt != null) {
-        const content = this.buildAlwaysRuleContent(project.rootMemoryPrompt.content as string)
-        fileResults.push(await this.writeProjectRuleFile(ctx, projectDir, PROJECT_RULE_FILE, content, 'projectRootRule'))
-      }
-
-      if (project.childMemoryPrompts != null) {
+      if (project.childMemoryPrompts != null && activePromptScopes.has('project')) {
         for (const child of project.childMemoryPrompts) {
-          const fileName = this.buildChildRuleFileName(child)
-          const content = this.buildGlobRuleContent(child)
-          fileResults.push(await this.writeProjectRuleFile(ctx, projectDir, fileName, content, 'projectChildRule'))
+          declarations.push({
+            path: path.join(projectRulesDir, this.buildChildRuleFileName(child)),
+            scope: 'project',
+            source: {
+              kind: 'ruleContent',
+              content: this.buildGlobRuleContent(child)
+            } satisfies QoderOutputSource
+          })
         }
       }
 
-      if (rules != null && rules.length > 0) { // Write project rules
+      if (rules != null && rules.length > 0 && activeRuleScopes.has('project')) {
         const projectRules = applySubSeriesGlobPrefix(
-          filterByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig, 'rules'),
+          filterByProjectConfig(rules.filter(r => this.normalizeSourceScope(this.normalizeRuleScope(r)) === 'project'), project.projectConfig, 'rules'),
           project.projectConfig
         )
         for (const rule of projectRules) {
-          const fileName = this.buildRuleFileName(rule)
-          const content = this.buildRuleContent(rule)
-          fileResults.push(await this.writeProjectRuleFile(ctx, projectDir, fileName, content, 'projectRule'))
+          declarations.push({
+            path: path.join(projectRulesDir, this.buildRuleFileName(rule)),
+            scope: 'project',
+            source: {kind: 'rulePrompt', rule} satisfies QoderOutputSource
+          })
         }
       }
     }
-    const ignoreResults = await this.writeProjectIgnoreFiles(ctx)
-    fileResults.push(...ignoreResults)
-    return {files: fileResults, dirs: []}
+
+    const ignoreOutputPath = this.getIgnoreOutputPath()
+    const ignoreFile = this.indexignore == null
+      ? void 0
+      : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
+    if (ignoreOutputPath != null && ignoreFile != null) {
+      for (const project of projects) {
+        const projectDir = project.dirFromWorkspacePath
+        if (projectDir == null || project.isPromptSourceProject === true) continue
+        declarations.push({
+          path: path.join(projectDir.basePath, projectDir.path, ignoreOutputPath),
+          scope: 'project',
+          source: {
+            kind: 'ignoreFile',
+            content: ignoreFile.content
+          } satisfies QoderOutputSource
+        })
+      }
+    }
+
+    return declarations
   }
 
-  override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {commands, skills, rules} = ctx.collectedOutputContext
-    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const fileResults: WriteResult[] = []
-    const globalDir = this.getGlobalConfigDir()
-    const commandsDir = path.join(globalDir, COMMANDS_SUBDIR)
-    const skillsDir = path.join(globalDir, SKILLS_SUBDIR)
-    const rulesDir = path.join(globalDir, RULES_SUBDIR)
-
-    if (commands != null && commands.length > 0) {
-      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
-      for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalCommand(ctx, commandsDir, cmd))
+  override async convertContent(
+    declaration: OutputFileDeclaration,
+    _ctx: OutputWriteContext
+  ): Promise<string | Buffer> {
+    const source = declaration.source as QoderOutputSource
+    switch (source.kind) {
+      case 'command': return this.buildCommandContent(source.command)
+      case 'ruleContent': return source.content
+      case 'rulePrompt': return this.buildRuleContent(source.rule)
+      case 'skillMain': {
+        const fmData = this.buildSkillFrontMatter(source.skill)
+        return buildMarkdownWithFrontMatter(fmData, source.skill.content as string)
+      }
+      case 'skillMcpConfig': return source.rawContent
+      case 'skillChildDoc':
+      case 'ignoreFile': return source.content
+      case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
+      default: throw new Error(`Unsupported declaration source for ${this.name}`)
     }
-
-    if (rules != null && rules.length > 0) {
-      const globalRules = rules.filter(r => this.normalizeRuleScope(r) === 'global')
-      for (const rule of globalRules) fileResults.push(await this.writeRuleFile(ctx, rulesDir, rule))
-    }
-
-    if (skills == null || skills.length === 0) return {files: fileResults, dirs: []}
-
-    const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
-    for (const skill of filteredSkills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
-    return {files: fileResults, dirs: []}
   }
 
   private buildChildRuleFileName(child: ProjectChildrenMemoryPrompt): string {
@@ -239,83 +304,6 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return buildMarkdownWithFrontMatter({trigger: TRIGGER_GLOB, [RULE_GLOB_KEY]: pattern, type: 'user_command'}, child.content as string)
   }
 
-  private async writeProjectRuleFile(
-    ctx: OutputWriteContext,
-    projectDir: {path: string, basePath: string},
-    fileName: string,
-    content: string,
-    label: string
-  ): Promise<WriteResult> {
-    const rulesDir = path.join(projectDir.basePath, projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR)
-    const fullPath = path.join(rulesDir, fileName)
-    return this.writeFile(ctx, fullPath, content, label)
-  }
-
-  private async writeGlobalCommand(
-    ctx: OutputWriteContext,
-    commandsDir: string,
-    cmd: CommandPrompt
-  ): Promise<WriteResult> {
-    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-    const fileName = this.transformCommandName(cmd, transformOptions)
-    const fullPath = path.join(commandsDir, fileName)
-    const fmData = this.buildCommandFrontMatter(cmd)
-    const content = buildMarkdownWithFrontMatter(fmData, cmd.content)
-    return this.writeFile(ctx, fullPath, content, 'globalFastCommand')
-  }
-
-  private async writeRuleFile(
-    ctx: OutputWriteContext,
-    rulesDir: string,
-    rule: RulePrompt
-  ): Promise<WriteResult> {
-    const fileName = this.buildRuleFileName(rule)
-    const fullPath = path.join(rulesDir, fileName)
-    const content = this.buildRuleContent(rule)
-    return this.writeFile(ctx, fullPath, content, 'rule')
-  }
-
-  private async writeGlobalSkill(
-    ctx: OutputWriteContext,
-    skillsDir: string,
-    skill: SkillPrompt
-  ): Promise<WriteResult[]> {
-    const results: WriteResult[] = []
-    const skillName = skill.yamlFrontMatter.name
-    const skillDir = path.join(skillsDir, skillName)
-    const skillFilePath = path.join(skillDir, SKILL_FILE_NAME)
-
-    const fmData = this.buildSkillFrontMatter(skill)
-    const content = buildMarkdownWithFrontMatter(fmData, skill.content as string)
-    results.push(await this.writeFile(ctx, skillFilePath, content, 'skill'))
-
-    if (skill.mcpConfig != null) {
-      const mcpPath = path.join(skillDir, MCP_CONFIG_FILE)
-      results.push(await this.writeFile(ctx, mcpPath, skill.mcpConfig.rawContent, 'mcpConfig'))
-    }
-
-    if (skill.childDocs != null) {
-      for (const childDoc of skill.childDocs) {
-        const childPath = path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md'))
-        results.push(await this.writeFile(ctx, childPath, childDoc.content as string, 'childDoc'))
-      }
-    }
-
-    if (skill.resources != null) {
-      for (const resource of skill.resources) {
-        const resourcePath = path.join(skillDir, resource.relativePath)
-        if (resource.encoding === 'base64') {
-          const buffer = Buffer.from(resource.content, 'base64')
-          const dir = path.dirname(resourcePath)
-          this.ensureDirectory(dir)
-          this.writeFileSyncBuffer(resourcePath, buffer)
-          results.push({path: resource.relativePath, success: true})
-        } else results.push(await this.writeFile(ctx, resourcePath, resource.content, 'resource'))
-      }
-    }
-    return results
-  }
-
   protected override buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
     const fm = skill.yamlFrontMatter
     return {
@@ -326,17 +314,6 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       ...fm.keywords != null && fm.keywords.length > 0 && {keywords: fm.keywords},
       ...fm.author != null && {author: fm.author},
       ...fm.version != null && {version: fm.version},
-      ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}
-    }
-  }
-
-  private buildCommandFrontMatter(cmd: CommandPrompt): Record<string, unknown> {
-    const fm = cmd.yamlFrontMatter
-    if (fm == null) return {description: 'Fast command', type: 'user_command'}
-    return {
-      description: fm.description,
-      type: 'user_command',
-      ...fm.argumentHint != null && {argumentHint: fm.argumentHint},
       ...fm.allowTools != null && fm.allowTools.length > 0 && {allowTools: fm.allowTools}
     }
   }

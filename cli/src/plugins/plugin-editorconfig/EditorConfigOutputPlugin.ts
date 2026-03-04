@@ -1,8 +1,6 @@
 import type {
-  OutputPluginContext,
-  OutputWriteContext,
-  WriteResult,
-  WriteResults
+  OutputFileDeclaration,
+  OutputWriteContext
 } from '../plugin-core'
 import {AbstractOutputPlugin} from '../plugin-core'
 
@@ -14,65 +12,38 @@ const EDITOR_CONFIG_FILE = '.editorconfig'
  */
 export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
   constructor() {
-    super('EditorConfigOutputPlugin')
+    super('EditorConfigOutputPlugin', {capabilities: {}})
   }
 
-  override async registerGlobalOutputFiles(): Promise<string[]> {
-    return [] // No global files to output
-  }
-
-  override async writeGlobalOutputs(): Promise<WriteResults> {
-    return {files: [], dirs: []} // No global outputs to write
-  }
-
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
+  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const declarations: OutputFileDeclaration[] = []
     const {projects} = ctx.collectedOutputContext.workspace
     const {editorConfigFiles} = ctx.collectedOutputContext
 
-    if (editorConfigFiles == null || editorConfigFiles.length === 0) return results
+    if (editorConfigFiles == null || editorConfigFiles.length === 0) return declarations
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-      if (project.isPromptSourceProject === true) continue
-
-      results.push(this.joinPath(projectDir.path, EDITOR_CONFIG_FILE))
-    }
-
-    return results
-  }
-
-  override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {editorConfigFiles} = ctx.collectedOutputContext
-    if (editorConfigFiles != null && editorConfigFiles.length > 0) return true
-
-    this.log.debug('skipped', {reason: 'no EditorConfig files found'})
-    return false
-  }
-
-  override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedOutputContext.workspace
-    const {editorConfigFiles} = ctx.collectedOutputContext
-    const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
-
-    if (editorConfigFiles == null || editorConfigFiles.length === 0) return {files: fileResults, dirs: dirResults}
-
-    for (const project of projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-      if (project.isPromptSourceProject === true) continue
-
-      const projectName = project.name ?? 'unknown'
+      if (projectDir == null || project.isPromptSourceProject === true) continue
 
       for (const config of editorConfigFiles) {
-        const fullPath = this.resolvePath(projectDir.basePath, projectDir.path, EDITOR_CONFIG_FILE)
-        const result = await this.writeFile(ctx, fullPath, config.content, `project:${projectName}/.editorconfig`)
-        fileResults.push(result)
+        declarations.push({
+          path: this.resolvePath(projectDir.basePath, projectDir.path, EDITOR_CONFIG_FILE),
+          scope: 'project',
+          source: {content: config.content}
+        })
       }
     }
 
-    return {files: fileResults, dirs: dirResults}
+    return declarations
+  }
+
+  override async convertContent(
+    declaration: OutputFileDeclaration,
+    _ctx: OutputWriteContext
+  ): Promise<string> {
+    const source = declaration.source as {content?: string}
+    if (source.content == null) throw new Error(`Unsupported declaration source for ${this.name}`)
+    return source.content
   }
 }

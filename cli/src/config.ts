@@ -1,4 +1,18 @@
-import type {AindexConfig, CommandSeriesOptions, CommandSeriesPluginOverride, ConfigLoaderOptions, InputCollectedContext, InputPlugin, InputPluginContext, OutputCollectedContext, OutputPlugin, PluginOptions, UserConfigFile} from './plugins/plugin-core'
+import type {
+  AindexConfig,
+  CommandSeriesOptions,
+  CommandSeriesPluginOverride,
+  ConfigLoaderOptions,
+  InputCollectedContext,
+  InputPlugin,
+  InputPluginContext,
+  OutputCollectedContext,
+  OutputPlugin,
+  OutputScopeOptions,
+  PluginOptions,
+  PluginOutputScopeTopics,
+  UserConfigFile
+} from './plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
@@ -6,7 +20,12 @@ import glob from 'fast-glob'
 import {checkVersionControl} from './Aindex'
 import {loadUserConfig, validateGlobalConfig} from './ConfigLoader'
 import {PluginPipeline} from './PluginPipeline'
-import {createLogger, PluginKind, toOutputCollectedContext} from './plugins/plugin-core'
+import {
+  createLogger,
+  PluginKind,
+  toOutputCollectedContext,
+  validateOutputScopeOverridesForPlugins
+} from './plugins/plugin-core'
 
 /**
  * Pipeline configuration containing collected context and output plugins
@@ -36,6 +55,7 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
   logLevel: 'info',
   aindex: DEFAULT_AINDEX,
   commandSeriesOptions: {},
+  outputScopes: {},
   plugins: []
 }
 
@@ -49,6 +69,7 @@ function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOp
     ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},
     ...userConfig.aindex != null ? {aindex: userConfig.aindex} : {},
     ...userConfig.commandSeriesOptions != null ? {commandSeriesOptions: userConfig.commandSeriesOptions} : {},
+    ...userConfig.outputScopes != null ? {outputScopes: userConfig.outputScopes} : {},
     ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
   }
 }
@@ -86,6 +107,7 @@ function mergeTwoConfigs(
 ): Required<PluginOptions> {
   const overridePlugins = override.plugins
   const overrideCommandSeries = override.commandSeriesOptions
+  const overrideOutputScopes = override.outputScopes
 
   return {
     ...base,
@@ -95,7 +117,8 @@ function mergeTwoConfigs(
       ...base.plugins,
       ...overridePlugins ?? []
     ],
-    commandSeriesOptions: mergeCommandSeriesOptions(base.commandSeriesOptions, overrideCommandSeries) // Deep merge for commandSeriesOptions
+    commandSeriesOptions: mergeCommandSeriesOptions(base.commandSeriesOptions, overrideCommandSeries), // Deep merge for commandSeriesOptions
+    outputScopes: mergeOutputScopeOptions(base.outputScopes, overrideOutputScopes)
   }
 }
 
@@ -147,6 +170,40 @@ function mergeCommandSeriesOptions(
   if (includeSeriesPrefix != null) return {includeSeriesPrefix}
   if (hasPluginOverrides) return {pluginOverrides: mergedPluginOverrides}
   return {}
+}
+
+function mergeOutputScopeTopics(
+  base?: PluginOutputScopeTopics,
+  override?: PluginOutputScopeTopics
+): PluginOutputScopeTopics | undefined {
+  if (base == null && override == null) return void 0
+  if (base == null) return override
+  if (override == null) return base
+  return {...base, ...override}
+}
+
+function mergeOutputScopeOptions(
+  base?: OutputScopeOptions,
+  override?: OutputScopeOptions
+): OutputScopeOptions {
+  if (override == null) return base ?? {}
+  if (base == null) return override
+
+  const mergedPlugins: Record<string, PluginOutputScopeTopics> = {}
+  if (base.plugins != null) {
+    for (const [pluginName, topics] of Object.entries(base.plugins)) {
+      if (topics != null) mergedPlugins[pluginName] = {...topics}
+    }
+  }
+  if (override.plugins != null) {
+    for (const [pluginName, topics] of Object.entries(override.plugins)) {
+      const mergedTopics = mergeOutputScopeTopics(mergedPlugins[pluginName], topics)
+      if (mergedTopics != null) mergedPlugins[pluginName] = mergedTopics
+    }
+  }
+
+  if (Object.keys(mergedPlugins).length === 0) return {}
+  return {plugins: mergedPlugins}
 }
 
 /**
@@ -230,6 +287,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
 
   const inputPlugins = plugins.filter((p): p is InputPlugin => p.type === PluginKind.Input) // Filter plugins by type
   const outputPlugins = plugins.filter((p): p is OutputPlugin => p.type === PluginKind.Output)
+  validateOutputScopeOverridesForPlugins(outputPlugins, mergedOptions)
 
   const pipeline = new PluginPipeline() // Pass userConfigFile for GlobalScopeCollector to access profile and tool // Use PluginPipeline to execute plugins in dependency order
   const merged = await pipeline.executePluginsInOrder(inputPlugins, baseCtx, false, userConfigFile)

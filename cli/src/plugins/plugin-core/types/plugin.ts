@@ -1,12 +1,19 @@
 import type {ILogger} from '@truenine/logger'
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
-import type {AindexConfig, CommandSeriesOptions} from './ConfigTypes.schema'
+import type {
+  AindexConfig,
+  CommandSeriesOptions,
+  OutputScopeOptions,
+  OutputScopeSelection,
+  PluginOutputScopeTopics
+} from './ConfigTypes.schema'
 import type {PluginKind} from './enums'
 import type {
   InputCollectedContext,
   OutputCollectedContext,
   Project
 } from './InputTypes'
+import {Buffer} from 'node:buffer'
 
 export type FastGlobType = typeof import('fast-glob')
 
@@ -89,19 +96,6 @@ export interface WriteResult {
 }
 
 /**
- * Result of executing a side effect.
- * Used for both write and clean effects.
- */
-export interface EffectResult {
-  /** Whether the effect executed successfully */
-  readonly success: boolean
-  /** Error details if the effect failed */
-  readonly error?: Error
-  /** Description of what the effect did (for logging) */
-  readonly description?: string
-}
-
-/**
  * Collected results from write operations
  */
 export interface WriteResults {
@@ -113,18 +107,6 @@ export interface WriteResults {
  * Awaitable type for sync/async flexibility
  */
 export type Awaitable<T> = T | Promise<T>
-
-/**
- * Handler function for write effects.
- * Receives the write context and returns an effect result.
- */
-export type WriteEffectHandler = (ctx: OutputWriteContext) => Awaitable<EffectResult>
-
-/**
- * Handler function for clean effects.
- * Receives the clean context and returns an effect result.
- */
-export type CleanEffectHandler = (ctx: OutputCleanContext) => Awaitable<EffectResult>
 
 /**
  * Result of executing an input effect.
@@ -207,42 +189,185 @@ export interface PluginScopeRegistration {
 }
 
 /**
- * Registration entry for an effect.
+ * Output plugin interface.
+ * Declarative write model only:
+ * - Plugins declare target files
+ * - Plugins convert source metadata to content
+ * - Core runtime performs all file system operations
  */
-export interface EffectRegistration<THandler> {
-  /** Descriptive name for logging */
-  readonly name: string
-  /** The effect handler function */
-  readonly handler: THandler
+export interface OutputPlugin extends Plugin<PluginKind.Output> {
+  readonly declarativeOutput: true
+  readonly outputCapabilities: OutputPluginCapabilities
+
+  declareOutputFiles: (ctx: OutputWriteContext) => Awaitable<readonly OutputFileDeclaration[]>
+
+  convertContent: (declaration: OutputFileDeclaration, ctx: OutputWriteContext) => Awaitable<string | Buffer>
 }
 
 /**
- * Output plugin interface.
- * Plugins directly implement lifecycle hooks as methods.
- * All hooks support both sync and async implementations.
+ * Scope of a declared output file target.
  */
-export interface OutputPlugin extends Plugin<PluginKind.Output> {
-  registerProjectOutputDirs?: (ctx: OutputPluginContext) => Awaitable<readonly string[]>
+export type OutputDeclarationScope = 'project' | 'workspace' | 'global'
 
-  registerProjectOutputFiles?: (ctx: OutputPluginContext) => Awaitable<readonly string[]>
+/**
+ * Supported output scope override topics.
+ */
+export const OUTPUT_SCOPE_TOPICS = ['prompt', 'rules', 'commands', 'subagents', 'skills', 'mcp'] as const
 
-  registerGlobalOutputDirs?: (ctx: OutputPluginContext) => Awaitable<readonly string[]>
+/**
+ * Topic key for output scope override and capability declarations.
+ */
+export type OutputScopeTopic = (typeof OUTPUT_SCOPE_TOPICS)[number]
 
-  registerGlobalOutputFiles?: (ctx: OutputPluginContext) => Awaitable<readonly string[]>
+/**
+ * Capability declaration for one output topic.
+ * - scopes: allowed source scopes for selection/override
+ * - singleScope: whether the topic resolves to a single scope by priority
+ */
+export interface OutputTopicCapability {
+  readonly scopes: readonly OutputDeclarationScope[]
+  readonly singleScope: boolean
+}
 
-  canCleanProject?: (ctx: OutputCleanContext) => Awaitable<boolean>
+/**
+ * Per-plugin capability matrix for output topics.
+ */
+export type OutputPluginCapabilities = Partial<Record<OutputScopeTopic, OutputTopicCapability>>
 
-  canCleanGlobal?: (ctx: OutputCleanContext) => Awaitable<boolean>
+/**
+ * Declarative output file declaration.
+ * Output plugins only declare target paths and source metadata.
+ * Core runtime performs all file system write operations.
+ */
+export interface OutputFileDeclaration {
+  /** Absolute target file path */
+  readonly path: string
+  /** Target scope classification for cleanup/routing */
+  readonly scope?: OutputDeclarationScope
+  /** Plugin-defined source descriptor for content conversion */
+  readonly source: unknown
+  /** Optional label for logging */
+  readonly label?: string
+}
 
-  onCleanComplete?: (ctx: OutputCleanContext) => Awaitable<void>
+function isNodeBufferLike(value: unknown): value is Buffer {
+  return Buffer.isBuffer(value)
+}
 
-  canWrite?: (ctx: OutputWriteContext) => Awaitable<boolean>
+function normalizeScopeSelection(selection: OutputScopeSelection): readonly OutputDeclarationScope[] {
+  if (typeof selection === 'string') return [selection]
 
-  writeProjectOutputs?: (ctx: OutputWriteContext) => Awaitable<WriteResults>
+  const unique: OutputDeclarationScope[] = []
+  for (const scope of selection) {
+    if (!unique.includes(scope)) unique.push(scope)
+  }
+  return unique
+}
 
-  writeGlobalOutputs?: (ctx: OutputWriteContext) => Awaitable<WriteResults>
+function getPluginScopeOverrides(
+  pluginName: string,
+  pluginOptions?: PluginOptions
+): PluginOutputScopeTopics | undefined {
+  return pluginOptions?.outputScopes?.plugins?.[pluginName]
+}
 
-  onWriteComplete?: (ctx: OutputWriteContext, results: WriteResults) => Awaitable<void>
+export function validateOutputPluginCapabilities(plugin: OutputPlugin): void {
+  for (const topic of OUTPUT_SCOPE_TOPICS) {
+    const capability = plugin.outputCapabilities[topic]
+    if (capability == null) continue
+    if (capability.scopes.length === 0) throw new Error(`Plugin ${plugin.name} declares empty scopes for topic "${topic}"`)
+  }
+}
+
+export function validateOutputScopeOverridesForPlugin(
+  plugin: OutputPlugin,
+  pluginOptions?: PluginOptions
+): void {
+  const overrides = getPluginScopeOverrides(plugin.name, pluginOptions)
+  if (overrides == null) return
+
+  for (const topic of OUTPUT_SCOPE_TOPICS) {
+    const requestedSelection = overrides[topic]
+    if (requestedSelection == null) continue
+
+    const capability = plugin.outputCapabilities[topic]
+    if (capability == null) {
+      throw new Error(
+        `Invalid outputScopes configuration: outputScopes.plugins.${plugin.name}.${topic} is set, but plugin ${plugin.name} does not support topic "${topic}".`
+      )
+    }
+
+    const requestedScopes = normalizeScopeSelection(requestedSelection)
+    if (capability.singleScope && requestedScopes.length > 1) {
+      const requested = requestedScopes.join(', ')
+      throw new Error(
+        `Invalid outputScopes configuration: outputScopes.plugins.${plugin.name}.${topic} is single-scope and cannot request multiple scopes [${requested}].`
+      )
+    }
+
+    const allowedScopes = new Set(capability.scopes)
+    const unsupportedScopes = requestedScopes.filter(scope => !allowedScopes.has(scope))
+
+    if (unsupportedScopes.length > 0) {
+      const allowed = capability.scopes.join(', ')
+      const requested = unsupportedScopes.join(', ')
+      throw new Error(
+        `Invalid outputScopes configuration: outputScopes.plugins.${plugin.name}.${topic} requests unsupported scopes [${requested}]. Allowed scopes: [${allowed}].`
+      )
+    }
+  }
+}
+
+export function validateOutputScopeOverridesForPlugins(
+  plugins: readonly OutputPlugin[],
+  pluginOptions?: PluginOptions
+): void {
+  for (const plugin of plugins) {
+    validateOutputPluginCapabilities(plugin)
+    validateOutputScopeOverridesForPlugin(plugin, pluginOptions)
+  }
+}
+
+/**
+ * Execute declarative write operations for output plugins.
+ * Core runtime owns file system writes; plugins only declare and convert content.
+ */
+export async function executeDeclarativeWriteOutputs(
+  plugins: readonly OutputPlugin[],
+  ctx: OutputWriteContext
+): Promise<Map<string, WriteResults>> {
+  const results = new Map<string, WriteResults>()
+
+  validateOutputScopeOverridesForPlugins(plugins, ctx.pluginOptions)
+
+  for (const plugin of plugins) {
+    const declarations = await plugin.declareOutputFiles(ctx)
+    const fileResults: WriteResult[] = []
+
+    for (const declaration of declarations) {
+      if (ctx.dryRun === true) {
+        fileResults.push({path: declaration.path, success: true, skipped: false})
+        continue
+      }
+
+      try {
+        const content = await plugin.convertContent(declaration, ctx)
+        const parentDir = ctx.path.dirname(declaration.path)
+        ctx.fs.mkdirSync(parentDir, {recursive: true})
+        if (isNodeBufferLike(content)) ctx.fs.writeFileSync(declaration.path, content)
+        else ctx.fs.writeFileSync(declaration.path, content, 'utf8')
+        fileResults.push({path: declaration.path, success: true})
+      }
+      catch (error) {
+        fileResults.push({path: declaration.path, success: false, error: error as Error})
+      }
+    }
+
+    const pluginResult: WriteResults = {files: fileResults, dirs: []}
+    results.set(plugin.name, pluginResult)
+  }
+
+  return results
 }
 
 /**
@@ -252,6 +377,8 @@ export interface OutputPlugin extends Plugin<PluginKind.Output> {
 export interface CollectedOutputs {
   readonly projectDirs: readonly string[]
   readonly projectFiles: readonly string[]
+  readonly workspaceDirs: readonly string[]
+  readonly workspaceFiles: readonly string[]
   readonly globalDirs: readonly string[]
   readonly globalFiles: readonly string[]
 }
@@ -266,109 +393,30 @@ export async function collectAllPluginOutputs(
 ): Promise<CollectedOutputs> {
   const projectDirs: string[] = []
   const projectFiles: string[] = []
+  const workspaceDirs: string[] = []
+  const workspaceFiles: string[] = []
   const globalDirs: string[] = []
   const globalFiles: string[] = []
 
+  validateOutputScopeOverridesForPlugins(plugins, ctx.pluginOptions)
+
   for (const plugin of plugins) {
-    if (plugin.registerProjectOutputDirs) projectDirs.push(...await plugin.registerProjectOutputDirs(ctx))
-    if (plugin.registerProjectOutputFiles) projectFiles.push(...await plugin.registerProjectOutputFiles(ctx))
-    if (plugin.registerGlobalOutputDirs) globalDirs.push(...await plugin.registerGlobalOutputDirs(ctx))
-    if (plugin.registerGlobalOutputFiles) globalFiles.push(...await plugin.registerGlobalOutputFiles(ctx))
+    const declarations = await plugin.declareOutputFiles({...ctx, dryRun: true})
+    for (const declaration of declarations) {
+      if (declaration.scope === 'global') globalFiles.push(declaration.path)
+      else if (declaration.scope === 'workspace') workspaceFiles.push(declaration.path)
+      else projectFiles.push(declaration.path)
+    }
   }
 
   return {
     projectDirs,
     projectFiles,
+    workspaceDirs,
+    workspaceFiles,
     globalDirs,
     globalFiles
   }
-}
-
-/**
- * Result of checking if a plugin allows cleaning.
- */
-export interface CleanPermission {
-  readonly project: boolean
-  readonly global: boolean
-}
-
-/**
- * Check if all plugins allow cleaning.
- * Returns a map of plugin name to whether cleaning is allowed.
- */
-export async function checkCanClean(
-  plugins: readonly OutputPlugin[],
-  ctx: OutputCleanContext
-): Promise<Map<string, CleanPermission>> {
-  const result = new Map<string, CleanPermission>()
-
-  for (const plugin of plugins) {
-    result.set(plugin.name, {project: await plugin.canCleanProject?.(ctx) ?? true, global: await plugin.canCleanGlobal?.(ctx) ?? true})
-  }
-
-  return result
-}
-
-/**
- * Execute post-clean hooks for all plugins.
- */
-export async function executeOnCleanComplete(
-  plugins: readonly OutputPlugin[],
-  ctx: OutputCleanContext
-): Promise<void> {
-  for (const plugin of plugins) await plugin.onCleanComplete?.(ctx)
-}
-
-/**
- * Result of checking if a plugin allows writing.
- */
-export interface WritePermission {
-  readonly project: boolean
-  readonly global: boolean
-}
-
-/**
- * Check if all plugins allow writing.
- * Returns a map of plugin name to whether writing is allowed.
- */
-export async function checkCanWrite(
-  plugins: readonly OutputPlugin[],
-  ctx: OutputWriteContext
-): Promise<Map<string, WritePermission>> {
-  const result = new Map<string, WritePermission>()
-
-  for (const plugin of plugins) {
-    const canWrite = await plugin.canWrite?.(ctx) ?? true
-    result.set(plugin.name, {project: canWrite, global: canWrite})
-  }
-
-  return result
-}
-
-/**
- * Execute write operations for all plugins.
- * Respects dry-run mode in context.
- */
-export async function executeWriteOutputs(
-  plugins: readonly OutputPlugin[],
-  ctx: OutputWriteContext
-): Promise<Map<string, WriteResults>> {
-  const results = new Map<string, WriteResults>()
-
-  for (const plugin of plugins) {
-    const projectResults = await plugin.writeProjectOutputs?.(ctx) ?? {files: [], dirs: []}
-    const globalResults = await plugin.writeGlobalOutputs?.(ctx) ?? {files: [], dirs: []}
-
-    const merged: WriteResults = {
-      files: [...projectResults.files, ...globalResults.files],
-      dirs: [...projectResults.dirs, ...globalResults.dirs]
-    }
-
-    results.set(plugin.name, merged)
-    await plugin.onWriteComplete?.(ctx, merged)
-  }
-
-  return results
 }
 
 /**
@@ -387,6 +435,8 @@ export interface PluginOptions {
   readonly aindex?: AindexConfig
 
   readonly commandSeriesOptions?: CommandSeriesOptions
+
+  readonly outputScopes?: OutputScopeOptions
 
   plugins?: Plugin[]
   logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'

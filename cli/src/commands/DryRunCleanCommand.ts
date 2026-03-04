@@ -1,6 +1,6 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as path from 'node:path'
-import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '../plugins/plugin-core'
+import {collectAllPluginOutputs} from '../plugins/plugin-core'
 import {collectDeletionTargets} from './CleanupUtils'
 
 /**
@@ -20,25 +20,37 @@ export class DryRunCleanCommand implements Command {
       dryRun: true,
       projectDirs: outputs.projectDirs.length,
       projectFiles: outputs.projectFiles.length,
+      workspaceDirs: outputs.workspaceDirs.length,
+      workspaceFiles: outputs.workspaceFiles.length,
       globalDirs: outputs.globalDirs.length,
       globalFiles: outputs.globalFiles.length
     })
 
-    const permissions = await checkCanClean(outputPlugins, cleanCtx)
-    const {filesToDelete, dirsToDelete} = await collectDeletionTargets(outputPlugins, permissions, cleanCtx)
+    const {filesToDelete, dirsToDelete, protectedFiles} = await collectDeletionTargets(outputPlugins, cleanCtx)
 
+    this.logProtectedFiles(protectedFiles, logger)
     this.logDryRunFiles(filesToDelete, logger)
     this.logDryRunDirectories(dirsToDelete, logger)
 
-    await executeOnCleanComplete(outputPlugins, cleanCtx)
-
-    logger.info('clean complete', {dryRun: true, filesAffected: filesToDelete.length, dirsAffected: dirsToDelete.length})
+    logger.info('clean complete', {
+      dryRun: true,
+      filesAffected: filesToDelete.length,
+      dirsAffected: dirsToDelete.length,
+      protectedFiles: protectedFiles.length
+    })
 
     return {
       success: true,
       filesAffected: filesToDelete.length,
       dirsAffected: dirsToDelete.length,
       message: 'Dry-run complete, no files were deleted'
+    }
+  }
+
+  private logProtectedFiles(files: string[], logger: CommandContext['logger']): void {
+    for (const file of files) {
+      const resolved = path.isAbsolute(file) ? file : path.resolve(file)
+      logger.info('protected file (input/output path overlap)', {path: resolved, dryRun: true, protected: true})
     }
   }
 

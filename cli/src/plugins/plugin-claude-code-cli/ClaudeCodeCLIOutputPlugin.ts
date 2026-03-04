@@ -22,13 +22,33 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: PROJECT_MEMORY_FILE,
       toolPreset: 'claudeCode',
-      supportsCommands: true,
-      supportsSkills: true,
-      commandsSubDir: COMMANDS_SUBDIR,
-      skillsSubDir: SKILLS_SUBDIR,
+      commands: {
+        subDir: COMMANDS_SUBDIR,
+        transformFrontMatter: (_cmd, context) => context.sourceFrontMatter ?? {}
+      },
+      skills: {
+        subDir: SKILLS_SUBDIR
+      },
       rules: {
-        enabled: true,
         transformFrontMatter: (rule: RulePrompt) => ({paths: rule.globs.map(doubleQuoted)})
+      },
+      capabilities: {
+        prompt: {
+          scopes: ['project', 'global'],
+          singleScope: false
+        },
+        rules: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: false
+        },
+        commands: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        },
+        skills: {
+          scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        }
       }
     })
   }

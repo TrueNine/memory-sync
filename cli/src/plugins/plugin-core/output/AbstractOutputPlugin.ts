@@ -1,5 +1,5 @@
-import type {Buffer} from 'node:buffer'
-import type {CleanEffectHandler, CommandPrompt, CommandSeriesPluginOverride, EffectRegistration, EffectResult, ILogger, OutputCleanContext, OutputPlugin, OutputPluginContext, OutputWriteContext, Project, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt, WriteEffectHandler, WriteResult, WriteResults} from '../types'
+import {Buffer} from 'node:buffer'
+import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt} from '../types'
 
 import type {Path, ProjectConfig, RegistryData} from '../types'
 import type {RegistryWriter} from './registry/RegistryWriter'
@@ -7,14 +7,6 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {
-  createSymlink as deskCreateSymlink,
-  ensureDir as deskEnsureDir,
-  isSymlink as deskIsSymlink,
-  lstatSync as deskLstatSync,
-  removeSymlink as deskRemoveSymlink,
-  writeFileSync as deskWriteFileSync
-} from '@truenine/desk-paths'
 import {mdxToMd} from '@truenine/md-compiler'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {GlobalScopeCollector} from '../scope/GlobalScopeCollector'
@@ -25,6 +17,13 @@ import {
   applySubSeriesGlobPrefix,
   filterByProjectConfig
 } from './utils/filters'
+import {OUTPUT_SCOPE_TOPICS} from '../types'
+import {resolveTopicScopes} from './utils/scopePolicy'
+
+interface ScopedSourceConfig {
+  /** Allowed source scopes for the topic */
+  readonly sourceScopes?: readonly OutputDeclarationScope[]
+}
 
 /**
  * Options for building skill front matter
@@ -50,8 +49,6 @@ export interface RuleContentOptions {
  * Rule output configuration (declarative)
  */
 export interface RuleOutputConfig {
-  /** Enable rule output, default false */
-  readonly enabled?: boolean
   /** Rules subdirectory, default 'rules' */
   readonly subDir?: string
   /** Link symbol between series and ruleName, default '-' */
@@ -62,26 +59,39 @@ export interface RuleOutputConfig {
   readonly ext?: string
   /** Custom frontmatter transformer */
   readonly transformFrontMatter?: (rule: RulePrompt) => Record<string, unknown>
+  /** Allowed rule source scopes, default ['project', 'workspace', 'global'] */
+  readonly sourceScopes?: readonly OutputDeclarationScope[]
 }
 
 /**
- * Options for executing write operations with dry-run support
+ * Command output configuration (declarative)
  */
-export interface WriteOperationOptions {
-  readonly ctx: OutputWriteContext
-  readonly type: string
-  readonly fullPath: string
-  readonly relativePath: string
-  readonly label?: string | undefined
+export interface CommandOutputConfig {
+  /** Commands subdirectory, default 'commands' */
+  readonly subDir?: string
+  /** Custom command frontmatter transformer */
+  readonly transformFrontMatter?: (cmd: CommandPrompt, context: {
+    readonly sourceFrontMatter?: Record<string, unknown>
+    readonly isRecompiled: boolean
+  }) => Record<string, unknown>
+  /** Allowed command source scopes, default ['project', 'workspace', 'global'] */
+  readonly sourceScopes?: readonly OutputDeclarationScope[]
 }
 
 /**
- * Context for error handling
+ * SubAgent output configuration (declarative)
  */
-export interface ErrorContext {
-  readonly action: string
-  readonly path?: string
-  readonly [key: string]: unknown
+export interface SubAgentsOutputConfig extends ScopedSourceConfig {
+  /** SubAgents subdirectory, default 'agents' */
+  readonly subDir?: string
+}
+
+/**
+ * Skills output configuration (declarative)
+ */
+export interface SkillsOutputConfig extends ScopedSourceConfig {
+  /** Skills subdirectory, default 'skills' */
+  readonly subDir?: string
 }
 
 /**
@@ -105,22 +115,22 @@ export interface AbstractOutputPluginOptions {
 
   indexignore?: string
 
-  commandsSubDir?: string // CLI-specific options (merged from BaseCLIOutputPlugin)
+  /** Command output configuration (declarative) */
+  commands?: CommandOutputConfig
 
-  agentsSubDir?: string
+  /** SubAgent output configuration (declarative) */
+  subagents?: SubAgentsOutputConfig
 
-  skillsSubDir?: string
-
-  supportsCommands?: boolean
-
-  supportsSubAgents?: boolean
-
-  supportsSkills?: boolean
+  /** Skills output configuration (declarative) */
+  skills?: SkillsOutputConfig
 
   toolPreset?: string
 
   /** Rule output configuration (declarative) */
   rules?: RuleOutputConfig
+
+  /** Explicit output capability matrix for scope override validation */
+  capabilities?: OutputPluginCapabilities
 }
 
 /**
@@ -134,35 +144,62 @@ export interface CombineOptions {
   position?: 'before' | 'after'
 }
 
+type DeclarativeOutputSource =
+  | {readonly kind: 'projectRootMemory', readonly content: string}
+  | {readonly kind: 'projectChildMemory', readonly content: string}
+  | {readonly kind: 'globalMemory', readonly content: string}
+  | {readonly kind: 'command', readonly command: CommandPrompt}
+  | {readonly kind: 'subAgent', readonly subAgent: SubAgentPrompt}
+  | {readonly kind: 'skillMain', readonly skill: SkillPrompt}
+  | {readonly kind: 'skillReference', readonly content: string}
+  | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
+  | {readonly kind: 'rule', readonly rule: RulePrompt}
+  | {readonly kind: 'ignoreFile', readonly content: string}
+
 export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Output> implements OutputPlugin {
+  readonly declarativeOutput = true as const
+
+  readonly outputCapabilities: OutputPluginCapabilities
+
   protected readonly globalConfigDir: string
 
   protected readonly outputFileName: string
 
   protected readonly indexignore: string | undefined
 
-  protected readonly commandsSubDir: string // CLI-specific properties (merged from BaseCLIOutputPlugin)
+  protected readonly commandsConfig: {
+    readonly subDir: string
+    readonly transformFrontMatter?: (cmd: CommandPrompt, context: {
+      readonly sourceFrontMatter?: Record<string, unknown>
+      readonly isRecompiled: boolean
+    }) => Record<string, unknown>
+    readonly sourceScopes: readonly OutputDeclarationScope[]
+  }
 
-  protected readonly agentsSubDir: string
+  protected readonly subAgentsConfig: {
+    readonly subDir: string
+    readonly sourceScopes: readonly OutputDeclarationScope[]
+  }
 
-  protected readonly skillsSubDir: string
+  protected readonly commandOutputEnabled: boolean
 
-  protected readonly supportsCommands: boolean
+  protected readonly subAgentOutputEnabled: boolean
 
-  protected readonly supportsSubAgents: boolean
+  protected readonly skillsConfig: {
+    readonly subDir: string
+    readonly sourceScopes: readonly OutputDeclarationScope[]
+  }
 
-  protected readonly supportsSkills: boolean
+  protected readonly skillOutputEnabled: boolean
 
   protected readonly toolPreset: string | undefined
 
   /** Rule output configuration */
   protected readonly rulesConfig: RuleOutputConfig
 
+  protected readonly ruleOutputEnabled: boolean
+
   private readonly registryWriterCache: Map<string, RegistryWriter<unknown>> = new Map()
-
-  private readonly writeEffects: EffectRegistration<WriteEffectHandler>[] = []
-
-  private readonly cleanEffects: EffectRegistration<CleanEffectHandler>[] = []
 
   protected constructor(name: string, options?: AbstractOutputPluginOptions) {
     super(name, PluginKind.Output, options?.dependsOn)
@@ -170,87 +207,109 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     this.outputFileName = options?.outputFileName ?? ''
     this.indexignore = options?.indexignore
 
-    this.commandsSubDir = options?.commandsSubDir ?? 'commands' // Initialize CLI-specific properties with defaults (disabled by default)
-    this.agentsSubDir = options?.agentsSubDir ?? 'agents'
-    this.skillsSubDir = options?.skillsSubDir ?? 'skills'
-    this.supportsCommands = options?.supportsCommands ?? false
-    this.supportsSubAgents = options?.supportsSubAgents ?? false
-    this.supportsSkills = options?.supportsSkills ?? false
+    const commandFrontMatterTransformer = options?.commands?.transformFrontMatter
+    this.commandOutputEnabled = options?.commands != null
+    this.commandsConfig = {
+      subDir: options?.commands?.subDir ?? 'commands',
+      sourceScopes: options?.commands?.sourceScopes ?? ['project', 'workspace', 'global'],
+      ...commandFrontMatterTransformer != null && {transformFrontMatter: commandFrontMatterTransformer}
+    } // Initialize command output config with defaults
+    this.subAgentOutputEnabled = options?.subagents != null
+    this.subAgentsConfig = {
+      subDir: options?.subagents?.subDir ?? 'agents',
+      sourceScopes: options?.subagents?.sourceScopes ?? ['project', 'workspace', 'global']
+    } // Initialize subAgent output config with defaults
+    this.skillOutputEnabled = options?.skills != null
+    this.skillsConfig = {
+      subDir: options?.skills?.subDir ?? 'skills',
+      sourceScopes: options?.skills?.sourceScopes ?? ['project', 'workspace', 'global']
+    }
     this.toolPreset = options?.toolPreset
 
-    this.rulesConfig = options?.rules ?? {enabled: false} // Initialize rule output config with defaults
+    this.ruleOutputEnabled = options?.rules != null
+    this.rulesConfig = {
+      ...options?.rules,
+      sourceScopes: options?.rules?.sourceScopes ?? ['project', 'workspace', 'global']
+    } // Initialize rule output config with defaults
+
+    this.outputCapabilities = options?.capabilities != null
+      ? this.normalizeCapabilities(options.capabilities)
+      : this.buildInferredCapabilities()
+  }
+
+  private buildInferredCapabilities(): OutputPluginCapabilities {
+    const capabilities: OutputPluginCapabilities = {}
+
+    if (this.outputFileName.length > 0) {
+      capabilities['prompt'] = {
+        scopes: ['project', 'global'],
+        singleScope: false
+      }
+    }
+
+    if (this.ruleOutputEnabled) {
+      capabilities['rules'] = {
+        scopes: this.rulesConfig.sourceScopes ?? ['project', 'workspace', 'global'],
+        singleScope: false
+      }
+    }
+
+    if (this.commandOutputEnabled) {
+      capabilities['commands'] = {
+        scopes: this.commandsConfig.sourceScopes,
+        singleScope: true
+      }
+    }
+
+    if (this.subAgentOutputEnabled) {
+      capabilities['subagents'] = {
+        scopes: this.subAgentsConfig.sourceScopes,
+        singleScope: true
+      }
+    }
+
+    if (this.skillOutputEnabled) {
+      capabilities['skills'] = {
+        scopes: this.skillsConfig.sourceScopes,
+        singleScope: true
+      }
+    }
+
+    return capabilities
+  }
+
+  private normalizeCapabilities(
+    capabilities: OutputPluginCapabilities
+  ): OutputPluginCapabilities {
+    const normalizedCapabilities: OutputPluginCapabilities = {}
+    for (const topic of OUTPUT_SCOPE_TOPICS) {
+      const capability = capabilities[topic]
+      if (capability == null) continue
+
+      const normalized = this.normalizeCapability(capability)
+      if (normalized != null) normalizedCapabilities[topic] = normalized
+    }
+    return normalizedCapabilities
+  }
+
+  private normalizeCapability(
+    capability: OutputTopicCapability
+  ): OutputTopicCapability | undefined {
+    const uniqueScopes: OutputDeclarationScope[] = []
+    for (const scope of capability.scopes) {
+      if (!uniqueScopes.includes(scope)) uniqueScopes.push(scope)
+    }
+    if (uniqueScopes.length === 0) return void 0
+    return {
+      scopes: uniqueScopes,
+      singleScope: capability.singleScope
+    }
   }
 
   protected resolvePromptSourceProjectConfig(ctx: OutputPluginContext | OutputWriteContext): ProjectConfig | undefined {
     const {projects} = ctx.collectedOutputContext.workspace
     const promptSource = projects.find(p => p.isPromptSourceProject === true)
     return promptSource?.projectConfig ?? projects[0]?.projectConfig
-  }
-
-  protected registerWriteEffect(name: string, handler: WriteEffectHandler): void {
-    this.writeEffects.push({name, handler})
-  }
-
-  protected registerCleanEffect(name: string, handler: CleanEffectHandler): void {
-    this.cleanEffects.push({name, handler})
-  }
-
-  protected async executeWriteEffects(ctx: OutputWriteContext): Promise<EffectResult[]> {
-    const results: EffectResult[] = []
-
-    for (const effect of this.writeEffects) {
-      if (ctx.dryRun === true) {
-        this.log.trace({action: 'dryRun', type: 'effect', name: effect.name})
-        results.push({success: true, description: `Would execute write effect: ${effect.name}`})
-        continue
-      }
-
-      try {
-        const result = await effect.handler(ctx)
-        if (result.success) this.log.trace({action: 'effect', name: effect.name, status: 'success'})
-        else {
-          const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
-          this.log.error({action: 'effect', name: effect.name, status: 'failed', error: errorMsg})
-        }
-        results.push(result)
-      }
-      catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'effect', name: effect.name, status: 'failed', error: errorMsg})
-        results.push({success: false, error: error as Error, description: `Write effect failed: ${effect.name}`})
-      }
-    }
-
-    return results
-  }
-
-  protected async executeCleanEffects(ctx: OutputCleanContext): Promise<EffectResult[]> {
-    const results: EffectResult[] = []
-
-    for (const effect of this.cleanEffects) {
-      if (ctx.dryRun === true) {
-        this.log.trace({action: 'dryRun', type: 'effect', name: effect.name})
-        results.push({success: true, description: `Would execute clean effect: ${effect.name}`})
-        continue
-      }
-
-      try {
-        const result = await effect.handler(ctx)
-        if (result.success) this.log.trace({action: 'effect', name: effect.name, status: 'success'})
-        else {
-          const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
-          this.log.error({action: 'effect', name: effect.name, status: 'failed', error: errorMsg})
-        }
-        results.push(result)
-      }
-      catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'effect', name: effect.name, status: 'failed', error: errorMsg})
-        results.push({success: false, error: error as Error, description: `Clean effect failed: ${effect.name}`})
-      }
-    }
-
-    return results
   }
 
   protected isRelativePath(p: Path): boolean {
@@ -262,14 +321,22 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   protected resolveFullPath(targetPath: Path, outputFileName?: string): string {
-    let dirPath: string
-    if (targetPath.pathKind === FilePathKind.Absolute) dirPath = targetPath.path
-    else if ('basePath' in targetPath) dirPath = path.resolve(targetPath.basePath as string, targetPath.path)
-    else dirPath = path.resolve(process.cwd(), targetPath.path)
+    const dirPath = this.resolveDirectoryPath(targetPath)
 
     const fileName = outputFileName ?? this.outputFileName // Append the output file name if provided or if default is set
     if (fileName) return path.join(dirPath, fileName)
     return dirPath
+  }
+
+  protected resolveDirectoryPath(targetPath: Path): string {
+    if (targetPath.pathKind === FilePathKind.Absolute) return targetPath.path
+    if ('basePath' in targetPath) return path.resolve(targetPath.basePath as string, targetPath.path)
+    return path.resolve(process.cwd(), targetPath.path)
+  }
+
+  protected getWorkspaceConfigDir(ctx: OutputWriteContext): string {
+    const workspaceDir = this.resolveDirectoryPath(ctx.collectedOutputContext.workspace.directory)
+    return path.join(workspaceDir, this.globalConfigDir)
   }
 
   protected createRelativePath(
@@ -308,63 +375,12 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return path.basename(p, ext)
   }
 
-  protected writeFileSync(filePath: string, content: string, encoding: BufferEncoding = 'utf8'): void {
-    deskWriteFileSync(filePath, content, encoding)
-  }
-
-  protected writeFileSyncBuffer(filePath: string, buffer: Buffer): void {
-    deskWriteFileSync(filePath, buffer)
-  }
-
-  protected ensureDirectory(dir: string): void {
-    deskEnsureDir(dir)
-  }
-
   protected existsSync(p: string): boolean {
     return fs.existsSync(p)
   }
 
   protected lstatSync(p: string): fs.Stats {
-    return deskLstatSync(p)
-  }
-
-  protected isSymlink(p: string): boolean {
-    return deskIsSymlink(p)
-  }
-
-  protected createSymlink(targetPath: string, symlinkPath: string, type: 'file' | 'dir' = 'dir'): void {
-    deskCreateSymlink(targetPath, symlinkPath, type)
-  }
-
-  protected removeSymlink(symlinkPath: string): void {
-    deskRemoveSymlink(symlinkPath)
-  }
-
-  protected async writeDirectorySymlink(
-    ctx: OutputWriteContext,
-    targetPath: string,
-    symlinkPath: string,
-    label: string
-  ): Promise<WriteResult> {
-    const dir = path.dirname(symlinkPath)
-    const linkName = path.basename(symlinkPath)
-    const relativePath = path.join(dir, linkName)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'symlink', target: targetPath, link: symlinkPath, label})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      this.createSymlink(targetPath, symlinkPath, 'dir')
-      this.log.trace({action: 'write', type: 'symlink', target: targetPath, link: symlinkPath, label})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'symlink', target: targetPath, link: symlinkPath, label, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
+    return fs.lstatSync(p)
   }
 
   protected readdirSync(dir: string, options: {withFileTypes: true}): fs.Dirent[]
@@ -377,123 +393,6 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   protected getIgnoreOutputPath(): string | undefined {
     if (this.indexignore == null) return void 0
     return this.indexignore
-  }
-
-  protected registerProjectIgnoreOutputFiles(projects: readonly Project[]): string[] {
-    const outputPath = this.getIgnoreOutputPath()
-    if (outputPath == null) return []
-
-    const results: string[] = []
-
-    for (const project of projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-      if (project.isPromptSourceProject === true) continue
-
-      const filePath = path.join(projectDir.path, outputPath)
-      results.push(filePath)
-    }
-
-    return results
-  }
-
-  protected async writeProjectIgnoreFiles(ctx: OutputWriteContext): Promise<WriteResult[]> {
-    const outputPath = this.getIgnoreOutputPath()
-    if (outputPath == null) return []
-
-    const {workspace, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
-    const results: WriteResult[] = []
-
-    if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) return results
-
-    const ignoreFile = aiAgentIgnoreConfigFiles.find(file => file.fileName === this.indexignore)
-    if (ignoreFile == null) return results
-
-    for (const project of workspace.projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-      if (project.isPromptSourceProject === true) continue
-
-      const label = `project:${project.name ?? 'unknown'}/${ignoreFile.fileName}`
-      const filePath = path.join(projectDir.path, outputPath)
-      const fullPath = path.join(projectDir.basePath, filePath)
-
-      const relativePath = filePath
-
-      if (ctx.dryRun === true) {
-        this.log.trace({action: 'dryRun', type: 'ignoreFile', path: fullPath, label})
-        results.push({path: relativePath, success: true, skipped: false})
-        continue
-      }
-
-      try {
-        fs.mkdirSync(path.dirname(fullPath), {recursive: true})
-        fs.writeFileSync(fullPath, ignoreFile.content, 'utf8')
-        this.log.trace({action: 'write', type: 'ignoreFile', path: fullPath, label})
-        results.push({path: relativePath, success: true})
-      }
-      catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'write', type: 'ignoreFile', path: fullPath, label, error: errMsg})
-        results.push({path: relativePath, success: false, error: error as Error})
-      }
-    }
-
-    return results
-  }
-
-  protected async writeFile(
-    ctx: OutputWriteContext,
-    fullPath: string,
-    content: string,
-    label: string
-  ): Promise<WriteResult> {
-    const dir = path.dirname(fullPath) // Create a relative path for the result
-    const fileName = path.basename(fullPath)
-    const relativePath = path.join(dir, fileName)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'file', path: fullPath, label})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      this.ensureDirectory(dir) // Ensure parent directory exists before writing
-      deskWriteFileSync(fullPath, content)
-      this.log.trace({action: 'write', type: 'file', path: fullPath, label})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'file', path: fullPath, label, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
-  }
-
-  protected async writePromptFile(
-    ctx: OutputWriteContext,
-    targetPath: Path,
-    content: string,
-    label: string
-  ): Promise<WriteResult> {
-    const fullPath = this.resolveFullPath(targetPath)
-    const relativePath = this.toRelativePath(targetPath)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'promptFile', path: fullPath, label})
-      return {path: relativePath, success: true, skipped: false}
-    }
-
-    try {
-      deskWriteFileSync(fullPath, content)
-      this.log.trace({action: 'write', type: 'promptFile', path: fullPath, label})
-      return {path: relativePath, success: true}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'promptFile', path: fullPath, label, error: errMsg})
-      return {path: relativePath, success: false, error: error as Error}
-    }
   }
 
   protected buildMarkdownContent(content: string, frontMatter?: Record<string, unknown>): string {
@@ -581,20 +480,6 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return registeredPlugins.includes(precedingPluginName)
   }
 
-  async onWriteComplete(ctx: OutputWriteContext, results: WriteResults): Promise<void> {
-    const success = results.files.filter(r => r.success).length
-    const skipped = results.files.filter(r => r.skipped).length
-    const failed = results.files.filter(r => !r.success && !r.skipped).length
-
-    this.log.trace({action: ctx.dryRun === true ? 'dryRun' : 'complete', type: 'writeSummary', success, skipped, failed})
-
-    await this.executeWriteEffects(ctx) // Execute registered write effects
-  }
-
-  async onCleanComplete(ctx: OutputCleanContext): Promise<void> {
-    await this.executeCleanEffects(ctx) // Execute registered clean effects
-  }
-
   protected getRegistryWriter<
     TEntry,
     TRegistry extends RegistryData,
@@ -627,33 +512,84 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return rule.scope ?? 'project'
   }
 
-  protected handleError(
-    error: unknown,
-    context: ErrorContext
-  ): {success: false, error: Error} {
-    const errorMsg = error instanceof Error ? error.message : String(error)
-    this.log.error({...context, error: errorMsg})
-    return {success: false, error: error as Error}
+  protected normalizeSourceScope(scope: RuleScope | undefined): OutputDeclarationScope {
+    if (scope === 'workspace' || scope === 'global' || scope === 'project') return scope
+    return 'project'
   }
 
-  protected async executeWriteOperation<T extends WriteResult>(
-    options: WriteOperationOptions,
-    execute: () => Promise<T>
-  ): Promise<WriteResult> {
-    const {ctx, type, fullPath, relativePath, label} = options
+  protected resolveCommandSourceScope(cmd: CommandPrompt): OutputDeclarationScope {
+    if (cmd.globalOnly === true) return 'global'
+    const scope = (cmd.yamlFrontMatter as {scope?: RuleScope} | undefined)?.scope
+    return this.normalizeSourceScope(scope)
+  }
 
-    if (ctx.dryRun === true) { // Handle dry-run mode
-      this.log.trace({action: 'dryRun', type, path: fullPath, label})
-      return {path: relativePath, success: true, skipped: false}
-    }
+  protected resolveSubAgentSourceScope(subAgent: SubAgentPrompt): OutputDeclarationScope {
+    const scope = (subAgent.yamlFrontMatter as {scope?: RuleScope} | undefined)?.scope
+    return this.normalizeSourceScope(scope)
+  }
 
-    try { // Execute with standardized error handling
-      const result = await execute()
-      this.log.trace({action: 'write', type, path: fullPath, label})
-      return result
-    } catch (error) {
-      return {...this.handleError(error, {action: 'write', type, path: fullPath, label}), path: relativePath}
+  protected resolveSkillSourceScope(skill: SkillPrompt): OutputDeclarationScope {
+    const scope = (skill.yamlFrontMatter as {scope?: RuleScope} | undefined)?.scope
+    return this.normalizeSourceScope(scope)
+  }
+
+  protected selectSingleScopeItems<T>(
+    items: readonly T[],
+    sourceScopes: readonly OutputDeclarationScope[],
+    resolveScope: (item: T) => OutputDeclarationScope,
+    requestedScopes?: OutputScopeSelection
+  ): {readonly selectedScope?: OutputDeclarationScope, readonly items: readonly T[]} {
+    if (items.length === 0) return {items: []}
+
+    const availableScopes = [...new Set(items.map(resolveScope))]
+    const selectedScopes = resolveTopicScopes({
+      requestedScopes,
+      defaultScopes: sourceScopes,
+      supportedScopes: sourceScopes,
+      singleScope: true,
+      availableScopes
+    })
+    const [selectedScope] = selectedScopes
+    if (selectedScope == null) return {items: []}
+
+    return {
+      selectedScope,
+      items: items.filter(item => resolveScope(item) === selectedScope)
     }
+  }
+
+  protected selectRuleScopes(
+    ctx: OutputWriteContext,
+    rules: readonly RulePrompt[]
+  ): readonly OutputDeclarationScope[] {
+    const availableScopes = [...new Set(rules.map(rule => this.normalizeSourceScope(this.normalizeRuleScope(rule))))]
+    return resolveTopicScopes({
+      requestedScopes: this.getTopicScopeOverride(ctx, 'rules'),
+      defaultScopes: this.rulesConfig.sourceScopes ?? ['project', 'workspace', 'global'],
+      supportedScopes: this.rulesConfig.sourceScopes ?? ['project', 'workspace', 'global'],
+      singleScope: false,
+      availableScopes
+    })
+  }
+
+  protected selectPromptScopes(
+    ctx: OutputWriteContext,
+    supportedScopes: readonly OutputDeclarationScope[] = ['project', 'global'],
+    defaultScopes: readonly OutputDeclarationScope[] = supportedScopes
+  ): readonly OutputDeclarationScope[] {
+    return resolveTopicScopes({
+      requestedScopes: this.getTopicScopeOverride(ctx, 'prompt'),
+      defaultScopes,
+      supportedScopes,
+      singleScope: false
+    })
+  }
+
+  protected getTopicScopeOverride(
+    ctx: OutputPluginContext | OutputWriteContext,
+    topic: OutputScopeTopic
+  ): OutputScopeSelection | undefined {
+    return ctx.pluginOptions?.outputScopes?.plugins?.[this.name]?.[topic]
   }
 
   protected buildSkillFrontMatter(
@@ -713,501 +649,320 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return fileName
   }
 
-  protected async writeFileWithHandling(
-    ctx: OutputWriteContext,
-    fullPath: string,
-    content: string,
-    options: {
-      type: string
-      label?: string
-      relativePath: string
-    }
-  ): Promise<WriteResult> {
-    const result = await this.executeWriteOperation(
-      {
-        ctx,
-        type: options.type,
-        fullPath,
-        relativePath: options.relativePath,
-        label: options.label
-      },
-      async () => {
-        this.ensureDirectory(path.dirname(fullPath))
-        this.writeFileSync(fullPath, content)
-        return {path: options.relativePath, success: true as const}
-      }
-    )
-
-    if ('success' in result && !result.success) { // If executeWriteOperation returned a WriteResult (error case), pass it through
-      return result
-    }
-
-    return {path: options.relativePath, success: true}
+  async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    return this.buildDefaultOutputDeclarations(ctx)
   }
 
-  async registerGlobalOutputDirs(_ctx: OutputPluginContext): Promise<string[]> {
-    return []
+  async convertContent(
+    declaration: OutputFileDeclaration,
+    _ctx: OutputWriteContext
+  ): Promise<string | Buffer> {
+    const source = declaration.source as DeclarativeOutputSource
+
+    switch (source.kind) {
+      case 'projectRootMemory':
+      case 'projectChildMemory':
+      case 'globalMemory':
+      case 'skillReference':
+      case 'ignoreFile':
+        return source.content
+      case 'command':
+        return this.buildCommandContent(source.command)
+      case 'subAgent':
+        return this.buildSubAgentContent(source.subAgent)
+      case 'skillMain':
+        return this.buildSkillMainContent(source.skill)
+      case 'skillResource':
+        return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
+      case 'rule':
+        return this.buildRuleContent(source.rule)
+      default:
+        throw new Error(`Unsupported declaration source for plugin ${this.name}`)
+    }
   }
 
-  async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
-    const {projects} = ctx.collectedOutputContext.workspace
+  protected async buildDefaultOutputDeclarations(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+    const declarations: OutputFileDeclaration[] = []
+    const {
+      workspace,
+      globalMemory,
+      commands,
+      subAgents,
+      skills,
+      rules,
+      aiAgentIgnoreConfigFiles
+    } = ctx.collectedOutputContext
+    const transformOptions = this.getTransformOptionsFromContext(ctx)
+    const ignoreOutputPath = this.getIgnoreOutputPath()
+    const ignoreFile = this.indexignore == null
+      ? void 0
+      : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
 
-    const subdirs: string[] = []
-    if (this.supportsCommands) subdirs.push(this.commandsSubDir)
-    if (this.supportsSubAgents) subdirs.push(this.agentsSubDir)
-    if (this.supportsSkills) subdirs.push(this.skillsSubDir)
-
-    this.log.debug('registerProjectOutputDirs', {
-      plugin: this.name,
-      projectCount: projects.length,
-      supportsCommands: this.supportsCommands,
-      supportsSubAgents: this.supportsSubAgents,
-      supportsSkills: this.supportsSkills,
-      supportsRules: this.rulesConfig.enabled,
-      subdirs,
-      commandsCount: ctx.collectedOutputContext.commands?.length ?? 0,
-      subAgentsCount: ctx.collectedOutputContext.subAgents?.length ?? 0,
-      skillsCount: ctx.collectedOutputContext.skills?.length ?? 0,
-      rulesCount: ctx.collectedOutputContext.rules?.length ?? 0
-    })
-
-    if (subdirs.length > 0) { // Register CLI subdirs (commands, agents, skills)
-      for (const project of projects) {
-        if (project.dirFromWorkspacePath == null) {
-          this.log.debug('project has no dirFromWorkspacePath', {plugin: this.name, projectName: project.name})
-          continue
-        }
-
-        for (const subdir of subdirs) {
-          const dirPath = path.join(project.dirFromWorkspacePath.path, this.globalConfigDir, subdir)
-          results.push(this.createRelativePath(dirPath, project.dirFromWorkspacePath.basePath, () => subdir))
-          this.log.debug('registered output dir', {plugin: this.name, project: project.name, subdir, dirPath})
-        }
-      }
-    }
-
-    if (this.rulesConfig.enabled && ctx.collectedOutputContext.rules != null && ctx.collectedOutputContext.rules.length > 0) { // Register rules subdirs
-      for (const project of projects) {
-        if (project.dirFromWorkspacePath == null) continue
-        const projectRules = applySubSeriesGlobPrefix(
-          filterByProjectConfig(ctx.collectedOutputContext.rules, project.projectConfig, 'rules'),
-          project.projectConfig
+    const selectedCommands = this.commandOutputEnabled && commands != null
+      ? this.selectSingleScopeItems(
+          commands,
+          this.commandsConfig.sourceScopes,
+          cmd => this.resolveCommandSourceScope(cmd),
+          this.getTopicScopeOverride(ctx, 'commands')
         )
-        if (projectRules.length === 0) continue
-        const dirPath = path.join(project.dirFromWorkspacePath.path, this.globalConfigDir, this.rulesConfig.subDir ?? 'rules')
-        results.push(this.createRelativePath(dirPath, project.dirFromWorkspacePath.basePath, () => this.rulesConfig.subDir ?? 'rules'))
-        this.log.debug('registered rules dir', {plugin: this.name, project: project.name, dirPath})
-      }
+      : {items: [] as readonly CommandPrompt[]}
+
+    const selectedSubAgents = this.subAgentOutputEnabled && subAgents != null
+      ? this.selectSingleScopeItems(
+          subAgents,
+          this.subAgentsConfig.sourceScopes,
+          subAgent => this.resolveSubAgentSourceScope(subAgent),
+          this.getTopicScopeOverride(ctx, 'subagents')
+        )
+      : {items: [] as readonly SubAgentPrompt[]}
+
+    const selectedSkills = this.skillOutputEnabled && skills != null
+      ? this.selectSingleScopeItems(
+          skills,
+          this.skillsConfig.sourceScopes,
+          skill => this.resolveSkillSourceScope(skill),
+          this.getTopicScopeOverride(ctx, 'skills')
+        )
+      : {items: [] as readonly SkillPrompt[]}
+
+    const allRules = rules ?? []
+    const activeRuleScopes = this.ruleOutputEnabled && allRules.length > 0
+      ? new Set(this.selectRuleScopes(ctx, allRules))
+      : new Set<OutputDeclarationScope>()
+    const activePromptScopes = new Set(this.selectPromptScopes(ctx))
+
+    const rulesByScope: Record<OutputDeclarationScope, RulePrompt[]> = {
+      project: [],
+      workspace: [],
+      global: []
+    }
+    for (const rule of allRules) {
+      const ruleScope = this.normalizeSourceScope(this.normalizeRuleScope(rule))
+      rulesByScope[ruleScope].push(rule)
     }
 
-    this.log.debug('registerProjectOutputDirs complete', {plugin: this.name, dirCount: results.length})
-    return results
-  }
+    for (const project of workspace.projects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null) continue
 
-  async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const results: string[] = []
-    const {projects} = ctx.collectedOutputContext.workspace
+      if (this.outputFileName.length > 0 && activePromptScopes.has('project')) {
+        if (project.rootMemoryPrompt != null) {
+          declarations.push({
+            path: this.resolveFullPath(projectDir),
+            scope: 'project',
+            source: {kind: 'projectRootMemory', content: project.rootMemoryPrompt.content as string}
+          })
+        }
 
-    this.log.debug('registerProjectOutputFiles start', {
-      plugin: this.name,
-      projectCount: projects.length,
-      commandsAvailable: ctx.collectedOutputContext.commands != null,
-      commandsCount: ctx.collectedOutputContext.commands?.length ?? 0,
-      subAgentsAvailable: ctx.collectedOutputContext.subAgents != null,
-      subAgentsCount: ctx.collectedOutputContext.subAgents?.length ?? 0,
-      skillsAvailable: ctx.collectedOutputContext.skills != null,
-      skillsCount: ctx.collectedOutputContext.skills?.length ?? 0
-    })
-
-    for (const project of projects) {
-      this.log.debug('processing project', {
-        plugin: this.name,
-        projectName: project.name,
-        hasRootMemory: project.rootMemoryPrompt != null,
-        childMemoryCount: project.childMemoryPrompts?.length ?? 0,
-        hasDirFromWorkspace: project.dirFromWorkspacePath != null,
-        projectConfig: project.projectConfig
-      })
-
-      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
-        results.push(this.createFileRelativePath(project.dirFromWorkspacePath.path, this.outputFileName))
-      }
-
-      if (project.childMemoryPrompts != null) {
-        for (const child of project.childMemoryPrompts) {
-          if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir.path, this.outputFileName))
+        if (project.childMemoryPrompts != null) {
+          for (const child of project.childMemoryPrompts) {
+            declarations.push({
+              path: this.resolveFullPath(child.dir),
+              scope: 'project',
+              source: {kind: 'projectChildMemory', content: child.content as string}
+            })
+          }
         }
       }
 
-      if (project.dirFromWorkspacePath == null) {
-        this.log.debug('project has no dirFromWorkspacePath, skipping', {plugin: this.name, projectName: project.name})
-        continue
-      }
+      const basePath = path.join(projectDir.basePath, projectDir.path, this.globalConfigDir)
+      const projectConfig = project.projectConfig
 
-      const {projectConfig} = project
-      const basePath = path.join(project.dirFromWorkspacePath.path, this.globalConfigDir)
-      const transformOptions = {includeSeriesPrefix: true} as const
-
-      if (this.supportsCommands && ctx.collectedOutputContext.commands != null) {
-        const allCommands = ctx.collectedOutputContext.commands
-        const filteredCommands = filterByProjectConfig(allCommands, projectConfig, 'commands')
-        this.log.debug('filtering commands', {
-          plugin: this.name,
-          projectName: project.name,
-          totalCommands: allCommands.length,
-          filteredCommands: filteredCommands.length,
-          projectConfig
-        })
+      if (selectedCommands.selectedScope === 'project' && selectedCommands.items.length > 0) {
+        const filteredCommands = filterByProjectConfig(selectedCommands.items, projectConfig, 'commands')
         for (const cmd of filteredCommands) {
           const fileName = this.transformCommandName(cmd, transformOptions)
-          results.push(this.createRelativePath(path.join(basePath, this.commandsSubDir, fileName), project.dirFromWorkspacePath.basePath, () => this.commandsSubDir))
-          this.log.debug('registered command file', {plugin: this.name, project: project.name, fileName})
+          declarations.push({
+            path: path.join(basePath, this.commandsConfig.subDir, fileName),
+            scope: 'project',
+            source: {kind: 'command', command: cmd}
+          })
         }
-      } else {
-        this.log.debug('commands skipped', {
-          plugin: this.name,
-          supportsCommands: this.supportsCommands,
-          hasCommands: ctx.collectedOutputContext.commands != null
-        })
       }
 
-      if (this.supportsSubAgents && ctx.collectedOutputContext.subAgents != null) {
-        const allSubAgents = ctx.collectedOutputContext.subAgents
-        const filteredSubAgents = filterByProjectConfig(allSubAgents, projectConfig, 'subAgents')
-        this.log.debug('filtering subAgents', {
-          plugin: this.name,
-          projectName: project.name,
-          totalSubAgents: allSubAgents.length,
-          filteredSubAgents: filteredSubAgents.length,
-          projectConfig
-        })
-        for (const agent of filteredSubAgents) {
-          const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
-          results.push(this.createRelativePath(path.join(basePath, this.agentsSubDir, fileName), project.dirFromWorkspacePath.basePath, () => this.agentsSubDir))
-          this.log.debug('registered agent file', {plugin: this.name, project: project.name, fileName})
+      if (selectedSubAgents.selectedScope === 'project' && selectedSubAgents.items.length > 0) {
+        const filteredSubAgents = filterByProjectConfig(selectedSubAgents.items, projectConfig, 'subAgents')
+        for (const subAgent of filteredSubAgents) {
+          const fileName = subAgent.dir.path.replace(/\.mdx$/, '.md')
+          declarations.push({
+            path: path.join(basePath, this.subAgentsConfig.subDir, fileName),
+            scope: 'project',
+            source: {kind: 'subAgent', subAgent}
+          })
         }
-      } else {
-        this.log.debug('subAgents skipped', {
-          plugin: this.name,
-          supportsSubAgents: this.supportsSubAgents,
-          hasSubAgents: ctx.collectedOutputContext.subAgents != null
-        })
       }
 
-      if (this.supportsSkills && ctx.collectedOutputContext.skills != null) {
-        const allSkills = ctx.collectedOutputContext.skills
-        const filteredSkills = filterByProjectConfig(allSkills, projectConfig, 'skills')
-        this.log.debug('filtering skills', {
-          plugin: this.name,
-          projectName: project.name,
-          totalSkills: allSkills.length,
-          filteredSkills: filteredSkills.length
-        })
+      if (selectedSkills.selectedScope === 'project' && selectedSkills.items.length > 0) {
+        const filteredSkills = filterByProjectConfig(selectedSkills.items, projectConfig, 'skills')
         for (const skill of filteredSkills) {
           const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-          const skillDir = path.join(basePath, this.skillsSubDir, skillName)
+          const skillDir = path.join(basePath, this.skillsConfig.subDir, skillName)
 
-          results.push(this.createRelativePath(path.join(skillDir, 'SKILL.md'), project.dirFromWorkspacePath.basePath, () => skillName))
+          declarations.push({
+            path: path.join(skillDir, 'SKILL.md'),
+            scope: 'project',
+            source: {kind: 'skillMain', skill}
+          })
 
           if (skill.childDocs != null) {
-            for (const refDoc of skill.childDocs) {
-              const refDocFileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
-              const refDocPath = path.join(skillDir, refDocFileName)
-              results.push(this.createRelativePath(refDocPath, project.dirFromWorkspacePath.basePath, () => skillName))
+            for (const childDoc of skill.childDocs) {
+              declarations.push({
+                path: path.join(skillDir, childDoc.dir.path.replace(/\.mdx$/, '.md')),
+                scope: 'project',
+                source: {kind: 'skillReference', content: childDoc.content as string}
+              })
             }
           }
 
           if (skill.resources != null) {
             for (const resource of skill.resources) {
-              const resourcePath = path.join(skillDir, resource.relativePath)
-              results.push(this.createRelativePath(resourcePath, project.dirFromWorkspacePath.basePath, () => skillName))
+              declarations.push({
+                path: path.join(skillDir, resource.relativePath),
+                scope: 'project',
+                source: {kind: 'skillResource', content: resource.content, encoding: resource.encoding}
+              })
             }
           }
         }
-      } else {
-        this.log.debug('skills skipped', {
-          plugin: this.name,
-          supportsSkills: this.supportsSkills,
-          hasSkills: ctx.collectedOutputContext.skills != null
-        })
       }
 
-      if (this.rulesConfig.enabled && ctx.collectedOutputContext.rules != null && ctx.collectedOutputContext.rules.length > 0) { // Register rule files
+      if (activeRuleScopes.has('project')) {
         const projectRules = applySubSeriesGlobPrefix(
-          filterByProjectConfig(ctx.collectedOutputContext.rules, projectConfig, 'rules'),
+          filterByProjectConfig(rulesByScope['project'], projectConfig, 'rules'),
           projectConfig
         )
-        this.log.debug('registering rule files', {
-          plugin: this.name,
-          projectName: project.name,
-          totalRules: ctx.collectedOutputContext.rules.length,
-          filteredRules: projectRules.length
-        })
+        const rulesDir = path.join(basePath, this.rulesConfig.subDir ?? 'rules')
         for (const rule of projectRules) {
-          const filePath = path.join(project.dirFromWorkspacePath.path, this.globalConfigDir, this.rulesConfig.subDir ?? 'rules', this.buildRuleFileName(rule))
-          results.push(this.createRelativePath(filePath, project.dirFromWorkspacePath.basePath, () => this.rulesConfig.subDir ?? 'rules'))
-          this.log.debug('registered rule file', {plugin: this.name, project: project.name, ruleName: rule.ruleName})
+          declarations.push({
+            path: path.join(rulesDir, this.buildRuleFileName(rule)),
+            scope: 'project',
+            source: {kind: 'rule', rule}
+          })
         }
-      } else {
-        this.log.debug('rules skipped', {
-          plugin: this.name,
-          supportsRules: this.rulesConfig.enabled,
-          hasRules: ctx.collectedOutputContext.rules != null
+      }
+
+      if (
+        ignoreOutputPath != null
+        && ignoreFile != null
+        && project.isPromptSourceProject !== true
+      ) {
+        declarations.push({
+          path: path.join(projectDir.basePath, projectDir.path, ignoreOutputPath),
+          scope: 'project',
+          source: {kind: 'ignoreFile', content: ignoreFile.content}
         })
       }
     }
 
-    this.log.debug('registerProjectOutputFiles complete', {plugin: this.name, fileCount: results.length})
-    return results
-  }
-
-  async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const {globalMemory} = ctx.collectedOutputContext
-    if (globalMemory == null) return []
-    if (this.outputFileName === '') {
-      this.log.error({action: 'skip', reason: 'outputFileName is empty', plugin: this.name, hint: 'Set outputFileName in plugin options or override registerGlobalOutputFiles'})
-      return []
+    const promptSourceProjectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    const resolveScopedBasePath = (scope: OutputDeclarationScope): string => {
+      if (scope === 'global') return this.getGlobalConfigDir()
+      return this.getWorkspaceConfigDir(ctx)
     }
 
-    const globalDir = this.getGlobalConfigDir()
-    return [
-      this.createRelativePath(this.outputFileName, globalDir, () => this.globalConfigDir)
-    ]
-  }
-
-  async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, commands, subAgents, skills, rules} = ctx.collectedOutputContext
-    const hasProjectOutputs = workspace.projects.some(
-      p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
-    )
-    const hasGlobalMemory = globalMemory != null
-    const hasProjectLevelCommands = this.supportsCommands && (commands?.length ?? 0) > 0 && workspace.projects.length > 0
-    const hasProjectLevelSubAgents = this.supportsSubAgents && (subAgents?.length ?? 0) > 0 && workspace.projects.length > 0
-    const hasProjectLevelSkills = this.supportsSkills && (skills?.length ?? 0) > 0 && workspace.projects.length > 0
-    const hasProjectLevelRules = this.rulesConfig.enabled && (rules?.length ?? 0) > 0 && workspace.projects.length > 0
-
-    this.log.debug('canWrite check', {
-      plugin: this.name,
-      hasProjectOutputs,
-      hasGlobalMemory,
-      hasProjectLevelCommands,
-      hasProjectLevelSubAgents,
-      hasProjectLevelSkills,
-      hasProjectLevelRules,
-      projectCount: workspace.projects.length,
-      commandsCount: commands?.length ?? 0,
-      subAgentsCount: subAgents?.length ?? 0,
-      skillsCount: skills?.length ?? 0,
-      rulesCount: rules?.length ?? 0,
-      supportsCommands: this.supportsCommands,
-      supportsSubAgents: this.supportsSubAgents,
-      supportsSkills: this.supportsSkills,
-      supportsRules: this.rulesConfig.enabled
-    })
-
-    if (hasProjectOutputs || hasGlobalMemory || hasProjectLevelCommands || hasProjectLevelSubAgents || hasProjectLevelSkills || hasProjectLevelRules) return true
-
-    this.log.trace({action: 'skip', reason: 'noOutputs'})
-    return false
-  }
-
-  async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedOutputContext.workspace
-    const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
-
-    this.log.debug('writeProjectOutputs start', {
-      plugin: this.name,
-      projectCount: projects.length,
-      commandsCount: ctx.collectedOutputContext.commands?.length ?? 0,
-      subAgentsCount: ctx.collectedOutputContext.subAgents?.length ?? 0,
-      skillsCount: ctx.collectedOutputContext.skills?.length ?? 0
-    })
-
-    for (const project of projects) {
-      const projectName = project.name ?? 'unknown'
-      const projectDir = project.dirFromWorkspacePath
-
-      this.log.debug('writing project outputs', {
-        plugin: this.name,
-        projectName,
-        hasProjectDir: projectDir != null,
-        projectConfig: project.projectConfig
-      })
-
-      if (projectDir == null) {
-        this.log.debug('project has no dirFromWorkspacePath, skipping', {plugin: this.name, projectName})
-        continue
-      }
-
-      if (project.rootMemoryPrompt != null) {
-        const result = await this.writePromptFile(ctx, projectDir, project.rootMemoryPrompt.content as string, `project:${projectName}/root`)
-        fileResults.push(result)
-      }
-
-      if (project.childMemoryPrompts != null) {
-        for (const child of project.childMemoryPrompts) {
-          const childResult = await this.writePromptFile(ctx, child.dir, child.content as string, `project:${projectName}/child:${child.workingChildDirectoryPath?.path ?? 'unknown'}`)
-          fileResults.push(childResult)
-        }
-      }
-
-      const {projectConfig} = project
-      const basePath = path.join(projectDir.basePath, projectDir.path, this.globalConfigDir)
-
-      if (this.supportsCommands && ctx.collectedOutputContext.commands != null) {
-        const allCommands = ctx.collectedOutputContext.commands
-        const filteredCommands = filterByProjectConfig(allCommands, projectConfig, 'commands')
-        this.log.debug('writing commands', {
-          plugin: this.name,
-          projectName,
-          totalCommands: allCommands.length,
-          filteredCommands: filteredCommands.length,
-          projectConfig
-        })
-        for (const cmd of filteredCommands) {
-          const cmdResults = await this.writeCommand(ctx, basePath, cmd)
-          fileResults.push(...cmdResults)
-          this.log.debug('wrote command', {plugin: this.name, projectName, commandName: cmd.commandName, success: cmdResults.every(r => r.success)})
-        }
-      } else {
-        this.log.debug('commands not written', {
-          plugin: this.name,
-          supportsCommands: this.supportsCommands,
-          hasCommands: ctx.collectedOutputContext.commands != null
+    if (
+      (selectedCommands.selectedScope === 'global' || selectedCommands.selectedScope === 'workspace')
+      && selectedCommands.items.length > 0
+    ) {
+      const filteredCommands = filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
+      const basePath = resolveScopedBasePath(selectedCommands.selectedScope)
+      for (const cmd of filteredCommands) {
+        const fileName = this.transformCommandName(cmd, transformOptions)
+        declarations.push({
+          path: path.join(basePath, this.commandsConfig.subDir, fileName),
+          scope: selectedCommands.selectedScope,
+          source: {kind: 'command', command: cmd}
         })
       }
+    }
 
-      if (this.supportsSubAgents && ctx.collectedOutputContext.subAgents != null) {
-        const allSubAgents = ctx.collectedOutputContext.subAgents
-        const filteredSubAgents = filterByProjectConfig(allSubAgents, projectConfig, 'subAgents')
-        this.log.debug('writing subAgents', {
-          plugin: this.name,
-          projectName,
-          totalSubAgents: allSubAgents.length,
-          filteredSubAgents: filteredSubAgents.length,
-          projectConfig
-        })
-        for (const agent of filteredSubAgents) {
-          const agentResults = await this.writeSubAgent(ctx, basePath, agent)
-          fileResults.push(...agentResults)
-          this.log.debug('wrote subAgent', {plugin: this.name, projectName, agentPath: agent.dir.path, success: agentResults.every(r => r.success)})
-        }
-      } else {
-        this.log.debug('subAgents not written', {
-          plugin: this.name,
-          supportsSubAgents: this.supportsSubAgents,
-          hasSubAgents: ctx.collectedOutputContext.subAgents != null
+    if (
+      (selectedSubAgents.selectedScope === 'global' || selectedSubAgents.selectedScope === 'workspace')
+      && selectedSubAgents.items.length > 0
+    ) {
+      const filteredSubAgents = filterByProjectConfig(selectedSubAgents.items, promptSourceProjectConfig, 'subAgents')
+      const basePath = resolveScopedBasePath(selectedSubAgents.selectedScope)
+      for (const subAgent of filteredSubAgents) {
+        const fileName = subAgent.dir.path.replace(/\.mdx$/, '.md')
+        declarations.push({
+          path: path.join(basePath, this.subAgentsConfig.subDir, fileName),
+          scope: selectedSubAgents.selectedScope,
+          source: {kind: 'subAgent', subAgent}
         })
       }
+    }
 
-      if (this.supportsSkills && ctx.collectedOutputContext.skills != null) {
-        const allSkills = ctx.collectedOutputContext.skills
-        const filteredSkills = filterByProjectConfig(allSkills, projectConfig, 'skills')
-        this.log.debug('writing skills', {
-          plugin: this.name,
-          projectName,
-          totalSkills: allSkills.length,
-          filteredSkills: filteredSkills.length
-        })
-        for (const skill of filteredSkills) {
-          const skillResults = await this.writeSkill(ctx, basePath, skill)
-          fileResults.push(...skillResults)
-          this.log.debug('wrote skill', {plugin: this.name, projectName, skillName: skill.yamlFrontMatter?.name, success: skillResults.every(r => r.success)})
-        }
-      } else {
-        this.log.debug('skills not written', {
-          plugin: this.name,
-          supportsSkills: this.supportsSkills,
-          hasSkills: ctx.collectedOutputContext.skills != null
-        })
-      }
+    if (
+      (selectedSkills.selectedScope === 'global' || selectedSkills.selectedScope === 'workspace')
+      && selectedSkills.items.length > 0
+    ) {
+      const filteredSkills = filterByProjectConfig(selectedSkills.items, promptSourceProjectConfig, 'skills')
+      const basePath = resolveScopedBasePath(selectedSkills.selectedScope)
+      for (const skill of filteredSkills) {
+        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+        const skillDir = path.join(basePath, this.skillsConfig.subDir, skillName)
 
-      if (this.rulesConfig.enabled && ctx.collectedOutputContext.rules != null && ctx.collectedOutputContext.rules.length > 0) { // Write rules
-        const allRules = ctx.collectedOutputContext.rules
-        const filteredRules = applySubSeriesGlobPrefix(
-          filterByProjectConfig(allRules, projectConfig, 'rules'),
-          projectConfig
-        )
-        this.log.debug('writing rules', {
-          plugin: this.name,
-          projectName,
-          totalRules: allRules.length,
-          filteredRules: filteredRules.length
+        declarations.push({
+          path: path.join(skillDir, 'SKILL.md'),
+          scope: selectedSkills.selectedScope,
+          source: {kind: 'skillMain', skill}
         })
-        if (filteredRules.length > 0) {
-          const rulesDir = path.join(projectDir.basePath, projectDir.path, this.globalConfigDir, this.rulesConfig.subDir ?? 'rules')
-          this.log.debug('rules output dir', {plugin: this.name, projectName, rulesDir})
-          for (const rule of filteredRules) {
-            const fileName = this.buildRuleFileName(rule)
-            const rulePath = path.join(rulesDir, fileName)
-            this.log.debug('rule file path', {plugin: this.name, projectName, prefix: rule.prefix, ruleName: rule.ruleName, fileName, rulePath})
-            const result = await this.writeFile(ctx, rulePath, this.buildRuleContent(rule), 'rule')
-            fileResults.push(result)
-            this.log.debug('wrote rule', {plugin: this.name, projectName, ruleName: rule.ruleName, success: result.success})
+
+        if (skill.childDocs != null) {
+          for (const childDoc of skill.childDocs) {
+            declarations.push({
+              path: path.join(skillDir, childDoc.dir.path.replace(/\.mdx$/, '.md')),
+              scope: selectedSkills.selectedScope,
+              source: {kind: 'skillReference', content: childDoc.content as string}
+            })
           }
         }
-      } else {
-        this.log.debug('rules not written', {
-          plugin: this.name,
-          supportsRules: this.rulesConfig.enabled,
-          hasRules: ctx.collectedOutputContext.rules != null
+
+        if (skill.resources != null) {
+          for (const resource of skill.resources) {
+            declarations.push({
+              path: path.join(skillDir, resource.relativePath),
+              scope: selectedSkills.selectedScope,
+              source: {kind: 'skillResource', content: resource.content, encoding: resource.encoding}
+            })
+          }
+        }
+      }
+    }
+
+    for (const ruleScope of ['global', 'workspace'] as const) {
+      if (!activeRuleScopes.has(ruleScope)) continue
+      const basePath = resolveScopedBasePath(ruleScope)
+      const filteredRules = applySubSeriesGlobPrefix(
+        filterByProjectConfig(rulesByScope[ruleScope], promptSourceProjectConfig, 'rules'),
+        promptSourceProjectConfig
+      )
+      const rulesDir = path.join(basePath, this.rulesConfig.subDir ?? 'rules')
+      for (const rule of filteredRules) {
+        declarations.push({
+          path: path.join(rulesDir, this.buildRuleFileName(rule)),
+          scope: ruleScope,
+          source: {kind: 'rule', rule}
         })
       }
     }
 
-    return {files: fileResults, dirs: dirResults}
-  }
-
-  async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory} = ctx.collectedOutputContext
-    const fileResults: WriteResult[] = []
-    const dirResults: WriteResult[] = []
-
-    if (globalMemory == null) return {files: fileResults, dirs: dirResults}
-    if (this.outputFileName === '') {
-      this.log.error({action: 'skip', reason: 'outputFileName is empty', plugin: this.name, hint: 'Set outputFileName in plugin options or override writeGlobalOutputs'})
-      return {files: fileResults, dirs: dirResults}
-    }
-
-    const globalDir = this.getGlobalConfigDir()
-    const fullPath = path.join(globalDir, this.outputFileName)
-    const relativePath = this.createRelativePath(this.outputFileName, globalDir, () => this.globalConfigDir)
-
-    if (ctx.dryRun === true) {
-      this.log.trace({action: 'dryRun', type: 'globalMemory', path: fullPath})
-      fileResults.push({
-        path: relativePath,
-        success: true,
-        skipped: false
+    if (
+      globalMemory != null
+      && this.outputFileName.length > 0
+      && activePromptScopes.has('global')
+    ) {
+      declarations.push({
+        path: path.join(this.getGlobalConfigDir(), this.outputFileName),
+        scope: 'global',
+        source: {kind: 'globalMemory', content: globalMemory.content as string}
       })
-    } else {
-      try {
-        deskWriteFileSync(fullPath, globalMemory.content as string)
-        this.log.trace({action: 'write', type: 'globalMemory', path: fullPath})
-        fileResults.push({path: relativePath, success: true})
-      }
-      catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'write', type: 'globalMemory', path: fullPath, error: errMsg})
-        fileResults.push({path: relativePath, success: false, error: error as Error})
-      }
     }
 
-    return {files: fileResults, dirs: dirResults}
+    return declarations
   }
 
-  protected async writeCommand(
-    ctx: OutputWriteContext,
-    basePath: string,
-    cmd: CommandPrompt
-  ): Promise<WriteResult[]> {
-    const transformOptions = this.getTransformOptionsFromContext(ctx)
-    const fileName = this.transformCommandName(cmd, transformOptions)
-    const targetDir = path.join(basePath, this.commandsSubDir)
-    const fullPath = path.join(targetDir, fileName)
-
+  protected async buildCommandContent(cmd: CommandPrompt): Promise<string> {
     let compiledContent = cmd.content
     let compiledFrontMatter = cmd.yamlFrontMatter
     let useRecompiledFrontMatter = false
@@ -1218,104 +973,41 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         toolPreset: this.toolPreset,
         hasRawContent: true
       })
-      try {
-        // eslint-disable-next-line ts/no-unsafe-assignment
-        const scopeCollector = new GlobalScopeCollector({toolPreset: this.toolPreset as any})
-        const globalScope = scopeCollector.collect()
-        const result = await mdxToMd(cmd.rawMdxContent, {globalScope, extractMetadata: true, basePath: cmd.dir.basePath})
-        compiledContent = result.content
-        compiledFrontMatter = result.metadata.fields as typeof cmd.yamlFrontMatter
-        useRecompiledFrontMatter = true
-      }
-      catch (e) {
-        this.log.warn('failed to recompile command, using default', {
-          file: cmd.dir.getAbsolutePath(),
-          error: e instanceof Error ? e.message : String(e)
-        })
-      }
+      // eslint-disable-next-line ts/no-unsafe-assignment
+      const scopeCollector = new GlobalScopeCollector({toolPreset: this.toolPreset as any})
+      const globalScope = scopeCollector.collect()
+      const result = await mdxToMd(cmd.rawMdxContent, {globalScope, extractMetadata: true, basePath: cmd.dir.basePath})
+      compiledContent = result.content
+      compiledFrontMatter = result.metadata.fields as typeof cmd.yamlFrontMatter
+      useRecompiledFrontMatter = true
     }
 
-    const content = useRecompiledFrontMatter
-      ? this.buildMarkdownContent(compiledContent, compiledFrontMatter)
-      : this.buildMarkdownContentWithRaw(compiledContent, compiledFrontMatter, cmd.rawFrontMatter)
+    const commandFrontMatterTransformer = this.commandsConfig.transformFrontMatter
+    if (commandFrontMatterTransformer == null) {
+      throw new Error(`commands.transformFrontMatter is required for command output plugin: ${this.name}`)
+    }
 
-    return [await this.writeFile(ctx, fullPath, content, 'command')]
+    const transformedFrontMatter = commandFrontMatterTransformer(cmd, {
+      isRecompiled: useRecompiledFrontMatter,
+      ...compiledFrontMatter != null && {sourceFrontMatter: compiledFrontMatter as Record<string, unknown>}
+    })
+
+    return this.buildMarkdownContent(compiledContent, transformedFrontMatter)
   }
 
-  protected async writeSubAgent(
-    ctx: OutputWriteContext,
-    basePath: string,
-    agent: SubAgentPrompt
-  ): Promise<WriteResult[]> {
-    const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
-    const targetDir = path.join(basePath, this.agentsSubDir)
-    const fullPath = path.join(targetDir, fileName)
-
-    const content = this.buildMarkdownContentWithRaw(
+  protected buildSubAgentContent(agent: SubAgentPrompt): string {
+    return this.buildMarkdownContentWithRaw(
       agent.content,
       agent.yamlFrontMatter,
       agent.rawFrontMatter
     )
-
-    return [await this.writeFile(ctx, fullPath, content, 'subAgent')]
   }
 
-  protected async writeSkill(
-    ctx: OutputWriteContext,
-    basePath: string,
-    skill: SkillPrompt
-  ): Promise<WriteResult[]> {
-    const results: WriteResult[] = []
-    const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-    const targetDir = path.join(basePath, this.skillsSubDir, skillName)
-    const fullPath = path.join(targetDir, 'SKILL.md')
-
-    const content = this.buildMarkdownContentWithRaw(
+  protected buildSkillMainContent(skill: SkillPrompt): string {
+    return this.buildMarkdownContentWithRaw(
       skill.content as string,
       skill.yamlFrontMatter,
       skill.rawFrontMatter
     )
-
-    const mainFileResult = await this.writeFile(ctx, fullPath, content, 'skill')
-    results.push(mainFileResult)
-
-    if (skill.childDocs != null) {
-      for (const refDoc of skill.childDocs) {
-        const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, {dir: refDoc.dir.path, content: refDoc.content}, basePath)
-        results.push(...refResults)
-      }
-    }
-
-    if (skill.resources != null) {
-      for (const resource of skill.resources) {
-        const refResults = await this.writeSkillResource(ctx, targetDir, skillName, resource, basePath)
-        results.push(...refResults)
-      }
-    }
-
-    return results
-  }
-
-  protected async writeSkillReferenceDocument(
-    ctx: OutputWriteContext,
-    skillDir: string,
-    _skillName: string,
-    refDoc: {dir: string, content: unknown},
-    _basePath: string
-  ): Promise<WriteResult[]> {
-    const fileName = refDoc.dir.replace(/\.mdx$/, '.md')
-    const fullPath = path.join(skillDir, fileName)
-    return [await this.writeFile(ctx, fullPath, refDoc.content as string, 'skillRefDoc')]
-  }
-
-  protected async writeSkillResource(
-    ctx: OutputWriteContext,
-    skillDir: string,
-    _skillName: string,
-    resource: {relativePath: string, content: string},
-    _basePath: string
-  ): Promise<WriteResult[]> {
-    const fullPath = path.join(skillDir, resource.relativePath)
-    return [await this.writeFile(ctx, fullPath, resource.content, 'skillResource')]
   }
 }

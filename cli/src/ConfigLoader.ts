@@ -1,4 +1,12 @@
-import type {AindexConfig, ConfigLoaderOptions, ConfigLoadResult, ILogger, UserConfigFile} from './plugins/plugin-core'
+import type {
+  AindexConfig,
+  ConfigLoaderOptions,
+  ConfigLoadResult,
+  ILogger,
+  OutputScopeOptions,
+  PluginOutputScopeTopics,
+  UserConfigFile
+} from './plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -140,11 +148,13 @@ export class ConfigLoader {
 
     return reversed.reduce<UserConfigFile>((acc, config) => {
       const mergedAindex = this.mergeAindex(acc.aindex, config.aindex)
+      const mergedOutputScopes = this.mergeOutputScopeOptions(acc.outputScopes, config.outputScopes)
 
       return {
         ...acc,
         ...config,
-        ...mergedAindex != null ? {aindex: mergedAindex} : {}
+        ...mergedAindex != null ? {aindex: mergedAindex} : {},
+        ...mergedOutputScopes != null ? {outputScopes: mergedOutputScopes} : {}
       }
     }, {})
   }
@@ -168,6 +178,37 @@ export class ConfigLoader {
       ext: {...a.ext, ...b.ext},
       arch: {...a.arch, ...b.arch}
     }
+  }
+
+  private mergeOutputScopeTopics(
+    a?: PluginOutputScopeTopics,
+    b?: PluginOutputScopeTopics
+  ): PluginOutputScopeTopics | undefined {
+    if (a == null && b == null) return void 0
+    if (a == null) return b
+    if (b == null) return a
+    return {...a, ...b}
+  }
+
+  private mergeOutputScopeOptions(
+    a?: OutputScopeOptions,
+    b?: OutputScopeOptions
+  ): OutputScopeOptions | undefined {
+    if (a == null && b == null) return void 0
+    if (a == null) return b
+    if (b == null) return a
+
+    const mergedPlugins: Record<string, PluginOutputScopeTopics> = {}
+    for (const [pluginName, topics] of Object.entries(a.plugins ?? {})) {
+      if (topics != null) mergedPlugins[pluginName] = {...topics}
+    }
+    for (const [pluginName, topics] of Object.entries(b.plugins ?? {})) {
+      const mergedTopics = this.mergeOutputScopeTopics(mergedPlugins[pluginName], topics)
+      if (mergedTopics != null) mergedPlugins[pluginName] = mergedTopics
+    }
+
+    if (Object.keys(mergedPlugins).length === 0) return {}
+    return {plugins: mergedPlugins}
   }
 
   private resolveTilde(p: string): string {
