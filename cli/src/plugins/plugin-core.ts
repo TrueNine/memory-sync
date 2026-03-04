@@ -1,34 +1,6 @@
 export {
-  DEFAULT_USER_CONFIG,
-  FileExtensions,
-  FrontMatterFields,
-  GlobalConfigDirs,
-  IgnoreFiles,
-  OutputFileNames,
-  OutputPrefixes,
-  OutputSubdirectories,
-  PathPlaceholders,
-  PLUGIN_NAMES,
-  PreservedSkills,
-  ToolPresets
-} from './plugin-core/constants'
-
-export type {
-  PluginName
-} from './plugin-core/constants'
-
-export {
-  AbstractPlugin
-} from './plugin-core/AbstractPlugin'
-
-export {
   AbstractInputPlugin
 } from './plugin-core/AbstractInputPlugin'
-
-export {
-  createLocalizedPromptReader,
-  LocalizedPromptReader
-} from './plugin-core/LocalizedPromptReader'
 
 export {
   AbstractOutputPlugin
@@ -50,6 +22,61 @@ export type {
 } from './plugin-core/AbstractOutputPlugin'
 
 export {
+  AbstractPlugin
+} from './plugin-core/AbstractPlugin'
+
+export {
+  DEFAULT_USER_CONFIG,
+  FileExtensions,
+  FrontMatterFields,
+  GlobalConfigDirs,
+  IgnoreFiles,
+  OutputFileNames,
+  OutputPrefixes,
+  OutputSubdirectories,
+  PathPlaceholders,
+  PLUGIN_NAMES,
+  PreservedSkills,
+  ToolPresets
+} from './plugin-core/constants'
+
+export type {
+  PluginName
+} from './plugin-core/constants'
+
+export {
+  applySubSeriesGlobPrefix,
+  filterByProjectConfig,
+  findAllGitRepos,
+  findGitModuleInfoDirs,
+  resolveGitInfoDir
+} from './plugin-core/filters'
+
+export type {
+  FilterConfigPath,
+  SeriesFilterable
+} from './plugin-core/filters'
+
+export {
+  GlobalScopeCollector
+} from './plugin-core/GlobalScopeCollector'
+
+export type {
+  GlobalScopeCollectorOptions,
+  ScopeRegistration
+} from './plugin-core/GlobalScopeCollector'
+
+export {
+  ScopePriority,
+  ScopeRegistry
+} from './plugin-core/GlobalScopeCollector'
+
+export {
+  createLocalizedPromptReader,
+  LocalizedPromptReader
+} from './plugin-core/LocalizedPromptReader'
+
+export {
   McpConfigManager,
   transformMcpConfigForCursor,
   transformMcpConfigForOpencode
@@ -68,36 +95,9 @@ export {
 } from './plugin-core/RegistryWriter'
 
 export {
-  applySubSeriesGlobPrefix,
-  filterByProjectConfig,
-  findAllGitRepos,
-  findGitModuleInfoDirs,
-  resolveGitInfoDir
-} from './plugin-core/filters'
-
-export type {
-  FilterConfigPath,
-  SeriesFilterable
-} from './plugin-core/filters'
-
-export {
   DEFAULT_SCOPE_PRIORITY,
   resolveTopicScopes
 } from './plugin-core/scopePolicy'
-
-export {
-  GlobalScopeCollector
-} from './plugin-core/GlobalScopeCollector'
-
-export type {
-  GlobalScopeCollectorOptions,
-  ScopeRegistration
-} from './plugin-core/GlobalScopeCollector'
-
-export {
-  ScopePriority,
-  ScopeRegistry
-} from './plugin-core/GlobalScopeCollector'
 
 export * from './plugin-core/types'
 

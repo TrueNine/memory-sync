@@ -17,8 +17,8 @@ import {spawn} from 'node:child_process'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
-import {PathPlaceholders} from './constants'
 import {AbstractPlugin} from './AbstractPlugin'
+import {PathPlaceholders} from './constants'
 import {PluginKind} from './enums'
 
 export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Input> implements InputPlugin {

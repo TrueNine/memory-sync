@@ -13,7 +13,6 @@ import {ConfigCommandFactory} from '@/commands/factories/ConfigCommandFactory'
 import {DryRunCommandFactory} from '@/commands/factories/DryRunCommandFactory'
 import {ExecuteCommandFactory} from '@/commands/factories/ExecuteCommandFactory'
 import {HelpCommandFactory} from '@/commands/factories/HelpCommandFactory'
-import {OutdatedCommandFactory} from '@/commands/factories/OutdatedCommandFactory'
 import {PluginsCommandFactory} from '@/commands/factories/PluginsCommandFactory'
 import {UnknownCommandFactory} from '@/commands/factories/UnknownCommandFactory'
 import {VersionCommandFactory} from '@/commands/factories/VersionCommandFactory'
@@ -21,7 +20,7 @@ import {VersionCommandFactory} from '@/commands/factories/VersionCommandFactory'
 /**
  * Valid subcommands for the CLI
  */
-export type Subcommand = 'help' | 'version' | 'outdated' | 'init' | 'dry-run' | 'clean' | 'config' | 'plugins'
+export type Subcommand = 'help' | 'version' | 'init' | 'dry-run' | 'clean' | 'config' | 'plugins'
 
 /**
  * Valid log levels for the CLI
@@ -48,7 +47,7 @@ export interface ParsedCliArgs {
 /**
  * Valid subcommands set for quick lookup
  */
-const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'version', 'outdated', 'init', 'dry-run', 'clean', 'config', 'plugins'])
+const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'version', 'init', 'dry-run', 'clean', 'config', 'plugins'])
 
 /**
  * Log level flags mapping
@@ -236,7 +235,6 @@ function createDefaultCommandRegistry(): CommandRegistry {
   registry.register(new HelpCommandFactory())
   registry.register(new UnknownCommandFactory())
 
-  registry.registerWithPriority(new OutdatedCommandFactory(), FactoryPriority.Subcommand) // Normal priority: subcommand-based commands
   registry.registerWithPriority(new DryRunCommandFactory(), FactoryPriority.Subcommand)
   registry.registerWithPriority(new CleanCommandFactory(), FactoryPriority.Subcommand)
   registry.registerWithPriority(new PluginsCommandFactory(), FactoryPriority.Subcommand)

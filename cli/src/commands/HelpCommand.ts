@@ -12,7 +12,6 @@ USAGE:
   ${CLI_NAME}                         Run the sync pipeline (default)
   ${CLI_NAME} help                    Show this help message
   ${CLI_NAME} version                 Show version information
-  ${CLI_NAME} outdated                Check for version updates
   ${CLI_NAME} init                    Initialize directories and files
   ${CLI_NAME} dry-run                 Preview what would be written
   ${CLI_NAME} clean                   Remove all generated files
@@ -22,7 +21,6 @@ USAGE:
 SUBCOMMANDS:
   help       Show this help message
   version    Show version information
-  outdated   Check if CLI version is outdated against npm registry
   init       Initialize directory structure based on configuration
   dry-run    Preview changes without writing files
   clean      Remove all generated output files and directories

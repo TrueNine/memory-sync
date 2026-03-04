@@ -13,7 +13,6 @@ pub fn execute() -> ExitCode {
     println!("  config       Set or show configuration values");
     println!("  plugins      List all registered plugins");
     println!("  version      Show version information");
-    println!("  outdated     Check if CLI version is outdated");
     println!("  help         Show this help message");
     println!();
     println!("OPTIONS:");

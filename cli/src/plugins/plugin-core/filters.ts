@@ -3,8 +3,8 @@ import type {
   RulePrompt,
   SeriName
 } from './types'
-import {createRequire} from 'node:module'
 import * as fs from 'node:fs'
+import {createRequire} from 'node:module'
 import * as path from 'node:path'
 import process from 'node:process'
 
@@ -82,8 +82,7 @@ function tryLoadNapi(): SeriesFilterFns | undefined {
     }
   }
   catch {
-    // NAPI unavailable — pure-TS fallback will be used.
-  }
+  } // NAPI unavailable — pure-TS fallback will be used.
   return void 0
 }
 
@@ -144,13 +143,9 @@ function extractPrefixAndBaseGlob(
       {prefix: normalizedPrefix, pattern: `${normalizedPrefix}\\`}
     ]
     for (const {prefix: p, pattern} of patterns) {
-      if (glob.startsWith(pattern)) {
-        return {prefix: p, baseGlob: glob.slice(pattern.length)}
-      }
+      if (glob.startsWith(pattern)) return {prefix: p, baseGlob: glob.slice(pattern.length)}
     }
-    if (glob === normalizedPrefix) {
-      return {prefix: normalizedPrefix, baseGlob: '**/*'}
-    }
+    if (glob === normalizedPrefix) return {prefix: normalizedPrefix, baseGlob: '**/*'}
   }
   return {prefix: null, baseGlob: glob}
 }
@@ -159,10 +154,7 @@ export function applySubSeriesGlobPrefix(
   rules: readonly RulePrompt[],
   projectConfig: ProjectConfig | undefined
 ): readonly RulePrompt[] {
-  const subSeries = resolveSubSeries(
-    projectConfig?.subSeries,
-    projectConfig?.rules?.subSeries
-  )
+  const subSeries = resolveSubSeries(projectConfig?.subSeries, projectConfig?.rules?.subSeries)
   if (Object.keys(subSeries).length === 0) return rules
 
   const normalizedSubSeries: Record<string, readonly string[]> = {}
@@ -173,7 +165,7 @@ export function applySubSeriesGlobPrefix(
 
   const allPrefixes = Object.keys(normalizedSubSeries)
 
-  return rules.map((rule) => {
+  return rules.map(rule => {
     if (rule.seriName == null) return rule
 
     const matchedPrefixes: string[] = []
@@ -188,10 +180,7 @@ export function applySubSeriesGlobPrefix(
 
     const newGlobs: string[] = []
     for (const originalGlob of rule.globs) {
-      const {prefix: existingPrefix, baseGlob} = extractPrefixAndBaseGlob(
-        originalGlob,
-        allPrefixes
-      )
+      const {prefix: existingPrefix, baseGlob} = extractPrefixAndBaseGlob(originalGlob, allPrefixes)
 
       if (existingPrefix != null) newGlobs.push(originalGlob)
 
@@ -208,7 +197,6 @@ export function applySubSeriesGlobPrefix(
     }
   })
 }
-
 
 /**
  * Resolves the actual `.git/info` directory for a given project path.
@@ -237,8 +225,7 @@ export function resolveGitInfoDir(projectDir: string): string | null {
       }
     }
     catch {
-      // ignore read errors
-    }
+    } // ignore read errors
   }
 
   return null

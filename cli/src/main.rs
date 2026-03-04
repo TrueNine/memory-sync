@@ -1,6 +1,6 @@
 //! tnmsc — Rust CLI entry point.
 //!
-//! Pure Rust commands: help, version, outdated, config, config-show
+//! Pure Rust commands: help, version, config, config-show
 //! Bridge commands (Node.js): execute, dry-run, clean, plugins
 
 mod cli;
@@ -32,7 +32,6 @@ fn main() -> ExitCode {
         // Pure Rust commands
         ResolvedCommand::Help => tnmsc::commands::help::execute(),
         ResolvedCommand::Version => tnmsc::commands::version::execute(),
-        ResolvedCommand::Outdated => tnmsc::commands::outdated::execute(),
         ResolvedCommand::Config(pairs) => tnmsc::commands::config_cmd::execute(&pairs),
         ResolvedCommand::ConfigShow => tnmsc::commands::config_show::execute(),
 

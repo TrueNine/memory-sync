@@ -59,19 +59,15 @@ export function resolveTopicScopes(
 
   const prioritized = sortByPriority(candidates, priority)
 
-  if (singleScope) {
-    if (availableScopes != null && availableScopes.length > 0) {
-      const available = new Set(availableScopes)
-      const matched = prioritized.find(scope => available.has(scope))
-      if (matched == null) return []
-      return [matched]
-    }
+  if (!singleScope) return prioritized
 
-    const [first] = prioritized
-    if (first == null) return []
-    return [first]
+  if (availableScopes != null && availableScopes.length > 0) {
+    const available = new Set(availableScopes)
+    const matched = prioritized.find(scope => available.has(scope))
+    if (matched == null) return []
+    return [matched]
   }
-
-  return prioritized
+  const [first] = prioritized
+  if (first == null) return []
+  return [first]
 }
-

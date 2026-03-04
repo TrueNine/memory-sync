@@ -48,4 +48,3 @@ describe('resolveTopicScopes', () => {
     expect(result).toEqual([])
   })
 })
-

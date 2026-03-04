@@ -1,24 +1,22 @@
-import {Buffer} from 'node:buffer'
-import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputCleanupScope, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt} from './types'
-
-import type {Path, ProjectConfig, RegistryData} from './types'
 import type {RegistryWriter} from './RegistryWriter'
+import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputCleanupScope, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, Path, ProjectConfig, RegistryData, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt} from './types'
+
+import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import {mdxToMd} from '@truenine/md-compiler'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {GlobalScopeCollector} from './GlobalScopeCollector'
 import {AbstractPlugin} from './AbstractPlugin'
-import {FilePathKind,
-  PluginKind} from './enums'
+import {FilePathKind, PluginKind} from './enums'
 import {
   applySubSeriesGlobPrefix,
   filterByProjectConfig
 } from './filters'
-import {OUTPUT_SCOPE_TOPICS} from './types'
+import {GlobalScopeCollector} from './GlobalScopeCollector'
 import {resolveTopicScopes} from './scopePolicy'
+import {OUTPUT_SCOPE_TOPICS} from './types'
 
 interface ScopedSourceConfig {
   /** Allowed source scopes for the topic */
@@ -189,17 +187,17 @@ export interface CombineOptions {
   position?: 'before' | 'after'
 }
 
-type DeclarativeOutputSource =
-  | {readonly kind: 'projectRootMemory', readonly content: string}
-  | {readonly kind: 'projectChildMemory', readonly content: string}
-  | {readonly kind: 'globalMemory', readonly content: string}
-  | {readonly kind: 'command', readonly command: CommandPrompt}
-  | {readonly kind: 'subAgent', readonly subAgent: SubAgentPrompt}
-  | {readonly kind: 'skillMain', readonly skill: SkillPrompt}
-  | {readonly kind: 'skillReference', readonly content: string}
-  | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
-  | {readonly kind: 'rule', readonly rule: RulePrompt}
-  | {readonly kind: 'ignoreFile', readonly content: string}
+type DeclarativeOutputSource
+  = | {readonly kind: 'projectRootMemory', readonly content: string}
+    | {readonly kind: 'projectChildMemory', readonly content: string}
+    | {readonly kind: 'globalMemory', readonly content: string}
+    | {readonly kind: 'command', readonly command: CommandPrompt}
+    | {readonly kind: 'subAgent', readonly subAgent: SubAgentPrompt}
+    | {readonly kind: 'skillMain', readonly skill: SkillPrompt}
+    | {readonly kind: 'skillReference', readonly content: string}
+    | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
+    | {readonly kind: 'rule', readonly rule: RulePrompt}
+    | {readonly kind: 'ignoreFile', readonly content: string}
 
 export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Output> implements OutputPlugin {
   readonly declarativeOutput = true as const
@@ -299,35 +297,35 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const capabilities: OutputPluginCapabilities = {}
 
     if (this.outputFileName.length > 0) {
-      capabilities['prompt'] = {
+      capabilities.prompt = {
         scopes: ['project', 'global'],
         singleScope: false
       }
     }
 
     if (this.ruleOutputEnabled) {
-      capabilities['rules'] = {
+      capabilities.rules = {
         scopes: this.rulesConfig.sourceScopes ?? ['project', 'workspace', 'global'],
         singleScope: false
       }
     }
 
     if (this.commandOutputEnabled) {
-      capabilities['commands'] = {
+      capabilities.commands = {
         scopes: this.commandsConfig.sourceScopes,
         singleScope: true
       }
     }
 
     if (this.subAgentOutputEnabled) {
-      capabilities['subagents'] = {
+      capabilities.subagents = {
         scopes: this.subAgentsConfig.sourceScopes,
         singleScope: true
       }
     }
 
     if (this.skillOutputEnabled) {
-      capabilities['skills'] = {
+      capabilities.skills = {
         scopes: this.skillsConfig.sourceScopes,
         singleScope: true
       }
@@ -807,7 +805,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
     const cleanupDelete = this.buildCleanupTargetsFromScopeConfig(this.cleanupConfig.delete, 'delete', ctx)
     const cleanupProtect = this.buildCleanupTargetsFromScopeConfig(this.cleanupConfig.protect, 'protect', ctx)
-    const excludeScanGlobs = this.cleanupConfig.excludeScanGlobs
+    const {excludeScanGlobs} = this.cleanupConfig
 
     if (cleanupDelete.length === 0 && cleanupProtect.length === 0 && (excludeScanGlobs == null || excludeScanGlobs.length === 0)) return {}
 
@@ -829,20 +827,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       case 'projectChildMemory':
       case 'globalMemory':
       case 'skillReference':
-      case 'ignoreFile':
-        return source.content
-      case 'command':
-        return this.buildCommandContent(source.command)
-      case 'subAgent':
-        return this.buildSubAgentContent(source.subAgent)
-      case 'skillMain':
-        return this.buildSkillMainContent(source.skill)
-      case 'skillResource':
-        return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
-      case 'rule':
-        return this.buildRuleContent(source.rule)
-      default:
-        throw new Error(`Unsupported declaration source for plugin ${this.name}`)
+      case 'ignoreFile': return source.content
+      case 'command': return this.buildCommandContent(source.command)
+      case 'subAgent': return this.buildSubAgentContent(source.subAgent)
+      case 'skillMain': return this.buildSkillMainContent(source.skill)
+      case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
+      case 'rule': return this.buildRuleContent(source.rule)
+      default: throw new Error(`Unsupported declaration source for plugin ${this.name}`)
     }
   }
 
@@ -931,7 +922,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       }
 
       const basePath = path.join(projectDir.basePath, projectDir.path, this.globalConfigDir)
-      const projectConfig = project.projectConfig
+      const {projectConfig} = project
 
       if (selectedCommands.selectedScope === 'project' && selectedCommands.items.length > 0) {
         const filteredCommands = filterByProjectConfig(selectedCommands.items, projectConfig, 'commands')
@@ -993,7 +984,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
       if (activeRuleScopes.has('project')) {
         const projectRules = applySubSeriesGlobPrefix(
-          filterByProjectConfig(rulesByScope['project'], projectConfig, 'rules'),
+          filterByProjectConfig(rulesByScope.project, projectConfig, 'rules'),
           projectConfig
         )
         const rulesDir = path.join(basePath, this.rulesConfig.subDir ?? 'rules')
@@ -1148,9 +1139,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     }
 
     const commandFrontMatterTransformer = this.commandsConfig.transformFrontMatter
-    if (commandFrontMatterTransformer == null) {
-      throw new Error(`commands.transformFrontMatter is required for command output plugin: ${this.name}`)
-    }
+    if (commandFrontMatterTransformer == null) throw new Error(`commands.transformFrontMatter is required for command output plugin: ${this.name}`)
 
     const transformedFrontMatter = commandFrontMatterTransformer(cmd, {
       isRecompiled: useRecompiledFrontMatter,

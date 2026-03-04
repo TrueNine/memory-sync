@@ -10,7 +10,6 @@ import {JsonOutputCommand} from '@/commands/JsonOutputCommand'
 import {extractUserArgs, parseArgs, resolveCommand} from '@/pipeline/CliArgumentParser'
 import {buildDependencyContext, mergeContexts} from '@/pipeline/ContextMerger'
 import {topologicalSort} from '@/pipeline/PluginDependencyResolver'
-import {startupVersionCheck} from '@/versionCheck'
 import {createLogger, GlobalScopeCollector, ScopePriority, ScopeRegistry, setGlobalLogLevel} from './plugins/plugin-core'
 
 /**
@@ -43,8 +42,6 @@ export class PluginPipeline {
   }
 
   async run(config: PipelineConfig): Promise<void> {
-    void startupVersionCheck(this.logger) // Don't await - let it run in background without blocking process exit // Startup version check (runs on even minutes, non-blocking)
-
     const {context, outputPlugins, userConfigOptions} = config
     this.registerOutputPlugins([...outputPlugins])
 
