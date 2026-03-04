@@ -1,4 +1,5 @@
 import type {ILogger, OutputCleanContext, OutputPlugin} from '../plugins/plugin-core'
+import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
 import {deleteDirectories as deskDeleteDirectories, deleteFiles as deskDeleteFiles} from '../plugins/desk-paths'
@@ -31,10 +32,49 @@ interface DirPathLike {
   readonly getAbsolutePath?: () => string
 }
 
+const KNOWN_AINDEX_INPUT_CONFIG_RELATIVE_PATHS = [
+  '.editorconfig',
+  '.vscode/settings.json',
+  '.vscode/extensions.json',
+  '.idea/codeStyles/Project.xml',
+  '.idea/codeStyles/codeStyleConfig.xml',
+  '.idea/.gitignore',
+  '.qoderignore',
+  '.cursorignore',
+  '.warpindexignore',
+  '.aiignore',
+  '.codeiumignore',
+  '.kiroignore',
+  '.traeignore'
+] as const
+
 function normalizeForComparison(p: string): string {
   const normalized = path.normalize(path.resolve(p))
   if (process.platform === 'win32') return normalized.toLowerCase()
   return normalized
+}
+
+function buildComparisonKeys(rawPath: string): readonly string[] {
+  const keys = new Set<string>()
+  const normalized = normalizeForComparison(rawPath)
+  keys.add(normalized)
+
+  try {
+    if (fs.existsSync(rawPath)) {
+      const realPath = fs.realpathSync.native(rawPath)
+      keys.add(normalizeForComparison(realPath))
+    }
+  }
+  catch {}
+
+  return [...keys]
+}
+
+function hasAnyKeyInSet(keys: readonly string[], target: Set<string>): boolean {
+  for (const key of keys) {
+    if (target.has(key)) return true
+  }
+  return false
 }
 
 function resolveAbsolutePathFromDir(dir: DirPathLike | undefined): string | undefined {
@@ -59,7 +99,7 @@ function collectInputSourcePaths(cleanCtx: OutputCleanContext): Set<string> {
 
   const addResolvedPath = (rawPath: string | undefined): void => {
     if (rawPath == null || rawPath.length === 0) return
-    protectedPaths.add(normalizeForComparison(rawPath))
+    for (const key of buildComparisonKeys(rawPath)) protectedPaths.add(key)
   }
 
   const addPathFromDir = (dir: DirPathLike | undefined): void => {
@@ -85,6 +125,10 @@ function collectInputSourcePaths(cleanCtx: OutputCleanContext): Set<string> {
   for (const config of collected.editorConfigFiles ?? []) addPathFromDir(config.dir as DirPathLike | undefined)
 
   for (const ignoreFile of collected.aiAgentIgnoreConfigFiles ?? []) addResolvedPath(ignoreFile.sourcePath)
+  const {aindexDir} = collected
+  if (aindexDir != null) {
+    for (const relativePath of KNOWN_AINDEX_INPUT_CONFIG_RELATIVE_PATHS) addResolvedPath(path.join(aindexDir, relativePath))
+  }
 
   return protectedPaths
 }
@@ -104,12 +148,14 @@ export async function collectDeletionTargets(
   for (const plugin of outputPlugins) {
     const declarations = await plugin.declareOutputFiles({...cleanCtx, dryRun: true})
     for (const declaration of declarations) {
-      const normalizedDeclarationPath = normalizeForComparison(declaration.path)
-      if (protectedInputPaths.has(normalizedDeclarationPath)) {
-        protectedFiles.set(normalizedDeclarationPath, declaration.path)
+      const declarationKeys = buildComparisonKeys(declaration.path)
+      if (hasAnyKeyInSet(declarationKeys, protectedInputPaths)) {
+        const [primaryKey] = declarationKeys
+        if (primaryKey != null) protectedFiles.set(primaryKey, declaration.path)
         continue
       }
-      filesToDelete.set(normalizedDeclarationPath, declaration.path)
+      const [primaryKey] = declarationKeys
+      if (primaryKey != null) filesToDelete.set(primaryKey, declaration.path)
     }
   }
 

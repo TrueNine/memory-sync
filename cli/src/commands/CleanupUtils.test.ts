@@ -106,4 +106,17 @@ describe('collectDeletionTargets', () => {
     expect(new Set(result.filesToDelete)).toEqual(new Set([outputA, outputB]))
     expect(result.protectedFiles).toEqual([])
   })
+
+  it('protects known aindex input config files by aindexDir fallback', async () => {
+    const aindexDir = path.resolve('tmp-aindex')
+    const editorConfigOutput = path.resolve(aindexDir, '.editorconfig')
+    const safeOutput = path.resolve('tmp-out/c.md')
+    const ctx = createCleanContext({aindexDir})
+    const plugin = createMockOutputPlugin('MockOutputPlugin', [editorConfigOutput, safeOutput])
+
+    const result = await collectDeletionTargets([plugin], ctx)
+
+    expect(result.filesToDelete).toEqual([safeOutput])
+    expect(result.protectedFiles).toEqual([editorConfigOutput])
+  })
 })
