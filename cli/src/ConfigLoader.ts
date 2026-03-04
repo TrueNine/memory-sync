@@ -1,9 +1,9 @@
-import type {AindexConfig, ConfigLoaderOptions, ConfigLoadResult, ILogger, UserConfigFile} from './plugins/plugin-shared'
+import type {AindexConfig, ConfigLoaderOptions, ConfigLoadResult, ILogger, UserConfigFile} from './plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {convertUserConfigAindexToShadowSourceProject, createLogger, DEFAULT_USER_CONFIG, ZUserConfigFile} from './plugins/plugin-shared'
+import {createLogger, ZUserConfigFile} from './plugins/plugin-core'
 
 /**
  * Default config file name
@@ -20,15 +20,6 @@ export const DEFAULT_GLOBAL_CONFIG_DIR = '.aindex'
  */
 export function getGlobalConfigPath(): string {
   return path.join(os.homedir(), DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
-}
-
-/**
- * Get default user config content
- * Uses build-time injected template from public/tnmsc.example.json
- * @deprecated Config is now required - no default config is provided
- */
-export function getDefaultUserConfig(): UserConfigFile {
-  return {...DEFAULT_USER_CONFIG}
 }
 
 /**
@@ -133,9 +124,7 @@ export class ConfigLoader {
     }
 
     const result = ZUserConfigFile.safeParse(parsed)
-    if (result.success) {
-      return convertUserConfigAindexToShadowSourceProject(result.data) // Convert aindex format to shadowSourceProject format if needed
-    }
+    if (result.success) return result.data
 
     const errors = result.error.issues.map((i: {path: (string | number)[], message: string}) => `${i.path.join('.')}: ${i.message}`) // Validation failed - throw error instead of returning empty config
     throw new Error(`Config validation failed in ${filePath}:\n${errors.join('\n')}`)
@@ -298,12 +287,4 @@ export function validateGlobalConfig(): GlobalConfigValidationResult {
     errors: [],
     shouldExit: false
   }
-}
-
-/**
- * @deprecated Use validateGlobalConfig() instead. This function is kept for backward compatibility
- * but no longer auto-creates default config.
- */
-export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
-  return validateGlobalConfig()
 }

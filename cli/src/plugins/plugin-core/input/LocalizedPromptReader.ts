@@ -1,6 +1,7 @@
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {
   DirectoryReadResult,
+  ILogger,
   Locale,
   LocalizedContent,
   LocalizedPrompt,
@@ -25,7 +26,7 @@ export class LocalizedPromptReader {
   constructor(
     private fs: typeof import('node:fs'),
     private path: typeof import('node:path'),
-    private logger: import('../plugin-shared').ILogger,
+    private logger: ILogger,
     private globalScope?: MdxGlobalScope
   ) {}
 
@@ -428,7 +429,7 @@ export class LocalizedPromptReader {
 export function createLocalizedPromptReader(
   fs: typeof import('node:fs'),
   path: typeof import('node:path'),
-  logger: import('../plugin-shared').ILogger,
+  logger: ILogger,
   globalScope?: MdxGlobalScope
 ): LocalizedPromptReader {
   return new LocalizedPromptReader(fs, path, logger, globalScope)

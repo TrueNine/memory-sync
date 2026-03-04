@@ -1,4 +1,4 @@
-import type {AindexConfig, CollectedInputContext, CommandSeriesOptions, CommandSeriesPluginOverride, ConfigLoaderOptions, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, UserConfigFile} from './plugins/plugin-shared'
+import type {AindexConfig, CollectedInputContext, CommandSeriesOptions, CommandSeriesPluginOverride, ConfigLoaderOptions, InputPlugin, InputPluginContext, OutputPlugin, PluginOptions, UserConfigFile} from './plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
@@ -6,7 +6,7 @@ import glob from 'fast-glob'
 import {checkVersionControl} from './Aindex'
 import {loadUserConfig, validateGlobalConfig} from './ConfigLoader'
 import {PluginPipeline} from './PluginPipeline'
-import {createLogger, PluginKind} from './plugins/plugin-shared'
+import {createLogger, PluginKind} from './plugins/plugin-core'
 
 /**
  * Pipeline configuration containing collected context and output plugins
@@ -45,11 +45,11 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
  */
 function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOptions> {
   return {
-    ...userConfig.version != null ? {version: userConfig.version} : {},
-    ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},
-    ...userConfig.aindex != null ? {aindex: userConfig.aindex} : {},
-    ...userConfig.commandSeriesOptions != null ? {commandSeriesOptions: userConfig.commandSeriesOptions} : {},
-    ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
+    ...(userConfig.version != null ? {version: userConfig.version} : {}),
+    ...(userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {}),
+    ...(userConfig.aindex != null ? {aindex: userConfig.aindex} : {}),
+    ...(userConfig.commandSeriesOptions != null ? {commandSeriesOptions: userConfig.commandSeriesOptions} : {}),
+    ...(userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {})
   }
 }
 
@@ -238,19 +238,19 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
 
   const context: CollectedInputContext = {
     workspace: merged.workspace,
-    ...merged.vscodeConfigFiles != null && {vscodeConfigFiles: merged.vscodeConfigFiles},
-    ...merged.jetbrainsConfigFiles != null && {jetbrainsConfigFiles: merged.jetbrainsConfigFiles},
-    ...merged.editorConfigFiles != null && {editorConfigFiles: merged.editorConfigFiles},
-    ...merged.commands != null && {commands: merged.commands},
-    ...merged.subAgents != null && {subAgents: merged.subAgents},
-    ...merged.skills != null && {skills: merged.skills},
-    ...merged.rules != null && {rules: merged.rules},
-    ...merged.globalMemory != null && {globalMemory: merged.globalMemory},
-    ...merged.aiAgentIgnoreConfigFiles != null && {aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles},
-    ...merged.aindexDir != null && {aindexDir: merged.aindexDir},
-    ...merged.readmePrompts != null && {readmePrompts: merged.readmePrompts},
-    ...merged.globalGitIgnore != null && {globalGitIgnore: merged.globalGitIgnore},
-    ...merged.shadowGitExclude != null && {shadowGitExclude: merged.shadowGitExclude}
+    ...(merged.vscodeConfigFiles != null && {vscodeConfigFiles: merged.vscodeConfigFiles}),
+    ...(merged.jetbrainsConfigFiles != null && {jetbrainsConfigFiles: merged.jetbrainsConfigFiles}),
+    ...(merged.editorConfigFiles != null && {editorConfigFiles: merged.editorConfigFiles}),
+    ...(merged.commands != null && {commands: merged.commands}),
+    ...(merged.subAgents != null && {subAgents: merged.subAgents}),
+    ...(merged.skills != null && {skills: merged.skills}),
+    ...(merged.rules != null && {rules: merged.rules}),
+    ...(merged.globalMemory != null && {globalMemory: merged.globalMemory}),
+    ...(merged.aiAgentIgnoreConfigFiles != null && {aiAgentIgnoreConfigFiles: merged.aiAgentIgnoreConfigFiles}),
+    ...(merged.aindexDir != null && {aindexDir: merged.aindexDir}),
+    ...(merged.readmePrompts != null && {readmePrompts: merged.readmePrompts}),
+    ...(merged.globalGitIgnore != null && {globalGitIgnore: merged.globalGitIgnore}),
+    ...(merged.shadowGitExclude != null && {shadowGitExclude: merged.shadowGitExclude})
   }
 
   if (merged.aindexDir != null) checkVersionControl(merged.aindexDir, logger) // Check version control status for aindex

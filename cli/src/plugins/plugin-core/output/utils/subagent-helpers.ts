@@ -1,5 +1,5 @@
-import type {SubAgentPrompt} from '../../plugin-shared/types/InputTypes'
-import type {SubAgentFrontMatterField, SubAgentOutputConfig} from '../../plugin-shared/types/OutputTypes'
+import type {SubAgentPrompt} from '../../types/InputTypes'
+import type {SubAgentFrontMatterField, SubAgentOutputConfig} from '../../types/OutputTypes'
 
 import {buildMarkdownWithFrontMatter, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
 

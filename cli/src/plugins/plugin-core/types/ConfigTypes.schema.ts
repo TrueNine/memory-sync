@@ -2,53 +2,32 @@ import {z} from 'zod/v3'
 
 /**
  * Zod schema for a source/dist path pair.
- * Both paths are relative to the shadow source project root.
+ * Both paths are relative to the aindex project root.
  */
-export const ZShadowSourceProjectDirPair = z.object({
-  /** Source path (human-authored .cn.mdx files) */
+export const ZAindexDirPair = z.object({
   src: z.string(),
-  /** Output/compiled path (read by input plugins) */
   dist: z.string()
 })
 
 /**
- * Zod schema for the shadow source project configuration.
- * All paths are relative to `<workspaceDir>/<name>`.
- * @deprecated Use ZAindexConfig instead.
- */
-export const ZShadowSourceProjectConfig = z.object({
-  dir: z.string().default('aindex'),
-  skills: ZShadowSourceProjectDirPair,
-  commands: ZShadowSourceProjectDirPair,
-  subAgents: ZShadowSourceProjectDirPair,
-  rules: ZShadowSourceProjectDirPair,
-  globalPrompt: ZShadowSourceProjectDirPair,
-  workspacePrompt: ZShadowSourceProjectDirPair,
-  app: ZShadowSourceProjectDirPair,
-  ext: ZShadowSourceProjectDirPair,
-  arch: ZShadowSourceProjectDirPair
-})
-
-/**
  * Zod schema for the aindex configuration.
- * This is the user-facing configuration format in ~/.aindex/.tnmsc.json
- * All paths are relative to `<workspaceDir>/<name>`.
+ * All paths are relative to <workspaceDir>/<aindex.dir>.
  */
 export const ZAindexConfig = z.object({
   dir: z.string().default('aindex'),
-  skills: ZShadowSourceProjectDirPair,
-  commands: ZShadowSourceProjectDirPair,
-  subAgents: ZShadowSourceProjectDirPair,
-  rules: ZShadowSourceProjectDirPair,
-  globalPrompt: ZShadowSourceProjectDirPair,
-  workspacePrompt: ZShadowSourceProjectDirPair,
-  app: ZShadowSourceProjectDirPair,
-  ext: ZShadowSourceProjectDirPair,
-  arch: ZShadowSourceProjectDirPair
+  skills: ZAindexDirPair,
+  commands: ZAindexDirPair,
+  subAgents: ZAindexDirPair,
+  rules: ZAindexDirPair,
+  globalPrompt: ZAindexDirPair,
+  workspacePrompt: ZAindexDirPair,
+  app: ZAindexDirPair,
+  ext: ZAindexDirPair,
+  arch: ZAindexDirPair
 })
 
 /**
- * Zod schema for per-plugin command series override options
+ * Zod schema for per-plugin command series override options.
  */
 export const ZCommandSeriesPluginOverride = z.object({
   includeSeriesPrefix: z.boolean().optional(),
@@ -56,7 +35,7 @@ export const ZCommandSeriesPluginOverride = z.object({
 })
 
 /**
- * Zod schema for command series configuration options
+ * Zod schema for command series configuration options.
  */
 export const ZCommandSeriesOptions = z.object({
   includeSeriesPrefix: z.boolean().optional(),
@@ -64,7 +43,7 @@ export const ZCommandSeriesOptions = z.object({
 })
 
 /**
- * Zod schema for user profile information
+ * Zod schema for user profile information.
  */
 export const ZUserProfile = z.object({
   name: z.string().optional(),
@@ -75,51 +54,25 @@ export const ZUserProfile = z.object({
 
 /**
  * Zod schema for the user configuration file (.tnmsc.json).
- * Supports both 'aindex' format and legacy 'shadowSourceProject' format.
- * Note: Both formats have the same structure, shadowSourceProject is kept for backward compatibility.
  */
 export const ZUserConfigFile = z.object({
   version: z.string().optional(),
   workspaceDir: z.string().optional(),
-  /** Aindex configuration */
   aindex: ZAindexConfig.optional(),
-  /** @deprecated Use aindex instead. Kept for backward compatibility. */
-  shadowSourceProject: ZShadowSourceProjectConfig.optional(),
   logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error']).optional(),
   commandSeriesOptions: ZCommandSeriesOptions.optional(),
   profile: ZUserProfile.optional()
 })
 
 /**
- * Convert UserConfigFile to ensure aindex field is populated.
- * If shadowSourceProject is provided but aindex is not, copies shadowSourceProject to aindex.
- * @deprecated This function is kept for backward compatibility.
+ * Zod schema for MCP project config.
  */
-export function convertUserConfigAindexToShadowSourceProject(
-  config: z.infer<typeof ZUserConfigFile>
-): z.infer<typeof ZUserConfigFile> {
-  if (config.aindex != null) { // If aindex is explicitly provided, use it directly
-    return config
-  }
-
-  if (config.shadowSourceProject != null) { // If shadowSourceProject is provided but aindex is not, copy it to aindex
-    return {
-      ...config,
-      aindex: config.shadowSourceProject
-    }
-  }
-
-  return config // Neither format provided - return as-is
-}
-
-/**
- * Zod schema for MCP project config
- */
-export const ZMcpProjectConfig = z.object({names: z.array(z.string()).optional()})
+export const ZMcpProjectConfig = z.object({
+  names: z.array(z.string()).optional()
+})
 
 /**
  * Zod schema for per-type series filtering configuration.
- * Shared by all four prompt type sections (rules, skills, subAgents, commands).
  */
 export const ZTypeSeriesConfig = z.object({
   includeSeries: z.array(z.string()).optional(),
@@ -127,7 +80,7 @@ export const ZTypeSeriesConfig = z.object({
 })
 
 /**
- * Zod schema for project config
+ * Zod schema for project config.
  */
 export const ZProjectConfig = z.object({
   mcp: ZMcpProjectConfig.optional(),
@@ -140,7 +93,7 @@ export const ZProjectConfig = z.object({
 })
 
 /**
- * Zod schema for ConfigLoader options
+ * Zod schema for ConfigLoader options.
  */
 export const ZConfigLoaderOptions = z.object({
   configFileName: z.string().optional(),
@@ -149,13 +102,8 @@ export const ZConfigLoaderOptions = z.object({
   searchGlobal: z.boolean().optional()
 })
 
-export type AindexDirPair = z.infer<typeof ZShadowSourceProjectDirPair>
-export type AindexConfig = z.infer<typeof ZShadowSourceProjectConfig>
-
-/** @deprecated Use AindexDirPair instead */
-export type ShadowSourceProjectDirPair = AindexDirPair
-/** @deprecated Use AindexConfig instead */
-export type ShadowSourceProjectConfig = AindexConfig
+export type AindexDirPair = z.infer<typeof ZAindexDirPair>
+export type AindexConfig = z.infer<typeof ZAindexConfig>
 export type CommandSeriesPluginOverride = z.infer<typeof ZCommandSeriesPluginOverride>
 export type CommandSeriesOptions = z.infer<typeof ZCommandSeriesOptions>
 export type UserConfigFile = z.infer<typeof ZUserConfigFile>
@@ -165,7 +113,7 @@ export type ProjectConfig = z.infer<typeof ZProjectConfig>
 export type ConfigLoaderOptions = z.infer<typeof ZConfigLoaderOptions>
 
 /**
- * Result of loading a config file
+ * Result of loading a config file.
  */
 export interface ConfigLoadResult {
   readonly config: UserConfigFile

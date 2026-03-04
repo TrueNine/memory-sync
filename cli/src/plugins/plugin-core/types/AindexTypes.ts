@@ -295,34 +295,4 @@ export type AindexFileName = (typeof AINDEX_FILE_NAMES)[keyof typeof AINDEX_FILE
 /**
  * Type for relative paths
  */
-export type AindexRelativePath = (typeof AINDEX_RELATIVE_PATHS)[keyof typeof AINDEX_RELATIVE_PATHS] // Backward compatibility aliases (deprecated, use Aindex* versions instead)
-
-/** @deprecated Use AindexFileEntry instead */
-export type ShadowSourceFileEntry = AindexFileEntry
-
-/** @deprecated Use AindexDirectoryEntry instead */
-export type ShadowSourceDirectoryEntry = AindexDirectoryEntry
-
-/** @deprecated Use AindexDirectory instead */
-export type ShadowSourceProjectDirectory = AindexDirectory
-
-/** @deprecated Use AindexDirName instead */
-export type ShadowSourceDirName = AindexDirName
-
-/** @deprecated Use AindexFileName instead */
-export type ShadowSourceFileName = AindexFileName
-
-/** @deprecated Use AindexRelativePath instead */
-export type ShadowSourceRelativePath = AindexRelativePath
-
-/** @deprecated Use AINDEX_DIR_NAMES instead */
-export const SHADOW_SOURCE_DIR_NAMES = AINDEX_DIR_NAMES
-
-/** @deprecated Use AINDEX_FILE_NAMES instead */
-export const SHADOW_SOURCE_FILE_NAMES = AINDEX_FILE_NAMES
-
-/** @deprecated Use AINDEX_RELATIVE_PATHS instead */
-export const SHADOW_SOURCE_RELATIVE_PATHS = AINDEX_RELATIVE_PATHS
-
-/** @deprecated Use DEFAULT_AINDEX_STRUCTURE instead */
-export const DEFAULT_SHADOW_SOURCE_PROJECT_STRUCTURE = DEFAULT_AINDEX_STRUCTURE
+export type AindexRelativePath = (typeof AINDEX_RELATIVE_PATHS)[keyof typeof AINDEX_RELATIVE_PATHS]

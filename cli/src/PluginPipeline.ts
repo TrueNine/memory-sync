@@ -5,6 +5,7 @@ import type {PipelineConfig} from '@/config'
 import type {ParsedCliArgs} from '@/pipeline'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {createLogger, setGlobalLogLevel} from './plugins/plugin-core'
 import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from './plugins/plugin-core'
 import glob from 'fast-glob'
 import {
@@ -18,23 +19,6 @@ import {
   topologicalSort
 } from '@/pipeline'
 import {startupVersionCheck} from '@/versionCheck'
-import {createLogger, setGlobalLogLevel} from './plugins/plugin-shared'
-
-export type {
-  LogLevel,
-  ParsedCliArgs,
-  Subcommand
-} from '@/pipeline' // Re-export types for backwards compatibility
-
-export { // Re-export functions for backwards compatibility
-  buildDependencyGraph,
-  extractUserArgs,
-  parseArgs,
-  resolveCommand,
-  resolveLogLevel,
-  topologicalSort,
-  validateDependencies
-} from '@/pipeline'
 
 /**
  * Plugin Pipeline - Orchestrates plugin execution

@@ -1,4 +1,4 @@
-import type {UserConfigFile} from '../types/config'
+import type {UserConfigFile} from '../types/ConfigTypes.schema'
 
 export const PathPlaceholders = {
   USER_HOME: '~',

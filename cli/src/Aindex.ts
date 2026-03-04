@@ -2,7 +2,7 @@
  * Aindex validation and generation utilities
  * 使用扁平的 bundles 结构直接遍历创建项目目录和文件
  */
-import type {ILogger} from './plugins/plugin-shared'
+import type {ILogger} from './plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 

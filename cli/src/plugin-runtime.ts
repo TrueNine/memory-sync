@@ -1,4 +1,4 @@
-import type {OutputCleanContext, OutputWriteContext} from './plugins/plugin-shared'
+import type {OutputCleanContext, OutputWriteContext} from './plugins/plugin-core'
 /**
  * Plugin Runtime Entry Point
  *
@@ -25,7 +25,7 @@ import {
   PluginsCommand
 } from '@/commands'
 import userPluginConfigPromise from './plugin.config'
-import {createLogger, setGlobalLogLevel} from './plugins/plugin-shared'
+import {createLogger, setGlobalLogLevel} from './plugins/plugin-core'
 
 /**
  * Parse runtime arguments.

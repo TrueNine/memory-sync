@@ -1,12 +1,15 @@
 import process from 'node:process'
 import {PluginPipeline} from '@/PluginPipeline'
 import userPluginConfigPromise from './plugin.config'
-import {createLogger} from './plugins/plugin-shared'
+import {createLogger, DEFAULT_USER_CONFIG, PathPlaceholders} from './plugins/plugin-core'
 
 export * from './Aindex'
 export * from './config'
 export * from './ConfigLoader'
-export * from './constants'
+export {
+  DEFAULT_USER_CONFIG,
+  PathPlaceholders
+}
 export {
   default
 } from './plugin.config'

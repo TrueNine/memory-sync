@@ -1,4 +1,4 @@
-import type {ILogger} from './plugins/plugin-shared'
+import type {ILogger} from './plugins/plugin-core'
 
 /**
  * Get package name from build-time injection or fallback

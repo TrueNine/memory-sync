@@ -37,31 +37,55 @@ export * from './types'
 // Input exports
 export {
   AbstractInputPlugin,
-  BaseDirectoryInputPlugin,
-  BaseFileInputPlugin,
+} from './input/AbstractInputPlugin'
+export {
+  BaseDirectoryInputPlugin
+} from './input/BaseDirectoryInputPlugin'
+export {
+  BaseFileInputPlugin
+} from './input/BaseFileInputPlugin'
+export {
   LocalizedPromptReader,
   createLocalizedPromptReader
-} from './input'
+} from './input/LocalizedPromptReader'
 export type {
-  DirectoryInputPluginOptions,
+  DirectoryInputPluginOptions
+} from './input/BaseDirectoryInputPlugin'
+export type {
   FileInputPluginOptions
-} from './input'
+} from './input/BaseFileInputPlugin'
 
 // Output exports
 export {
-  AbstractOutputPlugin,
+  AbstractOutputPlugin
+} from './output/AbstractOutputPlugin'
+export type {
+  AbstractOutputPluginOptions,
+  CombineOptions,
+  CommandNameTransformOptions,
+  ErrorContext,
+  RuleContentOptions,
+  RuleOutputConfig,
+  SkillFrontMatterOptions,
+  WriteOperationOptions
+} from './output/AbstractOutputPlugin'
+export {
   McpConfigManager,
   transformMcpConfigForCursor,
-  transformMcpConfigForOpencode,
+  transformMcpConfigForOpencode
+} from './output/McpConfigManager'
+export {
   RegistryWriter
-} from './output'
+} from './output/registry/RegistryWriter'
 export type {
-  McpConfigFormat,
+  McpConfigFormat
+} from './output/McpConfigManager'
+export type {
   McpServerEntry,
   McpWriteResult,
   McpConfigTransformer,
   TransformedMcpConfig
-} from './output'
+} from './output/McpConfigManager'
 
 // Output utils exports
 export {
@@ -93,14 +117,18 @@ export type {
 
 // Scope exports
 export {
-  GlobalScopeCollector,
+  GlobalScopeCollector
+} from './scope/GlobalScopeCollector'
+export {
   ScopePriority,
   ScopeRegistry
-} from './scope'
+} from './scope/ScopeRegistry'
 export type {
-  GlobalScopeCollectorOptions,
+  GlobalScopeCollectorOptions
+} from './scope/GlobalScopeCollector'
+export type {
   ScopeRegistration
-} from './scope'
+} from './scope/ScopeRegistry'
 
 // Testing exports
 export {
