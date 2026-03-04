@@ -1,6 +1,8 @@
-import type {ILogger, OutputCleanContext, OutputPlugin} from '../plugins/plugin-core'
+import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputPlugin} from '../plugins/plugin-core'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
+import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {
   FilePathKind,
@@ -24,7 +26,7 @@ function createCleanContext(overrides?: Partial<OutputCleanContext['collectedOut
     logger: createMockLogger(),
     fs,
     path,
-    glob: {} as never,
+    glob,
     dryRun: true,
     collectedOutputContext: {
       workspace: {
@@ -42,7 +44,7 @@ function createCleanContext(overrides?: Partial<OutputCleanContext['collectedOut
   } as OutputCleanContext
 }
 
-function createMockOutputPlugin(name: string, outputs: readonly string[]): OutputPlugin {
+function createMockOutputPlugin(name: string, outputs: readonly string[], cleanup?: OutputCleanupDeclarations): OutputPlugin {
   return {
     type: PluginKind.Output,
     name,
@@ -51,6 +53,9 @@ function createMockOutputPlugin(name: string, outputs: readonly string[]): Outpu
     outputCapabilities: {},
     async declareOutputFiles() {
       return outputs.map(output => ({path: output, source: {}}))
+    },
+    async declareCleanupPaths() {
+      return cleanup ?? {}
     },
     async convertContent() {
       return ''
@@ -118,5 +123,71 @@ describe('collectDeletionTargets', () => {
 
     expect(result.filesToDelete).toEqual([safeOutput])
     expect(result.protectedFiles).toEqual([editorConfigOutput])
+  })
+
+  it('compacts nested delete targets to reduce IO', async () => {
+    const claudeBaseDir = path.resolve('tmp-out/.claude')
+    const ruleDir = path.join(claudeBaseDir, 'rules')
+    const ruleFile = path.join(ruleDir, 'a.md')
+    const ctx = createCleanContext()
+    const plugin = createMockOutputPlugin(
+      'MockOutputPlugin',
+      [ruleFile],
+      {
+        delete: [
+          {kind: 'directory', path: claudeBaseDir},
+          {kind: 'directory', path: ruleDir},
+          {kind: 'file', path: ruleFile}
+        ]
+      }
+    )
+
+    const result = await collectDeletionTargets([plugin], ctx)
+
+    expect(result.dirsToDelete).toEqual([claudeBaseDir])
+    expect(result.filesToDelete).toEqual([])
+  })
+
+  it('skips parent deletion when a protected child path exists', async () => {
+    const codexBaseDir = path.resolve('tmp-out/.codex')
+    const promptsDir = path.join(codexBaseDir, 'prompts')
+    const protectedSystemDir = path.join(codexBaseDir, 'skills', '.system')
+    const ctx = createCleanContext()
+    const plugin = createMockOutputPlugin(
+      'MockOutputPlugin',
+      [],
+      {
+        delete: [
+          {kind: 'directory', path: codexBaseDir},
+          {kind: 'directory', path: promptsDir}
+        ],
+        protect: [
+          {kind: 'directory', path: protectedSystemDir}
+        ]
+      }
+    )
+
+    const result = await collectDeletionTargets([plugin], ctx)
+
+    expect(result.dirsToDelete).toEqual([promptsDir])
+    expect(result.protectedFiles).toEqual([codexBaseDir])
+  })
+
+  it('always protects dangerous root paths like home directory', async () => {
+    const homeDir = os.homedir()
+    const ctx = createCleanContext()
+    const plugin = createMockOutputPlugin(
+      'MockOutputPlugin',
+      [],
+      {
+        delete: [{kind: 'directory', path: homeDir}]
+      }
+    )
+
+    const result = await collectDeletionTargets([plugin], ctx)
+
+    expect(result.dirsToDelete).toEqual([])
+    expect(result.filesToDelete).toEqual([])
+    expect(result.skippedDangerousPaths).toEqual([path.resolve(homeDir)])
   })
 })

@@ -26,9 +26,10 @@ export class DryRunCleanCommand implements Command {
       globalFiles: outputs.globalFiles.length
     })
 
-    const {filesToDelete, dirsToDelete, protectedFiles} = await collectDeletionTargets(outputPlugins, cleanCtx)
+    const {filesToDelete, dirsToDelete, protectedFiles, skippedDangerousPaths, excludedScanGlobs} = await collectDeletionTargets(outputPlugins, cleanCtx)
 
     this.logProtectedFiles(protectedFiles, logger)
+    this.logDangerousSkippedPaths(skippedDangerousPaths, logger)
     this.logDryRunFiles(filesToDelete, logger)
     this.logDryRunDirectories(dirsToDelete, logger)
 
@@ -36,7 +37,9 @@ export class DryRunCleanCommand implements Command {
       dryRun: true,
       filesAffected: filesToDelete.length,
       dirsAffected: dirsToDelete.length,
-      protectedFiles: protectedFiles.length
+      protectedFiles: protectedFiles.length,
+      skippedDangerousPaths: skippedDangerousPaths.length,
+      excludedScanGlobs
     })
 
     return {
@@ -50,7 +53,14 @@ export class DryRunCleanCommand implements Command {
   private logProtectedFiles(files: string[], logger: CommandContext['logger']): void {
     for (const file of files) {
       const resolved = path.isAbsolute(file) ? file : path.resolve(file)
-      logger.info('protected file (input/output path overlap)', {path: resolved, dryRun: true, protected: true})
+      logger.info('protected cleanup path', {path: resolved, dryRun: true, protected: true})
+    }
+  }
+
+  private logDangerousSkippedPaths(paths: string[], logger: CommandContext['logger']): void {
+    for (const dangerousPath of paths) {
+      const resolved = path.isAbsolute(dangerousPath) ? dangerousPath : path.resolve(dangerousPath)
+      logger.warn('dangerous cleanup path skipped', {path: resolved, dryRun: true, protected: true})
     }
   }
 
