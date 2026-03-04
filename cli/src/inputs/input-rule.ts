@@ -6,16 +6,16 @@ import type {
   ResolvedBasePaths,
   RulePrompt,
   RuleScope
-} from '../plugins/plugin-shared'
+} from '../plugins/plugin-core'
 import {mdxToMd} from '@truenine/md-compiler'
 import {
   AbstractInputPlugin,
   createLocalizedPromptReader
-} from '@truenine/plugin-input-shared'
+} from '../plugins/plugin-core'
 import {
   FilePathKind,
   PromptKind
-} from '../plugins/plugin-shared'
+} from '../plugins/plugin-core'
 
 export class RuleInputPlugin extends AbstractInputPlugin {
   constructor() {

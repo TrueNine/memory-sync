@@ -7,14 +7,13 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
+} from '../plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {getPlatformFixedDir} from '@truenine/desk-paths'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
-import {FilePathKind, PLUGIN_NAMES} from '../plugin-shared'
+import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '../plugin-core'
+import {PLUGIN_NAMES} from '../plugin-core'
 
 /**
  * Represents the filename of the project memory file.
@@ -83,32 +82,32 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     })
   }
 
-  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
-      results.push(this.createProjectRulesDirRelativePath(project.dirFromWorkspacePath))
+      results.push(path.join(project.dirFromWorkspacePath.path, AIASSISTANT_DIR, RULES_SUBDIR))
     }
 
     return results
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
 
-      if (project.rootMemoryPrompt != null) results.push(this.createProjectRuleFileRelativePath(projectDir, ROOT_RULE_FILE))
+      if (project.rootMemoryPrompt != null) results.push(path.join(projectDir.path, AIASSISTANT_DIR, RULES_SUBDIR, ROOT_RULE_FILE))
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
           const fileName = this.buildChildRuleFileName(child)
-          results.push(this.createProjectRuleFileRelativePath(projectDir, fileName))
+          results.push(path.join(projectDir.path, AIASSISTANT_DIR, RULES_SUBDIR, fileName))
         }
       }
     }
@@ -117,20 +116,13 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     return results
   }
 
-  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const codexDirs = this.resolveCodexDirs()
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
     for (const codexDir of codexDirs) {
-      const promptsPath = path.join(codexDir, PROMPTS_SUBDIR)
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: PROMPTS_SUBDIR,
-        basePath: codexDir,
-        getDirectoryName: () => PROMPTS_SUBDIR,
-        getAbsolutePath: () => promptsPath
-      })
+      results.push(path.join(codexDir, PROMPTS_SUBDIR))
 
       const {skills} = ctx.collectedInputContext
       if (skills == null || skills.length === 0) continue
@@ -138,29 +130,16 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-        const skillPath = path.join(codexDir, SKILLS_SUBDIR, skillName)
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: path.join(SKILLS_SUBDIR, skillName),
-          basePath: codexDir,
-          getDirectoryName: () => skillName,
-          getAbsolutePath: () => skillPath
-        })
+        results.push(path.join(codexDir, SKILLS_SUBDIR, skillName))
       }
     }
 
     return results
   }
 
-  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<string[]> {
     const codexDirs = this.resolveCodexDirs()
-    return codexDirs.map(codexDir => ({
-      pathKind: FilePathKind.Relative,
-      path: PROJECT_MEMORY_FILE,
-      basePath: codexDir,
-      getDirectoryName: () => CODEX_DIR,
-      getAbsolutePath: () => path.join(codexDir, PROJECT_MEMORY_FILE)
-    }))
+    return codexDirs.map(codexDir => path.join(codexDir, PROJECT_MEMORY_FILE))
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
@@ -225,13 +204,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     for (const codexDir of codexDirs) {
       if (globalMemory != null) {
         const fullPath = path.join(codexDir, PROJECT_MEMORY_FILE)
-        const relativePath: RelativePath = {
-          pathKind: FilePathKind.Relative,
-          path: PROJECT_MEMORY_FILE,
-          basePath: codexDir,
-          getDirectoryName: () => CODEX_DIR,
-          getAbsolutePath: () => fullPath
-        }
+        const relativePath = path.join(codexDir, PROJECT_MEMORY_FILE)
 
         if (ctx.dryRun === true) {
           this.log.trace({action: 'dryRun', type: 'globalMemory', path: fullPath})
@@ -288,28 +261,6 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     }
   }
 
-  private createProjectRulesDirRelativePath(projectDir: RelativePath): RelativePath {
-    const rulesDirPath = path.join(projectDir.path, AIASSISTANT_DIR, RULES_SUBDIR)
-    return {
-      pathKind: FilePathKind.Relative,
-      path: rulesDirPath,
-      basePath: projectDir.basePath,
-      getDirectoryName: () => RULES_SUBDIR,
-      getAbsolutePath: () => path.join(projectDir.basePath, rulesDirPath)
-    }
-  }
-
-  private createProjectRuleFileRelativePath(projectDir: RelativePath, fileName: string): RelativePath {
-    const filePath = path.join(projectDir.path, AIASSISTANT_DIR, RULES_SUBDIR, fileName)
-    return {
-      pathKind: FilePathKind.Relative,
-      path: filePath,
-      basePath: projectDir.basePath,
-      getDirectoryName: () => RULES_SUBDIR,
-      getAbsolutePath: () => path.join(projectDir.basePath, filePath)
-    }
-  }
-
   private buildChildRuleFileName(child: ProjectChildrenMemoryPrompt): string {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
     const normalizedPath = childPath
@@ -359,8 +310,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     const projectDir = project.dirFromWorkspacePath!
     const rulesDir = path.join(projectDir.basePath, projectDir.path, AIASSISTANT_DIR, RULES_SUBDIR)
     const fullPath = path.join(rulesDir, fileName)
-
-    const relativePath = this.createProjectRuleFileRelativePath(projectDir, fileName)
+    const relativePath = path.join(projectDir.path, AIASSISTANT_DIR, RULES_SUBDIR, fileName)
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: label, path: fullPath})
@@ -394,14 +344,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     const fileName = this.transformCommandName(cmd, transformOptions)
     const targetDir = path.join(codexDir, PROMPTS_SUBDIR)
     const fullPath = path.join(targetDir, fileName)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(PROMPTS_SUBDIR, fileName),
-      basePath: codexDir,
-      getDirectoryName: () => PROMPTS_SUBDIR,
-      getAbsolutePath: () => fullPath
-    }
+    const relativePath = path.join(codexDir, PROMPTS_SUBDIR, fileName)
 
     const content = this.buildMarkdownContentWithRaw(
       cmd.content,
@@ -438,14 +381,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
     const targetDir = path.join(codexDir, SKILLS_SUBDIR, skillName)
     const fullPath = path.join(targetDir, SKILL_FILE_NAME)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(SKILLS_SUBDIR, skillName, SKILL_FILE_NAME),
-      basePath: codexDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath
-    }
+    const relativePath = path.join(codexDir, SKILLS_SUBDIR, skillName, SKILL_FILE_NAME)
 
     const content = this.buildCodexSkillContent(skill)
 
@@ -462,7 +398,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
 
       if (skill.childDocs != null) {
         for (const refDoc of skill.childDocs) {
-          const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc, codexDir)
+          const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, {dir: refDoc.dir.path, content: refDoc.content}, codexDir)
           results.push(...refResults)
         }
       }
@@ -529,20 +465,13 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     ctx: OutputWriteContext,
     skillDir: string,
     skillName: string,
-    refDoc: {dir: RelativePath, content: unknown},
+    refDoc: {dir: string, content: unknown},
     codexDir: string
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
-    const fileName = refDoc.dir.path.replace(/\.mdx$/, '.md')
+    const fileName = refDoc.dir.replace(/\.mdx$/, '.md')
     const fullPath = path.join(skillDir, fileName)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(SKILLS_SUBDIR, skillName, fileName),
-      basePath: codexDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath
-    }
+    const relativePath = path.join(codexDir, SKILLS_SUBDIR, skillName, fileName)
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'skillRefDoc', path: fullPath})
@@ -574,14 +503,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   ): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const fullPath = path.join(skillDir, resource.relativePath)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(SKILLS_SUBDIR, skillName, resource.relativePath),
-      basePath: codexDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => fullPath
-    }
+    const relativePath = path.join(codexDir, SKILLS_SUBDIR, skillName, resource.relativePath)
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'skillResource', path: fullPath})

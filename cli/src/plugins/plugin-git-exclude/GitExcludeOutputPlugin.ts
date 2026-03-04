@@ -3,19 +3,17 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
+} from '../plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {AbstractOutputPlugin, findAllGitRepos, findGitModuleInfoDirs, resolveGitInfoDir} from '@truenine/plugin-output-shared'
-import {FilePathKind} from '../plugin-shared'
+import {AbstractOutputPlugin, findAllGitRepos, findGitModuleInfoDirs, resolveGitInfoDir} from '../plugin-core'
 
 export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('GitExcludeOutputPlugin')
   }
 
-  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<string[]> {
     return [] // No global files to output
   }
 
@@ -23,12 +21,12 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     return {files: [], dirs: []} // No global outputs to write
   }
 
-  override async registerProjectOutputDirs(): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(): Promise<string[]> {
     return [] // No directories to clean
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
@@ -47,13 +45,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
         const excludeFilePath = path.join(gitInfoDir, 'exclude')
         const relExcludePath = path.relative(basePath, excludeFilePath)
 
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: relExcludePath,
-          basePath,
-          getDirectoryName: () => path.basename(repoDir),
-          getAbsolutePath: () => excludeFilePath
-        })
+        results.push(relExcludePath)
       }
     }
 
@@ -64,20 +56,14 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
         const excludeFilePath = path.join(moduleInfoDir, 'exclude')
         const relExcludePath = path.relative(wsDir, excludeFilePath)
 
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: relExcludePath,
-          basePath: wsDir,
-          getDirectoryName: () => path.basename(path.dirname(moduleInfoDir)),
-          getAbsolutePath: () => excludeFilePath
-        })
+        results.push(relExcludePath)
       }
     }
 
     return results
   }
 
-  override async registerGlobalOutputDirs(): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(): Promise<string[]> {
     return [] // No global directories to clean
   }
 
@@ -242,14 +228,8 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     managedContent: string,
     label: string
   ): Promise<WriteResult> {
-    const workspaceDir = ctx.collectedInputContext.workspace.directory.path // Create RelativePath for the result
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.relative(workspaceDir, filePath),
-      basePath: workspaceDir,
-      getDirectoryName: () => path.basename(path.dirname(filePath)),
-      getAbsolutePath: () => filePath
-    }
+    const workspaceDir = ctx.collectedInputContext.workspace.directory.path // Create relative path for the result
+    const relativePath = path.relative(workspaceDir, filePath)
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'gitExclude', path: filePath, label})

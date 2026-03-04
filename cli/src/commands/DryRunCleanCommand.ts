@@ -1,6 +1,6 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as path from 'node:path'
-import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '../plugins/plugin-shared'
+import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '../plugins/plugin-core'
 import {collectDeletionTargets} from './CleanupUtils'
 
 /**

@@ -4,13 +4,12 @@ import type {
   ReadmeFileKind,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
+} from '../plugin-core'
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {FilePathKind, README_FILE_KIND_MAP} from '../plugin-shared'
+import {AbstractOutputPlugin} from '../plugin-core'
+import {README_FILE_KIND_MAP} from '../plugin-core'
 
 function resolveOutputFileName(fileKind?: ReadmeFileKind): string {
   return README_FILE_KIND_MAP[fileKind ?? 'Readme'].out
@@ -37,8 +36,8 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     super('ReadmeMdConfigFileOutputPlugin', {outputFileName: 'README.md'})
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {readmePrompts} = ctx.collectedInputContext
 
     if (readmePrompts == null || readmePrompts.length === 0) return results
@@ -48,13 +47,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
       const outputFileName = resolveOutputFileName(readme.fileKind)
       const filePath = path.join(targetDir.path, outputFileName)
 
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: filePath,
-        basePath: targetDir.basePath,
-        getDirectoryName: () => targetDir.getDirectoryName(),
-        getAbsolutePath: () => path.join(targetDir.basePath, filePath)
-      })
+      results.push(filePath)
     }
 
     return results
@@ -86,7 +79,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
 
   private async writeReadmeFile(
     ctx: OutputWriteContext,
-    readme: {projectName: string, targetDir: RelativePath, content: unknown, isRoot: boolean, fileKind?: ReadmeFileKind}
+    readme: {projectName: string, targetDir: {path: string, basePath: string}, content: unknown, isRoot: boolean, fileKind?: ReadmeFileKind}
   ): Promise<WriteResult> {
     const {targetDir} = readme
     const outputFileName = resolveOutputFileName(readme.fileKind)
@@ -94,25 +87,19 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
     const fullPath = path.join(targetDir.basePath, filePath)
     const content = readme.content as string
 
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: filePath,
-      basePath: targetDir.basePath,
-      getDirectoryName: () => targetDir.getDirectoryName(),
-      getAbsolutePath: () => fullPath
-    }
+    const relativePath = filePath
 
     const label = readme.isRoot
       ? `project:${readme.projectName}/${outputFileName}`
       : `project:${readme.projectName}/${targetDir.path}/${outputFileName}`
 
-    if (ctx.dryRun === true) { // Dry-run mode: log without writing
+    if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'readme', path: fullPath, label})
       return {path: relativePath, success: true, skipped: false}
     }
 
-    try { // Actual write operation
-      const dir = path.dirname(fullPath) // Ensure target directory exists
+    try {
+      const dir = path.dirname(fullPath)
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, {recursive: true})
 
       fs.writeFileSync(fullPath, content, 'utf8')

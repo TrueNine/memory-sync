@@ -1,5 +1,5 @@
-import type {ProjectConfig, RulePrompt} from '../plugins/plugin-shared'
-import {matchesSeries, resolveEffectiveIncludeSeries, resolveSubSeries} from '../plugins/plugin-output-shared'
+import type {ProjectConfig, RulePrompt} from '../plugins/plugin-core'
+import {matchesSeries, resolveEffectiveIncludeSeries, resolveSubSeries} from '../plugins/plugin-core'
 
 function normalizeSubdirPath(subdir: string): string {
   let normalized = subdir.replaceAll(/\.\/+/g, '')

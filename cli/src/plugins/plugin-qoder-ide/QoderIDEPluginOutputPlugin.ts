@@ -8,12 +8,11 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
+} from '../plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
+import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '../plugin-core'
 
 const QODER_CONFIG_DIR = '.qoder'
 const RULES_SUBDIR = 'rules'
@@ -34,15 +33,15 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     super('QoderIDEPluginOutputPlugin', {globalConfigDir: QODER_CONFIG_DIR, indexignore: '.qoderignore'})
   }
 
-  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const {projects} = ctx.collectedInputContext.workspace
     return projects
       .filter(p => p.dirFromWorkspacePath != null)
-      .map(p => this.createProjectRulesDirPath(p.dirFromWorkspacePath!))
+      .map(p => path.join(p.dirFromWorkspacePath!.path, QODER_CONFIG_DIR, RULES_SUBDIR))
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {workspace, rules} = ctx.collectedInputContext
     const {projects} = workspace
     const {globalMemory} = ctx.collectedInputContext
@@ -51,12 +50,12 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
 
-      if (globalMemory != null) results.push(this.createProjectRuleFilePath(projectDir, GLOBAL_RULE_FILE))
+      if (globalMemory != null) results.push(path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, GLOBAL_RULE_FILE))
 
-      if (project.rootMemoryPrompt != null) results.push(this.createProjectRuleFilePath(projectDir, PROJECT_RULE_FILE))
+      if (project.rootMemoryPrompt != null) results.push(path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, PROJECT_RULE_FILE))
 
       if (project.childMemoryPrompts != null) {
-        for (const child of project.childMemoryPrompts) results.push(this.createProjectRuleFilePath(projectDir, this.buildChildRuleFileName(child)))
+        for (const child of project.childMemoryPrompts) results.push(path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, this.buildChildRuleFileName(child)))
       }
 
       if (rules != null && rules.length > 0) { // Handle project rules
@@ -69,7 +68,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
         )
         for (const rule of projectRules) {
           const fileName = this.buildRuleFileName(rule)
-          results.push(this.createProjectRuleFilePath(projectDir, fileName))
+          results.push(path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, fileName))
         }
       }
     }
@@ -77,56 +76,42 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const globalDir = this.getGlobalConfigDir()
     const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const results: RelativePath[] = []
+    const results: string[] = []
 
     if (commands != null && commands.length > 0) {
       const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
-      if (filteredCommands.length > 0) results.push(this.createRelativePath(COMMANDS_SUBDIR, globalDir, () => COMMANDS_SUBDIR))
+      if (filteredCommands.length > 0) results.push(path.join(globalDir, COMMANDS_SUBDIR))
     }
 
     if (skills != null && skills.length > 0) {
       const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
-        results.push(this.createRelativePath(
-          path.join(SKILLS_SUBDIR, skillName),
-          globalDir,
-          () => skillName
-        ))
+        results.push(path.join(globalDir, SKILLS_SUBDIR, skillName))
       }
     }
 
     const globalRules = rules?.filter(r => this.normalizeRuleScope(r) === 'global')
-    if (globalRules != null && globalRules.length > 0) {
-      results.push(this.createRelativePath(
-        path.join(RULES_SUBDIR),
-        globalDir,
-        () => RULES_SUBDIR
-      ))
-    }
+    if (globalRules != null && globalRules.length > 0) results.push(path.join(globalDir, RULES_SUBDIR))
     return results
   }
 
-  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const globalDir = this.getGlobalConfigDir()
     const {commands, skills, rules} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const results: RelativePath[] = []
+    const results: string[] = []
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
 
     if (commands != null && commands.length > 0) {
       const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
       for (const cmd of filteredCommands) {
         const fileName = this.transformCommandName(cmd, transformOptions)
-        results.push(this.createRelativePath(
-          path.join(COMMANDS_SUBDIR, fileName),
-          globalDir,
-          () => COMMANDS_SUBDIR
-        ))
+        results.push(path.join(globalDir, COMMANDS_SUBDIR, fileName))
       }
     }
 
@@ -134,11 +119,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     if (globalRules != null && globalRules.length > 0) {
       for (const rule of globalRules) {
         const fileName = this.buildRuleFileName(rule)
-        results.push(this.createRelativePath(
-          path.join(RULES_SUBDIR, fileName),
-          globalDir,
-          () => RULES_SUBDIR
-        ))
+        results.push(path.join(globalDir, RULES_SUBDIR, fileName))
       }
     }
 
@@ -146,38 +127,16 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     if (filteredSkills.length > 0) {
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
-        results.push(this.createRelativePath(
-          path.join(SKILLS_SUBDIR, skillName, SKILL_FILE_NAME),
-          globalDir,
-          () => skillName
-        ))
+        results.push(path.join(globalDir, SKILLS_SUBDIR, skillName, SKILL_FILE_NAME))
 
-        if (skill.mcpConfig != null) {
-          results.push(this.createRelativePath(
-            path.join(SKILLS_SUBDIR, skillName, MCP_CONFIG_FILE),
-            globalDir,
-            () => skillName
-          ))
-        }
+        if (skill.mcpConfig != null) results.push(path.join(globalDir, SKILLS_SUBDIR, skillName, MCP_CONFIG_FILE))
 
         if (skill.childDocs != null) {
-          for (const childDoc of skill.childDocs) {
-            results.push(this.createRelativePath(
-              path.join(SKILLS_SUBDIR, skillName, childDoc.relativePath.replace(/\.mdx$/, '.md')),
-              globalDir,
-              () => skillName
-            ))
-          }
+          for (const childDoc of skill.childDocs) results.push(path.join(globalDir, SKILLS_SUBDIR, skillName, childDoc.relativePath.replace(/\.mdx$/, '.md')))
         }
 
         if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            results.push(this.createRelativePath(
-              path.join(SKILLS_SUBDIR, skillName, resource.relativePath),
-              globalDir,
-              () => skillName
-            ))
-          }
+          for (const resource of skill.resources) results.push(path.join(globalDir, SKILLS_SUBDIR, skillName, resource.relativePath))
         }
       }
     }
@@ -269,22 +228,6 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: []}
   }
 
-  private createProjectRulesDirPath(projectDir: RelativePath): RelativePath {
-    return this.createRelativePath(
-      path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR),
-      projectDir.basePath,
-      () => RULES_SUBDIR
-    )
-  }
-
-  private createProjectRuleFilePath(projectDir: RelativePath, fileName: string): RelativePath {
-    return this.createRelativePath(
-      path.join(projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR, fileName),
-      projectDir.basePath,
-      () => RULES_SUBDIR
-    )
-  }
-
   private buildChildRuleFileName(child: ProjectChildrenMemoryPrompt): string {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
     const normalized = childPath.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '').replaceAll('/', '-')
@@ -304,7 +247,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   private async writeProjectRuleFile(
     ctx: OutputWriteContext,
-    projectDir: RelativePath,
+    projectDir: {path: string, basePath: string},
     fileName: string,
     content: string,
     label: string
@@ -372,10 +315,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
           const dir = path.dirname(resourcePath)
           this.ensureDirectory(dir)
           this.writeFileSyncBuffer(resourcePath, buffer)
-          results.push({
-            path: this.createRelativePath(resource.relativePath, skillDir, () => skillName),
-            success: true
-          })
+          results.push({path: resource.relativePath, success: true})
         } else results.push(await this.writeFile(ctx, resourcePath, resource.content, 'resource'))
       }
     }

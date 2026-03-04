@@ -1,8 +1,8 @@
 import type {Buffer} from 'node:buffer'
 
-import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-shared'
+import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
 import {createHash} from 'node:crypto'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+import {AbstractInputPlugin} from '../plugins/plugin-core'
 
 export interface SkillSyncEffectResult extends InputEffectResult {
   readonly copiedFiles: string[]

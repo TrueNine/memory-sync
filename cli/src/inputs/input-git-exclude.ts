@@ -1,6 +1,6 @@
-import type {CollectedInputContext, InputPluginContext} from '../plugins/plugin-shared'
+import type {CollectedInputContext, InputPluginContext} from '../plugins/plugin-core'
 import * as path from 'node:path'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+import {AbstractInputPlugin} from '../plugins/plugin-core'
 
 export class GitExcludeInputPlugin extends AbstractInputPlugin {
   constructor() {

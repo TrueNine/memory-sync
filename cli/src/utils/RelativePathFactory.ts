@@ -1,6 +1,6 @@
-import type {RelativePath} from '../plugins/plugin-shared'
+import type {RelativePath} from '../plugins/plugin-core'
 import * as path from 'node:path'
-import {FilePathKind} from '../plugins/plugin-shared'
+import {FilePathKind} from '../plugins/plugin-core'
 
 /**
  * Options for creating a RelativePath

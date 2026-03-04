@@ -3,8 +3,8 @@
  * Handles dependency graph building, validation, and topological sorting
  */
 
-import type {Plugin, PluginKind} from '../plugins/plugin-shared'
-import {CircularDependencyError, MissingDependencyError} from '../plugins/plugin-shared'
+import type {Plugin, PluginKind} from '../plugins/plugin-core'
+import {CircularDependencyError, MissingDependencyError} from '../plugins/plugin-core'
 
 /**
  * Build dependency graph from plugins

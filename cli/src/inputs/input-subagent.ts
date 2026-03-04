@@ -6,15 +6,15 @@ import type {
   PluginOptions,
   ResolvedBasePaths,
   SubAgentPrompt
-} from '../plugins/plugin-shared'
+} from '../plugins/plugin-core'
 import {
   AbstractInputPlugin,
   createLocalizedPromptReader
-} from '@truenine/plugin-input-shared'
+} from '../plugins/plugin-core'
 import {
   FilePathKind,
   PromptKind
-} from '../plugins/plugin-shared'
+} from '../plugins/plugin-core'
 
 export interface AgentPrefixInfo {
   readonly agentPrefix?: string

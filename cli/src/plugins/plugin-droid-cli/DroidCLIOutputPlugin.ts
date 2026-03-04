@@ -2,9 +2,9 @@ import type {
   OutputWriteContext,
   SkillPrompt,
   WriteResult
-} from '../plugin-shared'
+} from '../plugin-core'
 import * as path from 'node:path'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
+import {AbstractOutputPlugin} from '../plugin-core'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.factory'
@@ -15,7 +15,6 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: GLOBAL_MEMORY_FILE,
       supportsCommands: true,
-      supportsSubAgents: true,
       supportsSkills: true
     }) // Droid uses default subdir names
   }
@@ -41,7 +40,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (skill.childDocs != null) {
       for (const refDoc of skill.childDocs) {
-        const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc, basePath)
+        const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, {dir: refDoc.dir.path, content: refDoc.content}, basePath)
         results.push(...refResults)
       }
     }

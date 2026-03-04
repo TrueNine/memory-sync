@@ -1,4 +1,4 @@
-import type {CollectedInputContext, ILogger, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from '../plugins/plugin-shared'
+import type {CollectedInputContext, ILogger, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from '../plugins/plugin-core'
 
 /**
  * Command execution context

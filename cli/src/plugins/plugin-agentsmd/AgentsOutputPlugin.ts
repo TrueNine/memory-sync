@@ -3,9 +3,8 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
+} from '../plugin-core'
+import {AbstractOutputPlugin} from '../plugin-core'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
 
@@ -14,18 +13,18 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     super('AgentsOutputPlugin', {outputFileName: PROJECT_MEMORY_FILE})
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
-      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) { // Root memory prompt uses project.dirFromWorkspacePath
-        results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE))
+      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
+        results.push(this.joinPath(project.dirFromWorkspacePath.path, PROJECT_MEMORY_FILE))
       }
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
-          if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
+          if (child.dir?.path != null) results.push(this.joinPath(child.dir.path, PROJECT_MEMORY_FILE))
         }
       }
     }

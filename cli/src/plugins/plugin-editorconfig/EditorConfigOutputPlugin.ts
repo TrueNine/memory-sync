@@ -3,10 +3,8 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {FilePathKind} from '../plugin-shared'
+} from '../plugin-core'
+import {AbstractOutputPlugin} from '../plugin-core'
 
 const EDITOR_CONFIG_FILE = '.editorconfig'
 
@@ -19,7 +17,7 @@ export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
     super('EditorConfigOutputPlugin')
   }
 
-  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<string[]> {
     return [] // No global files to output
   }
 
@@ -27,8 +25,8 @@ export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
     return {files: [], dirs: []} // No global outputs to write
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const {editorConfigFiles} = ctx.collectedInputContext
 
@@ -39,14 +37,7 @@ export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
       if (projectDir == null) continue
       if (project.isPromptSourceProject === true) continue
 
-      const filePath = this.joinPath(projectDir.path, EDITOR_CONFIG_FILE)
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: filePath,
-        basePath: projectDir.basePath,
-        getDirectoryName: () => projectDir.getDirectoryName(),
-        getAbsolutePath: () => this.resolvePath(projectDir.basePath, filePath)
-      })
+      results.push(this.joinPath(projectDir.path, EDITOR_CONFIG_FILE))
     }
 
     return results

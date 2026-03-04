@@ -4,14 +4,12 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
+} from '../plugin-core'
 
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {FilePathKind} from '../plugin-shared'
+import {AbstractOutputPlugin} from '../plugin-core'
 
 const PROJECT_SKILLS_DIR = '.agents/skills'
 const LEGACY_SKILLS_DIR = '.skills' // 旧路径，用于清理
@@ -63,8 +61,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const {skills} = ctx.collectedInputContext
 
@@ -73,30 +71,18 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      const skillsDir = this.joinPath(project.dirFromWorkspacePath.path, PROJECT_SKILLS_DIR) // 注册新的 .agents/skills/ 目录
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: skillsDir,
-        basePath: project.dirFromWorkspacePath.basePath,
-        getDirectoryName: () => PROJECT_SKILLS_DIR,
-        getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, skillsDir)
-      })
+      const skillsDir = this.joinPath(project.dirFromWorkspacePath.path, PROJECT_SKILLS_DIR)
+      results.push(skillsDir)
 
-      const legacySkillsDir = this.joinPath(project.dirFromWorkspacePath.path, LEGACY_SKILLS_DIR) // 注册旧的 .skills/ 目录用于清理
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: legacySkillsDir,
-        basePath: project.dirFromWorkspacePath.basePath,
-        getDirectoryName: () => LEGACY_SKILLS_DIR,
-        getAbsolutePath: () => this.joinPath(project.dirFromWorkspacePath!.basePath, legacySkillsDir)
-      })
+      const legacySkillsDir = this.joinPath(project.dirFromWorkspacePath.path, LEGACY_SKILLS_DIR)
+      results.push(legacySkillsDir)
     }
 
     return results
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const {skills} = ctx.collectedInputContext
 
@@ -105,57 +91,22 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
 
-      const projectSkillsDir = this.joinPath(
-        project.dirFromWorkspacePath.basePath,
-        project.dirFromWorkspacePath.path,
-        PROJECT_SKILLS_DIR
-      )
-
       for (const skill of skills) {
         const skillName = skill.yamlFrontMatter.name
-        const skillDir = this.joinPath(projectSkillsDir, skillName)
 
-        results.push({ // 注册 SKILL.md
-          pathKind: FilePathKind.Relative,
-          path: this.joinPath(PROJECT_SKILLS_DIR, skillName, SKILL_FILE_NAME),
-          basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
-          getDirectoryName: () => skillName,
-          getAbsolutePath: () => this.joinPath(skillDir, SKILL_FILE_NAME)
-        })
+        results.push(this.joinPath(PROJECT_SKILLS_DIR, skillName, SKILL_FILE_NAME))
 
-        if (skill.mcpConfig != null) { // 注册 mcp.json（如果有）
-          results.push({
-            pathKind: FilePathKind.Relative,
-            path: this.joinPath(PROJECT_SKILLS_DIR, skillName, MCP_CONFIG_FILE),
-            basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
-            getDirectoryName: () => skillName,
-            getAbsolutePath: () => this.joinPath(skillDir, MCP_CONFIG_FILE)
-          })
-        }
+        if (skill.mcpConfig != null) results.push(this.joinPath(PROJECT_SKILLS_DIR, skillName, MCP_CONFIG_FILE))
 
-        if (skill.childDocs != null) { // 注册 child docs
+        if (skill.childDocs != null) {
           for (const childDoc of skill.childDocs) {
             const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
-            results.push({
-              pathKind: FilePathKind.Relative,
-              path: this.joinPath(PROJECT_SKILLS_DIR, skillName, outputRelativePath),
-              basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
-              getDirectoryName: () => skillName,
-              getAbsolutePath: () => this.joinPath(skillDir, outputRelativePath)
-            })
+            results.push(this.joinPath(PROJECT_SKILLS_DIR, skillName, outputRelativePath))
           }
         }
 
-        if (skill.resources != null) { // 注册 resources
-          for (const resource of skill.resources) {
-            results.push({
-              pathKind: FilePathKind.Relative,
-              path: this.joinPath(PROJECT_SKILLS_DIR, skillName, resource.relativePath),
-              basePath: this.joinPath(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path),
-              getDirectoryName: () => skillName,
-              getAbsolutePath: () => this.joinPath(skillDir, resource.relativePath)
-            })
-          }
+        if (skill.resources != null) {
+          for (const resource of skill.resources) results.push(this.joinPath(PROJECT_SKILLS_DIR, skillName, resource.relativePath))
         }
       }
     }
@@ -163,12 +114,12 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  override async registerGlobalOutputDirs(): Promise<RelativePath[]> {
-    return [] // 不再使用全局输出目录
+  override async registerGlobalOutputDirs(): Promise<string[]> {
+    return []
   }
 
-  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
-    return [] // 不再使用全局输出文件
+  override async registerGlobalOutputFiles(): Promise<string[]> {
+    return []
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
@@ -226,32 +177,24 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     const skillDir = this.joinPath(skillsDir, skillName)
     const skillFilePath = this.joinPath(skillDir, SKILL_FILE_NAME)
 
-    const skillRelativePath: RelativePath = { // Create RelativePath for SKILL.md
-      pathKind: FilePathKind.Relative,
-      path: SKILL_FILE_NAME,
-      basePath: skillDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => skillFilePath
-    }
-
     const frontMatterData = this.buildSkillFrontMatter(skill) // Build SKILL.md content with front matter
     const bodyContent = skill.content as string
     const skillContent = buildMarkdownWithFrontMatter(frontMatterData, bodyContent)
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'skill', path: skillFilePath})
-      results.push({path: skillRelativePath, success: true, skipped: false})
+      results.push({path: skillFilePath, success: true, skipped: false})
     } else {
       try {
         this.ensureDirectory(skillDir)
         this.writeFileSync(skillFilePath, skillContent)
         this.log.trace({action: 'write', type: 'skill', path: skillFilePath})
-        results.push({path: skillRelativePath, success: true})
+        results.push({path: skillFilePath, success: true})
       }
       catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error)
         this.log.error({action: 'write', type: 'skill', path: skillFilePath, error: errMsg})
-        results.push({path: skillRelativePath, success: false, error: error as Error})
+        results.push({path: skillFilePath, success: false, error: error as Error})
       }
     }
 
@@ -282,16 +225,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     skill: SkillPrompt,
     skillDir: string
   ): Promise<WriteResult> {
-    const skillName = skill.yamlFrontMatter.name
     const mcpConfigPath = this.joinPath(skillDir, MCP_CONFIG_FILE)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: MCP_CONFIG_FILE,
-      basePath: skillDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => mcpConfigPath
-    }
+    const relativePath = mcpConfigPath
 
     const mcpConfigContent = skill.mcpConfig!.rawContent
 
@@ -317,18 +252,11 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     childDoc: {relativePath: string, content: unknown},
     skillDir: string,
-    skillName: string
+    _skillName: string
   ): Promise<WriteResult> {
-    const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md') // Convert .mdx to .md for output
+    const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
     const childDocPath = this.joinPath(skillDir, outputRelativePath)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: outputRelativePath,
-      basePath: skillDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => childDocPath
-    }
+    const relativePath = childDocPath
 
     const content = childDoc.content as string
 
@@ -355,17 +283,10 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext,
     resource: {relativePath: string, content: string, encoding: 'text' | 'base64'},
     skillDir: string,
-    skillName: string
+    _skillName: string
   ): Promise<WriteResult> {
     const resourcePath = this.joinPath(skillDir, resource.relativePath)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: resource.relativePath,
-      basePath: skillDir,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => resourcePath
-    }
+    const relativePath = resourcePath
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'resource', path: resourcePath})
@@ -376,7 +297,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       const parentDir = this.dirname(resourcePath)
       this.ensureDirectory(parentDir)
 
-      if (resource.encoding === 'base64') { // Handle binary vs text encoding
+      if (resource.encoding === 'base64') {
         const buffer = Buffer.from(resource.content, 'base64')
         this.writeFileSyncBuffer(resourcePath, buffer)
       } else this.writeFileSync(resourcePath, resource.content)

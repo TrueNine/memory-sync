@@ -7,13 +7,11 @@ import type {
   SkillPrompt,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
+} from '../plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
-import {FilePathKind} from '../plugin-shared'
+import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '../plugin-core'
 
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
 const GLOBAL_CONFIG_DIR = '.trae'
@@ -37,42 +35,28 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return this.joinPath(this.getGlobalConfigDir(), STEERING_SUBDIR)
   }
 
-  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const {projects} = ctx.collectedInputContext.workspace
     const {commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const results: RelativePath[] = []
+    const results: string[] = []
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
 
-      results.push(this.createRelativePath( // Register rules dir (existing)
-        this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR),
-        projectDir.basePath,
-        () => RULES_SUBDIR
-      ))
+      results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR))
 
-      if (commands != null && commands.length > 0) { // Register commands dir (new: per-project)
+      if (commands != null && commands.length > 0) {
         const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
-        if (filteredCommands.length > 0) {
-          results.push(this.createRelativePath(
-            this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR),
-            projectDir.basePath,
-            () => COMMANDS_SUBDIR
-          ))
-        }
+        if (filteredCommands.length > 0) results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR))
       }
 
-      if (skills != null && skills.length > 0) { // Register skills dirs (new: per-project)
+      if (skills != null && skills.length > 0) {
         const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
         for (const skill of filteredSkills) {
           const skillName = skill.yamlFrontMatter.name
-          results.push(this.createRelativePath(
-            this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName),
-            projectDir.basePath,
-            () => skillName
-          ))
+          results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName))
         }
       }
     }
@@ -80,68 +64,46 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const {projects} = ctx.collectedInputContext.workspace
     const {commands, skills} = ctx.collectedInputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const results: RelativePath[] = []
+    const results: string[] = []
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
       const projectDir = project.dirFromWorkspacePath
 
-      if (project.childMemoryPrompts != null) { // Child memory prompts (existing)
+      if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
-          results.push(this.createRelativePath(
-            this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR, this.buildSteeringFileName(child)),
-            projectDir.basePath,
-            () => RULES_SUBDIR
-          ))
+          results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR, this.buildSteeringFileName(child)))
         }
       }
 
-      if (commands != null && commands.length > 0) { // Commands (new: per-project)
+      if (commands != null && commands.length > 0) {
         const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
         const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
         for (const cmd of filteredCommands) {
           const fileName = this.transformCommandName(cmd, transformOptions)
-          results.push(this.createRelativePath(
-            this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR, fileName),
-            projectDir.basePath,
-            () => COMMANDS_SUBDIR
-          ))
+          results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR, fileName))
         }
       }
 
-      if (skills != null && skills.length > 0) { // Skills (new: per-project)
+      if (skills != null && skills.length > 0) {
         const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
         for (const skill of filteredSkills) {
           const skillName = skill.yamlFrontMatter.name
-          results.push(this.createRelativePath(
-            this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, SKILL_FILE_NAME),
-            projectDir.basePath,
-            () => skillName
-          ))
+          results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, SKILL_FILE_NAME))
 
           if (skill.childDocs != null) {
             for (const childDoc of skill.childDocs) {
               const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
-              results.push(this.createRelativePath(
-                this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, outputRelativePath),
-                projectDir.basePath,
-                () => skillName
-              ))
+              results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, outputRelativePath))
             }
           }
 
           if (skill.resources != null) {
-            for (const resource of skill.resources) {
-              results.push(this.createRelativePath(
-                this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, resource.relativePath),
-                projectDir.basePath,
-                () => skillName
-              ))
-            }
+            for (const resource of skill.resources) results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, resource.relativePath))
           }
         }
       }
@@ -151,17 +113,17 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  override async registerGlobalOutputDirs(): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(): Promise<string[]> {
     return [
-      this.createRelativePath(STEERING_SUBDIR, this.getGlobalConfigDir(), () => STEERING_SUBDIR)
+      this.joinPath(this.getGlobalConfigDir(), STEERING_SUBDIR)
     ]
   }
 
-  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const {globalMemory} = ctx.collectedInputContext
-    const results: RelativePath[] = []
+    const results: string[] = []
 
-    if (globalMemory != null) results.push(this.createRelativePath(GLOBAL_MEMORY_FILE, this.getGlobalSteeringDir(), () => STEERING_SUBDIR))
+    if (globalMemory != null) results.push(this.joinPath(this.getGlobalSteeringDir(), GLOBAL_MEMORY_FILE))
 
     return results
   }
@@ -220,19 +182,12 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return {files: fileResults, dirs: []}
   }
 
-  private async writeProjectCommand(ctx: OutputWriteContext, projectDir: RelativePath, cmd: CommandPrompt): Promise<WriteResult> {
+  private async writeProjectCommand(ctx: OutputWriteContext, projectDir: {path: string, basePath: string}, cmd: CommandPrompt): Promise<WriteResult> {
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
     const fileName = this.transformCommandName(cmd, transformOptions)
     const commandsDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR)
     const fullPath = path.join(commandsDir, fileName)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR, fileName),
-      basePath: projectDir.basePath,
-      getDirectoryName: () => COMMANDS_SUBDIR,
-      getAbsolutePath: () => fullPath
-    }
+    const relativePath = path.join(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR, fileName)
 
     const content = this.buildMarkdownContentWithRaw(cmd.content, cmd.yamlFrontMatter, cmd.rawFrontMatter)
 
@@ -242,19 +197,12 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  private async writeProjectSkill(ctx: OutputWriteContext, projectDir: RelativePath, skill: SkillPrompt): Promise<WriteResult[]> {
+  private async writeProjectSkill(ctx: OutputWriteContext, projectDir: {path: string, basePath: string}, skill: SkillPrompt): Promise<WriteResult[]> {
     const results: WriteResult[] = []
     const skillName = skill.yamlFrontMatter.name
     const skillDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
     const skillFilePath = path.join(skillDir, SKILL_FILE_NAME)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, SKILL_FILE_NAME),
-      basePath: projectDir.basePath,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => skillFilePath
-    }
+    const relativePath = path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, SKILL_FILE_NAME)
 
     const frontMatterData = this.buildSkillFrontMatter(skill)
     const skillContent = buildMarkdownWithFrontMatter(frontMatterData, skill.content as string)
@@ -286,17 +234,10 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     return results
   }
 
-  private async writeSkillChildDoc(ctx: OutputWriteContext, childDoc: {relativePath: string, content: unknown}, skillDir: string, skillName: string, projectDir: RelativePath): Promise<WriteResult> {
+  private async writeSkillChildDoc(ctx: OutputWriteContext, childDoc: {relativePath: string, content: unknown}, skillDir: string, skillName: string, projectDir: {path: string, basePath: string}): Promise<WriteResult> {
     const outputRelativePath = childDoc.relativePath.replace(/\.mdx$/, '.md')
     const childDocPath = path.join(skillDir, outputRelativePath)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, outputRelativePath),
-      basePath: projectDir.basePath,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => childDocPath
-    }
+    const relativePath = path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, outputRelativePath)
 
     const content = childDoc.content as string
     if (ctx.dryRun === true) {
@@ -317,16 +258,9 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     }
   }
 
-  private async writeTraeSkillResource(ctx: OutputWriteContext, resource: {relativePath: string, content: string, encoding: 'text' | 'base64'}, skillDir: string, skillName: string, projectDir: RelativePath): Promise<WriteResult> {
+  private async writeTraeSkillResource(ctx: OutputWriteContext, resource: {relativePath: string, content: string, encoding: 'text' | 'base64'}, skillDir: string, skillName: string, projectDir: {path: string, basePath: string}): Promise<WriteResult> {
     const resourcePath = path.join(skillDir, resource.relativePath)
-
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, resource.relativePath),
-      basePath: projectDir.basePath,
-      getDirectoryName: () => skillName,
-      getAbsolutePath: () => resourcePath
-    }
+    const relativePath = path.join(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, resource.relativePath)
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'skillResource', path: resourcePath})

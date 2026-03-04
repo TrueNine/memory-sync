@@ -1,5 +1,5 @@
 import type {Buffer} from 'node:buffer'
-import type {ILogger, InputEffectContext} from '../plugins/plugin-shared'
+import type {ILogger, InputEffectContext} from '../plugins/plugin-core'
 import process from 'node:process'
 
 /**

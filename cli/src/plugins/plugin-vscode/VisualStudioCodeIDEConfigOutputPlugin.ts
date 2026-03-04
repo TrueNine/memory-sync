@@ -3,10 +3,9 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {FilePathKind, IDEKind} from '../plugin-shared'
+} from '../plugin-core'
+import {AbstractOutputPlugin} from '../plugin-core'
+import {IDEKind} from '../plugin-core'
 
 const VSCODE_DIR = '.vscode'
 
@@ -24,7 +23,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     super('VisualStudioCodeIDEConfigOutputPlugin')
   }
 
-  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<string[]> {
     return [] // No global files to output
   }
 
@@ -32,8 +31,8 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
     return {files: [], dirs: []} // No global outputs to write
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const {vscodeConfigFiles} = ctx.collectedInputContext
 
@@ -48,13 +47,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
 
       for (const configFile of VSCODE_CONFIG_FILES) {
         const filePath = this.joinPath(projectDir.path, configFile)
-        results.push({
-          pathKind: FilePathKind.Relative,
-          path: filePath,
-          basePath: projectDir.basePath,
-          getDirectoryName: () => this.dirname(configFile),
-          getAbsolutePath: () => this.resolvePath(projectDir.basePath, filePath)
-        })
+        results.push(filePath)
       }
     }
 
@@ -96,20 +89,14 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
 
   private async writeConfigFile(
     ctx: OutputWriteContext,
-    projectDir: RelativePath,
+    projectDir: {path: string, basePath: string},
     config: {type: IDEKind, content: string, dir: {path: string}},
     label: string
   ): Promise<WriteResult> {
     const targetRelativePath = this.getTargetRelativePath(config)
     const fullPath = this.resolvePath(projectDir.basePath, projectDir.path, targetRelativePath)
 
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: this.joinPath(projectDir.path, targetRelativePath),
-      basePath: projectDir.basePath,
-      getDirectoryName: () => this.dirname(targetRelativePath),
-      getAbsolutePath: () => fullPath
-    }
+    const relativePath = this.joinPath(projectDir.path, targetRelativePath)
 
     if (ctx.dryRun === true) {
       this.log.trace({action: 'dryRun', type: 'config', path: fullPath, label})

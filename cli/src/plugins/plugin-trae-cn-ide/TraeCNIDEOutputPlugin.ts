@@ -3,9 +3,8 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
+} from '../plugin-core'
+import {AbstractOutputPlugin} from '../plugin-core'
 
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
 const GLOBAL_CONFIG_DIR = '.trae-cn'
@@ -24,25 +23,25 @@ export class TraeCNIDEOutputPlugin extends AbstractOutputPlugin {
     return this.joinPath(this.getGlobalConfigDir(), USER_RULES_SUBDIR)
   }
 
-  override async registerProjectOutputDirs(): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(): Promise<string[]> {
     return []
   }
 
-  override async registerProjectOutputFiles(): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(): Promise<string[]> {
     return []
   }
 
-  override async registerGlobalOutputDirs(): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(): Promise<string[]> {
     return [
-      this.createRelativePath(USER_RULES_SUBDIR, this.getGlobalConfigDir(), () => USER_RULES_SUBDIR)
+      this.joinPath(this.getGlobalConfigDir(), USER_RULES_SUBDIR)
     ]
   }
 
-  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const {globalMemory} = ctx.collectedInputContext
-    const results: RelativePath[] = []
+    const results: string[] = []
 
-    if (globalMemory != null) results.push(this.createRelativePath(GLOBAL_MEMORY_FILE, this.getGlobalUserRulesDir(), () => USER_RULES_SUBDIR))
+    if (globalMemory != null) results.push(this.joinPath(this.getGlobalUserRulesDir(), GLOBAL_MEMORY_FILE))
 
     return results
   }

@@ -1,9 +1,9 @@
-import type {CollectedInputContext, InputPluginContext, Project, Workspace} from '../plugins/plugin-shared'
-import type {ProjectConfig} from '../plugins/plugin-shared/types'
+import type {CollectedInputContext, InputPluginContext, Project, Workspace} from '../plugins/plugin-core'
+import type {ProjectConfig} from '../plugins/plugin-core'
 
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+import {AbstractInputPlugin} from '../plugins/plugin-core'
 import {parse as parseJsonc} from 'jsonc-parser'
-import {FilePathKind} from '../plugins/plugin-shared'
+import {FilePathKind} from '../plugins/plugin-core'
 
 export class AindexInputPlugin extends AbstractInputPlugin {
   constructor() {

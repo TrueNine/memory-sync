@@ -1,5 +1,5 @@
 import type {Command, CommandContext, CommandResult} from './Command'
-import {checkCanWrite, executeWriteOutputs} from '../plugins/plugin-shared'
+import {checkCanWrite, executeWriteOutputs} from '../plugins/plugin-core'
 
 /**
  * Dry-run output command - simulates write operations without actual I/O

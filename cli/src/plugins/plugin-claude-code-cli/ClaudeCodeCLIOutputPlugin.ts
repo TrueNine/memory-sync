@@ -1,11 +1,10 @@
-import type {RulePrompt} from '../plugin-shared'
+import type {RulePrompt} from '../plugin-core'
 import {doubleQuoted} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
+import {AbstractOutputPlugin} from '../plugin-core'
 
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'
 const GLOBAL_CONFIG_DIR = '.claude'
 const COMMANDS_SUBDIR = 'commands'
-const AGENTS_SUBDIR = 'agents'
 const SKILLS_SUBDIR = 'skills'
 
 /**
@@ -24,14 +23,12 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       outputFileName: PROJECT_MEMORY_FILE,
       toolPreset: 'claudeCode',
       supportsCommands: true,
-      supportsSubAgents: true,
       supportsSkills: true,
       commandsSubDir: COMMANDS_SUBDIR,
-      agentsSubDir: AGENTS_SUBDIR,
       skillsSubDir: SKILLS_SUBDIR,
       rules: {
         enabled: true,
-        transformFrontMatter: (rule: RulePrompt) => rule.globs.length > 0 ? {paths: rule.globs.map(doubleQuoted)} : {} // Custom frontmatter transformer for Claude Code CLI format
+        transformFrontMatter: (rule: RulePrompt) => ({paths: rule.globs.map(doubleQuoted)})
       }
     })
   }

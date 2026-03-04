@@ -74,19 +74,6 @@ pub enum SkillResourceEncoding {
     Base64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum SkillResourceCategory {
-    Code,
-    Data,
-    Document,
-    Config,
-    Script,
-    Image,
-    Binary,
-    Other,
-}
-
 // ---------------------------------------------------------------------------
 // Path types
 // ---------------------------------------------------------------------------
@@ -351,7 +338,6 @@ pub struct SkillResource {
     pub relative_path: String,
     pub content: String,
     pub encoding: SkillResourceEncoding,
-    pub category: SkillResourceCategory,
     pub length: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,

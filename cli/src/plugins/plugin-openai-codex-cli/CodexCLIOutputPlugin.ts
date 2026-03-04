@@ -4,11 +4,10 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
+} from '../plugin-core'
 import * as path from 'node:path'
-import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '@truenine/plugin-output-shared'
-import {PLUGIN_NAMES} from '../plugin-shared'
+import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '../plugin-core'
+import {PLUGIN_NAMES} from '../plugin-core'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.codex'
@@ -24,18 +23,18 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  override async registerProjectOutputDirs(): Promise<RelativePath[]> {
+  override async registerProjectOutputDirs(): Promise<string[]> {
     return [] // Codex only supports global prompts and skills
   }
 
-  override async registerProjectOutputFiles(): Promise<RelativePath[]> {
+  override async registerProjectOutputFiles(): Promise<string[]> {
     return [] // AGENTS.md files are handled by AgentsOutputPlugin
   }
 
-  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const globalDir = this.getGlobalConfigDir()
-    const results: RelativePath[] = [
-      this.createRelativePath(PROMPTS_SUBDIR, globalDir, () => PROMPTS_SUBDIR)
+    const results: string[] = [
+      path.join(globalDir, PROMPTS_SUBDIR)
     ]
 
     const {skills} = ctx.collectedInputContext
@@ -45,19 +44,15 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
     for (const skill of filteredSkills) {
       const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-      results.push(this.createRelativePath(
-        path.join(SKILLS_SUBDIR, skillName),
-        globalDir,
-        () => skillName
-      ))
+      results.push(path.join(globalDir, SKILLS_SUBDIR, skillName))
     }
     return results
   }
 
-  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<string[]> {
     const globalDir = this.getGlobalConfigDir()
     return [
-      this.createRelativePath(PROJECT_MEMORY_FILE, globalDir, () => GLOBAL_CONFIG_DIR)
+      path.join(globalDir, PROJECT_MEMORY_FILE)
     ]
   }
 

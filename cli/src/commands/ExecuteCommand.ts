@@ -1,5 +1,5 @@
 import type {Command, CommandContext, CommandResult} from './Command'
-import {checkCanWrite, executeWriteOutputs} from '../plugins/plugin-shared'
+import {checkCanWrite, executeWriteOutputs} from '../plugins/plugin-core'
 import {performCleanup} from './CleanupUtils'
 
 /**

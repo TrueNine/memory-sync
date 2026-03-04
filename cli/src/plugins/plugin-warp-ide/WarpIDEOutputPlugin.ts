@@ -3,10 +3,9 @@ import type {
   OutputWriteContext,
   WriteResult,
   WriteResults
-} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
-import {PLUGIN_NAMES} from '../plugin-shared'
+} from '../plugin-core'
+import {AbstractOutputPlugin} from '../plugin-core'
+import {PLUGIN_NAMES} from '../plugin-core'
 
 const PROJECT_MEMORY_FILE = 'WARP.md'
 
@@ -20,16 +19,16 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
     return false
   }
 
-  override async registerGlobalOutputDirs(): Promise<RelativePath[]> {
+  override async registerGlobalOutputDirs(): Promise<string[]> {
     return []
   }
 
-  override async registerGlobalOutputFiles(): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(): Promise<string[]> {
     return []
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
     const agentsRegistered = this.isAgentsPluginRegisteredInCtx(ctx)
 
@@ -37,13 +36,13 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
       if (project.dirFromWorkspacePath == null) continue
 
       if (agentsRegistered) {
-        results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE)) // When AgentsOutputPlugin is registered, register WARP.md for global prompt output to each project
+        results.push(this.createFileRelativePath(project.dirFromWorkspacePath.path, PROJECT_MEMORY_FILE)) // When AgentsOutputPlugin is registered, register WARP.md for global prompt output to each project
       } else {
-        if (project.rootMemoryPrompt != null) results.push(this.createFileRelativePath(project.dirFromWorkspacePath, PROJECT_MEMORY_FILE)) // Normal mode: register files for projects with prompts
+        if (project.rootMemoryPrompt != null) results.push(this.createFileRelativePath(project.dirFromWorkspacePath.path, PROJECT_MEMORY_FILE)) // Normal mode: register files for projects with prompts
 
         if (project.childMemoryPrompts != null) {
           for (const child of project.childMemoryPrompts) {
-            if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir, PROJECT_MEMORY_FILE))
+            if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir.path, PROJECT_MEMORY_FILE))
           }
         }
       }

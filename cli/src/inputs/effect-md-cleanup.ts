@@ -3,8 +3,8 @@ import type {
   InputEffectContext,
   InputEffectResult,
   InputPluginContext
-} from '../plugins/plugin-shared'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+} from '../plugins/plugin-core'
+import {AbstractInputPlugin} from '../plugins/plugin-core'
 
 export interface WhitespaceCleanupEffectResult extends InputEffectResult {
   readonly modifiedFiles: string[]

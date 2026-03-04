@@ -12,7 +12,7 @@ import type {
   SkillResource,
   SkillResourceEncoding,
   SkillYAMLFrontMatter
-} from '../plugins/plugin-shared'
+} from '../plugins/plugin-core'
 import type {ResourceScanResult} from './input-agentskills-types'
 
 import {Buffer} from 'node:buffer'
@@ -20,8 +20,8 @@ import * as nodePath from 'node:path'
 import {mdxToMd} from '@truenine/md-compiler'
 import {MetadataValidationError} from '@truenine/md-compiler/errors'
 import {parseMarkdown, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
-import {AbstractInputPlugin, createLocalizedPromptReader} from '@truenine/plugin-input-shared'
-import {FilePathKind, PromptKind, validateSkillMetadata} from '../plugins/plugin-shared'
+import {AbstractInputPlugin, createLocalizedPromptReader} from '../plugins/plugin-core'
+import {FilePathKind, PromptKind, validateSkillMetadata} from '../plugins/plugin-core'
 
 export * from './input-agentskills-types' // Re-export from types file
 

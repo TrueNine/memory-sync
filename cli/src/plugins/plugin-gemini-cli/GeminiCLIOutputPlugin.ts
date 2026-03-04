@@ -1,4 +1,4 @@
-import {AbstractOutputPlugin} from '@truenine/plugin-output-shared'
+import {AbstractOutputPlugin} from '../plugin-core'
 
 const PROJECT_MEMORY_FILE = 'GEMINI.md'
 const GLOBAL_CONFIG_DIR = '.gemini'
@@ -9,7 +9,6 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: PROJECT_MEMORY_FILE,
       supportsCommands: false,
-      supportsSubAgents: false,
       supportsSkills: false
     })
   }

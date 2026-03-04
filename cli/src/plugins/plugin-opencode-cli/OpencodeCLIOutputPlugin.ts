@@ -1,5 +1,4 @@
-import type {CommandPrompt, OutputPluginContext, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '../plugin-shared'
-import type {RelativePath} from '../plugin-shared/types'
+import type {CommandPrompt, OutputPluginContext, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt, WriteResult, WriteResults} from '../plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {
@@ -9,8 +8,8 @@ import {
   filterSubAgentsByProjectConfig,
   McpConfigManager,
   transformMcpConfigForOpencode
-} from '@truenine/plugin-output-shared'
-import {FilePathKind, PLUGIN_NAMES} from '../plugin-shared'
+} from '../plugin-core'
+import {PLUGIN_NAMES} from '../plugin-core'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.config/opencode'
@@ -29,16 +28,14 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: GLOBAL_MEMORY_FILE,
       commandsSubDir: 'commands',
-      agentsSubDir: 'agents',
       skillsSubDir: 'skills',
       supportsCommands: true,
-      supportsSubAgents: true,
       supportsSkills: true,
       dependsOn: [PLUGIN_NAMES.AgentsOutput],
       rules: {
         enabled: true,
         subDir: RULES_SUBDIR,
-        transformFrontMatter: (rule: RulePrompt) => ({globs: rule.globs.length > 0 ? [...rule.globs] : void 0})
+        transformFrontMatter: (rule: RulePrompt) => ({globs: [...rule.globs]})
       }
     })
 
@@ -77,7 +74,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
+  override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results = await super.registerGlobalOutputFiles(ctx)
     const globalDir = this.getGlobalConfigDir()
 
@@ -86,19 +83,10 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       ? filterSkillsByProjectConfig(ctx.collectedInputContext.skills, projectConfig)
       : []
     const hasAnyMcpConfig = filteredSkills.some(s => s.mcpConfig != null)
-    if (hasAnyMcpConfig) {
-      const configPath = path.join(globalDir, OPENCODE_CONFIG_FILE)
-      results.push({
-        pathKind: FilePathKind.Relative,
-        path: OPENCODE_CONFIG_FILE,
-        basePath: globalDir,
-        getDirectoryName: () => GLOBAL_CONFIG_DIR,
-        getAbsolutePath: () => configPath
-      })
-    }
+    if (hasAnyMcpConfig) results.push(path.join(globalDir, OPENCODE_CONFIG_FILE))
 
     return results.map(result => { // Normalize skill directory names in paths
-      const normalizedPath = result.path.replaceAll('\\', '/')
+      const normalizedPath = result.replaceAll('\\', '/')
       const skillsPatternWithSlash = `/${this.skillsSubDir}/`
       const skillsPatternStart = `${this.skillsSubDir}/`
 
@@ -115,27 +103,22 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       const newPathParts = [...pathParts]
       newPathParts[skillsIndex + 1] = normalizedSkillName
       const newPath = newPathParts.join('/')
-      return {
-        ...result,
-        path: newPath,
-        getDirectoryName: () => normalizedSkillName,
-        getAbsolutePath: () => path.join(globalDir, newPath.replaceAll('/', path.sep))
-      }
+      return newPath
     })
   }
 
-  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
 
     for (const project of projects) {
       if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
-        results.push(this.createFileRelativePath(project.dirFromWorkspacePath, this.outputFileName))
+        results.push(this.createFileRelativePath(project.dirFromWorkspacePath.path, this.outputFileName))
       }
 
       if (project.childMemoryPrompts != null) {
         for (const child of project.childMemoryPrompts) {
-          if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir, this.outputFileName))
+          if (child.dir != null && this.isRelativePath(child.dir)) results.push(this.createFileRelativePath(child.dir.path, this.outputFileName))
         }
       }
 
@@ -157,7 +140,8 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
         const filteredSubAgents = filterSubAgentsByProjectConfig(ctx.collectedInputContext.subAgents, projectConfig)
         for (const agent of filteredSubAgents) {
           const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
-          results.push(this.createRelativePath(path.join(basePath, this.agentsSubDir, fileName), project.dirFromWorkspacePath.basePath, () => this.agentsSubDir))
+          const subDir = this.agentsSubDir
+          results.push(this.createRelativePath(path.join(basePath, subDir, fileName), project.dirFromWorkspacePath.basePath, () => subDir))
         }
       }
 
@@ -186,7 +170,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     return results.map(result => {
-      const normalizedPath = result.path.replaceAll('\\', '/')
+      const normalizedPath = result.replaceAll('\\', '/')
       const skillsPatternWithSlash = `/${this.skillsSubDir}/`
       const skillsPatternStart = `${this.skillsSubDir}/`
 
@@ -203,12 +187,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       const newPathParts = [...pathParts]
       newPathParts[skillsIndex + 1] = normalizedSkillName
       const newPath = newPathParts.join('/')
-      return {
-        ...result,
-        path: newPath,
-        getDirectoryName: () => normalizedSkillName,
-        getAbsolutePath: () => path.join(result.basePath, newPath.replaceAll('/', path.sep))
-      }
+      return newPath
     })
   }
 
@@ -239,13 +218,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     const globalDir = this.getGlobalConfigDir()
     const configPath = path.join(globalDir, OPENCODE_CONFIG_FILE)
 
-    const relativePath: RelativePath = {
-      pathKind: FilePathKind.Relative,
-      path: OPENCODE_CONFIG_FILE,
-      basePath: globalDir,
-      getDirectoryName: () => GLOBAL_CONFIG_DIR,
-      getAbsolutePath: () => configPath
-    }
+    const relativePath = path.join(globalDir, OPENCODE_CONFIG_FILE)
 
     const existingConfig = manager.readExistingConfig(configPath)
     const pluginField = existingConfig['plugin']
@@ -277,7 +250,8 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     agent: SubAgentPrompt
   ): Promise<WriteResult[]> {
     const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
-    const targetDir = path.join(basePath, this.agentsSubDir)
+    const subDir = this.agentsSubDir
+    const targetDir = path.join(basePath, subDir)
     const fullPath = path.join(targetDir, fileName)
 
     const opencodeFrontMatter = this.buildOpencodeAgentFrontMatter(agent)
@@ -371,7 +345,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (skill.childDocs != null) {
       for (const refDoc of skill.childDocs) {
-        const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, refDoc, basePath)
+        const refResults = await this.writeSkillReferenceDocument(ctx, targetDir, skillName, {dir: refDoc.dir.path, content: refDoc.content}, basePath)
         results.push(...refResults)
       }
     }
@@ -428,8 +402,8 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     return normalized
   }
 
-  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<RelativePath[]> {
-    const results: RelativePath[] = []
+  override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
+    const results: string[] = []
     const {projects} = ctx.collectedInputContext.workspace
 
     const subdirs: string[] = []
@@ -441,7 +415,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       if (project.dirFromWorkspacePath == null) continue
       for (const subdir of subdirs) {
         const dirPath = path.join(project.dirFromWorkspacePath.path, PROJECT_RULES_DIR, subdir)
-        results.push(this.createRelativePath(dirPath, project.dirFromWorkspacePath.basePath, () => subdir))
+        results.push(dirPath)
       }
     }
 

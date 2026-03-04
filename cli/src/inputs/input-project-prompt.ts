@@ -4,18 +4,18 @@ import type {
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
   YAMLFrontMatter
-} from '../plugins/plugin-shared'
+} from '../plugins/plugin-core'
 
 import process from 'node:process'
 
 import {mdxToMd} from '@truenine/md-compiler'
 import {ScopeError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+import {AbstractInputPlugin} from '../plugins/plugin-core'
 import {
   FilePathKind,
   PromptKind
-} from '../plugins/plugin-shared'
+} from '../plugins/plugin-core'
 
 const PROJECT_MEMORY_FILE = 'agt.mdx'
 const SCAN_SKIP_DIRECTORIES: readonly string[] = ['node_modules', '.git'] as const
