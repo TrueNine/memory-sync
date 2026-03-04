@@ -13,8 +13,7 @@ import type {RegistryData, RegistryOperationResult} from '../../types'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-
-import {createLogger} from '../../log'
+import {createLogger} from '@truenine/logger'
 
 /**
  * Abstract base class for registry configuration writers.

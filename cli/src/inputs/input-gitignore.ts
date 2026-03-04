@@ -1,4 +1,4 @@
-import type {CollectedInputContext, InputPluginContext} from '../plugins/plugin-core'
+import type {InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
 import * as path from 'node:path'
 import {AbstractInputPlugin} from '../plugins/plugin-core'
 
@@ -7,7 +7,7 @@ export class GitIgnoreInputPlugin extends AbstractInputPlugin {
     super('GitIgnoreInputPlugin')
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
+  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
     const {aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
     const filePath = path.join(aindexDir, 'public', 'gitignore')
 

@@ -12,7 +12,7 @@ import type {
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '../plugin-core'
+import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterByProjectConfig} from '../plugin-core'
 
 const QODER_CONFIG_DIR = '.qoder'
 const RULES_SUBDIR = 'rules'
@@ -34,7 +34,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
     return projects
       .filter(p => p.dirFromWorkspacePath != null)
       .map(p => path.join(p.dirFromWorkspacePath!.path, QODER_CONFIG_DIR, RULES_SUBDIR))
@@ -42,9 +42,9 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {workspace, rules} = ctx.collectedInputContext
+    const {workspace, rules} = ctx.collectedOutputContext
     const {projects} = workspace
-    const {globalMemory} = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedOutputContext
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
@@ -60,10 +60,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
       if (rules != null && rules.length > 0) { // Handle project rules
         const projectRules = applySubSeriesGlobPrefix(
-          filterRulesByProjectConfig(
-            rules.filter(r => this.normalizeRuleScope(r) === 'project'),
-            project.projectConfig
-          ),
+          filterByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig, 'rules'),
           project.projectConfig
         )
         for (const rule of projectRules) {
@@ -78,17 +75,17 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const globalDir = this.getGlobalConfigDir()
-    const {commands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const results: string[] = []
 
     if (commands != null && commands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
       if (filteredCommands.length > 0) results.push(path.join(globalDir, COMMANDS_SUBDIR))
     }
 
     if (skills != null && skills.length > 0) {
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
         results.push(path.join(globalDir, SKILLS_SUBDIR, skillName))
@@ -102,13 +99,13 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const globalDir = this.getGlobalConfigDir()
-    const {commands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const results: string[] = []
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
 
     if (commands != null && commands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
       for (const cmd of filteredCommands) {
         const fileName = this.transformCommandName(cmd, transformOptions)
         results.push(path.join(globalDir, COMMANDS_SUBDIR, fileName))
@@ -123,7 +120,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
+    const filteredSkills = skills != null ? filterByProjectConfig(skills, projectConfig, 'skills') : []
     if (filteredSkills.length > 0) {
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
@@ -144,7 +141,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, commands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, globalMemory, commands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const hasProjectPrompts = workspace.projects.some(
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
     )
@@ -156,7 +153,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {workspace, globalMemory, rules} = ctx.collectedInputContext
+    const {workspace, globalMemory, rules} = ctx.collectedOutputContext
     const {projects} = workspace
     const fileResults: WriteResult[] = []
 
@@ -184,10 +181,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
       if (rules != null && rules.length > 0) { // Write project rules
         const projectRules = applySubSeriesGlobPrefix(
-          filterRulesByProjectConfig(
-            rules.filter(r => this.normalizeRuleScope(r) === 'project'),
-            project.projectConfig
-          ),
+          filterByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig, 'rules'),
           project.projectConfig
         )
         for (const rule of projectRules) {
@@ -203,7 +197,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {commands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const globalDir = this.getGlobalConfigDir()
@@ -212,7 +206,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     const rulesDir = path.join(globalDir, RULES_SUBDIR)
 
     if (commands != null && commands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
       for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalCommand(ctx, commandsDir, cmd))
     }
 
@@ -223,7 +217,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
     if (skills == null || skills.length === 0) return {files: fileResults, dirs: []}
 
-    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
     for (const skill of filteredSkills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
     return {files: fileResults, dirs: []}
   }

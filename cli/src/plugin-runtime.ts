@@ -10,20 +10,18 @@ import type {OutputCleanContext, OutputWriteContext} from './plugins/plugin-core
  *
  * Subcommands: execute, dry-run, clean, plugins
  */
-import type {Command, CommandContext} from '@/commands'
+import type {Command, CommandContext} from '@/commands/Command'
 import type {PipelineConfig} from '@/config'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
-import {
-  CleanCommand,
-  DryRunCleanCommand,
-  DryRunOutputCommand,
-  ExecuteCommand,
-  JsonOutputCommand,
-  PluginsCommand
-} from '@/commands'
+import {CleanCommand} from '@/commands/CleanCommand'
+import {DryRunCleanCommand} from '@/commands/DryRunCleanCommand'
+import {DryRunOutputCommand} from '@/commands/DryRunOutputCommand'
+import {ExecuteCommand} from '@/commands/ExecuteCommand'
+import {JsonOutputCommand} from '@/commands/JsonOutputCommand'
+import {PluginsCommand} from '@/commands/PluginsCommand'
 import userPluginConfigPromise from './plugin.config'
 import {createLogger, setGlobalLogLevel} from './plugins/plugin-core'
 
@@ -81,7 +79,7 @@ async function main(): Promise<void> {
     fs,
     path,
     glob,
-    collectedInputContext: context,
+    collectedOutputContext: context,
     dryRun: dry
   })
 
@@ -90,7 +88,7 @@ async function main(): Promise<void> {
     fs,
     path,
     glob,
-    collectedInputContext: context,
+    collectedOutputContext: context,
     dryRun: dry,
     registeredPluginNames: [...outputPlugins].map(p => p.name)
   })
@@ -98,7 +96,7 @@ async function main(): Promise<void> {
   const commandCtx: CommandContext = {
     logger,
     outputPlugins: [...outputPlugins],
-    collectedInputContext: context,
+    collectedOutputContext: context,
     userConfigOptions,
     createCleanContext,
     createWriteContext

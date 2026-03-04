@@ -5,8 +5,18 @@
  * Refactored to use Command Factory pattern for command creation
  */
 
-import type {Command} from '@/commands'
-import {createDefaultCommandRegistry} from '@/commands/CommandRegistryFactory'
+import type {Command} from '@/commands/Command'
+import {FactoryPriority} from '@/commands/CommandFactory'
+import {CommandRegistry} from '@/commands/CommandRegistry'
+import {CleanCommandFactory} from '@/commands/factories/CleanCommandFactory'
+import {ConfigCommandFactory} from '@/commands/factories/ConfigCommandFactory'
+import {DryRunCommandFactory} from '@/commands/factories/DryRunCommandFactory'
+import {ExecuteCommandFactory} from '@/commands/factories/ExecuteCommandFactory'
+import {HelpCommandFactory} from '@/commands/factories/HelpCommandFactory'
+import {OutdatedCommandFactory} from '@/commands/factories/OutdatedCommandFactory'
+import {PluginsCommandFactory} from '@/commands/factories/PluginsCommandFactory'
+import {UnknownCommandFactory} from '@/commands/factories/UnknownCommandFactory'
+import {VersionCommandFactory} from '@/commands/factories/VersionCommandFactory'
 
 /**
  * Valid subcommands for the CLI
@@ -29,7 +39,6 @@ export interface ParsedCliArgs {
   readonly jsonFlag: boolean
   readonly showFlag: boolean
   readonly logLevel: LogLevel | undefined
-  readonly logLevelFlags: readonly LogLevel[]
   readonly setOption: readonly [key: string, value: string][]
   readonly unknownCommand: string | undefined
   readonly positional: readonly string[]
@@ -100,28 +109,11 @@ function isScriptOrPackage(arg: string): boolean {
   return /^(?:@[\w-]+\/)?[\w-]+$/.test(arg) && !arg.startsWith('-') // npx executed package name
 }
 
-/**
- * Resolve log level from parsed arguments.
- * When multiple log level flags are provided, returns the most verbose level.
- * Priority: trace > debug > info > warn > error
- */
-export function resolveLogLevel(args: ParsedCliArgs): LogLevel | undefined {
-  const {logLevelFlags} = args
-
-  if (logLevelFlags.length === 0) return void 0
-
-  let mostVerbose: LogLevel = logLevelFlags[0]! // Find the most verbose level (lowest priority number)
-  let lowestPriority = LOG_LEVEL_PRIORITY.get(mostVerbose) ?? 4
-
-  for (const level of logLevelFlags) {
-    const priority = LOG_LEVEL_PRIORITY.get(level) ?? 4
-    if (priority < lowestPriority) {
-      lowestPriority = priority
-      mostVerbose = level
-    }
-  }
-
-  return mostVerbose
+function pickMoreVerbose(current: LogLevel | undefined, candidate: LogLevel): LogLevel {
+  if (current == null) return candidate
+  const currentPriority = LOG_LEVEL_PRIORITY.get(current) ?? 4
+  const candidatePriority = LOG_LEVEL_PRIORITY.get(candidate) ?? 4
+  return candidatePriority < currentPriority ? candidate : current
 }
 
 /**
@@ -136,7 +128,6 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     jsonFlag: boolean
     showFlag: boolean
     logLevel: LogLevel | undefined
-    logLevelFlags: LogLevel[]
     setOption: [key: string, value: string][]
     unknownCommand: string | undefined
     positional: string[]
@@ -149,7 +140,6 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     jsonFlag: false,
     showFlag: false,
     logLevel: void 0,
-    logLevelFlags: [],
     setOption: [],
     unknownCommand: void 0,
     positional: [],
@@ -173,8 +163,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
 
       const logLevel = LOG_LEVEL_FLAGS.get(key) // Check log level flags
       if (logLevel != null) {
-        result.logLevelFlags.push(logLevel)
-        result.logLevel = logLevel
+        result.logLevel = pickMoreVerbose(result.logLevel, logLevel)
         continue
       }
 
@@ -240,19 +229,30 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
  */
 let commandRegistry: ReturnType<typeof createDefaultCommandRegistry> | undefined
 
+function createDefaultCommandRegistry(): CommandRegistry {
+  const registry = new CommandRegistry()
+
+  registry.register(new VersionCommandFactory()) // High priority: flag-based commands
+  registry.register(new HelpCommandFactory())
+  registry.register(new UnknownCommandFactory())
+
+  registry.registerWithPriority(new OutdatedCommandFactory(), FactoryPriority.Subcommand) // Normal priority: subcommand-based commands
+  registry.registerWithPriority(new DryRunCommandFactory(), FactoryPriority.Subcommand)
+  registry.registerWithPriority(new CleanCommandFactory(), FactoryPriority.Subcommand)
+  registry.registerWithPriority(new PluginsCommandFactory(), FactoryPriority.Subcommand)
+  registry.registerWithPriority(new ConfigCommandFactory(), FactoryPriority.Subcommand)
+
+  registry.registerWithPriority(new ExecuteCommandFactory(), FactoryPriority.Subcommand) // Lowest priority: default/catch-all command
+
+  return registry
+}
+
 /**
  * Get or create the command registry singleton
  */
 function getCommandRegistry(): ReturnType<typeof createDefaultCommandRegistry> {
   commandRegistry ??= createDefaultCommandRegistry()
   return commandRegistry
-}
-
-/**
- * Reset the command registry singleton (useful for testing)
- */
-export function resetCommandRegistry(): void {
-  commandRegistry = void 0
 }
 
 /**

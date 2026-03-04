@@ -1,6 +1,6 @@
 import type {Buffer} from 'node:buffer'
 
-import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
+import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
 import {createHash} from 'node:crypto'
 import {AbstractInputPlugin} from '../plugins/plugin-core'
 
@@ -173,7 +173,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
     return createHash('sha256').update(content).digest('hex')
   }
 
-  collect(_ctx: InputPluginContext): Partial<CollectedInputContext> {
+  collect(_ctx: InputPluginContext): Partial<InputCollectedContext> {
     return {}
   }
 }

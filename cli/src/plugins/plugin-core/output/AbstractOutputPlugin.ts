@@ -19,14 +19,12 @@ import {mdxToMd} from '@truenine/md-compiler'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {GlobalScopeCollector} from '../scope/GlobalScopeCollector'
 import {AbstractPlugin} from '../core/AbstractPlugin'
-import {FilePathKind, PluginKind} from '../types/enums'
+import {FilePathKind,
+  PluginKind} from '../types/enums'
 import {
   applySubSeriesGlobPrefix,
-  filterCommandsByProjectConfig,
-  filterRulesByProjectConfig,
-  filterSkillsByProjectConfig,
-  filterSubAgentsByProjectConfig
-} from './utils'
+  filterByProjectConfig
+} from './utils/filters'
 
 /**
  * Options for building skill front matter
@@ -184,7 +182,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   protected resolvePromptSourceProjectConfig(ctx: OutputPluginContext | OutputWriteContext): ProjectConfig | undefined {
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
     const promptSource = projects.find(p => p.isPromptSourceProject === true)
     return promptSource?.projectConfig ?? projects[0]?.projectConfig
   }
@@ -403,7 +401,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const outputPath = this.getIgnoreOutputPath()
     if (outputPath == null) return []
 
-    const {workspace, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const results: WriteResult[] = []
 
     if (aiAgentIgnoreConfigFiles == null || aiAgentIgnoreConfigFiles.length === 0) return results
@@ -515,7 +513,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   protected extractGlobalMemoryContent(ctx: OutputWriteContext): string | undefined {
-    return ctx.collectedInputContext.globalMemory?.content as string | undefined
+    return ctx.collectedOutputContext.globalMemory?.content as string | undefined
   }
 
   protected combineGlobalWithContent(
@@ -753,7 +751,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
 
     const subdirs: string[] = []
     if (this.supportsCommands) subdirs.push(this.commandsSubDir)
@@ -768,10 +766,10 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       supportsSkills: this.supportsSkills,
       supportsRules: this.rulesConfig.enabled,
       subdirs,
-      commandsCount: ctx.collectedInputContext.commands?.length ?? 0,
-      subAgentsCount: ctx.collectedInputContext.subAgents?.length ?? 0,
-      skillsCount: ctx.collectedInputContext.skills?.length ?? 0,
-      rulesCount: ctx.collectedInputContext.rules?.length ?? 0
+      commandsCount: ctx.collectedOutputContext.commands?.length ?? 0,
+      subAgentsCount: ctx.collectedOutputContext.subAgents?.length ?? 0,
+      skillsCount: ctx.collectedOutputContext.skills?.length ?? 0,
+      rulesCount: ctx.collectedOutputContext.rules?.length ?? 0
     })
 
     if (subdirs.length > 0) { // Register CLI subdirs (commands, agents, skills)
@@ -789,11 +787,11 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       }
     }
 
-    if (this.rulesConfig.enabled && ctx.collectedInputContext.rules != null && ctx.collectedInputContext.rules.length > 0) { // Register rules subdirs
+    if (this.rulesConfig.enabled && ctx.collectedOutputContext.rules != null && ctx.collectedOutputContext.rules.length > 0) { // Register rules subdirs
       for (const project of projects) {
         if (project.dirFromWorkspacePath == null) continue
         const projectRules = applySubSeriesGlobPrefix(
-          filterRulesByProjectConfig(ctx.collectedInputContext.rules, project.projectConfig),
+          filterByProjectConfig(ctx.collectedOutputContext.rules, project.projectConfig, 'rules'),
           project.projectConfig
         )
         if (projectRules.length === 0) continue
@@ -809,17 +807,17 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
 
     this.log.debug('registerProjectOutputFiles start', {
       plugin: this.name,
       projectCount: projects.length,
-      commandsAvailable: ctx.collectedInputContext.commands != null,
-      commandsCount: ctx.collectedInputContext.commands?.length ?? 0,
-      subAgentsAvailable: ctx.collectedInputContext.subAgents != null,
-      subAgentsCount: ctx.collectedInputContext.subAgents?.length ?? 0,
-      skillsAvailable: ctx.collectedInputContext.skills != null,
-      skillsCount: ctx.collectedInputContext.skills?.length ?? 0
+      commandsAvailable: ctx.collectedOutputContext.commands != null,
+      commandsCount: ctx.collectedOutputContext.commands?.length ?? 0,
+      subAgentsAvailable: ctx.collectedOutputContext.subAgents != null,
+      subAgentsCount: ctx.collectedOutputContext.subAgents?.length ?? 0,
+      skillsAvailable: ctx.collectedOutputContext.skills != null,
+      skillsCount: ctx.collectedOutputContext.skills?.length ?? 0
     })
 
     for (const project of projects) {
@@ -851,9 +849,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       const basePath = path.join(project.dirFromWorkspacePath.path, this.globalConfigDir)
       const transformOptions = {includeSeriesPrefix: true} as const
 
-      if (this.supportsCommands && ctx.collectedInputContext.commands != null) {
-        const allCommands = ctx.collectedInputContext.commands
-        const filteredCommands = filterCommandsByProjectConfig(allCommands, projectConfig)
+      if (this.supportsCommands && ctx.collectedOutputContext.commands != null) {
+        const allCommands = ctx.collectedOutputContext.commands
+        const filteredCommands = filterByProjectConfig(allCommands, projectConfig, 'commands')
         this.log.debug('filtering commands', {
           plugin: this.name,
           projectName: project.name,
@@ -870,13 +868,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         this.log.debug('commands skipped', {
           plugin: this.name,
           supportsCommands: this.supportsCommands,
-          hasCommands: ctx.collectedInputContext.commands != null
+          hasCommands: ctx.collectedOutputContext.commands != null
         })
       }
 
-      if (this.supportsSubAgents && ctx.collectedInputContext.subAgents != null) {
-        const allSubAgents = ctx.collectedInputContext.subAgents
-        const filteredSubAgents = filterSubAgentsByProjectConfig(allSubAgents, projectConfig)
+      if (this.supportsSubAgents && ctx.collectedOutputContext.subAgents != null) {
+        const allSubAgents = ctx.collectedOutputContext.subAgents
+        const filteredSubAgents = filterByProjectConfig(allSubAgents, projectConfig, 'subAgents')
         this.log.debug('filtering subAgents', {
           plugin: this.name,
           projectName: project.name,
@@ -893,13 +891,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         this.log.debug('subAgents skipped', {
           plugin: this.name,
           supportsSubAgents: this.supportsSubAgents,
-          hasSubAgents: ctx.collectedInputContext.subAgents != null
+          hasSubAgents: ctx.collectedOutputContext.subAgents != null
         })
       }
 
-      if (this.supportsSkills && ctx.collectedInputContext.skills != null) {
-        const allSkills = ctx.collectedInputContext.skills
-        const filteredSkills = filterSkillsByProjectConfig(allSkills, projectConfig)
+      if (this.supportsSkills && ctx.collectedOutputContext.skills != null) {
+        const allSkills = ctx.collectedOutputContext.skills
+        const filteredSkills = filterByProjectConfig(allSkills, projectConfig, 'skills')
         this.log.debug('filtering skills', {
           plugin: this.name,
           projectName: project.name,
@@ -931,19 +929,19 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         this.log.debug('skills skipped', {
           plugin: this.name,
           supportsSkills: this.supportsSkills,
-          hasSkills: ctx.collectedInputContext.skills != null
+          hasSkills: ctx.collectedOutputContext.skills != null
         })
       }
 
-      if (this.rulesConfig.enabled && ctx.collectedInputContext.rules != null && ctx.collectedInputContext.rules.length > 0) { // Register rule files
+      if (this.rulesConfig.enabled && ctx.collectedOutputContext.rules != null && ctx.collectedOutputContext.rules.length > 0) { // Register rule files
         const projectRules = applySubSeriesGlobPrefix(
-          filterRulesByProjectConfig(ctx.collectedInputContext.rules, projectConfig),
+          filterByProjectConfig(ctx.collectedOutputContext.rules, projectConfig, 'rules'),
           projectConfig
         )
         this.log.debug('registering rule files', {
           plugin: this.name,
           projectName: project.name,
-          totalRules: ctx.collectedInputContext.rules.length,
+          totalRules: ctx.collectedOutputContext.rules.length,
           filteredRules: projectRules.length
         })
         for (const rule of projectRules) {
@@ -955,7 +953,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         this.log.debug('rules skipped', {
           plugin: this.name,
           supportsRules: this.rulesConfig.enabled,
-          hasRules: ctx.collectedInputContext.rules != null
+          hasRules: ctx.collectedOutputContext.rules != null
         })
       }
     }
@@ -965,7 +963,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const {globalMemory} = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedOutputContext
     if (globalMemory == null) return []
     if (this.outputFileName === '') {
       this.log.error({action: 'skip', reason: 'outputFileName is empty', plugin: this.name, hint: 'Set outputFileName in plugin options or override registerGlobalOutputFiles'})
@@ -979,7 +977,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, commands, subAgents, skills, rules} = ctx.collectedInputContext
+    const {workspace, globalMemory, commands, subAgents, skills, rules} = ctx.collectedOutputContext
     const hasProjectOutputs = workspace.projects.some(
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
     )
@@ -1015,16 +1013,16 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
     this.log.debug('writeProjectOutputs start', {
       plugin: this.name,
       projectCount: projects.length,
-      commandsCount: ctx.collectedInputContext.commands?.length ?? 0,
-      subAgentsCount: ctx.collectedInputContext.subAgents?.length ?? 0,
-      skillsCount: ctx.collectedInputContext.skills?.length ?? 0
+      commandsCount: ctx.collectedOutputContext.commands?.length ?? 0,
+      subAgentsCount: ctx.collectedOutputContext.subAgents?.length ?? 0,
+      skillsCount: ctx.collectedOutputContext.skills?.length ?? 0
     })
 
     for (const project of projects) {
@@ -1058,9 +1056,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       const {projectConfig} = project
       const basePath = path.join(projectDir.basePath, projectDir.path, this.globalConfigDir)
 
-      if (this.supportsCommands && ctx.collectedInputContext.commands != null) {
-        const allCommands = ctx.collectedInputContext.commands
-        const filteredCommands = filterCommandsByProjectConfig(allCommands, projectConfig)
+      if (this.supportsCommands && ctx.collectedOutputContext.commands != null) {
+        const allCommands = ctx.collectedOutputContext.commands
+        const filteredCommands = filterByProjectConfig(allCommands, projectConfig, 'commands')
         this.log.debug('writing commands', {
           plugin: this.name,
           projectName,
@@ -1077,13 +1075,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         this.log.debug('commands not written', {
           plugin: this.name,
           supportsCommands: this.supportsCommands,
-          hasCommands: ctx.collectedInputContext.commands != null
+          hasCommands: ctx.collectedOutputContext.commands != null
         })
       }
 
-      if (this.supportsSubAgents && ctx.collectedInputContext.subAgents != null) {
-        const allSubAgents = ctx.collectedInputContext.subAgents
-        const filteredSubAgents = filterSubAgentsByProjectConfig(allSubAgents, projectConfig)
+      if (this.supportsSubAgents && ctx.collectedOutputContext.subAgents != null) {
+        const allSubAgents = ctx.collectedOutputContext.subAgents
+        const filteredSubAgents = filterByProjectConfig(allSubAgents, projectConfig, 'subAgents')
         this.log.debug('writing subAgents', {
           plugin: this.name,
           projectName,
@@ -1100,13 +1098,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         this.log.debug('subAgents not written', {
           plugin: this.name,
           supportsSubAgents: this.supportsSubAgents,
-          hasSubAgents: ctx.collectedInputContext.subAgents != null
+          hasSubAgents: ctx.collectedOutputContext.subAgents != null
         })
       }
 
-      if (this.supportsSkills && ctx.collectedInputContext.skills != null) {
-        const allSkills = ctx.collectedInputContext.skills
-        const filteredSkills = filterSkillsByProjectConfig(allSkills, projectConfig)
+      if (this.supportsSkills && ctx.collectedOutputContext.skills != null) {
+        const allSkills = ctx.collectedOutputContext.skills
+        const filteredSkills = filterByProjectConfig(allSkills, projectConfig, 'skills')
         this.log.debug('writing skills', {
           plugin: this.name,
           projectName,
@@ -1122,14 +1120,14 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         this.log.debug('skills not written', {
           plugin: this.name,
           supportsSkills: this.supportsSkills,
-          hasSkills: ctx.collectedInputContext.skills != null
+          hasSkills: ctx.collectedOutputContext.skills != null
         })
       }
 
-      if (this.rulesConfig.enabled && ctx.collectedInputContext.rules != null && ctx.collectedInputContext.rules.length > 0) { // Write rules
-        const allRules = ctx.collectedInputContext.rules
+      if (this.rulesConfig.enabled && ctx.collectedOutputContext.rules != null && ctx.collectedOutputContext.rules.length > 0) { // Write rules
+        const allRules = ctx.collectedOutputContext.rules
         const filteredRules = applySubSeriesGlobPrefix(
-          filterRulesByProjectConfig(allRules, projectConfig),
+          filterByProjectConfig(allRules, projectConfig, 'rules'),
           projectConfig
         )
         this.log.debug('writing rules', {
@@ -1154,7 +1152,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         this.log.debug('rules not written', {
           plugin: this.name,
           supportsRules: this.rulesConfig.enabled,
-          hasRules: ctx.collectedInputContext.rules != null
+          hasRules: ctx.collectedOutputContext.rules != null
         })
       }
     }
@@ -1163,7 +1161,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory} = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedOutputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 

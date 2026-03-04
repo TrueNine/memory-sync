@@ -1,6 +1,5 @@
-import type {AIAgentIgnoreConfigFile, CollectedInputContext, InputPluginContext} from '../plugins/plugin-core'
-import {AbstractInputPlugin} from '../plugins/plugin-core'
-import {AINDEX_FILE_NAMES} from '../plugins/plugin-core'
+import type {AIAgentIgnoreConfigFile, InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
+import {AbstractInputPlugin, AINDEX_FILE_NAMES} from '../plugins/plugin-core'
 
 const IGNORE_FILE_NAMES: readonly string[] = [
   AINDEX_FILE_NAMES.QODER_IGNORE,
@@ -17,7 +16,7 @@ export class AIAgentIgnoreInputPlugin extends AbstractInputPlugin {
     super('AIAgentIgnoreInputPlugin')
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
+  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
     const {aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
     const results: AIAgentIgnoreConfigFile[] = []
 

@@ -4,10 +4,7 @@ import {z} from 'zod/v3'
  * Zod schema for a source/dist path pair.
  * Both paths are relative to the aindex project root.
  */
-export const ZAindexDirPair = z.object({
-  src: z.string(),
-  dist: z.string()
-})
+export const ZAindexDirPair = z.object({src: z.string(), dist: z.string()})
 
 /**
  * Zod schema for the aindex configuration.
@@ -67,9 +64,7 @@ export const ZUserConfigFile = z.object({
 /**
  * Zod schema for MCP project config.
  */
-export const ZMcpProjectConfig = z.object({
-  names: z.array(z.string()).optional()
-})
+export const ZMcpProjectConfig = z.object({names: z.array(z.string()).optional()})
 
 /**
  * Zod schema for per-type series filtering configuration.

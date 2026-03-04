@@ -27,8 +27,8 @@ export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
-    const {editorConfigFiles} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {editorConfigFiles} = ctx.collectedOutputContext
 
     if (editorConfigFiles == null || editorConfigFiles.length === 0) return results
 
@@ -44,7 +44,7 @@ export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {editorConfigFiles} = ctx.collectedInputContext
+    const {editorConfigFiles} = ctx.collectedOutputContext
     if (editorConfigFiles != null && editorConfigFiles.length > 0) return true
 
     this.log.debug('skipped', {reason: 'no EditorConfig files found'})
@@ -52,8 +52,8 @@ export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedInputContext.workspace
-    const {editorConfigFiles} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {editorConfigFiles} = ctx.collectedOutputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 

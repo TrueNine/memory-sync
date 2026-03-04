@@ -1,5 +1,5 @@
 import type {Command} from './Command'
-import type {ParsedCliArgs} from '@/pipeline'
+import type {ParsedCliArgs} from '@/pipeline/CliArgumentParser'
 
 /**
  * Command factory interface

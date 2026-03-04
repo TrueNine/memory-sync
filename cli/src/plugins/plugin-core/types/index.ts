@@ -1,13 +1,35 @@
 export * from './AindexTypes'
 export * from './ConfigTypes.schema'
 export * from './enums'
-export * from './errors'
 export * from './ExportMetadataTypes'
-export * from './FileSystemTypes'
 export * from './InputTypes'
-export * from './LocalizedTypes'
 export * from './OutputTypes'
 export * from './plugin'
 export * from './PromptTypes'
-export * from './RegistryTypes'
-export type {ILogger, LogLevel} from '../log'
+export type {
+  ILogger,
+  LogLevel
+} from '@truenine/logger'
+
+export class MissingDependencyError extends Error {
+  readonly pluginName: string
+
+  readonly missingDependency: string
+
+  constructor(pluginName: string, missingDependency: string) {
+    super(`Plugin "${pluginName}" depends on missing plugin "${missingDependency}"`)
+    this.name = 'MissingDependencyError'
+    this.pluginName = pluginName
+    this.missingDependency = missingDependency
+  }
+}
+
+export class CircularDependencyError extends Error {
+  readonly cyclePath: readonly string[]
+
+  constructor(cyclePath: readonly string[]) {
+    super(`Circular plugin dependency detected: ${cyclePath.join(' -> ')}`)
+    this.name = 'CircularDependencyError'
+    this.cyclePath = [...cyclePath]
+  }
+}

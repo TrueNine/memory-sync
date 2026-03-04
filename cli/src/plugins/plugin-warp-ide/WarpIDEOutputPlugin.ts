@@ -4,8 +4,7 @@ import type {
   WriteResult,
   WriteResults
 } from '../plugin-core'
-import {AbstractOutputPlugin} from '../plugin-core'
-import {PLUGIN_NAMES} from '../plugin-core'
+import {AbstractOutputPlugin, PLUGIN_NAMES} from '../plugin-core'
 
 const PROJECT_MEMORY_FILE = 'WARP.md'
 
@@ -29,7 +28,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
     const agentsRegistered = this.isAgentsPluginRegisteredInCtx(ctx)
 
     for (const project of projects) {
@@ -54,7 +53,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
     const agentsRegistered = this.shouldSkipDueToPlugin(ctx, PLUGIN_NAMES.AgentsOutput)
-    const {workspace, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
 
     if (agentsRegistered) {
       if (globalMemory == null) { // When AgentsOutputPlugin is registered, only write if we have global memory
@@ -78,7 +77,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const agentsRegistered = this.shouldSkipDueToPlugin(ctx, PLUGIN_NAMES.AgentsOutput)
-    const {workspace, globalMemory} = ctx.collectedInputContext
+    const {workspace, globalMemory} = ctx.collectedOutputContext
     const {projects} = workspace
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []

@@ -1,10 +1,8 @@
 import type {Dirent} from 'node:fs'
 import type {
-  CollectedInputContext,
   ILogger,
+  InputCollectedContext,
   InputPluginContext,
-  LocalizedPrompt,
-  LocalizedSkillPrompt,
   McpServerConfig,
   SkillChildDoc,
   SkillMcpConfig,
@@ -20,8 +18,7 @@ import * as nodePath from 'node:path'
 import {mdxToMd} from '@truenine/md-compiler'
 import {MetadataValidationError} from '@truenine/md-compiler/errors'
 import {parseMarkdown, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
-import {AbstractInputPlugin, createLocalizedPromptReader} from '../plugins/plugin-core'
-import {FilePathKind, PromptKind, validateSkillMetadata} from '../plugins/plugin-core'
+import {AbstractInputPlugin, createLocalizedPromptReader, FilePathKind, PromptKind, validateSkillMetadata} from '../plugins/plugin-core'
 
 export * from './input-agentskills-types' // Re-export from types file
 
@@ -573,14 +570,14 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     return processor.scanSkillDirectory(skillDir, currentRelativePath)
   }
 
-  async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+  async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, fs, path: pathModule, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
 
     const srcSkillDir = this.resolveAindexPath(options.aindex.skills.src, aindexDir)
     const distSkillDir = this.resolveAindexPath(options.aindex.skills.dist, aindexDir)
 
-    const legacySkills: SkillPrompt[] = []
+    const flatSkills: SkillPrompt[] = []
     const reader = createLocalizedPromptReader(fs, pathModule, logger, globalScope)
 
     const {prompts: localizedSkills, errors} = await reader.readDirectoryStructure(
@@ -626,7 +623,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
 
     for (const localized of localizedSkills) {
       const prompt = localized.dist?.prompt ?? localized.src.default.prompt
-      if (prompt) legacySkills.push(prompt)
+      if (prompt) flatSkills.push(prompt)
     }
 
     if (fs.existsSync(distSkillDir)) {
@@ -651,7 +648,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             skillAbsoluteDir,
             ctx
           )
-          if (skill) legacySkills.push(skill)
+          if (skill) flatSkills.push(skill)
         }
         catch (e) {
           logger.error('failed to parse skill', {file: skillFilePath, error: e})
@@ -659,19 +656,8 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       }
     }
 
-    const promptIndex = new Map<string, LocalizedPrompt>()
-    for (const skill of localizedSkills) promptIndex.set(skill.name, skill)
-
     return {
-      prompts: {
-        skills: localizedSkills as LocalizedSkillPrompt[],
-        commands: [],
-        subAgents: [],
-        rules: [],
-        readme: []
-      },
-      promptIndex,
-      skills: legacySkills
+      skills: flatSkills
     }
   }
 }

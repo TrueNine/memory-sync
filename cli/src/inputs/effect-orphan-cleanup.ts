@@ -1,4 +1,4 @@
-import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
+import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
 import {AbstractInputPlugin} from '../plugins/plugin-core'
 
 export interface OrphanCleanupEffectResult extends InputEffectResult {
@@ -201,7 +201,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     }
   }
 
-  collect(_ctx: InputPluginContext): Partial<CollectedInputContext> {
+  collect(_ctx: InputPluginContext): Partial<InputCollectedContext> {
     return {}
   }
 }

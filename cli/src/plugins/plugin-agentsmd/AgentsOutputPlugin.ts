@@ -15,7 +15,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
 
     for (const project of projects) {
       if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
@@ -33,7 +33,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace} = ctx.collectedInputContext
+    const {workspace} = ctx.collectedOutputContext
     const hasProjectOutputs = workspace.projects.some(
       p => p.rootMemoryPrompt != null || (p.childMemoryPrompts?.length ?? 0) > 0
     )
@@ -45,7 +45,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 

@@ -1,15 +1,12 @@
 import process from 'node:process'
 import {PluginPipeline} from '@/PluginPipeline'
 import userPluginConfigPromise from './plugin.config'
-import {createLogger, DEFAULT_USER_CONFIG, PathPlaceholders} from './plugins/plugin-core'
+import {createLogger} from './plugins/plugin-core'
 
 export * from './Aindex'
 export * from './config'
 export * from './ConfigLoader'
-export {
-  DEFAULT_USER_CONFIG,
-  PathPlaceholders
-}
+
 export {
   default
 } from './plugin.config'
@@ -25,3 +22,8 @@ main().catch((e: unknown) => {
   logger.error('unhandled error', {error: e instanceof Error ? e.message : String(e)})
   process.exit(1)
 })
+
+export {
+  DEFAULT_USER_CONFIG,
+  PathPlaceholders
+} from './plugins/plugin-core'

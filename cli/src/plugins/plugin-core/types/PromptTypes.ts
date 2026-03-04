@@ -1,7 +1,37 @@
 import type {Root, RootContent} from '@truenine/md-compiler'
 import type {ClaudeCodeCLISubAgentColors, CodingAgentTools, FilePathKind, NamingCaseKind, PromptKind, RuleScope} from './enums'
-import type {FileContent, Path, RelativePath, RootPath} from './FileSystemTypes'
 import type {GlobalConfigDirectory} from './OutputTypes'
+
+/** Common directory representation */
+export interface Path<K extends FilePathKind = FilePathKind> {
+  readonly pathKind: K
+  readonly path: string
+  readonly getDirectoryName: () => string
+}
+
+/** Relative path directory */
+export interface RelativePath extends Path<FilePathKind.Relative> {
+  readonly basePath: string
+  getAbsolutePath: () => string
+}
+
+/** Absolute path directory */
+export type AbsolutePath = Path<FilePathKind.Absolute>
+
+/** Root path directory */
+export type RootPath = Path<FilePathKind.Root>
+
+export interface FileContent<
+  C = unknown,
+  FK extends FilePathKind = FilePathKind.Relative,
+  F extends Path = RelativePath
+> {
+  content: C
+  length: number
+  filePathKind: FK
+  dir: F
+  charsetEncoding?: BufferEncoding
+}
 
 /**
  * Prompt

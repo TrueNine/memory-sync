@@ -7,12 +7,10 @@ import type {
 } from '../plugin-core'
 
 import {Buffer} from 'node:buffer'
-import * as fs from 'node:fs'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from '../plugin-core'
 
 const PROJECT_SKILLS_DIR = '.agents/skills'
-const LEGACY_SKILLS_DIR = '.skills' // 旧路径，用于清理
 const SKILL_FILE_NAME = 'SKILL.md'
 const MCP_CONFIG_FILE = 'mcp.json'
 
@@ -21,50 +19,16 @@ const MCP_CONFIG_FILE = 'mcp.json'
  *
  * Structure:
  * - Project: <project>/.agents/skills/<skill-name>/SKILL.md, mcp.json, child docs, resources
- *
- * Also cleans up legacy .skills/ directories from previous versions.
  */
 export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('GenericSkillsOutputPlugin', {outputFileName: SKILL_FILE_NAME})
-
-    this.registerCleanEffect('legacy-global-skills-cleanup', async ctx => { // 向后兼容：clean 时清理旧的 ~/.skills 目录
-      const legacyGlobalSkillsDir = this.joinPath(this.getHomeDir(), LEGACY_SKILLS_DIR)
-      if (!this.existsSync(legacyGlobalSkillsDir)) return {success: true, description: 'Legacy global skills dir does not exist, nothing to clean'}
-      if (ctx.dryRun === true) {
-        this.log.trace({action: 'dryRun', type: 'legacyCleanup', path: legacyGlobalSkillsDir})
-        return {success: true, description: `Would clean legacy global skills dir: ${legacyGlobalSkillsDir}`}
-      }
-      try {
-        const entries = this.readdirSync(legacyGlobalSkillsDir, {withFileTypes: true}) // 只删除 skill 子目录（避免误删用户其他文件）
-        let cleanedCount = 0
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            const skillDir = this.joinPath(legacyGlobalSkillsDir, entry.name)
-            const skillFile = this.joinPath(skillDir, SKILL_FILE_NAME)
-            if (this.existsSync(skillFile)) { // 确认是 skill 目录（包含 SKILL.md）才删除
-              fs.rmSync(skillDir, {recursive: true})
-              cleanedCount++
-            }
-          }
-        }
-        const remainingEntries = this.readdirSync(legacyGlobalSkillsDir) // 如果目录为空则删除目录本身
-        if (remainingEntries.length === 0) fs.rmdirSync(legacyGlobalSkillsDir)
-        this.log.trace({action: 'clean', type: 'legacySkills', dir: legacyGlobalSkillsDir, cleanedCount})
-        return {success: true, description: `Cleaned ${cleanedCount} legacy skills from ${legacyGlobalSkillsDir}`}
-      }
-      catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'clean', type: 'legacySkills', dir: legacyGlobalSkillsDir, error: errMsg})
-        return {success: false, description: `Failed to clean legacy skills dir`, error: error as Error}
-      }
-    })
   }
 
   override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
-    const {skills} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {skills} = ctx.collectedOutputContext
 
     if (skills == null || skills.length === 0) return results
 
@@ -73,9 +37,6 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
       const skillsDir = this.joinPath(project.dirFromWorkspacePath.path, PROJECT_SKILLS_DIR)
       results.push(skillsDir)
-
-      const legacySkillsDir = this.joinPath(project.dirFromWorkspacePath.path, LEGACY_SKILLS_DIR)
-      results.push(legacySkillsDir)
     }
 
     return results
@@ -83,8 +44,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
-    const {skills} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {skills} = ctx.collectedOutputContext
 
     if (skills == null || skills.length === 0) return results
 
@@ -123,8 +84,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {skills} = ctx.collectedInputContext
-    const {projects} = ctx.collectedInputContext.workspace
+    const {skills} = ctx.collectedOutputContext
+    const {projects} = ctx.collectedOutputContext.workspace
 
     if (skills == null || skills.length === 0) {
       this.log.trace({action: 'skip', reason: 'noSkills'})
@@ -138,8 +99,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedInputContext.workspace
-    const {skills} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {skills} = ctx.collectedOutputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 

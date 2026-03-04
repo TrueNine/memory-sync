@@ -1,6 +1,6 @@
 import type {Command} from '../Command'
 import type {CommandFactory} from '../CommandFactory'
-import type {ParsedCliArgs} from '@/pipeline'
+import type {ParsedCliArgs} from '@/pipeline/CliArgumentParser'
 import {OutdatedCommand} from '../OutdatedCommand'
 
 /**

@@ -3,7 +3,8 @@ import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {AindexConfig, CommandSeriesOptions} from './ConfigTypes.schema'
 import type {PluginKind} from './enums'
 import type {
-  CollectedInputContext,
+  InputCollectedContext,
+  OutputCollectedContext,
   Project
 } from './InputTypes'
 
@@ -33,7 +34,7 @@ export interface PluginContext {
 
 export interface InputPluginContext extends PluginContext {
   readonly userConfigOptions: Required<PluginOptions>
-  readonly dependencyContext: Partial<CollectedInputContext>
+  readonly dependencyContext: Partial<InputCollectedContext>
 
   readonly globalScope?: MdxGlobalScope
 
@@ -41,7 +42,7 @@ export interface InputPluginContext extends PluginContext {
 }
 
 export interface InputPlugin extends Plugin<PluginKind.Input> {
-  collect: (ctx: InputPluginContext) => Partial<CollectedInputContext> | Promise<Partial<CollectedInputContext>>
+  collect: (ctx: InputPluginContext) => Partial<InputCollectedContext> | Promise<Partial<InputCollectedContext>>
 }
 
 /**
@@ -57,7 +58,7 @@ export interface ProjectEnhancerPlugin extends InputPlugin {
  * Context for output plugin operations
  */
 export interface OutputPluginContext extends PluginContext {
-  readonly collectedInputContext: CollectedInputContext
+  readonly collectedOutputContext: OutputCollectedContext
   readonly pluginOptions?: PluginOptions
 }
 
@@ -375,7 +376,8 @@ export async function executeWriteOutputs(
  * Interpreted by plugin system as collection context
  * Path placeholder `~` resolves to the user home directory.
  *
- * @see CollectedInputContext - Collected context
+ * @see InputCollectedContext - Input-side collected context
+ * @see OutputCollectedContext - Output-side collected context
  */
 export interface PluginOptions {
   readonly version?: string

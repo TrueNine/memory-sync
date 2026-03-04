@@ -78,10 +78,6 @@ pub struct AindexConfig {
     pub arch: Option<DirPair>,
 }
 
-/// Shadow source project configuration (deprecated, use AindexConfig).
-#[deprecated(since = "2026.10303.0", note = "Use AindexConfig instead")]
-pub type ShadowSourceProjectConfig = AindexConfig;
-
 /// Per-plugin fast command series override options.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -217,16 +213,6 @@ fn merge_aindex(
             arch: DirPair::merge(&base.arch, &over.arch),
         }),
     }
-}
-
-/// Merge aindex configs (deprecated, use merge_aindex).
-#[deprecated(since = "2026.10303.0", note = "Use merge_aindex instead")]
-#[allow(dead_code)]
-fn merge_shadow_source_project(
-    a: &Option<AindexConfig>,
-    b: &Option<AindexConfig>,
-) -> Option<AindexConfig> {
-    merge_aindex(a, b)
 }
 
 /// Merge two configs. `over` fields take priority over `base`.
@@ -600,14 +586,6 @@ pub fn ensure_aindex_config_link(aindex_dir: &str, logger: &Logger) {
     let global_path = get_global_config_path();
     let config_path = resolved.join(DEFAULT_CONFIG_FILE_NAME);
     ensure_config_link(&config_path, &global_path, logger);
-}
-
-/// Ensure the shadow source project directory has a `.tnmsc.json` symlink
-/// pointing to the global config (deprecated, use ensure_aindex_config_link).
-#[deprecated(since = "2026.10303.0", note = "Use ensure_aindex_config_link instead")]
-#[allow(dead_code)]
-pub fn ensure_shadow_project_config_link(shadow_project_dir: &str, logger: &Logger) {
-    ensure_aindex_config_link(shadow_project_dir, logger);
 }
 
 /// Validate global config file strictly.

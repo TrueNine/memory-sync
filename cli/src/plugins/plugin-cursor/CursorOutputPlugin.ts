@@ -14,18 +14,16 @@ import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {
   AbstractOutputPlugin,
   applySubSeriesGlobPrefix,
-  filterCommandsByProjectConfig,
-  filterRulesByProjectConfig,
-  filterSkillsByProjectConfig,
+  filterByProjectConfig,
   GlobalConfigDirs,
   IgnoreFiles,
   McpConfigManager,
   OutputFileNames,
   OutputSubdirectories,
+  PLUGIN_NAMES,
   PreservedSkills,
   transformMcpConfigForCursor
 } from '../plugin-core'
-import {PLUGIN_NAMES} from '../plugin-core'
 
 const GLOBAL_CONFIG_DIR = GlobalConfigDirs.CURSOR // Constants for local use (consider moving to constants.ts if used by multiple plugins)
 const MCP_CONFIG_FILE = OutputFileNames.MCP_CONFIG
@@ -77,16 +75,16 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
     const globalDir = this.getGlobalConfigDir()
-    const {commands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
     if (commands != null && commands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
       if (filteredCommands.length > 0) results.push(path.join(globalDir, COMMANDS_SUBDIR))
     }
 
     if (skills != null && skills.length > 0) {
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
         if (this.isPreservedSkill(skillName)) continue
@@ -104,15 +102,15 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
     const globalDir = this.getGlobalConfigDir()
-    const {skills, commands} = ctx.collectedInputContext
+    const {skills, commands} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
+    const filteredSkills = skills != null ? filterByProjectConfig(skills, projectConfig, 'skills') : []
     const hasAnyMcpConfig = filteredSkills.some(s => s.mcpConfig != null)
 
     if (hasAnyMcpConfig) results.push(path.join(globalDir, MCP_CONFIG_FILE))
 
     if (commands != null && commands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
       const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
       for (const cmd of filteredCommands) {
         const fileName = this.transformCommandName(cmd, transformOptions)
@@ -120,7 +118,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
+    const globalRules = ctx.collectedOutputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules != null && globalRules.length > 0) {
       for (const rule of globalRules) {
         const fileName = this.buildRuleFileName(rule)
@@ -153,7 +151,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {workspace, globalMemory, rules} = ctx.collectedInputContext
+    const {workspace, globalMemory, rules} = ctx.collectedOutputContext
     const hasProjectRules = rules?.some(r => this.normalizeRuleScope(r) === 'project') ?? false
     if (globalMemory == null && !hasProjectRules) return results
     for (const project of workspace.projects) {
@@ -166,7 +164,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {workspace, globalMemory, rules} = ctx.collectedInputContext
+    const {workspace, globalMemory, rules} = ctx.collectedOutputContext
     if (globalMemory == null && rules == null) return results
 
     if (globalMemory != null) {
@@ -181,7 +179,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
-        const projectRules = applySubSeriesGlobPrefix(filterRulesByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig), project.projectConfig)
+        const projectRules = applySubSeriesGlobPrefix(filterByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig, 'rules'), project.projectConfig)
         for (const rule of projectRules) results.push(path.join(projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR, this.buildRuleFileName(rule)))
       }
     }
@@ -191,7 +189,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, skills, commands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, skills, commands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const hasSkills = (skills?.length ?? 0) > 0
     const hasFastCommands = (commands?.length ?? 0) > 0
     const hasRules = (rules?.length ?? 0) > 0
@@ -203,13 +201,13 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {skills, commands, rules} = ctx.collectedInputContext
+    const {skills, commands, rules} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
     if (skills != null && skills.length > 0) {
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
       const mcpResult = await this.writeGlobalMcpConfig(ctx, filteredSkills)
       if (mcpResult != null) fileResults.push(mcpResult)
       const skillsCursorDir = this.getSkillsCursorDir()
@@ -221,7 +219,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (commands != null && commands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
       const commandsDir = this.getGlobalCommandsDir()
       for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalCommand(ctx, commandsDir, cmd))
     }
@@ -237,7 +235,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
-    const {workspace, globalMemory, rules} = ctx.collectedInputContext
+    const {workspace, globalMemory, rules} = ctx.collectedOutputContext
     if (globalMemory != null) {
       const content = this.buildGlobalRuleContent(globalMemory.content as string)
       for (const project of workspace.projects) {
@@ -250,7 +248,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
-        const projectRules = applySubSeriesGlobPrefix(filterRulesByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig), project.projectConfig)
+        const projectRules = applySubSeriesGlobPrefix(filterByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig, 'rules'), project.projectConfig)
         if (projectRules.length === 0) continue
         const rulesDir = path.join(projectDir.basePath, projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR)
         for (const rule of projectRules) fileResults.push(await this.writeRuleMdcFile(ctx, rulesDir, rule, projectDir.basePath))

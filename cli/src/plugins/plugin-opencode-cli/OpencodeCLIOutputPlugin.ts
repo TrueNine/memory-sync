@@ -3,13 +3,11 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {
   AbstractOutputPlugin,
-  filterCommandsByProjectConfig,
-  filterSkillsByProjectConfig,
-  filterSubAgentsByProjectConfig,
+  filterByProjectConfig,
   McpConfigManager,
+  PLUGIN_NAMES,
   transformMcpConfigForOpencode
 } from '../plugin-core'
-import {PLUGIN_NAMES} from '../plugin-core'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.config/opencode'
@@ -79,8 +77,8 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     const globalDir = this.getGlobalConfigDir()
 
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const filteredSkills = ctx.collectedInputContext.skills != null
-      ? filterSkillsByProjectConfig(ctx.collectedInputContext.skills, projectConfig)
+    const filteredSkills = ctx.collectedOutputContext.skills != null
+      ? filterByProjectConfig(ctx.collectedOutputContext.skills, projectConfig, 'skills')
       : []
     const hasAnyMcpConfig = filteredSkills.some(s => s.mcpConfig != null)
     if (hasAnyMcpConfig) results.push(path.join(globalDir, OPENCODE_CONFIG_FILE))
@@ -109,7 +107,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
 
     for (const project of projects) {
       if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
@@ -128,16 +126,16 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       const basePath = path.join(project.dirFromWorkspacePath.path, PROJECT_RULES_DIR)
       const transformOptions = {includeSeriesPrefix: true} as const
 
-      if (this.supportsCommands && ctx.collectedInputContext.commands != null) {
-        const filteredCommands = filterCommandsByProjectConfig(ctx.collectedInputContext.commands, projectConfig)
+      if (this.supportsCommands && ctx.collectedOutputContext.commands != null) {
+        const filteredCommands = filterByProjectConfig(ctx.collectedOutputContext.commands, projectConfig, 'commands')
         for (const cmd of filteredCommands) {
           const fileName = this.transformCommandName(cmd, transformOptions)
           results.push(this.createRelativePath(path.join(basePath, this.commandsSubDir, fileName), project.dirFromWorkspacePath.basePath, () => this.commandsSubDir))
         }
       }
 
-      if (this.supportsSubAgents && ctx.collectedInputContext.subAgents != null) {
-        const filteredSubAgents = filterSubAgentsByProjectConfig(ctx.collectedInputContext.subAgents, projectConfig)
+      if (this.supportsSubAgents && ctx.collectedOutputContext.subAgents != null) {
+        const filteredSubAgents = filterByProjectConfig(ctx.collectedOutputContext.subAgents, projectConfig, 'subAgents')
         for (const agent of filteredSubAgents) {
           const fileName = agent.dir.path.replace(/\.mdx$/, '.md')
           const subDir = this.agentsSubDir
@@ -145,8 +143,8 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
         }
       }
 
-      if (this.supportsSkills && ctx.collectedInputContext.skills != null) {
-        const filteredSkills = filterSkillsByProjectConfig(ctx.collectedInputContext.skills, projectConfig)
+      if (this.supportsSkills && ctx.collectedOutputContext.skills != null) {
+        const filteredSkills = filterByProjectConfig(ctx.collectedOutputContext.skills, projectConfig, 'skills')
         for (const skill of filteredSkills) {
           const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
           const skillDir = path.join(basePath, this.skillsSubDir, skillName)
@@ -195,11 +193,11 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     const baseResults = await super.writeGlobalOutputs(ctx)
     const files = [...baseResults.files]
 
-    const {skills} = ctx.collectedInputContext
+    const {skills} = ctx.collectedOutputContext
     if (skills == null) return {files, dirs: baseResults.dirs}
 
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
     const mcpResult = await this.writeGlobalMcpConfig(ctx, filteredSkills)
     if (mcpResult != null) files.push(mcpResult)
     return {files, dirs: baseResults.dirs}
@@ -404,7 +402,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
 
     const subdirs: string[] = []
     if (this.supportsCommands) subdirs.push(this.commandsSubDir)
@@ -426,7 +424,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
-    for (const project of ctx.collectedInputContext.workspace.projects) {
+    for (const project of ctx.collectedOutputContext.workspace.projects) {
       if (project.dirFromWorkspacePath == null) continue
 
       const projectDir = project.dirFromWorkspacePath
@@ -445,24 +443,24 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
         }
       }
 
-      if (this.supportsCommands && ctx.collectedInputContext.commands != null) {
-        const filteredCommands = filterCommandsByProjectConfig(ctx.collectedInputContext.commands, projectConfig)
+      if (this.supportsCommands && ctx.collectedOutputContext.commands != null) {
+        const filteredCommands = filterByProjectConfig(ctx.collectedOutputContext.commands, projectConfig, 'commands')
         for (const cmd of filteredCommands) {
           const cmdResults = await this.writeCommand(ctx, basePath, cmd)
           fileResults.push(...cmdResults)
         }
       }
 
-      if (this.supportsSubAgents && ctx.collectedInputContext.subAgents != null) {
-        const filteredSubAgents = filterSubAgentsByProjectConfig(ctx.collectedInputContext.subAgents, projectConfig)
+      if (this.supportsSubAgents && ctx.collectedOutputContext.subAgents != null) {
+        const filteredSubAgents = filterByProjectConfig(ctx.collectedOutputContext.subAgents, projectConfig, 'subAgents')
         for (const agent of filteredSubAgents) {
           const agentResults = await this.writeSubAgent(ctx, basePath, agent)
           fileResults.push(...agentResults)
         }
       }
 
-      if (this.supportsSkills && ctx.collectedInputContext.skills != null) {
-        const filteredSkills = filterSkillsByProjectConfig(ctx.collectedInputContext.skills, projectConfig)
+      if (this.supportsSkills && ctx.collectedOutputContext.skills != null) {
+        const filteredSkills = filterByProjectConfig(ctx.collectedOutputContext.skills, projectConfig, 'skills')
         for (const skill of filteredSkills) {
           const skillResults = await this.writeSkill(ctx, basePath, skill)
           fileResults.push(...skillResults)

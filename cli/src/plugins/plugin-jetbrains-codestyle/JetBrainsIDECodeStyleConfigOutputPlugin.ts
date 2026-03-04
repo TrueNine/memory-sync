@@ -4,8 +4,7 @@ import type {
   WriteResult,
   WriteResults
 } from '../plugin-core'
-import {AbstractOutputPlugin} from '../plugin-core'
-import {IDEKind} from '../plugin-core'
+import {AbstractOutputPlugin, IDEKind} from '../plugin-core'
 
 const IDEA_DIR = '.idea'
 const CODE_STYLES_DIR = 'codeStyles'
@@ -36,8 +35,8 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
-    const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedOutputContext
 
     const hasJetBrainsConfigs = (jetbrainsConfigFiles != null && jetbrainsConfigFiles.length > 0)
       || (editorConfigFiles != null && editorConfigFiles.length > 0)
@@ -56,7 +55,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedInputContext
+    const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedOutputContext
     const hasIdeaConfigs = (jetbrainsConfigFiles != null && jetbrainsConfigFiles.length > 0)
       || (editorConfigFiles != null && editorConfigFiles.length > 0)
 
@@ -67,8 +66,8 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
   }
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedInputContext.workspace
-    const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {jetbrainsConfigFiles, editorConfigFiles} = ctx.collectedOutputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 

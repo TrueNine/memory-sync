@@ -1,8 +1,8 @@
-import type {ILogger} from '../log'
+import type {ILogger} from '@truenine/logger'
 import type {PluginKind} from '../types/enums'
 import type {Plugin} from '../types/plugin'
 
-import {createLogger} from '../log'
+import {createLogger} from '@truenine/logger'
 
 export abstract class AbstractPlugin<T extends PluginKind = PluginKind> implements Plugin<T> {
   readonly type: T

@@ -5,14 +5,15 @@ import type {
   PromptKind,
   RuleScope
 } from './enums'
-import type {FileContent, Path, RelativePath} from './FileSystemTypes'
-import type {LocalizedPrompt, PromptsContext} from './LocalizedTypes'
 import type {
   CommandYAMLFrontMatter,
+  FileContent,
   GlobalMemoryPrompt,
+  Path,
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
   Prompt,
+  RelativePath,
   RuleYAMLFrontMatter,
   SeriName,
   SkillYAMLFrontMatter,
@@ -49,25 +50,17 @@ export interface AIAgentIgnoreConfigFile {
 }
 
 /**
- * All collected output information, provided to plugin system as input for output plugins
+ * Shared context fields across input aggregation and output execution.
  */
-export interface CollectedInputContext {
+interface CollectedContextData {
   readonly workspace: Workspace
-  readonly prompts?: PromptsContext // New unified prompts container with localization support
-  readonly promptIndex?: Map<string, LocalizedPrompt> // Quick lookup index for all localized prompts
 
-  /** Legacy fields (deprecated, kept for backward compatibility) */
-  /** @deprecated Use prompts.skills instead */
+  /** Flat prompt projections used by current output plugins */
   readonly skills?: readonly SkillPrompt[]
-  /** @deprecated Use prompts.commands instead */
   readonly commands?: readonly CommandPrompt[]
-  /** @deprecated Use prompts.subAgents instead */
   readonly subAgents?: readonly SubAgentPrompt[]
-  /** @deprecated Use prompts.rules instead */
   readonly rules?: readonly RulePrompt[]
-  /** @deprecated Use prompts.readme instead */
   readonly readmePrompts?: readonly ReadmePrompt[]
-  /** @deprecated Use prompts.globalMemory instead */
   readonly globalMemory?: GlobalMemoryPrompt
 
   /** Other non-prompt fields */
@@ -78,6 +71,44 @@ export interface CollectedInputContext {
   readonly globalGitIgnore?: string
   readonly shadowGitExclude?: string
   readonly aindexDir?: string
+}
+
+/**
+ * Input-side collected context.
+ * Built incrementally by input plugins through dependency-aware merging.
+ */
+export interface InputCollectedContext extends CollectedContextData {}
+
+/**
+ * Output-side collected context.
+ * Produced once from input context and consumed by output plugins only.
+ */
+export interface OutputCollectedContext extends CollectedContextData {}
+
+/**
+ * Convert input context to output context boundary object.
+ * This keeps input and output stages decoupled while preserving data shape.
+ */
+export function toOutputCollectedContext(input: InputCollectedContext): OutputCollectedContext {
+  return {
+    workspace: {
+      directory: input.workspace.directory,
+      projects: [...input.workspace.projects]
+    },
+    ...input.skills != null && {skills: [...input.skills]},
+    ...input.commands != null && {commands: [...input.commands]},
+    ...input.subAgents != null && {subAgents: [...input.subAgents]},
+    ...input.rules != null && {rules: [...input.rules]},
+    ...input.readmePrompts != null && {readmePrompts: [...input.readmePrompts]},
+    ...input.globalMemory != null && {globalMemory: input.globalMemory},
+    ...input.vscodeConfigFiles != null && {vscodeConfigFiles: [...input.vscodeConfigFiles]},
+    ...input.jetbrainsConfigFiles != null && {jetbrainsConfigFiles: [...input.jetbrainsConfigFiles]},
+    ...input.editorConfigFiles != null && {editorConfigFiles: [...input.editorConfigFiles]},
+    ...input.aiAgentIgnoreConfigFiles != null && {aiAgentIgnoreConfigFiles: [...input.aiAgentIgnoreConfigFiles]},
+    ...input.globalGitIgnore != null && {globalGitIgnore: input.globalGitIgnore},
+    ...input.shadowGitExclude != null && {shadowGitExclude: input.shadowGitExclude},
+    ...input.aindexDir != null && {aindexDir: input.aindexDir}
+  }
 }
 
 /**
@@ -213,4 +244,115 @@ export interface ReadmePrompt extends Prompt<PromptKind.Readme> {
   readonly targetDir: RelativePath
   readonly isRoot: boolean
   readonly fileKind: ReadmeFileKind
+}
+
+/**
+ * Supported locale codes
+ */
+export type Locale = 'zh' | 'en'
+
+/**
+ * Localized content wrapper for a single locale
+ * Contains both compiled content and raw MDX source
+ */
+export interface LocalizedContent<T extends Prompt = Prompt> {
+  /** Compiled/processed content */
+  readonly content: string
+
+  /** Original MDX source (before compilation) */
+  readonly rawMdx?: string
+
+  /** Extracted front matter */
+  readonly frontMatter?: Record<string, unknown>
+
+  /** File last modified timestamp */
+  readonly lastModified: Date
+
+  /** Full prompt object (optional, for extended access) */
+  readonly prompt?: T
+
+  /** Absolute file path */
+  readonly filePath: string
+}
+
+/**
+ * Source content container for all locales
+ */
+export interface LocalizedSource<T extends Prompt = Prompt> {
+  /** Chinese content (.cn.mdx) */
+  readonly zh?: LocalizedContent<T>
+
+  /** English content (.mdx) */
+  readonly en?: LocalizedContent<T>
+
+  /** Default locale content (typically zh) */
+  readonly default: LocalizedContent<T>
+
+  /** Which locale is the default */
+  readonly defaultLocale: Locale
+}
+
+/** Universal localized prompt wrapper */
+export interface LocalizedPrompt<T extends Prompt = Prompt, K extends PromptKind = PromptKind> {
+  readonly name: string // Prompt identifier name
+  readonly type: K // Prompt type kind
+  readonly src: LocalizedSource<T> // Source files content (src directory)
+  readonly dist?: LocalizedContent<T> // Compiled/dist content (dist directory, optional)
+
+  /** Metadata flags */
+  readonly metadata: {
+    readonly hasDist: boolean // Whether dist content exists
+    readonly hasMultipleLocales: boolean // Whether multiple locales exist in src
+    readonly isDirectoryStructure: boolean // Whether this is a directory-based prompt (like skills)
+
+    /** Available child items (for directory structures) */
+    readonly children?: string[]
+  }
+
+  /** File paths for all variants */
+  readonly paths: {
+    readonly zh?: string
+    readonly en?: string
+    readonly dist?: string
+  }
+}
+
+/**
+ * Options for reading localized prompts from different structures
+ */
+export interface LocalizedReadOptions<T extends Prompt, K extends PromptKind> {
+  /** File extensions for each locale */
+  readonly localeExtensions: {
+    readonly zh: string
+    readonly en: string
+  }
+
+  /** Entry file name (without extension, e.g., 'skill' for skills) */
+  readonly entryFileName?: string
+
+  /** Create prompt from content */
+  readonly createPrompt: (content: string, locale: Locale, name: string, metadata?: Record<string, unknown>) => T | Promise<T>
+
+  /** Prompt kind */
+  readonly kind: K
+
+  /** Whether this is a directory-based structure */
+  readonly isDirectoryStructure: boolean
+}
+
+/**
+ * Result of reading a directory structure (like skills)
+ */
+export interface DirectoryReadResult<T extends Prompt, K extends PromptKind> {
+  readonly prompts: LocalizedPrompt<T, K>[]
+  readonly errors: ReadError[]
+}
+
+/**
+ * Error during reading
+ */
+export interface ReadError {
+  readonly path: string
+  readonly error: Error
+  readonly phase: 'scan' | 'read' | 'compile'
 }

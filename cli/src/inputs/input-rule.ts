@@ -1,20 +1,16 @@
 import type {
-  CollectedInputContext,
+  InputCollectedContext,
   InputPluginContext,
-  LocalizedRulePrompt,
-  PluginOptions,
-  ResolvedBasePaths,
   RulePrompt,
   RuleScope
 } from '../plugins/plugin-core'
 import {mdxToMd} from '@truenine/md-compiler'
 import {
   AbstractInputPlugin,
-  createLocalizedPromptReader
-} from '../plugins/plugin-core'
-import {
+  createLocalizedPromptReader,
   FilePathKind,
   PromptKind
+
 } from '../plugins/plugin-core'
 
 export class RuleInputPlugin extends AbstractInputPlugin {
@@ -22,20 +18,12 @@ export class RuleInputPlugin extends AbstractInputPlugin {
     super('RuleInputPlugin')
   }
 
-  private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    return this.resolveAindexPath(options.aindex.rules.dist, resolvedPaths.aindexDir)
-  }
-
-  private getSrcDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    return this.resolveAindexPath(options.aindex.rules.src, resolvedPaths.aindexDir)
-  }
-
-  override async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+  override async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
-    const srcDir = this.getSrcDir(options, resolvedPaths)
-    const distDir = this.getDistDir(options, resolvedPaths)
+    const srcDir = this.resolveAindexPath(options.aindex.rules.src, resolvedPaths.aindexDir)
+    const distDir = this.resolveAindexPath(options.aindex.rules.dist, resolvedPaths.aindexDir)
 
     const reader = createLocalizedPromptReader(fs, path, logger, globalScope)
 
@@ -51,8 +39,7 @@ export class RuleInputPlugin extends AbstractInputPlugin {
           let globs: readonly string[] = []
           let scope: RuleScope = 'project'
           let seriName: string | undefined,
-            yamlFrontMatter: Record<string, unknown> | undefined,
-            rawFrontMatter: string | undefined
+            yamlFrontMatter: Record<string, unknown> | undefined
 
           try {
             const rawContent = fs.readFileSync(distFilePath, 'utf8')
@@ -94,7 +81,6 @@ export class RuleInputPlugin extends AbstractInputPlugin {
           } as RulePrompt
 
           if (yamlFrontMatter != null) Object.assign(rulePrompt, {yamlFrontMatter})
-          if (rawFrontMatter != null) Object.assign(rulePrompt, {rawFrontMatter})
           if (seriName != null) Object.assign(rulePrompt, {seriName})
 
           return rulePrompt
@@ -104,18 +90,7 @@ export class RuleInputPlugin extends AbstractInputPlugin {
 
     for (const error of errors) logger.warn('Failed to read rule from src', {path: error.path, phase: error.phase, error: error.error})
 
-    const promptIndex = new Map<string, LocalizedRulePrompt>()
-    for (const rule of localizedRulesFromSrc) promptIndex.set(rule.name, rule)
-
     return {
-      prompts: {
-        skills: [],
-        commands: [],
-        subAgents: [],
-        rules: localizedRulesFromSrc,
-        readme: []
-      },
-      promptIndex,
       rules: localizedRulesFromSrc.map(r => r.src.default.prompt!).filter(Boolean)
     }
   }

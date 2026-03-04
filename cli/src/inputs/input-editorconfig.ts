@@ -1,6 +1,5 @@
-import type {CollectedInputContext, InputPluginContext, ProjectIDEConfigFile} from '../plugins/plugin-core'
-import {AbstractInputPlugin} from '../plugins/plugin-core'
-import {FilePathKind, IDEKind} from '../plugins/plugin-core'
+import type {InputCollectedContext, InputPluginContext, ProjectIDEConfigFile} from '../plugins/plugin-core'
+import {AbstractInputPlugin, FilePathKind, IDEKind} from '../plugins/plugin-core'
 
 function readIdeConfigFile<T extends IDEKind>(
   type: T,
@@ -31,7 +30,7 @@ export class EditorConfigInputPlugin extends AbstractInputPlugin {
     super('EditorConfigInputPlugin')
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
+  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
     const {userConfigOptions, fs, path} = ctx
     const {aindexDir} = this.resolveBasePaths(userConfigOptions)
 

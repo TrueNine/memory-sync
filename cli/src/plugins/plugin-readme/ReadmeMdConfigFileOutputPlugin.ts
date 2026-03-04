@@ -8,8 +8,7 @@ import type {
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {AbstractOutputPlugin} from '../plugin-core'
-import {README_FILE_KIND_MAP} from '../plugin-core'
+import {AbstractOutputPlugin, README_FILE_KIND_MAP} from '../plugin-core'
 
 function resolveOutputFileName(fileKind?: ReadmeFileKind): string {
   return README_FILE_KIND_MAP[fileKind ?? 'Readme'].out
@@ -38,7 +37,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {readmePrompts} = ctx.collectedInputContext
+    const {readmePrompts} = ctx.collectedOutputContext
 
     if (readmePrompts == null || readmePrompts.length === 0) return results
 
@@ -54,7 +53,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {readmePrompts} = ctx.collectedInputContext
+    const {readmePrompts} = ctx.collectedOutputContext
 
     if (readmePrompts?.length !== 0) return true
 
@@ -65,7 +64,7 @@ export class ReadmeMdConfigFileOutputPlugin extends AbstractOutputPlugin {
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
-    const {readmePrompts} = ctx.collectedInputContext
+    const {readmePrompts} = ctx.collectedOutputContext
 
     if (readmePrompts == null || readmePrompts.length === 0) return {files: fileResults, dirs: dirResults}
 

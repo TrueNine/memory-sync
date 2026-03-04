@@ -27,7 +27,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
@@ -49,7 +49,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const wsDir = ctx.collectedInputContext.workspace.directory.path // Also register .git/modules/ exclude files
+    const wsDir = ctx.collectedOutputContext.workspace.directory.path // Also register .git/modules/ exclude files
     const wsDotGit = path.join(wsDir, '.git')
     if (fs.existsSync(wsDotGit) && fs.lstatSync(wsDotGit).isDirectory()) {
       for (const moduleInfoDir of findGitModuleInfoDirs(wsDotGit)) {
@@ -68,7 +68,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {globalGitIgnore, shadowGitExclude} = ctx.collectedInputContext
+    const {globalGitIgnore, shadowGitExclude} = ctx.collectedOutputContext
     const hasContent = (globalGitIgnore != null && globalGitIgnore.length > 0)
       || (shadowGitExclude != null && shadowGitExclude.length > 0)
 
@@ -77,7 +77,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
       return false
     }
 
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
     const hasGitProjects = projects.some(project => {
       if (project.dirFromWorkspacePath == null) return false
       const projectDir = project.dirFromWorkspacePath.getAbsolutePath()
@@ -85,7 +85,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
       return findAllGitRepos(projectDir).some(d => resolveGitInfoDir(d) != null) // Check nested repos
     })
 
-    const workspaceDir = ctx.collectedInputContext.workspace.directory.path
+    const workspaceDir = ctx.collectedOutputContext.workspace.directory.path
     const hasWorkspaceGit = resolveGitInfoDir(workspaceDir) != null
 
     const canWrite = hasGitProjects || hasWorkspaceGit
@@ -102,7 +102,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const fileResults: WriteResult[] = []
-    const {globalGitIgnore, shadowGitExclude} = ctx.collectedInputContext
+    const {globalGitIgnore, shadowGitExclude} = ctx.collectedOutputContext
 
     const managedContent = this.buildManagedContent(globalGitIgnore, shadowGitExclude)
 
@@ -111,7 +111,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
       return {files: [], dirs: []}
     }
 
-    const {workspace} = ctx.collectedInputContext
+    const {workspace} = ctx.collectedOutputContext
     const {projects} = workspace
     const writtenPaths = new Set<string>() // Track written paths to avoid duplicates
 
@@ -228,7 +228,7 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     managedContent: string,
     label: string
   ): Promise<WriteResult> {
-    const workspaceDir = ctx.collectedInputContext.workspace.directory.path // Create relative path for the result
+    const workspaceDir = ctx.collectedOutputContext.workspace.directory.path // Create relative path for the result
     const relativePath = path.relative(workspaceDir, filePath)
 
     if (ctx.dryRun === true) {

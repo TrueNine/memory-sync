@@ -6,8 +6,7 @@ import type {
   WriteResults
 } from '../plugin-core'
 import * as path from 'node:path'
-import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '../plugin-core'
-import {PLUGIN_NAMES} from '../plugin-core'
+import {AbstractOutputPlugin, filterByProjectConfig, PLUGIN_NAMES} from '../plugin-core'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.codex'
@@ -37,11 +36,11 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       path.join(globalDir, PROMPTS_SUBDIR)
     ]
 
-    const {skills} = ctx.collectedInputContext
+    const {skills} = ctx.collectedOutputContext
     if (skills == null || skills.length === 0) return results
 
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+    const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
     for (const skill of filteredSkills) {
       const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
       results.push(path.join(globalDir, SKILLS_SUBDIR, skillName))
@@ -57,7 +56,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {globalMemory, commands} = ctx.collectedInputContext
+    const {globalMemory, commands} = ctx.collectedOutputContext
     if (globalMemory != null || (commands?.length ?? 0) > 0) return true
     this.log.trace({action: 'skip', reason: 'noOutputs'})
     return false
@@ -68,7 +67,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory, commands} = ctx.collectedInputContext
+    const {globalMemory, commands} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const globalDir = this.getGlobalConfigDir()
@@ -81,7 +80,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (commands == null || commands.length === 0) return {files: fileResults, dirs: []}
 
-    const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+    const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
     for (const cmd of filteredCommands) {
       const result = await this.writeGlobalCommand(ctx, globalDir, cmd)
       fileResults.push(result)

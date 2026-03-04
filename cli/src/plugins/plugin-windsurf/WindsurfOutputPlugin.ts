@@ -1,19 +1,9 @@
-import type {RuleContentOptions} from '../plugin-core'
-import type {
-  CommandPrompt,
-  OutputPluginContext,
-  OutputWriteContext,
-  RulePrompt,
-  SkillPrompt,
-  WriteResult,
-  WriteResults
-} from '../plugin-core'
+import type {CommandPrompt, OutputPluginContext, OutputWriteContext, RuleContentOptions, RulePrompt, SkillPrompt, WriteResult, WriteResults} from '../plugin-core'
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterCommandsByProjectConfig, filterRulesByProjectConfig, filterSkillsByProjectConfig} from '../plugin-core'
-import {PLUGIN_NAMES} from '../plugin-core'
+import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterByProjectConfig, PLUGIN_NAMES} from '../plugin-core'
 
 const CODEIUM_WINDSURF_DIR = '.codeium/windsurf'
 const WORKFLOWS_SUBDIR = 'global_workflows'
@@ -37,16 +27,16 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   override async registerGlobalOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {commands, skills, rules} = ctx.collectedInputContext
+    const {commands, skills, rules} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
     if (commands != null && commands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
       if (filteredCommands.length > 0) results.push(WORKFLOWS_SUBDIR)
     }
 
     if (skills != null && skills.length > 0) {
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
         results.push(path.join(SKILLS_SUBDIR, skillName))
@@ -62,11 +52,11 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {skills, commands} = ctx.collectedInputContext
+    const {skills, commands} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
 
     if (commands != null && commands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
       const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
       for (const cmd of filteredCommands) {
         const fileName = this.transformCommandName(cmd, transformOptions)
@@ -74,7 +64,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const globalRules = ctx.collectedInputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
+    const globalRules = ctx.collectedOutputContext.rules?.filter(r => this.normalizeRuleScope(r) === 'global')
     if (globalRules != null && globalRules.length > 0) {
       for (const rule of globalRules) {
         const fileName = this.buildRuleFileName(rule)
@@ -82,7 +72,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
+    const filteredSkills = skills != null ? filterByProjectConfig(skills, projectConfig, 'skills') : []
     if (filteredSkills.length === 0) return results
 
     for (const skill of filteredSkills) {
@@ -104,7 +94,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {skills, commands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {skills, commands, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const hasSkills = (skills?.length ?? 0) > 0
     const hasCommands = (commands?.length ?? 0) > 0
     const hasRules = (rules?.length ?? 0) > 0
@@ -118,7 +108,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {skills, commands, globalMemory, rules} = ctx.collectedInputContext
+    const {skills, commands, globalMemory, rules} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
@@ -126,13 +116,13 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     if (globalMemory != null) fileResults.push(await this.writeGlobalMemory(ctx, globalMemory.content as string))
 
     if (skills != null && skills.length > 0) {
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
       const skillsDir = this.getSkillsDir()
       for (const skill of filteredSkills) fileResults.push(...await this.writeGlobalSkill(ctx, skillsDir, skill))
     }
 
     if (commands != null && commands.length > 0) {
-      const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+      const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
       const workflowsDir = this.getGlobalWorkflowsDir()
       for (const cmd of filteredCommands) fileResults.push(await this.writeGlobalWorkflow(ctx, workflowsDir, cmd))
     }
@@ -147,13 +137,13 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {workspace, rules} = ctx.collectedInputContext
+    const {workspace, rules} = ctx.collectedOutputContext
     if (rules == null || rules.length === 0) return results
 
     for (const project of workspace.projects) {
       const projectDir = project.dirFromWorkspacePath
       if (projectDir == null) continue
-      const projectRules = applySubSeriesGlobPrefix(filterRulesByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig), project.projectConfig)
+      const projectRules = applySubSeriesGlobPrefix(filterByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig, 'rules'), project.projectConfig)
       if (projectRules.length === 0) continue
       const rulesDirPath = path.join(projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR)
       results.push(rulesDirPath)
@@ -163,13 +153,13 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {workspace, rules} = ctx.collectedInputContext
+    const {workspace, rules} = ctx.collectedOutputContext
 
     if (rules != null && rules.length > 0) {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
-        const projectRules = applySubSeriesGlobPrefix(filterRulesByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig), project.projectConfig)
+        const projectRules = applySubSeriesGlobPrefix(filterByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig, 'rules'), project.projectConfig)
         for (const rule of projectRules) {
           const fileName = this.buildRuleFileName(rule)
           const filePath = path.join(projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR, fileName)
@@ -184,13 +174,13 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
     const fileResults: WriteResult[] = []
-    const {workspace, rules} = ctx.collectedInputContext
+    const {workspace, rules} = ctx.collectedOutputContext
 
     if (rules != null && rules.length > 0) {
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
-        const projectRules = applySubSeriesGlobPrefix(filterRulesByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig), project.projectConfig)
+        const projectRules = applySubSeriesGlobPrefix(filterByProjectConfig(rules.filter(r => this.normalizeRuleScope(r) === 'project'), project.projectConfig, 'rules'), project.projectConfig)
         if (projectRules.length === 0) continue
         const rulesDir = path.join(projectDir.basePath, projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR)
         for (const rule of projectRules) fileResults.push(await this.writeRuleFile(ctx, rulesDir, rule, projectDir.basePath, path.join(projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR)))

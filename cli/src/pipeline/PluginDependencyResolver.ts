@@ -7,35 +7,6 @@ import type {Plugin, PluginKind} from '../plugins/plugin-core'
 import {CircularDependencyError, MissingDependencyError} from '../plugins/plugin-core'
 
 /**
- * Build dependency graph from plugins
- */
-export function buildDependencyGraph<T extends PluginKind>(
-  plugins: readonly Plugin<T>[]
-): Map<string, string[]> {
-  const graph = new Map<string, string[]>()
-  for (const plugin of plugins) {
-    const deps = plugin.dependsOn ?? []
-    graph.set(plugin.name, [...deps])
-  }
-  return graph
-}
-
-/**
- * Validate that all plugin dependencies exist
- */
-export function validateDependencies<T extends PluginKind>(
-  plugins: readonly Plugin<T>[]
-): void {
-  const pluginNames = new Set(plugins.map(p => p.name))
-  for (const plugin of plugins) {
-    const deps = plugin.dependsOn ?? []
-    for (const dep of deps) {
-      if (!pluginNames.has(dep)) throw new MissingDependencyError(plugin.name, dep)
-    }
-  }
-}
-
-/**
  * Find cycle path in dependency graph for error reporting
  */
 function findCyclePath<T extends PluginKind>(
@@ -95,7 +66,13 @@ function findCyclePath<T extends PluginKind>(
 export function topologicalSort<T extends PluginKind>(
   plugins: readonly Plugin<T>[]
 ): Plugin<T>[] {
-  validateDependencies(plugins) // Validate dependencies first
+  const pluginNames = new Set(plugins.map(p => p.name)) // Validate dependencies first
+  for (const plugin of plugins) {
+    const deps = plugin.dependsOn ?? []
+    for (const dep of deps) {
+      if (!pluginNames.has(dep)) throw new MissingDependencyError(plugin.name, dep)
+    }
+  }
 
   const pluginMap = new Map<string, Plugin<T>>() // Build plugin map for quick lookup
   for (const plugin of plugins) pluginMap.set(plugin.name, plugin)

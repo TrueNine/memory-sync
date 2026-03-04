@@ -38,7 +38,7 @@ export class TraeCNIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const {globalMemory} = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedOutputContext
     const results: string[] = []
 
     if (globalMemory != null) results.push(this.joinPath(this.getGlobalUserRulesDir(), GLOBAL_MEMORY_FILE))
@@ -47,7 +47,7 @@ export class TraeCNIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {globalMemory} = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedOutputContext
     if (globalMemory != null) return true
     this.log.trace({action: 'skip', reason: 'noGlobalMemory'})
     return false
@@ -58,7 +58,7 @@ export class TraeCNIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory} = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedOutputContext
     const fileResults: WriteResult[] = []
     const userRulesDir = this.getGlobalUserRulesDir()
 

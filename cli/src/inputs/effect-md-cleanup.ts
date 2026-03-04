@@ -1,5 +1,5 @@
 import type {
-  CollectedInputContext,
+  InputCollectedContext,
   InputEffectContext,
   InputEffectResult,
   InputPluginContext
@@ -142,7 +142,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     return '\n'
   }
 
-  collect(_ctx: InputPluginContext): Partial<CollectedInputContext> {
+  collect(_ctx: InputPluginContext): Partial<InputCollectedContext> {
     return {}
   }
 }

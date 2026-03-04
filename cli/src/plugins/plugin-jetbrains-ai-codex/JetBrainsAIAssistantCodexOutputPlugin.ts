@@ -12,8 +12,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {getPlatformFixedDir} from '@truenine/desk-paths'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '../plugin-core'
-import {PLUGIN_NAMES} from '../plugin-core'
+import {AbstractOutputPlugin, filterByProjectConfig, PLUGIN_NAMES} from '../plugin-core'
 
 /**
  * Represents the filename of the project memory file.
@@ -84,7 +83,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
 
   override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
 
     for (const project of projects) {
       if (project.dirFromWorkspacePath == null) continue
@@ -96,7 +95,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
@@ -124,10 +123,10 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     for (const codexDir of codexDirs) {
       results.push(path.join(codexDir, PROMPTS_SUBDIR))
 
-      const {skills} = ctx.collectedInputContext
+      const {skills} = ctx.collectedOutputContext
       if (skills == null || skills.length === 0) continue
 
-      const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+      const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
         results.push(path.join(codexDir, SKILLS_SUBDIR, skillName))
@@ -143,7 +142,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {globalMemory, commands, skills, workspace, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {globalMemory, commands, skills, workspace, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const hasGlobalMemory = globalMemory != null
     const hasFastCommands = (commands?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
@@ -159,7 +158,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   }
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedInputContext.workspace
+    const {projects} = ctx.collectedOutputContext.workspace
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
@@ -190,7 +189,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   }
 
   override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory, commands, skills} = ctx.collectedInputContext
+    const {globalMemory, commands, skills} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
@@ -198,8 +197,8 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
 
     if (codexDirs.length === 0) return {files: fileResults, dirs: dirResults}
 
-    const filteredCommands = commands != null ? filterCommandsByProjectConfig(commands, projectConfig) : []
-    const filteredSkills = skills != null ? filterSkillsByProjectConfig(skills, projectConfig) : []
+    const filteredCommands = commands != null ? filterByProjectConfig(commands, projectConfig, 'commands') : []
+    const filteredSkills = skills != null ? filterByProjectConfig(skills, projectConfig, 'skills') : []
 
     for (const codexDir of codexDirs) {
       if (globalMemory != null) {

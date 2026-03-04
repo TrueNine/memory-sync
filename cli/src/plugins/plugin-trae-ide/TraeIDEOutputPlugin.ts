@@ -11,7 +11,7 @@ import type {
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
-import {AbstractOutputPlugin, filterCommandsByProjectConfig, filterSkillsByProjectConfig} from '../plugin-core'
+import {AbstractOutputPlugin, filterByProjectConfig} from '../plugin-core'
 
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
 const GLOBAL_CONFIG_DIR = '.trae'
@@ -36,8 +36,8 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async registerProjectOutputDirs(ctx: OutputPluginContext): Promise<string[]> {
-    const {projects} = ctx.collectedInputContext.workspace
-    const {commands, skills} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {commands, skills} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const results: string[] = []
 
@@ -48,12 +48,12 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, RULES_SUBDIR))
 
       if (commands != null && commands.length > 0) {
-        const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+        const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
         if (filteredCommands.length > 0) results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR))
       }
 
       if (skills != null && skills.length > 0) {
-        const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+        const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
         for (const skill of filteredSkills) {
           const skillName = skill.yamlFrontMatter.name
           results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName))
@@ -65,8 +65,8 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const {projects} = ctx.collectedInputContext.workspace
-    const {commands, skills} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {commands, skills} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const results: string[] = []
 
@@ -81,7 +81,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (commands != null && commands.length > 0) {
-        const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+        const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
         const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
         for (const cmd of filteredCommands) {
           const fileName = this.transformCommandName(cmd, transformOptions)
@@ -90,7 +90,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (skills != null && skills.length > 0) {
-        const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+        const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
         for (const skill of filteredSkills) {
           const skillName = skill.yamlFrontMatter.name
           results.push(this.joinPath(projectDir.path, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName, SKILL_FILE_NAME))
@@ -120,7 +120,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async registerGlobalOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
-    const {globalMemory} = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedOutputContext
     const results: string[] = []
 
     if (globalMemory != null) results.push(this.joinPath(this.getGlobalSteeringDir(), GLOBAL_MEMORY_FILE))
@@ -129,7 +129,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {workspace, globalMemory, commands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedInputContext
+    const {workspace, globalMemory, commands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const hasChildPrompts = workspace.projects.some(p => (p.childMemoryPrompts?.length ?? 0) > 0)
     const hasCommands = (commands?.length ?? 0) > 0
     const hasSkills = (skills?.length ?? 0) > 0
@@ -140,8 +140,8 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedInputContext.workspace
-    const {commands, skills} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {commands, skills} = ctx.collectedOutputContext
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const fileResults: WriteResult[] = []
 
@@ -154,12 +154,12 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (commands != null && commands.length > 0) { // Commands (new: per-project)
-        const filteredCommands = filterCommandsByProjectConfig(commands, projectConfig)
+        const filteredCommands = filterByProjectConfig(commands, projectConfig, 'commands')
         for (const cmd of filteredCommands) fileResults.push(await this.writeProjectCommand(ctx, projectDir, cmd))
       }
 
       if (skills != null && skills.length > 0) { // Skills (new: per-project)
-        const filteredSkills = filterSkillsByProjectConfig(skills, projectConfig)
+        const filteredSkills = filterByProjectConfig(skills, projectConfig, 'skills')
         for (const skill of filteredSkills) fileResults.push(...await this.writeProjectSkill(ctx, projectDir, skill))
       }
     }
@@ -171,7 +171,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
   }
 
   override async writeGlobalOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {globalMemory} = ctx.collectedInputContext
+    const {globalMemory} = ctx.collectedOutputContext
     const fileResults: WriteResult[] = []
     const steeringDir = this.getGlobalSteeringDir()
 

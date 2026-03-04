@@ -1,6 +1,6 @@
 //! CLI argument parsing using clap derive API.
 //!
-//! Mirrors the TS `PluginPipeline.parseArgs()` + `resolveCommand()` + `resolveLogLevel()`.
+//! Mirrors the TS `PluginPipeline.parseArgs()` + `resolveCommand()`.
 
 use clap::{Parser, Subcommand, Args};
 

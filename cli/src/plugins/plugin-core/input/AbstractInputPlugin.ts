@@ -1,6 +1,6 @@
 import type {ParsedMarkdown} from '@truenine/md-compiler/markdown'
 import type {
-  CollectedInputContext,
+  InputCollectedContext,
   InputEffectContext,
   InputEffectHandler,
   InputEffectRegistration,
@@ -17,8 +17,8 @@ import {spawn} from 'node:child_process'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
-import {AbstractPlugin} from '../core/AbstractPlugin'
 import {PathPlaceholders} from '../constants'
+import {AbstractPlugin} from '../core/AbstractPlugin'
 import {PluginKind} from '../types/enums'
 
 export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Input> implements InputPlugin {
@@ -109,7 +109,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     this.log.debug({action: 'clearRegisteredScopes'})
   }
 
-  abstract collect(ctx: InputPluginContext): Partial<CollectedInputContext> | Promise<Partial<CollectedInputContext>>
+  abstract collect(ctx: InputPluginContext): Partial<InputCollectedContext> | Promise<Partial<InputCollectedContext>>
 
   protected resolveBasePaths(options: Required<PluginOptions>): ResolvedBasePaths {
     const workspaceDirRaw = options.workspaceDir

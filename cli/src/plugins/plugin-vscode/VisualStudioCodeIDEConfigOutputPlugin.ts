@@ -4,8 +4,7 @@ import type {
   WriteResult,
   WriteResults
 } from '../plugin-core'
-import {AbstractOutputPlugin} from '../plugin-core'
-import {IDEKind} from '../plugin-core'
+import {AbstractOutputPlugin, IDEKind} from '../plugin-core'
 
 const VSCODE_DIR = '.vscode'
 
@@ -33,8 +32,8 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
 
   override async registerProjectOutputFiles(ctx: OutputPluginContext): Promise<string[]> {
     const results: string[] = []
-    const {projects} = ctx.collectedInputContext.workspace
-    const {vscodeConfigFiles} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {vscodeConfigFiles} = ctx.collectedOutputContext
 
     const hasVSCodeConfigs = vscodeConfigFiles != null && vscodeConfigFiles.length > 0
     if (!hasVSCodeConfigs) return results
@@ -55,7 +54,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
   }
 
   override async canWrite(ctx: OutputWriteContext): Promise<boolean> {
-    const {vscodeConfigFiles} = ctx.collectedInputContext
+    const {vscodeConfigFiles} = ctx.collectedOutputContext
     const hasVSCodeConfigs = vscodeConfigFiles != null && vscodeConfigFiles.length > 0
 
     if (hasVSCodeConfigs) return true
@@ -65,8 +64,8 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
   }
 
   override async writeProjectOutputs(ctx: OutputWriteContext): Promise<WriteResults> {
-    const {projects} = ctx.collectedInputContext.workspace
-    const {vscodeConfigFiles} = ctx.collectedInputContext
+    const {projects} = ctx.collectedOutputContext.workspace
+    const {vscodeConfigFiles} = ctx.collectedOutputContext
     const fileResults: WriteResult[] = []
     const dirResults: WriteResult[] = []
 
