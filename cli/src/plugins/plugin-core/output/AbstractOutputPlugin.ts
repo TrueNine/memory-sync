@@ -84,6 +84,16 @@ export interface CommandOutputConfig {
 export interface SubAgentsOutputConfig extends ScopedSourceConfig {
   /** SubAgents subdirectory, default 'agents' */
   readonly subDir?: string
+  /** Whether to include input-derived prefix in output filename, default true */
+  readonly includePrefix?: boolean
+  /** Separator between prefix and agent name, default '-' */
+  readonly linkSymbol?: string
+  /** SubAgent file extension, default '.md' */
+  readonly ext?: string
+  /** Optional frontmatter transformer */
+  readonly transformFrontMatter?: (subAgent: SubAgentPrompt, context: {
+    readonly sourceFrontMatter?: Record<string, unknown>
+  }) => Record<string, unknown>
 }
 
 /**
@@ -101,6 +111,15 @@ export interface SkillsOutputConfig extends ScopedSourceConfig {
 export interface CommandNameTransformOptions {
   readonly includeSeriesPrefix?: boolean
   readonly seriesSeparator?: string
+}
+
+/**
+ * Options for transforming subagent names in output filenames.
+ */
+export interface SubAgentNameTransformOptions {
+  readonly includePrefix?: boolean
+  readonly linkSymbol?: string
+  readonly ext?: string
 }
 
 /**
@@ -179,6 +198,12 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   protected readonly subAgentsConfig: {
     readonly subDir: string
     readonly sourceScopes: readonly OutputDeclarationScope[]
+    readonly includePrefix: boolean
+    readonly linkSymbol: string
+    readonly ext: string
+    readonly transformFrontMatter?: (subAgent: SubAgentPrompt, context: {
+      readonly sourceFrontMatter?: Record<string, unknown>
+    }) => Record<string, unknown>
   }
 
   protected readonly commandOutputEnabled: boolean
@@ -217,7 +242,11 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     this.subAgentOutputEnabled = options?.subagents != null
     this.subAgentsConfig = {
       subDir: options?.subagents?.subDir ?? 'agents',
-      sourceScopes: options?.subagents?.sourceScopes ?? ['project', 'workspace', 'global']
+      sourceScopes: options?.subagents?.sourceScopes ?? ['project', 'workspace', 'global'],
+      includePrefix: options?.subagents?.includePrefix ?? true,
+      linkSymbol: options?.subagents?.linkSymbol ?? '-',
+      ext: options?.subagents?.ext ?? '.md',
+      ...options?.subagents?.transformFrontMatter != null && {transformFrontMatter: options.subagents.transformFrontMatter}
     } // Initialize subAgent output config with defaults
     this.skillOutputEnabled = options?.skills != null
     this.skillsConfig = {
@@ -444,6 +473,20 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     if (!includeSeriesPrefix || cmd.commandPrefix == null) return `${cmd.commandName}.md` // If prefix should not be included or prefix is not present, return just commandName
 
     return `${cmd.commandPrefix}${seriesSeparator}${cmd.commandName}.md`
+  }
+
+  protected transformSubAgentName(
+    subAgent: SubAgentPrompt,
+    options?: SubAgentNameTransformOptions
+  ): string {
+    const includePrefix = options?.includePrefix ?? this.subAgentsConfig.includePrefix
+    const linkSymbol = options?.linkSymbol ?? this.subAgentsConfig.linkSymbol
+    const ext = options?.ext ?? this.subAgentsConfig.ext
+    const normalizedExt = ext.startsWith('.') ? ext : `.${ext}`
+    const hasPrefix = includePrefix && subAgent.agentPrefix != null && subAgent.agentPrefix.length > 0
+
+    if (!hasPrefix) return `${subAgent.agentName}${normalizedExt}`
+    return `${subAgent.agentPrefix}${linkSymbol}${subAgent.agentName}${normalizedExt}`
   }
 
   protected getCommandSeriesOptions(ctx: OutputWriteContext): CommandSeriesPluginOverride {
@@ -783,7 +826,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       if (selectedSubAgents.selectedScope === 'project' && selectedSubAgents.items.length > 0) {
         const filteredSubAgents = filterByProjectConfig(selectedSubAgents.items, projectConfig, 'subAgents')
         for (const subAgent of filteredSubAgents) {
-          const fileName = subAgent.dir.path.replace(/\.mdx$/, '.md')
+          const fileName = this.transformSubAgentName(subAgent)
           declarations.push({
             path: path.join(basePath, this.subAgentsConfig.subDir, fileName),
             scope: 'project',
@@ -883,7 +926,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       const filteredSubAgents = filterByProjectConfig(selectedSubAgents.items, promptSourceProjectConfig, 'subAgents')
       const basePath = resolveScopedBasePath(selectedSubAgents.selectedScope)
       for (const subAgent of filteredSubAgents) {
-        const fileName = subAgent.dir.path.replace(/\.mdx$/, '.md')
+        const fileName = this.transformSubAgentName(subAgent)
         declarations.push({
           path: path.join(basePath, this.subAgentsConfig.subDir, fileName),
           scope: selectedSubAgents.selectedScope,
@@ -996,6 +1039,14 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   protected buildSubAgentContent(agent: SubAgentPrompt): string {
+    const subAgentFrontMatterTransformer = this.subAgentsConfig.transformFrontMatter
+    if (subAgentFrontMatterTransformer != null) {
+      const transformedFrontMatter = subAgentFrontMatterTransformer(agent, {
+        ...agent.yamlFrontMatter != null && {sourceFrontMatter: agent.yamlFrontMatter as Record<string, unknown>}
+      })
+      return this.buildMarkdownContent(agent.content, transformedFrontMatter)
+    }
+
     return this.buildMarkdownContentWithRaw(
       agent.content,
       agent.yamlFrontMatter,

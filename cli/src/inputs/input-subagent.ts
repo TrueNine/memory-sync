@@ -87,7 +87,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       distDir,
       {
         kind: PromptKind.SubAgent,
-        localeExtensions: {zh: '.md', en: '.mdx'},
+        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
         isDirectoryStructure: false,
         createPrompt: (content, locale, name, metadata) => this.createSubAgentPrompt(
           content,

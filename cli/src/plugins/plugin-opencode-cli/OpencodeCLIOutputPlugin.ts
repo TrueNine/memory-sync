@@ -196,7 +196,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
         const {subDir} = this.subAgentsConfig
         for (const agent of filteredSubAgents) {
           declarations.push({
-            path: path.join(basePath, subDir, agent.dir.path.replace(/\.mdx$/, '.md')),
+            path: path.join(basePath, subDir, this.transformSubAgentName(agent)),
             scope: 'project',
             source: {kind: 'subAgent', agent} satisfies OpencodeOutputSource
           })

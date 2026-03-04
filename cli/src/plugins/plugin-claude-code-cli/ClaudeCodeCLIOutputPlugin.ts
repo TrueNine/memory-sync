@@ -5,6 +5,7 @@ import {AbstractOutputPlugin} from '../plugin-core'
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'
 const GLOBAL_CONFIG_DIR = '.claude'
 const COMMANDS_SUBDIR = 'commands'
+const AGENTS_SUBDIR = 'agents'
 const SKILLS_SUBDIR = 'skills'
 
 /**
@@ -26,6 +27,13 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
         subDir: COMMANDS_SUBDIR,
         transformFrontMatter: (_cmd, context) => context.sourceFrontMatter ?? {}
       },
+      subagents: {
+        subDir: AGENTS_SUBDIR,
+        sourceScopes: ['project'],
+        includePrefix: true,
+        linkSymbol: '-',
+        ext: '.md'
+      },
       skills: {
         subDir: SKILLS_SUBDIR
       },
@@ -43,6 +51,10 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
         },
         commands: {
           scopes: ['project', 'workspace', 'global'],
+          singleScope: true
+        },
+        subagents: {
+          scopes: ['project'],
           singleScope: true
         },
         skills: {
