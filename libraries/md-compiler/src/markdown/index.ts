@@ -100,6 +100,28 @@ export function buildRawFrontMatter(
     singleQuote: options?.singleQuote ?? false,
     lineWidth: options?.lineWidth ?? 0
   }).trimEnd()
+}
+
+/**
+ * Wraps raw YAML front matter string with --- delimiters.
+ * Use this when you have pre-serialized YAML content that needs to be wrapped.
+ */
+export function wrapRawFrontMatter(rawYamlContent: string): string {
+  const trimmed = rawYamlContent.trim()
+  if (trimmed.length === 0) return '---\n---'
+  return `---\n${trimmed}\n---`
+}
+
+/**
+ * Builds complete markdown content with raw (pre-serialized) front matter.
+ * Use this when you have pre-serialized YAML that should not be re-parsed.
+ */
+export function buildMarkdownWithRawFrontMatter(
+  rawFrontMatter: string,
+  content: string
+): string {
+  const wrapped = wrapRawFrontMatter(rawFrontMatter)
+  return `${wrapped}\n${content}`
 } // doubleQuoted — TS only (YAML-specific helper)
 
 export function doubleQuoted(value: string): unknown {

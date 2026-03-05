@@ -7,7 +7,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import {mdxToMd} from '@truenine/md-compiler'
-import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
+import {buildMarkdownWithFrontMatter, buildMarkdownWithRawFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractPlugin} from './AbstractPlugin'
 import {FilePathKind, PluginKind} from './enums'
 import {
@@ -541,7 +541,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   ): string {
     if (frontMatter != null && Object.keys(frontMatter).length > 0) return buildMarkdownWithFrontMatter(frontMatter, content) // If we have parsed front matter, use it
 
-    if (rawFrontMatter != null && rawFrontMatter.length > 0) return `---\n${rawFrontMatter}\n---\n${content}` // If we have raw front matter but parsing failed, use raw
+    if (rawFrontMatter != null && rawFrontMatter.length > 0) return buildMarkdownWithRawFrontMatter(rawFrontMatter, content) // If we have raw front matter but parsing failed, use raw
 
     return content // No front matter
   }

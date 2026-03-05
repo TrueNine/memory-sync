@@ -115,15 +115,16 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       if (project.childMemoryPrompts != null && activePromptScopes.has('project')) {
         for (const child of project.childMemoryPrompts) {
           const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
-          const globPattern = `${childPath.replaceAll('\\', '/')}/**`
-          const steeringContent = [
-            '---',
-            'alwaysApply: false',
-            `globs: ${globPattern}`,
-            '---',
-            '',
-            child.content
-          ].join('\n')
+          const normalizedChildPath = childPath.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '')
+          const globPattern = normalizedChildPath.length > 0 ? `${normalizedChildPath}/**` : '**/*'
+          const steeringContent = buildMarkdownWithFrontMatter(
+            {alwaysApply: false, globs: globPattern},
+            [
+              this.buildPathGuardHint(normalizedChildPath),
+              '',
+              child.content as string
+            ].join('\n')
+          )
 
           declarations.push({
             path: path.join(projectBase, GLOBAL_CONFIG_DIR, RULES_SUBDIR, this.buildSteeringFileName(child)),
@@ -239,5 +240,16 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
     const normalized = childPath.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '').replaceAll('/', '-')
     return `trae-${normalized}.md`
+  }
+
+  private buildPathGuardHint(normalizedChildPath: string): string {
+    if (normalizedChildPath.length === 0) {
+      return 'Scope guard: apply this rule to project source files only; do not apply to generated output directories (for example dist/, build/, out/, .next/, target/).'
+    }
+
+    return [
+      `Scope guard: this rule is for the project-root path "${normalizedChildPath}/" only.`,
+      `Do not apply this rule to generated output paths such as "dist/${normalizedChildPath}/", "build/${normalizedChildPath}/", "out/${normalizedChildPath}/", ".next/${normalizedChildPath}/", or "target/${normalizedChildPath}/".`
+    ].join('\n')
   }
 }
