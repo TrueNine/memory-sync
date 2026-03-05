@@ -102,10 +102,6 @@ export function buildRawFrontMatter(
   }).trimEnd()
 }
 
-/**
- * Wraps raw YAML front matter string with --- delimiters.
- * Use this when you have pre-serialized YAML content that needs to be wrapped.
- */
 export function wrapRawFrontMatter(rawYamlContent: string): string {
   const trimmed = rawYamlContent.trim()
   if (trimmed.length === 0) return '---\n---'

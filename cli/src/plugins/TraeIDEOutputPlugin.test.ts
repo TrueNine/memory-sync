@@ -29,7 +29,7 @@ function createChildPrompt(relativePath: string, content: string): ProjectChildr
   } as ProjectChildrenMemoryPrompt
 }
 
-describe('TraeIDEOutputPlugin steering rule output', () => {
+describe('traeIDEOutputPlugin steering rule output', () => {
   it('keeps Trae-compatible glob and injects output-dir scope guard', async () => {
     const plugin = new TraeIDEOutputPlugin()
     const workspaceBase = path.resolve('tmp/trae-plugin-test')
@@ -67,7 +67,7 @@ describe('TraeIDEOutputPlugin steering rule output', () => {
     const steering = declarations.find(d => d.source != null && (d.source as {kind?: string}).kind === 'steeringRule')
     expect(steering).toBeDefined()
 
-    const content = (steering!.source as {content: string}).content
+    const {content} = steering!.source as {content: string}
     expect(content).toContain('globs: commands/**')
     expect(content).toContain('Scope guard: this rule is for the project-root path "commands/" only.')
     expect(content).toContain('Do not apply this rule to generated output paths such as "dist/commands/"')
