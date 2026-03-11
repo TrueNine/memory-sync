@@ -79,7 +79,7 @@ export const SourcePromptExtensions = {
 } as const
 
 export const SourcePromptFileExtensions = [
-  SourcePromptExtensions.PRIMARY,
+  SourcePromptExtensions.PRIMARY
 ] as const
 
 export const SourceLocaleExtensions = {

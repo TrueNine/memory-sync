@@ -28,10 +28,7 @@ export class InitCommand implements Command {
     const workspaceDir = resolveWorkspacePath(userConfigOptions.workspaceDir)
     const aindexDir = path.join(workspaceDir, userConfigOptions.aindex.dir)
 
-    const result = generateAindex(aindexDir, {
-      logger,
-      config: userConfigOptions.aindex
-    })
+    const result = generateAindex(aindexDir, {logger, config: userConfigOptions.aindex})
 
     linkCwdConfig(logger)
 

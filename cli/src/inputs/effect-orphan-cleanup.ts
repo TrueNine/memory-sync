@@ -152,18 +152,12 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
         const remainingPath = relativeDir === '.' ? '' : relativeDir.slice(skillName.length + 1)
 
         if (remainingPath !== '') {
-          return SourcePromptFileExtensions.map(extension =>
-            nodePath.join(aindexDir, srcPath, skillName, remainingPath, `${baseName}${extension}`)
-          )
+          return SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, skillName, remainingPath, `${baseName}${extension}`))
         }
 
         return [
-          ...SourcePromptFileExtensions.map(extension =>
-            nodePath.join(aindexDir, srcPath, skillName, `SKILL${extension}`)
-          ),
-          ...SourcePromptFileExtensions.map(extension =>
-            nodePath.join(aindexDir, srcPath, skillName, `skill${extension}`)
-          )
+          ...SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, skillName, `SKILL${extension}`)),
+          ...SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, skillName, `skill${extension}`))
         ]
       }
       case 'commands':

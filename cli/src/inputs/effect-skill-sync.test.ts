@@ -8,7 +8,7 @@ import {mergeConfig} from '../config'
 import {createLogger} from '../plugins/plugin-core'
 import {SkillNonSrcFileSyncEffectInputPlugin} from './effect-skill-sync'
 
-const legacySourceExtension = '.cn' + '.mdx'
+const legacySourceExtension = '.cn.mdx'
 
 function createContext(tempWorkspace: string): InputPluginContext {
   const options = mergeConfig({workspaceDir: tempWorkspace})

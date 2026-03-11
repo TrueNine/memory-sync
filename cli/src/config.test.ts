@@ -6,9 +6,7 @@ import {defineConfig} from './config'
 import {WorkspaceInputPlugin} from './inputs/input-workspace'
 
 describe('defineConfig', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
+  afterEach(() => vi.restoreAllMocks())
 
   it('loads a project-local config when no global config is available', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-workspace-'))
