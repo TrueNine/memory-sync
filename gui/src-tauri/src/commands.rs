@@ -5,10 +5,31 @@
 /// internally via `tnmsc::run_bridge_command`, but the GUI no longer searches for or
 /// invokes the CLI binary as a sidecar.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 
 use serde::{Deserialize, Serialize};
+
+const PRIMARY_SOURCE_MDX_EXTENSION: &str = ".src.mdx";
+const SOURCE_MDX_FILE_TYPE: &str = "sourceMdx";
+const DEFAULT_AINDEX_DIR: &str = "aindex";
+const DEFAULT_SKILLS_SRC_DIR: &str = "skills";
+const DEFAULT_SKILLS_DIST_DIR: &str = "dist/skills";
+const DEFAULT_COMMANDS_SRC_DIR: &str = "commands";
+const DEFAULT_COMMANDS_DIST_DIR: &str = "dist/commands";
+const DEFAULT_SUB_AGENTS_SRC_DIR: &str = "subagents";
+const DEFAULT_SUB_AGENTS_DIST_DIR: &str = "dist/subagents";
+const DEFAULT_RULES_SRC_DIR: &str = "rules";
+const DEFAULT_RULES_DIST_DIR: &str = "dist/rules";
+
+fn has_source_mdx_extension(name: &str) -> bool {
+    name.ends_with(PRIMARY_SOURCE_MDX_EXTENSION)
+}
+
+fn replace_source_mdx_extension(path: &str) -> Option<String> {
+    path.strip_suffix(PRIMARY_SOURCE_MDX_EXTENSION)
+        .map(|without_extension| format!("{without_extension}.mdx"))
+}
 
 // ---------------------------------------------------------------------------
 // Data structures
@@ -210,82 +231,122 @@ pub fn open_config_dir() -> Result<String, String> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AindexFileEntry {
-    /// Relative path from aindex root, e.g. "app/TrueNine/agt.cn.mdx"
+    /// Relative path from aindex root, e.g. "app/TrueNine/agt.src.mdx"
     pub source_path: String,
     /// Relative path of translated file (empty for resource files)
     pub translated_path: String,
     /// Whether the translated file exists on disk
     pub translated_exists: bool,
-    /// "cnMdx" for .cn.mdx source+translated pairs, "resource" for other files
+    /// "sourceMdx" for source+translated pairs, "resource" for other files
     pub file_type: String,
 }
 
 
 /// Parsed global config with resolved paths.
 struct ResolvedConfig {
-    shadow_source_project: String,
-    cfg: serde_json::Value,
+    aindex_root: PathBuf,
+    config: tnmsc::core::config::UserConfigFile,
 }
 
-/// Read and resolve the global config.
-fn load_resolved_config() -> Result<ResolvedConfig, String> {
-    let config_path = {
-        let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
-        home.join(".aindex").join(".tnmsc.json")
+struct CategoryPaths {
+    source_rel: String,
+    translated_rel: String,
+}
+
+fn resolve_category_paths(
+    config: &tnmsc::core::config::UserConfigFile,
+    category: &str,
+) -> Result<CategoryPaths, String> {
+    let aindex = config.aindex.as_ref();
+
+    let resolve_pair = |
+        pair: Option<&tnmsc::core::config::DirPair>,
+        default_source: &str,
+        default_translated: &str,
+    | -> CategoryPaths {
+        CategoryPaths {
+            source_rel: pair
+                .and_then(|value| value.src.as_deref())
+                .unwrap_or(default_source)
+                .to_string(),
+            translated_rel: pair
+                .and_then(|value| value.dist.as_deref())
+                .unwrap_or(default_translated)
+                .to_string(),
+        }
     };
-    if !config_path.exists() {
-        return Err("Global config not found.".into());
+
+    match category {
+        "skills" => Ok(resolve_pair(
+            aindex.and_then(|value| value.skills.as_ref()),
+            DEFAULT_SKILLS_SRC_DIR,
+            DEFAULT_SKILLS_DIST_DIR,
+        )),
+        "commands" => Ok(resolve_pair(
+            aindex.and_then(|value| value.commands.as_ref()),
+            DEFAULT_COMMANDS_SRC_DIR,
+            DEFAULT_COMMANDS_DIST_DIR,
+        )),
+        "agents" => Ok(resolve_pair(
+            aindex.and_then(|value| value.sub_agents.as_ref()),
+            DEFAULT_SUB_AGENTS_SRC_DIR,
+            DEFAULT_SUB_AGENTS_DIST_DIR,
+        )),
+        "rules" => Ok(resolve_pair(
+            aindex.and_then(|value| value.rules.as_ref()),
+            DEFAULT_RULES_SRC_DIR,
+            DEFAULT_RULES_DIST_DIR,
+        )),
+        _ => Err(format!("Unknown category: {category}")),
     }
-    let raw = std::fs::read_to_string(&config_path)
-        .map_err(|e| format!("Failed to read config: {e}"))?;
-    let cfg: serde_json::Value = serde_json::from_str(&raw)
-        .map_err(|e| format!("Failed to parse config: {e}"))?;
+}
 
-    let workspace_raw = cfg.get("workspaceDir")
-        .and_then(|v| v.as_str())
-        .unwrap_or(".");
-    let home = dirs::home_dir()
-        .map(|h| h.to_string_lossy().to_string())
-        .unwrap_or_default();
-    let workspace = workspace_raw.replace('~', &home);
+/// Read and resolve the merged tnmsc config for the current working directory.
+fn load_resolved_config(cwd: &str) -> Result<ResolvedConfig, String> {
+    let result = tnmsc::load_config(Path::new(cwd))
+        .map_err(|e| format!("Failed to load config: {e}"))?;
+    let config = result.config;
+    let workspace_dir = config.workspace_dir.as_deref().unwrap_or(".");
+    let workspace_dir = tnmsc::core::config::resolve_tilde(workspace_dir);
+    let aindex_dir = config
+        .aindex
+        .as_ref()
+        .and_then(|value| value.dir.as_deref())
+        .unwrap_or(DEFAULT_AINDEX_DIR);
 
-    let shadow_name = cfg
-        .get("shadowSourceProject")
-        .and_then(|v| v.get("name"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("tnmsc-shadow");
-    let shadow_source_project = format!("{workspace}/{shadow_name}");
-
-    Ok(ResolvedConfig { shadow_source_project, cfg })
+    Ok(ResolvedConfig {
+        aindex_root: workspace_dir.join(aindex_dir),
+        config,
+    })
 }
 
 
-/// Read the global config and resolve the shadowSourceProjectDir path.
-fn resolve_aindex_root() -> Result<std::path::PathBuf, String> {
-    let rc = load_resolved_config()?;
-    let path = std::path::PathBuf::from(&rc.shadow_source_project);
+/// Read the merged config and resolve the aindex root path.
+fn resolve_aindex_root(cwd: &str) -> Result<std::path::PathBuf, String> {
+    let rc = load_resolved_config(cwd)?;
+    let path = rc.aindex_root;
     if !path.exists() {
         return Err(format!("Aindex directory not found: {}", path.display()));
     }
     Ok(path)
 }
 
-/// Recursively collect all `.cn.mdx` source files under `aindex/app/`.
+/// Recursively collect all source prompt files under `aindex/app/`.
 #[tauri::command]
-pub fn list_aindex_files(_cwd: String) -> Result<Vec<AindexFileEntry>, String> {
-    let base = resolve_aindex_root()?;
+pub fn list_aindex_files(cwd: String) -> Result<Vec<AindexFileEntry>, String> {
+    let base = resolve_aindex_root(&cwd)?;
     let app_dir = base.join("app");
     if !app_dir.exists() {
         return Ok(vec![]);
     }
     let mut entries = Vec::new();
-    collect_cn_mdx(&app_dir, &base, &mut entries)
+    collect_source_mdx(&app_dir, &base, &mut entries)
         .map_err(|e| format!("Failed to scan aindex: {e}"))?;
     entries.sort_by(|a, b| a.source_path.cmp(&b.source_path));
     Ok(entries)
 }
 
-fn collect_cn_mdx(
+fn collect_source_mdx(
     dir: &std::path::Path,
     base: &std::path::Path,
     out: &mut Vec<AindexFileEntry>,
@@ -294,15 +355,16 @@ fn collect_cn_mdx(
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            collect_cn_mdx(&path, base, out)?;
+            collect_source_mdx(&path, base, out)?;
         } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if name.ends_with(".cn.mdx") {
+            if has_source_mdx_extension(name) {
                 let rel = path.strip_prefix(base).unwrap_or(&path);
                 let source_path = rel.to_string_lossy().replace('\\', "/");
                 // Determine translated path:
-                // - app/global.cn.mdx -> dist/global.mdx (root-level files)
-                // - app/X/foo.cn.mdx -> dist/app/X/foo.mdx (subdirectory files)
-                let without_ext = source_path.replace(".cn.mdx", ".mdx");
+                // - app/global.src.mdx -> dist/global.mdx (root-level files)
+                // - app/X/foo.src.mdx -> dist/app/X/foo.mdx (subdirectory files)
+                let without_ext = replace_source_mdx_extension(&source_path)
+                    .unwrap_or_else(|| source_path.clone());
                 let translated_rel = if without_ext.starts_with("app/") {
                     let after_app = &without_ext["app/".len()..];
                     if after_app.contains('/') {
@@ -320,7 +382,7 @@ fn collect_cn_mdx(
                     source_path,
                     translated_path: translated_rel,
                     translated_exists: translated_abs.exists(),
-                    file_type: "cnMdx".to_string(),
+                    file_type: SOURCE_MDX_FILE_TYPE.to_string(),
                 });
             }
         }
@@ -330,8 +392,8 @@ fn collect_cn_mdx(
 
 /// Read a file relative to the aindex directory (resolved from config).
 #[tauri::command]
-pub fn read_aindex_file(_cwd: String, rel_path: String) -> Result<String, String> {
-    let base = resolve_aindex_root()?;
+pub fn read_aindex_file(cwd: String, rel_path: String) -> Result<String, String> {
+    let base = resolve_aindex_root(&cwd)?;
     let path = base.join(&rel_path);
     if !path.exists() {
         return Ok(String::new());
@@ -342,8 +404,8 @@ pub fn read_aindex_file(_cwd: String, rel_path: String) -> Result<String, String
 
 /// Write content to a file relative to the aindex directory (resolved from config).
 #[tauri::command]
-pub fn write_aindex_file(_cwd: String, rel_path: String, content: String) -> Result<(), String> {
-    let base = resolve_aindex_root()?;
+pub fn write_aindex_file(cwd: String, rel_path: String, content: String) -> Result<(), String> {
+    let base = resolve_aindex_root(&cwd)?;
     let path = base.join(&rel_path);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
@@ -353,46 +415,14 @@ pub fn write_aindex_file(_cwd: String, rel_path: String, content: String) -> Res
         .map_err(|e| format!("Failed to write {}: {e}", path.display()))
 }
 
-/// List `.cn.mdx` source files for a given category (skills, commands, agents).
-/// Reads the corresponding config field to resolve the source directory,
-/// then maps translated files to `dist/{category}/`.
+/// List source prompt files for a given category (skills, commands, agents).
+/// Reads the corresponding `aindex` config field to resolve source and output directories.
 #[tauri::command]
-pub fn list_category_files(_cwd: String, category: String) -> Result<Vec<AindexFileEntry>, String> {
-    let rc = load_resolved_config()?;
-    let base = std::path::PathBuf::from(&rc.shadow_source_project);
-
-    // Map category name to the dist subpath key within shadowSourceProject
-    let (src_key, dist_key) = match category.as_str() {
-        "skills" => ("skill", "skill"),
-        "commands" => ("fastCommand", "fastCommand"),
-        "agents" => ("subAgent", "subAgent"),
-        "rules" => ("rule", "rule"),
-        _ => return Err(format!("Unknown category: {category}")),
-    };
-
-    let ssp = rc.cfg.get("shadowSourceProject");
-
-    // Read dist path from nested config, fall back to dist/{category}
-    let dist_rel = ssp
-        .and_then(|v| v.get(dist_key))
-        .and_then(|v| v.get("dist"))
-        .and_then(|v| v.as_str())
-        .unwrap_or(&format!("dist/{category}"))
-        .to_string();
-
-    // This is the OUTPUT (dist) directory — translated files live here
-    let dist_dir = base.join(&dist_rel);
-
-    // Read src path from nested config, fall back to src/{category}
-    let src_rel = ssp
-        .and_then(|v| v.get(src_key))
-        .and_then(|v| v.get("src"))
-        .and_then(|v| v.as_str())
-        .unwrap_or(&format!("src/{category}"))
-        .to_string();
-
-    // Source files live under src/{category}/ relative to aindex root
-    let src_dir = base.join(&src_rel);
+pub fn list_category_files(cwd: String, category: String) -> Result<Vec<AindexFileEntry>, String> {
+    let ResolvedConfig { aindex_root: base, config } = load_resolved_config(&cwd)?;
+    let paths = resolve_category_paths(&config, &category)?;
+    let dist_dir = base.join(&paths.translated_rel);
+    let src_dir = base.join(&paths.source_rel);
 
     if !src_dir.exists() {
         return Ok(vec![]);
@@ -403,7 +433,14 @@ pub fn list_category_files(_cwd: String, category: String) -> Result<Vec<AindexF
     if let Ok(top_entries) = std::fs::read_dir(&src_dir) {
         for top in top_entries.flatten() {
             if top.path().is_dir() {
-                collect_category_cn_mdx(&top.path(), &src_dir, &category, &base, &dist_dir, &mut entries)
+                collect_category_source_mdx(
+                    &top.path(),
+                    &src_dir,
+                    &base,
+                    &paths.translated_rel,
+                    &dist_dir,
+                    &mut entries,
+                )
                     .map_err(|e| format!("Failed to scan {}: {e}", category))?;
             }
         }
@@ -412,11 +449,11 @@ pub fn list_category_files(_cwd: String, category: String) -> Result<Vec<AindexF
     Ok(entries)
 }
 
-fn collect_category_cn_mdx(
+fn collect_category_source_mdx(
     dir: &std::path::Path,
     src_root: &std::path::Path,
-    category: &str,
     base: &std::path::Path,
+    translated_root_rel: &str,
     dist_dir: &std::path::Path,
     out: &mut Vec<AindexFileEntry>,
 ) -> std::io::Result<()> {
@@ -424,28 +461,30 @@ fn collect_category_cn_mdx(
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            collect_category_cn_mdx(&path, src_root, category, base, dist_dir, out)?;
+            collect_category_source_mdx(&path, src_root, base, translated_root_rel, dist_dir, out)?;
         } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
             let rel = path.strip_prefix(base).unwrap_or(&path);
             let source_path = rel.to_string_lossy().replace('\\', "/");
 
-            if name.ends_with(".cn.mdx") {
+            if has_source_mdx_extension(name) {
                 // Source + translated pair
                 let rel_from_src = path.strip_prefix(src_root).unwrap_or(&path);
                 let rel_str = rel_from_src.to_string_lossy().replace('\\', "/")
-                    .replace(".cn.mdx", ".mdx");
+                    .to_string();
+                let rel_str = replace_source_mdx_extension(&rel_str)
+                    .unwrap_or(rel_str);
                 let translated_abs = dist_dir.join(&rel_str);
                 let translated_path = translated_abs.strip_prefix(base)
                     .map(|p| p.to_string_lossy().replace('\\', "/"))
-                    .unwrap_or_else(|_| format!("dist/{}/{}", category, rel_str));
+                    .unwrap_or_else(|_| format!("{}/{}", translated_root_rel.trim_end_matches('/'), rel_str));
 
                 out.push(AindexFileEntry {
                     source_path,
                     translated_path,
                     translated_exists: translated_abs.exists(),
-                    file_type: "cnMdx".to_string(),
+                    file_type: SOURCE_MDX_FILE_TYPE.to_string(),
                 });
-            } else {
+            } else if !name.ends_with(".mdx") {
                 // Resource file — single preview only
                 out.push(AindexFileEntry {
                     source_path,
@@ -471,7 +510,7 @@ pub struct CategoryStats {
     pub file_count: u32,
     pub total_chars: u64,
     pub total_lines: u64,
-    pub cn_mdx_count: u32,
+    pub source_mdx_count: u32,
     pub resource_count: u32,
     pub translated_count: u32,
 }
@@ -493,7 +532,7 @@ pub struct AindexStats {
     pub total_files: u32,
     pub total_chars: u64,
     pub total_lines: u64,
-    pub total_cn_mdx: u32,
+    pub total_source_mdx: u32,
     pub total_resources: u32,
     pub total_translated: u32,
     pub categories: Vec<CategoryStats>,
@@ -514,7 +553,7 @@ fn stat_dir(dir: &std::path::Path) -> (u32, u64, u64, u32, u32, u32, std::collec
     let mut file_count = 0u32;
     let mut total_chars = 0u64;
     let mut total_lines = 0u64;
-    let mut cn_mdx = 0u32;
+    let mut source_mdx = 0u32;
     let mut resource = 0u32;
     let mut translated = 0u32;
     let mut ext_map: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
@@ -527,7 +566,7 @@ fn stat_dir(dir: &std::path::Path) -> (u32, u64, u64, u32, u32, u32, std::collec
                 file_count += fc;
                 total_chars += tc;
                 total_lines += tl;
-                cn_mdx += cm;
+                source_mdx += cm;
                 resource += rc;
                 translated += tr;
                 for (k, v) in em {
@@ -540,9 +579,9 @@ fn stat_dir(dir: &std::path::Path) -> (u32, u64, u64, u32, u32, u32, std::collec
                     total_lines += content.lines().count() as u64;
                 }
                 let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if name.ends_with(".cn.mdx") {
-                    cn_mdx += 1;
-                    *ext_map.entry("cn.mdx".to_string()).or_default() += 1;
+                if has_source_mdx_extension(name) {
+                    source_mdx += 1;
+                    *ext_map.entry("src.mdx".to_string()).or_default() += 1;
                 } else {
                     // Extract extension
                     let ext = name.rsplit('.').next().unwrap_or("other").to_lowercase();
@@ -551,13 +590,13 @@ fn stat_dir(dir: &std::path::Path) -> (u32, u64, u64, u32, u32, u32, std::collec
             }
         }
     }
-    (file_count, total_chars, total_lines, cn_mdx, resource, translated, ext_map)
+    (file_count, total_chars, total_lines, source_mdx, resource, translated, ext_map)
 }
 
 /// Gather comprehensive statistics about the aindex project.
 #[tauri::command]
-pub fn get_aindex_stats(_cwd: String) -> Result<AindexStats, String> {
-    let base = resolve_aindex_root()?;
+pub fn get_aindex_stats(cwd: String) -> Result<AindexStats, String> {
+    let ResolvedConfig { aindex_root: base, config } = load_resolved_config(&cwd)?;
     let mut stats = AindexStats::default();
     let mut all_ext: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
 
@@ -579,7 +618,7 @@ pub fn get_aindex_stats(_cwd: String) -> Result<AindexStats, String> {
                     stats.total_files += fc;
                     stats.total_chars += tc;
                     stats.total_lines += tl;
-                    stats.total_cn_mdx += cm;
+                    stats.total_source_mdx += cm;
                     stats.total_resources += rc;
                     for (k, v) in em {
                         *all_ext.entry(k).or_default() += v;
@@ -589,9 +628,10 @@ pub fn get_aindex_stats(_cwd: String) -> Result<AindexStats, String> {
         }
     }
 
-    // Scan src/skills, src/commands, src/agents
+    // Scan configured source directories for skills, commands, agents
     for cat_name in &["skills", "commands", "agents"] {
-        let src_dir = base.join("src").join(cat_name);
+        let category_paths = resolve_category_paths(&config, cat_name)?;
+        let src_dir = base.join(&category_paths.source_rel);
         if !src_dir.exists() {
             stats.categories.push(CategoryStats {
                 name: cat_name.to_string(),
@@ -605,14 +645,14 @@ pub fn get_aindex_stats(_cwd: String) -> Result<AindexStats, String> {
             file_count: fc,
             total_chars: tc,
             total_lines: tl,
-            cn_mdx_count: cm,
+            source_mdx_count: cm,
             resource_count: rc,
             translated_count: 0,
         });
         stats.total_files += fc;
         stats.total_chars += tc;
         stats.total_lines += tl;
-        stats.total_cn_mdx += cm;
+        stats.total_source_mdx += cm;
         stats.total_resources += rc;
         for (k, v) in em {
             *all_ext.entry(k).or_default() += v;

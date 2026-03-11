@@ -93,8 +93,8 @@ describe('validateConfig — aindex', () => {
     commands: { src: 'commands', dist: 'dist/commands' },
     subAgents: { src: 'subagents', dist: 'dist/subagents' },
     rules: { src: 'rules', dist: 'dist/rules' },
-    globalPrompt: { src: 'global.cn.mdx', dist: 'dist/global.mdx' },
-    workspacePrompt: { src: 'workspace.cn.mdx', dist: 'dist/workspace.mdx' },
+    globalPrompt: { src: 'global.src.mdx', dist: 'dist/global.mdx' },
+    workspacePrompt: { src: 'workspace.src.mdx', dist: 'dist/workspace.mdx' },
     app: { src: 'app', dist: 'dist/app' },
     ext: { src: 'ext', dist: 'dist/ext' },
     arch: { src: 'arch', dist: 'dist/arch' },
@@ -161,56 +161,47 @@ describe('validateConfig — profile', () => {
   })
 })
 
-// ─── tool ──────────────────────────────────────────────────────────────
-describe('validateConfig — tool', () => {
-  it('accepts object with string values', () => {
-    expect(validateConfig({ tool: { a: 'x', b: 'y' } })).toHaveLength(0)
-  })
-
-  it('accepts object with undefined values', () => {
-    expect(validateConfig({ tool: { a: undefined } })).toHaveLength(0)
+// ─── commandSeriesOptions ───────────────────────────────────────────────
+describe('validateConfig — commandSeriesOptions', () => {
+  it('accepts a plain object', () => {
+    expect(validateConfig({ commandSeriesOptions: { includeSeriesPrefix: true } })).toHaveLength(0)
   })
 
   it('rejects non-object', () => {
-    const errors = validateConfig({ tool: 'bad' })
-    expect(errorFields(errors)).toContain('tool')
+    const errors = validateConfig({ commandSeriesOptions: 42 })
+    expect(errorFields(errors)).toContain('commandSeriesOptions')
   })
 
   it('rejects array', () => {
-    const errors = validateConfig({ tool: [] })
-    expect(errorFields(errors)).toContain('tool')
+    const errors = validateConfig({ commandSeriesOptions: [] })
+    expect(errorFields(errors)).toContain('commandSeriesOptions')
   })
 
   it('rejects null', () => {
-    const errors = validateConfig({ tool: null })
-    expect(errorFields(errors)).toContain('tool')
-  })
-
-  it('rejects non-string values inside tool', () => {
-    const errors = validateConfig({ tool: { a: 123 } })
-    expect(errorFields(errors)).toContain('tool.a')
+    const errors = validateConfig({ commandSeriesOptions: null })
+    expect(errorFields(errors)).toContain('commandSeriesOptions')
   })
 })
 
-// ─── fastCommandSeriesOptions ──────────────────────────────────────────
-describe('validateConfig — fastCommandSeriesOptions', () => {
+// ─── outputScopes ───────────────────────────────────────────────────────
+describe('validateConfig — outputScopes', () => {
   it('accepts a plain object', () => {
-    expect(validateConfig({ fastCommandSeriesOptions: { includeSeriesPrefix: true } })).toHaveLength(0)
+    expect(validateConfig({ outputScopes: { plugins: {} } })).toHaveLength(0)
   })
 
   it('rejects non-object', () => {
-    const errors = validateConfig({ fastCommandSeriesOptions: 42 })
-    expect(errorFields(errors)).toContain('fastCommandSeriesOptions')
+    const errors = validateConfig({ outputScopes: 42 })
+    expect(errorFields(errors)).toContain('outputScopes')
   })
 
   it('rejects array', () => {
-    const errors = validateConfig({ fastCommandSeriesOptions: [] })
-    expect(errorFields(errors)).toContain('fastCommandSeriesOptions')
+    const errors = validateConfig({ outputScopes: [] })
+    expect(errorFields(errors)).toContain('outputScopes')
   })
 
   it('rejects null', () => {
-    const errors = validateConfig({ fastCommandSeriesOptions: null })
-    expect(errorFields(errors)).toContain('fastCommandSeriesOptions')
+    const errors = validateConfig({ outputScopes: null })
+    expect(errorFields(errors)).toContain('outputScopes')
   })
 })
 
@@ -241,6 +232,16 @@ describe('validateConfig — unknown fields', () => {
     const errors = validateConfig({ excludePatterns: {} })
     expect(warningFields(errors)).toContain('excludePatterns')
   })
+
+  it('warns on removed shadowSourceProject field', () => {
+    const errors = validateConfig({ shadowSourceProject: { name: 'legacy-shadow' } })
+    expect(warningFields(errors)).toContain('shadowSourceProject')
+  })
+
+  it('warns on removed fastCommandSeriesOptions field', () => {
+    const errors = validateConfig({ fastCommandSeriesOptions: { includeSeriesPrefix: true } })
+    expect(warningFields(errors)).toContain('fastCommandSeriesOptions')
+  })
 })
 
 // ─── combined / realistic configs ──────────────────────────────────────
@@ -254,15 +255,16 @@ describe('validateConfig — realistic configs', () => {
         commands: { src: 'commands', dist: 'dist/commands' },
         subAgents: { src: 'subagents', dist: 'dist/subagents' },
         rules: { src: 'rules', dist: 'dist/rules' },
-        globalPrompt: { src: 'global.cn.mdx', dist: 'dist/global.mdx' },
-        workspacePrompt: { src: 'workspace.cn.mdx', dist: 'dist/workspace.mdx' },
+        globalPrompt: { src: 'global.src.mdx', dist: 'dist/global.mdx' },
+        workspacePrompt: { src: 'workspace.src.mdx', dist: 'dist/workspace.mdx' },
         app: { src: 'app', dist: 'dist/app' },
         ext: { src: 'ext', dist: 'dist/ext' },
         arch: { src: 'arch', dist: 'dist/arch' },
       },
       logLevel: 'debug',
       profile: { name: 'test' },
-      tool: { editor: 'vscode' },
+      commandSeriesOptions: { includeSeriesPrefix: true },
+      outputScopes: { plugins: {} },
     }
     expect(validateConfig(config)).toHaveLength(0)
   })

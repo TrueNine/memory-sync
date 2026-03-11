@@ -10,7 +10,7 @@
 export type ValidationSeverity = 'error' | 'warning'
 
 export interface ValidationError {
-  /** Dot-separated path to the offending field, e.g. "shadowSourceProject.skill.src" */
+  /** Dot-separated path to the offending field, e.g. "aindex.skills.src" */
   readonly field: string
   /** Human-readable description of the problem */
   readonly message: string
@@ -26,11 +26,10 @@ const KNOWN_FIELDS: ReadonlySet<string> = new Set([
   'version',
   'workspaceDir',
   'aindex',
-  'shadowSourceProject',
   'logLevel',
-  'fastCommandSeriesOptions',
+  'commandSeriesOptions',
+  'outputScopes',
   'profile',
-  'tool',
 ])
 
 const VALID_LOG_LEVELS: ReadonlySet<string> = new Set([
@@ -155,32 +154,25 @@ export function validateConfig(raw: unknown): readonly ValidationError[] {
     }
   }
 
-  // ── tool ─────────────────────────────────────────────────────────────
-  if ('tool' in obj) {
-    const v = obj['tool']
+  // ── commandSeriesOptions ─────────────────────────────────────────────
+  if ('commandSeriesOptions' in obj) {
+    const v = obj['commandSeriesOptions']
     if (typeof v !== 'object' || v === null || Array.isArray(v)) {
-      errors.push({ field: 'tool', message: 'tool must be an object', severity: 'error' })
-    } else {
-      const toolObj = v as Record<string, unknown>
-      for (const [key, value] of Object.entries(toolObj)) {
-        if (typeof value !== 'string' && value !== undefined) {
-          errors.push({
-            field: `tool.${key}`,
-            message: `tool.${key} must be a string`,
-            severity: 'error',
-          })
-        }
-      }
+      errors.push({
+        field: 'commandSeriesOptions',
+        message: 'commandSeriesOptions must be an object',
+        severity: 'error',
+      })
     }
   }
 
-  // ── fastCommandSeriesOptions ─────────────────────────────────────────
-  if ('fastCommandSeriesOptions' in obj) {
-    const v = obj['fastCommandSeriesOptions']
+  // ── outputScopes ─────────────────────────────────────────────────────
+  if ('outputScopes' in obj) {
+    const v = obj['outputScopes']
     if (typeof v !== 'object' || v === null || Array.isArray(v)) {
       errors.push({
-        field: 'fastCommandSeriesOptions',
-        message: 'fastCommandSeriesOptions must be an object',
+        field: 'outputScopes',
+        message: 'outputScopes must be an object',
         severity: 'error',
       })
     }

@@ -26,7 +26,7 @@ export {
 } from './compiler/jsx-expression-eval'
 export {
   mdxToMd
-} from './compiler/mdx-to-md'
+} from './mdx-to-md'
 
 export {
   parseMdx
