@@ -9,7 +9,8 @@ import {
   AbstractInputPlugin,
   createLocalizedPromptReader,
   FilePathKind,
-  PromptKind
+  PromptKind,
+  SourceLocaleExtensions
 
 } from '../plugins/plugin-core'
 
@@ -32,7 +33,7 @@ export class RuleInputPlugin extends AbstractInputPlugin {
       distDir,
       {
         kind: PromptKind.Rule,
-        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        localeExtensions: SourceLocaleExtensions,
         isDirectoryStructure: false,
         createPrompt: async (content, _locale, name, _metadata) => {
           const distFilePath = path.join(distDir, `${name}.mdx`)

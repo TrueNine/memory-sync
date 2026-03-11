@@ -30,7 +30,7 @@ function createChildPrompt(relativePath: string, content: string): ProjectChildr
 }
 
 describe('traeIDEOutputPlugin steering rule output', () => {
-  it('keeps Trae-compatible glob and injects output-dir scope guard', async () => {
+  it('emits project-relative glob and injects output-dir scope guard', async () => {
     const plugin = new TraeIDEOutputPlugin()
     const workspaceBase = path.resolve('tmp/trae-plugin-test')
     const ctx = {

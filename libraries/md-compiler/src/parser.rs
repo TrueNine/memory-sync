@@ -2,7 +2,7 @@
 //!
 //! Parses MDX source into an mdast AST with MDX extensions, GFM, and frontmatter.
 
-use markdown::{mdast::Node, to_mdast, ParseOptions};
+use markdown::{ParseOptions, mdast::Node, to_mdast};
 
 /// Parse an MDX string into an mdast AST.
 ///
@@ -63,7 +63,10 @@ mod tests {
         let node = result.unwrap();
         match &node {
             Node::Root(root) => {
-                let has_jsx = root.children.iter().any(|c| matches!(c, Node::MdxJsxFlowElement(_)));
+                let has_jsx = root
+                    .children
+                    .iter()
+                    .any(|c| matches!(c, Node::MdxJsxFlowElement(_)));
                 assert!(has_jsx, "Expected MdxJsxFlowElement");
             }
             _ => panic!("Expected Root node"),

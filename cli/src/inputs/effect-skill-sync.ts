@@ -2,7 +2,7 @@ import type {Buffer} from 'node:buffer'
 
 import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
 import {createHash} from 'node:crypto'
-import {AbstractInputPlugin} from '../plugins/plugin-core'
+import {AbstractInputPlugin, hasSourcePromptExtension} from '../plugins/plugin-core'
 
 export interface SkillSyncEffectResult extends InputEffectResult {
   readonly copiedFiles: string[]
@@ -111,7 +111,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
           dryRun
         )
       } else if (entry.isFile()) {
-        if (entry.name.endsWith('.cn.mdx')) continue
+        if (hasSourcePromptExtension(entry.name) || entry.name.endsWith('.mdx')) continue
 
         const targetDir = path.dirname(distPath)
         if (!fs.existsSync(targetDir)) {

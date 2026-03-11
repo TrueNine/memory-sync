@@ -116,7 +116,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
         for (const child of project.childMemoryPrompts) {
           const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
           const normalizedChildPath = childPath.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '')
-          const globPattern = normalizedChildPath.length > 0 ? `${normalizedChildPath}/**` : '**/*'
+          const globPattern = this.buildProjectRelativeGlobPattern(normalizedChildPath)
           const steeringContent = buildMarkdownWithFrontMatter(
             {alwaysApply: false, globs: globPattern},
             [
@@ -251,5 +251,10 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       `Scope guard: this rule is for the project-root path "${normalizedChildPath}/" only.`,
       `Do not apply this rule to generated output paths such as "dist/${normalizedChildPath}/", "build/${normalizedChildPath}/", "out/${normalizedChildPath}/", ".next/${normalizedChildPath}/", or "target/${normalizedChildPath}/".`
     ].join('\n')
+  }
+
+  private buildProjectRelativeGlobPattern(normalizedChildPath: string): string {
+    if (normalizedChildPath.length === 0) return '**/*'
+    return `${normalizedChildPath}/**`
   }
 }

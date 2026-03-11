@@ -89,9 +89,9 @@ export const AINDEX_DIR_NAMES = {
  */
 export const AINDEX_FILE_NAMES = {
   GLOBAL_MEMORY: 'global.mdx', // Global memory
-  GLOBAL_MEMORY_SRC: 'global.cn.mdx',
+  GLOBAL_MEMORY_SRC: 'global.src.mdx',
   WORKSPACE_MEMORY: 'workspace.mdx', // Workspace memory
-  WORKSPACE_MEMORY_SRC: 'workspace.cn.mdx',
+  WORKSPACE_MEMORY_SRC: 'workspace.src.mdx',
   EDITOR_CONFIG: '.editorconfig', // EditorConfig
   IDEA_GITIGNORE: '.idea/.gitignore', // JetBrains IDE
   IDEA_PROJECT_XML: '.idea/codeStyles/Project.xml',
@@ -113,8 +113,8 @@ export const AINDEX_RELATIVE_PATHS = {
   SRC_COMMANDS: 'src/commands',
   SRC_AGENTS: 'src/agents',
   SRC_RULES: 'src/rules',
-  SRC_GLOBAL_MEMORY: 'app/global.cn.mdx',
-  SRC_WORKSPACE_MEMORY: 'app/workspace.cn.mdx',
+  SRC_GLOBAL_MEMORY: 'app/global.src.mdx',
+  SRC_WORKSPACE_MEMORY: 'app/workspace.src.mdx',
   DIST_SKILLS: 'dist/skills', // Distribution paths
   DIST_COMMANDS: 'dist/commands',
   DIST_AGENTS: 'dist/agents',
@@ -134,22 +134,22 @@ export const DEFAULT_AINDEX_STRUCTURE: AindexDirectory = {
     skills: {
       name: AINDEX_DIR_NAMES.SKILLS,
       required: false,
-      description: 'Skill source files (.cn.mdx)'
+      description: 'Skill source files (.src.mdx)'
     },
     commands: {
       name: AINDEX_DIR_NAMES.COMMANDS,
       required: false,
-      description: 'Fast command source files (.cn.mdx)'
+      description: 'Fast command source files (.src.mdx)'
     },
     agents: {
       name: AINDEX_DIR_NAMES.AGENTS,
       required: false,
-      description: 'Sub-agent source files (.cn.mdx)'
+      description: 'Sub-agent source files (.src.mdx)'
     },
     rules: {
       name: AINDEX_DIR_NAMES.RULES,
       required: false,
-      description: 'Rule source files (.cn.mdx)'
+      description: 'Rule source files (.src.mdx)'
     },
     globalMemoryFile: {
       name: AINDEX_FILE_NAMES.GLOBAL_MEMORY_SRC,

@@ -15,10 +15,9 @@ import type {
 } from './plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import process from 'node:process'
 import glob from 'fast-glob'
 import {checkVersionControl} from './Aindex'
-import {loadUserConfig, validateGlobalConfig} from './ConfigLoader'
+import {getConfigLoader} from './ConfigLoader'
 import {PluginPipeline} from './PluginPipeline'
 import {
   createLogger,
@@ -42,8 +41,8 @@ const DEFAULT_AINDEX: Required<AindexConfig> = {
   commands: {src: 'commands', dist: 'dist/commands'},
   subAgents: {src: 'subagents', dist: 'dist/subagents'},
   rules: {src: 'rules', dist: 'dist/rules'},
-  globalPrompt: {src: 'global.cn.mdx', dist: 'dist/global.mdx'},
-  workspacePrompt: {src: 'workspace.cn.mdx', dist: 'dist/workspace.mdx'},
+  globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
+  workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
   app: {src: 'app', dist: 'dist/app'},
   ext: {src: 'ext', dist: 'dist/ext'},
   arch: {src: 'arch', dist: 'dist/arch'}
@@ -225,23 +224,26 @@ function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): op
  * @param options - Plugin options or DefineConfigOptions
  */
 export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
-  const validationResult = validateGlobalConfig() // Validate global config exists and is valid - do not auto-create
-  if (!validationResult.valid) {
-    const logger = createLogger('defineConfig') // Log all errors before exiting
-    for (const error of validationResult.errors) logger.error(error)
-    process.exit(1)
-  }
-
   let shouldLoadUserConfig: boolean, // Normalize options
     cwd: string | undefined,
-    pluginOptions: PluginOptions
+    pluginOptions: PluginOptions,
+    configLoaderOptions: ConfigLoaderOptions | undefined
 
   if (isDefineConfigOptions(options)) {
-    ({pluginOptions = {}, cwd} = {pluginOptions: options.pluginOptions, cwd: options.cwd})
+    ({
+      pluginOptions = {},
+      cwd,
+      configLoaderOptions
+    } = {
+      pluginOptions: options.pluginOptions,
+      cwd: options.cwd,
+      configLoaderOptions: options.configLoaderOptions
+    })
     shouldLoadUserConfig = options.loadUserConfig ?? true
   } else {
     pluginOptions = options
     shouldLoadUserConfig = true
+    configLoaderOptions = void 0
   }
 
   let userConfigOptions: Partial<PluginOptions> = {} // Load user config if enabled
@@ -251,7 +253,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
 
   if (shouldLoadUserConfig) {
     try {
-      const userConfigResult = loadUserConfig(cwd)
+      const userConfigResult = getConfigLoader(configLoaderOptions).load(cwd)
       userConfigFound = userConfigResult.found
       userConfigSources = userConfigResult.sources
       if (userConfigResult.found) {
@@ -260,22 +262,23 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
       }
     }
     catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error) // Config loading failed - throw error instead of using defaults
+      const errorMessage = error instanceof Error ? error.message : String(error)
       throw new Error(`Failed to load user config: ${errorMessage}`)
     }
-  }
-
-  if (!userConfigFound) { // Require user config to be found - no fallback to defaults
-    throw new Error(
-      'No user config found. Please create ~/.aindex/.tnmsc.json or a .tnmsc.json in your working directory.'
-    )
   }
 
   const mergedOptions = mergeConfig(userConfigOptions, pluginOptions) // Merge: defaults <- user config <- programmatic options
   const {plugins = [], logLevel} = mergedOptions
   const logger = createLogger('defineConfig', logLevel)
 
-  logger.info('user config loaded', {sources: userConfigSources})
+  if (userConfigFound) logger.info('user config loaded', {sources: userConfigSources})
+  else {
+    logger.info('no user config found, using defaults/programmatic options', {
+      workspaceDir: mergedOptions.workspaceDir,
+      aindexDir: mergedOptions.aindex.dir,
+      logLevel: mergedOptions.logLevel
+    })
+  }
 
   const baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = { // Base context without dependencyContext, globalScope, scopeRegistry (will be provided by pipeline)
     logger,

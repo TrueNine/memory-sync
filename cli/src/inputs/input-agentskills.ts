@@ -18,7 +18,7 @@ import * as nodePath from 'node:path'
 import {mdxToMd} from '@truenine/md-compiler'
 import {MetadataValidationError} from '@truenine/md-compiler/errors'
 import {parseMarkdown, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
-import {AbstractInputPlugin, createLocalizedPromptReader, FilePathKind, PromptKind, validateSkillMetadata} from '../plugins/plugin-core'
+import {AbstractInputPlugin, createLocalizedPromptReader, FilePathKind, PromptKind, SourceLocaleExtensions, validateSkillMetadata} from '../plugins/plugin-core'
 
 export * from './input-agentskills-types' // Re-export from types file
 
@@ -587,7 +587,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       {
         kind: PromptKind.Skill,
         entryFileName: 'skill',
-        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        localeExtensions: SourceLocaleExtensions,
         isDirectoryStructure: true,
         createPrompt: async (content, locale, name, metadata) => {
           const skillDistDir = pathModule.join(distSkillDir, name)

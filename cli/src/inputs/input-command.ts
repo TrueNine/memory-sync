@@ -9,7 +9,8 @@ import {
   AbstractInputPlugin,
   createLocalizedPromptReader,
   FilePathKind,
-  PromptKind
+  PromptKind,
+  SourceLocaleExtensions
 
 } from '../plugins/plugin-core'
 
@@ -88,7 +89,7 @@ export class CommandInputPlugin extends AbstractInputPlugin {
       distDir,
       {
         kind: PromptKind.Command,
-        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        localeExtensions: SourceLocaleExtensions,
         isDirectoryStructure: false,
         createPrompt: (content, locale, name, metadata) => this.createCommandPrompt(
           content,

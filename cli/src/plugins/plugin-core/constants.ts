@@ -74,6 +74,23 @@ export const FileExtensions = {
   JSON: '.json'
 } as const
 
+export const SourcePromptExtensions = {
+  PRIMARY: '.src.mdx'
+} as const
+
+export const SourcePromptFileExtensions = [
+  SourcePromptExtensions.PRIMARY,
+] as const
+
+export const SourceLocaleExtensions = {
+  zh: SourcePromptFileExtensions,
+  en: FileExtensions.MDX
+} as const
+
+export function hasSourcePromptExtension(fileName: string): boolean {
+  return SourcePromptFileExtensions.some(extension => fileName.endsWith(extension))
+}
+
 export const GlobalConfigDirs = {
   CURSOR: '.cursor',
   CLAUDE: '.claude',

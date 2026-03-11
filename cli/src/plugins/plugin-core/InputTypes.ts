@@ -253,6 +253,8 @@ export interface ReadmePrompt extends Prompt<PromptKind.Readme> {
  */
 export type Locale = 'zh' | 'en'
 
+export type LocalizedFileExtension = string | readonly string[]
+
 /**
  * Localized content wrapper for a single locale
  * Contains both compiled content and raw MDX source
@@ -281,7 +283,7 @@ export interface LocalizedContent<T extends Prompt = Prompt> {
  * Source content container for all locales
  */
 export interface LocalizedSource<T extends Prompt = Prompt> {
-  /** Chinese content (.cn.mdx) */
+  /** Default source content (.src.mdx) */
   readonly zh?: LocalizedContent<T>
 
   /** English content (.mdx) */
@@ -325,8 +327,8 @@ export interface LocalizedPrompt<T extends Prompt = Prompt, K extends PromptKind
 export interface LocalizedReadOptions<T extends Prompt, K extends PromptKind> {
   /** File extensions for each locale */
   readonly localeExtensions: {
-    readonly zh: string
-    readonly en: string
+    readonly zh: LocalizedFileExtension
+    readonly en: LocalizedFileExtension
   }
 
   /** Entry file name (without extension, e.g., 'skill' for skills) */

@@ -13,6 +13,7 @@ import {ConfigCommandFactory} from '@/commands/factories/ConfigCommandFactory'
 import {DryRunCommandFactory} from '@/commands/factories/DryRunCommandFactory'
 import {ExecuteCommandFactory} from '@/commands/factories/ExecuteCommandFactory'
 import {HelpCommandFactory} from '@/commands/factories/HelpCommandFactory'
+import {InitCommandFactory} from '@/commands/factories/InitCommandFactory'
 import {PluginsCommandFactory} from '@/commands/factories/PluginsCommandFactory'
 import {UnknownCommandFactory} from '@/commands/factories/UnknownCommandFactory'
 import {VersionCommandFactory} from '@/commands/factories/VersionCommandFactory'
@@ -235,6 +236,7 @@ function createDefaultCommandRegistry(): CommandRegistry {
   registry.register(new HelpCommandFactory())
   registry.register(new UnknownCommandFactory())
 
+  registry.registerWithPriority(new InitCommandFactory(), FactoryPriority.Subcommand)
   registry.registerWithPriority(new DryRunCommandFactory(), FactoryPriority.Subcommand)
   registry.registerWithPriority(new CleanCommandFactory(), FactoryPriority.Subcommand)
   registry.registerWithPriority(new PluginsCommandFactory(), FactoryPriority.Subcommand)

@@ -1,5 +1,5 @@
 import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
-import {AbstractInputPlugin} from '../plugins/plugin-core'
+import {AbstractInputPlugin, SourcePromptFileExtensions} from '../plugins/plugin-core'
 
 export interface OrphanCleanupEffectResult extends InputEffectResult {
   readonly deletedFiles: string[]
@@ -151,24 +151,33 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
         const skillName = skillParts[0] ?? baseName
         const remainingPath = relativeDir === '.' ? '' : relativeDir.slice(skillName.length + 1)
 
-        if (remainingPath !== '') return [nodePath.join(aindexDir, srcPath, skillName, remainingPath, `${baseName}.cn.mdx`)]
+        if (remainingPath !== '') {
+          return SourcePromptFileExtensions.map(extension =>
+            nodePath.join(aindexDir, srcPath, skillName, remainingPath, `${baseName}${extension}`)
+          )
+        }
+
         return [
-          nodePath.join(aindexDir, srcPath, skillName, 'SKILL.cn.mdx'),
-          nodePath.join(aindexDir, srcPath, skillName, 'skill.cn.mdx')
+          ...SourcePromptFileExtensions.map(extension =>
+            nodePath.join(aindexDir, srcPath, skillName, `SKILL${extension}`)
+          ),
+          ...SourcePromptFileExtensions.map(extension =>
+            nodePath.join(aindexDir, srcPath, skillName, `skill${extension}`)
+          )
         ]
       }
       case 'commands':
         return relativeDir === '.'
-          ? [nodePath.join(aindexDir, srcPath, `${baseName}.cn.mdx`)]
-          : [nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}.cn.mdx`)]
+          ? SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, `${baseName}${extension}`))
+          : SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}${extension}`))
       case 'agents':
         return relativeDir === '.'
-          ? [nodePath.join(aindexDir, srcPath, `${baseName}.cn.mdx`)]
-          : [nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}.cn.mdx`)]
+          ? SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, `${baseName}${extension}`))
+          : SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}${extension}`))
       case 'app':
         return relativeDir === '.'
-          ? [nodePath.join(aindexDir, srcPath, `${baseName}.cn.mdx`)]
-          : [nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}.cn.mdx`)]
+          ? SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, `${baseName}${extension}`))
+          : SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}${extension}`))
       default: return []
     }
   }

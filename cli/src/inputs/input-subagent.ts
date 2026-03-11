@@ -9,7 +9,8 @@ import {
   AbstractInputPlugin,
   createLocalizedPromptReader,
   FilePathKind,
-  PromptKind
+  PromptKind,
+  SourceLocaleExtensions
 
 } from '../plugins/plugin-core'
 
@@ -87,7 +88,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       distDir,
       {
         kind: PromptKind.SubAgent,
-        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        localeExtensions: SourceLocaleExtensions,
         isDirectoryStructure: false,
         createPrompt: (content, locale, name, metadata) => this.createSubAgentPrompt(
           content,

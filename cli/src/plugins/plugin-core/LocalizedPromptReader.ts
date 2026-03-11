@@ -3,6 +3,7 @@ import type {
   DirectoryReadResult,
   ILogger,
   Locale,
+  LocalizedFileExtension,
   LocalizedContent,
   LocalizedPrompt,
   LocalizedReadOptions,
@@ -101,11 +102,38 @@ export class LocalizedPromptReader {
     this.logger.debug(`readFlatFiles: srcDir=${srcDir}, exists=${srcExists}`)
     this.logger.debug(`readFlatFiles: distDir=${distDir}, exists=${distExists}`)
 
-    if (!srcExists) return {prompts, errors}
+    if (!srcExists && !distExists) return {prompts, errors}
 
-    const zhExtension = options.localeExtensions.zh // Find all .cn.mdx files (Chinese source files)
+    const zhExtensions = this.normalizeExtensions(options.localeExtensions.zh)
+    const seenNames = new Set<string>()
 
-    const scanDirectory = async (currentSrcDir: string, currentDistDir: string, relativePath: string = ''): Promise<void> => {
+    const readPrompt = async (fullName: string, filePath: string): Promise<void> => {
+      if (seenNames.has(fullName)) return
+      seenNames.add(fullName)
+
+      try {
+        const localized = await this.readFlatEntry(
+          fullName,
+          srcDir,
+          distDir,
+          fullName,
+          options
+        )
+
+        if (localized) prompts.push(localized)
+      } catch (error) {
+        errors.push({
+          path: filePath,
+          error: error as Error,
+          phase: 'read'
+        })
+        this.logger.error(`Failed to read file: ${filePath}`, {error})
+      }
+    }
+
+    const scanSourceDirectory = async (currentSrcDir: string, relativePath: string = ''): Promise<void> => {
+      if (!this.exists(currentSrcDir)) return
+
       try {
         const entries = this.fs.readdirSync(currentSrcDir, {withFileTypes: true})
         for (const entry of entries) {
@@ -114,38 +142,19 @@ export class LocalizedPromptReader {
             : entry.name
 
           if (entry.isDirectory()) {
-            const subSrcDir = this.path.join(currentSrcDir, entry.name) // Recursively scan subdirectories
-            const subDistDir = this.path.join(currentDistDir, entry.name)
-            await scanDirectory(subSrcDir, subDistDir, entryRelativePath)
+            await scanSourceDirectory(this.path.join(currentSrcDir, entry.name), entryRelativePath)
             continue
           }
 
-          if (!entry.isFile() || !entry.name.endsWith(zhExtension)) continue
+          const matchedExtension = this.findMatchingExtension(entry.name, zhExtensions)
+          if (!entry.isFile() || matchedExtension == null) continue
 
-          const baseName = entry.name.slice(0, -zhExtension.length) // Extract name without extension (e.g., "compile.cn.mdx" -> "compile")
-          const srcFilePath = this.path.join(currentSrcDir, entry.name)
-          const fullName = relativePath // Use relative path as the name to preserve series/subdirectory info (e.g., "auqt/boot")
+          const baseName = entry.name.slice(0, -matchedExtension.length)
+          const fullName = relativePath
             ? this.path.join(relativePath, baseName)
             : baseName
 
-          try {
-            const localized = await this.readFlatEntry(
-              fullName,
-              srcDir,
-              distDir,
-              fullName,
-              options
-            )
-
-            if (localized) prompts.push(localized)
-          } catch (error) {
-            errors.push({
-              path: srcFilePath,
-              error: error as Error,
-              phase: 'read'
-            })
-            this.logger.error(`Failed to read file: ${entry.name}`, {error})
-          }
+          await readPrompt(fullName, this.path.join(currentSrcDir, entry.name))
         }
       } catch (error) {
         errors.push({
@@ -157,7 +166,42 @@ export class LocalizedPromptReader {
       }
     }
 
-    await scanDirectory(srcDir, distDir)
+    const scanDistDirectory = async (currentDistDir: string, relativePath: string = ''): Promise<void> => {
+      if (!this.exists(currentDistDir)) return
+
+      try {
+        const entries = this.fs.readdirSync(currentDistDir, {withFileTypes: true})
+        for (const entry of entries) {
+          const entryRelativePath = relativePath
+            ? this.path.join(relativePath, entry.name)
+            : entry.name
+
+          if (entry.isDirectory()) {
+            await scanDistDirectory(this.path.join(currentDistDir, entry.name), entryRelativePath)
+            continue
+          }
+
+          if (!entry.isFile() || !entry.name.endsWith('.mdx')) continue
+
+          const baseName = entry.name.slice(0, -'.mdx'.length)
+          const fullName = relativePath
+            ? this.path.join(relativePath, baseName)
+            : baseName
+
+          await readPrompt(fullName, this.path.join(currentDistDir, entry.name))
+        }
+      } catch (error) {
+        errors.push({
+          path: currentDistDir,
+          error: error as Error,
+          phase: 'scan'
+        })
+        this.logger.error(`Failed to scan directory: ${currentDistDir}`, {error})
+      }
+    }
+
+    if (srcExists) await scanSourceDirectory(srcDir)
+    if (distExists) await scanDistDirectory(distDir)
 
     return {prompts, errors}
   }
@@ -188,8 +232,10 @@ export class LocalizedPromptReader {
     const {localeExtensions, entryFileName, createPrompt, kind} = options
 
     const baseFileName = entryFileName ?? name
-    const srcZhPath = this.path.join(srcEntryDir, `${baseFileName}${localeExtensions.zh}`)
-    const srcEnPath = this.path.join(srcEntryDir, `${baseFileName}${localeExtensions.en}`)
+    const zhExtensions = this.normalizeExtensions(localeExtensions.zh)
+    const enExtensions = this.normalizeExtensions(localeExtensions.en)
+    const srcZhPath = this.resolveLocalizedPath(srcEntryDir, baseFileName, zhExtensions)
+    const srcEnPath = this.resolveLocalizedPath(srcEntryDir, baseFileName, enExtensions)
     const distPath = this.path.join(distEntryDir, `${baseFileName}.mdx`)
 
     const distContent = await this.readDistContent(distPath, createPrompt, name) // Read both src and dist independently - no fallback logic
@@ -200,8 +246,8 @@ export class LocalizedPromptReader {
     const hasSrcZh = zhContent != null
     const hasSrcEn = enContent != null
 
-    if (!hasDist && !hasSrcZh) { // If neither src nor dist exists, return null
-      this.logger.warn(`Missing both dist and Chinese source for: ${name}`)
+    if (!hasDist && !hasSrcZh) { // If neither src nor source file exists, return null
+      this.logger.warn(`Missing both dist and source file for: ${name}`)
       return null
     }
 
@@ -221,7 +267,7 @@ export class LocalizedPromptReader {
     let children: string[] | undefined
     if (isDirectoryStructure) {
       const scanDir = hasDist ? distEntryDir : srcEntryDir // Scan children from dist if available, otherwise from src
-      children = this.scanChildren(scanDir, baseFileName, localeExtensions.zh)
+      children = this.scanChildren(scanDir, baseFileName, zhExtensions)
     }
 
     return {
@@ -256,8 +302,10 @@ export class LocalizedPromptReader {
   ): Promise<LocalizedPrompt<T, K> | null> {
     const {localeExtensions, createPrompt, kind} = options
 
-    const srcZhPath = `${baseName}${localeExtensions.zh}`
-    const srcEnPath = `${baseName}${localeExtensions.en}`
+    const zhExtensions = this.normalizeExtensions(localeExtensions.zh)
+    const enExtensions = this.normalizeExtensions(localeExtensions.en)
+    const srcZhPath = this.resolveLocalizedPath('', baseName, zhExtensions)
+    const srcEnPath = this.resolveLocalizedPath('', baseName, enExtensions)
     const distPath = this.path.join(distDir, `${name}.mdx`)
 
     const fullSrcZhPath = isSingleFile ? srcZhPath : this.path.join(srcDir, srcZhPath)
@@ -271,8 +319,8 @@ export class LocalizedPromptReader {
     const hasSrcZh = zhContent != null
     const hasSrcEn = enContent != null
 
-    if (!hasDist && !hasSrcZh) { // If neither src nor dist exists, return null
-      this.logger.warn(`Missing both dist and Chinese source for: ${name}`)
+    if (!hasDist && !hasSrcZh) { // If neither src nor source file exists, return null
+      this.logger.warn(`Missing both dist and source file for: ${name}`)
       return null
     }
 
@@ -391,13 +439,13 @@ export class LocalizedPromptReader {
   private scanChildren(
     dir: string,
     entryFileName: string,
-    zhExtension: string
+    zhExtensions: readonly string[]
   ): string[] {
     const children: string[] = []
 
     if (!this.exists(dir)) return children
 
-    const entryFullName = `${entryFileName}${zhExtension}`
+    const entryFullNames = new Set(zhExtensions.map(extension => `${entryFileName}${extension}`))
 
     try {
       const scanDir = (currentDir: string, relativePath: string): void => {
@@ -410,8 +458,11 @@ export class LocalizedPromptReader {
             : entry.name
 
           if (entry.isDirectory()) scanDir(fullPath, relativeFullPath)
-          else if (entry.name.endsWith(zhExtension) && entry.name !== entryFullName) {
-            const nameWithoutExt = entry.name.slice(0, -zhExtension.length) // Child doc: relative path without extension
+          else {
+            const matchedExtension = this.findMatchingExtension(entry.name, zhExtensions)
+            if (matchedExtension == null || entryFullNames.has(entry.name)) continue
+
+            const nameWithoutExt = entry.name.slice(0, -matchedExtension.length) // Child doc: relative path without extension
             const relativeDir = this.path.dirname(relativeFullPath)
             const childPath = relativeDir === '.'
               ? nameWithoutExt
@@ -435,6 +486,31 @@ export class LocalizedPromptReader {
     } catch {
       return false
     }
+  }
+
+  private normalizeExtensions(extension: LocalizedFileExtension): readonly string[] {
+    return typeof extension === 'string'
+      ? [extension]
+      : extension
+  }
+
+  private findMatchingExtension(fileName: string, extensions: readonly string[]): string | undefined {
+    return extensions.find(extension => fileName.endsWith(extension))
+  }
+
+  private resolveLocalizedPath(dir: string, baseFileName: string, extensions: readonly string[]): string {
+    const defaultPath = dir === ''
+      ? `${baseFileName}${extensions[0]}`
+      : this.path.join(dir, `${baseFileName}${extensions[0]}`)
+
+    for (const extension of extensions) {
+      const candidate = dir === ''
+        ? `${baseFileName}${extension}`
+        : this.path.join(dir, `${baseFileName}${extension}`)
+      if (this.exists(candidate)) return candidate
+    }
+
+    return defaultPath
   }
 }
 

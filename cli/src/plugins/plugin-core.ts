@@ -30,6 +30,7 @@ export {
   FileExtensions,
   FrontMatterFields,
   GlobalConfigDirs,
+  hasSourcePromptExtension,
   IgnoreFiles,
   OutputFileNames,
   OutputPrefixes,
@@ -37,6 +38,9 @@ export {
   PathPlaceholders,
   PLUGIN_NAMES,
   PreservedSkills,
+  SourceLocaleExtensions,
+  SourcePromptExtensions,
+  SourcePromptFileExtensions,
   ToolPresets
 } from './plugin-core/constants'
 

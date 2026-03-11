@@ -93,8 +93,8 @@ export class ConfigLoader {
       return {config, source: resolvedPath, found: true}
     }
     catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error) // Parse/validation failure - throw error instead of silently returning empty config
-      throw new Error(`Failed to load config from ${resolvedPath}: ${errorMessage}`)
+      this.logger.warn('load failed', {path: resolvedPath, error})
+      return {config: {}, source: null, found: false}
     }
   }
 
@@ -107,17 +107,13 @@ export class ConfigLoader {
       if (result.found) loadedConfigs.push(result)
     }
 
-    if (loadedConfigs.length === 0) { // No config found - throw error instead of returning empty config
-      throw new Error(`No valid config file found. Searched: ${searchPaths.join(', ')}`)
-    }
-
     const merged = this.mergeConfigs(loadedConfigs.map(r => r.config)) // Merge configs (first has highest priority)
     const sources = loadedConfigs.map(r => r.source).filter((s): s is string => s !== null)
 
     return {
       config: merged,
       sources,
-      found: true
+      found: loadedConfigs.length > 0
     }
   }
 
@@ -246,6 +242,69 @@ export function getConfigLoader(options?: ConfigLoaderOptions): ConfigLoader {
  */
 export function loadUserConfig(cwd?: string): MergedConfigResult {
   return getConfigLoader().load(cwd)
+}
+
+function isSymlinkPath(filePath: string): boolean {
+  try {
+    return fs.lstatSync(filePath).isSymbolicLink()
+  }
+  catch {
+    return false
+  }
+}
+
+function readSymlinkTarget(filePath: string): string | null {
+  try {
+    return fs.readlinkSync(filePath)
+  }
+  catch {
+    return null
+  }
+}
+
+/**
+ * Ensure a local config file is linked (symlink preferred) to the global config.
+ * Falls back to a file copy when symlink creation is unavailable.
+ */
+export function ensureConfigLink(
+  localConfigPath: string,
+  globalConfigPath: string,
+  logger: ILogger
+): void {
+  if (!fs.existsSync(globalConfigPath)) return
+
+  if (fs.existsSync(localConfigPath) || isSymlinkPath(localConfigPath)) {
+    if (isSymlinkPath(localConfigPath)) {
+      const target = readSymlinkTarget(localConfigPath)
+      if (target !== null && path.resolve(path.dirname(localConfigPath), target) === path.resolve(globalConfigPath)) return
+      fs.rmSync(localConfigPath, {force: true})
+    } else {
+      const localContent = fs.readFileSync(localConfigPath, 'utf8')
+      const globalContent = fs.readFileSync(globalConfigPath, 'utf8')
+      if (localContent !== globalContent) {
+        fs.copyFileSync(localConfigPath, globalConfigPath)
+        logger.debug('synced local config back to global', {src: localConfigPath, dest: globalConfigPath})
+      }
+      fs.rmSync(localConfigPath, {force: true})
+    }
+  }
+
+  try {
+    fs.symlinkSync(globalConfigPath, localConfigPath, 'file')
+    logger.debug('linked config', {link: localConfigPath, target: globalConfigPath})
+  }
+  catch {
+    try {
+      fs.copyFileSync(globalConfigPath, localConfigPath)
+      logger.warn('symlink unavailable, copied config (auto-sync disabled)', {dest: localConfigPath})
+    }
+    catch (copyErr) {
+      logger.warn('failed to link or copy config', {
+        path: localConfigPath,
+        error: copyErr instanceof Error ? copyErr.message : String(copyErr)
+      })
+    }
+  }
 }
 
 /**
