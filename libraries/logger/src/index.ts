@@ -72,15 +72,16 @@ function formatBindingLoadError(localError: unknown, packageError: unknown, suff
 }
 
 function loadNativeBinding(): NapiLoggerModule {
-  const require = createRequire(import.meta.url)
+  const moduleUrl = import.meta.url
+  const runtimeRequire = createRequire(moduleUrl)
   const {local, suffix} = getPlatformBinding()
 
   try {
-    return require(`./${local}.node`) as NapiLoggerModule
+    return runtimeRequire(`./${local}.node`) as NapiLoggerModule
   }
   catch (localError) {
     try {
-      const cliBinaryPackage = require(`@truenine/memory-sync-cli-${suffix}`) as Record<string, unknown>
+      const cliBinaryPackage = runtimeRequire(`@truenine/memory-sync-cli-${suffix}`) as Record<string, unknown>
       const loggerModule = cliBinaryPackage['logger']
 
       if (isNapiLoggerModule(loggerModule)) return loggerModule

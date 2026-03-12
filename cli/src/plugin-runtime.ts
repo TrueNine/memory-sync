@@ -80,6 +80,7 @@ async function main(): Promise<void> {
     path,
     glob,
     collectedOutputContext: context,
+    pluginOptions: userConfigOptions,
     dryRun: dry
   })
 

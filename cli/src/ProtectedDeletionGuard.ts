@@ -3,6 +3,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
+import glob from 'fast-glob'
 
 interface DirPathLike {
   readonly path: string
@@ -11,23 +12,36 @@ interface DirPathLike {
   readonly getAbsolutePath?: () => string
 }
 
-interface ProtectedPathEntry {
+export type ProtectionMode = 'direct' | 'recursive'
+export type ProtectionRuleMatcher = 'path' | 'glob'
+
+export interface ProtectedPathRule {
   readonly path: string
+  readonly protectionMode: ProtectionMode
   readonly reason: string
+  readonly source: string
+  readonly matcher?: ProtectionRuleMatcher
+}
+
+interface CompiledProtectedPathRule extends ProtectedPathRule {
+  readonly comparisonKeys: readonly string[]
+  readonly normalizedPath: string
+  readonly specificity: number
 }
 
 export interface ProtectedPathViolation {
   readonly targetPath: string
   readonly protectedPath: string
-  readonly protection: 'exact' | 'subtree'
+  readonly protectionMode: ProtectionMode
   readonly reason: string
+  readonly source: string
 }
 
 export interface ProtectedDeletionGuard {
+  readonly rules: readonly ProtectedPathRule[]
   readonly exactProtectedPaths: readonly string[]
   readonly subtreeProtectedPaths: readonly string[]
-  readonly exactByKey: ReadonlyMap<string, ProtectedPathEntry>
-  readonly subtreeByKey: ReadonlyMap<string, ProtectedPathEntry>
+  readonly compiledRules: readonly CompiledProtectedPathRule[]
 }
 
 export interface ProtectedDeletionGuardOptions {
@@ -36,6 +50,8 @@ export interface ProtectedDeletionGuardOptions {
   readonly projectRoots?: readonly string[]
   readonly exactProtectedPaths?: readonly string[]
   readonly subtreeProtectedPaths?: readonly string[]
+  readonly rules?: readonly ProtectedPathRule[]
+  readonly includeReservedWorkspaceContentRoots?: boolean
 }
 
 export class ProtectedDeletionGuardError extends Error {
@@ -66,6 +82,21 @@ const KNOWN_AINDEX_INPUT_CONFIG_RELATIVE_PATHS = [
   '.kiroignore',
   '.traeignore'
 ] as const
+
+const CONFIGURED_AINDEX_DIRECTORY_KEYS = [
+  'skills',
+  'commands',
+  'subAgents',
+  'rules',
+  'app',
+  'ext',
+  'arch'
+] as const satisfies readonly (keyof Required<PluginOptions>['aindex'])[]
+
+const CONFIGURED_AINDEX_FILE_KEYS = [
+  'globalPrompt',
+  'workspacePrompt'
+] as const satisfies readonly (keyof Required<PluginOptions>['aindex'])[]
 
 function resolveXdgConfigHome(homeDir: string): string {
   const xdgConfigHome = process.env['XDG_CONFIG_HOME']
@@ -151,128 +182,339 @@ export function buildComparisonKeys(rawPath: string): readonly string[] {
   return [...keys]
 }
 
-function addProtectedPath(
-  target: Map<string, ProtectedPathEntry>,
+function createProtectedPathRule(
   rawPath: string,
-  reason: string
-): void {
-  const absolutePath = resolveAbsolutePath(rawPath)
-  for (const comparisonKey of buildComparisonKeys(absolutePath)) {
-    if (!target.has(comparisonKey)) {
-      target.set(comparisonKey, {
-        path: absolutePath,
-        reason
-      })
-    }
+  protectionMode: ProtectionMode,
+  reason: string,
+  source: string,
+  matcher: ProtectionRuleMatcher = 'path'
+): ProtectedPathRule {
+  return {
+    path: resolveAbsolutePath(rawPath),
+    protectionMode,
+    reason,
+    source,
+    matcher
   }
 }
 
-function collectBuiltInExactProtectedPaths(): readonly string[] {
+function compileRule(rule: ProtectedPathRule): CompiledProtectedPathRule {
+  const normalizedPath = normalizeForComparison(rule.path)
+  return {
+    ...rule,
+    path: resolveAbsolutePath(rule.path),
+    comparisonKeys: buildComparisonKeys(rule.path),
+    normalizedPath,
+    specificity: stripTrailingSeparator(normalizedPath).length
+  }
+}
+
+function dedupeAndCompileRules(rules: readonly ProtectedPathRule[]): CompiledProtectedPathRule[] {
+  const compiledByKey = new Map<string, CompiledProtectedPathRule>()
+
+  for (const rule of rules) {
+    const compiled = compileRule(rule)
+    compiledByKey.set(`${compiled.protectionMode}:${compiled.normalizedPath}`, compiled)
+  }
+
+  return [...compiledByKey.values()].sort((a, b) => {
+    const specificityDiff = b.specificity - a.specificity
+    if (specificityDiff !== 0) return specificityDiff
+
+    if (a.protectionMode !== b.protectionMode) return a.protectionMode === 'recursive' ? -1 : 1
+    return a.path.localeCompare(b.path)
+  })
+}
+
+function normalizeGlobPattern(pattern: string): string {
+  return resolveAbsolutePath(pattern).replaceAll('\\', '/')
+}
+
+function expandProtectedPathRules(rules: readonly ProtectedPathRule[]): ProtectedPathRule[] {
+  const expandedRules: ProtectedPathRule[] = []
+
+  for (const rule of rules) {
+    if (rule.matcher !== 'glob') {
+      expandedRules.push(createProtectedPathRule(rule.path, rule.protectionMode, rule.reason, rule.source))
+      continue
+    }
+
+    const matchedPaths = glob.sync(normalizeGlobPattern(rule.path), {
+      onlyFiles: false,
+      dot: true,
+      absolute: true,
+      followSymbolicLinks: false
+    })
+
+    for (const matchedPath of matchedPaths) expandedRules.push(createProtectedPathRule(matchedPath, rule.protectionMode, rule.reason, rule.source))
+  }
+
+  return expandedRules
+}
+
+function isRuleMatch(targetKey: string, ruleKey: string, protectionMode: ProtectionMode): boolean {
+  if (protectionMode === 'direct') return isSameOrChildPath(ruleKey, targetKey)
+  return isSameOrChildPath(targetKey, ruleKey) || isSameOrChildPath(ruleKey, targetKey)
+}
+
+function detectPathProtectionMode(rawPath: string, fallback: ProtectionMode): ProtectionMode {
+  const absolutePath = resolveAbsolutePath(rawPath)
+
+  try {
+    if (fs.existsSync(absolutePath) && fs.lstatSync(absolutePath).isDirectory()) return 'recursive'
+  }
+  catch {}
+
+  return fallback
+}
+
+function collectBuiltInDangerousPathRules(): ProtectedPathRule[] {
   const homeDir = os.homedir()
+
   return [
-    path.parse(homeDir).root,
-    homeDir,
-    resolveXdgConfigHome(homeDir),
-    resolveXdgDataHome(homeDir),
-    resolveXdgStateHome(homeDir),
-    resolveXdgCacheHome(homeDir),
-    path.join(homeDir, '.aindex'),
-    path.join(homeDir, '.aindex', '.tnmsc.json')
+    createProtectedPathRule(path.parse(homeDir).root, 'direct', 'built-in dangerous root path', 'built-in-dangerous-root'),
+    createProtectedPathRule(homeDir, 'direct', 'built-in dangerous home directory', 'built-in-dangerous-root'),
+    createProtectedPathRule(resolveXdgConfigHome(homeDir), 'direct', 'built-in dangerous config directory', 'built-in-dangerous-root'),
+    createProtectedPathRule(resolveXdgDataHome(homeDir), 'direct', 'built-in dangerous data directory', 'built-in-dangerous-root'),
+    createProtectedPathRule(resolveXdgStateHome(homeDir), 'direct', 'built-in dangerous state directory', 'built-in-dangerous-root'),
+    createProtectedPathRule(resolveXdgCacheHome(homeDir), 'direct', 'built-in dangerous cache directory', 'built-in-dangerous-root'),
+    createProtectedPathRule(path.join(homeDir, '.aindex'), 'direct', 'built-in global aindex directory', 'built-in-dangerous-root'),
+    createProtectedPathRule(path.join(homeDir, '.aindex', '.tnmsc.json'), 'direct', 'built-in global config file', 'built-in-config')
   ]
+}
+
+function collectWorkspaceReservedRules(
+  workspaceDir: string,
+  projectRoots: readonly string[],
+  includeReservedWorkspaceContentRoots: boolean
+): ProtectedPathRule[] {
+  const rules: ProtectedPathRule[] = [
+    createProtectedPathRule(workspaceDir, 'direct', 'workspace root', 'workspace-reserved'),
+    createProtectedPathRule(path.join(workspaceDir, 'aindex'), 'direct', 'reserved workspace aindex root', 'workspace-reserved'),
+    createProtectedPathRule(path.join(workspaceDir, 'knowladge'), 'direct', 'reserved workspace knowladge root', 'workspace-reserved')
+  ]
+
+  for (const projectRoot of projectRoots) rules.push(createProtectedPathRule(projectRoot, 'direct', 'workspace project root', 'workspace-project-root'))
+
+  if (includeReservedWorkspaceContentRoots) {
+    rules.push(
+      createProtectedPathRule(
+        path.join(workspaceDir, 'aindex', 'dist', '**', '*.mdx'),
+        'direct',
+        'reserved workspace aindex dist mdx files',
+        'workspace-reserved',
+        'glob'
+      ),
+      createProtectedPathRule(
+        path.join(workspaceDir, 'aindex', 'app', '**', '*.mdx'),
+        'direct',
+        'reserved workspace aindex app mdx files',
+        'workspace-reserved',
+        'glob'
+      )
+    )
+  }
+
+  return rules
+}
+
+function collectResolvedAindexRules(aindexDir: string): ProtectedPathRule[] {
+  return [createProtectedPathRule(aindexDir, 'direct', 'resolved aindex root', 'aindex-root')]
 }
 
 export function collectKnownAindexInputConfigPaths(aindexDir: string): string[] {
   return KNOWN_AINDEX_INPUT_CONFIG_RELATIVE_PATHS.map(relativePath => path.join(aindexDir, relativePath))
 }
 
+export function collectConfiguredAindexInputRules(
+  options: Required<PluginOptions>,
+  aindexDir: string
+): ProtectedPathRule[] {
+  const rules: ProtectedPathRule[] = []
+
+  for (const key of CONFIGURED_AINDEX_DIRECTORY_KEYS) {
+    rules.push(
+      createProtectedPathRule(
+        path.join(aindexDir, options.aindex[key].src),
+        'recursive',
+        `configured aindex ${key} source directory`,
+        'configured-aindex-source'
+      )
+    )
+  }
+
+  for (const key of CONFIGURED_AINDEX_FILE_KEYS) {
+    rules.push(
+      createProtectedPathRule(
+        path.join(aindexDir, options.aindex[key].src),
+        'direct',
+        `configured aindex ${key} source file`,
+        'configured-aindex-source'
+      )
+    )
+  }
+
+  for (const protectedPath of collectKnownAindexInputConfigPaths(aindexDir)) {
+    rules.push(
+      createProtectedPathRule(
+        protectedPath,
+        'direct',
+        'known aindex input config file',
+        'known-aindex-config'
+      )
+    )
+  }
+
+  return rules
+}
+
 export function collectConfiguredAindexInputPaths(
   options: Required<PluginOptions>,
   aindexDir: string
 ): string[] {
-  const configuredPaths = [
-    options.aindex.skills.src,
-    options.aindex.commands.src,
-    options.aindex.subAgents.src,
-    options.aindex.rules.src,
-    options.aindex.globalPrompt.src,
-    options.aindex.workspacePrompt.src,
-    options.aindex.app.src,
-    options.aindex.ext.src,
-    options.aindex.arch.src
-  ].map(relativePath => path.join(aindexDir, relativePath))
+  return collectConfiguredAindexInputRules(options, aindexDir).map(rule => rule.path)
+}
 
-  return [
-    ...configuredPaths,
-    ...collectKnownAindexInputConfigPaths(aindexDir)
-  ]
+export function collectProtectedInputSourceRules(
+  collectedOutputContext: OutputCollectedContext
+): ProtectedPathRule[] {
+  const rules: ProtectedPathRule[] = []
+  const seen = new Set<string>()
+
+  const addRule = (
+    rawPath: string | undefined,
+    protectionMode: ProtectionMode,
+    reason: string,
+    source: string
+  ): void => {
+    if (rawPath == null || rawPath.length === 0) return
+
+    const rule = createProtectedPathRule(rawPath, protectionMode, reason, source)
+    const dedupeKey = `${rule.protectionMode}:${normalizeForComparison(rule.path)}`
+    if (seen.has(dedupeKey)) return
+
+    seen.add(dedupeKey)
+    rules.push(rule)
+  }
+
+  const addRuleFromDir = (
+    dir: DirPathLike | undefined,
+    protectionMode: ProtectionMode,
+    reason: string,
+    source: string
+  ): void => {
+    const resolved = resolveAbsolutePathFromDir(dir)
+    if (resolved == null) return
+    addRule(resolved, protectionMode, reason, source)
+  }
+
+  addRuleFromDir(collectedOutputContext.globalMemory?.dir as DirPathLike | undefined, 'recursive', 'global memory source directory', 'collected-input-source')
+
+  for (const command of collectedOutputContext.commands ?? []) {
+    addRuleFromDir(command.dir as DirPathLike | undefined, 'recursive', 'command source directory', 'collected-input-source')
+  }
+
+  for (const subAgent of collectedOutputContext.subAgents ?? []) {
+    addRuleFromDir(subAgent.dir as DirPathLike | undefined, 'recursive', 'sub-agent source directory', 'collected-input-source')
+  }
+
+  for (const rule of collectedOutputContext.rules ?? []) {
+    addRuleFromDir(rule.dir as DirPathLike | undefined, 'recursive', 'rule source directory', 'collected-input-source')
+  }
+
+  for (const skill of collectedOutputContext.skills ?? []) {
+    addRuleFromDir(skill.dir as DirPathLike | undefined, 'recursive', 'skill source directory', 'collected-input-source')
+    for (const childDoc of skill.childDocs ?? []) {
+      addRuleFromDir(childDoc.dir as DirPathLike | undefined, 'recursive', 'skill child document directory', 'collected-input-source')
+    }
+    for (const resource of skill.resources ?? []) {
+      if (resource.sourcePath == null || resource.sourcePath.length === 0) continue
+      addRule(
+        resource.sourcePath,
+        detectPathProtectionMode(resource.sourcePath, 'direct'),
+        'skill resource source path',
+        'collected-input-source'
+      )
+    }
+  }
+
+  for (const config of collectedOutputContext.vscodeConfigFiles ?? []) {
+    addRuleFromDir(config.dir as DirPathLike | undefined, 'direct', 'vscode input config file', 'collected-input-config')
+  }
+
+  for (const config of collectedOutputContext.jetbrainsConfigFiles ?? []) {
+    addRuleFromDir(config.dir as DirPathLike | undefined, 'direct', 'jetbrains input config file', 'collected-input-config')
+  }
+
+  for (const config of collectedOutputContext.editorConfigFiles ?? []) {
+    addRuleFromDir(config.dir as DirPathLike | undefined, 'direct', 'editorconfig input file', 'collected-input-config')
+  }
+
+  for (const ignoreFile of collectedOutputContext.aiAgentIgnoreConfigFiles ?? []) {
+    addRule(ignoreFile.sourcePath, 'direct', 'AI agent ignore config file', 'collected-input-config')
+  }
+
+  if (collectedOutputContext.aindexDir != null) {
+    for (const protectedPath of collectKnownAindexInputConfigPaths(collectedOutputContext.aindexDir)) {
+      addRule(protectedPath, 'direct', 'known aindex input config file', 'known-aindex-config')
+    }
+  }
+
+  return rules
 }
 
 export function collectProtectedInputSourcePaths(collectedOutputContext: OutputCollectedContext): string[] {
-  const protectedPaths = new Set<string>()
+  return collectProtectedInputSourceRules(collectedOutputContext).map(rule => rule.path)
+}
 
-  const addResolvedPath = (rawPath: string | undefined): void => {
-    if (rawPath == null || rawPath.length === 0) return
-    protectedPaths.add(resolveAbsolutePath(rawPath))
+function collectLegacyCompatibilityRules(options: ProtectedDeletionGuardOptions): ProtectedPathRule[] {
+  const rules: ProtectedPathRule[] = []
+
+  for (const protectedPath of options.exactProtectedPaths ?? []) {
+    rules.push(createProtectedPathRule(protectedPath, 'direct', 'legacy direct protected path', 'legacy-direct'))
   }
 
-  const addPathFromDir = (dir: DirPathLike | undefined): void => {
-    const resolved = resolveAbsolutePathFromDir(dir)
-    if (resolved == null) return
-    addResolvedPath(resolved)
+  for (const protectedPath of options.subtreeProtectedPaths ?? []) {
+    rules.push(createProtectedPathRule(protectedPath, 'recursive', 'legacy recursive protected path', 'legacy-recursive'))
   }
 
-  addPathFromDir(collectedOutputContext.globalMemory?.dir as DirPathLike | undefined)
-
-  for (const command of collectedOutputContext.commands ?? []) addPathFromDir(command.dir as DirPathLike | undefined)
-  for (const subAgent of collectedOutputContext.subAgents ?? []) addPathFromDir(subAgent.dir as DirPathLike | undefined)
-  for (const rule of collectedOutputContext.rules ?? []) addPathFromDir(rule.dir as DirPathLike | undefined)
-
-  for (const skill of collectedOutputContext.skills ?? []) {
-    addPathFromDir(skill.dir as DirPathLike | undefined)
-    for (const childDoc of skill.childDocs ?? []) addPathFromDir(childDoc.dir as DirPathLike | undefined)
-    for (const resource of skill.resources ?? []) addResolvedPath(resource.sourcePath)
-  }
-
-  for (const config of collectedOutputContext.vscodeConfigFiles ?? []) addPathFromDir(config.dir as DirPathLike | undefined)
-  for (const config of collectedOutputContext.jetbrainsConfigFiles ?? []) addPathFromDir(config.dir as DirPathLike | undefined)
-  for (const config of collectedOutputContext.editorConfigFiles ?? []) addPathFromDir(config.dir as DirPathLike | undefined)
-
-  for (const ignoreFile of collectedOutputContext.aiAgentIgnoreConfigFiles ?? []) addResolvedPath(ignoreFile.sourcePath)
-
-  if (collectedOutputContext.aindexDir != null) {
-    for (const protectedPath of collectKnownAindexInputConfigPaths(collectedOutputContext.aindexDir)) addResolvedPath(protectedPath)
-  }
-
-  return [...protectedPaths]
+  return rules
 }
 
 export function createProtectedDeletionGuard(
   options: ProtectedDeletionGuardOptions = {}
 ): ProtectedDeletionGuard {
-  const exactByKey = new Map<string, ProtectedPathEntry>()
-  const subtreeByKey = new Map<string, ProtectedPathEntry>()
-
-  for (const protectedPath of collectBuiltInExactProtectedPaths()) {
-    addProtectedPath(exactByKey, protectedPath, 'built-in exact protected path')
-  }
-
-  for (const protectedPath of options.exactProtectedPaths ?? []) {
-    addProtectedPath(exactByKey, protectedPath, 'custom exact protected path')
-  }
-
-  if (options.workspaceDir != null) addProtectedPath(exactByKey, options.workspaceDir, 'workspace root')
-  if (options.aindexDir != null) addProtectedPath(exactByKey, options.aindexDir, 'aindex root')
-  for (const projectRoot of options.projectRoots ?? []) addProtectedPath(exactByKey, projectRoot, 'workspace project root')
-
-  for (const protectedPath of options.subtreeProtectedPaths ?? []) {
-    addProtectedPath(subtreeByKey, protectedPath, 'protected input/source path')
-  }
+  const includeReservedWorkspaceContentRoots = options.includeReservedWorkspaceContentRoots ?? true
+  const rules: ProtectedPathRule[] = [
+    ...collectBuiltInDangerousPathRules(),
+    ...collectLegacyCompatibilityRules(options),
+    ...options.workspaceDir != null
+      ? collectWorkspaceReservedRules(
+          options.workspaceDir,
+          options.projectRoots ?? [],
+          includeReservedWorkspaceContentRoots
+        )
+      : [],
+    ...options.aindexDir != null ? collectResolvedAindexRules(options.aindexDir) : [],
+    ...options.rules ?? []
+  ]
+  const compiledRules = dedupeAndCompileRules(expandProtectedPathRules(rules))
 
   return {
-    exactProtectedPaths: [...new Set([...exactByKey.values()].map(entry => entry.path))].sort((a, b) => a.localeCompare(b)),
-    subtreeProtectedPaths: [...new Set([...subtreeByKey.values()].map(entry => entry.path))].sort((a, b) => a.localeCompare(b)),
-    exactByKey,
-    subtreeByKey
+    rules: compiledRules.map(rule => ({
+      path: rule.path,
+      protectionMode: rule.protectionMode,
+      reason: rule.reason,
+      source: rule.source,
+      ...rule.matcher != null ? {matcher: rule.matcher} : {}
+    })),
+    exactProtectedPaths: compiledRules
+      .filter(rule => rule.protectionMode === 'direct')
+      .map(rule => rule.path),
+    subtreeProtectedPaths: compiledRules
+      .filter(rule => rule.protectionMode === 'recursive')
+      .map(rule => rule.path),
+    compiledRules
   }
 }
 
@@ -287,39 +529,48 @@ export function collectProjectRoots(collectedOutputContext: OutputCollectedConte
   return [...projectRoots]
 }
 
+function selectMoreSpecificRule(
+  candidate: CompiledProtectedPathRule,
+  current: CompiledProtectedPathRule | undefined
+): CompiledProtectedPathRule {
+  if (current == null) return candidate
+  if (candidate.specificity !== current.specificity) return candidate.specificity > current.specificity ? candidate : current
+  if (candidate.protectionMode !== current.protectionMode) return candidate.protectionMode === 'recursive' ? candidate : current
+  return candidate.path.localeCompare(current.path) < 0 ? candidate : current
+}
+
 export function getProtectedPathViolation(
   targetPath: string,
   guard: ProtectedDeletionGuard
 ): ProtectedPathViolation | undefined {
   const absoluteTargetPath = resolveAbsolutePath(targetPath)
   const targetKeys = buildComparisonKeys(absoluteTargetPath)
+  let matchedRule: CompiledProtectedPathRule | undefined
 
-  for (const comparisonKey of targetKeys) {
-    const exactMatch = guard.exactByKey.get(comparisonKey)
-    if (exactMatch != null) {
-      return {
-        targetPath: absoluteTargetPath,
-        protectedPath: exactMatch.path,
-        protection: 'exact',
-        reason: exactMatch.reason
+  for (const rule of guard.compiledRules) {
+    let didMatch = false
+
+    for (const targetKey of targetKeys) {
+      for (const ruleKey of rule.comparisonKeys) {
+        if (!isRuleMatch(targetKey, ruleKey, rule.protectionMode)) continue
+        matchedRule = selectMoreSpecificRule(rule, matchedRule)
+        didMatch = true
+        break
       }
+
+      if (didMatch) break
     }
   }
 
-  for (const comparisonKey of targetKeys) {
-    for (const [protectedKey, protectedEntry] of guard.subtreeByKey.entries()) {
-      if (isSameOrChildPath(comparisonKey, protectedKey) || isSameOrChildPath(protectedKey, comparisonKey)) {
-        return {
-          targetPath: absoluteTargetPath,
-          protectedPath: protectedEntry.path,
-          protection: 'subtree',
-          reason: protectedEntry.reason
-        }
-      }
-    }
-  }
+  if (matchedRule == null) return void 0
 
-  return void 0
+  return {
+    targetPath: absoluteTargetPath,
+    protectedPath: matchedRule.path,
+    protectionMode: matchedRule.protectionMode,
+    reason: matchedRule.reason,
+    source: matchedRule.source
+  }
 }
 
 export function partitionDeletionTargets(
@@ -337,9 +588,7 @@ export function partitionDeletionTargets(
       continue
     }
 
-    if (!violationsByTargetPath.has(violation.targetPath)) {
-      violationsByTargetPath.set(violation.targetPath, violation)
-    }
+    if (!violationsByTargetPath.has(violation.targetPath)) violationsByTargetPath.set(violation.targetPath, violation)
   }
 
   return {
@@ -367,7 +616,8 @@ export function logProtectedDeletionGuardError(
     violations: violations.map(violation => ({
       targetPath: violation.targetPath,
       protectedPath: violation.protectedPath,
-      protection: violation.protection,
+      protectionMode: violation.protectionMode,
+      source: violation.source,
       reason: violation.reason
     }))
   })

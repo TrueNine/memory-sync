@@ -18,7 +18,7 @@ export class ExecuteCommand implements Command {
     const cleanCtx = createCleanContext(false) // Step 1: Pre-cleanup (non-dry-run only)
     const cleanupResult = await performCleanup(outputPlugins, cleanCtx, logger)
 
-    if (cleanupResult.violations.length > 0) {
+    if (cleanupResult.violations.length > 0 || cleanupResult.conflicts.length > 0) {
       return {
         success: false,
         filesAffected: 0,

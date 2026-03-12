@@ -1,5 +1,6 @@
 import type {
   AindexConfig,
+  CleanupProtectionOptions,
   ConfigLoaderOptions,
   ConfigLoadResult,
   ILogger,
@@ -151,12 +152,17 @@ export class ConfigLoader {
     return reversed.reduce<UserConfigFile>((acc, config) => {
       const mergedAindex = this.mergeAindex(acc.aindex, config.aindex)
       const mergedOutputScopes = this.mergeOutputScopeOptions(acc.outputScopes, config.outputScopes)
+      const mergedCleanupProtection = this.mergeCleanupProtectionOptions(
+        acc.cleanupProtection,
+        config.cleanupProtection
+      )
 
       return {
         ...acc,
         ...config,
         ...mergedAindex != null ? {aindex: mergedAindex} : {},
-        ...mergedOutputScopes != null ? {outputScopes: mergedOutputScopes} : {}
+        ...mergedOutputScopes != null ? {outputScopes: mergedOutputScopes} : {},
+        ...mergedCleanupProtection != null ? {cleanupProtection: mergedCleanupProtection} : {}
       }
     }, {})
   }
@@ -211,6 +217,22 @@ export class ConfigLoader {
 
     if (Object.keys(mergedPlugins).length === 0) return {}
     return {plugins: mergedPlugins}
+  }
+
+  private mergeCleanupProtectionOptions(
+    a?: CleanupProtectionOptions,
+    b?: CleanupProtectionOptions
+  ): CleanupProtectionOptions | undefined {
+    if (a == null && b == null) return void 0
+    if (a == null) return b
+    if (b == null) return a
+
+    return {
+      rules: [
+        ...a.rules ?? [],
+        ...b.rules ?? []
+      ]
+    }
   }
 
   private resolveTilde(p: string): string {

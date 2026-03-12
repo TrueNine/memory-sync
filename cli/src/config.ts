@@ -1,5 +1,6 @@
 import type {
   AindexConfig,
+  CleanupProtectionOptions,
   CommandSeriesOptions,
   CommandSeriesPluginOverride,
   ConfigLoaderOptions,
@@ -55,6 +56,7 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
   aindex: DEFAULT_AINDEX,
   commandSeriesOptions: {},
   outputScopes: {},
+  cleanupProtection: {},
   plugins: []
 }
 
@@ -69,6 +71,7 @@ function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOp
     ...userConfig.aindex != null ? {aindex: userConfig.aindex} : {},
     ...userConfig.commandSeriesOptions != null ? {commandSeriesOptions: userConfig.commandSeriesOptions} : {},
     ...userConfig.outputScopes != null ? {outputScopes: userConfig.outputScopes} : {},
+    ...userConfig.cleanupProtection != null ? {cleanupProtection: userConfig.cleanupProtection} : {},
     ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
   }
 }
@@ -107,6 +110,7 @@ function mergeTwoConfigs(
   const overridePlugins = override.plugins
   const overrideCommandSeries = override.commandSeriesOptions
   const overrideOutputScopes = override.outputScopes
+  const overrideCleanupProtection = override.cleanupProtection
 
   return {
     ...base,
@@ -117,7 +121,8 @@ function mergeTwoConfigs(
       ...overridePlugins ?? []
     ],
     commandSeriesOptions: mergeCommandSeriesOptions(base.commandSeriesOptions, overrideCommandSeries), // Deep merge for commandSeriesOptions
-    outputScopes: mergeOutputScopeOptions(base.outputScopes, overrideOutputScopes)
+    outputScopes: mergeOutputScopeOptions(base.outputScopes, overrideOutputScopes),
+    cleanupProtection: mergeCleanupProtectionOptions(base.cleanupProtection, overrideCleanupProtection)
   }
 }
 
@@ -203,6 +208,21 @@ function mergeOutputScopeOptions(
 
   if (Object.keys(mergedPlugins).length === 0) return {}
   return {plugins: mergedPlugins}
+}
+
+function mergeCleanupProtectionOptions(
+  base?: CleanupProtectionOptions,
+  override?: CleanupProtectionOptions
+): CleanupProtectionOptions {
+  if (override == null) return base ?? {}
+  if (base == null) return override
+
+  return {
+    rules: [
+      ...base.rules ?? [],
+      ...override.rules ?? []
+    ]
+  }
 }
 
 /**

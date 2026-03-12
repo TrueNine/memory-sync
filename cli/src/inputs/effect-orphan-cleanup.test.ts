@@ -67,7 +67,7 @@ describe('orphan file cleanup effect', () => {
     }
   })
 
-  it('deletes dist command files when only a legacy cn source remains', async () => {
+  it('blocks deleting dist command mdx files when only a legacy cn source remains', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-orphan-cleanup-legacy-test-'))
     const srcDir = path.join(tempWorkspace, 'aindex', 'commands')
     const distDir = path.join(tempWorkspace, 'aindex', 'dist', 'commands')
@@ -80,11 +80,8 @@ describe('orphan file cleanup effect', () => {
       fs.writeFileSync(distFile, 'Compiled prompt', 'utf8')
 
       const plugin = new OrphanFileCleanupEffectInputPlugin()
-      const [result] = await plugin.executeEffects(createContext(tempWorkspace))
-
-      expect(result?.success).toBe(true)
-      expect(fs.existsSync(distFile)).toBe(false)
-      expect(result?.deletedFiles ?? []).toContain(distFile)
+      await expect(plugin.executeEffects(createContext(tempWorkspace))).rejects.toThrow('Protected deletion guard blocked orphan-file-cleanup')
+      expect(fs.existsSync(distFile)).toBe(true)
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

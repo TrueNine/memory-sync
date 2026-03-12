@@ -1,7 +1,7 @@
 import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
 import {AbstractInputPlugin, SourcePromptFileExtensions} from '../plugins/plugin-core'
 import {
-  collectConfiguredAindexInputPaths,
+  collectConfiguredAindexInputRules,
   createProtectedDeletionGuard,
   partitionDeletionTargets,
   ProtectedDeletionGuardError
@@ -34,7 +34,16 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     return createProtectedDeletionGuard({
       workspaceDir: ctx.workspaceDir,
       aindexDir: ctx.aindexDir,
-      subtreeProtectedPaths: collectConfiguredAindexInputPaths(ctx.userConfigOptions, ctx.aindexDir)
+      rules: [
+        ...collectConfiguredAindexInputRules(ctx.userConfigOptions, ctx.aindexDir),
+        ...(ctx.userConfigOptions.cleanupProtection?.rules ?? []).map(rule => ({
+          path: rule.path,
+          protectionMode: rule.protectionMode,
+          reason: rule.reason ?? 'configured cleanup protection rule',
+          source: 'configured-cleanup-protection',
+          matcher: rule.matcher ?? 'path'
+        }))
+      ]
     })
   }
 
@@ -80,9 +89,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     }
 
     const plan = this.buildDeletionPlan(ctx, distDir, srcPaths)
-    if (plan.errors.length > 0) {
-      logger.warn({action: 'orphan-cleanup', errors: plan.errors.map(error => ({path: error.path, error: error.error.message}))})
-    }
+    if (plan.errors.length > 0) logger.warn({action: 'orphan-cleanup', errors: plan.errors.map(error => ({path: error.path, error: error.error.message}))})
 
     const guard = this.buildProtectedDeletionGuard(ctx)
     const filePartition = partitionDeletionTargets(plan.filesToDelete, guard)
@@ -209,12 +216,10 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     const relativeDir = path.dirname(relativeFromType)
     const baseName = fileName.replace(/\.mdx$/, '')
 
-    if (isMdxFile) {
-      const possibleSrcPaths = this.getPossibleSourcePaths(path, aindexDir, dirType, srcPath, baseName, relativeDir)
-      return !possibleSrcPaths.some(candidatePath => fs.existsSync(candidatePath))
-    }
+    if (!isMdxFile) return !fs.existsSync(path.join(aindexDir, srcPath, relativeFromType))
 
-    return !fs.existsSync(path.join(aindexDir, srcPath, relativeFromType))
+    const possibleSrcPaths = this.getPossibleSourcePaths(path, aindexDir, dirType, srcPath, baseName, relativeDir)
+    return !possibleSrcPaths.some(candidatePath => fs.existsSync(candidatePath))
   }
 
   private getPossibleSourcePaths(

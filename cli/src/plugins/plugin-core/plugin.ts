@@ -2,10 +2,12 @@ import type {ILogger} from '@truenine/logger'
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {
   AindexConfig,
+  CleanupProtectionOptions,
   CommandSeriesOptions,
   OutputScopeOptions,
   OutputScopeSelection,
-  PluginOutputScopeTopics
+  PluginOutputScopeTopics,
+  ProtectionMode
 } from './ConfigTypes.schema'
 import type {PluginKind} from './enums'
 import type {
@@ -270,6 +272,8 @@ export interface OutputCleanupPathDeclaration {
   readonly path: string
   /** Target kind */
   readonly kind: OutputCleanupTargetKind
+  /** Protection mode to apply when used in protect declarations */
+  readonly protectionMode?: ProtectionMode
   /** Optional scope label for logging/trace */
   readonly scope?: OutputCleanupScope
   /** Optional label for diagnostics */
@@ -475,6 +479,8 @@ export interface PluginOptions {
   readonly commandSeriesOptions?: CommandSeriesOptions
 
   readonly outputScopes?: OutputScopeOptions
+
+  readonly cleanupProtection?: CleanupProtectionOptions
 
   plugins?: Plugin[]
   logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'

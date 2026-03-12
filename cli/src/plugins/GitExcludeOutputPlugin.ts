@@ -1,6 +1,4 @@
 import type {
-  OutputCleanContext,
-  OutputCleanupDeclarations,
   OutputFileDeclaration,
   OutputWriteContext
 } from './plugin-core'
@@ -10,17 +8,6 @@ import {AbstractOutputPlugin, findAllGitRepos, findGitModuleInfoDirs, resolveGit
 export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('GitExcludeOutputPlugin', {capabilities: {}})
-  }
-
-  override async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
-    const declarations = await this.declareOutputFiles({...ctx, dryRun: true})
-    return {
-      protect: declarations.map(declaration => ({
-        path: declaration.path,
-        kind: 'file' as const,
-        ...declaration.scope != null && {scope: declaration.scope}
-      }))
-    }
   }
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {

@@ -8,7 +8,8 @@ const mockedGuardModule = vi.hoisted(() => ({
   protectedViolation: {
     targetPath: '',
     protectedPath: '',
-    protection: 'exact' as const,
+    protectionMode: 'direct' as const,
+    source: 'test',
     reason: 'test'
   },
   getProtectedPathViolationMock: vi.fn(),

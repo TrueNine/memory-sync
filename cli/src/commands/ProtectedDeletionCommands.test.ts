@@ -89,6 +89,7 @@ function createCommandContext(outputPlugins: readonly OutputPlugin[]): CommandCo
       },
       commandSeriesOptions: {},
       outputScopes: {},
+      cleanupProtection: {},
       plugins: []
     },
     createCleanContext: (dryRun: boolean): OutputCleanContext => ({
@@ -97,6 +98,27 @@ function createCommandContext(outputPlugins: readonly OutputPlugin[]): CommandCo
       path,
       glob,
       collectedOutputContext,
+      pluginOptions: {
+        version: '0.0.0',
+        workspaceDir,
+        logLevel: 'info',
+        aindex: {
+          dir: 'aindex',
+          skills: {src: 'skills', dist: 'dist/skills'},
+          commands: {src: 'commands', dist: 'dist/commands'},
+          subAgents: {src: 'subagents', dist: 'dist/subagents'},
+          rules: {src: 'rules', dist: 'dist/rules'},
+          globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
+          workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
+          app: {src: 'app', dist: 'dist/app'},
+          ext: {src: 'ext', dist: 'dist/ext'},
+          arch: {src: 'arch', dist: 'dist/arch'}
+        },
+        commandSeriesOptions: {},
+        outputScopes: {},
+        cleanupProtection: {},
+        plugins: []
+      },
       dryRun
     }),
     createWriteContext: (dryRun: boolean): OutputWriteContext => ({
@@ -142,6 +164,19 @@ describe('protected deletion commands', () => {
       message: expect.stringContaining('Protected deletion guard blocked cleanup')
     }))
     expect(convertContent).not.toHaveBeenCalled()
+  })
+
+  it('returns failure when an output path conflicts with a cleanup protect declaration', async () => {
+    const outputPath = path.join(path.resolve('tmp-workspace-command'), 'project-a', 'AGENTS.md')
+    const plugin = createMockOutputPlugin({
+      protect: [{kind: 'file', path: outputPath}]
+    })
+    const ctx = createCommandContext([plugin])
+
+    await expect(new CleanCommand().execute(ctx)).resolves.toEqual(expect.objectContaining({
+      success: false,
+      message: expect.stringContaining('Cleanup protection conflict')
+    }))
   })
 
   it('includes the failure message in JSON output errors', async () => {

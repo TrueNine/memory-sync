@@ -66,6 +66,18 @@ export const ZPluginOutputScopeTopics = z.object({
  */
 export const ZOutputScopeOptions = z.object({plugins: z.record(z.string(), ZPluginOutputScopeTopics).optional()})
 
+export const ZProtectionMode = z.enum(['direct', 'recursive'])
+export const ZProtectionRuleMatcher = z.enum(['path', 'glob'])
+
+export const ZCleanupProtectionRule = z.object({
+  path: z.string(),
+  protectionMode: ZProtectionMode,
+  matcher: ZProtectionRuleMatcher.optional(),
+  reason: z.string().optional()
+})
+
+export const ZCleanupProtectionOptions = z.object({rules: z.array(ZCleanupProtectionRule).optional()})
+
 /**
  * Zod schema for user profile information.
  */
@@ -86,6 +98,7 @@ export const ZUserConfigFile = z.object({
   logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error']).optional(),
   commandSeriesOptions: ZCommandSeriesOptions.optional(),
   outputScopes: ZOutputScopeOptions.optional(),
+  cleanupProtection: ZCleanupProtectionOptions.optional(),
   profile: ZUserProfile.optional()
 })
 
@@ -133,6 +146,10 @@ export type OutputScope = z.infer<typeof ZOutputScope>
 export type OutputScopeSelection = z.infer<typeof ZOutputScopeSelection>
 export type PluginOutputScopeTopics = z.infer<typeof ZPluginOutputScopeTopics>
 export type OutputScopeOptions = z.infer<typeof ZOutputScopeOptions>
+export type ProtectionMode = z.infer<typeof ZProtectionMode>
+export type ProtectionRuleMatcher = z.infer<typeof ZProtectionRuleMatcher>
+export type CleanupProtectionRule = z.infer<typeof ZCleanupProtectionRule>
+export type CleanupProtectionOptions = z.infer<typeof ZCleanupProtectionOptions>
 export type UserConfigFile = z.infer<typeof ZUserConfigFile>
 export type McpProjectConfig = z.infer<typeof ZMcpProjectConfig>
 export type TypeSeriesConfig = z.infer<typeof ZTypeSeriesConfig>
