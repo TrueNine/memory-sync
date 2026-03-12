@@ -17,6 +17,7 @@ import {spawn} from 'node:child_process'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
+import {logProtectedDeletionGuardError, ProtectedDeletionGuardError} from '@/ProtectedDeletionGuard'
 import {AbstractPlugin} from './AbstractPlugin'
 import {PathPlaceholders} from './constants'
 import {PluginKind} from './enums'
@@ -72,19 +73,29 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
             this.log.debug({action: 'inputEffect', name: effect.name, deletedFiles: result.deletedFiles})
           }
         } else {
-          const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
-          this.log.error({action: 'inputEffect', name: effect.name, status: 'failed', error: errorMsg})
+          const error = result.error ?? new Error(`Input effect failed: ${effect.name}`)
+          throw error
         }
         results.push(result)
       }
       catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error)
-        this.log.error({action: 'inputEffect', name: effect.name, status: 'failed', error: errorMsg})
-        results.push({success: false, error: error as Error, description: `Input effect failed: ${effect.name}`})
+        const effectError = error instanceof Error ? error : new Error(String(error))
+        this.logInputEffectFailure(effect.name, effectError)
+        results.push({success: false, error: effectError, description: `Input effect failed: ${effect.name}`})
+        throw effectError
       }
     }
 
     return results
+  }
+
+  private logInputEffectFailure(effectName: string, error: Error): void {
+    if (error instanceof ProtectedDeletionGuardError) {
+      logProtectedDeletionGuardError(this.log, error.operation, error.violations)
+      return
+    }
+
+    this.log.error({action: 'inputEffect', name: effectName, status: 'failed', error: error.message})
   }
 
   hasEffects(): boolean {

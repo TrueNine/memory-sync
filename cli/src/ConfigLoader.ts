@@ -12,6 +12,12 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import {createLogger, ZUserConfigFile} from './plugins/plugin-core'
+import {
+  createProtectedDeletionGuard,
+  getProtectedPathViolation,
+  logProtectedDeletionGuardError,
+  ProtectedDeletionGuardError
+} from './ProtectedDeletionGuard'
 
 /**
  * Default config file name
@@ -262,6 +268,17 @@ function readSymlinkTarget(filePath: string): string | null {
   }
 }
 
+function assertConfigDeletionAllowed(
+  targetPath: string,
+  logger: ILogger
+): void {
+  const violation = getProtectedPathViolation(targetPath, createProtectedDeletionGuard())
+  if (violation == null) return
+
+  logProtectedDeletionGuardError(logger, 'config-link-replacement', [violation])
+  throw new ProtectedDeletionGuardError('config-link-replacement', [violation])
+}
+
 /**
  * Ensure a local config file is linked (symlink preferred) to the global config.
  * Falls back to a file copy when symlink creation is unavailable.
@@ -277,6 +294,7 @@ export function ensureConfigLink(
     if (isSymlinkPath(localConfigPath)) {
       const target = readSymlinkTarget(localConfigPath)
       if (target !== null && path.resolve(path.dirname(localConfigPath), target) === path.resolve(globalConfigPath)) return
+      assertConfigDeletionAllowed(localConfigPath, logger)
       fs.rmSync(localConfigPath, {force: true})
     } else {
       const localContent = fs.readFileSync(localConfigPath, 'utf8')
@@ -285,6 +303,7 @@ export function ensureConfigLink(
         fs.copyFileSync(localConfigPath, globalConfigPath)
         logger.debug('synced local config back to global', {src: localConfigPath, dest: globalConfigPath})
       }
+      assertConfigDeletionAllowed(localConfigPath, logger)
       fs.rmSync(localConfigPath, {force: true})
     }
   }

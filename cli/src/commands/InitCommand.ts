@@ -29,8 +29,18 @@ export class InitCommand implements Command {
     const aindexDir = path.join(workspaceDir, userConfigOptions.aindex.dir)
 
     const result = generateAindex(aindexDir, {logger, config: userConfigOptions.aindex})
-
-    linkCwdConfig(logger)
+    try {
+      linkCwdConfig(logger)
+    }
+    catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return {
+        success: false,
+        filesAffected: result.createdFiles.length,
+        dirsAffected: result.createdDirs.length,
+        message: errorMessage
+      }
+    }
 
     const message = result.createdDirs.length === 0 && result.createdFiles.length === 0
       ? `All ${result.existedDirs.length} directories and ${result.existedFiles.length} files already exist`

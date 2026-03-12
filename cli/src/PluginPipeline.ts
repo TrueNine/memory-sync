@@ -1,6 +1,6 @@
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {ILogger, InputCollectedContext, InputPlugin, InputPluginContext, OutputCleanContext, OutputCollectedContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from './plugins/plugin-core'
-import type {Command, CommandContext} from '@/commands/Command'
+import type {Command, CommandContext, CommandResult} from '@/commands/Command'
 import type {PipelineConfig} from '@/config'
 import type {ParsedCliArgs} from '@/pipeline/CliArgumentParser'
 import * as fs from 'node:fs'
@@ -41,7 +41,7 @@ export class PluginPipeline {
     return this
   }
 
-  async run(config: PipelineConfig): Promise<void> {
+  async run(config: PipelineConfig): Promise<CommandResult> {
     const {context, outputPlugins, userConfigOptions} = config
     this.registerOutputPlugins([...outputPlugins])
 
@@ -55,7 +55,7 @@ export class PluginPipeline {
     }
 
     const commandCtx = this.createCommandContext(context, userConfigOptions)
-    await command.execute(commandCtx)
+    return command.execute(commandCtx)
   }
 
   private createCommandContext(ctx: OutputCollectedContext, userConfigOptions: Required<PluginOptions>): CommandContext {

@@ -141,7 +141,7 @@ export interface InputEffectContext {
   /** Child process spawn function */
   readonly spawn: typeof import('node:child_process').spawn
   /** User configuration options */
-  readonly userConfigOptions: PluginOptions
+  readonly userConfigOptions: Required<PluginOptions>
   /** Resolved workspace directory */
   readonly workspaceDir: string
   /** Resolved aindex directory */

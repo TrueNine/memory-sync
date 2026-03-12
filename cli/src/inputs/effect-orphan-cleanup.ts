@@ -1,9 +1,27 @@
 import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
 import {AbstractInputPlugin, SourcePromptFileExtensions} from '../plugins/plugin-core'
+import {
+  collectConfiguredAindexInputPaths,
+  createProtectedDeletionGuard,
+  partitionDeletionTargets,
+  ProtectedDeletionGuardError
+} from '../ProtectedDeletionGuard'
 
 export interface OrphanCleanupEffectResult extends InputEffectResult {
   readonly deletedFiles: string[]
   readonly deletedDirs: string[]
+}
+
+const OrphanCleanupDistSubDirs = ['skills', 'commands', 'agents', 'app'] as const
+
+type OrphanCleanupSubDir = (typeof OrphanCleanupDistSubDirs)[number]
+
+type OrphanCleanupSourcePaths = Readonly<Record<OrphanCleanupSubDir, string>>
+
+interface OrphanCleanupPlan {
+  readonly filesToDelete: string[]
+  readonly dirsToDelete: string[]
+  readonly errors: readonly {path: string, error: Error}[]
 }
 
 export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
@@ -12,64 +30,131 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     this.registerEffect('orphan-file-cleanup', this.cleanupOrphanFiles.bind(this), 20)
   }
 
-  private async cleanupOrphanFiles(ctx: InputEffectContext): Promise<OrphanCleanupEffectResult> {
-    const {fs, path, aindexDir, dryRun, logger, userConfigOptions} = ctx
+  protected buildProtectedDeletionGuard(ctx: InputEffectContext): ReturnType<typeof createProtectedDeletionGuard> {
+    return createProtectedDeletionGuard({
+      workspaceDir: ctx.workspaceDir,
+      aindexDir: ctx.aindexDir,
+      subtreeProtectedPaths: collectConfiguredAindexInputPaths(ctx.userConfigOptions, ctx.aindexDir)
+    })
+  }
 
-    const distDir = path.join(aindexDir, 'dist')
-
-    const deletedFiles: string[] = []
-    const deletedDirs: string[] = []
+  protected buildDeletionPlan(
+    ctx: InputEffectContext,
+    distDir: string,
+    srcPaths: OrphanCleanupSourcePaths
+  ): OrphanCleanupPlan {
+    const filesToDelete: string[] = []
+    const dirsToDelete: string[] = []
     const errors: {path: string, error: Error}[] = []
+
+    for (const subDir of OrphanCleanupDistSubDirs) {
+      const distSubDirPath = ctx.path.join(distDir, subDir)
+      if (!ctx.fs.existsSync(distSubDirPath)) continue
+      if (!ctx.fs.statSync(distSubDirPath).isDirectory()) continue
+      this.collectDirectoryPlan(ctx, distSubDirPath, subDir, srcPaths[subDir], filesToDelete, dirsToDelete, errors)
+    }
+
+    return {filesToDelete, dirsToDelete, errors}
+  }
+
+  private async cleanupOrphanFiles(ctx: InputEffectContext): Promise<OrphanCleanupEffectResult> {
+    const {fs, path, aindexDir, logger, userConfigOptions, dryRun} = ctx
+    const distDir = path.join(aindexDir, 'dist')
 
     if (!fs.existsSync(distDir)) {
       logger.debug({action: 'orphan-cleanup', message: 'dist/ directory does not exist, skipping', distDir})
       return {
         success: true,
         description: 'dist/ directory does not exist, nothing to clean',
-        deletedFiles,
-        deletedDirs
+        deletedFiles: [],
+        deletedDirs: []
       }
     }
 
     const aindexConfig = userConfigOptions.aindex
-    const srcPaths: Record<string, string> = {
+    const srcPaths: OrphanCleanupSourcePaths = {
       skills: aindexConfig?.skills?.src ?? 'skills',
       commands: aindexConfig?.commands?.src ?? 'commands',
       agents: aindexConfig?.subAgents?.src ?? 'subagents',
       app: aindexConfig?.app?.src ?? 'app'
     }
 
-    const distSubDirs = ['skills', 'commands', 'agents', 'app']
-
-    for (const subDir of distSubDirs) {
-      const distSubDirPath = path.join(distDir, subDir)
-      if (fs.existsSync(distSubDirPath)) this.cleanupDirectory(ctx, distSubDirPath, subDir, srcPaths[subDir]!, deletedFiles, deletedDirs, errors, dryRun ?? false)
+    const plan = this.buildDeletionPlan(ctx, distDir, srcPaths)
+    if (plan.errors.length > 0) {
+      logger.warn({action: 'orphan-cleanup', errors: plan.errors.map(error => ({path: error.path, error: error.error.message}))})
     }
 
-    const hasErrors = errors.length > 0
-    if (hasErrors) logger.warn({action: 'orphan-cleanup', errors: errors.map(e => ({path: e.path, error: e.error.message}))})
+    const guard = this.buildProtectedDeletionGuard(ctx)
+    const filePartition = partitionDeletionTargets(plan.filesToDelete, guard)
+    const dirPartition = partitionDeletionTargets(plan.dirsToDelete, guard)
+    const violations = [...filePartition.violations, ...dirPartition.violations].sort((a, b) => a.targetPath.localeCompare(b.targetPath))
 
+    if (violations.length > 0) {
+      return {
+        success: false,
+        description: `Protected deletion guard blocked orphan cleanup for ${violations.length} path(s)`,
+        deletedFiles: [],
+        deletedDirs: [],
+        error: new ProtectedDeletionGuardError('orphan-file-cleanup', violations)
+      }
+    }
+
+    if (dryRun) {
+      return {
+        success: true,
+        description: `Would delete ${filePartition.safePaths.length} files and ${dirPartition.safePaths.length} directories`,
+        deletedFiles: [...filePartition.safePaths],
+        deletedDirs: [...dirPartition.safePaths].sort((a, b) => b.length - a.length)
+      }
+    }
+
+    const deletedFiles: string[] = []
+    const deletedDirs: string[] = []
+    const deleteErrors: {path: string, error: Error}[] = [...plan.errors]
+
+    for (const filePath of filePartition.safePaths) {
+      try {
+        fs.unlinkSync(filePath)
+        deletedFiles.push(filePath)
+        logger.debug({action: 'orphan-cleanup', deleted: filePath})
+      }
+      catch (error) {
+        deleteErrors.push({path: filePath, error: error as Error})
+        logger.warn({action: 'orphan-cleanup', message: 'Failed to delete file', path: filePath, error: (error as Error).message})
+      }
+    }
+
+    for (const dirPath of [...dirPartition.safePaths].sort((a, b) => b.length - a.length)) {
+      try {
+        fs.rmdirSync(dirPath)
+        deletedDirs.push(dirPath)
+        logger.debug({action: 'orphan-cleanup', deletedDir: dirPath})
+      }
+      catch (error) {
+        deleteErrors.push({path: dirPath, error: error as Error})
+        logger.warn({action: 'orphan-cleanup', message: 'Failed to delete directory', path: dirPath, error: (error as Error).message})
+      }
+    }
+
+    const hasErrors = deleteErrors.length > 0
     return {
       success: !hasErrors,
-      description: dryRun
-        ? `Would delete ${deletedFiles.length} files and ${deletedDirs.length} directories`
-        : `Deleted ${deletedFiles.length} files and ${deletedDirs.length} directories`,
+      description: `Deleted ${deletedFiles.length} files and ${deletedDirs.length} directories`,
       deletedFiles,
       deletedDirs,
-      ...hasErrors && {error: new Error(`${errors.length} errors occurred during cleanup`)}
+      ...hasErrors && {error: new Error(`${deleteErrors.length} errors occurred during cleanup`)}
     }
   }
 
-  private cleanupDirectory(
+  protected collectDirectoryPlan(
     ctx: InputEffectContext,
     distDirPath: string,
     dirType: string,
     srcPath: string,
-    deletedFiles: string[],
-    deletedDirs: string[],
-    errors: {path: string, error: Error}[],
-    dryRun: boolean
-  ): void {
+    filesToDelete: string[],
+    dirsToDelete: string[],
+    errors: {path: string, error: Error}[]
+  ): boolean {
     const {fs, path, aindexDir, logger} = ctx
 
     let entries: import('node:fs').Dirent[]
@@ -79,36 +164,32 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     catch (error) {
       errors.push({path: distDirPath, error: error as Error})
       logger.warn({action: 'orphan-cleanup', message: 'Failed to read directory', path: distDirPath, error: (error as Error).message})
-      return
+      return false
     }
+
+    let hasRetainedEntries = false
 
     for (const entry of entries) {
       const entryPath = path.join(distDirPath, entry.name)
 
       if (entry.isDirectory()) {
-        this.cleanupDirectory(ctx, entryPath, dirType, srcPath, deletedFiles, deletedDirs, errors, dryRun)
-        this.removeEmptyDirectory(ctx, entryPath, deletedDirs, errors, dryRun)
-      } else if (entry.isFile()) {
-        const isOrphan = this.isOrphanFile(ctx, entryPath, dirType, srcPath, aindexDir)
-
-        if (isOrphan) {
-          if (dryRun) {
-            logger.debug({action: 'orphan-cleanup', dryRun: true, wouldDelete: entryPath})
-            deletedFiles.push(entryPath)
-          } else {
-            try {
-              fs.unlinkSync(entryPath)
-              deletedFiles.push(entryPath)
-              logger.debug({action: 'orphan-cleanup', deleted: entryPath})
-            }
-            catch (error) {
-              errors.push({path: entryPath, error: error as Error})
-              logger.warn({action: 'orphan-cleanup', message: 'Failed to delete file', path: entryPath, error: (error as Error).message})
-            }
-          }
-        }
+        const childWillBeEmpty = this.collectDirectoryPlan(ctx, entryPath, dirType, srcPath, filesToDelete, dirsToDelete, errors)
+        if (childWillBeEmpty) dirsToDelete.push(entryPath)
+        else hasRetainedEntries = true
+        continue
       }
+
+      if (!entry.isFile()) {
+        hasRetainedEntries = true
+        continue
+      }
+
+      const isOrphan = this.isOrphanFile(ctx, entryPath, dirType, srcPath, aindexDir)
+      if (isOrphan) filesToDelete.push(entryPath)
+      else hasRetainedEntries = true
     }
+
+    return !hasRetainedEntries
   }
 
   private isOrphanFile(
@@ -130,11 +211,10 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
 
     if (isMdxFile) {
       const possibleSrcPaths = this.getPossibleSourcePaths(path, aindexDir, dirType, srcPath, baseName, relativeDir)
-      return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
+      return !possibleSrcPaths.some(candidatePath => fs.existsSync(candidatePath))
     }
-    const possibleSrcPaths: string[] = []
-    possibleSrcPaths.push(path.join(aindexDir, srcPath, relativeFromType))
-    return !possibleSrcPaths.some(srcPath => fs.existsSync(srcPath))
+
+    return !fs.existsSync(path.join(aindexDir, srcPath, relativeFromType))
   }
 
   private getPossibleSourcePaths(
@@ -161,46 +241,12 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
         ]
       }
       case 'commands':
-        return relativeDir === '.'
-          ? SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, `${baseName}${extension}`))
-          : SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}${extension}`))
       case 'agents':
-        return relativeDir === '.'
-          ? SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, `${baseName}${extension}`))
-          : SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}${extension}`))
       case 'app':
         return relativeDir === '.'
           ? SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, `${baseName}${extension}`))
           : SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}${extension}`))
       default: return []
-    }
-  }
-
-  private removeEmptyDirectory(
-    ctx: InputEffectContext,
-    dirPath: string,
-    deletedDirs: string[],
-    errors: {path: string, error: Error}[],
-    dryRun: boolean
-  ): void {
-    const {fs, logger} = ctx
-
-    try {
-      const entries = fs.readdirSync(dirPath)
-      if (entries.length === 0) {
-        if (dryRun) {
-          logger.debug({action: 'orphan-cleanup', dryRun: true, wouldDeleteDir: dirPath})
-          deletedDirs.push(dirPath)
-        } else {
-          fs.rmdirSync(dirPath)
-          deletedDirs.push(dirPath)
-          logger.debug({action: 'orphan-cleanup', deletedDir: dirPath})
-        }
-      }
-    }
-    catch (error) {
-      errors.push({path: dirPath, error: error as Error})
-      logger.warn({action: 'orphan-cleanup', message: 'Failed to check/remove directory', path: dirPath, error: (error as Error).message})
     }
   }
 

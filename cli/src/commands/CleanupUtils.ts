@@ -1,12 +1,18 @@
 import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputPlugin} from '../plugins/plugin-core'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
-import process from 'node:process'
 import {deleteDirectories as deskDeleteDirectories, deleteFiles as deskDeleteFiles} from '../plugins/desk-paths'
 import {
   collectAllPluginOutputs
 } from '../plugins/plugin-core'
+import {
+  collectProjectRoots,
+  collectProtectedInputSourcePaths,
+  createProtectedDeletionGuard,
+  logProtectedDeletionGuardError,
+  partitionDeletionTargets,
+  resolveAbsolutePath
+} from '../ProtectedDeletionGuard'
 
 /**
  * Result of cleanup operation
@@ -15,6 +21,8 @@ export interface CleanupResult {
   readonly deletedFiles: number
   readonly deletedDirs: number
   readonly errors: readonly CleanupError[]
+  readonly violations: readonly import('../ProtectedDeletionGuard').ProtectedPathViolation[]
+  readonly message?: string
 }
 
 /**
@@ -26,36 +34,12 @@ export interface CleanupError {
   readonly error: unknown
 }
 
-interface DirPathLike {
-  readonly path: string
-  readonly pathKind?: string
-  readonly basePath?: string
-  readonly getAbsolutePath?: () => string
-}
-
 interface CleanupTargetCollections {
   readonly filesToDelete: string[]
   readonly dirsToDelete: string[]
-  readonly protectedPaths: string[]
-  readonly skippedDangerousPaths: string[]
+  readonly violations: readonly import('../ProtectedDeletionGuard').ProtectedPathViolation[]
   readonly excludedScanGlobs: string[]
 }
-
-const KNOWN_AINDEX_INPUT_CONFIG_RELATIVE_PATHS = [
-  '.editorconfig',
-  '.vscode/settings.json',
-  '.vscode/extensions.json',
-  '.idea/codeStyles/Project.xml',
-  '.idea/codeStyles/codeStyleConfig.xml',
-  '.idea/.gitignore',
-  '.qoderignore',
-  '.cursorignore',
-  '.warpindexignore',
-  '.aiignore',
-  '.codeiumignore',
-  '.kiroignore',
-  '.traeignore'
-] as const
 
 const DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS = [
   '**/node_modules/**',
@@ -66,143 +50,8 @@ const DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS = [
   '**/.next/**'
 ] as const
 
-function expandHomePath(rawPath: string): string {
-  if (rawPath === '~') return os.homedir()
-  if (rawPath.startsWith('~/') || rawPath.startsWith('~\\')) return path.resolve(os.homedir(), rawPath.slice(2))
-  return rawPath
-}
-
-function normalizeForComparison(rawPath: string): string {
-  const expanded = expandHomePath(rawPath)
-  const normalized = path.normalize(path.resolve(expanded))
-  if (process.platform === 'win32') return normalized.toLowerCase()
-  return normalized
-}
-
-function buildComparisonKeys(rawPath: string): readonly string[] {
-  const keys = new Set<string>()
-  const expanded = expandHomePath(rawPath)
-  const normalized = normalizeForComparison(expanded)
-  keys.add(normalized)
-
-  try {
-    if (fs.existsSync(expanded)) {
-      const realPath = fs.realpathSync.native(expanded)
-      keys.add(normalizeForComparison(realPath))
-    }
-  }
-  catch {}
-
-  return [...keys]
-}
-
-function resolveAbsolutePath(rawPath: string): string {
-  return path.resolve(expandHomePath(rawPath))
-}
-
 function normalizeGlobPattern(pattern: string): string {
-  return expandHomePath(pattern).replaceAll('\\', '/')
-}
-
-function addPathToMap(target: Map<string, string>, rawPath: string): void {
-  const absolute = resolveAbsolutePath(rawPath)
-  for (const key of buildComparisonKeys(absolute)) {
-    if (!target.has(key)) target.set(key, absolute)
-  }
-}
-
-function resolveAbsolutePathFromDir(dir: DirPathLike | undefined): string | undefined {
-  if (dir == null) return void 0
-
-  if (typeof dir.getAbsolutePath === 'function') {
-    try {
-      const absolute = dir.getAbsolutePath()
-      if (absolute.length > 0) return path.resolve(absolute)
-    }
-    catch {}
-  }
-
-  if (dir.pathKind === 'absolute') return path.resolve(dir.path)
-  if (typeof dir.basePath === 'string' && dir.basePath.length > 0) return path.resolve(dir.basePath, dir.path)
-  return void 0
-}
-
-function collectInputSourcePaths(cleanCtx: OutputCleanContext): Map<string, string> {
-  const collected = cleanCtx.collectedOutputContext
-  const protectedPathMap = new Map<string, string>()
-
-  const addResolvedPath = (rawPath: string | undefined): void => {
-    if (rawPath == null || rawPath.length === 0) return
-    addPathToMap(protectedPathMap, rawPath)
-  }
-
-  const addPathFromDir = (dir: DirPathLike | undefined): void => {
-    const resolved = resolveAbsolutePathFromDir(dir)
-    if (resolved == null) return
-    addResolvedPath(resolved)
-  }
-
-  addPathFromDir(collected.globalMemory?.dir as DirPathLike | undefined)
-
-  for (const command of collected.commands ?? []) addPathFromDir(command.dir as DirPathLike | undefined)
-  for (const subAgent of collected.subAgents ?? []) addPathFromDir(subAgent.dir as DirPathLike | undefined)
-  for (const rule of collected.rules ?? []) addPathFromDir(rule.dir as DirPathLike | undefined)
-
-  for (const skill of collected.skills ?? []) {
-    addPathFromDir(skill.dir as DirPathLike | undefined)
-    for (const childDoc of skill.childDocs ?? []) addPathFromDir(childDoc.dir as DirPathLike | undefined)
-    for (const resource of skill.resources ?? []) addResolvedPath(resource.sourcePath)
-  }
-
-  for (const config of collected.vscodeConfigFiles ?? []) addPathFromDir(config.dir as DirPathLike | undefined)
-  for (const config of collected.jetbrainsConfigFiles ?? []) addPathFromDir(config.dir as DirPathLike | undefined)
-  for (const config of collected.editorConfigFiles ?? []) addPathFromDir(config.dir as DirPathLike | undefined)
-
-  for (const ignoreFile of collected.aiAgentIgnoreConfigFiles ?? []) addResolvedPath(ignoreFile.sourcePath)
-  const {aindexDir} = collected
-  if (aindexDir != null) {
-    for (const relativePath of KNOWN_AINDEX_INPUT_CONFIG_RELATIVE_PATHS) addResolvedPath(path.join(aindexDir, relativePath))
-  }
-
-  return protectedPathMap
-}
-
-function resolveXdgConfigHome(homeDir: string): string {
-  const xdgConfigHome = process.env['XDG_CONFIG_HOME']
-  if (typeof xdgConfigHome === 'string' && xdgConfigHome.trim().length > 0) return xdgConfigHome
-  return path.join(homeDir, '.config')
-}
-
-function resolveXdgDataHome(homeDir: string): string {
-  const xdgDataHome = process.env['XDG_DATA_HOME']
-  if (typeof xdgDataHome === 'string' && xdgDataHome.trim().length > 0) return xdgDataHome
-  return path.join(homeDir, '.local', 'share')
-}
-
-function resolveXdgStateHome(homeDir: string): string {
-  const xdgStateHome = process.env['XDG_STATE_HOME']
-  if (typeof xdgStateHome === 'string' && xdgStateHome.trim().length > 0) return xdgStateHome
-  return path.join(homeDir, '.local', 'state')
-}
-
-function resolveXdgCacheHome(homeDir: string): string {
-  const xdgCacheHome = process.env['XDG_CACHE_HOME']
-  if (typeof xdgCacheHome === 'string' && xdgCacheHome.trim().length > 0) return xdgCacheHome
-  return path.join(homeDir, '.cache')
-}
-
-function collectAlwaysProtectedExactRoots(): Map<string, string> {
-  const protectedRoots = new Map<string, string>()
-  const homeDir = os.homedir()
-
-  addPathToMap(protectedRoots, homeDir)
-  addPathToMap(protectedRoots, resolveXdgConfigHome(homeDir))
-  addPathToMap(protectedRoots, resolveXdgDataHome(homeDir))
-  addPathToMap(protectedRoots, resolveXdgStateHome(homeDir))
-  addPathToMap(protectedRoots, resolveXdgCacheHome(homeDir))
-  addPathToMap(protectedRoots, path.parse(homeDir).root)
-
-  return protectedRoots
+  return resolveAbsolutePath(pattern).replaceAll('\\', '/')
 }
 
 function stripTrailingSeparator(rawPath: string): string {
@@ -216,16 +65,6 @@ function isSameOrChildPath(candidate: string, parent: string): boolean {
   const normalizedParent = stripTrailingSeparator(parent)
   if (normalizedCandidate === normalizedParent) return true
   return normalizedCandidate.startsWith(`${normalizedParent}${path.sep}`)
-}
-
-function conflictsWithSubtreeProtection(
-  targetKey: string,
-  protectedSubtreeKeys: readonly string[]
-): boolean {
-  for (const protectedKey of protectedSubtreeKeys) {
-    if (isSameOrChildPath(targetKey, protectedKey) || isSameOrChildPath(protectedKey, targetKey)) return true
-  }
-  return false
 }
 
 function expandCleanupGlob(
@@ -249,14 +88,6 @@ async function collectPluginCleanupDeclarations(
 ): Promise<OutputCleanupDeclarations> {
   if (plugin.declareCleanupPaths == null) return {}
   return plugin.declareCleanupPaths({...cleanCtx, dryRun: true})
-}
-
-function shouldSkipByDangerousExactPath(targetPath: string, dangerousExactKeys: Set<string>): boolean {
-  const keys = buildComparisonKeys(targetPath)
-  for (const key of keys) {
-    if (dangerousExactKeys.has(key)) return true
-  }
-  return false
 }
 
 function compactDeletionTargets(
@@ -303,16 +134,12 @@ export async function collectDeletionTargets(
 ): Promise<{
   filesToDelete: string[]
   dirsToDelete: string[]
-  protectedFiles: string[]
-  skippedDangerousPaths: string[]
+  violations: import('../ProtectedDeletionGuard').ProtectedPathViolation[]
   excludedScanGlobs: string[]
 }> {
-  const deleteFilesByKey = new Map<string, string>()
-  const deleteDirsByKey = new Map<string, string>()
-  const protectedByKey = collectInputSourcePaths(cleanCtx)
-  const dangerousExactByKey = collectAlwaysProtectedExactRoots()
-  const skippedProtectedByKey = new Map<string, string>()
-  const skippedDangerousByKey = new Map<string, string>()
+  const deleteFiles = new Set<string>()
+  const deleteDirs = new Set<string>()
+  const subtreeProtectedPaths = new Set<string>(collectProtectedInputSourcePaths(cleanCtx.collectedOutputContext))
   const excludeScanGlobSet = new Set<string>(DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS)
 
   const pluginSnapshots: {
@@ -321,11 +148,13 @@ export async function collectDeletionTargets(
   }[] = []
 
   const addDeletePath = (rawPath: string, kind: 'file' | 'directory'): void => {
-    const targetMap = kind === 'directory' ? deleteDirsByKey : deleteFilesByKey
-    addPathToMap(targetMap, rawPath)
+    if (kind === 'directory') deleteDirs.add(resolveAbsolutePath(rawPath))
+    else deleteFiles.add(resolveAbsolutePath(rawPath))
   }
 
-  const addProtectPath = (rawPath: string): void => addPathToMap(protectedByKey, rawPath)
+  const addProtectPath = (rawPath: string): void => {
+    subtreeProtectedPaths.add(resolveAbsolutePath(rawPath))
+  }
 
   for (const plugin of outputPlugins) {
     const declarations = await plugin.declareOutputFiles({...cleanCtx, dryRun: true})
@@ -372,38 +201,26 @@ export async function collectDeletionTargets(
     }
   }
 
-  const dangerousExactKeySet = new Set(dangerousExactByKey.keys())
-  const protectedSubtreeKeys = [...protectedByKey.keys()]
+  const guard = createProtectedDeletionGuard({
+    workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path,
+    projectRoots: collectProjectRoots(cleanCtx.collectedOutputContext),
+    subtreeProtectedPaths: [...subtreeProtectedPaths],
+    ...cleanCtx.collectedOutputContext.aindexDir != null
+      ? {aindexDir: cleanCtx.collectedOutputContext.aindexDir}
+      : {}
+  })
+  const filePartition = partitionDeletionTargets([...deleteFiles], guard)
+  const dirPartition = partitionDeletionTargets([...deleteDirs], guard)
 
-  const filterDeleteTargets = (targets: Map<string, string>): Map<string, string> => {
-    const filtered = new Map<string, string>()
-
-    for (const [targetKey, targetPath] of targets) {
-      if (shouldSkipByDangerousExactPath(targetPath, dangerousExactKeySet)) {
-        addPathToMap(skippedDangerousByKey, targetPath)
-        continue
-      }
-
-      if (conflictsWithSubtreeProtection(targetKey, protectedSubtreeKeys)) {
-        addPathToMap(skippedProtectedByKey, targetPath)
-        continue
-      }
-
-      filtered.set(targetKey, targetPath)
-    }
-
-    return filtered
-  }
-
-  const filteredFileTargets = filterDeleteTargets(deleteFilesByKey)
-  const filteredDirTargets = filterDeleteTargets(deleteDirsByKey)
-  const compactedTargets = compactDeletionTargets(filteredFileTargets, filteredDirTargets)
+  const compactedTargets = compactDeletionTargets(
+    new Map(filePartition.safePaths.map(filePath => [filePath, filePath])),
+    new Map(dirPartition.safePaths.map(dirPath => [dirPath, dirPath]))
+  )
 
   return {
     filesToDelete: compactedTargets.files,
     dirsToDelete: compactedTargets.dirs,
-    protectedFiles: [...skippedProtectedByKey.values()].sort((a, b) => a.localeCompare(b)),
-    skippedDangerousPaths: [...skippedDangerousByKey.values()].sort((a, b) => a.localeCompare(b)),
+    violations: [...filePartition.violations, ...dirPartition.violations].sort((a, b) => a.targetPath.localeCompare(b.targetPath)),
     excludedScanGlobs: [...excludeScanGlobSet].sort((a, b) => a.localeCompare(b))
   }
 }
@@ -454,21 +271,10 @@ function logCleanupPlanDiagnostics(
   logger: ILogger,
   targets: CleanupTargetCollections
 ): void {
-  if (targets.protectedPaths.length > 0) {
-    logger.info('skipped protected paths during cleanup', {count: targets.protectedPaths.length})
-    for (const protectedPath of targets.protectedPaths) logger.debug('protected cleanup path', {path: protectedPath})
-  }
-
-  if (targets.skippedDangerousPaths.length > 0) {
-    logger.warn('skipped dangerous cleanup paths', {count: targets.skippedDangerousPaths.length})
-    for (const dangerousPath of targets.skippedDangerousPaths) logger.warn('dangerous cleanup path skipped', {path: dangerousPath})
-  }
-
   logger.debug('cleanup plan built', {
     filesToDelete: targets.filesToDelete.length,
     dirsToDelete: targets.dirsToDelete.length,
-    protectedPaths: targets.protectedPaths.length,
-    skippedDangerousPaths: targets.skippedDangerousPaths.length,
+    violations: targets.violations.length,
     excludedScanGlobs: targets.excludedScanGlobs
   })
 }
@@ -497,11 +303,21 @@ export async function performCleanup(
   const cleanupTargets: CleanupTargetCollections = {
     filesToDelete: targets.filesToDelete,
     dirsToDelete: targets.dirsToDelete,
-    protectedPaths: targets.protectedFiles,
-    skippedDangerousPaths: targets.skippedDangerousPaths,
+    violations: targets.violations,
     excludedScanGlobs: targets.excludedScanGlobs
   }
   logCleanupPlanDiagnostics(logger, cleanupTargets)
+
+  if (cleanupTargets.violations.length > 0) {
+    logProtectedDeletionGuardError(logger, 'cleanup', cleanupTargets.violations)
+    return {
+      deletedFiles: 0,
+      deletedDirs: 0,
+      errors: [],
+      violations: cleanupTargets.violations,
+      message: `Protected deletion guard blocked cleanup for ${cleanupTargets.violations.length} path(s)`
+    }
+  }
 
   const fileResult = deleteFiles(cleanupTargets.filesToDelete, logger)
   const dirResult = deleteDirectories(cleanupTargets.dirsToDelete, logger)
@@ -509,6 +325,7 @@ export async function performCleanup(
   return {
     deletedFiles: fileResult.deleted,
     deletedDirs: dirResult.deleted,
-    errors: [...fileResult.errors, ...dirResult.errors]
+    errors: [...fileResult.errors, ...dirResult.errors],
+    violations: []
   }
 }

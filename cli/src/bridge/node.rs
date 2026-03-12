@@ -280,7 +280,7 @@ pub fn run_node_command_captured(
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
-    if output.status.success() {
+    if output.status.success() || (json_mode && !stdout.trim().is_empty()) {
         Ok(BridgeCommandResult { stdout, stderr, exit_code })
     } else {
         Err(CliError::NodeProcessFailed { code: exit_code, stderr })

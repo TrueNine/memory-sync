@@ -2,254 +2,212 @@ import {createRequire} from 'node:module'
 import process from 'node:process'
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'fatal' | 'silent'
+type LoggerMethod = (message: string | object, ...meta: unknown[]) => void
 
 export interface ILogger {
-  error: (message: string | object, ...meta: unknown[]) => void
-  warn: (message: string | object, ...meta: unknown[]) => void
-  info: (message: string | object, ...meta: unknown[]) => void
-  debug: (message: string | object, ...meta: unknown[]) => void
-  trace: (message: string | object, ...meta: unknown[]) => void
-  fatal: (message: string | object, ...meta: unknown[]) => void
-} // Napi binding types (loaded at runtime)
+  error: LoggerMethod
+  warn: LoggerMethod
+  info: LoggerMethod
+  debug: LoggerMethod
+  trace: LoggerMethod
+  fatal: LoggerMethod
+}
+
+type ActiveLogLevel = Exclude<LogLevel, 'silent'>
+interface PlatformBinding {readonly local: string, readonly suffix: string}
 
 interface NapiLoggerInstance {
-  error: (message: string) => void
-  errorWithMeta: (message: string, meta: string) => void
-  warn: (message: string) => void
-  warnWithMeta: (message: string, meta: string) => void
-  info: (message: string) => void
-  infoWithMeta: (message: string, meta: string) => void
-  debug: (message: string) => void
-  debugWithMeta: (message: string, meta: string) => void
-  trace: (message: string) => void
-  traceWithMeta: (message: string, meta: string) => void
-  fatal: (message: string) => void
-  fatalWithMeta: (message: string, meta: string) => void
+  log: (level: ActiveLogLevel, message: string, meta?: string) => void
 }
 
 interface NapiLoggerModule {
   createLogger: (namespace: string, level?: string) => NapiLoggerInstance
   setGlobalLogLevel: (level: string) => void
   getGlobalLogLevel: () => string | undefined
-} // Load napi binding (CJS) with fallback to pure-TS implementation
+}
 
-let napiBinding: NapiLoggerModule | null = null
+const PLATFORM_BINDINGS: Record<string, PlatformBinding> = {
+  'win32-x64': {local: 'napi-logger.win32-x64-msvc', suffix: 'win32-x64-msvc'},
+  'linux-x64': {local: 'napi-logger.linux-x64-gnu', suffix: 'linux-x64-gnu'},
+  'linux-arm64': {local: 'napi-logger.linux-arm64-gnu', suffix: 'linux-arm64-gnu'},
+  'darwin-arm64': {local: 'napi-logger.darwin-arm64', suffix: 'darwin-arm64'},
+  'darwin-x64': {local: 'napi-logger.darwin-x64', suffix: 'darwin-x64'}
+}
 
-try {
+const ACTIVE_LOG_LEVELS: readonly ActiveLogLevel[] = ['error', 'warn', 'info', 'debug', 'trace', 'fatal']
+
+let napiBinding: NapiLoggerModule | undefined,
+  napiBindingError: Error | undefined
+
+function isNapiLoggerModule(value: unknown): value is NapiLoggerModule {
+  if (value == null || typeof value !== 'object') return false
+
+  const candidate = value as Partial<NapiLoggerModule>
+  return typeof candidate.createLogger === 'function'
+    && typeof candidate.setGlobalLogLevel === 'function'
+    && typeof candidate.getGlobalLogLevel === 'function'
+}
+
+function getPlatformBinding(): PlatformBinding {
+  const binding = PLATFORM_BINDINGS[`${process.platform}-${process.arch}`]
+  if (binding != null) return binding
+
+  throw new Error(
+    `Unsupported platform for @truenine/logger native binding: ${process.platform}-${process.arch}`
+  )
+}
+
+function formatBindingLoadError(localError: unknown, packageError: unknown, suffix: string): Error {
+  const localMessage = localError instanceof Error ? localError.message : String(localError)
+  const packageMessage = packageError instanceof Error ? packageError.message : String(packageError)
+  return new Error(
+    [
+      'Failed to load @truenine/logger native binding.',
+      `Tried local binary "./${PLATFORM_BINDINGS[`${process.platform}-${process.arch}`]?.local ?? 'unknown'}.node" and package "@truenine/memory-sync-cli-${suffix}".`,
+      `Local error: ${localMessage}`,
+      `Package error: ${packageMessage}`,
+      'Run `pnpm -F @truenine/logger run build` to build the native module.'
+    ].join('\n')
+  )
+}
+
+function loadNativeBinding(): NapiLoggerModule {
   const require = createRequire(import.meta.url)
-  const {platform, arch} = process
-  const platforms: Record<string, [local: string, suffix: string]> = {
-    'win32-x64': ['napi-logger.win32-x64-msvc', 'win32-x64-msvc'],
-    'linux-x64': ['napi-logger.linux-x64-gnu', 'linux-x64-gnu'],
-    'linux-arm64': ['napi-logger.linux-arm64-gnu', 'linux-arm64-gnu'],
-    'darwin-arm64': ['napi-logger.darwin-arm64', 'darwin-arm64'],
-    'darwin-x64': ['napi-logger.darwin-x64', 'darwin-x64']
+  const {local, suffix} = getPlatformBinding()
+
+  try {
+    return require(`./${local}.node`) as NapiLoggerModule
   }
-  const entry = platforms[`${platform}-${arch}`]
-  if (entry != null) {
-    const [local, suffix] = entry
+  catch (localError) {
     try {
-      napiBinding = require(`./${local}.node`) as NapiLoggerModule
+      const cliBinaryPackage = require(`@truenine/memory-sync-cli-${suffix}`) as Record<string, unknown>
+      const loggerModule = cliBinaryPackage['logger']
+
+      if (isNapiLoggerModule(loggerModule)) return loggerModule
+
+      throw new Error(`Package "@truenine/memory-sync-cli-${suffix}" does not export a logger binding`)
     }
-    catch {
-      try {
-        const pkg = require(`@truenine/memory-sync-cli-${suffix}`) as Record<string, unknown>
-        napiBinding = pkg['logger'] as NapiLoggerModule
-      }
-      catch {}
+    catch (packageError) {
+      throw formatBindingLoadError(localError, packageError, suffix)
     }
   }
 }
-catch {} // Native module not available — fall back to pure-TS implementation
 
-const colors = {
-  reset: '\x1B[0m',
-  red: '\x1B[31m',
-  yellow: '\x1B[33m',
-  cyan: '\x1B[36m',
-  magenta: '\x1B[35m',
-  gray: '\x1B[90m',
-  blue: '\x1B[34m',
-  green: '\x1B[32m',
-  white: '\x1B[37m',
-  dim: '\x1B[2m',
-  bgRed: '\x1B[41m'
-} as const
+function getNapiBinding(): NapiLoggerModule {
+  if (napiBinding != null) return napiBinding
 
-const colorize = {
-  red: (text: string) => `${colors.red}${text}${colors.reset}`,
-  yellow: (text: string) => `${colors.yellow}${text}${colors.reset}`,
-  cyan: (text: string) => `${colors.cyan}${text}${colors.reset}`,
-  magenta: (text: string) => `${colors.magenta}${text}${colors.reset}`,
-  gray: (text: string) => `${colors.gray}${text}${colors.reset}`,
-  blue: (text: string) => `${colors.blue}${text}${colors.reset}`,
-  green: (text: string) => `${colors.green}${text}${colors.reset}`,
-  white: (text: string) => `${colors.white}${text}${colors.reset}`,
-  dim: (text: string) => `${colors.dim}${text}${colors.reset}`,
-  bgRed: (text: string) => `${colors.bgRed}${text}${colors.reset}`
-}
+  if (napiBindingError != null) throw napiBindingError
 
-let globalLogLevel: LogLevel | undefined
-
-const LEVEL_COLORS: Record<string, (s: string) => string> = {
-  error: colorize.red,
-  warn: colorize.yellow,
-  info: colorize.cyan,
-  debug: colorize.magenta,
-  trace: colorize.gray,
-  fatal: colorize.bgRed
-}
-
-const LEVEL_PRIORITY: Record<LogLevel, number> = {
-  silent: 0,
-  fatal: 1,
-  error: 2,
-  warn: 3,
-  info: 4,
-  debug: 5,
-  trace: 6
-}
-
-function colorizeValue(value: unknown): string {
-  if (value === null) return colorize.dim('null')
-  if (typeof value === 'undefined') return colorize.dim('undefined')
-  if (typeof value === 'boolean') return colorize.yellow(String(value))
-  if (typeof value === 'number') return colorize.blue(String(value))
-  if (typeof value === 'string') return colorize.green(`"${value}"`)
-  if (Array.isArray(value)) {
-    if (value.length === 0) return '[]'
-    return `[${value.map(v => colorizeValue(v)).join(',')}]`
+  try {
+    napiBinding = loadNativeBinding()
+    return napiBinding
   }
-  if (value instanceof Error) {
-    const errorObj: Record<string, unknown> = {
-      name: value.name,
-      message: value.message,
-      stack: value.stack
+  catch (error) {
+    napiBindingError = error instanceof Error ? error : new Error(String(error))
+    throw napiBindingError
+  }
+}
+
+function serializeError(error: Error): Record<string, unknown> {
+  const serializedError: Record<string, unknown> = {
+    name: error.name,
+    message: error.message,
+    stack: error.stack
+  }
+
+  for (const key of Object.getOwnPropertyNames(error)) {
+    if (key === 'name' || key === 'message' || key === 'stack') continue
+
+    serializedError[key] = (error as unknown as Record<string, unknown>)[key]
+  }
+
+  return serializedError
+}
+
+function createJsonReplacer(): (this: unknown, key: string, value: unknown) => unknown {
+  const seen = new WeakSet<object>()
+
+  return function jsonReplacer(_key: string, value: unknown): unknown {
+    if (value instanceof Error) return serializeError(value)
+
+    if (typeof value === 'bigint') return value.toString()
+
+    if (typeof value === 'function') return `[Function ${value.name || 'anonymous'}]`
+
+    if (typeof value === 'symbol') return value.toString()
+
+    if (typeof value !== 'object' || value === null) return value
+
+    if (seen.has(value)) return '[Circular]'
+
+    seen.add(value)
+    return value
+  }
+}
+
+function serializePayload(value: unknown): string {
+  return JSON.stringify(value, createJsonReplacer()) ?? 'null'
+}
+
+function normalizeLogArguments(message: string | object, meta: unknown[]): {message: string, metaJson: string | undefined} {
+  if (typeof message !== 'string') {
+    return {
+      message: '',
+      metaJson: serializePayload(message)
     }
-    for (const key of Object.getOwnPropertyNames(value)) {
-      if (key !== 'name' && key !== 'message' && key !== 'stack') errorObj[key] = (value as unknown as Record<string, unknown>)[key]
-    }
-    return tsToJson(errorObj)
   }
-  if (typeof value === 'object') return tsToJson(value as Record<string, unknown>)
-  return String(value)
-}
 
-function tsToJson(obj: Record<string, unknown>): string {
-  const entries = Object.entries(obj)
-  if (entries.length === 0) return '{}'
-  const parts = entries.map(([k, v]) => {
-    const key = colorize.magenta(`"${k}"`)
-    return `${key}:${colorizeValue(v)}`
-  })
-  return `{${parts.join(',')}}`
-}
-
-function getTimestamp(): string {
-  const now = new Date()
-  const hours = String(now.getHours()).padStart(2, '0')
-  const minutes = String(now.getMinutes()).padStart(2, '0')
-  const seconds = String(now.getSeconds()).padStart(2, '0')
-  const ms = String(now.getMilliseconds()).padStart(3, '0')
-  return `${hours}:${minutes}:${seconds}.${ms}`
-}
-
-function formatLog(level: LogLevel, namespace: string, message: unknown, meta?: Record<string, unknown>): void {
-  const timestamp = getTimestamp()
-  const colorFn = LEVEL_COLORS[level] ?? colorize.white
-  const messageStr = String(message)
-  const hasMeta = meta != null && Object.keys(meta).length > 0
-  const isEmptyMessage = messageStr === ''
-  const base = {$: [timestamp, colorFn(level.toUpperCase()), namespace]}
-  const _ = hasMeta ? isEmptyMessage ? meta : {[messageStr]: meta} : message
-  const output = tsToJson({...base, _} as unknown as Record<string, unknown>)
-  if (level === 'error' || level === 'fatal') console.error(output)
-  else if (level === 'warn') console.warn(output)
-  // eslint-disable-next-line no-console
-  else if (level === 'debug' || level === 'trace') console.debug(output)
-  // eslint-disable-next-line no-console
-  else console.log(output)
-}
-
-function createTsLevelMethod(level: LogLevel, namespace: string, currentLevel: LogLevel) {
-  const levelPriority = LEVEL_PRIORITY[level]
-  const currentPriority = LEVEL_PRIORITY[currentLevel]
-  return (messageOrObject: string | object, ...meta: unknown[]): void => {
-    if (levelPriority > currentPriority) return
-    if (typeof messageOrObject === 'string') {
-      const metaObj = meta.length === 1 && typeof meta[0] === 'object' && meta[0] !== null
-        ? meta[0] as Record<string, unknown>
-        : meta.length > 0 ? {args: meta} : void 0
-      formatLog(level, namespace, messageOrObject, metaObj)
-    } else if (typeof messageOrObject === 'object' && messageOrObject !== null) formatLog(level, namespace, '', messageOrObject as Record<string, unknown>)
-    else formatLog(level, namespace, messageOrObject)
-  }
-}
-
-function createTsFallbackLogger(namespace: string, logLevel?: LogLevel): ILogger {
-  const level = logLevel ?? globalLogLevel ?? (process.env['LOG_LEVEL'] as LogLevel) ?? 'info'
-  return {
-    error: createTsLevelMethod('error', namespace, level),
-    warn: createTsLevelMethod('warn', namespace, level),
-    info: createTsLevelMethod('info', namespace, level),
-    debug: createTsLevelMethod('debug', namespace, level),
-    trace: createTsLevelMethod('trace', namespace, level),
-    fatal: createTsLevelMethod('fatal', namespace, level)
-  }
-} // Napi adapter — wraps NapiLoggerInstance to implement ILogger
-
-function serializeMeta(message: string | object, meta: unknown[]): {msg: string, metaStr: string | undefined} {
-  if (typeof message !== 'string') return {msg: '', metaStr: JSON.stringify(message)}
-
-  const metaObj = meta.length === 1 && typeof meta[0] === 'object' && meta[0] !== null
+  const metaValue = meta.length === 1 && typeof meta[0] === 'object' && meta[0] !== null
     ? meta[0]
     : meta.length > 0 ? {args: meta} : void 0
-  return {msg: message, metaStr: metaObj != null ? JSON.stringify(metaObj) : void 0}
+
+  return {
+    message,
+    metaJson: metaValue == null ? void 0 : serializePayload(metaValue)
+  }
+}
+
+function createLogMethod(instance: NapiLoggerInstance, level: ActiveLogLevel): LoggerMethod {
+  return (message: string | object, ...meta: unknown[]): void => {
+    const {message: normalizedMessage, metaJson} = normalizeLogArguments(message, meta)
+    instance.log(level, normalizedMessage, metaJson)
+  }
 }
 
 function createNapiAdapter(instance: NapiLoggerInstance): ILogger {
-  function makeMethod(
-    plain: (msg: string) => void,
-    withMeta: (msg: string, meta: string) => void
-  ) {
-    return (message: string | object, ...meta: unknown[]): void => {
-      const {msg, metaStr} = serializeMeta(message, meta)
-      if (metaStr != null) withMeta(msg, metaStr)
-      else plain(msg)
-    }
-  }
+  const methods = ACTIVE_LOG_LEVELS.reduce((logger, level) => {
+    logger[level] = createLogMethod(instance, level)
+    return logger
+  }, {} as Record<ActiveLogLevel, LoggerMethod>)
+
   return {
-    error: makeMethod(m => instance.error(m), (m, s) => instance.errorWithMeta(m, s)),
-    warn: makeMethod(m => instance.warn(m), (m, s) => instance.warnWithMeta(m, s)),
-    info: makeMethod(m => instance.info(m), (m, s) => instance.infoWithMeta(m, s)),
-    debug: makeMethod(m => instance.debug(m), (m, s) => instance.debugWithMeta(m, s)),
-    trace: makeMethod(m => instance.trace(m), (m, s) => instance.traceWithMeta(m, s)),
-    fatal: makeMethod(m => instance.fatal(m), (m, s) => instance.fatalWithMeta(m, s))
+    error: methods.error,
+    warn: methods.warn,
+    info: methods.info,
+    debug: methods.debug,
+    trace: methods.trace,
+    fatal: methods.fatal
   }
-} // Public API
+}
 
 /**
  * Set the global log level for all loggers.
  */
 export function setGlobalLogLevel(level: LogLevel): void {
-  globalLogLevel = level
-  napiBinding?.setGlobalLogLevel(level)
+  getNapiBinding().setGlobalLogLevel(level)
 }
 
 /**
  * Get the current global log level.
  */
 export function getGlobalLogLevel(): LogLevel | undefined {
-  if (napiBinding != null) return napiBinding.getGlobalLogLevel() as LogLevel | undefined
-  return globalLogLevel
+  return getNapiBinding().getGlobalLogLevel() as LogLevel | undefined
 }
 
 /**
- * Create a logger. Uses Rust napi-logger when available, falls back to pure-TS.
+ * Create a logger backed by the Rust native binding.
  */
 export function createLogger(namespace: string, logLevel?: LogLevel): ILogger {
-  if (napiBinding == null) return createTsFallbackLogger(namespace, logLevel)
-
-  const instance = napiBinding.createLogger(namespace, logLevel)
+  const instance = getNapiBinding().createLogger(namespace, logLevel)
   return createNapiAdapter(instance)
 }

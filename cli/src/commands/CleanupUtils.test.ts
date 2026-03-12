@@ -97,7 +97,7 @@ describe('collectDeletionTargets', () => {
     const result = await collectDeletionTargets([plugin], ctx)
 
     expect(result.filesToDelete).toEqual([safeOutput])
-    expect(new Set(result.protectedFiles)).toEqual(new Set([editorSource, ignoreSource]))
+    expect(new Set(result.violations.map(violation => violation.targetPath))).toEqual(new Set([editorSource, ignoreSource]))
   })
 
   it('keeps non-overlapping output paths for cleanup', async () => {
@@ -109,7 +109,7 @@ describe('collectDeletionTargets', () => {
     const result = await collectDeletionTargets([plugin], ctx)
 
     expect(new Set(result.filesToDelete)).toEqual(new Set([outputA, outputB]))
-    expect(result.protectedFiles).toEqual([])
+    expect(result.violations).toEqual([])
   })
 
   it('protects known aindex input config files by aindexDir fallback', async () => {
@@ -122,7 +122,7 @@ describe('collectDeletionTargets', () => {
     const result = await collectDeletionTargets([plugin], ctx)
 
     expect(result.filesToDelete).toEqual([safeOutput])
-    expect(result.protectedFiles).toEqual([editorConfigOutput])
+    expect(result.violations.map(violation => violation.targetPath)).toEqual([editorConfigOutput])
   })
 
   it('compacts nested delete targets to reduce IO', async () => {
@@ -170,10 +170,10 @@ describe('collectDeletionTargets', () => {
     const result = await collectDeletionTargets([plugin], ctx)
 
     expect(result.dirsToDelete).toEqual([promptsDir])
-    expect(result.protectedFiles).toEqual([codexBaseDir])
+    expect(result.violations.map(violation => violation.targetPath)).toEqual([codexBaseDir])
   })
 
-  it('always protects dangerous root paths like home directory', async () => {
+  it('blocks exact protected paths like home directory', async () => {
     const homeDir = os.homedir()
     const ctx = createCleanContext()
     const plugin = createMockOutputPlugin(
@@ -188,6 +188,139 @@ describe('collectDeletionTargets', () => {
 
     expect(result.dirsToDelete).toEqual([])
     expect(result.filesToDelete).toEqual([])
-    expect(result.skippedDangerousPaths).toEqual([path.resolve(homeDir)])
+    expect(result.violations).toEqual([expect.objectContaining({
+      targetPath: path.resolve(homeDir),
+      protection: 'exact'
+    })])
+  })
+
+  it('blocks exact protected paths like ~/.aindex, ~/.aindex/.tnmsc.json, workspace root, project root, and aindex root', async () => {
+    const workspaceDir = path.resolve('tmp-workspace-root')
+    const projectRoot = path.join(workspaceDir, 'project-a')
+    const aindexDir = path.join(workspaceDir, 'aindex')
+    const globalAindexDir = path.join(os.homedir(), '.aindex')
+    const globalConfigPath = path.join(globalAindexDir, '.tnmsc.json')
+    const ctx = createCleanContext({
+      workspace: {
+        directory: {
+          pathKind: FilePathKind.Absolute,
+          path: workspaceDir,
+          getDirectoryName: () => path.basename(workspaceDir),
+          getAbsolutePath: () => workspaceDir
+        },
+        projects: [{
+          dirFromWorkspacePath: {
+            pathKind: FilePathKind.Relative,
+            path: 'project-a',
+            basePath: workspaceDir,
+            getDirectoryName: () => 'project-a',
+            getAbsolutePath: () => projectRoot
+          }
+        }]
+      },
+      aindexDir
+    })
+    const plugin = createMockOutputPlugin(
+      'MockOutputPlugin',
+      [globalConfigPath],
+      {
+        delete: [
+          {kind: 'directory', path: globalAindexDir},
+          {kind: 'directory', path: workspaceDir},
+          {kind: 'directory', path: projectRoot},
+          {kind: 'directory', path: aindexDir}
+        ]
+      }
+    )
+
+    const result = await collectDeletionTargets([plugin], ctx)
+
+    expect(result.filesToDelete).toEqual([])
+    expect(result.dirsToDelete).toEqual([])
+    expect(new Set(result.violations.map(violation => violation.targetPath))).toEqual(new Set([
+      path.resolve(globalAindexDir),
+      path.resolve(globalConfigPath),
+      path.resolve(workspaceDir),
+      path.resolve(projectRoot),
+      path.resolve(aindexDir)
+    ]))
+  })
+
+  it('allows deleting children under exact protected roots', async () => {
+    const globalChildDir = path.join(os.homedir(), '.aindex', '.codex', 'prompts')
+    const workspaceDir = path.resolve('tmp-workspace-root-safe')
+    const projectChildFile = path.join(workspaceDir, 'project-a', 'AGENTS.md')
+    const aindexChildDir = path.join(workspaceDir, 'aindex', 'dist', 'commands')
+    const ctx = createCleanContext({
+      workspace: {
+        directory: {
+          pathKind: FilePathKind.Absolute,
+          path: workspaceDir,
+          getDirectoryName: () => path.basename(workspaceDir),
+          getAbsolutePath: () => workspaceDir
+        },
+        projects: [{
+          dirFromWorkspacePath: {
+            pathKind: FilePathKind.Relative,
+            path: 'project-a',
+            basePath: workspaceDir,
+            getDirectoryName: () => 'project-a',
+            getAbsolutePath: () => path.join(workspaceDir, 'project-a')
+          }
+        }]
+      },
+      aindexDir: path.join(workspaceDir, 'aindex')
+    })
+    const plugin = createMockOutputPlugin('MockOutputPlugin', [projectChildFile], {
+      delete: [
+        {kind: 'directory', path: globalChildDir},
+        {kind: 'directory', path: aindexChildDir}
+      ]
+    })
+
+    const result = await collectDeletionTargets([plugin], ctx)
+
+    expect(new Set(result.filesToDelete)).toEqual(new Set([path.resolve(projectChildFile)]))
+    expect(new Set(result.dirsToDelete)).toEqual(new Set([path.resolve(globalChildDir), path.resolve(aindexChildDir)]))
+    expect(result.violations).toEqual([])
+  })
+
+  it('blocks symlink targets that resolve to an exact protected path', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-cleanup-guard-'))
+    const workspaceDir = path.join(tempDir, 'workspace')
+    const symlinkPath = path.join(tempDir, 'workspace-link')
+
+    fs.mkdirSync(workspaceDir, {recursive: true})
+
+    try {
+      const symlinkType: 'junction' | 'dir' = process.platform === 'win32' ? 'junction' : 'dir'
+      fs.symlinkSync(workspaceDir, symlinkPath, symlinkType)
+
+      const ctx = createCleanContext({
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: workspaceDir,
+            getDirectoryName: () => path.basename(workspaceDir),
+            getAbsolutePath: () => workspaceDir
+          },
+          projects: []
+        }
+      })
+      const plugin = createMockOutputPlugin('MockOutputPlugin', [], {
+        delete: [{kind: 'directory', path: symlinkPath}]
+      })
+
+      const result = await collectDeletionTargets([plugin], ctx)
+
+      expect(result.dirsToDelete).toEqual([])
+      expect(result.violations).toEqual([expect.objectContaining({
+        targetPath: path.resolve(symlinkPath),
+        protection: 'exact'
+      })])
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
   })
 })

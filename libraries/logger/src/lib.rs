@@ -7,6 +7,7 @@
 //! This logger is designed to be consumed by both CLI (human-readable with colors)
 //! and GUI (parsed as JSON after stripping ANSI codes).
 
+use chrono::{Local, Timelike};
 use std::sync::atomic::{AtomicU8, Ordering};
 
 use serde::Serialize;
@@ -200,52 +201,15 @@ fn to_colored_json(val: &Value) -> String {
 // ---------------------------------------------------------------------------
 
 #[allow(dead_code)]
-fn get_timestamp() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let total_ms = now.as_millis();
-    let ms = (total_ms % 1000) as u32;
-    let total_secs = (total_ms / 1000) as u64;
-    let secs = (total_secs % 60) as u32;
-    let total_mins = total_secs / 60;
-    let mins = (total_mins % 60) as u32;
-    let hours = ((total_mins / 60) % 24) as u32;
-
-    format!("{:02}:{:02}:{:02}.{:03}", hours, mins, secs, ms)
-}
-
-#[cfg(windows)]
-fn get_local_timestamp() -> String {
-    #[repr(C)]
-    struct SystemTime {
-        w_year: u16,
-        w_month: u16,
-        w_day_of_week: u16,
-        w_day: u16,
-        w_hour: u16,
-        w_minute: u16,
-        w_second: u16,
-        w_milliseconds: u16,
-    }
-    unsafe extern "system" {
-        fn GetLocalTime(lp_system_time: *mut SystemTime);
-    }
-    let mut st = SystemTime {
-        w_year: 0, w_month: 0, w_day_of_week: 0, w_day: 0,
-        w_hour: 0, w_minute: 0, w_second: 0, w_milliseconds: 0,
-    };
-    unsafe { GetLocalTime(&mut st); }
-    format!("{:02}:{:02}:{:02}.{:03}", st.w_hour, st.w_minute, st.w_second, st.w_milliseconds)
-}
-
-#[cfg(not(windows))]
-fn get_local_timestamp() -> String {
-    get_timestamp()
-}
-
 fn timestamp() -> String {
-    get_local_timestamp()
+    let now = Local::now();
+    format!(
+        "{:02}:{:02}:{:02}.{:03}",
+        now.hour(),
+        now.minute(),
+        now.second(),
+        now.timestamp_subsec_millis()
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -261,22 +225,7 @@ fn format_log(
     let ts = timestamp();
     let color_fn = level.color_fn();
 
-    let payload = match meta {
-        Some(meta_val) if meta_val.is_object() && !meta_val.as_object().unwrap().is_empty() => {
-            let msg_str = match message {
-                Value::String(s) => s.clone(),
-                _ => String::new(),
-            };
-            if msg_str.is_empty() {
-                meta_val.clone()
-            } else {
-                let mut map = serde_json::Map::new();
-                map.insert(msg_str, meta_val.clone());
-                Value::Object(map)
-            }
-        }
-        _ => message.clone(),
-    };
+    let payload = build_payload(message, meta);
 
     let record = LogRecord {
         meta: (ts.clone(), level.as_str().to_string(), namespace.to_string()),
@@ -303,6 +252,36 @@ fn format_log(
     }
 
     record
+}
+
+fn build_payload(message: &Value, meta: Option<&Value>) -> Value {
+    let Some(meta_val) = meta else {
+        return message.clone();
+    };
+
+    if meta_val.as_object().is_some_and(|object| object.is_empty()) {
+        return message.clone();
+    }
+
+    let message_str = match message {
+        Value::String(s) => s.as_str(),
+        _ => "",
+    };
+
+    if message_str.is_empty() {
+        return meta_val.clone();
+    }
+
+    if meta_val.is_object() {
+        let mut map = serde_json::Map::new();
+        map.insert(message_str.to_string(), meta_val.clone());
+        return Value::Object(map);
+    }
+
+    let mut map = serde_json::Map::new();
+    map.insert("message".to_string(), Value::String(message_str.to_string()));
+    map.insert("meta".to_string(), meta_val.clone());
+    Value::Object(map)
 }
 
 // ---------------------------------------------------------------------------
@@ -405,12 +384,28 @@ macro_rules! log_debug {
 
 #[cfg(feature = "napi")]
 mod napi_binding {
+    use super::{
+        LogLevel, Logger, create_logger as core_create_logger, get_global_log_level as core_get_global,
+        set_global_log_level as core_set_global,
+    };
     use napi_derive::napi;
     use serde_json::Value;
-    use super::{LogLevel, Logger, create_logger as core_create_logger, set_global_log_level as core_set_global, get_global_log_level as core_get_global};
 
     fn parse_level(s: &str) -> Option<LogLevel> {
         LogLevel::from_str_loose(s)
+    }
+
+    fn parse_meta(meta_json: Option<String>) -> Option<Value> {
+        let meta = meta_json?;
+        match serde_json::from_str(&meta) {
+            Ok(value) => Some(value),
+            Err(_) => Some(Value::String(meta)),
+        }
+    }
+
+    fn parse_level_or_error(level: &str) -> napi::Result<LogLevel> {
+        parse_level(level)
+            .ok_or_else(|| napi::Error::from_reason(format!("Invalid log level: {level}")))
     }
 
     #[napi]
@@ -421,85 +416,35 @@ mod napi_binding {
     #[napi]
     impl NapiLogger {
         #[napi]
-        pub fn error(&self, message: String) {
-            self.inner.error(Value::String(message), None);
-        }
-
-        #[napi]
-        pub fn error_with_meta(&self, message: String, meta: String) {
-            let meta_val: Value = serde_json::from_str(&meta).unwrap_or(Value::String(meta));
-            self.inner.error(Value::String(message), Some(meta_val));
-        }
-
-        #[napi]
-        pub fn warn(&self, message: String) {
-            self.inner.warn(Value::String(message), None);
-        }
-
-        #[napi]
-        pub fn warn_with_meta(&self, message: String, meta: String) {
-            let meta_val: Value = serde_json::from_str(&meta).unwrap_or(Value::String(meta));
-            self.inner.warn(Value::String(message), Some(meta_val));
-        }
-
-        #[napi]
-        pub fn info(&self, message: String) {
-            self.inner.info(Value::String(message), None);
-        }
-
-        #[napi]
-        pub fn info_with_meta(&self, message: String, meta: String) {
-            let meta_val: Value = serde_json::from_str(&meta).unwrap_or(Value::String(meta));
-            self.inner.info(Value::String(message), Some(meta_val));
-        }
-
-        #[napi]
-        pub fn debug(&self, message: String) {
-            self.inner.debug(Value::String(message), None);
-        }
-
-        #[napi]
-        pub fn debug_with_meta(&self, message: String, meta: String) {
-            let meta_val: Value = serde_json::from_str(&meta).unwrap_or(Value::String(meta));
-            self.inner.debug(Value::String(message), Some(meta_val));
-        }
-
-        #[napi]
-        pub fn trace(&self, message: String) {
-            self.inner.trace(Value::String(message), None);
-        }
-
-        #[napi]
-        pub fn trace_with_meta(&self, message: String, meta: String) {
-            let meta_val: Value = serde_json::from_str(&meta).unwrap_or(Value::String(meta));
-            self.inner.trace(Value::String(message), Some(meta_val));
-        }
-
-        #[napi]
-        pub fn fatal(&self, message: String) {
-            self.inner.fatal(Value::String(message), None);
-        }
-
-        #[napi]
-        pub fn fatal_with_meta(&self, message: String, meta: String) {
-            let meta_val: Value = serde_json::from_str(&meta).unwrap_or(Value::String(meta));
-            self.inner.fatal(Value::String(message), Some(meta_val));
+        pub fn log(
+            &self,
+            level: String,
+            message: String,
+            meta_json: Option<String>,
+        ) -> napi::Result<()> {
+            let level = parse_level_or_error(&level)?;
+            let meta = parse_meta(meta_json);
+            self.inner.log(level, Value::String(message), meta);
+            Ok(())
         }
     }
 
     #[napi]
-    pub fn create_logger(namespace: String, level: Option<String>) -> NapiLogger {
-        let log_level = level.as_deref().and_then(parse_level);
-        NapiLogger {
+    pub fn create_logger(namespace: String, level: Option<String>) -> napi::Result<NapiLogger> {
+        let log_level = match level {
+            Some(level) => Some(parse_level_or_error(&level)?),
+            None => None,
+        };
+
+        Ok(NapiLogger {
             inner: core_create_logger(&namespace, log_level),
-        }
+        })
     }
 
     #[napi]
-    pub fn set_global_log_level(level: String) {
-        if let Some(l) = parse_level(&level) {
-            core_set_global(l);
-        }
+    pub fn set_global_log_level(level: String) -> napi::Result<()> {
+        core_set_global(parse_level_or_error(&level)?);
+        Ok(())
     }
 
     #[napi]
@@ -549,6 +494,24 @@ mod tests {
         let logger = create_logger("test", Some(LogLevel::Warn));
         assert!(logger.log(LogLevel::Info, Value::String("hi".into()), None).is_none());
         assert!(logger.log(LogLevel::Error, Value::String("err".into()), None).is_some());
+    }
+
+    #[test]
+    fn test_build_payload_uses_meta_when_message_is_empty() {
+        let payload = build_payload(&Value::String(String::new()), Some(&serde_json::json!([1, 2, 3])));
+        assert_eq!(payload, serde_json::json!([1, 2, 3]));
+    }
+
+    #[test]
+    fn test_build_payload_wraps_non_object_meta_for_named_message() {
+        let payload = build_payload(&Value::String("hello".into()), Some(&serde_json::json!(["x"])));
+        assert_eq!(
+            payload,
+            serde_json::json!({
+                "message": "hello",
+                "meta": ["x"],
+            })
+        );
     }
 
     #[test]

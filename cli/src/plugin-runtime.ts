@@ -22,7 +22,6 @@ import {DryRunOutputCommand} from '@/commands/DryRunOutputCommand'
 import {ExecuteCommand} from '@/commands/ExecuteCommand'
 import {JsonOutputCommand} from '@/commands/JsonOutputCommand'
 import {PluginsCommand} from '@/commands/PluginsCommand'
-import userPluginConfigPromise from './plugin.config'
 import {createLogger, setGlobalLogLevel} from './plugins/plugin-core'
 
 /**
@@ -62,6 +61,7 @@ async function main(): Promise<void> {
 
   if (json) setGlobalLogLevel('silent')
 
+  const {default: userPluginConfigPromise} = await import('./plugin.config')
   const userPluginConfig: PipelineConfig = await userPluginConfigPromise
 
   let command = resolveRuntimeCommand(subcommand, dryRun)
@@ -102,11 +102,28 @@ async function main(): Promise<void> {
     createWriteContext
   }
 
-  await command.execute(commandCtx)
+  const result = await command.execute(commandCtx)
+  if (!result.success) process.exit(1)
+}
+
+function writeJsonFailure(errorMessage: string): void {
+  process.stdout.write(`${JSON.stringify({
+    success: false,
+    filesAffected: 0,
+    dirsAffected: 0,
+    message: errorMessage,
+    pluginResults: [],
+    errors: [errorMessage]
+  })}\n`)
 }
 
 main().catch((e: unknown) => {
   const errorMessage = e instanceof Error ? e.message : String(e)
+  const {json} = parseRuntimeArgs(process.argv)
+  if (json) {
+    writeJsonFailure(errorMessage)
+    process.exit(1)
+  }
   const logger = createLogger('plugin-runtime', 'error')
   logger.error('unhandled error', {error: errorMessage})
   process.exit(1)

@@ -14,6 +14,15 @@ export class CleanCommand implements Command {
     const cleanCtx = createCleanContext(false)
     const result = await performCleanup(outputPlugins, cleanCtx, logger)
 
+    if (result.violations.length > 0) {
+      return {
+        success: false,
+        filesAffected: 0,
+        dirsAffected: 0,
+        ...result.message != null ? {message: result.message} : {}
+      }
+    }
+
     logger.info('clean complete', {deletedFiles: result.deletedFiles, deletedDirs: result.deletedDirs})
 
     return {

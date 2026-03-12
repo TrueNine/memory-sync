@@ -1,6 +1,7 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as path from 'node:path'
 import {collectAllPluginOutputs} from '../plugins/plugin-core'
+import {logProtectedDeletionGuardError} from '../ProtectedDeletionGuard'
 import {collectDeletionTargets} from './CleanupUtils'
 
 /**
@@ -26,10 +27,18 @@ export class DryRunCleanCommand implements Command {
       globalFiles: outputs.globalFiles.length
     })
 
-    const {filesToDelete, dirsToDelete, protectedFiles, skippedDangerousPaths, excludedScanGlobs} = await collectDeletionTargets(outputPlugins, cleanCtx)
+    const {filesToDelete, dirsToDelete, violations, excludedScanGlobs} = await collectDeletionTargets(outputPlugins, cleanCtx)
 
-    this.logProtectedFiles(protectedFiles, logger)
-    this.logDangerousSkippedPaths(skippedDangerousPaths, logger)
+    if (violations.length > 0) {
+      logProtectedDeletionGuardError(logger, 'dry-run-cleanup', violations)
+      return {
+        success: false,
+        filesAffected: 0,
+        dirsAffected: 0,
+        message: `Protected deletion guard blocked cleanup for ${violations.length} path(s)`
+      }
+    }
+
     this.logDryRunFiles(filesToDelete, logger)
     this.logDryRunDirectories(dirsToDelete, logger)
 
@@ -37,8 +46,7 @@ export class DryRunCleanCommand implements Command {
       dryRun: true,
       filesAffected: filesToDelete.length,
       dirsAffected: dirsToDelete.length,
-      protectedFiles: protectedFiles.length,
-      skippedDangerousPaths: skippedDangerousPaths.length,
+      violations: 0,
       excludedScanGlobs
     })
 
@@ -47,20 +55,6 @@ export class DryRunCleanCommand implements Command {
       filesAffected: filesToDelete.length,
       dirsAffected: dirsToDelete.length,
       message: 'Dry-run complete, no files were deleted'
-    }
-  }
-
-  private logProtectedFiles(files: string[], logger: CommandContext['logger']): void {
-    for (const file of files) {
-      const resolved = path.isAbsolute(file) ? file : path.resolve(file)
-      logger.info('protected cleanup path', {path: resolved, dryRun: true, protected: true})
-    }
-  }
-
-  private logDangerousSkippedPaths(paths: string[], logger: CommandContext['logger']): void {
-    for (const dangerousPath of paths) {
-      const resolved = path.isAbsolute(dangerousPath) ? dangerousPath : path.resolve(dangerousPath)
-      logger.warn('dangerous cleanup path skipped', {path: resolved, dryRun: true, protected: true})
     }
   }
 

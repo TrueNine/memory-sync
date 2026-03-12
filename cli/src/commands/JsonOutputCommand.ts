@@ -42,7 +42,7 @@ export function toJsonCommandResult(result: CommandResult): JsonCommandResult {
     dirsAffected: result.dirsAffected,
     ...result.message != null && {message: result.message},
     pluginResults: [],
-    errors: []
+    errors: result.success || result.message == null ? [] : [result.message]
   }
   return json
 }
