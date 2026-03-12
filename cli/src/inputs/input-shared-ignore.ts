@@ -1,15 +1,6 @@
 import type {AIAgentIgnoreConfigFile, InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
-import {AbstractInputPlugin, AINDEX_FILE_NAMES} from '../plugins/plugin-core'
-
-const IGNORE_FILE_NAMES: readonly string[] = [
-  AINDEX_FILE_NAMES.QODER_IGNORE,
-  AINDEX_FILE_NAMES.CURSOR_IGNORE,
-  AINDEX_FILE_NAMES.WARP_INDEX_IGNORE,
-  AINDEX_FILE_NAMES.AI_IGNORE,
-  AINDEX_FILE_NAMES.CODEIUM_IGNORE,
-  '.kiroignore',
-  '.traeignore'
-] as const
+import {AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS, resolvePublicDefinitionPath} from '../public-config-paths'
+import {AbstractInputPlugin} from '../plugins/plugin-core'
 
 export class AIAgentIgnoreInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -20,8 +11,8 @@ export class AIAgentIgnoreInputPlugin extends AbstractInputPlugin {
     const {aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
     const results: AIAgentIgnoreConfigFile[] = []
 
-    for (const fileName of IGNORE_FILE_NAMES) {
-      const filePath = ctx.path.join(aindexDir, fileName)
+    for (const fileName of AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS) {
+      const filePath = resolvePublicDefinitionPath(aindexDir, fileName)
       if (!ctx.fs.existsSync(filePath)) {
         this.log.debug({action: 'collect', message: 'Ignore file not found', path: filePath})
         continue

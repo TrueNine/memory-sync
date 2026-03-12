@@ -4,6 +4,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
+import {collectKnownPublicConfigDefinitionPaths} from './public-config-paths'
 
 interface DirPathLike {
   readonly path: string
@@ -66,22 +67,6 @@ export class ProtectedDeletionGuardError extends Error {
     this.violations = violations
   }
 }
-
-const KNOWN_AINDEX_INPUT_CONFIG_RELATIVE_PATHS = [
-  '.editorconfig',
-  '.vscode/settings.json',
-  '.vscode/extensions.json',
-  '.idea/codeStyles/Project.xml',
-  '.idea/codeStyles/codeStyleConfig.xml',
-  '.idea/.gitignore',
-  '.qoderignore',
-  '.cursorignore',
-  '.warpindexignore',
-  '.aiignore',
-  '.codeiumignore',
-  '.kiroignore',
-  '.traeignore'
-] as const
 
 const CONFIGURED_AINDEX_DIRECTORY_KEYS = [
   'skills',
@@ -323,7 +308,7 @@ function collectResolvedAindexRules(aindexDir: string): ProtectedPathRule[] {
 }
 
 export function collectKnownAindexInputConfigPaths(aindexDir: string): string[] {
-  return KNOWN_AINDEX_INPUT_CONFIG_RELATIVE_PATHS.map(relativePath => path.join(aindexDir, relativePath))
+  return collectKnownPublicConfigDefinitionPaths(aindexDir)
 }
 
 export function collectConfiguredAindexInputRules(

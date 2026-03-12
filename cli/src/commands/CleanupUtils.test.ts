@@ -66,8 +66,8 @@ function createMockOutputPlugin(name: string, outputs: readonly string[], cleanu
 
 describe('collectDeletionTargets', () => {
   it('throws when an output path matches a protected input source file', async () => {
-    const editorSource = path.resolve('tmp-aindex/.editorconfig')
-    const ignoreSource = path.resolve('tmp-aindex/.cursorignore')
+    const editorSource = path.resolve('tmp-aindex/public/.editorconfig')
+    const ignoreSource = path.resolve('tmp-aindex/public/.cursorignore')
 
     const ctx = createCleanContext({
       editorConfigFiles: [{
@@ -107,7 +107,7 @@ describe('collectDeletionTargets', () => {
 
   it('throws when an output path matches a known aindex protected config file', async () => {
     const aindexDir = path.resolve('tmp-aindex')
-    const editorConfigOutput = path.resolve(aindexDir, '.editorconfig')
+    const editorConfigOutput = path.resolve(aindexDir, 'public', '.editorconfig')
     const ctx = createCleanContext({aindexDir})
     const plugin = createMockOutputPlugin('MockOutputPlugin', [editorConfigOutput])
 
