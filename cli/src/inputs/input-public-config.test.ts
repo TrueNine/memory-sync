@@ -54,9 +54,7 @@ describe('public config input plugins', () => {
       writePublicDefinition(tempWorkspace, '.idea/codeStyles/Project.xml', '<project />\n')
       writePublicDefinition(tempWorkspace, '.idea/codeStyles/codeStyleConfig.xml', '<component />\n')
 
-      for (const fileName of AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS) {
-        writePublicDefinition(tempWorkspace, fileName, `${fileName}\n`)
-      }
+      for (const fileName of AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS) writePublicDefinition(tempWorkspace, fileName, `${fileName}\n`)
 
       const ctx = createContext(tempWorkspace)
       const gitIgnore = new GitIgnoreInputPlugin().collect(ctx)
@@ -115,10 +113,10 @@ describe('public config input plugins', () => {
 
       expect(new GitIgnoreInputPlugin().collect(ctx).globalGitIgnore).toBeUndefined()
       expect(new GitExcludeInputPlugin().collect(ctx).shadowGitExclude).toBeUndefined()
-      expect((new EditorConfigInputPlugin().collect(ctx).editorConfigFiles ?? [])).toHaveLength(0)
-      expect((new VSCodeConfigInputPlugin().collect(ctx).vscodeConfigFiles ?? [])).toHaveLength(0)
-      expect((new JetBrainsConfigInputPlugin().collect(ctx).jetbrainsConfigFiles ?? [])).toHaveLength(0)
-      expect((new AIAgentIgnoreInputPlugin().collect(ctx).aiAgentIgnoreConfigFiles ?? [])).toHaveLength(0)
+      expect(new EditorConfigInputPlugin().collect(ctx).editorConfigFiles ?? []).toHaveLength(0)
+      expect(new VSCodeConfigInputPlugin().collect(ctx).vscodeConfigFiles ?? []).toHaveLength(0)
+      expect(new JetBrainsConfigInputPlugin().collect(ctx).jetbrainsConfigFiles ?? []).toHaveLength(0)
+      expect(new AIAgentIgnoreInputPlugin().collect(ctx).aiAgentIgnoreConfigFiles ?? []).toHaveLength(0)
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

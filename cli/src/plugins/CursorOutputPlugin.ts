@@ -1,5 +1,8 @@
 import type {
   CommandPrompt,
+  OutputCleanContext,
+  OutputCleanupDeclarations,
+  OutputCleanupPathDeclaration,
   OutputFileDeclaration,
   OutputWriteContext,
   RulePrompt,
@@ -101,6 +104,14 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
         }
       }
     })
+  }
+
+  override async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
+    const declarations = await super.declareCleanupPaths(ctx)
+    return {
+      ...declarations,
+      delete: this.expandCursorSkillCleanupTargets(ctx, declarations.delete ?? [])
+    }
   }
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
@@ -299,6 +310,64 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
   }
 
   private isPreservedSkill(name: string): boolean { return PRESERVED_SKILLS.has(name) }
+
+  private expandCursorSkillCleanupTargets(
+    ctx: OutputCleanContext,
+    declarations: readonly OutputCleanupPathDeclaration[]
+  ): OutputCleanupPathDeclaration[] {
+    const expanded: OutputCleanupPathDeclaration[] = []
+
+    for (const declaration of declarations) {
+      if (!this.isCursorSkillCleanupGlob(declaration)) {
+        expanded.push(declaration)
+        continue
+      }
+
+      for (const matchedTarget of this.listCursorSkillCleanupTargets(ctx, declaration.path)) {
+        expanded.push({
+          path: matchedTarget.path,
+          kind: matchedTarget.kind,
+          ...declaration.scope != null ? {scope: declaration.scope} : {},
+          ...declaration.label != null ? {label: declaration.label} : {}
+        })
+      }
+    }
+
+    return expanded
+  }
+
+  private isCursorSkillCleanupGlob(declaration: OutputCleanupPathDeclaration): boolean {
+    if (declaration.kind !== 'glob') return false
+
+    const skillsGlob = this.joinPath(this.getGlobalConfigDir(), SKILLS_CURSOR_SUBDIR, '*')
+      .replaceAll('\\', '/')
+
+    return declaration.path.replaceAll('\\', '/') === skillsGlob
+  }
+
+  private listCursorSkillCleanupTargets(
+    ctx: OutputCleanContext,
+    pattern: string
+  ): {path: string, kind: 'file' | 'directory'}[] {
+    const matchedPaths = ctx.glob.sync(pattern.replaceAll('\\', '/'), {
+      onlyFiles: false,
+      dot: true,
+      absolute: true,
+      followSymbolicLinks: false
+    })
+
+    return matchedPaths.flatMap((matchedPath): {path: string, kind: 'file' | 'directory'}[] => {
+      if (this.isPreservedSkill(path.basename(matchedPath))) return []
+
+      try {
+        const stat = ctx.fs.lstatSync(matchedPath)
+        return [{path: matchedPath, kind: stat.isDirectory() ? 'directory' : 'file'}]
+      }
+      catch {
+        return []
+      }
+    })
+  }
 
   protected buildRuleMdcContent(rule: RulePrompt): string {
     const fmData: Record<string, unknown> = {alwaysApply: false, globs: rule.globs.length > 0 ? rule.globs.join(', ') : ''}

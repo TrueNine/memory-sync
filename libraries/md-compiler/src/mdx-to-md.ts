@@ -63,18 +63,16 @@ export async function mdxToMd(
   const metadataOptions
     = options?.extractMetadata === true
       ? {
-          ...options,
-          extractMetadata: true
-        } satisfies MdxToMdOptions & {extractMetadata: true}
+        ...options,
+        extractMetadata: true
+      } satisfies MdxToMdOptions & {extractMetadata: true}
       : null
 
   const nativeResult = tryNativeCompile(content, options)
   if (nativeResult != null) {
     if (metadataOptions != null) {
-      const metadata = nativeResult.metadata
-      if (metadata == null) {
-        return fallbackMdxToMd(content, metadataOptions)
-      }
+      const {metadata} = nativeResult
+      if (metadata == null) return fallbackMdxToMd(content, metadataOptions)
 
       return {
         content: nativeResult.content,
@@ -85,13 +83,9 @@ export async function mdxToMd(
     return nativeResult.content
   }
 
-  if (metadataOptions != null) {
-    return fallbackMdxToMd(content, metadataOptions)
-  }
+  if (metadataOptions != null) return fallbackMdxToMd(content, metadataOptions)
 
-  if (options == null) {
-    return fallbackMdxToMd(content)
-  }
+  if (options == null) return fallbackMdxToMd(content)
 
   const fallbackOptions: MdxToMdOptions & {extractMetadata: false} = {
     ...options,
@@ -105,16 +99,12 @@ function tryNativeCompile(
   content: string,
   options?: MdxToMdOptions
 ): NativeCompileResult | null {
-  if (napiBinding == null) {
-    return null
-  }
+  if (napiBinding == null) return null
 
   try {
     const raw = napiBinding.compileMdxToMd(content, serializeOptions(options))
     const result = JSON.parse(raw) as NativeCompileResult
-    if (options?.extractMetadata === true && result.metadata == null) {
-      return null
-    }
+    if (options?.extractMetadata === true && result.metadata == null) return null
     return result
   }
   catch {
@@ -123,9 +113,7 @@ function tryNativeCompile(
 }
 
 function serializeOptions(options?: MdxToMdOptions): string | null {
-  if (options == null) {
-    return null
-  }
+  if (options == null) return null
 
   const normalized = {
     ...options,

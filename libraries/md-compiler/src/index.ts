@@ -25,12 +25,9 @@ export {
   hasJsxInEstree
 } from './compiler/jsx-expression-eval'
 export {
-  mdxToMd
-} from './mdx-to-md'
-
-export {
   parseMdx
 } from './compiler/parser'
+
 export type {
   ComponentHandler,
   EvaluationScope,
@@ -50,3 +47,6 @@ export {
   MdLineHandler,
   registerBuiltInComponents
 } from './components'
+export {
+  mdxToMd
+} from './mdx-to-md'

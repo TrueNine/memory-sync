@@ -1,7 +1,8 @@
-import * as path from 'node:path'
+import type {IDEKind} from './plugins/plugin-core/enums'
 import type {ProjectIDEConfigFile} from './plugins/plugin-core/InputTypes'
+import * as path from 'node:path'
 import {AINDEX_FILE_NAMES} from './plugins/plugin-core/AindexTypes'
-import {FilePathKind, IDEKind} from './plugins/plugin-core/enums'
+import {FilePathKind} from './plugins/plugin-core/enums'
 
 export const PUBLIC_CONFIG_DEFINITION_DIR = 'public'
 
@@ -33,9 +34,8 @@ export function resolvePublicDefinitionPath(aindexDir: string, targetRelativePat
 }
 
 export function collectKnownPublicConfigDefinitionPaths(aindexDir: string): string[] {
-  return KNOWN_PUBLIC_CONFIG_TARGET_RELATIVE_PATHS.map(targetRelativePath => (
-    resolvePublicDefinitionPath(aindexDir, targetRelativePath)
-  ))
+  return KNOWN_PUBLIC_CONFIG_TARGET_RELATIVE_PATHS.map(targetRelativePath =>
+    resolvePublicDefinitionPath(aindexDir, targetRelativePath))
 }
 
 export function readPublicIdeConfigDefinitionFile<T extends IDEKind>(

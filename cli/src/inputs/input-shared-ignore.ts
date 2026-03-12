@@ -1,6 +1,6 @@
 import type {AIAgentIgnoreConfigFile, InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
-import {AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS, resolvePublicDefinitionPath} from '../public-config-paths'
 import {AbstractInputPlugin} from '../plugins/plugin-core'
+import {AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS, resolvePublicDefinitionPath} from '../public-config-paths'
 
 export class AIAgentIgnoreInputPlugin extends AbstractInputPlugin {
   constructor() {

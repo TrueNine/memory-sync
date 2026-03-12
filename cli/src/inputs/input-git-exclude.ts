@@ -1,6 +1,6 @@
 import type {InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
-import {PUBLIC_GIT_EXCLUDE_TARGET_RELATIVE_PATH, resolvePublicDefinitionPath} from '../public-config-paths'
 import {AbstractInputPlugin} from '../plugins/plugin-core'
+import {PUBLIC_GIT_EXCLUDE_TARGET_RELATIVE_PATH, resolvePublicDefinitionPath} from '../public-config-paths'
 
 export class GitExcludeInputPlugin extends AbstractInputPlugin {
   constructor() {

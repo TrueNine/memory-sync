@@ -2,9 +2,9 @@ import type {OutputWriteContext, Project, ProjectIDEConfigFile} from './plugin-c
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
-import {createLogger, FilePathKind, IDEKind} from './plugin-core'
 import {EditorConfigOutputPlugin} from './EditorConfigOutputPlugin'
 import {JetBrainsIDECodeStyleConfigOutputPlugin} from './JetBrainsIDECodeStyleConfigOutputPlugin'
+import {createLogger, FilePathKind, IDEKind} from './plugin-core'
 import {VisualStudioCodeIDEConfigOutputPlugin} from './VisualStudioCodeIDEConfigOutputPlugin'
 
 function createProject(workspaceBase: string, name: string, promptSource = false): Project {

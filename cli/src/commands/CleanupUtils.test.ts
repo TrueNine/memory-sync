@@ -500,4 +500,34 @@ describe('collectDeletionTargets', () => {
       protectedPath: path.resolve(recursiveProtectedDir)
     })])
   })
+
+  it('skips delete glob matches covered by excludeScanGlobs while still deleting other sibling directories', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-cleanup-exclude-glob-'))
+    const skillsDir = path.join(tempDir, '.cursor', 'skills-cursor')
+    const preservedDir = path.join(skillsDir, 'create-rule')
+    const staleDir = path.join(skillsDir, 'legacy-skill')
+
+    fs.mkdirSync(preservedDir, {recursive: true})
+    fs.mkdirSync(staleDir, {recursive: true})
+    fs.writeFileSync(path.join(preservedDir, 'SKILL.md'), '# preserved', 'utf8')
+    fs.writeFileSync(path.join(staleDir, 'SKILL.md'), '# stale', 'utf8')
+
+    try {
+      const ctx = createCleanContext()
+      const plugin = createMockOutputPlugin('MockOutputPlugin', [], {
+        delete: [{kind: 'glob', path: path.join(skillsDir, '*')}],
+        protect: [{kind: 'directory', path: preservedDir}],
+        excludeScanGlobs: [preservedDir, path.join(preservedDir, '**')]
+      })
+
+      const result = await collectDeletionTargets([plugin], ctx)
+
+      expect(result.dirsToDelete).toEqual([path.resolve(staleDir)])
+      expect(result.filesToDelete).toEqual([])
+      expect(result.violations).toEqual([])
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
 })
