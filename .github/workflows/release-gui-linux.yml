@@ -21,12 +21,12 @@ jobs:
 
       - uses: ./.github/actions/setup-tauri
         with:
+          signing-private-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           version: ${{ inputs.version }}
 
       - name: Build GUI
         working-directory: ./gui
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm tauri build
 
