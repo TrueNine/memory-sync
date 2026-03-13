@@ -224,6 +224,9 @@ importers:
       '@clack/prompts':
         specifier: 'catalog:'
         version: 1.0.1
+      '@truenine/script-runtime':
+        specifier: workspace:*
+        version: link:../libraries/script-runtime
       fast-glob:
         specifier: 'catalog:'
         version: 3.3.3
@@ -470,6 +473,37 @@ importers:
       '@types/mdast':
         specifier: 'catalog:'
         version: 4.0.4
+      npm-run-all2:
+        specifier: 'catalog:'
+        version: 8.0.4
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.21.0-beta.2(synckit@0.11.12)(typescript@5.9.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+
+  libraries/script-runtime:
+    dependencies:
+      jiti:
+        specifier: 2.6.1
+        version: 2.6.1
+    devDependencies:
+      '@napi-rs/cli':
+        specifier: ^3.5.1
+        version: 3.5.1(@emnapi/runtime@1.8.1)(@types/node@25.3.3)
+      '@truenine/eslint10-config':
+        specifier: 'catalog:'
+        version: 2026.10209.11105(57cd6091d29b00e41b508df9848011ef)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.3.3
+      eslint:
+        specifier: 'catalog:'
+        version: 10.0.2(jiti@2.6.1)
       npm-run-all2:
         specifier: 'catalog:'
         version: 8.0.4

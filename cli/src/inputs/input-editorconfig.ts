@@ -9,10 +9,13 @@ export class EditorConfigInputPlugin extends AbstractInputPlugin {
 
   collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
     const {userConfigOptions, fs} = ctx
-    const {aindexDir} = this.resolveBasePaths(userConfigOptions)
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(userConfigOptions)
 
     const editorConfigFiles: ProjectIDEConfigFile<IDEKind.EditorConfig>[] = []
-    const file = readPublicIdeConfigDefinitionFile(IDEKind.EditorConfig, '.editorconfig', aindexDir, fs)
+    const file = readPublicIdeConfigDefinitionFile(IDEKind.EditorConfig, '.editorconfig', aindexDir, fs, {
+      command: ctx.runtimeCommand,
+      workspaceDir
+    })
     if (file != null) editorConfigFiles.push(file)
 
     return {editorConfigFiles}

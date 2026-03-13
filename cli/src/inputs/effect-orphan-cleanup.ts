@@ -35,7 +35,9 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
       workspaceDir: ctx.workspaceDir,
       aindexDir: ctx.aindexDir,
       rules: [
-        ...collectConfiguredAindexInputRules(ctx.userConfigOptions, ctx.aindexDir),
+        ...collectConfiguredAindexInputRules(ctx.userConfigOptions, ctx.aindexDir, {
+          workspaceDir: ctx.workspaceDir
+        }),
         ...(ctx.userConfigOptions.cleanupProtection?.rules ?? []).map(rule => ({
           path: rule.path,
           protectionMode: rule.protectionMode,

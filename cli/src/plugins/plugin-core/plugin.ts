@@ -44,6 +44,7 @@ export interface PluginContext {
 export interface InputPluginContext extends PluginContext {
   readonly userConfigOptions: Required<PluginOptions>
   readonly dependencyContext: Partial<InputCollectedContext>
+  readonly runtimeCommand?: 'execute' | 'dry-run' | 'clean' | 'plugins'
 
   readonly globalScope?: MdxGlobalScope
 
@@ -250,6 +251,10 @@ export interface OutputFileDeclaration {
   readonly scope?: OutputDeclarationScope
   /** Plugin-defined source descriptor for content conversion */
   readonly source: unknown
+  /** Optional existing-file policy */
+  readonly ifExists?: 'overwrite' | 'skip' | 'error'
+  /** Optional symlink target for declarative link creation */
+  readonly symlinkTarget?: string
   /** Optional label for logging */
   readonly label?: string
 }
@@ -393,11 +398,27 @@ export async function executeDeclarativeWriteOutputs(
       }
 
       try {
-        const content = await plugin.convertContent(declaration, ctx)
         const parentDir = ctx.path.dirname(declaration.path)
         ctx.fs.mkdirSync(parentDir, {recursive: true})
-        if (isNodeBufferLike(content)) ctx.fs.writeFileSync(declaration.path, content)
-        else ctx.fs.writeFileSync(declaration.path, content, 'utf8')
+
+        if (declaration.ifExists === 'skip' && ctx.fs.existsSync(declaration.path)) {
+          fileResults.push({path: declaration.path, success: true, skipped: true})
+          continue
+        }
+
+        if (declaration.ifExists === 'error' && ctx.fs.existsSync(declaration.path)) throw new Error(`Refusing to overwrite existing file: ${declaration.path}`)
+
+        if (declaration.symlinkTarget != null) {
+          if (ctx.fs.existsSync(declaration.path)) ctx.fs.rmSync(declaration.path, {force: true, recursive: false})
+          ctx.fs.symlinkSync(declaration.symlinkTarget, declaration.path, 'file')
+          fileResults.push({path: declaration.path, success: true})
+          continue
+        }
+
+        const content = await plugin.convertContent(declaration, ctx)
+        isNodeBufferLike(content)
+          ? ctx.fs.writeFileSync(declaration.path, content)
+          : ctx.fs.writeFileSync(declaration.path, content, 'utf8')
         fileResults.push({path: declaration.path, success: true})
       }
       catch (error) {

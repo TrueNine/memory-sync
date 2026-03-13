@@ -118,7 +118,24 @@ for (const pkg of [...packages, ...libraryPackages, ...packagesPackages, ...cliN
   }
 }
 
-// Sync Cargo.toml version
+// Sync root workspace Cargo.toml version
+const workspaceCargoTomlPath = resolve('Cargo.toml')
+try {
+  const cargoContent = readFileSync(workspaceCargoTomlPath, 'utf-8')
+  const cargoUpdated = cargoContent.replace(
+    /(\[workspace\.package\][\s\S]*?^version = ")([^"]+)(")/m,
+    `$1${rootVersion}$3`,
+  )
+  if (cargoContent !== cargoUpdated) {
+    writeFileSync(workspaceCargoTomlPath, cargoUpdated, 'utf-8')
+    console.log(`  ✓ workspace Cargo.toml: version → ${rootVersion}`)
+    changed = true
+  }
+} catch {
+  console.log('⚠️ Cargo.toml not found, skipping')
+}
+
+// Sync GUI Cargo.toml version
 const cargoTomlPath = resolve('gui/src-tauri/Cargo.toml')
 try {
   const cargoContent = readFileSync(cargoTomlPath, 'utf-8')
@@ -172,6 +189,8 @@ if (changed) {
   console.log('\n📦 Versions synced, auto-staging changes...')
   try {
     const filesToStage = [
+      'package.json',
+      'Cargo.toml',
       'cli/package.json',
       'gui/package.json',
       'doc/package.json',
@@ -181,7 +200,7 @@ if (changed) {
       ...libraryPackages.map(p => p.path),
       ...packagesPackages.map(p => p.path),
       ...cliNpmPackages.map(p => p.path),
-    ]
+    ].filter(path => existsSync(resolve(path)))
     execSync(
       `git add ${filesToStage.join(' ')}`,
       { stdio: 'inherit' }

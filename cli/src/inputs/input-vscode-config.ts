@@ -9,13 +9,16 @@ export class VSCodeConfigInputPlugin extends AbstractInputPlugin {
 
   collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
     const {userConfigOptions, fs} = ctx
-    const {aindexDir} = this.resolveBasePaths(userConfigOptions)
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(userConfigOptions)
 
     const files = ['.vscode/settings.json', '.vscode/extensions.json']
     const vscodeConfigFiles: ProjectIDEConfigFile<IDEKind.VSCode>[] = []
 
     for (const relativePath of files) {
-      const file = readPublicIdeConfigDefinitionFile(IDEKind.VSCode, relativePath, aindexDir, fs)
+      const file = readPublicIdeConfigDefinitionFile(IDEKind.VSCode, relativePath, aindexDir, fs, {
+        command: ctx.runtimeCommand,
+        workspaceDir
+      })
       if (file != null) vscodeConfigFiles.push(file)
     }
 

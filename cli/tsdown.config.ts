@@ -50,6 +50,7 @@ const pluginAliases: Record<string, string> = {
 
 const noExternalDeps = [
   '@truenine/logger',
+  '@truenine/script-runtime',
   'fast-glob',
   '@truenine/desk-paths',
   '@truenine/md-compiler',
@@ -91,6 +92,26 @@ export default defineConfig([
     noExternal: noExternalDeps,
     format: ['esm'],
     minify: true,
+    dts: false,
+    define: {
+      __CLI_VERSION__: JSON.stringify(pkg.version),
+      __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
+      __KIRO_GLOBAL_POWERS_REGISTRY__: kiroGlobalPowersRegistry
+    }
+  },
+  {
+    entry: ['./src/script-runtime-worker.ts'],
+    platform: 'node',
+    sourcemap: false,
+    unbundle: false,
+    inlineOnly: false,
+    alias: {
+      '@': resolve('src'),
+      ...pluginAliases
+    },
+    noExternal: noExternalDeps,
+    format: ['esm'],
+    minify: false,
     dts: false,
     define: {
       __CLI_VERSION__: JSON.stringify(pkg.version),

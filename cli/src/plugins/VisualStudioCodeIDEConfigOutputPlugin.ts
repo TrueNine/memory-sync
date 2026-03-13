@@ -28,7 +28,7 @@ export class VisualStudioCodeIDEConfigOutputPlugin extends AbstractOutputPlugin 
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null || project.isPromptSourceProject === true) continue
+      if (projectDir == null) continue
 
       for (const config of vscodeConfigs) {
         const targetRelativePath = this.getTargetRelativePath(config)

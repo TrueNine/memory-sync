@@ -1,3 +1,4 @@
+import process from 'node:process'
 import {GenericSkillsOutputPlugin} from '@truenine/plugin-agentskills-compact'
 import {AgentsOutputPlugin} from '@truenine/plugin-agentsmd'
 import {ClaudeCodeCLIOutputPlugin} from '@truenine/plugin-claude-code-cli'
@@ -40,46 +41,49 @@ import {
 import {TraeCNIDEOutputPlugin} from '@/plugins/plugin-trae-cn-ide'
 
 export default defineConfig({
-  plugins: [
-    new AgentsOutputPlugin(),
-    new ClaudeCodeCLIOutputPlugin(),
-    new CodexCLIOutputPlugin(),
-    new JetBrainsAIAssistantCodexOutputPlugin(),
-    new DroidCLIOutputPlugin(),
-    new GeminiCLIOutputPlugin(),
-    new GenericSkillsOutputPlugin(),
-    new OpencodeCLIOutputPlugin(),
-    new QoderIDEPluginOutputPlugin(),
-    new TraeIDEOutputPlugin(),
-    new TraeCNIDEOutputPlugin(),
-    new WarpIDEOutputPlugin(),
-    new WindsurfOutputPlugin(),
-    new CursorOutputPlugin(),
-    new GitExcludeOutputPlugin(),
+  pipelineArgs: process.argv,
+  pluginOptions: {
+    plugins: [
+      new AgentsOutputPlugin(),
+      new ClaudeCodeCLIOutputPlugin(),
+      new CodexCLIOutputPlugin(),
+      new JetBrainsAIAssistantCodexOutputPlugin(),
+      new DroidCLIOutputPlugin(),
+      new GeminiCLIOutputPlugin(),
+      new GenericSkillsOutputPlugin(),
+      new OpencodeCLIOutputPlugin(),
+      new QoderIDEPluginOutputPlugin(),
+      new TraeIDEOutputPlugin(),
+      new TraeCNIDEOutputPlugin(),
+      new WarpIDEOutputPlugin(),
+      new WindsurfOutputPlugin(),
+      new CursorOutputPlugin(),
+      new GitExcludeOutputPlugin(),
 
-    new JetBrainsIDECodeStyleConfigOutputPlugin(),
-    new EditorConfigOutputPlugin(),
-    new VisualStudioCodeIDEConfigOutputPlugin(),
-    new ReadmeMdConfigFileOutputPlugin(),
+      new JetBrainsIDECodeStyleConfigOutputPlugin(),
+      new EditorConfigOutputPlugin(),
+      new VisualStudioCodeIDEConfigOutputPlugin(),
+      new ReadmeMdConfigFileOutputPlugin(),
 
-    new SkillNonSrcFileSyncEffectInputPlugin(), // Effect Input Plugins (executed in priority order: 10, 20, 30)
-    new OrphanFileCleanupEffectInputPlugin(),
-    new MarkdownWhitespaceCleanupEffectInputPlugin(),
+      new SkillNonSrcFileSyncEffectInputPlugin(), // Effect Input Plugins (executed in priority order: 10, 20, 30)
+      new OrphanFileCleanupEffectInputPlugin(),
+      new MarkdownWhitespaceCleanupEffectInputPlugin(),
 
-    new WorkspaceInputPlugin(),
-    new AindexInputPlugin(),
-    new VSCodeConfigInputPlugin(),
-    new JetBrainsConfigInputPlugin(),
-    new EditorConfigInputPlugin(),
-    new SkillInputPlugin(),
-    new CommandInputPlugin(),
-    new SubAgentInputPlugin(),
-    new RuleInputPlugin(),
-    new GlobalMemoryInputPlugin(),
-    new ProjectPromptInputPlugin(),
-    new ReadmeMdInputPlugin(),
-    new GitIgnoreInputPlugin(),
-    new GitExcludeInputPlugin(),
-    new AIAgentIgnoreInputPlugin()
-  ]
+      new WorkspaceInputPlugin(),
+      new AindexInputPlugin(),
+      new VSCodeConfigInputPlugin(),
+      new JetBrainsConfigInputPlugin(),
+      new EditorConfigInputPlugin(),
+      new SkillInputPlugin(),
+      new CommandInputPlugin(),
+      new SubAgentInputPlugin(),
+      new RuleInputPlugin(),
+      new GlobalMemoryInputPlugin(),
+      new ProjectPromptInputPlugin(),
+      new ReadmeMdInputPlugin(),
+      new GitIgnoreInputPlugin(),
+      new GitExcludeInputPlugin(),
+      new AIAgentIgnoreInputPlugin()
+    ]
+  }
 })

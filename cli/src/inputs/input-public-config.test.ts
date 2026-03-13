@@ -19,16 +19,31 @@ import {JetBrainsConfigInputPlugin} from './input-jetbrains-config'
 import {AIAgentIgnoreInputPlugin} from './input-shared-ignore'
 import {VSCodeConfigInputPlugin} from './input-vscode-config'
 
-function createContext(tempWorkspace: string): InputPluginContext {
-  const options = mergeConfig({workspaceDir: tempWorkspace})
+interface TestContextOptions {
+  readonly aindexDir?: string
+  readonly runtimeCommand?: InputPluginContext['runtimeCommand']
+}
+
+function createContext(tempWorkspace: string, options?: TestContextOptions): InputPluginContext {
+  const mergedOptions = mergeConfig({
+    workspaceDir: tempWorkspace,
+    ...options?.aindexDir != null
+      ? {
+          aindex: {
+            dir: options.aindexDir
+          }
+        }
+      : {}
+  })
 
   return {
     logger: createLogger('PublicConfigInputPluginTest', 'error'),
     fs,
     path,
     glob,
-    userConfigOptions: options,
-    dependencyContext: {}
+    userConfigOptions: mergedOptions,
+    dependencyContext: {},
+    ...options?.runtimeCommand != null ? {runtimeCommand: options.runtimeCommand} : {}
   } as InputPluginContext
 }
 
@@ -37,6 +52,10 @@ function writePublicDefinition(tempWorkspace: string, targetRelativePath: string
   fs.mkdirSync(path.dirname(filePath), {recursive: true})
   fs.writeFileSync(filePath, content, 'utf8')
   return filePath
+}
+
+function writePublicProxy(tempWorkspace: string, source: string): string {
+  return writePublicDefinition(tempWorkspace, 'proxy.ts', source)
 }
 
 describe('public config input plugins', () => {
@@ -117,6 +136,101 @@ describe('public config input plugins', () => {
       expect(new VSCodeConfigInputPlugin().collect(ctx).vscodeConfigFiles ?? []).toHaveLength(0)
       expect(new JetBrainsConfigInputPlugin().collect(ctx).jetbrainsConfigFiles ?? []).toHaveLength(0)
       expect(new AIAgentIgnoreInputPlugin().collect(ctx).aiAgentIgnoreConfigFiles ?? []).toHaveLength(0)
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('routes public definitions through public/proxy.ts transparently', () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-public-config-proxy-'))
+
+    try {
+      const aindexDir = path.join(tempWorkspace, 'aindex')
+      writePublicProxy(
+        tempWorkspace,
+        [
+          'export default (logicalPath) => {',
+          '  const normalizedPath = logicalPath.replaceAll("\\\\", "/")',
+          '  if (normalizedPath.startsWith(".git/")) return normalizedPath.replace(/^\\.git\\//, "____.git/")',
+          '  if (normalizedPath === ".idea/.gitignore") return ".idea/.gitignore"',
+          '  if (normalizedPath.startsWith(".idea/")) return normalizedPath',
+          '  if (!normalizedPath.startsWith(".")) return normalizedPath',
+          '  return normalizedPath.replace(/^\\.([^/\\\\]+)/, "____$1")',
+          '}',
+          ''
+        ].join('\n')
+      )
+
+      const gitIgnorePath = writePublicDefinition(tempWorkspace, PUBLIC_GIT_IGNORE_TARGET_RELATIVE_PATH, 'dist/\n')
+      const gitExcludePath = writePublicDefinition(tempWorkspace, PUBLIC_GIT_EXCLUDE_TARGET_RELATIVE_PATH, '.idea/\n')
+      const editorConfigPath = writePublicDefinition(tempWorkspace, '.editorconfig', 'root = true\n')
+      const vscodeSettingsPath = writePublicDefinition(tempWorkspace, '.vscode/settings.json', '{"editor.tabSize": 2}\n')
+      const vscodeExtensionsPath = writePublicDefinition(tempWorkspace, '.vscode/extensions.json', '{"recommendations":["foo.bar"]}\n')
+      const ideaGitIgnorePath = writePublicDefinition(tempWorkspace, '.idea/.gitignore', '/workspace.xml\n')
+      const ideaProjectPath = writePublicDefinition(tempWorkspace, '.idea/codeStyles/Project.xml', '<project />\n')
+      const ideaCodeStyleConfigPath = writePublicDefinition(tempWorkspace, '.idea/codeStyles/codeStyleConfig.xml', '<component />\n')
+
+      for (const fileName of AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS) writePublicDefinition(tempWorkspace, fileName, `${fileName}\n`)
+
+      const ctx = createContext(tempWorkspace)
+      const gitIgnore = new GitIgnoreInputPlugin().collect(ctx)
+      const gitExclude = new GitExcludeInputPlugin().collect(ctx)
+      const editorConfig = new EditorConfigInputPlugin().collect(ctx)
+      const vscode = new VSCodeConfigInputPlugin().collect(ctx)
+      const jetbrains = new JetBrainsConfigInputPlugin().collect(ctx)
+      const ignoreFiles = new AIAgentIgnoreInputPlugin().collect(ctx)
+
+      expect(gitIgnore.globalGitIgnore).toBe('dist/\n')
+      expect(gitExclude.shadowGitExclude).toBe('.idea/\n')
+      expect(editorConfig.editorConfigFiles?.[0]?.dir.path).toBe(editorConfigPath)
+      expect(vscode.vscodeConfigFiles?.map(file => file.dir.path)).toEqual([
+        vscodeSettingsPath,
+        vscodeExtensionsPath
+      ])
+      expect(jetbrains.jetbrainsConfigFiles?.map(file => file.dir.path)).toEqual([
+        ideaProjectPath,
+        ideaCodeStyleConfigPath,
+        ideaGitIgnorePath
+      ])
+      expect(ignoreFiles.aiAgentIgnoreConfigFiles?.map(file => file.sourcePath)).toEqual(
+        AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS.map(fileName => resolvePublicDefinitionPath(aindexDir, fileName))
+      )
+      expect(gitIgnorePath).toBe(path.join(aindexDir, 'public', '____gitignore'))
+      expect(gitExcludePath).toBe(path.join(aindexDir, 'public', '____.git', 'info', 'exclude'))
+      expect(editorConfigPath).toBe(path.join(aindexDir, 'public', '____editorconfig'))
+      expect(vscodeSettingsPath).toBe(path.join(aindexDir, 'public', '____vscode', 'settings.json'))
+      expect(vscodeExtensionsPath).toBe(path.join(aindexDir, 'public', '____vscode', 'extensions.json'))
+      expect(ideaGitIgnorePath).toBe(path.join(aindexDir, 'public', '.idea', '.gitignore'))
+      expect(ideaProjectPath).toBe(path.join(aindexDir, 'public', '.idea', 'codeStyles', 'Project.xml'))
+      expect(ideaCodeStyleConfigPath).toBe(path.join(aindexDir, 'public', '.idea', 'codeStyles', 'codeStyleConfig.xml'))
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('passes the configured workspace root into public/proxy.ts', () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-public-config-nested-aindex-'))
+
+    try {
+      const aindexDir = path.join(tempWorkspace, 'config', 'aindex')
+      const publicDir = path.join(aindexDir, 'public')
+      fs.mkdirSync(path.join(publicDir, 'expected'), {recursive: true})
+      fs.writeFileSync(path.join(publicDir, 'proxy.ts'), [
+        'export default (_logicalPath, ctx) => {',
+        `  return ctx.workspaceDir === ${JSON.stringify(tempWorkspace)} && ctx.cwd === ${JSON.stringify(tempWorkspace)}`,
+        '    ? "expected/.gitignore"',
+        '    : "unexpected/.gitignore"',
+        '}',
+        ''
+      ].join('\n'), 'utf8')
+      fs.writeFileSync(path.join(publicDir, 'expected', '.gitignore'), 'dist/\n', 'utf8')
+
+      const ctx = createContext(tempWorkspace, {aindexDir: 'config/aindex'})
+      const gitIgnore = new GitIgnoreInputPlugin().collect(ctx)
+
+      expect(gitIgnore.globalGitIgnore).toBe('dist/\n')
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

@@ -34,9 +34,22 @@ export class ExecuteCommand implements Command {
 
     let totalFiles = 0
     let totalDirs = 0
+    const writeErrors: string[] = []
     for (const result of results.values()) {
       totalFiles += result.files.length
       totalDirs += result.dirs.length
+      for (const fileResult of result.files) {
+        if (!fileResult.success) writeErrors.push(fileResult.error?.message ?? `Failed to write ${fileResult.path}`)
+      }
+    }
+
+    if (writeErrors.length > 0) {
+      return {
+        success: false,
+        filesAffected: totalFiles,
+        dirsAffected: totalDirs,
+        message: writeErrors.join('\n')
+      }
     }
 
     logger.info('complete', {command: 'execute', pluginCount: results.size})

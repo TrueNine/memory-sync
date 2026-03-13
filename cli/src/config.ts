@@ -87,6 +87,8 @@ export interface DefineConfigOptions {
   readonly loadUserConfig?: boolean
 
   readonly cwd?: string
+
+  readonly pipelineArgs?: readonly string[]
 }
 
 /**
@@ -229,7 +231,11 @@ function mergeCleanupProtectionOptions(
  * Check if options is DefineConfigOptions
  */
 function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): options is DefineConfigOptions {
-  return 'pluginOptions' in options || 'configLoaderOptions' in options || 'loadUserConfig' in options
+  return 'pluginOptions' in options
+    || 'configLoaderOptions' in options
+    || 'loadUserConfig' in options
+    || 'cwd' in options
+    || 'pipelineArgs' in options
 }
 
 /**
@@ -247,23 +253,27 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   let shouldLoadUserConfig: boolean, // Normalize options
     cwd: string | undefined,
     pluginOptions: PluginOptions,
-    configLoaderOptions: ConfigLoaderOptions | undefined
+    configLoaderOptions: ConfigLoaderOptions | undefined,
+    pipelineArgs: readonly string[] | undefined
 
   if (isDefineConfigOptions(options)) {
     ({
       pluginOptions = {},
       cwd,
-      configLoaderOptions
+      configLoaderOptions,
+      pipelineArgs
     } = {
       pluginOptions: options.pluginOptions,
       cwd: options.cwd,
-      configLoaderOptions: options.configLoaderOptions
+      configLoaderOptions: options.configLoaderOptions,
+      pipelineArgs: options.pipelineArgs
     })
     shouldLoadUserConfig = options.loadUserConfig ?? true
   } else {
     pluginOptions = options
     shouldLoadUserConfig = true
     configLoaderOptions = void 0
+    pipelineArgs = void 0
   }
 
   let userConfigOptions: Partial<PluginOptions> = {} // Load user config if enabled
@@ -312,7 +322,9 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   const outputPlugins = plugins.filter((p): p is OutputPlugin => p.type === PluginKind.Output)
   validateOutputScopeOverridesForPlugins(outputPlugins, mergedOptions)
 
-  const pipeline = new PluginPipeline() // Pass userConfigFile for GlobalScopeCollector to access profile and tool // Use PluginPipeline to execute plugins in dependency order
+  const pipeline = pipelineArgs != null
+    ? new PluginPipeline(...pipelineArgs)
+    : new PluginPipeline() // Pass userConfigFile for GlobalScopeCollector to access profile and tool // Use PluginPipeline to execute plugins in dependency order
   const merged = await pipeline.executePluginsInOrder(inputPlugins, baseCtx, false, userConfigFile)
 
   if (merged.workspace == null) throw new Error('Workspace not initialized by any plugin') // Validate workspace exists

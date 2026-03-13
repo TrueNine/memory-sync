@@ -8,11 +8,14 @@ export class AIAgentIgnoreInputPlugin extends AbstractInputPlugin {
   }
 
   collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
-    const {aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
     const results: AIAgentIgnoreConfigFile[] = []
 
     for (const fileName of AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS) {
-      const filePath = resolvePublicDefinitionPath(aindexDir, fileName)
+      const filePath = resolvePublicDefinitionPath(aindexDir, fileName, {
+        command: ctx.runtimeCommand,
+        workspaceDir
+      })
       if (!ctx.fs.existsSync(filePath)) {
         this.log.debug({action: 'collect', message: 'Ignore file not found', path: filePath})
         continue

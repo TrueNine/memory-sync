@@ -29,7 +29,7 @@ export class JetBrainsIDECodeStyleConfigOutputPlugin extends AbstractOutputPlugi
 
     for (const project of projects) {
       const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null || project.isPromptSourceProject === true) continue
+      if (projectDir == null) continue
 
       for (const config of jetbrainsConfigs) {
         const targetRelativePath = this.getTargetRelativePath(config)

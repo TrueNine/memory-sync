@@ -9,7 +9,7 @@ export class JetBrainsConfigInputPlugin extends AbstractInputPlugin {
 
   collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
     const {userConfigOptions, fs} = ctx
-    const {aindexDir} = this.resolveBasePaths(userConfigOptions)
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(userConfigOptions)
 
     const files = [
       '.idea/codeStyles/Project.xml',
@@ -19,7 +19,10 @@ export class JetBrainsConfigInputPlugin extends AbstractInputPlugin {
     const jetbrainsConfigFiles: ProjectIDEConfigFile<IDEKind.IntellijIDEA>[] = []
 
     for (const relativePath of files) {
-      const file = readPublicIdeConfigDefinitionFile(IDEKind.IntellijIDEA, relativePath, aindexDir, fs)
+      const file = readPublicIdeConfigDefinitionFile(IDEKind.IntellijIDEA, relativePath, aindexDir, fs, {
+        command: ctx.runtimeCommand,
+        workspaceDir
+      })
       if (file != null) jetbrainsConfigFiles.push(file)
     }
 

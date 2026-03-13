@@ -8,6 +8,26 @@ body:
         Before submitting, please [search and confirm](https://github.com/TrueNine/memory-sync/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc) that the idea does not yet exist. Duplicate requests may be closed.
 
         ---
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before opening, please confirm
+      options:
+        - label: I searched for an existing request or discussion first
+          required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Choose the closest part of the product
+      options:
+        - CLI (tnmsc)
+        - Shared Rust / N-API libraries
+        - GUI (Tauri app)
+        - Docs or onboarding
+        - Multiple / unsure
+    validations:
+      required: true
   - type: textarea
     id: feature-description
     attributes:
@@ -24,6 +44,14 @@ body:
       placeholder: "Concrete examples: which target (Cursor/Kiro/Warp/…), which input source, typical workflow."
     validations:
       required: true
+  - type: textarea
+    id: current-workaround
+    attributes:
+      label: Current workaround
+      description: If you already have a manual workaround, describe it
+      placeholder: "Explain how you are handling this today, and what is still painful."
+    validations:
+      required: false
   - type: textarea
     id: additional-context
     attributes:

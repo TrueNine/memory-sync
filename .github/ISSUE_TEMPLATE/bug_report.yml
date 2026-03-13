@@ -21,6 +21,8 @@ body:
       options:
         - label: I have searched for duplicate or closed issues
           required: true
+        - label: I redacted secrets, tokens, and private paths from logs or config snippets
+          required: true
   - type: input
     id: os
     attributes:
@@ -37,6 +39,14 @@ body:
       placeholder: "e.g., 2026.10125.0"
     validations:
       required: true
+  - type: input
+    id: first-bad-version
+    attributes:
+      label: First version where this appeared
+      description: If known, tell us the first version where you noticed the problem
+      placeholder: "e.g., worked in 2026.10222.0, broken in 2026.10303.11117"
+    validations:
+      required: false
   - type: dropdown
     id: context
     attributes:
@@ -45,6 +55,20 @@ body:
         - CLI (tnmsc)
         - GUI (Tauri app)
         - Both / unsure
+    validations:
+      required: true
+  - type: dropdown
+    id: affected-module
+    attributes:
+      label: Affected module
+      description: Pick the closest area so maintainers can route triage faster
+      options:
+        - Config / sync core
+        - Plugin or adapter pipeline
+        - Native module / N-API binding
+        - CLI packaging / release artifact
+        - GUI shell / updater
+        - Docs / unclear
     validations:
       required: true
   - type: input
@@ -87,7 +111,7 @@ body:
     id: additional-context
     attributes:
       label: Additional Context
-      description: Logs, config, screenshots, workarounds
-      placeholder: "Error messages, .tnmsc.json (redact secrets), or environment details."
+      description: Logs, config, screenshots, workarounds, and whether config snippets were redacted
+      placeholder: "Error messages, .tnmsc.json (with secrets removed), screenshots, or environment details."
     validations:
       required: false

@@ -9,6 +9,7 @@ import {fileURLToPath} from 'node:url'
 const NATIVE_MODULES = [
   {name: 'logger', dir: 'libraries/logger'},
   {name: 'md-compiler', dir: 'libraries/md-compiler'},
+  {name: 'script-runtime', dir: 'libraries/script-runtime'},
   {name: 'cli', dir: 'cli'},
 ] as const
 

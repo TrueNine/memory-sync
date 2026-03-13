@@ -119,10 +119,12 @@ export class PluginPipeline {
 
     for (const plugin of sortedPlugins) {
       const dependencyContext = buildDependencyContext(plugin, outputsByPlugin, mergeContexts) // Build dependency context from direct dependencies only
+      const runtimeCommand = this.resolveRuntimeCommand()
 
       const ctx: InputPluginContext = { // Create context with dependency outputs, globalScope, and scopeRegistry
         ...baseCtx,
         dependencyContext,
+        ...runtimeCommand != null && {runtimeCommand},
         globalScope,
         scopeRegistry
       }
@@ -147,5 +149,14 @@ export class PluginPipeline {
     }
 
     return accumulatedContext
+  }
+
+  private resolveRuntimeCommand(): InputPluginContext['runtimeCommand'] {
+    if (this.args.helpFlag || this.args.versionFlag || this.args.unknownCommand != null) return void 0
+    if (this.args.subcommand === 'clean') return 'clean'
+    if (this.args.subcommand === 'plugins') return 'plugins'
+    if (this.args.subcommand === 'dry-run' || this.args.dryRun) return 'dry-run'
+    if (this.args.subcommand == null) return 'execute'
+    return void 0
   }
 }

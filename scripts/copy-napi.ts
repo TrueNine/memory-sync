@@ -7,6 +7,7 @@ import process from 'node:process'
 const NATIVE_MODULES = [
   {name: 'logger', distDir: 'libraries/logger/dist'},
   {name: 'md-compiler', distDir: 'libraries/md-compiler/dist'},
+  {name: 'script-runtime', distDir: 'libraries/script-runtime/dist'},
   {name: 'cli', distDir: 'cli/dist'},
 ] as const
 
@@ -30,6 +31,7 @@ const {join} = require('node:path')
 const EXPORT_BINDINGS = [
   ['logger', 'napi-logger.'],
   ['mdCompiler', 'napi-md-compiler.'],
+  ['scriptRuntime', 'napi-script-runtime.'],
   ['config', 'napi-memory-sync-cli.']
 ]
 
@@ -54,6 +56,7 @@ module.exports = bindings
 const PLATFORM_PACKAGE_TYPES = `declare const bindings: {
   readonly logger?: unknown
   readonly mdCompiler?: unknown
+  readonly scriptRuntime?: unknown
   readonly config?: unknown
 }
 

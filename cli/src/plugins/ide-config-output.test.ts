@@ -71,34 +71,43 @@ function createWriteContext(workspaceBase: string): OutputWriteContext {
 }
 
 describe('ide config output plugins', () => {
-  it('skips the prompt source project for editorconfig output', async () => {
+  it('includes the prompt source project for editorconfig output', async () => {
     const workspaceBase = path.resolve('tmp/ide-output-editorconfig')
     const plugin = new EditorConfigOutputPlugin()
     const declarations = await plugin.declareOutputFiles(createWriteContext(workspaceBase))
     const paths = declarations.map(declaration => declaration.path)
 
-    expect(paths).toEqual([path.join(workspaceBase, 'memory-sync', '.editorconfig')])
+    expect(paths).toEqual([
+      path.join(workspaceBase, 'aindex', '.editorconfig'),
+      path.join(workspaceBase, 'memory-sync', '.editorconfig')
+    ])
   })
 
-  it('skips the prompt source project for vscode output', async () => {
+  it('includes the prompt source project for vscode output', async () => {
     const workspaceBase = path.resolve('tmp/ide-output-vscode')
     const plugin = new VisualStudioCodeIDEConfigOutputPlugin()
     const declarations = await plugin.declareOutputFiles(createWriteContext(workspaceBase))
     const paths = declarations.map(declaration => declaration.path)
 
     expect(paths).toEqual([
+      path.join(workspaceBase, 'aindex', '.vscode', 'settings.json'),
+      path.join(workspaceBase, 'aindex', '.vscode', 'extensions.json'),
       path.join(workspaceBase, 'memory-sync', '.vscode', 'settings.json'),
       path.join(workspaceBase, 'memory-sync', '.vscode', 'extensions.json')
     ])
   })
 
-  it('skips the prompt source project for jetbrains output', async () => {
+  it('includes the prompt source project for jetbrains output', async () => {
     const workspaceBase = path.resolve('tmp/ide-output-jetbrains')
     const plugin = new JetBrainsIDECodeStyleConfigOutputPlugin()
     const declarations = await plugin.declareOutputFiles(createWriteContext(workspaceBase))
     const paths = declarations.map(declaration => declaration.path)
 
     expect(paths).toEqual([
+      path.join(workspaceBase, 'aindex', '.idea', '.gitignore'),
+      path.join(workspaceBase, 'aindex', '.idea', 'codeStyles', 'Project.xml'),
+      path.join(workspaceBase, 'aindex', '.idea', 'codeStyles', 'codeStyleConfig.xml'),
+      path.join(workspaceBase, 'aindex', '.editorconfig'),
       path.join(workspaceBase, 'memory-sync', '.idea', '.gitignore'),
       path.join(workspaceBase, 'memory-sync', '.idea', 'codeStyles', 'Project.xml'),
       path.join(workspaceBase, 'memory-sync', '.idea', 'codeStyles', 'codeStyleConfig.xml'),

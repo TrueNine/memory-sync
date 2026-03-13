@@ -142,7 +142,7 @@ fn extract_exports_from_source(source: &str) -> HashMap<String, Value> {
 
     for line in source.lines() {
         let trimmed = line.trim();
-        if !trimmed.starts_with("export ") {
+        if !is_supported_export_metadata_line(trimmed) {
             continue;
         }
 
@@ -159,6 +159,37 @@ fn extract_exports_from_source(source: &str) -> HashMap<String, Value> {
     }
 
     exports
+}
+
+fn is_supported_export_metadata_line(trimmed: &str) -> bool {
+    trimmed.starts_with("export const ")
+}
+
+fn strip_supported_export_lines(source: &str) -> String {
+    let mut stripped = String::new();
+    let mut skip_blank_line = false;
+
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if is_supported_export_metadata_line(trimmed) {
+            skip_blank_line = true;
+            continue;
+        }
+
+        if skip_blank_line && trimmed.is_empty() {
+            continue;
+        }
+
+        skip_blank_line = false;
+        stripped.push_str(line);
+        stripped.push('\n');
+    }
+
+    if !source.ends_with('\n') && stripped.ends_with('\n') {
+        stripped.pop();
+    }
+
+    stripped
 }
 
 /// Remove YAML frontmatter and ESM export nodes from the AST.
@@ -201,7 +232,8 @@ pub fn mdx_to_md_with_metadata(
     options: Option<MdxToMdOptions>,
 ) -> Result<MdxToMdResult, String> {
     let opts = options.unwrap_or_default();
-    let ast = parse_mdx(content)?;
+    let stripped_source = strip_supported_export_lines(content);
+    let ast = parse_mdx(&stripped_source)?;
 
     // Extract metadata
     let yaml_fm = extract_yaml_frontmatter(&ast);
@@ -315,11 +347,35 @@ mod tests {
         let source = "export const meta = {\"name\": \"test\"}\n\n# Hello\n";
         let result = mdx_to_md_with_metadata(source, Some(make_options())).unwrap();
         assert!(result.content.contains("# Hello"));
+        assert!(!result.content.contains("export const meta"));
         let meta = result.metadata.exports.get("meta");
         assert!(
             meta.is_some(),
             "Expected meta export, got: {:?}",
             result.metadata.exports
+        );
+    }
+
+    #[test]
+    fn test_supported_export_lines_are_removed_from_compiled_content() {
+        let source = "---\ndescription: dist\n---\nexport const x = 1\n\nCommand dist\n";
+        let result = mdx_to_md_with_metadata(source, Some(make_options())).unwrap();
+        assert_eq!(result.content, "Command dist");
+        assert_eq!(
+            result
+                .metadata
+                .exports
+                .get("x")
+                .and_then(|value| value.as_i64()),
+            Some(1)
+        );
+        assert_eq!(
+            result
+                .metadata
+                .exports
+                .get("description")
+                .and_then(|value| value.as_str()),
+            Some("dist")
         );
     }
 

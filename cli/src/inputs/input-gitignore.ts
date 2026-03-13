@@ -8,8 +8,11 @@ export class GitIgnoreInputPlugin extends AbstractInputPlugin {
   }
 
   collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
-    const {aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
-    const filePath = resolvePublicDefinitionPath(aindexDir, PUBLIC_GIT_IGNORE_TARGET_RELATIVE_PATH)
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
+    const filePath = resolvePublicDefinitionPath(aindexDir, PUBLIC_GIT_IGNORE_TARGET_RELATIVE_PATH, {
+      command: ctx.runtimeCommand,
+      workspaceDir
+    })
 
     if (!ctx.fs.existsSync(filePath)) {
       this.log.debug({action: 'collect', message: 'File not found', path: filePath})

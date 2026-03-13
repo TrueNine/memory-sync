@@ -1,15 +1,9 @@
-name: Release GUI Collect
+name: Collect GUI Release
 
 on:
   workflow_call:
     inputs:
       version:
-        required: true
-        type: string
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (without v prefix, e.g. 2026.10213.0)'
         required: true
         type: string
 
@@ -19,6 +13,7 @@ permissions:
 jobs:
   publish-release:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -27,11 +22,26 @@ jobs:
         with:
           path: artifacts
           pattern: gui-*
+          merge-multiple: true
 
       - name: Clean up unnecessary macOS artifacts
         run: |
           find artifacts -name '*.icns' -delete
           find artifacts -name 'Info.plist' -delete
+
+      - name: Verify release artifacts
+        shell: bash
+        run: |
+          installer_count=$(find artifacts -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) | wc -l | tr -d ' ')
+          updater_count=$(find artifacts -type f \( -name '*.sig' -o -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
+          if [ "$installer_count" -eq 0 ]; then
+            echo "ERROR: no GUI installer artifacts were downloaded"
+            exit 1
+          fi
+          if [ "$updater_count" -eq 0 ]; then
+            echo "ERROR: no GUI updater artifacts were downloaded"
+            exit 1
+          fi
 
       - name: Publish Release
         uses: softprops/action-gh-release@v2.5.0
@@ -39,10 +49,23 @@ jobs:
           tag_name: v${{ inputs.version }}
           name: v${{ inputs.version }}
           files: |
+            artifacts/*.dmg
             artifacts/**/*.dmg
+            artifacts/*.exe
             artifacts/**/*.exe
+            artifacts/*.msi
+            artifacts/**/*.msi
+            artifacts/*.AppImage
             artifacts/**/*.AppImage
+            artifacts/*.deb
             artifacts/**/*.deb
+            artifacts/*.rpm
             artifacts/**/*.rpm
+            artifacts/*.sig
+            artifacts/**/*.sig
+            artifacts/*.tar.gz
+            artifacts/**/*.tar.gz
+            artifacts/*.zip
+            artifacts/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

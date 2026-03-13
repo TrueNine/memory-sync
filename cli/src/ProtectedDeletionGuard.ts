@@ -1,4 +1,5 @@
 import type {OutputCollectedContext, PluginOptions} from './plugins/plugin-core'
+import type {PublicDefinitionResolveOptions} from './public-config-paths'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -307,20 +308,24 @@ function collectResolvedAindexRules(aindexDir: string): ProtectedPathRule[] {
   return [createProtectedPathRule(aindexDir, 'direct', 'resolved aindex root', 'aindex-root')]
 }
 
-export function collectKnownAindexInputConfigPaths(aindexDir: string): string[] {
-  return collectKnownPublicConfigDefinitionPaths(aindexDir)
+export function collectKnownAindexInputConfigPaths(
+  aindexDir: string,
+  resolveOptions?: PublicDefinitionResolveOptions
+): string[] {
+  return collectKnownPublicConfigDefinitionPaths(aindexDir, resolveOptions)
 }
 
 export function collectConfiguredAindexInputRules(
-  options: Required<PluginOptions>,
-  aindexDir: string
+  pluginOptions: Required<PluginOptions>,
+  aindexDir: string,
+  resolveOptions?: PublicDefinitionResolveOptions
 ): ProtectedPathRule[] {
   const rules: ProtectedPathRule[] = []
 
   for (const key of CONFIGURED_AINDEX_DIRECTORY_KEYS) {
     rules.push(
       createProtectedPathRule(
-        path.join(aindexDir, options.aindex[key].src),
+        path.join(aindexDir, pluginOptions.aindex[key].src),
         'recursive',
         `configured aindex ${key} source directory`,
         'configured-aindex-source'
@@ -331,7 +336,7 @@ export function collectConfiguredAindexInputRules(
   for (const key of CONFIGURED_AINDEX_FILE_KEYS) {
     rules.push(
       createProtectedPathRule(
-        path.join(aindexDir, options.aindex[key].src),
+        path.join(aindexDir, pluginOptions.aindex[key].src),
         'direct',
         `configured aindex ${key} source file`,
         'configured-aindex-source'
@@ -339,7 +344,7 @@ export function collectConfiguredAindexInputRules(
     )
   }
 
-  for (const protectedPath of collectKnownAindexInputConfigPaths(aindexDir)) {
+  for (const protectedPath of collectKnownAindexInputConfigPaths(aindexDir, resolveOptions)) {
     rules.push(
       createProtectedPathRule(
         protectedPath,
@@ -354,10 +359,11 @@ export function collectConfiguredAindexInputRules(
 }
 
 export function collectConfiguredAindexInputPaths(
-  options: Required<PluginOptions>,
-  aindexDir: string
+  pluginOptions: Required<PluginOptions>,
+  aindexDir: string,
+  resolveOptions?: PublicDefinitionResolveOptions
 ): string[] {
-  return collectConfiguredAindexInputRules(options, aindexDir).map(rule => rule.path)
+  return collectConfiguredAindexInputRules(pluginOptions, aindexDir, resolveOptions).map(rule => rule.path)
 }
 
 export function collectProtectedInputSourceRules(
@@ -440,7 +446,9 @@ export function collectProtectedInputSourceRules(
   }
 
   if (collectedOutputContext.aindexDir != null) {
-    for (const protectedPath of collectKnownAindexInputConfigPaths(collectedOutputContext.aindexDir)) {
+    for (const protectedPath of collectKnownAindexInputConfigPaths(collectedOutputContext.aindexDir, {
+      workspaceDir: collectedOutputContext.workspace.directory.path
+    })) {
       addRule(protectedPath, 'direct', 'known aindex input config file', 'known-aindex-config')
     }
   }
