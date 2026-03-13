@@ -28,7 +28,15 @@ function getCatalogVersion(pkgName: string): string | null {
 }
 
 const eslintConfigVersion = getCatalogVersion('@truenine/eslint10-config')
-const rootPkg: PackageJson = JSON.parse(readFileSync(resolve('package.json'), 'utf-8'))
+const rootPackagePath = resolve('package.json')
+const requestedVersion = process.argv[2]?.trim()
+const rootPkg: PackageJson = JSON.parse(readFileSync(rootPackagePath, 'utf-8'))
+
+if (requestedVersion && rootPkg.version !== requestedVersion) {
+  rootPkg.version = requestedVersion
+  writeFileSync(rootPackagePath, JSON.stringify(rootPkg, null, 2) + '\n', 'utf-8')
+}
+
 const rootVersion = rootPkg.version
 
 if (!rootVersion) {

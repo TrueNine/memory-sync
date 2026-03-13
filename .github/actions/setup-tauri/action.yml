@@ -6,6 +6,10 @@ inputs:
     description: Rust targets to install (comma-separated)
     required: false
     default: ''
+  signing-private-key:
+    description: Tauri updater signing private key content
+    required: false
+    default: ''
   version:
     description: Version string to sync into Cargo.toml and tauri.conf.json
     required: true
@@ -41,6 +45,17 @@ runs:
       uses: dtolnay/rust-toolchain@stable
       with:
         targets: ${{ inputs.rust-targets }}
+
+    - name: Normalize Tauri signing key
+      if: ${{ inputs.signing-private-key != '' }}
+      shell: pwsh
+      env:
+        RAW_TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.signing-private-key }}
+      run: |
+        $normalized = $env:RAW_TAURI_SIGNING_PRIVATE_KEY.TrimStart([char]0xFEFF)
+        "TAURI_SIGNING_PRIVATE_KEY<<EOF" >> $env:GITHUB_ENV
+        $normalized >> $env:GITHUB_ENV
+        "EOF" >> $env:GITHUB_ENV
 
     - name: Get Cargo deps hash (exclude root package version for stable cache key)
       id: cargo-deps-hash
