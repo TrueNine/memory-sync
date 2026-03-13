@@ -20,11 +20,11 @@
       "dist": "dist/rules"
     },
     "globalPrompt": {
-      "src": "app/global.cn.mdx",
+      "src": "app/global.src.mdx",
       "dist": "dist/global.mdx"
     },
     "workspacePrompt": {
-      "src": "app/workspace.cn.mdx",
+      "src": "app/workspace.src.mdx",
       "dist": "dist/workspace.mdx"
     },
     "app": {

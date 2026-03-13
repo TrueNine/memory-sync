@@ -1,6 +1,6 @@
 //! CLI argument parsing using clap derive API.
 //!
-//! Mirrors the TS `PluginPipeline.parseArgs()` + `resolveCommand()` + `resolveLogLevel()`.
+//! Mirrors the TS `PluginPipeline.parseArgs()` + `resolveCommand()`.
 
 use clap::{Parser, Subcommand, Args};
 
@@ -48,9 +48,6 @@ pub enum CliCommand {
 
     /// Show version information
     Version,
-
-    /// Check if CLI version is outdated against npm registry
-    Outdated,
 
     /// Preview changes without writing files
     #[command(name = "dry-run")]
@@ -154,7 +151,6 @@ pub fn resolve_log_level(cli: &Cli) -> Option<ResolvedLogLevel> {
 pub enum ResolvedCommand {
     Help,
     Version,
-    Outdated,
     Execute,
     DryRun,
     Clean,
@@ -193,7 +189,6 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
         None => ResolvedCommand::Execute,
         Some(CliCommand::Help) => ResolvedCommand::Help,
         Some(CliCommand::Version) => ResolvedCommand::Version,
-        Some(CliCommand::Outdated) => ResolvedCommand::Outdated,
         Some(CliCommand::DryRun) => ResolvedCommand::DryRun,
         Some(CliCommand::Clean(args)) => {
             if args.dry_run {
@@ -243,12 +238,6 @@ mod tests {
     fn test_version_subcommand() {
         let cli = parse(&["tnmsc", "version"]);
         assert_eq!(resolve_command(&cli), ResolvedCommand::Version);
-    }
-
-    #[test]
-    fn test_outdated_subcommand() {
-        let cli = parse(&["tnmsc", "outdated"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::Outdated);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 //! tnmsc library — exposes core functionality for GUI backend direct invocation.
 //!
-//! Pure Rust commands: version, load_config, config_show, outdated
+//! Pure Rust commands: version, load_config, config_show
 //! Bridge commands (Node.js): run_bridge_command
 
 pub mod bridge;
@@ -42,15 +42,6 @@ pub struct BridgeCommandResult {
     pub exit_code: i32,
 }
 
-/// Result of the `outdated` check.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct OutdatedResult {
-    pub current_version: String,
-    pub latest_version: Option<String>,
-    pub is_outdated: bool,
-}
-
 // ---------------------------------------------------------------------------
 // Public API functions
 // ---------------------------------------------------------------------------
@@ -69,33 +60,6 @@ pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliEr
 pub fn config_show(cwd: &Path) -> Result<String, CliError> {
     let result = core::config::ConfigLoader::with_defaults().load(cwd);
     serde_json::to_string_pretty(&result.config).map_err(CliError::from)
-}
-
-/// Check whether the current CLI version is outdated against the npm registry.
-pub fn outdated() -> Result<OutdatedResult, CliError> {
-    let current = env!("CARGO_PKG_VERSION").to_string();
-
-    let output = std::process::Command::new("npm")
-        .args(["view", "@truenine/memory-sync-cli", "version", "--json"])
-        .output();
-
-    match output {
-        Ok(out) if out.status.success() => {
-            let raw = String::from_utf8_lossy(&out.stdout);
-            let latest = raw.trim().trim_matches('"').to_string();
-            let is_outdated = latest != current;
-            Ok(OutdatedResult {
-                current_version: current,
-                latest_version: Some(latest),
-                is_outdated,
-            })
-        }
-        _ => Ok(OutdatedResult {
-            current_version: current,
-            latest_version: None,
-            is_outdated: false,
-        }),
-    }
 }
 
 /// Execute a bridge command (execute, dry-run, clean, plugins) via Node.js subprocess.
@@ -166,18 +130,6 @@ mod property_tests {
             let json_str = result.unwrap();
             let parsed: Result<serde_json::Value, _> = serde_json::from_str(&json_str);
             prop_assert!(parsed.is_ok(), "config_show output should be valid JSON, got: {}", json_str);
-        }
-
-        // ---- outdated() ----
-
-        /// outdated() always returns Ok(OutdatedResult) with current_version matching CARGO_PKG_VERSION.
-        #[test]
-        fn prop_outdated_current_version_matches(_seed in 0u64..20) {
-            let result = outdated();
-            prop_assert!(result.is_ok(), "outdated should return Ok, got: {:?}", result.err());
-            let out = result.unwrap();
-            prop_assert_eq!(out.current_version.as_str(), env!("CARGO_PKG_VERSION"),
-                "current_version should match CARGO_PKG_VERSION");
         }
 
         // ---- BridgeCommandResult structural property ----

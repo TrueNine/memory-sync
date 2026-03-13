@@ -109,10 +109,10 @@ const ConfigForm: FC<ConfigFormProps> = ({ data, onChange, t }) => {
       ))}
 
       <FormField
-        label={t('config.field.aindex.name')}
-        description={t('config.field.aindex.name.desc')}
-        value={(aindex['name'] as string) ?? ''}
-        onChange={(v) => updateNestedField('aindex', 'name', v)}
+        label={t('config.field.aindex.dir')}
+        description={t('config.field.aindex.dir.desc')}
+        value={(aindex['dir'] as string) ?? ''}
+        onChange={(v) => updateNestedField('aindex', 'dir', v)}
         placeholder="aindex"
       />
 

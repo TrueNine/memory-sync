@@ -1,42 +1,31 @@
 import type {
-  CollectedInputContext,
+  InputCollectedContext,
   InputPluginContext,
   Locale,
-  LocalizedSubAgentPrompt,
-  PluginOptions,
-  ResolvedBasePaths,
-  SubAgentPrompt
-} from '../plugins/plugin-shared'
+  SubAgentPrompt,
+  SubAgentYAMLFrontMatter
+} from '../plugins/plugin-core'
 import {
   AbstractInputPlugin,
-  createLocalizedPromptReader
-} from '@truenine/plugin-input-shared'
-import {
+  createLocalizedPromptReader,
   FilePathKind,
-  PromptKind
-} from '../plugins/plugin-shared'
+  PromptKind,
+  SourceLocaleExtensions
 
-export interface AgentPrefixInfo {
-  readonly agentPrefix?: string
-  readonly agentName: string
-}
+} from '../plugins/plugin-core'
 
 export class SubAgentInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('SubAgentInputPlugin')
   }
 
-  private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    return this.resolveAindexPath(options.aindex.subAgents.dist, resolvedPaths.aindexDir)
-  }
-
   private createSubAgentPrompt(
     content: string,
     _locale: Locale,
     name: string,
-    _srcDir: string,
     distDir: string,
-    ctx: InputPluginContext
+    ctx: InputPluginContext,
+    metadata?: Record<string, unknown>
   ): SubAgentPrompt {
     const {path} = ctx
 
@@ -45,12 +34,18 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     const parentDirName = slashIndex !== -1 ? normalizedName.slice(0, slashIndex) : void 0
     const fileName = slashIndex !== -1 ? normalizedName.slice(slashIndex + 1) : normalizedName
 
-    const prefixInfo = this.extractPrefixInfo(fileName, parentDirName)
+    const baseName = fileName.replace(/\.mdx$/, '')
+    const underscoreIndex = baseName.indexOf('_')
+    const agentPrefix = parentDirName ?? (underscoreIndex === -1 ? void 0 : baseName.slice(0, Math.max(0, underscoreIndex)))
+    const agentName = parentDirName != null || underscoreIndex === -1
+      ? baseName
+      : baseName.slice(Math.max(0, underscoreIndex + 1))
 
     const filePath = path.join(distDir, `${name}.mdx`)
     const entryName = `${name}.mdx`
+    const yamlFrontMatter = metadata as SubAgentYAMLFrontMatter | undefined
 
-    return {
+    const prompt: SubAgentPrompt = {
       type: PromptKind.SubAgent,
       content,
       length: content.length,
@@ -62,37 +57,23 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
         getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
         getAbsolutePath: () => filePath
       },
-      ...prefixInfo.agentPrefix != null && {agentPrefix: prefixInfo.agentPrefix},
-      agentName: prefixInfo.agentName
+      ...agentPrefix != null && {agentPrefix},
+      agentName
     } as SubAgentPrompt
+
+    if (yamlFrontMatter == null) return prompt
+
+    Object.assign(prompt, {yamlFrontMatter})
+    if (yamlFrontMatter.seriName != null) Object.assign(prompt, {seriName: yamlFrontMatter.seriName})
+    return prompt
   }
 
-  extractPrefixInfo(fileName: string, parentDirName?: string): AgentPrefixInfo {
-    const baseName = fileName.replace(/\.mdx$/, '')
-
-    if (parentDirName != null) {
-      return {
-        agentPrefix: parentDirName,
-        agentName: baseName
-      }
-    }
-
-    const underscoreIndex = baseName.indexOf('_')
-
-    if (underscoreIndex === -1) return {agentName: baseName}
-
-    return {
-      agentPrefix: baseName.slice(0, Math.max(0, underscoreIndex)),
-      agentName: baseName.slice(Math.max(0, underscoreIndex + 1))
-    }
-  }
-
-  override async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+  override async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
     const srcDir = this.resolveAindexPath(options.aindex.subAgents.src, resolvedPaths.aindexDir)
-    const distDir = this.getDistDir(options, resolvedPaths)
+    const distDir = this.resolveAindexPath(options.aindex.subAgents.dist, resolvedPaths.aindexDir)
 
     logger.debug('SubAgentInputPlugin collecting', {
       srcDir,
@@ -107,15 +88,15 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       distDir,
       {
         kind: PromptKind.SubAgent,
-        localeExtensions: {zh: '.md', en: '.mdx'},
+        localeExtensions: SourceLocaleExtensions,
         isDirectoryStructure: false,
-        createPrompt: async (content, locale, name) => this.createSubAgentPrompt(
+        createPrompt: (content, locale, name, metadata) => this.createSubAgentPrompt(
           content,
           locale,
           name,
-          srcDir,
           distDir,
-          ctx
+          ctx,
+          metadata
         )
       }
     )
@@ -127,30 +108,33 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
 
     for (const error of errors) logger.warn('Failed to read subAgent', {path: error.path, phase: error.phase, error: error.error})
 
-    const legacySubAgents: SubAgentPrompt[] = []
+    const flatSubAgents: SubAgentPrompt[] = []
     for (const localized of localizedSubAgents) {
-      const prompt = localized.dist?.prompt ?? localized.src.default.prompt
-      if (prompt) legacySubAgents.push(prompt)
+      const distContent = localized.dist
+      if (distContent?.prompt != null) {
+        const {prompt: distPrompt, rawMdx} = distContent
+        flatSubAgents.push(rawMdx == null
+          ? distPrompt
+          : {...distPrompt, rawMdxContent: rawMdx})
+        continue
+      }
+
+      const srcPrompt = localized.src.default.prompt
+      if (srcPrompt != null) {
+        const {rawMdx} = localized.src.default
+        flatSubAgents.push(rawMdx == null
+          ? srcPrompt
+          : {...srcPrompt, rawMdxContent: rawMdx})
+      }
     }
 
-    logger.debug('SubAgentInputPlugin legacy subAgents', {
-      count: legacySubAgents.length,
-      agents: legacySubAgents.map(a => a.agentName)
+    logger.debug('SubAgentInputPlugin flattened subAgents', {
+      count: flatSubAgents.length,
+      agents: flatSubAgents.map(a => a.agentName)
     })
 
-    const promptIndex = new Map<string, LocalizedSubAgentPrompt>()
-    for (const sub of localizedSubAgents) promptIndex.set(sub.name, sub)
-
     return {
-      prompts: {
-        skills: [],
-        commands: [],
-        subAgents: localizedSubAgents,
-        rules: [],
-        readme: []
-      },
-      promptIndex,
-      subAgents: legacySubAgents
+      subAgents: flatSubAgents
     }
   }
 }

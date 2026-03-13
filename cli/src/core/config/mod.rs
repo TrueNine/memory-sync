@@ -78,10 +78,6 @@ pub struct AindexConfig {
     pub arch: Option<DirPair>,
 }
 
-/// Shadow source project configuration (deprecated, use AindexConfig).
-#[deprecated(since = "2026.10303.0", note = "Use AindexConfig instead")]
-pub type ShadowSourceProjectConfig = AindexConfig;
-
 /// Per-plugin fast command series override options.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -217,16 +213,6 @@ fn merge_aindex(
             arch: DirPair::merge(&base.arch, &over.arch),
         }),
     }
-}
-
-/// Merge aindex configs (deprecated, use merge_aindex).
-#[deprecated(since = "2026.10303.0", note = "Use merge_aindex instead")]
-#[allow(dead_code)]
-fn merge_shadow_source_project(
-    a: &Option<AindexConfig>,
-    b: &Option<AindexConfig>,
-) -> Option<AindexConfig> {
-    merge_aindex(a, b)
 }
 
 /// Merge two configs. `over` fields take priority over `base`.
@@ -602,18 +588,10 @@ pub fn ensure_aindex_config_link(aindex_dir: &str, logger: &Logger) {
     ensure_config_link(&config_path, &global_path, logger);
 }
 
-/// Ensure the shadow source project directory has a `.tnmsc.json` symlink
-/// pointing to the global config (deprecated, use ensure_aindex_config_link).
-#[deprecated(since = "2026.10303.0", note = "Use ensure_aindex_config_link instead")]
-#[allow(dead_code)]
-pub fn ensure_shadow_project_config_link(shadow_project_dir: &str, logger: &Logger) {
-    ensure_aindex_config_link(shadow_project_dir, logger);
-}
-
 /// Validate global config file strictly.
 ///
 /// - If config doesn't exist: create default config, log warn, continue
-/// - If config is invalid: delete and recreate, log error, return should_exit=true
+/// - If config is invalid: preserve the file, log error, return should_exit=true
 pub fn validate_and_ensure_global_config(
     default_config: &UserConfigFile,
 ) -> GlobalConfigValidationResult {
@@ -646,7 +624,7 @@ pub fn validate_and_ensure_global_config(
                     "error": e.to_string()
                 })),
             );
-            return recreate_config_and_exit(&config_path, default_config, &logger, vec![msg]);
+            return preserve_invalid_config_and_exit(&config_path, &logger, vec![msg]);
         }
     };
 
@@ -662,7 +640,7 @@ pub fn validate_and_ensure_global_config(
                     "error": e.to_string()
                 })),
             );
-            return recreate_config_and_exit(&config_path, default_config, &logger, vec![msg]);
+            return preserve_invalid_config_and_exit(&config_path, &logger, vec![msg]);
         }
     };
 
@@ -672,12 +650,7 @@ pub fn validate_and_ensure_global_config(
             Value::String("global config must be a JSON object".into()),
             Some(serde_json::json!({"path": config_path.to_string_lossy()})),
         );
-        return recreate_config_and_exit(
-            &config_path,
-            default_config,
-            &logger,
-            vec!["Config must be a JSON object".into()],
-        );
+        return preserve_invalid_config_and_exit(&config_path, &logger, vec!["Config must be a JSON object".into()]);
     }
 
     // Try to deserialize
@@ -690,7 +663,7 @@ pub fn validate_and_ensure_global_config(
                 "error": e.to_string()
             })),
         );
-        return recreate_config_and_exit(&config_path, default_config, &logger, vec![msg]);
+        return preserve_invalid_config_and_exit(&config_path, &logger, vec![msg]);
     }
 
     GlobalConfigValidationResult {
@@ -701,27 +674,13 @@ pub fn validate_and_ensure_global_config(
     }
 }
 
-fn recreate_config_and_exit(
+fn preserve_invalid_config_and_exit(
     config_path: &Path,
-    default_config: &UserConfigFile,
     logger: &Logger,
     errors: Vec<String>,
 ) -> GlobalConfigValidationResult {
-    if let Err(_) = fs::remove_file(config_path) {
-        logger.warn(
-            Value::String("failed to delete invalid config".into()),
-            Some(serde_json::json!({"path": config_path.to_string_lossy()})),
-        );
-    } else {
-        logger.info(
-            Value::String("deleted invalid config".into()),
-            Some(serde_json::json!({"path": config_path.to_string_lossy()})),
-        );
-    }
-
-    write_config(config_path, default_config, logger);
     logger.error(
-        Value::String("recreated default config, please review and restart".into()),
+        Value::String("invalid global config preserved, please fix it manually and restart".into()),
         Some(serde_json::json!({"path": config_path.to_string_lossy()})),
     );
 
@@ -740,6 +699,7 @@ fn recreate_config_and_exit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     #[test]
     fn test_resolve_tilde() {
@@ -783,8 +743,8 @@ mod tests {
                 "commands": {"src": "src/commands", "dist": "dist/commands"},
                 "subAgents": {"src": "src/agents", "dist": "dist/agents"},
                 "rules": {"src": "src/rules", "dist": "dist/rules"},
-                "globalPrompt": {"src": "app/global.cn.mdx", "dist": "dist/global.mdx"},
-                "workspacePrompt": {"src": "app/workspace.cn.mdx", "dist": "dist/app/workspace.mdx"},
+                "globalPrompt": {"src": "app/global.src.mdx", "dist": "dist/global.mdx"},
+                "workspacePrompt": {"src": "app/workspace.src.mdx", "dist": "dist/app/workspace.mdx"},
                 "app": {"src": "app", "dist": "dist/app"},
                 "ext": {"src": "ext", "dist": "dist/ext"},
                 "arch": {"src": "arch", "dist": "dist/arch"}
@@ -973,6 +933,34 @@ mod tests {
         let path_str = path.to_string_lossy();
         assert!(path_str.contains(DEFAULT_GLOBAL_CONFIG_DIR));
         assert!(path_str.contains(DEFAULT_CONFIG_FILE_NAME));
+    }
+
+    #[test]
+    fn test_preserve_invalid_config_and_exit_keeps_original_file() {
+        let temp_dir = match TempDir::new() {
+            Ok(value) => value,
+            Err(error) => panic!("failed to create temp dir: {error}"),
+        };
+        let config_path = temp_dir.path().join(DEFAULT_CONFIG_FILE_NAME);
+        let invalid_content = "{invalid-json";
+
+        if let Err(error) = fs::write(&config_path, invalid_content) {
+            panic!("failed to write invalid config fixture: {error}");
+        }
+
+        let logger = create_logger("ConfigLoaderTest", None);
+        let result = preserve_invalid_config_and_exit(&config_path, &logger, vec!["Invalid JSON".into()]);
+
+        assert!(!result.valid);
+        assert!(result.exists);
+        assert!(result.should_exit);
+        assert_eq!(result.errors, vec!["Invalid JSON".to_string()]);
+
+        let retained = match fs::read_to_string(&config_path) {
+            Ok(value) => value,
+            Err(error) => panic!("failed to read retained config: {error}"),
+        };
+        assert_eq!(retained, invalid_content);
     }
 }
 

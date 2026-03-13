@@ -1,15 +1,10 @@
-name: Release GUI Windows
+name: Debug GUI Windows Artifact
 
 on:
-  workflow_call:
-    inputs:
-      version:
-        required: true
-        type: string
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (without v prefix, e.g. 2026.10213.0)'
+        description: 'Version to rebuild for debugging (without v prefix, e.g. 2026.10213.0)'
         required: true
         type: string
 
@@ -17,8 +12,9 @@ permissions:
   contents: read
 
 jobs:
-  build-gui-win:
+  build-gui-win-debug:
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm
@@ -37,13 +33,15 @@ jobs:
         shell: bash
         run: |
           echo "=== Finding all bundle artifacts ==="
-          find gui/src-tauri/target -path '*/bundle/*' -type f -name '*.exe' 2>/dev/null || echo 'No bundle files found'
+          find target -path '*/bundle/*' -type f \( -name '*.exe' -o -name '*.sig' \) 2>/dev/null || echo 'No bundle files found'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gui-windows-latest
+          name: debug-gui-windows-latest
           path: |
-            gui/src-tauri/target/*/release/bundle/**/*.exe
-            gui/src-tauri/target/release/bundle/**/*.exe
+            target/*/release/bundle/**/*.exe
+            target/*/release/bundle/**/*.sig
+            target/release/bundle/**/*.exe
+            target/release/bundle/**/*.sig
           if-no-files-found: error

@@ -34,7 +34,10 @@ tags:
   describe('buildFrontMatter', () => {
     it('should build front matter with simple values', () => {
       const result = buildFrontMatter({name: 'test', description: 'A test'})
-      expect(result).toBe('---\nname: test\ndescription: A test\n---')
+      expect(result.startsWith('---\n')).toBe(true)
+      expect(result.endsWith('\n---')).toBe(true)
+      const parsed = parseMarkdown(`${result}\n`)
+      expect(parsed.yamlFrontMatter).toEqual({name: 'test', description: 'A test'})
     })
 
     it('should build front matter with array values', () => {
@@ -61,9 +64,10 @@ tags:
       const result = buildFrontMatter({
         metadata: {version: '1.0', author: 'Test'}
       })
-      expect(result).toContain('metadata:')
-      expect(result).toContain('version: "1.0"')
-      expect(result).toContain('author: Test')
+      const parsed = parseMarkdown(`${result}\n`)
+      expect(parsed.yamlFrontMatter).toEqual({
+        metadata: {version: '1.0', author: 'Test'}
+      })
     })
   })
 

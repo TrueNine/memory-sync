@@ -24,7 +24,7 @@ const STRING_FIELDS = [
   'version',
 ] as const
 
-const OBJECT_FIELDS = ['profile', 'tool', 'fastCommandSeriesOptions'] as const
+const OBJECT_FIELDS = ['profile', 'commandSeriesOptions', 'outputScopes'] as const
 
 // ── Arbitraries ────────────────────────────────────────────────────────
 
@@ -173,7 +173,7 @@ describe('Property 3: 无效配置产生错误', () => {
   /**
    * **Validates: Requirements 3.4**
    *
-   * For any object field (profile, tool, fastCommandSeriesOptions)
+   * For any object field (profile, commandSeriesOptions, outputScopes)
    * set to a non-object value, validateConfig should return at least
    * one error for that field.
    */

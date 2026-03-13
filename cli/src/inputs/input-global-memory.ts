@@ -1,4 +1,4 @@
-import type {CollectedInputContext, InputPluginContext} from '../plugins/plugin-shared'
+import type {InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
 
 import * as os from 'node:os'
 import process from 'node:process'
@@ -6,19 +6,14 @@ import process from 'node:process'
 import {mdxToMd} from '@truenine/md-compiler'
 import {ScopeError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
-import {
-  FilePathKind,
-  GlobalConfigDirectoryType,
-  PromptKind
-} from '../plugins/plugin-shared'
+import {AbstractInputPlugin, FilePathKind, GlobalConfigDirectoryType, PromptKind} from '../plugins/plugin-core'
 
 export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('GlobalMemoryInputPlugin')
   }
 
-  async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+  async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, fs, path, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
 

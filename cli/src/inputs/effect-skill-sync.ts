@@ -1,8 +1,8 @@
 import type {Buffer} from 'node:buffer'
 
-import type {CollectedInputContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-shared'
+import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
 import {createHash} from 'node:crypto'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+import {AbstractInputPlugin, hasSourcePromptExtension} from '../plugins/plugin-core'
 
 export interface SkillSyncEffectResult extends InputEffectResult {
   readonly copiedFiles: string[]
@@ -111,7 +111,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
           dryRun
         )
       } else if (entry.isFile()) {
-        if (entry.name.endsWith('.cn.mdx')) continue
+        if (hasSourcePromptExtension(entry.name) || entry.name.endsWith('.mdx')) continue
 
         const targetDir = path.dirname(distPath)
         if (!fs.existsSync(targetDir)) {
@@ -173,7 +173,7 @@ export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
     return createHash('sha256').update(content).digest('hex')
   }
 
-  collect(_ctx: InputPluginContext): Partial<CollectedInputContext> {
+  collect(_ctx: InputPluginContext): Partial<InputCollectedContext> {
     return {}
   }
 }

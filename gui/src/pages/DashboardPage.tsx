@@ -200,7 +200,7 @@ const DashboardPage: FC = () => {
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard icon={FileText} label={t('dashboard.stats.totalFiles')} value={stats.totalFiles} />
             <StatCard icon={BarChart3} label={t('dashboard.stats.totalChars')} value={stats.totalChars} />
-            <StatCard icon={Layers} label={t('dashboard.stats.cnMdx')} value={stats.totalCnMdx} />
+            <StatCard icon={Layers} label={t('dashboard.stats.sourceMdx')} value={stats.totalSourceMdx} />
             <StatCard icon={Languages} label={t('dashboard.stats.translated')} value={stats.totalTranslated} />
           </div>
 

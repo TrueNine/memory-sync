@@ -1,6 +1,7 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as path from 'node:path'
-import {checkCanClean, collectAllPluginOutputs, executeOnCleanComplete} from '../plugins/plugin-shared'
+import {collectAllPluginOutputs} from '../plugins/plugin-core'
+import {logProtectedDeletionGuardError} from '../ProtectedDeletionGuard'
 import {collectDeletionTargets} from './CleanupUtils'
 
 /**
@@ -20,19 +21,34 @@ export class DryRunCleanCommand implements Command {
       dryRun: true,
       projectDirs: outputs.projectDirs.length,
       projectFiles: outputs.projectFiles.length,
+      workspaceDirs: outputs.workspaceDirs.length,
+      workspaceFiles: outputs.workspaceFiles.length,
       globalDirs: outputs.globalDirs.length,
       globalFiles: outputs.globalFiles.length
     })
 
-    const permissions = await checkCanClean(outputPlugins, cleanCtx)
-    const {filesToDelete, dirsToDelete} = await collectDeletionTargets(outputPlugins, permissions, cleanCtx)
+    const {filesToDelete, dirsToDelete, violations, excludedScanGlobs} = await collectDeletionTargets(outputPlugins, cleanCtx)
+
+    if (violations.length > 0) {
+      logProtectedDeletionGuardError(logger, 'dry-run-cleanup', violations)
+      return {
+        success: false,
+        filesAffected: 0,
+        dirsAffected: 0,
+        message: `Protected deletion guard blocked cleanup for ${violations.length} path(s)`
+      }
+    }
 
     this.logDryRunFiles(filesToDelete, logger)
     this.logDryRunDirectories(dirsToDelete, logger)
 
-    await executeOnCleanComplete(outputPlugins, cleanCtx)
-
-    logger.info('clean complete', {dryRun: true, filesAffected: filesToDelete.length, dirsAffected: dirsToDelete.length})
+    logger.info('clean complete', {
+      dryRun: true,
+      filesAffected: filesToDelete.length,
+      dirsAffected: dirsToDelete.length,
+      violations: 0,
+      excludedScanGlobs
+    })
 
     return {
       success: true,

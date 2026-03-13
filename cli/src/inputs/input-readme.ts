@@ -1,11 +1,10 @@
-import type {CollectedInputContext, InputPluginContext, ReadmeFileKind, ReadmePrompt, RelativePath} from '../plugins/plugin-shared'
+import type {InputCollectedContext, InputPluginContext, ReadmeFileKind, ReadmePrompt, RelativePath} from '../plugins/plugin-core'
 
 import process from 'node:process'
 
 import {mdxToMd} from '@truenine/md-compiler'
 import {ScopeError} from '@truenine/md-compiler/errors'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
-import {FilePathKind, PromptKind, README_FILE_KIND_MAP} from '../plugins/plugin-shared'
+import {AbstractInputPlugin, FilePathKind, PromptKind, README_FILE_KIND_MAP} from '../plugins/plugin-core'
 
 const ALL_FILE_KINDS = Object.entries(README_FILE_KIND_MAP) as [ReadmeFileKind, {src: string, out: string}][]
 
@@ -14,7 +13,7 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
     super('ReadmeMdInputPlugin', ['AindexInputPlugin'])
   }
 
-  async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+  async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, fs, path, globalScope} = ctx
     const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
 

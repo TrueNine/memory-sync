@@ -1,9 +1,7 @@
-import type {CollectedInputContext, InputPluginContext, Project, Workspace} from '../plugins/plugin-shared'
-import type {ProjectConfig} from '../plugins/plugin-shared/types'
+import type {InputCollectedContext, InputPluginContext, Project, ProjectConfig, Workspace} from '../plugins/plugin-core'
 
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
 import {parse as parseJsonc} from 'jsonc-parser'
-import {FilePathKind} from '../plugins/plugin-shared'
+import {AbstractInputPlugin, FilePathKind} from '../plugins/plugin-core'
 
 export class AindexInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -35,7 +33,7 @@ export class AindexInputPlugin extends AbstractInputPlugin {
     }
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
+  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
     const {userConfigOptions: options, logger, fs, path} = ctx
     const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
 

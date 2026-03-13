@@ -1,6 +1,6 @@
 import type {Command} from '../Command'
 import type {PrioritizedCommandFactory} from '../CommandFactory'
-import type {ParsedCliArgs} from '@/pipeline'
+import type {ParsedCliArgs} from '@/pipeline/CliArgumentParser'
 import {FactoryPriority} from '../CommandFactory'
 import {UnknownCommand} from '../UnknownCommand'
 

@@ -1,4 +1,4 @@
-import type {CollectedInputContext, ILogger, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from '../plugins/plugin-shared'
+import type {ILogger, OutputCleanContext, OutputCollectedContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from '../plugins/plugin-core'
 
 /**
  * Command execution context
@@ -6,7 +6,7 @@ import type {CollectedInputContext, ILogger, OutputCleanContext, OutputPlugin, O
 export interface CommandContext {
   readonly logger: ILogger
   readonly outputPlugins: readonly OutputPlugin[]
-  readonly collectedInputContext: CollectedInputContext
+  readonly collectedOutputContext: OutputCollectedContext
   readonly userConfigOptions: Required<PluginOptions>
   readonly createCleanContext: (dryRun: boolean) => OutputCleanContext
   readonly createWriteContext: (dryRun: boolean) => OutputWriteContext

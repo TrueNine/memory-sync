@@ -267,7 +267,11 @@ fn serialize_table(table: &markdown::mdast::Table, out: &mut String) {
         // Separator row
         out.push('|');
         for (i, _) in header.children.iter().enumerate() {
-            let align = table.align.get(i).copied().unwrap_or(markdown::mdast::AlignKind::None);
+            let align = table
+                .align
+                .get(i)
+                .copied()
+                .unwrap_or(markdown::mdast::AlignKind::None);
             match align {
                 markdown::mdast::AlignKind::Left => out.push_str(" :--- |"),
                 markdown::mdast::AlignKind::Right => out.push_str(" ---: |"),

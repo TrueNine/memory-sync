@@ -1,0 +1,10 @@
+# Default owner for repository changes
+* @TrueNine
+
+# High-risk directories
+/.github/ @TrueNine
+/cli/ @TrueNine
+/libraries/ @TrueNine
+/gui/ @TrueNine
+/doc/ @TrueNine
+/scripts/ @TrueNine

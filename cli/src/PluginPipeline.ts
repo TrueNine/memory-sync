@@ -1,40 +1,16 @@
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
-import type {CollectedInputContext, ILogger, InputPlugin, InputPluginContext, OutputCleanContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from './plugins/plugin-shared'
-import type {Command, CommandContext} from '@/commands'
+import type {ILogger, InputCollectedContext, InputPlugin, InputPluginContext, OutputCleanContext, OutputCollectedContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from './plugins/plugin-core'
+import type {Command, CommandContext, CommandResult} from '@/commands/Command'
 import type {PipelineConfig} from '@/config'
-import type {ParsedCliArgs} from '@/pipeline'
+import type {ParsedCliArgs} from '@/pipeline/CliArgumentParser'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@truenine/plugin-input-shared'
 import glob from 'fast-glob'
-import {
-  buildDependencyContext,
-  extractUserArgs,
-  mergeContexts,
-  parseArgs,
-
-  resolveCommand,
-  resolveLogLevel,
-  topologicalSort
-} from '@/pipeline'
-import {startupVersionCheck} from '@/versionCheck'
-import {createLogger, setGlobalLogLevel} from './plugins/plugin-shared'
-
-export type {
-  LogLevel,
-  ParsedCliArgs,
-  Subcommand
-} from '@/pipeline' // Re-export types for backwards compatibility
-
-export { // Re-export functions for backwards compatibility
-  buildDependencyGraph,
-  extractUserArgs,
-  parseArgs,
-  resolveCommand,
-  resolveLogLevel,
-  topologicalSort,
-  validateDependencies
-} from '@/pipeline'
+import {JsonOutputCommand} from '@/commands/JsonOutputCommand'
+import {extractUserArgs, parseArgs, resolveCommand} from '@/pipeline/CliArgumentParser'
+import {buildDependencyContext, mergeContexts} from '@/pipeline/ContextMerger'
+import {topologicalSort} from '@/pipeline/PluginDependencyResolver'
+import {createLogger, GlobalScopeCollector, ScopePriority, ScopeRegistry, setGlobalLogLevel} from './plugins/plugin-core'
 
 /**
  * Plugin Pipeline - Orchestrates plugin execution
@@ -54,7 +30,7 @@ export class PluginPipeline {
     const userArgs = extractUserArgs(filtered)
     this.args = parseArgs(userArgs)
 
-    const resolvedLogLevel = resolveLogLevel(this.args) // Resolve log level from parsed args and set globally
+    const resolvedLogLevel = this.args.logLevel // Resolve log level from parsed args and set globally
     if (resolvedLogLevel != null) setGlobalLogLevel(resolvedLogLevel)
     this.logger = createLogger('PluginPipeline', resolvedLogLevel)
     this.logger.debug('initialized', {args: this.args})
@@ -65,58 +41,52 @@ export class PluginPipeline {
     return this
   }
 
-  async run(config: PipelineConfig): Promise<void> {
-    void startupVersionCheck(this.logger) // Don't await - let it run in background without blocking process exit // Startup version check (runs on even minutes, non-blocking)
-
+  async run(config: PipelineConfig): Promise<CommandResult> {
     const {context, outputPlugins, userConfigOptions} = config
     this.registerOutputPlugins([...outputPlugins])
 
-    let command: Command = this.resolveCommand()
+    let command: Command = resolveCommand(this.args)
 
     if (this.args.jsonFlag) {
       setGlobalLogLevel('silent') // Suppress all console logging in JSON mode
 
       const selfJsonCommands = new Set(['config-show', 'plugins']) // only need log suppression, not JsonOutputCommand wrapping // Commands that handle their own JSON output (config --show, plugins)
-      if (!selfJsonCommands.has(command.name)) command = new (await import('@/commands')).JsonOutputCommand(command)
+      if (!selfJsonCommands.has(command.name)) command = new JsonOutputCommand(command)
     }
 
     const commandCtx = this.createCommandContext(context, userConfigOptions)
-    await command.execute(commandCtx)
+    return command.execute(commandCtx)
   }
 
-  private resolveCommand(): Command {
-    return resolveCommand(this.args)
-  }
-
-  private createCommandContext(ctx: CollectedInputContext, userConfigOptions: Required<PluginOptions>): CommandContext {
+  private createCommandContext(ctx: OutputCollectedContext, userConfigOptions: Required<PluginOptions>): CommandContext {
     return {
       logger: this.logger,
       outputPlugins: this.outputPlugins,
-      collectedInputContext: ctx,
+      collectedOutputContext: ctx,
       userConfigOptions,
       createCleanContext: (dryRun: boolean) => this.createCleanContext(ctx, dryRun),
       createWriteContext: (dryRun: boolean) => this.createWriteContext(ctx, dryRun)
     }
   }
 
-  private createCleanContext(ctx: CollectedInputContext, dryRun: boolean): OutputCleanContext {
+  private createCleanContext(ctx: OutputCollectedContext, dryRun: boolean): OutputCleanContext {
     return {
       logger: this.logger,
       fs,
       path,
       glob,
-      collectedInputContext: ctx,
+      collectedOutputContext: ctx,
       dryRun
     }
   }
 
-  private createWriteContext(ctx: CollectedInputContext, dryRun: boolean): OutputWriteContext {
+  private createWriteContext(ctx: OutputCollectedContext, dryRun: boolean): OutputWriteContext {
     return {
       logger: this.logger,
       fs,
       path,
       glob,
-      collectedInputContext: ctx,
+      collectedOutputContext: ctx,
       dryRun,
       registeredPluginNames: this.outputPlugins.map(p => p.name)
     }
@@ -127,7 +97,7 @@ export class PluginPipeline {
     baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'>,
     dryRun: boolean = false,
     userConfig?: UserConfigFile
-  ): Promise<Partial<CollectedInputContext>> {
+  ): Promise<Partial<InputCollectedContext>> {
     if (plugins.length === 0) return {}
 
     const sortedPlugins = topologicalSort(plugins) as InputPlugin[] // Sort plugins by dependencies
@@ -143,16 +113,18 @@ export class PluginPipeline {
       hasTool: Object.keys(globalScope.tool).length > 0
     })
 
-    const outputsByPlugin = new Map<string, Partial<CollectedInputContext>>() // Track outputs by plugin name for dependency resolution
+    const outputsByPlugin = new Map<string, Partial<InputCollectedContext>>() // Track outputs by plugin name for dependency resolution
 
-    let accumulatedContext: Partial<CollectedInputContext> = {} // Accumulated context from all executed plugins
+    let accumulatedContext: Partial<InputCollectedContext> = {} // Accumulated context from all executed plugins
 
     for (const plugin of sortedPlugins) {
-      const dependencyContext = this.buildDependencyContext(plugin, outputsByPlugin) // Build dependency context from direct dependencies only
+      const dependencyContext = buildDependencyContext(plugin, outputsByPlugin, mergeContexts) // Build dependency context from direct dependencies only
+      const runtimeCommand = this.resolveRuntimeCommand()
 
       const ctx: InputPluginContext = { // Create context with dependency outputs, globalScope, and scopeRegistry
         ...baseCtx,
         dependencyContext,
+        ...runtimeCommand != null && {runtimeCommand},
         globalScope,
         scopeRegistry
       }
@@ -179,10 +151,12 @@ export class PluginPipeline {
     return accumulatedContext
   }
 
-  private buildDependencyContext(
-    plugin: InputPlugin,
-    outputsByPlugin: Map<string, Partial<CollectedInputContext>>
-  ): Partial<CollectedInputContext> {
-    return buildDependencyContext(plugin, outputsByPlugin, mergeContexts)
+  private resolveRuntimeCommand(): InputPluginContext['runtimeCommand'] {
+    if (this.args.helpFlag || this.args.versionFlag || this.args.unknownCommand != null) return void 0
+    if (this.args.subcommand === 'clean') return 'clean'
+    if (this.args.subcommand === 'plugins') return 'plugins'
+    if (this.args.subcommand === 'dry-run' || this.args.dryRun) return 'dry-run'
+    if (this.args.subcommand == null) return 'execute'
+    return void 0
   }
 }

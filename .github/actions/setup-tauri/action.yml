@@ -13,6 +13,15 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Cache Linux package archives
+      if: runner.os == 'Linux'
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: ${{ runner.os }}-tauri-apt-${{ hashFiles('.github/actions/setup-tauri/action.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-tauri-apt-
+
     - name: Install Linux dependencies
       if: runner.os == 'Linux'
       shell: bash
@@ -46,7 +55,7 @@ runs:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          gui/src-tauri/target
+          target
         key: ${{ runner.os }}-cargo-${{ steps.cargo-deps-hash.outputs.hash }}
         restore-keys: |
           ${{ runner.os }}-cargo-
@@ -67,6 +76,6 @@ runs:
     - name: Clean old bundle artifacts
       shell: bash
       run: |
-        if [ -d "gui/src-tauri/target" ]; then
-          find gui/src-tauri/target -type d -name bundle -prune -exec rm -rf {} +
+        if [ -d "target" ]; then
+          find target -type d -name bundle -prune -exec rm -rf {} +
         fi

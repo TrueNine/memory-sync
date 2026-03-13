@@ -1,28 +1,21 @@
-import type {AIAgentIgnoreConfigFile, CollectedInputContext, InputPluginContext} from '../plugins/plugin-shared'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
-import {AINDEX_FILE_NAMES} from '../plugins/plugin-shared'
-
-const IGNORE_FILE_NAMES: readonly string[] = [
-  AINDEX_FILE_NAMES.QODER_IGNORE,
-  AINDEX_FILE_NAMES.CURSOR_IGNORE,
-  AINDEX_FILE_NAMES.WARP_INDEX_IGNORE,
-  AINDEX_FILE_NAMES.AI_IGNORE,
-  AINDEX_FILE_NAMES.CODEIUM_IGNORE,
-  '.kiroignore',
-  '.traeignore'
-] as const
+import type {AIAgentIgnoreConfigFile, InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
+import {AbstractInputPlugin} from '../plugins/plugin-core'
+import {AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS, resolvePublicDefinitionPath} from '../public-config-paths'
 
 export class AIAgentIgnoreInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('AIAgentIgnoreInputPlugin')
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const {aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
+  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
     const results: AIAgentIgnoreConfigFile[] = []
 
-    for (const fileName of IGNORE_FILE_NAMES) {
-      const filePath = ctx.path.join(aindexDir, fileName)
+    for (const fileName of AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS) {
+      const filePath = resolvePublicDefinitionPath(aindexDir, fileName, {
+        command: ctx.runtimeCommand,
+        workspaceDir
+      })
       if (!ctx.fs.existsSync(filePath)) {
         this.log.debug({action: 'collect', message: 'Ignore file not found', path: filePath})
         continue
@@ -32,7 +25,7 @@ export class AIAgentIgnoreInputPlugin extends AbstractInputPlugin {
         this.log.debug({action: 'collect', message: 'Ignore file is empty', path: filePath})
         continue
       }
-      results.push({fileName, content})
+      results.push({fileName, content, sourcePath: filePath})
       this.log.debug({action: 'collect', message: 'Loaded ignore file', path: filePath, fileName})
     }
 

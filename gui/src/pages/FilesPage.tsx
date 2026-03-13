@@ -27,7 +27,7 @@ loader.config({ monaco })
 registerVitesseThemes()
 
 // Register mdx as a language aliased to markdown for syntax highlighting
-monaco.languages.register({ id: 'mdx', extensions: ['.mdx', '.cn.mdx'], aliases: ['MDX'] })
+monaco.languages.register({ id: 'mdx', extensions: ['.mdx', '.src.mdx'], aliases: ['MDX'] })
 // Use markdown tokenizer for mdx
 const mdLangDef = (monaco.languages as unknown as Record<string, unknown>)['_languages']
 if (!mdLangDef) {
@@ -279,7 +279,15 @@ const CATEGORY_TABS: readonly { readonly value: FileCategory; readonly labelKey:
 
 /** Root prefix for tree building per category */
 function categoryRootPrefix(cat: FileCategory): string {
-  return cat === 'projects' ? 'app' : `src/${cat}`
+  if (cat === 'projects') {
+    return 'app'
+  }
+
+  if (cat === 'agents') {
+    return 'subagents'
+  }
+
+  return cat
 }
 
 // ---------------------------------------------------------------------------
@@ -351,7 +359,11 @@ const FilesPage: FC = () => {
 
   useEffect(() => { fetchFiles() }, [fetchFiles])
 
-  const tree = useMemo(() => buildTree(files, categoryRootPrefix(category)), [files, category])
+  const treeRootPrefix = useMemo(
+    () => files[0]?.sourcePath.split('/')[0] ?? categoryRootPrefix(category),
+    [files, category]
+  )
+  const tree = useMemo(() => buildTree(files, treeRootPrefix), [files, treeRootPrefix])
 
   const handleSelect = useCallback(async (entry: AindexFileEntry) => {
     setSelected(entry)
@@ -488,7 +500,7 @@ const FilesPage: FC = () => {
                 readOnly
               />
             ) : (
-              /* Dual pane for .cn.mdx source + translated */
+              /* Dual pane for .src.mdx source + translated */
               <>
                 <EditorPane
                   label={`${t('files.source')} — ${selected.sourcePath.split('/').pop() ?? ''}`}

@@ -1,3 +1,0 @@
-export {
-  RegistryWriter
-} from './RegistryWriter'

@@ -1,10 +1,10 @@
 import type {
-  CollectedInputContext,
+  InputCollectedContext,
   InputEffectContext,
   InputEffectResult,
   InputPluginContext
-} from '../plugins/plugin-shared'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+} from '../plugins/plugin-core'
+import {AbstractInputPlugin} from '../plugins/plugin-core'
 
 export interface WhitespaceCleanupEffectResult extends InputEffectResult {
   readonly modifiedFiles: string[]
@@ -142,7 +142,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     return '\n'
   }
 
-  collect(_ctx: InputPluginContext): Partial<CollectedInputContext> {
+  collect(_ctx: InputPluginContext): Partial<InputCollectedContext> {
     return {}
   }
 }

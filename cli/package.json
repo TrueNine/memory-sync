@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10303.11117",
+  "version": "2026.10314.10606",
   "description": "TrueNine Memory Synchronization CLI",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -51,8 +51,8 @@
   "scripts": {
     "build": "run-s build:deps build:napi bundle generate:schema check",
     "build:napi": "tsx ../scripts/copy-napi.ts",
-    "build:deps": "pnpm -F @truenine/logger -F @truenine/md-compiler run build",
-    "bundle": "pnpm exec tsdown",
+    "build:deps": "pnpm -F @truenine/logger -F @truenine/md-compiler -F @truenine/script-runtime run build",
+    "bundle": "tsx ../scripts/build-quiet.ts",
     "check": "run-p typecheck lint",
     "generate:schema": "tsx scripts/generate-schema.ts",
     "lint": "eslint --cache .",
@@ -64,6 +64,7 @@
   },
   "dependencies": {
     "@clack/prompts": "catalog:",
+    "@truenine/script-runtime": "workspace:*",
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
     "jiti": "2.6.1",

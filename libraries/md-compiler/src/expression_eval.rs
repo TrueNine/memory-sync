@@ -7,8 +7,8 @@
 //! - Equality comparisons: `{os.platform === "win32"}`
 //! - Boolean literals: `{true}`, `{false}`
 
-use std::collections::HashMap;
 use serde_json::Value;
+use std::collections::HashMap;
 
 /// Evaluation scope — a map of variable names to their values.
 pub type EvaluationScope = HashMap<String, Value>;
@@ -66,7 +66,9 @@ fn is_simple_reference(s: &str) -> bool {
 
     // First char must be letter, underscore, or $
     match chars.peek() {
-        Some(c) if c.is_ascii_alphabetic() || *c == '_' || *c == '$' => { chars.next(); }
+        Some(c) if c.is_ascii_alphabetic() || *c == '_' || *c == '$' => {
+            chars.next();
+        }
         _ => return false,
     }
 
@@ -85,19 +87,29 @@ fn evaluate_simple_reference(reference: &str, scope: &EvaluationScope) -> Result
     let parts: Vec<&str> = reference.split('.').collect();
     let root_var = parts[0];
 
-    let root_value = scope.get(root_var)
-        .ok_or_else(|| format!("Undefined namespace: \"{}\" in expression \"{}\"", root_var, reference))?;
+    let root_value = scope.get(root_var).ok_or_else(|| {
+        format!(
+            "Undefined namespace: \"{}\" in expression \"{}\"",
+            root_var, reference
+        )
+    })?;
 
     let mut value = root_value.clone();
     for &prop in &parts[1..] {
         match &value {
             Value::Object(map) => {
-                value = map.get(prop)
-                    .cloned()
-                    .ok_or_else(|| format!("Undefined variable: \"{}\" in expression \"{}\"", prop, reference))?;
+                value = map.get(prop).cloned().ok_or_else(|| {
+                    format!(
+                        "Undefined variable: \"{}\" in expression \"{}\"",
+                        prop, reference
+                    )
+                })?;
             }
             Value::Null => {
-                return Err(format!("Cannot read property \"{}\" of null in expression \"{}\"", prop, reference));
+                return Err(format!(
+                    "Cannot read property \"{}\" of null in expression \"{}\"",
+                    prop, reference
+                ));
             }
             _ => {
                 return Err(format!(
@@ -203,7 +215,12 @@ fn find_operator(s: &str, op: char) -> Option<usize> {
             '`' if !in_single_quote && !in_double_quote => in_backtick = !in_backtick,
             '(' | '{' | '[' if !in_single_quote && !in_double_quote && !in_backtick => depth += 1,
             ')' | '}' | ']' if !in_single_quote && !in_double_quote && !in_backtick => depth -= 1,
-            c2 if c2 == op && depth == 0 && !in_single_quote && !in_double_quote && !in_backtick => {
+            c2 if c2 == op
+                && depth == 0
+                && !in_single_quote
+                && !in_double_quote
+                && !in_backtick =>
+            {
                 return Some(i);
             }
             _ => {}
@@ -250,7 +267,10 @@ mod tests {
     fn make_scope() -> EvaluationScope {
         let mut scope = EvaluationScope::new();
         scope.insert("os".into(), json!({"platform": "win32", "arch": "x64"}));
-        scope.insert("profile".into(), json!({"name": "TrueNine", "username": "truenine"}));
+        scope.insert(
+            "profile".into(),
+            json!({"name": "TrueNine", "username": "truenine"}),
+        );
         scope.insert("tool".into(), json!({"name": "cursor"}));
         scope
     }
@@ -259,7 +279,10 @@ mod tests {
     fn test_simple_reference() {
         let scope = make_scope();
         assert_eq!(evaluate_expression("os.platform", &scope).unwrap(), "win32");
-        assert_eq!(evaluate_expression("profile.name", &scope).unwrap(), "TrueNine");
+        assert_eq!(
+            evaluate_expression("profile.name", &scope).unwrap(),
+            "TrueNine"
+        );
         assert_eq!(evaluate_expression("tool.name", &scope).unwrap(), "cursor");
     }
 
@@ -300,11 +323,16 @@ mod tests {
     fn test_ternary() {
         let scope = make_scope();
         assert_eq!(
-            evaluate_expression("os.platform === \"win32\" ? \"windows\" : \"other\"", &scope).unwrap(),
+            evaluate_expression(
+                "os.platform === \"win32\" ? \"windows\" : \"other\"",
+                &scope
+            )
+            .unwrap(),
             "windows"
         );
         assert_eq!(
-            evaluate_expression("os.platform === \"linux\" ? \"linux\" : \"other\"", &scope).unwrap(),
+            evaluate_expression("os.platform === \"linux\" ? \"linux\" : \"other\"", &scope)
+                .unwrap(),
             "other"
         );
     }
@@ -312,9 +340,18 @@ mod tests {
     #[test]
     fn test_equality() {
         let scope = make_scope();
-        assert_eq!(evaluate_expression("os.platform === \"win32\"", &scope).unwrap(), "true");
-        assert_eq!(evaluate_expression("os.platform !== \"win32\"", &scope).unwrap(), "false");
-        assert_eq!(evaluate_expression("os.platform === \"linux\"", &scope).unwrap(), "false");
+        assert_eq!(
+            evaluate_expression("os.platform === \"win32\"", &scope).unwrap(),
+            "true"
+        );
+        assert_eq!(
+            evaluate_expression("os.platform !== \"win32\"", &scope).unwrap(),
+            "false"
+        );
+        assert_eq!(
+            evaluate_expression("os.platform === \"linux\"", &scope).unwrap(),
+            "false"
+        );
     }
 
     #[test]

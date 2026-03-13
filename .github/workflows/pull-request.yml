@@ -5,6 +5,18 @@ on:
     branches:
       - main
     types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - .attachments/**
+      - AGENTS.md
+      - CLAUDE.md
+      - GEMINI.md
+      - README.md
+      - CODE_OF_CONDUCT.md
+      - LICENSE
+      - SECURITY.md
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -12,7 +24,9 @@ concurrency:
 
 jobs:
   check:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 

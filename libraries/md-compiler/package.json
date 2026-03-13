@@ -1,7 +1,7 @@
 {
   "name": "@truenine/md-compiler",
   "type": "module",
-  "version": "2026.10303.11117",
+  "version": "2026.10314.10606",
   "private": true,
   "description": "Rust-powered MDX→Markdown compiler for Node.js with pure-TS fallback",
   "license": "AGPL-3.0-only",
@@ -40,7 +40,7 @@
     ]
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "tsx ../../scripts/build-quiet.ts",
     "build:all": "run-s build:native build",
     "build:native": "napi build --platform --release --output-dir dist -- --features napi",
     "build:native:debug": "napi build --platform --output-dir dist -- --features napi",

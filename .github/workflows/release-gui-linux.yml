@@ -1,15 +1,10 @@
-name: Release GUI Linux
+name: Debug GUI Linux Artifact
 
 on:
-  workflow_call:
-    inputs:
-      version:
-        required: true
-        type: string
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (without v prefix, e.g. 2026.10213.0)'
+        description: 'Version to rebuild for debugging (without v prefix, e.g. 2026.10213.0)'
         required: true
         type: string
 
@@ -17,23 +12,12 @@ permissions:
   contents: read
 
 jobs:
-  build-gui-linux:
+  build-gui-linux-debug:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm
-
-      - name: Cache apt packages
-        uses: actions/cache@v4
-        with:
-          path: /var/cache/apt/archives
-          key: apt-gtk-${{ runner.os }}-${{ hashFiles('.github/workflows/release-gui-linux.yml') }}
-          restore-keys: apt-gtk-${{ runner.os }}-
-
-      - name: Install GTK development dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libgtk-3-dev libglib2.0-dev pkg-config libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - uses: ./.github/actions/setup-tauri
         with:
@@ -50,17 +34,19 @@ jobs:
         shell: bash
         run: |
           echo "=== Finding all bundle artifacts ==="
-          find gui/src-tauri/target -path '*/bundle/*' -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) 2>/dev/null || echo 'No bundle files found'
+          find target -path '*/bundle/*' -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.sig' \) 2>/dev/null || echo 'No bundle files found'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gui-ubuntu-24.04
+          name: debug-gui-ubuntu-24.04
           path: |
-            gui/src-tauri/target/*/release/bundle/**/*.AppImage
-            gui/src-tauri/target/release/bundle/**/*.AppImage
-            gui/src-tauri/target/*/release/bundle/**/*.deb
-            gui/src-tauri/target/release/bundle/**/*.deb
-            gui/src-tauri/target/*/release/bundle/**/*.rpm
-            gui/src-tauri/target/release/bundle/**/*.rpm
+            target/*/release/bundle/**/*.AppImage
+            target/release/bundle/**/*.AppImage
+            target/*/release/bundle/**/*.deb
+            target/release/bundle/**/*.deb
+            target/*/release/bundle/**/*.rpm
+            target/release/bundle/**/*.rpm
+            target/*/release/bundle/**/*.sig
+            target/release/bundle/**/*.sig
           if-no-files-found: error

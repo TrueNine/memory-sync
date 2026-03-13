@@ -1,9 +1,9 @@
 {
   "name": "@truenine/logger",
   "type": "module",
-  "version": "2026.10303.11117",
+  "version": "2026.10314.10606",
   "private": true,
-  "description": "Rust-powered structured logger for Node.js with pure-TS fallback",
+  "description": "Rust-powered structured logger for Node.js via N-API",
   "license": "AGPL-3.0-only",
   "exports": {
     "./package.json": "./package.json",
@@ -28,11 +28,11 @@
     ]
   },
   "scripts": {
-    "build": "tsdown",
-    "build:all": "run-s build:native build",
+    "build": "run-s build:ts build:native",
+    "build:all": "run-s build:ts build:native",
     "build:native": "napi build --platform --release --output-dir dist -- --features napi",
     "build:native:debug": "napi build --platform --output-dir dist -- --features napi",
-    "build:ts": "tsdown",
+    "build:ts": "tsx ../../scripts/build-quiet.ts",
     "check": "run-p typecheck lint",
     "lint": "eslint --cache .",
     "lintfix": "eslint --fix --cache .",

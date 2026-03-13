@@ -4,11 +4,12 @@ members = [
   "cli",
   "libraries/logger",
   "libraries/md-compiler",
+  "libraries/script-runtime",
   "gui/src-tauri",
 ]
 
 [workspace.package]
-version = "2026.10222.0"
+version = "2026.10314.10606"
 edition = "2024"
 license = "AGPL-3.0-only"
 authors = ["TrueNine"]
@@ -19,6 +20,7 @@ repository = "https://github.com/TrueNine/memory-sync"
 tnmsc = { path = "cli" }
 tnmsc-logger = { path = "libraries/logger" }
 tnmsc-md-compiler = { path = "libraries/md-compiler" }
+tnmsc-script-runtime = { path = "libraries/script-runtime" }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

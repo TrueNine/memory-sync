@@ -1,5 +1,7 @@
 import type {Command, CommandContext, CommandResult} from './Command'
-import {checkCanWrite, executeWriteOutputs} from '../plugins/plugin-shared'
+import {
+  executeDeclarativeWriteOutputs
+} from '../plugins/plugin-core'
 import {performCleanup} from './CleanupUtils'
 
 /**
@@ -14,24 +16,40 @@ export class ExecuteCommand implements Command {
     logger.info('started', {command: 'execute'})
 
     const cleanCtx = createCleanContext(false) // Step 1: Pre-cleanup (non-dry-run only)
-    const cleanupResult = await performCleanup(outputPlugins, cleanCtx, logger, {
-      executeHooks: false // They will be handled by the write phase // Skip onCleanComplete hooks during pre-cleanup
-    })
+    const cleanupResult = await performCleanup(outputPlugins, cleanCtx, logger)
+
+    if (cleanupResult.violations.length > 0 || cleanupResult.conflicts.length > 0) {
+      return {
+        success: false,
+        filesAffected: 0,
+        dirsAffected: 0,
+        ...cleanupResult.message != null ? {message: cleanupResult.message} : {}
+      }
+    }
+
     logger.info('cleanup complete', {deletedFiles: cleanupResult.deletedFiles, deletedDirs: cleanupResult.deletedDirs})
 
     const writeCtx = createWriteContext(false) // Step 2: Write outputs
-    const permissions = await checkCanWrite(outputPlugins, writeCtx)
-    const allowedPlugins = outputPlugins.filter(
-      p => permissions.get(p.name)?.project ?? true
-    )
-
-    const results = await executeWriteOutputs(allowedPlugins, writeCtx)
+    const results = await executeDeclarativeWriteOutputs(outputPlugins, writeCtx)
 
     let totalFiles = 0
     let totalDirs = 0
+    const writeErrors: string[] = []
     for (const result of results.values()) {
       totalFiles += result.files.length
       totalDirs += result.dirs.length
+      for (const fileResult of result.files) {
+        if (!fileResult.success) writeErrors.push(fileResult.error?.message ?? `Failed to write ${fileResult.path}`)
+      }
+    }
+
+    if (writeErrors.length > 0) {
+      return {
+        success: false,
+        filesAffected: totalFiles,
+        dirsAffected: totalDirs,
+        message: writeErrors.join('\n')
+      }
     }
 
     logger.info('complete', {command: 'execute', pluginCount: results.size})

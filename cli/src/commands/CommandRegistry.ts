@@ -1,6 +1,6 @@
 import type {Command} from './Command'
 import type {CommandFactory, PrioritizedCommandFactory} from './CommandFactory'
-import type {ParsedCliArgs} from '@/pipeline'
+import type {ParsedCliArgs} from '@/pipeline/CliArgumentParser'
 import {FactoryPriority} from './CommandFactory'
 
 /**
@@ -23,11 +23,6 @@ export class CommandRegistry {
     }
     this.factories.push(prioritized)
     this.factories.sort((a, b) => a.priority - b.priority)
-  }
-
-  registerAll(factories: PrioritizedCommandFactory[]): void {
-    for (const factory of factories) this.factories.push(factory)
-    this.factories.sort((a, b) => a.priority - b.priority) // Sort by priority after all registrations
   }
 
   resolve(args: ParsedCliArgs): Command {

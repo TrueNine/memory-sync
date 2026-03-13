@@ -1,15 +1,18 @@
-import type {CollectedInputContext, InputPluginContext} from '../plugins/plugin-shared'
-import * as path from 'node:path'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
+import type {InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
+import {AbstractInputPlugin} from '../plugins/plugin-core'
+import {PUBLIC_GIT_EXCLUDE_TARGET_RELATIVE_PATH, resolvePublicDefinitionPath} from '../public-config-paths'
 
 export class GitExcludeInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('GitExcludeInputPlugin')
   }
 
-  collect(ctx: InputPluginContext): Partial<CollectedInputContext> {
-    const {aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
-    const filePath = path.join(aindexDir, 'public', 'exclude')
+  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
+    const filePath = resolvePublicDefinitionPath(aindexDir, PUBLIC_GIT_EXCLUDE_TARGET_RELATIVE_PATH, {
+      command: ctx.runtimeCommand,
+      workspaceDir
+    })
 
     if (!ctx.fs.existsSync(filePath)) {
       this.log.debug({action: 'collect', message: 'File not found', path: filePath})

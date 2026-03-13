@@ -3,8 +3,9 @@
 //! Parses MDX source, transforms the AST (evaluating expressions, expanding components),
 //! and serializes back to Markdown.
 
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::expression_eval::EvaluationScope;
 use crate::parser::parse_mdx;
@@ -12,7 +13,8 @@ use crate::serializer::serialize;
 use crate::transformer::{ProcessingContext, transform_ast};
 
 /// Global scope for MDX compilation (os, env, profile, tool info).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MdxGlobalScope {
     pub os: Option<HashMap<String, Value>>,
     pub env: Option<HashMap<String, Value>>,
@@ -21,7 +23,8 @@ pub struct MdxGlobalScope {
 }
 
 /// Options for the `mdx_to_md` function.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MdxToMdOptions {
     pub scope: Option<EvaluationScope>,
     pub base_path: Option<String>,
@@ -36,11 +39,32 @@ pub struct MdxToMdResult {
     pub metadata: ExportMetadata,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MetadataSource {
+    Export,
+    #[default]
+    Yaml,
+    Mixed,
+}
+
+impl MetadataSource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Export => "export",
+            Self::Yaml => "yaml",
+            Self::Mixed => "mixed",
+        }
+    }
+}
+
 /// Extracted metadata from YAML frontmatter and export statements.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExportMetadata {
     pub yaml_front_matter: Option<HashMap<String, Value>>,
     pub exports: HashMap<String, Value>,
+    pub source: MetadataSource,
 }
 
 /// Merge global scope with custom scope. Custom scope takes priority.
@@ -55,20 +79,31 @@ fn merge_scopes(
             result.insert("os".into(), serde_json::to_value(os).unwrap_or(Value::Null));
         }
         if let Some(env) = &gs.env {
-            result.insert("env".into(), serde_json::to_value(env).unwrap_or(Value::Null));
+            result.insert(
+                "env".into(),
+                serde_json::to_value(env).unwrap_or(Value::Null),
+            );
         }
         if let Some(profile) = &gs.profile {
-            result.insert("profile".into(), serde_json::to_value(profile).unwrap_or(Value::Null));
+            result.insert(
+                "profile".into(),
+                serde_json::to_value(profile).unwrap_or(Value::Null),
+            );
         }
         if let Some(tool) = &gs.tool {
-            result.insert("tool".into(), serde_json::to_value(tool).unwrap_or(Value::Null));
+            result.insert(
+                "tool".into(),
+                serde_json::to_value(tool).unwrap_or(Value::Null),
+            );
         }
     }
 
     if let Some(cs) = custom_scope {
         for (key, value) in cs {
             // Deep merge objects, override primitives
-            if let (Some(Value::Object(existing)), Value::Object(new_map)) = (result.get(key), value) {
+            if let (Some(Value::Object(existing)), Value::Object(new_map)) =
+                (result.get(key), value)
+            {
                 let mut merged = existing.clone();
                 for (k, v) in new_map {
                     merged.insert(k.clone(), v.clone());
@@ -107,7 +142,7 @@ fn extract_exports_from_source(source: &str) -> HashMap<String, Value> {
 
     for line in source.lines() {
         let trimmed = line.trim();
-        if !trimmed.starts_with("export ") {
+        if !is_supported_export_metadata_line(trimmed) {
             continue;
         }
 
@@ -126,12 +161,48 @@ fn extract_exports_from_source(source: &str) -> HashMap<String, Value> {
     exports
 }
 
+fn is_supported_export_metadata_line(trimmed: &str) -> bool {
+    trimmed.starts_with("export const ")
+}
+
+fn strip_supported_export_lines(source: &str) -> String {
+    let mut stripped = String::new();
+    let mut skip_blank_line = false;
+
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if is_supported_export_metadata_line(trimmed) {
+            skip_blank_line = true;
+            continue;
+        }
+
+        if skip_blank_line && trimmed.is_empty() {
+            continue;
+        }
+
+        skip_blank_line = false;
+        stripped.push_str(line);
+        stripped.push('\n');
+    }
+
+    if !source.ends_with('\n') && stripped.ends_with('\n') {
+        stripped.pop();
+    }
+
+    stripped
+}
+
 /// Remove YAML frontmatter and ESM export nodes from the AST.
 fn strip_metadata_nodes(ast: &markdown::mdast::Node) -> markdown::mdast::Node {
     if let markdown::mdast::Node::Root(root) = ast {
-        let filtered: Vec<markdown::mdast::Node> = root.children.iter()
+        let filtered: Vec<markdown::mdast::Node> = root
+            .children
+            .iter()
             .filter(|child| {
-                !matches!(child, markdown::mdast::Node::Yaml(_) | markdown::mdast::Node::MdxjsEsm(_))
+                !matches!(
+                    child,
+                    markdown::mdast::Node::Yaml(_) | markdown::mdast::Node::MdxjsEsm(_)
+                )
             })
             .cloned()
             .collect();
@@ -161,25 +232,37 @@ pub fn mdx_to_md_with_metadata(
     options: Option<MdxToMdOptions>,
 ) -> Result<MdxToMdResult, String> {
     let opts = options.unwrap_or_default();
-    let ast = parse_mdx(content)?;
+    let stripped_source = strip_supported_export_lines(content);
+    let ast = parse_mdx(&stripped_source)?;
 
     // Extract metadata
     let yaml_fm = extract_yaml_frontmatter(&ast);
-    let exports = extract_exports_from_source(content);
+    let mut exports = extract_exports_from_source(content);
+    let has_yaml_front_matter = yaml_fm
+        .as_ref()
+        .is_some_and(|front_matter| !front_matter.is_empty());
+    let has_export_metadata = !exports.is_empty();
+    let source = match (has_export_metadata, has_yaml_front_matter) {
+        (true, true) => MetadataSource::Mixed,
+        (true, false) => MetadataSource::Export,
+        _ => MetadataSource::Yaml,
+    };
 
     let mut metadata = ExportMetadata {
         yaml_front_matter: yaml_fm.clone(),
-        exports,
+        exports: HashMap::new(),
+        source,
     };
 
     // Merge YAML frontmatter into exports (exports take priority)
     if let Some(yaml) = &yaml_fm {
         for (k, v) in yaml {
-            if !metadata.exports.contains_key(k) {
-                metadata.exports.insert(k.clone(), v.clone());
+            if !exports.contains_key(k) {
+                exports.insert(k.clone(), v.clone());
             }
         }
     }
+    metadata.exports = exports;
 
     // Strip metadata nodes from AST
     let stripped = strip_metadata_nodes(&ast);
@@ -228,7 +311,8 @@ mod tests {
         let result = mdx_to_md(
             "<Md when={true}>\n\nVisible\n\n</Md>\n",
             Some(make_options()),
-        ).unwrap();
+        )
+        .unwrap();
         assert!(result.contains("Visible"), "Got: {}", result);
     }
 
@@ -237,7 +321,8 @@ mod tests {
         let result = mdx_to_md(
             "<Md when={false}>\n\nHidden\n\n</Md>\n",
             Some(make_options()),
-        ).unwrap();
+        )
+        .unwrap();
         assert!(!result.contains("Hidden"), "Got: {}", result);
     }
 
@@ -248,7 +333,11 @@ mod tests {
         assert!(result.content.contains("# Hello"));
         assert!(!result.content.contains("---"));
         assert_eq!(
-            result.metadata.exports.get("description").and_then(|v| v.as_str()),
+            result
+                .metadata
+                .exports
+                .get("description")
+                .and_then(|v| v.as_str()),
             Some("test skill")
         );
     }
@@ -258,8 +347,36 @@ mod tests {
         let source = "export const meta = {\"name\": \"test\"}\n\n# Hello\n";
         let result = mdx_to_md_with_metadata(source, Some(make_options())).unwrap();
         assert!(result.content.contains("# Hello"));
+        assert!(!result.content.contains("export const meta"));
         let meta = result.metadata.exports.get("meta");
-        assert!(meta.is_some(), "Expected meta export, got: {:?}", result.metadata.exports);
+        assert!(
+            meta.is_some(),
+            "Expected meta export, got: {:?}",
+            result.metadata.exports
+        );
+    }
+
+    #[test]
+    fn test_supported_export_lines_are_removed_from_compiled_content() {
+        let source = "---\ndescription: dist\n---\nexport const x = 1\n\nCommand dist\n";
+        let result = mdx_to_md_with_metadata(source, Some(make_options())).unwrap();
+        assert_eq!(result.content, "Command dist");
+        assert_eq!(
+            result
+                .metadata
+                .exports
+                .get("x")
+                .and_then(|value| value.as_i64()),
+            Some(1)
+        );
+        assert_eq!(
+            result
+                .metadata
+                .exports
+                .get("description")
+                .and_then(|value| value.as_str()),
+            Some("dist")
+        );
     }
 
     #[test]

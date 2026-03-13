@@ -17,6 +17,8 @@ const config = eslint10({
   ignores: [
     '.turbo/**',
     'aindex/**',
+    'npm/**/noop.cjs',
+    'npm/**/noop.d.ts',
     '*.md',
     '**/*.md',
     '*.toml',

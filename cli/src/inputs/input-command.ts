@@ -1,43 +1,31 @@
 import type {
-  CollectedInputContext,
   CommandPrompt,
+  CommandYAMLFrontMatter,
+  InputCollectedContext,
   InputPluginContext,
-  Locale,
-  LocalizedCommandPrompt,
-  PluginOptions,
-  ResolvedBasePaths
-} from '../plugins/plugin-shared'
+  Locale
+} from '../plugins/plugin-core'
 import {
   AbstractInputPlugin,
-  createLocalizedPromptReader
-} from '@truenine/plugin-input-shared'
-import {
+  createLocalizedPromptReader,
   FilePathKind,
-  PromptKind
-} from '../plugins/plugin-shared'
+  PromptKind,
+  SourceLocaleExtensions
 
-export interface CommandPrefixInfo {
-  readonly commandPrefix?: string
-  readonly commandName: string
-}
+} from '../plugins/plugin-core'
 
 export class CommandInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('CommandInputPlugin')
   }
 
-  private getDistDir(options: Required<PluginOptions>, resolvedPaths: ResolvedBasePaths): string {
-    return this.resolveAindexPath(options.aindex.commands.dist, resolvedPaths.aindexDir)
-  }
-
   private createCommandPrompt(
     content: string,
     _locale: Locale,
     name: string,
-    _srcDir: string,
     distDir: string,
     ctx: InputPluginContext,
-    _rawContent?: string
+    metadata?: Record<string, unknown>
   ): CommandPrompt {
     const {path} = ctx
 
@@ -46,12 +34,18 @@ export class CommandInputPlugin extends AbstractInputPlugin {
     const parentDirName = slashIndex !== -1 ? normalizedName.slice(0, slashIndex) : void 0
     const fileName = slashIndex !== -1 ? normalizedName.slice(slashIndex + 1) : normalizedName
 
-    const prefixInfo = this.extractPrefixInfo(fileName, parentDirName)
+    const baseName = fileName.replace(/\.mdx$/, '')
+    const underscoreIndex = baseName.indexOf('_')
+    const commandPrefix = parentDirName ?? (underscoreIndex === -1 ? void 0 : baseName.slice(0, Math.max(0, underscoreIndex)))
+    const commandName = parentDirName != null || underscoreIndex === -1
+      ? baseName
+      : baseName.slice(Math.max(0, underscoreIndex + 1))
 
     const filePath = path.join(distDir, `${name}.mdx`)
     const entryName = `${name}.mdx`
+    const yamlFrontMatter = metadata as CommandYAMLFrontMatter | undefined
 
-    return {
+    const prompt: CommandPrompt = {
       type: PromptKind.Command,
       content,
       length: content.length,
@@ -63,37 +57,24 @@ export class CommandInputPlugin extends AbstractInputPlugin {
         getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
         getAbsolutePath: () => filePath
       },
-      ...prefixInfo.commandPrefix != null && {commandPrefix: prefixInfo.commandPrefix},
-      commandName: prefixInfo.commandName
+      ...commandPrefix != null && {commandPrefix},
+      commandName
     } as CommandPrompt
+
+    if (yamlFrontMatter == null) return prompt
+
+    Object.assign(prompt, {yamlFrontMatter})
+    if (yamlFrontMatter.seriName != null) Object.assign(prompt, {seriName: yamlFrontMatter.seriName})
+    if (yamlFrontMatter.scope === 'global') Object.assign(prompt, {globalOnly: true})
+    return prompt
   }
 
-  extractPrefixInfo(fileName: string, parentDirName?: string): CommandPrefixInfo {
-    const baseName = fileName.replace(/\.mdx$/, '')
-
-    if (parentDirName != null) {
-      return {
-        commandPrefix: parentDirName,
-        commandName: baseName
-      }
-    }
-
-    const underscoreIndex = baseName.indexOf('_')
-
-    if (underscoreIndex === -1) return {commandName: baseName}
-
-    return {
-      commandPrefix: baseName.slice(0, Math.max(0, underscoreIndex)),
-      commandName: baseName.slice(Math.max(0, underscoreIndex + 1))
-    }
-  }
-
-  override async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+  override async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
     const srcDir = this.resolveAindexPath(options.aindex.commands.src, resolvedPaths.aindexDir)
-    const distDir = this.getDistDir(options, resolvedPaths)
+    const distDir = this.resolveAindexPath(options.aindex.commands.dist, resolvedPaths.aindexDir)
 
     logger.debug('CommandInputPlugin collecting', {
       srcDir,
@@ -108,15 +89,15 @@ export class CommandInputPlugin extends AbstractInputPlugin {
       distDir,
       {
         kind: PromptKind.Command,
-        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        localeExtensions: SourceLocaleExtensions,
         isDirectoryStructure: false,
-        createPrompt: async (content, locale, name) => this.createCommandPrompt(
+        createPrompt: (content, locale, name, metadata) => this.createCommandPrompt(
           content,
           locale,
           name,
-          srcDir,
           distDir,
-          ctx
+          ctx,
+          metadata
         )
       }
     )
@@ -128,30 +109,33 @@ export class CommandInputPlugin extends AbstractInputPlugin {
 
     for (const error of errors) logger.warn('Failed to read command', {path: error.path, phase: error.phase, error: error.error})
 
-    const legacyCommands: CommandPrompt[] = []
+    const flatCommands: CommandPrompt[] = []
     for (const localized of localizedCommands) {
-      const prompt = localized.dist?.prompt ?? localized.src.default.prompt
-      if (prompt) legacyCommands.push(prompt)
+      const distContent = localized.dist
+      if (distContent?.prompt != null) {
+        const {prompt: distPrompt, rawMdx} = distContent
+        flatCommands.push(rawMdx == null
+          ? distPrompt
+          : {...distPrompt, rawMdxContent: rawMdx})
+        continue
+      }
+
+      const srcPrompt = localized.src.default.prompt
+      if (srcPrompt != null) {
+        const {rawMdx} = localized.src.default
+        flatCommands.push(rawMdx == null
+          ? srcPrompt
+          : {...srcPrompt, rawMdxContent: rawMdx})
+      }
     }
 
-    logger.debug('CommandInputPlugin legacy commands', {
-      count: legacyCommands.length,
-      commands: legacyCommands.map(c => c.commandName)
+    logger.debug('CommandInputPlugin flattened commands', {
+      count: flatCommands.length,
+      commands: flatCommands.map(c => c.commandName)
     })
 
-    const promptIndex = new Map<string, LocalizedCommandPrompt>()
-    for (const cmd of localizedCommands) promptIndex.set(cmd.name, cmd)
-
     return {
-      prompts: {
-        skills: [],
-        commands: localizedCommands,
-        subAgents: [],
-        rules: [],
-        readme: []
-      },
-      promptIndex,
-      commands: legacyCommands
+      commands: flatCommands
     }
   }
 }

@@ -1,4 +1,4 @@
-import type {OutputCleanContext, OutputWriteContext} from './plugins/plugin-shared'
+import type {OutputCleanContext, OutputWriteContext} from './plugins/plugin-core'
 /**
  * Plugin Runtime Entry Point
  *
@@ -10,22 +10,19 @@ import type {OutputCleanContext, OutputWriteContext} from './plugins/plugin-shar
  *
  * Subcommands: execute, dry-run, clean, plugins
  */
-import type {Command, CommandContext} from '@/commands'
+import type {Command, CommandContext} from '@/commands/Command'
 import type {PipelineConfig} from '@/config'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
-import {
-  CleanCommand,
-  DryRunCleanCommand,
-  DryRunOutputCommand,
-  ExecuteCommand,
-  JsonOutputCommand,
-  PluginsCommand
-} from '@/commands'
-import userPluginConfigPromise from './plugin.config'
-import {createLogger, setGlobalLogLevel} from './plugins/plugin-shared'
+import {CleanCommand} from '@/commands/CleanCommand'
+import {DryRunCleanCommand} from '@/commands/DryRunCleanCommand'
+import {DryRunOutputCommand} from '@/commands/DryRunOutputCommand'
+import {ExecuteCommand} from '@/commands/ExecuteCommand'
+import {JsonOutputCommand} from '@/commands/JsonOutputCommand'
+import {PluginsCommand} from '@/commands/PluginsCommand'
+import {createLogger, setGlobalLogLevel} from './plugins/plugin-core'
 
 /**
  * Parse runtime arguments.
@@ -64,6 +61,7 @@ async function main(): Promise<void> {
 
   if (json) setGlobalLogLevel('silent')
 
+  const {default: userPluginConfigPromise} = await import('./plugin.config')
   const userPluginConfig: PipelineConfig = await userPluginConfigPromise
 
   let command = resolveRuntimeCommand(subcommand, dryRun)
@@ -81,7 +79,8 @@ async function main(): Promise<void> {
     fs,
     path,
     glob,
-    collectedInputContext: context,
+    collectedOutputContext: context,
+    pluginOptions: userConfigOptions,
     dryRun: dry
   })
 
@@ -90,7 +89,7 @@ async function main(): Promise<void> {
     fs,
     path,
     glob,
-    collectedInputContext: context,
+    collectedOutputContext: context,
     dryRun: dry,
     registeredPluginNames: [...outputPlugins].map(p => p.name)
   })
@@ -98,17 +97,34 @@ async function main(): Promise<void> {
   const commandCtx: CommandContext = {
     logger,
     outputPlugins: [...outputPlugins],
-    collectedInputContext: context,
+    collectedOutputContext: context,
     userConfigOptions,
     createCleanContext,
     createWriteContext
   }
 
-  await command.execute(commandCtx)
+  const result = await command.execute(commandCtx)
+  if (!result.success) process.exit(1)
+}
+
+function writeJsonFailure(errorMessage: string): void {
+  process.stdout.write(`${JSON.stringify({
+    success: false,
+    filesAffected: 0,
+    dirsAffected: 0,
+    message: errorMessage,
+    pluginResults: [],
+    errors: [errorMessage]
+  })}\n`)
 }
 
 main().catch((e: unknown) => {
   const errorMessage = e instanceof Error ? e.message : String(e)
+  const {json} = parseRuntimeArgs(process.argv)
+  if (json) {
+    writeJsonFailure(errorMessage)
+    process.exit(1)
+  }
   const logger = createLogger('plugin-runtime', 'error')
   logger.error('unhandled error', {error: errorMessage})
   process.exit(1)

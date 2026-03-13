@@ -1,9 +1,24 @@
-import type {AindexConfig, ConfigLoaderOptions, ConfigLoadResult, ILogger, UserConfigFile} from './plugins/plugin-shared'
+import type {
+  AindexConfig,
+  CleanupProtectionOptions,
+  ConfigLoaderOptions,
+  ConfigLoadResult,
+  ILogger,
+  OutputScopeOptions,
+  PluginOutputScopeTopics,
+  UserConfigFile
+} from './plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {convertUserConfigAindexToShadowSourceProject, createLogger, DEFAULT_USER_CONFIG, ZUserConfigFile} from './plugins/plugin-shared'
+import {createLogger, ZUserConfigFile} from './plugins/plugin-core'
+import {
+  createProtectedDeletionGuard,
+  getProtectedPathViolation,
+  logProtectedDeletionGuardError,
+  ProtectedDeletionGuardError
+} from './ProtectedDeletionGuard'
 
 /**
  * Default config file name
@@ -20,15 +35,6 @@ export const DEFAULT_GLOBAL_CONFIG_DIR = '.aindex'
  */
 export function getGlobalConfigPath(): string {
   return path.join(os.homedir(), DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
-}
-
-/**
- * Get default user config content
- * Uses build-time injected template from public/tnmsc.example.json
- * @deprecated Config is now required - no default config is provided
- */
-export function getDefaultUserConfig(): UserConfigFile {
-  return {...DEFAULT_USER_CONFIG}
 }
 
 /**
@@ -94,8 +100,8 @@ export class ConfigLoader {
       return {config, source: resolvedPath, found: true}
     }
     catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error) // Parse/validation failure - throw error instead of silently returning empty config
-      throw new Error(`Failed to load config from ${resolvedPath}: ${errorMessage}`)
+      this.logger.warn('load failed', {path: resolvedPath, error})
+      return {config: {}, source: null, found: false}
     }
   }
 
@@ -108,17 +114,13 @@ export class ConfigLoader {
       if (result.found) loadedConfigs.push(result)
     }
 
-    if (loadedConfigs.length === 0) { // No config found - throw error instead of returning empty config
-      throw new Error(`No valid config file found. Searched: ${searchPaths.join(', ')}`)
-    }
-
     const merged = this.mergeConfigs(loadedConfigs.map(r => r.config)) // Merge configs (first has highest priority)
     const sources = loadedConfigs.map(r => r.source).filter((s): s is string => s !== null)
 
     return {
       config: merged,
       sources,
-      found: true
+      found: loadedConfigs.length > 0
     }
   }
 
@@ -133,9 +135,7 @@ export class ConfigLoader {
     }
 
     const result = ZUserConfigFile.safeParse(parsed)
-    if (result.success) {
-      return convertUserConfigAindexToShadowSourceProject(result.data) // Convert aindex format to shadowSourceProject format if needed
-    }
+    if (result.success) return result.data
 
     const errors = result.error.issues.map((i: {path: (string | number)[], message: string}) => `${i.path.join('.')}: ${i.message}`) // Validation failed - throw error instead of returning empty config
     throw new Error(`Config validation failed in ${filePath}:\n${errors.join('\n')}`)
@@ -151,11 +151,18 @@ export class ConfigLoader {
 
     return reversed.reduce<UserConfigFile>((acc, config) => {
       const mergedAindex = this.mergeAindex(acc.aindex, config.aindex)
+      const mergedOutputScopes = this.mergeOutputScopeOptions(acc.outputScopes, config.outputScopes)
+      const mergedCleanupProtection = this.mergeCleanupProtectionOptions(
+        acc.cleanupProtection,
+        config.cleanupProtection
+      )
 
       return {
         ...acc,
         ...config,
-        ...mergedAindex != null ? {aindex: mergedAindex} : {}
+        ...mergedAindex != null ? {aindex: mergedAindex} : {},
+        ...mergedOutputScopes != null ? {outputScopes: mergedOutputScopes} : {},
+        ...mergedCleanupProtection != null ? {cleanupProtection: mergedCleanupProtection} : {}
       }
     }, {})
   }
@@ -178,6 +185,53 @@ export class ConfigLoader {
       app: {...a.app, ...b.app},
       ext: {...a.ext, ...b.ext},
       arch: {...a.arch, ...b.arch}
+    }
+  }
+
+  private mergeOutputScopeTopics(
+    a?: PluginOutputScopeTopics,
+    b?: PluginOutputScopeTopics
+  ): PluginOutputScopeTopics | undefined {
+    if (a == null && b == null) return void 0
+    if (a == null) return b
+    if (b == null) return a
+    return {...a, ...b}
+  }
+
+  private mergeOutputScopeOptions(
+    a?: OutputScopeOptions,
+    b?: OutputScopeOptions
+  ): OutputScopeOptions | undefined {
+    if (a == null && b == null) return void 0
+    if (a == null) return b
+    if (b == null) return a
+
+    const mergedPlugins: Record<string, PluginOutputScopeTopics> = {}
+    for (const [pluginName, topics] of Object.entries(a.plugins ?? {})) {
+      if (topics != null) mergedPlugins[pluginName] = {...topics}
+    }
+    for (const [pluginName, topics] of Object.entries(b.plugins ?? {})) {
+      const mergedTopics = this.mergeOutputScopeTopics(mergedPlugins[pluginName], topics)
+      if (mergedTopics != null) mergedPlugins[pluginName] = mergedTopics
+    }
+
+    if (Object.keys(mergedPlugins).length === 0) return {}
+    return {plugins: mergedPlugins}
+  }
+
+  private mergeCleanupProtectionOptions(
+    a?: CleanupProtectionOptions,
+    b?: CleanupProtectionOptions
+  ): CleanupProtectionOptions | undefined {
+    if (a == null && b == null) return void 0
+    if (a == null) return b
+    if (b == null) return a
+
+    return {
+      rules: [
+        ...a.rules ?? [],
+        ...b.rules ?? []
+      ]
     }
   }
 
@@ -216,6 +270,82 @@ export function getConfigLoader(options?: ConfigLoaderOptions): ConfigLoader {
  */
 export function loadUserConfig(cwd?: string): MergedConfigResult {
   return getConfigLoader().load(cwd)
+}
+
+function isSymlinkPath(filePath: string): boolean {
+  try {
+    return fs.lstatSync(filePath).isSymbolicLink()
+  }
+  catch {
+    return false
+  }
+}
+
+function readSymlinkTarget(filePath: string): string | null {
+  try {
+    return fs.readlinkSync(filePath)
+  }
+  catch {
+    return null
+  }
+}
+
+function assertConfigDeletionAllowed(
+  targetPath: string,
+  logger: ILogger
+): void {
+  const violation = getProtectedPathViolation(targetPath, createProtectedDeletionGuard())
+  if (violation == null) return
+
+  logProtectedDeletionGuardError(logger, 'config-link-replacement', [violation])
+  throw new ProtectedDeletionGuardError('config-link-replacement', [violation])
+}
+
+/**
+ * Ensure a local config file is linked (symlink preferred) to the global config.
+ * Falls back to a file copy when symlink creation is unavailable.
+ */
+export function ensureConfigLink(
+  localConfigPath: string,
+  globalConfigPath: string,
+  logger: ILogger
+): void {
+  if (!fs.existsSync(globalConfigPath)) return
+
+  if (fs.existsSync(localConfigPath) || isSymlinkPath(localConfigPath)) {
+    if (isSymlinkPath(localConfigPath)) {
+      const target = readSymlinkTarget(localConfigPath)
+      if (target !== null && path.resolve(path.dirname(localConfigPath), target) === path.resolve(globalConfigPath)) return
+      assertConfigDeletionAllowed(localConfigPath, logger)
+      fs.rmSync(localConfigPath, {force: true})
+    } else {
+      const localContent = fs.readFileSync(localConfigPath, 'utf8')
+      const globalContent = fs.readFileSync(globalConfigPath, 'utf8')
+      if (localContent !== globalContent) {
+        fs.copyFileSync(localConfigPath, globalConfigPath)
+        logger.debug('synced local config back to global', {src: localConfigPath, dest: globalConfigPath})
+      }
+      assertConfigDeletionAllowed(localConfigPath, logger)
+      fs.rmSync(localConfigPath, {force: true})
+    }
+  }
+
+  try {
+    fs.symlinkSync(globalConfigPath, localConfigPath, 'file')
+    logger.debug('linked config', {link: localConfigPath, target: globalConfigPath})
+  }
+  catch {
+    try {
+      fs.copyFileSync(globalConfigPath, localConfigPath)
+      logger.warn('symlink unavailable, copied config (auto-sync disabled)', {dest: localConfigPath})
+    }
+    catch (copyErr) {
+      logger.warn('failed to link or copy config', {
+        path: localConfigPath,
+        error: copyErr instanceof Error ? copyErr.message : String(copyErr)
+      })
+    }
+  }
 }
 
 /**
@@ -298,12 +428,4 @@ export function validateGlobalConfig(): GlobalConfigValidationResult {
     errors: [],
     shouldExit: false
   }
-}
-
-/**
- * @deprecated Use validateGlobalConfig() instead. This function is kept for backward compatibility
- * but no longer auto-creates default config.
- */
-export function validateAndEnsureGlobalConfig(): GlobalConfigValidationResult {
-  return validateGlobalConfig()
 }

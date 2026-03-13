@@ -61,7 +61,7 @@ export interface AindexFileEntry {
   readonly sourcePath: string
   readonly translatedPath: string
   readonly translatedExists: boolean
-  readonly fileType: 'cnMdx' | 'resource'
+  readonly fileType: 'sourceMdx' | 'resource'
 }
 
 export function listAindexFiles(cwd: string): Promise<AindexFileEntry[]> {
@@ -91,7 +91,7 @@ export interface CategoryStats {
   readonly fileCount: number
   readonly totalChars: number
   readonly totalLines: number
-  readonly cnMdxCount: number
+  readonly sourceMdxCount: number
   readonly resourceCount: number
   readonly translatedCount: number
 }
@@ -107,7 +107,7 @@ export interface AindexStats {
   readonly totalFiles: number
   readonly totalChars: number
   readonly totalLines: number
-  readonly totalCnMdx: number
+  readonly totalSourceMdx: number
   readonly totalResources: number
   readonly totalTranslated: number
   readonly categories: readonly CategoryStats[]

@@ -1,21 +1,17 @@
 import type {
-  CollectedInputContext,
+  InputCollectedContext,
   InputPluginContext,
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
   YAMLFrontMatter
-} from '../plugins/plugin-shared'
+} from '../plugins/plugin-core'
 
 import process from 'node:process'
 
 import {mdxToMd} from '@truenine/md-compiler'
 import {ScopeError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
-import {AbstractInputPlugin} from '@truenine/plugin-input-shared'
-import {
-  FilePathKind,
-  PromptKind
-} from '../plugins/plugin-shared'
+import {AbstractInputPlugin, FilePathKind, PromptKind} from '../plugins/plugin-core'
 
 const PROJECT_MEMORY_FILE = 'agt.mdx'
 const SCAN_SKIP_DIRECTORIES: readonly string[] = ['node_modules', '.git'] as const
@@ -25,7 +21,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     super('ProjectPromptInputPlugin', ['AindexInputPlugin'])
   }
 
-  async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+  async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
     const {dependencyContext, fs, userConfigOptions: options, path, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
 

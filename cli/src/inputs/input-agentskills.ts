@@ -1,10 +1,8 @@
 import type {Dirent} from 'node:fs'
 import type {
-  CollectedInputContext,
   ILogger,
+  InputCollectedContext,
   InputPluginContext,
-  LocalizedPrompt,
-  LocalizedSkillPrompt,
   McpServerConfig,
   SkillChildDoc,
   SkillMcpConfig,
@@ -12,7 +10,7 @@ import type {
   SkillResource,
   SkillResourceEncoding,
   SkillYAMLFrontMatter
-} from '../plugins/plugin-shared'
+} from '../plugins/plugin-core'
 import type {ResourceScanResult} from './input-agentskills-types'
 
 import {Buffer} from 'node:buffer'
@@ -20,8 +18,7 @@ import * as nodePath from 'node:path'
 import {mdxToMd} from '@truenine/md-compiler'
 import {MetadataValidationError} from '@truenine/md-compiler/errors'
 import {parseMarkdown, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
-import {AbstractInputPlugin, createLocalizedPromptReader} from '@truenine/plugin-input-shared'
-import {FilePathKind, PromptKind, validateSkillMetadata} from '../plugins/plugin-shared'
+import {AbstractInputPlugin, createLocalizedPromptReader, FilePathKind, PromptKind, SourceLocaleExtensions, validateSkillMetadata} from '../plugins/plugin-core'
 
 export * from './input-agentskills-types' // Re-export from types file
 
@@ -166,26 +163,6 @@ const SKILL_RESOURCE_BINARY_EXTENSIONS = new Set([ // Binary extensions
   '.odp'
 ])
 
-type ResourceCategory = 'image' | 'code' | 'data' | 'document' | 'config' | 'script' | 'binary' | 'other'
-
-const FILE_TYPE_CATEGORIES: Record<string, readonly string[]> = {
-  image: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.bmp', '.tiff', '.svg'],
-  code: ['.kt', '.java', '.py', '.pyi', '.pyx', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.go', '.rs', '.c', '.cpp', '.cc', '.h', '.hpp', '.hxx', '.cs', '.fs', '.fsx', '.vb', '.rb', '.php', '.swift', '.scala', '.groovy', '.lua', '.r', '.jl', '.ex', '.exs', '.erl', '.clj', '.cljs', '.hs', '.ml', '.mli', '.nim', '.zig', '.v', '.dart', '.vue', '.svelte', '.d.ts', '.d.mts', '.d.cts'],
-  data: ['.sql', '.json', '.jsonc', '.json5', '.xml', '.xsd', '.xsl', '.xslt', '.yaml', '.yml', '.toml', '.csv', '.tsv', '.graphql', '.gql', '.proto'],
-  document: ['.txt', '.text', '.rtf', '.log', '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.pdf', '.odt', '.ods', '.odp'],
-  config: ['.ini', '.conf', '.cfg', '.config', '.properties', '.env', '.envrc', '.editorconfig', '.gitignore', '.gitattributes', '.npmrc', '.nvmrc', '.npmignore', '.eslintrc', '.prettierrc', '.stylelintrc', '.babelrc', '.browserslistrc'],
-  script: ['.sh', '.bash', '.zsh', '.fish', '.ps1', '.psm1', '.psd1', '.bat', '.cmd'],
-  binary: ['.exe', '.dll', '.so', '.dylib', '.bin', '.wasm', '.class', '.jar', '.war', '.pyd', '.pyc', '.pyo', '.zip', '.tar', '.gz', '.bz2', '.7z', '.rar', '.ttf', '.otf', '.woff', '.woff2', '.eot', '.db', '.sqlite', '.sqlite3']
-}
-
-function getResourceCategory(ext: string): ResourceCategory {
-  const lowerExt = ext.toLowerCase()
-  for (const [category, extensions] of Object.entries(FILE_TYPE_CATEGORIES)) {
-    if (extensions.includes(lowerExt)) return category as ResourceCategory
-  }
-  return 'other'
-}
-
 function isBinaryResourceExtension(ext: string): boolean {
   return SKILL_RESOURCE_BINARY_EXTENSIONS.has(ext.toLowerCase())
 }
@@ -279,9 +256,9 @@ class ResourceProcessor {
         extension: ext,
         fileName,
         relativePath,
+        sourcePath: filePath,
         content,
         encoding,
-        category: getResourceCategory(ext),
         length,
         ...mimeType != null && {mimeType}
       }
@@ -391,13 +368,15 @@ async function createSkillPrompt(
   mcpConfig?: SkillMcpConfig,
   childDocs: SkillPrompt['childDocs'] = [],
   resources: SkillPrompt['resources'] = [],
-  seriName?: string | string[] | null
+  seriName?: string | string[] | null,
+  compiledMetadata?: Record<string, unknown>
 ): Promise<SkillPrompt> {
   const {logger, globalScope, fs} = ctx
 
   const distFilePath = nodePath.join(skillAbsoluteDir, 'skill.mdx')
   let rawContent = content
-  let parsed: ReturnType<typeof parseMarkdown<SkillYAMLFrontMatter>> | undefined
+  let parsed: ReturnType<typeof parseMarkdown<SkillYAMLFrontMatter>> | undefined,
+    distMetadata: Record<string, unknown> | undefined
 
   if (fs.existsSync(distFilePath)) {
     try {
@@ -411,22 +390,23 @@ async function createSkillPrompt(
       })
 
       content = transformMdxReferencesToMd(compileResult.content)
+      distMetadata = compileResult.metadata.fields
     }
     catch (e) {
       logger.warn('failed to recompile skill from dist', {skill: name, error: e})
     }
   }
 
-  const exportMetadata = extractSkillMetadataFromExport(rawContent) // Extract metadata from JS export if YAML front matter is not present
+  const exportMetadata = distMetadata ?? compiledMetadata ?? extractSkillMetadataFromExport(rawContent) // Use metadata from dist file, or from compiled MDX, or extract from raw content
 
-  const finalDescription = parsed?.yamlFrontMatter?.description ?? exportMetadata.description
+  const finalDescription = parsed?.yamlFrontMatter?.description ?? exportMetadata?.description as string | undefined
 
   if (finalDescription == null || finalDescription.trim().length === 0) { // Strict validation: description must exist and not be empty
     logger.error('SKILL_VALIDATION_FAILED: description is required and cannot be empty', {
       skill: name,
       skillDir,
       yamlDescription: parsed?.yamlFrontMatter?.description,
-      exportDescription: exportMetadata.description,
+      exportDescription: exportMetadata?.description,
       hint: 'Add a non-empty description field to the SKILL.md front matter or export default'
     })
     throw new Error(`Skill "${name}" validation failed: description is required and cannot be empty`)
@@ -591,14 +571,14 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     return processor.scanSkillDirectory(skillDir, currentRelativePath)
   }
 
-  async collect(ctx: InputPluginContext): Promise<Partial<CollectedInputContext>> {
+  async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, fs, path: pathModule, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
 
     const srcSkillDir = this.resolveAindexPath(options.aindex.skills.src, aindexDir)
     const distSkillDir = this.resolveAindexPath(options.aindex.skills.dist, aindexDir)
 
-    const legacySkills: SkillPrompt[] = []
+    const flatSkills: SkillPrompt[] = []
     const reader = createLocalizedPromptReader(fs, pathModule, logger, globalScope)
 
     const {prompts: localizedSkills, errors} = await reader.readDirectoryStructure(
@@ -607,13 +587,21 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       {
         kind: PromptKind.Skill,
         entryFileName: 'skill',
-        localeExtensions: {zh: '.cn.mdx', en: '.mdx'},
+        localeExtensions: SourceLocaleExtensions,
         isDirectoryStructure: true,
-        createPrompt: async (content, locale, name) => {
+        createPrompt: async (content, locale, name, metadata) => {
           const skillDistDir = pathModule.join(distSkillDir, name)
-          const processor = new ResourceProcessor({fs, logger, skillDir: skillDistDir})
-          const {childDocs, resources} = processor.scanSkillDirectory(skillDistDir)
-          const mcpConfig = readMcpConfig(skillDistDir, fs, logger)
+          let childDocs: SkillChildDoc[] = []
+          let resources: SkillResource[] = []
+          let mcpConfig: SkillMcpConfig | undefined
+
+          if (fs.existsSync(skillDistDir)) {
+            const processor = new ResourceProcessor({fs, logger, skillDir: skillDistDir})
+            const {childDocs: scannedChildDocs, resources: scannedResources} = processor.scanSkillDirectory(skillDistDir)
+            childDocs = scannedChildDocs
+            resources = scannedResources
+            mcpConfig = readMcpConfig(skillDistDir, fs, logger)
+          }
 
           return createSkillPrompt(
             content,
@@ -624,7 +612,9 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             ctx,
             mcpConfig,
             childDocs,
-            resources
+            resources,
+            void 0,
+            metadata
           )
         }
       }
@@ -634,7 +624,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
 
     for (const localized of localizedSkills) {
       const prompt = localized.dist?.prompt ?? localized.src.default.prompt
-      if (prompt) legacySkills.push(prompt)
+      if (prompt) flatSkills.push(prompt)
     }
 
     if (fs.existsSync(distSkillDir)) {
@@ -659,7 +649,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
             skillAbsoluteDir,
             ctx
           )
-          if (skill) legacySkills.push(skill)
+          if (skill) flatSkills.push(skill)
         }
         catch (e) {
           logger.error('failed to parse skill', {file: skillFilePath, error: e})
@@ -667,19 +657,8 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       }
     }
 
-    const promptIndex = new Map<string, LocalizedPrompt>()
-    for (const skill of localizedSkills) promptIndex.set(skill.name, skill)
-
     return {
-      prompts: {
-        skills: localizedSkills as LocalizedSkillPrompt[],
-        commands: [],
-        subAgents: [],
-        rules: [],
-        readme: []
-      },
-      promptIndex,
-      skills: legacySkills
+      skills: flatSkills
     }
   }
 }

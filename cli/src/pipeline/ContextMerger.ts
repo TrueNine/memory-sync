@@ -1,9 +1,9 @@
 /**
  * Context Merger Module
- * Handles merging of partial CollectedInputContext objects
+ * Handles merging of partial InputCollectedContext objects
  */
 
-import type {CollectedInputContext, Workspace} from '../plugins/plugin-shared'
+import type {InputCollectedContext, Workspace} from '../plugins/plugin-core'
 
 /**
  * Merge strategy types for context fields
@@ -15,11 +15,11 @@ type MergeStrategy = 'concat' | 'override' | 'mergeProjects'
  */
 interface FieldConfig<T> {
   readonly strategy: MergeStrategy
-  readonly getter: (ctx: Partial<CollectedInputContext>) => T | undefined
+  readonly getter: (ctx: Partial<InputCollectedContext>) => T | undefined
 }
 
 /**
- * Merge configuration for all CollectedInputContext fields
+ * Merge configuration for all InputCollectedContext fields
  */
 const FIELD_CONFIGS: Record<string, FieldConfig<unknown>> = {
   workspace: {
@@ -128,49 +128,23 @@ function mergeField<T>(
 }
 
 /**
- * Build merge result object from merged fields
- */
-function buildMergeResult(
-  mergedFields: Map<string, unknown>
-): Partial<CollectedInputContext> {
-  const result: Record<string, unknown> = {}
-
-  for (const [key, value] of mergedFields) {
-    if (value != null) result[key] = value
-  }
-
-  return result as Partial<CollectedInputContext>
-}
-
-/**
- * Merge two partial CollectedInputContext objects
+ * Merge two partial InputCollectedContext objects
  * Uses configuration-driven approach to reduce code duplication
  */
 export function mergeContexts(
-  base: Partial<CollectedInputContext>,
-  addition: Partial<CollectedInputContext>
-): Partial<CollectedInputContext> {
-  const mergedFields = new Map<string, unknown>()
+  base: Partial<InputCollectedContext>,
+  addition: Partial<InputCollectedContext>
+): Partial<InputCollectedContext> {
+  const result: Record<string, unknown> = {}
 
   for (const [fieldName, config] of Object.entries(FIELD_CONFIGS)) { // Process each configured field
     const baseValue = config.getter(base)
     const additionValue = config.getter(addition)
     const mergedValue = mergeField(baseValue, additionValue, config.strategy)
-    mergedFields.set(fieldName, mergedValue)
+    if (mergedValue != null) result[fieldName] = mergedValue
   }
 
-  return buildMergeResult(mergedFields)
-}
-
-/**
- * Legacy merge function for backwards compatibility
- * Uses the optimized configuration-driven approach
- */
-export function mergeContextsLegacy(
-  base: Partial<CollectedInputContext>,
-  addition: Partial<CollectedInputContext>
-): Partial<CollectedInputContext> {
-  return mergeContexts(base, addition)
+  return result as Partial<InputCollectedContext>
 }
 
 /**
@@ -178,90 +152,17 @@ export function mergeContextsLegacy(
  */
 export function buildDependencyContext(
   plugin: {dependsOn?: readonly string[]},
-  outputsByPlugin: Map<string, Partial<CollectedInputContext>>,
-  mergeFn: (base: Partial<CollectedInputContext>, addition: Partial<CollectedInputContext>) => Partial<CollectedInputContext>
-): Partial<CollectedInputContext> {
+  outputsByPlugin: Map<string, Partial<InputCollectedContext>>,
+  mergeFn: (base: Partial<InputCollectedContext>, addition: Partial<InputCollectedContext>) => Partial<InputCollectedContext>
+): Partial<InputCollectedContext> {
   const deps = plugin.dependsOn ?? []
   if (deps.length === 0) return {}
 
-  const allDeps = collectTransitiveDependencies(plugin, outputsByPlugin)
-
-  let merged: Partial<CollectedInputContext> = {}
-  for (const depName of allDeps) {
-    const depOutput = outputsByPlugin.get(depName)
-    if (depOutput != null) merged = mergeFn(merged, depOutput)
-  }
-
-  return merged
-}
-
-/**
- * Collect transitive dependencies for a plugin
- */
-function collectTransitiveDependencies(
-  plugin: {dependsOn?: readonly string[]},
-  outputsByPlugin: Map<string, Partial<CollectedInputContext>>
-): string[] {
   const visited = new Set<string>()
-  const result: string[] = []
-
-  const visit = (deps: readonly string[]): void => {
-    for (const dep of deps) {
-      if (visited.has(dep)) continue
-      visited.add(dep)
-
-      const depOutput = outputsByPlugin.get(dep)
-      if (depOutput != null) result.push(dep)
-    }
-  }
-
-  visit(plugin.dependsOn ?? [])
-  return result
-}
-
-/**
- * Collect transitive dependencies for a plugin with full dependency resolution
- */
-export function collectTransitiveDependenciesFull(
-  plugin: {dependsOn?: readonly string[]},
-  _outputsByPlugin: Map<string, Partial<CollectedInputContext>>,
-  pluginRegistry: Map<string, {dependsOn?: readonly string[]}>
-): string[] {
-  const visited = new Set<string>()
-  const result: string[] = []
-
-  const visit = (deps: readonly string[]): void => {
-    for (const dep of deps) {
-      if (visited.has(dep)) continue
-      visited.add(dep)
-
-      result.push(dep)
-
-      const depPlugin = pluginRegistry.get(dep) // Recursively visit dependencies of this dependency
-      if (depPlugin != null) visit(depPlugin.dependsOn ?? [])
-    }
-  }
-
-  visit(plugin.dependsOn ?? [])
-  return result
-}
-
-/**
- * Build dependency context with full transitive dependency resolution
- */
-export function buildDependencyContextFull(
-  plugin: {name: string, dependsOn?: readonly string[]},
-  outputsByPlugin: Map<string, Partial<CollectedInputContext>>,
-  pluginRegistry: Map<string, {dependsOn?: readonly string[]}>,
-  mergeFn: (base: Partial<CollectedInputContext>, addition: Partial<CollectedInputContext>) => Partial<CollectedInputContext>
-): Partial<CollectedInputContext> {
-  const deps = plugin.dependsOn ?? []
-  if (deps.length === 0) return {}
-
-  const allDeps = collectTransitiveDependenciesFull(plugin, outputsByPlugin, pluginRegistry)
-
-  let merged: Partial<CollectedInputContext> = {}
-  for (const depName of allDeps) {
+  let merged: Partial<InputCollectedContext> = {}
+  for (const depName of deps) {
+    if (visited.has(depName)) continue
+    visited.add(depName)
     const depOutput = outputsByPlugin.get(depName)
     if (depOutput != null) merged = mergeFn(merged, depOutput)
   }
