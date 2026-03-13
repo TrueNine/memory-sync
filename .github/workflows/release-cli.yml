@@ -292,8 +292,10 @@ jobs:
 
   # 5. 构建 CLI 独立二进制（仅 artifact，不发 Release）
   build-binary:
-    needs: [check-version, publish-napi]
-    if: needs.check-version.outputs.publish == 'true'
+    needs: [check-version, check-gui-version, publish-napi]
+    if: |
+      (needs.check-version.outputs.publish == 'true' || needs.check-gui-version.outputs.should_release == 'true') &&
+      (needs.publish-napi.result == 'success' || needs.publish-napi.result == 'skipped')
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -379,7 +381,7 @@ jobs:
 
   # 7. 收集三平台产物，创建 GitHub Release + tag
   release-gui-collect:
-    needs: [check-gui-version, build-gui-all]
+    needs: [check-gui-version, build-gui-all, build-binary]
     if: needs.check-gui-version.outputs.should_release == 'true'
     permissions:
       contents: write
