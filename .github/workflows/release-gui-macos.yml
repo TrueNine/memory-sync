@@ -22,12 +22,11 @@ jobs:
         with:
           rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
           signing-private-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          signing-private-key-password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           version: ${{ inputs.version }}
 
       - name: Build GUI
         working-directory: ./gui
-        env:
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm tauri build --target universal-apple-darwin
 
       - name: List bundle output (debug)

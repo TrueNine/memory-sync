@@ -10,6 +10,10 @@ inputs:
     description: Tauri updater signing private key content
     required: false
     default: ''
+  signing-private-key-password:
+    description: Tauri updater signing private key password
+    required: false
+    default: ''
   version:
     description: Version string to sync into Cargo.toml and tauri.conf.json
     required: true
@@ -54,6 +58,17 @@ runs:
       run: |
         $normalized = $env:RAW_TAURI_SIGNING_PRIVATE_KEY.TrimStart([char]0xFEFF)
         "TAURI_SIGNING_PRIVATE_KEY<<EOF" >> $env:GITHUB_ENV
+        $normalized >> $env:GITHUB_ENV
+        "EOF" >> $env:GITHUB_ENV
+
+    - name: Normalize Tauri signing key password
+      if: ${{ inputs.signing-private-key-password != '' }}
+      shell: pwsh
+      env:
+        RAW_TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.signing-private-key-password }}
+      run: |
+        $normalized = $env:RAW_TAURI_SIGNING_PRIVATE_KEY_PASSWORD.TrimStart([char]0xFEFF).TrimEnd("`r", "`n")
+        "TAURI_SIGNING_PRIVATE_KEY_PASSWORD<<EOF" >> $env:GITHUB_ENV
         $normalized >> $env:GITHUB_ENV
         "EOF" >> $env:GITHUB_ENV
 
