@@ -61,27 +61,16 @@ jobs:
           tag_name: v${{ inputs.version }}
           name: v${{ inputs.version }}
           files: |
-            artifacts/gui/*.dmg
             artifacts/gui/**/*.dmg
-            artifacts/gui/*.exe
             artifacts/gui/**/*.exe
-            artifacts/gui/*.msi
             artifacts/gui/**/*.msi
-            artifacts/gui/*.AppImage
             artifacts/gui/**/*.AppImage
-            artifacts/gui/*.deb
             artifacts/gui/**/*.deb
-            artifacts/gui/*.rpm
             artifacts/gui/**/*.rpm
-            artifacts/gui/*.sig
             artifacts/gui/**/*.sig
-            artifacts/gui/*.tar.gz
             artifacts/gui/**/*.tar.gz
-            artifacts/gui/*.zip
             artifacts/gui/**/*.zip
-            artifacts/cli/*.tar.gz
             artifacts/cli/**/*.tar.gz
-            artifacts/cli/*.zip
             artifacts/cli/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

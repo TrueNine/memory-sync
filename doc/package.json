@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-docs",
-  "version": "2026.10314.10746",
+  "version": "2026.10314.10813",
   "private": true,
   "description": "Documentation site for @truenine/memory-sync, built with Next.js 16 and MDX.",
   "engines": {
