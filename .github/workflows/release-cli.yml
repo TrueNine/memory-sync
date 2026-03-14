@@ -50,8 +50,8 @@ jobs:
       publish: ${{ steps.check.outputs.publish }}
       version: ${{ steps.check.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -78,7 +78,7 @@ jobs:
       should_release: ${{ steps.check.outputs.should_release }}
       version: ${{ steps.check.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check if GUI should be released
         id: check
@@ -125,7 +125,7 @@ jobs:
             suffix: win32-x64-msvc
     runs-on: ${{ matrix.target.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-pnpm
       - uses: ./.github/actions/setup-rust
         with:
@@ -187,7 +187,7 @@ jobs:
           echo "Contents of $target_dir:"
           ls -la "$target_dir/"
       - name: Upload CLI platform package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cli-napi-${{ matrix.target.suffix }}
           path: cli/npm/${{ matrix.target.suffix }}/
@@ -200,17 +200,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-pnpm
         with:
           install: 'false'
       - name: Setup npm registry
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org/
       - name: Download all platform artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: cli-napi-*
@@ -275,10 +275,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-pnpm
       - name: Setup npm registry
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org/
@@ -324,7 +324,7 @@ jobs:
             archive: tnmsc-windows-x86_64.zip
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-pnpm
       - name: Build plugin-runtime
         shell: bash
@@ -364,7 +364,7 @@ jobs:
           Copy-Item "cli/dist/plugin-runtime.mjs" staging/
           Compress-Archive -Path staging/* -DestinationPath ${{ matrix.archive }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cli-${{ matrix.target }}
           path: ${{ matrix.archive }}
