@@ -56,7 +56,12 @@ export interface ParsedMarkdown<Y = Record<string, unknown>> {
 export interface BuildMarkdownOptions {
   readonly singleQuote?: boolean
   readonly lineWidth?: number
+  readonly blankLineAfter?: boolean
 } // buildFrontMatter
+
+function shouldUseBlankLineAfter(options?: BuildMarkdownOptions): boolean {
+  return options?.blankLineAfter ?? true
+}
 
 export function buildFrontMatter(
   frontMatter: Record<string, unknown>,
@@ -79,13 +84,10 @@ export function buildMarkdownWithFrontMatter(
   content: string,
   options?: BuildMarkdownOptions
 ): string {
-  if (napiBinding != null && options == null) {
-    if (frontMatter == null || Object.keys(frontMatter).length === 0) return content
-    return napiBinding.buildMarkdownWithFrontMatter(JSON.stringify(frontMatter), content)
-  }
   if (frontMatter == null || Object.keys(frontMatter).length === 0) return content
   const fmStr = buildFrontMatter(frontMatter, options)
-  return `${fmStr}\n${content}`
+  const separator = shouldUseBlankLineAfter(options) ? '\n\n' : '\n'
+  return `${fmStr}${separator}${content}`
 } // buildRawFrontMatter — TS only (no napi equivalent needed)
 
 export function buildRawFrontMatter(
@@ -114,10 +116,12 @@ export function wrapRawFrontMatter(rawYamlContent: string): string {
  */
 export function buildMarkdownWithRawFrontMatter(
   rawFrontMatter: string,
-  content: string
+  content: string,
+  options?: BuildMarkdownOptions
 ): string {
   const wrapped = wrapRawFrontMatter(rawFrontMatter)
-  return `${wrapped}\n${content}`
+  const separator = shouldUseBlankLineAfter(options) ? '\n\n' : '\n'
+  return `${wrapped}${separator}${content}`
 } // doubleQuoted — TS only (YAML-specific helper)
 
 export function doubleQuoted(value: string): unknown {
@@ -127,24 +131,6 @@ export function doubleQuoted(value: string): unknown {
 } // parseMarkdown
 
 export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): ParsedMarkdown<Y> {
-  if (napiBinding != null) {
-    const result = napiBinding.parseMarkdown(rawContent)
-    const yamlFrontMatter = result.yamlFrontMatterJson != null
-      ? JSON.parse(result.yamlFrontMatterJson) as Y
-      : void 0
-    const ast = parseMdx(rawContent) // Still need the AST for consumers that use markdownAst/markdownContents
-    const markdownContents: RootContent[] = []
-    for (const node of ast.children as (RootContent & {type: string})[]) {
-      if (node.type !== 'yaml') markdownContents.push(node)
-    }
-    return {
-      ...yamlFrontMatter != null && {yamlFrontMatter},
-      ...result.rawFrontMatter != null && {rawFrontMatter: result.rawFrontMatter},
-      markdownAst: ast,
-      markdownContents,
-      contentWithoutFrontMatter: result.contentWithoutFrontMatter
-    }
-  }
   const ast = parseMdx(rawContent)
   let yamlFrontMatter: Y | undefined,
     rawFrontMatter: string | undefined
@@ -160,7 +146,7 @@ export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): 
   }
   let contentWithoutFrontMatter = rawContent
   if (rawFrontMatter != null) {
-    const frontMatterRegex = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/
+    const frontMatterRegex = /^---\r?\n[\s\S]*?\r?\n---(?:(?:\r?\n){1,2}|$)/
     contentWithoutFrontMatter = rawContent.replace(frontMatterRegex, '')
   }
   return {

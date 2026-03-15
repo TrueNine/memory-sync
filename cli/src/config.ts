@@ -56,6 +56,9 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
   aindex: DEFAULT_AINDEX,
   commandSeriesOptions: {},
   outputScopes: {},
+  frontMatter: {
+    blankLineAfter: true
+  },
   cleanupProtection: {},
   plugins: []
 }
@@ -71,6 +74,7 @@ function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOp
     ...userConfig.aindex != null ? {aindex: userConfig.aindex} : {},
     ...userConfig.commandSeriesOptions != null ? {commandSeriesOptions: userConfig.commandSeriesOptions} : {},
     ...userConfig.outputScopes != null ? {outputScopes: userConfig.outputScopes} : {},
+    ...userConfig.frontMatter != null ? {frontMatter: userConfig.frontMatter} : {},
     ...userConfig.cleanupProtection != null ? {cleanupProtection: userConfig.cleanupProtection} : {},
     ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
   }
@@ -112,6 +116,7 @@ function mergeTwoConfigs(
   const overridePlugins = override.plugins
   const overrideCommandSeries = override.commandSeriesOptions
   const overrideOutputScopes = override.outputScopes
+  const overrideFrontMatter = override.frontMatter
   const overrideCleanupProtection = override.cleanupProtection
 
   return {
@@ -124,6 +129,7 @@ function mergeTwoConfigs(
     ],
     commandSeriesOptions: mergeCommandSeriesOptions(base.commandSeriesOptions, overrideCommandSeries), // Deep merge for commandSeriesOptions
     outputScopes: mergeOutputScopeOptions(base.outputScopes, overrideOutputScopes),
+    frontMatter: mergeFrontMatterOptions(base.frontMatter, overrideFrontMatter),
     cleanupProtection: mergeCleanupProtectionOptions(base.cleanupProtection, overrideCleanupProtection)
   }
 }
@@ -210,6 +216,17 @@ function mergeOutputScopeOptions(
 
   if (Object.keys(mergedPlugins).length === 0) return {}
   return {plugins: mergedPlugins}
+}
+
+function mergeFrontMatterOptions(
+  base: Required<PluginOptions>['frontMatter'],
+  override?: PluginOptions['frontMatter']
+): Required<PluginOptions>['frontMatter'] {
+  if (override == null) return base
+  return {
+    ...base,
+    ...override
+  }
 }
 
 function mergeCleanupProtectionOptions(

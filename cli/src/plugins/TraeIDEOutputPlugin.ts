@@ -7,7 +7,6 @@ import type {
 } from './plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin, filterByProjectConfig} from './plugin-core'
 
 const GLOBAL_MEMORY_FILE = 'GLOBAL.md'
@@ -117,13 +116,14 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
           const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
           const normalizedChildPath = childPath.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '')
           const globPattern = this.buildProjectRelativeGlobPattern(normalizedChildPath)
-          const steeringContent = buildMarkdownWithFrontMatter(
-            {alwaysApply: false, globs: globPattern},
+          const steeringContent = this.buildMarkdownContent(
             [
               this.buildPathGuardHint(normalizedChildPath),
               '',
               child.content as string
-            ].join('\n')
+            ].join('\n'),
+            {alwaysApply: false, globs: globPattern},
+            ctx
           )
 
           declarations.push({
@@ -208,7 +208,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
 
   override async convertContent(
     declaration: OutputFileDeclaration,
-    _ctx: OutputWriteContext
+    ctx: OutputWriteContext
   ): Promise<string | Buffer> {
     const source = declaration.source as TraeOutputSource
     switch (source.kind) {
@@ -216,10 +216,10 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       case 'steeringRule':
       case 'skillChildDoc':
       case 'ignoreFile': return source.content
-      case 'command': return this.buildCommandContent(source.command)
+      case 'command': return this.buildCommandContent(source.command, ctx)
       case 'skillMain': {
         const frontMatterData = this.buildSkillFrontMatter(source.skill)
-        return buildMarkdownWithFrontMatter(frontMatterData, source.skill.content as string)
+        return this.buildMarkdownContent(source.skill.content as string, frontMatterData, ctx)
       }
       case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
       default: throw new Error(`Unsupported declaration source for ${this.name}`)

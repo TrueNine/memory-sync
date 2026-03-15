@@ -5,7 +5,6 @@ import type {
 } from './plugin-core'
 
 import {Buffer} from 'node:buffer'
-import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin, filterByProjectConfig} from './plugin-core'
 
 const PROJECT_SKILLS_DIR = '.agents/skills'
@@ -138,13 +137,13 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
   override async convertContent(
     declaration: OutputFileDeclaration,
-    _ctx: OutputWriteContext
+    ctx: OutputWriteContext
   ): Promise<string | Buffer> {
     const source = declaration.source as GenericSkillOutputSource
     switch (source.kind) {
       case 'skillMain': {
         const frontMatterData = this.buildSkillFrontMatter(source.skill)
-        return buildMarkdownWithFrontMatter(frontMatterData, source.skill.content as string)
+        return this.buildMarkdownContent(source.skill.content as string, frontMatterData, ctx)
       }
       case 'skillMcp': return source.rawContent
       case 'skillChildDoc': return source.content

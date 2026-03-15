@@ -64,29 +64,39 @@ export class PluginPipeline {
       outputPlugins: this.outputPlugins,
       collectedOutputContext: ctx,
       userConfigOptions,
-      createCleanContext: (dryRun: boolean) => this.createCleanContext(ctx, dryRun),
-      createWriteContext: (dryRun: boolean) => this.createWriteContext(ctx, dryRun)
+      createCleanContext: (dryRun: boolean) => this.createCleanContext(ctx, userConfigOptions, dryRun),
+      createWriteContext: (dryRun: boolean) => this.createWriteContext(ctx, userConfigOptions, dryRun)
     }
   }
 
-  private createCleanContext(ctx: OutputCollectedContext, dryRun: boolean): OutputCleanContext {
+  private createCleanContext(
+    ctx: OutputCollectedContext,
+    userConfigOptions: Required<PluginOptions>,
+    dryRun: boolean
+  ): OutputCleanContext {
     return {
       logger: this.logger,
       fs,
       path,
       glob,
       collectedOutputContext: ctx,
+      pluginOptions: userConfigOptions,
       dryRun
     }
   }
 
-  private createWriteContext(ctx: OutputCollectedContext, dryRun: boolean): OutputWriteContext {
+  private createWriteContext(
+    ctx: OutputCollectedContext,
+    userConfigOptions: Required<PluginOptions>,
+    dryRun: boolean
+  ): OutputWriteContext {
     return {
       logger: this.logger,
       fs,
       path,
       glob,
       collectedOutputContext: ctx,
+      pluginOptions: userConfigOptions,
       dryRun,
       registeredPluginNames: this.outputPlugins.map(p => p.name)
     }

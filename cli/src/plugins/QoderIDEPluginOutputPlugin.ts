@@ -9,7 +9,6 @@ import type {
 } from './plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterByProjectConfig} from './plugin-core'
 
 const QODER_CONFIG_DIR = '.qoder'
@@ -210,7 +209,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
           scope: 'project',
           source: {
             kind: 'ruleContent',
-            content: this.buildAlwaysRuleContent(globalMemory.content as string)
+            content: this.buildAlwaysRuleContent(globalMemory.content as string, ctx)
           } satisfies QoderOutputSource
         })
       }
@@ -221,7 +220,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
           scope: 'project',
           source: {
             kind: 'ruleContent',
-            content: this.buildAlwaysRuleContent(project.rootMemoryPrompt.content as string)
+            content: this.buildAlwaysRuleContent(project.rootMemoryPrompt.content as string, ctx)
           } satisfies QoderOutputSource
         })
       }
@@ -233,7 +232,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
             scope: 'project',
             source: {
               kind: 'ruleContent',
-              content: this.buildGlobRuleContent(child)
+              content: this.buildGlobRuleContent(child, ctx)
             } satisfies QoderOutputSource
           })
         }
@@ -278,16 +277,16 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   override async convertContent(
     declaration: OutputFileDeclaration,
-    _ctx: OutputWriteContext
+    ctx: OutputWriteContext
   ): Promise<string | Buffer> {
     const source = declaration.source as QoderOutputSource
     switch (source.kind) {
-      case 'command': return this.buildCommandContent(source.command)
+      case 'command': return this.buildCommandContent(source.command, ctx)
       case 'ruleContent': return source.content
-      case 'rulePrompt': return this.buildRuleContent(source.rule)
+      case 'rulePrompt': return this.buildRuleContent(source.rule, ctx)
       case 'skillMain': {
         const fmData = this.buildSkillFrontMatter(source.skill)
-        return buildMarkdownWithFrontMatter(fmData, source.skill.content as string)
+        return this.buildMarkdownContent(source.skill.content as string, fmData, ctx)
       }
       case 'skillMcpConfig': return source.rawContent
       case 'skillChildDoc':
@@ -303,15 +302,15 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return `${CHILD_RULE_FILE_PREFIX}${normalized.length > 0 ? normalized : 'root'}.md`
   }
 
-  private buildAlwaysRuleContent(content: string): string {
-    return buildMarkdownWithFrontMatter({trigger: TRIGGER_ALWAYS, type: 'user_command'}, content)
+  private buildAlwaysRuleContent(content: string, ctx: OutputWriteContext): string {
+    return this.buildMarkdownContent(content, {trigger: TRIGGER_ALWAYS, type: 'user_command'}, ctx)
   }
 
-  private buildGlobRuleContent(child: ProjectChildrenMemoryPrompt): string {
+  private buildGlobRuleContent(child: ProjectChildrenMemoryPrompt, ctx: OutputWriteContext): string {
     const childPath = child.workingChildDirectoryPath?.path ?? child.dir.path
     const normalized = childPath.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '')
     const pattern = normalized.length === 0 ? '**/*' : `${normalized}/**`
-    return buildMarkdownWithFrontMatter({trigger: TRIGGER_GLOB, [RULE_GLOB_KEY]: pattern, type: 'user_command'}, child.content as string)
+    return this.buildMarkdownContent(child.content as string, {trigger: TRIGGER_GLOB, [RULE_GLOB_KEY]: pattern, type: 'user_command'}, ctx)
   }
 
   protected override buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
@@ -332,13 +331,13 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
     return `${prefix}${rule.prefix}-${rule.ruleName}.md`
   }
 
-  protected override buildRuleContent(rule: RulePrompt): string {
+  protected override buildRuleContent(rule: RulePrompt, ctx?: OutputWriteContext): string {
     const fmData: Record<string, unknown> = {
       trigger: TRIGGER_GLOB,
       [RULE_GLOB_KEY]: rule.globs.length > 0 ? rule.globs.join(', ') : '**/*',
       type: 'user_command'
     }
-    return buildMarkdownWithFrontMatter(fmData, rule.content)
+    return this.buildMarkdownContent(rule.content, fmData, ctx)
   }
 
   protected override normalizeRuleScope(rule: RulePrompt): RuleScope {

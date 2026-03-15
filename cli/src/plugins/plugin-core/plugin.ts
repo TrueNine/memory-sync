@@ -4,6 +4,7 @@ import type {
   AindexConfig,
   CleanupProtectionOptions,
   CommandSeriesOptions,
+  FrontMatterOptions,
   OutputScopeOptions,
   OutputScopeSelection,
   PluginOutputScopeTopics,
@@ -500,6 +501,8 @@ export interface PluginOptions {
   readonly commandSeriesOptions?: CommandSeriesOptions
 
   readonly outputScopes?: OutputScopeOptions
+
+  readonly frontMatter?: FrontMatterOptions
 
   readonly cleanupProtection?: CleanupProtectionOptions
 

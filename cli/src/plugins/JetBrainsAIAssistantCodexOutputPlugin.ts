@@ -9,7 +9,6 @@ import type {
 } from './plugin-core'
 import * as path from 'node:path'
 import {getPlatformFixedDir} from '@truenine/desk-paths'
-import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin, filterByProjectConfig, PLUGIN_NAMES} from './plugin-core'
 
 /**
@@ -135,7 +134,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
             scope: 'project',
             source: {
               kind: 'projectRuleContent',
-              content: this.buildAlwaysRuleContent(project.rootMemoryPrompt.content as string)
+              content: this.buildAlwaysRuleContent(project.rootMemoryPrompt.content as string, ctx)
             } satisfies JetBrainsCodexOutputSource
           })
         }
@@ -147,7 +146,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
               scope: 'project',
               source: {
                 kind: 'projectRuleContent',
-                content: this.buildGlobRuleContent(child)
+                content: this.buildGlobRuleContent(child, ctx)
               } satisfies JetBrainsCodexOutputSource
             })
           }
@@ -249,7 +248,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
 
   override async convertContent(
     declaration: OutputFileDeclaration,
-    _ctx: OutputWriteContext
+    ctx: OutputWriteContext
   ): Promise<string> {
     const source = declaration.source as JetBrainsCodexOutputSource
     switch (source.kind) {
@@ -258,8 +257,8 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       case 'skillReference':
       case 'skillResource':
       case 'ignoreFile': return source.content
-      case 'command': return this.buildCommandContent(source.command)
-      case 'globalSkill': return this.buildCodexSkillContent(source.skill)
+      case 'command': return this.buildCommandContent(source.command, ctx)
+      case 'globalSkill': return this.buildCodexSkillContent(source.skill, ctx)
       default: throw new Error(`Unsupported declaration source for ${this.name}`)
     }
   }
@@ -325,29 +324,29 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     return `${normalizedPath}/**`
   }
 
-  private buildAlwaysRuleContent(content: string): string {
+  private buildAlwaysRuleContent(content: string, ctx: OutputWriteContext): string {
     const fmData: Record<string, unknown> = {
       apply: RULE_APPLY_ALWAYS
     }
 
-    return buildMarkdownWithFrontMatter(fmData, content)
+    return this.buildMarkdownContent(content, fmData, ctx)
   }
 
-  private buildGlobRuleContent(child: ProjectChildrenMemoryPrompt): string {
+  private buildGlobRuleContent(child: ProjectChildrenMemoryPrompt, ctx: OutputWriteContext): string {
     const pattern = this.buildChildRulePattern(child)
     const fmData: Record<string, unknown> = {
       apply: RULE_APPLY_GLOB,
       [RULE_GLOB_KEY]: pattern
     }
 
-    return buildMarkdownWithFrontMatter(fmData, child.content as string)
+    return this.buildMarkdownContent(child.content as string, fmData, ctx)
   }
 
   private isSupportedIdeDir(dirName: string): boolean {
     return IDE_DIR_PREFIXES.some(prefix => dirName.startsWith(prefix))
   }
 
-  private buildCodexSkillContent(skill: SkillPrompt): string {
+  private buildCodexSkillContent(skill: SkillPrompt, ctx: OutputWriteContext): string {
     const fm = skill.yamlFrontMatter
 
     const name = this.normalizeSkillName(fm.name, 64)
@@ -368,7 +367,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     if (Object.keys(metadata).length > 0) fmData['metadata'] = metadata
     if (fm.allowTools != null && fm.allowTools.length > 0) fmData['allowed-tools'] = fm.allowTools.join(' ')
 
-    return buildMarkdownWithFrontMatter(fmData, skill.content as string)
+    return this.buildMarkdownContent(skill.content as string, fmData, ctx)
   }
 
   private normalizeSkillName(name: string, maxLength: number): string {

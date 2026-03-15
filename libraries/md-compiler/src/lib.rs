@@ -185,7 +185,7 @@ mod napi_binding {
         }
 
         let fm_block = build_front_matter(fm.to_string())?;
-        Ok(format!("{fm_block}\n{content}"))
+        Ok(format!("{fm_block}\n\n{content}"))
     }
 
     // ---------------------------------------------------------------------------
@@ -195,7 +195,8 @@ mod napi_binding {
     /// Parse a Markdown/MDX string and extract YAML front matter and content.
     #[napi]
     pub fn parse_markdown(raw_content: String) -> ParsedMarkdown {
-        let front_matter_regex = regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---\r?\n?").ok();
+        let front_matter_regex =
+            regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok();
 
         if let Some(re) = &front_matter_regex {
             if let Some(caps) = re.captures(&raw_content) {

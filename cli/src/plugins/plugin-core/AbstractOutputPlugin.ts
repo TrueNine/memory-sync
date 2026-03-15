@@ -174,6 +174,9 @@ export interface AbstractOutputPluginOptions {
 
   /** Explicit output capability matrix for scope override validation */
   capabilities?: OutputPluginCapabilities
+
+  /** Whether this plugin honors the shared blank-line-after-front-matter option */
+  supportsBlankLineAfterFrontMatter?: boolean
 }
 
 /**
@@ -250,6 +253,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   protected readonly cleanupConfig: OutputCleanupConfig
 
+  protected readonly supportsBlankLineAfterFrontMatter: boolean
+
   private readonly registryWriterCache: Map<string, RegistryWriter<unknown>> = new Map()
 
   protected constructor(name: string, options?: AbstractOutputPluginOptions) {
@@ -287,6 +292,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       sourceScopes: options?.rules?.sourceScopes ?? ['project', 'workspace', 'global']
     } // Initialize rule output config with defaults
     this.cleanupConfig = options?.cleanup ?? {}
+    this.supportsBlankLineAfterFrontMatter = options?.supportsBlankLineAfterFrontMatter ?? true
 
     this.outputCapabilities = options?.capabilities != null
       ? this.normalizeCapabilities(options.capabilities)
@@ -530,18 +536,34 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return declarations
   }
 
-  protected buildMarkdownContent(content: string, frontMatter?: Record<string, unknown>): string {
-    return buildMarkdownWithFrontMatter(frontMatter, content)
+  protected resolveFrontMatterBlankLineAfter(ctx?: OutputPluginContext): boolean {
+    if (!this.supportsBlankLineAfterFrontMatter) return true
+    return ctx?.pluginOptions?.frontMatter?.blankLineAfter ?? true
+  }
+
+  protected buildMarkdownContent(
+    content: string,
+    frontMatter?: Record<string, unknown>,
+    ctx?: OutputPluginContext
+  ): string {
+    return buildMarkdownWithFrontMatter(frontMatter, content, {
+      blankLineAfter: this.resolveFrontMatterBlankLineAfter(ctx)
+    })
   }
 
   protected buildMarkdownContentWithRaw(
     content: string,
     frontMatter?: Record<string, unknown>,
-    rawFrontMatter?: string
+    rawFrontMatter?: string,
+    ctx?: OutputPluginContext
   ): string {
-    if (frontMatter != null && Object.keys(frontMatter).length > 0) return buildMarkdownWithFrontMatter(frontMatter, content) // If we have parsed front matter, use it
+    if (frontMatter != null && Object.keys(frontMatter).length > 0) return this.buildMarkdownContent(content, frontMatter, ctx) // If we have parsed front matter, use it
 
-    if (rawFrontMatter != null && rawFrontMatter.length > 0) return buildMarkdownWithRawFrontMatter(rawFrontMatter, content) // If we have raw front matter but parsing failed, use raw
+    if (rawFrontMatter != null && rawFrontMatter.length > 0) {
+      return buildMarkdownWithRawFrontMatter(rawFrontMatter, content, {
+        blankLineAfter: this.resolveFrontMatterBlankLineAfter(ctx)
+      })
+    } // If we have raw front matter but parsing failed, use raw
 
     return content // No front matter
   }
@@ -771,7 +793,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return result
   }
 
-  protected buildRuleContent(rule: RulePrompt): string {
+  protected buildRuleContent(rule: RulePrompt, ctx?: OutputPluginContext): string {
     const fmData = this.rulesConfig.transformFrontMatter
       ? this.rulesConfig.transformFrontMatter(rule)
       : {globs: rule.globs.join(', ')}
@@ -780,7 +802,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       ? void 0
       : fmData
 
-    return buildMarkdownWithFrontMatter(sanitizedFmData, rule.content)
+    return this.buildMarkdownContent(rule.content, sanitizedFmData, ctx)
   }
 
   protected buildRuleFileName(rule: RulePrompt): string {
@@ -818,7 +840,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
   async convertContent(
     declaration: OutputFileDeclaration,
-    _ctx: OutputWriteContext
+    ctx: OutputWriteContext
   ): Promise<string | Buffer> {
     const source = declaration.source as DeclarativeOutputSource
 
@@ -828,11 +850,11 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       case 'globalMemory':
       case 'skillReference':
       case 'ignoreFile': return source.content
-      case 'command': return this.buildCommandContent(source.command)
-      case 'subAgent': return this.buildSubAgentContent(source.subAgent)
-      case 'skillMain': return this.buildSkillMainContent(source.skill)
+      case 'command': return this.buildCommandContent(source.command, ctx)
+      case 'subAgent': return this.buildSubAgentContent(source.subAgent, ctx)
+      case 'skillMain': return this.buildSkillMainContent(source.skill, ctx)
       case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
-      case 'rule': return this.buildRuleContent(source.rule)
+      case 'rule': return this.buildRuleContent(source.rule, ctx)
       default: throw new Error(`Unsupported declaration source for plugin ${this.name}`)
     }
   }
@@ -1118,7 +1140,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return declarations
   }
 
-  protected async buildCommandContent(cmd: CommandPrompt): Promise<string> {
+  protected async buildCommandContent(cmd: CommandPrompt, ctx?: OutputPluginContext): Promise<string> {
     let compiledContent = cmd.content
     let compiledFrontMatter = cmd.yamlFrontMatter
     let useRecompiledFrontMatter = false
@@ -1151,30 +1173,32 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       ...compiledFrontMatter != null && {sourceFrontMatter: compiledFrontMatter as Record<string, unknown>}
     })
 
-    return this.buildMarkdownContent(compiledContent, transformedFrontMatter)
+    return this.buildMarkdownContent(compiledContent, transformedFrontMatter, ctx)
   }
 
-  protected buildSubAgentContent(agent: SubAgentPrompt): string {
+  protected buildSubAgentContent(agent: SubAgentPrompt, ctx?: OutputPluginContext): string {
     const subAgentFrontMatterTransformer = this.subAgentsConfig.transformFrontMatter
     if (subAgentFrontMatterTransformer != null) {
       const transformedFrontMatter = subAgentFrontMatterTransformer(agent, {
         ...agent.yamlFrontMatter != null && {sourceFrontMatter: agent.yamlFrontMatter as Record<string, unknown>}
       })
-      return this.buildMarkdownContent(agent.content, transformedFrontMatter)
+      return this.buildMarkdownContent(agent.content, transformedFrontMatter, ctx)
     }
 
     return this.buildMarkdownContentWithRaw(
       agent.content,
       agent.yamlFrontMatter,
-      agent.rawFrontMatter
+      agent.rawFrontMatter,
+      ctx
     )
   }
 
-  protected buildSkillMainContent(skill: SkillPrompt): string {
+  protected buildSkillMainContent(skill: SkillPrompt, ctx?: OutputPluginContext): string {
     return this.buildMarkdownContentWithRaw(
       skill.content as string,
       skill.yamlFrontMatter,
-      skill.rawFrontMatter
+      skill.rawFrontMatter,
+      ctx
     )
   }
 }

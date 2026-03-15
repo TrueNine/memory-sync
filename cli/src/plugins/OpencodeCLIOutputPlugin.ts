@@ -270,7 +270,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   override async convertContent(
     declaration: OutputFileDeclaration,
-    _ctx: OutputWriteContext
+    ctx: OutputWriteContext
   ): Promise<string | Buffer> {
     const source = declaration.source as OpencodeOutputSource
     switch (source.kind) {
@@ -278,14 +278,14 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       case 'projectRootMemory':
       case 'projectChildMemory':
       case 'skillReference': return source.content
-      case 'command': return this.buildCommandContent(source.command)
+      case 'command': return this.buildCommandContent(source.command, ctx)
       case 'subAgent': {
         const frontMatter = this.buildOpencodeAgentFrontMatter(source.agent)
-        return this.buildMarkdownContent(source.agent.content, frontMatter)
+        return this.buildMarkdownContent(source.agent.content, frontMatter, ctx)
       }
       case 'skillMain': {
         const frontMatter = this.buildOpencodeSkillFrontMatter(source.skill, source.normalizedSkillName)
-        return this.buildMarkdownContent(source.skill.content as string, frontMatter)
+        return this.buildMarkdownContent(source.skill.content as string, frontMatter, ctx)
       }
       case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
       case 'globalMcpConfig':

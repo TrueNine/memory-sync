@@ -1,4 +1,5 @@
 import type {
+  OutputWriteContext,
   SkillPrompt
 } from './plugin-core'
 import {AbstractOutputPlugin} from './plugin-core'
@@ -47,11 +48,11 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     }) // Droid uses default subdir names
   }
 
-  protected override buildSkillMainContent(skill: SkillPrompt): string { // Droid-specific: Simplify front matter
+  protected override buildSkillMainContent(skill: SkillPrompt, ctx?: OutputWriteContext): string { // Droid-specific: Simplify front matter
     const simplifiedFrontMatter = skill.yamlFrontMatter != null // Droid-specific: Simplify front matter
       ? {name: skill.yamlFrontMatter.name, description: skill.yamlFrontMatter.description}
       : void 0
 
-    return this.buildMarkdownContent(skill.content as string, simplifiedFrontMatter)
+    return this.buildMarkdownContent(skill.content as string, simplifiedFrontMatter, ctx)
   }
 }

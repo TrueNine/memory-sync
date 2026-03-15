@@ -10,7 +10,6 @@ import type {
 } from './plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {
   AbstractOutputPlugin,
   applySubSeriesGlobPrefix,
@@ -227,7 +226,7 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     }
 
     if (globalMemory != null && activePromptScopes.has('global')) {
-      const globalRuleContent = this.buildGlobalRuleContent(globalMemory.content as string)
+      const globalRuleContent = this.buildGlobalRuleContent(globalMemory.content as string, ctx)
       for (const project of workspace.projects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null) continue
@@ -285,28 +284,28 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
 
   override async convertContent(
     declaration: OutputFileDeclaration,
-    _ctx: OutputWriteContext
+    ctx: OutputWriteContext
   ): Promise<string | Buffer> {
     const source = declaration.source as CursorOutputSource
     switch (source.kind) {
-      case 'globalCommand': return this.buildCommandContent(source.command)
+      case 'globalCommand': return this.buildCommandContent(source.command, ctx)
       case 'globalMcpConfig': return JSON.stringify({mcpServers: source.mcpServers}, null, 2)
       case 'globalSkill': {
         const frontMatterData = this.buildSkillFrontMatter(source.skill)
-        return buildMarkdownWithFrontMatter(frontMatterData, source.skill.content as string)
+        return this.buildMarkdownContent(source.skill.content as string, frontMatterData, ctx)
       }
       case 'globalSkillMcpConfig': return source.rawContent
       case 'globalSkillChildDoc':
       case 'projectGlobalRule':
       case 'projectIgnoreFile': return source.content
       case 'globalSkillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
-      case 'ruleMdc': return this.buildRuleMdcContent(source.rule)
+      case 'ruleMdc': return this.buildRuleMdcContent(source.rule, ctx)
       default: throw new Error(`Unsupported declaration source for ${this.name}`)
     }
   }
 
-  private buildGlobalRuleContent(content: string): string {
-    return buildMarkdownWithFrontMatter({description: 'Global prompt (synced)', alwaysApply: true}, content)
+  private buildGlobalRuleContent(content: string, ctx: OutputWriteContext): string {
+    return this.buildMarkdownContent(content, {description: 'Global prompt (synced)', alwaysApply: true}, ctx)
   }
 
   private isPreservedSkill(name: string): boolean { return PRESERVED_SKILLS.has(name) }
@@ -369,9 +368,9 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  protected buildRuleMdcContent(rule: RulePrompt): string {
+  protected buildRuleMdcContent(rule: RulePrompt, ctx?: OutputWriteContext): string {
     const fmData: Record<string, unknown> = {alwaysApply: false, globs: rule.globs.length > 0 ? rule.globs.join(', ') : ''}
-    const raw = buildMarkdownWithFrontMatter(fmData, rule.content)
+    const raw = this.buildMarkdownContent(rule.content, fmData, ctx)
     const lines = raw.split('\n')
     const transformedLines = lines.map(line => {
       const match = /^(\s*globs:\s*)(['"])(.*)\2\s*$/.exec(line)

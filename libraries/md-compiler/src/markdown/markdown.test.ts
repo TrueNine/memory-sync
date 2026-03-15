@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest'
 import {
   buildFrontMatter,
   buildMarkdownWithFrontMatter,
+  buildMarkdownWithRawFrontMatter,
   buildRawFrontMatter,
   parseMarkdown
 } from './index'
@@ -72,8 +73,13 @@ tags:
   })
 
   describe('buildMarkdownWithFrontMatter', () => {
-    it('should combine front matter with content', () => {
+    it('should combine front matter with content and a blank separator by default', () => {
       const result = buildMarkdownWithFrontMatter({title: 'Test'}, '# Hello World')
+      expect(result).toBe('---\ntitle: Test\n---\n\n# Hello World')
+    })
+
+    it('should support disabling the blank separator after front matter', () => {
+      const result = buildMarkdownWithFrontMatter({title: 'Test'}, '# Hello World', {blankLineAfter: false})
       expect(result).toBe('---\ntitle: Test\n---\n# Hello World')
     })
 
@@ -112,6 +118,18 @@ tags:
     })
   })
 
+  describe('buildMarkdownWithRawFrontMatter', () => {
+    it('should default to a blank separator after raw front matter', () => {
+      const result = buildMarkdownWithRawFrontMatter('title: Test', '# Hello World')
+      expect(result).toBe('---\ntitle: Test\n---\n\n# Hello World')
+    })
+
+    it('should support disabling the blank separator after raw front matter', () => {
+      const result = buildMarkdownWithRawFrontMatter('title: Test', '# Hello World', {blankLineAfter: false})
+      expect(result).toBe('---\ntitle: Test\n---\n# Hello World')
+    })
+  })
+
   describe('roundtrip', () => {
     it('should parse what was built', () => {
       const original = {title: 'Test', tags: ['a', 'b']}
@@ -119,6 +137,27 @@ tags:
       const parsed = parseMarkdown(markdown)
       expect(parsed.yamlFrontMatter).toEqual(original)
       expect(parsed.contentWithoutFrontMatter).toBe('# Content')
+    })
+
+    it('should parse markdown with a blank line after front matter without leaking a leading blank line', () => {
+      const content = `---
+title: Test
+---
+
+# Hello World`
+      const parsed = parseMarkdown(content)
+      expect(parsed.yamlFrontMatter).toEqual({title: 'Test'})
+      expect(parsed.contentWithoutFrontMatter).toBe('# Hello World')
+    })
+
+    it('should still parse markdown with the legacy single-line separator', () => {
+      const content = `---
+title: Test
+---
+# Hello World`
+      const parsed = parseMarkdown(content)
+      expect(parsed.yamlFrontMatter).toEqual({title: 'Test'})
+      expect(parsed.contentWithoutFrontMatter).toBe('# Hello World')
     })
   })
 })

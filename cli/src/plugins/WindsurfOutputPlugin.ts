@@ -1,7 +1,6 @@
-import type {CommandPrompt, OutputFileDeclaration, OutputWriteContext, RuleContentOptions, RulePrompt, SkillPrompt} from './plugin-core'
+import type {CommandPrompt, OutputFileDeclaration, OutputWriteContext, RulePrompt, SkillPrompt} from './plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {buildMarkdownWithFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterByProjectConfig, PLUGIN_NAMES} from './plugin-core'
 
 const CODEIUM_WINDSURF_DIR = '.codeium/windsurf'
@@ -248,20 +247,20 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   override async convertContent(
     declaration: OutputFileDeclaration,
-    _ctx: OutputWriteContext
+    ctx: OutputWriteContext
   ): Promise<string | Buffer> {
     const source = declaration.source as WindsurfOutputSource
     switch (source.kind) {
       case 'globalMemory':
       case 'skillChildDoc':
       case 'ignoreFile': return source.content
-      case 'command': return this.buildCommandContent(source.command)
+      case 'command': return this.buildCommandContent(source.command, ctx)
       case 'skillMain': {
         const frontMatterData = this.buildSkillFrontMatter(source.skill)
-        return buildMarkdownWithFrontMatter(frontMatterData, source.skill.content as string)
+        return this.buildMarkdownContent(source.skill.content as string, frontMatterData, ctx)
       }
       case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
-      case 'rule': return this.buildRuleContent(source.rule)
+      case 'rule': return this.buildRuleContent(source.rule, ctx)
       default: throw new Error(`Unsupported declaration source for ${this.name}`)
     }
   }
@@ -272,9 +271,9 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     return `${prefix}${rule.prefix}-${rule.ruleName}.md`
   }
 
-  protected override buildRuleContent(rule: RulePrompt, _options?: RuleContentOptions): string {
+  protected override buildRuleContent(rule: RulePrompt, ctx?: OutputWriteContext): string {
     const fmData: Record<string, unknown> = {trigger: 'glob', globs: rule.globs.length > 0 ? rule.globs.join(', ') : ''}
-    const raw = buildMarkdownWithFrontMatter(fmData, rule.content)
+    const raw = this.buildMarkdownContent(rule.content, fmData, ctx)
     const lines = raw.split('\n')
     return lines.map(line => {
       const match = /^(\s*globs:\s*)(['"])(.*)\2\s*$/.exec(line)

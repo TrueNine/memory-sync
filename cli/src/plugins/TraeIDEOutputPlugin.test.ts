@@ -71,5 +71,53 @@ describe('traeIDEOutputPlugin steering rule output', () => {
     expect(content).toContain('globs: commands/**')
     expect(content).toContain('Scope guard: this rule is for the project-root path "commands/" only.')
     expect(content).toContain('Do not apply this rule to generated output paths such as "dist/commands/"')
+    expect(content).toContain('globs: commands/**\n---\n\nScope guard:')
+  })
+
+  it('honors frontMatter.blankLineAfter=false for prebuilt steering rule content', async () => {
+    const plugin = new TraeIDEOutputPlugin()
+    const workspaceBase = path.resolve('tmp/trae-plugin-test-no-blank-line')
+    const ctx = {
+      logger: createLogger('TraeIDEOutputPlugin', 'error'),
+      fs,
+      path,
+      glob: {} as never,
+      dryRun: true,
+      pluginOptions: {
+        frontMatter: {
+          blankLineAfter: false
+        }
+      },
+      collectedOutputContext: {
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: workspaceBase,
+            getDirectoryName: () => path.basename(workspaceBase)
+          },
+          projects: [
+            {
+              name: 'project-a',
+              dirFromWorkspacePath: {
+                pathKind: FilePathKind.Relative,
+                path: 'project-a',
+                basePath: workspaceBase,
+                getDirectoryName: () => 'project-a',
+                getAbsolutePath: () => path.join(workspaceBase, 'project-a')
+              },
+              childMemoryPrompts: [createChildPrompt('commands', 'Rule body')]
+            }
+          ]
+        }
+      }
+    } as OutputWriteContext
+
+    const declarations = await plugin.declareOutputFiles(ctx)
+    const steering = declarations.find(d => d.source != null && (d.source as {kind?: string}).kind === 'steeringRule')
+    expect(steering).toBeDefined()
+
+    const {content} = steering!.source as {content: string}
+    expect(content).toContain('---\nScope guard:')
+    expect(content).not.toContain('---\n\nScope guard:')
   })
 })

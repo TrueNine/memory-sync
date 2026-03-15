@@ -66,6 +66,11 @@ export const ZPluginOutputScopeTopics = z.object({
  */
 export const ZOutputScopeOptions = z.object({plugins: z.record(z.string(), ZPluginOutputScopeTopics).optional()})
 
+/**
+ * Zod schema for shared front matter formatting options.
+ */
+export const ZFrontMatterOptions = z.object({blankLineAfter: z.boolean().optional()})
+
 export const ZProtectionMode = z.enum(['direct', 'recursive'])
 export const ZProtectionRuleMatcher = z.enum(['path', 'glob'])
 
@@ -98,6 +103,7 @@ export const ZUserConfigFile = z.object({
   logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error']).optional(),
   commandSeriesOptions: ZCommandSeriesOptions.optional(),
   outputScopes: ZOutputScopeOptions.optional(),
+  frontMatter: ZFrontMatterOptions.optional(),
   cleanupProtection: ZCleanupProtectionOptions.optional(),
   profile: ZUserProfile.optional()
 })
@@ -146,6 +152,7 @@ export type OutputScope = z.infer<typeof ZOutputScope>
 export type OutputScopeSelection = z.infer<typeof ZOutputScopeSelection>
 export type PluginOutputScopeTopics = z.infer<typeof ZPluginOutputScopeTopics>
 export type OutputScopeOptions = z.infer<typeof ZOutputScopeOptions>
+export type FrontMatterOptions = z.infer<typeof ZFrontMatterOptions>
 export type ProtectionMode = z.infer<typeof ZProtectionMode>
 export type ProtectionRuleMatcher = z.infer<typeof ZProtectionRuleMatcher>
 export type CleanupProtectionRule = z.infer<typeof ZCleanupProtectionRule>

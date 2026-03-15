@@ -92,12 +92,12 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
   override async convertContent(
     declaration: OutputFileDeclaration,
-    _ctx: OutputWriteContext
+    ctx: OutputWriteContext
   ): Promise<string> {
     const source = declaration.source as CodexOutputSource
 
     if (source.kind === 'globalMemory') return source.content
-    if (source.kind === 'command') return this.buildCommandContent(source.command)
+    if (source.kind === 'command') return this.buildCommandContent(source.command, ctx)
 
     throw new Error(`Unsupported declaration source for ${this.name}`)
   }

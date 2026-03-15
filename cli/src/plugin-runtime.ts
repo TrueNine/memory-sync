@@ -90,6 +90,7 @@ async function main(): Promise<void> {
     path,
     glob,
     collectedOutputContext: context,
+    pluginOptions: userConfigOptions,
     dryRun: dry,
     registeredPluginNames: [...outputPlugins].map(p => p.name)
   })
