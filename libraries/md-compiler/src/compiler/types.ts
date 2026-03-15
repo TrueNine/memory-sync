@@ -5,6 +5,7 @@ import type {
 } from 'mdast-util-mdx'
 import type {ExportMetadata} from './export-parser'
 import type {MdxGlobalScope} from '@/globals'
+import type {CompilerDiagnosticPosition} from '@/errors'
 
 /** Scope containing values available for expression evaluation */
 export interface EvaluationScope {
@@ -31,6 +32,10 @@ export interface ProcessingContext {
   processingStack: string[]
   /** Base path for resolving relative file references */
   basePath?: string
+  /** Full source file path used for diagnostics */
+  filePath?: string
+  /** Original MDX source for diagnostic snippets */
+  sourceText?: string
 }
 
 /** Options for the mdxToMd function */
@@ -39,8 +44,17 @@ export interface MdxToMdOptions {
   scope?: EvaluationScope
   /** Base path for file resolution */
   basePath?: string
+  /** Full source file path for diagnostics */
+  filePath?: string
   globalScope?: MdxGlobalScope | undefined
   extractMetadata?: boolean
+}
+
+export interface ExpressionDiagnosticContext {
+  readonly filePath?: string
+  readonly sourceText?: string
+  readonly position?: CompilerDiagnosticPosition
+  readonly nodeType?: string
 }
 
 /** Result of mdxToMd when extractMetadata is true */

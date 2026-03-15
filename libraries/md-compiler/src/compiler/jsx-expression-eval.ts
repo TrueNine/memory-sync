@@ -17,6 +17,18 @@ import {convertJsxToMarkdown} from './jsx-converter'
 type ProcessAstFn = (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>
 type JSXChild = JSXText | JSXExpressionContainer | JSXSpreadChild | JSXElement | JSXFragment
 
+function createExpressionOptions(
+  ctx: ProcessingContext,
+  node: MdxFlowExpression | MdxTextExpression
+) {
+  return {
+    ...ctx.filePath != null && {filePath: ctx.filePath},
+    ...ctx.sourceText != null && {sourceText: ctx.sourceText},
+    ...node.position != null && {position: node.position},
+    nodeType: node.type
+  }
+}
+
 /**
  * Checks if an estree AST contains JSX elements.
  */
@@ -39,7 +51,7 @@ export async function evaluateJsxExpression(
   const stmt = estree.body[0]
   if (stmt?.type !== 'ExpressionStatement') return []
 
-  return evaluateEstreeExpression(stmt.expression, ctx, processAstFn)
+  return evaluateEstreeExpression(stmt.expression, ctx, processAstFn, node)
 }
 
 /**
@@ -48,61 +60,65 @@ export async function evaluateJsxExpression(
 async function evaluateEstreeExpression(
   expr: Expression,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn
+  processAstFn: ProcessAstFn,
+  ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<RootContent[]> {
-  if (expr.type === 'JSXElement') return processJsxElement(expr as unknown as JSXElement, ctx, processAstFn) // Handle JSX types first
-  if (expr.type === 'JSXFragment') return processJsxFragment(expr as unknown as JSXFragment, ctx, processAstFn)
-  if (expr.type === 'LogicalExpression') return evaluateLogicalExpression(expr, ctx, processAstFn)
-  if (expr.type === 'ConditionalExpression') return evaluateConditionalExpression(expr, ctx, processAstFn)
-  if (expr.type === 'SequenceExpression') return evaluateSequenceExpression(expr, ctx, processAstFn)
-  if (expr.type === 'ArrayExpression') return evaluateArrayExpression(expr, ctx, processAstFn)
-  return evaluateNonJsxExpression(expr, ctx) // For all other expressions, use standard evaluator
+  if (expr.type === 'JSXElement') return processJsxElement(expr as unknown as JSXElement, ctx, processAstFn, ownerNode) // Handle JSX types first
+  if (expr.type === 'JSXFragment') return processJsxFragment(expr as unknown as JSXFragment, ctx, processAstFn, ownerNode)
+  if (expr.type === 'LogicalExpression') return evaluateLogicalExpression(expr, ctx, processAstFn, ownerNode)
+  if (expr.type === 'ConditionalExpression') return evaluateConditionalExpression(expr, ctx, processAstFn, ownerNode)
+  if (expr.type === 'SequenceExpression') return evaluateSequenceExpression(expr, ctx, processAstFn, ownerNode)
+  if (expr.type === 'ArrayExpression') return evaluateArrayExpression(expr, ctx, processAstFn, ownerNode)
+  return evaluateNonJsxExpression(expr, ctx, ownerNode) // For all other expressions, use standard evaluator
 }
 
 async function evaluateLogicalExpression(
   expr: Expression & {type: 'LogicalExpression'},
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn
+  processAstFn: ProcessAstFn,
+  ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<RootContent[]> {
-  const leftValue = await evaluateToValue(expr.left, ctx, processAstFn)
+  const leftValue = await evaluateToValue(expr.left, ctx, processAstFn, ownerNode)
 
   if (expr.operator === '&&') {
-    if (isTruthy(leftValue)) return evaluateEstreeExpression(expr.right, ctx, processAstFn)
+    if (isTruthy(leftValue)) return evaluateEstreeExpression(expr.right, ctx, processAstFn, ownerNode)
     return []
   }
   if (expr.operator === '||') {
     if (isTruthy(leftValue)) {
-      if (isJsxExpression(expr.left)) return evaluateEstreeExpression(expr.left, ctx, processAstFn)
+      if (isJsxExpression(expr.left)) return evaluateEstreeExpression(expr.left, ctx, processAstFn, ownerNode)
       return valueToRootContent(leftValue)
     }
-    return evaluateEstreeExpression(expr.right, ctx, processAstFn)
+    return evaluateEstreeExpression(expr.right, ctx, processAstFn, ownerNode)
   }
   if (expr.operator !== '??') return []
 
-  if (leftValue == null) return evaluateEstreeExpression(expr.right, ctx, processAstFn)
+  if (leftValue == null) return evaluateEstreeExpression(expr.right, ctx, processAstFn, ownerNode)
 
-  if (isJsxExpression(expr.left)) return evaluateEstreeExpression(expr.left, ctx, processAstFn)
+  if (isJsxExpression(expr.left)) return evaluateEstreeExpression(expr.left, ctx, processAstFn, ownerNode)
   return valueToRootContent(leftValue)
 }
 
 async function evaluateConditionalExpression(
   expr: Expression & {type: 'ConditionalExpression'},
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn
+  processAstFn: ProcessAstFn,
+  ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<RootContent[]> {
-  const testValue = await evaluateToValue(expr.test, ctx, processAstFn)
-  if (isTruthy(testValue)) return evaluateEstreeExpression(expr.consequent, ctx, processAstFn)
-  return evaluateEstreeExpression(expr.alternate, ctx, processAstFn)
+  const testValue = await evaluateToValue(expr.test, ctx, processAstFn, ownerNode)
+  if (isTruthy(testValue)) return evaluateEstreeExpression(expr.consequent, ctx, processAstFn, ownerNode)
+  return evaluateEstreeExpression(expr.alternate, ctx, processAstFn, ownerNode)
 }
 
 async function evaluateSequenceExpression(
   expr: Expression & {type: 'SequenceExpression'},
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn
+  processAstFn: ProcessAstFn,
+  ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<RootContent[]> {
   const results: RootContent[] = []
   for (const e of expr.expressions) {
-    const r = await evaluateEstreeExpression(e, ctx, processAstFn)
+    const r = await evaluateEstreeExpression(e, ctx, processAstFn, ownerNode)
     results.push(...r)
   }
   return results
@@ -111,16 +127,17 @@ async function evaluateSequenceExpression(
 async function evaluateArrayExpression(
   expr: Expression & {type: 'ArrayExpression'},
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn
+  processAstFn: ProcessAstFn,
+  ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<RootContent[]> {
   const results: RootContent[] = []
   for (const element of expr.elements) {
     if (element == null) continue
     if (element.type === 'SpreadElement') {
-      const spreadResult = await evaluateEstreeExpression(element.argument, ctx, processAstFn)
+      const spreadResult = await evaluateEstreeExpression(element.argument, ctx, processAstFn, ownerNode)
       results.push(...spreadResult)
     } else {
-      const r = await evaluateEstreeExpression(element, ctx, processAstFn)
+      const r = await evaluateEstreeExpression(element, ctx, processAstFn, ownerNode)
       results.push(...r)
     }
   }
@@ -130,7 +147,8 @@ async function evaluateArrayExpression(
 async function evaluateToValue(
   expr: Expression,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn
+  processAstFn: ProcessAstFn,
+  ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<unknown> {
   if (isJsxExpression(expr)) return true
 
@@ -144,7 +162,7 @@ async function evaluateToValue(
   }
 
   if (expr.type === 'UnaryExpression') {
-    const arg = await evaluateToValue(expr.argument, ctx, processAstFn)
+    const arg = await evaluateToValue(expr.argument, ctx, processAstFn, ownerNode)
     if (expr.operator === '!') return !isTruthy(arg)
     if (expr.operator === '-') return -(arg as number)
     if (expr.operator === '+') return +(arg as number)
@@ -153,8 +171,8 @@ async function evaluateToValue(
   }
 
   if (expr.type === 'BinaryExpression') {
-    const left = await evaluateToValue(expr.left as Expression, ctx, processAstFn)
-    const right = await evaluateToValue(expr.right, ctx, processAstFn)
+    const left = await evaluateToValue(expr.left as Expression, ctx, processAstFn, ownerNode)
+    const right = await evaluateToValue(expr.right, ctx, processAstFn, ownerNode)
     if (expr.operator === '===') return left === right
     if (expr.operator === '!==') return left !== right
     if (expr.operator === '==') return left === right // Use strict equality for == and !=
@@ -172,21 +190,21 @@ async function evaluateToValue(
   }
 
   if (expr.type === 'LogicalExpression') {
-    const left = await evaluateToValue(expr.left, ctx, processAstFn)
-    if (expr.operator === '&&') return isTruthy(left) ? evaluateToValue(expr.right, ctx, processAstFn) : left
-    if (expr.operator === '||') return isTruthy(left) ? left : evaluateToValue(expr.right, ctx, processAstFn)
+    const left = await evaluateToValue(expr.left, ctx, processAstFn, ownerNode)
+    if (expr.operator === '&&') return isTruthy(left) ? evaluateToValue(expr.right, ctx, processAstFn, ownerNode) : left
+    if (expr.operator === '||') return isTruthy(left) ? left : evaluateToValue(expr.right, ctx, processAstFn, ownerNode)
     if (expr.operator === '??') {
       if (left != null) return left
-      return evaluateToValue(expr.right, ctx, processAstFn)
+      return evaluateToValue(expr.right, ctx, processAstFn, ownerNode)
     }
     return void 0
   }
 
   if (expr.type === 'MemberExpression') {
-    const obj = await evaluateToValue(expr.object as Expression, ctx, processAstFn) as Record<string, unknown>
+    const obj = await evaluateToValue(expr.object as Expression, ctx, processAstFn, ownerNode) as Record<string, unknown>
     if (obj == null) return void 0
     if (expr.computed) {
-      const prop = await evaluateToValue(expr.property as Expression, ctx, processAstFn)
+      const prop = await evaluateToValue(expr.property as Expression, ctx, processAstFn, ownerNode)
       return obj[prop as string]
     }
     const {name: prop} = expr.property as Identifier
@@ -194,17 +212,17 @@ async function evaluateToValue(
   }
 
   if (expr.type === 'ConditionalExpression') {
-    const test = await evaluateToValue(expr.test, ctx, processAstFn)
+    const test = await evaluateToValue(expr.test, ctx, processAstFn, ownerNode)
     return isTruthy(test)
-      ? evaluateToValue(expr.consequent, ctx, processAstFn)
-      : evaluateToValue(expr.alternate, ctx, processAstFn)
+      ? evaluateToValue(expr.consequent, ctx, processAstFn, ownerNode)
+      : evaluateToValue(expr.alternate, ctx, processAstFn, ownerNode)
   }
 
   const source = estreeToSource(expr)
   if (source === '') return void 0
 
   try {
-    const result = evaluateExpression(source, ctx.scope)
+    const result = evaluateExpression(source, ctx.scope, createExpressionOptions(ctx, ownerNode))
     if (result === 'true') return true
     if (result === 'false') return false
     if (result === 'null') return null
@@ -220,7 +238,8 @@ async function evaluateToValue(
 async function processJsxElement(
   jsxElement: JSXElement,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn
+  processAstFn: ProcessAstFn,
+  _ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<RootContent[]> {
   const mdxElement = convertEstreeJsxToMdx(jsxElement, ctx)
 
@@ -240,11 +259,12 @@ async function processJsxElement(
 async function processJsxFragment(
   fragment: JSXFragment,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn
+  processAstFn: ProcessAstFn,
+  ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<RootContent[]> {
   const results: RootContent[] = []
   for (const child of fragment.children) {
-    const r = await processJsxChild(child, ctx, processAstFn)
+    const r = await processJsxChild(child, ctx, processAstFn, ownerNode)
     results.push(...r)
   }
   return results
@@ -253,10 +273,11 @@ async function processJsxFragment(
 async function processJsxChild(
   child: JSXChild,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn
+  processAstFn: ProcessAstFn,
+  ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<RootContent[]> {
-  if (child.type === 'JSXElement') return processJsxElement(child, ctx, processAstFn)
-  if (child.type === 'JSXFragment') return processJsxFragment(child, ctx, processAstFn)
+  if (child.type === 'JSXElement') return processJsxElement(child, ctx, processAstFn, ownerNode)
+  if (child.type === 'JSXFragment') return processJsxFragment(child, ctx, processAstFn, ownerNode)
   if (child.type === 'JSXText') {
     const text = child.value.trim()
     if (text === '') return []
@@ -264,9 +285,9 @@ async function processJsxChild(
   }
   if (child.type === 'JSXExpressionContainer') {
     if (child.expression.type === 'JSXEmptyExpression') return []
-    return evaluateEstreeExpression(child.expression, ctx, processAstFn)
+    return evaluateEstreeExpression(child.expression, ctx, processAstFn, ownerNode)
   }
-  if (child.type === 'JSXSpreadChild') return evaluateEstreeExpression(child.expression, ctx, processAstFn)
+  if (child.type === 'JSXSpreadChild') return evaluateEstreeExpression(child.expression, ctx, processAstFn, ownerNode)
   return []
 }
 
@@ -424,11 +445,15 @@ function valueToRootContent(value: unknown): RootContent[] {
   return [{type: 'paragraph', children: [{type: 'text', value: str}]}]
 }
 
-function evaluateNonJsxExpression(expr: Expression, ctx: ProcessingContext): RootContent[] {
+function evaluateNonJsxExpression(
+  expr: Expression,
+  ctx: ProcessingContext,
+  ownerNode: MdxFlowExpression | MdxTextExpression
+): RootContent[] {
   const source = estreeToSource(expr)
   if (source === '') return []
   try {
-    const result = evaluateExpression(source, ctx.scope)
+    const result = evaluateExpression(source, ctx.scope, createExpressionOptions(ctx, ownerNode))
     return valueToRootContent(result)
   }
   catch {

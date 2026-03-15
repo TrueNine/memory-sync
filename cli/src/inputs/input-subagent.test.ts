@@ -134,4 +134,24 @@ describe('subagent input plugin', () => {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
     }
   })
+
+  it('fails hard when source exists without a compiled dist pair', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-subagent-source-only-test-'))
+    const srcDir = path.join(tempWorkspace, 'aindex', 'subagents')
+
+    try {
+      fs.mkdirSync(srcDir, {recursive: true})
+      fs.writeFileSync(
+        path.join(srcDir, 'demo.src.mdx'),
+        '---\ndescription: source only\n---\nSource only subagent',
+        'utf8'
+      )
+
+      const plugin = new SubAgentInputPlugin()
+      await expect(plugin.collect(createContext(tempWorkspace))).rejects.toThrow('Missing compiled dist prompt')
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
 })

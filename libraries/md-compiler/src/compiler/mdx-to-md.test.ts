@@ -7,6 +7,7 @@
 
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {registerBuiltInComponents} from '@/components'
+import {UndefinedNamespaceError} from '@/errors'
 import {clearComponents} from './component-registry'
 import {mdxToMd} from './mdx-to-md'
 
@@ -102,6 +103,28 @@ Some content here.`
       const result = await mdxToMd(input, {scope: {user: {name: 'John'}}})
       expect(result).toContain('Name: John')
     })
+
+    it('reports exact location for text expression failures', async () => {
+      const input = `# Title
+
+never leave placeholders or "{TODO}" markers`
+
+      await expect(mdxToMd(input, {filePath: '/tmp/example.mdx'})).rejects.toMatchObject({
+        filePath: '/tmp/example.mdx',
+        line: 3,
+        column: 30
+      })
+
+      try {
+        await mdxToMd(input, {filePath: '/tmp/example.mdx'})
+      }
+      catch (error) {
+        const diagnosticError = error as UndefinedNamespaceError
+        expect(diagnosticError.snippet).toBe('{TODO}')
+        expect(diagnosticError.sourceLine).toBe('never leave placeholders or "{TODO}" markers')
+        expect(diagnosticError.codeFrame).toContain('3 | never leave placeholders or "{TODO}" markers')
+      }
+    })
   })
 
   describe('global scope (Requirement 4)', () => {
@@ -175,6 +198,23 @@ Some content here.`
       const input = '<Md></Md>'
       const result = await mdxToMd(input)
       expect(result).toBe('')
+    })
+
+    it('reports exact location for JSX attribute expression failures', async () => {
+      const input = `<Md when={missingFlag}>
+# Conditional Content
+</Md>`
+
+      try {
+        await mdxToMd(input, {filePath: '/tmp/md-component.mdx'})
+      }
+      catch (error) {
+        const diagnosticError = error as UndefinedNamespaceError
+        expect(diagnosticError.filePath).toBe('/tmp/md-component.mdx')
+        expect(diagnosticError.line).toBe(1)
+        expect(diagnosticError.column).toBeGreaterThan(0)
+        expect(diagnosticError.message).toContain('node: mdxJsxAttributeValueExpression')
+      }
     })
   })
 

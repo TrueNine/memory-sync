@@ -13,8 +13,21 @@ import type {
   MdxJsxFlowElement,
   MdxJsxTextElement
 } from 'mdast-util-mdx'
-import type {ProcessingContext} from './types'
+import type {ExpressionDiagnosticContext, ProcessingContext} from './types'
 import {evaluateExpression} from './expression-eval'
+
+function createExpressionOptions(
+  ctx: ProcessingContext,
+  nodeType: string,
+  node?: {position?: ExpressionDiagnosticContext['position']}
+) {
+  return {
+    ...ctx.filePath != null && {filePath: ctx.filePath},
+    ...ctx.sourceText != null && {sourceText: ctx.sourceText},
+    ...node?.position != null && {position: node.position},
+    nodeType
+  }
+}
 
 /**
  * Converts a JSX element to equivalent Markdown AST nodes.
@@ -62,7 +75,11 @@ function getAttributeValue(
     && typeof attr.value === 'object'
     && attr.value.type === 'mdxJsxAttributeValueExpression'
   ) {
-    return evaluateExpression(attr.value.value, ctx.scope)
+    return evaluateExpression(
+      attr.value.value,
+      ctx.scope,
+      createExpressionOptions(ctx, 'mdxJsxAttributeValueExpression', attr)
+    )
   }
 
   if (attr.value === null) return ''
@@ -81,7 +98,13 @@ function extractTextContent(
 
   for (const child of element.children) {
     if (child.type === 'text') text += child.value
-    else if (child.type === 'mdxTextExpression') text += evaluateExpression(child.value, ctx.scope)
+    else if (child.type === 'mdxTextExpression') {
+      text += evaluateExpression(
+        child.value,
+        ctx.scope,
+        createExpressionOptions(ctx, 'mdxTextExpression', child)
+      )
+    }
     else if (child.type === 'mdxJsxFlowElement' || child.type === 'mdxJsxTextElement') text += extractTextContent(child, ctx)
   }
 

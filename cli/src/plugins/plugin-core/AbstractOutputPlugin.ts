@@ -1132,7 +1132,12 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       // eslint-disable-next-line ts/no-unsafe-assignment
       const scopeCollector = new GlobalScopeCollector({toolPreset: this.toolPreset as any})
       const globalScope = scopeCollector.collect()
-      const result = await mdxToMd(cmd.rawMdxContent, {globalScope, extractMetadata: true, basePath: cmd.dir.basePath})
+      const result = await mdxToMd(cmd.rawMdxContent, {
+        globalScope,
+        extractMetadata: true,
+        basePath: cmd.dir.basePath,
+        filePath: cmd.dir.getAbsolutePath()
+      })
       compiledContent = result.content
       compiledFrontMatter = result.metadata.fields as typeof cmd.yamlFrontMatter
       useRecompiledFrontMatter = true

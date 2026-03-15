@@ -3,8 +3,10 @@ import type {InputCollectedContext, InputPluginContext, ReadmeFileKind, ReadmePr
 import process from 'node:process'
 
 import {mdxToMd} from '@truenine/md-compiler'
-import {ScopeError} from '@truenine/md-compiler/errors'
+import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
 import {AbstractInputPlugin, FilePathKind, PromptKind, README_FILE_KIND_MAP} from '../plugins/plugin-core'
+import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
+import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
 
 const ALL_FILE_KINDS = Object.entries(README_FILE_KIND_MAP) as [ReadmeFileKind, {src: string, out: string}][]
 
@@ -73,19 +75,29 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         const rawContent = fs.readFileSync(filePath, 'utf8')
 
         let content: string
-        if (globalScope != null) {
-          try {
-            content = await mdxToMd(rawContent, {globalScope, basePath: currentDir})
+        try {
+          const {content: compiledContent} = await mdxToMd(rawContent, {
+            ...globalScope != null && {globalScope},
+            extractMetadata: true,
+            basePath: currentDir,
+            filePath
+          })
+          content = compiledContent
+          assertNoResidualModuleSyntax(content, filePath)
+        }
+        catch (e) {
+          if (e instanceof CompilerDiagnosticError) {
+            logger.error(formatPromptCompilerDiagnostic(e, {
+              operation: 'Failed to compile readme-family prompt.',
+              promptKind: 'readme-family',
+              logicalName: `${projectName}/${src}`,
+              distPath: filePath
+            }))
+            if (e instanceof ScopeError) logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
+            process.exit(1)
           }
-          catch (e) {
-            if (e instanceof ScopeError) {
-              logger.error(`MDX compilation failed in ${filePath}: ${(e as Error).message}`)
-              logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
-              process.exit(1)
-            }
-            throw e
-          }
-        } else content = rawContent
+          throw e
+        }
 
         const targetPath = isRoot ? projectName : path.join(projectName, relativePath)
 

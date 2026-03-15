@@ -1,4 +1,5 @@
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
+import type {PromptCompilerDiagnosticContext} from './PromptCompilerDiagnostics'
 import type {
   DirectoryReadResult,
   ILogger,
@@ -13,15 +14,34 @@ import type {
 } from './types'
 import {mdxToMd} from '@truenine/md-compiler'
 import {parseMarkdown} from '@truenine/md-compiler/markdown' // Re-export types for convenience
+import {
+  assertNoResidualModuleSyntax,
+  MissingCompiledPromptError,
+  ResidualModuleSyntaxError
+} from './DistPromptGuards'
+import {
+  formatPromptCompilerDiagnostic,
+  resolveSourcePathForDistFile
+} from './PromptCompilerDiagnostics'
+
+function shouldFailFast(error: unknown): boolean {
+  return error instanceof MissingCompiledPromptError || error instanceof ResidualModuleSyntaxError
+}
+
+interface ReaderDiagnosticContext {
+  readonly promptKind: string
+  readonly logicalName: string
+  readonly entryDistPath: string
+  readonly srcPath?: string
+}
 
 /**
  * Universal reader for localized prompts
  * Handles reading src (multiple locales) and dist (compiled) content
  * Supports directory structures (skills) and flat files (commands, subAgents)
  *
- * Note: src and dist are treated as coexisting sources, not fallbacks.
- * Both are read independently. If dist exists, it's included in the result.
- * If src exists, it's compiled and included. Neither replaces the other.
+ * Dist is the only prompt source that may flow into final outputs.
+ * Source files are read only for discovery, locale metadata, and validation.
  */
 export class LocalizedPromptReader {
   constructor(
@@ -71,6 +91,7 @@ export class LocalizedPromptReader {
             phase: 'read'
           })
           this.logger.error(`Failed to read entry: ${name}`, {error})
+          if (shouldFailFast(error)) throw error
         }
       }
     } catch (error) {
@@ -80,6 +101,7 @@ export class LocalizedPromptReader {
         phase: 'scan'
       })
       this.logger.error(`Failed to scan directory: ${srcDir}`, {error})
+      if (shouldFailFast(error)) throw error
     }
 
     return {prompts, errors}
@@ -128,6 +150,7 @@ export class LocalizedPromptReader {
           phase: 'read'
         })
         this.logger.error(`Failed to read file: ${filePath}`, {error})
+        if (shouldFailFast(error)) throw error
       }
     }
 
@@ -163,6 +186,7 @@ export class LocalizedPromptReader {
           phase: 'scan'
         })
         this.logger.error(`Failed to scan directory: ${currentSrcDir}`, {error})
+        if (shouldFailFast(error)) throw error
       }
     }
 
@@ -197,6 +221,7 @@ export class LocalizedPromptReader {
           phase: 'scan'
         })
         this.logger.error(`Failed to scan directory: ${currentDistDir}`, {error})
+        if (shouldFailFast(error)) throw error
       }
     }
 
@@ -237,43 +262,58 @@ export class LocalizedPromptReader {
     const srcZhPath = this.resolveLocalizedPath(srcEntryDir, baseFileName, zhExtensions)
     const srcEnPath = this.resolveLocalizedPath(srcEntryDir, baseFileName, enExtensions)
     const distPath = this.path.join(distEntryDir, `${baseFileName}.mdx`)
+    const existingSourcePath = this.exists(srcZhPath)
+      ? srcZhPath
+      : this.exists(srcEnPath)
+        ? srcEnPath
+        : void 0
+    const diagnosticContext: ReaderDiagnosticContext = {
+      promptKind: String(kind),
+      logicalName: name,
+      entryDistPath: distPath,
+      ...existingSourcePath != null && {srcPath: existingSourcePath}
+    }
 
-    const distContent = await this.readDistContent(distPath, createPrompt, name) // Read both src and dist independently - no fallback logic
+    const distContent = await this.readDistContent(distPath, createPrompt, name, diagnosticContext)
     const zhContent = await this.readLocaleContent(srcZhPath, 'zh', createPrompt, name)
     const enContent = await this.readLocaleContent(srcEnPath, 'en', createPrompt, name)
 
     const hasDist = distContent != null
     const hasSrcZh = zhContent != null
     const hasSrcEn = enContent != null
+    const sourcePath = hasSrcZh ? srcZhPath : hasSrcEn ? srcEnPath : void 0
 
-    if (!hasDist && !hasSrcZh) { // If neither src nor source file exists, return null
+    if (!hasDist && !hasSrcZh && !hasSrcEn) {
       this.logger.warn(`Missing both dist and source file for: ${name}`)
       return null
     }
 
-    const src: LocalizedPrompt<T, K>['src'] = hasSrcZh // Build src content object
+    if (!hasDist) {
+      throw new MissingCompiledPromptError({
+        kind: String(kind),
+        name,
+        ...sourcePath != null && {sourcePath},
+        expectedDistPath: distPath
+      })
+    }
+
+    const src: LocalizedPrompt<T, K>['src'] = hasSrcZh
       ? {
           zh: zhContent,
           ...hasSrcEn && {en: enContent},
           default: zhContent,
           defaultLocale: 'zh'
         }
-      : {
-          zh: distContent!,
-          default: distContent!,
-          defaultLocale: 'zh'
-        }
+      : void 0
 
-    let children: string[] | undefined
-    if (isDirectoryStructure) {
-      const scanDir = hasDist ? distEntryDir : srcEntryDir // Scan children from dist if available, otherwise from src
-      children = this.scanChildren(scanDir, baseFileName, zhExtensions)
-    }
+    const children = isDirectoryStructure
+      ? this.scanChildren(distEntryDir, baseFileName, ['.mdx'])
+      : void 0
 
     return {
       name,
       type: kind,
-      src,
+      ...src != null && {src},
       ...hasDist && {dist: distContent},
       metadata: {
         hasDist,
@@ -282,7 +322,7 @@ export class LocalizedPromptReader {
         ...children && children.length > 0 && {children}
       },
       paths: {
-        ...(hasSrcZh || !hasDist) && {zh: srcZhPath},
+        ...hasSrcZh && {zh: srcZhPath},
         ...hasSrcEn && {en: srcEnPath},
         ...hasDist && {dist: distPath}
       }
@@ -310,37 +350,54 @@ export class LocalizedPromptReader {
 
     const fullSrcZhPath = isSingleFile ? srcZhPath : this.path.join(srcDir, srcZhPath)
     const fullSrcEnPath = isSingleFile ? srcEnPath : this.path.join(srcDir, srcEnPath)
+    const existingSourcePath = this.exists(fullSrcZhPath)
+      ? fullSrcZhPath
+      : this.exists(fullSrcEnPath)
+        ? fullSrcEnPath
+        : void 0
+    const diagnosticContext: ReaderDiagnosticContext = {
+      promptKind: String(kind),
+      logicalName: name,
+      entryDistPath: distPath,
+      ...existingSourcePath != null && {srcPath: existingSourcePath}
+    }
 
-    const distContent = await this.readDistContent(distPath, createPrompt, name) // Read both src and dist independently - no fallback logic
+    const distContent = await this.readDistContent(distPath, createPrompt, name, diagnosticContext)
     const zhContent = await this.readLocaleContent(fullSrcZhPath, 'zh', createPrompt, name)
     const enContent = await this.readLocaleContent(fullSrcEnPath, 'en', createPrompt, name)
 
     const hasDist = distContent != null
     const hasSrcZh = zhContent != null
     const hasSrcEn = enContent != null
+    const sourcePath = hasSrcZh ? fullSrcZhPath : hasSrcEn ? fullSrcEnPath : void 0
 
-    if (!hasDist && !hasSrcZh) { // If neither src nor source file exists, return null
+    if (!hasDist && !hasSrcZh && !hasSrcEn) {
       this.logger.warn(`Missing both dist and source file for: ${name}`)
       return null
     }
 
-    const src: LocalizedPrompt<T, K>['src'] = hasSrcZh // Build src content object
+    if (!hasDist) {
+      throw new MissingCompiledPromptError({
+        kind: String(kind),
+        name,
+        ...sourcePath != null && {sourcePath},
+        expectedDistPath: distPath
+      })
+    }
+
+    const src: LocalizedPrompt<T, K>['src'] = hasSrcZh
       ? {
           zh: zhContent,
           ...hasSrcEn && {en: enContent},
           default: zhContent,
           defaultLocale: 'zh'
         }
-      : {
-          zh: distContent!,
-          default: distContent!,
-          defaultLocale: 'zh'
-        }
+      : void 0
 
     return {
       name,
       type: kind,
-      src,
+      ...src != null && {src},
       ...hasDist && {dist: distContent},
       metadata: {
         hasDist,
@@ -348,7 +405,7 @@ export class LocalizedPromptReader {
         isDirectoryStructure: false
       },
       paths: {
-        ...(hasSrcZh || !hasDist) && {zh: fullSrcZhPath},
+        ...hasSrcZh && {zh: fullSrcZhPath},
         ...hasSrcEn && {en: fullSrcEnPath},
         ...hasDist && {dist: distPath}
       }
@@ -370,8 +427,10 @@ export class LocalizedPromptReader {
       const compileResult = await mdxToMd(rawMdx, { // Compile MDX to Markdown
         globalScope: this.globalScope,
         extractMetadata: true,
-        basePath: this.path.dirname(filePath)
+        basePath: this.path.dirname(filePath),
+        filePath
       })
+      assertNoResidualModuleSyntax(compileResult.content, filePath)
 
       const parsed = parseMarkdown(rawMdx) // Parse front matter
 
@@ -399,7 +458,8 @@ export class LocalizedPromptReader {
   private async readDistContent<T extends Prompt>(
     filePath: string,
     createPrompt: (content: string, locale: Locale, name: string, metadata?: Record<string, unknown>) => T | Promise<T>,
-    name: string
+    name: string,
+    diagnosticContext: ReaderDiagnosticContext
   ): Promise<LocalizedContent<T> | null> {
     if (!this.exists(filePath)) return null
 
@@ -409,8 +469,10 @@ export class LocalizedPromptReader {
       const compileResult = await mdxToMd(rawMdx, {
         globalScope: this.globalScope,
         extractMetadata: true,
-        basePath: this.path.dirname(filePath)
+        basePath: this.path.dirname(filePath),
+        filePath
       })
+      assertNoResidualModuleSyntax(compileResult.content, filePath)
       const parsed = parseMarkdown(rawMdx)
 
       const prompt = await createPrompt(
@@ -431,9 +493,30 @@ export class LocalizedPromptReader {
       if (parsed.yamlFrontMatter != null) Object.assign(result, {frontMatter: parsed.yamlFrontMatter})
       return result
     } catch (error) {
-      this.logger.warn(`Failed to read dist content: ${filePath}`, {error})
-      return null
+      this.logger.error(this.formatDistReadError(error, filePath, diagnosticContext), {error})
+      throw error
     }
+  }
+
+  private formatDistReadError(
+    error: unknown,
+    filePath: string,
+    context: ReaderDiagnosticContext
+  ): string {
+    const mappedSourcePath = resolveSourcePathForDistFile(this.path, filePath, {
+      preferredSourcePath: filePath === context.entryDistPath ? context.srcPath : void 0,
+      distRootDir: this.path.dirname(context.entryDistPath),
+      srcRootDir: context.srcPath != null ? this.path.dirname(context.srcPath) : void 0
+    })
+    const formattedContext: PromptCompilerDiagnosticContext = {
+      operation: 'Failed to read dist content.',
+      promptKind: context.promptKind,
+      logicalName: context.logicalName,
+      entryDistPath: context.entryDistPath,
+      distPath: filePath,
+      srcPath: mappedSourcePath
+    }
+    return formatPromptCompilerDiagnostic(error, formattedContext)
   }
 
   private scanChildren(

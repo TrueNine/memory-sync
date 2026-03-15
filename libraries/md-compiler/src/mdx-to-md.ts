@@ -17,6 +17,13 @@ interface NativeCompileResult {
   readonly metadata?: NativeCompileMetadata
 }
 
+const CODE_FENCE_PATTERN = /^\s*(```|~~~)/u
+const RESIDUAL_MODULE_SYNTAX_PATTERNS = [
+  /^\s*export\s+default\b/u,
+  /^\s*export\s+const\b/u,
+  /^\s*import\b/u
+]
+
 let napiBinding: NapiMdCompilerModule | null = null
 
 try {
@@ -72,7 +79,7 @@ export async function mdxToMd(
   if (nativeResult != null) {
     if (metadataOptions != null) {
       const {metadata} = nativeResult
-      if (metadata == null) return fallbackMdxToMd(content, metadataOptions)
+      if (metadata == null || hasResidualModuleSyntax(nativeResult.content)) return fallbackMdxToMd(content, metadataOptions)
 
       return {
         content: nativeResult.content,
@@ -130,4 +137,23 @@ function serializeOptions(options?: MdxToMdOptions): string | null {
   }
 
   return JSON.stringify(normalized)
+}
+
+function hasResidualModuleSyntax(content: string): boolean {
+  let activeFence: string | undefined
+
+  for (const line of content.split(/\r?\n/u)) {
+    const fenceMatch = CODE_FENCE_PATTERN.exec(line)
+    if (fenceMatch?.[1] != null) {
+      const marker = fenceMatch[1]
+      if (activeFence == null) activeFence = marker
+      else if (activeFence === marker) activeFence = void 0
+      continue
+    }
+
+    if (activeFence != null) continue
+    if (RESIDUAL_MODULE_SYNTAX_PATTERNS.some(pattern => pattern.test(line))) return true
+  }
+
+  return false
 }

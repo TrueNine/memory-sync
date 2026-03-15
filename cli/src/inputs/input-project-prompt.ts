@@ -9,9 +9,11 @@ import type {
 import process from 'node:process'
 
 import {mdxToMd} from '@truenine/md-compiler'
-import {ScopeError} from '@truenine/md-compiler/errors'
+import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {AbstractInputPlugin, FilePathKind, PromptKind} from '../plugins/plugin-core'
+import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
+import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
 
 const PROJECT_MEMORY_FILE = 'agt.mdx'
 const SCAN_SKIP_DIRECTORIES: readonly string[] = ['node_modules', '.git'] as const
@@ -80,12 +82,24 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
       let content: string
       try {
-        content = await mdxToMd(rawContent, {globalScope, basePath: projectPath})
+        const {content: compiledContent} = await mdxToMd(rawContent, {
+          globalScope,
+          extractMetadata: true,
+          basePath: projectPath,
+          filePath
+        })
+        content = compiledContent
+        assertNoResidualModuleSyntax(content, filePath)
       }
       catch (e) {
-        if (e instanceof ScopeError) {
-          logger.error(`MDX compilation failed in ${filePath}: ${e.message}`)
-          logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
+        if (e instanceof CompilerDiagnosticError) {
+          logger.error(formatPromptCompilerDiagnostic(e, {
+            operation: 'Failed to compile project root memory prompt.',
+            promptKind: 'project-root-memory',
+            logicalName: filePath,
+            distPath: filePath
+          }))
+          if (e instanceof ScopeError) logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
           process.exit(1)
         }
         throw e
@@ -176,12 +190,24 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
       let content: string
       try {
-        content = await mdxToMd(rawContent, {globalScope, basePath: shadowChildDir})
+        const {content: compiledContent} = await mdxToMd(rawContent, {
+          globalScope,
+          extractMetadata: true,
+          basePath: shadowChildDir,
+          filePath
+        })
+        content = compiledContent
+        assertNoResidualModuleSyntax(content, filePath)
       }
       catch (e) {
-        if (e instanceof ScopeError) {
-          logger.error(`MDX compilation failed in ${filePath}: ${e.message}`)
-          logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
+        if (e instanceof CompilerDiagnosticError) {
+          logger.error(formatPromptCompilerDiagnostic(e, {
+            operation: 'Failed to compile project child memory prompt.',
+            promptKind: 'project-child-memory',
+            logicalName: filePath,
+            distPath: filePath
+          }))
+          if (e instanceof ScopeError) logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
           process.exit(1)
         }
         throw e

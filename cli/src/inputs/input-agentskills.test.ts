@@ -7,13 +7,13 @@ import {describe, expect, it} from 'vitest'
 import {mergeConfig} from '../config'
 import {SkillInputPlugin} from './input-agentskills'
 
-function createMockLogger(warnings: string[] = []): ILogger {
+function createMockLogger(warnings: string[] = [], errors: string[] = []): ILogger {
   return {
     trace: () => {},
     debug: () => {},
     info: () => {},
     warn: (message: string) => warnings.push(message),
-    error: () => {}
+    error: (message: string) => errors.push(message)
   } as ILogger
 }
 
@@ -93,11 +93,10 @@ describe('skill input plugin', () => {
     }
   })
 
-  it('warns and skips child docs that are missing compiled dist pairs', async () => {
+  it('fails hard when child docs are missing compiled dist pairs', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-skill-input-missing-child-test-'))
     const srcSkillDir = path.join(tempWorkspace, 'aindex', 'skills', 'demo')
     const distSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'demo')
-    const warnings: string[] = []
 
     try {
       fs.mkdirSync(srcSkillDir, {recursive: true})
@@ -107,12 +106,23 @@ describe('skill input plugin', () => {
       fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), '---\ndescription: dist skill\n---\nSkill dist', 'utf8')
 
       const plugin = new SkillInputPlugin()
-      const result = await plugin.collect(createContext(tempWorkspace, createMockLogger(warnings)))
-      const [skill] = result.skills ?? []
+      await expect(plugin.collect(createContext(tempWorkspace, createMockLogger()))).rejects.toThrow('Missing compiled dist prompt')
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
 
-      expect(result.skills?.length ?? 0).toBe(1)
-      expect(skill?.childDocs ?? []).toHaveLength(0)
-      expect(warnings).toContain('compiled skill child doc missing')
+  it('fails hard when the main skill exists only in src', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-skill-input-main-missing-dist-test-'))
+    const srcSkillDir = path.join(tempWorkspace, 'aindex', 'skills', 'demo')
+
+    try {
+      fs.mkdirSync(srcSkillDir, {recursive: true})
+      fs.writeFileSync(path.join(srcSkillDir, 'skill.src.mdx'), '---\ndescription: src only skill\n---\nSkill source', 'utf8')
+
+      const plugin = new SkillInputPlugin()
+      await expect(plugin.collect(createContext(tempWorkspace, createMockLogger()))).rejects.toThrow('Missing compiled dist prompt')
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

@@ -84,6 +84,26 @@ describe('command input plugin', () => {
     }
   })
 
+  it('fails hard when source exists without a compiled dist pair', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-command-source-only-test-'))
+    const srcDir = path.join(tempWorkspace, 'aindex', 'commands')
+
+    try {
+      fs.mkdirSync(srcDir, {recursive: true})
+      fs.writeFileSync(
+        path.join(srcDir, 'demo.src.mdx'),
+        '---\ndescription: source only\n---\nSource only command',
+        'utf8'
+      )
+
+      const plugin = new CommandInputPlugin()
+      await expect(plugin.collect(createContext(tempWorkspace))).rejects.toThrow('Missing compiled dist prompt')
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
   it('ignores legacy cn command sources', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-command-legacy-test-'))
     const srcDir = path.join(tempWorkspace, 'aindex', 'commands')

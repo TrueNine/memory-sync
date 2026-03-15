@@ -92,7 +92,8 @@ export async function mdxToMd(
     metadata = parseExports(esmNodes, { // 3. Merge: export takes priority over YAML
       ...yamlFrontMatter != null && {yamlFrontMatter},
       scope: mergedScope,
-      ...options?.basePath != null && {filePath: options.basePath}
+      ...options?.filePath != null && {filePath: options.filePath},
+      sourceText: content
     })
 
     ast.children = ast.children.filter(n => n.type !== 'yaml' && n.type !== 'mdxjsEsm') // 4. Remove YAML and ESM nodes from AST (clean content output)
@@ -102,7 +103,9 @@ export async function mdxToMd(
     scope: mergedScope,
     components,
     processingStack: [],
-    ...options?.basePath != null && {basePath: options.basePath}
+    ...options?.basePath != null && {basePath: options.basePath},
+    ...options?.filePath != null && {filePath: options.filePath},
+    sourceText: content
   }
 
   const processedAst = await processAst(ast, ctx)

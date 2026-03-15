@@ -2,16 +2,15 @@ import type {
   InputCollectedContext,
   InputPluginContext,
   RulePrompt,
-  RuleScope
+  RuleScope,
+  RuleYAMLFrontMatter
 } from '../plugins/plugin-core'
-import {mdxToMd} from '@truenine/md-compiler'
 import {
   AbstractInputPlugin,
   createLocalizedPromptReader,
   FilePathKind,
   PromptKind,
   SourceLocaleExtensions
-
 } from '../plugins/plugin-core'
 
 export class RuleInputPlugin extends AbstractInputPlugin {
@@ -35,29 +34,11 @@ export class RuleInputPlugin extends AbstractInputPlugin {
         kind: PromptKind.Rule,
         localeExtensions: SourceLocaleExtensions,
         isDirectoryStructure: false,
-        createPrompt: async (content, _locale, name, _metadata) => {
-          const distFilePath = path.join(distDir, `${name}.mdx`)
-          let globs: readonly string[] = []
-          let scope: RuleScope = 'project'
-          let seriName: string | undefined,
-            yamlFrontMatter: Record<string, unknown> | undefined
-
-          try {
-            const rawContent = fs.readFileSync(distFilePath, 'utf8')
-            const {metadata} = await mdxToMd(rawContent, { // Use mdxToMd to extract metadata from export default syntax
-              globalScope,
-              extractMetadata: true,
-              basePath: distDir
-            })
-            if (metadata?.fields != null) {
-              yamlFrontMatter = metadata.fields
-              globs = (metadata.fields['globs'] as string[]) ?? []
-              scope = (metadata.fields['scope'] as RuleScope) ?? 'project'
-              seriName = metadata.fields['seriName'] as string | undefined
-            }
-          }
-          catch { /* Ignore errors */ }
-
+        createPrompt: async (content, _locale, name, metadata) => {
+          const yamlFrontMatter = metadata as RuleYAMLFrontMatter | undefined
+          const globs = yamlFrontMatter?.globs ?? []
+          const scope: RuleScope = yamlFrontMatter?.scope ?? 'project'
+          const seriName = yamlFrontMatter?.seriName as string | undefined
           const normalizedName = name.replaceAll('\\', '/') // Normalize path separator for cross-platform compatibility
           const prefix = normalizedName.includes('/') ? normalizedName.split('/')[0] ?? '' : ''
           const ruleName = normalizedName.split('/').pop() ?? normalizedName
@@ -89,10 +70,12 @@ export class RuleInputPlugin extends AbstractInputPlugin {
       }
     )
 
-    for (const error of errors) logger.warn('Failed to read rule from src', {path: error.path, phase: error.phase, error: error.error})
+    for (const error of errors) logger.warn('Failed to read rule', {path: error.path, phase: error.phase, error: error.error})
 
     return {
-      rules: localizedRulesFromSrc.map(r => r.src.default.prompt!).filter(Boolean)
+      rules: localizedRulesFromSrc
+        .map(r => r.dist?.prompt)
+        .filter((rule): rule is RulePrompt => rule != null)
     }
   }
 }

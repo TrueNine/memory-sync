@@ -165,23 +165,53 @@ describe('expression-eval', () => {
 
     it('should include file path in error when provided', () => {
       try {
-        evaluateExpression('unknown', {}, {filePath: '/path/to/file.mdx'})
+        evaluateExpression('unknown', {}, {
+          filePath: '/path/to/file.mdx',
+          sourceText: 'Hello {unknown} world',
+          position: {
+            start: {line: 1, column: 7, offset: 6},
+            end: {line: 1, column: 16, offset: 15}
+          },
+          nodeType: 'mdxTextExpression'
+        })
       }
       catch (error) {
         expect(error).toBeInstanceOf(UndefinedNamespaceError)
-        expect((error as UndefinedNamespaceError).filePath).toBe('/path/to/file.mdx')
+        const diagnosticError = error as UndefinedNamespaceError
+        expect(diagnosticError.filePath).toBe('/path/to/file.mdx')
+        expect(diagnosticError.line).toBe(1)
+        expect(diagnosticError.column).toBe(7)
+        expect(diagnosticError.snippet).toBe('{unknown}')
+        expect(diagnosticError.sourceLine).toBe('Hello {unknown} world')
+        expect(diagnosticError.codeFrame).toContain('1 | Hello {unknown} world')
+        expect(diagnosticError.codeFrame).toContain('^^^^')
         expect(error.message).toContain('/path/to/file.mdx')
+        expect(error.message).toContain('location: 1:7-1:16')
+        expect(error.message).toContain('hint:')
       }
     })
 
     it('should include file path in UndefinedVariableError when provided', () => {
       try {
-        evaluateExpression('user.missing', {user: {}}, {filePath: '/path/to/file.mdx'})
+        evaluateExpression('user.missing', {user: {}}, {
+          filePath: '/path/to/file.mdx',
+          sourceText: '{user.missing}',
+          position: {
+            start: {line: 1, column: 1, offset: 0},
+            end: {line: 1, column: 15, offset: 14}
+          },
+          nodeType: 'mdxFlowExpression'
+        })
       }
       catch (error) {
         expect(error).toBeInstanceOf(UndefinedVariableError)
-        expect((error as UndefinedVariableError).filePath).toBe('/path/to/file.mdx')
+        const diagnosticError = error as UndefinedVariableError
+        expect(diagnosticError.filePath).toBe('/path/to/file.mdx')
+        expect(diagnosticError.line).toBe(1)
+        expect(diagnosticError.column).toBe(1)
+        expect(diagnosticError.snippet).toBe('{user.missing}')
         expect(error.message).toContain('/path/to/file.mdx')
+        expect(error.message).toContain('code frame:')
       }
     })
   })

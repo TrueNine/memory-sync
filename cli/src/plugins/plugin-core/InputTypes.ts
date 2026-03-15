@@ -300,7 +300,7 @@ export interface LocalizedSource<T extends Prompt = Prompt> {
 export interface LocalizedPrompt<T extends Prompt = Prompt, K extends PromptKind = PromptKind> {
   readonly name: string // Prompt identifier name
   readonly type: K // Prompt type kind
-  readonly src: LocalizedSource<T> // Source files content (src directory)
+  readonly src?: LocalizedSource<T> // Source files content (src directory, optional when dist-only)
   readonly dist?: LocalizedContent<T> // Compiled/dist content (dist directory, optional)
 
   /** Metadata flags */

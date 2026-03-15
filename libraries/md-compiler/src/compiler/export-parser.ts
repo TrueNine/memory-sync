@@ -1,4 +1,5 @@
 import type {EvaluationScope, MdxjsEsm} from './types' // Extracts metadata from MDX export statements // export-parser.ts
+import {ExportParseError} from '@/errors'
 
 /**
  * Metadata source type
@@ -25,6 +26,8 @@ export interface ParseExportOptions {
   readonly scope?: EvaluationScope
   /** File path for error messages */
   readonly filePath?: string
+  /** Original source text for diagnostic snippets */
+  readonly sourceText?: string
 }
 
 /**
@@ -60,10 +63,13 @@ export function parseExports(
   options: ParseExportOptions = {}
 ): ExportMetadata {
   const exportFields: Record<string, unknown> = {}
-  const {yamlFrontMatter, scope, filePath} = options
+  const {yamlFrontMatter, scope, filePath, sourceText} = options
 
   for (const node of esmNodes) {
-    const extracted = extractExportFromNode(node, scope, filePath)
+    const extracted = extractExportFromNode(node, scope, {
+      ...filePath != null && {filePath},
+      ...sourceText != null && {sourceText}
+    })
     Object.assign(exportFields, extracted)
   }
 
@@ -96,9 +102,10 @@ export function parseExports(
 function extractExportFromNode(
   node: MdxjsEsm,
   scope?: EvaluationScope,
-  filePath?: string
+  options: {filePath?: string, sourceText?: string} = {}
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {}
+  const {filePath, sourceText} = options
 
   const code = node.value.trim() // Parse ESM node's value (source code string)
 
@@ -115,8 +122,18 @@ function extractExportFromNode(
       }
       catch (e) {
         const message = e instanceof Error ? e.message : String(e)
-        const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
-        throw new Error(`Cannot statically evaluate export default${fileInfo}: ${message}`)
+        throw new ExportParseError(
+          'Cannot statically evaluate export default',
+          'default',
+          {
+            ...filePath != null && {filePath},
+            ...sourceText != null && {sourceText},
+            ...node.position != null && {position: node.position},
+            nodeType: 'mdxjsEsm',
+            phase: 'export-parsing',
+            cause: message
+          }
+        )
       }
     }
 
@@ -149,8 +166,18 @@ function extractExportFromNode(
     }
     catch (e) {
       const message = e instanceof Error ? e.message : String(e)
-      const fileInfo = filePath != null ? ` in file "${filePath}"` : ''
-      throw new Error(`Cannot statically evaluate export "${name}"${fileInfo}: ${message}`)
+      throw new ExportParseError(
+        `Cannot statically evaluate export "${name}"`,
+        name,
+        {
+          ...filePath != null && {filePath},
+          ...sourceText != null && {sourceText},
+          ...node.position != null && {position: node.position},
+          nodeType: 'mdxjsEsm',
+          phase: 'export-parsing',
+          cause: message
+        }
+      )
     }
 
     match = exportConstRegex.exec(code)

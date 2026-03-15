@@ -1,13 +1,26 @@
 import type {Program} from 'estree' // AST transformation module for lossless MDX to Markdown conversion // transformer.ts
 import type {Paragraph, Parent, Root, RootContent, Text} from 'mdast'
 import type {MdxJsxFlowElement} from 'mdast-util-mdx'
-import type {ProcessingContext} from './types'
+import type {ExpressionDiagnosticContext, ProcessingContext} from './types'
 import {isMdxComponent, processComponent} from './component-processor'
 import {evaluateExpression} from './expression-eval'
 import {convertJsxToMarkdown} from './jsx-converter'
 import {evaluateJsxExpression, hasJsxInEstree} from './jsx-expression-eval'
 
 type ChildNode = RootContent | Text
+
+function createExpressionOptions(
+  ctx: ProcessingContext,
+  node: {position?: ExpressionDiagnosticContext['position']},
+  nodeType: string
+) {
+  return {
+    ...ctx.filePath != null && {filePath: ctx.filePath},
+    ...ctx.sourceText != null && {sourceText: ctx.sourceText},
+    ...node.position != null && {position: node.position},
+    nodeType
+  }
+}
 
 /**
  * Simplifies link text that looks like a file path.
@@ -75,7 +88,7 @@ async function transformNode(
       })
     }
 
-    const value = evaluateExpression(flowExpr.value, ctx.scope) // Standard expression evaluation
+    const value = evaluateExpression(flowExpr.value, ctx.scope, createExpressionOptions(ctx, flowExpr, 'mdxFlowExpression')) // Standard expression evaluation
     if (value !== '') {
       const paragraph: Paragraph = {
         type: 'paragraph',
@@ -144,7 +157,7 @@ async function transformChildren(
         for (const node of nodes) result.push(node as ChildNode)
         continue
       }
-      const value = evaluateExpression(flowExpr.value, ctx.scope)
+      const value = evaluateExpression(flowExpr.value, ctx.scope, createExpressionOptions(ctx, flowExpr, 'mdxFlowExpression'))
       if (value !== '') {
         result.push({
           type: 'paragraph',
@@ -158,7 +171,7 @@ async function transformChildren(
       const textExpr = child
       const trimmedValue = textExpr.value.trim()
       if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) continue
-      const value = evaluateExpression(textExpr.value, ctx.scope)
+      const value = evaluateExpression(textExpr.value, ctx.scope, createExpressionOptions(ctx, textExpr, 'mdxTextExpression'))
       const textNode: Text = {type: 'text', value}
       result.push(textNode)
       continue

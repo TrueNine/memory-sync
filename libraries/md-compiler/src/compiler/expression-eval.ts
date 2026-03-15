@@ -1,4 +1,4 @@
-import type {EvaluationScope} from './types.js' // JavaScript expression evaluation module for MDX // expression-eval.ts
+import type {EvaluationScope, ExpressionDiagnosticContext} from './types.js' // JavaScript expression evaluation module for MDX // expression-eval.ts
 import {UndefinedNamespaceError, UndefinedVariableError} from '@/errors'
 
 /**
@@ -6,7 +6,13 @@ import {UndefinedNamespaceError, UndefinedVariableError} from '@/errors'
  */
 export interface EvaluateExpressionOptions {
   /** File path for error messages */
-  readonly filePath?: string
+  readonly filePath?: string | undefined
+  /** Original MDX source for snippets */
+  readonly sourceText?: string | undefined
+  /** AST position for snippets and code frames */
+  readonly position?: ExpressionDiagnosticContext['position'] | undefined
+  /** Expression node type */
+  readonly nodeType?: string | undefined
 }
 
 /**
@@ -27,12 +33,28 @@ export function evaluateExpression(
   options?: EvaluateExpressionOptions
 ): string {
   const trimmed = expression.trim()
+  const diagnosticContext = buildDiagnosticContext(options, expression)
 
   if (trimmed === '') return ''
 
-  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) return evaluateSimpleReference(trimmed, scope, options?.filePath) // Matches: identifier, identifier.property, identifier.property.nested // Handle simple variable references directly for better error messages
+  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) {
+    return evaluateSimpleReference(trimmed, scope, diagnosticContext)
+  } // Matches: identifier, identifier.property, identifier.property.nested // Handle simple variable references directly for better error messages
 
-  return evaluateComplexExpression(trimmed, scope, options?.filePath)
+  return evaluateComplexExpression(trimmed, scope, diagnosticContext)
+}
+
+function buildDiagnosticContext(
+  options: EvaluateExpressionOptions | undefined,
+  expression: string
+): ExpressionDiagnosticContext & {expression: string} {
+  return {
+    expression,
+    ...options?.filePath != null && {filePath: options.filePath},
+    ...options?.sourceText != null && {sourceText: options.sourceText},
+    ...options?.position != null && {position: options.position},
+    ...options?.nodeType != null && {nodeType: options.nodeType}
+  }
 }
 
 /**
@@ -41,13 +63,13 @@ export function evaluateExpression(
 function evaluateSimpleReference(
   reference: string,
   scope: EvaluationScope,
-  filePath?: string
+  diagnosticContext?: ExpressionDiagnosticContext
 ): string {
   const parts = reference.split('.')
   const rootVar = parts[0]
 
   if (rootVar == null || !(rootVar in scope)) {
-    throw new UndefinedNamespaceError(rootVar ?? '', reference, filePath) // Root variable is treated as a namespace
+    throw new UndefinedNamespaceError(rootVar ?? '', reference, diagnosticContext) // Root variable is treated as a namespace
   }
 
   let value: unknown = scope[rootVar]
@@ -55,14 +77,14 @@ function evaluateSimpleReference(
     const prop = parts[i]
     if (prop == null) continue
 
-    if (value == null) throw new UndefinedVariableError(prop, reference, filePath)
+    if (value == null) throw new UndefinedVariableError(prop, reference, diagnosticContext)
     if (typeof value !== 'object') {
       throw new TypeError(
         `Cannot read property "${prop}" of ${typeof value} in expression "${reference}"`
       )
     }
     const obj = value as Record<string, unknown>
-    if (!(prop in obj)) throw new UndefinedVariableError(prop, reference, filePath)
+    if (!(prop in obj)) throw new UndefinedVariableError(prop, reference, diagnosticContext)
     value = obj[prop]
   }
 
@@ -75,7 +97,7 @@ function evaluateSimpleReference(
 function evaluateComplexExpression(
   expression: string,
   scope: EvaluationScope,
-  filePath?: string
+  diagnosticContext?: ExpressionDiagnosticContext
 ): string {
   const scopeKeys = Object.keys(scope)
   const scopeValues = scopeKeys.map(k => scope[k])
@@ -92,11 +114,20 @@ function evaluateComplexExpression(
     const message = error instanceof Error ? error.message : String(error)
     if (message.includes('is not defined')) { // Check if the error is about undefined variable
       const match = /(\w+) is not defined/.exec(message)
-      if (match?.[1] != null) throw new UndefinedNamespaceError(match[1], expression, filePath)
+      if (match?.[1] != null) throw new UndefinedNamespaceError(match[1], expression, {
+        ...diagnosticContext,
+        cause: message
+      })
     }
-    const fileInfo = filePath != null ? ` (file: ${filePath})` : ''
     throw new Error(
-      `Failed to evaluate expression: "${expression}"${fileInfo}\nCause: ${message}`
+      [
+        `Failed to evaluate expression: "${expression}"`,
+        ...(diagnosticContext?.filePath != null ? [`file: ${diagnosticContext.filePath}`] : []),
+        ...(diagnosticContext?.position?.start != null
+          ? [`location: ${diagnosticContext.position.start.line}:${diagnosticContext.position.start.column}`]
+          : []),
+        `Cause: ${message}`
+      ].join('\n')
     )
   }
 }

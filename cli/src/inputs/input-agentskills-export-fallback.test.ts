@@ -8,7 +8,7 @@ import {mergeConfig} from '../config'
 
 vi.mock('@truenine/md-compiler', () => ({
   mdxToMd: async (content: string) => ({
-    content,
+    content: content.replace(/export default\s*\{[\s\S]*?\}\s*/u, '').trim(),
     metadata: {
       fields: {},
       source: 'export'

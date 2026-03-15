@@ -22,7 +22,7 @@ function createContext(tempWorkspace: string): InputPluginContext {
 }
 
 describe('rule input plugin', () => {
-  it('loads rules from .src.mdx source files', async () => {
+  it('fails hard when source exists without a compiled dist pair', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-rule-src-test-'))
     const aindexDir = path.join(tempWorkspace, 'aindex')
     const srcDir = path.join(aindexDir, 'rules', 'qa')
@@ -36,12 +36,7 @@ describe('rule input plugin', () => {
       )
 
       const plugin = new RuleInputPlugin()
-      const result = await plugin.collect(createContext(tempWorkspace))
-
-      expect(result.rules?.length ?? 0).toBe(1)
-      expect(result.rules?.[0]?.ruleName).toBe('boot')
-      expect(result.rules?.[0]?.content).toContain('Source only rule')
-      expect(result.rules?.[0]?.scope).toBe('project')
+      await expect(plugin.collect(createContext(tempWorkspace))).rejects.toThrow('Missing compiled dist prompt')
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

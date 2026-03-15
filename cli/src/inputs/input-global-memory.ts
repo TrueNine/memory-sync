@@ -4,9 +4,11 @@ import * as os from 'node:os'
 import process from 'node:process'
 
 import {mdxToMd} from '@truenine/md-compiler'
-import {ScopeError} from '@truenine/md-compiler/errors'
+import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {AbstractInputPlugin, FilePathKind, GlobalConfigDirectoryType, PromptKind} from '../plugins/plugin-core'
+import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
+import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
 
 export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
   constructor() {
@@ -33,20 +35,32 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
     const parsed = parseMarkdown(rawContent)
 
     let compiledContent: string
-    if (globalScope != null) {
-      try {
-        compiledContent = await mdxToMd(rawContent, {globalScope, basePath: path.dirname(globalMemoryFile)})
-      }
-      catch (e) {
+    try {
+      const compileResult = await mdxToMd(rawContent, {
+        ...globalScope != null && {globalScope},
+        extractMetadata: true,
+        basePath: path.dirname(globalMemoryFile),
+        filePath: globalMemoryFile
+      })
+      compiledContent = compileResult.content
+      assertNoResidualModuleSyntax(compiledContent, globalMemoryFile)
+    }
+    catch (e) {
+      if (e instanceof CompilerDiagnosticError) {
+        this.log.error(formatPromptCompilerDiagnostic(e, {
+          operation: 'Failed to compile global memory prompt.',
+          promptKind: 'global-memory',
+          logicalName: 'global-memory',
+          distPath: globalMemoryFile
+        }))
         if (e instanceof ScopeError) {
-          this.log.error(`MDX compilation failed: ${e.message}`)
           this.log.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
           this.log.error(`For example, if using {profile.name}, add a "profile" section with "name" field to your config.`)
-          process.exit(1)
         }
-        throw e
+        process.exit(1)
       }
-    } else compiledContent = parsed.contentWithoutFrontMatter
+      throw e
+    }
 
     this.log.debug({action: 'collect', path: globalMemoryFile, contentLength: compiledContent.length})
 

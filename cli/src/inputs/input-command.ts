@@ -112,21 +112,12 @@ export class CommandInputPlugin extends AbstractInputPlugin {
     const flatCommands: CommandPrompt[] = []
     for (const localized of localizedCommands) {
       const distContent = localized.dist
-      if (distContent?.prompt != null) {
-        const {prompt: distPrompt, rawMdx} = distContent
-        flatCommands.push(rawMdx == null
-          ? distPrompt
-          : {...distPrompt, rawMdxContent: rawMdx})
-        continue
-      }
+      if (distContent?.prompt == null) continue
 
-      const srcPrompt = localized.src.default.prompt
-      if (srcPrompt != null) {
-        const {rawMdx} = localized.src.default
-        flatCommands.push(rawMdx == null
-          ? srcPrompt
-          : {...srcPrompt, rawMdxContent: rawMdx})
-      }
+      const {prompt: distPrompt, rawMdx} = distContent
+      flatCommands.push(rawMdx == null
+        ? distPrompt
+        : {...distPrompt, rawMdxContent: rawMdx})
     }
 
     logger.debug('CommandInputPlugin flattened commands', {

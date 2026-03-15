@@ -25,6 +25,11 @@ import {
   PromptKind,
   SourceLocaleExtensions
 } from '../plugins/plugin-core'
+import {assertNoResidualModuleSyntax, MissingCompiledPromptError} from '../plugins/plugin-core/DistPromptGuards'
+import {
+  formatPromptCompilerDiagnostic,
+  resolveSourcePathForDistFile
+} from '../plugins/plugin-core/PromptCompilerDiagnostics'
 
 export * from './input-agentskills-types' // Re-export from types file
 
@@ -36,6 +41,7 @@ interface WritableSkillMetadata {
   author?: string
   version?: string
   allowTools?: string[]
+  [key: string]: unknown
 }
 
 const EXPORT_DEFAULT_REGEX = /export\s+default\s*\{([\s\S]*?)\}/u
@@ -203,6 +209,8 @@ interface ResourceProcessorContext {
   readonly logger: ILogger
   readonly skillDir: string
   readonly scanMode: 'distChildDocs' | 'srcResources'
+  readonly sourceSkillDir?: string
+  readonly globalScope?: InputPluginContext['globalScope']
 }
 
 class ResourceProcessor {
@@ -212,14 +220,14 @@ class ResourceProcessor {
     this.ctx = ctx
   }
 
-  processDirectory(entry: Dirent, currentRelativePath: string, filePath: string): ResourceScanResult {
+  async processDirectory(entry: Dirent, currentRelativePath: string, filePath: string): Promise<ResourceScanResult> {
     const relativePath = currentRelativePath
       ? `${currentRelativePath}/${entry.name}`
       : entry.name
-    return this.scanSkillDirectory(filePath, relativePath)
+    return this.scanSkillDirectoryAsync(filePath, relativePath)
   }
 
-  processFile(entry: Dirent, currentRelativePath: string, filePath: string): ResourceScanResult {
+  async processFile(entry: Dirent, currentRelativePath: string, filePath: string): Promise<ResourceScanResult> {
     const relativePath = currentRelativePath
       ? `${currentRelativePath}/${entry.name}`
       : entry.name
@@ -228,7 +236,7 @@ class ResourceProcessor {
       if (currentRelativePath === '' && entry.name === 'skill.mdx') return {childDocs: [], resources: []}
       if (hasSourcePromptExtension(entry.name) || !entry.name.endsWith('.mdx')) return {childDocs: [], resources: []}
 
-      const childDoc = this.processChildDoc(relativePath, filePath)
+      const childDoc = await this.processChildDoc(relativePath, filePath)
       return {childDocs: childDoc ? [childDoc] : [], resources: []}
     }
 
@@ -239,16 +247,23 @@ class ResourceProcessor {
     return {childDocs: [], resources: resource ? [resource] : []}
   }
 
-  private processChildDoc(relativePath: string, filePath: string): SkillChildDoc | null {
+  private async processChildDoc(relativePath: string, filePath: string): Promise<SkillChildDoc | null> {
     try {
       const rawContent = this.ctx.fs.readFileSync(filePath, 'utf8')
       const parsed = parseMarkdown(rawContent)
-      const content = transformMdxReferencesToMd(parsed.contentWithoutFrontMatter)
+      const compileResult = await mdxToMd(rawContent, {
+        globalScope: this.ctx.globalScope,
+        extractMetadata: true,
+        basePath: nodePath.dirname(filePath),
+        filePath
+      })
+      const compiledContent = transformMdxReferencesToMd(compileResult.content)
+      assertNoResidualModuleSyntax(compiledContent, filePath)
 
       return {
         type: PromptKind.SkillChildDoc,
-        content,
-        length: content.length,
+        content: compiledContent,
+        length: compiledContent.length,
         filePathKind: FilePathKind.Relative,
         markdownAst: parsed.markdownAst,
         markdownContents: parsed.markdownContents,
@@ -263,9 +278,18 @@ class ResourceProcessor {
         }
       }
     }
-    catch (e) {
-      this.ctx.logger.warn('failed to read child doc', {path: relativePath, error: e})
-      return null
+    catch (error) {
+      this.ctx.logger.error(formatPromptCompilerDiagnostic(error, {
+        operation: 'Failed to compile skill child doc.',
+        promptKind: 'skill-child-doc',
+        logicalName: `${nodePath.basename(this.ctx.skillDir)}/${relativePath.replace(/\.mdx$/u, '')}`,
+        distPath: filePath,
+        srcPath: resolveSourcePathForDistFile(nodePath, filePath, {
+          distRootDir: this.ctx.skillDir,
+          srcRootDir: this.ctx.sourceSkillDir
+        })
+      }), {error})
+      throw error
     }
   }
 
@@ -314,7 +338,7 @@ class ResourceProcessor {
     }
   }
 
-  scanSkillDirectory(currentDir: string, currentRelativePath: string = ''): ResourceScanResult {
+  async scanSkillDirectoryAsync(currentDir: string, currentRelativePath: string = ''): Promise<ResourceScanResult> {
     const childDocs: SkillChildDoc[] = []
     const resources: SkillResource[] = []
 
@@ -331,7 +355,7 @@ class ResourceProcessor {
       const filePath = pathJoin(currentDir, entry.name)
 
       if (entry.isDirectory()) {
-        const subResult = this.processDirectory(entry, currentRelativePath, filePath)
+        const subResult = await this.processDirectory(entry, currentRelativePath, filePath)
         childDocs.push(...subResult.childDocs)
         resources.push(...subResult.resources)
         continue
@@ -339,7 +363,7 @@ class ResourceProcessor {
 
       if (!entry.isFile()) continue
 
-      const fileResult = this.processFile(entry, currentRelativePath, filePath)
+      const fileResult = await this.processFile(entry, currentRelativePath, filePath)
       childDocs.push(...fileResult.childDocs)
       resources.push(...fileResult.resources)
     }
@@ -387,7 +411,7 @@ function collectExpectedCompiledChildDocPaths(
   return expectedPaths
 }
 
-function warnMissingCompiledChildDocs(
+function assertCompiledChildDocsExist(
   skillName: string,
   skillSrcDir: string,
   skillDistDir: string,
@@ -400,10 +424,11 @@ function warnMissingCompiledChildDocs(
     const distPath = nodePath.join(skillDistDir, relativePath)
     if (fs.existsSync(distPath)) continue
 
-    logger.warn('compiled skill child doc missing', {
-      skill: skillName,
-      relativePath,
-      distPath
+    throw new MissingCompiledPromptError({
+      kind: 'skill child doc',
+      name: `${skillName}/${relativePath}`,
+      sourcePath: nodePath.join(skillSrcDir, relativePath.replace(/\.mdx$/u, '.src.mdx')),
+      expectedDistPath: distPath
     })
   }
 }
@@ -464,22 +489,19 @@ async function createSkillPrompt(
     distMetadata: Record<string, unknown> | undefined
 
   if (fs.existsSync(distFilePath)) {
-    try {
-      rawContent = fs.readFileSync(distFilePath, 'utf8')
-      parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)
+    rawContent = fs.readFileSync(distFilePath, 'utf8')
+    parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)
 
-      const compileResult = await mdxToMd(rawContent, {
-        globalScope,
-        extractMetadata: true,
-        basePath: skillAbsoluteDir
-      })
+    const compileResult = await mdxToMd(rawContent, {
+      globalScope,
+      extractMetadata: true,
+      basePath: skillAbsoluteDir,
+      filePath: distFilePath
+    })
 
-      content = transformMdxReferencesToMd(compileResult.content)
-      distMetadata = compileResult.metadata.fields
-    }
-    catch (e) {
-      logger.warn('failed to recompile skill from dist', {skill: name, error: e})
-    }
+    content = transformMdxReferencesToMd(compileResult.content)
+    assertNoResidualModuleSyntax(content, distFilePath)
+    distMetadata = compileResult.metadata.fields
   }
 
   const exportMetadata = mergeDefinedSkillMetadata(
@@ -544,15 +566,24 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     return readMcpConfig(skillDir, fs, logger)
   }
 
-  scanSkillDirectory(
+  async scanSkillDirectory(
     skillDir: string,
     fs: typeof import('node:fs'),
     logger: ILogger,
     currentRelativePath: string = '',
-    scanMode: 'distChildDocs' | 'srcResources' = 'srcResources'
-  ): ResourceScanResult {
-    const processor = new ResourceProcessor({fs, logger, skillDir, scanMode})
-    return processor.scanSkillDirectory(skillDir, currentRelativePath)
+    scanMode: 'distChildDocs' | 'srcResources' = 'srcResources',
+    globalScope?: InputPluginContext['globalScope'],
+    sourceSkillDir?: string
+  ): Promise<ResourceScanResult> {
+    const processor = new ResourceProcessor({
+      fs,
+      logger,
+      skillDir,
+      scanMode,
+      ...globalScope != null && {globalScope},
+      ...sourceSkillDir != null && {sourceSkillDir}
+    })
+    return processor.scanSkillDirectoryAsync(skillDir, currentRelativePath)
   }
 
   async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
@@ -570,11 +601,11 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       readonly mcpConfig?: SkillMcpConfig
     }>()
 
-    const getSkillArtifacts = (name: string): {
+    const getSkillArtifacts = async (name: string): Promise<{
       readonly childDocs: SkillChildDoc[]
       readonly resources: SkillResource[]
       readonly mcpConfig?: SkillMcpConfig
-    } => {
+    }> => {
       const cached = skillArtifactCache.get(name)
       if (cached != null) return cached
 
@@ -582,14 +613,14 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       const skillDistDir = pathModule.join(distSkillDir, name)
 
       const childDocs = fs.existsSync(skillDistDir)
-        ? this.scanSkillDirectory(skillDistDir, fs, logger, '', 'distChildDocs').childDocs
+        ? (await this.scanSkillDirectory(skillDistDir, fs, logger, '', 'distChildDocs', globalScope, skillSrcDir)).childDocs
         : []
       const resources = fs.existsSync(skillSrcDir)
-        ? this.scanSkillDirectory(skillSrcDir, fs, logger, '', 'srcResources').resources
+        ? (await this.scanSkillDirectory(skillSrcDir, fs, logger, '', 'srcResources', globalScope)).resources
         : []
       const mcpConfig = readMcpConfig(skillSrcDir, fs, logger)
 
-      warnMissingCompiledChildDocs(name, skillSrcDir, skillDistDir, fs, logger)
+      assertCompiledChildDocsExist(name, skillSrcDir, skillDistDir, fs, logger)
 
       const artifacts = {
         childDocs,
@@ -611,7 +642,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
         isDirectoryStructure: true,
         createPrompt: async (content, locale, name, metadata) => {
           const skillDistDir = pathModule.join(distSkillDir, name)
-          const {childDocs, resources, mcpConfig} = getSkillArtifacts(name)
+          const {childDocs, resources, mcpConfig} = await getSkillArtifacts(name)
 
           return createSkillPrompt(
             content,
@@ -634,15 +665,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
 
     for (const localized of localizedSkills) {
       const prompt = localized.dist?.prompt
-      if (prompt != null) {
-        flatSkills.push(prompt)
-        continue
-      }
-
-      logger.warn('compiled skill missing, skipping source-only skill', {
-        skill: localized.name,
-        distPath: pathModule.join(distSkillDir, localized.name, 'skill.mdx')
-      })
+      if (prompt != null) flatSkills.push(prompt)
     }
 
     return {

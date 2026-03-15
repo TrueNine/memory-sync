@@ -111,21 +111,12 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     const flatSubAgents: SubAgentPrompt[] = []
     for (const localized of localizedSubAgents) {
       const distContent = localized.dist
-      if (distContent?.prompt != null) {
-        const {prompt: distPrompt, rawMdx} = distContent
-        flatSubAgents.push(rawMdx == null
-          ? distPrompt
-          : {...distPrompt, rawMdxContent: rawMdx})
-        continue
-      }
+      if (distContent?.prompt == null) continue
 
-      const srcPrompt = localized.src.default.prompt
-      if (srcPrompt != null) {
-        const {rawMdx} = localized.src.default
-        flatSubAgents.push(rawMdx == null
-          ? srcPrompt
-          : {...srcPrompt, rawMdxContent: rawMdx})
-      }
+      const {prompt: distPrompt, rawMdx} = distContent
+      flatSubAgents.push(rawMdx == null
+        ? distPrompt
+        : {...distPrompt, rawMdxContent: rawMdx})
     }
 
     logger.debug('SubAgentInputPlugin flattened subAgents', {
