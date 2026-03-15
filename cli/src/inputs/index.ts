@@ -5,6 +5,7 @@ export {
   OrphanFileCleanupEffectInputPlugin
 } from './effect-orphan-cleanup'
 export {
+  SkillDistCleanupEffectInputPlugin,
   SkillNonSrcFileSyncEffectInputPlugin
 } from './effect-skill-sync' // Effect Input Plugins (按优先级排序: 10, 20, 30)
 

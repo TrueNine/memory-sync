@@ -6,5 +6,4 @@
 //! - File readers (workspace, gitignore, editorconfig, vscode, jetbrains)
 //! - MDX directory scanners (fast-command, sub-agent, rule, global-memory)
 //! - Complex plugins (shadow-project, skill, project-prompt, readme)
-//! - Effect plugins (md-cleanup, orphan-cleanup, skill-sync)
-
+//! - Effect plugins (md-cleanup, orphan-cleanup, skill-dist-cleanup)

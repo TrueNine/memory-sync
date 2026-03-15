@@ -16,9 +16,15 @@ import type {ResourceScanResult} from './input-agentskills-types'
 import {Buffer} from 'node:buffer'
 import * as nodePath from 'node:path'
 import {mdxToMd} from '@truenine/md-compiler'
-import {MetadataValidationError} from '@truenine/md-compiler/errors'
 import {parseMarkdown, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
-import {AbstractInputPlugin, createLocalizedPromptReader, FilePathKind, PromptKind, SourceLocaleExtensions, validateSkillMetadata} from '../plugins/plugin-core'
+import {
+  AbstractInputPlugin,
+  createLocalizedPromptReader,
+  FilePathKind,
+  hasSourcePromptExtension,
+  PromptKind,
+  SourceLocaleExtensions
+} from '../plugins/plugin-core'
 
 export * from './input-agentskills-types' // Re-export from types file
 
@@ -72,6 +78,22 @@ function extractSkillMetadataFromExport(content: string): WritableSkillMetadata 
   if (versionMatch?.[1] != null) metadata.version = versionMatch[1]
 
   return metadata
+}
+
+function mergeDefinedSkillMetadata(
+  ...sources: (Record<string, unknown> | undefined)[]
+): WritableSkillMetadata {
+  const merged: WritableSkillMetadata = {}
+
+  for (const source of sources) {
+    if (source == null) continue
+
+    for (const [key, value] of Object.entries(source)) {
+      if (value !== void 0) (merged as Record<string, unknown>)[key] = value
+    }
+  }
+
+  return merged
 }
 
 const MIME_TYPES: Record<string, string> = { // MIME types for resources
@@ -180,6 +202,7 @@ interface ResourceProcessorContext {
   readonly fs: typeof import('node:fs')
   readonly logger: ILogger
   readonly skillDir: string
+  readonly scanMode: 'distChildDocs' | 'srcResources'
 }
 
 class ResourceProcessor {
@@ -201,20 +224,22 @@ class ResourceProcessor {
       ? `${currentRelativePath}/${entry.name}`
       : entry.name
 
-    if (currentRelativePath === '' && entry.name === 'skill.mdx') return {childDocs: [], resources: []}
+    if (this.ctx.scanMode === 'distChildDocs') {
+      if (currentRelativePath === '' && entry.name === 'skill.mdx') return {childDocs: [], resources: []}
+      if (hasSourcePromptExtension(entry.name) || !entry.name.endsWith('.mdx')) return {childDocs: [], resources: []}
 
-    if (currentRelativePath === '' && entry.name === 'mcp.json') return {childDocs: [], resources: []}
-
-    if (entry.name.endsWith('.mdx')) {
-      const childDoc = this.processChildDoc(entry.name, relativePath, filePath)
+      const childDoc = this.processChildDoc(relativePath, filePath)
       return {childDocs: childDoc ? [childDoc] : [], resources: []}
     }
+
+    if (currentRelativePath === '' && entry.name === 'mcp.json') return {childDocs: [], resources: []}
+    if (hasSourcePromptExtension(entry.name) || entry.name.endsWith('.mdx')) return {childDocs: [], resources: []}
 
     const resource = this.processResourceFile(entry.name, relativePath, filePath)
     return {childDocs: [], resources: resource ? [resource] : []}
   }
 
-  private processChildDoc(_fileName: string, relativePath: string, filePath: string): SkillChildDoc | null {
+  private processChildDoc(relativePath: string, filePath: string): SkillChildDoc | null {
     try {
       const rawContent = this.ctx.fs.readFileSync(filePath, 'utf8')
       const parsed = parseMarkdown(rawContent)
@@ -323,6 +348,66 @@ class ResourceProcessor {
   }
 }
 
+function collectExpectedCompiledChildDocPaths(
+  skillDir: string,
+  fs: typeof import('node:fs'),
+  logger: ILogger,
+  currentRelativePath: string = ''
+): string[] {
+  const expectedPaths: string[] = []
+  const currentDir = currentRelativePath === ''
+    ? skillDir
+    : pathJoin(skillDir, currentRelativePath)
+
+  let entries: Dirent[]
+  try {
+    entries = fs.readdirSync(currentDir, {withFileTypes: true})
+  }
+  catch (error) {
+    logger.warn('failed to scan source child docs', {path: currentDir, error})
+    return expectedPaths
+  }
+
+  for (const entry of entries) {
+    const entryRelativePath = currentRelativePath
+      ? `${currentRelativePath}/${entry.name}`
+      : entry.name
+
+    if (entry.isDirectory()) {
+      expectedPaths.push(...collectExpectedCompiledChildDocPaths(skillDir, fs, logger, entryRelativePath))
+      continue
+    }
+
+    if (!entry.isFile() || !hasSourcePromptExtension(entry.name)) continue
+    if (currentRelativePath === '' && entry.name === 'skill.src.mdx') continue
+
+    expectedPaths.push(entryRelativePath.replace(/\.src\.mdx$/u, '.mdx'))
+  }
+
+  return expectedPaths
+}
+
+function warnMissingCompiledChildDocs(
+  skillName: string,
+  skillSrcDir: string,
+  skillDistDir: string,
+  fs: typeof import('node:fs'),
+  logger: ILogger
+): void {
+  if (!fs.existsSync(skillSrcDir)) return
+
+  for (const relativePath of collectExpectedCompiledChildDocPaths(skillSrcDir, fs, logger)) {
+    const distPath = nodePath.join(skillDistDir, relativePath)
+    if (fs.existsSync(distPath)) continue
+
+    logger.warn('compiled skill child doc missing', {
+      skill: skillName,
+      relativePath,
+      distPath
+    })
+  }
+}
+
 function readMcpConfig(
   skillDir: string,
   fs: typeof import('node:fs'),
@@ -397,9 +482,13 @@ async function createSkillPrompt(
     }
   }
 
-  const exportMetadata = distMetadata ?? compiledMetadata ?? extractSkillMetadataFromExport(rawContent) // Use metadata from dist file, or from compiled MDX, or extract from raw content
+  const exportMetadata = mergeDefinedSkillMetadata(
+    extractSkillMetadataFromExport(rawContent),
+    compiledMetadata,
+    distMetadata
+  ) // Merge fallback export parsing with compiled metadata so empty metadata objects do not mask valid fields
 
-  const finalDescription = parsed?.yamlFrontMatter?.description ?? exportMetadata?.description as string | undefined
+  const finalDescription = parsed?.yamlFrontMatter?.description ?? exportMetadata?.description
 
   if (finalDescription == null || finalDescription.trim().length === 0) { // Strict validation: description must exist and not be empty
     logger.error('SKILL_VALIDATION_FAILED: description is required and cannot be empty', {
@@ -442,112 +531,6 @@ async function createSkillPrompt(
   } as SkillPrompt
 }
 
-async function processSkillFile(
-  skillFilePath: string,
-  skillDir: string,
-  entryName: string,
-  skillAbsoluteDir: string,
-  ctx: InputPluginContext
-): Promise<SkillPrompt | null> {
-  const {logger, globalScope, fs} = ctx
-
-  let rawContent: string
-  try {
-    rawContent = fs.readFileSync(skillFilePath, 'utf8')
-  }
-  catch (e) {
-    logger.error('failed to read skill file', {file: skillFilePath, error: e})
-    return null
-  }
-
-  let parsed: ReturnType<typeof parseMarkdown<SkillYAMLFrontMatter>>
-  try {
-    parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)
-  }
-  catch (e) {
-    logger.error('failed to parse skill markdown', {file: skillFilePath, error: e})
-    return null
-  }
-
-  let compileResult: Awaited<ReturnType<typeof mdxToMd>>
-  try {
-    compileResult = await mdxToMd(rawContent, {
-      globalScope,
-      extractMetadata: true,
-      basePath: skillAbsoluteDir
-    })
-  }
-  catch (e) {
-    logger.error('failed to compile skill mdx', {file: skillFilePath, error: e})
-    return null
-  }
-
-  const mergedFrontMatter: SkillYAMLFrontMatter = {
-    ...parsed.yamlFrontMatter,
-    ...compileResult.metadata.fields
-  } as SkillYAMLFrontMatter
-
-  const finalDescription = mergedFrontMatter.description // Strict validation: description must exist and not be empty
-  if (finalDescription == null || finalDescription.trim().length === 0) {
-    logger.error('SKILL_VALIDATION_FAILED: description is required and cannot be empty', {
-      skill: entryName,
-      skillFilePath,
-      yamlDescription: parsed.yamlFrontMatter?.description,
-      exportDescription: compileResult.metadata.fields['description'],
-      hint: 'Add a non-empty description field to the SKILL.md front matter or export default'
-    })
-    throw new Error(`Skill "${entryName}" validation failed: description is required and cannot be empty`)
-  }
-
-  const validationResult = validateSkillMetadata(
-    mergedFrontMatter as Record<string, unknown>,
-    skillFilePath
-  )
-
-  for (const warning of validationResult.warnings) logger.debug(warning)
-
-  if (!validationResult.valid) throw new MetadataValidationError(validationResult.errors, skillFilePath)
-
-  const content = transformMdxReferencesToMd(compileResult.content)
-
-  logger.debug('skill metadata extracted', {
-    skill: entryName,
-    source: compileResult.metadata.source,
-    hasYaml: parsed.yamlFrontMatter != null,
-    hasExport: Object.keys(compileResult.metadata.fields).length > 0
-  })
-
-  const processor = new ResourceProcessor({fs, logger, skillDir: skillAbsoluteDir})
-  const {childDocs, resources} = processor.scanSkillDirectory(skillAbsoluteDir)
-  const mcpConfig = readMcpConfig(skillAbsoluteDir, fs, logger)
-
-  const {seriName} = mergedFrontMatter
-
-  return {
-    type: PromptKind.Skill,
-    content,
-    length: content.length,
-    filePathKind: FilePathKind.Relative,
-    yamlFrontMatter: mergedFrontMatter.name != null
-      ? mergedFrontMatter
-      : {name: entryName, description: ''} as SkillYAMLFrontMatter,
-    ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
-    markdownAst: parsed.markdownAst,
-    markdownContents: parsed.markdownContents,
-    ...mcpConfig != null && {mcpConfig},
-    ...childDocs.length > 0 && {childDocs},
-    ...resources.length > 0 && {resources},
-    ...seriName != null && {seriName},
-    dir: {
-      pathKind: FilePathKind.Relative,
-      path: entryName,
-      basePath: skillDir,
-      getDirectoryName: () => entryName,
-      getAbsolutePath: () => nodePath.join(skillDir, entryName)
-    }
-  }
-}
-
 export class SkillInputPlugin extends AbstractInputPlugin {
   constructor() {
     super('SkillInputPlugin')
@@ -565,9 +548,10 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     skillDir: string,
     fs: typeof import('node:fs'),
     logger: ILogger,
-    currentRelativePath: string = ''
+    currentRelativePath: string = '',
+    scanMode: 'distChildDocs' | 'srcResources' = 'srcResources'
   ): ResourceScanResult {
-    const processor = new ResourceProcessor({fs, logger, skillDir})
+    const processor = new ResourceProcessor({fs, logger, skillDir, scanMode})
     return processor.scanSkillDirectory(skillDir, currentRelativePath)
   }
 
@@ -580,6 +564,42 @@ export class SkillInputPlugin extends AbstractInputPlugin {
 
     const flatSkills: SkillPrompt[] = []
     const reader = createLocalizedPromptReader(fs, pathModule, logger, globalScope)
+    const skillArtifactCache = new Map<string, {
+      readonly childDocs: SkillChildDoc[]
+      readonly resources: SkillResource[]
+      readonly mcpConfig?: SkillMcpConfig
+    }>()
+
+    const getSkillArtifacts = (name: string): {
+      readonly childDocs: SkillChildDoc[]
+      readonly resources: SkillResource[]
+      readonly mcpConfig?: SkillMcpConfig
+    } => {
+      const cached = skillArtifactCache.get(name)
+      if (cached != null) return cached
+
+      const skillSrcDir = pathModule.join(srcSkillDir, name)
+      const skillDistDir = pathModule.join(distSkillDir, name)
+
+      const childDocs = fs.existsSync(skillDistDir)
+        ? this.scanSkillDirectory(skillDistDir, fs, logger, '', 'distChildDocs').childDocs
+        : []
+      const resources = fs.existsSync(skillSrcDir)
+        ? this.scanSkillDirectory(skillSrcDir, fs, logger, '', 'srcResources').resources
+        : []
+      const mcpConfig = readMcpConfig(skillSrcDir, fs, logger)
+
+      warnMissingCompiledChildDocs(name, skillSrcDir, skillDistDir, fs, logger)
+
+      const artifacts = {
+        childDocs,
+        resources,
+        ...mcpConfig != null && {mcpConfig}
+      }
+
+      skillArtifactCache.set(name, artifacts)
+      return artifacts
+    }
 
     const {prompts: localizedSkills, errors} = await reader.readDirectoryStructure(
       srcSkillDir,
@@ -591,17 +611,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
         isDirectoryStructure: true,
         createPrompt: async (content, locale, name, metadata) => {
           const skillDistDir = pathModule.join(distSkillDir, name)
-          let childDocs: SkillChildDoc[] = []
-          let resources: SkillResource[] = []
-          let mcpConfig: SkillMcpConfig | undefined
-
-          if (fs.existsSync(skillDistDir)) {
-            const processor = new ResourceProcessor({fs, logger, skillDir: skillDistDir})
-            const {childDocs: scannedChildDocs, resources: scannedResources} = processor.scanSkillDirectory(skillDistDir)
-            childDocs = scannedChildDocs
-            resources = scannedResources
-            mcpConfig = readMcpConfig(skillDistDir, fs, logger)
-          }
+          const {childDocs, resources, mcpConfig} = getSkillArtifacts(name)
 
           return createSkillPrompt(
             content,
@@ -623,38 +633,16 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     for (const error of errors) logger.warn('Failed to read skill', {path: error.path, phase: error.phase, error: error.error})
 
     for (const localized of localizedSkills) {
-      const prompt = localized.dist?.prompt ?? localized.src.default.prompt
-      if (prompt) flatSkills.push(prompt)
-    }
-
-    if (fs.existsSync(distSkillDir)) {
-      const distEntries = fs.readdirSync(distSkillDir, {withFileTypes: true})
-      const existingNames = new Set(localizedSkills.map(s => s.name))
-
-      for (const entry of distEntries) {
-        if (!entry.isDirectory()) continue
-        if (existingNames.has(entry.name)) continue
-
-        const entryName = entry.name
-        const skillFilePath = pathModule.join(distSkillDir, entryName, 'skill.mdx')
-        const skillAbsoluteDir = pathModule.join(distSkillDir, entryName)
-
-        if (!fs.existsSync(skillFilePath)) continue
-
-        try {
-          const skill = await processSkillFile(
-            skillFilePath,
-            distSkillDir,
-            entryName,
-            skillAbsoluteDir,
-            ctx
-          )
-          if (skill) flatSkills.push(skill)
-        }
-        catch (e) {
-          logger.error('failed to parse skill', {file: skillFilePath, error: e})
-        }
+      const prompt = localized.dist?.prompt
+      if (prompt != null) {
+        flatSkills.push(prompt)
+        continue
       }
+
+      logger.warn('compiled skill missing, skipping source-only skill', {
+        skill: localized.name,
+        distPath: pathModule.join(distSkillDir, localized.name, 'skill.mdx')
+      })
     }
 
     return {

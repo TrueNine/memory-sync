@@ -32,8 +32,8 @@ import {
   ProjectPromptInputPlugin,
   ReadmeMdInputPlugin,
   RuleInputPlugin,
+  SkillDistCleanupEffectInputPlugin,
   SkillInputPlugin,
-  SkillNonSrcFileSyncEffectInputPlugin,
   SubAgentInputPlugin,
   VSCodeConfigInputPlugin,
   WorkspaceInputPlugin
@@ -65,7 +65,7 @@ export default defineConfig({
       new VisualStudioCodeIDEConfigOutputPlugin(),
       new ReadmeMdConfigFileOutputPlugin(),
 
-      new SkillNonSrcFileSyncEffectInputPlugin(), // Effect Input Plugins (executed in priority order: 10, 20, 30)
+      new SkillDistCleanupEffectInputPlugin(), // Effect Input Plugins (executed in priority order: 10, 20, 30)
       new OrphanFileCleanupEffectInputPlugin(),
       new MarkdownWhitespaceCleanupEffectInputPlugin(),
 

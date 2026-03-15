@@ -1,179 +1,159 @@
-import type {Buffer} from 'node:buffer'
-
 import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
-import {createHash} from 'node:crypto'
 import {AbstractInputPlugin, hasSourcePromptExtension} from '../plugins/plugin-core'
 
-export interface SkillSyncEffectResult extends InputEffectResult {
-  readonly copiedFiles: string[]
-  readonly skippedFiles: string[]
-  readonly createdDirs: string[]
+export interface SkillDistCleanupEffectResult extends InputEffectResult {
+  readonly deletedFiles: string[]
+  readonly deletedDirs: string[]
 }
 
-export class SkillNonSrcFileSyncEffectInputPlugin extends AbstractInputPlugin {
+interface SkillDistCleanupPlan {
+  readonly filesToDelete: string[]
+  readonly dirsToDelete: string[]
+  readonly errors: readonly {path: string, error: Error}[]
+}
+
+export class SkillDistCleanupEffectInputPlugin extends AbstractInputPlugin {
   constructor() {
-    super('SkillNonSrcFileSyncEffectInputPlugin')
-    this.registerEffect('skill-non-src-file-sync', this.syncNonSrcFiles.bind(this), 10)
+    super('SkillDistCleanupEffectInputPlugin')
+    this.registerEffect('skill-dist-cleanup', this.cleanupDistSkillArtifacts.bind(this), 10)
   }
 
-  private async syncNonSrcFiles(ctx: InputEffectContext): Promise<SkillSyncEffectResult> {
-    const {fs, path, aindexDir, dryRun, logger} = ctx
+  private async cleanupDistSkillArtifacts(ctx: InputEffectContext): Promise<SkillDistCleanupEffectResult> {
+    const {fs, logger, userConfigOptions, aindexDir, dryRun} = ctx
+    const srcSkillsDir = this.resolveAindexPath(userConfigOptions.aindex.skills.src, aindexDir)
+    const distSkillsDir = this.resolveAindexPath(userConfigOptions.aindex.skills.dist, aindexDir)
 
-    const srcSkillsDir = path.join(aindexDir, 'src', 'skills')
-    const distSkillsDir = path.join(aindexDir, 'dist', 'skills')
-
-    const copiedFiles: string[] = []
-    const skippedFiles: string[] = []
-    const createdDirs: string[] = []
-    const errors: {path: string, error: Error}[] = []
-
-    if (!fs.existsSync(srcSkillsDir)) {
-      logger.debug({action: 'skill-sync', message: 'src/skills/ directory does not exist, skipping', srcSkillsDir})
+    if (!fs.existsSync(distSkillsDir)) {
+      logger.debug({action: 'skill-dist-cleanup', message: 'dist skills directory does not exist, skipping', srcSkillsDir, distSkillsDir})
       return {
         success: true,
-        description: 'src/skills/ directory does not exist, nothing to sync',
-        copiedFiles,
-        skippedFiles,
-        createdDirs
+        description: 'dist skills directory does not exist, nothing to clean',
+        deletedFiles: [],
+        deletedDirs: []
       }
     }
 
-    this.syncDirectoryRecursive(
-      ctx,
-      srcSkillsDir,
-      distSkillsDir,
-      '',
-      copiedFiles,
-      skippedFiles,
-      createdDirs,
-      errors,
-      dryRun ?? false
-    )
+    const plan = this.buildCleanupPlan(ctx, distSkillsDir)
+    if (plan.errors.length > 0) {
+      logger.warn({
+        action: 'skill-dist-cleanup',
+        errors: plan.errors.map(error => ({path: error.path, error: error.error.message}))
+      })
+    }
 
-    const hasErrors = errors.length > 0
-    if (hasErrors) logger.warn({action: 'skill-sync', errors: errors.map(e => ({path: e.path, error: e.error.message}))})
+    if (dryRun) {
+      return {
+        success: true,
+        description: `Would delete ${plan.filesToDelete.length} files and ${plan.dirsToDelete.length} directories`,
+        deletedFiles: [...plan.filesToDelete],
+        deletedDirs: [...plan.dirsToDelete].sort((a, b) => b.length - a.length)
+      }
+    }
 
+    const deletedFiles: string[] = []
+    const deletedDirs: string[] = []
+    const deleteErrors: {path: string, error: Error}[] = [...plan.errors]
+
+    for (const filePath of plan.filesToDelete) {
+      try {
+        fs.unlinkSync(filePath)
+        deletedFiles.push(filePath)
+        logger.debug({action: 'skill-dist-cleanup', deleted: filePath})
+      }
+      catch (error) {
+        deleteErrors.push({path: filePath, error: error as Error})
+        logger.warn({action: 'skill-dist-cleanup', message: 'Failed to delete file', path: filePath, error: (error as Error).message})
+      }
+    }
+
+    for (const dirPath of [...plan.dirsToDelete].sort((a, b) => b.length - a.length)) {
+      try {
+        fs.rmdirSync(dirPath)
+        deletedDirs.push(dirPath)
+        logger.debug({action: 'skill-dist-cleanup', deletedDir: dirPath})
+      }
+      catch (error) {
+        deleteErrors.push({path: dirPath, error: error as Error})
+        logger.warn({action: 'skill-dist-cleanup', message: 'Failed to delete directory', path: dirPath, error: (error as Error).message})
+      }
+    }
+
+    const hasErrors = deleteErrors.length > 0
     return {
       success: !hasErrors,
-      description: dryRun
-        ? `Would copy ${copiedFiles.length} files, skip ${skippedFiles.length} files`
-        : `Copied ${copiedFiles.length} files, skipped ${skippedFiles.length} files`,
-      copiedFiles,
-      skippedFiles,
-      createdDirs,
-      ...hasErrors && {error: new Error(`${errors.length} errors occurred during sync`)},
-      modifiedFiles: copiedFiles
+      description: `Deleted ${deletedFiles.length} files and ${deletedDirs.length} directories`,
+      deletedFiles,
+      deletedDirs,
+      ...hasErrors && {error: new Error(`${deleteErrors.length} errors occurred during cleanup`)}
     }
   }
 
-  private syncDirectoryRecursive(
+  private buildCleanupPlan(ctx: InputEffectContext, distSkillsDir: string): SkillDistCleanupPlan {
+    const filesToDelete: string[] = []
+    const dirsToDelete: string[] = []
+    const errors: {path: string, error: Error}[] = []
+
+    this.collectCleanupPlan(ctx, distSkillsDir, filesToDelete, dirsToDelete, errors)
+
+    return {filesToDelete, dirsToDelete, errors}
+  }
+
+  private collectCleanupPlan(
     ctx: InputEffectContext,
-    srcDir: string,
-    distDir: string,
-    relativePath: string,
-    copiedFiles: string[],
-    skippedFiles: string[],
-    createdDirs: string[],
-    errors: {path: string, error: Error}[],
-    dryRun: boolean
-  ): void {
+    currentDir: string,
+    filesToDelete: string[],
+    dirsToDelete: string[],
+    errors: {path: string, error: Error}[]
+  ): boolean {
     const {fs, path, logger} = ctx
-
-    const currentSrcDir = relativePath ? path.join(srcDir, relativePath) : srcDir
-
-    if (!fs.existsSync(currentSrcDir)) return
 
     let entries: import('node:fs').Dirent[]
     try {
-      entries = fs.readdirSync(currentSrcDir, {withFileTypes: true})
+      entries = fs.readdirSync(currentDir, {withFileTypes: true})
     }
     catch (error) {
-      errors.push({path: currentSrcDir, error: error as Error})
-      logger.warn({action: 'skill-sync', message: 'Failed to read directory', path: currentSrcDir, error: (error as Error).message})
-      return
+      errors.push({path: currentDir, error: error as Error})
+      logger.warn({action: 'skill-dist-cleanup', message: 'Failed to read directory', path: currentDir, error: (error as Error).message})
+      return false
     }
+
+    let hasRetainedEntries = false
 
     for (const entry of entries) {
-      const entryRelativePath = relativePath ? path.join(relativePath, entry.name) : entry.name
-      const srcPath = path.join(srcDir, entryRelativePath)
-      const distPath = path.join(distDir, entryRelativePath)
+      const entryPath = path.join(currentDir, entry.name)
 
       if (entry.isDirectory()) {
-        this.syncDirectoryRecursive(
-          ctx,
-          srcDir,
-          distDir,
-          entryRelativePath,
-          copiedFiles,
-          skippedFiles,
-          createdDirs,
-          errors,
-          dryRun
-        )
-      } else if (entry.isFile()) {
-        if (hasSourcePromptExtension(entry.name) || entry.name.endsWith('.mdx')) continue
-
-        const targetDir = path.dirname(distPath)
-        if (!fs.existsSync(targetDir)) {
-          if (dryRun) {
-            logger.debug({action: 'skill-sync', dryRun: true, wouldCreateDir: targetDir})
-            createdDirs.push(targetDir)
-          } else {
-            try {
-              fs.mkdirSync(targetDir, {recursive: true})
-              createdDirs.push(targetDir)
-              logger.debug({action: 'skill-sync', createdDir: targetDir})
-            }
-            catch (error) {
-              errors.push({path: targetDir, error: error as Error})
-              logger.warn({action: 'skill-sync', message: 'Failed to create directory', path: targetDir, error: (error as Error).message})
-              continue
-            }
-          }
-        }
-
-        if (fs.existsSync(distPath)) {
-          try {
-            const srcContent = fs.readFileSync(srcPath)
-            const distContent = fs.readFileSync(distPath)
-
-            const srcHash = this.computeHash(srcContent)
-            const distHash = this.computeHash(distContent)
-
-            if (srcHash === distHash) {
-              skippedFiles.push(distPath)
-              logger.debug({action: 'skill-sync', skipped: distPath, reason: 'identical content'})
-              continue
-            }
-          }
-          catch (error) {
-            logger.debug({action: 'skill-sync', message: 'Could not compare files, will copy', path: distPath, error: (error as Error).message})
-          }
-        }
-
-        if (dryRun) {
-          logger.debug({action: 'skill-sync', dryRun: true, wouldCopy: {from: srcPath, to: distPath}})
-          copiedFiles.push(distPath)
-        } else {
-          try {
-            fs.copyFileSync(srcPath, distPath)
-            copiedFiles.push(distPath)
-            logger.debug({action: 'skill-sync', copied: {from: srcPath, to: distPath}})
-          }
-          catch (error) {
-            errors.push({path: distPath, error: error as Error})
-            logger.warn({action: 'skill-sync', message: 'Failed to copy file', from: srcPath, to: distPath, error: (error as Error).message})
-          }
-        }
+        const childWillBeEmpty = this.collectCleanupPlan(ctx, entryPath, filesToDelete, dirsToDelete, errors)
+        if (childWillBeEmpty) dirsToDelete.push(entryPath)
+        else hasRetainedEntries = true
+        continue
       }
+
+      if (!entry.isFile()) {
+        hasRetainedEntries = true
+        continue
+      }
+
+      if (this.shouldRetainCompiledSkillFile(entry.name)) {
+        hasRetainedEntries = true
+        continue
+      }
+
+      filesToDelete.push(entryPath)
     }
+
+    return !hasRetainedEntries
   }
 
-  private computeHash(content: Buffer): string {
-    return createHash('sha256').update(content).digest('hex')
+  private shouldRetainCompiledSkillFile(fileName: string): boolean {
+    return fileName.endsWith('.mdx') && !hasSourcePromptExtension(fileName)
   }
 
   collect(_ctx: InputPluginContext): Partial<InputCollectedContext> {
     return {}
   }
 }
+
+export type SkillSyncEffectResult = SkillDistCleanupEffectResult
+
+export class SkillNonSrcFileSyncEffectInputPlugin extends SkillDistCleanupEffectInputPlugin {}

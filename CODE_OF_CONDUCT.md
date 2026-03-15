@@ -16,7 +16,6 @@ We are rats. We accept that.
 - **Students and beginners**: Genuinely willing to learn and get hands dirty, not here to beg for ready-made answers
 - **Anyone, any language, any region**: If you use this tool, you are part of the community
 - **AI Agents**: Automation pipelines, Agent workflows, LLM-driven toolchains — as long as behaviour complies with this code, Issues and PRs from Agents are treated equally
-
 We welcome Issues, PRs, discussions, rants — as long as you are serious, regardless of whether the author is human or Agent.
 
 ---
@@ -31,7 +30,6 @@ The following behaviours result in immediate Issue closure / PR rejection / acco
 - **Resource predators**: Stable income, corporate budget, yet competing with marginal developers for free resources and community attention
 - **Harassment**: Personal attacks, discrimination, stalking, harassing maintainers or other contributors
 - **Hustle-culture pushers**: Glorify overwork, promote 996, or use this tool to exploit other developers
-
 ---
 
 ## Contributor Obligations
@@ -42,14 +40,12 @@ If you submit an Issue (human or Agent):
 - State your OS, Node.js version, and tool version
 - Agent submissions must include trigger context (call chain, input params, error stack)
 - Do not rush maintainers — they are humans, not customer support
-
 If you submit a PR (human or Agent):
 
 - Open an Issue first to discuss, avoid wasted effort
 - Follow existing code style (TypeScript strict, functional, immutable-first)
 - Do not sneak unrelated changes into a PR
 - Agent-generated PRs must declare the generation tool and prompt source in the description; do not disguise as hand-written
-
 ---
 
 ## Maintainer Rights
@@ -59,13 +55,11 @@ Maintainers may:
 - Close any Issue or PR without explanation
 - Ban any account violating this code
 - Amend this code at any time
-
 Maintainers are not obligated to:
 
 - Respond to every Issue
 - Accept every PR
 - Be responsible for anyone's commercial needs
-
 ---
 
 ## Licence and Enforcement
