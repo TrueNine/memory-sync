@@ -4,6 +4,12 @@ import process from 'node:process'
 
 import {mdxToMd} from '@truenine/md-compiler'
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
+import {
+  buildConfigDiagnostic,
+  buildFileOperationDiagnostic,
+  buildPromptCompilerDiagnostic,
+  diagnosticLines
+} from '@/diagnostics'
 import {AbstractInputPlugin, FilePathKind, PromptKind, README_FILE_KIND_MAP} from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
 import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
@@ -49,7 +55,14 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
       }
     }
     catch (e) {
-      logger.error('failed to scan aindex projects', {path: aindexProjectsDir, error: e})
+      logger.error(buildFileOperationDiagnostic({
+        code: 'README_PROJECT_SCAN_FAILED',
+        title: 'Failed to scan aindex projects for readme prompts',
+        operation: 'scan',
+        targetKind: 'aindex project directory',
+        path: aindexProjectsDir,
+        error: e
+      }))
     }
 
     return {readmePrompts}
@@ -87,13 +100,39 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         }
         catch (e) {
           if (e instanceof CompilerDiagnosticError) {
-            logger.error(formatPromptCompilerDiagnostic(e, {
-              operation: 'Failed to compile readme-family prompt.',
-              promptKind: 'readme-family',
-              logicalName: `${projectName}/${src}`,
-              distPath: filePath
+            logger.error(buildPromptCompilerDiagnostic({
+              code: 'README_PROMPT_COMPILE_FAILED',
+              title: 'Failed to compile readme-family prompt',
+              diagnosticText: formatPromptCompilerDiagnostic(e, {
+                operation: 'Failed to compile readme-family prompt.',
+                promptKind: 'readme-family',
+                logicalName: `${projectName}/${src}`,
+                distPath: filePath
+              }),
+              details: {
+                promptKind: 'readme-family',
+                distPath: filePath,
+                projectName,
+                fileKind
+              }
             }))
-            if (e instanceof ScopeError) logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
+            if (e instanceof ScopeError) {
+              logger.error(buildConfigDiagnostic({
+                code: 'README_SCOPE_VARIABLES_MISSING',
+                title: 'Readme-family prompt references missing config variables',
+                reason: diagnosticLines(
+                  'The readme-family prompt uses scope variables that are not defined in `~/.aindex/.tnmsc.json`.'
+                ),
+                configPath: '~/.aindex/.tnmsc.json',
+                exactFix: diagnosticLines(
+                  'Define the missing variables in `~/.aindex/.tnmsc.json` and rerun tnmsc.'
+                ),
+                details: {
+                  promptPath: filePath,
+                  errorMessage: e.message
+                }
+              }))
+            }
             process.exit(1)
           }
           throw e
@@ -131,7 +170,17 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
         })
       }
       catch (e) {
-        logger.warn('failed to read readme-family file', {path: filePath, fileKind, error: e})
+        logger.warn(buildFileOperationDiagnostic({
+          code: 'README_PROMPT_READ_FAILED',
+          title: 'Failed to read readme-family file',
+          operation: 'read',
+          targetKind: 'readme-family prompt file',
+          path: filePath,
+          error: e,
+          details: {
+            fileKind
+          }
+        }))
       }
     }
 
@@ -148,7 +197,14 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
       }
     }
     catch (e) {
-      logger.warn('failed to scan directory', {path: currentDir, error: e})
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'README_DIRECTORY_SCAN_FAILED',
+        title: 'Failed to scan readme-family directory',
+        operation: 'scan',
+        targetKind: 'readme-family directory',
+        path: currentDir,
+        error: e
+      }))
     }
   }
 }

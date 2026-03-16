@@ -2,8 +2,8 @@
 
 //! Configuration loading, merging, and validation.
 //!
-//! Reads `~/.aindex/.tnmsc.json` (global) and `./.tnmsc.json` (cwd),
-//! merges with priority: CWD > global > defaults.
+//! Reads only `~/.aindex/.tnmsc.json` (global),
+//! then merges with defaults.
 
 pub mod series_filter;
 
@@ -11,10 +11,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::diagnostic_helpers::{diagnostic, line, optional_details};
 use tnmsc_logger::{Logger, create_logger};
 
 // ---------------------------------------------------------------------------
@@ -23,6 +23,19 @@ use tnmsc_logger::{Logger, create_logger};
 
 pub const DEFAULT_CONFIG_FILE_NAME: &str = ".tnmsc.json";
 pub const DEFAULT_GLOBAL_CONFIG_DIR: &str = ".aindex";
+
+fn path_details(path: &Path) -> Option<serde_json::Map<String, Value>> {
+    optional_details(serde_json::json!({
+        "path": path.to_string_lossy()
+    }))
+}
+
+fn path_error_details(path: &Path, error: &str) -> Option<serde_json::Map<String, Value>> {
+    optional_details(serde_json::json!({
+        "path": path.to_string_lossy(),
+        "error": error
+    }))
+}
 
 // ---------------------------------------------------------------------------
 // Types — mirrors TS ConfigTypes.schema.ts
@@ -173,7 +186,10 @@ fn home_dir() -> Option<PathBuf> {
 pub fn resolve_tilde(p: &str) -> PathBuf {
     if let Some(rest) = p.strip_prefix('~') {
         if let Some(home) = home_dir() {
-            let rest = rest.strip_prefix('/').or_else(|| rest.strip_prefix('\\')).unwrap_or(rest);
+            let rest = rest
+                .strip_prefix('/')
+                .or_else(|| rest.strip_prefix('\\'))
+                .unwrap_or(rest);
             return home.join(rest);
         }
     }
@@ -183,7 +199,9 @@ pub fn resolve_tilde(p: &str) -> PathBuf {
 /// Get the global config file path: `~/.aindex/.tnmsc.json`
 pub fn get_global_config_path() -> PathBuf {
     match home_dir() {
-        Some(home) => home.join(DEFAULT_GLOBAL_CONFIG_DIR).join(DEFAULT_CONFIG_FILE_NAME),
+        Some(home) => home
+            .join(DEFAULT_GLOBAL_CONFIG_DIR)
+            .join(DEFAULT_CONFIG_FILE_NAME),
         None => PathBuf::from(DEFAULT_GLOBAL_CONFIG_DIR).join(DEFAULT_CONFIG_FILE_NAME),
     }
 }
@@ -192,10 +210,7 @@ pub fn get_global_config_path() -> PathBuf {
 // Merge logic
 // ---------------------------------------------------------------------------
 
-fn merge_aindex(
-    a: &Option<AindexConfig>,
-    b: &Option<AindexConfig>,
-) -> Option<AindexConfig> {
+fn merge_aindex(a: &Option<AindexConfig>, b: &Option<AindexConfig>) -> Option<AindexConfig> {
     match (a, b) {
         (None, None) => None,
         (Some(v), None) => Some(v.clone()),
@@ -217,17 +232,19 @@ fn merge_aindex(
 
 /// Merge two configs. `over` fields take priority over `base`.
 pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserConfigFile {
-    let merged_aindex = merge_aindex(
-        &base.aindex,
-        &over.aindex,
-    );
+    let merged_aindex = merge_aindex(&base.aindex, &over.aindex);
 
     UserConfigFile {
         version: over.version.clone().or_else(|| base.version.clone()),
-        workspace_dir: over.workspace_dir.clone().or_else(|| base.workspace_dir.clone()),
+        workspace_dir: over
+            .workspace_dir
+            .clone()
+            .or_else(|| base.workspace_dir.clone()),
         aindex: merged_aindex,
         log_level: over.log_level.clone().or_else(|| base.log_level.clone()),
-        fast_command_series_options: over.fast_command_series_options.clone()
+        fast_command_series_options: over
+            .fast_command_series_options
+            .clone()
             .or_else(|| base.fast_command_series_options.clone()),
         profile: over.profile.clone().or_else(|| base.profile.clone()),
     }
@@ -255,37 +272,19 @@ fn merge_configs(configs: &[UserConfigFile]) -> UserConfigFile {
 
 /// Options for ConfigLoader.
 #[derive(Debug, Clone, Default)]
-pub struct ConfigLoaderOptions {
-    pub config_file_name: Option<String>,
-    pub search_paths: Vec<String>,
-    pub search_cwd: Option<bool>,
-    pub search_global: Option<bool>,
-}
+pub struct ConfigLoaderOptions {}
 
 /// ConfigLoader handles discovery and loading of user configuration files.
 ///
-/// Search order (first found wins at each level):
-/// 1. Custom search paths (highest priority)
-/// 2. CWD: `./.tnmsc.json`
-/// 3. Global: `~/.aindex/.tnmsc.json` (lowest priority)
-///
-/// Configurations are merged with earlier sources having higher priority.
+/// The config source is fixed and unambiguous:
+/// 1. Global: `~/.aindex/.tnmsc.json`
 pub struct ConfigLoader {
-    config_file_name: String,
-    search_cwd: bool,
-    search_global: bool,
-    custom_search_paths: Vec<String>,
     logger: Logger,
 }
 
 impl ConfigLoader {
-    pub fn new(options: ConfigLoaderOptions) -> Self {
+    pub fn new(_options: ConfigLoaderOptions) -> Self {
         Self {
-            config_file_name: options.config_file_name
-                .unwrap_or_else(|| DEFAULT_CONFIG_FILE_NAME.to_string()),
-            search_cwd: options.search_cwd.unwrap_or(true),
-            search_global: options.search_global.unwrap_or(true),
-            custom_search_paths: options.search_paths,
             logger: create_logger("ConfigLoader", None),
         }
     }
@@ -295,25 +294,8 @@ impl ConfigLoader {
     }
 
     /// Get the list of config file paths to search.
-    pub fn get_search_paths(&self, cwd: &Path) -> Vec<PathBuf> {
-        let mut paths = Vec::new();
-
-        // Custom search paths first (highest priority)
-        for p in &self.custom_search_paths {
-            paths.push(resolve_tilde(p));
-        }
-
-        // CWD config
-        if self.search_cwd {
-            paths.push(cwd.join(&self.config_file_name));
-        }
-
-        // Global config (lowest priority)
-        if self.search_global {
-            paths.push(get_global_config_path());
-        }
-
-        paths
+    pub fn get_search_paths(&self, _cwd: &Path) -> Vec<PathBuf> {
+        vec![get_global_config_path()]
     }
 
     /// Load a single config file.
@@ -352,13 +334,16 @@ impl ConfigLoader {
                 },
             },
             Err(e) => {
-                self.logger.warn(
-                    Value::String("load failed".into()),
-                    Some(serde_json::json!({
-                        "path": resolved.to_string_lossy(),
-                        "error": e.to_string()
-                    })),
-                );
+                self.logger.warn(diagnostic(
+                    "CONFIG_FILE_LOAD_FAILED",
+                    "Config file could not be loaded",
+                    line("The config file exists but could not be read, so it was skipped."),
+                    Some(line(
+                        "Check that the file exists, is readable, and is not locked.",
+                    )),
+                    None,
+                    path_error_details(&resolved, &e.to_string()),
+                ));
                 ConfigLoadResult {
                     config: UserConfigFile::default(),
                     source: None,
@@ -382,9 +367,7 @@ impl ConfigLoader {
 
         let configs: Vec<UserConfigFile> = loaded.iter().map(|r| r.config.clone()).collect();
         let merged = merge_configs(&configs);
-        let sources: Vec<String> = loaded.iter()
-            .filter_map(|r| r.source.clone())
-            .collect();
+        let sources: Vec<String> = loaded.iter().filter_map(|r| r.source.clone()).collect();
 
         MergedConfigResult {
             config: merged,
@@ -398,23 +381,29 @@ impl ConfigLoader {
             .map_err(|e| format!("Invalid JSON in {}: {}", file_path.display(), e))?;
 
         if !parsed.is_object() {
-            return Err(format!("Config must be a JSON object in {}", file_path.display()));
+            return Err(format!(
+                "Config must be a JSON object in {}",
+                file_path.display()
+            ));
         }
 
         // Deserialize with serde — invalid fields are silently ignored (like Zod's safeParse)
         match serde_json::from_value::<UserConfigFile>(parsed.clone()) {
             Ok(config) => Ok(config),
             Err(e) => {
-                self.logger.warn(
-                    Value::String("validation warnings".into()),
-                    Some(serde_json::json!({
-                        "path": file_path.to_string_lossy(),
-                        "error": e.to_string()
-                    })),
-                );
+                self.logger.warn(diagnostic(
+                    "CONFIG_FILE_VALIDATION_WARNING",
+                    "Config contains invalid fields",
+                    line("One or more config fields could not be deserialized, so defaults were used."),
+                    Some(line("Fix the field types in the config file and retry.")),
+                    None,
+                    path_error_details(file_path, &e.to_string()),
+                ));
                 // Fallback: try to extract what we can
-                Ok(serde_json::from_value::<UserConfigFile>(Value::Object(Default::default()))
-                    .unwrap_or_default())
+                Ok(
+                    serde_json::from_value::<UserConfigFile>(Value::Object(Default::default()))
+                        .unwrap_or_default(),
+                )
             }
         }
     }
@@ -452,140 +441,30 @@ pub fn write_config(path: &Path, config: &UserConfigFile, logger: &Logger) {
                     );
                 }
                 Err(e) => {
-                    logger.warn(
-                        Value::String("failed to write config".into()),
-                        Some(serde_json::json!({
-                            "path": path.to_string_lossy(),
-                            "error": e.to_string()
-                        })),
-                    );
+                    logger.warn(diagnostic(
+                        "CONFIG_WRITE_FAILED",
+                        "Failed to write the config file",
+                        line("The CLI generated config JSON but could not write it to disk."),
+                        Some(line(
+                            "Check that the destination directory is writable and retry.",
+                        )),
+                        None,
+                        path_error_details(path, &e.to_string()),
+                    ));
                 }
             }
         }
         Err(e) => {
-            logger.warn(
-                Value::String("failed to serialize config".into()),
-                Some(serde_json::json!({"error": e.to_string()})),
-            );
+            logger.warn(diagnostic(
+                "CONFIG_SERIALIZATION_FAILED",
+                "Failed to serialize the config file",
+                line("The config object could not be converted to JSON."),
+                None,
+                None,
+                optional_details(serde_json::json!({ "error": e.to_string() })),
+            ));
         }
     }
-}
-
-/// Compute SHA-256 hex digest of file contents.
-fn sha256_file(path: &Path) -> Option<String> {
-    let data = fs::read(path).ok()?;
-    let mut hasher = Sha256::new();
-    hasher.update(&data);
-    Some(format!("{:x}", hasher.finalize()))
-}
-
-/// Check if a path is a symlink.
-fn is_symlink(path: &Path) -> bool {
-    fs::symlink_metadata(path)
-        .map(|m| m.file_type().is_symlink())
-        .unwrap_or(false)
-}
-
-/// Read the target of a symlink.
-fn read_symlink_target(path: &Path) -> Option<PathBuf> {
-    fs::read_link(path).ok()
-}
-
-/// Ensure a local config file is linked (symlink preferred) to the global config.
-///
-/// On every run:
-/// - If local is a correct symlink → no-op
-/// - If local is a stale symlink → delete and recreate
-/// - If local is a regular file with different content → sync back to global, then recreate link
-/// - If local is a regular file with same content → delete and recreate link
-///
-/// Falls back to a file copy when symlink creation fails.
-pub fn ensure_config_link(local_path: &Path, global_path: &Path, logger: &Logger) {
-    if !global_path.exists() {
-        return;
-    }
-
-    if local_path.exists() || is_symlink(local_path) {
-        if is_symlink(local_path) {
-            if let Some(target) = read_symlink_target(local_path) {
-                // Canonicalize for comparison
-                let target_canon = fs::canonicalize(&target).unwrap_or(target);
-                let global_canon = fs::canonicalize(global_path)
-                    .unwrap_or_else(|_| global_path.to_path_buf());
-                if target_canon == global_canon {
-                    return; // correct symlink, no-op
-                }
-            }
-            // stale symlink — delete
-            let _ = fs::remove_file(local_path);
-        } else {
-            // Regular file — check content hash
-            let local_hash = sha256_file(local_path);
-            let global_hash = sha256_file(global_path);
-            if local_hash != global_hash {
-                // local differs: sync back to global
-                let _ = fs::copy(local_path, global_path);
-                logger.debug(
-                    Value::String("synced local config back to global".into()),
-                    Some(serde_json::json!({
-                        "src": local_path.to_string_lossy(),
-                        "dest": global_path.to_string_lossy()
-                    })),
-                );
-            }
-            let _ = fs::remove_file(local_path);
-        }
-    }
-
-    // Try symlink first
-    #[cfg(unix)]
-    let symlink_result = std::os::unix::fs::symlink(global_path, local_path);
-    #[cfg(windows)]
-    let symlink_result = std::os::windows::fs::symlink_file(global_path, local_path);
-
-    match symlink_result {
-        Ok(()) => {
-            logger.debug(
-                Value::String("linked config".into()),
-                Some(serde_json::json!({
-                    "link": local_path.to_string_lossy(),
-                    "target": global_path.to_string_lossy()
-                })),
-            );
-        }
-        Err(_) => {
-            // Fallback: copy
-            match fs::copy(global_path, local_path) {
-                Ok(_) => {
-                    logger.warn(
-                        Value::String("symlink unavailable, copied config (auto-sync disabled)".into()),
-                        Some(serde_json::json!({"dest": local_path.to_string_lossy()})),
-                    );
-                }
-                Err(e) => {
-                    logger.warn(
-                        Value::String("failed to link or copy config".into()),
-                        Some(serde_json::json!({
-                            "path": local_path.to_string_lossy(),
-                            "error": e.to_string()
-                        })),
-                    );
-                }
-            }
-        }
-    }
-}
-
-/// Ensure the aindex project directory has a `.tnmsc.json` symlink
-/// pointing to the global config.
-pub fn ensure_aindex_config_link(aindex_dir: &str, logger: &Logger) {
-    let resolved = resolve_tilde(aindex_dir);
-    if !resolved.exists() {
-        return;
-    }
-    let global_path = get_global_config_path();
-    let config_path = resolved.join(DEFAULT_CONFIG_FILE_NAME);
-    ensure_config_link(&config_path, &global_path, logger);
 }
 
 /// Validate global config file strictly.
@@ -599,10 +478,14 @@ pub fn validate_and_ensure_global_config(
     let config_path = get_global_config_path();
 
     if !config_path.exists() {
-        logger.warn(
-            Value::String("global config not found, creating default config".into()),
-            Some(serde_json::json!({"path": config_path.to_string_lossy()})),
-        );
+        logger.warn(diagnostic(
+            "GLOBAL_CONFIG_MISSING_DEFAULT_CREATED",
+            "Global config was missing",
+            line("No global config file exists at the expected path, so a default file will be created."),
+            Some(line("Review the generated config if you need custom settings.")),
+            None,
+            path_details(&config_path),
+        ));
         write_config(&config_path, default_config, &logger);
         return GlobalConfigValidationResult {
             valid: true,
@@ -617,13 +500,16 @@ pub fn validate_and_ensure_global_config(
         Ok(c) => c,
         Err(e) => {
             let msg = format!("Failed to read config: {}", e);
-            logger.error(
-                Value::String("failed to read global config".into()),
-                Some(serde_json::json!({
-                    "path": config_path.to_string_lossy(),
-                    "error": e.to_string()
-                })),
-            );
+            logger.error(diagnostic(
+                "GLOBAL_CONFIG_READ_FAILED",
+                "Failed to read the global config",
+                line("The global config file exists but could not be read."),
+                Some(line(
+                    "Check file permissions and confirm the path points to a readable file.",
+                )),
+                None,
+                path_error_details(&config_path, &e.to_string()),
+            ));
             return preserve_invalid_config_and_exit(&config_path, &logger, vec![msg]);
         }
     };
@@ -633,36 +519,52 @@ pub fn validate_and_ensure_global_config(
         Ok(v) => v,
         Err(e) => {
             let msg = format!("Invalid JSON: {}", e);
-            logger.error(
-                Value::String("invalid JSON in global config".into()),
-                Some(serde_json::json!({
-                    "path": config_path.to_string_lossy(),
-                    "error": e.to_string()
-                })),
-            );
+            logger.error(diagnostic(
+                "GLOBAL_CONFIG_INVALID_JSON",
+                "Global config contains invalid JSON",
+                line("The global config file is not valid JSON."),
+                Some(line("Fix the JSON syntax in the config file and retry.")),
+                None,
+                path_error_details(&config_path, &e.to_string()),
+            ));
             return preserve_invalid_config_and_exit(&config_path, &logger, vec![msg]);
         }
     };
 
     // Must be an object
     if !parsed.is_object() {
-        logger.error(
-            Value::String("global config must be a JSON object".into()),
-            Some(serde_json::json!({"path": config_path.to_string_lossy()})),
+        logger.error(diagnostic(
+            "GLOBAL_CONFIG_NOT_OBJECT",
+            "Global config must be a JSON object",
+            line(
+                "The global config parsed successfully, but its top-level value is not an object.",
+            ),
+            Some(line(
+                "Replace the top-level JSON value with an object like `{}` and retry.",
+            )),
+            None,
+            path_details(&config_path),
+        ));
+        return preserve_invalid_config_and_exit(
+            &config_path,
+            &logger,
+            vec!["Config must be a JSON object".into()],
         );
-        return preserve_invalid_config_and_exit(&config_path, &logger, vec!["Config must be a JSON object".into()]);
     }
 
     // Try to deserialize
     if let Err(e) = serde_json::from_value::<UserConfigFile>(parsed) {
         let msg = format!("Config validation error: {}", e);
-        logger.error(
-            Value::String("config validation error".into()),
-            Some(serde_json::json!({
-                "path": config_path.to_string_lossy(),
-                "error": e.to_string()
-            })),
-        );
+        logger.error(diagnostic(
+            "GLOBAL_CONFIG_VALIDATION_FAILED",
+            "Global config failed schema validation",
+            line("The JSON shape does not match the expected config schema."),
+            Some(line(
+                "Fix the invalid field types or names in the config file and retry.",
+            )),
+            None,
+            path_error_details(&config_path, &e.to_string()),
+        ));
         return preserve_invalid_config_and_exit(&config_path, &logger, vec![msg]);
     }
 
@@ -679,10 +581,16 @@ fn preserve_invalid_config_and_exit(
     logger: &Logger,
     errors: Vec<String>,
 ) -> GlobalConfigValidationResult {
-    logger.error(
-        Value::String("invalid global config preserved, please fix it manually and restart".into()),
-        Some(serde_json::json!({"path": config_path.to_string_lossy()})),
-    );
+    logger.error(diagnostic(
+        "GLOBAL_CONFIG_PRESERVED",
+        "Invalid global config was preserved",
+        line("The CLI stopped rather than overwriting the invalid global config."),
+        Some(line(
+            "Fix the file at the reported path and restart the command.",
+        )),
+        None,
+        path_details(config_path),
+    ));
 
     GlobalConfigValidationResult {
         valid: false,
@@ -752,8 +660,14 @@ mod tests {
         }"#;
         let config: UserConfigFile = serde_json::from_str(json).unwrap();
         let aindex = config.aindex.unwrap();
-        assert_eq!(aindex.skills.as_ref().unwrap().src.as_deref(), Some("src/skills"));
-        assert_eq!(aindex.commands.as_ref().unwrap().src.as_deref(), Some("src/commands"));
+        assert_eq!(
+            aindex.skills.as_ref().unwrap().src.as_deref(),
+            Some("src/skills")
+        );
+        assert_eq!(
+            aindex.commands.as_ref().unwrap().src.as_deref(),
+            Some("src/commands")
+        );
     }
 
     #[test]
@@ -770,7 +684,10 @@ mod tests {
         let config: UserConfigFile = serde_json::from_str(json).unwrap();
         let profile = config.profile.unwrap();
         assert_eq!(profile.name.as_deref(), Some("Zhang San"));
-        assert_eq!(profile.extra.get("customField").and_then(|v| v.as_str()), Some("custom value"));
+        assert_eq!(
+            profile.extra.get("customField").and_then(|v| v.as_str()),
+            Some("custom value")
+        );
     }
 
     #[test]
@@ -826,7 +743,11 @@ mod tests {
         assert_eq!(result.workspace_dir.as_deref(), Some("~/cwd-workspace"));
         assert_eq!(result.log_level.as_deref(), Some("debug"));
         assert_eq!(
-            result.aindex.as_ref().and_then(|s| s.skills.as_ref()).and_then(|p| p.src.as_deref()),
+            result
+                .aindex
+                .as_ref()
+                .and_then(|s| s.skills.as_ref())
+                .and_then(|p| p.src.as_deref()),
             Some("global/skills")
         );
     }
@@ -860,8 +781,14 @@ mod tests {
 
         let result = merge_configs(&[cwd_config, global_config]);
         let aindex = result.aindex.unwrap();
-        assert_eq!(aindex.skills.as_ref().unwrap().src.as_deref(), Some("custom/skills"));
-        assert_eq!(aindex.commands.as_ref().unwrap().src.as_deref(), Some("src/commands"));
+        assert_eq!(
+            aindex.skills.as_ref().unwrap().src.as_deref(),
+            Some("custom/skills")
+        );
+        assert_eq!(
+            aindex.commands.as_ref().unwrap().src.as_deref(),
+            Some("src/commands")
+        );
     }
 
     #[test]
@@ -870,44 +797,7 @@ mod tests {
         let cwd = PathBuf::from("/workspace/project");
         let paths = loader.get_search_paths(&cwd);
 
-        assert!(paths.contains(&cwd.join(DEFAULT_CONFIG_FILE_NAME)));
-        assert!(paths.contains(&get_global_config_path()));
-    }
-
-    #[test]
-    fn test_config_loader_search_paths_no_cwd() {
-        let loader = ConfigLoader::new(ConfigLoaderOptions {
-            search_cwd: Some(false),
-            ..Default::default()
-        });
-        let cwd = PathBuf::from("/workspace/project");
-        let paths = loader.get_search_paths(&cwd);
-
-        assert!(!paths.contains(&cwd.join(DEFAULT_CONFIG_FILE_NAME)));
-    }
-
-    #[test]
-    fn test_config_loader_search_paths_no_global() {
-        let loader = ConfigLoader::new(ConfigLoaderOptions {
-            search_global: Some(false),
-            ..Default::default()
-        });
-        let cwd = PathBuf::from("/workspace/project");
-        let paths = loader.get_search_paths(&cwd);
-
-        assert!(!paths.contains(&get_global_config_path()));
-    }
-
-    #[test]
-    fn test_config_loader_custom_search_paths() {
-        let loader = ConfigLoader::new(ConfigLoaderOptions {
-            search_paths: vec!["/custom/config/path".into()],
-            ..Default::default()
-        });
-        let cwd = PathBuf::from("/workspace/project");
-        let paths = loader.get_search_paths(&cwd);
-
-        assert_eq!(paths[0], PathBuf::from("/custom/config/path"));
+        assert_eq!(paths, vec![get_global_config_path()]);
     }
 
     #[test]
@@ -920,8 +810,14 @@ mod tests {
 
     #[test]
     fn test_dir_pair_merge() {
-        let a = Some(DirPair { src: Some("a-src".into()), dist: Some("a-dist".into()) });
-        let b = Some(DirPair { src: Some("b-src".into()), dist: None });
+        let a = Some(DirPair {
+            src: Some("a-src".into()),
+            dist: Some("a-dist".into()),
+        });
+        let b = Some(DirPair {
+            src: Some("b-src".into()),
+            dist: None,
+        });
         let merged = DirPair::merge(&a, &b).unwrap();
         assert_eq!(merged.src.as_deref(), Some("b-src"));
         assert_eq!(merged.dist.as_deref(), Some("a-dist"));
@@ -949,7 +845,8 @@ mod tests {
         }
 
         let logger = create_logger("ConfigLoaderTest", None);
-        let result = preserve_invalid_config_and_exit(&config_path, &logger, vec!["Invalid JSON".into()]);
+        let result =
+            preserve_invalid_config_and_exit(&config_path, &logger, vec!["Invalid JSON".into()]);
 
         assert!(!result.valid);
         assert!(result.exists);
@@ -964,15 +861,14 @@ mod tests {
     }
 }
 
-
 // ===========================================================================
 // NAPI binding layer (only compiled with --features napi)
 // ===========================================================================
 
 #[cfg(feature = "napi")]
 mod napi_binding {
-    use napi_derive::napi;
     use super::*;
+    use napi_derive::napi;
 
     /// Load and merge user configuration from the given cwd directory.
     /// Returns the merged config as a JSON string.
@@ -980,8 +876,7 @@ mod napi_binding {
     pub fn load_user_config(cwd: String) -> napi::Result<String> {
         let path = std::path::Path::new(&cwd);
         let result = ConfigLoader::with_defaults().load(path);
-        serde_json::to_string(&result.config)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+        serde_json::to_string(&result.config).map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
     /// Get the global config file path (~/.aindex/.tnmsc.json).
@@ -998,8 +893,7 @@ mod napi_binding {
         let over: UserConfigFile = serde_json::from_str(&over_json)
             .map_err(|e| napi::Error::from_reason(format!("over: {e}")))?;
         let merged = merge_configs_pair(&base, &over);
-        serde_json::to_string(&merged)
-            .map_err(|e| napi::Error::from_reason(e.to_string()))
+        serde_json::to_string(&merged).map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
     /// Load config from a specific file path. Returns JSON string or null if not found.

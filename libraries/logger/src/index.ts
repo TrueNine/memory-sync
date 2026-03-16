@@ -2,28 +2,50 @@ import {createRequire} from 'node:module'
 import process from 'node:process'
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'fatal' | 'silent'
+export type DiagnosticLines = readonly [string, ...string[]]
+export type LoggerDiagnosticLevel = Extract<LogLevel, 'warn' | 'error' | 'fatal'>
 type LoggerMethod = (message: string | object, ...meta: unknown[]) => void
+type LoggerDiagnosticMethod = (diagnostic: LoggerDiagnosticInput) => void
+
+export interface LoggerDiagnosticInput {
+  readonly code: string
+  readonly title: string
+  readonly rootCause: DiagnosticLines
+  readonly exactFix?: DiagnosticLines | undefined
+  readonly possibleFixes?: readonly DiagnosticLines[] | undefined
+  readonly details?: Record<string, unknown> | undefined
+}
+
+export interface LoggerDiagnosticRecord extends LoggerDiagnosticInput {
+  readonly level: LoggerDiagnosticLevel
+  readonly namespace: string
+  readonly copyText: DiagnosticLines
+}
 
 export interface ILogger {
-  error: LoggerMethod
-  warn: LoggerMethod
+  error: LoggerDiagnosticMethod
+  warn: LoggerDiagnosticMethod
   info: LoggerMethod
   debug: LoggerMethod
   trace: LoggerMethod
-  fatal: LoggerMethod
+  fatal: LoggerDiagnosticMethod
 }
 
 type ActiveLogLevel = Exclude<LogLevel, 'silent'>
+type PlainLogLevel = Extract<ActiveLogLevel, 'info' | 'debug' | 'trace'>
 interface PlatformBinding {readonly local: string, readonly suffix: string}
 
 interface NapiLoggerInstance {
   log: (level: ActiveLogLevel, message: string, meta?: string) => void
+  logDiagnostic: (level: LoggerDiagnosticLevel, diagnosticJson: string) => void
 }
 
 interface NapiLoggerModule {
   createLogger: (namespace: string, level?: string) => NapiLoggerInstance
   setGlobalLogLevel: (level: string) => void
   getGlobalLogLevel: () => string | undefined
+  clearBufferedDiagnostics: () => void
+  drainBufferedDiagnostics: () => string
 }
 
 const PLATFORM_BINDINGS: Record<string, PlatformBinding> = {
@@ -34,7 +56,8 @@ const PLATFORM_BINDINGS: Record<string, PlatformBinding> = {
   'darwin-x64': {local: 'napi-logger.darwin-x64', suffix: 'darwin-x64'}
 }
 
-const ACTIVE_LOG_LEVELS: readonly ActiveLogLevel[] = ['error', 'warn', 'info', 'debug', 'trace', 'fatal']
+const DIAGNOSTIC_LOG_LEVELS: readonly LoggerDiagnosticLevel[] = ['error', 'warn', 'fatal']
+const PLAIN_LOG_LEVELS: readonly PlainLogLevel[] = ['info', 'debug', 'trace']
 
 let napiBinding: NapiLoggerModule | undefined,
   napiBindingError: Error | undefined
@@ -46,6 +69,8 @@ function isNapiLoggerModule(value: unknown): value is NapiLoggerModule {
   return typeof candidate.createLogger === 'function'
     && typeof candidate.setGlobalLogLevel === 'function'
     && typeof candidate.getGlobalLogLevel === 'function'
+    && typeof candidate.clearBufferedDiagnostics === 'function'
+    && typeof candidate.drainBufferedDiagnostics === 'function'
 }
 
 function getPlatformBinding(): PlatformBinding {
@@ -150,6 +175,16 @@ function serializePayload(value: unknown): string {
   return JSON.stringify(value, createJsonReplacer()) ?? 'null'
 }
 
+function parseBufferedDiagnostics(serialized: string): LoggerDiagnosticRecord[] {
+  try {
+    const parsed = JSON.parse(serialized) as unknown
+    return Array.isArray(parsed) ? parsed as LoggerDiagnosticRecord[] : []
+  }
+  catch {
+    return []
+  }
+}
+
 function normalizeLogArguments(message: string | object, meta: unknown[]): {message: string, metaJson: string | undefined} {
   if (typeof message !== 'string') {
     return {
@@ -168,26 +203,35 @@ function normalizeLogArguments(message: string | object, meta: unknown[]): {mess
   }
 }
 
-function createLogMethod(instance: NapiLoggerInstance, level: ActiveLogLevel): LoggerMethod {
+function createLogMethod(instance: NapiLoggerInstance, level: PlainLogLevel): LoggerMethod {
   return (message: string | object, ...meta: unknown[]): void => {
     const {message: normalizedMessage, metaJson} = normalizeLogArguments(message, meta)
     instance.log(level, normalizedMessage, metaJson)
   }
 }
 
+function createDiagnosticMethod(instance: NapiLoggerInstance, level: LoggerDiagnosticLevel): LoggerDiagnosticMethod {
+  return (diagnostic: LoggerDiagnosticInput) => instance.logDiagnostic(level, serializePayload(diagnostic))
+}
+
 function createNapiAdapter(instance: NapiLoggerInstance): ILogger {
-  const methods = ACTIVE_LOG_LEVELS.reduce((logger, level) => {
+  const messageMethods = PLAIN_LOG_LEVELS.reduce((logger, level) => {
     logger[level] = createLogMethod(instance, level)
     return logger
-  }, {} as Record<ActiveLogLevel, LoggerMethod>)
+  }, {} as Record<PlainLogLevel, LoggerMethod>)
+
+  const diagnosticMethods = DIAGNOSTIC_LOG_LEVELS.reduce((logger, level) => {
+    logger[level] = createDiagnosticMethod(instance, level)
+    return logger
+  }, {} as Record<LoggerDiagnosticLevel, LoggerDiagnosticMethod>)
 
   return {
-    error: methods.error,
-    warn: methods.warn,
-    info: methods.info,
-    debug: methods.debug,
-    trace: methods.trace,
-    fatal: methods.fatal
+    error: diagnosticMethods.error,
+    warn: diagnosticMethods.warn,
+    info: messageMethods.info,
+    debug: messageMethods.debug,
+    trace: messageMethods.trace,
+    fatal: diagnosticMethods.fatal
   }
 }
 
@@ -203,6 +247,14 @@ export function setGlobalLogLevel(level: LogLevel): void {
  */
 export function getGlobalLogLevel(): LogLevel | undefined {
   return getNapiBinding().getGlobalLogLevel() as LogLevel | undefined
+}
+
+export function clearBufferedDiagnostics(): void {
+  getNapiBinding().clearBufferedDiagnostics()
+}
+
+export function drainBufferedDiagnostics(): LoggerDiagnosticRecord[] {
+  return parseBufferedDiagnostics(getNapiBinding().drainBufferedDiagnostics())
 }
 
 /**

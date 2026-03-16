@@ -38,8 +38,8 @@ export function evaluateExpression(
   if (trimmed === '') return ''
 
   if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) {
-    return evaluateSimpleReference(trimmed, scope, diagnosticContext)
-  } // Matches: identifier, identifier.property, identifier.property.nested // Handle simple variable references directly for better error messages
+    return evaluateSimpleReference(trimmed, scope, diagnosticContext) // Matches: identifier, identifier.property, identifier.property.nested // Handle simple variable references directly for better error messages
+  }
 
   return evaluateComplexExpression(trimmed, scope, diagnosticContext)
 }
@@ -114,18 +114,26 @@ function evaluateComplexExpression(
     const message = error instanceof Error ? error.message : String(error)
     if (message.includes('is not defined')) { // Check if the error is about undefined variable
       const match = /(\w+) is not defined/.exec(message)
-      if (match?.[1] != null) throw new UndefinedNamespaceError(match[1], expression, {
-        ...diagnosticContext,
-        cause: message
-      })
+      if (match?.[1] != null) {
+        throw new UndefinedNamespaceError(match[1], expression, {
+          ...diagnosticContext,
+          cause: message
+        })
+      }
     }
+
+    const fileLines = diagnosticContext?.filePath != null
+      ? [`file: ${diagnosticContext.filePath}`]
+      : []
+    const locationLines = diagnosticContext?.position?.start != null
+      ? [`location: ${diagnosticContext.position.start.line}:${diagnosticContext.position.start.column}`]
+      : []
+
     throw new Error(
       [
         `Failed to evaluate expression: "${expression}"`,
-        ...(diagnosticContext?.filePath != null ? [`file: ${diagnosticContext.filePath}`] : []),
-        ...(diagnosticContext?.position?.start != null
-          ? [`location: ${diagnosticContext.position.start.line}:${diagnosticContext.position.start.column}`]
-          : []),
+        ...fileLines,
+        ...locationLines,
         `Cause: ${message}`
       ].join('\n')
     )

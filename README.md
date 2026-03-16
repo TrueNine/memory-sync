@@ -45,7 +45,7 @@ More platforms being added continuously.
 
 - **CLI** (`@truenine/memory-sync`): core sync engine—reads config, writes target tool files, generates copy-ready prompts.
 - **Core** (Rust): file I/O, directory traversal, format conversion.
-- **Config DSL** (YAML / JSON): place a config file at the project root to describe sync rules and target tools.
+- **Config DSL** (JSON): reads only the global config file `~/.aindex/.tnmsc.json`, which defines sync rules and target tools.
 - **GUI** (Tauri): desktop app that calls the CLI as its backend, providing a visual interface.
 ## FAQ
 

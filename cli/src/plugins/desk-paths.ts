@@ -1,8 +1,10 @@
 import type {Buffer} from 'node:buffer'
+import type {LoggerDiagnosticInput} from './plugin-core'
 import * as fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
+import {buildFileOperationDiagnostic} from '@/diagnostics'
 
 /**
  * Represents a fixed set of platform directory identifiers.
@@ -287,7 +289,7 @@ export function deleteDirectories(dirs: readonly string[]): DeletionResult {
  */
 export interface WriteLogger {
   readonly trace: (data: object) => void
-  readonly error: (data: object) => void
+  readonly error: (diagnostic: LoggerDiagnosticInput) => void
 }
 
 /**
@@ -336,7 +338,18 @@ export function writeFileSafe(options: SafeWriteOptions): SafeWriteResult {
   }
   catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error)
-    logger.error({action: 'write', type, path: fullPath, error: errMsg})
+    logger.error(buildFileOperationDiagnostic({
+      code: 'OUTPUT_FILE_WRITE_FAILED',
+      title: `Failed to write ${type} output`,
+      operation: 'write',
+      targetKind: `${type} output file`,
+      path: fullPath,
+      error: errMsg,
+      details: {
+        relativePath,
+        type
+      }
+    }))
     return {path: relativePath, success: false, error: error as Error}
   }
 }

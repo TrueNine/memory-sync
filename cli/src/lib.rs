@@ -6,6 +6,7 @@
 pub mod bridge;
 pub mod commands;
 pub mod core;
+pub(crate) mod diagnostic_helpers;
 
 use std::path::Path;
 
@@ -51,12 +52,12 @@ pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-/// Load and merge configuration from the given working directory.
+/// Load and merge configuration from the canonical global config path.
 pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliError> {
     Ok(core::config::ConfigLoader::with_defaults().load(cwd))
 }
 
-/// Return the merged configuration as a pretty-printed JSON string.
+/// Return the merged global configuration as a pretty-printed JSON string.
 pub fn config_show(cwd: &Path) -> Result<String, CliError> {
     let result = core::config::ConfigLoader::with_defaults().load(cwd);
     serde_json::to_string_pretty(&result.config).map_err(CliError::from)
@@ -454,7 +455,8 @@ mod property_tests_cwd {
             Err(CliError::NodeNotFound) => { /* node not installed — acceptable */ }
             Err(CliError::PluginRuntimeNotFound(_)) => { /* runtime absent — acceptable */ }
             Err(CliError::IoError(_)) => { /* OS rejected the bad cwd — expected */ }
-            Err(CliError::NodeProcessFailed { .. }) => { /* process ran but failed — acceptable */ }
+            Err(CliError::NodeProcessFailed { .. }) => { /* process ran but failed — acceptable */
+            }
             Err(other) => {
                 // ConfigError / SerializationError are unexpected here but not a cwd bug.
                 // We allow them rather than over-constraining the test.
@@ -484,8 +486,7 @@ mod cargo_config_tests {
     #[test]
     fn cli_cargo_toml_has_lib_and_bin_targets() {
         let cli_toml = workspace_root().join("cli").join("Cargo.toml");
-        let content = fs::read_to_string(&cli_toml)
-            .expect("cli/Cargo.toml should be readable");
+        let content = fs::read_to_string(&cli_toml).expect("cli/Cargo.toml should be readable");
 
         assert!(
             content.contains("[lib]"),
@@ -501,8 +502,7 @@ mod cargo_config_tests {
     #[test]
     fn cli_cargo_toml_lib_and_bin_crate_name_is_tnmsc() {
         let cli_toml = workspace_root().join("cli").join("Cargo.toml");
-        let content = fs::read_to_string(&cli_toml)
-            .expect("cli/Cargo.toml should be readable");
+        let content = fs::read_to_string(&cli_toml).expect("cli/Cargo.toml should be readable");
 
         let count = content.matches(r#"name = "tnmsc""#).count();
         assert!(
@@ -519,8 +519,8 @@ mod cargo_config_tests {
             .join("gui")
             .join("src-tauri")
             .join("Cargo.toml");
-        let content = fs::read_to_string(&gui_toml)
-            .expect("gui/src-tauri/Cargo.toml should be readable");
+        let content =
+            fs::read_to_string(&gui_toml).expect("gui/src-tauri/Cargo.toml should be readable");
 
         assert!(
             content.contains("tnmsc = { workspace = true }"),
@@ -532,8 +532,7 @@ mod cargo_config_tests {
     #[test]
     fn root_cargo_toml_has_tnmsc_workspace_path_dependency() {
         let root_toml = workspace_root().join("Cargo.toml");
-        let content = fs::read_to_string(&root_toml)
-            .expect("root Cargo.toml should be readable");
+        let content = fs::read_to_string(&root_toml).expect("root Cargo.toml should be readable");
 
         assert!(
             content.contains(r#"tnmsc = { path = "cli" }"#),

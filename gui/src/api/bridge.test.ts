@@ -120,7 +120,6 @@ describe('loadConfig', () => {
     },
     sources: [
       { path: '/home/user/.aindex/.tnmsc.json', layer: 'global', config: { logLevel: 'info' } },
-      { path: '/project/.tnmsc.json', layer: 'cwd', config: { plugins: ['plugin-a'] } },
     ],
   }
 

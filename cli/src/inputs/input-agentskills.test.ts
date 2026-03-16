@@ -12,8 +12,9 @@ function createMockLogger(warnings: string[] = [], errors: string[] = []): ILogg
     trace: () => {},
     debug: () => {},
     info: () => {},
-    warn: (message: string) => warnings.push(message),
-    error: (message: string) => errors.push(message)
+    warn: diagnostic => warnings.push(diagnostic.code),
+    error: diagnostic => errors.push(diagnostic.code),
+    fatal: diagnostic => errors.push(diagnostic.code)
   } as ILogger
 }
 

@@ -16,11 +16,10 @@
 /// - 8.3 — Right-click context menu with execute, show, quit
 /// - 8.4 — "执行同步" triggers pipeline execution
 /// - 8.6 — "退出" fully exits the application
-
 use tauri::{
+    Manager,
     menu::{Menu, MenuItem},
     tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
-    Manager,
 };
 
 /// Create and configure the system tray icon with its context menu.

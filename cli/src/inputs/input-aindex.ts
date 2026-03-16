@@ -1,6 +1,11 @@
 import type {InputCollectedContext, InputPluginContext, Project, ProjectConfig, Workspace} from '../plugins/plugin-core'
 
 import {parse as parseJsonc} from 'jsonc-parser'
+import {
+  buildConfigDiagnostic,
+  buildFileOperationDiagnostic,
+  diagnosticLines
+} from '@/diagnostics'
 import {AbstractInputPlugin, FilePathKind} from '../plugins/plugin-core'
 
 export class AindexInputPlugin extends AbstractInputPlugin {
@@ -23,12 +28,40 @@ export class AindexInputPlugin extends AbstractInputPlugin {
       const errors: import('jsonc-parser').ParseError[] = []
       const result = parseJsonc(raw, errors) as ProjectConfig
       if (errors.length > 0) {
-        logger.warn(`failed to parse project.jsonc for ${projectName}`, {path: configPath, errors})
+        logger.warn(buildConfigDiagnostic({
+          code: 'AINDEX_PROJECT_JSONC_INVALID',
+          title: `Failed to parse project.jsonc for ${projectName}`,
+          reason: diagnosticLines(
+            `tnmsc could not parse the project.jsonc file for "${projectName}".`,
+            `The file contains ${errors.length} JSONC parser issue(s).`
+          ),
+          configPath,
+          exactFix: diagnosticLines('Fix the JSONC syntax in project.jsonc and rerun tnmsc.'),
+          details: {
+            projectName,
+            errors
+          }
+        }))
         return void 0
       }
       return result
     } catch (e) {
-      logger.warn(`failed to parse project.jsonc for ${projectName}`, {path: configPath, error: e})
+      logger.warn(buildConfigDiagnostic({
+        code: 'AINDEX_PROJECT_JSONC_READ_FAILED',
+        title: `Failed to load project.jsonc for ${projectName}`,
+        reason: diagnosticLines(
+          `tnmsc could not read or parse the project.jsonc file for "${projectName}".`,
+          `Underlying error: ${e instanceof Error ? e.message : String(e)}`
+        ),
+        configPath,
+        exactFix: diagnosticLines(
+          'Ensure project.jsonc exists, is readable, and contains valid JSONC.'
+        ),
+        details: {
+          projectName,
+          errorMessage: e instanceof Error ? e.message : String(e)
+        }
+      }))
       return void 0
     }
   }
@@ -67,7 +100,14 @@ export class AindexInputPlugin extends AbstractInputPlugin {
         }
       }
       catch (e) {
-        logger.error('failed to scan aindex projects', {path: aindexProjectsDir, error: e})
+        logger.error(buildFileOperationDiagnostic({
+          code: 'AINDEX_PROJECT_DIRECTORY_SCAN_FAILED',
+          title: 'Failed to scan aindex projects directory',
+          operation: 'scan',
+          targetKind: 'aindex projects directory',
+          path: aindexProjectsDir,
+          error: e
+        }))
       }
     }
 
@@ -96,7 +136,14 @@ export class AindexInputPlugin extends AbstractInputPlugin {
         }
       }
       catch (e) {
-        logger.error('failed to scan workspace directory', {path: workspaceDir, error: e})
+        logger.error(buildFileOperationDiagnostic({
+          code: 'WORKSPACE_DIRECTORY_SCAN_FAILED',
+          title: 'Failed to scan workspace directory',
+          operation: 'scan',
+          targetKind: 'workspace directory',
+          path: workspaceDir,
+          error: e
+        }))
       }
     }
 

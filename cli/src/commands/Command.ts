@@ -1,4 +1,4 @@
-import type {ILogger, OutputCleanContext, OutputCollectedContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from '../plugins/plugin-core'
+import type {ILogger, LoggerDiagnosticRecord, OutputCleanContext, OutputCollectedContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from '../plugins/plugin-core'
 
 /**
  * Command execution context
@@ -45,8 +45,9 @@ export interface JsonCommandResult {
   readonly filesAffected: number
   readonly dirsAffected: number
   readonly message?: string
-  readonly pluginResults?: readonly PluginExecutionResult[]
-  readonly errors?: readonly string[]
+  readonly pluginResults: readonly PluginExecutionResult[]
+  readonly warnings: readonly LoggerDiagnosticRecord[]
+  readonly errors: readonly LoggerDiagnosticRecord[]
 }
 
 /**
@@ -63,7 +64,7 @@ export interface JsonConfigInfo {
  */
 export interface ConfigSource {
   readonly path: string
-  readonly layer: 'programmatic' | 'cwd' | 'global' | 'default'
+  readonly layer: 'programmatic' | 'global' | 'default'
   readonly config: Partial<UserConfigFile>
 }
 

@@ -5,6 +5,7 @@ import type {
   RuleScope,
   RuleYAMLFrontMatter
 } from '../plugins/plugin-core'
+import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {
   AbstractInputPlugin,
   createLocalizedPromptReader,
@@ -70,7 +71,19 @@ export class RuleInputPlugin extends AbstractInputPlugin {
       }
     )
 
-    for (const error of errors) logger.warn('Failed to read rule', {path: error.path, phase: error.phase, error: error.error})
+    for (const error of errors) {
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'RULE_PROMPT_READ_FAILED',
+        title: 'Failed to read rule prompt',
+        operation: error.phase === 'scan' ? 'scan' : 'read',
+        targetKind: 'rule prompt',
+        path: error.path,
+        error: error.error,
+        details: {
+          phase: error.phase
+        }
+      }))
+    }
 
     return {
       rules: localizedRulesFromSrc

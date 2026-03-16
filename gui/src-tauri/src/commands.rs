@@ -4,7 +4,6 @@
 /// Bridge commands (execute, dry-run, clean, plugins) still spawn a Node.js subprocess
 /// internally via `tnmsc::run_bridge_command`, but the GUI no longer searches for or
 /// invokes the CLI binary as a sidecar.
-
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 
@@ -96,10 +95,8 @@ pub fn execute_pipeline(cwd: String, dry_run: bool) -> Result<PipelineResult, St
 /// Load the merged configuration via the tnmsc library API.
 #[tauri::command]
 pub fn load_config(cwd: String) -> Result<serde_json::Value, String> {
-    let result = tnmsc::load_config(Path::new(&cwd))
-        .map_err(|e| e.to_string())?;
-    serde_json::to_value(&result.config)
-        .map_err(|e| e.to_string())
+    let result = tnmsc::load_config(Path::new(&cwd)).map_err(|e| e.to_string())?;
+    serde_json::to_value(&result.config).map_err(|e| e.to_string())
 }
 
 /// List all registered plugins via the tnmsc bridge command.
@@ -158,48 +155,42 @@ fn parse_log_lines(raw: &str) -> Vec<LogEntry> {
             let level = meta.get(1)?.as_str()?.to_string();
             let logger = meta.get(2)?.as_str()?.to_string();
             let payload = obj.get("_").cloned().unwrap_or(serde_json::Value::Null);
-            Some(LogEntry { timestamp, level, logger, payload })
+            Some(LogEntry {
+                timestamp,
+                level,
+                logger,
+                payload,
+            })
         })
         .collect()
 }
 
-/// Resolve the config file path for a given scope.
-/// - "cwd" → `{cwd}/.tnmsc.json`
-/// - "global" → `~/.aindex/.tnmsc.json`
-fn resolve_config_path(scope: &str, cwd: &str) -> Result<std::path::PathBuf, String> {
-    match scope {
-        "cwd" => Ok(std::path::PathBuf::from(cwd).join(".tnmsc.json")),
-        "global" => {
-            let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
-            Ok(home.join(".aindex").join(".tnmsc.json"))
-        }
-        _ => Err(format!("Unknown config scope: {scope}")),
-    }
+/// Resolve the canonical global config file path.
+fn resolve_global_config_path() -> Result<std::path::PathBuf, String> {
+    let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
+    Ok(home.join(".aindex").join(".tnmsc.json"))
 }
 
 /// Read a config file's raw content. Returns empty string if file doesn't exist.
 #[tauri::command]
-pub fn read_config_file(scope: String, cwd: String) -> Result<String, String> {
-    let path = resolve_config_path(&scope, &cwd)?;
+pub fn read_config_file() -> Result<String, String> {
+    let path = resolve_global_config_path()?;
     if !path.exists() {
         return Ok(String::new());
     }
-    std::fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read {}: {e}", path.display()))
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {e}", path.display()))
 }
 
-/// Write content to a config file. Creates parent directories if needed.
+/// Write content to the canonical global config file. Creates parent directories if needed.
 #[tauri::command]
-pub fn write_config_file(scope: String, cwd: String, content: String) -> Result<(), String> {
-    let path = resolve_config_path(&scope, &cwd)?;
+pub fn write_config_file(content: String) -> Result<(), String> {
+    let path = resolve_global_config_path()?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create directory {}: {e}", parent.display()))?;
     }
-    std::fs::write(&path, &content)
-        .map_err(|e| format!("Failed to write {}: {e}", path.display()))
+    std::fs::write(&path, &content).map_err(|e| format!("Failed to write {}: {e}", path.display()))
 }
-
 
 /// Open the global config directory in the system file manager.
 #[tauri::command]
@@ -241,7 +232,6 @@ pub struct AindexFileEntry {
     pub file_type: String,
 }
 
-
 /// Parsed global config with resolved paths.
 struct ResolvedConfig {
     aindex_root: PathBuf,
@@ -259,11 +249,10 @@ fn resolve_category_paths(
 ) -> Result<CategoryPaths, String> {
     let aindex = config.aindex.as_ref();
 
-    let resolve_pair = |
-        pair: Option<&tnmsc::core::config::DirPair>,
-        default_source: &str,
-        default_translated: &str,
-    | -> CategoryPaths {
+    let resolve_pair = |pair: Option<&tnmsc::core::config::DirPair>,
+                        default_source: &str,
+                        default_translated: &str|
+     -> CategoryPaths {
         CategoryPaths {
             source_rel: pair
                 .and_then(|value| value.src.as_deref())
@@ -303,8 +292,8 @@ fn resolve_category_paths(
 
 /// Read and resolve the merged tnmsc config for the current working directory.
 fn load_resolved_config(cwd: &str) -> Result<ResolvedConfig, String> {
-    let result = tnmsc::load_config(Path::new(cwd))
-        .map_err(|e| format!("Failed to load config: {e}"))?;
+    let result =
+        tnmsc::load_config(Path::new(cwd)).map_err(|e| format!("Failed to load config: {e}"))?;
     let config = result.config;
     let workspace_dir = config.workspace_dir.as_deref().unwrap_or(".");
     let workspace_dir = tnmsc::core::config::resolve_tilde(workspace_dir);
@@ -319,7 +308,6 @@ fn load_resolved_config(cwd: &str) -> Result<ResolvedConfig, String> {
         config,
     })
 }
-
 
 /// Read the merged config and resolve the aindex root path.
 fn resolve_aindex_root(cwd: &str) -> Result<std::path::PathBuf, String> {
@@ -398,8 +386,7 @@ pub fn read_aindex_file(cwd: String, rel_path: String) -> Result<String, String>
     if !path.exists() {
         return Ok(String::new());
     }
-    std::fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read {}: {e}", path.display()))
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {e}", path.display()))
 }
 
 /// Write content to a file relative to the aindex directory (resolved from config).
@@ -411,15 +398,17 @@ pub fn write_aindex_file(cwd: String, rel_path: String, content: String) -> Resu
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create dir {}: {e}", parent.display()))?;
     }
-    std::fs::write(&path, &content)
-        .map_err(|e| format!("Failed to write {}: {e}", path.display()))
+    std::fs::write(&path, &content).map_err(|e| format!("Failed to write {}: {e}", path.display()))
 }
 
 /// List source prompt files for a given category (skills, commands, agents).
 /// Reads the corresponding `aindex` config field to resolve source and output directories.
 #[tauri::command]
 pub fn list_category_files(cwd: String, category: String) -> Result<Vec<AindexFileEntry>, String> {
-    let ResolvedConfig { aindex_root: base, config } = load_resolved_config(&cwd)?;
+    let ResolvedConfig {
+        aindex_root: base,
+        config,
+    } = load_resolved_config(&cwd)?;
     let paths = resolve_category_paths(&config, &category)?;
     let dist_dir = base.join(&paths.translated_rel);
     let src_dir = base.join(&paths.source_rel);
@@ -441,7 +430,7 @@ pub fn list_category_files(cwd: String, category: String) -> Result<Vec<AindexFi
                     &dist_dir,
                     &mut entries,
                 )
-                    .map_err(|e| format!("Failed to scan {}: {e}", category))?;
+                .map_err(|e| format!("Failed to scan {}: {e}", category))?;
             }
         }
     }
@@ -469,14 +458,18 @@ fn collect_category_source_mdx(
             if has_source_mdx_extension(name) {
                 // Source + translated pair
                 let rel_from_src = path.strip_prefix(src_root).unwrap_or(&path);
-                let rel_str = rel_from_src.to_string_lossy().replace('\\', "/")
+                let rel_str = rel_from_src
+                    .to_string_lossy()
+                    .replace('\\', "/")
                     .to_string();
-                let rel_str = replace_source_mdx_extension(&rel_str)
-                    .unwrap_or(rel_str);
+                let rel_str = replace_source_mdx_extension(&rel_str).unwrap_or(rel_str);
                 let translated_abs = dist_dir.join(&rel_str);
-                let translated_path = translated_abs.strip_prefix(base)
+                let translated_path = translated_abs
+                    .strip_prefix(base)
                     .map(|p| p.to_string_lossy().replace('\\', "/"))
-                    .unwrap_or_else(|_| format!("{}/{}", translated_root_rel.trim_end_matches('/'), rel_str));
+                    .unwrap_or_else(|_| {
+                        format!("{}/{}", translated_root_rel.trim_end_matches('/'), rel_str)
+                    });
 
                 out.push(AindexFileEntry {
                     source_path,
@@ -549,7 +542,17 @@ pub struct ExtensionCount {
 }
 
 /// Recursively count files and accumulate chars/lines.
-fn stat_dir(dir: &std::path::Path) -> (u32, u64, u64, u32, u32, u32, std::collections::HashMap<String, u32>) {
+fn stat_dir(
+    dir: &std::path::Path,
+) -> (
+    u32,
+    u64,
+    u64,
+    u32,
+    u32,
+    u32,
+    std::collections::HashMap<String, u32>,
+) {
     let mut file_count = 0u32;
     let mut total_chars = 0u64;
     let mut total_lines = 0u64;
@@ -590,13 +593,24 @@ fn stat_dir(dir: &std::path::Path) -> (u32, u64, u64, u32, u32, u32, std::collec
             }
         }
     }
-    (file_count, total_chars, total_lines, source_mdx, resource, translated, ext_map)
+    (
+        file_count,
+        total_chars,
+        total_lines,
+        source_mdx,
+        resource,
+        translated,
+        ext_map,
+    )
 }
 
 /// Gather comprehensive statistics about the aindex project.
 #[tauri::command]
 pub fn get_aindex_stats(cwd: String) -> Result<AindexStats, String> {
-    let ResolvedConfig { aindex_root: base, config } = load_resolved_config(&cwd)?;
+    let ResolvedConfig {
+        aindex_root: base,
+        config,
+    } = load_resolved_config(&cwd)?;
     let mut stats = AindexStats::default();
     let mut all_ext: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
 
@@ -607,7 +621,11 @@ pub fn get_aindex_stats(cwd: String) -> Result<AindexStats, String> {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
-                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+                    let name = path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string();
                     let (fc, tc, tl, cm, rc, _tr, em) = stat_dir(&path);
                     stats.projects.push(ProjectStats {
                         name,
@@ -669,10 +687,15 @@ pub fn get_aindex_stats(cwd: String) -> Result<AindexStats, String> {
     // Build extension distribution
     let mut ext_vec: Vec<_> = all_ext.into_iter().collect();
     ext_vec.sort_by(|a, b| b.1.cmp(&a.1));
-    stats.extensions = ext_vec.into_iter().map(|(ext, count)| ExtensionCount { ext, count }).collect();
+    stats.extensions = ext_vec
+        .into_iter()
+        .map(|(ext, count)| ExtensionCount { ext, count })
+        .collect();
 
     // Sort projects by file count descending
-    stats.projects.sort_by(|a, b| b.file_count.cmp(&a.file_count));
+    stats
+        .projects
+        .sort_by(|a, b| b.file_count.cmp(&a.file_count));
 
     Ok(stats)
 }

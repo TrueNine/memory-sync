@@ -1,55 +1,35 @@
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import {afterEach, describe, expect, it, vi} from 'vitest'
-import {createLogger} from './plugins/plugin-core'
+import {afterEach, describe, expect, it} from 'vitest'
+import {ConfigLoader, getGlobalConfigPath} from './ConfigLoader'
 
-const mockedGuardModule = vi.hoisted(() => ({
-  protectedViolation: {
-    targetPath: '',
-    protectedPath: '',
-    protectionMode: 'direct' as const,
-    source: 'test',
-    reason: 'test'
-  },
-  getProtectedPathViolationMock: vi.fn(),
-  logProtectedDeletionGuardErrorMock: vi.fn()
-}))
+describe('configLoader', () => {
+  const originalHome = process.env.HOME
+  const originalUserProfile = process.env.USERPROFILE
+  const originalHomeDrive = process.env.HOMEDRIVE
+  const originalHomePath = process.env.HOMEPATH
 
-mockedGuardModule.getProtectedPathViolationMock.mockImplementation(() => mockedGuardModule.protectedViolation)
-
-vi.mock('./ProtectedDeletionGuard', async () => {
-  const actual = await vi.importActual<typeof import('./ProtectedDeletionGuard')>('./ProtectedDeletionGuard')
-  return {
-    ...actual,
-    getProtectedPathViolation: mockedGuardModule.getProtectedPathViolationMock,
-    logProtectedDeletionGuardError: mockedGuardModule.logProtectedDeletionGuardErrorMock
-  }
-})
-
-describe('ensureConfigLink', () => {
   afterEach(() => {
-    vi.clearAllMocks()
-    mockedGuardModule.getProtectedPathViolationMock.mockImplementation(() => mockedGuardModule.protectedViolation)
+    process.env.HOME = originalHome
+    process.env.USERPROFILE = originalUserProfile
+    process.env.HOMEDRIVE = originalHomeDrive
+    process.env.HOMEPATH = originalHomePath
   })
 
-  it('blocks deleting a protected config path during link replacement', async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-config-link-guard-'))
-    const localConfigPath = path.join(tempDir, '.tnmsc.json')
-    const globalConfigPath = path.join(tempDir, 'global-target.json')
-    const {ensureConfigLink} = await import('./ConfigLoader')
+  it('searches only the canonical global config path', () => {
+    const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-home-'))
+    process.env.HOME = tempHome
+    process.env.USERPROFILE = tempHome
+    delete process.env.HOMEDRIVE
+    delete process.env.HOMEPATH
 
     try {
-      fs.writeFileSync(localConfigPath, '{"logLevel":"info"}', 'utf8')
-      fs.writeFileSync(globalConfigPath, '{"logLevel":"warn"}', 'utf8')
-
-      expect(() => ensureConfigLink(localConfigPath, globalConfigPath, createLogger('ensureConfigLinkTest', 'silent')))
-        .toThrow('Protected deletion guard blocked config-link-replacement')
-      expect(fs.readFileSync(localConfigPath, 'utf8')).toBe('{"logLevel":"info"}')
-      expect(mockedGuardModule.logProtectedDeletionGuardErrorMock).toHaveBeenCalledOnce()
+      const loader = new ConfigLoader()
+      expect(loader.getSearchPaths(path.join(tempHome, 'workspace'))).toEqual([getGlobalConfigPath()])
     }
     finally {
-      fs.rmSync(tempDir, {recursive: true, force: true})
+      fs.rmSync(tempHome, {recursive: true, force: true})
     }
   })
 })

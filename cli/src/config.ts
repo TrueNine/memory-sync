@@ -260,9 +260,8 @@ function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): op
  *
  * Configuration priority (highest to lowest):
  * 1. Programmatic options passed to defineConfig
- * 2. CWD config file (.tnmsc.json)
- * 3. Global config file (~/.aindex/.tnmsc.json)
- * 4. Default values
+ * 2. Global config file (~/.aindex/.tnmsc.json)
+ * 3. Default values
  *
  * @param options - Plugin options or DefineConfigOptions
  */

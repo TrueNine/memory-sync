@@ -1,5 +1,6 @@
 import type {RootContent, Text} from 'mdast' // Md component handler - wrapper for conditional Markdown content // src/components/Md.ts
 import type {MdxJsxFlowElement, MdxJsxTextElement} from 'mdast-util-mdx'
+import type {EvaluateExpressionOptions} from '@/compiler/expression-eval'
 import type {ExpressionDiagnosticContext, ProcessingContext} from '@/compiler/types'
 import {evaluateExpression} from '@/compiler/expression-eval'
 
@@ -7,7 +8,7 @@ function createExpressionOptions(
   ctx: ProcessingContext,
   nodeType: string,
   node?: {position?: ExpressionDiagnosticContext['position']}
-) {
+): EvaluateExpressionOptions {
   return {
     ...ctx.filePath != null && {filePath: ctx.filePath},
     ...ctx.sourceText != null && {sourceText: ctx.sourceText},

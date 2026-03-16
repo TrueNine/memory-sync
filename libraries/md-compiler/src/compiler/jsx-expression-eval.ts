@@ -9,6 +9,7 @@ import type {
 } from 'estree-jsx'
 import type {RootContent} from 'mdast'
 import type {MdxFlowExpression, MdxJsxFlowElement, MdxTextExpression} from 'mdast-util-mdx'
+import type {EvaluateExpressionOptions} from './expression-eval'
 import type {ProcessingContext} from './types'
 import {isMdxComponent, processComponent} from './component-processor'
 import {evaluateExpression} from './expression-eval'
@@ -20,7 +21,7 @@ type JSXChild = JSXText | JSXExpressionContainer | JSXSpreadChild | JSXElement |
 function createExpressionOptions(
   ctx: ProcessingContext,
   node: MdxFlowExpression | MdxTextExpression
-) {
+): EvaluateExpressionOptions {
   return {
     ...ctx.filePath != null && {filePath: ctx.filePath},
     ...ctx.sourceText != null && {sourceText: ctx.sourceText},

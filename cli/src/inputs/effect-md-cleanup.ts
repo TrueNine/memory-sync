@@ -4,6 +4,7 @@ import type {
   InputEffectResult,
   InputPluginContext
 } from '../plugins/plugin-core'
+import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {AbstractInputPlugin} from '../plugins/plugin-core'
 
 export interface WhitespaceCleanupEffectResult extends InputEffectResult {
@@ -40,7 +41,6 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     }
 
     const hasErrors = errors.length > 0
-    if (hasErrors) logger.warn({action: 'whitespace-cleanup', errors: errors.map(e => ({path: e.path, error: e.error.message}))})
 
     return {
       success: !hasErrors,
@@ -69,7 +69,14 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     }
     catch (error) {
       errors.push({path: dir, error: error as Error})
-      logger.warn({action: 'whitespace-cleanup', message: 'Failed to read directory', path: dir, error: (error as Error).message})
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'WHITESPACE_CLEANUP_DIRECTORY_READ_FAILED',
+        title: 'Whitespace cleanup could not read a directory',
+        operation: 'read',
+        targetKind: 'cleanup directory',
+        path: dir,
+        error
+      }))
       return
     }
 
@@ -112,7 +119,14 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     }
     catch (error) {
       errors.push({path: filePath, error: error as Error})
-      logger.warn({action: 'whitespace-cleanup', message: 'Failed to process file', path: filePath, error: (error as Error).message})
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'WHITESPACE_CLEANUP_FILE_PROCESS_FAILED',
+        title: 'Whitespace cleanup could not process a markdown file',
+        operation: 'process',
+        targetKind: 'markdown file',
+        path: filePath,
+        error
+      }))
     }
   }
 

@@ -5,6 +5,7 @@ import type {
   SubAgentPrompt,
   SubAgentYAMLFrontMatter
 } from '../plugins/plugin-core'
+import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {
   AbstractInputPlugin,
   createLocalizedPromptReader,
@@ -106,7 +107,19 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       errorCount: errors.length
     })
 
-    for (const error of errors) logger.warn('Failed to read subAgent', {path: error.path, phase: error.phase, error: error.error})
+    for (const error of errors) {
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'SUBAGENT_PROMPT_READ_FAILED',
+        title: 'Failed to read sub-agent prompt',
+        operation: error.phase === 'scan' ? 'scan' : 'read',
+        targetKind: 'sub-agent prompt',
+        path: error.path,
+        error: error.error,
+        details: {
+          phase: error.phase
+        }
+      }))
+    }
 
     const flatSubAgents: SubAgentPrompt[] = []
     for (const localized of localizedSubAgents) {

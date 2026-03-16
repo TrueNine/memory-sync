@@ -1,0 +1,346 @@
+import type {
+  DiagnosticLines,
+  LoggerDiagnosticInput,
+  LoggerDiagnosticRecord
+} from './plugins/plugin-core'
+import type {ProtectedPathViolation} from './ProtectedDeletionGuard'
+
+export function diagnosticLines(firstLine: string, ...otherLines: string[]): DiagnosticLines {
+  return [firstLine, ...otherLines]
+}
+
+export function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+export function splitDiagnosticText(text: string): DiagnosticLines {
+  const lines = text
+    .split(/\r?\n/u)
+    .map(line => line.trimEnd())
+    .filter(line => line.length > 0)
+
+  if (lines.length === 0) return diagnosticLines('No diagnostic details were provided.')
+  return diagnosticLines(lines[0]!, ...lines.slice(1))
+}
+
+export function buildDiagnostic(input: LoggerDiagnosticInput): LoggerDiagnosticInput {
+  return input
+}
+
+interface DiagnosticFailure {
+  readonly path: string
+  readonly error: unknown
+  readonly details?: Record<string, unknown> | undefined
+}
+
+interface FileOperationDiagnosticOptions {
+  readonly code: string
+  readonly title: string
+  readonly operation: string
+  readonly targetKind: string
+  readonly path: string
+  readonly error: unknown
+  readonly exactFix?: DiagnosticLines | undefined
+  readonly possibleFixes?: readonly DiagnosticLines[] | undefined
+  readonly details?: Record<string, unknown> | undefined
+}
+
+export function buildFileOperationDiagnostic(options: FileOperationDiagnosticOptions): LoggerDiagnosticInput {
+  const {
+    code,
+    title,
+    operation,
+    targetKind,
+    path,
+    error,
+    exactFix,
+    possibleFixes,
+    details
+  } = options
+  const errorMessage = toErrorMessage(error)
+
+  return buildDiagnostic({
+    code,
+    title,
+    rootCause: diagnosticLines(
+      `tnmsc could not ${operation} the ${targetKind} at "${path}".`,
+      `Underlying error: ${errorMessage}`
+    ),
+    exactFix: exactFix ?? diagnosticLines(
+      `Verify that "${path}" exists, has the expected type, and is accessible to tnmsc.`
+    ),
+    possibleFixes: possibleFixes ?? [
+      diagnosticLines('Check file permissions and ownership for the target path.'),
+      diagnosticLines('Confirm that another process did not delete, move, or lock the target path.')
+    ],
+    details: {
+      operation,
+      targetKind,
+      path,
+      errorMessage,
+      ...details ?? {}
+    }
+  })
+}
+
+interface BatchFileOperationDiagnosticOptions {
+  readonly code: string
+  readonly title: string
+  readonly operation: string
+  readonly targetKind: string
+  readonly failures: readonly DiagnosticFailure[]
+  readonly exactFix?: DiagnosticLines | undefined
+  readonly possibleFixes?: readonly DiagnosticLines[] | undefined
+  readonly details?: Record<string, unknown> | undefined
+}
+
+export function buildBatchFileOperationDiagnostic(options: BatchFileOperationDiagnosticOptions): LoggerDiagnosticInput {
+  const {
+    code,
+    title,
+    operation,
+    targetKind,
+    failures,
+    exactFix,
+    possibleFixes,
+    details
+  } = options
+  const firstFailure = failures[0]
+  const firstFailureLine = firstFailure == null
+    ? 'No failing path details were captured.'
+    : `First failure: "${firstFailure.path}" -> ${toErrorMessage(firstFailure.error)}`
+
+  return buildDiagnostic({
+    code,
+    title,
+    rootCause: diagnosticLines(
+      `tnmsc encountered ${failures.length} failed ${operation} operation(s) while handling ${targetKind}.`,
+      firstFailureLine
+    ),
+    exactFix: exactFix ?? diagnosticLines(
+      `Inspect the failing ${targetKind} path and correct the underlying ${operation} problem before retrying tnmsc.`
+    ),
+    possibleFixes: possibleFixes ?? [
+      diagnosticLines('Verify the target path exists, has the expected type, and is accessible to tnmsc.'),
+      diagnosticLines('Check whether another process deleted, moved, or locked the target path.')
+    ],
+    details: {
+      operation,
+      targetKind,
+      failures: failures.map(failure => ({
+        path: failure.path,
+        errorMessage: toErrorMessage(failure.error),
+        ...failure.details ?? {}
+      })),
+      ...details ?? {}
+    }
+  })
+}
+
+interface ConfigDiagnosticOptions {
+  readonly code: string
+  readonly title: string
+  readonly reason: DiagnosticLines
+  readonly configPath?: string | undefined
+  readonly exactFix?: DiagnosticLines | undefined
+  readonly possibleFixes?: readonly DiagnosticLines[] | undefined
+  readonly details?: Record<string, unknown> | undefined
+}
+
+export function buildConfigDiagnostic(options: ConfigDiagnosticOptions): LoggerDiagnosticInput {
+  const {
+    code,
+    title,
+    reason,
+    configPath,
+    exactFix,
+    possibleFixes,
+    details
+  } = options
+
+  return buildDiagnostic({
+    code,
+    title,
+    rootCause: configPath == null
+      ? reason
+      : diagnosticLines(reason[0], ...reason.slice(1), `Config path: ${configPath}`),
+    exactFix,
+    possibleFixes,
+    details: {
+      ...configPath != null ? {configPath} : {},
+      ...details ?? {}
+    }
+  })
+}
+
+interface UsageDiagnosticOptions {
+  readonly code: string
+  readonly title: string
+  readonly rootCause: DiagnosticLines
+  readonly exactFix?: DiagnosticLines | undefined
+  readonly possibleFixes?: readonly DiagnosticLines[] | undefined
+  readonly details?: Record<string, unknown> | undefined
+}
+
+export function buildUsageDiagnostic(options: UsageDiagnosticOptions): LoggerDiagnosticInput {
+  return buildDiagnostic(options)
+}
+
+interface PathStateDiagnosticOptions {
+  readonly code: string
+  readonly title: string
+  readonly path: string
+  readonly expectedKind: string
+  readonly actualState: string
+  readonly exactFix?: DiagnosticLines | undefined
+  readonly possibleFixes?: readonly DiagnosticLines[] | undefined
+  readonly details?: Record<string, unknown> | undefined
+}
+
+export function buildPathStateDiagnostic(options: PathStateDiagnosticOptions): LoggerDiagnosticInput {
+  const {
+    code,
+    title,
+    path,
+    expectedKind,
+    actualState,
+    exactFix,
+    possibleFixes,
+    details
+  } = options
+
+  return buildDiagnostic({
+    code,
+    title,
+    rootCause: diagnosticLines(
+      `tnmsc expected a ${expectedKind} at "${path}".`,
+      `Actual state: ${actualState}`
+    ),
+    exactFix: exactFix ?? diagnosticLines(
+      `Create or replace "${path}" with a valid ${expectedKind} before retrying tnmsc.`
+    ),
+    possibleFixes: possibleFixes ?? [
+      diagnosticLines('Check whether the path was moved, deleted, or replaced with the wrong file type.'),
+      diagnosticLines('Update your configuration so tnmsc points to the intended source path.')
+    ],
+    details: {
+      path,
+      expectedKind,
+      actualState,
+      ...details ?? {}
+    }
+  })
+}
+
+interface PromptCompilerDiagnosticOptions {
+  readonly code: string
+  readonly title: string
+  readonly diagnosticText: string
+  readonly exactFix?: DiagnosticLines | undefined
+  readonly possibleFixes?: readonly DiagnosticLines[] | undefined
+  readonly details?: Record<string, unknown> | undefined
+}
+
+export function buildPromptCompilerDiagnostic(options: PromptCompilerDiagnosticOptions): LoggerDiagnosticInput {
+  const {
+    code,
+    title,
+    diagnosticText,
+    exactFix,
+    possibleFixes,
+    details
+  } = options
+
+  const summaryLines = splitDiagnosticText(diagnosticText)
+
+  return buildDiagnostic({
+    code,
+    title,
+    rootCause: summaryLines,
+    exactFix: exactFix ?? diagnosticLines(
+      'Fix the referenced prompt source or compiled dist file so the compiler diagnostic no longer triggers.'
+    ),
+    possibleFixes: possibleFixes ?? [
+      diagnosticLines('Open the file referenced in the diagnostic and correct the reported syntax or metadata issue.'),
+      diagnosticLines('Rebuild the prompt output so the dist file matches the current source tree.')
+    ],
+    details: {
+      diagnosticText,
+      ...details ?? {}
+    }
+  })
+}
+
+export function buildProtectedDeletionDiagnostic(
+  operation: string,
+  violations: readonly ProtectedPathViolation[]
+): LoggerDiagnosticInput {
+  const firstViolation = violations[0]
+
+  return buildDiagnostic({
+    code: 'PROTECTED_DELETION_GUARD_TRIGGERED',
+    title: 'Protected deletion guard blocked a destructive operation',
+    rootCause: diagnosticLines(
+      `The "${operation}" operation targeted ${violations.length} protected path(s).`,
+      firstViolation != null
+        ? `Example protected path: ${firstViolation.protectedPath}`
+        : 'No violation details were captured.'
+    ),
+    exactFix: diagnosticLines(
+      'Remove protected inputs or reserved workspace paths from the delete plan before running tnmsc again.'
+    ),
+    possibleFixes: [
+      diagnosticLines('Update cleanup declarations so they only target generated output paths.'),
+      diagnosticLines('Move source inputs outside of the cleanup target set if they are currently overlapping.')
+    ],
+    details: {
+      operation,
+      count: violations.length,
+      violations: violations.map(violation => ({
+        targetPath: violation.targetPath,
+        protectedPath: violation.protectedPath,
+        protectionMode: violation.protectionMode,
+        source: violation.source,
+        reason: violation.reason
+      }))
+    }
+  })
+}
+
+export function buildUnhandledExceptionDiagnostic(context: string, error: unknown): LoggerDiagnosticInput {
+  const errorMessage = toErrorMessage(error)
+
+  return buildDiagnostic({
+    code: 'UNHANDLED_EXCEPTION',
+    title: `Unhandled exception in ${context}`,
+    rootCause: diagnosticLines(
+      `tnmsc terminated because an unhandled exception escaped the ${context} flow.`,
+      `Underlying error: ${errorMessage}`
+    ),
+    exactFix: diagnosticLines(
+      'Inspect the error context and add the missing guard, validation, or recovery path before retrying the command.'
+    ),
+    possibleFixes: [
+      diagnosticLines('Re-run the command with the same inputs after fixing the referenced file or configuration.'),
+      diagnosticLines('Add a focused test that reproduces this failure so the regression stays covered.')
+    ],
+    details: {
+      context,
+      errorMessage
+    }
+  })
+}
+
+export function partitionBufferedDiagnostics(
+  diagnostics: readonly LoggerDiagnosticRecord[]
+): {warnings: LoggerDiagnosticRecord[], errors: LoggerDiagnosticRecord[]} {
+  const warnings: LoggerDiagnosticRecord[] = []
+  const errors: LoggerDiagnosticRecord[] = []
+
+  for (const diagnostic of diagnostics) {
+    if (diagnostic.level === 'warn') warnings.push(diagnostic)
+    else errors.push(diagnostic)
+  }
+
+  return {warnings, errors}
+}

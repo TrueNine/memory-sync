@@ -1,4 +1,5 @@
 import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
+import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {AbstractInputPlugin, SourcePromptFileExtensions} from '../plugins/plugin-core'
 import {
   collectConfiguredAindexInputRules,
@@ -91,7 +92,6 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     }
 
     const plan = this.buildDeletionPlan(ctx, distDir, srcPaths)
-    if (plan.errors.length > 0) logger.warn({action: 'orphan-cleanup', errors: plan.errors.map(error => ({path: error.path, error: error.error.message}))})
 
     const guard = this.buildProtectedDeletionGuard(ctx)
     const filePartition = partitionDeletionTargets(plan.filesToDelete, guard)
@@ -129,7 +129,14 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
       }
       catch (error) {
         deleteErrors.push({path: filePath, error: error as Error})
-        logger.warn({action: 'orphan-cleanup', message: 'Failed to delete file', path: filePath, error: (error as Error).message})
+        logger.warn(buildFileOperationDiagnostic({
+          code: 'ORPHAN_CLEANUP_FILE_DELETE_FAILED',
+          title: 'Orphan cleanup could not delete a file',
+          operation: 'delete',
+          targetKind: 'orphan file',
+          path: filePath,
+          error
+        }))
       }
     }
 
@@ -141,7 +148,14 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
       }
       catch (error) {
         deleteErrors.push({path: dirPath, error: error as Error})
-        logger.warn({action: 'orphan-cleanup', message: 'Failed to delete directory', path: dirPath, error: (error as Error).message})
+        logger.warn(buildFileOperationDiagnostic({
+          code: 'ORPHAN_CLEANUP_DIRECTORY_DELETE_FAILED',
+          title: 'Orphan cleanup could not delete a directory',
+          operation: 'delete',
+          targetKind: 'orphan directory',
+          path: dirPath,
+          error
+        }))
       }
     }
 
@@ -172,7 +186,14 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     }
     catch (error) {
       errors.push({path: distDirPath, error: error as Error})
-      logger.warn({action: 'orphan-cleanup', message: 'Failed to read directory', path: distDirPath, error: (error as Error).message})
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'ORPHAN_CLEANUP_DIRECTORY_READ_FAILED',
+        title: 'Orphan cleanup could not read a directory',
+        operation: 'read',
+        targetKind: 'dist cleanup directory',
+        path: distDirPath,
+        error
+      }))
       return false
     }
 

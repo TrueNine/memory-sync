@@ -9,6 +9,7 @@ import type {
 } from './plugin-core'
 import * as path from 'node:path'
 import {getPlatformFixedDir} from '@truenine/desk-paths'
+import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {AbstractOutputPlugin, filterByProjectConfig, PLUGIN_NAMES} from './plugin-core'
 
 /**
@@ -298,7 +299,14 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     }
     catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.warn({action: 'scan', type: 'jetbrains', path: baseDir, error: errMsg})
+      this.log.warn(buildFileOperationDiagnostic({
+        code: 'JETBRAINS_CODEX_DIRECTORY_SCAN_FAILED',
+        title: 'Failed to scan JetBrains Codex directories',
+        operation: 'scan',
+        targetKind: 'JetBrains IDE directory',
+        path: baseDir,
+        error: errMsg
+      }))
       return []
     }
   }

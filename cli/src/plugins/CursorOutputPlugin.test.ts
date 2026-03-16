@@ -24,7 +24,8 @@ function createCleanContext(): OutputCleanContext {
       debug: () => {},
       info: () => {},
       warn: () => {},
-      error: () => {}
+      error: () => {},
+      fatal: () => {}
     },
     fs,
     path,

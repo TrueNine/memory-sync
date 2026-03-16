@@ -3,6 +3,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR} from '@/ConfigLoader'
+import {buildUsageDiagnostic, diagnosticLines} from '@/diagnostics'
 
 /**
  * Valid configuration keys that can be set via `tnmsc config key=value`.
@@ -126,7 +127,22 @@ export class ConfigCommand implements Command {
     const {logger} = ctx
 
     if (this.options.length === 0) {
-      logger.error('No configuration key-value pairs provided')
+      logger.error(buildUsageDiagnostic({
+        code: 'CONFIG_COMMAND_ARGUMENTS_MISSING',
+        title: 'Config command requires at least one key=value pair',
+        rootCause: diagnosticLines(
+          'tnmsc config was invoked without any configuration assignments.'
+        ),
+        exactFix: diagnosticLines(
+          'Run `tnmsc config key=value` with at least one supported configuration key.'
+        ),
+        possibleFixes: [
+          diagnosticLines(`Use one of the supported keys: ${VALID_CONFIG_KEYS.join(', ')}`)
+        ],
+        details: {
+          validKeys: [...VALID_CONFIG_KEYS]
+        }
+      }))
       logger.info('Usage: tnmsc config key=value')
       logger.info(`Valid keys: ${VALID_CONFIG_KEYS.join(', ')}`)
       return {
@@ -143,12 +159,40 @@ export class ConfigCommand implements Command {
 
     for (const [key, value] of this.options) { // Process each key-value pair
       if (!isValidConfigKey(key)) {
-        errors.push(`Invalid key: ${key} (valid keys: ${VALID_CONFIG_KEYS.join(', ')})`)
+        errors.push(`Invalid key: ${key}`)
+        logger.error(buildUsageDiagnostic({
+          code: 'CONFIG_COMMAND_KEY_INVALID',
+          title: `Unsupported config key: ${key}`,
+          rootCause: diagnosticLines(
+            `The config command received "${key}", which is not a supported configuration key.`
+          ),
+          exactFix: diagnosticLines('Use one of the supported config keys and rerun the command.'),
+          possibleFixes: [
+            diagnosticLines(`Supported keys: ${VALID_CONFIG_KEYS.join(', ')}`)
+          ],
+          details: {
+            key,
+            validKeys: [...VALID_CONFIG_KEYS]
+          }
+        }))
         continue
       }
 
       if (key === 'logLevel' && !isValidLogLevel(value)) { // Special validation for logLevel
-        errors.push(`Invalid logLevel value: ${value} (must be: trace, debug, info, warn, or error)`)
+        errors.push(`Invalid logLevel value: ${value}`)
+        logger.error(buildUsageDiagnostic({
+          code: 'CONFIG_COMMAND_LOG_LEVEL_INVALID',
+          title: `Unsupported logLevel value: ${value}`,
+          rootCause: diagnosticLines(
+            `The config command received "${value}" for logLevel, but tnmsc does not support that level.`
+          ),
+          exactFix: diagnosticLines('Set logLevel to one of: trace, debug, info, warn, or error.'),
+          details: {
+            key,
+            value,
+            validLevels: ['trace', 'debug', 'info', 'warn', 'error']
+          }
+        }))
         continue
       }
 
@@ -163,10 +207,6 @@ export class ConfigCommand implements Command {
     if (updated.length > 0) { // Write config if there are valid updates
       writeGlobalConfig(config)
       logger.info('global config written', {path: getGlobalConfigPath()})
-    }
-
-    if (errors.length > 0) { // Handle errors
-      for (const error of errors) logger.error(error)
     }
 
     const success = errors.length === 0

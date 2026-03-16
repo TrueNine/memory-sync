@@ -2,6 +2,11 @@ import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputClean
 import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {
+  buildDiagnostic,
+  buildFileOperationDiagnostic,
+  diagnosticLines
+} from '@/diagnostics'
 import {deleteDirectories as deskDeleteDirectories, deleteFiles as deskDeleteFiles} from '../plugins/desk-paths'
 import {
   collectAllPluginOutputs
@@ -190,17 +195,36 @@ function logCleanupProtectionConflicts(
   logger: ILogger,
   conflicts: readonly CleanupProtectionConflict[]
 ): void {
-  logger.error('cleanup protection conflict detected', {
-    count: conflicts.length,
-    conflicts: conflicts.map(conflict => ({
-      outputPath: conflict.outputPath,
-      outputPlugin: conflict.outputPlugin,
-      protectedPath: conflict.protectedPath,
-      protectionMode: conflict.protectionMode,
-      protectedBy: conflict.protectedBy,
-      reason: conflict.reason
-    }))
-  })
+  const firstConflict = conflicts[0]
+
+  logger.error(buildDiagnostic({
+    code: 'CLEANUP_PROTECTION_CONFLICT_DETECTED',
+    title: 'Cleanup output paths conflict with protected inputs',
+    rootCause: diagnosticLines(
+      `tnmsc found ${conflicts.length} output path(s) that also match protected cleanup rules.`,
+      firstConflict == null
+        ? 'No conflict details were captured.'
+        : `Example conflict: "${firstConflict.outputPath}" is protected by "${firstConflict.protectedPath}".`
+    ),
+    exactFix: diagnosticLines(
+      'Separate generated output paths from protected source or reserved workspace paths before running cleanup again.'
+    ),
+    possibleFixes: [
+      diagnosticLines('Update cleanup protect declarations so they do not overlap generated outputs.'),
+      diagnosticLines('Move the conflicting output target to a generated-only directory.')
+    ],
+    details: {
+      count: conflicts.length,
+      conflicts: conflicts.map(conflict => ({
+        outputPath: conflict.outputPath,
+        outputPlugin: conflict.outputPlugin,
+        protectedPath: conflict.protectedPath,
+        protectionMode: conflict.protectionMode,
+        protectedBy: conflict.protectedBy,
+        reason: conflict.reason
+      }))
+    }
+  }))
 }
 
 /**
@@ -370,7 +394,17 @@ export function deleteFiles(files: string[], logger: ILogger): {deleted: number,
   }
   const errors: CleanupError[] = result.errors.map(e => {
     const errorMessage = e.error instanceof Error ? e.error.message : String(e.error)
-    logger.warn('failed to delete file', {path: e.path, error: errorMessage})
+    logger.warn(buildFileOperationDiagnostic({
+      code: 'CLEANUP_FILE_DELETE_FAILED',
+      title: 'Cleanup could not delete a file',
+      operation: 'delete',
+      targetKind: 'file',
+      path: e.path,
+      error: errorMessage,
+      details: {
+        phase: 'cleanup'
+      }
+    }))
     return {path: e.path, type: 'file' as const, error: e.error}
   })
 
@@ -391,7 +425,17 @@ export function deleteDirectories(dirs: string[], logger: ILogger): {deleted: nu
   }
   const errors: CleanupError[] = result.errors.map(e => {
     const errorMessage = e.error instanceof Error ? e.error.message : String(e.error)
-    logger.warn('failed to delete directory', {path: e.path, error: errorMessage})
+    logger.warn(buildFileOperationDiagnostic({
+      code: 'CLEANUP_DIRECTORY_DELETE_FAILED',
+      title: 'Cleanup could not delete a directory',
+      operation: 'delete',
+      targetKind: 'directory',
+      path: e.path,
+      error: errorMessage,
+      details: {
+        phase: 'cleanup'
+      }
+    }))
     return {path: e.path, type: 'directory' as const, error: e.error}
   })
 

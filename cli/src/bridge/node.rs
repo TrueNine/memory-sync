@@ -6,10 +6,13 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 
-use crate::{BridgeCommandResult, CliError};
+use crate::{
+    BridgeCommandResult, CliError,
+    diagnostic_helpers::{diagnostic, line, optional_details},
+};
 
-use tnmsc_logger::create_logger;
 use serde_json::Value;
+use tnmsc_logger::create_logger;
 
 /// Strip Windows extended-length path prefix (`\\?\`) which Node.js cannot handle.
 fn strip_win_prefix(path: PathBuf) -> PathBuf {
@@ -53,11 +56,18 @@ pub(crate) fn find_plugin_runtime() -> Option<PathBuf> {
 
     // npm/pnpm global package locations
     for global_root in find_npm_global_roots() {
-        candidates.push(global_root.join(PACKAGE_NAME).join("dist/plugin-runtime.mjs"));
+        candidates.push(
+            global_root
+                .join(PACKAGE_NAME)
+                .join("dist/plugin-runtime.mjs"),
+        );
     }
 
     for candidate in &candidates {
-        let normalized = candidate.canonicalize().ok().unwrap_or_else(|| candidate.clone());
+        let normalized = candidate
+            .canonicalize()
+            .ok()
+            .unwrap_or_else(|| candidate.clone());
         if normalized.exists() {
             return Some(strip_win_prefix(normalized));
         }
@@ -115,7 +125,9 @@ fn run_silent(cmd: &str, args: &[&str]) -> Option<String> {
         .ok()
         .and_then(|o| {
             if o.status.success() {
-                String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                String::from_utf8(o.stdout)
+                    .ok()
+                    .map(|s| s.trim().to_string())
             } else {
                 None
             }
@@ -155,7 +167,13 @@ fn extract_embedded_runtime() -> Option<PathBuf> {
 /// Find the `node` executable.
 pub(crate) fn find_node() -> Option<String> {
     // Try `node` in PATH
-    if Command::new("node").arg("--version").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok() {
+    if Command::new("node")
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok()
+    {
         return Some("node".to_string());
     }
     None
@@ -172,10 +190,18 @@ pub fn run_node_command(subcommand: &str, json_mode: bool, extra_args: &[&str]) 
     let node = match find_node() {
         Some(n) => n,
         None => {
-            logger.error(
-                Value::String("Node.js not found in PATH. Plugin commands require Node.js.".into()),
-                None,
-            );
+            logger.error(diagnostic(
+                "NODE_RUNTIME_NOT_FOUND",
+                "Node.js runtime is required",
+                line("The `node` executable was not found in PATH."),
+                Some(line(
+                    "Install Node.js and reopen this shell so `node --version` succeeds.",
+                )),
+                Some(vec![line(
+                    "If Node.js is already installed, add its install directory to PATH.",
+                )]),
+                optional_details(serde_json::json!({ "subcommand": subcommand })),
+            ));
             return ExitCode::FAILURE;
         }
     };
@@ -184,10 +210,18 @@ pub fn run_node_command(subcommand: &str, json_mode: bool, extra_args: &[&str]) 
     let runtime_path = match find_plugin_runtime() {
         Some(p) => p,
         None => {
-            logger.error(
-                Value::String("Plugin runtime not found. Install via 'pnpm add -g @truenine/memory-sync-cli' or place plugin-runtime.mjs next to the binary.".into()),
-                None,
-            );
+            logger.error(diagnostic(
+                "PLUGIN_RUNTIME_NOT_FOUND",
+                "Plugin runtime entry is missing",
+                line("No `plugin-runtime.mjs` file was found in the expected locations."),
+                Some(line(
+                    "Build or install `@truenine/memory-sync-cli` so `plugin-runtime.mjs` is available.",
+                )),
+                Some(vec![line(
+                    "Run `pnpm -F @truenine/memory-sync-cli build` in the repository.",
+                )]),
+                optional_details(serde_json::json!({ "subcommand": subcommand })),
+            ));
             logger.debug(
                 Value::String("Searched: binary dir, CWD, npm/pnpm global, embedded cache".into()),
                 None,
@@ -232,10 +266,19 @@ pub fn run_node_command(subcommand: &str, json_mode: bool, extra_args: &[&str]) 
             }
         }
         Err(e) => {
-            logger.error(
-                Value::String("failed to spawn node process".into()),
-                Some(serde_json::json!({"error": e.to_string()})),
-            );
+            logger.error(diagnostic(
+                "NODE_PROCESS_SPAWN_FAILED",
+                "Failed to start the Node.js subprocess",
+                line("The CLI could not spawn the `node` process."),
+                Some(line(
+                    "Check that `node` is runnable in this shell and retry.",
+                )),
+                None,
+                optional_details(serde_json::json!({
+                    "subcommand": subcommand,
+                    "error": e.to_string()
+                })),
+            ));
             ExitCode::FAILURE
         }
     }
@@ -281,9 +324,16 @@ pub fn run_node_command_captured(
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
     if output.status.success() || (json_mode && !stdout.trim().is_empty()) {
-        Ok(BridgeCommandResult { stdout, stderr, exit_code })
+        Ok(BridgeCommandResult {
+            stdout,
+            stderr,
+            exit_code,
+        })
     } else {
-        Err(CliError::NodeProcessFailed { code: exit_code, stderr })
+        Err(CliError::NodeProcessFailed {
+            code: exit_code,
+            stderr,
+        })
     }
 }
 
@@ -296,10 +346,18 @@ pub fn run_node_fallback(args: &[String]) -> ExitCode {
     let node = match find_node() {
         Some(n) => n,
         None => {
-            logger.error(
-                Value::String("Node.js not found in PATH.".into()),
-                None,
-            );
+            logger.error(diagnostic(
+                "NODE_RUNTIME_NOT_FOUND",
+                "Node.js runtime is required",
+                line("The `node` executable was not found in PATH."),
+                Some(line(
+                    "Install Node.js and reopen this shell so `node --version` succeeds.",
+                )),
+                Some(vec![line(
+                    "If Node.js is already installed, add its install directory to PATH.",
+                )]),
+                optional_details(serde_json::json!({ "args": args })),
+            ));
             return ExitCode::FAILURE;
         }
     };
@@ -309,10 +367,18 @@ pub fn run_node_fallback(args: &[String]) -> ExitCode {
     let runtime = match index_path {
         Some(p) => p,
         None => {
-            logger.error(
-                Value::String("CLI entry point not found (index.mjs). Run 'pnpm -F @truenine/memory-sync-cli build' first.".into()),
-                None,
-            );
+            logger.error(diagnostic(
+                "CLI_ENTRY_NOT_FOUND",
+                "CLI JavaScript entry is missing",
+                line("No `index.mjs` entry point was found for the fallback Node.js launcher."),
+                Some(line(
+                    "Build `@truenine/memory-sync-cli` before running the fallback launcher.",
+                )),
+                Some(vec![line(
+                    "Run `pnpm -F @truenine/memory-sync-cli build` in the repository.",
+                )]),
+                optional_details(serde_json::json!({ "args": args })),
+            ));
             return ExitCode::FAILURE;
         }
     };
@@ -335,10 +401,19 @@ pub fn run_node_fallback(args: &[String]) -> ExitCode {
             }
         }
         Err(e) => {
-            logger.error(
-                Value::String("failed to spawn node process".into()),
-                Some(serde_json::json!({"error": e.to_string()})),
-            );
+            logger.error(diagnostic(
+                "NODE_PROCESS_SPAWN_FAILED",
+                "Failed to start the Node.js subprocess",
+                line("The CLI could not spawn the `node` process."),
+                Some(line(
+                    "Check that `node` is runnable in this shell and retry.",
+                )),
+                None,
+                optional_details(serde_json::json!({
+                    "args": args,
+                    "error": e.to_string()
+                })),
+            ));
             ExitCode::FAILURE
         }
     }
@@ -363,7 +438,10 @@ fn find_index_mjs() -> Option<PathBuf> {
     };
 
     for candidate in &candidates {
-        let normalized = candidate.canonicalize().ok().unwrap_or_else(|| candidate.clone());
+        let normalized = candidate
+            .canonicalize()
+            .ok()
+            .unwrap_or_else(|| candidate.clone());
         if normalized.exists() {
             return Some(strip_win_prefix(normalized));
         }

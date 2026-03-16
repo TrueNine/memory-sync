@@ -116,10 +116,7 @@ function buildCodeFrame(
 ): string {
   const gutter = `${lineNumber} | `
   const pointerIndent = ' '.repeat(gutter.length + Math.max(0, startColumn - 1))
-  const pointerLength = Math.max(
-    1,
-    (endColumn ?? (startColumn + 1)) - startColumn
-  )
+  const pointerLength = Math.max(1, (endColumn ?? (startColumn + 1)) - startColumn)
   return `${gutter}${sourceLine}\n${pointerIndent}${'^'.repeat(pointerLength)}`
 }
 
@@ -208,9 +205,7 @@ function getExpressionHint(nodeType?: string): string | undefined {
     return 'Literal braces in MDX text are parsed as expressions. Escape the braces or wrap the placeholder in code if you meant plain text.'
   }
 
-  if (nodeType === 'mdxJsxAttributeValueExpression') {
-    return 'JSX attribute expressions must reference values that exist in scope.'
-  }
+  if (nodeType === 'mdxJsxAttributeValueExpression') return 'JSX attribute expressions must reference values that exist in scope.'
 
   return void 0
 }

@@ -22,10 +22,9 @@ export class ConfigShowCommand implements Command {
 
     const sources: ConfigSource[] = mergedResult.sources.map(sourcePath => {
       const loaded = loader.loadFromFile(sourcePath)
-      const layer = this.inferLayer(sourcePath)
       return {
         path: sourcePath,
-        layer,
+        layer: 'global',
         config: loaded.config
       }
     })
@@ -45,11 +44,5 @@ export class ConfigShowCommand implements Command {
       dirsAffected: 0,
       message: `Configuration displayed (${sources.length} source(s))`
     }
-  }
-
-  private inferLayer(sourcePath: string): ConfigSource['layer'] {
-    const cwd = process.cwd()
-    if (sourcePath.startsWith(cwd)) return 'cwd'
-    return 'global'
   }
 }

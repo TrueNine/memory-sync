@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it, vi} from 'vitest'
-import {FilePathKind, PluginKind} from '../plugins/plugin-core'
+import {createLogger, FilePathKind, PluginKind} from '../plugins/plugin-core'
 import {CleanCommand} from './CleanCommand'
 import {DryRunCleanCommand} from './DryRunCleanCommand'
 import {ExecuteCommand} from './ExecuteCommand'
@@ -16,7 +16,8 @@ function createMockLogger(): ILogger {
     debug: () => {},
     info: () => {},
     warn: () => {},
-    error: () => {}
+    error: () => {},
+    fatal: () => {}
   } as ILogger
 }
 
@@ -179,11 +180,17 @@ describe('protected deletion commands', () => {
     }))
   })
 
-  it('includes the failure message in JSON output errors', async () => {
+  it('includes structured diagnostics in JSON output errors', async () => {
     const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
     const command = new JsonOutputCommand({
       name: 'mock',
-      async execute() {
+      async execute(ctx) {
+        ctx.logger.error({
+          code: 'MOCK_FAILURE',
+          title: 'Mock command failed',
+          rootCause: ['The mock command was forced to fail for JSON output testing.'],
+          exactFix: ['Update the mock command inputs so it no longer emits the test failure.']
+        })
         return {
           success: false,
           filesAffected: 0,
@@ -194,9 +201,27 @@ describe('protected deletion commands', () => {
     })
 
     try {
-      await command.execute(createCommandContext([]))
+      await command.execute({
+        ...createCommandContext([]),
+        logger: createLogger('ProtectedDeletionJsonTest', 'silent')
+      })
       expect(writeSpy).toHaveBeenCalledOnce()
-      expect(String(writeSpy.mock.calls[0]?.[0])).toContain('"errors":["blocked"]')
+      const payload = JSON.parse(String(writeSpy.mock.calls[0]?.[0])) as {
+        readonly message?: string
+        readonly warnings: readonly unknown[]
+        readonly errors: readonly {code: string, title: string, rootCause: readonly string[], copyText: readonly string[]}[]
+      }
+
+      expect(payload.message).toBe('blocked')
+      expect(payload.warnings).toEqual([])
+      expect(payload.errors).toEqual([
+        expect.objectContaining({
+          code: 'MOCK_FAILURE',
+          title: 'Mock command failed',
+          rootCause: ['The mock command was forced to fail for JSON output testing.'],
+          copyText: expect.arrayContaining(['[MOCK_FAILURE] Mock command failed'])
+        })
+      ])
     }
     finally {
       writeSpy.mockRestore()

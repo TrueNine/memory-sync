@@ -18,6 +18,14 @@ import * as nodePath from 'node:path'
 import {mdxToMd} from '@truenine/md-compiler'
 import {parseMarkdown, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
 import {
+  buildConfigDiagnostic,
+  buildDiagnostic,
+  buildFileOperationDiagnostic,
+  buildPathStateDiagnostic,
+  buildPromptCompilerDiagnostic,
+  diagnosticLines
+} from '@/diagnostics'
+import {
   AbstractInputPlugin,
   createLocalizedPromptReader,
   FilePathKind,
@@ -279,16 +287,25 @@ class ResourceProcessor {
       }
     }
     catch (error) {
-      this.ctx.logger.error(formatPromptCompilerDiagnostic(error, {
-        operation: 'Failed to compile skill child doc.',
-        promptKind: 'skill-child-doc',
-        logicalName: `${nodePath.basename(this.ctx.skillDir)}/${relativePath.replace(/\.mdx$/u, '')}`,
-        distPath: filePath,
-        srcPath: resolveSourcePathForDistFile(nodePath, filePath, {
-          distRootDir: this.ctx.skillDir,
-          srcRootDir: this.ctx.sourceSkillDir
-        })
-      }), {error})
+      this.ctx.logger.error(buildPromptCompilerDiagnostic({
+        code: 'SKILL_CHILD_DOC_COMPILE_FAILED',
+        title: 'Failed to compile skill child doc',
+        diagnosticText: formatPromptCompilerDiagnostic(error, {
+          operation: 'Failed to compile skill child doc.',
+          promptKind: 'skill-child-doc',
+          logicalName: `${nodePath.basename(this.ctx.skillDir)}/${relativePath.replace(/\.mdx$/u, '')}`,
+          distPath: filePath,
+          srcPath: resolveSourcePathForDistFile(nodePath, filePath, {
+            distRootDir: this.ctx.skillDir,
+            srcRootDir: this.ctx.sourceSkillDir
+          })
+        }),
+        details: {
+          skillDir: this.ctx.skillDir,
+          relativePath,
+          filePath
+        }
+      }))
       throw error
     }
   }
@@ -315,7 +332,19 @@ class ResourceProcessor {
       return resource
     }
     catch (e) {
-      this.ctx.logger.warn('failed to read resource file', {path: relativePath, error: e})
+      this.ctx.logger.warn(buildFileOperationDiagnostic({
+        code: 'SKILL_RESOURCE_READ_FAILED',
+        title: 'Failed to read skill resource file',
+        operation: 'read',
+        targetKind: 'skill resource file',
+        path: filePath,
+        error: e,
+        details: {
+          relativePath,
+          fileName,
+          skillDir: this.ctx.skillDir
+        }
+      }))
       return null
     }
   }
@@ -347,7 +376,18 @@ class ResourceProcessor {
       entries = this.ctx.fs.readdirSync(currentDir, {withFileTypes: true})
     }
     catch (e) {
-      this.ctx.logger.warn('failed to scan directory', {path: currentDir, error: e})
+      this.ctx.logger.warn(buildFileOperationDiagnostic({
+        code: 'SKILL_DIRECTORY_SCAN_FAILED',
+        title: 'Failed to scan skill directory',
+        operation: 'scan',
+        targetKind: 'skill directory',
+        path: currentDir,
+        error: e,
+        details: {
+          skillDir: this.ctx.skillDir,
+          scanMode: this.ctx.scanMode
+        }
+      }))
       return {childDocs, resources}
     }
 
@@ -388,7 +428,14 @@ function collectExpectedCompiledChildDocPaths(
     entries = fs.readdirSync(currentDir, {withFileTypes: true})
   }
   catch (error) {
-    logger.warn('failed to scan source child docs', {path: currentDir, error})
+    logger.warn(buildFileOperationDiagnostic({
+      code: 'SKILL_SOURCE_CHILD_SCAN_FAILED',
+      title: 'Failed to scan skill source child docs',
+      operation: 'scan',
+      targetKind: 'skill source child doc directory',
+      path: currentDir,
+      error
+    }))
     return expectedPaths
   }
 
@@ -443,7 +490,16 @@ function readMcpConfig(
   if (!fs.existsSync(mcpJsonPath)) return void 0
 
   if (!fs.statSync(mcpJsonPath).isFile()) {
-    logger.warn('mcp.json is not a file', {skillDir})
+    logger.warn(buildPathStateDiagnostic({
+      code: 'SKILL_MCP_CONFIG_NOT_FILE',
+      title: 'Skill MCP config path is not a file',
+      path: mcpJsonPath,
+      expectedKind: 'mcp.json file',
+      actualState: 'path exists but is not a regular file',
+      details: {
+        skillDir
+      }
+    }))
     return void 0
   }
 
@@ -452,7 +508,20 @@ function readMcpConfig(
     const parsed = JSON.parse(rawContent) as {mcpServers?: Record<string, McpServerConfig>}
 
     if (parsed.mcpServers == null || typeof parsed.mcpServers !== 'object') {
-      logger.warn('mcp.json missing mcpServers field', {skillDir})
+      logger.warn(buildConfigDiagnostic({
+        code: 'SKILL_MCP_CONFIG_INVALID',
+        title: 'Skill MCP config is missing mcpServers',
+        reason: diagnosticLines(
+          `The skill MCP config at "${mcpJsonPath}" does not contain a top-level mcpServers object.`
+        ),
+        configPath: mcpJsonPath,
+        exactFix: diagnosticLines(
+          'Add a top-level `mcpServers` object to mcp.json before retrying tnmsc.'
+        ),
+        details: {
+          skillDir
+        }
+      }))
       return void 0
     }
 
@@ -463,7 +532,20 @@ function readMcpConfig(
     }
   }
   catch (e) {
-    logger.warn('failed to parse mcp.json', {skillDir, error: e})
+    logger.warn(buildConfigDiagnostic({
+      code: 'SKILL_MCP_CONFIG_PARSE_FAILED',
+      title: 'Failed to parse skill MCP config',
+      reason: diagnosticLines(
+        `tnmsc could not parse the MCP config file at "${mcpJsonPath}".`,
+        `Underlying error: ${e instanceof Error ? e.message : String(e)}`
+      ),
+      configPath: mcpJsonPath,
+      exactFix: diagnosticLines('Fix the JSON syntax in mcp.json and rerun tnmsc.'),
+      details: {
+        skillDir,
+        errorMessage: e instanceof Error ? e.message : String(e)
+      }
+    }))
     return void 0
   }
 }
@@ -513,13 +595,26 @@ async function createSkillPrompt(
   const finalDescription = parsed?.yamlFrontMatter?.description ?? exportMetadata?.description
 
   if (finalDescription == null || finalDescription.trim().length === 0) { // Strict validation: description must exist and not be empty
-    logger.error('SKILL_VALIDATION_FAILED: description is required and cannot be empty', {
-      skill: name,
-      skillDir,
-      yamlDescription: parsed?.yamlFrontMatter?.description,
-      exportDescription: exportMetadata?.description,
-      hint: 'Add a non-empty description field to the SKILL.md front matter or export default'
-    })
+    logger.error(buildDiagnostic({
+      code: 'SKILL_VALIDATION_FAILED',
+      title: 'Skill description is required',
+      rootCause: diagnosticLines(
+        `The skill "${name}" does not provide a non-empty description in its compiled metadata or front matter.`
+      ),
+      exactFix: diagnosticLines(
+        'Add a non-empty description field to the skill front matter or exported metadata and rebuild the skill.'
+      ),
+      possibleFixes: [
+        diagnosticLines('Set `description` in `SKILL.md` front matter.'),
+        diagnosticLines('If you export metadata from code, ensure the exported description is non-empty.')
+      ],
+      details: {
+        skill: name,
+        skillDir,
+        yamlDescription: parsed?.yamlFrontMatter?.description,
+        exportDescription: exportMetadata?.description
+      }
+    }))
     throw new Error(`Skill "${name}" validation failed: description is required and cannot be empty`)
   }
 
@@ -661,7 +756,19 @@ export class SkillInputPlugin extends AbstractInputPlugin {
       }
     )
 
-    for (const error of errors) logger.warn('Failed to read skill', {path: error.path, phase: error.phase, error: error.error})
+    for (const error of errors) {
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'SKILL_PROMPT_READ_FAILED',
+        title: 'Failed to read skill prompt',
+        operation: error.phase === 'scan' ? 'scan' : 'read',
+        targetKind: 'skill prompt',
+        path: error.path,
+        error: error.error,
+        details: {
+          phase: error.phase
+        }
+      }))
+    }
 
     for (const localized of localizedSkills) {
       const prompt = localized.dist?.prompt

@@ -1,10 +1,11 @@
-import type {OutputCollectedContext, PluginOptions} from './plugins/plugin-core'
+import type {ILogger, OutputCollectedContext, PluginOptions} from './plugins/plugin-core'
 import type {PublicDefinitionResolveOptions} from './public-config-paths'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
+import {buildProtectedDeletionDiagnostic} from './diagnostics'
 import {collectKnownPublicConfigDefinitionPaths} from './public-config-paths'
 
 interface DirPathLike {
@@ -599,19 +600,9 @@ export function buildProtectedDeletionGuardMessage(
 }
 
 export function logProtectedDeletionGuardError(
-  logger: {error: (message: string, meta?: object) => void},
+  logger: ILogger,
   operation: string,
   violations: readonly ProtectedPathViolation[]
 ): void {
-  logger.error('protected deletion guard triggered', {
-    operation,
-    count: violations.length,
-    violations: violations.map(violation => ({
-      targetPath: violation.targetPath,
-      protectedPath: violation.protectedPath,
-      protectionMode: violation.protectionMode,
-      source: violation.source,
-      reason: violation.reason
-    }))
-  })
+  logger.error(buildProtectedDeletionDiagnostic(operation, violations))
 }

@@ -2,7 +2,7 @@
 //!
 //! Mirrors the TS `PluginPipeline.parseArgs()` + `resolveCommand()`.
 
-use clap::{Parser, Subcommand, Args};
+use clap::{Args, Parser, Subcommand};
 
 /// Cross-AI-tool prompt synchronisation CLI
 #[derive(Parser, Debug)]
@@ -132,11 +132,21 @@ impl ResolvedLogLevel {
 /// When multiple flags are set, the most verbose (lowest priority number) wins.
 pub fn resolve_log_level(cli: &Cli) -> Option<ResolvedLogLevel> {
     let mut levels = Vec::new();
-    if cli.trace { levels.push(ResolvedLogLevel::Trace); }
-    if cli.debug { levels.push(ResolvedLogLevel::Debug); }
-    if cli.info { levels.push(ResolvedLogLevel::Info); }
-    if cli.warn { levels.push(ResolvedLogLevel::Warn); }
-    if cli.error { levels.push(ResolvedLogLevel::Error); }
+    if cli.trace {
+        levels.push(ResolvedLogLevel::Trace);
+    }
+    if cli.debug {
+        levels.push(ResolvedLogLevel::Debug);
+    }
+    if cli.info {
+        levels.push(ResolvedLogLevel::Info);
+    }
+    if cli.warn {
+        levels.push(ResolvedLogLevel::Warn);
+    }
+    if cli.error {
+        levels.push(ResolvedLogLevel::Error);
+    }
 
     if levels.is_empty() {
         return None;

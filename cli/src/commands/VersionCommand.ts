@@ -17,7 +17,7 @@ export class VersionCommand implements Command {
   readonly name = 'version'
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
-    ctx.logger.error(`${CLI_NAME} v${getCliVersion()}`)
+    ctx.logger.info(`${CLI_NAME} v${getCliVersion()}`)
 
     return {
       success: true,

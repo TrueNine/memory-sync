@@ -7,13 +7,33 @@ import {GitIgnoreInputPlugin} from './inputs/input-gitignore'
 import {WorkspaceInputPlugin} from './inputs/input-workspace'
 
 describe('defineConfig', () => {
-  afterEach(() => vi.restoreAllMocks())
+  const originalHome = process.env.HOME
+  const originalUserProfile = process.env.USERPROFILE
+  const originalHomeDrive = process.env.HOMEDRIVE
+  const originalHomePath = process.env.HOMEPATH
 
-  it('loads a project-local config when no global config is available', async () => {
+  afterEach(() => {
+    process.env.HOME = originalHome
+    process.env.USERPROFILE = originalUserProfile
+    process.env.HOMEDRIVE = originalHomeDrive
+    process.env.HOMEPATH = originalHomePath
+    vi.restoreAllMocks()
+  })
+
+  it('loads config only from ~/.aindex/.tnmsc.json', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-workspace-'))
-
+    const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-home-'))
+    const globalConfigDir = path.join(tempHome, '.aindex')
+    const globalConfigPath = path.join(globalConfigDir, '.tnmsc.json')
     const localConfigPath = path.join(tempWorkspace, '.tnmsc.json')
-    fs.writeFileSync(localConfigPath, JSON.stringify({
+
+    process.env.HOME = tempHome
+    process.env.USERPROFILE = tempHome
+    delete process.env.HOMEDRIVE
+    delete process.env.HOMEPATH
+
+    fs.mkdirSync(globalConfigDir, {recursive: true})
+    fs.writeFileSync(globalConfigPath, JSON.stringify({
       workspaceDir: tempWorkspace,
       aindex: {
         dir: 'aindex',
@@ -29,11 +49,11 @@ describe('defineConfig', () => {
       },
       logLevel: 'info'
     }), 'utf8')
+    fs.writeFileSync(localConfigPath, JSON.stringify({workspaceDir: '/wrong/workspace', logLevel: 'error'}), 'utf8')
 
     try {
       const result = await defineConfig({
         cwd: tempWorkspace,
-        configLoaderOptions: {searchGlobal: false},
         pluginOptions: {
           plugins: [new WorkspaceInputPlugin()]
         }
@@ -45,6 +65,7 @@ describe('defineConfig', () => {
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
+      fs.rmSync(tempHome, {recursive: true, force: true})
     }
   })
 

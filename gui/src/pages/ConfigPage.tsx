@@ -156,7 +156,7 @@ const ConfigPage: FC = () => {
     setLoadError(null)
     setSaveStatus({ kind: 'idle' })
     try {
-      const raw = await readConfigFile('global', '.')
+      const raw = await readConfigFile()
       const text = raw || '{\n  \n}\n'
       setContent(text)
       setOriginalContent(text)
@@ -183,7 +183,7 @@ const ConfigPage: FC = () => {
     setSaveStatus({ kind: 'saving' })
     try {
       JSON.parse(content)
-      await writeConfigFile('global', '.', content)
+      await writeConfigFile(content)
       setOriginalContent(content)
       setSaveStatus({ kind: 'saved' })
       savedTimerRef.current = setTimeout(() => setSaveStatus({ kind: 'idle' }), 2000)

@@ -4,8 +4,8 @@ import type {
   MdxJsxTextElement
 } from 'mdast-util-mdx'
 import type {ExportMetadata} from './export-parser'
-import type {MdxGlobalScope} from '@/globals'
 import type {CompilerDiagnosticPosition} from '@/errors'
+import type {MdxGlobalScope} from '@/globals'
 
 /** Scope containing values available for expression evaluation */
 export interface EvaluationScope {

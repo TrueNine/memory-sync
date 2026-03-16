@@ -1,6 +1,8 @@
 import process from 'node:process'
+import {toJsonCommandResult} from '@/commands/JsonOutputCommand'
+import {buildUnhandledExceptionDiagnostic} from '@/diagnostics'
 import {PluginPipeline} from '@/PluginPipeline'
-import {createLogger} from './plugins/plugin-core'
+import {createLogger, drainBufferedDiagnostics} from './plugins/plugin-core'
 
 export * from './Aindex'
 export * from './config'
@@ -22,25 +24,25 @@ function isJsonMode(argv: readonly string[]): boolean {
   return argv.some(arg => arg === '--json' || arg === '-j' || /^-[^-]*j/.test(arg))
 }
 
-function writeJsonFailure(errorMessage: string): void {
-  process.stdout.write(`${JSON.stringify({
+function writeJsonFailure(error: unknown): void {
+  const errorMessage = error instanceof Error ? error.message : String(error)
+  const logger = createLogger('main', 'silent')
+  logger.error(buildUnhandledExceptionDiagnostic('main', error))
+  process.stdout.write(`${JSON.stringify(toJsonCommandResult({
     success: false,
     filesAffected: 0,
     dirsAffected: 0,
-    message: errorMessage,
-    pluginResults: [],
-    errors: [errorMessage]
-  })}\n`)
+    message: errorMessage
+  }, drainBufferedDiagnostics()))}\n`)
 }
 
 main().catch((e: unknown) => {
-  const errorMessage = e instanceof Error ? e.message : String(e)
   if (isJsonMode(process.argv)) {
-    writeJsonFailure(errorMessage)
+    writeJsonFailure(e)
     process.exit(1)
   }
   const logger = createLogger('main', 'error')
-  logger.error('unhandled error', {error: errorMessage})
+  logger.error(buildUnhandledExceptionDiagnostic('main', e))
   process.exit(1)
 })
 

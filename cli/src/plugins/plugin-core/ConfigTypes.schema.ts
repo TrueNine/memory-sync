@@ -137,12 +137,7 @@ export const ZProjectConfig = z.object({
 /**
  * Zod schema for ConfigLoader options.
  */
-export const ZConfigLoaderOptions = z.object({
-  configFileName: z.string().optional(),
-  searchPaths: z.array(z.string()).optional(),
-  searchCwd: z.boolean().optional(),
-  searchGlobal: z.boolean().optional()
-})
+export const ZConfigLoaderOptions = z.object({})
 
 export type AindexDirPair = z.infer<typeof ZAindexDirPair>
 export type AindexConfig = z.infer<typeof ZAindexConfig>

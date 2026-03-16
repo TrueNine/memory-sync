@@ -11,6 +11,12 @@ import process from 'node:process'
 import {mdxToMd} from '@truenine/md-compiler'
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
+import {
+  buildConfigDiagnostic,
+  buildFileOperationDiagnostic,
+  buildPromptCompilerDiagnostic,
+  diagnosticLines
+} from '@/diagnostics'
 import {AbstractInputPlugin, FilePathKind, PromptKind} from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
 import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
@@ -31,7 +37,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
 
     const dependencyWorkspace = dependencyContext.workspace
     if (dependencyWorkspace == null) {
-      this.log.warn('No workspace found in dependency context, skipping project prompt enhancement')
+      this.log.info('No workspace found in dependency context, skipping project prompt enhancement')
       return {}
     }
 
@@ -93,13 +99,37 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       }
       catch (e) {
         if (e instanceof CompilerDiagnosticError) {
-          logger.error(formatPromptCompilerDiagnostic(e, {
-            operation: 'Failed to compile project root memory prompt.',
-            promptKind: 'project-root-memory',
-            logicalName: filePath,
-            distPath: filePath
+          logger.error(buildPromptCompilerDiagnostic({
+            code: 'PROJECT_ROOT_MEMORY_PROMPT_COMPILE_FAILED',
+            title: 'Failed to compile project root memory prompt',
+            diagnosticText: formatPromptCompilerDiagnostic(e, {
+              operation: 'Failed to compile project root memory prompt.',
+              promptKind: 'project-root-memory',
+              logicalName: filePath,
+              distPath: filePath
+            }),
+            details: {
+              promptKind: 'project-root-memory',
+              distPath: filePath
+            }
           }))
-          if (e instanceof ScopeError) logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
+          if (e instanceof ScopeError) {
+            logger.error(buildConfigDiagnostic({
+              code: 'PROJECT_ROOT_MEMORY_SCOPE_VARIABLES_MISSING',
+              title: 'Project root memory prompt references missing config variables',
+              reason: diagnosticLines(
+                'The project root memory prompt uses scope variables that are not defined in `~/.aindex/.tnmsc.json`.'
+              ),
+              configPath: '~/.aindex/.tnmsc.json',
+              exactFix: diagnosticLines(
+                'Define the missing variables in `~/.aindex/.tnmsc.json` and rerun tnmsc.'
+              ),
+              details: {
+                promptPath: filePath,
+                errorMessage: e.message
+              }
+            }))
+          }
           process.exit(1)
         }
         throw e
@@ -122,7 +152,14 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       }
     }
     catch (e) {
-      logger.error(`Failed to read root memory prompt at ${filePath}`, {error: e})
+      logger.error(buildFileOperationDiagnostic({
+        code: 'PROJECT_ROOT_MEMORY_PROMPT_READ_FAILED',
+        title: 'Failed to read project root memory prompt',
+        operation: 'read',
+        targetKind: 'project root memory prompt',
+        path: filePath,
+        error: e
+      }))
       return void 0
     }
   }
@@ -140,7 +177,14 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       await this.scanDirectoryRecursive(ctx, shadowProjectPath, shadowProjectPath, targetProjectPath, prompts, globalScope)
     }
     catch (e) {
-      logger.error(`Failed to scan child memory prompts at ${shadowProjectPath}`, {error: e})
+      logger.error(buildFileOperationDiagnostic({
+        code: 'PROJECT_CHILD_MEMORY_SCAN_FAILED',
+        title: 'Failed to scan project child memory prompts',
+        operation: 'scan',
+        targetKind: 'project child memory prompt directory',
+        path: shadowProjectPath,
+        error: e
+      }))
     }
 
     return prompts
@@ -201,13 +245,37 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       }
       catch (e) {
         if (e instanceof CompilerDiagnosticError) {
-          logger.error(formatPromptCompilerDiagnostic(e, {
-            operation: 'Failed to compile project child memory prompt.',
-            promptKind: 'project-child-memory',
-            logicalName: filePath,
-            distPath: filePath
+          logger.error(buildPromptCompilerDiagnostic({
+            code: 'PROJECT_CHILD_MEMORY_PROMPT_COMPILE_FAILED',
+            title: 'Failed to compile project child memory prompt',
+            diagnosticText: formatPromptCompilerDiagnostic(e, {
+              operation: 'Failed to compile project child memory prompt.',
+              promptKind: 'project-child-memory',
+              logicalName: filePath,
+              distPath: filePath
+            }),
+            details: {
+              promptKind: 'project-child-memory',
+              distPath: filePath
+            }
           }))
-          if (e instanceof ScopeError) logger.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
+          if (e instanceof ScopeError) {
+            logger.error(buildConfigDiagnostic({
+              code: 'PROJECT_CHILD_MEMORY_SCOPE_VARIABLES_MISSING',
+              title: 'Project child memory prompt references missing config variables',
+              reason: diagnosticLines(
+                'The project child memory prompt uses scope variables that are not defined in `~/.aindex/.tnmsc.json`.'
+              ),
+              configPath: '~/.aindex/.tnmsc.json',
+              exactFix: diagnosticLines(
+                'Define the missing variables in `~/.aindex/.tnmsc.json` and rerun tnmsc.'
+              ),
+              details: {
+                promptPath: filePath,
+                errorMessage: e.message
+              }
+            }))
+          }
           process.exit(1)
         }
         throw e
@@ -243,7 +311,14 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       }
     }
     catch (e) {
-      logger.error(`Failed to read child memory prompt at ${filePath}`, {error: e})
+      logger.error(buildFileOperationDiagnostic({
+        code: 'PROJECT_CHILD_MEMORY_PROMPT_READ_FAILED',
+        title: 'Failed to read project child memory prompt',
+        operation: 'read',
+        targetKind: 'project child memory prompt',
+        path: filePath,
+        error: e
+      }))
       return void 0
     }
   }

@@ -45,12 +45,12 @@ export function getLogs(cwd: string, command: string): Promise<LogEntry[]> {
   return invoke<LogEntry[]>('get_logs', { cwd, command })
 }
 
-export function readConfigFile(scope: 'cwd' | 'global', cwd: string): Promise<string> {
-  return invoke<string>('read_config_file', { scope, cwd })
+export function readConfigFile(): Promise<string> {
+  return invoke<string>('read_config_file')
 }
 
-export function writeConfigFile(scope: 'cwd' | 'global', cwd: string, content: string): Promise<void> {
-  return invoke<void>('write_config_file', { scope, cwd, content })
+export function writeConfigFile(content: string): Promise<void> {
+  return invoke<void>('write_config_file', { content })
 }
 
 export function openConfigDir(): Promise<string> {

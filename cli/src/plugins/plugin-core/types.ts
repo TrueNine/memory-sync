@@ -7,7 +7,10 @@ export * from './OutputTypes'
 export * from './plugin'
 export * from './PromptTypes'
 export type {
+  DiagnosticLines,
   ILogger,
+  LoggerDiagnosticInput,
+  LoggerDiagnosticRecord,
   LogLevel
 } from '@truenine/logger'
 

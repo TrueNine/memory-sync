@@ -5,6 +5,7 @@
 import type {AindexConfig, ILogger} from './plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {buildUsageDiagnostic, diagnosticLines} from '@/diagnostics'
 
 /**
  * Version control check result
@@ -30,7 +31,23 @@ export function checkVersionControl(
   const hasGit = fs.existsSync(gitPath)
 
   if (hasGit) logger?.info('version control detected', {path: gitPath})
-  else logger?.warn('no version control detected, please use git to manage your aindex', {path: rootPath})
+  else {
+    logger?.warn(buildUsageDiagnostic({
+      code: 'AINDEX_VERSION_CONTROL_MISSING',
+      title: 'Aindex root is not under version control',
+      rootCause: diagnosticLines(`tnmsc did not find a .git directory under "${rootPath}".`),
+      exactFix: diagnosticLines(
+        `Initialize git in "${rootPath}" or place the aindex inside an existing git repository.`
+      ),
+      possibleFixes: [
+        diagnosticLines('Run `git init` in the aindex root if the directory should be versioned.')
+      ],
+      details: {
+        rootPath,
+        gitPath
+      }
+    }))
+  }
 
   return {hasGit, gitPath}
 }

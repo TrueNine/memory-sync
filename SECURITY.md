@@ -36,7 +36,7 @@ Don't rush.
 
 `memory-sync` is a CLI tool that **reads source files only and writes target configs only**. Its security boundary:
 
-- **Reads**: user `.src.mdx` source files, project config files (`.tnmsc.json`)
+- **Reads**: user `.src.mdx` source files, the global config file (`~/.aindex/.tnmsc.json`)
 - **Writes**: target tool config directories (`.cursor/`, `.claude/`, `.kiro/`, etc.)
 - **Cleans**: removes stale files from target directories during sync
 The following are **out of scope**:

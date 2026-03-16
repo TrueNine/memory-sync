@@ -3,10 +3,10 @@
 //! Defines `CollectedInputContext`, `RelativePath`, plugin traits,
 //! and other types shared between input plugins, CLI, and output runtime.
 
-use std::collections::HashMap;
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -574,7 +574,10 @@ mod tests {
         let parsed: CollectedInputContext = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.workspace.as_ref().unwrap().projects.len(), 1);
         assert_eq!(parsed.fast_commands.as_ref().unwrap().len(), 1);
-        assert_eq!(parsed.fast_commands.as_ref().unwrap()[0].command_name, "test");
+        assert_eq!(
+            parsed.fast_commands.as_ref().unwrap()[0].command_name,
+            "test"
+        );
     }
 
     #[test]
@@ -600,9 +603,21 @@ mod tests {
 
     #[test]
     fn test_enums_serialize() {
-        assert_eq!(serde_json::to_string(&PromptKind::FastCommand).unwrap(), "\"FastCommand\"");
-        assert_eq!(serde_json::to_string(&RuleScope::Global).unwrap(), "\"global\"");
-        assert_eq!(serde_json::to_string(&IDEKind::VSCode).unwrap(), "\"VSCode\"");
-        assert_eq!(serde_json::to_string(&SkillResourceEncoding::Base64).unwrap(), "\"base64\"");
+        assert_eq!(
+            serde_json::to_string(&PromptKind::FastCommand).unwrap(),
+            "\"FastCommand\""
+        );
+        assert_eq!(
+            serde_json::to_string(&RuleScope::Global).unwrap(),
+            "\"global\""
+        );
+        assert_eq!(
+            serde_json::to_string(&IDEKind::VSCode).unwrap(),
+            "\"VSCode\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SkillResourceEncoding::Base64).unwrap(),
+            "\"base64\""
+        );
     }
 }

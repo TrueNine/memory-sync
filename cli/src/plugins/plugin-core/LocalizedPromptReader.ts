@@ -8,12 +8,19 @@ import type {
   LocalizedFileExtension,
   LocalizedPrompt,
   LocalizedReadOptions,
+  LoggerDiagnosticInput,
   Prompt,
   PromptKind,
   ReadError
 } from './types'
 import {mdxToMd} from '@truenine/md-compiler'
 import {parseMarkdown} from '@truenine/md-compiler/markdown' // Re-export types for convenience
+import {
+  buildDiagnostic,
+  buildFileOperationDiagnostic,
+  buildPromptCompilerDiagnostic,
+  diagnosticLines
+} from '@/diagnostics'
 import {
   assertNoResidualModuleSyntax,
   MissingCompiledPromptError,
@@ -90,7 +97,18 @@ export class LocalizedPromptReader {
             error: error as Error,
             phase: 'read'
           })
-          this.logger.error(`Failed to read entry: ${name}`, {error})
+          this.logger.error(buildFileOperationDiagnostic({
+            code: 'LOCALIZED_PROMPT_ENTRY_READ_FAILED',
+            title: 'Failed to read localized prompt entry',
+            operation: 'read',
+            targetKind: `${String(options.kind)} prompt entry`,
+            path: srcEntryDir,
+            error,
+            details: {
+              entryName: name,
+              promptKind: String(options.kind)
+            }
+          }))
           if (shouldFailFast(error)) throw error
         }
       }
@@ -100,7 +118,17 @@ export class LocalizedPromptReader {
         error: error as Error,
         phase: 'scan'
       })
-      this.logger.error(`Failed to scan directory: ${srcDir}`, {error})
+      this.logger.error(buildFileOperationDiagnostic({
+        code: 'LOCALIZED_PROMPT_DIRECTORY_SCAN_FAILED',
+        title: 'Failed to scan localized prompt source directory',
+        operation: 'scan',
+        targetKind: `${String(options.kind)} prompt source directory`,
+        path: srcDir,
+        error,
+        details: {
+          promptKind: String(options.kind)
+        }
+      }))
       if (shouldFailFast(error)) throw error
     }
 
@@ -149,7 +177,18 @@ export class LocalizedPromptReader {
           error: error as Error,
           phase: 'read'
         })
-        this.logger.error(`Failed to read file: ${filePath}`, {error})
+        this.logger.error(buildFileOperationDiagnostic({
+          code: 'LOCALIZED_PROMPT_FILE_READ_FAILED',
+          title: 'Failed to read localized prompt file',
+          operation: 'read',
+          targetKind: `${String(options.kind)} prompt file`,
+          path: filePath,
+          error,
+          details: {
+            promptKind: String(options.kind),
+            logicalName: fullName
+          }
+        }))
         if (shouldFailFast(error)) throw error
       }
     }
@@ -185,7 +224,17 @@ export class LocalizedPromptReader {
           error: error as Error,
           phase: 'scan'
         })
-        this.logger.error(`Failed to scan directory: ${currentSrcDir}`, {error})
+        this.logger.error(buildFileOperationDiagnostic({
+          code: 'LOCALIZED_SOURCE_DIRECTORY_SCAN_FAILED',
+          title: 'Failed to scan localized source directory',
+          operation: 'scan',
+          targetKind: `${String(options.kind)} source directory`,
+          path: currentSrcDir,
+          error,
+          details: {
+            promptKind: String(options.kind)
+          }
+        }))
         if (shouldFailFast(error)) throw error
       }
     }
@@ -220,7 +269,17 @@ export class LocalizedPromptReader {
           error: error as Error,
           phase: 'scan'
         })
-        this.logger.error(`Failed to scan directory: ${currentDistDir}`, {error})
+        this.logger.error(buildFileOperationDiagnostic({
+          code: 'LOCALIZED_DIST_DIRECTORY_SCAN_FAILED',
+          title: 'Failed to scan localized dist directory',
+          operation: 'scan',
+          targetKind: `${String(options.kind)} dist directory`,
+          path: currentDistDir,
+          error,
+          details: {
+            promptKind: String(options.kind)
+          }
+        }))
         if (shouldFailFast(error)) throw error
       }
     }
@@ -275,8 +334,8 @@ export class LocalizedPromptReader {
     }
 
     const distContent = await this.readDistContent(distPath, createPrompt, name, diagnosticContext)
-    const zhContent = await this.readLocaleContent(srcZhPath, 'zh', createPrompt, name)
-    const enContent = await this.readLocaleContent(srcEnPath, 'en', createPrompt, name)
+    const zhContent = await this.readLocaleContent(srcZhPath, 'zh', createPrompt, name, String(kind))
+    const enContent = await this.readLocaleContent(srcEnPath, 'en', createPrompt, name, String(kind))
 
     const hasDist = distContent != null
     const hasSrcZh = zhContent != null
@@ -284,7 +343,23 @@ export class LocalizedPromptReader {
     const sourcePath = hasSrcZh ? srcZhPath : hasSrcEn ? srcEnPath : void 0
 
     if (!hasDist && !hasSrcZh && !hasSrcEn) {
-      this.logger.warn(`Missing both dist and source file for: ${name}`)
+      this.logger.warn(buildDiagnostic({
+        code: 'LOCALIZED_PROMPT_ARTIFACTS_MISSING',
+        title: `Missing source and dist prompt artifacts for ${name}`,
+        rootCause: diagnosticLines(
+          `tnmsc could not find either the source prompt or the compiled dist prompt for "${name}".`
+        ),
+        exactFix: diagnosticLines(
+          'Create the source prompt and rebuild the compiled dist prompt before retrying tnmsc.'
+        ),
+        details: {
+          promptKind: String(kind),
+          name,
+          srcZhPath,
+          srcEnPath,
+          distPath
+        }
+      }))
       return null
     }
 
@@ -363,8 +438,8 @@ export class LocalizedPromptReader {
     }
 
     const distContent = await this.readDistContent(distPath, createPrompt, name, diagnosticContext)
-    const zhContent = await this.readLocaleContent(fullSrcZhPath, 'zh', createPrompt, name)
-    const enContent = await this.readLocaleContent(fullSrcEnPath, 'en', createPrompt, name)
+    const zhContent = await this.readLocaleContent(fullSrcZhPath, 'zh', createPrompt, name, String(kind))
+    const enContent = await this.readLocaleContent(fullSrcEnPath, 'en', createPrompt, name, String(kind))
 
     const hasDist = distContent != null
     const hasSrcZh = zhContent != null
@@ -372,7 +447,23 @@ export class LocalizedPromptReader {
     const sourcePath = hasSrcZh ? fullSrcZhPath : hasSrcEn ? fullSrcEnPath : void 0
 
     if (!hasDist && !hasSrcZh && !hasSrcEn) {
-      this.logger.warn(`Missing both dist and source file for: ${name}`)
+      this.logger.warn(buildDiagnostic({
+        code: 'LOCALIZED_PROMPT_ARTIFACTS_MISSING',
+        title: `Missing source and dist prompt artifacts for ${name}`,
+        rootCause: diagnosticLines(
+          `tnmsc could not find either the source prompt or the compiled dist prompt for "${name}".`
+        ),
+        exactFix: diagnosticLines(
+          'Create the source prompt and rebuild the compiled dist prompt before retrying tnmsc.'
+        ),
+        details: {
+          promptKind: String(kind),
+          name,
+          srcZhPath: fullSrcZhPath,
+          srcEnPath: fullSrcEnPath,
+          distPath
+        }
+      }))
       return null
     }
 
@@ -416,7 +507,8 @@ export class LocalizedPromptReader {
     filePath: string,
     locale: Locale,
     createPrompt: (content: string, locale: Locale, name: string, metadata?: Record<string, unknown>) => T | Promise<T>,
-    name: string
+    name: string,
+    promptKind: string
   ): Promise<LocalizedContent<T> | null> {
     if (!this.exists(filePath)) return null
 
@@ -450,7 +542,21 @@ export class LocalizedPromptReader {
 
       return result
     } catch (error) {
-      this.logger.error(`Failed to read locale content: ${filePath}`, {error})
+      this.logger.error(buildPromptCompilerDiagnostic({
+        code: 'LOCALIZED_SOURCE_PROMPT_READ_FAILED',
+        title: 'Failed to read localized source prompt',
+        diagnosticText: formatPromptCompilerDiagnostic(error, {
+          operation: 'Failed to read localized source prompt.',
+          promptKind,
+          logicalName: name,
+          distPath: filePath
+        }),
+        details: {
+          promptKind,
+          locale,
+          filePath
+        }
+      }))
       throw error
     }
   }
@@ -493,16 +599,16 @@ export class LocalizedPromptReader {
       if (parsed.yamlFrontMatter != null) Object.assign(result, {frontMatter: parsed.yamlFrontMatter})
       return result
     } catch (error) {
-      this.logger.error(this.formatDistReadError(error, filePath, diagnosticContext), {error})
+      this.logger.error(this.buildDistReadDiagnostic(error, filePath, diagnosticContext))
       throw error
     }
   }
 
-  private formatDistReadError(
+  private buildDistReadDiagnostic(
     error: unknown,
     filePath: string,
     context: ReaderDiagnosticContext
-  ): string {
+  ): LoggerDiagnosticInput {
     const mappedSourcePath = resolveSourcePathForDistFile(this.path, filePath, {
       preferredSourcePath: filePath === context.entryDistPath ? context.srcPath : void 0,
       distRootDir: this.path.dirname(context.entryDistPath),
@@ -516,7 +622,17 @@ export class LocalizedPromptReader {
       distPath: filePath,
       srcPath: mappedSourcePath
     }
-    return formatPromptCompilerDiagnostic(error, formattedContext)
+    return buildPromptCompilerDiagnostic({
+      code: 'LOCALIZED_DIST_PROMPT_READ_FAILED',
+      title: 'Failed to read localized dist prompt',
+      diagnosticText: formatPromptCompilerDiagnostic(error, formattedContext),
+      details: {
+        promptKind: context.promptKind,
+        logicalName: context.logicalName,
+        filePath,
+        srcPath: mappedSourcePath
+      }
+    })
   }
 
   private scanChildren(
@@ -557,7 +673,14 @@ export class LocalizedPromptReader {
 
       scanDir(dir, '')
     } catch (error) {
-      this.logger.warn(`Failed to scan children: ${dir}`, {error})
+      this.logger.warn(buildFileOperationDiagnostic({
+        code: 'LOCALIZED_PROMPT_CHILD_SCAN_FAILED',
+        title: 'Failed to scan localized prompt child documents',
+        operation: 'scan',
+        targetKind: 'localized prompt child directory',
+        path: dir,
+        error
+      }))
     }
 
     return children

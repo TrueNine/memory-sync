@@ -13,13 +13,13 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {createLogger, ZUserConfigFile} from './plugins/plugin-core'
 import {
-  createProtectedDeletionGuard,
-  getProtectedPathViolation,
-  logProtectedDeletionGuardError,
-  ProtectedDeletionGuardError
-} from './ProtectedDeletionGuard'
+  buildConfigDiagnostic,
+  buildFileOperationDiagnostic,
+  diagnosticLines,
+  splitDiagnosticText
+} from './diagnostics'
+import {createLogger, ZUserConfigFile} from './plugins/plugin-core'
 
 /**
  * Default config file name
@@ -54,38 +54,18 @@ export interface GlobalConfigValidationResult {
 /**
  * ConfigLoader handles discovery and loading of user configuration files.
  *
- * Search order (first found wins at each level):
- * 1. CWD: ./.tnmsc.json
- * 2. Global: ~/.aindex/.tnmsc.json
- *
- * Configurations are merged with later sources having lower priority.
- * CWD config overrides global config.
+ * The config source is fixed and unambiguous:
+ * 1. Global: ~/.aindex/.tnmsc.json
  */
 export class ConfigLoader {
-  private readonly configFileName: string
-  private readonly searchCwd: boolean
-  private readonly searchGlobal: boolean
-  private readonly customSearchPaths: readonly string[]
   private readonly logger: ILogger
 
-  constructor(options: ConfigLoaderOptions = {}) {
-    this.configFileName = options.configFileName ?? DEFAULT_CONFIG_FILE_NAME
-    this.searchCwd = options.searchCwd ?? true
-    this.searchGlobal = options.searchGlobal ?? true
-    this.customSearchPaths = options.searchPaths ?? []
+  constructor(_options: ConfigLoaderOptions = {}) {
     this.logger = createLogger('ConfigLoader')
   }
 
-  getSearchPaths(cwd: string = process.cwd()): string[] {
-    const paths: string[] = []
-
-    for (const searchPath of this.customSearchPaths) paths.push(this.resolveTilde(searchPath)) // Custom search paths first (highest priority)
-
-    if (this.searchCwd) paths.push(path.join(cwd, this.configFileName)) // CWD config
-
-    if (this.searchGlobal) paths.push(path.join(os.homedir(), DEFAULT_GLOBAL_CONFIG_DIR, this.configFileName)) // Global config (lowest priority)
-
-    return paths
+  getSearchPaths(_cwd: string = process.cwd()): string[] {
+    return [getGlobalConfigPath()]
   }
 
   loadFromFile(filePath: string): ConfigLoadResult {
@@ -101,7 +81,14 @@ export class ConfigLoader {
       return {config, source: resolvedPath, found: true}
     }
     catch (error) {
-      this.logger.warn('load failed', {path: resolvedPath, error})
+      this.logger.warn(buildFileOperationDiagnostic({
+        code: 'CONFIG_FILE_LOAD_FAILED',
+        title: 'Failed to load config file',
+        operation: 'read',
+        targetKind: 'config file',
+        path: resolvedPath,
+        error
+      }))
       return {config: {}, source: null, found: false}
     }
   }
@@ -285,82 +272,6 @@ export function loadUserConfig(cwd?: string): MergedConfigResult {
   return getConfigLoader().load(cwd)
 }
 
-function isSymlinkPath(filePath: string): boolean {
-  try {
-    return fs.lstatSync(filePath).isSymbolicLink()
-  }
-  catch {
-    return false
-  }
-}
-
-function readSymlinkTarget(filePath: string): string | null {
-  try {
-    return fs.readlinkSync(filePath)
-  }
-  catch {
-    return null
-  }
-}
-
-function assertConfigDeletionAllowed(
-  targetPath: string,
-  logger: ILogger
-): void {
-  const violation = getProtectedPathViolation(targetPath, createProtectedDeletionGuard())
-  if (violation == null) return
-
-  logProtectedDeletionGuardError(logger, 'config-link-replacement', [violation])
-  throw new ProtectedDeletionGuardError('config-link-replacement', [violation])
-}
-
-/**
- * Ensure a local config file is linked (symlink preferred) to the global config.
- * Falls back to a file copy when symlink creation is unavailable.
- */
-export function ensureConfigLink(
-  localConfigPath: string,
-  globalConfigPath: string,
-  logger: ILogger
-): void {
-  if (!fs.existsSync(globalConfigPath)) return
-
-  if (fs.existsSync(localConfigPath) || isSymlinkPath(localConfigPath)) {
-    if (isSymlinkPath(localConfigPath)) {
-      const target = readSymlinkTarget(localConfigPath)
-      if (target !== null && path.resolve(path.dirname(localConfigPath), target) === path.resolve(globalConfigPath)) return
-      assertConfigDeletionAllowed(localConfigPath, logger)
-      fs.rmSync(localConfigPath, {force: true})
-    } else {
-      const localContent = fs.readFileSync(localConfigPath, 'utf8')
-      const globalContent = fs.readFileSync(globalConfigPath, 'utf8')
-      if (localContent !== globalContent) {
-        fs.copyFileSync(localConfigPath, globalConfigPath)
-        logger.debug('synced local config back to global', {src: localConfigPath, dest: globalConfigPath})
-      }
-      assertConfigDeletionAllowed(localConfigPath, logger)
-      fs.rmSync(localConfigPath, {force: true})
-    }
-  }
-
-  try {
-    fs.symlinkSync(globalConfigPath, localConfigPath, 'file')
-    logger.debug('linked config', {link: localConfigPath, target: globalConfigPath})
-  }
-  catch {
-    try {
-      fs.copyFileSync(globalConfigPath, localConfigPath)
-      logger.warn('symlink unavailable, copied config (auto-sync disabled)', {dest: localConfigPath})
-    }
-    catch (copyErr) {
-      logger.warn('failed to link or copy config', {
-        path: localConfigPath,
-        error: copyErr instanceof Error ? copyErr.message : String(copyErr)
-      })
-    }
-  }
-}
-
 /**
  * Validate global config file strictly.
  * - If config doesn't exist: return invalid result (do not auto-create)
@@ -374,7 +285,20 @@ export function validateGlobalConfig(): GlobalConfigValidationResult {
 
   if (!fs.existsSync(configPath)) { // Check if config file exists - do not auto-create
     const error = `Global config not found at ${configPath}. Please create it manually.`
-    logger.error(error)
+    logger.error(buildConfigDiagnostic({
+      code: 'GLOBAL_CONFIG_MISSING',
+      title: 'Global config file is missing',
+      reason: diagnosticLines(
+        `tnmsc could not find the required global config file at "${configPath}".`
+      ),
+      configPath,
+      exactFix: diagnosticLines(
+        'Create the global config file manually before running tnmsc again.'
+      ),
+      possibleFixes: [
+        diagnosticLines('Initialize the file with a valid JSON object, for example `{}`.')
+      ]
+    }))
     return {
       valid: false,
       exists: false,
@@ -389,7 +313,14 @@ export function validateGlobalConfig(): GlobalConfigValidationResult {
   }
   catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logger.error('failed to read global config', {path: configPath, error: errorMessage})
+    logger.error(buildFileOperationDiagnostic({
+      code: 'GLOBAL_CONFIG_READ_FAILED',
+      title: 'Failed to read global config file',
+      operation: 'read',
+      targetKind: 'global config file',
+      path: configPath,
+      error: errorMessage
+    }))
     return {
       valid: false,
       exists: true,
@@ -404,7 +335,21 @@ export function validateGlobalConfig(): GlobalConfigValidationResult {
   }
   catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logger.error('invalid JSON in global config', {path: configPath, error: errorMessage})
+    logger.error(buildConfigDiagnostic({
+      code: 'GLOBAL_CONFIG_JSON_INVALID',
+      title: 'Global config contains invalid JSON',
+      reason: diagnosticLines(
+        `tnmsc could not parse the JSON in "${configPath}".`,
+        `Parser error: ${errorMessage}`
+      ),
+      configPath,
+      exactFix: diagnosticLines(
+        'Fix the JSON syntax in the global config file so it parses as a single JSON object.'
+      ),
+      possibleFixes: [
+        diagnosticLines('Validate the file with a JSON parser and remove trailing commas or invalid tokens.')
+      ]
+    }))
     return {
       valid: false,
       exists: true,
@@ -414,7 +359,17 @@ export function validateGlobalConfig(): GlobalConfigValidationResult {
   }
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    logger.error('global config must be a JSON object', {path: configPath})
+    logger.error(buildConfigDiagnostic({
+      code: 'GLOBAL_CONFIG_NOT_OBJECT',
+      title: 'Global config must be a JSON object',
+      reason: diagnosticLines(
+        `tnmsc parsed "${configPath}" successfully, but the top-level value is not a JSON object.`
+      ),
+      configPath,
+      exactFix: diagnosticLines(
+        'Replace the top-level JSON value with an object like `{}` or a valid config object.'
+      )
+    }))
     return {
       valid: false,
       exists: true,
@@ -426,7 +381,23 @@ export function validateGlobalConfig(): GlobalConfigValidationResult {
   const zodResult = ZUserConfigFile.safeParse(parsed)
   if (!zodResult.success) {
     const errors = zodResult.error.issues.map((i: {path: (string | number)[], message: string}) => `${i.path.join('.')}: ${i.message}`)
-    for (const err of errors) logger.error('config validation error', {path: configPath, error: err})
+    for (const err of errors) {
+      logger.error(buildConfigDiagnostic({
+        code: 'GLOBAL_CONFIG_VALIDATION_FAILED',
+        title: 'Global config validation failed',
+        reason: splitDiagnosticText(err),
+        configPath,
+        exactFix: diagnosticLines(
+          'Update the invalid config field so it matches the tnmsc schema.'
+        ),
+        possibleFixes: [
+          diagnosticLines('Compare the field name and value against the current config schema or examples.')
+        ],
+        details: {
+          validationError: err
+        }
+      }))
+    }
     return {
       valid: false,
       exists: true,

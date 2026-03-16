@@ -1,6 +1,7 @@
 import type {Program} from 'estree' // AST transformation module for lossless MDX to Markdown conversion // transformer.ts
 import type {Paragraph, Parent, Root, RootContent, Text} from 'mdast'
 import type {MdxJsxFlowElement} from 'mdast-util-mdx'
+import type {EvaluateExpressionOptions} from './expression-eval'
 import type {ExpressionDiagnosticContext, ProcessingContext} from './types'
 import {isMdxComponent, processComponent} from './component-processor'
 import {evaluateExpression} from './expression-eval'
@@ -13,7 +14,7 @@ function createExpressionOptions(
   ctx: ProcessingContext,
   node: {position?: ExpressionDiagnosticContext['position']},
   nodeType: string
-) {
+): EvaluateExpressionOptions {
   return {
     ...ctx.filePath != null && {filePath: ctx.filePath},
     ...ctx.sourceText != null && {sourceText: ctx.sourceText},

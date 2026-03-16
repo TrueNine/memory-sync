@@ -20,9 +20,10 @@ import {CleanCommand} from '@/commands/CleanCommand'
 import {DryRunCleanCommand} from '@/commands/DryRunCleanCommand'
 import {DryRunOutputCommand} from '@/commands/DryRunOutputCommand'
 import {ExecuteCommand} from '@/commands/ExecuteCommand'
-import {JsonOutputCommand} from '@/commands/JsonOutputCommand'
+import {JsonOutputCommand, toJsonCommandResult} from '@/commands/JsonOutputCommand'
 import {PluginsCommand} from '@/commands/PluginsCommand'
-import {createLogger, setGlobalLogLevel} from './plugins/plugin-core'
+import {buildUnhandledExceptionDiagnostic} from '@/diagnostics'
+import {createLogger, drainBufferedDiagnostics, setGlobalLogLevel} from './plugins/plugin-core'
 
 /**
  * Parse runtime arguments.
@@ -108,25 +109,25 @@ async function main(): Promise<void> {
   if (!result.success) process.exit(1)
 }
 
-function writeJsonFailure(errorMessage: string): void {
-  process.stdout.write(`${JSON.stringify({
+function writeJsonFailure(error: unknown): void {
+  const errorMessage = error instanceof Error ? error.message : String(error)
+  const logger = createLogger('plugin-runtime', 'silent')
+  logger.error(buildUnhandledExceptionDiagnostic('plugin-runtime', error))
+  process.stdout.write(`${JSON.stringify(toJsonCommandResult({
     success: false,
     filesAffected: 0,
     dirsAffected: 0,
-    message: errorMessage,
-    pluginResults: [],
-    errors: [errorMessage]
-  })}\n`)
+    message: errorMessage
+  }, drainBufferedDiagnostics()))}\n`)
 }
 
 main().catch((e: unknown) => {
-  const errorMessage = e instanceof Error ? e.message : String(e)
   const {json} = parseRuntimeArgs(process.argv)
   if (json) {
-    writeJsonFailure(errorMessage)
+    writeJsonFailure(e)
     process.exit(1)
   }
   const logger = createLogger('plugin-runtime', 'error')
-  logger.error('unhandled error', {error: errorMessage})
+  logger.error(buildUnhandledExceptionDiagnostic('plugin-runtime', e))
   process.exit(1)
 })

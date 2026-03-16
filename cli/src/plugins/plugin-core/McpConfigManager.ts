@@ -1,5 +1,6 @@
 import type {ILogger, McpServerConfig, SkillPrompt} from './types'
 import * as path from 'node:path'
+import {buildFileOperationDiagnostic} from '@/diagnostics'
 
 /**
  * MCP configuration format type
@@ -83,8 +84,18 @@ export class McpConfigManager {
         return JSON.parse(content) as Record<string, unknown>
       }
     }
-    catch {
-      this.logger.warn('failed to read existing mcp config, starting fresh', {path: configPath})
+    catch (error) {
+      this.logger.warn(buildFileOperationDiagnostic({
+        code: 'MCP_CONFIG_READ_FAILED',
+        title: 'Failed to read existing MCP config',
+        operation: 'read',
+        targetKind: 'MCP config file',
+        path: configPath,
+        error,
+        details: {
+          fallback: 'starting fresh'
+        }
+      }))
     }
     return {}
   }
@@ -152,7 +163,14 @@ export class McpConfigManager {
     }
     catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.logger.error({action: 'write', type: 'mcpConfig', path: configPath, error: errMsg})
+      this.logger.error(buildFileOperationDiagnostic({
+        code: 'MCP_CONFIG_WRITE_FAILED',
+        title: 'Failed to write MCP config',
+        operation: 'write',
+        targetKind: 'MCP config file',
+        path: configPath,
+        error: errMsg
+      }))
       return {success: false, path: configPath, serverCount: 0, error: error as Error}
     }
   }

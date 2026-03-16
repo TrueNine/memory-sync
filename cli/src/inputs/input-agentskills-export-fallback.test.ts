@@ -22,7 +22,8 @@ function createMockLogger(): ILogger {
     debug: () => {},
     info: () => {},
     warn: () => {},
-    error: () => {}
+    error: () => {},
+    fatal: () => {}
   } as ILogger
 }
 

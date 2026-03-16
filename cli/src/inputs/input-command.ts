@@ -5,6 +5,7 @@ import type {
   InputPluginContext,
   Locale
 } from '../plugins/plugin-core'
+import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {
   AbstractInputPlugin,
   createLocalizedPromptReader,
@@ -107,7 +108,19 @@ export class CommandInputPlugin extends AbstractInputPlugin {
       errorCount: errors.length
     })
 
-    for (const error of errors) logger.warn('Failed to read command', {path: error.path, phase: error.phase, error: error.error})
+    for (const error of errors) {
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'COMMAND_PROMPT_READ_FAILED',
+        title: 'Failed to read command prompt',
+        operation: error.phase === 'scan' ? 'scan' : 'read',
+        targetKind: 'command prompt',
+        path: error.path,
+        error: error.error,
+        details: {
+          phase: error.phase
+        }
+      }))
+    }
 
     const flatCommands: CommandPrompt[] = []
     for (const localized of localizedCommands) {

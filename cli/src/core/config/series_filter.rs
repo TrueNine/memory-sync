@@ -18,8 +18,18 @@ pub fn resolve_effective_include_series_core(
 ) -> Vec<String> {
     match (top_level, type_specific) {
         (None, None) => Vec::new(),
-        (Some(a), None) => a.iter().collect::<HashSet<_>>().into_iter().cloned().collect(),
-        (None, Some(b)) => b.iter().collect::<HashSet<_>>().into_iter().cloned().collect(),
+        (Some(a), None) => a
+            .iter()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .cloned()
+            .collect(),
+        (None, Some(b)) => b
+            .iter()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .cloned()
+            .collect(),
         (Some(a), Some(b)) => {
             let mut set = HashSet::new();
             for s in a.iter().chain(b.iter()) {
@@ -47,7 +57,10 @@ pub fn matches_series_core(
     if effective_include_series.is_empty() {
         return true;
     }
-    let set: HashSet<&str> = effective_include_series.iter().map(String::as_str).collect();
+    let set: HashSet<&str> = effective_include_series
+        .iter()
+        .map(String::as_str)
+        .collect();
     match seri {
         SeriName::Single(s) => set.contains(s.as_str()),
         SeriName::Multiple(arr) => arr.iter().any(|s| set.contains(s.as_str())),
@@ -120,10 +133,7 @@ mod napi_binding {
         top_level: Option<Vec<String>>,
         type_specific: Option<Vec<String>>,
     ) -> Vec<String> {
-        resolve_effective_include_series_core(
-            top_level.as_deref(),
-            type_specific.as_deref(),
-        )
+        resolve_effective_include_series_core(top_level.as_deref(), type_specific.as_deref())
     }
 
     /// Deep-merge two optional subSeries records.
@@ -132,10 +142,7 @@ mod napi_binding {
         top_level: Option<HashMap<String, Vec<String>>>,
         type_specific: Option<HashMap<String, Vec<String>>>,
     ) -> HashMap<String, Vec<String>> {
-        resolve_sub_series_core(
-            top_level.as_ref(),
-            type_specific.as_ref(),
-        )
+        resolve_sub_series_core(top_level.as_ref(), type_specific.as_ref())
     }
 }
 

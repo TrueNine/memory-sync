@@ -13,6 +13,11 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {createLogger} from '@truenine/logger'
+import {
+  buildDiagnostic,
+  buildFileOperationDiagnostic,
+  diagnosticLines
+} from '@/diagnostics'
 
 /**
  * Abstract base class for registry configuration writers.
@@ -62,7 +67,14 @@ export abstract class RegistryWriter<
     }
     catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error('parse failed', {path: this.registryPath, error: errMsg})
+      this.log.error(buildFileOperationDiagnostic({
+        code: 'REGISTRY_READ_FAILED',
+        title: 'Failed to read registry file',
+        operation: 'read',
+        targetKind: 'registry file',
+        path: this.registryPath,
+        error: errMsg
+      }))
       return this.createInitialRegistry()
     }
   }
@@ -93,7 +105,14 @@ export abstract class RegistryWriter<
     }
     catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.error({action: 'write', type: 'registry', path: this.registryPath, error: errMsg})
+      this.log.error(buildFileOperationDiagnostic({
+        code: 'REGISTRY_WRITE_FAILED',
+        title: 'Failed to write registry file',
+        operation: 'write',
+        targetKind: 'registry file',
+        path: this.registryPath,
+        error: errMsg
+      }))
 
       try { // Cleanup temp file if it exists
         if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath)
@@ -125,7 +144,20 @@ export abstract class RegistryWriter<
         else this.log.trace({action: 'register', type: 'entry', entryName})
       } else {
         results.push({success: false, entryName, error: new Error(`Failed to write registry file`)})
-        this.log.error('register entry failed', {entryName})
+        this.log.error(buildDiagnostic({
+          code: 'REGISTRY_ENTRY_REGISTRATION_FAILED',
+          title: `Failed to register registry entry: ${entryName}`,
+          rootCause: diagnosticLines(
+            `tnmsc could not persist the registry entry "${entryName}" because the registry write step failed.`
+          ),
+          exactFix: diagnosticLines(
+            'Fix the registry path permissions or invalid on-disk state, then rerun tnmsc.'
+          ),
+          details: {
+            entryName,
+            registryPath: this.registryPath
+          }
+        }))
       }
     }
 

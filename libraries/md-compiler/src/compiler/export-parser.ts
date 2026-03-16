@@ -92,7 +92,9 @@ export function parseExports(
  *
  * @param node - MDX ESM node containing export statements
  * @param scope - Optional evaluation scope for resolving variable references
- * @param filePath - Optional file path for error messages
+ * @param options - Optional file path and source text used for diagnostics
+ * @param options.filePath - Optional file path for error messages
+ * @param options.sourceText - Optional original source text for diagnostics
  * @returns Record of extracted key-value pairs
  *
  * @example

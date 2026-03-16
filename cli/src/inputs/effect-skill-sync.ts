@@ -1,4 +1,5 @@
 import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
+import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {AbstractInputPlugin, hasSourcePromptExtension} from '../plugins/plugin-core'
 
 export interface SkillDistCleanupEffectResult extends InputEffectResult {
@@ -34,12 +35,6 @@ export class SkillDistCleanupEffectInputPlugin extends AbstractInputPlugin {
     }
 
     const plan = this.buildCleanupPlan(ctx, distSkillsDir)
-    if (plan.errors.length > 0) {
-      logger.warn({
-        action: 'skill-dist-cleanup',
-        errors: plan.errors.map(error => ({path: error.path, error: error.error.message}))
-      })
-    }
 
     if (dryRun) {
       return {
@@ -62,7 +57,14 @@ export class SkillDistCleanupEffectInputPlugin extends AbstractInputPlugin {
       }
       catch (error) {
         deleteErrors.push({path: filePath, error: error as Error})
-        logger.warn({action: 'skill-dist-cleanup', message: 'Failed to delete file', path: filePath, error: (error as Error).message})
+        logger.warn(buildFileOperationDiagnostic({
+          code: 'SKILL_DIST_CLEANUP_FILE_DELETE_FAILED',
+          title: 'Skill dist cleanup could not delete a file',
+          operation: 'delete',
+          targetKind: 'skill dist file',
+          path: filePath,
+          error
+        }))
       }
     }
 
@@ -74,7 +76,14 @@ export class SkillDistCleanupEffectInputPlugin extends AbstractInputPlugin {
       }
       catch (error) {
         deleteErrors.push({path: dirPath, error: error as Error})
-        logger.warn({action: 'skill-dist-cleanup', message: 'Failed to delete directory', path: dirPath, error: (error as Error).message})
+        logger.warn(buildFileOperationDiagnostic({
+          code: 'SKILL_DIST_CLEANUP_DIRECTORY_DELETE_FAILED',
+          title: 'Skill dist cleanup could not delete a directory',
+          operation: 'delete',
+          targetKind: 'skill dist directory',
+          path: dirPath,
+          error
+        }))
       }
     }
 
@@ -113,7 +122,14 @@ export class SkillDistCleanupEffectInputPlugin extends AbstractInputPlugin {
     }
     catch (error) {
       errors.push({path: currentDir, error: error as Error})
-      logger.warn({action: 'skill-dist-cleanup', message: 'Failed to read directory', path: currentDir, error: (error as Error).message})
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'SKILL_DIST_CLEANUP_DIRECTORY_READ_FAILED',
+        title: 'Skill dist cleanup could not read a directory',
+        operation: 'read',
+        targetKind: 'skill dist directory',
+        path: currentDir,
+        error
+      }))
       return false
     }
 

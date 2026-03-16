@@ -17,6 +17,7 @@ import {spawn} from 'node:child_process'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
+import {buildDiagnostic, diagnosticLines} from '@/diagnostics'
 import {logProtectedDeletionGuardError, ProtectedDeletionGuardError} from '@/ProtectedDeletionGuard'
 import {AbstractPlugin} from './AbstractPlugin'
 import {PathPlaceholders} from './constants'
@@ -95,7 +96,25 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
       return
     }
 
-    this.log.error({action: 'inputEffect', name: effectName, status: 'failed', error: error.message})
+    this.log.error(buildDiagnostic({
+      code: 'INPUT_EFFECT_FAILED',
+      title: `Input effect failed: ${effectName}`,
+      rootCause: diagnosticLines(
+        `The input effect "${effectName}" failed before tnmsc could finish preprocessing.`,
+        `Underlying error: ${error.message}`
+      ),
+      exactFix: diagnosticLines(
+        'Inspect the effect inputs and fix the failing file, path, or environment condition before retrying tnmsc.'
+      ),
+      possibleFixes: [
+        diagnosticLines('Re-run the command after fixing the referenced path or generated artifact.'),
+        diagnosticLines('Add a focused regression test if this effect should handle the failure more gracefully.')
+      ],
+      details: {
+        effectName,
+        errorMessage: error.message
+      }
+    }))
   }
 
   hasEffects(): boolean {

@@ -1,5 +1,4 @@
 /// Memory Sync Tauri application entry point.
-
 pub mod commands;
 mod tray;
 

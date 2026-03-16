@@ -6,6 +6,12 @@ import process from 'node:process'
 import {mdxToMd} from '@truenine/md-compiler'
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
+import {
+  buildConfigDiagnostic,
+  buildPathStateDiagnostic,
+  buildPromptCompilerDiagnostic,
+  diagnosticLines
+} from '@/diagnostics'
 import {AbstractInputPlugin, FilePathKind, GlobalConfigDirectoryType, PromptKind} from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
 import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
@@ -22,12 +28,24 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
     const globalMemoryFile = this.resolveAindexPath(options.aindex.globalPrompt.dist, aindexDir)
 
     if (!fs.existsSync(globalMemoryFile)) {
-      this.log.warn({action: 'collect', reason: 'fileNotFound', path: globalMemoryFile})
+      this.log.warn(buildPathStateDiagnostic({
+        code: 'GLOBAL_MEMORY_PROMPT_MISSING',
+        title: 'Global memory prompt is missing',
+        path: globalMemoryFile,
+        expectedKind: 'compiled global memory prompt file',
+        actualState: 'path does not exist'
+      }))
       return {}
     }
 
     if (!fs.statSync(globalMemoryFile).isFile()) {
-      this.log.warn({action: 'collect', reason: 'notAFile', path: globalMemoryFile})
+      this.log.warn(buildPathStateDiagnostic({
+        code: 'GLOBAL_MEMORY_PROMPT_NOT_FILE',
+        title: 'Global memory prompt path is not a file',
+        path: globalMemoryFile,
+        expectedKind: 'compiled global memory prompt file',
+        actualState: 'path exists but is not a regular file'
+      }))
       return {}
     }
 
@@ -47,15 +65,39 @@ export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
     }
     catch (e) {
       if (e instanceof CompilerDiagnosticError) {
-        this.log.error(formatPromptCompilerDiagnostic(e, {
-          operation: 'Failed to compile global memory prompt.',
-          promptKind: 'global-memory',
-          logicalName: 'global-memory',
-          distPath: globalMemoryFile
+        this.log.error(buildPromptCompilerDiagnostic({
+          code: 'GLOBAL_MEMORY_PROMPT_COMPILE_FAILED',
+          title: 'Failed to compile global memory prompt',
+          diagnosticText: formatPromptCompilerDiagnostic(e, {
+            operation: 'Failed to compile global memory prompt.',
+            promptKind: 'global-memory',
+            logicalName: 'global-memory',
+            distPath: globalMemoryFile
+          }),
+          details: {
+            promptKind: 'global-memory',
+            distPath: globalMemoryFile
+          }
         }))
         if (e instanceof ScopeError) {
-          this.log.error(`Please check your configuration file (~/.aindex/.tnmsc.json) and ensure all required variables are defined.`)
-          this.log.error(`For example, if using {profile.name}, add a "profile" section with "name" field to your config.`)
+          this.log.error(buildConfigDiagnostic({
+            code: 'GLOBAL_MEMORY_SCOPE_VARIABLES_MISSING',
+            title: 'Global memory prompt references missing config variables',
+            reason: diagnosticLines(
+              'The global memory prompt uses scope variables that are not defined in `~/.aindex/.tnmsc.json`.'
+            ),
+            configPath: '~/.aindex/.tnmsc.json',
+            exactFix: diagnosticLines(
+              'Add the missing variables to `~/.aindex/.tnmsc.json` and rerun tnmsc.'
+            ),
+            possibleFixes: [
+              diagnosticLines('If you reference `{profile.name}`, define `profile.name` in the config file.')
+            ],
+            details: {
+              promptPath: globalMemoryFile,
+              errorMessage: e.message
+            }
+          }))
         }
         process.exit(1)
       }

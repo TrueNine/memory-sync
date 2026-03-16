@@ -13,6 +13,7 @@ import type {
   MdxJsxFlowElement,
   MdxJsxTextElement
 } from 'mdast-util-mdx'
+import type {EvaluateExpressionOptions} from './expression-eval'
 import type {ExpressionDiagnosticContext, ProcessingContext} from './types'
 import {evaluateExpression} from './expression-eval'
 
@@ -20,7 +21,7 @@ function createExpressionOptions(
   ctx: ProcessingContext,
   nodeType: string,
   node?: {position?: ExpressionDiagnosticContext['position']}
-) {
+): EvaluateExpressionOptions {
   return {
     ...ctx.filePath != null && {filePath: ctx.filePath},
     ...ctx.sourceText != null && {sourceText: ctx.sourceText},
@@ -97,15 +98,21 @@ function extractTextContent(
   let text = ''
 
   for (const child of element.children) {
-    if (child.type === 'text') text += child.value
-    else if (child.type === 'mdxTextExpression') {
+    if (child.type === 'text') {
+      text += child.value
+      continue
+    }
+
+    if (child.type === 'mdxTextExpression') {
       text += evaluateExpression(
         child.value,
         ctx.scope,
         createExpressionOptions(ctx, 'mdxTextExpression', child)
       )
+      continue
     }
-    else if (child.type === 'mdxJsxFlowElement' || child.type === 'mdxJsxTextElement') text += extractTextContent(child, ctx)
+
+    if (child.type === 'mdxJsxFlowElement' || child.type === 'mdxJsxTextElement') text += extractTextContent(child, ctx)
   }
 
   return text

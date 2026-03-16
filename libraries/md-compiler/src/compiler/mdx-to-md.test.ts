@@ -5,9 +5,9 @@
  * as specified in Requirements 1, 4, 5, and 6.
  */
 
+import type {UndefinedNamespaceError} from '@/errors'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {registerBuiltInComponents} from '@/components'
-import {UndefinedNamespaceError} from '@/errors'
 import {clearComponents} from './component-registry'
 import {mdxToMd} from './mdx-to-md'
 

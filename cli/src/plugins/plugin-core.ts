@@ -106,12 +106,17 @@ export {
 export * from './plugin-core/types'
 
 export {
+  clearBufferedDiagnostics,
   createLogger,
+  drainBufferedDiagnostics,
   getGlobalLogLevel,
   setGlobalLogLevel
 } from '@truenine/logger'
 
 export type {
+  DiagnosticLines,
   ILogger,
+  LoggerDiagnosticInput,
+  LoggerDiagnosticRecord,
   LogLevel
 } from '@truenine/logger'
