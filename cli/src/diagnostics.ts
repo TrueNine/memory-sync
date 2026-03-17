@@ -3,6 +3,7 @@ import type {
   LoggerDiagnosticInput,
   LoggerDiagnosticRecord
 } from './plugins/plugin-core'
+import process from 'node:process'
 import type {ProtectedPathViolation} from './ProtectedDeletionGuard'
 
 export function diagnosticLines(firstLine: string, ...otherLines: string[]): DiagnosticLines {
@@ -40,9 +41,71 @@ interface FileOperationDiagnosticOptions {
   readonly targetKind: string
   readonly path: string
   readonly error: unknown
+  readonly platform?: NodeJS.Platform | undefined
   readonly exactFix?: DiagnosticLines | undefined
   readonly possibleFixes?: readonly DiagnosticLines[] | undefined
   readonly details?: Record<string, unknown> | undefined
+}
+
+interface FileOperationAdvice {
+  readonly exactFix: DiagnosticLines
+  readonly possibleFixes: readonly DiagnosticLines[]
+}
+
+function normalizeErrorMessage(error: unknown): string {
+  return toErrorMessage(error).toLowerCase()
+}
+
+function isWindowsDirectoryDeletePermissionDenied(options: {
+  readonly operation: string
+  readonly targetKind: string
+  readonly error: unknown
+  readonly platform: NodeJS.Platform
+}): boolean {
+  if (options.platform !== 'win32') return false
+  if (options.operation !== 'delete') return false
+  if (options.targetKind !== 'directory') return false
+
+  const normalizedError = normalizeErrorMessage(options.error)
+  return normalizedError.includes('eperm') || normalizedError.includes('permission denied')
+}
+
+function buildFileOperationAdvice(options: {
+  readonly operation: string
+  readonly targetKind: string
+  readonly path: string
+  readonly error: unknown
+  readonly platform: NodeJS.Platform
+}): FileOperationAdvice {
+  if (isWindowsDirectoryDeletePermissionDenied(options)) {
+    return {
+      exactFix: diagnosticLines(
+        `Close any process that is using "${options.path}", delete the stale directory, and rerun tnmsc.`,
+        `Common lockers on Windows include editors, terminals, antivirus scanners, sync clients, and AI tools watching generated files.`
+      ),
+      possibleFixes: [
+        diagnosticLines(
+          `Use Resource Monitor or Process Explorer to find which process holds a handle under "${options.path}".`
+        ),
+        diagnosticLines(
+          `Make sure no shell, editor tab, or file watcher is currently opened inside "${options.path}" or one of its children.`
+        ),
+        diagnosticLines(
+          `If antivirus or cloud sync is scanning generated outputs, wait for it to release the directory or exclude this output path.`
+        )
+      ]
+    }
+  }
+
+  return {
+    exactFix: diagnosticLines(
+      `Verify that "${options.path}" exists, has the expected type, and is accessible to tnmsc.`
+    ),
+    possibleFixes: [
+      diagnosticLines('Check file permissions and ownership for the target path.'),
+      diagnosticLines('Confirm that another process did not delete, move, or lock the target path.')
+    ]
+  }
 }
 
 export function buildFileOperationDiagnostic(options: FileOperationDiagnosticOptions): LoggerDiagnosticInput {
@@ -53,11 +116,19 @@ export function buildFileOperationDiagnostic(options: FileOperationDiagnosticOpt
     targetKind,
     path,
     error,
+    platform,
     exactFix,
     possibleFixes,
     details
   } = options
   const errorMessage = toErrorMessage(error)
+  const advice = buildFileOperationAdvice({
+    operation,
+    targetKind,
+    path,
+    error,
+    platform: platform ?? process.platform
+  })
 
   return buildDiagnostic({
     code,
@@ -66,18 +137,14 @@ export function buildFileOperationDiagnostic(options: FileOperationDiagnosticOpt
       `tnmsc could not ${operation} the ${targetKind} at "${path}".`,
       `Underlying error: ${errorMessage}`
     ),
-    exactFix: exactFix ?? diagnosticLines(
-      `Verify that "${path}" exists, has the expected type, and is accessible to tnmsc.`
-    ),
-    possibleFixes: possibleFixes ?? [
-      diagnosticLines('Check file permissions and ownership for the target path.'),
-      diagnosticLines('Confirm that another process did not delete, move, or lock the target path.')
-    ],
+    exactFix: exactFix ?? advice.exactFix,
+    possibleFixes: possibleFixes ?? advice.possibleFixes,
     details: {
       operation,
       targetKind,
       path,
       errorMessage,
+      platform: platform ?? process.platform,
       ...details ?? {}
     }
   })
