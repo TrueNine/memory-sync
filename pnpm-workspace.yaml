@@ -36,7 +36,7 @@ catalog:
   fast-check: ^4.5.3
   fast-glob: ^3.3.3
   fs-extra: ^11.3.3
-  jsonc-parser: ^3.3.1
+  json5: ^2.2.3
   lucide-react: ^0.575.0
   mdast-util-mdx: ^3.0.0
   monaco-editor: ^0.55.1

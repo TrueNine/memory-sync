@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10314.11719",
+  "version": "2026.10317.12220",
   "description": "TrueNine Memory Synchronization CLI",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -68,7 +68,7 @@
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
     "jiti": "2.6.1",
-    "jsonc-parser": "catalog:",
+    "json5": "catalog:",
     "lightningcss": "1.31.1",
     "picocolors": "catalog:",
     "picomatch": "catalog:",

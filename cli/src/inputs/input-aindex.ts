@@ -1,6 +1,6 @@
 import type {InputCapabilityContext, InputCollectedContext, Project, ProjectConfig, Workspace} from '../plugins/plugin-core'
 
-import {parse as parseJsonc} from 'jsonc-parser'
+import JSON5 from 'json5'
 import {
   buildConfigDiagnostic,
   buildFileOperationDiagnostic,
@@ -9,6 +9,8 @@ import {
 import {AbstractInputCapability, FilePathKind} from '../plugins/plugin-core'
 
 export class AindexInputCapability extends AbstractInputCapability {
+  private static readonly projectConfigFileName = 'project.json5'
+
   constructor() {
     super('AindexInputCapability')
   }
@@ -21,41 +23,51 @@ export class AindexInputCapability extends AbstractInputCapability {
     path: InputCapabilityContext['path'],
     logger: InputCapabilityContext['logger']
   ): ProjectConfig | undefined {
-    const configPath = path.join(aindexDir, srcPath, projectName, 'project.jsonc')
+    const configPath = path.join(
+      aindexDir,
+      srcPath,
+      projectName,
+      AindexInputCapability.projectConfigFileName
+    )
     if (!fs.existsSync(configPath)) return void 0
+
     try {
       const raw = fs.readFileSync(configPath, 'utf8')
-      const errors: import('jsonc-parser').ParseError[] = []
-      const result = parseJsonc(raw, errors) as ProjectConfig
-      if (errors.length > 0) {
+
+      try {
+        return JSON5.parse(raw) as ProjectConfig
+      }
+      catch (e) {
         logger.warn(buildConfigDiagnostic({
-          code: 'AINDEX_PROJECT_JSONC_INVALID',
-          title: `Failed to parse project.jsonc for ${projectName}`,
+          code: 'AINDEX_PROJECT_JSON5_INVALID',
+          title: `Failed to parse ${AindexInputCapability.projectConfigFileName} for ${projectName}`,
           reason: diagnosticLines(
-            `tnmsc could not parse the project.jsonc file for "${projectName}".`,
-            `The file contains ${errors.length} JSONC parser issue(s).`
+            `tnmsc could not parse the ${AindexInputCapability.projectConfigFileName} file for "${projectName}".`,
+            `Underlying error: ${e instanceof Error ? e.message : String(e)}`
           ),
           configPath,
-          exactFix: diagnosticLines('Fix the JSONC syntax in project.jsonc and rerun tnmsc.'),
+          exactFix: diagnosticLines(
+            `Fix the JSON5 syntax in ${AindexInputCapability.projectConfigFileName} and rerun tnmsc.`
+          ),
           details: {
             projectName,
-            errors
+            errorMessage: e instanceof Error ? e.message : String(e)
           }
         }))
         return void 0
       }
-      return result
-    } catch (e) {
+    }
+    catch (e) {
       logger.warn(buildConfigDiagnostic({
-        code: 'AINDEX_PROJECT_JSONC_READ_FAILED',
-        title: `Failed to load project.jsonc for ${projectName}`,
+        code: 'AINDEX_PROJECT_JSON5_READ_FAILED',
+        title: `Failed to load ${AindexInputCapability.projectConfigFileName} for ${projectName}`,
         reason: diagnosticLines(
-          `tnmsc could not read or parse the project.jsonc file for "${projectName}".`,
+          `tnmsc could not read the ${AindexInputCapability.projectConfigFileName} file for "${projectName}".`,
           `Underlying error: ${e instanceof Error ? e.message : String(e)}`
         ),
         configPath,
         exactFix: diagnosticLines(
-          'Ensure project.jsonc exists, is readable, and contains valid JSONC.'
+          `Ensure ${AindexInputCapability.projectConfigFileName} exists, is readable, and contains valid JSON5.`
         ),
         details: {
           projectName,
