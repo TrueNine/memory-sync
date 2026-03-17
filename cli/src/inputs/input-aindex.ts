@@ -35,7 +35,7 @@ export class AindexInputCapability extends AbstractInputCapability {
       const raw = fs.readFileSync(configPath, 'utf8')
 
       try {
-        return JSON5.parse(raw) as ProjectConfig
+        return JSON5.parse(raw)
       }
       catch (e) {
         logger.warn(buildConfigDiagnostic({
