@@ -1,6 +1,7 @@
 packages:
   - cli
   - cli/npm/*
+  - mcp
   - libraries/*
   - libraries/logger/npm/*
   - libraries/md-compiler/npm/*
@@ -9,6 +10,7 @@ packages:
 
 catalog:
   '@clack/prompts': ^1.0.1
+  '@modelcontextprotocol/sdk': ^1.27.1
   '@mdx-js/react': ^3.1.1
   '@monaco-editor/react': ^4.7.0
   '@next/mdx': ^16.1.6

@@ -1,0 +1,58 @@
+{
+  "name": "@truenine/memory-sync-mcp",
+  "type": "module",
+  "version": "2026.10318.10339",
+  "description": "MCP stdio server for managing memory-sync prompt sources and translation artifacts",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://github.com/TrueNine/memory-sync",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TrueNine/memory-sync.git",
+    "directory": "mcp"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "bin": {
+    "memory-sync-mcp": "./dist/main.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check": "run-p typecheck lint",
+    "lint": "eslint --cache .",
+    "lintfix": "eslint --fix --cache .",
+    "prepublishOnly": "run-s build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@truenine/memory-sync-cli": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@truenine/eslint10-config": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "npm-run-all2": "catalog:",
+    "tsdown": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

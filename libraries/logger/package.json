@@ -1,7 +1,7 @@
 {
   "name": "@truenine/logger",
   "type": "module",
-  "version": "2026.10317.12338",
+  "version": "2026.10318.10339",
   "private": true,
   "description": "Rust-powered structured logger for Node.js via N-API",
   "license": "AGPL-3.0-only",

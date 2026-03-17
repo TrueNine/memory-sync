@@ -49,8 +49,9 @@ if (eslintConfigVersion) {
   console.log(`🔄 Catalog @truenine/eslint10-config: ^${eslintConfigVersion}`)
 }
 
-const packages: readonly PackageEntry[] = [
+const topLevelWorkspacePackages: readonly PackageEntry[] = [
   { path: 'cli/package.json', name: 'cli' },
+  { path: 'mcp/package.json', name: 'mcp' },
   { path: 'gui/package.json', name: 'gui' },
   { path: 'doc/package.json', name: 'doc' },
 ]
@@ -109,7 +110,7 @@ const cliNpmPackages = discoverNpmSubPackages('cli', 'cli-napi')
 
 let changed = false
 
-for (const pkg of [...packages, ...libraryPackages, ...packagesPackages, ...cliNpmPackages]) {
+for (const pkg of [...topLevelWorkspacePackages, ...libraryPackages, ...packagesPackages, ...cliNpmPackages]) {
   const fullPath = resolve(pkg.path)
   try {
     const content = readFileSync(fullPath, 'utf-8').replace(/^\uFEFF/, '')
@@ -199,12 +200,10 @@ if (changed) {
     const filesToStage = [
       'package.json',
       'Cargo.toml',
-      'cli/package.json',
-      'gui/package.json',
-      'doc/package.json',
       'gui/src-tauri/Cargo.toml',
       'gui/src-tauri/tauri.conf.json',
       'libraries/init-bundle/public/public/tnmsc.example.json',
+      ...topLevelWorkspacePackages.map(p => p.path),
       ...libraryPackages.map(p => p.path),
       ...packagesPackages.map(p => p.path),
       ...cliNpmPackages.map(p => p.path),

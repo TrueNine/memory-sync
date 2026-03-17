@@ -430,7 +430,7 @@ describe('collectDeletionTargets', () => {
       expect(result.violations).toEqual([expect.objectContaining({
         targetPath: path.resolve(path.join(workspaceDir, 'aindex', 'app')),
         protectionMode: 'direct',
-        protectedPath: path.resolve(protectedAppMdxFile)
+        protectedPath: path.resolve(path.join(workspaceDir, 'aindex', 'app', 'workspace.src.mdx'))
       })])
     }
     finally {

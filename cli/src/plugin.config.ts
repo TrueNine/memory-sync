@@ -1,3 +1,4 @@
+import type {PipelineConfig} from '@/config'
 import process from 'node:process'
 import {GenericSkillsOutputPlugin} from '@truenine/plugin-agentskills-compact'
 import {AgentsOutputPlugin} from '@truenine/plugin-agentsmd'
@@ -20,30 +21,36 @@ import {WindsurfOutputPlugin} from '@truenine/plugin-windsurf'
 import {defineConfig} from '@/config'
 import {TraeCNIDEOutputPlugin} from '@/plugins/plugin-trae-cn-ide'
 
-export default defineConfig({
-  pipelineArgs: process.argv,
-  pluginOptions: {
-    plugins: [
-      new AgentsOutputPlugin(),
-      new ClaudeCodeCLIOutputPlugin(),
-      new CodexCLIOutputPlugin(),
-      new JetBrainsAIAssistantCodexOutputPlugin(),
-      new DroidCLIOutputPlugin(),
-      new GeminiCLIOutputPlugin(),
-      new GenericSkillsOutputPlugin(),
-      new OpencodeCLIOutputPlugin(),
-      new QoderIDEPluginOutputPlugin(),
-      new TraeIDEOutputPlugin(),
-      new TraeCNIDEOutputPlugin(),
-      new WarpIDEOutputPlugin(),
-      new WindsurfOutputPlugin(),
-      new CursorOutputPlugin(),
-      new GitExcludeOutputPlugin(),
+export async function createDefaultPluginConfig(
+  pipelineArgs: readonly string[] = process.argv
+): Promise<PipelineConfig> {
+  return defineConfig({
+    pipelineArgs,
+    pluginOptions: {
+      plugins: [
+        new AgentsOutputPlugin(),
+        new ClaudeCodeCLIOutputPlugin(),
+        new CodexCLIOutputPlugin(),
+        new JetBrainsAIAssistantCodexOutputPlugin(),
+        new DroidCLIOutputPlugin(),
+        new GeminiCLIOutputPlugin(),
+        new GenericSkillsOutputPlugin(),
+        new OpencodeCLIOutputPlugin(),
+        new QoderIDEPluginOutputPlugin(),
+        new TraeIDEOutputPlugin(),
+        new TraeCNIDEOutputPlugin(),
+        new WarpIDEOutputPlugin(),
+        new WindsurfOutputPlugin(),
+        new CursorOutputPlugin(),
+        new GitExcludeOutputPlugin(),
 
-      new JetBrainsIDECodeStyleConfigOutputPlugin(),
-      new EditorConfigOutputPlugin(),
-      new VisualStudioCodeIDEConfigOutputPlugin(),
-      new ReadmeMdConfigFileOutputPlugin()
-    ]
-  }
-})
+        new JetBrainsIDECodeStyleConfigOutputPlugin(),
+        new EditorConfigOutputPlugin(),
+        new VisualStudioCodeIDEConfigOutputPlugin(),
+        new ReadmeMdConfigFileOutputPlugin()
+      ]
+    }
+  })
+}
+
+export default createDefaultPluginConfig
