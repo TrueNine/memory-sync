@@ -1,13 +1,13 @@
-import type {CommandPrompt, InputPluginContext, OutputWriteContext} from './plugin-core'
+import type {CommandPrompt, InputCapabilityContext, OutputWriteContext} from './plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {mergeConfig} from '../config'
-import {CommandInputPlugin} from '../inputs/input-command'
+import {CommandInputCapability} from '../inputs/input-command'
 import {CodexCLIOutputPlugin} from './CodexCLIOutputPlugin'
-import {createLogger, FilePathKind} from './plugin-core'
+import {createLogger, FilePathKind, PromptKind} from './plugin-core'
 
 class TestCodexCLIOutputPlugin extends CodexCLIOutputPlugin {
   constructor(private readonly testHomeDir: string) {
@@ -19,7 +19,7 @@ class TestCodexCLIOutputPlugin extends CodexCLIOutputPlugin {
   }
 }
 
-function createInputContext(tempWorkspace: string): InputPluginContext {
+function createInputContext(tempWorkspace: string): InputCapabilityContext {
   return {
     logger: createLogger('CodexCLIOutputPluginTest', 'error'),
     fs,
@@ -27,12 +27,13 @@ function createInputContext(tempWorkspace: string): InputPluginContext {
     glob,
     userConfigOptions: mergeConfig({workspaceDir: tempWorkspace}),
     dependencyContext: {}
-  } as InputPluginContext
+  } as InputCapabilityContext
 }
 
 function createWriteContext(
   tempWorkspace: string,
-  commands: readonly CommandPrompt[]
+  commands: readonly CommandPrompt[],
+  pluginOptions?: OutputWriteContext['pluginOptions']
 ): OutputWriteContext {
   return {
     logger: createLogger('CodexCLIOutputPluginTest', 'error'),
@@ -40,6 +41,7 @@ function createWriteContext(
     path,
     glob,
     dryRun: true,
+    ...pluginOptions != null && {pluginOptions},
     collectedOutputContext: {
       workspace: {
         directory: {
@@ -47,11 +49,44 @@ function createWriteContext(
           path: tempWorkspace,
           getDirectoryName: () => path.basename(tempWorkspace)
         },
-        projects: []
+        projects: [{
+          name: 'project-a',
+          dirFromWorkspacePath: {
+            pathKind: FilePathKind.Relative,
+            path: 'project-a',
+            basePath: tempWorkspace,
+            getDirectoryName: () => 'project-a',
+            getAbsolutePath: () => path.join(tempWorkspace, 'project-a')
+          },
+          isPromptSourceProject: true
+        }]
       },
       commands
     }
   } as OutputWriteContext
+}
+
+function createProjectCommandPrompt(): CommandPrompt {
+  return {
+    type: PromptKind.Command,
+    content: 'project command body',
+    length: 22,
+    filePathKind: FilePathKind.Relative,
+    dir: {
+      pathKind: FilePathKind.Relative,
+      path: 'commands/dev/build.mdx',
+      basePath: path.resolve('tmp/dist/commands'),
+      getDirectoryName: () => 'dev',
+      getAbsolutePath: () => path.resolve('tmp/dist/commands/dev/build.mdx')
+    },
+    commandPrefix: 'dev',
+    commandName: 'build',
+    yamlFrontMatter: {
+      description: 'Project command',
+      scope: 'project'
+    },
+    markdownContents: []
+  } as CommandPrompt
 }
 
 describe('codexCLIOutputPlugin command output', () => {
@@ -82,8 +117,8 @@ describe('codexCLIOutputPlugin command output', () => {
         ''
       ].join('\n'), 'utf8')
 
-      const commandInputPlugin = new CommandInputPlugin()
-      const collected = await commandInputPlugin.collect(createInputContext(tempWorkspace))
+      const commandInputCapability = new CommandInputCapability()
+      const collected = await commandInputCapability.collect(createInputContext(tempWorkspace))
       const commands = collected.commands ?? []
 
       expect(commands).toHaveLength(1)
@@ -102,6 +137,30 @@ describe('codexCLIOutputPlugin command output', () => {
       expect(String(rendered)).toContain('English dist command body')
       expect(String(rendered)).not.toContain('中文源描述')
       expect(String(rendered)).not.toContain('中文源命令内容')
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+      fs.rmSync(tempHomeDir, {recursive: true, force: true})
+    }
+  })
+
+  it('keeps project-scoped commands in the global codex directory and never mirrors them into workspace root', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-codex-project-command-'))
+    const tempHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-codex-project-home-'))
+
+    try {
+      const plugin = new TestCodexCLIOutputPlugin(tempHomeDir)
+      const writeCtx = createWriteContext(tempWorkspace, [createProjectCommandPrompt()])
+
+      const declarations = await plugin.declareOutputFiles(writeCtx)
+
+      expect(declarations.map(declaration => declaration.path)).toContain(
+        path.join(tempHomeDir, '.codex', 'prompts', 'dev-build.md')
+      )
+      expect(declarations.map(declaration => declaration.path)).not.toContain(
+        path.join(tempWorkspace, '.codex', 'prompts', 'dev-build.md')
+      )
+      expect(declarations.every(declaration => declaration.scope === 'global')).toBe(true)
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

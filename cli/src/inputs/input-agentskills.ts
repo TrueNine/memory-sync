@@ -1,8 +1,8 @@
 import type {Dirent} from 'node:fs'
 import type {
   ILogger,
+  InputCapabilityContext,
   InputCollectedContext,
-  InputPluginContext,
   McpServerConfig,
   SkillChildDoc,
   SkillMcpConfig,
@@ -26,12 +26,13 @@ import {
   diagnosticLines
 } from '@/diagnostics'
 import {
-  AbstractInputPlugin,
+  AbstractInputCapability,
   createLocalizedPromptReader,
   FilePathKind,
   hasSourcePromptExtension,
   PromptKind,
-  SourceLocaleExtensions
+  SourceLocaleExtensions,
+  validateSkillMetadata
 } from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax, MissingCompiledPromptError} from '../plugins/plugin-core/DistPromptGuards'
 import {
@@ -218,7 +219,7 @@ interface ResourceProcessorContext {
   readonly skillDir: string
   readonly scanMode: 'distChildDocs' | 'srcResources'
   readonly sourceSkillDir?: string
-  readonly globalScope?: InputPluginContext['globalScope']
+  readonly globalScope?: InputCapabilityContext['globalScope']
 }
 
 class ResourceProcessor {
@@ -556,7 +557,7 @@ async function createSkillPrompt(
   name: string,
   skillDir: string,
   skillAbsoluteDir: string,
-  ctx: InputPluginContext,
+  ctx: InputCapabilityContext,
   mcpConfig?: SkillMcpConfig,
   childDocs: SkillPrompt['childDocs'] = [],
   resources: SkillPrompt['resources'] = [],
@@ -625,6 +626,9 @@ async function createSkillPrompt(
     description: finalDescription
   } as SkillYAMLFrontMatter
 
+  const validation = validateSkillMetadata(mergedFrontMatter as Record<string, unknown>, distFilePath)
+  if (!validation.valid) throw new Error(validation.errors.join('\n'))
+
   return {
     type: PromptKind.Skill,
     content,
@@ -648,9 +652,9 @@ async function createSkillPrompt(
   } as SkillPrompt
 }
 
-export class SkillInputPlugin extends AbstractInputPlugin {
+export class SkillInputCapability extends AbstractInputCapability {
   constructor() {
-    super('SkillInputPlugin')
+    super('SkillInputCapability')
   }
 
   readMcpConfig(
@@ -667,7 +671,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     logger: ILogger,
     currentRelativePath: string = '',
     scanMode: 'distChildDocs' | 'srcResources' = 'srcResources',
-    globalScope?: InputPluginContext['globalScope'],
+    globalScope?: InputCapabilityContext['globalScope'],
     sourceSkillDir?: string
   ): Promise<ResourceScanResult> {
     const processor = new ResourceProcessor({
@@ -681,7 +685,7 @@ export class SkillInputPlugin extends AbstractInputPlugin {
     return processor.scanSkillDirectoryAsync(skillDir, currentRelativePath)
   }
 
-  async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
+  async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, fs, path: pathModule, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
 
@@ -769,6 +773,8 @@ export class SkillInputPlugin extends AbstractInputPlugin {
         }
       }))
     }
+
+    if (errors.length > 0) throw new Error(errors.map(error => error.error instanceof Error ? error.error.message : String(error.error)).join('\n'))
 
     for (const localized of localizedSkills) {
       const prompt = localized.dist?.prompt

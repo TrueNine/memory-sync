@@ -43,7 +43,7 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
           singleScope: false
         },
         commands: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         }
       }
@@ -71,7 +71,12 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
 
     const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const transformOptions = this.getTransformOptionsFromContext(ctx)
-    const scopedCommands = this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, cmd => this.resolveCommandSourceScope(cmd), this.getTopicScopeOverride(ctx, 'commands'))
+    const scopedCommands = this.selectSingleScopeItems(
+      commands,
+      this.commandsConfig.sourceScopes,
+      cmd => this.resolveCommandSourceScope(cmd),
+      this.getTopicScopeOverride(ctx, 'commands')
+    )
     if (scopedCommands.items.length === 0) return declarations
 
     const filteredCommands = filterByProjectConfig(scopedCommands.items, projectConfig, 'commands')

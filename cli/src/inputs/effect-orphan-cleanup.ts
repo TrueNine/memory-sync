@@ -1,6 +1,6 @@
-import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext, InputEffectContext, InputEffectResult} from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
-import {AbstractInputPlugin, SourcePromptFileExtensions} from '../plugins/plugin-core'
+import {AbstractInputCapability, SourcePromptFileExtensions} from '../plugins/plugin-core'
 import {
   collectConfiguredAindexInputRules,
   createProtectedDeletionGuard,
@@ -25,9 +25,9 @@ interface OrphanCleanupPlan {
   readonly errors: readonly {path: string, error: Error}[]
 }
 
-export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
+export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapability {
   constructor() {
-    super('OrphanFileCleanupEffectInputPlugin')
+    super('OrphanFileCleanupEffectInputCapability')
     this.registerEffect('orphan-file-cleanup', this.cleanupOrphanFiles.bind(this), 20)
   }
 
@@ -278,7 +278,7 @@ export class OrphanFileCleanupEffectInputPlugin extends AbstractInputPlugin {
     }
   }
 
-  collect(_ctx: InputPluginContext): Partial<InputCollectedContext> {
+  collect(_ctx: InputCapabilityContext): Partial<InputCollectedContext> {
     return {}
   }
 }

@@ -3,7 +3,7 @@ import type {
   OutputWriteContext
 } from './plugin-core'
 import * as path from 'node:path'
-import {AbstractOutputPlugin, findAllGitRepos, findGitModuleInfoDirs, resolveGitInfoDir} from './plugin-core'
+import {AbstractOutputPlugin, findAllGitRepos, resolveGitInfoDir} from './plugin-core'
 
 export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -37,49 +37,6 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
         declarations.push({
           path: excludePath,
           scope: 'project',
-          source: {content: finalContent}
-        })
-      }
-    }
-
-    const workspaceDir = workspace.directory.path
-    const workspaceGitInfoDir = resolveGitInfoDir(workspaceDir)
-    if (workspaceGitInfoDir != null) {
-      const workspaceExcludePath = path.join(workspaceGitInfoDir, 'exclude')
-      if (!writtenPaths.has(workspaceExcludePath)) {
-        writtenPaths.add(workspaceExcludePath)
-        declarations.push({
-          path: workspaceExcludePath,
-          scope: 'workspace',
-          source: {content: finalContent}
-        })
-      }
-    }
-
-    const workspaceNestedRepos = findAllGitRepos(workspaceDir)
-    for (const repoDir of workspaceNestedRepos) {
-      const gitInfoDir = resolveGitInfoDir(repoDir)
-      if (gitInfoDir == null) continue
-
-      const excludePath = path.join(gitInfoDir, 'exclude')
-      if (writtenPaths.has(excludePath)) continue
-      writtenPaths.add(excludePath)
-      declarations.push({
-        path: excludePath,
-        scope: 'workspace',
-        source: {content: finalContent}
-      })
-    }
-
-    const dotGitDir = path.join(workspaceDir, '.git')
-    if (this.existsSync(dotGitDir) && this.lstatSync(dotGitDir).isDirectory()) {
-      for (const moduleInfoDir of findGitModuleInfoDirs(dotGitDir)) {
-        const excludePath = path.join(moduleInfoDir, 'exclude')
-        if (writtenPaths.has(excludePath)) continue
-        writtenPaths.add(excludePath)
-        declarations.push({
-          path: excludePath,
-          scope: 'workspace',
           source: {content: finalContent}
         })
       }

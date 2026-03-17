@@ -1,4 +1,4 @@
-import type {InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext} from '../plugins/plugin-core'
 
 import * as os from 'node:os'
 import process from 'node:process'
@@ -12,16 +12,16 @@ import {
   buildPromptCompilerDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
-import {AbstractInputPlugin, FilePathKind, GlobalConfigDirectoryType, PromptKind} from '../plugins/plugin-core'
+import {AbstractInputCapability, FilePathKind, GlobalConfigDirectoryType, PromptKind} from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
 import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
 
-export class GlobalMemoryInputPlugin extends AbstractInputPlugin {
+export class GlobalMemoryInputCapability extends AbstractInputCapability {
   constructor() {
-    super('GlobalMemoryInputPlugin')
+    super('GlobalMemoryInputCapability')
   }
 
-  async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
+  async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, fs, path, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
 

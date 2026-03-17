@@ -1,25 +1,26 @@
 import type {
+  InputCapabilityContext,
   InputCollectedContext,
-  InputPluginContext,
   RulePrompt,
   RuleScope,
   RuleYAMLFrontMatter
 } from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {
-  AbstractInputPlugin,
+  AbstractInputCapability,
   createLocalizedPromptReader,
   FilePathKind,
   PromptKind,
-  SourceLocaleExtensions
+  SourceLocaleExtensions,
+  validateRuleMetadata
 } from '../plugins/plugin-core'
 
-export class RuleInputPlugin extends AbstractInputPlugin {
+export class RuleInputCapability extends AbstractInputCapability {
   constructor() {
-    super('RuleInputPlugin')
+    super('RuleInputCapability')
   }
 
-  override async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
+  override async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
@@ -37,6 +38,11 @@ export class RuleInputPlugin extends AbstractInputPlugin {
         isDirectoryStructure: false,
         createPrompt: async (content, _locale, name, metadata) => {
           const yamlFrontMatter = metadata as RuleYAMLFrontMatter | undefined
+          const filePath = path.join(distDir, `${name}.mdx`)
+          if (yamlFrontMatter != null) {
+            const validation = validateRuleMetadata(yamlFrontMatter as Record<string, unknown>, filePath)
+            if (!validation.valid) throw new Error(validation.errors.join('\n'))
+          }
           const globs = yamlFrontMatter?.globs ?? []
           const scope: RuleScope = yamlFrontMatter?.scope ?? 'project'
           const seriName = yamlFrontMatter?.seriName as string | undefined
@@ -54,7 +60,7 @@ export class RuleInputPlugin extends AbstractInputPlugin {
               path: `${name}.mdx`,
               basePath: distDir,
               getDirectoryName: () => ruleName,
-              getAbsolutePath: () => path.join(distDir, `${name}.mdx`)
+              getAbsolutePath: () => filePath
             },
             prefix,
             ruleName,
@@ -84,6 +90,8 @@ export class RuleInputPlugin extends AbstractInputPlugin {
         }
       }))
     }
+
+    if (errors.length > 0) throw new Error(errors.map(error => error.error instanceof Error ? error.error.message : String(error.error)).join('\n'))
 
     return {
       rules: localizedRulesFromSrc

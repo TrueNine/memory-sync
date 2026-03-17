@@ -12,6 +12,7 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
     super('DroidCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: GLOBAL_MEMORY_FILE,
+      treatWorkspaceRootProjectAsProject: true,
       commands: {
         transformFrontMatter: (_cmd, context) => context.sourceFrontMatter ?? {}
       },
@@ -20,9 +21,6 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
         delete: {
           project: {
             files: [GLOBAL_MEMORY_FILE],
-            dirs: ['.factory/commands', '.factory/skills']
-          },
-          workspace: {
             dirs: ['.factory/commands', '.factory/skills']
           },
           global: {
@@ -37,11 +35,11 @@ export class DroidCLIOutputPlugin extends AbstractOutputPlugin {
           singleScope: false
         },
         commands: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         },
         skills: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         }
       }

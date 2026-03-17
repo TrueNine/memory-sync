@@ -28,6 +28,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     super('WindsurfOutputPlugin', {
       globalConfigDir: CODEIUM_WINDSURF_DIR,
       outputFileName: '',
+      treatWorkspaceRootProjectAsProject: true,
       dependsOn: [PLUGIN_NAMES.AgentsOutput],
       indexignore: '.codeiumignore',
       commands: {
@@ -45,9 +46,6 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
           project: {
             dirs: ['.windsurf/rules', '.windsurf/workflows', '.windsurf/global_workflows', '.windsurf/skills', '.codeium/windsurf/global_workflows', '.codeium/windsurf/skills']
           },
-          workspace: {
-            dirs: ['.codeium/windsurf/global_workflows', '.codeium/windsurf/skills']
-          },
           global: {
             dirs: ['.codeium/windsurf/global_workflows', '.codeium/windsurf/memories', '.codeium/windsurf/skills']
           }
@@ -63,11 +61,11 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
           singleScope: false
         },
         commands: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         },
         skills: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         }
       }
@@ -76,20 +74,17 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
-    const {workspace, commands, skills, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
+    const {commands, skills, globalMemory, rules, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const promptSourceProjectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const globalBase = this.getCodeiumWindsurfDir()
-    const workspaceBase = this.resolveDirectoryPath(workspace.directory)
     const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['global']))
-    const resolveScopedCodeiumWindsurfBasePath = (
-      scope: 'project' | 'workspace' | 'global',
-      projectDir?: {readonly basePath: string, readonly path: string}
-    ): string | undefined => {
-      if (scope === 'global') return globalBase
-      if (scope === 'workspace') return path.join(workspaceBase, CODEIUM_WINDSURF_DIR)
-      if (projectDir == null) return void 0
-      return path.join(projectDir.basePath, projectDir.path, WINDSURF_RULES_DIR)
-    }
+    const selectedCommands = commands != null
+      ? this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, command => this.resolveCommandSourceScope(command), this.getTopicScopeOverride(ctx, 'commands'))
+      : {items: [] as readonly CommandPrompt[]}
+    const selectedSkills = skills != null
+      ? this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
+      : {items: [] as readonly SkillPrompt[]}
+    const concreteProjects = this.getConcreteProjects(ctx)
 
     if (globalMemory != null && activePromptScopes.has('global')) {
       declarations.push({
@@ -102,97 +97,93 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       })
     }
 
-    if (skills != null && skills.length > 0) {
-      const scopedSkills = this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
-      const pushSkillDeclarations = (basePath: string, scope: 'project' | 'workspace' | 'global', skill: SkillPrompt): void => {
-        const skillName = skill.yamlFrontMatter.name
-        const skillDir = path.join(basePath, SKILLS_SUBDIR, skillName)
-        declarations.push({
-          path: path.join(skillDir, SKILL_FILE_NAME),
-          scope,
-          source: {kind: 'skillMain', skill} satisfies WindsurfOutputSource
-        })
+    const pushSkillDeclarations = (
+      basePath: string,
+      scope: 'project' | 'global',
+      skill: SkillPrompt
+    ): void => {
+      const skillName = skill.yamlFrontMatter.name
+      const skillDir = path.join(basePath, SKILLS_SUBDIR, skillName)
+      declarations.push({
+        path: path.join(skillDir, SKILL_FILE_NAME),
+        scope,
+        source: {kind: 'skillMain', skill} satisfies WindsurfOutputSource
+      })
 
-        if (skill.childDocs != null) {
-          for (const childDoc of skill.childDocs) {
-            declarations.push({
-              path: path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
-              scope,
-              source: {
-                kind: 'skillChildDoc',
-                content: childDoc.content as string
-              } satisfies WindsurfOutputSource
-            })
-          }
-        }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            declarations.push({
-              path: path.join(skillDir, resource.relativePath),
-              scope,
-              source: {
-                kind: 'skillResource',
-                content: resource.content,
-                encoding: resource.encoding
-              } satisfies WindsurfOutputSource
-            })
-          }
+      if (skill.childDocs != null) {
+        for (const childDoc of skill.childDocs) {
+          declarations.push({
+            path: path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
+            scope,
+            source: {
+              kind: 'skillChildDoc',
+              content: childDoc.content as string
+            } satisfies WindsurfOutputSource
+          })
         }
       }
 
-      if (scopedSkills.selectedScope === 'project') {
-        for (const project of workspace.projects) {
-          const projectDir = project.dirFromWorkspacePath
-          const projectBase = resolveScopedCodeiumWindsurfBasePath('project', projectDir)
-          if (projectBase == null) continue
-          const filteredSkills = filterByProjectConfig(scopedSkills.items, project.projectConfig, 'skills')
-          for (const skill of filteredSkills) pushSkillDeclarations(projectBase, 'project', skill)
-        }
-      } else if (scopedSkills.selectedScope != null) {
-        const basePath = resolveScopedCodeiumWindsurfBasePath(scopedSkills.selectedScope)
-        if (basePath != null) {
-          const filteredSkills = filterByProjectConfig(scopedSkills.items, promptSourceProjectConfig, 'skills')
-          for (const skill of filteredSkills) pushSkillDeclarations(basePath, scopedSkills.selectedScope, skill)
+      if (skill.resources != null) {
+        for (const resource of skill.resources) {
+          declarations.push({
+            path: path.join(skillDir, resource.relativePath),
+            scope,
+            source: {
+              kind: 'skillResource',
+              content: resource.content,
+              encoding: resource.encoding
+            } satisfies WindsurfOutputSource
+          })
         }
       }
     }
 
-    if (commands != null && commands.length > 0) {
-      const scopedCommands = this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, cmd => this.resolveCommandSourceScope(cmd), this.getTopicScopeOverride(ctx, 'commands'))
-      const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-      if (scopedCommands.selectedScope === 'project') {
-        for (const project of workspace.projects) {
-          const projectDir = project.dirFromWorkspacePath
-          const projectBase = resolveScopedCodeiumWindsurfBasePath('project', projectDir)
-          if (projectBase == null) continue
-          const filteredCommands = filterByProjectConfig(scopedCommands.items, project.projectConfig, 'commands')
-          for (const cmd of filteredCommands) {
-            declarations.push({
-              path: path.join(projectBase, PROJECT_WORKFLOWS_SUBDIR, this.transformCommandName(cmd, transformOptions)),
-              scope: 'project',
-              source: {kind: 'command', command: cmd} satisfies WindsurfOutputSource
-            })
-          }
+    if (selectedSkills.selectedScope === 'project') {
+      for (const project of this.getProjectOutputProjects(ctx)) {
+        const projectRootDir = this.resolveProjectRootDir(ctx, project)
+        const projectBase = projectRootDir == null ? void 0 : path.join(projectRootDir, WINDSURF_RULES_DIR)
+        if (projectBase == null) continue
+        const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
+        for (const skill of filteredSkills) pushSkillDeclarations(projectBase, 'project', skill)
+      }
+    }
+
+    if (selectedSkills.selectedScope === 'global') {
+      const filteredSkills = filterByProjectConfig(selectedSkills.items, promptSourceProjectConfig, 'skills')
+      for (const skill of filteredSkills) pushSkillDeclarations(globalBase, 'global', skill)
+    }
+
+    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
+    if (selectedCommands.selectedScope === 'project') {
+      for (const project of this.getProjectOutputProjects(ctx)) {
+        const projectRootDir = this.resolveProjectRootDir(ctx, project)
+        const projectBase = projectRootDir == null ? void 0 : path.join(projectRootDir, WINDSURF_RULES_DIR)
+        if (projectBase == null) continue
+        const filteredCommands = filterByProjectConfig(selectedCommands.items, project.projectConfig, 'commands')
+        for (const command of filteredCommands) {
+          declarations.push({
+            path: path.join(projectBase, PROJECT_WORKFLOWS_SUBDIR, this.transformCommandName(command, transformOptions)),
+            scope: 'project',
+            source: {kind: 'command', command} satisfies WindsurfOutputSource
+          })
         }
-      } else if (scopedCommands.selectedScope != null) {
-        const basePath = resolveScopedCodeiumWindsurfBasePath(scopedCommands.selectedScope)
-        if (basePath != null) {
-          const filteredCommands = filterByProjectConfig(scopedCommands.items, promptSourceProjectConfig, 'commands')
-          for (const cmd of filteredCommands) {
-            declarations.push({
-              path: path.join(basePath, WORKFLOWS_SUBDIR, this.transformCommandName(cmd, transformOptions)),
-              scope: scopedCommands.selectedScope,
-              source: {kind: 'command', command: cmd} satisfies WindsurfOutputSource
-            })
-          }
-        }
+      }
+    }
+
+    if (selectedCommands.selectedScope === 'global') {
+      const filteredCommands = filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
+      for (const command of filteredCommands) {
+        declarations.push({
+          path: path.join(globalBase, WORKFLOWS_SUBDIR, this.transformCommandName(command, transformOptions)),
+          scope: 'global',
+          source: {kind: 'command', command} satisfies WindsurfOutputSource
+        })
       }
     }
 
     if (rules != null && rules.length > 0) {
       const activeRuleScopes = new Set(this.selectRuleScopes(ctx, rules))
-      const globalRules = rules.filter(r => this.normalizeSourceScope(this.normalizeRuleScope(r)) === 'global')
+      const globalRules = rules.filter(rule => this.normalizeSourceScope(this.normalizeRuleScope(rule)) === 'global')
       if (activeRuleScopes.has('global')) {
         for (const rule of globalRules) {
           declarations.push({
@@ -204,17 +195,17 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (activeRuleScopes.has('project')) {
-        for (const project of workspace.projects) {
-          const projectDir = project.dirFromWorkspacePath
-          if (projectDir == null) continue
+        for (const project of this.getProjectOutputProjects(ctx)) {
+          const projectRootDir = this.resolveProjectRootDir(ctx, project)
+          if (projectRootDir == null) continue
 
           const projectRules = applySubSeriesGlobPrefix(
-            filterByProjectConfig(rules.filter(r => this.normalizeSourceScope(this.normalizeRuleScope(r)) === 'project'), project.projectConfig, 'rules'),
+            filterByProjectConfig(rules.filter(rule => this.normalizeSourceScope(this.normalizeRuleScope(rule)) === 'project'), project.projectConfig, 'rules'),
             project.projectConfig
           )
           for (const rule of projectRules) {
             declarations.push({
-              path: path.join(projectDir.basePath, projectDir.path, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR, this.buildRuleFileName(rule)),
+              path: path.join(projectRootDir, WINDSURF_RULES_DIR, WINDSURF_RULES_SUBDIR, this.buildRuleFileName(rule)),
               scope: 'project',
               source: {kind: 'rule', rule} satisfies WindsurfOutputSource
             })
@@ -228,7 +219,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       ? void 0
       : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
     if (ignoreOutputPath != null && ignoreFile != null) {
-      for (const project of workspace.projects) {
+      for (const project of concreteProjects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null || project.isPromptSourceProject === true) continue
         declarations.push({

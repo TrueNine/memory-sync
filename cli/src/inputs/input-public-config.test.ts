@@ -1,4 +1,4 @@
-import type {InputPluginContext} from '../plugins/plugin-core'
+import type {InputCapabilityContext} from '../plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -12,19 +12,19 @@ import {
   PUBLIC_GIT_IGNORE_TARGET_RELATIVE_PATH,
   resolvePublicDefinitionPath
 } from '../public-config-paths'
-import {EditorConfigInputPlugin} from './input-editorconfig'
-import {GitExcludeInputPlugin} from './input-git-exclude'
-import {GitIgnoreInputPlugin} from './input-gitignore'
-import {JetBrainsConfigInputPlugin} from './input-jetbrains-config'
-import {AIAgentIgnoreInputPlugin} from './input-shared-ignore'
-import {VSCodeConfigInputPlugin} from './input-vscode-config'
+import {EditorConfigInputCapability} from './input-editorconfig'
+import {GitExcludeInputCapability} from './input-git-exclude'
+import {GitIgnoreInputCapability} from './input-gitignore'
+import {JetBrainsConfigInputCapability} from './input-jetbrains-config'
+import {AIAgentIgnoreInputCapability} from './input-shared-ignore'
+import {VSCodeConfigInputCapability} from './input-vscode-config'
 
 interface TestContextOptions {
   readonly aindexDir?: string
-  readonly runtimeCommand?: InputPluginContext['runtimeCommand']
+  readonly runtimeCommand?: InputCapabilityContext['runtimeCommand']
 }
 
-function createContext(tempWorkspace: string, options?: TestContextOptions): InputPluginContext {
+function createContext(tempWorkspace: string, options?: TestContextOptions): InputCapabilityContext {
   const mergedOptions = mergeConfig({
     workspaceDir: tempWorkspace,
     ...options?.aindexDir != null
@@ -37,14 +37,14 @@ function createContext(tempWorkspace: string, options?: TestContextOptions): Inp
   })
 
   return {
-    logger: createLogger('PublicConfigInputPluginTest', 'error'),
+    logger: createLogger('PublicConfigInputCapabilityTest', 'error'),
     fs,
     path,
     glob,
     userConfigOptions: mergedOptions,
     dependencyContext: {},
     ...options?.runtimeCommand != null ? {runtimeCommand: options.runtimeCommand} : {}
-  } as InputPluginContext
+  } as InputCapabilityContext
 }
 
 function writePublicDefinition(tempWorkspace: string, targetRelativePath: string, content: string): string {
@@ -76,12 +76,12 @@ describe('public config input plugins', () => {
       for (const fileName of AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS) writePublicDefinition(tempWorkspace, fileName, `${fileName}\n`)
 
       const ctx = createContext(tempWorkspace)
-      const gitIgnore = new GitIgnoreInputPlugin().collect(ctx)
-      const gitExclude = new GitExcludeInputPlugin().collect(ctx)
-      const editorConfig = new EditorConfigInputPlugin().collect(ctx)
-      const vscode = new VSCodeConfigInputPlugin().collect(ctx)
-      const jetbrains = new JetBrainsConfigInputPlugin().collect(ctx)
-      const ignoreFiles = new AIAgentIgnoreInputPlugin().collect(ctx)
+      const gitIgnore = new GitIgnoreInputCapability().collect(ctx)
+      const gitExclude = new GitExcludeInputCapability().collect(ctx)
+      const editorConfig = new EditorConfigInputCapability().collect(ctx)
+      const vscode = new VSCodeConfigInputCapability().collect(ctx)
+      const jetbrains = new JetBrainsConfigInputCapability().collect(ctx)
+      const ignoreFiles = new AIAgentIgnoreInputCapability().collect(ctx)
 
       expect(gitIgnore.globalGitIgnore).toBe('dist/\n')
       expect(gitExclude.shadowGitExclude).toBe('.idea/\n')
@@ -130,12 +130,12 @@ describe('public config input plugins', () => {
 
       const ctx = createContext(tempWorkspace)
 
-      expect(new GitIgnoreInputPlugin().collect(ctx).globalGitIgnore).toBeUndefined()
-      expect(new GitExcludeInputPlugin().collect(ctx).shadowGitExclude).toBeUndefined()
-      expect(new EditorConfigInputPlugin().collect(ctx).editorConfigFiles ?? []).toHaveLength(0)
-      expect(new VSCodeConfigInputPlugin().collect(ctx).vscodeConfigFiles ?? []).toHaveLength(0)
-      expect(new JetBrainsConfigInputPlugin().collect(ctx).jetbrainsConfigFiles ?? []).toHaveLength(0)
-      expect(new AIAgentIgnoreInputPlugin().collect(ctx).aiAgentIgnoreConfigFiles ?? []).toHaveLength(0)
+      expect(new GitIgnoreInputCapability().collect(ctx).globalGitIgnore).toBeUndefined()
+      expect(new GitExcludeInputCapability().collect(ctx).shadowGitExclude).toBeUndefined()
+      expect(new EditorConfigInputCapability().collect(ctx).editorConfigFiles ?? []).toHaveLength(0)
+      expect(new VSCodeConfigInputCapability().collect(ctx).vscodeConfigFiles ?? []).toHaveLength(0)
+      expect(new JetBrainsConfigInputCapability().collect(ctx).jetbrainsConfigFiles ?? []).toHaveLength(0)
+      expect(new AIAgentIgnoreInputCapability().collect(ctx).aiAgentIgnoreConfigFiles ?? []).toHaveLength(0)
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
@@ -174,12 +174,12 @@ describe('public config input plugins', () => {
       for (const fileName of AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS) writePublicDefinition(tempWorkspace, fileName, `${fileName}\n`)
 
       const ctx = createContext(tempWorkspace)
-      const gitIgnore = new GitIgnoreInputPlugin().collect(ctx)
-      const gitExclude = new GitExcludeInputPlugin().collect(ctx)
-      const editorConfig = new EditorConfigInputPlugin().collect(ctx)
-      const vscode = new VSCodeConfigInputPlugin().collect(ctx)
-      const jetbrains = new JetBrainsConfigInputPlugin().collect(ctx)
-      const ignoreFiles = new AIAgentIgnoreInputPlugin().collect(ctx)
+      const gitIgnore = new GitIgnoreInputCapability().collect(ctx)
+      const gitExclude = new GitExcludeInputCapability().collect(ctx)
+      const editorConfig = new EditorConfigInputCapability().collect(ctx)
+      const vscode = new VSCodeConfigInputCapability().collect(ctx)
+      const jetbrains = new JetBrainsConfigInputCapability().collect(ctx)
+      const ignoreFiles = new AIAgentIgnoreInputCapability().collect(ctx)
 
       expect(gitIgnore.globalGitIgnore).toBe('dist/\n')
       expect(gitExclude.shadowGitExclude).toBe('.idea/\n')
@@ -228,7 +228,7 @@ describe('public config input plugins', () => {
       fs.writeFileSync(path.join(publicDir, 'expected', '.gitignore'), 'dist/\n', 'utf8')
 
       const ctx = createContext(tempWorkspace, {aindexDir: 'config/aindex'})
-      const gitIgnore = new GitIgnoreInputPlugin().collect(ctx)
+      const gitIgnore = new GitIgnoreInputCapability().collect(ctx)
 
       expect(gitIgnore.globalGitIgnore).toBe('dist/\n')
     }

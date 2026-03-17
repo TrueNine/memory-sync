@@ -1,13 +1,13 @@
-import type {InputCollectedContext, InputPluginContext, ProjectIDEConfigFile} from '../plugins/plugin-core'
-import {AbstractInputPlugin, IDEKind} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext, ProjectIDEConfigFile} from '../plugins/plugin-core'
+import {AbstractInputCapability, IDEKind} from '../plugins/plugin-core'
 import {readPublicIdeConfigDefinitionFile} from '../public-config-paths'
 
-export class JetBrainsConfigInputPlugin extends AbstractInputPlugin {
+export class JetBrainsConfigInputCapability extends AbstractInputCapability {
   constructor() {
-    super('JetBrainsConfigInputPlugin')
+    super('JetBrainsConfigInputCapability')
   }
 
-  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
+  collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
     const {userConfigOptions, fs} = ctx
     const {workspaceDir, aindexDir} = this.resolveBasePaths(userConfigOptions)
 

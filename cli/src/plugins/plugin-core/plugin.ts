@@ -17,6 +17,8 @@ import type {
   Project
 } from './InputTypes'
 import {Buffer} from 'node:buffer'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 
 export type FastGlobType = typeof import('fast-glob')
 
@@ -28,11 +30,14 @@ export interface ScopeRegistryLike {
   resolve: (expression: string) => string
 }
 
-export interface Plugin<T extends PluginKind = PluginKind> {
-  readonly type: T
+export interface DependencyNode {
   readonly name: string
   readonly log: ILogger
   readonly dependsOn?: readonly string[]
+}
+
+export interface Plugin<T extends PluginKind = PluginKind> extends DependencyNode {
+  readonly type: T
 }
 
 export interface PluginContext {
@@ -42,7 +47,7 @@ export interface PluginContext {
   glob: FastGlobType
 }
 
-export interface InputPluginContext extends PluginContext {
+export interface InputCapabilityContext extends PluginContext {
   readonly userConfigOptions: Required<PluginOptions>
   readonly dependencyContext: Partial<InputCollectedContext>
   readonly runtimeCommand?: 'execute' | 'dry-run' | 'clean' | 'plugins'
@@ -52,25 +57,31 @@ export interface InputPluginContext extends PluginContext {
   readonly scopeRegistry?: ScopeRegistryLike
 }
 
-export interface InputPlugin extends Plugin<PluginKind.Input> {
-  collect: (ctx: InputPluginContext) => Partial<InputCollectedContext> | Promise<Partial<InputCollectedContext>>
+export interface InputCapability extends DependencyNode {
+  collect: (ctx: InputCapabilityContext) => Partial<InputCollectedContext> | Promise<Partial<InputCollectedContext>>
 }
 
 /**
- * Plugin that can enhance projects after all projects are collected.
- * This is useful for plugins that need to add data to projects
- * that were collected by other plugins.
+ * Capability that can enhance projects after all projects are collected.
+ * This is useful for capabilities that need to add data to projects
+ * collected by earlier capabilities.
  */
-export interface ProjectEnhancerPlugin extends InputPlugin {
-  enhanceProjects: (ctx: InputPluginContext, projects: readonly Project[]) => Project[]
+export interface ProjectEnhancerCapability extends InputCapability {
+  enhanceProjects: (ctx: InputCapabilityContext, projects: readonly Project[]) => Project[]
+}
+
+export interface OutputRuntimeTargets {
+  readonly jetbrainsCodexDirs: readonly string[]
 }
 
 /**
  * Context for output plugin operations
  */
-export interface OutputPluginContext extends PluginContext {
+export interface OutputPluginContext {
+  readonly logger: ILogger
   readonly collectedOutputContext: OutputCollectedContext
   readonly pluginOptions?: PluginOptions
+  readonly runtimeTargets: OutputRuntimeTargets
 }
 
 /**
@@ -199,7 +210,7 @@ export interface PluginScopeRegistration {
  * - Plugins convert source metadata to content
  * - Core runtime performs all file system operations
  */
-export interface OutputPlugin extends Plugin<PluginKind.Output> {
+export interface OutputPlugin extends Plugin {
   readonly declarativeOutput: true
   readonly outputCapabilities: OutputPluginCapabilities
 
@@ -213,7 +224,7 @@ export interface OutputPlugin extends Plugin<PluginKind.Output> {
 /**
  * Scope of a declared output file target.
  */
-export type OutputDeclarationScope = 'project' | 'workspace' | 'global'
+export type OutputDeclarationScope = 'project' | 'global'
 
 /**
  * Supported output scope override topics.
@@ -278,6 +289,8 @@ export interface OutputCleanupPathDeclaration {
   readonly path: string
   /** Target kind */
   readonly kind: OutputCleanupTargetKind
+  /** Optional basename exclusions when expanding delete globs */
+  readonly excludeBasenames?: readonly string[]
   /** Protection mode to apply when used in protect declarations */
   readonly protectionMode?: ProtectionMode
   /** Optional scope label for logging/trace */
@@ -399,27 +412,27 @@ export async function executeDeclarativeWriteOutputs(
       }
 
       try {
-        const parentDir = ctx.path.dirname(declaration.path)
-        ctx.fs.mkdirSync(parentDir, {recursive: true})
+        const parentDir = path.dirname(declaration.path)
+        fs.mkdirSync(parentDir, {recursive: true})
 
-        if (declaration.ifExists === 'skip' && ctx.fs.existsSync(declaration.path)) {
+        if (declaration.ifExists === 'skip' && fs.existsSync(declaration.path)) {
           fileResults.push({path: declaration.path, success: true, skipped: true})
           continue
         }
 
-        if (declaration.ifExists === 'error' && ctx.fs.existsSync(declaration.path)) throw new Error(`Refusing to overwrite existing file: ${declaration.path}`)
+        if (declaration.ifExists === 'error' && fs.existsSync(declaration.path)) throw new Error(`Refusing to overwrite existing file: ${declaration.path}`)
 
         if (declaration.symlinkTarget != null) {
-          if (ctx.fs.existsSync(declaration.path)) ctx.fs.rmSync(declaration.path, {force: true, recursive: false})
-          ctx.fs.symlinkSync(declaration.symlinkTarget, declaration.path, 'file')
+          if (fs.existsSync(declaration.path)) fs.rmSync(declaration.path, {force: true, recursive: false})
+          fs.symlinkSync(declaration.symlinkTarget, declaration.path, 'file')
           fileResults.push({path: declaration.path, success: true})
           continue
         }
 
         const content = await plugin.convertContent(declaration, ctx)
         isNodeBufferLike(content)
-          ? ctx.fs.writeFileSync(declaration.path, content)
-          : ctx.fs.writeFileSync(declaration.path, content, 'utf8')
+          ? fs.writeFileSync(declaration.path, content)
+          : fs.writeFileSync(declaration.path, content, 'utf8')
         fileResults.push({path: declaration.path, success: true})
       }
       catch (error) {
@@ -441,8 +454,6 @@ export async function executeDeclarativeWriteOutputs(
 export interface CollectedOutputs {
   readonly projectDirs: readonly string[]
   readonly projectFiles: readonly string[]
-  readonly workspaceDirs: readonly string[]
-  readonly workspaceFiles: readonly string[]
   readonly globalDirs: readonly string[]
   readonly globalFiles: readonly string[]
 }
@@ -457,8 +468,6 @@ export async function collectAllPluginOutputs(
 ): Promise<CollectedOutputs> {
   const projectDirs: string[] = []
   const projectFiles: string[] = []
-  const workspaceDirs: string[] = []
-  const workspaceFiles: string[] = []
   const globalDirs: string[] = []
   const globalFiles: string[] = []
 
@@ -468,7 +477,6 @@ export async function collectAllPluginOutputs(
     const declarations = await plugin.declareOutputFiles({...ctx, dryRun: true})
     for (const declaration of declarations) {
       if (declaration.scope === 'global') globalFiles.push(declaration.path)
-      else if (declaration.scope === 'workspace') workspaceFiles.push(declaration.path)
       else projectFiles.push(declaration.path)
     }
   }
@@ -476,8 +484,6 @@ export async function collectAllPluginOutputs(
   return {
     projectDirs,
     projectFiles,
-    workspaceDirs,
-    workspaceFiles,
     globalDirs,
     globalFiles
   }
@@ -506,6 +512,6 @@ export interface PluginOptions {
 
   readonly cleanupProtection?: CleanupProtectionOptions
 
-  plugins?: Plugin[]
+  plugins?: readonly (InputCapability | OutputPlugin)[]
   logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'
 }

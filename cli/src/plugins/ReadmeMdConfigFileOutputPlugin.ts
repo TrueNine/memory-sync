@@ -13,7 +13,7 @@ function resolveOutputFileName(fileKind?: ReadmeFileKind): string {
 
 /**
  * Output plugin for writing readme-family files to project directories.
- * Reads README prompts collected by ReadmeMdInputPlugin and writes them
+ * Reads README prompts collected by ReadmeMdInputCapability and writes them
  * to the corresponding project directories.
  *
  * Output mapping:

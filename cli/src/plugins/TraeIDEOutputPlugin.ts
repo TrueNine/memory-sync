@@ -31,6 +31,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
     super('TraeIDEOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: GLOBAL_MEMORY_FILE,
+      treatWorkspaceRootProjectAsProject: true,
       indexignore: '.traeignore',
       commands: {
         subDir: COMMANDS_SUBDIR,
@@ -44,11 +45,8 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
           project: {
             dirs: ['.trae/rules', '.trae/commands', '.trae/skills']
           },
-          workspace: {
-            dirs: ['.trae/commands', '.trae/skills']
-          },
           global: {
-            dirs: ['.trae/steering']
+            dirs: ['.trae/steering', '.trae/commands', '.trae/skills']
           }
         }
       },
@@ -58,11 +56,11 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
           singleScope: false
         },
         commands: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         },
         skills: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         }
       }
@@ -80,10 +78,18 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
-    const {projects} = ctx.collectedOutputContext.workspace
     const {commands, skills, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
-    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    const concreteProjects = this.getConcreteProjects(ctx)
+    const promptProjects = this.getProjectPromptOutputProjects(ctx)
+    const promptSourceProjectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project', 'global']))
+    const selectedCommands = commands != null
+      ? this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, command => this.resolveCommandSourceScope(command), this.getTopicScopeOverride(ctx, 'commands'))
+      : {items: [] as readonly CommandPrompt[]}
+    const selectedSkills = skills != null
+      ? this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
+      : {items: [] as readonly SkillPrompt[]}
+    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
 
     if (globalMemory != null && activePromptScopes.has('global')) {
       declarations.push({
@@ -96,20 +102,9 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       })
     }
 
-    const scopedCommands = commands != null
-      ? this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, cmd => this.resolveCommandSourceScope(cmd), this.getTopicScopeOverride(ctx, 'commands'))
-      : {items: [] as readonly CommandPrompt[]}
-    const filteredCommands = filterByProjectConfig(scopedCommands.items, projectConfig, 'commands')
-    const scopedSkills = skills != null
-      ? this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
-      : {items: [] as readonly SkillPrompt[]}
-    const filteredSkills = filterByProjectConfig(scopedSkills.items, projectConfig, 'skills')
-    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-
-    for (const project of projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-      const projectBase = path.join(projectDir.basePath, projectDir.path)
+    for (const project of promptProjects) {
+      const projectBase = this.resolveProjectRootDir(ctx, project)
+      if (projectBase == null) continue
 
       if (project.childMemoryPrompts != null && activePromptScopes.has('project')) {
         for (const child of project.childMemoryPrompts) {
@@ -136,22 +131,47 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
           })
         }
       }
+    }
 
-      for (const cmd of filteredCommands) {
-        const fileName = this.transformCommandName(cmd, transformOptions)
+    if (selectedCommands.selectedScope === 'project') {
+      for (const project of this.getProjectOutputProjects(ctx)) {
+        const projectBase = this.resolveProjectConfigDir(ctx, project)
+        if (projectBase == null) continue
+
+        const filteredCommands = filterByProjectConfig(selectedCommands.items, project.projectConfig, 'commands')
+        for (const command of filteredCommands) {
+          declarations.push({
+            path: path.join(projectBase, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
+            scope: 'project',
+            source: {kind: 'command', command} satisfies TraeOutputSource
+          })
+        }
+      }
+    }
+
+    if (selectedCommands.selectedScope === 'global') {
+      const baseDir = this.getGlobalConfigDir()
+      const filteredCommands = filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
+      for (const command of filteredCommands) {
         declarations.push({
-          path: path.join(projectBase, GLOBAL_CONFIG_DIR, COMMANDS_SUBDIR, fileName),
-          scope: 'project',
-          source: {kind: 'command', command: cmd} satisfies TraeOutputSource
+          path: path.join(baseDir, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
+          scope: 'global',
+          source: {kind: 'command', command} satisfies TraeOutputSource
         })
       }
+    }
 
+    const pushSkillDeclarations = (
+      baseDir: string,
+      scope: 'project' | 'global',
+      filteredSkills: readonly SkillPrompt[]
+    ): void => {
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
-        const skillDir = path.join(projectBase, GLOBAL_CONFIG_DIR, SKILLS_SUBDIR, skillName)
+        const skillDir = path.join(baseDir, SKILLS_SUBDIR, skillName)
         declarations.push({
           path: path.join(skillDir, SKILL_FILE_NAME),
-          scope: 'project',
+          scope,
           source: {kind: 'skillMain', skill} satisfies TraeOutputSource
         })
 
@@ -159,7 +179,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
           for (const childDoc of skill.childDocs) {
             declarations.push({
               path: path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
-              scope: 'project',
+              scope,
               source: {
                 kind: 'skillChildDoc',
                 content: childDoc.content as string
@@ -172,7 +192,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
           for (const resource of skill.resources) {
             declarations.push({
               path: path.join(skillDir, resource.relativePath),
-              scope: 'project',
+              scope,
               source: {
                 kind: 'skillResource',
                 content: resource.content,
@@ -184,12 +204,27 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
+    if (selectedSkills.selectedScope === 'project') {
+      for (const project of this.getProjectOutputProjects(ctx)) {
+        const projectBase = this.resolveProjectConfigDir(ctx, project)
+        if (projectBase == null) continue
+        const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
+        pushSkillDeclarations(projectBase, 'project', filteredSkills)
+      }
+    }
+
+    if (selectedSkills.selectedScope === 'global') {
+      const baseDir = this.getGlobalConfigDir()
+      const filteredSkills = filterByProjectConfig(selectedSkills.items, promptSourceProjectConfig, 'skills')
+      pushSkillDeclarations(baseDir, 'global', filteredSkills)
+    }
+
     const ignoreOutputPath = this.getIgnoreOutputPath()
     const ignoreFile = this.indexignore == null
       ? void 0
       : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
     if (ignoreOutputPath != null && ignoreFile != null) {
-      for (const project of projects) {
+      for (const project of concreteProjects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null || project.isPromptSourceProject === true) continue
         declarations.push({

@@ -71,6 +71,46 @@ function createMockOutputPlugin(name: string): OutputPlugin {
   }
 }
 
+function createMultiScopeOutputPlugin(name: string): OutputPlugin {
+  return {
+    type: PluginKind.Output,
+    name,
+    log: createMockLogger(),
+    declarativeOutput: true,
+    outputCapabilities: {
+      commands: {
+        scopes: ['project', 'global'],
+        singleScope: false
+      }
+    },
+    async declareOutputFiles() {
+      return []
+    },
+    async convertContent() {
+      return ''
+    }
+  }
+}
+
+function createScopedDeclarationPlugin(name: string): OutputPlugin {
+  return {
+    type: PluginKind.Output,
+    name,
+    log: createMockLogger(),
+    declarativeOutput: true,
+    outputCapabilities: {},
+    async declareOutputFiles() {
+      return [
+        {path: path.resolve('tmp/project.txt'), scope: 'project', source: {}},
+        {path: path.resolve('tmp/global.txt'), scope: 'global', source: {}}
+      ]
+    },
+    async convertContent() {
+      return ''
+    }
+  }
+}
+
 describe('outputScopes capability validation', () => {
   it('accepts valid topic override', async () => {
     const plugin = createMockOutputPlugin('MockOutputPlugin')
@@ -113,5 +153,30 @@ describe('outputScopes capability validation', () => {
 
     expect(() => validateOutputScopeOverridesForPlugins([plugin], ctx.pluginOptions))
       .toThrow('is single-scope and cannot request multiple scopes')
+  })
+
+  it('accepts multi-scope selection when the topic supports parallel scopes', () => {
+    const plugin = createMultiScopeOutputPlugin('MultiScopeOutputPlugin')
+    const ctx = createMockWriteContext(plugin.name, {commands: ['project', 'global']})
+
+    expect(() => validateOutputScopeOverridesForPlugins([plugin], ctx.pluginOptions)).not.toThrow()
+  })
+
+  it('rejects workspace as an unsupported override scope', () => {
+    const plugin = createMultiScopeOutputPlugin('MultiScopeOutputPlugin')
+    const ctx = createMockWriteContext(plugin.name, {commands: 'workspace'})
+
+    expect(() => validateOutputScopeOverridesForPlugins([plugin], ctx.pluginOptions))
+      .toThrow('requests unsupported scopes [workspace]')
+  })
+
+  it('classifies project and global declarations during output collection', async () => {
+    const plugin = createScopedDeclarationPlugin('ScopedDeclarationPlugin')
+    const ctx = createMockWriteContext(plugin.name, {})
+
+    const outputs = await collectAllPluginOutputs([plugin], ctx)
+
+    expect(outputs.projectFiles).toEqual([path.resolve('tmp/project.txt')])
+    expect(outputs.globalFiles).toEqual([path.resolve('tmp/global.txt')])
   })
 })

@@ -1,6 +1,6 @@
-import type {InputCollectedContext, InputEffectContext, InputEffectResult, InputPluginContext} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext, InputEffectContext, InputEffectResult} from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
-import {AbstractInputPlugin, hasSourcePromptExtension} from '../plugins/plugin-core'
+import {AbstractInputCapability, hasSourcePromptExtension} from '../plugins/plugin-core'
 
 export interface SkillDistCleanupEffectResult extends InputEffectResult {
   readonly deletedFiles: string[]
@@ -13,9 +13,9 @@ interface SkillDistCleanupPlan {
   readonly errors: readonly {path: string, error: Error}[]
 }
 
-export class SkillDistCleanupEffectInputPlugin extends AbstractInputPlugin {
+export class SkillDistCleanupEffectInputCapability extends AbstractInputCapability {
   constructor() {
-    super('SkillDistCleanupEffectInputPlugin')
+    super('SkillDistCleanupEffectInputCapability')
     this.registerEffect('skill-dist-cleanup', this.cleanupDistSkillArtifacts.bind(this), 10)
   }
 
@@ -165,11 +165,11 @@ export class SkillDistCleanupEffectInputPlugin extends AbstractInputPlugin {
     return fileName.endsWith('.mdx') && !hasSourcePromptExtension(fileName)
   }
 
-  collect(_ctx: InputPluginContext): Partial<InputCollectedContext> {
+  collect(_ctx: InputCapabilityContext): Partial<InputCollectedContext> {
     return {}
   }
 }
 
 export type SkillSyncEffectResult = SkillDistCleanupEffectResult
 
-export class SkillNonSrcFileSyncEffectInputPlugin extends SkillDistCleanupEffectInputPlugin {}
+export class SkillNonSrcFileSyncEffectInputCapability extends SkillDistCleanupEffectInputCapability {}

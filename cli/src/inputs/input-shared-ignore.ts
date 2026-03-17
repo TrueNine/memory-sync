@@ -1,13 +1,13 @@
-import type {AIAgentIgnoreConfigFile, InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
-import {AbstractInputPlugin} from '../plugins/plugin-core'
+import type {AIAgentIgnoreConfigFile, InputCapabilityContext, InputCollectedContext} from '../plugins/plugin-core'
+import {AbstractInputCapability} from '../plugins/plugin-core'
 import {AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS, resolvePublicDefinitionPath} from '../public-config-paths'
 
-export class AIAgentIgnoreInputPlugin extends AbstractInputPlugin {
+export class AIAgentIgnoreInputCapability extends AbstractInputCapability {
   constructor() {
-    super('AIAgentIgnoreInputPlugin')
+    super('AIAgentIgnoreInputCapability')
   }
 
-  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
+  collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
     const {workspaceDir, aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
     const results: AIAgentIgnoreConfigFile[] = []
 

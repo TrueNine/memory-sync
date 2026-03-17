@@ -8,6 +8,7 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
     super('GeminiCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: PROJECT_MEMORY_FILE,
+      treatWorkspaceRootProjectAsProject: true,
       cleanup: {
         delete: {
           project: {

@@ -59,6 +59,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('QoderIDEPluginOutputPlugin', {
       globalConfigDir: QODER_CONFIG_DIR,
+      treatWorkspaceRootProjectAsProject: true,
       indexignore: '.qoderignore',
       commands: {
         subDir: COMMANDS_SUBDIR,
@@ -74,7 +75,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       cleanup: {
         delete: {
           project: {
-            dirs: ['.qoder/rules']
+            dirs: ['.qoder/commands', '.qoder/rules', '.qoder/skills']
           },
           global: {
             dirs: ['.qoder/commands', '.qoder/rules', '.qoder/skills']
@@ -91,15 +92,15 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
           singleScope: false
         },
         commands: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         },
         skills: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         },
         mcp: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         }
       }
@@ -108,72 +109,47 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
-    const {workspace, globalMemory, commands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
-    const {projects} = workspace
+    const {globalMemory, commands, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const globalDir = this.getGlobalConfigDir()
-    const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    const promptSourceProjectConfig = this.resolvePromptSourceProjectConfig(ctx)
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
     const activeRuleScopes = new Set(rules != null ? this.selectRuleScopes(ctx, rules) : [])
     const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project', 'global']))
+    const promptProjects = this.getProjectPromptOutputProjects(ctx)
+    const selectedCommands = commands != null
+      ? this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, command => this.resolveCommandSourceScope(command), this.getTopicScopeOverride(ctx, 'commands'))
+      : {items: [] as readonly CommandPrompt[]}
+    const selectedSkills = skills != null
+      ? this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
+      : {items: [] as readonly SkillPrompt[]}
+    const selectedMcpSkills = skills != null
+      ? this.selectSingleScopeItems(
+          skills,
+          this.skillsConfig.sourceScopes,
+          skill => this.resolveSkillSourceScope(skill),
+          this.getTopicScopeOverride(ctx, 'mcp') ?? this.getTopicScopeOverride(ctx, 'skills')
+        )
+      : {items: [] as readonly SkillPrompt[]}
 
-    if (commands != null && commands.length > 0) {
-      const scopedCommands = this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, cmd => this.resolveCommandSourceScope(cmd), this.getTopicScopeOverride(ctx, 'commands'))
-      const filteredCommands = filterByProjectConfig(scopedCommands.items, projectConfig, 'commands')
-      for (const cmd of filteredCommands) {
-        declarations.push({
-          path: path.join(globalDir, COMMANDS_SUBDIR, this.transformCommandName(cmd, transformOptions)),
-          scope: 'global',
-          source: {kind: 'command', command: cmd} satisfies QoderOutputSource
-        })
-      }
-    }
-
-    if (rules != null && rules.length > 0 && activeRuleScopes.has('global')) {
-      const globalRules = rules.filter(r => this.normalizeSourceScope(this.normalizeRuleScope(r)) === 'global')
-      for (const rule of globalRules) {
-        declarations.push({
-          path: path.join(globalDir, RULES_SUBDIR, this.buildRuleFileName(rule)),
-          scope: 'global',
-          source: {kind: 'rulePrompt', rule} satisfies QoderOutputSource
-        })
-      }
-    }
-
-    if (skills != null && skills.length > 0) {
-      const scopedSkills = this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
-      const filteredSkills = filterByProjectConfig(scopedSkills.items, projectConfig, 'skills')
-      const scopedMcpSkills = this.selectSingleScopeItems(
-        skills,
-        this.skillsConfig.sourceScopes,
-        skill => this.resolveSkillSourceScope(skill),
-        this.getTopicScopeOverride(ctx, 'mcp') ?? this.getTopicScopeOverride(ctx, 'skills')
-      )
-      const filteredMcpSkills = filterByProjectConfig(scopedMcpSkills.items, projectConfig, 'skills')
+    const pushSkillDeclarations = (
+      baseDir: string,
+      scope: 'project' | 'global',
+      filteredSkills: readonly SkillPrompt[]
+    ): void => {
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
-        const skillDir = path.join(globalDir, SKILLS_SUBDIR, skillName)
+        const skillDir = path.join(baseDir, SKILLS_SUBDIR, skillName)
         declarations.push({
           path: path.join(skillDir, SKILL_FILE_NAME),
-          scope: 'global',
+          scope,
           source: {kind: 'skillMain', skill} satisfies QoderOutputSource
         })
-
-        if (skill.mcpConfig != null && filteredMcpSkills.includes(skill)) {
-          declarations.push({
-            path: path.join(skillDir, MCP_CONFIG_FILE),
-            scope: 'global',
-            source: {
-              kind: 'skillMcpConfig',
-              rawContent: skill.mcpConfig.rawContent
-            } satisfies QoderOutputSource
-          })
-        }
 
         if (skill.childDocs != null) {
           for (const childDoc of skill.childDocs) {
             declarations.push({
               path: path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
-              scope: 'global',
+              scope,
               source: {
                 kind: 'skillChildDoc',
                 content: childDoc.content as string
@@ -186,7 +162,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
           for (const resource of skill.resources) {
             declarations.push({
               path: path.join(skillDir, resource.relativePath),
-              scope: 'global',
+              scope,
               source: {
                 kind: 'skillResource',
                 content: resource.content,
@@ -198,14 +174,88 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    for (const project of projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-      const projectRulesDir = path.join(projectDir.basePath, projectDir.path, QODER_CONFIG_DIR, RULES_SUBDIR)
+    const pushSkillMcpDeclarations = (
+      baseDir: string,
+      scope: 'project' | 'global',
+      filteredMcpSkills: readonly SkillPrompt[]
+    ): void => {
+      for (const skill of filteredMcpSkills) {
+        if (skill.mcpConfig == null) continue
 
-      if (globalMemory != null && activePromptScopes.has('global')) {
+        const skillDir = path.join(baseDir, SKILLS_SUBDIR, skill.yamlFrontMatter.name)
         declarations.push({
-          path: path.join(projectRulesDir, GLOBAL_RULE_FILE),
+          path: path.join(skillDir, MCP_CONFIG_FILE),
+          scope,
+          source: {
+            kind: 'skillMcpConfig',
+            rawContent: skill.mcpConfig.rawContent
+          } satisfies QoderOutputSource
+        })
+      }
+    }
+
+    if (selectedCommands.selectedScope === 'project') {
+      for (const project of this.getProjectOutputProjects(ctx)) {
+        const projectBase = this.resolveProjectConfigDir(ctx, project)
+        if (projectBase == null) continue
+
+        const filteredCommands = filterByProjectConfig(selectedCommands.items, project.projectConfig, 'commands')
+        for (const command of filteredCommands) {
+          declarations.push({
+            path: path.join(projectBase, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
+            scope: 'project',
+            source: {kind: 'command', command} satisfies QoderOutputSource
+          })
+        }
+      }
+    }
+
+    if (selectedCommands.selectedScope === 'global') {
+      const filteredCommands = filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
+      for (const command of filteredCommands) {
+        declarations.push({
+          path: path.join(globalDir, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
+          scope: 'global',
+          source: {kind: 'command', command} satisfies QoderOutputSource
+        })
+      }
+    }
+
+    if (selectedSkills.selectedScope === 'project' || selectedMcpSkills.selectedScope === 'project') {
+      for (const project of this.getProjectOutputProjects(ctx)) {
+        const projectBase = this.resolveProjectConfigDir(ctx, project)
+        if (projectBase == null) continue
+
+        if (selectedSkills.selectedScope === 'project') {
+          const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
+          pushSkillDeclarations(projectBase, 'project', filteredSkills)
+        }
+
+        if (selectedMcpSkills.selectedScope === 'project') {
+          const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, project.projectConfig, 'skills')
+          pushSkillMcpDeclarations(projectBase, 'project', filteredMcpSkills)
+        }
+      }
+    }
+
+    if (selectedSkills.selectedScope === 'global' || selectedMcpSkills.selectedScope === 'global') {
+      if (selectedSkills.selectedScope === 'global') {
+        const filteredSkills = filterByProjectConfig(selectedSkills.items, promptSourceProjectConfig, 'skills')
+        pushSkillDeclarations(globalDir, 'global', filteredSkills)
+      }
+
+      if (selectedMcpSkills.selectedScope === 'global') {
+        const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, promptSourceProjectConfig, 'skills')
+        pushSkillMcpDeclarations(globalDir, 'global', filteredMcpSkills)
+      }
+    }
+
+    if (globalMemory != null && activePromptScopes.has('global')) {
+      for (const project of promptProjects) {
+        const projectBase = this.resolveProjectConfigDir(ctx, project)
+        if (projectBase == null) continue
+        declarations.push({
+          path: path.join(projectBase, RULES_SUBDIR, GLOBAL_RULE_FILE),
           scope: 'project',
           source: {
             kind: 'ruleContent',
@@ -213,43 +263,66 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
           } satisfies QoderOutputSource
         })
       }
+    }
 
-      if (project.rootMemoryPrompt != null && activePromptScopes.has('project')) {
-        declarations.push({
-          path: path.join(projectRulesDir, PROJECT_RULE_FILE),
-          scope: 'project',
-          source: {
-            kind: 'ruleContent',
-            content: this.buildAlwaysRuleContent(project.rootMemoryPrompt.content as string, ctx)
-          } satisfies QoderOutputSource
-        })
-      }
+    if (activePromptScopes.has('project')) {
+      for (const project of promptProjects) {
+        const projectBase = this.resolveProjectConfigDir(ctx, project)
+        if (projectBase == null) continue
 
-      if (project.childMemoryPrompts != null && activePromptScopes.has('project')) {
-        for (const child of project.childMemoryPrompts) {
+        if (project.rootMemoryPrompt != null) {
           declarations.push({
-            path: path.join(projectRulesDir, this.buildChildRuleFileName(child)),
+            path: path.join(projectBase, RULES_SUBDIR, PROJECT_RULE_FILE),
             scope: 'project',
             source: {
               kind: 'ruleContent',
-              content: this.buildGlobRuleContent(child, ctx)
+              content: this.buildAlwaysRuleContent(project.rootMemoryPrompt.content as string, ctx)
             } satisfies QoderOutputSource
           })
         }
-      }
 
-      if (rules != null && rules.length > 0 && activeRuleScopes.has('project')) {
+        if (project.childMemoryPrompts != null) {
+          for (const child of project.childMemoryPrompts) {
+            declarations.push({
+              path: path.join(projectBase, RULES_SUBDIR, this.buildChildRuleFileName(child)),
+              scope: 'project',
+              source: {
+                kind: 'ruleContent',
+                content: this.buildGlobRuleContent(child, ctx)
+              } satisfies QoderOutputSource
+            })
+          }
+        }
+      }
+    }
+
+    if (rules != null && rules.length > 0 && activeRuleScopes.has('project')) {
+      for (const project of this.getProjectOutputProjects(ctx)) {
+        const projectBase = this.resolveProjectConfigDir(ctx, project)
+        if (projectBase == null) continue
+
         const projectRules = applySubSeriesGlobPrefix(
-          filterByProjectConfig(rules.filter(r => this.normalizeSourceScope(this.normalizeRuleScope(r)) === 'project'), project.projectConfig, 'rules'),
+          filterByProjectConfig(rules.filter(rule => this.normalizeSourceScope(this.normalizeRuleScope(rule)) === 'project'), project.projectConfig, 'rules'),
           project.projectConfig
         )
         for (const rule of projectRules) {
           declarations.push({
-            path: path.join(projectRulesDir, this.buildRuleFileName(rule)),
+            path: path.join(projectBase, RULES_SUBDIR, this.buildRuleFileName(rule)),
             scope: 'project',
             source: {kind: 'rulePrompt', rule} satisfies QoderOutputSource
           })
         }
+      }
+    }
+
+    if (rules != null && rules.length > 0 && activeRuleScopes.has('global')) {
+      const globalRules = rules.filter(rule => this.normalizeSourceScope(this.normalizeRuleScope(rule)) === 'global')
+      for (const rule of globalRules) {
+        declarations.push({
+          path: path.join(globalDir, RULES_SUBDIR, this.buildRuleFileName(rule)),
+          scope: 'global',
+          source: {kind: 'rulePrompt', rule} satisfies QoderOutputSource
+        })
       }
     }
 
@@ -258,7 +331,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       ? void 0
       : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
     if (ignoreOutputPath != null && ignoreFile != null) {
-      for (const project of projects) {
+      for (const project of this.getConcreteProjects(ctx)) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null || project.isPromptSourceProject === true) continue
         declarations.push({

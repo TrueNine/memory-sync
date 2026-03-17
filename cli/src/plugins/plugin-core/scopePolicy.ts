@@ -1,6 +1,6 @@
 import type {OutputDeclarationScope} from './plugin'
 
-export const DEFAULT_SCOPE_PRIORITY: readonly OutputDeclarationScope[] = ['project', 'workspace', 'global'] as const
+export const DEFAULT_SCOPE_PRIORITY: readonly OutputDeclarationScope[] = ['project', 'global'] as const
 
 export type ScopeSelectionInput = OutputDeclarationScope | readonly OutputDeclarationScope[] | undefined
 

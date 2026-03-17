@@ -10,6 +10,7 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('AgentsOutputPlugin', {
       outputFileName: PROJECT_MEMORY_FILE,
+      treatWorkspaceRootProjectAsProject: true,
       cleanup: {
         delete: {
           project: {
@@ -28,14 +29,15 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const results: OutputFileDeclaration[] = []
-    const {projects} = ctx.collectedOutputContext.workspace
+    const promptProjects = this.getProjectPromptOutputProjects(ctx)
     const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project']))
     if (!activePromptScopes.has('project')) return results
 
-    for (const [projectIndex, project] of projects.entries()) {
-      if (project.rootMemoryPrompt != null && project.dirFromWorkspacePath != null) {
+    for (const [projectIndex, project] of promptProjects.entries()) {
+      const projectRootDir = this.resolveProjectRootDir(ctx, project)
+      if (project.rootMemoryPrompt != null && projectRootDir != null) {
         results.push({
-          path: this.resolveFullPath(project.dirFromWorkspacePath),
+          path: this.resolvePath(projectRootDir, PROJECT_MEMORY_FILE),
           scope: 'project',
           source: {type: 'projectRootMemory', projectIndex}
         })
@@ -59,8 +61,9 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     declaration: OutputFileDeclaration,
     ctx: OutputWriteContext
   ): Promise<string> {
-    const {projects} = ctx.collectedOutputContext.workspace
+    const projects = this.getProjectPromptOutputProjects(ctx)
     const source = declaration.source as {type?: string, projectIndex?: number, childIndex?: number}
+
     const projectIndex = source.projectIndex ?? -1
     if (projectIndex < 0 || projectIndex >= projects.length) throw new Error(`Invalid project index in declaration for ${this.name}`)
 

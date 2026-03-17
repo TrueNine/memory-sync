@@ -3,8 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {defineConfig} from './config'
-import {GitIgnoreInputPlugin} from './inputs/input-gitignore'
-import {WorkspaceInputPlugin} from './inputs/input-workspace'
+import {WorkspaceInputCapability} from './inputs/input-workspace'
 
 describe('defineConfig', () => {
   const originalHome = process.env.HOME
@@ -52,12 +51,7 @@ describe('defineConfig', () => {
     fs.writeFileSync(localConfigPath, JSON.stringify({workspaceDir: '/wrong/workspace', logLevel: 'error'}), 'utf8')
 
     try {
-      const result = await defineConfig({
-        cwd: tempWorkspace,
-        pluginOptions: {
-          plugins: [new WorkspaceInputPlugin()]
-        }
-      })
+      const result = await defineConfig({cwd: tempWorkspace})
 
       expect(result.userConfigOptions.workspaceDir).toBe(tempWorkspace)
       expect(result.context.workspace.directory.path).toBe(tempWorkspace)
@@ -90,12 +84,56 @@ describe('defineConfig', () => {
         loadUserConfig: false,
         pipelineArgs: ['node', 'tnmsc', 'dry-run'],
         pluginOptions: {
-          workspaceDir: tempWorkspace,
-          plugins: [new WorkspaceInputPlugin(), new GitIgnoreInputPlugin()]
+          workspaceDir: tempWorkspace
         }
       })
 
       expect(result.context.globalGitIgnore).toBe('dry-run\n')
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('does not run builtin mutating input effects when plugins is explicitly empty', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-explicit-empty-plugins-'))
+    const orphanSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'orphan-skill')
+    const orphanSkillFile = path.join(orphanSkillDir, 'SKILL.md')
+
+    fs.mkdirSync(orphanSkillDir, {recursive: true})
+    fs.writeFileSync(orphanSkillFile, 'orphan\n', 'utf8')
+
+    try {
+      const result = await defineConfig({
+        loadUserConfig: false,
+        pluginOptions: {
+          workspaceDir: tempWorkspace,
+          plugins: []
+        }
+      })
+
+      expect(result.context.workspace.directory.path).toBe(tempWorkspace)
+      expect(fs.existsSync(orphanSkillFile)).toBe(true)
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('accepts legacy input capabilities in pluginOptions.plugins without crashing', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-legacy-input-capabilities-'))
+
+    try {
+      const result = await defineConfig({
+        loadUserConfig: false,
+        pluginOptions: {
+          workspaceDir: tempWorkspace,
+          plugins: [new WorkspaceInputCapability()]
+        }
+      })
+
+      expect(result.context.workspace.directory.path).toBe(tempWorkspace)
+      expect(result.outputPlugins).toEqual([])
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

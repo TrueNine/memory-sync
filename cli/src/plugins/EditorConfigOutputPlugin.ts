@@ -8,7 +8,7 @@ const EDITOR_CONFIG_FILE = '.editorconfig'
 
 /**
  * Output plugin for writing .editorconfig files to project directories.
- * Reads EditorConfig files collected by EditorConfigInputPlugin.
+ * Reads EditorConfig files collected by EditorConfigInputCapability.
  */
 export class EditorConfigOutputPlugin extends AbstractOutputPlugin {
   constructor() {

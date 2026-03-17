@@ -38,6 +38,35 @@ export interface McpWriteResult {
  */
 export type McpConfigTransformer = (config: McpServerConfig) => Record<string, unknown>
 
+export function collectMcpServersFromSkills(
+  skills: readonly SkillPrompt[],
+  logger?: ILogger
+): Map<string, McpServerConfig> {
+  const merged = new Map<string, McpServerConfig>()
+
+  for (const skill of skills) {
+    if (skill.mcpConfig == null) continue
+
+    for (const [name, config] of Object.entries(skill.mcpConfig.mcpServers)) {
+      merged.set(name, config)
+      logger?.debug('mcp server collected', {skill: skill.yamlFrontMatter.name, mcpName: name})
+    }
+  }
+
+  return merged
+}
+
+export function transformMcpServerMap(
+  servers: Map<string, McpServerConfig>,
+  transformer: McpConfigTransformer
+): TransformedMcpConfig {
+  const result: TransformedMcpConfig = {}
+
+  for (const [name, config] of servers) result[name] = transformer(config)
+
+  return result
+}
+
 /**
  * MCP Config Manager
  * Handles merging and writing MCP configurations from skills to various output formats
@@ -52,29 +81,14 @@ export class McpConfigManager {
   }
 
   collectMcpServers(skills: readonly SkillPrompt[]): Map<string, McpServerConfig> {
-    const merged = new Map<string, McpServerConfig>()
-
-    for (const skill of skills) {
-      if (skill.mcpConfig == null) continue
-
-      for (const [name, config] of Object.entries(skill.mcpConfig.mcpServers)) {
-        merged.set(name, config)
-        this.logger.debug('mcp server collected', {skill: skill.yamlFrontMatter.name, mcpName: name})
-      }
-    }
-
-    return merged
+    return collectMcpServersFromSkills(skills, this.logger)
   }
 
   transformMcpServers(
     servers: Map<string, McpServerConfig>,
     transformer: McpConfigTransformer
   ): TransformedMcpConfig {
-    const result: TransformedMcpConfig = {}
-
-    for (const [name, config] of servers) result[name] = transformer(config)
-
-    return result
+    return transformMcpServerMap(servers, transformer)
   }
 
   readExistingConfig(configPath: string): Record<string, unknown> {

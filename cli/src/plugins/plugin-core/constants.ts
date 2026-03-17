@@ -34,6 +34,8 @@ export const PLUGIN_NAMES = {
 
 export type PluginName = (typeof PLUGIN_NAMES)[keyof typeof PLUGIN_NAMES]
 
+export const WORKSPACE_ROOT_PROJECT_NAME = '__workspace__'
+
 /**
  * Constants for output plugins.
  */

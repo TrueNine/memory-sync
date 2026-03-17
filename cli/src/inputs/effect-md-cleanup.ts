@@ -1,20 +1,20 @@
 import type {
+  InputCapabilityContext,
   InputCollectedContext,
   InputEffectContext,
-  InputEffectResult,
-  InputPluginContext
+  InputEffectResult
 } from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
-import {AbstractInputPlugin} from '../plugins/plugin-core'
+import {AbstractInputCapability} from '../plugins/plugin-core'
 
 export interface WhitespaceCleanupEffectResult extends InputEffectResult {
   readonly modifiedFiles: string[]
   readonly skippedFiles: string[]
 }
 
-export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlugin {
+export class MarkdownWhitespaceCleanupEffectInputCapability extends AbstractInputCapability {
   constructor() {
-    super('MarkdownWhitespaceCleanupEffectInputPlugin')
+    super('MarkdownWhitespaceCleanupEffectInputCapability')
     this.registerEffect('markdown-whitespace-cleanup', this.cleanupWhitespace.bind(this), 30)
   }
 
@@ -156,7 +156,7 @@ export class MarkdownWhitespaceCleanupEffectInputPlugin extends AbstractInputPlu
     return '\n'
   }
 
-  collect(_ctx: InputPluginContext): Partial<InputCollectedContext> {
+  collect(_ctx: InputCapabilityContext): Partial<InputCollectedContext> {
     return {}
   }
 }

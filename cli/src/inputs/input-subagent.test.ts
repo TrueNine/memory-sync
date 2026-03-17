@@ -1,4 +1,4 @@
-import type {InputPluginContext} from '../plugins/plugin-core'
+import type {InputCapabilityContext} from '../plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -6,19 +6,19 @@ import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {mergeConfig} from '../config'
 import {createLogger} from '../plugins/plugin-core'
-import {SubAgentInputPlugin} from './input-subagent'
+import {SubAgentInputCapability} from './input-subagent'
 
-function createContext(tempWorkspace: string): InputPluginContext {
+function createContext(tempWorkspace: string): InputCapabilityContext {
   const options = mergeConfig({workspaceDir: tempWorkspace})
 
   return {
-    logger: createLogger('SubAgentInputPluginTest', 'error'),
+    logger: createLogger('SubAgentInputCapabilityTest', 'error'),
     fs,
     path,
     glob,
     userConfigOptions: options,
     dependencyContext: {}
-  } as InputPluginContext
+  } as InputCapabilityContext
 }
 
 describe('subagent input plugin', () => {
@@ -34,10 +34,10 @@ describe('subagent input plugin', () => {
 
       const srcFile = path.join(srcDir, 'demo.src.mdx')
       const distFile = path.join(distDir, 'demo.mdx')
-      fs.writeFileSync(srcFile, '---\ndescription: src\n---\nSubAgent source', 'utf8')
-      fs.writeFileSync(distFile, '---\ndescription: dist\n---\nexport const x = 1\n\nSubAgent dist', 'utf8')
+      fs.writeFileSync(srcFile, '---\nname: demo\ndescription: src\n---\nSubAgent source', 'utf8')
+      fs.writeFileSync(distFile, '---\nname: demo\ndescription: dist\n---\nexport const x = 1\n\nSubAgent dist', 'utf8')
 
-      const plugin = new SubAgentInputPlugin()
+      const plugin = new SubAgentInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace))
 
       expect(result.subAgents?.length ?? 0).toBe(1)
@@ -64,10 +64,10 @@ describe('subagent input plugin', () => {
 
       const srcFile = path.join(srcDir, 'boot.src.mdx')
       const distFile = path.join(distDir, 'boot.mdx')
-      fs.writeFileSync(srcFile, '---\ndescription: qa boot src\n---\nSubAgent source', 'utf8')
-      fs.writeFileSync(distFile, 'SubAgent dist', 'utf8')
+      fs.writeFileSync(srcFile, '---\nname: boot\ndescription: qa boot src\n---\nSubAgent source', 'utf8')
+      fs.writeFileSync(distFile, '---\nname: boot\ndescription: qa boot dist\n---\nSubAgent dist', 'utf8')
 
-      const plugin = new SubAgentInputPlugin()
+      const plugin = new SubAgentInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace))
       const [subAgent] = result.subAgents ?? []
 
@@ -94,10 +94,10 @@ describe('subagent input plugin', () => {
 
       const srcFile = path.join(srcDir, 'demo.src.mdx')
       const distFile = path.join(distDir, 'demo.mdx')
-      fs.writeFileSync(srcFile, '---\ndescription: src\n---\nSubAgent source', 'utf8')
-      fs.writeFileSync(distFile, '---\ndescription: dist\n---\nexport const x = 1\n\nSubAgent dist', 'utf8')
+      fs.writeFileSync(srcFile, '---\nname: demo\ndescription: src\n---\nSubAgent source', 'utf8')
+      fs.writeFileSync(distFile, '---\nname: demo\ndescription: dist\n---\nexport const x = 1\n\nSubAgent dist', 'utf8')
 
-      const plugin = new SubAgentInputPlugin()
+      const plugin = new SubAgentInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace))
       const [subAgent] = result.subAgents ?? []
 
@@ -118,11 +118,11 @@ describe('subagent input plugin', () => {
       fs.mkdirSync(distDir, {recursive: true})
       fs.writeFileSync(
         path.join(distDir, 'demo.mdx'),
-        '---\ndescription: dist only\n---\nDist only subagent',
+        '---\nname: demo\ndescription: dist only\n---\nDist only subagent',
         'utf8'
       )
 
-      const plugin = new SubAgentInputPlugin()
+      const plugin = new SubAgentInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace))
 
       expect(result.subAgents?.length ?? 0).toBe(1)
@@ -143,12 +143,32 @@ describe('subagent input plugin', () => {
       fs.mkdirSync(srcDir, {recursive: true})
       fs.writeFileSync(
         path.join(srcDir, 'demo.src.mdx'),
-        '---\ndescription: source only\n---\nSource only subagent',
+        '---\nname: demo\ndescription: source only\n---\nSource only subagent',
         'utf8'
       )
 
-      const plugin = new SubAgentInputPlugin()
+      const plugin = new SubAgentInputCapability()
       await expect(plugin.collect(createContext(tempWorkspace))).rejects.toThrow('Missing compiled dist prompt')
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('rejects workspace as an unsupported subagent scope', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-subagent-workspace-scope-test-'))
+    const distDir = path.join(tempWorkspace, 'aindex', 'dist', 'subagents')
+
+    try {
+      fs.mkdirSync(distDir, {recursive: true})
+      fs.writeFileSync(
+        path.join(distDir, 'demo.mdx'),
+        '---\nname: demo\ndescription: dist only\nscope: workspace\n---\nDist only subagent',
+        'utf8'
+      )
+
+      const plugin = new SubAgentInputCapability()
+      await expect(plugin.collect(createContext(tempWorkspace))).rejects.toThrow('Field "scope" must be "project" or "global"')
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

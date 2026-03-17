@@ -1,35 +1,46 @@
 import type {ParsedMarkdown} from '@truenine/md-compiler/markdown'
 import type {
+  InputCapability,
+  InputCapabilityContext,
   InputCollectedContext,
   InputEffectContext,
   InputEffectHandler,
   InputEffectRegistration,
   InputEffectResult,
-  InputPlugin,
-  InputPluginContext,
   PluginOptions,
   PluginScopeRegistration,
   ResolvedBasePaths,
   YAMLFrontMatter
-} from './types'
+} from '@/plugins/plugin-core'
 
 import {spawn} from 'node:child_process'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import {createLogger} from '@truenine/logger'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {buildDiagnostic, diagnosticLines} from '@/diagnostics'
+import {PathPlaceholders} from '@/plugins/plugin-core'
 import {logProtectedDeletionGuardError, ProtectedDeletionGuardError} from '@/ProtectedDeletionGuard'
-import {AbstractPlugin} from './AbstractPlugin'
-import {PathPlaceholders} from './constants'
-import {PluginKind} from './enums'
 
-export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Input> implements InputPlugin {
+export abstract class AbstractInputCapability implements InputCapability {
   private readonly inputEffects: InputEffectRegistration[] = []
 
   private readonly registeredScopes: PluginScopeRegistration[] = []
 
+  readonly name: string
+
+  readonly dependsOn?: readonly string[]
+
+  private _log?: import('@truenine/logger').ILogger
+
+  get log(): import('@truenine/logger').ILogger {
+    this._log ??= createLogger(this.name)
+    return this._log
+  }
+
   protected constructor(name: string, dependsOn?: readonly string[]) {
-    super(name, PluginKind.Input, dependsOn)
+    this.name = name
+    if (dependsOn != null) this.dependsOn = dependsOn
   }
 
   protected registerEffect(name: string, handler: InputEffectHandler, priority: number = 0): void {
@@ -37,7 +48,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     this.inputEffects.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0)) // Sort by priority (lower = earlier)
   }
 
-  async executeEffects(ctx: InputPluginContext, dryRun: boolean = false): Promise<InputEffectResult[]> {
+  async executeEffects(ctx: InputCapabilityContext, dryRun: boolean = false): Promise<InputEffectResult[]> {
     const results: InputEffectResult[] = []
 
     if (this.inputEffects.length === 0) return results
@@ -139,7 +150,7 @@ export abstract class AbstractInputPlugin extends AbstractPlugin<PluginKind.Inpu
     this.log.debug({action: 'clearRegisteredScopes'})
   }
 
-  abstract collect(ctx: InputPluginContext): Partial<InputCollectedContext> | Promise<Partial<InputCollectedContext>>
+  abstract collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> | Promise<Partial<InputCollectedContext>>
 
   protected resolveBasePaths(options: Required<PluginOptions>): ResolvedBasePaths {
     const workspaceDirRaw = options.workspaceDir

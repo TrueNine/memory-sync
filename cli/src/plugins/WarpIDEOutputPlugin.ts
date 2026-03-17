@@ -2,6 +2,7 @@ import type {
   OutputFileDeclaration,
   OutputWriteContext
 } from './plugin-core'
+import * as path from 'node:path'
 import {AbstractOutputPlugin, PLUGIN_NAMES} from './plugin-core'
 
 const PROJECT_MEMORY_FILE = 'WARP.md'
@@ -10,6 +11,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('WarpIDEOutputPlugin', {
       outputFileName: PROJECT_MEMORY_FILE,
+      treatWorkspaceRootProjectAsProject: true,
       indexignore: '.warpindexignore',
       cleanup: {
         delete: {
@@ -29,28 +31,29 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
-    const {workspace, globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
-    const {projects} = workspace
+    const {globalMemory, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
+    const projects = this.getConcreteProjects(ctx)
+    const promptProjects = this.getProjectPromptOutputProjects(ctx)
     const agentsRegistered = this.shouldSkipDueToPlugin(ctx, PLUGIN_NAMES.AgentsOutput)
     const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project', 'global']))
+    const globalMemoryContent = this.extractGlobalMemoryContent(ctx)
 
     if (agentsRegistered) {
       if (globalMemory != null && activePromptScopes.has('global')) {
-        for (const project of projects) {
-          const projectDir = project.dirFromWorkspacePath
-          if (projectDir == null) continue
+        for (const project of promptProjects) {
+          const projectRootDir = this.resolveProjectRootDir(ctx, project)
+          if (projectRootDir == null) continue
           declarations.push({
-            path: this.resolveFullPath(projectDir),
+            path: path.join(projectRootDir, PROJECT_MEMORY_FILE),
             scope: 'project',
             source: {content: globalMemory.content as string}
           })
         }
       }
     } else {
-      const globalMemoryContent = this.extractGlobalMemoryContent(ctx)
-      for (const project of projects) {
-        const projectDir = project.dirFromWorkspacePath
-        if (projectDir == null) continue
+      for (const project of promptProjects) {
+        const projectRootDir = this.resolveProjectRootDir(ctx, project)
+        if (projectRootDir == null) continue
 
         if (project.rootMemoryPrompt != null && activePromptScopes.has('project')) {
           const combinedContent = this.combineGlobalWithContent(
@@ -58,7 +61,7 @@ export class WarpIDEOutputPlugin extends AbstractOutputPlugin {
             project.rootMemoryPrompt.content as string
           )
           declarations.push({
-            path: this.resolveFullPath(projectDir),
+            path: path.join(projectRootDir, PROJECT_MEMORY_FILE),
             scope: 'project',
             source: {content: combinedContent}
           })

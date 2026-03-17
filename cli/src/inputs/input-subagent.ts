@@ -1,23 +1,24 @@
 import type {
+  InputCapabilityContext,
   InputCollectedContext,
-  InputPluginContext,
   Locale,
   SubAgentPrompt,
   SubAgentYAMLFrontMatter
 } from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {
-  AbstractInputPlugin,
+  AbstractInputCapability,
   createLocalizedPromptReader,
   FilePathKind,
   PromptKind,
-  SourceLocaleExtensions
+  SourceLocaleExtensions,
+  validateSubAgentMetadata
 
 } from '../plugins/plugin-core'
 
-export class SubAgentInputPlugin extends AbstractInputPlugin {
+export class SubAgentInputCapability extends AbstractInputCapability {
   constructor() {
-    super('SubAgentInputPlugin')
+    super('SubAgentInputCapability')
   }
 
   private createSubAgentPrompt(
@@ -25,7 +26,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
     _locale: Locale,
     name: string,
     distDir: string,
-    ctx: InputPluginContext,
+    ctx: InputCapabilityContext,
     metadata?: Record<string, unknown>
   ): SubAgentPrompt {
     const {path} = ctx
@@ -64,19 +65,22 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
 
     if (yamlFrontMatter == null) return prompt
 
+    const validation = validateSubAgentMetadata(yamlFrontMatter as Record<string, unknown>, filePath)
+    if (!validation.valid) throw new Error(validation.errors.join('\n'))
+
     Object.assign(prompt, {yamlFrontMatter})
     if (yamlFrontMatter.seriName != null) Object.assign(prompt, {seriName: yamlFrontMatter.seriName})
     return prompt
   }
 
-  override async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
+  override async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
     const srcDir = this.resolveAindexPath(options.aindex.subAgents.src, resolvedPaths.aindexDir)
     const distDir = this.resolveAindexPath(options.aindex.subAgents.dist, resolvedPaths.aindexDir)
 
-    logger.debug('SubAgentInputPlugin collecting', {
+    logger.debug('SubAgentInputCapability collecting', {
       srcDir,
       distDir,
       aindexDir: resolvedPaths.aindexDir
@@ -102,7 +106,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       }
     )
 
-    logger.debug('SubAgentInputPlugin read complete', {
+    logger.debug('SubAgentInputCapability read complete', {
       subAgentCount: localizedSubAgents.length,
       errorCount: errors.length
     })
@@ -121,6 +125,8 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
       }))
     }
 
+    if (errors.length > 0) throw new Error(errors.map(error => error.error instanceof Error ? error.error.message : String(error.error)).join('\n'))
+
     const flatSubAgents: SubAgentPrompt[] = []
     for (const localized of localizedSubAgents) {
       const distContent = localized.dist
@@ -132,7 +138,7 @@ export class SubAgentInputPlugin extends AbstractInputPlugin {
         : {...distPrompt, rawMdxContent: rawMdx})
     }
 
-    logger.debug('SubAgentInputPlugin flattened subAgents', {
+    logger.debug('SubAgentInputCapability flattened subAgents', {
       count: flatSubAgents.length,
       agents: flatSubAgents.map(a => a.agentName)
     })

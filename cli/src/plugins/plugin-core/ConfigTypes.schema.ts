@@ -42,7 +42,7 @@ export const ZCommandSeriesOptions = z.object({
 /**
  * Zod schema for output scope value.
  */
-export const ZOutputScope = z.enum(['project', 'workspace', 'global'])
+export const ZOutputScope = z.enum(['project', 'global'])
 
 /**
  * Zod schema for selecting one or more scopes.

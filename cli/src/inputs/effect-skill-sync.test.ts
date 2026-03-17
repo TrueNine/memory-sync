@@ -1,4 +1,4 @@
-import type {InputPluginContext, PluginOptions} from '../plugins/plugin-core'
+import type {InputCapabilityContext, PluginOptions} from '../plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -6,22 +6,22 @@ import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {mergeConfig} from '../config'
 import {createLogger} from '../plugins/plugin-core'
-import {SkillDistCleanupEffectInputPlugin} from './effect-skill-sync'
+import {SkillDistCleanupEffectInputCapability} from './effect-skill-sync'
 
 function createContext(
   tempWorkspace: string,
   overrides?: Partial<PluginOptions>
-): InputPluginContext {
+): InputCapabilityContext {
   const options = mergeConfig({workspaceDir: tempWorkspace}, overrides ?? {})
 
   return {
-    logger: createLogger('SkillDistCleanupEffectInputPluginTest', 'error'),
+    logger: createLogger('SkillDistCleanupEffectInputCapabilityTest', 'error'),
     fs,
     path,
     glob,
     userConfigOptions: options,
     dependencyContext: {}
-  } as InputPluginContext
+  } as InputCapabilityContext
 }
 
 describe('skill dist cleanup effect', () => {
@@ -40,7 +40,7 @@ describe('skill dist cleanup effect', () => {
       fs.writeFileSync(path.join(distSkillDir, 'mcp.json'), '{"mcpServers":{}}', 'utf8')
       fs.writeFileSync(path.join(nestedLegacyDir, 'diagram.svg'), '<svg />', 'utf8')
 
-      const plugin = new SkillDistCleanupEffectInputPlugin()
+      const plugin = new SkillDistCleanupEffectInputCapability()
       const [result] = await plugin.executeEffects(createContext(tempWorkspace))
 
       expect(result?.success).toBe(true)
@@ -74,7 +74,7 @@ describe('skill dist cleanup effect', () => {
       fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), 'Compiled skill', 'utf8')
       fs.writeFileSync(path.join(distSkillDir, 'legacy.txt'), 'Legacy attachment', 'utf8')
 
-      const plugin = new SkillDistCleanupEffectInputPlugin()
+      const plugin = new SkillDistCleanupEffectInputCapability()
       const [result] = await plugin.executeEffects(createContext(tempWorkspace, {
         aindex: {
           skills: {src: 'abilities', dist: 'compiled/skills'}

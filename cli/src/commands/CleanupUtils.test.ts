@@ -4,6 +4,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
+import {mergeConfig} from '../config'
 import {
   FilePathKind,
   IDEKind,
@@ -22,14 +23,17 @@ function createMockLogger(): ILogger {
   } as ILogger
 }
 
-function createCleanContext(overrides?: Partial<OutputCleanContext['collectedOutputContext']>): OutputCleanContext {
+function createCleanContext(
+  overrides?: Partial<OutputCleanContext['collectedOutputContext']>,
+  pluginOptionsOverrides?: Parameters<typeof mergeConfig>[0]
+): OutputCleanContext {
   return {
     logger: createMockLogger(),
     fs,
     path,
     glob,
     dryRun: true,
-    pluginOptions: {cleanupProtection: {}},
+    pluginOptions: mergeConfig(pluginOptionsOverrides ?? {}),
     collectedOutputContext: {
       workspace: {
         directory: {
@@ -282,12 +286,15 @@ describe('collectDeletionTargets', () => {
         path.resolve(projectChildFile),
         path.resolve(safeDistMarkdownFile)
       ]))
-      expect(new Set(result.dirsToDelete)).toEqual(new Set([path.resolve(globalChildDir), path.resolve(aindexSourceDir)]))
-      expect(result.violations).toEqual([expect.objectContaining({
-        targetPath: path.resolve(protectedDistMdxFile),
-        protectionMode: 'direct',
-        protectedPath: path.resolve(protectedDistMdxFile)
-      })])
+      expect(new Set(result.dirsToDelete)).toEqual(new Set([path.resolve(globalChildDir)]))
+      expect(result.violations).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          targetPath: path.resolve(protectedDistMdxFile),
+          protectionMode: 'direct',
+          protectedPath: path.resolve(protectedDistMdxFile)
+        }),
+        expect.objectContaining({targetPath: path.resolve(aindexSourceDir)})
+      ]))
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
@@ -365,12 +372,15 @@ describe('collectDeletionTargets', () => {
 
       const result = await collectDeletionTargets([plugin], ctx)
 
-      expect(result.filesToDelete).toEqual([path.resolve(safeAppMarkdownFile)])
-      expect(result.violations).toEqual([expect.objectContaining({
-        targetPath: path.resolve(protectedAppMdxFile),
-        protectionMode: 'direct',
-        protectedPath: path.resolve(protectedAppMdxFile)
-      })])
+      expect(result.filesToDelete).toEqual([])
+      expect(result.violations).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          targetPath: path.resolve(protectedAppMdxFile),
+          protectionMode: 'direct',
+          protectedPath: path.resolve(protectedAppMdxFile)
+        }),
+        expect.objectContaining({targetPath: path.resolve(safeAppMarkdownFile)})
+      ]))
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
@@ -526,6 +536,49 @@ describe('collectDeletionTargets', () => {
       expect(result.dirsToDelete).toEqual([path.resolve(staleDir)])
       expect(result.filesToDelete).toEqual([])
       expect(result.violations).toEqual([])
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('throws when an output path matches the configured workspace prompt source file', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-cleanup-workspace-src-'))
+    const workspaceDir = path.join(tempDir, 'workspace')
+    const aindexDir = path.join(workspaceDir, 'aindex-meta')
+    const workspacePromptSource = path.join(aindexDir, 'meta', 'workspace.src.mdx')
+
+    fs.mkdirSync(path.dirname(workspacePromptSource), {recursive: true})
+    fs.writeFileSync(workspacePromptSource, '# workspace', 'utf8')
+
+    try {
+      const ctx = createCleanContext(
+        {
+          workspace: {
+            directory: {
+              pathKind: FilePathKind.Absolute,
+              path: workspaceDir,
+              getDirectoryName: () => path.basename(workspaceDir),
+              getAbsolutePath: () => workspaceDir
+            },
+            projects: []
+          },
+          aindexDir
+        },
+        {
+          workspaceDir,
+          aindex: {
+            dir: 'aindex-meta',
+            workspacePrompt: {
+              src: 'meta/workspace.src.mdx',
+              dist: 'compiled/workspace.mdx'
+            }
+          }
+        } as Parameters<typeof mergeConfig>[0]
+      )
+      const plugin = createMockOutputPlugin('MockOutputPlugin', [workspacePromptSource])
+
+      await expect(collectDeletionTargets([plugin], ctx)).rejects.toThrow('Cleanup protection conflict')
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})

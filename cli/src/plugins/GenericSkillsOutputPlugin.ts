@@ -27,21 +27,25 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('GenericSkillsOutputPlugin', {
       outputFileName: SKILL_FILE_NAME,
+      treatWorkspaceRootProjectAsProject: true,
       skills: {},
       cleanup: {
         delete: {
           project: {
+            dirs: [PROJECT_SKILLS_DIR]
+          },
+          global: {
             dirs: [PROJECT_SKILLS_DIR]
           }
         }
       },
       capabilities: {
         skills: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         },
         mcp: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         }
       }
@@ -50,7 +54,6 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
-    const {projects} = ctx.collectedOutputContext.workspace
     const {skills} = ctx.collectedOutputContext
 
     if (skills == null || skills.length === 0) return declarations
@@ -68,46 +71,26 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       this.getTopicScopeOverride(ctx, 'mcp') ?? this.getTopicScopeOverride(ctx, 'skills')
     )
 
-    for (const project of projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-
-      const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
-      const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, project.projectConfig, 'skills')
-      if (filteredSkills.length === 0) continue
-
-      const projectSkillsDir = this.joinPath(
-        projectDir.basePath,
-        projectDir.path,
-        PROJECT_SKILLS_DIR
-      )
-
+    const pushSkillDeclarations = (
+      baseSkillsDir: string,
+      scope: 'project' | 'global',
+      filteredSkills: readonly SkillPrompt[]
+    ): void => {
       for (const skill of filteredSkills) {
         const skillName = skill.yamlFrontMatter.name
-        const skillDir = this.joinPath(projectSkillsDir, skillName)
+        const skillDir = this.joinPath(baseSkillsDir, skillName)
 
         declarations.push({
           path: this.joinPath(skillDir, SKILL_FILE_NAME),
-          scope: 'project',
+          scope,
           source: {kind: 'skillMain', skill} satisfies GenericSkillOutputSource
         })
-
-        if (skill.mcpConfig != null && filteredMcpSkills.includes(skill)) {
-          declarations.push({
-            path: this.joinPath(skillDir, MCP_CONFIG_FILE),
-            scope: 'project',
-            source: {
-              kind: 'skillMcp',
-              rawContent: skill.mcpConfig.rawContent
-            } satisfies GenericSkillOutputSource
-          })
-        }
 
         if (skill.childDocs != null) {
           for (const childDoc of skill.childDocs) {
             declarations.push({
               path: this.joinPath(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
-              scope: 'project',
+              scope,
               source: {
                 kind: 'skillChildDoc',
                 content: childDoc.content as string
@@ -120,7 +103,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
           for (const resource of skill.resources) {
             declarations.push({
               path: this.joinPath(skillDir, resource.relativePath),
-              scope: 'project',
+              scope,
               source: {
                 kind: 'skillResource',
                 content: resource.content,
@@ -130,6 +113,57 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
           }
         }
       }
+    }
+
+    const pushMcpDeclarations = (
+      baseSkillsDir: string,
+      scope: 'project' | 'global',
+      filteredMcpSkills: readonly SkillPrompt[]
+    ): void => {
+      for (const skill of filteredMcpSkills) {
+        if (skill.mcpConfig == null) continue
+
+        declarations.push({
+          path: this.joinPath(baseSkillsDir, skill.yamlFrontMatter.name, MCP_CONFIG_FILE),
+          scope,
+          source: {
+            kind: 'skillMcp',
+            rawContent: skill.mcpConfig.rawContent
+          } satisfies GenericSkillOutputSource
+        })
+      }
+    }
+
+    if (selectedSkills.selectedScope === 'project' || selectedMcpSkills.selectedScope === 'project') {
+      for (const project of this.getProjectOutputProjects(ctx)) {
+        const projectRootDir = this.resolveProjectRootDir(ctx, project)
+        if (projectRootDir == null) continue
+
+        const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
+        const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, project.projectConfig, 'skills')
+        const baseSkillsDir = this.joinPath(projectRootDir, PROJECT_SKILLS_DIR)
+
+        if (selectedSkills.selectedScope === 'project' && filteredSkills.length > 0) pushSkillDeclarations(baseSkillsDir, 'project', filteredSkills)
+
+        if (selectedMcpSkills.selectedScope === 'project') pushMcpDeclarations(baseSkillsDir, 'project', filteredMcpSkills)
+      }
+    }
+
+    if (
+      selectedSkills.selectedScope !== 'global'
+      && selectedMcpSkills.selectedScope !== 'global'
+    ) return declarations
+
+    const baseSkillsDir = this.joinPath(this.getHomeDir(), PROJECT_SKILLS_DIR)
+    const promptSourceProjectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    if (selectedSkills.selectedScope === 'global') {
+      const filteredSkills = filterByProjectConfig(selectedSkills.items, promptSourceProjectConfig, 'skills')
+      if (filteredSkills.length > 0) pushSkillDeclarations(baseSkillsDir, 'global', filteredSkills)
+    }
+
+    if (selectedMcpSkills.selectedScope === 'global') {
+      const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, promptSourceProjectConfig, 'skills')
+      pushMcpDeclarations(baseSkillsDir, 'global', filteredMcpSkills)
     }
 
     return declarations

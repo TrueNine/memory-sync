@@ -1,6 +1,7 @@
 import type {
+  InputCapabilityContext,
   InputCollectedContext,
-  InputPluginContext,
+  Project,
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt,
   YAMLFrontMatter
@@ -17,23 +18,24 @@ import {
   buildPromptCompilerDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
-import {AbstractInputPlugin, FilePathKind, PromptKind} from '../plugins/plugin-core'
+import {AbstractInputCapability, FilePathKind, PromptKind, WORKSPACE_ROOT_PROJECT_NAME} from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
 import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
 
 const PROJECT_MEMORY_FILE = 'agt.mdx'
 const SCAN_SKIP_DIRECTORIES: readonly string[] = ['node_modules', '.git'] as const
 
-export class ProjectPromptInputPlugin extends AbstractInputPlugin {
+export class ProjectPromptInputCapability extends AbstractInputCapability {
   constructor() {
-    super('ProjectPromptInputPlugin', ['AindexInputPlugin'])
+    super('ProjectPromptInputCapability', ['AindexInputCapability'])
   }
 
-  async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
+  async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
     const {dependencyContext, fs, userConfigOptions: options, path, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
 
     const shadowProjectsDir = this.resolveAindexPath(options.aindex.app.dist, aindexDir)
+    const workspacePromptPath = this.resolveAindexPath(options.aindex.workspacePrompt.dist, aindexDir)
 
     const dependencyWorkspace = dependencyContext.workspace
     if (dependencyWorkspace == null) {
@@ -46,6 +48,7 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
     const enhancedProjects = await Promise.all(projects.map(async project => {
       const projectName = project.name
       if (projectName == null) return project
+      if (project.isWorkspaceRootProject === true) return project
 
       const shadowProjectPath = path.join(shadowProjectsDir, projectName)
       if (!fs.existsSync(shadowProjectPath) || !fs.statSync(shadowProjectPath).isDirectory()) return project
@@ -64,18 +67,132 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
       }
     }))
 
+    const workspaceRootProject = await this.readWorkspaceRootProjectPrompt(
+      ctx,
+      workspacePromptPath,
+      globalScope,
+      this.resolveWorkspaceRootProjectConfig(projects)
+    )
+
     return {
       workspace: {
         directory: dependencyWorkspace.directory,
-        projects: enhancedProjects
+        projects: workspaceRootProject == null
+          ? enhancedProjects
+          : [...enhancedProjects, workspaceRootProject]
       }
     }
   }
 
+  private async readWorkspaceRootProjectPrompt(
+    ctx: InputCapabilityContext,
+    filePath: string,
+    globalScope: InputCapabilityContext['globalScope'],
+    projectConfig: Project['projectConfig']
+  ): Promise<Project | undefined> {
+    const {fs, path, logger} = ctx
+
+    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return
+
+    try {
+      const rawContent = fs.readFileSync(filePath, 'utf8')
+      const parsed = parseMarkdown<YAMLFrontMatter>(rawContent)
+
+      let content: string
+      try {
+        const {content: compiledContent} = await mdxToMd(rawContent, {
+          globalScope,
+          extractMetadata: true,
+          basePath: path.dirname(filePath),
+          filePath
+        })
+        content = compiledContent
+        assertNoResidualModuleSyntax(content, filePath)
+      }
+      catch (e) {
+        if (e instanceof CompilerDiagnosticError) {
+          logger.error(buildPromptCompilerDiagnostic({
+            code: 'WORKSPACE_ROOT_MEMORY_PROMPT_COMPILE_FAILED',
+            title: 'Failed to compile workspace root memory prompt',
+            diagnosticText: formatPromptCompilerDiagnostic(e, {
+              operation: 'Failed to compile workspace root memory prompt.',
+              promptKind: 'workspace-root-memory',
+              logicalName: filePath,
+              distPath: filePath
+            }),
+            details: {
+              promptKind: 'workspace-root-memory',
+              distPath: filePath
+            }
+          }))
+          if (e instanceof ScopeError) {
+            logger.error(buildConfigDiagnostic({
+              code: 'WORKSPACE_ROOT_MEMORY_SCOPE_VARIABLES_MISSING',
+              title: 'Workspace root memory prompt references missing config variables',
+              reason: diagnosticLines(
+                'The workspace root memory prompt uses scope variables that are not defined in `~/.aindex/.tnmsc.json`.'
+              ),
+              configPath: '~/.aindex/.tnmsc.json',
+              exactFix: diagnosticLines(
+                'Define the missing variables in `~/.aindex/.tnmsc.json` and rerun tnmsc.'
+              ),
+              details: {
+                promptPath: filePath,
+                errorMessage: e.message
+              }
+            }))
+          }
+          process.exit(1)
+        }
+        throw e
+      }
+
+      const rootMemoryPrompt: ProjectRootMemoryPrompt = {
+        type: PromptKind.ProjectRootMemory,
+        content,
+        length: content.length,
+        filePathKind: FilePathKind.Relative,
+        ...parsed.yamlFrontMatter != null && {yamlFrontMatter: parsed.yamlFrontMatter},
+        ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
+        markdownAst: parsed.markdownAst,
+        markdownContents: parsed.markdownContents,
+        dir: {
+          pathKind: FilePathKind.Root,
+          path: '',
+          getDirectoryName: () => ''
+        }
+      }
+
+      return {
+        name: WORKSPACE_ROOT_PROJECT_NAME,
+        isWorkspaceRootProject: true,
+        ...projectConfig != null && {projectConfig},
+        rootMemoryPrompt
+      }
+    }
+    catch (e) {
+      logger.error(buildFileOperationDiagnostic({
+        code: 'WORKSPACE_ROOT_MEMORY_PROMPT_READ_FAILED',
+        title: 'Failed to read workspace root memory prompt',
+        operation: 'read',
+        targetKind: 'workspace root memory prompt',
+        path: filePath,
+        error: e
+      }))
+      return void 0
+    }
+  }
+
+  private resolveWorkspaceRootProjectConfig(projects: readonly Project[]): Project['projectConfig'] {
+    const concreteProjects = projects.filter(project => project.isWorkspaceRootProject !== true)
+    const promptSourceProject = concreteProjects.find(project => project.isPromptSourceProject === true)
+    return promptSourceProject?.projectConfig ?? concreteProjects[0]?.projectConfig
+  }
+
   private async readRootMemoryPrompt(
-    ctx: InputPluginContext,
+    ctx: InputCapabilityContext,
     projectPath: string,
-    globalScope: InputPluginContext['globalScope']
+    globalScope: InputCapabilityContext['globalScope']
   ): Promise<ProjectRootMemoryPrompt | undefined> {
     const {fs, path, logger} = ctx
     const filePath = path.join(projectPath, PROJECT_MEMORY_FILE)
@@ -165,10 +282,10 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
   }
 
   private async scanChildMemoryPrompts(
-    ctx: InputPluginContext,
+    ctx: InputCapabilityContext,
     shadowProjectPath: string,
     targetProjectPath: string,
-    globalScope: InputPluginContext['globalScope']
+    globalScope: InputCapabilityContext['globalScope']
   ): Promise<ProjectChildrenMemoryPrompt[]> {
     const {logger} = ctx
     const prompts: ProjectChildrenMemoryPrompt[] = []
@@ -191,12 +308,12 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
   }
 
   private async scanDirectoryRecursive(
-    ctx: InputPluginContext,
+    ctx: InputCapabilityContext,
     shadowProjectPath: string,
     currentPath: string,
     targetProjectPath: string,
     prompts: ProjectChildrenMemoryPrompt[],
-    globalScope: InputPluginContext['globalScope']
+    globalScope: InputCapabilityContext['globalScope']
   ): Promise<void> {
     const {fs, path} = ctx
 
@@ -219,11 +336,11 @@ export class ProjectPromptInputPlugin extends AbstractInputPlugin {
   }
 
   private async readChildMemoryPrompt(
-    ctx: InputPluginContext,
+    ctx: InputCapabilityContext,
     shadowProjectPath: string,
     shadowChildDir: string,
     targetProjectPath: string,
-    globalScope: InputPluginContext['globalScope']
+    globalScope: InputCapabilityContext['globalScope']
   ): Promise<ProjectChildrenMemoryPrompt | undefined> {
     const {fs, path, logger} = ctx
     const filePath = path.join(shadowChildDir, PROJECT_MEMORY_FILE)

@@ -1,7 +1,8 @@
-import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputPlugin} from '../plugins/plugin-core'
+import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputPlugin, PluginOptions} from '../plugins/plugin-core'
 import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import glob from 'fast-glob'
 import {
   buildDiagnostic,
   buildFileOperationDiagnostic,
@@ -13,6 +14,7 @@ import {
 } from '../plugins/plugin-core'
 import {
   buildComparisonKeys,
+  collectConfiguredAindexInputRules,
   collectProjectRoots,
   collectProtectedInputSourceRules,
   createProtectedDeletionGuard,
@@ -97,17 +99,25 @@ function isSameOrChildPath(candidate: string, parent: string): boolean {
 
 function expandCleanupGlob(
   pattern: string,
-  cleanCtx: OutputCleanContext,
   ignoreGlobs: readonly string[]
 ): readonly string[] {
   const normalizedPattern = normalizeGlobPattern(pattern)
-  return cleanCtx.glob.sync(normalizedPattern, {
+  return glob.sync(normalizedPattern, {
     onlyFiles: false,
     dot: true,
     absolute: true,
     followSymbolicLinks: false,
     ignore: [...ignoreGlobs]
   })
+}
+
+function shouldExcludeCleanupMatch(
+  matchedPath: string,
+  target: OutputCleanupPathDeclaration
+): boolean {
+  if (target.excludeBasenames == null || target.excludeBasenames.length === 0) return false
+  const basename = path.basename(matchedPath)
+  return target.excludeBasenames.includes(basename)
 }
 
 async function collectPluginCleanupDeclarations(
@@ -279,6 +289,13 @@ export async function collectDeletionTargets(
   }
 
   for (const rule of collectProtectedInputSourceRules(cleanCtx.collectedOutputContext)) addProtectRule(rule.path, rule.protectionMode, rule.reason, rule.source)
+  if (cleanCtx.collectedOutputContext.aindexDir != null && cleanCtx.pluginOptions != null) {
+    for (const rule of collectConfiguredAindexInputRules(cleanCtx.pluginOptions as Required<PluginOptions>, cleanCtx.collectedOutputContext.aindexDir, {
+      workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path
+    })) {
+      addProtectRule(rule.path, rule.protectionMode, rule.reason, rule.source, rule.matcher)
+    }
+  }
 
   for (const rule of cleanCtx.pluginOptions?.cleanupProtection?.rules ?? []) {
     addProtectRule(
@@ -308,7 +325,9 @@ export async function collectDeletionTargets(
   const excludeScanGlobs = [...excludeScanGlobSet]
 
   const resolveDeleteGlob = (target: OutputCleanupPathDeclaration): void => {
-    for (const matchedPath of expandCleanupGlob(target.path, cleanCtx, excludeScanGlobs)) {
+    for (const matchedPath of expandCleanupGlob(target.path, excludeScanGlobs)) {
+      if (shouldExcludeCleanupMatch(matchedPath, target)) continue
+
       try {
         const stat = fs.lstatSync(matchedPath)
         if (stat.isDirectory()) addDeletePath(matchedPath, 'directory')
@@ -324,7 +343,7 @@ export async function collectDeletionTargets(
       ? `plugin cleanup protect declaration (${target.label})`
       : 'plugin cleanup protect declaration'
 
-    for (const matchedPath of expandCleanupGlob(target.path, cleanCtx, excludeScanGlobs)) {
+    for (const matchedPath of expandCleanupGlob(target.path, excludeScanGlobs)) {
       addProtectRule(matchedPath, protectionMode, reason, `plugin-cleanup-protect:${pluginName}`)
     }
   }
@@ -469,8 +488,6 @@ export async function performCleanup(
   logger.debug('Collected outputs for cleanup', {
     projectDirs: outputs.projectDirs.length,
     projectFiles: outputs.projectFiles.length,
-    workspaceDirs: outputs.workspaceDirs.length,
-    workspaceFiles: outputs.workspaceFiles.length,
     globalDirs: outputs.globalDirs.length,
     globalFiles: outputs.globalFiles.length
   })

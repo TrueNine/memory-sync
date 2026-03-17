@@ -18,26 +18,6 @@ import {VisualStudioCodeIDEConfigOutputPlugin} from '@truenine/plugin-vscode'
 import {WarpIDEOutputPlugin} from '@truenine/plugin-warp-ide'
 import {WindsurfOutputPlugin} from '@truenine/plugin-windsurf'
 import {defineConfig} from '@/config'
-import {
-  AIAgentIgnoreInputPlugin,
-  AindexInputPlugin,
-  CommandInputPlugin,
-  EditorConfigInputPlugin,
-  GitExcludeInputPlugin,
-  GitIgnoreInputPlugin,
-  GlobalMemoryInputPlugin,
-  JetBrainsConfigInputPlugin,
-  MarkdownWhitespaceCleanupEffectInputPlugin,
-  OrphanFileCleanupEffectInputPlugin,
-  ProjectPromptInputPlugin,
-  ReadmeMdInputPlugin,
-  RuleInputPlugin,
-  SkillDistCleanupEffectInputPlugin,
-  SkillInputPlugin,
-  SubAgentInputPlugin,
-  VSCodeConfigInputPlugin,
-  WorkspaceInputPlugin
-} from '@/inputs'
 import {TraeCNIDEOutputPlugin} from '@/plugins/plugin-trae-cn-ide'
 
 export default defineConfig({
@@ -63,27 +43,7 @@ export default defineConfig({
       new JetBrainsIDECodeStyleConfigOutputPlugin(),
       new EditorConfigOutputPlugin(),
       new VisualStudioCodeIDEConfigOutputPlugin(),
-      new ReadmeMdConfigFileOutputPlugin(),
-
-      new SkillDistCleanupEffectInputPlugin(), // Effect Input Plugins (executed in priority order: 10, 20, 30)
-      new OrphanFileCleanupEffectInputPlugin(),
-      new MarkdownWhitespaceCleanupEffectInputPlugin(),
-
-      new WorkspaceInputPlugin(),
-      new AindexInputPlugin(),
-      new VSCodeConfigInputPlugin(),
-      new JetBrainsConfigInputPlugin(),
-      new EditorConfigInputPlugin(),
-      new SkillInputPlugin(),
-      new CommandInputPlugin(),
-      new SubAgentInputPlugin(),
-      new RuleInputPlugin(),
-      new GlobalMemoryInputPlugin(),
-      new ProjectPromptInputPlugin(),
-      new ReadmeMdInputPlugin(),
-      new GitIgnoreInputPlugin(),
-      new GitExcludeInputPlugin(),
-      new AIAgentIgnoreInputPlugin()
+      new ReadmeMdConfigFileOutputPlugin()
     ]
   }
 })

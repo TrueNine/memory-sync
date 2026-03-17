@@ -1,56 +1,56 @@
 export {
-  MarkdownWhitespaceCleanupEffectInputPlugin
+  MarkdownWhitespaceCleanupEffectInputCapability
 } from './effect-md-cleanup'
 export {
-  OrphanFileCleanupEffectInputPlugin
+  OrphanFileCleanupEffectInputCapability
 } from './effect-orphan-cleanup'
 export {
-  SkillDistCleanupEffectInputPlugin,
-  SkillNonSrcFileSyncEffectInputPlugin
+  SkillDistCleanupEffectInputCapability,
+  SkillNonSrcFileSyncEffectInputCapability
 } from './effect-skill-sync' // Effect Input Plugins (按优先级排序: 10, 20, 30)
 
 export {
-  SkillInputPlugin
+  SkillInputCapability
 } from './input-agentskills'
 export {
-  AindexInputPlugin
+  AindexInputCapability
 } from './input-aindex'
 export {
-  CommandInputPlugin
+  CommandInputCapability
 } from './input-command'
 export {
-  EditorConfigInputPlugin
+  EditorConfigInputCapability
 } from './input-editorconfig'
 export {
-  GitExcludeInputPlugin
+  GitExcludeInputCapability
 } from './input-git-exclude'
 export {
-  GitIgnoreInputPlugin
+  GitIgnoreInputCapability
 } from './input-gitignore'
 export {
-  GlobalMemoryInputPlugin
+  GlobalMemoryInputCapability
 } from './input-global-memory'
 export {
-  JetBrainsConfigInputPlugin
+  JetBrainsConfigInputCapability
 } from './input-jetbrains-config'
 export {
-  ProjectPromptInputPlugin
+  ProjectPromptInputCapability
 } from './input-project-prompt'
 export {
-  ReadmeMdInputPlugin
+  ReadmeMdInputCapability
 } from './input-readme'
 export {
-  RuleInputPlugin
+  RuleInputCapability
 } from './input-rule'
 export {
-  AIAgentIgnoreInputPlugin
+  AIAgentIgnoreInputCapability
 } from './input-shared-ignore'
 export {
-  SubAgentInputPlugin
+  SubAgentInputCapability
 } from './input-subagent'
 export {
-  VSCodeConfigInputPlugin
+  VSCodeConfigInputCapability
 } from './input-vscode-config'
 export {
-  WorkspaceInputPlugin
+  WorkspaceInputCapability
 } from './input-workspace' // Regular Input Plugins

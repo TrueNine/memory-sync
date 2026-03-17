@@ -76,6 +76,35 @@ export interface ValidateMetadataOptions<T> {
   readonly filePath?: string | undefined
 }
 
+function validateSupportedScope(
+  scope: unknown,
+  filePath?: string
+): MetadataValidationResult {
+  const prefix = filePath != null ? ` in ${filePath}` : ''
+
+  if (scope == null) {
+    return {
+      valid: true,
+      errors: [],
+      warnings: []
+    }
+  }
+
+  if (scope === 'project' || scope === 'global') {
+    return {
+      valid: true,
+      errors: [],
+      warnings: []
+    }
+  }
+
+  return {
+    valid: false,
+    errors: [`Field "scope" must be "project" or "global"${prefix}`],
+    warnings: []
+  }
+}
+
 export function validateExportMetadata<T>(
   metadata: Record<string, unknown>,
   options: ValidateMetadataOptions<T>
@@ -142,6 +171,9 @@ export function validateSkillMetadata(
   }
   if (metadata['keywords'] == null) warnings.push(`Using default value for optional field "keywords": []${prefix}`)
 
+  const scopeValidation = validateSupportedScope(metadata['scope'], filePath)
+  errors.push(...scopeValidation.errors)
+
   return {
     valid: errors.length === 0,
     errors,
@@ -160,11 +192,18 @@ export function validateCommandMetadata(
   metadata: Record<string, unknown>,
   filePath?: string
 ): MetadataValidationResult {
-  return validateExportMetadata<CommandExportMetadata>(metadata, { // description is optional (can come from YAML or be omitted) // Command has no required fields from export metadata
+  const result = validateExportMetadata<CommandExportMetadata>(metadata, { // description is optional (can come from YAML or be omitted) // Command has no required fields from export metadata
     requiredFields: [],
     optionalDefaults: {},
     filePath
   })
+  const scopeValidation = validateSupportedScope(metadata['scope'], filePath)
+
+  return {
+    valid: result.valid && scopeValidation.valid,
+    errors: [...result.errors, ...scopeValidation.errors],
+    warnings: result.warnings
+  }
 }
 
 /**
@@ -178,11 +217,18 @@ export function validateSubAgentMetadata(
   metadata: Record<string, unknown>,
   filePath?: string
 ): MetadataValidationResult {
-  return validateExportMetadata<SubAgentExportMetadata>(metadata, {
+  const result = validateExportMetadata<SubAgentExportMetadata>(metadata, {
     requiredFields: ['name', 'description'],
     optionalDefaults: {},
     filePath
   })
+  const scopeValidation = validateSupportedScope(metadata['scope'], filePath)
+
+  return {
+    valid: result.valid && scopeValidation.valid,
+    errors: [...result.errors, ...scopeValidation.errors],
+    warnings: result.warnings
+  }
 }
 
 /**
@@ -206,7 +252,8 @@ export function validateRuleMetadata(
   if (typeof metadata['description'] !== 'string' || metadata['description'].length === 0) errors.push(`Missing or empty required field "description"${prefix}`)
 
   const {scope, seriName} = metadata
-  if (scope != null && scope !== 'project' && scope !== 'global' && scope !== 'workspace') errors.push(`Field "scope" must be "project", "global" or "workspace"${prefix}`)
+  const scopeValidation = validateSupportedScope(scope, filePath)
+  errors.push(...scopeValidation.errors)
 
   if (scope == null) warnings.push(`Using default value for optional field "scope": "project"${prefix}`)
 

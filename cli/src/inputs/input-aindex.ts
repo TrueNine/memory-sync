@@ -1,4 +1,4 @@
-import type {InputCollectedContext, InputPluginContext, Project, ProjectConfig, Workspace} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext, Project, ProjectConfig, Workspace} from '../plugins/plugin-core'
 
 import {parse as parseJsonc} from 'jsonc-parser'
 import {
@@ -6,20 +6,20 @@ import {
   buildFileOperationDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
-import {AbstractInputPlugin, FilePathKind} from '../plugins/plugin-core'
+import {AbstractInputCapability, FilePathKind} from '../plugins/plugin-core'
 
-export class AindexInputPlugin extends AbstractInputPlugin {
+export class AindexInputCapability extends AbstractInputCapability {
   constructor() {
-    super('AindexInputPlugin')
+    super('AindexInputCapability')
   }
 
   private loadProjectConfig(
     projectName: string,
     aindexDir: string,
     srcPath: string,
-    fs: InputPluginContext['fs'],
-    path: InputPluginContext['path'],
-    logger: InputPluginContext['logger']
+    fs: InputCapabilityContext['fs'],
+    path: InputCapabilityContext['path'],
+    logger: InputCapabilityContext['logger']
   ): ProjectConfig | undefined {
     const configPath = path.join(aindexDir, srcPath, projectName, 'project.jsonc')
     if (!fs.existsSync(configPath)) return void 0
@@ -66,7 +66,7 @@ export class AindexInputPlugin extends AbstractInputPlugin {
     }
   }
 
-  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
+  collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
     const {userConfigOptions: options, logger, fs, path} = ctx
     const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
 

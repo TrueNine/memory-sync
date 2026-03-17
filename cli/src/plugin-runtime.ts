@@ -12,10 +12,7 @@ import type {OutputCleanContext, OutputWriteContext} from './plugins/plugin-core
  */
 import type {Command, CommandContext} from '@/commands/Command'
 import type {PipelineConfig} from '@/config'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
 import process from 'node:process'
-import glob from 'fast-glob'
 import {CleanCommand} from '@/commands/CleanCommand'
 import {DryRunCleanCommand} from '@/commands/DryRunCleanCommand'
 import {DryRunOutputCommand} from '@/commands/DryRunOutputCommand'
@@ -23,6 +20,7 @@ import {ExecuteCommand} from '@/commands/ExecuteCommand'
 import {JsonOutputCommand, toJsonCommandResult} from '@/commands/JsonOutputCommand'
 import {PluginsCommand} from '@/commands/PluginsCommand'
 import {buildUnhandledExceptionDiagnostic} from '@/diagnostics'
+import {discoverOutputRuntimeTargets} from '@/pipeline/OutputRuntimeTargets'
 import {createLogger, drainBufferedDiagnostics, setGlobalLogLevel} from './plugins/plugin-core'
 
 /**
@@ -74,24 +72,21 @@ async function main(): Promise<void> {
 
   const {context, outputPlugins, userConfigOptions} = userPluginConfig
   const logger = createLogger('PluginRuntime')
+  const runtimeTargets = discoverOutputRuntimeTargets(logger)
 
   const createCleanContext = (dry: boolean): OutputCleanContext => ({
     logger,
-    fs,
-    path,
-    glob,
     collectedOutputContext: context,
     pluginOptions: userConfigOptions,
+    runtimeTargets,
     dryRun: dry
   })
 
   const createWriteContext = (dry: boolean): OutputWriteContext => ({
     logger,
-    fs,
-    path,
-    glob,
     collectedOutputContext: context,
     pluginOptions: userConfigOptions,
+    runtimeTargets,
     dryRun: dry,
     registeredPluginNames: [...outputPlugins].map(p => p.name)
   })

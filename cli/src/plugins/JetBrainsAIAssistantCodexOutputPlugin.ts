@@ -3,86 +3,41 @@ import type {
   OutputCleanContext,
   OutputCleanupDeclarations,
   OutputFileDeclaration,
+  OutputPluginContext,
   OutputWriteContext,
   ProjectChildrenMemoryPrompt,
   SkillPrompt
 } from './plugin-core'
+import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {getPlatformFixedDir} from '@truenine/desk-paths'
-import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {AbstractOutputPlugin, filterByProjectConfig, PLUGIN_NAMES} from './plugin-core'
 
-/**
- * Represents the filename of the project memory file.
- */
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
-/**
- * Specifies the name of the subdirectory where prompt files are stored.
- */
 const PROMPTS_SUBDIR = 'prompts'
-/**
- * Represents the name of the subdirectory where skill-related resources are stored.
- */
 const SKILLS_SUBDIR = 'skills'
-/**
- * The file name that represents the skill definition file.
- */
 const SKILL_FILE_NAME = 'SKILL.md'
 const AIASSISTANT_DIR = '.aiassistant'
+const CODEX_DIR = 'codex'
 const RULES_SUBDIR = 'rules'
 const ROOT_RULE_FILE = 'always.md'
 const CHILD_RULE_FILE_PREFIX = 'glob-'
-const RULE_APPLY_ALWAYS = '\u59CB\u7EC8'
-const RULE_APPLY_GLOB = '\u6309\u6587\u4EF6\u6A21\u5F0F'
-const RULE_GLOB_KEY = '\u6A21\u5F0F'
-/**
- * Represents the directory name used for storing JetBrains-related resources or files.
- */
-const JETBRAINS_VENDOR_DIR = 'JetBrains'
-/**
- * Represents the directory path where the AIA files are stored.
- */
-const AIA_DIR = 'aia'
-/**
- * Represents the directory path where the Codex-related files are stored.
- */
-const CODEX_DIR = 'codex'
-
-/**
- * An array of constant string literals representing the prefixes of JetBrains IDE directory names.
- */
-const IDE_DIR_PREFIXES = [
-  'IntelliJIdea',
-  'WebStorm',
-  'RustRover',
-  'PyCharm',
-  'PyCharmCE',
-  'PhpStorm',
-  'GoLand',
-  'CLion',
-  'DataGrip',
-  'RubyMine',
-  'Rider',
-  'DataSpell',
-  'Aqua'
-] as const
-
+const RULE_APPLY_ALWAYS = '始终'
+const RULE_APPLY_GLOB = '按文件模式'
+const RULE_GLOB_KEY = '模式'
 type JetBrainsCodexOutputSource
   = | {readonly kind: 'projectRuleContent', readonly content: string}
     | {readonly kind: 'globalMemory', readonly content: string}
     | {readonly kind: 'command', readonly command: CommandPrompt}
-    | {readonly kind: 'globalSkill', readonly skill: SkillPrompt}
+    | {readonly kind: 'skill', readonly skill: SkillPrompt}
     | {readonly kind: 'skillReference', readonly content: string}
-    | {readonly kind: 'skillResource', readonly content: string}
+    | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
     | {readonly kind: 'ignoreFile', readonly content: string}
 
-/**
- * Represents an output plugin specifically designed for integration with JetBrains AI Assistant Codex.
- */
 export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin {
   constructor() {
     super('JetBrainsAIAssistantCodexOutputPlugin', {
       outputFileName: PROJECT_MEMORY_FILE,
+      treatWorkspaceRootProjectAsProject: true,
       commands: {
         subDir: PROMPTS_SUBDIR,
         transformFrontMatter: (_cmd, context) => context.sourceFrontMatter ?? {}
@@ -95,7 +50,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       cleanup: {
         delete: {
           project: {
-            dirs: ['.aiassistant/rules']
+            dirs: ['.aiassistant/rules', '.aiassistant/codex/prompts', '.aiassistant/codex/skills']
           }
         }
       },
@@ -105,11 +60,11 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
           singleScope: false
         },
         commands: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         },
         skills: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         }
       }
@@ -118,16 +73,25 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
-    const {workspace, globalMemory, commands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
-    const {projects} = workspace
-    const codexDirs = this.resolveCodexDirs()
+    const {globalMemory, commands, skills, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
+    const concreteProjects = this.getConcreteProjects(ctx)
+    const promptProjects = this.getProjectPromptOutputProjects(ctx)
+    const codexDirs = this.getJetBrainsCodexDirs(ctx)
     const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project', 'global']))
+    const promptSourceProjectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    const selectedCommands = commands != null
+      ? this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, command => this.resolveCommandSourceScope(command), this.getTopicScopeOverride(ctx, 'commands'))
+      : {items: [] as readonly CommandPrompt[]}
+    const selectedSkills = skills != null
+      ? this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
+      : {items: [] as readonly SkillPrompt[]}
+    const transformOptions = this.getTransformOptionsFromContext(ctx)
 
     if (activePromptScopes.has('project')) {
-      for (const project of projects) {
-        const projectDir = project.dirFromWorkspacePath
-        if (projectDir == null) continue
-        const rulesDir = path.join(projectDir.basePath, projectDir.path, AIASSISTANT_DIR, RULES_SUBDIR)
+      for (const project of promptProjects) {
+        const projectRootDir = this.resolveProjectRootDir(ctx, project)
+        if (projectRootDir == null) continue
+        const rulesDir = path.join(projectRootDir, AIASSISTANT_DIR, RULES_SUBDIR)
 
         if (project.rootMemoryPrompt != null) {
           declarations.push({
@@ -155,20 +119,76 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       }
     }
 
-    if (codexDirs.length > 0) {
-      const projectConfig = this.resolvePromptSourceProjectConfig(ctx)
-      const scopedCommands = commands != null
-        ? this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, cmd => this.resolveCommandSourceScope(cmd), this.getTopicScopeOverride(ctx, 'commands'))
-        : {items: [] as readonly CommandPrompt[]}
-      const filteredCommands = filterByProjectConfig(scopedCommands.items, projectConfig, 'commands')
-      const scopedSkills = skills != null
-        ? this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
-        : {items: [] as readonly SkillPrompt[]}
-      const filteredSkills = filterByProjectConfig(scopedSkills.items, projectConfig, 'skills')
-      const transformOptions = this.getTransformOptionsFromContext(ctx)
+    const pushSkillDeclarations = (
+      basePath: string,
+      scope: 'project' | 'global',
+      filteredSkills: readonly SkillPrompt[]
+    ): void => {
+      for (const skill of filteredSkills) {
+        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+        const skillDir = path.join(basePath, SKILLS_SUBDIR, skillName)
+        declarations.push({
+          path: path.join(skillDir, SKILL_FILE_NAME),
+          scope,
+          source: {kind: 'skill', skill} satisfies JetBrainsCodexOutputSource
+        })
 
-      for (const codexDir of codexDirs) {
-        if (globalMemory != null && activePromptScopes.has('global')) {
+        if (skill.childDocs != null) {
+          for (const refDoc of skill.childDocs) {
+            declarations.push({
+              path: path.join(skillDir, refDoc.dir.path.replace(/\.mdx$/, '.md')),
+              scope,
+              source: {
+                kind: 'skillReference',
+                content: refDoc.content as string
+              } satisfies JetBrainsCodexOutputSource
+            })
+          }
+        }
+
+        if (skill.resources != null) {
+          for (const resource of skill.resources) {
+            declarations.push({
+              path: path.join(skillDir, resource.relativePath),
+              scope,
+              source: {
+                kind: 'skillResource',
+                content: resource.content,
+                encoding: resource.encoding
+              } satisfies JetBrainsCodexOutputSource
+            })
+          }
+        }
+      }
+    }
+
+    if (selectedCommands.selectedScope === 'project' || selectedSkills.selectedScope === 'project') {
+      for (const project of this.getProjectOutputProjects(ctx)) {
+        const projectRootDir = this.resolveProjectRootDir(ctx, project)
+        if (projectRootDir == null) continue
+
+        const projectCodexDir = path.join(projectRootDir, AIASSISTANT_DIR, CODEX_DIR)
+        if (selectedCommands.selectedScope === 'project') {
+          const filteredCommands = filterByProjectConfig(selectedCommands.items, project.projectConfig, 'commands')
+          for (const command of filteredCommands) {
+            declarations.push({
+              path: path.join(projectCodexDir, PROMPTS_SUBDIR, this.transformCommandName(command, transformOptions)),
+              scope: 'project',
+              source: {kind: 'command', command} satisfies JetBrainsCodexOutputSource
+            })
+          }
+        }
+
+        if (selectedSkills.selectedScope === 'project') {
+          const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
+          pushSkillDeclarations(projectCodexDir, 'project', filteredSkills)
+        }
+      }
+    }
+
+    if (codexDirs.length > 0) {
+      if (globalMemory != null && activePromptScopes.has('global')) {
+        for (const codexDir of codexDirs) {
           declarations.push({
             path: path.join(codexDir, PROJECT_MEMORY_FILE),
             scope: 'global',
@@ -178,50 +198,24 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
             } satisfies JetBrainsCodexOutputSource
           })
         }
+      }
 
-        for (const cmd of filteredCommands) {
+      const filteredCommands = selectedCommands.selectedScope === 'global'
+        ? filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
+        : []
+      const filteredSkills = selectedSkills.selectedScope === 'global'
+        ? filterByProjectConfig(selectedSkills.items, promptSourceProjectConfig, 'skills')
+        : []
+      for (const codexDir of codexDirs) {
+        for (const command of filteredCommands) {
           declarations.push({
-            path: path.join(codexDir, PROMPTS_SUBDIR, this.transformCommandName(cmd, transformOptions)),
+            path: path.join(codexDir, PROMPTS_SUBDIR, this.transformCommandName(command, transformOptions)),
             scope: 'global',
-            source: {kind: 'command', command: cmd} satisfies JetBrainsCodexOutputSource
+            source: {kind: 'command', command} satisfies JetBrainsCodexOutputSource
           })
         }
 
-        for (const skill of filteredSkills) {
-          const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-          const skillDir = path.join(codexDir, SKILLS_SUBDIR, skillName)
-          declarations.push({
-            path: path.join(skillDir, SKILL_FILE_NAME),
-            scope: 'global',
-            source: {kind: 'globalSkill', skill} satisfies JetBrainsCodexOutputSource
-          })
-
-          if (skill.childDocs != null) {
-            for (const refDoc of skill.childDocs) {
-              declarations.push({
-                path: path.join(skillDir, refDoc.dir.path.replace(/\.mdx$/, '.md')),
-                scope: 'global',
-                source: {
-                  kind: 'skillReference',
-                  content: refDoc.content as string
-                } satisfies JetBrainsCodexOutputSource
-              })
-            }
-          }
-
-          if (skill.resources != null) {
-            for (const resource of skill.resources) {
-              declarations.push({
-                path: path.join(skillDir, resource.relativePath),
-                scope: 'global',
-                source: {
-                  kind: 'skillResource',
-                  content: resource.content
-                } satisfies JetBrainsCodexOutputSource
-              })
-            }
-          }
-        }
+        pushSkillDeclarations(codexDir, 'global', filteredSkills)
       }
     }
 
@@ -230,7 +224,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       ? void 0
       : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
     if (ignoreOutputPath != null && ignoreFile != null) {
-      for (const project of projects) {
+      for (const project of concreteProjects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null || project.isPromptSourceProject === true) continue
         declarations.push({
@@ -250,23 +244,23 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   override async convertContent(
     declaration: OutputFileDeclaration,
     ctx: OutputWriteContext
-  ): Promise<string> {
+  ): Promise<string | Buffer> {
     const source = declaration.source as JetBrainsCodexOutputSource
     switch (source.kind) {
       case 'projectRuleContent':
       case 'globalMemory':
       case 'skillReference':
-      case 'skillResource':
       case 'ignoreFile': return source.content
       case 'command': return this.buildCommandContent(source.command, ctx)
-      case 'globalSkill': return this.buildCodexSkillContent(source.skill, ctx)
+      case 'skill': return this.buildCodexSkillContent(source.skill, ctx)
+      case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
       default: throw new Error(`Unsupported declaration source for ${this.name}`)
     }
   }
 
   override async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
     const baseDeclarations = await super.declareCleanupPaths(ctx)
-    const codexDirs = this.resolveCodexDirs()
+    const codexDirs = this.getJetBrainsCodexDirs(ctx)
     if (codexDirs.length === 0) return baseDeclarations
 
     const dynamicGlobalDeletes = codexDirs.flatMap(codexDir => ([
@@ -285,30 +279,8 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     }
   }
 
-  private resolveCodexDirs(): string[] {
-    const baseDir = path.join(getPlatformFixedDir(), JETBRAINS_VENDOR_DIR)
-    if (!this.existsSync(baseDir)) return []
-
-    try {
-      const dirents = this.readdirSync(baseDir, {withFileTypes: true})
-      const ideDirs = dirents.filter(dirent => {
-        if (!dirent.isDirectory()) return false
-        return this.isSupportedIdeDir(dirent.name)
-      })
-      return ideDirs.map(dirent => path.join(baseDir, dirent.name, AIA_DIR, CODEX_DIR))
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.log.warn(buildFileOperationDiagnostic({
-        code: 'JETBRAINS_CODEX_DIRECTORY_SCAN_FAILED',
-        title: 'Failed to scan JetBrains Codex directories',
-        operation: 'scan',
-        targetKind: 'JetBrains IDE directory',
-        path: baseDir,
-        error: errMsg
-      }))
-      return []
-    }
+  private getJetBrainsCodexDirs(ctx: OutputPluginContext | OutputWriteContext | OutputCleanContext): readonly string[] {
+    return ctx.runtimeTargets.jetbrainsCodexDirs
   }
 
   private buildChildRuleFileName(child: ProjectChildrenMemoryPrompt): string {
@@ -348,10 +320,6 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
     }
 
     return this.buildMarkdownContent(child.content as string, fmData, ctx)
-  }
-
-  private isSupportedIdeDir(dirName: string): boolean {
-    return IDE_DIR_PREFIXES.some(prefix => dirName.startsWith(prefix))
   }
 
   private buildCodexSkillContent(skill: SkillPrompt, ctx: OutputWriteContext): string {

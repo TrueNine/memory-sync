@@ -1,11 +1,11 @@
-import type {ILogger, InputPluginContext} from '../plugins/plugin-core'
+import type {ILogger, InputCapabilityContext} from '../plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {mergeConfig} from '../config'
-import {SkillInputPlugin} from './input-agentskills'
+import {SkillInputCapability} from './input-agentskills'
 
 function createMockLogger(warnings: string[] = [], errors: string[] = []): ILogger {
   return {
@@ -18,7 +18,7 @@ function createMockLogger(warnings: string[] = [], errors: string[] = []): ILogg
   } as ILogger
 }
 
-function createContext(tempWorkspace: string, logger: ILogger): InputPluginContext {
+function createContext(tempWorkspace: string, logger: ILogger): InputCapabilityContext {
   const options = mergeConfig({workspaceDir: tempWorkspace})
 
   return {
@@ -28,7 +28,7 @@ function createContext(tempWorkspace: string, logger: ILogger): InputPluginConte
     glob,
     userConfigOptions: options,
     dependencyContext: {}
-  } as InputPluginContext
+  } as InputCapabilityContext
 }
 
 describe('skill input plugin', () => {
@@ -48,7 +48,7 @@ describe('skill input plugin', () => {
       fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), '---\ndescription: dist skill\n---\nexport const x = 1\n\nSkill dist', 'utf8')
       fs.writeFileSync(path.join(distSkillDir, 'guide.mdx'), '---\ndescription: dist guide\n---\nGuide dist', 'utf8')
 
-      const plugin = new SkillInputPlugin()
+      const plugin = new SkillInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace, createMockLogger()))
       const [skill] = result.skills ?? []
 
@@ -83,7 +83,7 @@ describe('skill input plugin', () => {
       fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), '---\ndescription: dist skill\n---\nSkill dist', 'utf8')
       fs.writeFileSync(path.join(distSkillDir, 'notes.md'), 'Legacy dist notes', 'utf8')
 
-      const plugin = new SkillInputPlugin()
+      const plugin = new SkillInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace, createMockLogger()))
       const [skill] = result.skills ?? []
 
@@ -106,7 +106,7 @@ describe('skill input plugin', () => {
       fs.writeFileSync(path.join(srcSkillDir, 'guide.src.mdx'), '---\ndescription: src guide\n---\nGuide source', 'utf8')
       fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), '---\ndescription: dist skill\n---\nSkill dist', 'utf8')
 
-      const plugin = new SkillInputPlugin()
+      const plugin = new SkillInputCapability()
       await expect(plugin.collect(createContext(tempWorkspace, createMockLogger()))).rejects.toThrow('Missing compiled dist prompt')
     }
     finally {
@@ -122,8 +122,27 @@ describe('skill input plugin', () => {
       fs.mkdirSync(srcSkillDir, {recursive: true})
       fs.writeFileSync(path.join(srcSkillDir, 'skill.src.mdx'), '---\ndescription: src only skill\n---\nSkill source', 'utf8')
 
-      const plugin = new SkillInputPlugin()
+      const plugin = new SkillInputCapability()
       await expect(plugin.collect(createContext(tempWorkspace, createMockLogger()))).rejects.toThrow('Missing compiled dist prompt')
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('rejects workspace as an unsupported skill scope', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-skill-input-workspace-scope-test-'))
+    const srcSkillDir = path.join(tempWorkspace, 'aindex', 'skills', 'demo')
+    const distSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'demo')
+
+    try {
+      fs.mkdirSync(srcSkillDir, {recursive: true})
+      fs.mkdirSync(distSkillDir, {recursive: true})
+      fs.writeFileSync(path.join(srcSkillDir, 'skill.src.mdx'), '---\ndescription: src skill\n---\nSkill source', 'utf8')
+      fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), '---\nname: demo\ndescription: dist skill\nscope: workspace\n---\nSkill dist', 'utf8')
+
+      const plugin = new SkillInputCapability()
+      await expect(plugin.collect(createContext(tempWorkspace, createMockLogger()))).rejects.toThrow('Field "scope" must be "project" or "global"')
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

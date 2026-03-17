@@ -1,5 +1,5 @@
 /**
- * Types for SkillInputPlugin resource processing
+ * Types for SkillInputCapability resource processing
  */
 
 import type {SkillChildDoc, SkillResource} from '../plugins/plugin-core'

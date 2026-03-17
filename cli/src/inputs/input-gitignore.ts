@@ -1,13 +1,13 @@
-import type {InputCollectedContext, InputPluginContext} from '../plugins/plugin-core'
-import {AbstractInputPlugin} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext} from '../plugins/plugin-core'
+import {AbstractInputCapability} from '../plugins/plugin-core'
 import {PUBLIC_GIT_IGNORE_TARGET_RELATIVE_PATH, resolvePublicDefinitionPath} from '../public-config-paths'
 
-export class GitIgnoreInputPlugin extends AbstractInputPlugin {
+export class GitIgnoreInputCapability extends AbstractInputCapability {
   constructor() {
-    super('GitIgnoreInputPlugin')
+    super('GitIgnoreInputCapability')
   }
 
-  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
+  collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
     const {workspaceDir, aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
     const filePath = resolvePublicDefinitionPath(aindexDir, PUBLIC_GIT_IGNORE_TARGET_RELATIVE_PATH, {
       command: ctx.runtimeCommand,

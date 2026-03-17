@@ -4,9 +4,8 @@ import type {
   CommandSeriesOptions,
   CommandSeriesPluginOverride,
   ConfigLoaderOptions,
+  InputCapability,
   InputCollectedContext,
-  InputPlugin,
-  InputPluginContext,
   OutputCollectedContext,
   OutputPlugin,
   OutputScopeOptions,
@@ -14,15 +13,11 @@ import type {
   PluginOutputScopeTopics,
   UserConfigFile
 } from './plugins/plugin-core'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-import glob from 'fast-glob'
 import {checkVersionControl} from './Aindex'
 import {getConfigLoader} from './ConfigLoader'
-import {PluginPipeline} from './PluginPipeline'
+import {collectInputContext} from './inputs/runtime'
 import {
   createLogger,
-  PluginKind,
   toOutputCollectedContext,
   validateOutputScopeOverridesForPlugins
 } from './plugins/plugin-core'
@@ -34,6 +29,14 @@ export interface PipelineConfig {
   readonly context: OutputCollectedContext
   readonly outputPlugins: readonly OutputPlugin[]
   readonly userConfigOptions: Required<PluginOptions>
+}
+
+function isOutputPlugin(plugin: InputCapability | OutputPlugin): plugin is OutputPlugin {
+  return 'declarativeOutput' in plugin
+}
+
+function isInputCapability(plugin: InputCapability | OutputPlugin): plugin is InputCapability {
+  return 'collect' in plugin && !isOutputPlugin(plugin)
 }
 
 const DEFAULT_AINDEX: Required<AindexConfig> = {
@@ -292,6 +295,8 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     pipelineArgs = void 0
   }
 
+  const hasExplicitProgrammaticPlugins = Object.hasOwn(pluginOptions, 'plugins')
+  const explicitProgrammaticPlugins = pluginOptions.plugins
   let userConfigOptions: Partial<PluginOptions> = {} // Load user config if enabled
   let userConfigFound = false
   let userConfigSources: readonly string[] = []
@@ -326,22 +331,17 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     })
   }
 
-  const baseCtx: Omit<InputPluginContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = { // Base context without dependencyContext, globalScope, scopeRegistry (will be provided by pipeline)
-    logger,
-    userConfigOptions: mergedOptions,
-    fs,
-    path,
-    glob
-  }
-
-  const inputPlugins = plugins.filter((p): p is InputPlugin => p.type === PluginKind.Input) // Filter plugins by type
-  const outputPlugins = plugins.filter((p): p is OutputPlugin => p.type === PluginKind.Output)
+  const outputPlugins = plugins.filter(isOutputPlugin)
+  const inputCapabilities = plugins.filter(isInputCapability)
   validateOutputScopeOverridesForPlugins(outputPlugins, mergedOptions)
 
-  const pipeline = pipelineArgs != null
-    ? new PluginPipeline(...pipelineArgs)
-    : new PluginPipeline() // Pass userConfigFile for GlobalScopeCollector to access profile and tool // Use PluginPipeline to execute plugins in dependency order
-  const merged = await pipeline.executePluginsInOrder(inputPlugins, baseCtx, false, userConfigFile)
+  const merged = await collectInputContext({
+    userConfigOptions: mergedOptions,
+    ...inputCapabilities.length > 0 ? {capabilities: inputCapabilities} : {},
+    includeBuiltinEffects: !(inputCapabilities.length > 0 || (hasExplicitProgrammaticPlugins && (explicitProgrammaticPlugins?.length ?? 0) === 0)),
+    ...pipelineArgs != null ? {pipelineArgs} : {},
+    ...userConfigFile != null ? {userConfig: userConfigFile} : {}
+  })
 
   if (merged.workspace == null) throw new Error('Workspace not initialized by any plugin') // Validate workspace exists
 

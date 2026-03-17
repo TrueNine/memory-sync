@@ -1,4 +1,4 @@
-import type {InputPluginContext} from '../plugins/plugin-core'
+import type {InputCapabilityContext} from '../plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -6,25 +6,25 @@ import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {mergeConfig} from '../config'
 import {createLogger} from '../plugins/plugin-core'
-import {OrphanFileCleanupEffectInputPlugin} from './effect-orphan-cleanup'
+import {OrphanFileCleanupEffectInputCapability} from './effect-orphan-cleanup'
 
 const legacySourceExtension = '.cn.mdx'
 
-function createContext(tempWorkspace: string): InputPluginContext {
+function createContext(tempWorkspace: string): InputCapabilityContext {
   const options = mergeConfig({workspaceDir: tempWorkspace})
 
   return {
-    logger: createLogger('OrphanFileCleanupEffectInputPluginTest', 'error'),
+    logger: createLogger('OrphanFileCleanupEffectInputCapabilityTest', 'error'),
     fs,
     path,
     glob,
     userConfigOptions: options,
     dependencyContext: {}
-  } as InputPluginContext
+  } as InputCapabilityContext
 }
 
-class TestOrphanFileCleanupEffectInputPlugin extends OrphanFileCleanupEffectInputPlugin {
-  constructor(private readonly planFactory: (ctx: ReturnType<OrphanFileCleanupEffectInputPlugin['resolveBasePaths']> & {readonly fs: typeof fs, readonly path: typeof path}) => {
+class TestOrphanFileCleanupEffectInputCapability extends OrphanFileCleanupEffectInputCapability {
+  constructor(private readonly planFactory: (ctx: ReturnType<OrphanFileCleanupEffectInputCapability['resolveBasePaths']> & {readonly fs: typeof fs, readonly path: typeof path}) => {
     filesToDelete: string[]
     dirsToDelete: string[]
     errors: {path: string, error: Error}[]
@@ -32,7 +32,7 @@ class TestOrphanFileCleanupEffectInputPlugin extends OrphanFileCleanupEffectInpu
     super()
   }
 
-  protected override buildDeletionPlan(ctx: Parameters<OrphanFileCleanupEffectInputPlugin['buildDeletionPlan']>[0]): {
+  protected override buildDeletionPlan(ctx: Parameters<OrphanFileCleanupEffectInputCapability['buildDeletionPlan']>[0]): {
     filesToDelete: string[]
     dirsToDelete: string[]
     errors: {path: string, error: Error}[]
@@ -55,7 +55,7 @@ describe('orphan file cleanup effect', () => {
       fs.writeFileSync(path.join(srcDir, 'demo.src.mdx'), '---\ndescription: source\n---\nSource prompt', 'utf8')
       fs.writeFileSync(distFile, 'Compiled prompt', 'utf8')
 
-      const plugin = new OrphanFileCleanupEffectInputPlugin()
+      const plugin = new OrphanFileCleanupEffectInputCapability()
       const [result] = await plugin.executeEffects(createContext(tempWorkspace))
 
       expect(result?.success).toBe(true)
@@ -79,7 +79,7 @@ describe('orphan file cleanup effect', () => {
       fs.writeFileSync(path.join(srcDir, `demo${legacySourceExtension}`), '---\ndescription: legacy\n---\nLegacy prompt', 'utf8')
       fs.writeFileSync(distFile, 'Compiled prompt', 'utf8')
 
-      const plugin = new OrphanFileCleanupEffectInputPlugin()
+      const plugin = new OrphanFileCleanupEffectInputCapability()
       await expect(plugin.executeEffects(createContext(tempWorkspace))).rejects.toThrow('Protected deletion guard blocked orphan-file-cleanup')
       expect(fs.existsSync(distFile)).toBe(true)
     }
@@ -97,7 +97,7 @@ describe('orphan file cleanup effect', () => {
       fs.mkdirSync(path.dirname(safeDistFile), {recursive: true})
       fs.writeFileSync(safeDistFile, 'Compiled prompt', 'utf8')
 
-      const plugin = new TestOrphanFileCleanupEffectInputPlugin(() => ({
+      const plugin = new TestOrphanFileCleanupEffectInputCapability(() => ({
         filesToDelete: [safeDistFile, globalConfigPath],
         dirsToDelete: [],
         errors: []
@@ -123,7 +123,7 @@ describe('orphan file cleanup effect', () => {
       fs.writeFileSync(protectedSourceFile, '---\ndescription: source\n---\nSource prompt', 'utf8')
       fs.writeFileSync(safeDistFile, 'Compiled prompt', 'utf8')
 
-      const plugin = new TestOrphanFileCleanupEffectInputPlugin(() => ({
+      const plugin = new TestOrphanFileCleanupEffectInputCapability(() => ({
         filesToDelete: [safeDistFile, protectedSourceFile],
         dirsToDelete: [],
         errors: []

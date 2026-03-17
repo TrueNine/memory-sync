@@ -1,11 +1,11 @@
-import type {CommandPrompt, OutputScopeSelection, OutputWriteContext, Project, SkillPrompt} from './plugin-core'
+import type {CommandPrompt, OutputScopeSelection, OutputWriteContext, Project, RulePrompt, SkillPrompt} from './plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
 import {createLogger, FilePathKind, PromptKind} from './plugin-core'
 import {WindsurfOutputPlugin} from './WindsurfOutputPlugin'
 
-function createCommandPrompt(scope: 'project' | 'workspace' | 'global', seriName: string): CommandPrompt {
+function createCommandPrompt(scope: 'project' | 'global', seriName: string): CommandPrompt {
   return {
     type: PromptKind.Command,
     content: 'command content',
@@ -30,7 +30,7 @@ function createCommandPrompt(scope: 'project' | 'workspace' | 'global', seriName
   } as CommandPrompt
 }
 
-function createSkillPrompt(scope: 'project' | 'workspace' | 'global', seriName: string): SkillPrompt {
+function createSkillPrompt(scope: 'project' | 'global', seriName: string): SkillPrompt {
   return {
     type: PromptKind.Skill,
     content: 'skill content',
@@ -54,6 +54,27 @@ function createSkillPrompt(scope: 'project' | 'workspace' | 'global', seriName: 
   } as SkillPrompt
 }
 
+function createRulePrompt(scope: 'project' | 'global'): RulePrompt {
+  return {
+    type: PromptKind.Rule,
+    content: 'rule body',
+    length: 9,
+    filePathKind: FilePathKind.Relative,
+    dir: {
+      pathKind: FilePathKind.Relative,
+      path: 'rules/ops/guard.mdx',
+      basePath: path.resolve('tmp/dist/rules'),
+      getDirectoryName: () => 'ops',
+      getAbsolutePath: () => path.resolve('tmp/dist/rules/ops/guard.mdx')
+    },
+    prefix: 'ops',
+    ruleName: 'guard',
+    globs: ['src/**'],
+    scope,
+    markdownContents: []
+  } as RulePrompt
+}
+
 function createProject(workspaceBase: string, name: string, includeSeries: readonly string[], promptSource = false): Project {
   return {
     name,
@@ -71,8 +92,16 @@ function createProject(workspaceBase: string, name: string, includeSeries: reado
   } as Project
 }
 
+function createWorkspaceRootProject(): Project {
+  return {
+    name: '__workspace__',
+    isWorkspaceRootProject: true
+  } as Project
+}
+
 function createWriteContext(
   workspaceBase: string,
+  projects: readonly Project[],
   commands: readonly CommandPrompt[],
   skills: readonly SkillPrompt[],
   scopeOverrides: {
@@ -100,10 +129,7 @@ function createWriteContext(
           path: workspaceBase,
           getDirectoryName: () => path.basename(workspaceBase)
         },
-        projects: [
-          createProject(workspaceBase, 'alpha-project', ['alpha'], true),
-          createProject(workspaceBase, 'beta-project', ['beta'])
-        ]
+        projects: [...projects]
       },
       commands,
       skills
@@ -111,12 +137,16 @@ function createWriteContext(
   } as OutputWriteContext
 }
 
-describe('windsurfOutputPlugin scoped commands/skills output', () => {
-  it('writes workflows and skills to each project when scope is project', async () => {
+describe('windsurfOutputPlugin synthetic workspace project output', () => {
+  it('writes workflows and skills to each real project when project scope is selected', async () => {
     const workspaceBase = path.resolve('tmp/windsurf-project-scope')
     const plugin = new WindsurfOutputPlugin()
     const context = createWriteContext(
       workspaceBase,
+      [
+        createProject(workspaceBase, 'alpha-project', ['alpha'], true),
+        createProject(workspaceBase, 'beta-project', ['beta'])
+      ],
       [createCommandPrompt('project', 'alpha')],
       [createSkillPrompt('project', 'alpha')],
       {commands: 'project', skills: 'project'}
@@ -131,21 +161,52 @@ describe('windsurfOutputPlugin scoped commands/skills output', () => {
     expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
   })
 
-  it('writes workflows and skills to workspace-local .codeium when scope is workspace', async () => {
-    const workspaceBase = path.resolve('tmp/windsurf-workspace-scope')
+  it('writes project-scoped workflows and skills into workspace root via the synthetic workspace project', async () => {
+    const workspaceBase = path.resolve('tmp/windsurf-workspace-project')
     const plugin = new WindsurfOutputPlugin()
     const context = createWriteContext(
       workspaceBase,
-      [createCommandPrompt('workspace', 'alpha')],
-      [createSkillPrompt('workspace', 'alpha')],
-      {commands: 'workspace', skills: 'workspace'}
+      [createWorkspaceRootProject()],
+      [createCommandPrompt('project', 'alpha')],
+      [createSkillPrompt('project', 'alpha')],
+      {commands: 'project', skills: 'project'}
     )
 
     const declarations = await plugin.declareOutputFiles(context)
     const paths = declarations.map(declaration => declaration.path)
 
-    expect(paths).toContain(path.join(workspaceBase, '.codeium', 'windsurf', 'global_workflows', 'dev-build.md'))
-    expect(paths).toContain(path.join(workspaceBase, '.codeium', 'windsurf', 'skills', 'ship-it', 'SKILL.md'))
-    expect(declarations.every(declaration => declaration.scope === 'workspace')).toBe(true)
+    expect(paths).toContain(path.join(workspaceBase, '.windsurf', 'workflows', 'dev-build.md'))
+    expect(paths).toContain(path.join(workspaceBase, '.windsurf', 'skills', 'ship-it', 'SKILL.md'))
+    expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
+  })
+
+  it('writes project-scoped rules into workspace-root .windsurf/rules via the synthetic workspace project', async () => {
+    const workspaceBase = path.resolve('tmp/windsurf-workspace-rules')
+    const plugin = new WindsurfOutputPlugin()
+    const context = {
+      logger: createLogger('WindsurfOutputPlugin', 'error'),
+      fs,
+      path,
+      glob: {} as never,
+      dryRun: true,
+      collectedOutputContext: {
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: workspaceBase,
+            getDirectoryName: () => path.basename(workspaceBase)
+          },
+          projects: [createWorkspaceRootProject()]
+        },
+        rules: [createRulePrompt('project')]
+      }
+    } as OutputWriteContext
+
+    const declarations = await plugin.declareOutputFiles(context)
+
+    expect(declarations.map(declaration => declaration.path)).toContain(
+      path.join(workspaceBase, '.windsurf', 'rules', 'rule-ops-guard.md')
+    )
+    expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
   })
 })

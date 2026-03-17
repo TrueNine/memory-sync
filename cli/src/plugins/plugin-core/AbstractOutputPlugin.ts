@@ -1,8 +1,7 @@
 import type {RegistryWriter} from './RegistryWriter'
-import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputCleanupScope, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, Path, ProjectConfig, RegistryData, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt} from './types'
+import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputCleanupScope, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, Path, Project, ProjectConfig, RegistryData, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt} from './types'
 
 import {Buffer} from 'node:buffer'
-import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
@@ -57,7 +56,7 @@ export interface RuleOutputConfig {
   readonly ext?: string
   /** Custom frontmatter transformer */
   readonly transformFrontMatter?: (rule: RulePrompt) => Record<string, unknown>
-  /** Allowed rule source scopes, default ['project', 'workspace', 'global'] */
+  /** Allowed rule source scopes, default ['project', 'global'] */
   readonly sourceScopes?: readonly OutputDeclarationScope[]
 }
 
@@ -72,7 +71,7 @@ export interface CommandOutputConfig {
     readonly sourceFrontMatter?: Record<string, unknown>
     readonly isRecompiled: boolean
   }) => Record<string, unknown>
-  /** Allowed command source scopes, default ['project', 'workspace', 'global'] */
+  /** Allowed command source scopes, default ['project', 'global'] */
   readonly sourceScopes?: readonly OutputDeclarationScope[]
 }
 
@@ -124,7 +123,6 @@ export interface SubAgentNameTransformOptions {
  * Cleanup path entries for one scope.
  * Relative paths are resolved by scope base:
  * - project: project root
- * - workspace: workspace root
  * - global: user home
  * - xdgConfig: XDG config home (defaults to ~/.config)
  */
@@ -150,6 +148,8 @@ export interface AbstractOutputPluginOptions {
   globalConfigDir?: string
 
   outputFileName?: string
+
+  treatWorkspaceRootProjectAsProject?: boolean
 
   dependsOn?: readonly string[]
 
@@ -202,7 +202,7 @@ type DeclarativeOutputSource
     | {readonly kind: 'rule', readonly rule: RulePrompt}
     | {readonly kind: 'ignoreFile', readonly content: string}
 
-export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Output> implements OutputPlugin {
+export abstract class AbstractOutputPlugin extends AbstractPlugin implements OutputPlugin {
   readonly declarativeOutput = true as const
 
   readonly outputCapabilities: OutputPluginCapabilities
@@ -210,6 +210,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   protected readonly globalConfigDir: string
 
   protected readonly outputFileName: string
+
+  protected readonly treatWorkspaceRootProjectAsProject: boolean
 
   protected readonly indexignore: string | undefined
 
@@ -261,19 +263,20 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     super(name, PluginKind.Output, options?.dependsOn)
     this.globalConfigDir = options?.globalConfigDir ?? ''
     this.outputFileName = options?.outputFileName ?? ''
+    this.treatWorkspaceRootProjectAsProject = options?.treatWorkspaceRootProjectAsProject ?? false
     this.indexignore = options?.indexignore
 
     const commandFrontMatterTransformer = options?.commands?.transformFrontMatter
     this.commandOutputEnabled = options?.commands != null
     this.commandsConfig = {
       subDir: options?.commands?.subDir ?? 'commands',
-      sourceScopes: options?.commands?.sourceScopes ?? ['project', 'workspace', 'global'],
+      sourceScopes: options?.commands?.sourceScopes ?? ['project', 'global'],
       ...commandFrontMatterTransformer != null && {transformFrontMatter: commandFrontMatterTransformer}
     } // Initialize command output config with defaults
     this.subAgentOutputEnabled = options?.subagents != null
     this.subAgentsConfig = {
       subDir: options?.subagents?.subDir ?? 'agents',
-      sourceScopes: options?.subagents?.sourceScopes ?? ['project', 'workspace', 'global'],
+      sourceScopes: options?.subagents?.sourceScopes ?? ['project', 'global'],
       includePrefix: options?.subagents?.includePrefix ?? true,
       linkSymbol: options?.subagents?.linkSymbol ?? '-',
       ext: options?.subagents?.ext ?? '.md',
@@ -282,14 +285,14 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     this.skillOutputEnabled = options?.skills != null
     this.skillsConfig = {
       subDir: options?.skills?.subDir ?? 'skills',
-      sourceScopes: options?.skills?.sourceScopes ?? ['project', 'workspace', 'global']
+      sourceScopes: options?.skills?.sourceScopes ?? ['project', 'global']
     }
     this.toolPreset = options?.toolPreset
 
     this.ruleOutputEnabled = options?.rules != null
     this.rulesConfig = {
       ...options?.rules,
-      sourceScopes: options?.rules?.sourceScopes ?? ['project', 'workspace', 'global']
+      sourceScopes: options?.rules?.sourceScopes ?? ['project', 'global']
     } // Initialize rule output config with defaults
     this.cleanupConfig = options?.cleanup ?? {}
     this.supportsBlankLineAfterFrontMatter = options?.supportsBlankLineAfterFrontMatter ?? true
@@ -311,7 +314,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
     if (this.ruleOutputEnabled) {
       capabilities.rules = {
-        scopes: this.rulesConfig.sourceScopes ?? ['project', 'workspace', 'global'],
+        scopes: this.rulesConfig.sourceScopes ?? ['project', 'global'],
         singleScope: false
       }
     }
@@ -369,9 +372,55 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   protected resolvePromptSourceProjectConfig(ctx: OutputPluginContext | OutputWriteContext): ProjectConfig | undefined {
-    const {projects} = ctx.collectedOutputContext.workspace
+    const projects = this.getConcreteProjects(ctx)
     const promptSource = projects.find(p => p.isPromptSourceProject === true)
     return promptSource?.projectConfig ?? projects[0]?.projectConfig
+  }
+
+  protected getConcreteProjects(ctx: OutputPluginContext | OutputWriteContext): Project[] {
+    return ctx.collectedOutputContext.workspace.projects.filter(project => project.isWorkspaceRootProject !== true)
+  }
+
+  protected isProjectPromptOutputTarget(project: Project): boolean {
+    return project.isPromptSourceProject !== true
+  }
+
+  protected getProjectOutputProjects(ctx: OutputPluginContext | OutputWriteContext): Project[] {
+    const projects = [...this.getConcreteProjects(ctx)]
+    if (!this.treatWorkspaceRootProjectAsProject) return projects
+
+    const workspaceRootProject = this.getWorkspaceRootProject(ctx)
+    if (workspaceRootProject != null) projects.push(workspaceRootProject)
+    return projects
+  }
+
+  protected getProjectPromptOutputProjects(ctx: OutputPluginContext | OutputWriteContext): Project[] {
+    return this.getProjectOutputProjects(ctx).filter(project => this.isProjectPromptOutputTarget(project))
+  }
+
+  protected getWorkspaceRootProject(ctx: OutputPluginContext | OutputWriteContext): Project | undefined {
+    return ctx.collectedOutputContext.workspace.projects.find(project => project.isWorkspaceRootProject === true)
+  }
+
+  protected resolveProjectRootDir(
+    ctx: OutputPluginContext | OutputWriteContext,
+    project: Project
+  ): string | undefined {
+    if (project.isWorkspaceRootProject === true) return this.resolveDirectoryPath(ctx.collectedOutputContext.workspace.directory)
+
+    const projectDir = project.dirFromWorkspacePath
+    if (projectDir == null) return void 0
+    return this.resolveDirectoryPath(projectDir)
+  }
+
+  protected resolveProjectConfigDir(
+    ctx: OutputPluginContext | OutputWriteContext,
+    project: Project
+  ): string | undefined {
+    const projectRootDir = this.resolveProjectRootDir(ctx, project)
+    if (projectRootDir == null) return void 0
+    if (this.globalConfigDir.length === 0) return projectRootDir
+    return path.join(projectRootDir, this.globalConfigDir)
   }
 
   protected isRelativePath(p: Path): boolean {
@@ -443,21 +492,6 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     return path.basename(p, ext)
   }
 
-  protected existsSync(p: string): boolean {
-    return fs.existsSync(p)
-  }
-
-  protected lstatSync(p: string): fs.Stats {
-    return fs.lstatSync(p)
-  }
-
-  protected readdirSync(dir: string, options: {withFileTypes: true}): fs.Dirent[]
-  protected readdirSync(dir: string): string[]
-  protected readdirSync(dir: string, options?: {withFileTypes?: boolean}): fs.Dirent[] | string[] {
-    if (options?.withFileTypes === true) return fs.readdirSync(dir, {withFileTypes: true})
-    return fs.readdirSync(dir)
-  }
-
   protected getIgnoreOutputPath(): string | undefined {
     if (this.indexignore == null) return void 0
     return this.indexignore
@@ -468,14 +502,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     ctx: OutputCleanContext
   ): readonly string[] {
     if (scope === 'global') return [this.getHomeDir()]
-    if (scope === 'workspace') return [this.resolveDirectoryPath(ctx.collectedOutputContext.workspace.directory)]
     if (scope === 'xdgConfig') return [this.getXdgConfigHomeDir()]
 
     const projectBasePaths: string[] = []
-    for (const project of ctx.collectedOutputContext.workspace.projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
-      projectBasePaths.push(this.resolveDirectoryPath(projectDir))
+    for (const project of this.getProjectOutputProjects(ctx)) {
+      const projectBasePath = this.resolveProjectRootDir(ctx, project)
+      if (projectBasePath == null) continue
+      projectBasePaths.push(projectBasePath)
     }
     return projectBasePaths
   }
@@ -499,7 +532,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     if (scopeConfig == null) return []
 
     const declarations: OutputCleanupPathDeclaration[] = []
-    const scopes: readonly OutputCleanupScope[] = ['project', 'workspace', 'global', 'xdgConfig']
+    const scopes: readonly OutputCleanupScope[] = ['project', 'global', 'xdgConfig']
 
     const pushTargets = (
       scope: OutputCleanupScope,
@@ -684,7 +717,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   }
 
   protected normalizeSourceScope(scope: RuleScope | undefined): OutputDeclarationScope {
-    if (scope === 'workspace' || scope === 'global' || scope === 'project') return scope
+    if (scope === 'global' || scope === 'project') return scope
     return 'project'
   }
 
@@ -736,11 +769,11 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const availableScopes = [...new Set(rules.map(rule => this.normalizeSourceScope(this.normalizeRuleScope(rule))))]
     return resolveTopicScopes({
       requestedScopes: this.getTopicScopeOverride(ctx, 'rules'),
-      defaultScopes: this.rulesConfig.sourceScopes ?? ['project', 'workspace', 'global'],
-      supportedScopes: this.rulesConfig.sourceScopes ?? ['project', 'workspace', 'global'],
+      defaultScopes: this.rulesConfig.sourceScopes ?? ['project', 'global'],
+      supportedScopes: this.rulesConfig.sourceScopes ?? ['project', 'global'],
       singleScope: false,
       availableScopes
-    })
+    }).filter(scope => availableScopes.includes(scope))
   }
 
   protected selectPromptScopes(
@@ -862,7 +895,6 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
   protected async buildDefaultOutputDeclarations(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
     const {
-      workspace,
       globalMemory,
       commands,
       subAgents,
@@ -875,7 +907,6 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const ignoreFile = this.indexignore == null
       ? void 0
       : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
-
     const selectedCommands = this.commandOutputEnabled && commands != null
       ? this.selectSingleScopeItems(
           commands,
@@ -907,11 +938,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     const activeRuleScopes = this.ruleOutputEnabled && allRules.length > 0
       ? new Set(this.selectRuleScopes(ctx, allRules))
       : new Set<OutputDeclarationScope>()
-    const activePromptScopes = new Set(this.selectPromptScopes(ctx))
+    const activePromptScopes = new Set(this.selectPromptScopes(
+      ctx,
+      this.outputCapabilities.prompt?.scopes ?? ['project', 'global']
+    ))
 
     const rulesByScope: Record<OutputDeclarationScope, RulePrompt[]> = {
       project: [],
-      workspace: [],
       global: []
     }
     for (const rule of allRules) {
@@ -919,14 +952,56 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       rulesByScope[ruleScope].push(rule)
     }
 
-    for (const project of workspace.projects) {
-      const projectDir = project.dirFromWorkspacePath
-      if (projectDir == null) continue
+    const pushSkillDeclarations = (
+      basePath: string,
+      scope: OutputDeclarationScope,
+      scopedSkills: readonly SkillPrompt[]
+    ): void => {
+      for (const skill of scopedSkills) {
+        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+        const skillDir = path.join(basePath, this.skillsConfig.subDir, skillName)
 
-      if (this.outputFileName.length > 0 && activePromptScopes.has('project')) {
+        declarations.push({
+          path: path.join(skillDir, 'SKILL.md'),
+          scope,
+          source: {kind: 'skillMain', skill}
+        })
+
+        if (skill.childDocs != null) {
+          for (const childDoc of skill.childDocs) {
+            declarations.push({
+              path: path.join(skillDir, childDoc.dir.path.replace(/\.mdx$/, '.md')),
+              scope,
+              source: {kind: 'skillReference', content: childDoc.content as string}
+            })
+          }
+        }
+
+        if (skill.resources != null) {
+          for (const resource of skill.resources) {
+            declarations.push({
+              path: path.join(skillDir, resource.relativePath),
+              scope,
+              source: {kind: 'skillResource', content: resource.content, encoding: resource.encoding}
+            })
+          }
+        }
+      }
+    }
+
+    for (const project of this.getProjectOutputProjects(ctx)) {
+      const projectRootDir = this.resolveProjectRootDir(ctx, project)
+      const basePath = this.resolveProjectConfigDir(ctx, project)
+      if (projectRootDir == null || basePath == null) continue
+
+      if (
+        this.outputFileName.length > 0
+        && activePromptScopes.has('project')
+        && this.isProjectPromptOutputTarget(project)
+      ) {
         if (project.rootMemoryPrompt != null) {
           declarations.push({
-            path: this.resolveFullPath(projectDir),
+            path: path.join(projectRootDir, this.outputFileName),
             scope: 'project',
             source: {kind: 'projectRootMemory', content: project.rootMemoryPrompt.content as string}
           })
@@ -943,7 +1018,6 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
         }
       }
 
-      const basePath = path.join(projectDir.basePath, projectDir.path, this.globalConfigDir)
       const {projectConfig} = project
 
       if (selectedCommands.selectedScope === 'project' && selectedCommands.items.length > 0) {
@@ -972,36 +1046,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
 
       if (selectedSkills.selectedScope === 'project' && selectedSkills.items.length > 0) {
         const filteredSkills = filterByProjectConfig(selectedSkills.items, projectConfig, 'skills')
-        for (const skill of filteredSkills) {
-          const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-          const skillDir = path.join(basePath, this.skillsConfig.subDir, skillName)
-
-          declarations.push({
-            path: path.join(skillDir, 'SKILL.md'),
-            scope: 'project',
-            source: {kind: 'skillMain', skill}
-          })
-
-          if (skill.childDocs != null) {
-            for (const childDoc of skill.childDocs) {
-              declarations.push({
-                path: path.join(skillDir, childDoc.dir.path.replace(/\.mdx$/, '.md')),
-                scope: 'project',
-                source: {kind: 'skillReference', content: childDoc.content as string}
-              })
-            }
-          }
-
-          if (skill.resources != null) {
-            for (const resource of skill.resources) {
-              declarations.push({
-                path: path.join(skillDir, resource.relativePath),
-                scope: 'project',
-                source: {kind: 'skillResource', content: resource.content, encoding: resource.encoding}
-              })
-            }
-          }
-        }
+        pushSkillDeclarations(basePath, 'project', filteredSkills)
       }
 
       if (activeRuleScopes.has('project')) {
@@ -1022,10 +1067,12 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
       if (
         ignoreOutputPath != null
         && ignoreFile != null
+        && project.isWorkspaceRootProject !== true
         && project.isPromptSourceProject !== true
+        && project.dirFromWorkspacePath != null
       ) {
         declarations.push({
-          path: path.join(projectDir.basePath, projectDir.path, ignoreOutputPath),
+          path: path.join(project.dirFromWorkspacePath.basePath, project.dirFromWorkspacePath.path, ignoreOutputPath),
           scope: 'project',
           source: {kind: 'ignoreFile', content: ignoreFile.content}
         })
@@ -1033,84 +1080,42 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin<PluginKind.Out
     }
 
     const promptSourceProjectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const resolveScopedBasePath = (scope: OutputDeclarationScope): string => {
-      if (scope === 'global') return this.getGlobalConfigDir()
-      return this.getWorkspaceConfigDir(ctx)
-    }
 
-    if (
-      (selectedCommands.selectedScope === 'global' || selectedCommands.selectedScope === 'workspace')
-      && selectedCommands.items.length > 0
-    ) {
+    if (selectedCommands.selectedScope === 'global' && selectedCommands.items.length > 0) {
       const filteredCommands = filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
-      const basePath = resolveScopedBasePath(selectedCommands.selectedScope)
+      const basePath = this.getGlobalConfigDir()
       for (const cmd of filteredCommands) {
         const fileName = this.transformCommandName(cmd, transformOptions)
         declarations.push({
           path: path.join(basePath, this.commandsConfig.subDir, fileName),
-          scope: selectedCommands.selectedScope,
+          scope: 'global',
           source: {kind: 'command', command: cmd}
         })
       }
     }
 
-    if (
-      (selectedSubAgents.selectedScope === 'global' || selectedSubAgents.selectedScope === 'workspace')
-      && selectedSubAgents.items.length > 0
-    ) {
+    if (selectedSubAgents.selectedScope === 'global' && selectedSubAgents.items.length > 0) {
       const filteredSubAgents = filterByProjectConfig(selectedSubAgents.items, promptSourceProjectConfig, 'subAgents')
-      const basePath = resolveScopedBasePath(selectedSubAgents.selectedScope)
+      const basePath = this.getGlobalConfigDir()
       for (const subAgent of filteredSubAgents) {
         const fileName = this.transformSubAgentName(subAgent)
         declarations.push({
           path: path.join(basePath, this.subAgentsConfig.subDir, fileName),
-          scope: selectedSubAgents.selectedScope,
+          scope: 'global',
           source: {kind: 'subAgent', subAgent}
         })
       }
     }
 
-    if (
-      (selectedSkills.selectedScope === 'global' || selectedSkills.selectedScope === 'workspace')
-      && selectedSkills.items.length > 0
-    ) {
+    if (selectedSkills.selectedScope === 'global' && selectedSkills.items.length > 0) {
       const filteredSkills = filterByProjectConfig(selectedSkills.items, promptSourceProjectConfig, 'skills')
-      const basePath = resolveScopedBasePath(selectedSkills.selectedScope)
-      for (const skill of filteredSkills) {
-        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-        const skillDir = path.join(basePath, this.skillsConfig.subDir, skillName)
-
-        declarations.push({
-          path: path.join(skillDir, 'SKILL.md'),
-          scope: selectedSkills.selectedScope,
-          source: {kind: 'skillMain', skill}
-        })
-
-        if (skill.childDocs != null) {
-          for (const childDoc of skill.childDocs) {
-            declarations.push({
-              path: path.join(skillDir, childDoc.dir.path.replace(/\.mdx$/, '.md')),
-              scope: selectedSkills.selectedScope,
-              source: {kind: 'skillReference', content: childDoc.content as string}
-            })
-          }
-        }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            declarations.push({
-              path: path.join(skillDir, resource.relativePath),
-              scope: selectedSkills.selectedScope,
-              source: {kind: 'skillResource', content: resource.content, encoding: resource.encoding}
-            })
-          }
-        }
-      }
+      const basePath = this.getGlobalConfigDir()
+      pushSkillDeclarations(basePath, 'global', filteredSkills)
     }
 
-    for (const ruleScope of ['global', 'workspace'] as const) {
+    for (const ruleScope of ['global'] as const) {
       if (!activeRuleScopes.has(ruleScope)) continue
-      const basePath = resolveScopedBasePath(ruleScope)
+      const basePath = this.getGlobalConfigDir()
       const filteredRules = applySubSeriesGlobPrefix(
         filterByProjectConfig(rulesByScope[ruleScope], promptSourceProjectConfig, 'rules'),
         promptSourceProjectConfig

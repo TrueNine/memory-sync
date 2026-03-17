@@ -1,4 +1,4 @@
-import type {InputPluginContext} from '../plugins/plugin-core'
+import type {InputCapabilityContext} from '../plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -6,21 +6,21 @@ import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {mergeConfig} from '../config'
 import {createLogger} from '../plugins/plugin-core'
-import {CommandInputPlugin} from './input-command'
+import {CommandInputCapability} from './input-command'
 
 const legacySourceExtension = '.cn.mdx'
 
-function createContext(tempWorkspace: string): InputPluginContext {
+function createContext(tempWorkspace: string): InputCapabilityContext {
   const options = mergeConfig({workspaceDir: tempWorkspace})
 
   return {
-    logger: createLogger('CommandInputPluginTest', 'error'),
+    logger: createLogger('CommandInputCapabilityTest', 'error'),
     fs,
     path,
     glob,
     userConfigOptions: options,
     dependencyContext: {}
-  } as InputPluginContext
+  } as InputCapabilityContext
 }
 
 describe('command input plugin', () => {
@@ -41,7 +41,7 @@ describe('command input plugin', () => {
       fs.writeFileSync(srcFile, srcContent, 'utf8')
       fs.writeFileSync(distFile, distContent, 'utf8')
 
-      const plugin = new CommandInputPlugin()
+      const plugin = new CommandInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace))
       const [command] = result.commands ?? []
 
@@ -71,7 +71,7 @@ describe('command input plugin', () => {
         'utf8'
       )
 
-      const plugin = new CommandInputPlugin()
+      const plugin = new CommandInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace))
 
       expect(result.commands?.length ?? 0).toBe(1)
@@ -96,7 +96,7 @@ describe('command input plugin', () => {
         'utf8'
       )
 
-      const plugin = new CommandInputPlugin()
+      const plugin = new CommandInputCapability()
       await expect(plugin.collect(createContext(tempWorkspace))).rejects.toThrow('Missing compiled dist prompt')
     }
     finally {
@@ -116,10 +116,30 @@ describe('command input plugin', () => {
         'utf8'
       )
 
-      const plugin = new CommandInputPlugin()
+      const plugin = new CommandInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace))
 
       expect(result.commands ?? []).toHaveLength(0)
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('rejects workspace as an unsupported command scope', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-command-workspace-scope-test-'))
+    const distDir = path.join(tempWorkspace, 'aindex', 'dist', 'commands')
+
+    try {
+      fs.mkdirSync(distDir, {recursive: true})
+      fs.writeFileSync(
+        path.join(distDir, 'demo.mdx'),
+        '---\nscope: workspace\n---\nDist only command',
+        'utf8'
+      )
+
+      const plugin = new CommandInputCapability()
+      await expect(plugin.collect(createContext(tempWorkspace))).rejects.toThrow('Field "scope" must be "project" or "global"')
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

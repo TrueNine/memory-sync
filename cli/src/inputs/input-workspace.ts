@@ -1,13 +1,13 @@
-import type {InputCollectedContext, InputPluginContext, Workspace} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext, Workspace} from '../plugins/plugin-core'
 import * as path from 'node:path'
-import {AbstractInputPlugin, FilePathKind} from '../plugins/plugin-core'
+import {AbstractInputCapability, FilePathKind} from '../plugins/plugin-core'
 
-export class WorkspaceInputPlugin extends AbstractInputPlugin {
+export class WorkspaceInputCapability extends AbstractInputCapability {
   constructor() {
-    super('WorkspaceInputPlugin')
+    super('WorkspaceInputCapability')
   }
 
-  collect(ctx: InputPluginContext): Partial<InputCollectedContext> {
+  collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
     const {userConfigOptions: options} = ctx
     const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
 

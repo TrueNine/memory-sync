@@ -1,4 +1,4 @@
-import type {InputCollectedContext, InputPluginContext, ReadmeFileKind, ReadmePrompt, RelativePath} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext, ReadmeFileKind, ReadmePrompt, RelativePath} from '../plugins/plugin-core'
 
 import process from 'node:process'
 
@@ -10,18 +10,18 @@ import {
   buildPromptCompilerDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
-import {AbstractInputPlugin, FilePathKind, PromptKind, README_FILE_KIND_MAP} from '../plugins/plugin-core'
+import {AbstractInputCapability, FilePathKind, PromptKind, README_FILE_KIND_MAP} from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
 import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
 
 const ALL_FILE_KINDS = Object.entries(README_FILE_KIND_MAP) as [ReadmeFileKind, {src: string, out: string}][]
 
-export class ReadmeMdInputPlugin extends AbstractInputPlugin {
+export class ReadmeMdInputCapability extends AbstractInputCapability {
   constructor() {
-    super('ReadmeMdInputPlugin', ['AindexInputPlugin'])
+    super('ReadmeMdInputCapability', ['AindexInputCapability'])
   }
 
-  async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
+  async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, fs, path, globalScope} = ctx
     const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
 
@@ -69,13 +69,13 @@ export class ReadmeMdInputPlugin extends AbstractInputPlugin {
   }
 
   private async collectReadmeFiles(
-    ctx: InputPluginContext,
+    ctx: InputCapabilityContext,
     currentDir: string,
     projectName: string,
     workspaceDir: string,
     relativePath: string,
     readmePrompts: ReadmePrompt[],
-    globalScope: InputPluginContext['globalScope']
+    globalScope: InputCapabilityContext['globalScope']
   ): Promise<void> {
     const {fs, path, logger} = ctx
     const isRoot = relativePath === ''

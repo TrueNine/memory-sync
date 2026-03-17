@@ -22,6 +22,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     super('ClaudeCodeCLIOutputPlugin', {
       globalConfigDir: GLOBAL_CONFIG_DIR,
       outputFileName: PROJECT_MEMORY_FILE,
+      treatWorkspaceRootProjectAsProject: true,
       toolPreset: 'claudeCode',
       commands: {
         subDir: COMMANDS_SUBDIR,
@@ -46,9 +47,6 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
             files: [PROJECT_MEMORY_FILE],
             dirs: ['.claude/rules', '.claude/commands', '.claude/agents', '.claude/skills']
           },
-          workspace: {
-            dirs: ['.claude/rules', '.claude/commands', '.claude/agents', '.claude/skills']
-          },
           global: {
             files: ['.claude/CLAUDE.md'],
             dirs: ['.claude/rules', '.claude/commands', '.claude/agents', '.claude/skills']
@@ -61,11 +59,11 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
           singleScope: false
         },
         rules: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: false
         },
         commands: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         },
         subagents: {
@@ -73,7 +71,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
           singleScope: true
         },
         skills: {
-          scopes: ['project', 'workspace', 'global'],
+          scopes: ['project', 'global'],
           singleScope: true
         }
       }

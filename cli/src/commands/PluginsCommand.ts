@@ -1,13 +1,12 @@
 import type {Command, CommandContext, CommandResult, JsonPluginInfo} from './Command'
 import process from 'node:process'
-import {PluginKind} from '../plugins/plugin-core'
 
 /**
- * Command that outputs all registered plugin information as JSON.
+ * Command that outputs all registered output plugin information as JSON.
  *
  * Invoked via `tnmsc plugins --json`.
- * Writes a `JsonPluginInfo[]` array to stdout containing each plugin's
- * name, kind (Input/Output), description, and dependency list.
+ * Writes a `JsonPluginInfo[]` array to stdout containing each output plugin's
+ * name, description, and dependency list.
  *
  * When used without `--json`, logs the plugin list via the logger.
  */
@@ -23,7 +22,7 @@ export class PluginsCommand implements Command {
     for (const plugin of allPlugins) {
       pluginInfos.push({
         name: plugin.name,
-        kind: plugin.type === PluginKind.Input ? 'Input' : 'Output',
+        kind: 'Output',
         description: plugin.name,
         dependencies: [...plugin.dependsOn ?? []]
       })

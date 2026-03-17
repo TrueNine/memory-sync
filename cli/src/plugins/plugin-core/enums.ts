@@ -1,5 +1,4 @@
 export enum PluginKind {
-  Input = 'input',
   Output = 'output'
 }
 
@@ -17,7 +16,7 @@ export enum PromptKind {
   Rule = 'rule'
 }
 
-export type RuleScope = 'project' | 'global' | 'workspace'
+export type RuleScope = 'project' | 'global'
 
 export enum FilePathKind {
   Relative = 'relative',

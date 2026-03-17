@@ -26,6 +26,7 @@ export interface Project {
   readonly rootMemoryPrompt?: ProjectRootMemoryPrompt
   readonly childMemoryPrompts?: readonly ProjectChildrenMemoryPrompt[]
   readonly isPromptSourceProject?: boolean
+  readonly isWorkspaceRootProject?: boolean
   readonly projectConfig?: ProjectConfig
 }
 

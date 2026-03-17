@@ -21,8 +21,6 @@ export class DryRunCleanCommand implements Command {
       dryRun: true,
       projectDirs: outputs.projectDirs.length,
       projectFiles: outputs.projectFiles.length,
-      workspaceDirs: outputs.workspaceDirs.length,
-      workspaceFiles: outputs.workspaceFiles.length,
       globalDirs: outputs.globalDirs.length,
       globalFiles: outputs.globalFiles.length
     })

@@ -516,6 +516,7 @@ export function collectProjectRoots(collectedOutputContext: OutputCollectedConte
   const projectRoots = new Set<string>()
 
   for (const project of collectedOutputContext.workspace.projects) {
+    if (project.isWorkspaceRootProject === true) continue
     const absolutePath = project.dirFromWorkspacePath?.getAbsolutePath?.()
     if (absolutePath != null && absolutePath.length > 0) projectRoots.add(resolveAbsolutePath(absolutePath))
   }

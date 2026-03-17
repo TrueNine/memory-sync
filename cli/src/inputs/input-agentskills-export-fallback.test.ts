@@ -1,4 +1,4 @@
-import type {ILogger, InputPluginContext} from '../plugins/plugin-core'
+import type {ILogger, InputCapabilityContext} from '../plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -27,7 +27,7 @@ function createMockLogger(): ILogger {
   } as ILogger
 }
 
-function createContext(tempWorkspace: string, logger: ILogger): InputPluginContext {
+function createContext(tempWorkspace: string, logger: ILogger): InputCapabilityContext {
   const options = mergeConfig({workspaceDir: tempWorkspace})
 
   return {
@@ -37,7 +37,7 @@ function createContext(tempWorkspace: string, logger: ILogger): InputPluginConte
     glob,
     userConfigOptions: options,
     dependencyContext: {}
-  } as InputPluginContext
+  } as InputCapabilityContext
 }
 
 afterEach(() => vi.resetModules())
@@ -66,8 +66,8 @@ Source skill
 Dist skill
 `, 'utf8')
 
-      const {SkillInputPlugin} = await import('./input-agentskills')
-      const plugin = new SkillInputPlugin()
+      const {SkillInputCapability} = await import('./input-agentskills')
+      const plugin = new SkillInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace, createMockLogger()))
       const [skill] = result.skills ?? []
 

@@ -1,6 +1,6 @@
 export {
-  AbstractInputPlugin
-} from './plugin-core/AbstractInputPlugin'
+  AbstractInputCapability
+} from '../inputs/AbstractInputCapability'
 
 export {
   AbstractOutputPlugin
@@ -41,12 +41,20 @@ export {
   SourceLocaleExtensions,
   SourcePromptExtensions,
   SourcePromptFileExtensions,
-  ToolPresets
+  ToolPresets,
+  WORKSPACE_ROOT_PROJECT_NAME
 } from './plugin-core/constants'
 
 export type {
   PluginName
 } from './plugin-core/constants'
+
+export {
+  validateCommandMetadata,
+  validateRuleMetadata,
+  validateSkillMetadata,
+  validateSubAgentMetadata
+} from './plugin-core/ExportMetadataTypes'
 
 export {
   applySubSeriesGlobPrefix,
@@ -81,9 +89,11 @@ export {
 } from './plugin-core/LocalizedPromptReader'
 
 export {
+  collectMcpServersFromSkills,
   McpConfigManager,
   transformMcpConfigForCursor,
-  transformMcpConfigForOpencode
+  transformMcpConfigForOpencode,
+  transformMcpServerMap
 } from './plugin-core/McpConfigManager'
 
 export type {

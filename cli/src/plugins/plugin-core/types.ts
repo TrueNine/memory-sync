@@ -15,14 +15,14 @@ export type {
 } from '@truenine/logger'
 
 export class MissingDependencyError extends Error {
-  readonly pluginName: string
+  readonly nodeName: string
 
   readonly missingDependency: string
 
-  constructor(pluginName: string, missingDependency: string) {
-    super(`Plugin "${pluginName}" depends on missing plugin "${missingDependency}"`)
+  constructor(nodeName: string, missingDependency: string) {
+    super(`Node "${nodeName}" depends on missing dependency "${missingDependency}"`)
     this.name = 'MissingDependencyError'
-    this.pluginName = pluginName
+    this.nodeName = nodeName
     this.missingDependency = missingDependency
   }
 }
@@ -31,7 +31,7 @@ export class CircularDependencyError extends Error {
   readonly cyclePath: readonly string[]
 
   constructor(cyclePath: readonly string[]) {
-    super(`Circular plugin dependency detected: ${cyclePath.join(' -> ')}`)
+    super(`Circular dependency detected: ${cyclePath.join(' -> ')}`)
     this.name = 'CircularDependencyError'
     this.cyclePath = [...cyclePath]
   }

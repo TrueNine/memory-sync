@@ -1,23 +1,24 @@
 import type {
   CommandPrompt,
   CommandYAMLFrontMatter,
+  InputCapabilityContext,
   InputCollectedContext,
-  InputPluginContext,
   Locale
 } from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {
-  AbstractInputPlugin,
+  AbstractInputCapability,
   createLocalizedPromptReader,
   FilePathKind,
   PromptKind,
-  SourceLocaleExtensions
+  SourceLocaleExtensions,
+  validateCommandMetadata
 
 } from '../plugins/plugin-core'
 
-export class CommandInputPlugin extends AbstractInputPlugin {
+export class CommandInputCapability extends AbstractInputCapability {
   constructor() {
-    super('CommandInputPlugin')
+    super('CommandInputCapability')
   }
 
   private createCommandPrompt(
@@ -25,7 +26,7 @@ export class CommandInputPlugin extends AbstractInputPlugin {
     _locale: Locale,
     name: string,
     distDir: string,
-    ctx: InputPluginContext,
+    ctx: InputCapabilityContext,
     metadata?: Record<string, unknown>
   ): CommandPrompt {
     const {path} = ctx
@@ -64,20 +65,23 @@ export class CommandInputPlugin extends AbstractInputPlugin {
 
     if (yamlFrontMatter == null) return prompt
 
+    const validation = validateCommandMetadata(yamlFrontMatter as Record<string, unknown>, filePath)
+    if (!validation.valid) throw new Error(validation.errors.join('\n'))
+
     Object.assign(prompt, {yamlFrontMatter})
     if (yamlFrontMatter.seriName != null) Object.assign(prompt, {seriName: yamlFrontMatter.seriName})
     if (yamlFrontMatter.scope === 'global') Object.assign(prompt, {globalOnly: true})
     return prompt
   }
 
-  override async collect(ctx: InputPluginContext): Promise<Partial<InputCollectedContext>> {
+  override async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
     const resolvedPaths = this.resolveBasePaths(options)
 
     const srcDir = this.resolveAindexPath(options.aindex.commands.src, resolvedPaths.aindexDir)
     const distDir = this.resolveAindexPath(options.aindex.commands.dist, resolvedPaths.aindexDir)
 
-    logger.debug('CommandInputPlugin collecting', {
+    logger.debug('CommandInputCapability collecting', {
       srcDir,
       distDir,
       aindexDir: resolvedPaths.aindexDir
@@ -103,7 +107,7 @@ export class CommandInputPlugin extends AbstractInputPlugin {
       }
     )
 
-    logger.debug('CommandInputPlugin read complete', {
+    logger.debug('CommandInputCapability read complete', {
       commandCount: localizedCommands.length,
       errorCount: errors.length
     })
@@ -122,6 +126,8 @@ export class CommandInputPlugin extends AbstractInputPlugin {
       }))
     }
 
+    if (errors.length > 0) throw new Error(errors.map(error => error.error instanceof Error ? error.error.message : String(error.error)).join('\n'))
+
     const flatCommands: CommandPrompt[] = []
     for (const localized of localizedCommands) {
       const distContent = localized.dist
@@ -133,7 +139,7 @@ export class CommandInputPlugin extends AbstractInputPlugin {
         : {...distPrompt, rawMdxContent: rawMdx})
     }
 
-    logger.debug('CommandInputPlugin flattened commands', {
+    logger.debug('CommandInputCapability flattened commands', {
       count: flatCommands.length,
       commands: flatCommands.map(c => c.commandName)
     })
