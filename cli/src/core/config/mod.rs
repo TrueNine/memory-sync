@@ -652,7 +652,7 @@ mod tests {
                 "subAgents": {"src": "src/agents", "dist": "dist/agents"},
                 "rules": {"src": "src/rules", "dist": "dist/rules"},
                 "globalPrompt": {"src": "app/global.src.mdx", "dist": "dist/global.mdx"},
-                "workspacePrompt": {"src": "app/workspace.src.mdx", "dist": "dist/app/workspace.mdx"},
+                "workspacePrompt": {"src": "app/workspace.src.mdx", "dist": "dist/workspace.mdx"},
                 "app": {"src": "app", "dist": "dist/app"},
                 "ext": {"src": "ext", "dist": "dist/ext"},
                 "arch": {"src": "arch", "dist": "dist/arch"}

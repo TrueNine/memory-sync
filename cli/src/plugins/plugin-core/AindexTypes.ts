@@ -121,7 +121,7 @@ export const AINDEX_RELATIVE_PATHS = {
   DIST_RULES: 'dist/rules',
   DIST_APP: 'dist/app',
   DIST_GLOBAL_MEMORY: 'dist/global.mdx',
-  DIST_WORKSPACE_MEMORY: 'dist/app/workspace.mdx',
+  DIST_WORKSPACE_MEMORY: 'dist/workspace.mdx',
   APP: 'app' // App source path (standalone at root)
 } as const
 

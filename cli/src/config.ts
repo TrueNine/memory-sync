@@ -45,8 +45,8 @@ const DEFAULT_AINDEX: Required<AindexConfig> = {
   commands: {src: 'commands', dist: 'dist/commands'},
   subAgents: {src: 'subagents', dist: 'dist/subagents'},
   rules: {src: 'rules', dist: 'dist/rules'},
-  globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
-  workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
+  globalPrompt: {src: 'app/global.src.mdx', dist: 'dist/global.mdx'},
+  workspacePrompt: {src: 'app/workspace.src.mdx', dist: 'dist/workspace.mdx'},
   app: {src: 'app', dist: 'dist/app'},
   ext: {src: 'ext', dist: 'dist/ext'},
   arch: {src: 'arch', dist: 'dist/arch'}
@@ -70,7 +70,7 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
  * Convert UserConfigFile to PluginOptions
  * UserConfigFile is the JSON schema, PluginOptions includes plugins
  */
-function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOptions> {
+export function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOptions> {
   return {
     ...userConfig.version != null ? {version: userConfig.version} : {},
     ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},

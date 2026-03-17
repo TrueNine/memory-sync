@@ -1,4 +1,4 @@
-name: Release CLI
+name: Release Packages
 
 env:
   NODE_VERSION: '25'
@@ -27,6 +27,7 @@ on:
       - .github/workflows/release-*.yml
       - assets/**
       - cli/**
+      - mcp/**
       - gui/**
       - libraries/**
       - scripts/**
@@ -47,7 +48,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
-      publish: ${{ steps.check.outputs.publish }}
+      publish_cli: ${{ steps.check.outputs.publish_cli }}
+      publish_mcp: ${{ steps.check.outputs.publish_mcp }}
+      publish_npm: ${{ steps.check.outputs.publish_npm }}
       version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
@@ -58,16 +61,46 @@ jobs:
       - name: Check if should publish
         id: check
         run: |
-          version=$(jq -r '.version' cli/package.json)
-          name=$(jq -r '.name' cli/package.json)
-          npm_version=$(npm view "$name" version --registry https://registry.npmjs.org/ 2>/dev/null || echo "")
-          if [[ "$version" != "$npm_version" ]]; then
-            echo "Version $version not published to npm, will publish"
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "version=$version" >> "$GITHUB_OUTPUT"
+          check_publish_state() {
+            local package_json_path="$1"
+            local output_key="$2"
+            local version
+            local name
+            local npm_version
+
+            version=$(jq -r '.version' "$package_json_path")
+            name=$(jq -r '.name' "$package_json_path")
+            npm_version=$(npm view "$name" version --registry https://registry.npmjs.org/ 2>/dev/null || echo "")
+
+            if [[ "$version" != "$npm_version" ]]; then
+              echo "$name@$version is not published to npm, will publish"
+              echo "${output_key}=true" >> "$GITHUB_OUTPUT"
+              return 0
+            fi
+
+            echo "$name@$version already published to npm, skipping"
+            echo "${output_key}=false" >> "$GITHUB_OUTPUT"
+            return 1
+          }
+
+          version=$(jq -r '.version' package.json)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          cli_needs_publish=false
+          mcp_needs_publish=false
+
+          if check_publish_state cli/package.json publish_cli; then
+            cli_needs_publish=true
+          fi
+
+          if check_publish_state mcp/package.json publish_mcp; then
+            mcp_needs_publish=true
+          fi
+
+          if [[ "$cli_needs_publish" == "true" || "$mcp_needs_publish" == "true" ]]; then
+            echo "publish_npm=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Version $version already published to npm, skipping"
-            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "publish_npm=false" >> "$GITHUB_OUTPUT"
           fi
 
   # 1.5. GUI 版本检查（独立于 npm，检查 GitHub Release）
@@ -101,7 +134,7 @@ jobs:
   # 2. 构建 NAPI 二进制（5 平台矩阵）
   build-napi:
     needs: check-version
-    if: needs.check-version.outputs.publish == 'true'
+    if: needs.check-version.outputs.publish_cli == 'true'
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -196,7 +229,7 @@ jobs:
   # 3. 收集并发布 NAPI 平台子包到 npm
   publish-napi:
     needs: [check-version, build-napi]
-    if: needs.check-version.outputs.publish == 'true'
+    if: needs.check-version.outputs.publish_cli == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -271,7 +304,7 @@ jobs:
   # 4. 架构包就绪后，发布主包到 npm
   publish-cli:
     needs: [check-version, publish-napi]
-    if: needs.check-version.outputs.publish == 'true'
+    if: needs.check-version.outputs.publish_cli == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -290,11 +323,35 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+  # 4.5. CLI 可用后，发布 MCP 包到 npm
+  publish-mcp:
+    needs: [check-version, publish-cli]
+    if: |
+      needs.check-version.outputs.publish_mcp == 'true' &&
+      (needs.publish-cli.result == 'success' || needs.publish-cli.result == 'skipped')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Setup npm registry
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org/
+      - name: Build
+        run: pnpm exec turbo run build --filter=@truenine/memory-sync-mcp
+      - name: Publish to npm
+        working-directory: ./mcp
+        run: pnpm publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
   # 5. 构建 CLI 独立二进制（仅 artifact，不发 Release）
   build-binary:
     needs: [check-version, check-gui-version, publish-napi]
     if: |
-      (needs.check-version.outputs.publish == 'true' || needs.check-gui-version.outputs.should_release == 'true') &&
+      (needs.check-version.outputs.publish_cli == 'true' || needs.check-gui-version.outputs.should_release == 'true') &&
       (needs.publish-napi.result == 'success' || needs.publish-napi.result == 'skipped')
     timeout-minutes: 60
     strategy:

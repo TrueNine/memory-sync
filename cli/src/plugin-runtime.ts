@@ -21,6 +21,7 @@ import {JsonOutputCommand, toJsonCommandResult} from '@/commands/JsonOutputComma
 import {PluginsCommand} from '@/commands/PluginsCommand'
 import {buildUnhandledExceptionDiagnostic} from '@/diagnostics'
 import {discoverOutputRuntimeTargets} from '@/pipeline/OutputRuntimeTargets'
+import {createDefaultPluginConfig} from './plugin.config'
 import {createLogger, drainBufferedDiagnostics, setGlobalLogLevel} from './plugins/plugin-core'
 
 /**
@@ -60,8 +61,7 @@ async function main(): Promise<void> {
 
   if (json) setGlobalLogLevel('silent')
 
-  const {default: userPluginConfigPromise} = await import('./plugin.config')
-  const userPluginConfig: PipelineConfig = await userPluginConfigPromise
+  const userPluginConfig: PipelineConfig = await createDefaultPluginConfig(process.argv)
 
   let command = resolveRuntimeCommand(subcommand, dryRun)
 
