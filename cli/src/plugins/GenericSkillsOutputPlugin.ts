@@ -149,10 +149,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (
-      selectedSkills.selectedScope !== 'global'
-      && selectedMcpSkills.selectedScope !== 'global'
-    ) return declarations
+    if (selectedSkills.selectedScope !== 'global' && selectedMcpSkills.selectedScope !== 'global') return declarations
 
     const baseSkillsDir = this.joinPath(this.getHomeDir(), PROJECT_SKILLS_DIR)
     const promptSourceProjectConfig = this.resolvePromptSourceProjectConfig(ctx)
@@ -161,11 +158,10 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       if (filteredSkills.length > 0) pushSkillDeclarations(baseSkillsDir, 'global', filteredSkills)
     }
 
-    if (selectedMcpSkills.selectedScope === 'global') {
-      const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, promptSourceProjectConfig, 'skills')
-      pushMcpDeclarations(baseSkillsDir, 'global', filteredMcpSkills)
-    }
+    if (selectedMcpSkills.selectedScope !== 'global') return declarations
 
+    const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, promptSourceProjectConfig, 'skills')
+    pushMcpDeclarations(baseSkillsDir, 'global', filteredMcpSkills)
     return declarations
   }
 

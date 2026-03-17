@@ -3,8 +3,8 @@ import type {
   LoggerDiagnosticInput,
   LoggerDiagnosticRecord
 } from './plugins/plugin-core'
-import process from 'node:process'
 import type {ProtectedPathViolation} from './ProtectedDeletionGuard'
+import process from 'node:process'
 
 export function diagnosticLines(firstLine: string, ...otherLines: string[]): DiagnosticLines {
   return [firstLine, ...otherLines]
