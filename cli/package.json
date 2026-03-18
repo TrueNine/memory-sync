@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10318.10339",
+  "version": "2026.10318.11638",
   "description": "TrueNine Memory Synchronization CLI",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -65,17 +65,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {
-    "@clack/prompts": "catalog:",
-    "@truenine/script-runtime": "workspace:*",
-    "fast-glob": "catalog:",
-    "fs-extra": "catalog:",
-    "jiti": "2.6.1",
     "json5": "catalog:",
-    "lightningcss": "1.31.1",
-    "picocolors": "catalog:",
-    "picomatch": "catalog:",
-    "tsx": "4.21.0",
-    "vitest": "catalog:",
     "yaml": "2.8.2",
     "zod": "catalog:"
   },
@@ -87,11 +77,21 @@
     "@truenine/memory-sync-cli-win32-x64-msvc": "workspace:*"
   },
   "devDependencies": {
+    "@clack/prompts": "catalog:",
     "@truenine/logger": "workspace:*",
     "@truenine/md-compiler": "workspace:*",
+    "@truenine/script-runtime": "workspace:*",
     "@types/fs-extra": "catalog:",
     "@types/picomatch": "catalog:",
     "@vitest/coverage-v8": "catalog:",
+    "fast-glob": "catalog:",
+    "fs-extra": "catalog:",
+    "jiti": "2.6.1",
+    "lightningcss": "1.31.1",
+    "picocolors": "catalog:",
+    "picomatch": "catalog:",
+    "tsx": "4.21.0",
+    "vitest": "catalog:",
     "zod-to-json-schema": "catalog:"
   }
 }

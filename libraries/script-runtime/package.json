@@ -1,7 +1,7 @@
 {
   "name": "@truenine/script-runtime",
   "type": "module",
-  "version": "2026.10318.10339",
+  "version": "2026.10318.11638",
   "private": true,
   "description": "Rust-backed TypeScript proxy runtime for tnmsc",
   "license": "AGPL-3.0-only",
@@ -42,14 +42,12 @@
     "test:ts": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },
-  "dependencies": {
-    "jiti": "2.6.1"
-  },
   "devDependencies": {
     "@napi-rs/cli": "^3.5.1",
     "@truenine/eslint10-config": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
+    "jiti": "2.6.1",
     "npm-run-all2": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

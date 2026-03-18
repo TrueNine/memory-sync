@@ -224,12 +224,37 @@ importers:
 
   cli:
     dependencies:
+      json5:
+        specifier: 'catalog:'
+        version: 2.2.3
+      yaml:
+        specifier: 2.8.2
+        version: 2.8.2
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+    devDependencies:
       '@clack/prompts':
         specifier: 'catalog:'
         version: 1.0.1
+      '@truenine/logger':
+        specifier: workspace:*
+        version: link:../libraries/logger
+      '@truenine/md-compiler':
+        specifier: workspace:*
+        version: link:../libraries/md-compiler
       '@truenine/script-runtime':
         specifier: workspace:*
         version: link:../libraries/script-runtime
+      '@types/fs-extra':
+        specifier: 'catalog:'
+        version: 11.0.4
+      '@types/picomatch':
+        specifier: 'catalog:'
+        version: 4.0.2
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 4.0.18(vitest@4.0.18(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
       fast-glob:
         specifier: 'catalog:'
         version: 3.3.3
@@ -239,9 +264,6 @@ importers:
       jiti:
         specifier: 2.6.1
         version: 2.6.1
-      json5:
-        specifier: 'catalog:'
-        version: 2.2.3
       lightningcss:
         specifier: 1.31.1
         version: 1.31.1
@@ -257,28 +279,6 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
-      yaml:
-        specifier: 2.8.2
-        version: 2.8.2
-      zod:
-        specifier: 'catalog:'
-        version: 4.3.6
-    devDependencies:
-      '@truenine/logger':
-        specifier: workspace:*
-        version: link:../libraries/logger
-      '@truenine/md-compiler':
-        specifier: workspace:*
-        version: link:../libraries/md-compiler
-      '@types/fs-extra':
-        specifier: 'catalog:'
-        version: 11.0.4
-      '@types/picomatch':
-        specifier: 'catalog:'
-        version: 4.0.2
-      '@vitest/coverage-v8':
-        specifier: 'catalog:'
-        version: 4.0.18(vitest@4.0.18(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
       zod-to-json-schema:
         specifier: 'catalog:'
         version: 3.25.1(zod@4.3.6)
@@ -310,23 +310,13 @@ importers:
   cli/npm/win32-x64-msvc: {}
 
   doc:
-    dependencies:
+    devDependencies:
       '@mdx-js/react':
         specifier: 'catalog:'
         version: 3.1.1(@types/react@19.2.14)(react@19.2.4)
       '@next/mdx':
         specifier: 'catalog:'
         version: 16.1.6(@mdx-js/react@3.1.1(@types/react@19.2.14)(react@19.2.4))
-      next:
-        specifier: 'catalog:'
-        version: 16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react:
-        specifier: 'catalog:'
-        version: 19.2.4
-      react-dom:
-        specifier: 'catalog:'
-        version: 19.2.4(react@19.2.4)
-    devDependencies:
       '@truenine/eslint10-config':
         specifier: 'catalog:'
         version: 2026.10209.11105(57cd6091d29b00e41b508df9848011ef)
@@ -339,33 +329,63 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.0.2(jiti@2.6.1)
+      next:
+        specifier: 'catalog:'
+        version: 16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.4
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.4(react@19.2.4)
 
   gui:
-    dependencies:
+    devDependencies:
       '@monaco-editor/react':
         specifier: 'catalog:'
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@tailwindcss/vite':
+        specifier: 'catalog:'
+        version: 4.2.1(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
       '@tanstack/react-router':
         specifier: 'catalog:'
         version: 1.163.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@tanstack/router-generator':
+        specifier: ^1.164.0
+        version: 1.164.0
       '@tanstack/router-plugin':
         specifier: 'catalog:'
         version: 1.164.0(@tanstack/react-router@1.163.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
       '@tauri-apps/api':
         specifier: 'catalog:'
         version: 2.10.1
+      '@tauri-apps/cli':
+        specifier: 'catalog:'
+        version: 2.10.0
       '@tauri-apps/plugin-shell':
         specifier: 'catalog:'
         version: 2.3.5
       '@tauri-apps/plugin-updater':
         specifier: 'catalog:'
         version: 2.10.0
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 5.1.4(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
       clsx:
         specifier: 'catalog:'
         version: 2.1.1
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.5.3
       lucide-react:
         specifier: 'catalog:'
         version: 0.575.0(react@19.2.4)
@@ -387,28 +407,6 @@ importers:
       tailwind-merge:
         specifier: 'catalog:'
         version: 3.5.0
-    devDependencies:
-      '@tailwindcss/vite':
-        specifier: 'catalog:'
-        version: 4.2.1(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
-      '@tanstack/router-generator':
-        specifier: ^1.164.0
-        version: 1.164.0
-      '@tauri-apps/cli':
-        specifier: 'catalog:'
-        version: 2.10.0
-      '@types/react':
-        specifier: 'catalog:'
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: 'catalog:'
-        version: 19.2.3(@types/react@19.2.14)
-      '@vitejs/plugin-react':
-        specifier: 'catalog:'
-        version: 5.1.4(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
-      fast-check:
-        specifier: 'catalog:'
-        version: 4.5.3
       tailwindcss:
         specifier: 'catalog:'
         version: 4.2.1
@@ -438,10 +436,25 @@ importers:
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
   libraries/md-compiler:
-    dependencies:
+    devDependencies:
+      '@napi-rs/cli':
+        specifier: ^3.5.1
+        version: 3.5.1(@emnapi/runtime@1.8.1)(@types/node@25.3.3)
+      '@types/estree':
+        specifier: 'catalog:'
+        version: 1.0.8
+      '@types/estree-jsx':
+        specifier: 'catalog:'
+        version: 1.0.5
+      '@types/mdast':
+        specifier: 'catalog:'
+        version: 4.0.4
       mdast-util-mdx:
         specifier: 'catalog:'
         version: 3.0.0
+      npm-run-all2:
+        specifier: 'catalog:'
+        version: 8.0.4
       remark-frontmatter:
         specifier: 'catalog:'
         version: 5.0.0
@@ -457,43 +470,23 @@ importers:
       remark-stringify:
         specifier: 'catalog:'
         version: 11.0.0
-      unified:
-        specifier: 'catalog:'
-        version: 11.0.5
-      yaml:
-        specifier: 'catalog:'
-        version: 2.8.2
-    devDependencies:
-      '@napi-rs/cli':
-        specifier: ^3.5.1
-        version: 3.5.1(@emnapi/runtime@1.8.1)(@types/node@25.3.3)
-      '@types/estree':
-        specifier: 'catalog:'
-        version: 1.0.8
-      '@types/estree-jsx':
-        specifier: 'catalog:'
-        version: 1.0.5
-      '@types/mdast':
-        specifier: 'catalog:'
-        version: 4.0.4
-      npm-run-all2:
-        specifier: 'catalog:'
-        version: 8.0.4
       tsdown:
         specifier: 'catalog:'
         version: 0.21.0-beta.2(synckit@0.11.12)(typescript@5.9.3)
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      unified:
+        specifier: 'catalog:'
+        version: 11.0.5
       vitest:
         specifier: 'catalog:'
         version: 4.0.18(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      yaml:
+        specifier: 'catalog:'
+        version: 2.8.2
 
   libraries/script-runtime:
-    dependencies:
-      jiti:
-        specifier: 2.6.1
-        version: 2.6.1
     devDependencies:
       '@napi-rs/cli':
         specifier: ^3.5.1
@@ -507,6 +500,9 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.0.2(jiti@2.6.1)
+      jiti:
+        specifier: 2.6.1
+        version: 2.6.1
       npm-run-all2:
         specifier: 'catalog:'
         version: 8.0.4
