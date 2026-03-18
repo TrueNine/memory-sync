@@ -8,6 +8,9 @@ export default defineConfig([
     sourcemap: false,
     unbundle: false,
     inlineOnly: false,
+    deps: {
+      neverBundle: ['jiti']
+    },
     alias: {
       '@': resolve('src')
     },

@@ -52,6 +52,7 @@ const noExternalDeps = [
   '@truenine/logger',
   '@truenine/script-runtime',
   'fast-glob',
+  'jiti',
   '@truenine/desk-paths',
   '@truenine/md-compiler',
   ...Object.keys(pluginAliases)
