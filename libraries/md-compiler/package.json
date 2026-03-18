@@ -1,7 +1,7 @@
 {
   "name": "@truenine/md-compiler",
   "type": "module",
-  "version": "2026.10318.10339",
+  "version": "2026.10318.11638",
   "private": true,
   "description": "Rust-powered MDX→Markdown compiler for Node.js with pure-TS fallback",
   "license": "AGPL-3.0-only",
@@ -54,24 +54,22 @@
     "test:ts": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },
-  "dependencies": {
-    "mdast-util-mdx": "catalog:",
-    "remark-frontmatter": "catalog:",
-    "remark-gfm": "catalog:",
-    "remark-mdx": "catalog:",
-    "remark-parse": "catalog:",
-    "remark-stringify": "catalog:",
-    "unified": "catalog:",
-    "yaml": "catalog:"
-  },
   "devDependencies": {
     "@napi-rs/cli": "^3.5.1",
     "@types/estree": "catalog:",
     "@types/estree-jsx": "catalog:",
     "@types/mdast": "catalog:",
+    "mdast-util-mdx": "catalog:",
     "npm-run-all2": "catalog:",
+    "remark-frontmatter": "catalog:",
+    "remark-gfm": "catalog:",
+    "remark-mdx": "catalog:",
+    "remark-parse": "catalog:",
+    "remark-stringify": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "unified": "catalog:",
+    "vitest": "catalog:",
+    "yaml": "catalog:"
   }
 }

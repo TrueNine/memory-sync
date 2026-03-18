@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-gui",
-  "version": "2026.10318.10339",
+  "version": "2026.10318.11638",
   "private": true,
   "engines": {
     "node": ">=25.2.1",
@@ -22,32 +22,30 @@
     "test:tauri": "cargo test --manifest-path src-tauri/Cargo.toml --lib --bins --tests",
     "test": "pnpm run test:ui && pnpm tsx ./scripts/run-tauri-tests.ts"
   },
-  "dependencies": {
+  "devDependencies": {
     "@monaco-editor/react": "catalog:",
+    "@tailwindcss/vite": "catalog:",
     "@tanstack/react-router": "catalog:",
+    "@tanstack/router-generator": "^1.164.0",
     "@tanstack/router-plugin": "catalog:",
     "@tauri-apps/api": "catalog:",
+    "@tauri-apps/cli": "catalog:",
     "@tauri-apps/plugin-shell": "catalog:",
     "@tauri-apps/plugin-updater": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
+    "fast-check": "catalog:",
     "lucide-react": "catalog:",
     "material-icon-theme": "^5.31.0",
     "monaco-editor": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "recharts": "^3.7.0",
-    "tailwind-merge": "catalog:"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "catalog:",
-    "@tanstack/router-generator": "^1.164.0",
-    "@tauri-apps/cli": "catalog:",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
-    "@vitejs/plugin-react": "catalog:",
-    "fast-check": "catalog:",
     "tailwindcss": "catalog:",
+    "tailwind-merge": "catalog:",
     "tw-animate-css": "catalog:",
     "vitest": "catalog:"
   }
