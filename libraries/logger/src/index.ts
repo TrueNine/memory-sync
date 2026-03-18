@@ -1,4 +1,6 @@
+import {readdirSync} from 'node:fs'
 import {createRequire} from 'node:module'
+import {dirname, join} from 'node:path'
 import process from 'node:process'
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'fatal' | 'silent'
@@ -96,6 +98,37 @@ function formatBindingLoadError(localError: unknown, packageError: unknown, suff
   )
 }
 
+function loadBindingFromCliBinaryPackage(
+  runtimeRequire: ReturnType<typeof createRequire>,
+  suffix: string
+): NapiLoggerModule {
+  const packageName = `@truenine/memory-sync-cli-${suffix}`
+
+  try {
+    const cliBinaryPackage = runtimeRequire(packageName) as Record<string, unknown>
+    const loggerModule = cliBinaryPackage['logger']
+
+    if (isNapiLoggerModule(loggerModule)) return loggerModule
+  }
+  catch {
+    // Fall through to the package-directory probe below.
+  }
+
+  const packageJsonPath = runtimeRequire.resolve(`${packageName}/package.json`)
+  const packageDir = dirname(packageJsonPath)
+  const bindingCandidates = readdirSync(packageDir)
+    .filter(fileName => fileName.startsWith('napi-logger.') && fileName.endsWith('.node'))
+    .sort()
+
+  for (const candidateFile of bindingCandidates) {
+    const bindingModule = runtimeRequire(join(packageDir, candidateFile)) as unknown
+
+    if (isNapiLoggerModule(bindingModule)) return bindingModule
+  }
+
+  throw new Error(`Package "${packageName}" does not export a logger binding or contain a compatible native module`)
+}
+
 function loadNativeBinding(): NapiLoggerModule {
   const moduleUrl = import.meta.url
   const runtimeRequire = createRequire(moduleUrl)
@@ -106,12 +139,7 @@ function loadNativeBinding(): NapiLoggerModule {
   }
   catch (localError) {
     try {
-      const cliBinaryPackage = runtimeRequire(`@truenine/memory-sync-cli-${suffix}`) as Record<string, unknown>
-      const loggerModule = cliBinaryPackage['logger']
-
-      if (isNapiLoggerModule(loggerModule)) return loggerModule
-
-      throw new Error(`Package "@truenine/memory-sync-cli-${suffix}" does not export a logger binding`)
+      return loadBindingFromCliBinaryPackage(runtimeRequire, suffix)
     }
     catch (packageError) {
       throw formatBindingLoadError(localError, packageError, suffix)

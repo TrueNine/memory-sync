@@ -81,27 +81,6 @@ export default defineConfig([
     }
   },
   {
-    entry: ['./src/main.ts'],
-    platform: 'node',
-    sourcemap: false,
-    unbundle: false,
-    inlineOnly: false,
-    alias: {
-      '@': resolve('src'),
-      ...pluginAliases
-    },
-    noExternal: noExternalDeps,
-    format: ['esm'],
-    minify: true,
-    dts: false,
-    outputOptions: {banner: '#!/usr/bin/env node'},
-    define: {
-      __CLI_VERSION__: JSON.stringify(pkg.version),
-      __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
-      __KIRO_GLOBAL_POWERS_REGISTRY__: kiroGlobalPowersRegistry
-    }
-  },
-  {
     entry: ['./src/plugin-runtime.ts'],
     platform: 'node',
     sourcemap: false,

@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10318.11638",
+  "version": "2026.10318.12034",
   "description": "TrueNine Memory Synchronization CLI",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -51,7 +51,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "run-s build:deps build:napi bundle generate:schema check",
+    "build": "run-s build:deps build:napi bundle write:main-wrapper generate:schema check",
     "build:napi": "tsx ../scripts/copy-napi.ts",
     "build:deps": "pnpm -F @truenine/logger -F @truenine/md-compiler -F @truenine/script-runtime run build",
     "bundle": "tsx ../scripts/build-quiet.ts",
@@ -62,7 +62,8 @@
     "test": "run-s build:deps test:run",
     "test:run": "vitest run",
     "lintfix": "eslint --fix --cache .",
-    "typecheck": "tsc --noEmit -p tsconfig.lib.json"
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "write:main-wrapper": "tsx scripts/write-main-wrapper.ts"
   },
   "dependencies": {
     "json5": "catalog:",

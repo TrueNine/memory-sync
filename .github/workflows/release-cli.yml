@@ -273,6 +273,14 @@ jobs:
             if [ ! -f "${target_dir}package.json" ]; then
               continue
             fi
+            if [ ! -f "${target_dir}noop.cjs" ]; then
+              echo "ERROR: missing ${target_dir}noop.cjs"
+              exit 1
+            fi
+            if [ ! -f "${target_dir}noop.d.ts" ]; then
+              echo "ERROR: missing ${target_dir}noop.d.ts"
+              exit 1
+            fi
             actual_count=$(find "${target_dir}" -maxdepth 1 -type f -name '*.node' | wc -l | tr -d ' ')
             if [ "$actual_count" -ne "$expected_count" ]; then
               echo "ERROR: expected ${expected_count} .node files in ${target_dir}, found ${actual_count}"

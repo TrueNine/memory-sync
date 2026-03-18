@@ -1,6 +1,8 @@
 import type {ExportMetadata, MetadataSource} from './compiler/export-parser'
 import type {MdxToMdOptions, MdxToMdResult} from './compiler/types'
+import {readdirSync} from 'node:fs'
 import {createRequire} from 'node:module'
+import {dirname, join} from 'node:path'
 import process from 'node:process'
 import {mdxToMd as fallbackMdxToMd} from './compiler/mdx-to-md'
 
@@ -26,6 +28,48 @@ const RESIDUAL_MODULE_SYNTAX_PATTERNS = [
 
 let napiBinding: NapiMdCompilerModule | null = null
 
+function isNapiMdCompilerModule(value: unknown): value is NapiMdCompilerModule {
+  if (value == null || typeof value !== 'object') return false
+
+  const candidate = value as Partial<NapiMdCompilerModule>
+  return typeof candidate.compileMdxToMd === 'function'
+}
+
+function loadBindingFromCliBinaryPackage(
+  requireFn: ReturnType<typeof createRequire>,
+  suffix: string
+): NapiMdCompilerModule | null {
+  const packageName = `@truenine/memory-sync-cli-${suffix}`
+
+  try {
+    const pkg = requireFn(packageName) as Record<string, unknown>
+    const binding = pkg['mdCompiler']
+
+    if (isNapiMdCompilerModule(binding)) return binding
+  }
+  catch {
+    // Fall through to the package-directory probe below.
+  }
+
+  try {
+    const packageJsonPath = requireFn.resolve(`${packageName}/package.json`)
+    const packageDir = dirname(packageJsonPath)
+    const bindingCandidates = readdirSync(packageDir)
+      .filter(fileName => fileName.startsWith('napi-md-compiler.') && fileName.endsWith('.node'))
+      .sort()
+
+    for (const candidateFile of bindingCandidates) {
+      const binding = requireFn(join(packageDir, candidateFile)) as unknown
+      if (isNapiMdCompilerModule(binding)) return binding
+    }
+  }
+  catch {
+    return null
+  }
+
+  return null
+}
+
 try {
   const require = createRequire(import.meta.url)
   const {platform, arch} = process
@@ -43,11 +87,7 @@ try {
       napiBinding = require(`./${local}.node`) as NapiMdCompilerModule
     }
     catch {
-      try {
-        const pkg = require(`@truenine/memory-sync-cli-${suffix}`) as Record<string, unknown>
-        napiBinding = pkg['mdCompiler'] as NapiMdCompilerModule
-      }
-      catch {}
+      napiBinding = loadBindingFromCliBinaryPackage(require, suffix)
     }
   }
 }
