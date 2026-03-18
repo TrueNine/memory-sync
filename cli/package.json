@@ -88,7 +88,7 @@
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
     "jiti": "2.6.1",
-    "lightningcss": "1.31.1",
+    "lightningcss": "1.32.0",
     "picocolors": "catalog:",
     "picomatch": "catalog:",
     "tsx": "4.21.0",
