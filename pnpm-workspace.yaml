@@ -9,40 +9,40 @@ packages:
   - doc
 
 catalog:
-  '@clack/prompts': ^1.0.1
+  '@clack/prompts': ^1.1.0
   '@modelcontextprotocol/sdk': ^1.27.1
   '@mdx-js/react': ^3.1.1
   '@monaco-editor/react': ^4.7.0
-  '@next/mdx': ^16.1.6
-  '@tailwindcss/vite': ^4.2.1
-  '@tanstack/react-router': ^1.163.3
-  '@tanstack/router-plugin': ^1.164.0
+  '@next/mdx': ^16.2.0
+  '@tailwindcss/vite': ^4.2.2
+  '@tanstack/react-router': ^1.167.5
+  '@tanstack/router-plugin': ^1.166.14
   '@tauri-apps/api': ^2.10.1
-  '@tauri-apps/cli': ^2.10.0
+  '@tauri-apps/cli': ^2.10.1
   '@tauri-apps/plugin-shell': ^2.3.5
   '@tauri-apps/plugin-updater': ^2.10.0
-  '@truenine/eslint10-config': ^2026.10209.11105
+  '@truenine/eslint10-config': ^2026.10318.10138
   '@types/estree': ^1.0.8
   '@types/estree-jsx': ^1.0.5
   '@types/fs-extra': ^11.0.4
   '@types/mdast': ^4.0.4
-  '@types/node': ^25.3.3
+  '@types/node': ^25.5.0
   '@types/picomatch': ^4.0.2
   '@types/react': ^19.2.14
   '@types/react-dom': ^19.2.3
-  '@vitejs/plugin-react': ^5.1.4
-  '@vitest/coverage-v8': 4.0.18
+  '@vitejs/plugin-react': ^6.0.1
+  '@vitest/coverage-v8': 4.1.0
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
-  eslint: ^10.0.2
-  fast-check: ^4.5.3
+  eslint: ^10.0.3
+  fast-check: ^4.6.0
   fast-glob: ^3.3.3
-  fs-extra: ^11.3.3
+  fs-extra: ^11.3.4
   json5: ^2.2.3
-  lucide-react: ^0.575.0
+  lucide-react: ^0.577.0
   mdast-util-mdx: ^3.0.0
   monaco-editor: ^0.55.1
-  next: ^16.1.6
+  next: ^16.2.0
   npm-run-all2: ^8.0.4
   picocolors: ^1.1.1
   picomatch: ^4.0.3
@@ -54,15 +54,15 @@ catalog:
   remark-parse: ^11.0.0
   remark-stringify: ^11.0.0
   tailwind-merge: ^3.5.0
-  tailwindcss: ^4.2.1
-  tsdown: 0.21.0-beta.2
+  tailwindcss: ^4.2.2
+  tsdown: 0.21.4
   tsx: ^4.21.0
-  turbo: ^2.8.12
+  turbo: ^2.8.18
   tw-animate-css: ^1.4.0
   typescript: ^5.9.3
   unified: ^11.0.5
-  vite: ^7.3.1
-  vitest: ^4.0.18
+  vite: ^8.0.0
+  vitest: ^4.1.0
   yaml: ^2.8.2
   zod: ^4.3.6
   zod-to-json-schema: ^3.25.1
