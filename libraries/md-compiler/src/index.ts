@@ -50,3 +50,11 @@ export {
 export {
   mdxToMd
 } from './mdx-to-md'
+export {
+  buildPromptTomlArtifact,
+  buildTomlDocument
+} from './toml'
+export type {
+  BuildPromptTomlArtifactOptions,
+  BuildTomlDocumentOptions
+} from './toml'

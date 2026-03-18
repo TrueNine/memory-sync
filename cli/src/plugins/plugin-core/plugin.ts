@@ -473,8 +473,11 @@ export async function collectAllPluginOutputs(
 
   validateOutputScopeOverridesForPlugins(plugins, ctx.pluginOptions)
 
-  for (const plugin of plugins) {
-    const declarations = await plugin.declareOutputFiles({...ctx, dryRun: true})
+  const declarationGroups = await Promise.all(
+    plugins.map(async plugin => plugin.declareOutputFiles({...ctx, dryRun: true}))
+  )
+
+  for (const declarations of declarationGroups) {
     for (const declaration of declarations) {
       if (declaration.scope === 'global') globalFiles.push(declaration.path)
       else projectFiles.push(declaration.path)

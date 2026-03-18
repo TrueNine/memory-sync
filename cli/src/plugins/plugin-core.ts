@@ -17,6 +17,8 @@ export type {
   RuleOutputConfig,
   SkillFrontMatterOptions,
   SkillsOutputConfig,
+  SubAgentArtifactFormat,
+  SubAgentFileNameSource,
   SubAgentNameTransformOptions,
   SubAgentsOutputConfig
 } from './plugin-core/AbstractOutputPlugin'

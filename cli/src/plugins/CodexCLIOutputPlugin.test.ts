@@ -1,4 +1,4 @@
-import type {CommandPrompt, InputCapabilityContext, OutputWriteContext} from './plugin-core'
+import type {CommandPrompt, InputCapabilityContext, OutputWriteContext, SubAgentPrompt} from './plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -19,6 +19,22 @@ class TestCodexCLIOutputPlugin extends CodexCLIOutputPlugin {
   }
 }
 
+async function withTempCodexDirs(
+  prefix: string,
+  run: (paths: {readonly workspace: string, readonly homeDir: string}) => Promise<void>
+): Promise<void> {
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), `${prefix}-workspace-`))
+  const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), `${prefix}-home-`))
+
+  try {
+    await run({workspace, homeDir})
+  }
+  finally {
+    fs.rmSync(workspace, {recursive: true, force: true})
+    fs.rmSync(homeDir, {recursive: true, force: true})
+  }
+}
+
 function createInputContext(tempWorkspace: string): InputCapabilityContext {
   return {
     logger: createLogger('CodexCLIOutputPluginTest', 'error'),
@@ -33,6 +49,7 @@ function createInputContext(tempWorkspace: string): InputCapabilityContext {
 function createWriteContext(
   tempWorkspace: string,
   commands: readonly CommandPrompt[],
+  subAgents: readonly SubAgentPrompt[] = [],
   pluginOptions?: OutputWriteContext['pluginOptions']
 ): OutputWriteContext {
   return {
@@ -59,9 +76,19 @@ function createWriteContext(
             getAbsolutePath: () => path.join(tempWorkspace, 'project-a')
           },
           isPromptSourceProject: true
+        }, {
+          name: 'project-b',
+          dirFromWorkspacePath: {
+            pathKind: FilePathKind.Relative,
+            path: 'project-b',
+            basePath: tempWorkspace,
+            getDirectoryName: () => 'project-b',
+            getAbsolutePath: () => path.join(tempWorkspace, 'project-b')
+          }
         }]
       },
-      commands
+      commands,
+      subAgents
     }
   } as OutputWriteContext
 }
@@ -89,14 +116,47 @@ function createProjectCommandPrompt(): CommandPrompt {
   } as CommandPrompt
 }
 
+function createSubAgentPrompt(scope: 'project' | 'global'): SubAgentPrompt {
+  return {
+    type: PromptKind.SubAgent,
+    content: 'Review changes carefully.\nFocus on concrete regressions.',
+    length: 55,
+    filePathKind: FilePathKind.Relative,
+    dir: {
+      pathKind: FilePathKind.Relative,
+      path: 'subagents/qa/reviewer.mdx',
+      basePath: path.resolve('tmp/dist/subagents'),
+      getDirectoryName: () => 'qa',
+      getAbsolutePath: () => path.resolve('tmp/dist/subagents/qa/reviewer.mdx')
+    },
+    agentPrefix: 'qa',
+    agentName: 'reviewer',
+    yamlFrontMatter: {
+      name: 'review-helper',
+      description: 'Review pull requests',
+      scope,
+      model: 'gpt-5.2',
+      allowTools: ['shell'],
+      color: 'blue',
+      nickname_candidates: ['guard'],
+      sandbox_mode: 'workspace-write',
+      mcp_servers: {
+        docs: {
+          command: 'node',
+          args: ['mcp.js']
+        }
+      }
+    } as unknown as SubAgentPrompt['yamlFrontMatter'],
+    markdownContents: []
+  } as SubAgentPrompt
+}
+
 describe('codexCLIOutputPlugin command output', () => {
   it('renders codex commands from dist content instead of the zh source prompt', async () => {
-    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-codex-command-'))
-    const tempHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-codex-home-'))
-    const srcDir = path.join(tempWorkspace, 'aindex', 'commands', 'find')
-    const distDir = path.join(tempWorkspace, 'aindex', 'dist', 'commands', 'find')
+    await withTempCodexDirs('tnmsc-codex-command', async ({workspace, homeDir}) => {
+      const srcDir = path.join(workspace, 'aindex', 'commands', 'find')
+      const distDir = path.join(workspace, 'aindex', 'dist', 'commands', 'find')
 
-    try {
       fs.mkdirSync(srcDir, {recursive: true})
       fs.mkdirSync(distDir, {recursive: true})
 
@@ -118,13 +178,13 @@ describe('codexCLIOutputPlugin command output', () => {
       ].join('\n'), 'utf8')
 
       const commandInputCapability = new CommandInputCapability()
-      const collected = await commandInputCapability.collect(createInputContext(tempWorkspace))
+      const collected = await commandInputCapability.collect(createInputContext(workspace))
       const commands = collected.commands ?? []
 
       expect(commands).toHaveLength(1)
 
-      const codexPlugin = new TestCodexCLIOutputPlugin(tempHomeDir)
-      const writeCtx = createWriteContext(tempWorkspace, commands)
+      const codexPlugin = new TestCodexCLIOutputPlugin(homeDir)
+      const writeCtx = createWriteContext(workspace, commands)
       const declarations = await codexPlugin.declareOutputFiles(writeCtx)
       const commandDeclaration = declarations.find(
         declaration => declaration.path.replaceAll('\\', '/').endsWith('/.codex/prompts/find-opensource.md')
@@ -137,34 +197,75 @@ describe('codexCLIOutputPlugin command output', () => {
       expect(String(rendered)).toContain('English dist command body')
       expect(String(rendered)).not.toContain('中文源描述')
       expect(String(rendered)).not.toContain('中文源命令内容')
-    }
-    finally {
-      fs.rmSync(tempWorkspace, {recursive: true, force: true})
-      fs.rmSync(tempHomeDir, {recursive: true, force: true})
-    }
+    })
   })
 
   it('keeps project-scoped commands in the global codex directory and never mirrors them into workspace root', async () => {
-    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-codex-project-command-'))
-    const tempHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-codex-project-home-'))
-
-    try {
-      const plugin = new TestCodexCLIOutputPlugin(tempHomeDir)
-      const writeCtx = createWriteContext(tempWorkspace, [createProjectCommandPrompt()])
+    await withTempCodexDirs('tnmsc-codex-project-command', async ({workspace, homeDir}) => {
+      const plugin = new TestCodexCLIOutputPlugin(homeDir)
+      const writeCtx = createWriteContext(workspace, [createProjectCommandPrompt()])
 
       const declarations = await plugin.declareOutputFiles(writeCtx)
 
       expect(declarations.map(declaration => declaration.path)).toContain(
-        path.join(tempHomeDir, '.codex', 'prompts', 'dev-build.md')
+        path.join(homeDir, '.codex', 'prompts', 'dev-build.md')
       )
       expect(declarations.map(declaration => declaration.path)).not.toContain(
-        path.join(tempWorkspace, '.codex', 'prompts', 'dev-build.md')
+        path.join(workspace, '.codex', 'prompts', 'dev-build.md')
       )
       expect(declarations.every(declaration => declaration.scope === 'global')).toBe(true)
-    }
-    finally {
-      fs.rmSync(tempWorkspace, {recursive: true, force: true})
-      fs.rmSync(tempHomeDir, {recursive: true, force: true})
-    }
+    })
+  })
+
+  it('writes project-scoped subagents into each project .codex/agents directory as toml', async () => {
+    await withTempCodexDirs('tnmsc-codex-project-subagent', async ({workspace, homeDir}) => {
+      const plugin = new TestCodexCLIOutputPlugin(homeDir)
+      const writeCtx = createWriteContext(workspace, [], [createSubAgentPrompt('project')])
+
+      const declarations = await plugin.declareOutputFiles(writeCtx)
+      const paths = declarations.map(declaration => declaration.path)
+
+      expect(paths).toContain(path.join(workspace, 'project-a', '.codex', 'agents', 'review-helper.toml'))
+      expect(paths).toContain(path.join(workspace, 'project-b', '.codex', 'agents', 'review-helper.toml'))
+      expect(paths).not.toContain(path.join(homeDir, '.codex', 'agents', 'review-helper.toml'))
+
+      const declaration = declarations.find(item => item.path === path.join(workspace, 'project-a', '.codex', 'agents', 'review-helper.toml'))
+      expect(declaration).toBeDefined()
+
+      const rendered = await plugin.convertContent(declaration!, writeCtx)
+      expect(String(rendered)).toContain('name = "review-helper"')
+      expect(String(rendered)).toContain('description = "Review pull requests"')
+      expect(String(rendered)).toContain([
+        'developer_instructions = """',
+        'Review changes carefully.',
+        'Focus on concrete regressions."""'
+      ].join('\n'))
+      expect(String(rendered)).toContain('model = "gpt-5.2"')
+      expect(String(rendered)).toContain('nickname_candidates = ["guard"]')
+      expect(String(rendered)).toContain('sandbox_mode = "workspace-write"')
+      expect(String(rendered)).toContain('allowedTools = "shell"')
+      expect(String(rendered)).toContain('[mcp_servers]')
+      expect(String(rendered)).toContain('[mcp_servers.docs]')
+      expect(String(rendered)).not.toContain('scope = ')
+      expect(String(rendered)).not.toContain('allowTools')
+      expect(String(rendered)).not.toContain('color = ')
+    })
+  })
+
+  it('remaps global-scoped subagents to project outputs instead of writing to the global codex directory', async () => {
+    await withTempCodexDirs('tnmsc-codex-global-subagent', async ({workspace, homeDir}) => {
+      const plugin = new TestCodexCLIOutputPlugin(homeDir)
+      const writeCtx = createWriteContext(workspace, [], [createSubAgentPrompt('global')])
+
+      const declarations = await plugin.declareOutputFiles(writeCtx)
+
+      expect(declarations.map(declaration => declaration.path)).toContain(
+        path.join(workspace, 'project-a', '.codex', 'agents', 'review-helper.toml')
+      )
+      expect(declarations.map(declaration => declaration.path)).not.toContain(
+        path.join(homeDir, '.codex', 'agents', 'review-helper.toml')
+      )
+      expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
+    })
   })
 })
