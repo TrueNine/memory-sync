@@ -9,6 +9,7 @@ import type {
 
 import * as fs from 'node:fs'
 import {createRequire} from 'node:module'
+import {dirname, join} from 'node:path'
 import process from 'node:process'
 import {fileURLToPath} from 'node:url'
 import {
@@ -81,6 +82,37 @@ function formatBindingLoadError(localError: unknown, packageError: unknown, suff
   )
 }
 
+function loadBindingFromCliBinaryPackage(
+  runtimeRequire: ReturnType<typeof createRequire>,
+  suffix: string
+): ScriptRuntimeBinding {
+  const packageName = `@truenine/memory-sync-cli-${suffix}`
+
+  try {
+    const cliBinaryPackage = runtimeRequire(packageName) as Record<string, unknown>
+    const runtimeBinding = cliBinaryPackage['scriptRuntime']
+
+    if (isScriptRuntimeBinding(runtimeBinding)) return runtimeBinding
+  }
+  catch {
+    // Fall through to the package-directory probe below.
+  }
+
+  const packageJsonPath = runtimeRequire.resolve(`${packageName}/package.json`)
+  const packageDir = dirname(packageJsonPath)
+  const bindingCandidates = fs.readdirSync(packageDir)
+    .filter(fileName => fileName.startsWith('napi-script-runtime.') && fileName.endsWith('.node'))
+    .sort()
+
+  for (const candidateFile of bindingCandidates) {
+    const bindingModule = runtimeRequire(join(packageDir, candidateFile)) as unknown
+
+    if (isScriptRuntimeBinding(bindingModule)) return bindingModule
+  }
+
+  throw new Error(`Package "${packageName}" does not export a scriptRuntime binding or contain a compatible native module`)
+}
+
 function loadNativeBinding(): ScriptRuntimeBinding {
   const runtimeRequire = createRequire(import.meta.url)
   const {local, suffix} = getPlatformBinding()
@@ -90,12 +122,7 @@ function loadNativeBinding(): ScriptRuntimeBinding {
   }
   catch (localError) {
     try {
-      const cliBinaryPackage = runtimeRequire(`@truenine/memory-sync-cli-${suffix}`) as Record<string, unknown>
-      const runtimeBinding = cliBinaryPackage['scriptRuntime']
-
-      if (isScriptRuntimeBinding(runtimeBinding)) return runtimeBinding
-
-      throw new Error(`Package "@truenine/memory-sync-cli-${suffix}" does not export a scriptRuntime binding`)
+      return loadBindingFromCliBinaryPackage(runtimeRequire, suffix)
     }
     catch (packageError) {
       throw formatBindingLoadError(localError, packageError, suffix)
