@@ -5,6 +5,12 @@ import {defineConfig} from 'vite'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: string, name: string}
 const kiroGlobalPowersRegistry = '{"version":"1.0.0","powers":{},"repoSources":{}}'
+const workspacePackageAliases: Record<string, string> = {
+  '@truenine/md-compiler/errors': resolve('../libraries/md-compiler/dist/errors/index.mjs'),
+  '@truenine/md-compiler/globals': resolve('../libraries/md-compiler/dist/globals/index.mjs'),
+  '@truenine/md-compiler/markdown': resolve('../libraries/md-compiler/dist/markdown/index.mjs'),
+  '@truenine/md-compiler': resolve('../libraries/md-compiler/dist/index.mjs')
+}
 
 const pluginAliases: Record<string, string> = {
   '@truenine/desk-paths': resolve('src/plugins/desk-paths.ts'),
@@ -56,6 +62,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      ...workspacePackageAliases,
       ...pluginAliases
     }
   },

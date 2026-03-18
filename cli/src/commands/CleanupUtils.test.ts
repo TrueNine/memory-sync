@@ -10,7 +10,7 @@ import {
   IDEKind,
   PluginKind
 } from '../plugins/plugin-core'
-import {collectDeletionTargets} from './CleanupUtils'
+import {collectDeletionTargets, performCleanup} from './CleanupUtils'
 
 function createMockLogger(): ILogger {
   return {
@@ -579,6 +579,52 @@ describe('collectDeletionTargets', () => {
       const plugin = createMockOutputPlugin('MockOutputPlugin', [workspacePromptSource])
 
       await expect(collectDeletionTargets([plugin], ctx)).rejects.toThrow('Cleanup protection conflict')
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+})
+
+describe('performCleanup', () => {
+  it('deletes files and directories in one cleanup pass', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-perform-cleanup-'))
+    const outputFile = path.join(tempDir, 'project-a', 'AGENTS.md')
+    const outputDir = path.join(tempDir, '.codex', 'prompts')
+    const stalePrompt = path.join(outputDir, 'demo.md')
+
+    fs.mkdirSync(path.dirname(outputFile), {recursive: true})
+    fs.mkdirSync(outputDir, {recursive: true})
+    fs.writeFileSync(outputFile, '# agent', 'utf8')
+    fs.writeFileSync(stalePrompt, '# prompt', 'utf8')
+
+    try {
+      const ctx = createCleanContext({
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: tempDir,
+            getDirectoryName: () => path.basename(tempDir),
+            getAbsolutePath: () => tempDir
+          },
+          projects: []
+        }
+      })
+      const plugin = createMockOutputPlugin('MockOutputPlugin', [outputFile], {
+        delete: [{kind: 'directory', path: outputDir}]
+      })
+
+      const result = await performCleanup([plugin], ctx, createMockLogger())
+
+      expect(result).toEqual(expect.objectContaining({
+        deletedFiles: 1,
+        deletedDirs: 1,
+        errors: [],
+        violations: [],
+        conflicts: []
+      }))
+      expect(fs.existsSync(outputFile)).toBe(false)
+      expect(fs.existsSync(outputDir)).toBe(false)
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})

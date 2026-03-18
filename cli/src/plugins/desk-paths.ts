@@ -231,26 +231,55 @@ export interface DeletionResult {
   readonly errors: readonly DeletionError[]
 }
 
+async function deletePath(p: string): Promise<boolean> {
+  try {
+    const stat = await fs.promises.lstat(p)
+    if (stat.isSymbolicLink()) {
+      await (process.platform === 'win32' ? fs.promises.rm(p, {recursive: true, force: true}) : fs.promises.unlink(p))
+      return true
+    }
+
+    if (stat.isDirectory()) {
+      await fs.promises.rm(p, {recursive: true, force: true})
+      return true
+    }
+
+    await fs.promises.unlink(p)
+    return true
+  }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
+}
+
 /**
  * Delete multiple files. Skips non-existent files. Collects errors without throwing.
  *
  * @param files - Array of absolute file paths to delete
  * @returns DeletionResult with count and errors
  */
-export function deleteFiles(files: readonly string[]): DeletionResult {
-  let deleted = 0
-  const errors: DeletionError[] = []
-
-  for (const file of files) {
+export async function deleteFiles(files: readonly string[]): Promise<DeletionResult> {
+  const results = await Promise.all(files.map(async file => {
     try {
-      if (fs.existsSync(file)) {
-        deletePathSync(file)
-        deleted++
-      }
+      const deleted = await deletePath(file)
+      return {path: file, deleted}
     }
-    catch (e) {
-      errors.push({path: file, error: e})
+    catch (error) {
+      return {path: file, error}
     }
+  }))
+
+  const errors: DeletionError[] = []
+  let deleted = 0
+
+  for (const result of results) {
+    if ('error' in result) {
+      errors.push({path: result.path, error: result.error})
+      continue
+    }
+
+    if (result.deleted) deleted++
   }
 
   return {deleted, errors}
@@ -263,22 +292,28 @@ export function deleteFiles(files: readonly string[]): DeletionResult {
  * @param dirs - Array of absolute directory paths to delete
  * @returns DeletionResult with count and errors
  */
-export function deleteDirectories(dirs: readonly string[]): DeletionResult {
-  let deleted = 0
-  const errors: DeletionError[] = []
-
+export async function deleteDirectories(dirs: readonly string[]): Promise<DeletionResult> {
   const sorted = [...dirs].sort((a, b) => b.length - a.length)
-
-  for (const dir of sorted) {
+  const results = await Promise.all(sorted.map(async dir => {
     try {
-      if (fs.existsSync(dir)) {
-        fs.rmSync(dir, {recursive: true, force: true})
-        deleted++
-      }
+      const deleted = await deletePath(dir)
+      return {path: dir, deleted}
     }
-    catch (e) {
-      errors.push({path: dir, error: e})
+    catch (error) {
+      return {path: dir, error}
     }
+  }))
+
+  const errors: DeletionError[] = []
+  let deleted = 0
+
+  for (const result of results) {
+    if ('error' in result) {
+      errors.push({path: result.path, error: result.error})
+      continue
+    }
+
+    if (result.deleted) deleted++
   }
 
   return {deleted, errors}

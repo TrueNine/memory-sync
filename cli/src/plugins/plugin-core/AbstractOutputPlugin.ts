@@ -1,3 +1,4 @@
+import type {BuildPromptTomlArtifactOptions} from '@truenine/md-compiler'
 import type {RegistryWriter} from './RegistryWriter'
 import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputCleanupScope, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, Path, Project, ProjectConfig, RegistryData, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt} from './types'
 
@@ -5,7 +6,7 @@ import {Buffer} from 'node:buffer'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
-import {mdxToMd} from '@truenine/md-compiler'
+import {buildPromptTomlArtifact, mdxToMd} from '@truenine/md-compiler'
 import {buildMarkdownWithFrontMatter, buildMarkdownWithRawFrontMatter} from '@truenine/md-compiler/markdown'
 import {AbstractPlugin} from './AbstractPlugin'
 import {FilePathKind, PluginKind} from './enums'
@@ -20,6 +21,8 @@ import {OUTPUT_SCOPE_TOPICS} from './types'
 interface ScopedSourceConfig {
   /** Allowed source scopes for the topic */
   readonly sourceScopes?: readonly OutputDeclarationScope[]
+  /** Optional source-scope remap before output selection */
+  readonly scopeRemap?: Partial<Record<OutputDeclarationScope, OutputDeclarationScope>>
 }
 
 /**
@@ -73,7 +76,12 @@ export interface CommandOutputConfig {
   }) => Record<string, unknown>
   /** Allowed command source scopes, default ['project', 'global'] */
   readonly sourceScopes?: readonly OutputDeclarationScope[]
+  /** Optional source-scope remap before output selection */
+  readonly scopeRemap?: Partial<Record<OutputDeclarationScope, OutputDeclarationScope>>
 }
+
+export type SubAgentArtifactFormat = 'markdown' | 'toml'
+export type SubAgentFileNameSource = 'derivedPath' | 'frontMatterName'
 
 /**
  * SubAgent output configuration (declarative)
@@ -87,6 +95,20 @@ export interface SubAgentsOutputConfig extends ScopedSourceConfig {
   readonly linkSymbol?: string
   /** SubAgent file extension, default '.md' */
   readonly ext?: string
+  /** Output artifact format, default 'markdown' */
+  readonly artifactFormat?: SubAgentArtifactFormat
+  /** Field name that receives prompt body when artifactFormat='toml' */
+  readonly bodyFieldName?: string
+  /** Source for output file name, default 'derivedPath' */
+  readonly fileNameSource?: SubAgentFileNameSource
+  /** Front matter field remap before artifact emission */
+  readonly fieldNameMap?: Readonly<Record<string, string>>
+  /** Front matter fields to exclude from artifact emission */
+  readonly excludedFrontMatterFields?: readonly string[]
+  /** Additional fields injected into emitted artifact */
+  readonly extraFields?: Readonly<Record<string, unknown>>
+  /** Preferred root-level field order for emitted artifact */
+  readonly fieldOrder?: readonly string[]
   /** Optional frontmatter transformer */
   readonly transformFrontMatter?: (subAgent: SubAgentPrompt, context: {
     readonly sourceFrontMatter?: Record<string, unknown>
@@ -222,6 +244,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       readonly isRecompiled: boolean
     }) => Record<string, unknown>
     readonly sourceScopes: readonly OutputDeclarationScope[]
+    readonly scopeRemap?: Partial<Record<OutputDeclarationScope, OutputDeclarationScope>>
   }
 
   protected readonly subAgentsConfig: {
@@ -230,6 +253,14 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     readonly includePrefix: boolean
     readonly linkSymbol: string
     readonly ext: string
+    readonly artifactFormat: SubAgentArtifactFormat
+    readonly bodyFieldName?: string
+    readonly fileNameSource: SubAgentFileNameSource
+    readonly fieldNameMap?: Readonly<Record<string, string>>
+    readonly excludedFrontMatterFields?: readonly string[]
+    readonly extraFields?: Readonly<Record<string, unknown>>
+    readonly fieldOrder?: readonly string[]
+    readonly scopeRemap?: Partial<Record<OutputDeclarationScope, OutputDeclarationScope>>
     readonly transformFrontMatter?: (subAgent: SubAgentPrompt, context: {
       readonly sourceFrontMatter?: Record<string, unknown>
     }) => Record<string, unknown>
@@ -242,6 +273,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   protected readonly skillsConfig: {
     readonly subDir: string
     readonly sourceScopes: readonly OutputDeclarationScope[]
+    readonly scopeRemap?: Partial<Record<OutputDeclarationScope, OutputDeclarationScope>>
   }
 
   protected readonly skillOutputEnabled: boolean
@@ -266,27 +298,12 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     this.treatWorkspaceRootProjectAsProject = options?.treatWorkspaceRootProjectAsProject ?? false
     this.indexignore = options?.indexignore
 
-    const commandFrontMatterTransformer = options?.commands?.transformFrontMatter
     this.commandOutputEnabled = options?.commands != null
-    this.commandsConfig = {
-      subDir: options?.commands?.subDir ?? 'commands',
-      sourceScopes: options?.commands?.sourceScopes ?? ['project', 'global'],
-      ...commandFrontMatterTransformer != null && {transformFrontMatter: commandFrontMatterTransformer}
-    } // Initialize command output config with defaults
+    this.commandsConfig = this.createCommandsConfig(options?.commands)
     this.subAgentOutputEnabled = options?.subagents != null
-    this.subAgentsConfig = {
-      subDir: options?.subagents?.subDir ?? 'agents',
-      sourceScopes: options?.subagents?.sourceScopes ?? ['project', 'global'],
-      includePrefix: options?.subagents?.includePrefix ?? true,
-      linkSymbol: options?.subagents?.linkSymbol ?? '-',
-      ext: options?.subagents?.ext ?? '.md',
-      ...options?.subagents?.transformFrontMatter != null && {transformFrontMatter: options.subagents.transformFrontMatter}
-    } // Initialize subAgent output config with defaults
+    this.subAgentsConfig = this.createSubAgentsConfig(options?.subagents)
     this.skillOutputEnabled = options?.skills != null
-    this.skillsConfig = {
-      subDir: options?.skills?.subDir ?? 'skills',
-      sourceScopes: options?.skills?.sourceScopes ?? ['project', 'global']
-    }
+    this.skillsConfig = this.createSkillsConfig(options?.skills)
     this.toolPreset = options?.toolPreset
 
     this.ruleOutputEnabled = options?.rules != null
@@ -300,6 +317,48 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     this.outputCapabilities = options?.capabilities != null
       ? this.normalizeCapabilities(options.capabilities)
       : this.buildInferredCapabilities()
+  }
+
+  private createCommandsConfig(
+    config?: CommandOutputConfig
+  ): AbstractOutputPlugin['commandsConfig'] {
+    return {
+      subDir: config?.subDir ?? 'commands',
+      sourceScopes: config?.sourceScopes ?? ['project', 'global'],
+      ...config?.scopeRemap != null && {scopeRemap: config.scopeRemap},
+      ...config?.transformFrontMatter != null && {transformFrontMatter: config.transformFrontMatter}
+    }
+  }
+
+  private createSubAgentsConfig(
+    config?: SubAgentsOutputConfig
+  ): AbstractOutputPlugin['subAgentsConfig'] {
+    return {
+      subDir: config?.subDir ?? 'agents',
+      sourceScopes: config?.sourceScopes ?? ['project', 'global'],
+      includePrefix: config?.includePrefix ?? true,
+      linkSymbol: config?.linkSymbol ?? '-',
+      ext: config?.ext ?? '.md',
+      artifactFormat: config?.artifactFormat ?? 'markdown',
+      fileNameSource: config?.fileNameSource ?? 'derivedPath',
+      ...config?.bodyFieldName != null && {bodyFieldName: config.bodyFieldName},
+      ...config?.fieldNameMap != null && {fieldNameMap: config.fieldNameMap},
+      ...config?.excludedFrontMatterFields != null && {excludedFrontMatterFields: config.excludedFrontMatterFields},
+      ...config?.extraFields != null && {extraFields: config.extraFields},
+      ...config?.fieldOrder != null && {fieldOrder: config.fieldOrder},
+      ...config?.scopeRemap != null && {scopeRemap: config.scopeRemap},
+      ...config?.transformFrontMatter != null && {transformFrontMatter: config.transformFrontMatter}
+    }
+  }
+
+  private createSkillsConfig(
+    config?: SkillsOutputConfig
+  ): AbstractOutputPlugin['skillsConfig'] {
+    return {
+      subDir: config?.subDir ?? 'skills',
+      sourceScopes: config?.sourceScopes ?? ['project', 'global'],
+      ...config?.scopeRemap != null && {scopeRemap: config.scopeRemap}
+    }
   }
 
   private buildInferredCapabilities(): OutputPluginCapabilities {
@@ -601,6 +660,10 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return content // No front matter
   }
 
+  protected buildTomlContent(options: BuildPromptTomlArtifactOptions): string {
+    return buildPromptTomlArtifact(options)
+  }
+
   protected extractGlobalMemoryContent(ctx: OutputWriteContext): string | undefined {
     return ctx.collectedOutputContext.globalMemory?.content as string | undefined
   }
@@ -640,14 +703,156 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     subAgent: SubAgentPrompt,
     options?: SubAgentNameTransformOptions
   ): string {
+    const {fileNameSource} = this.subAgentsConfig
     const includePrefix = options?.includePrefix ?? this.subAgentsConfig.includePrefix
     const linkSymbol = options?.linkSymbol ?? this.subAgentsConfig.linkSymbol
     const ext = options?.ext ?? this.subAgentsConfig.ext
     const normalizedExt = ext.startsWith('.') ? ext : `.${ext}`
-    const hasPrefix = includePrefix && subAgent.agentPrefix != null && subAgent.agentPrefix.length > 0
+    if (fileNameSource === 'frontMatterName') {
+      const configuredName = subAgent.yamlFrontMatter?.name
+      if (configuredName == null || configuredName.trim().length === 0) {
+        throw new Error(`Sub-agent "${subAgent.agentName}" is missing yamlFrontMatter.name required for fileNameSource="frontMatterName"`)
+      }
 
+      return `${this.normalizeOutputFileStem(configuredName)}${normalizedExt}`
+    }
+
+    const hasPrefix = includePrefix && subAgent.agentPrefix != null && subAgent.agentPrefix.length > 0
     if (!hasPrefix) return `${subAgent.agentName}${normalizedExt}`
     return `${subAgent.agentPrefix}${linkSymbol}${subAgent.agentName}${normalizedExt}`
+  }
+
+  protected normalizeOutputFileStem(value: string): string {
+    const sanitizedCharacters = [...value.trim()].map(character => {
+      const codePoint = character.codePointAt(0) ?? 0
+      if (codePoint <= 31 || '<>:"/\\|?*'.includes(character)) return '-'
+      return character
+    })
+    let normalized = sanitizedCharacters.join('')
+
+    while (normalized.endsWith('.') || normalized.endsWith(' ')) normalized = normalized.slice(0, -1)
+
+    if (normalized.length === 0) throw new Error(`Cannot derive a valid output file name from "${value}"`)
+
+    return normalized
+  }
+
+  protected appendSubAgentDeclarations(
+    declarations: OutputFileDeclaration[],
+    basePath: string,
+    scope: OutputDeclarationScope,
+    scopedSubAgents: readonly SubAgentPrompt[]
+  ): void {
+    const seenPaths = new Map<string, string>()
+
+    for (const subAgent of scopedSubAgents) {
+      const fileName = this.transformSubAgentName(subAgent)
+      const targetPath = path.join(basePath, this.subAgentsConfig.subDir, fileName)
+      const existingAgentName = seenPaths.get(targetPath)
+
+      if (existingAgentName != null) {
+        throw new Error(
+          `Sub-agent output collision in ${this.name}: "${subAgent.yamlFrontMatter?.name ?? subAgent.agentName}" and "${existingAgentName}" both resolve to ${targetPath}`
+        )
+      }
+
+      seenPaths.set(targetPath, subAgent.yamlFrontMatter?.name ?? subAgent.agentName)
+      declarations.push({
+        path: targetPath,
+        scope,
+        source: {kind: 'subAgent', subAgent}
+      })
+    }
+  }
+
+  protected appendCommandDeclarations(
+    declarations: OutputFileDeclaration[],
+    basePath: string,
+    scope: OutputDeclarationScope,
+    commands: readonly CommandPrompt[],
+    transformOptions: CommandNameTransformOptions
+  ): void {
+    for (const cmd of commands) {
+      const fileName = this.transformCommandName(cmd, transformOptions)
+      declarations.push({
+        path: path.join(basePath, this.commandsConfig.subDir, fileName),
+        scope,
+        source: {kind: 'command', command: cmd}
+      })
+    }
+  }
+
+  protected appendSkillDeclarations(
+    declarations: OutputFileDeclaration[],
+    basePath: string,
+    scope: OutputDeclarationScope,
+    scopedSkills: readonly SkillPrompt[]
+  ): void {
+    for (const skill of scopedSkills) {
+      const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+      const skillDir = path.join(basePath, this.skillsConfig.subDir, skillName)
+
+      declarations.push({
+        path: path.join(skillDir, 'SKILL.md'),
+        scope,
+        source: {kind: 'skillMain', skill}
+      })
+
+      if (skill.childDocs != null) {
+        for (const childDoc of skill.childDocs) {
+          declarations.push({
+            path: path.join(skillDir, childDoc.dir.path.replace(/\.mdx$/, '.md')),
+            scope,
+            source: {kind: 'skillReference', content: childDoc.content as string}
+          })
+        }
+      }
+
+      if (skill.resources != null) {
+        for (const resource of skill.resources) {
+          declarations.push({
+            path: path.join(skillDir, resource.relativePath),
+            scope,
+            source: {kind: 'skillResource', content: resource.content, encoding: resource.encoding}
+          })
+        }
+      }
+    }
+  }
+
+  protected appendRuleDeclarations(
+    declarations: OutputFileDeclaration[],
+    basePath: string,
+    scope: OutputDeclarationScope,
+    rules: readonly RulePrompt[]
+  ): void {
+    const rulesDir = path.join(basePath, this.rulesConfig.subDir ?? 'rules')
+
+    for (const rule of rules) {
+      declarations.push({
+        path: path.join(rulesDir, this.buildRuleFileName(rule)),
+        scope,
+        source: {kind: 'rule', rule}
+      })
+    }
+  }
+
+  protected buildSubAgentTomlContent(
+    agent: SubAgentPrompt,
+    frontMatter: Record<string, unknown> | undefined
+  ): string {
+    const {bodyFieldName} = this.subAgentsConfig
+    if (bodyFieldName == null || bodyFieldName.length === 0) throw new Error(`subagents.bodyFieldName is required when artifactFormat="toml" for ${this.name}`)
+
+    return this.buildTomlContent({
+      content: agent.content,
+      bodyFieldName,
+      ...frontMatter != null && {frontMatter},
+      ...this.subAgentsConfig.fieldNameMap != null && {fieldNameMap: this.subAgentsConfig.fieldNameMap},
+      ...this.subAgentsConfig.excludedFrontMatterFields != null && {excludedKeys: this.subAgentsConfig.excludedFrontMatterFields},
+      ...this.subAgentsConfig.extraFields != null && {extraFields: this.subAgentsConfig.extraFields},
+      ...this.subAgentsConfig.fieldOrder != null && {fieldOrder: this.subAgentsConfig.fieldOrder}
+    })
   }
 
   protected getCommandSeriesOptions(ctx: OutputWriteContext): CommandSeriesPluginOverride {
@@ -721,20 +926,27 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return 'project'
   }
 
+  protected remapDeclarationScope(
+    scope: OutputDeclarationScope,
+    remap?: Partial<Record<OutputDeclarationScope, OutputDeclarationScope>>
+  ): OutputDeclarationScope {
+    return remap?.[scope] ?? scope
+  }
+
   protected resolveCommandSourceScope(cmd: CommandPrompt): OutputDeclarationScope {
     if (cmd.globalOnly === true) return 'global'
     const scope = (cmd.yamlFrontMatter as {scope?: RuleScope} | undefined)?.scope
-    return this.normalizeSourceScope(scope)
+    return this.remapDeclarationScope(this.normalizeSourceScope(scope), this.commandsConfig.scopeRemap)
   }
 
   protected resolveSubAgentSourceScope(subAgent: SubAgentPrompt): OutputDeclarationScope {
     const scope = (subAgent.yamlFrontMatter as {scope?: RuleScope} | undefined)?.scope
-    return this.normalizeSourceScope(scope)
+    return this.remapDeclarationScope(this.normalizeSourceScope(scope), this.subAgentsConfig.scopeRemap)
   }
 
   protected resolveSkillSourceScope(skill: SkillPrompt): OutputDeclarationScope {
     const scope = (skill.yamlFrontMatter as {scope?: RuleScope} | undefined)?.scope
-    return this.normalizeSourceScope(scope)
+    return this.remapDeclarationScope(this.normalizeSourceScope(scope), this.skillsConfig.scopeRemap)
   }
 
   protected selectSingleScopeItems<T>(
@@ -952,43 +1164,6 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       rulesByScope[ruleScope].push(rule)
     }
 
-    const pushSkillDeclarations = (
-      basePath: string,
-      scope: OutputDeclarationScope,
-      scopedSkills: readonly SkillPrompt[]
-    ): void => {
-      for (const skill of scopedSkills) {
-        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
-        const skillDir = path.join(basePath, this.skillsConfig.subDir, skillName)
-
-        declarations.push({
-          path: path.join(skillDir, 'SKILL.md'),
-          scope,
-          source: {kind: 'skillMain', skill}
-        })
-
-        if (skill.childDocs != null) {
-          for (const childDoc of skill.childDocs) {
-            declarations.push({
-              path: path.join(skillDir, childDoc.dir.path.replace(/\.mdx$/, '.md')),
-              scope,
-              source: {kind: 'skillReference', content: childDoc.content as string}
-            })
-          }
-        }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            declarations.push({
-              path: path.join(skillDir, resource.relativePath),
-              scope,
-              source: {kind: 'skillResource', content: resource.content, encoding: resource.encoding}
-            })
-          }
-        }
-      }
-    }
-
     for (const project of this.getProjectOutputProjects(ctx)) {
       const projectRootDir = this.resolveProjectRootDir(ctx, project)
       const basePath = this.resolveProjectConfigDir(ctx, project)
@@ -1022,31 +1197,17 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
 
       if (selectedCommands.selectedScope === 'project' && selectedCommands.items.length > 0) {
         const filteredCommands = filterByProjectConfig(selectedCommands.items, projectConfig, 'commands')
-        for (const cmd of filteredCommands) {
-          const fileName = this.transformCommandName(cmd, transformOptions)
-          declarations.push({
-            path: path.join(basePath, this.commandsConfig.subDir, fileName),
-            scope: 'project',
-            source: {kind: 'command', command: cmd}
-          })
-        }
+        this.appendCommandDeclarations(declarations, basePath, 'project', filteredCommands, transformOptions)
       }
 
       if (selectedSubAgents.selectedScope === 'project' && selectedSubAgents.items.length > 0) {
         const filteredSubAgents = filterByProjectConfig(selectedSubAgents.items, projectConfig, 'subAgents')
-        for (const subAgent of filteredSubAgents) {
-          const fileName = this.transformSubAgentName(subAgent)
-          declarations.push({
-            path: path.join(basePath, this.subAgentsConfig.subDir, fileName),
-            scope: 'project',
-            source: {kind: 'subAgent', subAgent}
-          })
-        }
+        this.appendSubAgentDeclarations(declarations, basePath, 'project', filteredSubAgents)
       }
 
       if (selectedSkills.selectedScope === 'project' && selectedSkills.items.length > 0) {
         const filteredSkills = filterByProjectConfig(selectedSkills.items, projectConfig, 'skills')
-        pushSkillDeclarations(basePath, 'project', filteredSkills)
+        this.appendSkillDeclarations(declarations, basePath, 'project', filteredSkills)
       }
 
       if (activeRuleScopes.has('project')) {
@@ -1054,14 +1215,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
           filterByProjectConfig(rulesByScope.project, projectConfig, 'rules'),
           projectConfig
         )
-        const rulesDir = path.join(basePath, this.rulesConfig.subDir ?? 'rules')
-        for (const rule of projectRules) {
-          declarations.push({
-            path: path.join(rulesDir, this.buildRuleFileName(rule)),
-            scope: 'project',
-            source: {kind: 'rule', rule}
-          })
-        }
+        this.appendRuleDeclarations(declarations, basePath, 'project', projectRules)
       }
 
       if (
@@ -1084,33 +1238,19 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     if (selectedCommands.selectedScope === 'global' && selectedCommands.items.length > 0) {
       const filteredCommands = filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
       const basePath = this.getGlobalConfigDir()
-      for (const cmd of filteredCommands) {
-        const fileName = this.transformCommandName(cmd, transformOptions)
-        declarations.push({
-          path: path.join(basePath, this.commandsConfig.subDir, fileName),
-          scope: 'global',
-          source: {kind: 'command', command: cmd}
-        })
-      }
+      this.appendCommandDeclarations(declarations, basePath, 'global', filteredCommands, transformOptions)
     }
 
     if (selectedSubAgents.selectedScope === 'global' && selectedSubAgents.items.length > 0) {
       const filteredSubAgents = filterByProjectConfig(selectedSubAgents.items, promptSourceProjectConfig, 'subAgents')
       const basePath = this.getGlobalConfigDir()
-      for (const subAgent of filteredSubAgents) {
-        const fileName = this.transformSubAgentName(subAgent)
-        declarations.push({
-          path: path.join(basePath, this.subAgentsConfig.subDir, fileName),
-          scope: 'global',
-          source: {kind: 'subAgent', subAgent}
-        })
-      }
+      this.appendSubAgentDeclarations(declarations, basePath, 'global', filteredSubAgents)
     }
 
     if (selectedSkills.selectedScope === 'global' && selectedSkills.items.length > 0) {
       const filteredSkills = filterByProjectConfig(selectedSkills.items, promptSourceProjectConfig, 'skills')
       const basePath = this.getGlobalConfigDir()
-      pushSkillDeclarations(basePath, 'global', filteredSkills)
+      this.appendSkillDeclarations(declarations, basePath, 'global', filteredSkills)
     }
 
     for (const ruleScope of ['global'] as const) {
@@ -1120,14 +1260,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
         filterByProjectConfig(rulesByScope[ruleScope], promptSourceProjectConfig, 'rules'),
         promptSourceProjectConfig
       )
-      const rulesDir = path.join(basePath, this.rulesConfig.subDir ?? 'rules')
-      for (const rule of filteredRules) {
-        declarations.push({
-          path: path.join(rulesDir, this.buildRuleFileName(rule)),
-          scope: ruleScope,
-          source: {kind: 'rule', rule}
-        })
-      }
+      this.appendRuleDeclarations(declarations, basePath, ruleScope, filteredRules)
     }
 
     if (
@@ -1183,12 +1316,16 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
 
   protected buildSubAgentContent(agent: SubAgentPrompt, ctx?: OutputPluginContext): string {
     const subAgentFrontMatterTransformer = this.subAgentsConfig.transformFrontMatter
-    if (subAgentFrontMatterTransformer != null) {
-      const transformedFrontMatter = subAgentFrontMatterTransformer(agent, {
-        ...agent.yamlFrontMatter != null && {sourceFrontMatter: agent.yamlFrontMatter as Record<string, unknown>}
-      })
-      return this.buildMarkdownContent(agent.content, transformedFrontMatter, ctx)
+    const transformedFrontMatter = subAgentFrontMatterTransformer?.(agent, {
+      ...agent.yamlFrontMatter != null && {sourceFrontMatter: agent.yamlFrontMatter as Record<string, unknown>}
+    })
+
+    if (this.subAgentsConfig.artifactFormat === 'toml') {
+      const sourceFrontMatter = transformedFrontMatter ?? agent.yamlFrontMatter
+      return this.buildSubAgentTomlContent(agent, sourceFrontMatter)
     }
+
+    if (transformedFrontMatter != null) return this.buildMarkdownContent(agent.content, transformedFrontMatter, ctx)
 
     return this.buildMarkdownContentWithRaw(
       agent.content,

@@ -43,8 +43,7 @@ function loadBindingFromCliBinaryPackage(
     if (isNapiMdCompilerModule(binding)) return binding
   }
   catch {
-    // Fall through to the package-directory probe below.
-  }
+  } // Fall through to the package-directory probe below.
 
   try {
     const packageJsonPath = requireFn.resolve(`${packageName}/package.json`)

@@ -128,6 +128,22 @@ async function collectPluginCleanupDeclarations(
   return plugin.declareCleanupPaths({...cleanCtx, dryRun: true})
 }
 
+async function collectPluginCleanupSnapshot(
+  plugin: OutputPlugin,
+  cleanCtx: OutputCleanContext
+): Promise<{
+  readonly plugin: OutputPlugin
+  readonly outputs: Awaited<ReturnType<OutputPlugin['declareOutputFiles']>>
+  readonly cleanup: OutputCleanupDeclarations
+}> {
+  const [outputs, cleanup] = await Promise.all([
+    plugin.declareOutputFiles({...cleanCtx, dryRun: true}),
+    collectPluginCleanupDeclarations(plugin, cleanCtx)
+  ])
+
+  return {plugin, outputs, cleanup}
+}
+
 function compactDeletionTargets(
   filesByKey: Map<string, string>,
   dirsByKey: Map<string, string>
@@ -256,10 +272,7 @@ export async function collectDeletionTargets(
   const excludeScanGlobSet = new Set<string>(DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS)
   const outputPathOwners = new Map<string, string[]>()
 
-  const pluginSnapshots: {
-    readonly plugin: OutputPlugin
-    readonly cleanup: OutputCleanupDeclarations
-  }[] = []
+  const pluginSnapshots = await Promise.all(outputPlugins.map(async plugin => collectPluginCleanupSnapshot(plugin, cleanCtx)))
 
   const addDeletePath = (rawPath: string, kind: 'file' | 'directory'): void => {
     if (kind === 'directory') deleteDirs.add(resolveAbsolutePath(rawPath))
@@ -307,19 +320,15 @@ export async function collectDeletionTargets(
     )
   }
 
-  for (const plugin of outputPlugins) {
-    const declarations = await plugin.declareOutputFiles({...cleanCtx, dryRun: true})
-    for (const declaration of declarations) {
+  for (const snapshot of pluginSnapshots) {
+    for (const declaration of snapshot.outputs) {
       const resolvedOutputPath = resolveAbsolutePath(declaration.path)
       addDeletePath(resolvedOutputPath, 'file')
       const existingOwners = outputPathOwners.get(resolvedOutputPath)
-      if (existingOwners == null) outputPathOwners.set(resolvedOutputPath, [plugin.name])
-      else if (!existingOwners.includes(plugin.name)) existingOwners.push(plugin.name)
+      if (existingOwners == null) outputPathOwners.set(resolvedOutputPath, [snapshot.plugin.name])
+      else if (!existingOwners.includes(snapshot.plugin.name)) existingOwners.push(snapshot.plugin.name)
     }
-
-    const cleanupDeclarations = await collectPluginCleanupDeclarations(plugin, cleanCtx)
-    for (const ignoreGlob of cleanupDeclarations.excludeScanGlobs ?? []) excludeScanGlobSet.add(normalizeGlobPattern(ignoreGlob))
-    pluginSnapshots.push({plugin, cleanup: cleanupDeclarations})
+    for (const ignoreGlob of snapshot.cleanup.excludeScanGlobs ?? []) excludeScanGlobSet.add(normalizeGlobPattern(ignoreGlob))
   }
 
   const excludeScanGlobs = [...excludeScanGlobSet]
@@ -404,9 +413,9 @@ export async function collectDeletionTargets(
  * Logs warnings for failed deletions and continues with remaining files.
  * Uses deletePathSync from @truenine/desk-paths for cross-platform safe deletion.
  */
-export function deleteFiles(files: string[], logger: ILogger): {deleted: number, errors: CleanupError[]} {
+export async function deleteFiles(files: string[], logger: ILogger): Promise<{deleted: number, errors: CleanupError[]}> {
   const resolved = files.map(f => path.isAbsolute(f) ? f : path.resolve(f))
-  const result = deskDeleteFiles(resolved)
+  const result = await deskDeleteFiles(resolved)
 
   for (const f of resolved) {
     if (!result.errors.some(e => e.path === f)) logger.debug({action: 'delete', type: 'file', path: f})
@@ -435,9 +444,9 @@ export function deleteFiles(files: string[], logger: ILogger): {deleted: number,
  * Sorts by length descending to handle nested dirs properly.
  * Logs warnings for failed deletions and continues with remaining directories.
  */
-export function deleteDirectories(dirs: string[], logger: ILogger): {deleted: number, errors: CleanupError[]} {
+export async function deleteDirectories(dirs: string[], logger: ILogger): Promise<{deleted: number, errors: CleanupError[]}> {
   const resolved = dirs.map(d => path.isAbsolute(d) ? d : path.resolve(d))
-  const result = deskDeleteDirectories(resolved)
+  const result = await deskDeleteDirectories(resolved)
 
   for (const d of resolved) {
     if (!result.errors.some(e => e.path === d)) logger.debug({action: 'delete', type: 'directory', path: d})
@@ -531,8 +540,10 @@ export async function performCleanup(
     }
   }
 
-  const fileResult = deleteFiles(cleanupTargets.filesToDelete, logger)
-  const dirResult = deleteDirectories(cleanupTargets.dirsToDelete, logger)
+  const [fileResult, dirResult] = await Promise.all([
+    deleteFiles(cleanupTargets.filesToDelete, logger),
+    deleteDirectories(cleanupTargets.dirsToDelete, logger)
+  ])
 
   return {
     deletedFiles: fileResult.deleted,

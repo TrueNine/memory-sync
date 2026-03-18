@@ -111,8 +111,7 @@ function loadBindingFromCliBinaryPackage(
     if (isNapiLoggerModule(loggerModule)) return loggerModule
   }
   catch {
-    // Fall through to the package-directory probe below.
-  }
+  } // Fall through to the package-directory probe below.
 
   const packageJsonPath = runtimeRequire.resolve(`${packageName}/package.json`)
   const packageDir = dirname(packageJsonPath)

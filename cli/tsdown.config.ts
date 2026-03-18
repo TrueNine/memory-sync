@@ -70,7 +70,7 @@ export default defineConfig([
       ...pluginAliases
     },
     noExternal: noExternalDeps,
-    format: ['esm', 'cjs'],
+    format: ['esm'],
     minify: true,
     dts: {sourcemap: false},
     outputOptions: {exports: 'named'},
@@ -128,7 +128,7 @@ export default defineConfig([
       '@': resolve('src'),
       ...pluginAliases
     },
-    format: ['esm', 'cjs'],
+    format: ['esm'],
     minify: false,
     dts: {sourcemap: false}
   }
