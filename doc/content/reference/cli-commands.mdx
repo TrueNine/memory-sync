@@ -1,0 +1,58 @@
+---
+title: CLI 命令
+description: 基于当前 tnmsc --help 输出整理的命令与行为说明。
+sidebarTitle: CLI 命令
+status: stable
+---
+
+# CLI 命令
+
+当前 `tnmsc --help` 暴露的命令是：
+
+| 命令 | 说明 |
+| --- | --- |
+| `tnmsc` | 执行默认同步管线 |
+| `tnmsc help` | 查看帮助 |
+| `tnmsc version` | 查看版本 |
+| `tnmsc init` | 已废弃，不再初始化 aindex |
+| `tnmsc dry-run` | 预览会写出的文件 |
+| `tnmsc clean` | 删除已生成的输出文件 |
+| `tnmsc clean --dry-run` | 预览会清理什么 |
+| `tnmsc config key=value` | 修改全局配置 |
+
+## 关键结论
+
+### `init` 已经不应该出现在新流程里
+
+当前实现明确把它视为 deprecated，因此新文档不会再把它写成推荐入口。
+
+### `config` 只能改一组白名单键
+
+当前 `ConfigCommand` 允许的键包括：
+
+- `workspaceDir`
+- `aindex.skills.src/dist`
+- `aindex.commands.src/dist`
+- `aindex.subAgents.src/dist`
+- `aindex.rules.src/dist`
+- `aindex.globalPrompt.src/dist`
+- `aindex.workspacePrompt.src/dist`
+- `aindex.app.src/dist`
+- `aindex.ext.src/dist`
+- `aindex.arch.src/dist`
+- `logLevel`
+
+### `logLevel` 也有严格枚举
+
+只能是：
+
+```text
+trace / debug / info / warn / error
+```
+
+## 推荐操作习惯
+
+1. 新环境先 `tnmsc help`
+2. 写出前先 `tnmsc dry-run`
+3. 清理前先 `tnmsc clean --dry-run`
+4. 真要改全局配置时，用 `tnmsc config`，不要手写出一份和 Schema 漂移的 JSON

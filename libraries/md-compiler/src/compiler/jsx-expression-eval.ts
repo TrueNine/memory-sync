@@ -18,6 +18,8 @@ import {convertJsxToMarkdown} from './jsx-converter'
 type ProcessAstFn = (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>
 type JSXChild = JSXText | JSXExpressionContainer | JSXSpreadChild | JSXElement | JSXFragment
 
+const NUMBER_RESULT_PATTERN = /^-?\d+(?:\.\d+)?$/u
+
 function createExpressionOptions(
   ctx: ProcessingContext,
   node: MdxFlowExpression | MdxTextExpression
@@ -64,7 +66,7 @@ async function evaluateEstreeExpression(
   processAstFn: ProcessAstFn,
   ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<RootContent[]> {
-  if (expr.type === 'JSXElement') return processJsxElement(expr as unknown as JSXElement, ctx, processAstFn, ownerNode) // Handle JSX types first
+  if (expr.type === 'JSXElement') return processJsxElement(expr as unknown as JSXElement, ctx, processAstFn) // Handle JSX types first
   if (expr.type === 'JSXFragment') return processJsxFragment(expr as unknown as JSXFragment, ctx, processAstFn, ownerNode)
   if (expr.type === 'LogicalExpression') return evaluateLogicalExpression(expr, ctx, processAstFn, ownerNode)
   if (expr.type === 'ConditionalExpression') return evaluateConditionalExpression(expr, ctx, processAstFn, ownerNode)
@@ -228,7 +230,7 @@ async function evaluateToValue(
     if (result === 'false') return false
     if (result === 'null') return null
     if (result === 'undefined' || result === '') return void 0
-    if (/^-?\d+(?:\.\d+)?$/.test(result)) return Number(result)
+    if (NUMBER_RESULT_PATTERN.test(result)) return Number(result)
     return result
   }
   catch {
@@ -239,8 +241,7 @@ async function evaluateToValue(
 async function processJsxElement(
   jsxElement: JSXElement,
   ctx: ProcessingContext,
-  processAstFn: ProcessAstFn,
-  _ownerNode: MdxFlowExpression | MdxTextExpression
+  processAstFn: ProcessAstFn
 ): Promise<RootContent[]> {
   const mdxElement = convertEstreeJsxToMdx(jsxElement, ctx)
 
@@ -277,7 +278,7 @@ async function processJsxChild(
   processAstFn: ProcessAstFn,
   ownerNode: MdxFlowExpression | MdxTextExpression
 ): Promise<RootContent[]> {
-  if (child.type === 'JSXElement') return processJsxElement(child, ctx, processAstFn, ownerNode)
+  if (child.type === 'JSXElement') return processJsxElement(child, ctx, processAstFn)
   if (child.type === 'JSXFragment') return processJsxFragment(child, ctx, processAstFn, ownerNode)
   if (child.type === 'JSXText') {
     const text = child.value.trim()

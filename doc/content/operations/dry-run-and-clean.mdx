@@ -1,0 +1,52 @@
+---
+title: dry-run 与 clean
+description: 说明 dry-run 和 clean 在当前实现中的职责，以及为什么应该先预览再落盘或删除。
+sidebarTitle: dry-run 与 clean
+status: stable
+---
+
+# `dry-run` 与 `clean`
+
+## `dry-run`
+
+`dry-run` 的职责是让所有输出插件声明目标产物，但不真的写文件。
+
+这一步应该在：
+
+- 第一次接入某个项目
+- 新增或重构输出插件
+- 修改 `outputScopes`
+- 调整大批源文件目录结构
+
+之后作为必做项。
+
+## `clean`
+
+`clean` 会基于输出插件声明与清理保护规则，删除已生成的产物。
+
+它适合：
+
+- 需要彻底重算输出
+- 清理旧规则残留
+- 从某个目标工具撤退
+
+## 推荐组合
+
+```sh
+tnmsc dry-run
+tnmsc
+tnmsc clean --dry-run
+tnmsc clean
+```
+
+这里的节奏不是繁琐，而是降低误写与误删成本。
+
+## 什么时候不要直接 `clean`
+
+如果你还没确认：
+
+- 当前插件列表
+- 输出范围
+- 清理保护规则
+
+那就不要直接 `clean`。先做 dry-run。

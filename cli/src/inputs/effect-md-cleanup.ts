@@ -156,7 +156,8 @@ export class MarkdownWhitespaceCleanupEffectInputCapability extends AbstractInpu
     return '\n'
   }
 
-  collect(_ctx: InputCapabilityContext): Partial<InputCollectedContext> {
+  collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
+    void ctx
     return {}
   }
 }

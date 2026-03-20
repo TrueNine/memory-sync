@@ -37,7 +37,12 @@ describe('component-registry property tests', () => {
         _element: MdxJsxFlowElement | MdxJsxTextElement,
         _ctx: ProcessingContext,
         _processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>
-      ): Promise<RootContent[]> => []
+      ): Promise<RootContent[]> => {
+        void _element
+        void _ctx
+        void _processChildren
+        return []
+      }
     }
 
     it('should report hasComponent as true after registerComponent for any valid name', () => {

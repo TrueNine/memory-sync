@@ -18,6 +18,7 @@ const config = eslint10({
   ignores: [
     '.turbo/**',
     '.next/**',
+    'public/_pagefind/**',
     'next-env.d.ts',
     '*.md',
     '**/*.md',

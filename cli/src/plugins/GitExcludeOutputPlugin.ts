@@ -47,8 +47,9 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
 
   override async convertContent(
     declaration: OutputFileDeclaration,
-    _ctx: OutputWriteContext
+    ctx: OutputWriteContext
   ): Promise<string> {
+    void ctx
     const source = declaration.source as {content?: string}
     if (source.content == null) throw new Error(`Unsupported declaration source for ${this.name}`)
     return source.content

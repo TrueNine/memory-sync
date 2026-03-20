@@ -1,4 +1,5 @@
 import type {BuildPromptTomlArtifactOptions} from '@truenine/md-compiler'
+import type {ToolPresetName} from './GlobalScopeCollector'
 import type {RegistryWriter} from './RegistryWriter'
 import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputCleanupScope, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, Path, Project, ProjectConfig, RegistryData, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt} from './types'
 
@@ -186,7 +187,7 @@ export interface AbstractOutputPluginOptions {
   /** Skills output configuration (declarative) */
   skills?: SkillsOutputConfig
 
-  toolPreset?: string
+  toolPreset?: ToolPresetName
 
   /** Rule output configuration (declarative) */
   rules?: RuleOutputConfig
@@ -278,7 +279,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
 
   protected readonly skillOutputEnabled: boolean
 
-  protected readonly toolPreset: string | undefined
+  protected readonly toolPreset: ToolPresetName | undefined
 
   /** Rule output configuration */
   protected readonly rulesConfig: RuleOutputConfig
@@ -512,8 +513,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   protected createRelativePath(
     pathStr: string,
     basePath: string,
-    _dirNameFn: () => string
+    dirNameFn: () => string
   ): string {
+    void dirNameFn
     return path.join(basePath, pathStr)
   }
 
@@ -723,7 +725,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   }
 
   protected normalizeOutputFileStem(value: string): string {
-    const sanitizedCharacters = [...value.trim()].map(character => {
+    const sanitizedCharacters = Array.from(value.trim(), character => {
       const codePoint = character.codePointAt(0) ?? 0
       if (codePoint <= 31 || '<>:"/\\|?*'.includes(character)) return '-'
       return character
@@ -1289,8 +1291,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
         toolPreset: this.toolPreset,
         hasRawContent: true
       })
-      // eslint-disable-next-line ts/no-unsafe-assignment
-      const scopeCollector = new GlobalScopeCollector({toolPreset: this.toolPreset as any})
+      const scopeCollector = new GlobalScopeCollector({toolPreset: this.toolPreset})
       const globalScope = scopeCollector.collect()
       const result = await mdxToMd(cmd.rawMdxContent, {
         globalScope,

@@ -12,7 +12,8 @@ export class DryRunCommandFactory implements CommandFactory {
     return args.subcommand === 'dry-run'
   }
 
-  createCommand(_args: ParsedCliArgs): Command {
+  createCommand(args: ParsedCliArgs): Command {
+    void args
     return new DryRunOutputCommand()
   }
 }

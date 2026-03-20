@@ -12,7 +12,8 @@ export class PluginsCommandFactory implements CommandFactory {
     return args.subcommand === 'plugins'
   }
 
-  createCommand(_args: ParsedCliArgs): Command {
+  createCommand(args: ParsedCliArgs): Command {
+    void args
     return new PluginsCommand()
   }
 }

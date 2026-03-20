@@ -45,6 +45,7 @@ export interface FormatCompilerDiagnosticOptions {
 }
 
 const MAX_SNIPPET_LENGTH = 240
+const LINE_SPLIT_PATTERN = /\r?\n/u
 
 export function createCompilerDiagnostic(context: CompilerDiagnosticContext = {}): CompilerDiagnostic {
   const {filePath, position, sourceText, expression, exportName, nodeType, phase, hint, cause} = context
@@ -85,7 +86,7 @@ export function createCompilerDiagnostic(context: CompilerDiagnosticContext = {}
 }
 
 function getSourceLine(sourceText: string, lineNumber: number): string | undefined {
-  const lines = sourceText.split(/\r?\n/u)
+  const lines = sourceText.split(LINE_SPLIT_PATTERN)
   return lines[lineNumber - 1]
 }
 

@@ -2,25 +2,38 @@
   "name": "@truenine/memory-sync-docs",
   "version": "2026.10319.10359",
   "private": true,
-  "description": "Documentation site for @truenine/memory-sync, built with Next.js 16 and MDX.",
+  "description": "Chinese-first manifesto-led documentation site for @truenine/memory-sync.",
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22"
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm run validate:content && next build --webpack",
+    "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind",
+    "check": "run-p lint typecheck",
+    "validate:content": "tsx scripts/validate-content.ts",
+    "typecheck": "tsc --noEmit",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "pnpm run validate:content && eslint ."
+  },
+  "dependencies": {
+    "next": "catalog:",
+    "nextra": "catalog:",
+    "nextra-theme-docs": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@mdx-js/react": "catalog:",
-    "@next/mdx": "catalog:",
     "@truenine/eslint10-config": "catalog:",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "eslint": "catalog:",
-    "next": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:"
+    "fast-glob": "catalog:",
+    "npm-run-all2": "catalog:",
+    "pagefind": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "yaml": "catalog:"
   }
 }

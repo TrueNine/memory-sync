@@ -1,0 +1,24 @@
+---
+title: 内容编写
+description: 说明 prompt、skills、commands、sub-agents 与 rules 的源文件职责。
+sidebarTitle: 概览
+status: stable
+---
+
+# 内容编写
+
+这里讲的是“你应该维护哪些源文件”，不是“输出后长什么样”。
+
+## 当前作者面要点
+
+- 全局 Prompt 与工作区 Prompt 是两块不同作用域的记忆源。
+- skills、commands、sub-agents、rules 都是独立的输入集合。
+- 这些输入最后会由不同输出插件选择性写入不同目标工具。
+
+继续阅读：
+
+- [全局与工作区 Prompt](/docs/authoring/global-and-workspace-prompts)
+- [Skills](/docs/authoring/skills)
+- [Commands](/docs/authoring/commands)
+- [Sub-agents](/docs/authoring/subagents)
+- [Rules](/docs/authoring/rules)

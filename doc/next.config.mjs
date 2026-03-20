@@ -1,14 +1,14 @@
-import createMDX from '@next/mdx'
+import nextra from 'nextra'
+
+const withNextra = nextra({
+  search: {
+    codeblocks: false
+  },
+  contentDirBasePath: '/docs'
+})
 
 /** @type {import('next').NextConfig} */
-const baseConfig = {
+export default withNextra({
   reactStrictMode: true,
-  experimental: {
-    mdxRs: true
-  },
   pageExtensions: ['tsx', 'ts', 'mdx']
-}
-
-const withMDX = createMDX({})
-
-export default withMDX(baseConfig)
+})

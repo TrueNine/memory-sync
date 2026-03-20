@@ -16,6 +16,7 @@ export class UnknownCommandFactory implements PrioritizedCommandFactory {
   }
 
   createCommand(args: ParsedCliArgs): Command {
-    return new UnknownCommand(args.unknownCommand!)
+    if (args.unknownCommand == null) return new UnknownCommand('')
+    return new UnknownCommand(args.unknownCommand)
   }
 }

@@ -1,13 +1,12 @@
-import {Callout} from './app/components/Callout'
-import {Step, Steps} from './app/components/Steps'
+import {useMDXComponents as getDocsMDXComponents} from 'nextra-theme-docs'
 
-type MDXComponents = Record<string, any>
+const docsComponents = getDocsMDXComponents()
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
+type MDXComponents = Record<string, unknown>
+
+export function useMDXComponents(components: MDXComponents = {}): MDXComponents {
   return {
-    Callout,
-    Steps,
-    Step,
+    ...docsComponents,
     ...components
   }
 }

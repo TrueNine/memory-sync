@@ -278,7 +278,8 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     }
   }
 
-  collect(_ctx: InputCapabilityContext): Partial<InputCollectedContext> {
+  collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
+    void ctx
     return {}
   }
 }

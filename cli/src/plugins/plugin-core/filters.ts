@@ -29,7 +29,8 @@ function resolveSubSeriesTS(
   const merged: Record<string, string[]> = {}
   for (const [key, values] of Object.entries(topLevel ?? {})) merged[key] = [...values]
   for (const [key, values] of Object.entries(typeSpecific ?? {})) {
-    merged[key] = Object.hasOwn(merged, key) ? [...new Set([...merged[key]!, ...values])] : [...values]
+    const existingValues = merged[key] ?? []
+    merged[key] = Object.hasOwn(merged, key) ? [...new Set([...existingValues, ...values])] : [...values]
   }
   return merged
 }

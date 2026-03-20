@@ -1,0 +1,30 @@
+---
+title: 升级说明
+description: 记录这次文档架构重建和依赖升级后的关键变化。
+sidebarTitle: 升级说明
+status: draft
+---
+
+# 升级说明
+
+## 文档站架构变化
+
+- 从旧的 Next.js + 平铺 MDX 壳，改为自定义首页 + Nextra 4 驱动的 `/docs/*` 内容系统。
+- 首页承接 manifesto 叙事，参考内容集中到 `/docs`。
+- 新增 `sitemap`、`robots`、manifest、OG/Twitter 图和自定义 404。
+
+## 内容治理变化
+
+- 所有文档页统一要求 YAML frontmatter。
+- 通过 `_meta.ts` 管理侧边栏顺序与目录声明。
+- 新增 `validate-content` 脚本，直接阻止孤儿页面、缺失 frontmatter 和失效内部链接。
+
+## 依赖层变化
+
+这次改造同时会伴随整仓依赖更新，包括：
+
+- Next.js / React / Nextra / Pagefind 侧更新
+- pnpm catalog 中共享前端与构建依赖更新
+- Cargo workspace 锁文件更新到可验证的最新稳定版本
+
+如果某次升级后行为和这里不一致，应优先相信命令输出与 Schema，再回头更新文档。

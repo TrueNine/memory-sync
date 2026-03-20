@@ -1,0 +1,39 @@
+---
+title: 支持的输出目标
+description: 按当前默认 plugin.config.ts 汇总 memory-sync 已接入的输出目标。
+sidebarTitle: 支持的输出目标
+status: stable
+---
+
+# 支持的输出目标
+
+当前默认插件配置说明，项目已经接入的输出目标至少包括：
+
+## AI / IDE / CLI 目标
+
+- AGENTS.md 风格输出
+- Claude Code CLI
+- OpenAI Codex CLI
+- Gemini CLI
+- Droid CLI
+- Opencode CLI
+- Cursor
+- Windsurf
+- Warp
+- Qoder
+- Trae
+- Trae CN
+- JetBrains AI Assistant Codex
+
+## 通用辅助输出
+
+- Generic Skills 导出
+- `.git/info/exclude`
+- `.editorconfig`
+- VS Code 配置
+- JetBrains code style 配置
+- README 类输出
+
+## 一件要特别记住的事
+
+README 里的“Supported Tools”表是面向用户的高层描述；真正影响默认同步行为的，是 `plugin.config.ts` 里装配了哪些插件。两者冲突时，以后者为准。

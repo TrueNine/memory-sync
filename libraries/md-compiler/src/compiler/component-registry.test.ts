@@ -26,7 +26,12 @@ describe('component-registry', () => {
       _element: MdxJsxFlowElement | MdxJsxTextElement,
       _ctx: ProcessingContext,
       _processChildren: (children: RootContent[], ctx: ProcessingContext) => Promise<RootContent[]>
-    ): Promise<RootContent[]> => []
+    ): Promise<RootContent[]> => {
+      void _element
+      void _ctx
+      void _processChildren
+      return []
+    }
   }
 
   describe('registerComponent', () => {

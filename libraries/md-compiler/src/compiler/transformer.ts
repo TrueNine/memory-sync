@@ -10,6 +10,8 @@ import {evaluateJsxExpression, hasJsxInEstree} from './jsx-expression-eval'
 
 type ChildNode = RootContent | Text
 
+const FILE_PATH_SUFFIX_PATTERN = /\.\w+$/u
+
 function createExpressionOptions(
   ctx: ProcessingContext,
   node: {position?: ExpressionDiagnosticContext['position']},
@@ -31,7 +33,7 @@ function createExpressionOptions(
  * @returns The simplified text (basename only) or original text
  */
 function simplifyLinkText(text: string): string {
-  if (!(text.includes('/') && /\.\w+$/.test(text))) return text // Check if text looks like a file path (contains / and ends with .ext)
+  if (!(text.includes('/') && FILE_PATH_SUFFIX_PATTERN.test(text))) return text // Check if text looks like a file path (contains / and ends with .ext)
 
   const lastSlashIndex = text.lastIndexOf('/')
   return text.slice(lastSlashIndex + 1)

@@ -17,6 +17,8 @@ import type {EvaluateExpressionOptions} from './expression-eval'
 import type {ExpressionDiagnosticContext, ProcessingContext} from './types'
 import {evaluateExpression} from './expression-eval'
 
+const LANGUAGE_CLASS_PATTERN = /language-(\w+)/u
+
 function createExpressionOptions(
   ctx: ProcessingContext,
   nodeType: string,
@@ -156,7 +158,7 @@ function convertPreElement(
   if (codeChild == null) return null
 
   const className = getAttributeValue(codeChild, 'className', ctx) ?? ''
-  const langMatch = /language-(\w+)/.exec(className)
+  const langMatch = LANGUAGE_CLASS_PATTERN.exec(className)
   const lang = langMatch?.[1]
 
   const code = extractTextContent(codeChild, ctx)

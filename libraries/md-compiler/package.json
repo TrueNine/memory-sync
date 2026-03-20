@@ -55,7 +55,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.5.1",
+    "@napi-rs/cli": "catalog:",
     "@types/estree": "catalog:",
     "@types/estree-jsx": "catalog:",
     "@types/mdast": "catalog:",

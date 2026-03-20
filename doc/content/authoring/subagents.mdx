@@ -1,0 +1,36 @@
+---
+title: Sub-agents
+description: 说明 sub-agents 在 memory-sync 中的输入定位以及命名约束。
+sidebarTitle: Sub-agents
+status: stable
+---
+
+# Sub-agents
+
+## Sub-agents 的角色
+
+Sub-agents 用于把复杂任务拆成更专门的角色和边界。它们不是普通 Prompt 复制品，而是更接近“受约束的专职执行单元”。
+
+## 当前路径约定
+
+默认输入路径：
+
+```text
+subagents/
+```
+
+默认输出路径：
+
+```text
+dist/subagents/
+```
+
+## 命名为什么重要
+
+输出插件会把 sub-agent 的名字变成目标工具里的实体标识。如果 frontmatter 缺少稳定名字，很多输出层就只能退回目录名或文件名，这会降低跨工具迁移的一致性。
+
+## 什么时候该写成 sub-agent，而不是 skill
+
+- 你需要一个长期存在、职责边界明确的角色。
+- 这个角色可能需要独立描述输入、行为约束与输出形式。
+- 它不仅是“做一件事的方法”，而是“承担一类工作的代理配置”。

@@ -43,7 +43,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.5.1",
+    "@napi-rs/cli": "catalog:",
     "npm-run-all2": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

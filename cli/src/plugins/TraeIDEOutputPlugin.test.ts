@@ -66,8 +66,9 @@ describe('traeIDEOutputPlugin steering rule output', () => {
     const declarations = await plugin.declareOutputFiles(ctx)
     const steering = declarations.find(d => d.source != null && (d.source as {kind?: string}).kind === 'steeringRule')
     expect(steering).toBeDefined()
+    if (steering == null) throw new Error('Expected steering declaration')
 
-    const {content} = steering!.source as {content: string}
+    const {content} = steering.source as {content: string}
     expect(content).toContain('globs: commands/**')
     expect(content).toContain('Scope guard: this rule is for the project-root path "commands/" only.')
     expect(content).toContain('Do not apply this rule to generated output paths such as "dist/commands/"')
@@ -115,8 +116,9 @@ describe('traeIDEOutputPlugin steering rule output', () => {
     const declarations = await plugin.declareOutputFiles(ctx)
     const steering = declarations.find(d => d.source != null && (d.source as {kind?: string}).kind === 'steeringRule')
     expect(steering).toBeDefined()
+    if (steering == null) throw new Error('Expected steering declaration')
 
-    const {content} = steering!.source as {content: string}
+    const {content} = steering.source as {content: string}
     expect(content).toContain('---\nScope guard:')
     expect(content).not.toContain('---\n\nScope guard:')
   })

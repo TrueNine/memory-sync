@@ -64,7 +64,7 @@
   },
   "dependencies": {
     "json5": "catalog:",
-    "yaml": "2.8.2",
+    "yaml": "catalog:",
     "zod": "catalog:"
   },
   "optionalDependencies": {
@@ -84,11 +84,11 @@
     "@vitest/coverage-v8": "catalog:",
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
-    "jiti": "2.6.1",
-    "lightningcss": "1.31.1",
+    "jiti": "catalog:",
+    "lightningcss": "catalog:",
     "picocolors": "catalog:",
     "picomatch": "catalog:",
-    "tsx": "4.21.0",
+    "tsx": "catalog:",
     "vitest": "catalog:",
     "zod-to-json-schema": "catalog:"
   }

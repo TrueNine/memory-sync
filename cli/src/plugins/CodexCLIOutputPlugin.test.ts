@@ -191,8 +191,9 @@ describe('codexCLIOutputPlugin command output', () => {
       )
 
       expect(commandDeclaration).toBeDefined()
+      if (commandDeclaration == null) throw new Error('Expected codex command declaration')
 
-      const rendered = await codexPlugin.convertContent(commandDeclaration!, writeCtx)
+      const rendered = await codexPlugin.convertContent(commandDeclaration, writeCtx)
       expect(String(rendered)).toContain('English dist description')
       expect(String(rendered)).toContain('English dist command body')
       expect(String(rendered)).not.toContain('中文源描述')
@@ -231,8 +232,9 @@ describe('codexCLIOutputPlugin command output', () => {
 
       const declaration = declarations.find(item => item.path === path.join(workspace, 'project-a', '.codex', 'agents', 'review-helper.toml'))
       expect(declaration).toBeDefined()
+      if (declaration == null) throw new Error('Expected codex subagent declaration')
 
-      const rendered = await plugin.convertContent(declaration!, writeCtx)
+      const rendered = await plugin.convertContent(declaration, writeCtx)
       expect(String(rendered)).toContain('name = "review-helper"')
       expect(String(rendered)).toContain('description = "Review pull requests"')
       expect(String(rendered)).toContain([

@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Next.js / Nextra build output
+.next/
+out/
+
+# Generated search index
+public/_pagefind/
+
+# Task runner cache
+.turbo/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log

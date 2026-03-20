@@ -1,0 +1,54 @@
+---
+title: plugin.config.ts
+description: 说明项目级 plugin.config.ts 如何装配默认输出插件与运行参数。
+sidebarTitle: plugin.config.ts
+status: stable
+---
+
+# `plugin.config.ts`
+
+## 它的职责
+
+`plugin.config.ts` 是项目级装配入口。它把：
+
+- 管线参数
+- 插件列表
+- 可能的程序化覆盖
+
+交给 `defineConfig()`，最终产出真正执行同步所需的 `PipelineConfig`。
+
+## 当前默认输出插件
+
+当前仓库 `cli/src/plugin.config.ts` 默认装配的输出插件包括：
+
+- `AgentsOutputPlugin`
+- `ClaudeCodeCLIOutputPlugin`
+- `CodexCLIOutputPlugin`
+- `JetBrainsAIAssistantCodexOutputPlugin`
+- `DroidCLIOutputPlugin`
+- `GeminiCLIOutputPlugin`
+- `GenericSkillsOutputPlugin`
+- `OpencodeCLIOutputPlugin`
+- `QoderIDEPluginOutputPlugin`
+- `TraeIDEOutputPlugin`
+- `TraeCNIDEOutputPlugin`
+- `WarpIDEOutputPlugin`
+- `WindsurfOutputPlugin`
+- `CursorOutputPlugin`
+- `GitExcludeOutputPlugin`
+- `JetBrainsIDECodeStyleConfigOutputPlugin`
+- `EditorConfigOutputPlugin`
+- `VisualStudioCodeIDEConfigOutputPlugin`
+- `ReadmeMdConfigFileOutputPlugin`
+
+## 这意味着什么
+
+这份配置不是“文档示意”，而是当前默认同步现实。只要这里有插件，就意味着默认执行里会考虑该目标。
+
+## 最小认知模型
+
+你可以把 `plugin.config.ts` 理解为：
+
+- 选择要输出到哪些目标
+- 决定是否在项目里追加程序化配置
+- 保持与全局用户配置合并，而不是完全绕开用户配置

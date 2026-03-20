@@ -79,10 +79,10 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
         },
         protect: {
           project: {
-            dirs: [...PRESERVED_SKILLS].map(skillName => `.cursor/skills-cursor/${skillName}`)
+            dirs: Array.from(PRESERVED_SKILLS, skillName => `.cursor/skills-cursor/${skillName}`)
           },
           global: {
-            dirs: [...PRESERVED_SKILLS].map(skillName => `.cursor/skills-cursor/${skillName}`)
+            dirs: Array.from(PRESERVED_SKILLS, skillName => `.cursor/skills-cursor/${skillName}`)
           }
         }
       },

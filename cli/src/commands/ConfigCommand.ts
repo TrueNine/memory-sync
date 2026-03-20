@@ -95,12 +95,16 @@ function setNestedValue(obj: ConfigObject, key: string, value: string): void {
   const parts = key.split('.')
   let current: ConfigObject = obj
   for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i]!
+    const part = parts[i]
+    if (part == null) continue
     const next = current[part]
     if (typeof next !== 'object' || next === null || Array.isArray(next)) current[part] = {}
     current = current[part] as ConfigObject
   }
-  current[parts.at(-1)!] = value
+
+  const lastPart = parts.at(-1)
+  if (lastPart == null) return
+  current[lastPart] = value
 }
 
 /**
