@@ -18,26 +18,22 @@ export default async function DocsLayout({children}: {readonly children: ReactNo
             logoLink="/"
             projectLink={siteConfig.repoUrl}
             logo={(
-              <div className="docs-logo-lockup">
-                <span className="docs-logo-mark">MS</span>
-                <span className="docs-logo-copy">
-                  <strong>memory-sync</strong>
-                  <small>prompt logistics for tool rats</small>
-                </span>
+              <div className="docs-brand">
+                <span className="docs-brand-title">memory-sync</span>
               </div>
             )}
           >
-            <Link href="/" className="docs-top-link">
-              Manifesto
+            <Link href="/" className="docs-nav-link">
+              首页
             </Link>
-            <Link href="/docs" className="docs-top-link">
+            <Link href="/docs" className="docs-nav-link">
               文档
             </Link>
           </Navbar>
         )}
         footer={(
           <Footer>
-            AGPL-3.0-only · 基于真实仓库结构维护 · 文档部署自动化目前仍未在本仓库中落地
+            AGPL-3.0-only · 仅记录仓库真实能力与当前实现边界
           </Footer>
         )}
         docsRepositoryBase={`${siteConfig.docsRepositoryBase}/content`}

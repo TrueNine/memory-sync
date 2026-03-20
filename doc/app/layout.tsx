@@ -1,19 +1,19 @@
 import type {Metadata} from 'next'
-import {IBM_Plex_Mono, Noto_Sans_SC} from 'next/font/google'
+import {Geist, Geist_Mono} from 'next/font/google'
 import {getSiteUrl, siteConfig} from '../lib/site'
 import 'nextra-theme-docs/style.css'
 import './globals.css'
 
-const sans = Noto_Sans_SC({
+const sans = Geist({
   variable: '--font-sans',
-  preload: false,
-  weight: ['400', '500', '700', '900']
+  preload: true,
+  subsets: ['latin']
 })
 
-const mono = IBM_Plex_Mono({
+const mono = Geist_Mono({
   variable: '--font-mono',
   subsets: ['latin'],
-  weight: ['400', '500', '600']
+  preload: true
 })
 
 export const metadata: Metadata = {

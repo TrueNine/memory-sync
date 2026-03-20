@@ -1,85 +1,123 @@
 import Link from 'next/link'
 import {capabilityCards, homeSections, manifestoPoints, siteConfig} from '../lib/site'
 
-const killChain = [
-  '用 MDX 写下规则源',
-  '由 CLI 收集全局与项目上下文',
-  '按插件声明写入各工具原生配置',
-  '用 `dry-run` 预览，再用 `clean` 清除旧残留'
+const quickLinks = [
+  {
+    href: '/docs/quick-start',
+    label: '快速上手',
+    description: '从安装、目录准备到第一次同步的最短路径。'
+  },
+  {
+    href: '/docs/concepts',
+    label: '概念与世界观',
+    description: '理解 Rust-first、真源模型与多工具输出边界。'
+  },
+  {
+    href: '/docs/authoring',
+    label: '内容编写',
+    description: '集中查看 prompts、skills、commands、sub-agents 与 rules 的写法。'
+  },
+  {
+    href: '/docs/reference',
+    label: '参考手册',
+    description: '直接跳到 CLI、Schema、plugin config 与输出约束。'
+  }
 ] as const
 
-const referenceLinks = [
-  {href: '/docs/quick-start', label: '快速上手'},
-  {href: '/docs/concepts/manifesto', label: '世界观与定位'},
-  {href: '/docs/reference/cli-commands', label: 'CLI 命令参考'},
-  {href: '/docs/reference/plugin-config', label: 'plugin.config.ts'}
+const readingPath = [
+  {
+    step: '01',
+    href: '/docs/quick-start/install',
+    title: '安装与环境确认',
+    description: '先确认 Node、Rust 与 CLI 入口都在真实支持范围内。'
+  },
+  {
+    step: '02',
+    href: '/docs/quick-start/workspace-setup',
+    title: '准备工作区结构',
+    description: '按当前仓库约定放置内容源，而不是沿用旧初始化习惯。'
+  },
+  {
+    step: '03',
+    href: '/docs/authoring/global-and-workspace-prompts',
+    title: '开始编写源内容',
+    description: '用 MDX 定义全局与项目级规则，保持单一真源。'
+  },
+  {
+    step: '04',
+    href: '/docs/reference/cli-commands',
+    title: '校验与执行同步',
+    description: '用 dry-run、clean 和命令参考把输出边界跑通。'
+  }
 ] as const
 
 export default function HomePage() {
   return (
-    <main className="manifesto-shell">
-      <section className="manifesto-hero">
-        <div className="hero-topline">
-          <span className="hero-kicker">Chinese-first Docs Platform</span>
-          <span className="hero-kicker hero-kicker-muted">Rust-first / NAPI-first</span>
-        </div>
+    <main className="docs-home">
+      <header className="home-topbar">
+        <Link href="/" className="home-brand">
+          <strong>{siteConfig.productName}</strong>
+          <span>Docs</span>
+        </Link>
 
-        <div className="hero-grid">
-          <div className="hero-copy">
-            <p className="hero-eyebrow">FOR THE TOOL RATS</p>
-            <h1 className="hero-title">
-              把你已经咬到手的每一块 AI 规则碎片，
-              <br />
-              重新装配成能迁移、能同步、能清场的记忆系统。
-            </h1>
-            <p className="hero-lead">
-              {siteConfig.productName}
-              不等待任何平台施舍统一入口。它默认世界是碎片化的、接口是私有的、配置是各自为政的，于是它做一件事：
-              把你现有的 prompts、rules、skills、commands、sub-agents 和 workspace memory 全部吃下来，转成可以在多工具之间流动的资产。
-            </p>
+        <nav className="home-topbar-nav" aria-label="Primary">
+          <Link href="/docs">文档</Link>
+          <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer">
+            GitHub
+          </a>
+        </nav>
+      </header>
 
-            <div className="hero-actions">
-              <Link href="/docs" className="hero-button hero-button-primary">
-                进入文档
-              </Link>
-              <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer" className="hero-button hero-button-secondary">
-                查看 GitHub
-              </a>
-            </div>
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <p className="section-kicker">Documentation</p>
+          <h1>围绕真实仓库与真实命令维护的一套 memory-sync 文档。</h1>
+          <p className="home-hero-lead">
+            {siteConfig.productName}
+            把 prompts、rules、skills、commands、sub-agents 和 workspace memory 汇成同一套可迁移资产。这里不再尝试做一张强调风格的首页，而是把真实仓库结构、概念边界与执行入口收进同一套更安静的 docs 系统。
+          </p>
+
+          <div className="home-actions">
+            <Link href="/docs" className="hero-button hero-button-primary">
+              打开文档
+            </Link>
+            <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer" className="hero-button hero-button-secondary">
+              查看 GitHub
+            </a>
           </div>
 
-          <aside className="hero-rail">
-            <div className="signal-card">
-              <span className="signal-label">CURRENT POSTURE</span>
-              <p>
-                不再用一个个 IDE / CLI 做“记忆主库”。主库是你自己的 MDX 源，工具只是输出目标。
-              </p>
-            </div>
-            <div className="signal-card signal-card-warning">
-              <span className="signal-label">NO FAIRYTALE MODE</span>
-              <p>
-                文档不会假装自动部署、不会给过时命令续命、也不会把历史补丁包装成未来架构。
-              </p>
-            </div>
-          </aside>
+          <div className="home-summary-grid">
+            {homeSections.map(section => (
+              <article key={section.title} className="home-summary-card">
+                <h2>{section.title}</h2>
+                <p>{section.body}</p>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="manifesto-strip">
-        <div className="strip-grid">
-          {homeSections.map(section => (
-            <article key={section.title} className="strip-card">
-              <h2>{section.title}</h2>
-              <p>{section.body}</p>
-            </article>
+      <section className="home-section">
+        <div className="section-heading">
+          <p className="section-kicker">Start Here</p>
+          <h2>从这些入口进入，比先读一整篇宣言更有效</h2>
+        </div>
+
+        <div className="home-link-grid">
+          {quickLinks.map(link => (
+            <Link key={link.href} href={link.href} className="home-link-card">
+              <strong>{link.label}</strong>
+              <p>{link.description}</p>
+              <span>Open</span>
+            </Link>
           ))}
         </div>
       </section>
 
-      <section className="capability-zone">
+      <section className="home-section">
         <div className="section-heading">
-          <p className="section-kicker">What This Site Covers</p>
-          <h2>不只是“介绍页面”，而是一份可执行的作战手册</h2>
+          <p className="section-kicker">Capabilities</p>
+          <h2>文档重点覆盖的能力边界</h2>
         </div>
 
         <div className="capability-grid">
@@ -93,39 +131,34 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="timeline-zone">
+      <section className="home-section">
         <div className="section-heading">
-          <p className="section-kicker">Typical Flow</p>
-          <h2>一条正常同步链应该长这样</h2>
+          <p className="section-kicker">Recommended Path</p>
+          <h2>一条更像官方文档站的阅读路线</h2>
         </div>
-        <ol className="kill-chain">
-          {killChain.map(step =>
-            <li key={step}>{step}</li>)}
-        </ol>
-      </section>
 
-      <section className="manifesto-grid-panel">
-        <div className="section-heading">
-          <p className="section-kicker">Manifesto</p>
-          <h2>这不是“官方标准化方案”，而是对现实环境的反击</h2>
-        </div>
-        <div className="manifesto-points">
-          {manifestoPoints.map(point =>
-            <p key={point}>{point}</p>)}
-        </div>
-      </section>
-
-      <section className="reference-zone">
-        <div className="section-heading">
-          <p className="section-kicker">Jump In</p>
-          <h2>从这些入口直接开始</h2>
-        </div>
-        <div className="reference-links">
-          {referenceLinks.map(link => (
-            <Link key={link.href} href={link.href} className="reference-link">
-              <span>{link.label}</span>
-              <strong>OPEN</strong>
+        <div className="reading-path-grid">
+          {readingPath.map(item => (
+            <Link key={item.href} href={item.href} className="reading-path-card">
+              <small>{item.step}</small>
+              <strong>{item.title}</strong>
+              <p>{item.description}</p>
             </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="home-section">
+        <div className="section-heading">
+          <p className="section-kicker">Why It Exists</p>
+          <h2>仍然保留这套项目的锋芒，但把它放进更易读的版式里</h2>
+        </div>
+
+        <div className="manifesto-points-grid">
+          {manifestoPoints.map(point => (
+            <article key={point} className="manifesto-point-card">
+              <p>{point}</p>
+            </article>
           ))}
         </div>
       </section>
