@@ -1,15 +1,21 @@
 ---
 title: 运维与排障
-description: 覆盖 dry-run、clean、常见排障与升级时的注意点。
+description: 覆盖 dry-run、clean、常见排障与升级时的操作建议。
 sidebarTitle: 概览
 status: stable
 ---
 
 # 运维与排障
 
-这一节专门处理“已经在用了，出了问题怎么办”。
+这一节面向已经在使用 `memory-sync` 的场景，重点处理验证、清理、异常定位与升级风险控制。
 
-## 本节包含
+## 这一节覆盖什么
+
+- 如何用 `dry-run` 和 `clean` 验证输出范围、检查残留与控制风险。
+- 当同步结果不符合预期时，应先检查哪些输入、配置和目标文件。
+- 升级仓库、CLI 或工作流时，哪些行为边界需要重新验证。
+
+## 推荐入口
 
 - [dry-run 与 clean](/docs/operations/dry-run-and-clean)
 - [排障](/docs/operations/troubleshooting)

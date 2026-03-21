@@ -1,26 +1,40 @@
 export default {
   'index': {
-    title: '文档总览',
-    type: 'page'
+    title: '文档总览'
+  },
+  '--quick-start': {
+    type: 'separator',
+    title: '快速上手'
   },
   'quick-start': {
-    title: '快速上手',
-    type: 'page'
+    display: 'children'
+  },
+  '--concepts': {
+    type: 'separator',
+    title: '概念与世界观'
   },
   'concepts': {
-    title: '概念与世界观',
-    type: 'page'
+    display: 'children'
+  },
+  '--authoring': {
+    type: 'separator',
+    title: '内容编写'
   },
   'authoring': {
-    title: '内容编写',
-    type: 'page'
+    display: 'children'
+  },
+  '--reference': {
+    type: 'separator',
+    title: '参考手册'
   },
   'reference': {
-    title: '参考手册',
-    type: 'page'
+    display: 'children'
+  },
+  '--operations': {
+    type: 'separator',
+    title: '运维与排障'
   },
   'operations': {
-    title: '运维与排障',
-    type: 'page'
+    display: 'children'
   }
 }

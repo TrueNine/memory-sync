@@ -1,26 +1,23 @@
 ---
 title: 快速上手
-description: 最短路径完成安装、工作区准备与第一次同步。
+description: 用最短路径完成安装、工作区准备、dry-run 与第一次同步。
 sidebarTitle: 入口
 status: stable
 ---
 
 # 快速上手
 
-如果你只想先把 `memory-sync` 跑起来，不想先看长篇世界观，这一节就是你的入口。
+这一节面向第一次使用 `memory-sync` 的读者，目标是先把一次真实同步流程跑通，再回头补充概念和参考细节。
 
-## 最短路径
+## 这一节解决什么问题
 
-1. 安装 CLI。
-2. 准备全局配置文件 `~/.aindex/.tnmsc.json`。
-3. 准备一个 aindex 目录，把 prompts / skills / commands / sub-agents / rules 放到约定路径。
-4. 在目标项目根目录提供 `plugin.config.ts`。
-5. 先执行 `tnmsc dry-run`，确认目标文件列表没跑偏。
-6. 再执行默认同步命令或后续清理命令。
+- 确认运行前提、安装方式和 CLI 入口。
+- 准备全局配置、aindex 目录与目标项目配置。
+- 通过 `tnmsc dry-run` 先验证输出范围，再执行第一次同步。
 
-## 先看哪几页
+## 建议顺序
 
-- [安装与前提](/docs/quick-start/install)
-- [工作区与 aindex](/docs/quick-start/workspace-setup)
-- [第一次同步](/docs/quick-start/first-sync)
-- [从旧文档迁移](/docs/quick-start/migration)
+1. 阅读 [安装与前提](/docs/quick-start/install)，先确认 Node、Rust 与当前分发方式都满足要求。
+2. 阅读 [工作区与 aindex](/docs/quick-start/workspace-setup)，按当前仓库支持的目录结构准备输入源。
+3. 阅读 [第一次同步](/docs/quick-start/first-sync)，先执行 `dry-run`，再执行真实写入。
+4. 如果你来自旧版本或旧文档体系，再补充 [从旧文档迁移](/docs/quick-start/migration)。

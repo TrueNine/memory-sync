@@ -1,16 +1,16 @@
 import type {Metadata} from 'next'
-import {Geist, Geist_Mono} from 'next/font/google'
+import {JetBrains_Mono} from 'next/font/google'
 import {getSiteUrl, siteConfig} from '../lib/site'
 import 'nextra-theme-docs/style.css'
 import './globals.css'
 
-const sans = Geist({
+const sans = JetBrains_Mono({
   variable: '--font-sans',
   preload: true,
   subsets: ['latin']
 })
 
-const mono = Geist_Mono({
+const mono = JetBrains_Mono({
   variable: '--font-mono',
   subsets: ['latin'],
   preload: true

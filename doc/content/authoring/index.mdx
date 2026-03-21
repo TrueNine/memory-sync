@@ -1,21 +1,21 @@
 ---
 title: 内容编写
-description: 说明 prompt、skills、commands、sub-agents 与 rules 的源文件职责。
+description: 说明 prompts、skills、commands、sub-agents 与 rules 的源文件职责。
 sidebarTitle: 概览
 status: stable
 ---
 
 # 内容编写
 
-这里讲的是“你应该维护哪些源文件”，不是“输出后长什么样”。
+这一节说明你应该维护哪些输入资产，以及它们在同步前分别承担什么职责。
 
-## 当前作者面要点
+## 这一节解决什么问题
 
-- 全局 Prompt 与工作区 Prompt 是两块不同作用域的记忆源。
-- skills、commands、sub-agents、rules 都是独立的输入集合。
-- 这些输入最后会由不同输出插件选择性写入不同目标工具。
+- 区分全局 Prompt 与工作区 Prompt 的作用域和职责。
+- 区分 skills、commands、sub-agents、rules 等输入集合的边界。
+- 明确这些输入如何经由输出插件写入不同目标工具。
 
-继续阅读：
+## 推荐入口
 
 - [全局与工作区 Prompt](/docs/authoring/global-and-workspace-prompts)
 - [Skills](/docs/authoring/skills)

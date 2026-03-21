@@ -1,55 +1,11 @@
 import Link from 'next/link'
-import {capabilityCards, homeSections, manifestoPoints, siteConfig} from '../lib/site'
-
-const quickLinks = [
-  {
-    href: '/docs/quick-start',
-    label: '快速上手',
-    description: '从安装、目录准备到第一次同步的最短路径。'
-  },
-  {
-    href: '/docs/concepts',
-    label: '概念与世界观',
-    description: '理解 Rust-first、真源模型与多工具输出边界。'
-  },
-  {
-    href: '/docs/authoring',
-    label: '内容编写',
-    description: '集中查看 prompts、skills、commands、sub-agents 与 rules 的写法。'
-  },
-  {
-    href: '/docs/reference',
-    label: '参考手册',
-    description: '直接跳到 CLI、Schema、plugin config 与输出约束。'
-  }
-] as const
-
-const readingPath = [
-  {
-    step: '01',
-    href: '/docs/quick-start/install',
-    title: '安装与环境确认',
-    description: '先确认 Node、Rust 与 CLI 入口都在真实支持范围内。'
-  },
-  {
-    step: '02',
-    href: '/docs/quick-start/workspace-setup',
-    title: '准备工作区结构',
-    description: '按当前仓库约定放置内容源，而不是沿用旧初始化习惯。'
-  },
-  {
-    step: '03',
-    href: '/docs/authoring/global-and-workspace-prompts',
-    title: '开始编写源内容',
-    description: '用 MDX 定义全局与项目级规则，保持单一真源。'
-  },
-  {
-    step: '04',
-    href: '/docs/reference/cli-commands',
-    title: '校验与执行同步',
-    description: '用 dry-run、clean 和命令参考把输出边界跑通。'
-  }
-] as const
+import {
+  capabilityCards,
+  heroProofPoints,
+  homeEntryCards,
+  readingPath,
+  siteConfig
+} from '../lib/site'
 
 export default function HomePage() {
   return (
@@ -69,12 +25,14 @@ export default function HomePage() {
       </header>
 
       <section className="home-hero">
-        <div className="home-hero-copy">
+        <div className="home-hero-copy motion-rise">
           <p className="section-kicker">Documentation</p>
-          <h1>围绕真实仓库与真实命令维护的一套 memory-sync 文档。</h1>
+          <h1>面向多 AI 工具的 prompt 与 config sync 文档。</h1>
           <p className="home-hero-lead">
             {siteConfig.productName}
-            把 prompts、rules、skills、commands、sub-agents 和 workspace memory 汇成同一套可迁移资产。这里不再尝试做一张强调风格的首页，而是把真实仓库结构、概念边界与执行入口收进同一套更安静的 docs 系统。
+            {' '}
+            以 MDX 维护源内容，通过 Rust-first / NAPI-first pipeline 将 prompts、rules、skills、commands
+            与 workspace memory 物化为目标工具原生配置。
           </p>
 
           <div className="home-actions">
@@ -86,28 +44,31 @@ export default function HomePage() {
             </a>
           </div>
 
-          <div className="home-summary-grid">
-            {homeSections.map(section => (
-              <article key={section.title} className="home-summary-card">
-                <h2>{section.title}</h2>
-                <p>{section.body}</p>
-              </article>
+          <ul className="home-proof-strip" aria-label="Core proof points">
+            {heroProofPoints.map(point => (
+              <li key={point.label} className="proof-pill">
+                <span>{point.label}</span>
+                <strong>{point.value}</strong>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 
       <section className="home-section">
         <div className="section-heading">
           <p className="section-kicker">Start Here</p>
-          <h2>从这些入口进入，比先读一整篇宣言更有效</h2>
+          <h2>从最短路径进入，而不是先读背景叙事</h2>
+          <p className="section-summary">
+            首页只负责建立能力边界与入口，具体行为、配置和命令都落回文档页。
+          </p>
         </div>
 
-        <div className="home-link-grid">
-          {quickLinks.map(link => (
+        <div className="home-link-grid motion-stagger">
+          {homeEntryCards.map(link => (
             <Link key={link.href} href={link.href} className="home-link-card">
-              <strong>{link.label}</strong>
-              <p>{link.description}</p>
+              <strong>{link.title}</strong>
+              <p>{link.detail}</p>
               <span>Open</span>
             </Link>
           ))}
@@ -118,9 +79,12 @@ export default function HomePage() {
         <div className="section-heading">
           <p className="section-kicker">Capabilities</p>
           <h2>文档重点覆盖的能力边界</h2>
+          <p className="section-summary">
+            先明确项目能做什么，再进入具体配置字段、命令表面与实现边界。
+          </p>
         </div>
 
-        <div className="capability-grid">
+        <div className="capability-grid motion-stagger">
           {capabilityCards.map(card => (
             <article key={card.title} className="capability-card">
               <span>{card.label}</span>
@@ -134,31 +98,19 @@ export default function HomePage() {
       <section className="home-section">
         <div className="section-heading">
           <p className="section-kicker">Recommended Path</p>
-          <h2>一条更像官方文档站的阅读路线</h2>
+          <h2>按这条路线进入，能最快建立正确心智模型</h2>
+          <p className="section-summary">
+            路线从运行前提开始，经过源文件模型，最后落到 dry-run、同步与边界验证。
+          </p>
         </div>
 
-        <div className="reading-path-grid">
+        <div className="reading-path-grid motion-stagger">
           {readingPath.map(item => (
             <Link key={item.href} href={item.href} className="reading-path-card">
               <small>{item.step}</small>
               <strong>{item.title}</strong>
               <p>{item.description}</p>
             </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="home-section">
-        <div className="section-heading">
-          <p className="section-kicker">Why It Exists</p>
-          <h2>仍然保留这套项目的锋芒，但把它放进更易读的版式里</h2>
-        </div>
-
-        <div className="manifesto-points-grid">
-          {manifestoPoints.map(point => (
-            <article key={point} className="manifesto-point-card">
-              <p>{point}</p>
-            </article>
           ))}
         </div>
       </section>
