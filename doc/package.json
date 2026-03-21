@@ -17,6 +17,8 @@
     "lint": "pnpm run validate:content && eslint ."
   },
   "dependencies": {
+    "@theguild/remark-mermaid": "catalog:",
+    "mermaid": "catalog:",
     "next": "catalog:",
     "nextra": "catalog:",
     "nextra-theme-docs": "catalog:",

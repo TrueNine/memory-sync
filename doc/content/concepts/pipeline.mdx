@@ -31,6 +31,15 @@ status: stable
 4. 验证输出插件能力与 `outputScopes` 覆盖是否合法。
 5. 让每个输出插件声明要写哪些文件，再由核心运行时统一执行写入。
 
+```mermaid
+flowchart LR
+  A["defineConfig()<br/>默认值 + 全局配置 + 项目配置"] --> B["输入收集<br/>workspace / rules / skills / prompts"]
+  B --> C["上下文转换<br/>input context -> output context"]
+  C --> D["输出校验<br/>plugin capability + outputScopes"]
+  D --> E["插件声明产物<br/>目标文件与内容"]
+  E --> F["统一运行时写入<br/>dry-run / clean / diagnostics"]
+```
+
 ## 为什么这很重要
 
 这意味着插件不是随手自己改文件，而是：

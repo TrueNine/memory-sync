@@ -26,6 +26,7 @@ catalog:
   '@tauri-apps/cli': ^2.10.1
   '@tauri-apps/plugin-shell': ^2.3.5
   '@tauri-apps/plugin-updater': ^2.10.0
+  '@theguild/remark-mermaid': ^0.3.0
   '@truenine/eslint10-config': ^2026.10318.10138
   '@types/estree': ^1.0.8
   '@types/estree-jsx': ^1.0.5
@@ -50,6 +51,7 @@ catalog:
   json5: ^2.2.3
   lightningcss: ^1.32.0
   lucide-react: ^0.577.0
+  mermaid: ^11.13.0
   mdast-util-mdx: ^3.0.0
   material-icon-theme: ^5.32.0
   monaco-editor: ^0.55.1

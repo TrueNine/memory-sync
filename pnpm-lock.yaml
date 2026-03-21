@@ -51,6 +51,9 @@ catalogs:
     '@tauri-apps/plugin-updater':
       specifier: ^2.10.0
       version: 2.10.0
+    '@theguild/remark-mermaid':
+      specifier: ^0.3.0
+      version: 0.3.0
     '@truenine/eslint10-config':
       specifier: ^2026.10318.10138
       version: 2026.10318.10138
@@ -138,6 +141,9 @@ catalogs:
     mdast-util-mdx:
       specifier: ^3.0.0
       version: 3.0.0
+    mermaid:
+      specifier: ^11.13.0
+      version: 11.13.0
     monaco-editor:
       specifier: ^0.55.1
       version: 0.55.1
@@ -398,6 +404,12 @@ importers:
 
   doc:
     dependencies:
+      '@theguild/remark-mermaid':
+        specifier: 'catalog:'
+        version: 0.3.0(react@19.2.4)
+      mermaid:
+        specifier: 'catalog:'
+        version: 11.13.0
       next:
         specifier: 'catalog:'
         version: 16.2.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)

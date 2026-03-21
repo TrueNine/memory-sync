@@ -42,6 +42,9 @@ export default function HomePage() {
             <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer" className="hero-button hero-button-secondary">
               查看 GitHub
             </a>
+            <a href={siteConfig.issueUrl} target="_blank" rel="noreferrer" className="hero-button hero-button-secondary">
+              报告问题
+            </a>
           </div>
 
           <ul className="home-proof-strip" aria-label="Core proof points">
