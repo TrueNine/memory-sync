@@ -3,7 +3,7 @@ name: Release Packages
 env:
   NODE_VERSION: '25'
   NPM_REGISTRY_URL: https://registry.npmjs.org/
-  NPM_PUBLISH_VERIFY_ATTEMPTS: '30'
+  NPM_PUBLISH_VERIFY_ATTEMPTS: '90'
   NPM_PUBLISH_VERIFY_DELAY_SECONDS: '10'
   CLI_NATIVE_MODULE_DIRS: |
     libraries/logger
@@ -340,13 +340,36 @@ jobs:
         run: |
           set -euo pipefail
 
+          registry_version_exists() {
+            local package_name="$1"
+            local package_version="$2"
+            local encoded_package_name
+            local version_json
+            local published_version
+
+            encoded_package_name=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$package_name")
+            version_json=$(curl --silent --show-error --fail "${NPM_REGISTRY_URL%/}/${encoded_package_name}/${package_version}" 2>/dev/null || true)
+
+            if [[ -z "$version_json" ]]; then
+              return 1
+            fi
+
+            published_version=$(jq -r '.version // empty' <<<"$version_json")
+            [[ "$published_version" == "$package_version" ]]
+          }
+
           version_exists() {
             local package_name="$1"
             local package_version="$2"
             local published_version
 
             published_version=$(npm view "${package_name}@${package_version}" version --registry "$NPM_REGISTRY_URL" 2>/dev/null || true)
-            [[ "$published_version" == "$package_version" ]]
+
+            if [[ "$published_version" == "$package_version" ]]; then
+              return 0
+            fi
+
+            registry_version_exists "$package_name" "$package_version"
           }
 
           verify_version_exists() {
@@ -359,6 +382,10 @@ jobs:
               if version_exists "$package_name" "$package_version"; then
                 echo "Verified ${package_name}@${package_version} on npm"
                 return 0
+              fi
+
+              if [[ "$attempt" -eq "$attempts" ]]; then
+                break
               fi
 
               echo "Waiting for ${package_name}@${package_version} to appear on npm (${attempt}/${attempts})..."
@@ -466,10 +493,31 @@ jobs:
           package_name=$(jq -r '.name' cli/package.json)
           package_version=$(jq -r '.version' cli/package.json)
 
+          registry_version_exists() {
+            local encoded_package_name
+            local version_json
+            local published_version
+
+            encoded_package_name=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$package_name")
+            version_json=$(curl --silent --show-error --fail "${NPM_REGISTRY_URL%/}/${encoded_package_name}/${package_version}" 2>/dev/null || true)
+
+            if [[ -z "$version_json" ]]; then
+              return 1
+            fi
+
+            published_version=$(jq -r '.version // empty' <<<"$version_json")
+            [[ "$published_version" == "$package_version" ]]
+          }
+
           version_exists() {
             local published_version
             published_version=$(npm view "${package_name}@${package_version}" version --registry "$NPM_REGISTRY_URL" 2>/dev/null || true)
-            [[ "$published_version" == "$package_version" ]]
+
+            if [[ "$published_version" == "$package_version" ]]; then
+              return 0
+            fi
+
+            registry_version_exists
           }
 
           verify_version_exists() {
@@ -480,6 +528,10 @@ jobs:
               if version_exists; then
                 echo "Verified ${package_name}@${package_version} on npm"
                 return 0
+              fi
+
+              if [[ "$attempt" -eq "$attempts" ]]; then
+                break
               fi
 
               echo "Waiting for ${package_name}@${package_version} to appear on npm (${attempt}/${attempts})..."
@@ -574,10 +626,31 @@ jobs:
           package_name=$(jq -r '.name' mcp/package.json)
           package_version=$(jq -r '.version' mcp/package.json)
 
+          registry_version_exists() {
+            local encoded_package_name
+            local version_json
+            local published_version
+
+            encoded_package_name=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$package_name")
+            version_json=$(curl --silent --show-error --fail "${NPM_REGISTRY_URL%/}/${encoded_package_name}/${package_version}" 2>/dev/null || true)
+
+            if [[ -z "$version_json" ]]; then
+              return 1
+            fi
+
+            published_version=$(jq -r '.version // empty' <<<"$version_json")
+            [[ "$published_version" == "$package_version" ]]
+          }
+
           version_exists() {
             local published_version
             published_version=$(npm view "${package_name}@${package_version}" version --registry "$NPM_REGISTRY_URL" 2>/dev/null || true)
-            [[ "$published_version" == "$package_version" ]]
+
+            if [[ "$published_version" == "$package_version" ]]; then
+              return 0
+            fi
+
+            registry_version_exists
           }
 
           verify_version_exists() {
@@ -588,6 +661,10 @@ jobs:
               if version_exists; then
                 echo "Verified ${package_name}@${package_version} on npm"
                 return 0
+              fi
+
+              if [[ "$attempt" -eq "$attempts" ]]; then
+                break
               fi
 
               echo "Waiting for ${package_name}@${package_version} to appear on npm (${attempt}/${attempts})..."
