@@ -390,6 +390,12 @@ jobs:
               return 0
             fi
 
+            if grep -Eiq 'cannot publish over the previously published versions|previously published versions' "$publish_log"; then
+              echo "${package_name}@${package_version} was already published according to npm, skipping"
+              rm -f "$publish_log"
+              return 0
+            fi
+
             if version_exists "$package_name" "$package_version"; then
               echo "${package_name}@${package_version} already exists on npm after publish attempt, skipping"
               rm -f "$publish_log"
@@ -489,17 +495,28 @@ jobs:
             exit 0
           fi
 
-          if (cd cli && pnpm publish --access public --no-git-checks); then
+          publish_log=$(mktemp)
+
+          if (cd cli && pnpm publish --access public --no-git-checks) 2>&1 | tee "$publish_log"; then
             verify_version_exists
+            rm -f "$publish_log"
+            exit 0
+          fi
+
+          if grep -Eiq 'cannot publish over the previously published versions|previously published versions' "$publish_log"; then
+            echo "${package_name}@${package_version} was already published according to npm, skipping"
+            rm -f "$publish_log"
             exit 0
           fi
 
           if version_exists; then
             echo "${package_name}@${package_version} already exists on npm after publish attempt, skipping"
+            rm -f "$publish_log"
             exit 0
           fi
 
           echo "::error::Failed to publish ${package_name}@${package_version}. Exact version is still missing from npm."
+          rm -f "$publish_log"
           exit 1
 
   # 4.5. CLI 可用后，发布 MCP 包到 npm
@@ -586,17 +603,28 @@ jobs:
             exit 0
           fi
 
-          if (cd mcp && pnpm publish --access public --no-git-checks); then
+          publish_log=$(mktemp)
+
+          if (cd mcp && pnpm publish --access public --no-git-checks) 2>&1 | tee "$publish_log"; then
             verify_version_exists
+            rm -f "$publish_log"
+            exit 0
+          fi
+
+          if grep -Eiq 'cannot publish over the previously published versions|previously published versions' "$publish_log"; then
+            echo "${package_name}@${package_version} was already published according to npm, skipping"
+            rm -f "$publish_log"
             exit 0
           fi
 
           if version_exists; then
             echo "${package_name}@${package_version} already exists on npm after publish attempt, skipping"
+            rm -f "$publish_log"
             exit 0
           fi
 
           echo "::error::Failed to publish ${package_name}@${package_version}. Exact version is still missing from npm."
+          rm -f "$publish_log"
           exit 1
 
   # 5. 构建 CLI 独立二进制（仅 artifact，不发 Release）
