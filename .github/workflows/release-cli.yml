@@ -478,7 +478,7 @@ jobs:
           popd >/dev/null
 
           echo "Authenticated to npm as ${npm_user}"
-          echo "Deferring publish permission enforcement for ${package_name} to the publish step because npm access output is not stable under npm ${npm --version}."
+          echo "Deferring publish permission enforcement for ${package_name} to the publish step because npm access output is not stable in this workflow."
       - name: Build
         run: pnpm -F @truenine/memory-sync-cli run build
       - name: Publish to npm
@@ -604,7 +604,7 @@ jobs:
           popd >/dev/null
 
           echo "Authenticated to npm as ${npm_user}"
-          echo "Deferring publish permission enforcement for ${package_name} to the publish step because npm access output is not stable under npm ${npm --version}."
+          echo "Deferring publish permission enforcement for ${package_name} to the publish step because npm access output is not stable in this workflow."
       - name: Build
         run: pnpm exec turbo run build --filter=@truenine/memory-sync-mcp
       - name: Publish to npm
