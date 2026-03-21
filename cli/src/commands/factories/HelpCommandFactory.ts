@@ -15,7 +15,8 @@ export class HelpCommandFactory implements PrioritizedCommandFactory {
     return args.helpFlag || args.subcommand === 'help'
   }
 
-  createCommand(_args: ParsedCliArgs): Command {
+  createCommand(args: ParsedCliArgs): Command {
+    void args
     return new HelpCommand()
   }
 }

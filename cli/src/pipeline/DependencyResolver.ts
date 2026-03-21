@@ -49,7 +49,9 @@ function findCyclePath<T extends DependencyNode>(
 
   for (const node of cycleNodes) { // Start DFS from any cycle node
     if (dfs(node)) {
-      const cycleStart = path.indexOf(path.at(-1)!) // Extract just the cycle portion
+      const lastNode = path.at(-1)
+      if (lastNode == null) return [...cycleNodes]
+      const cycleStart = path.indexOf(lastNode) // Extract just the cycle portion
       return path.slice(cycleStart)
     }
     visited.clear()
@@ -106,8 +108,11 @@ export function topologicalSort<T extends DependencyNode>(
   }
 
   while (queue.length > 0) {
-    const current = queue.shift()! // Take first element to preserve registration order
-    const node = nodeMap.get(current)!
+    const current = queue.shift() // Take first element to preserve registration order
+    if (current == null) continue
+
+    const node = nodeMap.get(current)
+    if (node == null) continue
     result.push(node)
 
     const currentDependents = dependents.get(current) ?? [] // Process dependents in registration order

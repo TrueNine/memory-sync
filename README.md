@@ -32,6 +32,10 @@ What can it help you do?
 npm install -g @truenine/memory-sync
 ```
 
+## Docs
+
+`https://docs.truenine.org/tnmsc`
+
 ## Supported Tools
 
 | Type | Tools |

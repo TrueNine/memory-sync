@@ -88,7 +88,7 @@ async function main(): Promise<void> {
     pluginOptions: userConfigOptions,
     runtimeTargets,
     dryRun: dry,
-    registeredPluginNames: [...outputPlugins].map(p => p.name)
+    registeredPluginNames: Array.from(outputPlugins, plugin => plugin.name)
   })
 
   const commandCtx: CommandContext = {

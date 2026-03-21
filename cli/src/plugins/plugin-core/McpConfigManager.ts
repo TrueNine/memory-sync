@@ -1,6 +1,7 @@
 import type {ILogger, McpServerConfig, SkillPrompt} from './types'
 import * as path from 'node:path'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
+import {resolveSkillName} from './PromptIdentity'
 
 /**
  * MCP configuration format type
@@ -49,7 +50,7 @@ export function collectMcpServersFromSkills(
 
     for (const [name, config] of Object.entries(skill.mcpConfig.mcpServers)) {
       merged.set(name, config)
-      logger?.debug('mcp server collected', {skill: skill.yamlFrontMatter.name, mcpName: name})
+      logger?.debug('mcp server collected', {skill: resolveSkillName(skill), mcpName: name})
     }
   }
 

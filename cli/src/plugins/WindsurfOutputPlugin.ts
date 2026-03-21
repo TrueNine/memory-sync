@@ -102,7 +102,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       scope: 'project' | 'global',
       skill: SkillPrompt
     ): void => {
-      const skillName = skill.yamlFrontMatter.name
+      const skillName = this.getSkillName(skill)
       const skillDir = path.join(basePath, SKILLS_SUBDIR, skillName)
       declarations.push({
         path: path.join(skillDir, SKILL_FILE_NAME),

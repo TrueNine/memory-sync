@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync",
-  "version": "2026.10319.10359",
+  "version": "2026.10322.104",
   "description": "Cross-AI-tool prompt synchronisation toolkit (CLI + Tauri desktop GUI) — one ruleset, multi-target adaptation. Monorepo powered by pnpm + Turbo.",
   "license": "AGPL-3.0-only",
   "keywords": [
@@ -58,17 +58,28 @@
   },
   "packageManager": "pnpm@10.30.1",
   "devDependencies": {
-    "@napi-rs/cli": "^3.5.1",
+    "@antfu/eslint-config": "catalog:",
+    "@eslint/js": "catalog:",
+    "@napi-rs/cli": "catalog:",
+    "@next/eslint-plugin-next": "catalog:",
     "@truenine/eslint10-config": "catalog:",
+    "@unocss/eslint-config": "catalog:",
+    "@vue/eslint-config-prettier": "catalog:",
+    "@vue/eslint-config-typescript": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
+    "eslint-plugin-format": "catalog:",
+    "eslint-plugin-prettier": "catalog:",
+    "eslint-plugin-vue": "catalog:",
     "fast-check": "catalog:",
     "npm-run-all2": "catalog:",
+    "prettier": "catalog:",
     "simple-git-hooks": "^2.13.1",
     "tsdown": "catalog:",
     "tsx": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
   }

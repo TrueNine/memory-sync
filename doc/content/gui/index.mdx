@@ -1,0 +1,36 @@
+---
+title: GUI
+description: 说明 Tauri 桌面层的职责、边界，以及它与 tnmsc crate / CLI 的关系。
+sidebarTitle: 概览
+status: stable
+---
+
+# GUI
+
+`gui/` 是基于 Tauri + React 的桌面调用层。它的角色不是成为系统架构中心，而是把 `tnmsc` 的配置编辑、执行、展示与日志观察做成桌面工作流。
+
+## 这层负责什么
+
+- 发起同步、`dry-run` 与清理
+- 编辑或展示配置
+- 浏览文件、插件结果与日志
+- 提供桌面端页面化工作流
+
+## 这层不负责什么
+
+- 不重新实现 sync core
+- 不在前端重新推导 CLI 规则
+- 不改变 Rust-first / NAPI-first 的长期方向
+
+## 版本边界
+
+当前 `gui/package.json` 对开发引擎要求高于根工作区：
+
+- `node >= 25.2.1`
+- `pnpm >= 10.28.0`
+- `rust >= 1.93.1`
+
+## 推荐阅读
+
+- [页面与工作流](/docs/gui/workflows-and-pages)：查看当前导航、主要页面与桌面工作流。
+- [技术细节 / 架构边界](/docs/technical-details/architecture)：理解 GUI 为什么只能是调用层而不是核心层。

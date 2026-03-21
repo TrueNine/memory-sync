@@ -145,6 +145,7 @@ export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAML
   readonly type: PromptKind.SubAgent
   readonly agentPrefix?: string
   readonly agentName: string
+  readonly canonicalName: string
   readonly seriName?: SeriName
   readonly rawMdxContent?: string
 }
@@ -213,6 +214,7 @@ export interface SkillMcpConfig {
 export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatter> {
   readonly type: PromptKind.Skill
   readonly dir: RelativePath
+  readonly skillName: string
   readonly yamlFrontMatter: SkillYAMLFrontMatter
   readonly mcpConfig?: SkillMcpConfig
   readonly childDocs?: SkillChildDoc[]

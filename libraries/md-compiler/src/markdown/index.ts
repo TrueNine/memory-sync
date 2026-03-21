@@ -18,6 +18,15 @@ interface NapiMdCompilerModule {
   transformMdxReferencesToMd: (content: string) => string
 }
 
+const FRONT_MATTER_PATTERN = /^---\r?\n[\s\S]*?\r?\n---(?:(?:\r?\n){1,2}|$)/u
+const MDX_REFERENCE_PATTERN = /(!?\[)([^\]]*)(\]\()([^)]+)(\))/gu
+const TRAILING_MDX_EXTENSION_PATTERN = /\.mdx$/u
+const LINK_TEXT_MDX_EXTENSION_PATTERN = /\.mdx(?=#|\?|$)/gu
+const EXTERNAL_URL_PATTERN = /^(?:https?:)?\/\//u
+const URL_TRAILING_MDX_EXTENSION_PATTERN = /\.mdx$/u
+const URL_HASH_MDX_EXTENSION_PATTERN = /\.mdx#/u
+const URL_QUERY_MDX_EXTENSION_PATTERN = /\.mdx\?/u
+
 let napiBinding: NapiMdCompilerModule | null = null
 
 function isNapiMdCompilerModule(value: unknown): value is NapiMdCompilerModule {
@@ -111,7 +120,7 @@ export function buildFrontMatter(
 ): string {
   if (napiBinding != null && options == null) return napiBinding.buildFrontMatter(JSON.stringify(frontMatter))
   const cleanedFrontMatter = Object.fromEntries(
-    Object.entries(frontMatter).filter(([_, v]) => v != null)
+    Object.entries(frontMatter).filter(([, value]) => value != null)
   )
   if (Object.keys(cleanedFrontMatter).length === 0) return '---\n---'
   const yamlStr = YAML.stringify(cleanedFrontMatter, {
@@ -137,7 +146,7 @@ export function buildRawFrontMatter(
   options?: BuildMarkdownOptions
 ): string {
   const cleanedFrontMatter = Object.fromEntries(
-    Object.entries(frontMatter).filter(([_, v]) => v != null)
+    Object.entries(frontMatter).filter(([, value]) => value != null)
   )
   if (Object.keys(cleanedFrontMatter).length === 0) return ''
   return YAML.stringify(cleanedFrontMatter, {
@@ -188,8 +197,7 @@ export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): 
   }
   let contentWithoutFrontMatter = rawContent
   if (rawFrontMatter != null) {
-    const frontMatterRegex = /^---\r?\n[\s\S]*?\r?\n---(?:(?:\r?\n){1,2}|$)/
-    contentWithoutFrontMatter = rawContent.replace(frontMatterRegex, '')
+    contentWithoutFrontMatter = rawContent.replace(FRONT_MATTER_PATTERN, '')
   }
   return {
     ...yamlFrontMatter != null && {yamlFrontMatter},
@@ -203,16 +211,16 @@ export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): 
 export function transformMdxReferencesToMd(content: string): string {
   if (napiBinding != null) return napiBinding.transformMdxReferencesToMd(content)
   return content.replaceAll(
-    /(!?\[)([^\]]*)(\]\()([^)]+)(\))/g,
+    MDX_REFERENCE_PATTERN,
     (_match, prefix: string, text: string, middle: string, url: string, suffix: string) => {
       const transformedText = text
-        .replaceAll(/\.mdx$/g, '.md')
-        .replaceAll(/\.mdx(?=#|\?|$)/g, '.md')
-      if (/^(?:https?:)?\/\//.test(url)) return `${prefix}${transformedText}${middle}${url}${suffix}`
+        .replace(TRAILING_MDX_EXTENSION_PATTERN, '.md')
+        .replaceAll(LINK_TEXT_MDX_EXTENSION_PATTERN, '.md')
+      if (EXTERNAL_URL_PATTERN.test(url)) return `${prefix}${transformedText}${middle}${url}${suffix}`
       const transformedUrl = url
-        .replace(/\.mdx$/, '.md')
-        .replace(/\.mdx#/, '.md#')
-        .replace(/\.mdx\?/, '.md?')
+        .replace(URL_TRAILING_MDX_EXTENSION_PATTERN, '.md')
+        .replace(URL_HASH_MDX_EXTENSION_PATTERN, '.md#')
+        .replace(URL_QUERY_MDX_EXTENSION_PATTERN, '.md?')
       return `${prefix}${transformedText}${middle}${transformedUrl}${suffix}`
     }
   )

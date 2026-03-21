@@ -44,8 +44,10 @@ function createMockOutputPlugin(
   }
 }
 
-function createCommandContext(outputPlugins: readonly OutputPlugin[]): CommandContext {
-  const workspaceDir = path.resolve('tmp-workspace-command')
+function createCommandContext(
+  outputPlugins: readonly OutputPlugin[],
+  workspaceDir: string = path.resolve('tmp-workspace-command')
+): CommandContext {
   const aindexDir = path.join(workspaceDir, 'aindex')
   const collectedOutputContext = {
     workspace: {
@@ -178,6 +180,44 @@ describe('protected deletion commands', () => {
       success: false,
       message: expect.stringContaining('Cleanup protection conflict')
     }))
+  })
+
+  it('reuses declared outputs across cleanup and write during execute', async () => {
+    const workspaceDir = path.resolve('tmp-workspace-command-cached')
+    const outputPath = path.join(workspaceDir, 'project-a', 'AGENTS.md')
+    let declareOutputFilesCalls = 0
+    const plugin: OutputPlugin = {
+      type: PluginKind.Output,
+      name: 'CachedOutputPlugin',
+      log: createMockLogger(),
+      declarativeOutput: true,
+      outputCapabilities: {},
+      async declareOutputFiles() {
+        declareOutputFilesCalls += 1
+        return [{path: outputPath, source: {}}]
+      },
+      async declareCleanupPaths() {
+        return {}
+      },
+      async convertContent() {
+        return 'cached-output'
+      }
+    }
+
+    fs.rmSync(workspaceDir, {recursive: true, force: true})
+    fs.mkdirSync(path.join(workspaceDir, 'project-a'), {recursive: true})
+
+    try {
+      const ctx = createCommandContext([plugin], workspaceDir)
+      const result = await new ExecuteCommand().execute(ctx)
+
+      expect(result.success).toBe(true)
+      expect(declareOutputFilesCalls).toBe(1)
+      expect(fs.readFileSync(outputPath, 'utf8')).toBe('cached-output')
+    }
+    finally {
+      fs.rmSync(workspaceDir, {recursive: true, force: true})
+    }
   })
 
   it('includes structured diagnostics in JSON output errors', async () => {

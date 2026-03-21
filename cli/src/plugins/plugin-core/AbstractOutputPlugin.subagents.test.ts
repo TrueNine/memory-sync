@@ -33,6 +33,7 @@ function createSubAgentPrompt(): SubAgentPrompt {
     },
     agentPrefix: 'qa',
     agentName: 'boot',
+    canonicalName: 'qa-boot',
     yamlFrontMatter: {
       namingCase: 'kebabCase',
       description: 'subagent desc'

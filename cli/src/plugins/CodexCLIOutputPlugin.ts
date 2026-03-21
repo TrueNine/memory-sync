@@ -1,17 +1,19 @@
 import type {AbstractOutputPluginOptions} from './plugin-core'
-import {AbstractOutputPlugin, PLUGIN_NAMES} from './plugin-core'
+import {AbstractOutputPlugin, PLUGIN_NAMES, resolveSubAgentCanonicalName} from './plugin-core'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.codex'
 const PROMPTS_SUBDIR = 'prompts'
 const AGENTS_SUBDIR = 'agents'
 const CODEX_SUBAGENT_FIELD_ORDER = ['name', 'description', 'developer_instructions'] as const
-const CODEX_EXCLUDED_SUBAGENT_FIELDS = ['scope', 'seriName', 'argumentHint', 'color', 'namingCase'] as const
+const CODEX_EXCLUDED_SUBAGENT_FIELDS = ['scope', 'seriName', 'argumentHint', 'color', 'namingCase', 'model'] as const
 
 function transformCodexSubAgentFrontMatter(
+  subAgentCanonicalName: string,
   sourceFrontMatter?: Record<string, unknown>
 ): Record<string, unknown> {
   const frontMatter = {...sourceFrontMatter}
+  frontMatter['name'] = subAgentCanonicalName
 
   if (Array.isArray(frontMatter['allowTools']) && frontMatter['allowTools'].length > 0) frontMatter['allowedTools'] = frontMatter['allowTools'].join(', ')
 
@@ -38,9 +40,8 @@ const CODEX_OUTPUT_OPTIONS = {
     ext: '.toml',
     artifactFormat: 'toml',
     bodyFieldName: 'developer_instructions',
-    fileNameSource: 'frontMatterName',
     excludedFrontMatterFields: CODEX_EXCLUDED_SUBAGENT_FIELDS,
-    transformFrontMatter: (_subAgent, context) => transformCodexSubAgentFrontMatter(context.sourceFrontMatter),
+    transformFrontMatter: (subAgent, context) => transformCodexSubAgentFrontMatter(resolveSubAgentCanonicalName(subAgent), context.sourceFrontMatter),
     fieldOrder: CODEX_SUBAGENT_FIELD_ORDER
   },
   cleanup: {

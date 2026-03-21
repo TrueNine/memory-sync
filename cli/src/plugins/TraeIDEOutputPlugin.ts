@@ -167,7 +167,7 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       filteredSkills: readonly SkillPrompt[]
     ): void => {
       for (const skill of filteredSkills) {
-        const skillName = skill.yamlFrontMatter.name
+        const skillName = this.getSkillName(skill)
         const skillDir = path.join(baseDir, SKILLS_SUBDIR, skillName)
         declarations.push({
           path: path.join(skillDir, SKILL_FILE_NAME),

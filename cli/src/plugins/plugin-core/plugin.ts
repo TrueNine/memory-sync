@@ -389,20 +389,33 @@ export function validateOutputScopeOverridesForPlugins(
   }
 }
 
+export async function collectOutputDeclarations(
+  plugins: readonly OutputPlugin[],
+  ctx: OutputWriteContext
+): Promise<Map<OutputPlugin, readonly OutputFileDeclaration[]>> {
+  validateOutputScopeOverridesForPlugins(plugins, ctx.pluginOptions)
+
+  const declarationEntries = await Promise.all(
+    plugins.map(async plugin => [plugin, await plugin.declareOutputFiles(ctx)] as const)
+  )
+
+  return new Map(declarationEntries)
+}
+
 /**
  * Execute declarative write operations for output plugins.
  * Core runtime owns file system writes; plugins only declare and convert content.
  */
 export async function executeDeclarativeWriteOutputs(
   plugins: readonly OutputPlugin[],
-  ctx: OutputWriteContext
+  ctx: OutputWriteContext,
+  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
 ): Promise<Map<string, WriteResults>> {
   const results = new Map<string, WriteResults>()
-
-  validateOutputScopeOverridesForPlugins(plugins, ctx.pluginOptions)
+  const outputDeclarations = predeclaredOutputs ?? await collectOutputDeclarations(plugins, ctx)
 
   for (const plugin of plugins) {
-    const declarations = await plugin.declareOutputFiles(ctx)
+    const declarations = outputDeclarations.get(plugin) ?? []
     const fileResults: WriteResult[] = []
 
     for (const declaration of declarations) {
@@ -464,18 +477,20 @@ export interface CollectedOutputs {
  */
 export async function collectAllPluginOutputs(
   plugins: readonly OutputPlugin[],
-  ctx: OutputPluginContext
+  ctx: OutputPluginContext,
+  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
 ): Promise<CollectedOutputs> {
   const projectDirs: string[] = []
   const projectFiles: string[] = []
   const globalDirs: string[] = []
   const globalFiles: string[] = []
 
-  validateOutputScopeOverridesForPlugins(plugins, ctx.pluginOptions)
-
-  const declarationGroups = await Promise.all(
-    plugins.map(async plugin => plugin.declareOutputFiles({...ctx, dryRun: true}))
-  )
+  const declarationGroups = predeclaredOutputs != null
+    ? [...predeclaredOutputs.values()]
+    : Array.from(
+        await collectOutputDeclarations(plugins, {...ctx, dryRun: true}),
+        ([, declarations]) => declarations
+      )
 
   for (const declarations of declarationGroups) {
     for (const declaration of declarations) {

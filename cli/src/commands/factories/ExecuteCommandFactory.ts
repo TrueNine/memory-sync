@@ -8,11 +8,13 @@ import {ExecuteCommand} from '../ExecuteCommand'
  * Handles default execution when no specific subcommand matches
  */
 export class ExecuteCommandFactory implements CommandFactory {
-  canHandle(_args: ParsedCliArgs): boolean { // This is a catch-all factory with lowest priority
+  canHandle(args: ParsedCliArgs): boolean { // This is a catch-all factory with lowest priority
+    void args
     return true
   }
 
-  createCommand(_args: ParsedCliArgs): Command {
+  createCommand(args: ParsedCliArgs): Command {
+    void args
     return new ExecuteCommand()
   }
 }

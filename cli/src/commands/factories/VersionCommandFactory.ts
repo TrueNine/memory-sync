@@ -15,7 +15,8 @@ export class VersionCommandFactory implements PrioritizedCommandFactory {
     return args.versionFlag || args.subcommand === 'version'
   }
 
-  createCommand(_args: ParsedCliArgs): Command {
+  createCommand(args: ParsedCliArgs): Command {
+    void args
     return new VersionCommand()
   }
 }

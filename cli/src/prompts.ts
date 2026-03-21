@@ -388,13 +388,27 @@ function buildPromptDefinitionFromId(
   switch (descriptor.kind) {
     case 'global-memory': return buildGlobalMemoryDefinition(env)
     case 'workspace-memory': return buildWorkspaceMemoryDefinition(env)
-    case 'project-memory': return buildProjectMemoryDefinition(env, descriptor.projectName!)
-    case 'project-child-memory': return buildProjectMemoryDefinition(env, descriptor.projectName!, descriptor.relativeName)
-    case 'skill': return buildSkillDefinition(env, descriptor.skillName!)
-    case 'skill-child-doc': return buildSkillChildDocDefinition(env, descriptor.skillName!, descriptor.relativeName!)
+    case 'project-memory':
+      if (descriptor.projectName == null) throw new Error('project-memory promptId must include a project name')
+      return buildProjectMemoryDefinition(env, descriptor.projectName)
+    case 'project-child-memory':
+      if (descriptor.projectName == null || descriptor.relativeName == null) {
+        throw new Error('project-child-memory promptId must include project and child path')
+      }
+      return buildProjectMemoryDefinition(env, descriptor.projectName, descriptor.relativeName)
+    case 'skill':
+      if (descriptor.skillName == null) throw new Error('skill promptId must include a skill name')
+      return buildSkillDefinition(env, descriptor.skillName)
+    case 'skill-child-doc':
+      if (descriptor.skillName == null || descriptor.relativeName == null) {
+        throw new Error('skill-child-doc promptId must include skill and child path')
+      }
+      return buildSkillChildDocDefinition(env, descriptor.skillName, descriptor.relativeName)
     case 'command':
     case 'subagent':
-    case 'rule': return buildFlatPromptDefinition(env, descriptor.kind, descriptor.relativeName!)
+    case 'rule':
+      if (descriptor.relativeName == null) throw new Error(`${descriptor.kind} promptId must include a relative path`)
+      return buildFlatPromptDefinition(env, descriptor.kind, descriptor.relativeName)
   }
 }
 

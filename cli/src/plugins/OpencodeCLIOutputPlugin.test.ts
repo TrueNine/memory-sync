@@ -20,8 +20,8 @@ function createSubAgentPrompt(scope: 'project' | 'global'): SubAgentPrompt {
     },
     agentPrefix: 'ops',
     agentName: 'reviewer',
+    canonicalName: 'ops-reviewer',
     yamlFrontMatter: {
-      name: 'reviewer',
       description: 'Reviewer',
       scope
     },

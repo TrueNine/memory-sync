@@ -176,7 +176,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       filteredSkills: readonly SkillPrompt[]
     ): void => {
       for (const skill of filteredSkills) {
-        const normalizedSkillName = this.validateAndNormalizeSkillName((skill.yamlFrontMatter?.name as string | undefined) ?? skill.dir.getDirectoryName())
+        const normalizedSkillName = this.validateAndNormalizeSkillName(this.getSkillName(skill))
         const skillDir = path.join(basePath, SKILLS_SUBDIR, normalizedSkillName)
 
         declarations.push({

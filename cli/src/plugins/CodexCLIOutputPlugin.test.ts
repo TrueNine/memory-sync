@@ -131,8 +131,8 @@ function createSubAgentPrompt(scope: 'project' | 'global'): SubAgentPrompt {
     },
     agentPrefix: 'qa',
     agentName: 'reviewer',
+    canonicalName: 'qa-reviewer',
     yamlFrontMatter: {
-      name: 'review-helper',
       description: 'Review pull requests',
       scope,
       model: 'gpt-5.2',
@@ -191,8 +191,9 @@ describe('codexCLIOutputPlugin command output', () => {
       )
 
       expect(commandDeclaration).toBeDefined()
+      if (commandDeclaration == null) throw new Error('Expected codex command declaration')
 
-      const rendered = await codexPlugin.convertContent(commandDeclaration!, writeCtx)
+      const rendered = await codexPlugin.convertContent(commandDeclaration, writeCtx)
       expect(String(rendered)).toContain('English dist description')
       expect(String(rendered)).toContain('English dist command body')
       expect(String(rendered)).not.toContain('中文源描述')
@@ -225,27 +226,28 @@ describe('codexCLIOutputPlugin command output', () => {
       const declarations = await plugin.declareOutputFiles(writeCtx)
       const paths = declarations.map(declaration => declaration.path)
 
-      expect(paths).toContain(path.join(workspace, 'project-a', '.codex', 'agents', 'review-helper.toml'))
-      expect(paths).toContain(path.join(workspace, 'project-b', '.codex', 'agents', 'review-helper.toml'))
-      expect(paths).not.toContain(path.join(homeDir, '.codex', 'agents', 'review-helper.toml'))
+      expect(paths).toContain(path.join(workspace, 'project-a', '.codex', 'agents', 'qa-reviewer.toml'))
+      expect(paths).toContain(path.join(workspace, 'project-b', '.codex', 'agents', 'qa-reviewer.toml'))
+      expect(paths).not.toContain(path.join(homeDir, '.codex', 'agents', 'qa-reviewer.toml'))
 
-      const declaration = declarations.find(item => item.path === path.join(workspace, 'project-a', '.codex', 'agents', 'review-helper.toml'))
+      const declaration = declarations.find(item => item.path === path.join(workspace, 'project-a', '.codex', 'agents', 'qa-reviewer.toml'))
       expect(declaration).toBeDefined()
+      if (declaration == null) throw new Error('Expected codex subagent declaration')
 
-      const rendered = await plugin.convertContent(declaration!, writeCtx)
-      expect(String(rendered)).toContain('name = "review-helper"')
+      const rendered = await plugin.convertContent(declaration, writeCtx)
+      expect(String(rendered)).toContain('name = "qa-reviewer"')
       expect(String(rendered)).toContain('description = "Review pull requests"')
       expect(String(rendered)).toContain([
         'developer_instructions = """',
         'Review changes carefully.',
         'Focus on concrete regressions."""'
       ].join('\n'))
-      expect(String(rendered)).toContain('model = "gpt-5.2"')
       expect(String(rendered)).toContain('nickname_candidates = ["guard"]')
       expect(String(rendered)).toContain('sandbox_mode = "workspace-write"')
       expect(String(rendered)).toContain('allowedTools = "shell"')
       expect(String(rendered)).toContain('[mcp_servers]')
       expect(String(rendered)).toContain('[mcp_servers.docs]')
+      expect(String(rendered)).not.toContain('model = ')
       expect(String(rendered)).not.toContain('scope = ')
       expect(String(rendered)).not.toContain('allowTools')
       expect(String(rendered)).not.toContain('color = ')
@@ -260,10 +262,10 @@ describe('codexCLIOutputPlugin command output', () => {
       const declarations = await plugin.declareOutputFiles(writeCtx)
 
       expect(declarations.map(declaration => declaration.path)).toContain(
-        path.join(workspace, 'project-a', '.codex', 'agents', 'review-helper.toml')
+        path.join(workspace, 'project-a', '.codex', 'agents', 'qa-reviewer.toml')
       )
       expect(declarations.map(declaration => declaration.path)).not.toContain(
-        path.join(homeDir, '.codex', 'agents', 'review-helper.toml')
+        path.join(homeDir, '.codex', 'agents', 'qa-reviewer.toml')
       )
       expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
     })

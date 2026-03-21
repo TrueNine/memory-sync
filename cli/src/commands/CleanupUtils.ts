@@ -1,4 +1,4 @@
-import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputPlugin, PluginOptions} from '../plugins/plugin-core'
+import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputFileDeclaration, OutputPlugin, PluginOptions} from '../plugins/plugin-core'
 import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -130,14 +130,18 @@ async function collectPluginCleanupDeclarations(
 
 async function collectPluginCleanupSnapshot(
   plugin: OutputPlugin,
-  cleanCtx: OutputCleanContext
+  cleanCtx: OutputCleanContext,
+  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
 ): Promise<{
   readonly plugin: OutputPlugin
   readonly outputs: Awaited<ReturnType<OutputPlugin['declareOutputFiles']>>
   readonly cleanup: OutputCleanupDeclarations
 }> {
+  const existingOutputDeclarations = predeclaredOutputs?.get(plugin)
   const [outputs, cleanup] = await Promise.all([
-    plugin.declareOutputFiles({...cleanCtx, dryRun: true}),
+    existingOutputDeclarations != null
+      ? Promise.resolve(existingOutputDeclarations)
+      : plugin.declareOutputFiles({...cleanCtx, dryRun: true}),
     collectPluginCleanupDeclarations(plugin, cleanCtx)
   ])
 
@@ -258,7 +262,8 @@ function logCleanupProtectionConflicts(
  */
 export async function collectDeletionTargets(
   outputPlugins: readonly OutputPlugin[],
-  cleanCtx: OutputCleanContext
+  cleanCtx: OutputCleanContext,
+  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
 ): Promise<{
   filesToDelete: string[]
   dirsToDelete: string[]
@@ -272,7 +277,9 @@ export async function collectDeletionTargets(
   const excludeScanGlobSet = new Set<string>(DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS)
   const outputPathOwners = new Map<string, string[]>()
 
-  const pluginSnapshots = await Promise.all(outputPlugins.map(async plugin => collectPluginCleanupSnapshot(plugin, cleanCtx)))
+  const pluginSnapshots = await Promise.all(
+    outputPlugins.map(async plugin => collectPluginCleanupSnapshot(plugin, cleanCtx, predeclaredOutputs))
+  )
 
   const addDeletePath = (rawPath: string, kind: 'file' | 'directory'): void => {
     if (kind === 'directory') deleteDirs.add(resolveAbsolutePath(rawPath))
@@ -491,19 +498,22 @@ function logCleanupPlanDiagnostics(
 export async function performCleanup(
   outputPlugins: readonly OutputPlugin[],
   cleanCtx: OutputCleanContext,
-  logger: ILogger
+  logger: ILogger,
+  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
 ): Promise<CleanupResult> {
-  const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx) // Collect outputs for logging
-  logger.debug('Collected outputs for cleanup', {
-    projectDirs: outputs.projectDirs.length,
-    projectFiles: outputs.projectFiles.length,
-    globalDirs: outputs.globalDirs.length,
-    globalFiles: outputs.globalFiles.length
-  })
+  if (predeclaredOutputs != null) {
+    const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx, predeclaredOutputs)
+    logger.debug('Collected outputs for cleanup', {
+      projectDirs: outputs.projectDirs.length,
+      projectFiles: outputs.projectFiles.length,
+      globalDirs: outputs.globalDirs.length,
+      globalFiles: outputs.globalFiles.length
+    })
+  }
 
   let targets: Awaited<ReturnType<typeof collectDeletionTargets>>
   try {
-    targets = await collectDeletionTargets(outputPlugins, cleanCtx)
+    targets = await collectDeletionTargets(outputPlugins, cleanCtx, predeclaredOutputs)
   }
   catch (error) {
     if (error instanceof CleanupProtectionConflictError) {

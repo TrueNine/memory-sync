@@ -14,6 +14,9 @@ export interface BuildPromptTomlArtifactOptions extends BuildTomlDocumentOptions
 type TomlScalar = string | number | boolean | Date | bigint
 type TomlObject = Readonly<Record<string, unknown>>
 
+const BARE_TOML_KEY_PATTERN = /^[\w-]+$/u
+const NEWLINE_PATTERN = /\r\n?/gu
+
 function isPlainObject(value: unknown): value is TomlObject {
   return value != null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)
 }
@@ -52,7 +55,7 @@ function normalizeValue(value: unknown): unknown {
 }
 
 function isBareTomlKey(key: string): boolean {
-  return /^[\w-]+$/u.test(key)
+  return BARE_TOML_KEY_PATTERN.test(key)
 }
 
 function formatTomlKey(key: string): string {
@@ -66,7 +69,7 @@ function formatTomlKeyPath(path: readonly string[]): string {
 }
 
 function formatMultilineTomlString(value: string): string {
-  const normalizedValue = value.replaceAll(/\r\n?/gu, '\n')
+  const normalizedValue = value.replaceAll(NEWLINE_PATTERN, '\n')
   let escapedValue = ''
 
   for (const character of normalizedValue) {

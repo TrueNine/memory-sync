@@ -1,0 +1,28 @@
+---
+title: MCP
+description: 说明 memory-sync-mcp 的定位、运行方式，以及它与 CLI prompt service 的关系。
+sidebarTitle: 概览
+status: stable
+---
+
+# MCP
+
+`mcp/` 是当前仓库里的独立包，发布名为 `@truenine/memory-sync-mcp`，可执行入口是 `memory-sync-mcp`。它不是文档里的抽象概念，而是一个真实存在的 stdio server。
+
+## 它负责什么
+
+- 作为 MCP stdio server 暴露 `memory-sync` 的 prompt 管理能力
+- 复用 `@truenine/memory-sync-cli` 导出的 prompt service，而不是重新实现一套独立逻辑
+- 让支持 MCP 的宿主按工具调用方式读取、更新和写回 prompt 资产
+
+## 它不负责什么
+
+- 它不是新的真源格式
+- 它不是 GUI 的替代品
+- 它不是绕过 CLI 规则的“特权入口”
+
+## 推荐阅读
+
+- [Server 与 Tools](/docs/mcp/server-tools)：查看 stdio server 的入口、工具清单与 `workspaceDir` 语义。
+- [CLI](/docs/cli)：需要了解工作区准备、Schema 与输出边界时，仍然回到 CLI 侧核对事实。
+- [技术细节](/docs/technical-details/source-of-truth)：需要理解 prompt 资产为什么这样建模时，从真源模型开始。

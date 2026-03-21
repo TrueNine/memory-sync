@@ -20,6 +20,7 @@ interface NativeCompileResult {
 }
 
 const CODE_FENCE_PATTERN = /^\s*(```|~~~)/u
+const LINE_SPLIT_PATTERN = /\r?\n/u
 const RESIDUAL_MODULE_SYNTAX_PATTERNS = [
   /^\s*export\s+default\b/u,
   /^\s*export\s+const\b/u,
@@ -181,7 +182,7 @@ function serializeOptions(options?: MdxToMdOptions): string | null {
 function hasResidualModuleSyntax(content: string): boolean {
   let activeFence: string | undefined
 
-  for (const line of content.split(/\r?\n/u)) {
+  for (const line of content.split(LINE_SPLIT_PATTERN)) {
     const fenceMatch = CODE_FENCE_PATTERN.exec(line)
     if (fenceMatch?.[1] != null) {
       const marker = fenceMatch[1]

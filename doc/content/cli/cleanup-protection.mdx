@@ -1,0 +1,53 @@
+---
+title: 清理保护
+description: 说明 cleanupProtection 规则如何避免 clean 命令误删不该删除的内容。
+sidebarTitle: 清理保护
+status: stable
+---
+
+# 清理保护
+
+`clean` 不是无脑删文件，所以 `cleanupProtection` 也不是可有可无的附属字段。
+
+## 规则结构
+
+每条保护规则支持这些字段：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `path` | 是 | 目标路径或 glob |
+| `protectionMode` | 是 | `direct` 或 `recursive` |
+| `matcher` | 否 | `path` 或 `glob` |
+| `reason` | 否 | 写明这条保护存在的原因 |
+
+## 语义
+
+- `direct`：只保护这一个目标。
+- `recursive`：保护这一路径下的整棵子树。
+
+## 什么时候必须配
+
+如果你的输出目录旁边混放了：
+
+- 手写文件
+- 其他工具生成但不属于 tnmsc 的文件
+- 临时人工补丁
+
+那么在启用 `clean` 前最好先加保护规则，否则你迟早会把不该删的内容一起带走。
+
+## 推荐写法
+
+```json
+{
+  "cleanupProtection": {
+    "rules": [
+      {
+        "path": ".cursor/local-notes",
+        "protectionMode": "recursive",
+        "matcher": "path",
+        "reason": "人工维护，不属于 tnmsc 输出"
+      }
+    ]
+  }
+}
+```

@@ -21,6 +21,7 @@ function createSkillPrompt(scope: 'project' | 'global', name: string): SkillProm
     content: 'skill body',
     length: 10,
     filePathKind: FilePathKind.Relative,
+    skillName: name,
     dir: {
       pathKind: FilePathKind.Relative,
       path: `skills/${name}`,
@@ -29,7 +30,6 @@ function createSkillPrompt(scope: 'project' | 'global', name: string): SkillProm
       getAbsolutePath: () => path.resolve('tmp/dist/skills', name)
     },
     yamlFrontMatter: {
-      name,
       description: 'Skill description',
       scope
     },

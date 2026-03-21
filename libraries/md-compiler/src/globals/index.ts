@@ -4,11 +4,11 @@
  * @example {profile.name}, {profile.username}
  */
 export interface UserProfile {
+  [key: string]: unknown
   name?: string
   username?: string
   gender?: string
   birthday?: string
-  [key: string]: unknown
 }
 
 /**
@@ -16,6 +16,8 @@ export interface UserProfile {
  * @example {tool.websearch}, {tool.webfetch}, {tool.readFile}
  */
 export interface ToolReferences {
+  /** Allow custom tool references */
+  [key: string]: string | undefined
   /** Web search tool name */
   websearch?: string
   /** Web fetch tool name */
@@ -32,8 +34,6 @@ export interface ToolReferences {
   grep?: string
   /** List directory tool name */
   listDirectory?: string
-  /** Allow custom tool references */
-  [key: string]: string | undefined
 }
 
 /**
@@ -107,6 +107,7 @@ export enum OsKind {
  * @example {os.platform}, {os.arch}, {os.shellKind}, {os.kind}
  */
 export interface OsInfo {
+  [key: string]: string | ShellKind | OsKind | undefined
   platform?: string
   arch?: string
   hostname?: string
@@ -116,7 +117,6 @@ export interface OsInfo {
   release?: string
   shellKind?: ShellKind
   kind?: OsKind
-  [key: string]: string | ShellKind | OsKind | undefined
 }
 
 export interface MdProps {

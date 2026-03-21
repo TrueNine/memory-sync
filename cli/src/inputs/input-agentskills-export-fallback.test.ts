@@ -52,14 +52,12 @@ describe('skill input plugin export fallback', () => {
       fs.mkdirSync(srcSkillDir, {recursive: true})
       fs.mkdirSync(distSkillDir, {recursive: true})
       fs.writeFileSync(path.join(srcSkillDir, 'skill.src.mdx'), `export default {
-  name: 'demo',
   description: 'source export description',
 }
 
 Source skill
 `, 'utf8')
       fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), `export default {
-  name: 'demo',
   description: 'dist export description',
 }
 

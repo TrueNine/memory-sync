@@ -1,0 +1,43 @@
+---
+title: 排障
+description: 整理当前最可能遇到的版本、命令与输出范围问题。
+sidebarTitle: 排障
+status: stable
+---
+
+# 排障
+
+## 现象：我以为有某个页面，结果 404
+
+新文档已经从旧的混合分组改成五个一级门类。优先从 [/docs](/docs) 或 [CLI](/docs/cli) 开始找，而不是沿用旧路径。
+
+## 现象：`tnmsc init` 没帮我生成任何内容
+
+这是当前实现预期行为。它已经废弃，不再初始化 aindex。请改为手动维护你的源目录和全局配置。
+
+## 现象：规则、Prompt 或 MCP 相关内容输出到了不该出现的地方
+
+先检查：
+
+1. [plugin.config.ts](/docs/cli/plugin-config) 中到底装了哪些输出插件。
+2. [输出范围](/docs/cli/output-scopes) 有没有按 topic 限制范围。
+3. 你写的是 global 还是 workspace 源。
+
+## 现象：`clean` 不敢执行或执行后删过头
+
+先回看 [清理保护](/docs/cli/cleanup-protection)。如果目录里混有人工文件，却没配置保护规则，`clean` 风险就会明显升高。
+
+## 现象：文档页构建失败
+
+先跑：
+
+```sh
+pnpm -C doc run validate:content
+```
+
+这套校验会先检查：
+
+- 每个 MDX 是否有 `title` / `description`
+- 每个内容目录是否有 `_meta.ts`
+- `_meta.ts` 是否覆盖当前文件与子目录
+- 文档内部链接是否指向存在的页面

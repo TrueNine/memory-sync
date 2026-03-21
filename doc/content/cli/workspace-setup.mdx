@@ -1,0 +1,39 @@
+---
+title: 工作区与 aindex
+description: 说明 aindex 源目录、全局配置与项目配置入口在当前仓库中的职责分工。
+sidebarTitle: 工作区与 aindex
+status: stable
+---
+
+# 工作区与 aindex
+
+## 先记住这件事
+
+`memory-sync` 不是把目标工具配置文件当真源维护，而是围绕 aindex 源目录与项目配置入口来生成目标输出。
+
+## 你至少需要准备什么
+
+- 一个工作区根目录
+- aindex 风格的源内容目录
+- 全局配置文件
+- 项目级 `plugin.config.ts`
+
+## 源内容通常怎么分
+
+当前文档里单独拆出的输入资产包括：
+
+- 全局 Prompt 与工作区 Prompt
+- `skills/`
+- `commands/`
+- `subagents/`
+- `rules/`
+
+这些输入资产的职责说明在 [技术细节](/docs/technical-details) 里统一解释，而 CLI 侧只负责告诉你它们会被怎样读取、校验和写出。
+
+## 项目配置入口
+
+项目级装配入口是 [plugin.config.ts](/docs/cli/plugin-config)。它决定默认装配哪些输出插件，以及项目级运行参数如何并入真实执行配置。
+
+## 下一步
+
+目录准备完后，直接进入 [第一次同步](/docs/cli/first-sync)，先用 `dry-run` 验证输出范围，再做真实写入。

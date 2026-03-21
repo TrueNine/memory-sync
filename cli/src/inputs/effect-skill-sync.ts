@@ -165,7 +165,8 @@ export class SkillDistCleanupEffectInputCapability extends AbstractInputCapabili
     return fileName.endsWith('.mdx') && !hasSourcePromptExtension(fileName)
   }
 
-  collect(_ctx: InputCapabilityContext): Partial<InputCollectedContext> {
+  collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
+    void ctx
     return {}
   }
 }

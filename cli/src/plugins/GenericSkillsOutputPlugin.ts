@@ -77,7 +77,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       filteredSkills: readonly SkillPrompt[]
     ): void => {
       for (const skill of filteredSkills) {
-        const skillName = skill.yamlFrontMatter.name
+        const skillName = this.getSkillName(skill)
         const skillDir = this.joinPath(baseSkillsDir, skillName)
 
         declarations.push({
@@ -124,7 +124,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
         if (skill.mcpConfig == null) continue
 
         declarations.push({
-          path: this.joinPath(baseSkillsDir, skill.yamlFrontMatter.name, MCP_CONFIG_FILE),
+          path: this.joinPath(baseSkillsDir, this.getSkillName(skill), MCP_CONFIG_FILE),
           scope,
           source: {
             kind: 'skillMcp',

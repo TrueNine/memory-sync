@@ -5,7 +5,7 @@ import eslint10 from '@truenine/eslint10-config'
 
 const configDir = dirname(fileURLToPath(import.meta.url))
 
-const config = eslint10({
+const config = await eslint10({
   type: 'lib',
   typescript: {
     strictTypescriptEslint: true,
@@ -34,4 +34,12 @@ const config = eslint10({
   ]
 })
 
-export default config as unknown
+const overrides = {
+  files: ['src/**/*.ts', 'src/**/*.tsx'],
+  rules: {
+    'e18e/prefer-static-regex': 'off',
+    'ts/member-ordering': 'off'
+  }
+}
+
+export default [...config, overrides] as unknown

@@ -30,6 +30,14 @@ export interface ParseExportOptions {
   readonly sourceText?: string
 }
 
+const EXPORT_DEFAULT_PATTERN = /^export\s+default\s+/u
+const EXPORT_CONST_PATTERN = /export\s+const\s+(\w+)\s*=\s*/gu
+const NUMBER_LITERAL_PATTERN = /^-?\d+(?:\.\d+)?$/u
+const VARIABLE_REFERENCE_PATTERN = /^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/iu
+const WHITESPACE_CHAR_PATTERN = /\s/u
+const WORD_CHAR_PATTERN = /[\w$]/u
+const SIMPLE_OBJECT_KEY_PATTERN = /^[\w$]+$/u
+
 /**
  * Supported literal types for static evaluation
  */
@@ -111,7 +119,7 @@ function extractExportFromNode(
 
   const code = node.value.trim() // Parse ESM node's value (source code string)
 
-  const exportDefaultMatch = /^export\s+default\s+/.exec(code)
+  const exportDefaultMatch = EXPORT_DEFAULT_PATTERN.exec(code)
   if (exportDefaultMatch != null) {
     const valueStartIndex = exportDefaultMatch[0].length
     const valueStr = extractValueString(code, valueStartIndex)
@@ -142,13 +150,12 @@ function extractExportFromNode(
     return result
   }
 
-  const exportConstRegex = /export\s+const\s+(\w+)\s*=\s*/g // Handles multiline and various value types // Match export const name = value pattern
-  let match: RegExpExecArray | null = exportConstRegex.exec(code)
+  let match: RegExpExecArray | null = EXPORT_CONST_PATTERN.exec(code)
 
   while (match !== null) {
     const name = match[1]
     if (name == null) {
-      match = exportConstRegex.exec(code)
+      match = EXPORT_CONST_PATTERN.exec(code)
       continue
     }
 
@@ -156,7 +163,7 @@ function extractExportFromNode(
     const valueStr = extractValueString(code, valueStartIndex)
 
     if (valueStr == null) {
-      match = exportConstRegex.exec(code)
+      match = EXPORT_CONST_PATTERN.exec(code)
       continue
     }
 
@@ -182,7 +189,7 @@ function extractExportFromNode(
       )
     }
 
-    match = exportConstRegex.exec(code)
+    match = EXPORT_CONST_PATTERN.exec(code)
   }
 
   return result
@@ -289,23 +296,23 @@ export function parseStaticValue(
 
   if (trimmed === 'null') return null // Null literal
 
-  if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed) // Number literals (including negative and decimal)
+  if (NUMBER_LITERAL_PATTERN.test(trimmed)) return Number(trimmed) // Number literals (including negative and decimal)
 
-  if (trimmed.startsWith('"') && trimmed.endsWith('"')) return parseStringLiteral(trimmed.slice(1, -1), '"') // String literals with double quotes
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) return parseStringLiteral(trimmed.slice(1, -1)) // String literals with double quotes
 
-  if (trimmed.startsWith('\'') && trimmed.endsWith('\'')) return parseStringLiteral(trimmed.slice(1, -1), '\'') // String literals with single quotes
+  if (trimmed.startsWith('\'') && trimmed.endsWith('\'')) return parseStringLiteral(trimmed.slice(1, -1)) // String literals with single quotes
 
   if (trimmed.startsWith('`') && trimmed.endsWith('`')) { // Template literals (without expressions)
     const inner = trimmed.slice(1, -1)
     if (inner.includes('${')) throw new Error(`Template literal with expressions cannot be statically evaluated: ${trimmed}`)
-    return parseStringLiteral(inner, '`')
+    return parseStringLiteral(inner)
   }
 
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) return parseArrayLiteral(trimmed, scope, filePath) // Array literals
 
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) return parseObjectLiteral(trimmed, scope, filePath) // Object literals
 
-  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) return evaluateVariableReference(trimmed, scope, filePath) // Variable reference (e.g., tool.readFile, profile.name)
+  if (VARIABLE_REFERENCE_PATTERN.test(trimmed)) return evaluateVariableReference(trimmed, scope, filePath) // Variable reference (e.g., tool.readFile, profile.name)
 
   const fileInfo = filePath != null ? ` in file "${filePath}"` : '' // Cannot statically evaluate
   throw new Error(`Expression "${trimmed}" cannot be statically evaluated${fileInfo}`)
@@ -315,10 +322,9 @@ export function parseStaticValue(
  * Parses a string literal, handling escape sequences.
  *
  * @param content - String content without quotes
- * @param _quote - Quote character used (unused but kept for API consistency)
  * @returns Parsed string value
  */
-function parseStringLiteral(content: string, _quote: string): string {
+function parseStringLiteral(content: string): string {
   return content // Handle common escape sequences
     .replaceAll('\\n', '\n')
     .replaceAll('\\r', '\r')
@@ -521,15 +527,15 @@ function convertToJson(jsLiteral: string): string {
       const keyEnd = result.length // Look back to find the key start
       let keyStart = keyEnd - 1
 
-      while (keyStart >= 0 && /\s/.test(result.charAt(keyStart))) keyStart-- // Skip whitespace
+      while (keyStart >= 0 && WHITESPACE_CHAR_PATTERN.test(result.charAt(keyStart))) keyStart-- // Skip whitespace
 
       const keyEndPos = keyStart + 1 // Find key start (word characters)
-      while (keyStart >= 0 && /[\w$]/.test(result.charAt(keyStart))) keyStart--
+      while (keyStart >= 0 && WORD_CHAR_PATTERN.test(result.charAt(keyStart))) keyStart--
       keyStart++
 
       if (keyStart > 0 && result.charAt(keyStart - 1) !== '"') { // Check if key is already quoted
         const key = result.slice(keyStart, keyEndPos)
-        if (key.length > 0 && /^[\w$]+$/.test(key)) result = `${result.slice(0, keyStart)}"${key}"`
+        if (key.length > 0 && SIMPLE_OBJECT_KEY_PATTERN.test(key)) result = `${result.slice(0, keyStart)}"${key}"`
       }
     }
 

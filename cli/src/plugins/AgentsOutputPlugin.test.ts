@@ -113,8 +113,12 @@ describe('agentsOutputPlugin prompt-source project exclusion', () => {
     expect(paths).toContain(path.join(workspaceBase, 'project-a', 'commands', 'AGENTS.md'))
     expect(paths).not.toContain(path.join(workspaceBase, 'aindex', 'AGENTS.md'))
     expect(paths).not.toContain(path.join(workspaceBase, 'aindex', 'commands', 'AGENTS.md'))
-    await expect(plugin.convertContent(workspaceDeclaration!, ctx)).resolves.toBe('workspace root')
-    await expect(plugin.convertContent(rootDeclaration!, ctx)).resolves.toBe('project root')
-    await expect(plugin.convertContent(childDeclaration!, ctx)).resolves.toBe('project child')
+    if (workspaceDeclaration == null || rootDeclaration == null || childDeclaration == null) {
+      throw new Error('Expected AGENTS.md declarations were not emitted')
+    }
+
+    await expect(plugin.convertContent(workspaceDeclaration, ctx)).resolves.toBe('workspace root')
+    await expect(plugin.convertContent(rootDeclaration, ctx)).resolves.toBe('project root')
+    await expect(plugin.convertContent(childDeclaration, ctx)).resolves.toBe('project child')
   })
 })

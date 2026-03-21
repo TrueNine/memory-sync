@@ -21,7 +21,9 @@ export function splitDiagnosticText(text: string): DiagnosticLines {
     .filter(line => line.length > 0)
 
   if (lines.length === 0) return diagnosticLines('No diagnostic details were provided.')
-  return diagnosticLines(lines[0]!, ...lines.slice(1))
+  const [firstLine, ...otherLines] = lines
+  if (firstLine == null) return diagnosticLines('No diagnostic details were provided.')
+  return diagnosticLines(firstLine, ...otherLines)
 }
 
 export function buildDiagnostic(input: LoggerDiagnosticInput): LoggerDiagnosticInput {

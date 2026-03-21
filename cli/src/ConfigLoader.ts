@@ -60,11 +60,13 @@ export interface GlobalConfigValidationResult {
 export class ConfigLoader {
   private readonly logger: ILogger
 
-  constructor(_options: ConfigLoaderOptions = {}) {
+  constructor(options: ConfigLoaderOptions = {}) {
+    void options
     this.logger = createLogger('ConfigLoader')
   }
 
-  getSearchPaths(_cwd: string = process.cwd()): string[] {
+  getSearchPaths(cwd: string = process.cwd()): string[] {
+    void cwd
     return [getGlobalConfigPath()]
   }
 

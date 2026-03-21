@@ -1,4 +1,5 @@
 import type {BuildPromptTomlArtifactOptions} from '@truenine/md-compiler'
+import type {ToolPresetName} from './GlobalScopeCollector'
 import type {RegistryWriter} from './RegistryWriter'
 import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputCleanupScope, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, Path, Project, ProjectConfig, RegistryData, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt} from './types'
 
@@ -8,6 +9,7 @@ import * as path from 'node:path'
 import process from 'node:process'
 import {buildPromptTomlArtifact, mdxToMd} from '@truenine/md-compiler'
 import {buildMarkdownWithFrontMatter, buildMarkdownWithRawFrontMatter} from '@truenine/md-compiler/markdown'
+import {buildConfigDiagnostic, diagnosticLines} from '@/diagnostics'
 import {AbstractPlugin} from './AbstractPlugin'
 import {FilePathKind, PluginKind} from './enums'
 import {
@@ -15,6 +17,7 @@ import {
   filterByProjectConfig
 } from './filters'
 import {GlobalScopeCollector} from './GlobalScopeCollector'
+import {resolveSkillName, resolveSubAgentCanonicalName} from './PromptIdentity'
 import {resolveTopicScopes} from './scopePolicy'
 import {OUTPUT_SCOPE_TOPICS} from './types'
 
@@ -186,7 +189,7 @@ export interface AbstractOutputPluginOptions {
   /** Skills output configuration (declarative) */
   skills?: SkillsOutputConfig
 
-  toolPreset?: string
+  toolPreset?: ToolPresetName
 
   /** Rule output configuration (declarative) */
   rules?: RuleOutputConfig
@@ -278,7 +281,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
 
   protected readonly skillOutputEnabled: boolean
 
-  protected readonly toolPreset: string | undefined
+  protected readonly toolPreset: ToolPresetName | undefined
 
   /** Rule output configuration */
   protected readonly rulesConfig: RuleOutputConfig
@@ -290,6 +293,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   protected readonly supportsBlankLineAfterFrontMatter: boolean
 
   private readonly registryWriterCache: Map<string, RegistryWriter<unknown>> = new Map()
+
+  private warnedDeprecatedSubAgentFileNameSource = false
 
   protected constructor(name: string, options?: AbstractOutputPluginOptions) {
     super(name, PluginKind.Output, options?.dependsOn)
@@ -512,8 +517,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   protected createRelativePath(
     pathStr: string,
     basePath: string,
-    _dirNameFn: () => string
+    dirNameFn: () => string
   ): string {
+    void dirNameFn
     return path.join(basePath, pathStr)
   }
 
@@ -688,6 +694,14 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return `${effectiveGlobalContent}${separator}${projectContent}` // Default: 'before'
   }
 
+  protected getSkillName(skill: SkillPrompt): string {
+    return resolveSkillName(skill)
+  }
+
+  protected getSubAgentCanonicalName(subAgent: SubAgentPrompt): string {
+    return resolveSubAgentCanonicalName(subAgent)
+  }
+
   protected transformCommandName(
     cmd: CommandPrompt,
     options?: CommandNameTransformOptions
@@ -709,12 +723,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     const ext = options?.ext ?? this.subAgentsConfig.ext
     const normalizedExt = ext.startsWith('.') ? ext : `.${ext}`
     if (fileNameSource === 'frontMatterName') {
-      const configuredName = subAgent.yamlFrontMatter?.name
-      if (configuredName == null || configuredName.trim().length === 0) {
-        throw new Error(`Sub-agent "${subAgent.agentName}" is missing yamlFrontMatter.name required for fileNameSource="frontMatterName"`)
-      }
-
-      return `${this.normalizeOutputFileStem(configuredName)}${normalizedExt}`
+      this.warnDeprecatedSubAgentFileNameSource()
     }
 
     const hasPrefix = includePrefix && subAgent.agentPrefix != null && subAgent.agentPrefix.length > 0
@@ -723,7 +732,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   }
 
   protected normalizeOutputFileStem(value: string): string {
-    const sanitizedCharacters = [...value.trim()].map(character => {
+    const sanitizedCharacters = Array.from(value.trim(), character => {
       const codePoint = character.codePointAt(0) ?? 0
       if (codePoint <= 31 || '<>:"/\\|?*'.includes(character)) return '-'
       return character
@@ -735,6 +744,27 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     if (normalized.length === 0) throw new Error(`Cannot derive a valid output file name from "${value}"`)
 
     return normalized
+  }
+
+  private warnDeprecatedSubAgentFileNameSource(): void {
+    if (this.warnedDeprecatedSubAgentFileNameSource) return
+    this.warnedDeprecatedSubAgentFileNameSource = true
+
+    this.log.warn(buildConfigDiagnostic({
+      code: 'SUBAGENT_FRONTMATTER_NAME_SOURCE_DEPRECATED',
+      title: 'Sub-agent fileNameSource="frontMatterName" now resolves from derived names',
+      reason: diagnosticLines(
+        `The ${this.name} plugin no longer reads authored sub-agent front matter names.`,
+        'tnmsc now derives sub-agent names from the sub-agent path.'
+      ),
+      exactFix: diagnosticLines(
+        'Remove authored `name` fields from sub-agent sources.',
+        'Keep using `fileNameSource="frontMatterName"` only as a temporary alias for the derived-path naming behavior.'
+      ),
+      details: {
+        plugin: this.name
+      }
+    }))
   }
 
   protected appendSubAgentDeclarations(
@@ -752,11 +782,11 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
 
       if (existingAgentName != null) {
         throw new Error(
-          `Sub-agent output collision in ${this.name}: "${subAgent.yamlFrontMatter?.name ?? subAgent.agentName}" and "${existingAgentName}" both resolve to ${targetPath}`
+          `Sub-agent output collision in ${this.name}: "${this.getSubAgentCanonicalName(subAgent)}" and "${existingAgentName}" both resolve to ${targetPath}`
         )
       }
 
-      seenPaths.set(targetPath, subAgent.yamlFrontMatter?.name ?? subAgent.agentName)
+      seenPaths.set(targetPath, this.getSubAgentCanonicalName(subAgent))
       declarations.push({
         path: targetPath,
         scope,
@@ -789,7 +819,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     scopedSkills: readonly SkillPrompt[]
   ): void {
     for (const skill of scopedSkills) {
-      const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+      const skillName = this.getSkillName(skill)
       const skillDir = path.join(basePath, this.skillsConfig.subDir, skillName)
 
       declarations.push({
@@ -1014,7 +1044,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   ): Record<string, unknown> {
     const fm = skill.yamlFrontMatter
     const result: Record<string, unknown> = {
-      name: fm.name,
+      name: this.getSkillName(skill),
       description: fm.description
     }
 
@@ -1289,8 +1319,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
         toolPreset: this.toolPreset,
         hasRawContent: true
       })
-      // eslint-disable-next-line ts/no-unsafe-assignment
-      const scopeCollector = new GlobalScopeCollector({toolPreset: this.toolPreset as any})
+      const scopeCollector = new GlobalScopeCollector({toolPreset: this.toolPreset})
       const globalScope = scopeCollector.collect()
       const result = await mdxToMd(cmd.rawMdxContent, {
         globalScope,

@@ -22,7 +22,7 @@ serde_yml = { workspace = true }
 markdown = { workspace = true }
 napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
-regex-lite = { version = "0.1", optional = true }
+regex-lite = { version = "0.1.9", optional = true }
 
 [build-dependencies]
 napi-build = { workspace = true }

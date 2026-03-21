@@ -26,17 +26,17 @@ tnmsc-logger = { workspace = true }
 tnmsc-md-compiler = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-thiserror = "2"
+thiserror = "2.0.18"
 clap = { workspace = true }
 dirs = { workspace = true }
 sha2 = { workspace = true }
 napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
-reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "rustls", "rustls-native-certs"] }
+reqwest = { version = "0.13.2", default-features = false, features = ["blocking", "json", "rustls"] }
 
 [dev-dependencies]
-proptest = "1"
-tempfile = "3"
+proptest = "1.10.0"
+tempfile = "3.27.0"
 
 [build-dependencies]
 napi-build = { workspace = true }

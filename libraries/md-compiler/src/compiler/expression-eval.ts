@@ -15,6 +15,9 @@ export interface EvaluateExpressionOptions {
   readonly nodeType?: string | undefined
 }
 
+const SIMPLE_REFERENCE_PATTERN = /^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/iu
+const UNDEFINED_REFERENCE_PATTERN = /(\w+) is not defined/u
+
 /**
  * Evaluates a JavaScript expression within a given scope.
  * Uses Function constructor for safe evaluation with controlled scope.
@@ -37,7 +40,7 @@ export function evaluateExpression(
 
   if (trimmed === '') return ''
 
-  if (/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*$/i.test(trimmed)) {
+  if (SIMPLE_REFERENCE_PATTERN.test(trimmed)) {
     return evaluateSimpleReference(trimmed, scope, diagnosticContext) // Matches: identifier, identifier.property, identifier.property.nested // Handle simple variable references directly for better error messages
   }
 
@@ -113,7 +116,7 @@ function evaluateComplexExpression(
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     if (message.includes('is not defined')) { // Check if the error is about undefined variable
-      const match = /(\w+) is not defined/.exec(message)
+      const match = UNDEFINED_REFERENCE_PATTERN.exec(message)
       if (match?.[1] != null) {
         throw new UndefinedNamespaceError(match[1], expression, {
           ...diagnosticContext,

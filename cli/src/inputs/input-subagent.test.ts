@@ -34,14 +34,15 @@ describe('subagent input plugin', () => {
 
       const srcFile = path.join(srcDir, 'demo.src.mdx')
       const distFile = path.join(distDir, 'demo.mdx')
-      fs.writeFileSync(srcFile, '---\nname: demo\ndescription: src\n---\nSubAgent source', 'utf8')
-      fs.writeFileSync(distFile, '---\nname: demo\ndescription: dist\n---\nexport const x = 1\n\nSubAgent dist', 'utf8')
+      fs.writeFileSync(srcFile, '---\ndescription: src\n---\nSubAgent source', 'utf8')
+      fs.writeFileSync(distFile, '---\ndescription: dist\n---\nexport const x = 1\n\nSubAgent dist', 'utf8')
 
       const plugin = new SubAgentInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace))
 
       expect(result.subAgents?.length ?? 0).toBe(1)
       expect(result.subAgents?.[0]?.agentName).toBe('demo')
+      expect(result.subAgents?.[0]?.canonicalName).toBe('demo')
       expect(result.subAgents?.[0]?.content).toContain('SubAgent dist')
       expect(result.subAgents?.[0]?.content).not.toContain('SubAgent source')
       expect(result.subAgents?.[0]?.content).not.toContain('export const x = 1')
@@ -64,8 +65,8 @@ describe('subagent input plugin', () => {
 
       const srcFile = path.join(srcDir, 'boot.src.mdx')
       const distFile = path.join(distDir, 'boot.mdx')
-      fs.writeFileSync(srcFile, '---\nname: boot\ndescription: qa boot src\n---\nSubAgent source', 'utf8')
-      fs.writeFileSync(distFile, '---\nname: boot\ndescription: qa boot dist\n---\nSubAgent dist', 'utf8')
+      fs.writeFileSync(srcFile, '---\ndescription: qa boot src\n---\nSubAgent source', 'utf8')
+      fs.writeFileSync(distFile, '---\ndescription: qa boot dist\n---\nSubAgent dist', 'utf8')
 
       const plugin = new SubAgentInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace))
@@ -74,6 +75,7 @@ describe('subagent input plugin', () => {
       expect(result.subAgents?.length ?? 0).toBe(1)
       expect(subAgent?.agentPrefix).toBe('qa')
       expect(subAgent?.agentName).toBe('boot')
+      expect(subAgent?.canonicalName).toBe('qa-boot')
       expect(subAgent?.content).toContain('SubAgent dist')
       expect(subAgent?.content).not.toContain('SubAgent source')
     }
@@ -94,8 +96,8 @@ describe('subagent input plugin', () => {
 
       const srcFile = path.join(srcDir, 'demo.src.mdx')
       const distFile = path.join(distDir, 'demo.mdx')
-      fs.writeFileSync(srcFile, '---\nname: demo\ndescription: src\n---\nSubAgent source', 'utf8')
-      fs.writeFileSync(distFile, '---\nname: demo\ndescription: dist\n---\nexport const x = 1\n\nSubAgent dist', 'utf8')
+      fs.writeFileSync(srcFile, '---\ndescription: src\n---\nSubAgent source', 'utf8')
+      fs.writeFileSync(distFile, '---\ndescription: dist\n---\nexport const x = 1\n\nSubAgent dist', 'utf8')
 
       const plugin = new SubAgentInputCapability()
       const result = await plugin.collect(createContext(tempWorkspace))
@@ -118,7 +120,7 @@ describe('subagent input plugin', () => {
       fs.mkdirSync(distDir, {recursive: true})
       fs.writeFileSync(
         path.join(distDir, 'demo.mdx'),
-        '---\nname: demo\ndescription: dist only\n---\nDist only subagent',
+        '---\ndescription: dist only\n---\nDist only subagent',
         'utf8'
       )
 
@@ -127,6 +129,7 @@ describe('subagent input plugin', () => {
 
       expect(result.subAgents?.length ?? 0).toBe(1)
       expect(result.subAgents?.[0]?.agentName).toBe('demo')
+      expect(result.subAgents?.[0]?.canonicalName).toBe('demo')
       expect(result.subAgents?.[0]?.content).toContain('Dist only subagent')
       expect(result.subAgents?.[0]?.yamlFrontMatter?.description).toBe('dist only')
     }
@@ -143,7 +146,7 @@ describe('subagent input plugin', () => {
       fs.mkdirSync(srcDir, {recursive: true})
       fs.writeFileSync(
         path.join(srcDir, 'demo.src.mdx'),
-        '---\nname: demo\ndescription: source only\n---\nSource only subagent',
+        '---\ndescription: source only\n---\nSource only subagent',
         'utf8'
       )
 
@@ -163,12 +166,56 @@ describe('subagent input plugin', () => {
       fs.mkdirSync(distDir, {recursive: true})
       fs.writeFileSync(
         path.join(distDir, 'demo.mdx'),
-        '---\nname: demo\ndescription: dist only\nscope: workspace\n---\nDist only subagent',
+        '---\ndescription: dist only\nscope: workspace\n---\nDist only subagent',
         'utf8'
       )
 
       const plugin = new SubAgentInputCapability()
       await expect(plugin.collect(createContext(tempWorkspace))).rejects.toThrow('Field "scope" must be "project" or "global"')
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('warns and ignores authored subagent names', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-subagent-name-warning-test-'))
+    const warnings: string[] = []
+    const aindexDir = path.join(tempWorkspace, 'aindex')
+    const srcDir = path.join(aindexDir, 'subagents', 'qa')
+    const distDir = path.join(aindexDir, 'dist', 'subagents', 'qa')
+
+    try {
+      fs.mkdirSync(srcDir, {recursive: true})
+      fs.mkdirSync(distDir, {recursive: true})
+
+      fs.writeFileSync(path.join(srcDir, 'boot.src.mdx'), '---\nname: review-helper\ndescription: src\n---\nSubAgent source', 'utf8')
+      fs.writeFileSync(path.join(distDir, 'boot.mdx'), '---\nname: review-helper\ndescription: dist\n---\nSubAgent dist', 'utf8')
+
+      const logger = {
+        trace: () => {},
+        debug: () => {},
+        info: () => {},
+        warn: diagnostic => warnings.push(diagnostic.code),
+        error: () => {},
+        fatal: () => {}
+      }
+
+      const options = mergeConfig({workspaceDir: tempWorkspace})
+      const plugin = new SubAgentInputCapability()
+      const result = await plugin.collect({
+        logger,
+        fs,
+        path,
+        glob,
+        userConfigOptions: options,
+        dependencyContext: {}
+      } as InputCapabilityContext)
+
+      const [subAgent] = result.subAgents ?? []
+      expect(subAgent?.canonicalName).toBe('qa-boot')
+      expect('name' in (subAgent?.yamlFrontMatter ?? {})).toBe(false)
+      expect(warnings).toContain('SUBAGENT_NAME_IGNORED')
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
