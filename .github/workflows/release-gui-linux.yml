@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-pnpm
 
       - uses: ./.github/actions/setup-tauri
@@ -36,7 +36,7 @@ jobs:
           find target -path '*/bundle/*' -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.sig' \) 2>/dev/null || echo 'No bundle files found'
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: debug-gui-ubuntu-24.04
           path: |
