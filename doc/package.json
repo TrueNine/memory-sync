@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-docs",
-  "version": "2026.10319.10359",
+  "version": "2026.10322.104",
   "private": true,
   "description": "Chinese-first manifesto-led documentation site for @truenine/memory-sync.",
   "engines": {
@@ -12,7 +12,7 @@
     "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind",
     "check": "run-p lint typecheck",
     "validate:content": "tsx scripts/validate-content.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit --incremental false",
     "start": "next start",
     "lint": "pnpm run validate:content && eslint ."
   },
