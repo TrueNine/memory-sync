@@ -269,6 +269,11 @@ jobs:
             exit 1
           fi
 
+          if ! jq -e . >/dev/null 2>&1 <<<"$access_json"; then
+            echo "::warning::npm access list packages returned non-JSON output for ${npm_user}. Falling back to publish-time authorization checks."
+            exit 0
+          fi
+
           for package_json in cli/npm/*/package.json; do
             package_name=$(jq -r '.name' "$package_json")
             package_access=$(jq -r --arg package_name "$package_name" '.[$package_name] // empty' <<<"$access_json")
@@ -475,6 +480,16 @@ jobs:
 
           echo "Authenticated to npm as ${npm_user}"
 
+          if [[ -z "${access_json}" || "${access_json}" == "{}" || "${access_json}" == "null" ]]; then
+            echo "::error::Authenticated as ${npm_user}, but npm did not report package access for @truenine. Replace NPM_TOKEN with a token that has publish permission for ${package_name}."
+            exit 1
+          fi
+
+          if ! jq -e . >/dev/null 2>&1 <<<"$access_json"; then
+            echo "::warning::npm access list packages returned non-JSON output for ${npm_user}. Falling back to publish-time authorization checks for ${package_name}."
+            exit 0
+          fi
+
           package_access=$(jq -r --arg package_name "$package_name" '.[$package_name] // empty' <<<"${access_json:-{}}")
 
           if [[ "$package_access" != "read-write" ]]; then
@@ -607,6 +622,16 @@ jobs:
           popd >/dev/null
 
           echo "Authenticated to npm as ${npm_user}"
+
+          if [[ -z "${access_json}" || "${access_json}" == "{}" || "${access_json}" == "null" ]]; then
+            echo "::error::Authenticated as ${npm_user}, but npm did not report package access for @truenine. Replace NPM_TOKEN with a token that has publish permission for ${package_name}."
+            exit 1
+          fi
+
+          if ! jq -e . >/dev/null 2>&1 <<<"$access_json"; then
+            echo "::warning::npm access list packages returned non-JSON output for ${npm_user}. Falling back to publish-time authorization checks for ${package_name}."
+            exit 0
+          fi
 
           package_access=$(jq -r --arg package_name "$package_name" '.[$package_name] // empty' <<<"${access_json:-{}}")
 
