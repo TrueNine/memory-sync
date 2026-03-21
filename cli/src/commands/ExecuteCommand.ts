@@ -1,5 +1,6 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import {
+  collectOutputDeclarations,
   executeDeclarativeWriteOutputs
 } from '../plugins/plugin-core'
 import {performCleanup} from './CleanupUtils'
@@ -15,8 +16,10 @@ export class ExecuteCommand implements Command {
     const {logger, outputPlugins, createCleanContext, createWriteContext} = ctx
     logger.info('started', {command: 'execute'})
 
+    const writeCtx = createWriteContext(false)
+    const predeclaredOutputs = await collectOutputDeclarations(outputPlugins, writeCtx)
     const cleanCtx = createCleanContext(false) // Step 1: Pre-cleanup (non-dry-run only)
-    const cleanupResult = await performCleanup(outputPlugins, cleanCtx, logger)
+    const cleanupResult = await performCleanup(outputPlugins, cleanCtx, logger, predeclaredOutputs)
 
     if (cleanupResult.violations.length > 0 || cleanupResult.conflicts.length > 0) {
       return {
@@ -29,8 +32,7 @@ export class ExecuteCommand implements Command {
 
     logger.info('cleanup complete', {deletedFiles: cleanupResult.deletedFiles, deletedDirs: cleanupResult.deletedDirs})
 
-    const writeCtx = createWriteContext(false) // Step 2: Write outputs
-    const results = await executeDeclarativeWriteOutputs(outputPlugins, writeCtx)
+    const results = await executeDeclarativeWriteOutputs(outputPlugins, writeCtx, predeclaredOutputs) // Step 2: Write outputs
 
     let totalFiles = 0
     let totalDirs = 0

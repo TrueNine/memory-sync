@@ -628,7 +628,7 @@ async function createSkillPrompt(
   ) // Merge fallback export parsing with compiled metadata so empty metadata objects do not mask valid fields
 
   const authoredNames = new Set<string>()
-  const yamlName = parsed?.yamlFrontMatter?.['name']
+  const yamlName = parsed?.yamlFrontMatter?.name
   if (typeof yamlName === 'string' && yamlName.trim().length > 0) authoredNames.add(yamlName)
   const exportedName = exportMetadata.name
   if (typeof exportedName === 'string' && exportedName.trim().length > 0) authoredNames.add(exportedName)
