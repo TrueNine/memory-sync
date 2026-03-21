@@ -474,28 +474,11 @@ jobs:
           pushd cli >/dev/null
           npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
           npm_user=$(npm whoami --registry "$NPM_REGISTRY_URL")
-          access_json=$(npm access list packages @truenine --json 2>/dev/null || true)
           package_name=$(jq -r '.name' package.json)
           popd >/dev/null
 
           echo "Authenticated to npm as ${npm_user}"
-
-          if [[ -z "${access_json}" || "${access_json}" == "{}" || "${access_json}" == "null" ]]; then
-            echo "::error::Authenticated as ${npm_user}, but npm did not report package access for @truenine. Replace NPM_TOKEN with a token that has publish permission for ${package_name}."
-            exit 1
-          fi
-
-          if ! jq -e . >/dev/null 2>&1 <<<"$access_json"; then
-            echo "::warning::npm access list packages returned non-JSON output for ${npm_user}. Falling back to publish-time authorization checks for ${package_name}."
-            exit 0
-          fi
-
-          package_access=$(jq -r --arg package_name "$package_name" '.[$package_name] // empty' <<<"${access_json:-{}}")
-
-          if [[ "$package_access" != "read-write" ]]; then
-            echo "::error::NPM_TOKEN authenticated as ${npm_user}, but ${package_name} access is '${package_access:-missing}'. Expected read-write."
-            exit 1
-          fi
+          echo "Deferring publish permission enforcement for ${package_name} to the publish step because npm access output is not stable under npm ${npm --version}."
       - name: Build
         run: pnpm -F @truenine/memory-sync-cli run build
       - name: Publish to npm
@@ -617,28 +600,11 @@ jobs:
           pushd mcp >/dev/null
           npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
           npm_user=$(npm whoami --registry "$NPM_REGISTRY_URL")
-          access_json=$(npm access list packages @truenine --json 2>/dev/null || true)
           package_name=$(jq -r '.name' package.json)
           popd >/dev/null
 
           echo "Authenticated to npm as ${npm_user}"
-
-          if [[ -z "${access_json}" || "${access_json}" == "{}" || "${access_json}" == "null" ]]; then
-            echo "::error::Authenticated as ${npm_user}, but npm did not report package access for @truenine. Replace NPM_TOKEN with a token that has publish permission for ${package_name}."
-            exit 1
-          fi
-
-          if ! jq -e . >/dev/null 2>&1 <<<"$access_json"; then
-            echo "::warning::npm access list packages returned non-JSON output for ${npm_user}. Falling back to publish-time authorization checks for ${package_name}."
-            exit 0
-          fi
-
-          package_access=$(jq -r --arg package_name "$package_name" '.[$package_name] // empty' <<<"${access_json:-{}}")
-
-          if [[ "$package_access" != "read-write" ]]; then
-            echo "::error::NPM_TOKEN authenticated as ${npm_user}, but ${package_name} access is '${package_access:-missing}'. Expected read-write."
-            exit 1
-          fi
+          echo "Deferring publish permission enforcement for ${package_name} to the publish step because npm access output is not stable under npm ${npm --version}."
       - name: Build
         run: pnpm exec turbo run build --filter=@truenine/memory-sync-mcp
       - name: Publish to npm
