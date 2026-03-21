@@ -2,39 +2,24 @@ export default {
   'index': {
     title: '文档总览'
   },
-  '--quick-start': {
-    type: 'separator',
-    title: '快速上手'
-  },
-  'quick-start': {
+  'cli': {
+    title: 'CLI',
     display: 'children'
   },
-  '--concepts': {
-    type: 'separator',
-    title: '概念与世界观'
-  },
-  'concepts': {
+  'mcp': {
+    title: 'MCP',
     display: 'children'
   },
-  '--authoring': {
-    type: 'separator',
-    title: '内容编写'
-  },
-  'authoring': {
+  'gui': {
+    title: 'GUI',
     display: 'children'
   },
-  '--reference': {
-    type: 'separator',
-    title: '参考手册'
-  },
-  'reference': {
+  'technical-details': {
+    title: '技术细节',
     display: 'children'
   },
-  '--operations': {
-    type: 'separator',
-    title: '运维与排障'
-  },
-  'operations': {
+  'design-rationale': {
+    title: '设计初衷',
     display: 'children'
   }
 }

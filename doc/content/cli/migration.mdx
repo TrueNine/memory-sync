@@ -1,0 +1,30 @@
+---
+title: 从旧文档迁移
+description: 说明旧页面、旧命令认知与当前五大门类文档结构之间的映射关系。
+sidebarTitle: 从旧文档迁移
+status: stable
+---
+
+# 从旧文档迁移
+
+## 结构变化
+
+旧文档把“快速上手”“概念”“内容编写”“参考”“运维”混在同一层。现在一级结构改成：
+
+- `CLI`
+- `MCP`
+- `GUI`
+- `技术细节`
+- `设计初衷`
+
+这不是换名字，而是把阅读入口和写作目录按职责重新切开。
+
+## 旧入口现在该去哪
+
+- 旧的 `quick-start`、`reference`、`operations`，现在主要归到 [CLI](/docs/cli)。
+- 旧的 `concepts` 与 `authoring`，现在主要归到 [技术细节](/docs/technical-details)。
+- manifesto 类页面现在只放在 [设计初衷](/docs/design-rationale)。
+
+## 命令认知也要一起迁移
+
+旧文档最容易误导人的地方，是把 `tnmsc init` 继续写成推荐入口。当前实现里它已经废弃，新的使用路径应以 [CLI 命令](/docs/cli/cli-commands) 为准。

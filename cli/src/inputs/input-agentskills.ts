@@ -111,6 +111,35 @@ function mergeDefinedSkillMetadata(
   return merged
 }
 
+function warnIgnoredSkillName(options: {
+  readonly logger: ILogger
+  readonly warnedDerivedNames?: Set<string>
+  readonly sourcePath: string
+  readonly authoredName: string
+  readonly skillName: string
+}): void {
+  const {logger, warnedDerivedNames, sourcePath, authoredName, skillName} = options
+  if (warnedDerivedNames?.has(sourcePath) === true) return
+
+  warnedDerivedNames?.add(sourcePath)
+  logger.warn(buildConfigDiagnostic({
+    code: 'SKILL_NAME_IGNORED',
+    title: 'Skill authored name is ignored',
+    reason: diagnosticLines(
+      `tnmsc ignores the authored skill name "${authoredName}" in favor of the directory-derived name "${skillName}".`
+    ),
+    configPath: sourcePath,
+    exactFix: diagnosticLines(
+      'Remove the `name` field from the skill front matter or exported metadata.',
+      'Rename the skill directory if you need a different skill name.'
+    ),
+    details: {
+      authoredName,
+      derivedName: skillName
+    }
+  }))
+}
+
 const MIME_TYPES: Record<string, string> = { // MIME types for resources
   '.ts': 'text/typescript',
   '.tsx': 'text/typescript',
@@ -557,16 +586,21 @@ async function createSkillPrompt(
   name: string,
   skillDir: string,
   skillAbsoluteDir: string,
+  sourceSkillAbsoluteDir: string,
   ctx: InputCapabilityContext,
   mcpConfig?: SkillMcpConfig,
   childDocs: SkillPrompt['childDocs'] = [],
   resources: SkillPrompt['resources'] = [],
   seriName?: string | string[] | null,
-  compiledMetadata?: Record<string, unknown>
+  compiledMetadata?: Record<string, unknown>,
+  warnedDerivedNames?: Set<string>
 ): Promise<SkillPrompt> {
   const {logger, globalScope, fs} = ctx
 
   const distFilePath = nodePath.join(skillAbsoluteDir, 'skill.mdx')
+  const sourceFilePath = fs.existsSync(nodePath.join(sourceSkillAbsoluteDir, 'skill.src.mdx'))
+    ? nodePath.join(sourceSkillAbsoluteDir, 'skill.src.mdx')
+    : distFilePath
   let rawContent = content
   let parsed: ReturnType<typeof parseMarkdown<SkillYAMLFrontMatter>> | undefined,
     distMetadata: Record<string, unknown> | undefined
@@ -592,6 +626,22 @@ async function createSkillPrompt(
     compiledMetadata,
     distMetadata
   ) // Merge fallback export parsing with compiled metadata so empty metadata objects do not mask valid fields
+
+  const authoredNames = new Set<string>()
+  const yamlName = parsed?.yamlFrontMatter?.['name']
+  if (typeof yamlName === 'string' && yamlName.trim().length > 0) authoredNames.add(yamlName)
+  const exportedName = exportMetadata.name
+  if (typeof exportedName === 'string' && exportedName.trim().length > 0) authoredNames.add(exportedName)
+
+  for (const authoredName of authoredNames) {
+    warnIgnoredSkillName({
+      logger,
+      sourcePath: sourceFilePath,
+      authoredName,
+      skillName: name,
+      ...warnedDerivedNames != null && {warnedDerivedNames}
+    })
+  }
 
   const finalDescription = parsed?.yamlFrontMatter?.description ?? exportMetadata?.description
 
@@ -634,6 +684,7 @@ async function createSkillPrompt(
     content,
     length: content.length,
     filePathKind: FilePathKind.Relative,
+    skillName: name,
     yamlFrontMatter: mergedFrontMatter,
     markdownAst: parsed?.markdownAst,
     markdownContents: parsed?.markdownContents ?? [],
@@ -694,6 +745,7 @@ export class SkillInputCapability extends AbstractInputCapability {
 
     const flatSkills: SkillPrompt[] = []
     const reader = createLocalizedPromptReader(fs, pathModule, logger, globalScope)
+    const warnedDerivedNames = new Set<string>()
     const skillArtifactCache = new Map<string, {
       readonly childDocs: SkillChildDoc[]
       readonly resources: SkillResource[]
@@ -749,12 +801,14 @@ export class SkillInputCapability extends AbstractInputCapability {
             name,
             distSkillDir,
             skillDistDir,
+            pathModule.join(srcSkillDir, name),
             ctx,
             mcpConfig,
             childDocs,
             resources,
             void 0,
-            metadata
+            metadata,
+            warnedDerivedNames
           )
         }
       }

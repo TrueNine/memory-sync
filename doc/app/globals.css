@@ -170,6 +170,13 @@ samp {
     transform 0.2s ease;
 }
 
+.docs-navbar-links {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .home-topbar-nav a:hover,
 .docs-nav-link:hover {
   border-color: var(--surface-border);
@@ -1053,6 +1060,12 @@ html.dark .nextra-body-typesetting-article .mermaid-diagram__fallback {
   .home-hero h1 {
     max-width: 13ch;
     font-size: clamp(1.8rem, 10vw, 2.45rem);
+  }
+
+  .docs-navbar-links {
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 2px;
   }
 }
 

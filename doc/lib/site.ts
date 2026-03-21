@@ -32,24 +32,29 @@ export const heroProofPoints = [
 
 export const homeEntryCards = [
   {
-    href: '/docs/quick-start',
-    title: '快速上手',
-    detail: '按最短路径完成安装、工作区准备与第一次同步。'
+    href: '/docs/cli',
+    title: 'CLI',
+    detail: '围绕安装、工作区准备、第一次同步、配置字段与命令表面组织。'
   },
   {
-    href: '/docs/concepts/architecture',
-    title: '架构边界',
-    detail: '先理解 CLI、crate、NAPI 与 GUI 的职责分层。'
+    href: '/docs/mcp',
+    title: 'MCP',
+    detail: '独立查看 stdio server、工具列表、workspaceDir 约束与适用边界。'
   },
   {
-    href: '/docs/authoring',
-    title: '内容编写',
-    detail: '集中查看 prompts、skills、commands、sub-agents 与 rules 的源文件职责。'
+    href: '/docs/gui',
+    title: 'GUI',
+    detail: '单独查看桌面层的职责、页面结构，以及它与 tnmsc crate / CLI 的关系。'
   },
   {
-    href: '/docs/reference',
-    title: '参考手册',
-    detail: '在配置、Schema、CLI 与输出边界之间快速定位事实。'
+    href: '/docs/technical-details',
+    title: '技术细节',
+    detail: '集中阅读架构边界、同步管线、真源模型与内容编写约定。'
+  },
+  {
+    href: '/docs/design-rationale',
+    title: '设计初衷',
+    detail: '把项目动机、设计理由与 manifesto 类内容单独收口，不再混入使用文档。'
   }
 ] as const
 
@@ -80,25 +85,25 @@ export const capabilityCards = [
 export const readingPath = [
   {
     step: '01',
-    href: '/docs/quick-start/install',
+    href: '/docs/cli/install',
     title: '确认运行前提',
     description: '先核对 Node、Rust、CLI 入口与当前支持边界。'
   },
   {
     step: '02',
-    href: '/docs/quick-start/workspace-setup',
+    href: '/docs/cli/workspace-setup',
     title: '准备工作区结构',
     description: '按照 aindex 与项目配置的真实目录约定组织源文件。'
   },
   {
     step: '03',
-    href: '/docs/authoring/global-and-workspace-prompts',
+    href: '/docs/technical-details/source-of-truth',
     title: '开始维护源内容',
-    description: '区分全局 Prompt、工作区 Prompt 与其他输入资产。'
+    description: '先建立真源模型，再区分全局 Prompt、工作区 Prompt 与其他输入资产。'
   },
   {
     step: '04',
-    href: '/docs/reference/cli-commands',
+    href: '/docs/cli/cli-commands',
     title: '执行 dry-run 与同步',
     description: '在写入目标工具前先验证输出列表、范围与清理行为。'
   }

@@ -107,6 +107,13 @@ export type {
 } from './plugin-core/McpConfigManager'
 
 export {
+  deriveSubAgentIdentity,
+  flattenPromptPath,
+  resolveSkillName,
+  resolveSubAgentCanonicalName
+} from './plugin-core/PromptIdentity'
+
+export {
   RegistryWriter
 } from './plugin-core/RegistryWriter'
 

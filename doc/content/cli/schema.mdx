@@ -1,0 +1,74 @@
+---
+title: JSON Schema
+description: 梳理 tnmsc.schema.json 当前公开的配置字段与约束。
+sidebarTitle: JSON Schema
+status: stable
+---
+
+# JSON Schema
+
+`cli/dist/tnmsc.schema.json` 当前公开的根字段有：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `version` | `string` | 配置版本或发布版本标记 |
+| `workspaceDir` | `string` | 工作区根目录 |
+| `aindex` | `object` | 输入源与导出目录映射 |
+| `logLevel` | enum | `trace` / `debug` / `info` / `warn` / `error` |
+| `commandSeriesOptions` | `object` | command 系列命名与插件覆盖 |
+| `outputScopes` | `object` | 各插件输出范围覆盖 |
+| `frontMatter` | `object` | 输出时的 front matter 处理选项 |
+| `cleanupProtection` | `object` | 清理保护规则 |
+| `profile` | `object` | 个人资料字段 |
+
+## `aindex` 下的关键子项
+
+- `skills`
+- `commands`
+- `subAgents`
+- `rules`
+- `globalPrompt`
+- `workspacePrompt`
+- `app`
+- `ext`
+- `arch`
+
+每个子项都由 `src` / `dist` 组成。
+
+## `outputScopes` 支持的 topic
+
+Schema 当前允许的 topic 包括：
+
+- `prompt`
+- `rules`
+- `commands`
+- `subagents`
+- `skills`
+- `mcp`
+
+详细行为见 [输出范围](/docs/cli/output-scopes)。
+
+## `frontMatter`
+
+当前公开字段只有一个：
+
+```json
+{
+  "frontMatter": {
+    "blankLineAfter": true
+  }
+}
+```
+
+详细区分见 [Front Matter](/docs/cli/frontmatter)。
+
+## `cleanupProtection`
+
+每条规则支持：
+
+- `path`
+- `protectionMode`: `direct` / `recursive`
+- `matcher`: `path` / `glob`
+- `reason`
+
+详细语义见 [清理保护](/docs/cli/cleanup-protection)。

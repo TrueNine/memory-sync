@@ -1,0 +1,57 @@
+---
+title: Front Matter
+description: 说明当前系统中配置 frontMatter 选项与内容 frontmatter 的不同层次。
+sidebarTitle: Front Matter
+status: stable
+---
+
+# Front Matter
+
+这里要先分清两层 front matter。
+
+## 1. 文档页自己的 frontmatter
+
+这套文档站的每篇 MDX 页面当前要求至少包含：
+
+- `title`
+- `description`
+
+可选字段包括：
+
+- `sidebarTitle`
+- `status`
+- `keywords`
+
+## 2. 同步系统的 `frontMatter` 配置
+
+Schema 与 `config.ts` 当前公开的配置项只有：
+
+```json
+{
+  "frontMatter": {
+    "blankLineAfter": true
+  }
+}
+```
+
+它的作用不是描述页面本身，而是控制输出时 front matter 之后是否保留空行。
+
+## 3. 源内容 frontmatter
+
+不同输入类型还会在自己的源文件 frontmatter 中承载描述、触发条件和工具约束等字段。多个输出插件会消费这些字段做目标元数据映射。
+
+有一个重要例外：
+
+- `skills` 不再从 frontmatter 读取 `name`，而是直接使用 skill 目录名
+- `subagents` 不再从 frontmatter 读取 `name`，而是直接使用相对路径推导出的名称
+- 旧的 `name` 字段如果仍然存在，会被忽略并给出告警
+
+关于这些输入类型的职责边界，见 [技术细节](/docs/technical-details)。
+
+## 结论
+
+- 文档 frontmatter 是给 docs site 的
+- `frontMatter` 配置是给输出行为的
+- 源内容 frontmatter 是给同步系统与输出插件的，但 `skills` / `subagents` 的名称现在来自路径而不是 `name`
+
+三者不是一回事。

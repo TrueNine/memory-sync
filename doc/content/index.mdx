@@ -1,6 +1,6 @@
 ---
 title: 文档总览
-description: memory-sync 文档入口，按使用路径、概念模型、内容编写与参考事实组织。
+description: memory-sync 文档入口，按 CLI、MCP、GUI、技术细节与设计初衷五个一级门类组织。
 sidebarTitle: 总览
 status: stable
 keywords:
@@ -11,25 +11,25 @@ keywords:
 
 # 文档总览
 
-这套文档站围绕当前仓库事实组织，目标是帮助你快速建立正确的使用路径、概念模型和配置边界。
+这套文档站围绕当前仓库事实组织，一级结构固定为 `CLI`、`MCP`、`GUI`、`技术细节`、`设计初衷`。这样写文档时，面向用户的操作入口、面向集成的 server、桌面层说明、实现原理和背景动机不再混在一起。
+
+## 五个一级门类
+
+| 门类 | 主要回答的问题 | 入口 |
+| --- | --- | --- |
+| CLI | 如何安装、准备工作区、执行同步、理解命令与配置字段 | [CLI](/docs/cli) |
+| MCP | `memory-sync-mcp` 是什么、暴露了哪些工具、适合怎么接入 | [MCP](/docs/mcp) |
+| GUI | 桌面层负责什么、有哪些页面、它与 `tnmsc` crate / CLI 如何配合 | [GUI](/docs/gui) |
+| 技术细节 | 架构边界、同步管线、真源模型，以及 prompts / skills / commands / rules 等输入资产如何组织 | [技术细节](/docs/technical-details) |
+| 设计初衷 | 为什么要做这个项目，为什么文档也要这样分层 | [设计初衷](/docs/design-rationale) |
 
 ## 从哪里开始
 
-- 第一次使用 `memory-sync`，从 [快速上手](/docs/quick-start) 开始，先把安装、工作区准备和第一次同步跑通。
-- 需要理解为什么仓库转向 Rust-first / NAPI-first，以及哪些文件才是源内容，进入 [概念与世界观](/docs/concepts)。
-- 已经开始维护 prompts、skills、commands、sub-agents 或 rules，直接查看 [内容编写](/docs/authoring)。
-- 需要确认字段名、CLI 行为、Schema 或输出边界时，优先使用 [参考手册](/docs/reference)。
-- 已在日常使用中，需要 dry-run、clean、升级或排障信息时，查看 [运维与排障](/docs/operations)。
-
-## 文档结构
-
-| 模块 | 主要回答的问题 | 入口 |
-| --- | --- | --- |
-| 快速上手 | 如何以最短路径完成安装、配置与第一次同步 | [快速上手](/docs/quick-start) |
-| 概念与世界观 | 为什么这样设计，哪些组件负责什么，什么才是源内容 | [概念与世界观](/docs/concepts) |
-| 内容编写 | 各类输入资产如何维护、如何分作用域 | [内容编写](/docs/authoring) |
-| 参考手册 | 当前实现对应的命令、字段、Schema 与输出约束是什么 | [参考手册](/docs/reference) |
-| 运维与排障 | 出现异常时如何验证、清理、定位问题与处理升级 | [运维与排障](/docs/operations) |
+- 第一次使用 `memory-sync`，从 [CLI](/docs/cli) 开始，先把安装、工作区准备和第一次同步跑通。
+- 需要把 `memory-sync-mcp` 接入到支持 MCP 的宿主里，直接进 [MCP](/docs/mcp)。
+- 关注桌面应用而不是终端入口时，查看 [GUI](/docs/gui)。
+- 需要理解 Rust-first / NAPI-first、真源模型和输入资产职责时，进入 [技术细节](/docs/technical-details)。
+- 需要项目背景、动机和设计理由时，再补读 [设计初衷](/docs/design-rationale)。
 
 ## 文档边界
 

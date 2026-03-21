@@ -27,9 +27,42 @@ const withNextra = nextra({
   contentDirBasePath: '/docs'
 })
 
+const LEGACY_DOC_REDIRECTS = [
+  {
+    source: '/docs/quick-start/:path*',
+    destination: '/docs/cli/:path*'
+  },
+  {
+    source: '/docs/reference/:path*',
+    destination: '/docs/cli/:path*'
+  },
+  {
+    source: '/docs/operations/:path*',
+    destination: '/docs/cli/:path*'
+  },
+  {
+    source: '/docs/authoring/:path*',
+    destination: '/docs/technical-details/:path*'
+  },
+  {
+    source: '/docs/concepts/manifesto',
+    destination: '/docs/design-rationale/manifesto'
+  },
+  {
+    source: '/docs/concepts/:path*',
+    destination: '/docs/technical-details/:path*'
+  }
+] as const
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   pageExtensions: ['tsx', 'ts', 'mdx'],
+  async redirects() {
+    return LEGACY_DOC_REDIRECTS.map(redirect => ({
+      ...redirect,
+      permanent: true
+    }))
+  },
   turbopack: {
     resolveAlias: {
       '@theguild/remark-mermaid/mermaid': mermaidTurbopackAlias

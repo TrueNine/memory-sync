@@ -53,9 +53,11 @@ describe('skill input plugin', () => {
       const [skill] = result.skills ?? []
 
       expect(result.skills?.length ?? 0).toBe(1)
+      expect(skill?.skillName).toBe('demo')
       expect(skill?.content).toContain('Skill dist')
       expect(skill?.content).not.toContain('Skill source')
       expect(skill?.content).not.toContain('export const x = 1')
+      expect(skill?.yamlFrontMatter?.name).toBe('demo')
       expect(skill?.yamlFrontMatter?.description).toBe('dist skill')
       expect(skill?.childDocs?.map(childDoc => childDoc.relativePath)).toEqual(['guide.mdx'])
       expect(skill?.childDocs?.[0]?.content).toContain('Guide dist')
@@ -139,10 +141,36 @@ describe('skill input plugin', () => {
       fs.mkdirSync(srcSkillDir, {recursive: true})
       fs.mkdirSync(distSkillDir, {recursive: true})
       fs.writeFileSync(path.join(srcSkillDir, 'skill.src.mdx'), '---\ndescription: src skill\n---\nSkill source', 'utf8')
-      fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), '---\nname: demo\ndescription: dist skill\nscope: workspace\n---\nSkill dist', 'utf8')
+      fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), '---\ndescription: dist skill\nscope: workspace\n---\nSkill dist', 'utf8')
 
       const plugin = new SkillInputCapability()
       await expect(plugin.collect(createContext(tempWorkspace, createMockLogger()))).rejects.toThrow('Field "scope" must be "project" or "global"')
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('warns and ignores authored skill name metadata', async () => {
+    const warnings: string[] = []
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-skill-input-name-warning-test-'))
+    const srcSkillDir = path.join(tempWorkspace, 'aindex', 'skills', 'demo')
+    const distSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'demo')
+
+    try {
+      fs.mkdirSync(srcSkillDir, {recursive: true})
+      fs.mkdirSync(distSkillDir, {recursive: true})
+      fs.writeFileSync(path.join(srcSkillDir, 'skill.src.mdx'), '---\nname: custom-demo\ndescription: src skill\n---\nSkill source', 'utf8')
+      fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), '---\nname: custom-demo\ndescription: dist skill\n---\nSkill dist', 'utf8')
+
+      const plugin = new SkillInputCapability()
+      const result = await plugin.collect(createContext(tempWorkspace, createMockLogger(warnings)))
+      const [skill] = result.skills ?? []
+
+      expect(skill?.skillName).toBe('demo')
+      expect(skill?.yamlFrontMatter?.name).toBe('demo')
+      expect(skill?.yamlFrontMatter?.description).toBe('dist skill')
+      expect(warnings).toContain('SKILL_NAME_IGNORED')
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

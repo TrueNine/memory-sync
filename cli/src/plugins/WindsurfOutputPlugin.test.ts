@@ -36,6 +36,7 @@ function createSkillPrompt(scope: 'project' | 'global', seriName: string): Skill
     content: 'skill content',
     length: 13,
     filePathKind: FilePathKind.Relative,
+    skillName: 'ship-it',
     dir: {
       pathKind: FilePathKind.Relative,
       path: 'skills/ship-it',
@@ -46,7 +47,6 @@ function createSkillPrompt(scope: 'project' | 'global', seriName: string): Skill
     seriName,
     yamlFrontMatter: {
       namingCase: 'kebabCase',
-      name: 'ship-it',
       description: 'Ship release',
       scope
     },

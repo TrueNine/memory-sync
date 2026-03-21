@@ -1,0 +1,26 @@
+---
+title: Libraries
+description: 汇总当前 libraries/ 中几个 Rust-first / NAPI-first 基础库的职责与暴露形态。
+sidebarTitle: Libraries
+status: stable
+---
+
+# Libraries
+
+`libraries/` 是 Rust-first / NAPI-first 的基础库目录。当前可见的重点库包括：
+
+- `logger`
+- `md-compiler`
+- `script-runtime`
+
+## 各自的大致职责
+
+| 库 | 作用 |
+| --- | --- |
+| `logger` | 日志能力，既有 Rust 实现，也有 TypeScript-facing 接口与 NAPI 产物 |
+| `md-compiler` | MDX / Markdown 相关编译与转换能力 |
+| `script-runtime` | 脚本运行时相关基础能力，供上层装配使用 |
+
+## 为什么它们值得单列
+
+这些库不是“文档补充材料”，而是仓库长期把核心能力下沉为基础设施的证据。CLI、MCP 和 GUI 都应复用它们，而不是在各自目录里复制一套逻辑。

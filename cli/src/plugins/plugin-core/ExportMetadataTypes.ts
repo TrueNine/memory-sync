@@ -18,7 +18,7 @@ export interface BaseExportMetadata {
 }
 
 export interface SkillExportMetadata extends BaseExportMetadata {
-  readonly name: string
+  readonly name?: string
   readonly description: string
   readonly keywords?: readonly string[]
   readonly enabled?: boolean
@@ -47,7 +47,6 @@ export interface RuleExportMetadata extends BaseExportMetadata {
 }
 
 export interface SubAgentExportMetadata extends BaseExportMetadata {
-  readonly name: string
   readonly description: string
   readonly role?: string
   readonly model?: string
@@ -156,10 +155,6 @@ export function validateSkillMetadata(
   const errors: string[] = []
   const warnings: string[] = []
 
-  if (!('name' in metadata) || metadata['name'] == null) { // Check name field
-    errors.push(`Missing required field "name"${prefix}`)
-  }
-
   if (!('description' in metadata) || metadata['description'] == null) { // Check description field - must exist and not be empty
     errors.push(`Missing required field "description"${prefix}`)
   } else if (typeof metadata['description'] !== 'string' || metadata['description'].trim().length === 0) {
@@ -218,7 +213,7 @@ export function validateSubAgentMetadata(
   filePath?: string
 ): MetadataValidationResult {
   const result = validateExportMetadata<SubAgentExportMetadata>(metadata, {
-    requiredFields: ['name', 'description'],
+    requiredFields: ['description'],
     optionalDefaults: {},
     filePath
   })

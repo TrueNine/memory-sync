@@ -131,8 +131,8 @@ function createSubAgentPrompt(scope: 'project' | 'global'): SubAgentPrompt {
     },
     agentPrefix: 'qa',
     agentName: 'reviewer',
+    canonicalName: 'qa-reviewer',
     yamlFrontMatter: {
-      name: 'review-helper',
       description: 'Review pull requests',
       scope,
       model: 'gpt-5.2',
@@ -235,7 +235,7 @@ describe('codexCLIOutputPlugin command output', () => {
       if (declaration == null) throw new Error('Expected codex subagent declaration')
 
       const rendered = await plugin.convertContent(declaration, writeCtx)
-      expect(String(rendered)).toContain('name = "review-helper"')
+      expect(String(rendered)).toContain('name = "qa-reviewer"')
       expect(String(rendered)).toContain('description = "Review pull requests"')
       expect(String(rendered)).toContain([
         'developer_instructions = """',

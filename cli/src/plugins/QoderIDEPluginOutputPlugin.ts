@@ -137,7 +137,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       filteredSkills: readonly SkillPrompt[]
     ): void => {
       for (const skill of filteredSkills) {
-        const skillName = skill.yamlFrontMatter.name
+        const skillName = this.getSkillName(skill)
         const skillDir = path.join(baseDir, SKILLS_SUBDIR, skillName)
         declarations.push({
           path: path.join(skillDir, SKILL_FILE_NAME),
@@ -182,7 +182,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       for (const skill of filteredMcpSkills) {
         if (skill.mcpConfig == null) continue
 
-        const skillDir = path.join(baseDir, SKILLS_SUBDIR, skill.yamlFrontMatter.name)
+        const skillDir = path.join(baseDir, SKILLS_SUBDIR, this.getSkillName(skill))
         declarations.push({
           path: path.join(skillDir, MCP_CONFIG_FILE),
           scope,
@@ -389,7 +389,7 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
   protected override buildSkillFrontMatter(skill: SkillPrompt): Record<string, unknown> {
     const fm = skill.yamlFrontMatter
     return {
-      name: fm.name,
+      name: this.getSkillName(skill),
       description: fm.description,
       type: 'user_command',
       ...fm.displayName != null && {displayName: fm.displayName},

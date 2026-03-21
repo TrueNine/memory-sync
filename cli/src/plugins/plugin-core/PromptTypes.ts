@@ -91,7 +91,6 @@ export interface ProjectChildrenMemoryPrompt extends Prompt<PromptKind.ProjectCh
 }
 
 export interface SubAgentYAMLFrontMatter extends ToolAwareYAMLFrontMatter {
-  readonly name: string
   readonly model?: string
   readonly color?: ClaudeCodeCLISubAgentColors | string
   readonly seriName?: SeriName
@@ -107,7 +106,7 @@ export interface CommandYAMLFrontMatter extends ToolAwareYAMLFrontMatter {
  * Base YAML front matter for all skill types
  */
 export interface SkillsYAMLFrontMatter extends CommonYAMLFrontMatter {
-  readonly name: string
+  readonly name?: string
 }
 
 export interface SkillYAMLFrontMatter extends SkillsYAMLFrontMatter {

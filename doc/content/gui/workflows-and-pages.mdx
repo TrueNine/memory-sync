@@ -1,0 +1,38 @@
+---
+title: 页面与工作流
+description: 汇总当前 GUI 的导航入口、主要页面和与同步流程直接相关的桌面操作面。
+sidebarTitle: 页面与工作流
+status: stable
+---
+
+# 页面与工作流
+
+## 当前主导航
+
+`gui/src/components/Sidebar.tsx` 当前注册的导航项包括：
+
+- Dashboard
+- Pipeline
+- Config
+- Plugins
+- Files
+- Logs
+- Settings
+
+## 这些页面说明了什么
+
+- Dashboard：展示统计、快速动作和受支持工具概览
+- Pipeline：执行同步、`dry-run`，并查看插件结果与错误
+- Config：查看或编辑配置入口
+- Plugins / Files / Logs：分别面向插件结果、文件视图与日志观察
+- Settings：桌面侧偏好与设置入口
+
+## 和 CLI 的关系
+
+桌面页面并没有单独定义一套 sync 规则。它主要通过桥接层调用底层能力，把命令式流程转成页面式工作流。
+
+因此，遇到这些问题时仍然应先回到 CLI 文档：
+
+- 命令表面是否变了：看 [CLI 命令](/docs/cli/cli-commands)
+- 输出范围是否正确：看 [输出范围](/docs/cli/output-scopes)
+- 清理边界是否安全：看 [清理保护](/docs/cli/cleanup-protection)

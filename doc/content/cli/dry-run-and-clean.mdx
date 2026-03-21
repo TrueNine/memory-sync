@@ -1,0 +1,37 @@
+---
+title: dry-run 与 clean
+description: 说明 tnmsc 如何先预览输出，再执行清理，并配合 cleanupProtection 控制风险。
+sidebarTitle: dry-run 与 clean
+status: stable
+---
+
+# dry-run 与 clean
+
+## `dry-run` 的职责
+
+`tnmsc dry-run` 用来预览当前执行会写出哪些文件与目录。它适合在这些场景先跑一遍：
+
+- 第一次接入某个项目
+- 刚修改过 `plugin.config.ts`
+- 刚改过 [输出范围](/docs/cli/output-scopes)
+- 准备验证某次批量源内容变更的影响
+
+## `clean` 的职责
+
+`tnmsc clean` 用来清除已生成的输出文件。它不是“无差别删目录”，而是依据当前输出模型和清理保护规则执行。
+
+在真正执行前，优先用：
+
+```sh
+tnmsc clean --dry-run
+```
+
+## 风险边界
+
+如果输出目录里混有人工文件或其他工具产物，必须先看 [清理保护](/docs/cli/cleanup-protection)。没有保护规则时，`clean` 的风险会显著上升。
+
+## 推荐习惯
+
+1. 改配置或换项目时先 `dry-run`
+2. 真要清理时先 `clean --dry-run`
+3. 出现异常时再结合 [排障](/docs/cli/troubleshooting) 定位

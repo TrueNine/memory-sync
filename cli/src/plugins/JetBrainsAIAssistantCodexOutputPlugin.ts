@@ -125,7 +125,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       filteredSkills: readonly SkillPrompt[]
     ): void => {
       for (const skill of filteredSkills) {
-        const skillName = skill.yamlFrontMatter?.name ?? skill.dir.getDirectoryName()
+        const skillName = this.getSkillName(skill)
         const skillDir = path.join(basePath, SKILLS_SUBDIR, skillName)
         declarations.push({
           path: path.join(skillDir, SKILL_FILE_NAME),
@@ -325,7 +325,7 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
   private buildCodexSkillContent(skill: SkillPrompt, ctx: OutputWriteContext): string {
     const fm = skill.yamlFrontMatter
 
-    const name = this.normalizeSkillName(fm.name, 64)
+    const name = this.normalizeSkillName(this.getSkillName(skill), 64)
     const description = this.normalizeToSingleLine(fm.description, 1024)
 
     const metadata: Record<string, unknown> = {}

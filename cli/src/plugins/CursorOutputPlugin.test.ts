@@ -99,6 +99,7 @@ function createSkillPrompt(
     content: 'skill body',
     length: 10,
     filePathKind: FilePathKind.Relative,
+    skillName: name,
     dir: {
       pathKind: FilePathKind.Relative,
       path: `skills/${name}`,
@@ -107,7 +108,6 @@ function createSkillPrompt(
       getAbsolutePath: () => path.resolve('tmp/dist/skills', name)
     },
     yamlFrontMatter: {
-      name,
       description: 'Ship release',
       scope
     },

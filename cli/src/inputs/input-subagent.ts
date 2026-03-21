@@ -5,10 +5,11 @@ import type {
   SubAgentPrompt,
   SubAgentYAMLFrontMatter
 } from '../plugins/plugin-core'
-import {buildFileOperationDiagnostic} from '@/diagnostics'
+import {buildConfigDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '@/diagnostics'
 import {
   AbstractInputCapability,
   createLocalizedPromptReader,
+  deriveSubAgentIdentity,
   FilePathKind,
   PromptKind,
   SourceLocaleExtensions,
@@ -25,27 +26,50 @@ export class SubAgentInputCapability extends AbstractInputCapability {
     content: string,
     _locale: Locale,
     name: string,
+    srcDir: string,
     distDir: string,
     ctx: InputCapabilityContext,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
+    warnedDerivedNames?: Set<string>
   ): SubAgentPrompt {
-    const {path} = ctx
-
-    const normalizedName = name.replaceAll('\\', '/') // Normalize Windows backslashes to forward slashes
-    const slashIndex = normalizedName.indexOf('/')
-    const parentDirName = slashIndex !== -1 ? normalizedName.slice(0, slashIndex) : void 0
-    const fileName = slashIndex !== -1 ? normalizedName.slice(slashIndex + 1) : normalizedName
-
-    const baseName = fileName.replace(/\.mdx$/, '')
-    const underscoreIndex = baseName.indexOf('_')
-    const agentPrefix = parentDirName ?? (underscoreIndex === -1 ? void 0 : baseName.slice(0, Math.max(0, underscoreIndex)))
-    const agentName = parentDirName != null || underscoreIndex === -1
-      ? baseName
-      : baseName.slice(Math.max(0, underscoreIndex + 1))
+    const {fs, logger, path} = ctx
+    const {agentPrefix, agentName, canonicalName} = deriveSubAgentIdentity(name)
 
     const filePath = path.join(distDir, `${name}.mdx`)
     const entryName = `${name}.mdx`
-    const yamlFrontMatter = metadata as SubAgentYAMLFrontMatter | undefined
+    const sourceFilePath = fs.existsSync(path.join(srcDir, `${name}.src.mdx`))
+      ? path.join(srcDir, `${name}.src.mdx`)
+      : filePath
+    const yamlFrontMatter = metadata == null
+      ? void 0
+      : (() => {
+          const frontMatter = {...metadata}
+          const authoredName = frontMatter['name']
+
+          if (typeof authoredName === 'string' && authoredName.trim().length > 0 && warnedDerivedNames?.has(sourceFilePath) !== true) {
+            warnedDerivedNames?.add(sourceFilePath)
+            logger.warn(buildConfigDiagnostic({
+              code: 'SUBAGENT_NAME_IGNORED',
+              title: 'Sub-agent authored name is ignored',
+              reason: diagnosticLines(
+                `tnmsc ignores the authored sub-agent name "${authoredName}" in favor of the derived path name "${canonicalName}".`
+              ),
+              configPath: sourceFilePath,
+              exactFix: diagnosticLines(
+                'Remove the `name` field from the sub-agent front matter or exported metadata.',
+                'Rename the sub-agent directory or file if you need a different sub-agent name.'
+              ),
+              details: {
+                authoredName,
+                derivedName: canonicalName,
+                logicalName: name
+              }
+            }))
+          }
+
+          delete frontMatter['name']
+          return frontMatter as SubAgentYAMLFrontMatter
+        })()
 
     const prompt: SubAgentPrompt = {
       type: PromptKind.SubAgent,
@@ -60,7 +84,8 @@ export class SubAgentInputCapability extends AbstractInputCapability {
         getAbsolutePath: () => filePath
       },
       ...agentPrefix != null && {agentPrefix},
-      agentName
+      agentName,
+      canonicalName
     } as SubAgentPrompt
 
     if (yamlFrontMatter == null) return prompt
@@ -87,6 +112,7 @@ export class SubAgentInputCapability extends AbstractInputCapability {
     })
 
     const reader = createLocalizedPromptReader(fs, path, logger, globalScope)
+    const warnedDerivedNames = new Set<string>()
 
     const {prompts: localizedSubAgents, errors} = await reader.readFlatFiles(
       srcDir,
@@ -99,9 +125,11 @@ export class SubAgentInputCapability extends AbstractInputCapability {
           content,
           locale,
           name,
+          srcDir,
           distDir,
           ctx,
-          metadata
+          metadata,
+          warnedDerivedNames
         )
       }
     )
@@ -140,7 +168,7 @@ export class SubAgentInputCapability extends AbstractInputCapability {
 
     logger.debug('SubAgentInputCapability flattened subAgents', {
       count: flatSubAgents.length,
-      agents: flatSubAgents.map(a => a.agentName)
+      agents: flatSubAgents.map(a => a.canonicalName)
     })
 
     return {

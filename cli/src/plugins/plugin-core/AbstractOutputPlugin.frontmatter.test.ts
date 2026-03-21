@@ -108,6 +108,7 @@ function createSubAgentPrompt(): SubAgentPrompt {
     },
     agentPrefix: 'qa',
     agentName: 'boot',
+    canonicalName: 'qa-boot',
     yamlFrontMatter: {
       namingCase: 'kebabCase',
       description: 'subagent desc'
@@ -122,6 +123,7 @@ function createSkillPrompt(): SkillPrompt {
     content: 'skill content',
     length: 13,
     filePathKind: FilePathKind.Relative,
+    skillName: 'ship-it',
     dir: {
       pathKind: FilePathKind.Relative,
       path: 'skills/ship-it',
@@ -172,6 +174,13 @@ describe('abstract output plugin front matter formatting', () => {
     expect(plugin.renderRule(createRulePrompt(), ctx)).toMatch(/\n---\n\nrule content$/)
     expect(plugin.renderSubAgent(createSubAgentPrompt(), ctx)).toMatch(/\n---\n\nsubagent content$/)
     expect(plugin.renderSkill(createSkillPrompt(), ctx)).toMatch(/\n---\n\nskill content$/)
+  })
+
+  it('keeps the derived skill name in raw skill front matter output', () => {
+    const plugin = new TestFrontMatterOutputPlugin()
+    const ctx = createWriteContext()
+
+    expect(plugin.renderSkill(createSkillPrompt(), ctx)).toContain('name: ship-it')
   })
 
   it('removes the extra blank line when frontMatter.blankLineAfter is false', async () => {

@@ -1,10 +1,18 @@
 import type {ReactNode} from 'react'
+import Link from 'next/link'
 import {Footer, Layout, Navbar} from 'nextra-theme-docs'
 import {getPageMap} from 'nextra/page-map'
 import {siteConfig} from '../../lib/site'
 
 export default async function DocsLayout({children}: {readonly children: ReactNode}) {
   const pageMap = await getPageMap('/docs')
+  const sectionLinks = [
+    {href: '/docs/cli', label: 'CLI'},
+    {href: '/docs/mcp', label: 'MCP'},
+    {href: '/docs/gui', label: 'GUI'},
+    {href: '/docs/technical-details', label: '技术细节'},
+    {href: '/docs/design-rationale', label: '设计初衷'}
+  ] as const
 
   return (
     <Layout
@@ -18,7 +26,16 @@ export default async function DocsLayout({children}: {readonly children: ReactNo
               <span className="docs-brand-title">memory-sync</span>
             </div>
           )}
-        />
+          align="left"
+        >
+          <nav className="docs-navbar-links" aria-label="Primary">
+            {sectionLinks.map(link => (
+              <Link key={link.href} href={link.href} className="docs-nav-link">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </Navbar>
       )}
       footer={(
         <Footer>
