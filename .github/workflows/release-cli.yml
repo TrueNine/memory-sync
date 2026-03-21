@@ -3,6 +3,8 @@ name: Release Packages
 env:
   NODE_VERSION: '25'
   NPM_REGISTRY_URL: https://registry.npmjs.org/
+  NPM_PUBLISH_VERIFY_ATTEMPTS: '30'
+  NPM_PUBLISH_VERIFY_DELAY_SECONDS: '10'
   CLI_NATIVE_MODULE_DIRS: |
     libraries/logger
     libraries/md-compiler
@@ -232,7 +234,7 @@ jobs:
     needs: [check-version, build-napi]
     if: needs.check-version.outputs.publish_cli == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm
@@ -350,8 +352,8 @@ jobs:
           verify_version_exists() {
             local package_name="$1"
             local package_version="$2"
-            local attempts=10
-            local delay_seconds=6
+            local attempts="${NPM_PUBLISH_VERIFY_ATTEMPTS}"
+            local delay_seconds="${NPM_PUBLISH_VERIFY_DELAY_SECONDS}"
 
             for attempt in $(seq 1 "$attempts"); do
               if version_exists "$package_name" "$package_version"; then
@@ -410,7 +412,7 @@ jobs:
     needs: [check-version, publish-napi]
     if: needs.check-version.outputs.publish_cli == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm
@@ -465,8 +467,8 @@ jobs:
           }
 
           verify_version_exists() {
-            local attempts=10
-            local delay_seconds=6
+            local attempts="${NPM_PUBLISH_VERIFY_ATTEMPTS}"
+            local delay_seconds="${NPM_PUBLISH_VERIFY_DELAY_SECONDS}"
 
             for attempt in $(seq 1 "$attempts"); do
               if version_exists; then
@@ -507,7 +509,7 @@ jobs:
       needs.check-version.outputs.publish_mcp == 'true' &&
       (needs.publish-cli.result == 'success' || needs.publish-cli.result == 'skipped')
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm
@@ -562,8 +564,8 @@ jobs:
           }
 
           verify_version_exists() {
-            local attempts=10
-            local delay_seconds=6
+            local attempts="${NPM_PUBLISH_VERIFY_ATTEMPTS}"
+            local delay_seconds="${NPM_PUBLISH_VERIFY_DELAY_SECONDS}"
 
             for attempt in $(seq 1 "$attempts"); do
               if version_exists; then
