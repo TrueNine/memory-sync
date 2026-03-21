@@ -2,6 +2,7 @@ name: Release Packages
 
 env:
   NODE_VERSION: '25'
+  NPM_REGISTRY_URL: https://registry.npmjs.org/
   CLI_NATIVE_MODULE_DIRS: |
     libraries/logger
     libraries/md-compiler
@@ -66,13 +67,13 @@ jobs:
             local output_key="$2"
             local version
             local name
-            local npm_version
+            local published_version
 
             version=$(jq -r '.version' "$package_json_path")
             name=$(jq -r '.name' "$package_json_path")
-            npm_version=$(npm view "$name" version --registry https://registry.npmjs.org/ 2>/dev/null || echo "")
+            published_version=$(npm view "${name}@${version}" version --registry "$NPM_REGISTRY_URL" 2>/dev/null || echo "")
 
-            if [[ "$version" != "$npm_version" ]]; then
+            if [[ "$version" != "$published_version" ]]; then
               echo "$name@$version is not published to npm, will publish"
               echo "${output_key}=true" >> "$GITHUB_OUTPUT"
               return 0
@@ -242,6 +243,37 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org/
+      - name: Preflight npm auth
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
+            echo "::error::NPM_TOKEN is missing. Configure a publish-capable npm token for @truenine/* before rerunning release."
+            exit 1
+          fi
+
+          npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
+          npm_user=$(npm whoami --registry "$NPM_REGISTRY_URL")
+          echo "Authenticated to npm as ${npm_user}"
+
+          access_json=$(npm access list packages @truenine --json 2>/dev/null || true)
+          if [[ -z "${access_json}" || "${access_json}" == "{}" || "${access_json}" == "null" ]]; then
+            echo "::error::Authenticated as ${npm_user}, but npm did not report package access for @truenine. Replace NPM_TOKEN with a token that has publish permission for existing @truenine/* packages."
+            exit 1
+          fi
+
+          for package_json in cli/npm/*/package.json; do
+            package_name=$(jq -r '.name' "$package_json")
+            package_access=$(jq -r --arg package_name "$package_name" '.[$package_name] // empty' <<<"$access_json")
+
+            if [[ "$package_access" != "read-write" ]]; then
+              echo "::error::NPM_TOKEN authenticated as ${npm_user}, but ${package_name} access is '${package_access:-missing}'. Expected read-write."
+              exit 1
+            fi
+          done
       - name: Download all platform artifacts
         uses: actions/download-artifact@v4
         with:
@@ -302,10 +334,72 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          set -euo pipefail
+
+          version_exists() {
+            local package_name="$1"
+            local package_version="$2"
+            local published_version
+
+            published_version=$(npm view "${package_name}@${package_version}" version --registry "$NPM_REGISTRY_URL" 2>/dev/null || true)
+            [[ "$published_version" == "$package_version" ]]
+          }
+
+          verify_version_exists() {
+            local package_name="$1"
+            local package_version="$2"
+            local attempts=10
+            local delay_seconds=6
+
+            for attempt in $(seq 1 "$attempts"); do
+              if version_exists "$package_name" "$package_version"; then
+                echo "Verified ${package_name}@${package_version} on npm"
+                return 0
+              fi
+
+              echo "Waiting for ${package_name}@${package_version} to appear on npm (${attempt}/${attempts})..."
+              sleep "$delay_seconds"
+            done
+
+            echo "::error::${package_name}@${package_version} is still missing from npm after publish."
+            return 1
+          }
+
+          publish_package() {
+            local package_dir="$1"
+            local package_name
+            local package_version
+            local publish_log
+
+            package_name=$(jq -r '.name' "${package_dir}package.json")
+            package_version=$(jq -r '.version' "${package_dir}package.json")
+
+            if version_exists "$package_name" "$package_version"; then
+              echo "${package_name}@${package_version} already exists on npm, skipping"
+              return 0
+            fi
+
+            publish_log=$(mktemp)
+            if (cd "$package_dir" && pnpm publish --access public --no-git-checks) 2>&1 | tee "$publish_log"; then
+              verify_version_exists "$package_name" "$package_version"
+              rm -f "$publish_log"
+              return 0
+            fi
+
+            if version_exists "$package_name" "$package_version"; then
+              echo "${package_name}@${package_version} already exists on npm after publish attempt, skipping"
+              rm -f "$publish_log"
+              return 0
+            fi
+
+            echo "::error::Failed to publish ${package_name}@${package_version}. Exact version is still missing from npm."
+            rm -f "$publish_log"
+            return 1
+          }
+
           for dir in cli/npm/*/; do
             if [ -f "${dir}package.json" ]; then
-              echo "Publishing ${dir}..."
-              (cd "$dir" && pnpm publish --access public --no-git-checks) || echo "⚠️ Failed to publish ${dir}, may already exist"
+              publish_package "$dir"
             fi
           done
 
@@ -323,13 +417,83 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org/
+      - name: Preflight npm auth
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
+            echo "::error::NPM_TOKEN is missing. Configure a publish-capable npm token for @truenine/memory-sync-cli before rerunning release."
+            exit 1
+          fi
+
+          npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
+          npm_user=$(npm whoami --registry "$NPM_REGISTRY_URL")
+          echo "Authenticated to npm as ${npm_user}"
+
+          access_json=$(npm access list packages @truenine --json 2>/dev/null || true)
+          package_name=$(jq -r '.name' cli/package.json)
+          package_access=$(jq -r --arg package_name "$package_name" '.[$package_name] // empty' <<<"${access_json:-{}}")
+
+          if [[ "$package_access" != "read-write" ]]; then
+            echo "::error::NPM_TOKEN authenticated as ${npm_user}, but ${package_name} access is '${package_access:-missing}'. Expected read-write."
+            exit 1
+          fi
       - name: Build
         run: pnpm -F @truenine/memory-sync-cli run build
       - name: Publish to npm
-        working-directory: ./cli
-        run: pnpm publish --access public --no-git-checks
+        shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          package_name=$(jq -r '.name' cli/package.json)
+          package_version=$(jq -r '.version' cli/package.json)
+
+          version_exists() {
+            local published_version
+            published_version=$(npm view "${package_name}@${package_version}" version --registry "$NPM_REGISTRY_URL" 2>/dev/null || true)
+            [[ "$published_version" == "$package_version" ]]
+          }
+
+          verify_version_exists() {
+            local attempts=10
+            local delay_seconds=6
+
+            for attempt in $(seq 1 "$attempts"); do
+              if version_exists; then
+                echo "Verified ${package_name}@${package_version} on npm"
+                return 0
+              fi
+
+              echo "Waiting for ${package_name}@${package_version} to appear on npm (${attempt}/${attempts})..."
+              sleep "$delay_seconds"
+            done
+
+            echo "::error::${package_name}@${package_version} is still missing from npm after publish."
+            return 1
+          }
+
+          if version_exists; then
+            echo "${package_name}@${package_version} already exists on npm, skipping"
+            exit 0
+          fi
+
+          if (cd cli && pnpm publish --access public --no-git-checks); then
+            verify_version_exists
+            exit 0
+          fi
+
+          if version_exists; then
+            echo "${package_name}@${package_version} already exists on npm after publish attempt, skipping"
+            exit 0
+          fi
+
+          echo "::error::Failed to publish ${package_name}@${package_version}. Exact version is still missing from npm."
+          exit 1
 
   # 4.5. CLI 可用后，发布 MCP 包到 npm
   publish-mcp:
@@ -347,13 +511,83 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org/
+      - name: Preflight npm auth
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
+            echo "::error::NPM_TOKEN is missing. Configure a publish-capable npm token for @truenine/memory-sync-mcp before rerunning release."
+            exit 1
+          fi
+
+          npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
+          npm_user=$(npm whoami --registry "$NPM_REGISTRY_URL")
+          echo "Authenticated to npm as ${npm_user}"
+
+          access_json=$(npm access list packages @truenine --json 2>/dev/null || true)
+          package_name=$(jq -r '.name' mcp/package.json)
+          package_access=$(jq -r --arg package_name "$package_name" '.[$package_name] // empty' <<<"${access_json:-{}}")
+
+          if [[ "$package_access" != "read-write" ]]; then
+            echo "::error::NPM_TOKEN authenticated as ${npm_user}, but ${package_name} access is '${package_access:-missing}'. Expected read-write."
+            exit 1
+          fi
       - name: Build
         run: pnpm exec turbo run build --filter=@truenine/memory-sync-mcp
       - name: Publish to npm
-        working-directory: ./mcp
-        run: pnpm publish --access public --no-git-checks
+        shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          package_name=$(jq -r '.name' mcp/package.json)
+          package_version=$(jq -r '.version' mcp/package.json)
+
+          version_exists() {
+            local published_version
+            published_version=$(npm view "${package_name}@${package_version}" version --registry "$NPM_REGISTRY_URL" 2>/dev/null || true)
+            [[ "$published_version" == "$package_version" ]]
+          }
+
+          verify_version_exists() {
+            local attempts=10
+            local delay_seconds=6
+
+            for attempt in $(seq 1 "$attempts"); do
+              if version_exists; then
+                echo "Verified ${package_name}@${package_version} on npm"
+                return 0
+              fi
+
+              echo "Waiting for ${package_name}@${package_version} to appear on npm (${attempt}/${attempts})..."
+              sleep "$delay_seconds"
+            done
+
+            echo "::error::${package_name}@${package_version} is still missing from npm after publish."
+            return 1
+          }
+
+          if version_exists; then
+            echo "${package_name}@${package_version} already exists on npm, skipping"
+            exit 0
+          fi
+
+          if (cd mcp && pnpm publish --access public --no-git-checks); then
+            verify_version_exists
+            exit 0
+          fi
+
+          if version_exists; then
+            echo "${package_name}@${package_version} already exists on npm after publish attempt, skipping"
+            exit 0
+          fi
+
+          echo "::error::Failed to publish ${package_name}@${package_version}. Exact version is still missing from npm."
+          exit 1
 
   # 5. 构建 CLI 独立二进制（仅 artifact，不发 Release）
   build-binary:
