@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "version": "2026.10322.104",
+  "version": "2026.10323.10152",
   "productName": "Memory Sync",
   "identifier": "org.truenine.memory-sync",
   "build": {
@@ -24,13 +24,7 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": [
-      "nsis",
-      "deb",
-      "rpm",
-      "appimage",
-      "dmg"
-    ],
+    "targets": ["nsis", "deb", "rpm", "appimage", "dmg"],
     "externalBin": [],
     "icon": [
       "icons/32x32.png",
