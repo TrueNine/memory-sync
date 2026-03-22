@@ -11,7 +11,8 @@ import type {
   OutputScopeOptions,
   PluginOptions,
   PluginOutputScopeTopics,
-  UserConfigFile
+  UserConfigFile,
+  WindowsOptions
 } from './plugins/plugin-core'
 import {checkVersionControl} from './Aindex'
 import {getConfigLoader} from './ConfigLoader'
@@ -63,6 +64,7 @@ const DEFAULT_OPTIONS: Required<PluginOptions> = {
     blankLineAfter: true
   },
   cleanupProtection: {},
+  windows: {},
   plugins: []
 }
 
@@ -79,6 +81,7 @@ export function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<P
     ...userConfig.outputScopes != null ? {outputScopes: userConfig.outputScopes} : {},
     ...userConfig.frontMatter != null ? {frontMatter: userConfig.frontMatter} : {},
     ...userConfig.cleanupProtection != null ? {cleanupProtection: userConfig.cleanupProtection} : {},
+    ...userConfig.windows != null ? {windows: userConfig.windows} : {},
     ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
   }
 }
@@ -121,6 +124,7 @@ function mergeTwoConfigs(
   const overrideOutputScopes = override.outputScopes
   const overrideFrontMatter = override.frontMatter
   const overrideCleanupProtection = override.cleanupProtection
+  const overrideWindows = override.windows
 
   return {
     ...base,
@@ -133,7 +137,8 @@ function mergeTwoConfigs(
     commandSeriesOptions: mergeCommandSeriesOptions(base.commandSeriesOptions, overrideCommandSeries), // Deep merge for commandSeriesOptions
     outputScopes: mergeOutputScopeOptions(base.outputScopes, overrideOutputScopes),
     frontMatter: mergeFrontMatterOptions(base.frontMatter, overrideFrontMatter),
-    cleanupProtection: mergeCleanupProtectionOptions(base.cleanupProtection, overrideCleanupProtection)
+    cleanupProtection: mergeCleanupProtectionOptions(base.cleanupProtection, overrideCleanupProtection),
+    windows: mergeWindowsOptions(base.windows, overrideWindows)
   }
 }
 
@@ -244,6 +249,30 @@ function mergeCleanupProtectionOptions(
       ...base.rules ?? [],
       ...override.rules ?? []
     ]
+  }
+}
+
+function mergeWindowsOptions(
+  base?: WindowsOptions,
+  override?: WindowsOptions
+): WindowsOptions {
+  if (override == null) return base ?? {}
+  if (base == null) return override
+
+  const baseWsl2 = base.wsl2
+  const overrideWsl2 = override.wsl2
+
+  return {
+    ...base,
+    ...override,
+    ...baseWsl2 != null || overrideWsl2 != null
+      ? {
+          wsl2: {
+            ...baseWsl2,
+            ...overrideWsl2
+          }
+        }
+      : {}
   }
 }
 

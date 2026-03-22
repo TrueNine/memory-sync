@@ -19,22 +19,30 @@ export default async function DocsLayout({children}: {readonly children: ReactNo
       pageMap={pageMap}
       navbar={(
         <Navbar
+          className="docs-site-navbar"
           logoLink="/"
-          projectLink={siteConfig.repoUrl}
           logo={(
             <div className="docs-brand">
+              <span className="docs-brand-badge">Docs</span>
               <span className="docs-brand-title">memory-sync</span>
             </div>
           )}
-          align="left"
         >
-          <nav className="docs-navbar-links" aria-label="Primary">
-            {sectionLinks.map(link => (
-              <Link key={link.href} href={link.href} className="docs-nav-link">
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+          <div className="docs-navbar-shell">
+            <nav className="docs-navbar-links" aria-label="Primary">
+              {sectionLinks.map(link => (
+                <Link key={link.href} href={link.href} className="docs-nav-link">
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="docs-navbar-actions">
+              <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer" className="docs-navbar-action">
+                GitHub
+              </a>
+            </div>
+          </div>
         </Navbar>
       )}
       footer={(

@@ -127,15 +127,19 @@ samp {
   padding: 6px 0 18px;
 }
 
-.home-brand,
-.docs-brand {
+.home-brand {
   display: inline-flex;
   align-items: baseline;
   gap: 10px;
 }
 
-.home-brand strong,
-.docs-brand-title {
+.docs-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.home-brand strong {
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -145,6 +149,28 @@ samp {
   color: var(--page-fg-muted);
   font-size: 0.78rem;
   letter-spacing: 0.02em;
+}
+
+.docs-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 82%, transparent);
+  color: var(--page-fg-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.docs-brand-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .home-topbar-nav {
@@ -170,15 +196,75 @@ samp {
     transform 0.2s ease;
 }
 
+.docs-site-navbar nav:not(.docs-navbar-links) {
+  gap: 14px;
+}
+
+.docs-site-navbar nav:not(.docs-navbar-links) > :nth-child(2) {
+  display: none;
+}
+
+.docs-site-navbar nav:not(.docs-navbar-links) > :nth-child(3) {
+  order: 3;
+}
+
+.docs-site-navbar nav:not(.docs-navbar-links) > :nth-child(4) {
+  order: 2;
+}
+
+.docs-site-navbar nav:not(.docs-navbar-links) > :nth-child(5) {
+  order: 4;
+}
+
+.docs-navbar-shell {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .docs-navbar-links {
   display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
   gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.docs-navbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.docs-navbar-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 84%, transparent);
+  color: var(--page-fg-soft);
+  font-size: 0.84rem;
+  font-weight: 500;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .home-topbar-nav a:hover,
-.docs-nav-link:hover {
+.docs-nav-link:hover,
+.docs-navbar-action:hover {
   border-color: var(--surface-border);
   background: var(--surface);
   color: var(--page-fg);
@@ -467,10 +553,6 @@ samp {
   border-color: var(--surface-border);
 }
 
-.nextra-navbar nav > div:first-of-type {
-  display: none;
-}
-
 .nextra-sidebar,
 .nextra-toc,
 .nextra-footer {
@@ -737,7 +819,8 @@ samp {
 }
 
 html.dark .home-topbar-nav a:hover,
-html.dark .docs-nav-link:hover {
+html.dark .docs-nav-link:hover,
+html.dark .docs-navbar-action:hover {
   border-color: var(--surface-border);
   background: var(--surface-highlight);
 }
@@ -831,6 +914,16 @@ html.dark .nextra-nav-container-blur,
 html.dark .nextra-navbar-blur {
   background: color-mix(in srgb, var(--page-bg) 78%, var(--surface-overlay));
   border-color: var(--surface-separator);
+}
+
+html.dark .docs-brand-badge {
+  border-color: var(--surface-border);
+  background: color-mix(in srgb, var(--surface-highlight) 100%, var(--surface-overlay));
+}
+
+html.dark .docs-navbar-action {
+  border-color: var(--surface-border);
+  background: color-mix(in srgb, var(--surface-highlight) 100%, var(--surface-overlay));
 }
 
 html.dark .nextra-sidebar,
@@ -1062,10 +1155,15 @@ html.dark .nextra-body-typesetting-article .mermaid-diagram__fallback {
     font-size: clamp(1.8rem, 10vw, 2.45rem);
   }
 
-  .docs-navbar-links {
-    overflow-x: auto;
-    max-width: 100%;
-    padding-bottom: 2px;
+  .docs-site-navbar nav:not(.docs-navbar-links) {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .docs-brand-badge,
+  .docs-navbar-shell {
+    display: none;
   }
 }
 

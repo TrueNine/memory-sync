@@ -10,7 +10,6 @@
 import type {ILogger, RegistryData, RegistryOperationResult} from './types'
 
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import {createLogger} from '@truenine/logger'
 import {
@@ -18,6 +17,7 @@ import {
   buildFileOperationDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
+import {resolveUserPath} from '@/runtime-environment'
 
 /**
  * Abstract base class for registry configuration writers.
@@ -42,7 +42,7 @@ export abstract class RegistryWriter<
   }
 
   protected resolvePath(p: string): string {
-    if (p.startsWith('~')) return path.join(os.homedir(), p.slice(1))
+    if (p.startsWith('~')) return resolveUserPath(p)
     return path.resolve(p)
   }
 

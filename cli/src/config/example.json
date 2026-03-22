@@ -41,6 +41,13 @@
     }
   },
   "logLevel": "info",
+  "windows": {
+    "wsl2": {
+      "instances": [
+        "Ubuntu"
+      ]
+    }
+  },
   "profile": {
     "name": "赵日天",
     "username": "TrueNine",

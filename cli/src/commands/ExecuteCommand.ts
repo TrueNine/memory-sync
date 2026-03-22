@@ -1,4 +1,5 @@
 import type {Command, CommandContext, CommandResult} from './Command'
+import {syncWindowsConfigIntoWsl} from '@/wsl-mirror-sync'
 import {
   collectOutputDeclarations,
   executeDeclarativeWriteOutputs
@@ -53,6 +54,19 @@ export class ExecuteCommand implements Command {
         message: writeErrors.join('\n')
       }
     }
+
+    const wslMirrorResult = await syncWindowsConfigIntoWsl(outputPlugins, writeCtx)
+
+    if (wslMirrorResult.errors.length > 0) {
+      return {
+        success: false,
+        filesAffected: totalFiles,
+        dirsAffected: totalDirs,
+        message: wslMirrorResult.errors.join('\n')
+      }
+    }
+
+    totalFiles += wslMirrorResult.mirroredFiles
 
     logger.info('complete', {command: 'execute', pluginCount: results.size})
 

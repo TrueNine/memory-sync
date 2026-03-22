@@ -8,6 +8,7 @@
 pub mod series_filter;
 
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -23,6 +24,7 @@ use tnmsc_logger::{Logger, create_logger};
 
 pub const DEFAULT_CONFIG_FILE_NAME: &str = ".tnmsc.json";
 pub const DEFAULT_GLOBAL_CONFIG_DIR: &str = ".aindex";
+pub const DEFAULT_WSL_WINDOWS_USERS_ROOT: &str = "/mnt/c/Users";
 
 fn path_details(path: &Path) -> Option<serde_json::Map<String, Value>> {
     optional_details(serde_json::json!({
@@ -126,6 +128,27 @@ pub struct UserProfile {
     pub extra: HashMap<String, Value>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum StringOrStrings {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowsWsl2Options {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instances: Option<StringOrStrings>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowsOptions {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wsl2: Option<WindowsWsl2Options>,
+}
+
 /// User configuration file (.tnmsc.json).
 /// All fields are optional — missing fields use default values.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -143,6 +166,8 @@ pub struct UserConfigFile {
     pub fast_command_series_options: Option<FastCommandSeriesOptions>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile: Option<UserProfile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub windows: Option<WindowsOptions>,
 }
 
 // ---------------------------------------------------------------------------
@@ -178,14 +203,334 @@ pub struct GlobalConfigValidationResult {
 // Path helpers
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Clone, Default)]
+pub struct RuntimeEnvironmentContext {
+    pub is_wsl: bool,
+    pub native_home_dir: Option<PathBuf>,
+    pub effective_home_dir: Option<PathBuf>,
+    pub selected_global_config_path: Option<PathBuf>,
+    pub windows_users_root: PathBuf,
+}
+
 fn home_dir() -> Option<PathBuf> {
     dirs::home_dir()
 }
 
+fn normalize_posix_like_path(raw_path: &str) -> String {
+    let replaced = raw_path.replace('\\', "/");
+    let has_root = replaced.starts_with('/');
+    let mut components: Vec<&str> = Vec::new();
+
+    for component in replaced.split('/') {
+        if component.is_empty() || component == "." {
+            continue;
+        }
+
+        if component == ".." {
+            if let Some(last_component) = components.last() {
+                if *last_component != ".." {
+                    components.pop();
+                    continue;
+                }
+            }
+
+            if !has_root {
+                components.push(component);
+            }
+            continue;
+        }
+
+        components.push(component);
+    }
+
+    let joined = components.join("/");
+    if has_root {
+        if joined.is_empty() {
+            "/".to_string()
+        } else {
+            format!("/{joined}")
+        }
+    } else {
+        joined
+    }
+}
+
+fn is_same_or_child_path(candidate_path: &str, parent_path: &str) -> bool {
+    let normalized_candidate = normalize_posix_like_path(candidate_path);
+    let normalized_parent = normalize_posix_like_path(parent_path);
+
+    normalized_candidate == normalized_parent
+        || normalized_candidate.starts_with(&format!("{normalized_parent}/"))
+}
+
+fn convert_windows_path_to_wsl(raw_path: &str) -> Option<PathBuf> {
+    let bytes = raw_path.as_bytes();
+    if bytes.len() < 3
+        || !bytes[0].is_ascii_alphabetic()
+        || bytes[1] != b':'
+        || (bytes[2] != b'\\' && bytes[2] != b'/')
+    {
+        return None;
+    }
+
+    let drive_letter = char::from(bytes[0]).to_ascii_lowercase();
+    let relative_path = raw_path[2..]
+        .trim_start_matches(['\\', '/'])
+        .replace('\\', "/");
+    let base_path = format!("/mnt/{drive_letter}");
+
+    if relative_path.is_empty() {
+        Some(PathBuf::from(base_path))
+    } else {
+        Some(Path::new(&base_path).join(relative_path))
+    }
+}
+
+fn resolve_wsl_host_home_candidate(users_root: &Path, raw_path: Option<&str>) -> Option<PathBuf> {
+    let raw_path = raw_path?.trim();
+    if raw_path.is_empty() {
+        return None;
+    }
+
+    let normalized_users_root = normalize_posix_like_path(&users_root.to_string_lossy());
+    let candidate_paths = [
+        convert_windows_path_to_wsl(raw_path)
+            .map(|candidate_path| normalize_posix_like_path(&candidate_path.to_string_lossy())),
+        Some(normalize_posix_like_path(raw_path)),
+    ];
+
+    for candidate_path in candidate_paths.into_iter().flatten() {
+        if is_same_or_child_path(&candidate_path, &normalized_users_root) {
+            return Some(PathBuf::from(candidate_path));
+        }
+    }
+
+    None
+}
+
+fn resolve_preferred_wsl_host_home_dirs_for(
+    users_root: &Path,
+    userprofile: Option<&str>,
+    homedrive: Option<&str>,
+    homepath: Option<&str>,
+    home: Option<&str>,
+) -> Vec<PathBuf> {
+    let mut preferred_home_dirs: Vec<PathBuf> = Vec::new();
+    let combined_home_path = match (homedrive, homepath) {
+        (Some(drive), Some(home_path)) if !drive.is_empty() && !home_path.is_empty() => {
+            Some(format!("{drive}{home_path}"))
+        }
+        _ => None,
+    };
+
+    for candidate in [
+        resolve_wsl_host_home_candidate(users_root, userprofile),
+        resolve_wsl_host_home_candidate(users_root, combined_home_path.as_deref()),
+        resolve_wsl_host_home_candidate(users_root, home),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if !preferred_home_dirs.iter().any(|existing| existing == &candidate) {
+            preferred_home_dirs.push(candidate);
+        }
+    }
+
+    preferred_home_dirs
+}
+
+fn non_empty_env_var(name: &str) -> Option<String> {
+    env::var(name).ok().filter(|value| !value.is_empty())
+}
+
+fn resolve_preferred_wsl_host_home_dirs_with_root(users_root: &Path) -> Vec<PathBuf> {
+    let userprofile = non_empty_env_var("USERPROFILE");
+    let homedrive = non_empty_env_var("HOMEDRIVE");
+    let homepath = non_empty_env_var("HOMEPATH");
+    let home = non_empty_env_var("HOME");
+
+    resolve_preferred_wsl_host_home_dirs_for(
+        users_root,
+        userprofile.as_deref(),
+        homedrive.as_deref(),
+        homepath.as_deref(),
+        home.as_deref(),
+    )
+}
+
+fn global_config_home_dir(candidate_path: &Path) -> Option<PathBuf> {
+    candidate_path
+        .parent()
+        .and_then(|parent| parent.parent())
+        .map(PathBuf::from)
+}
+
+fn select_wsl_host_global_config_path_for(
+    users_root: &Path,
+    userprofile: Option<&str>,
+    homedrive: Option<&str>,
+    homepath: Option<&str>,
+    home: Option<&str>,
+) -> Option<PathBuf> {
+    let candidates = find_wsl_host_global_config_paths_with_root(users_root);
+    let preferred_home_dirs = resolve_preferred_wsl_host_home_dirs_for(
+        users_root,
+        userprofile,
+        homedrive,
+        homepath,
+        home,
+    );
+
+    if !preferred_home_dirs.is_empty() {
+        for preferred_home_dir in preferred_home_dirs {
+            if let Some(candidate_path) = candidates.iter().find(|candidate_path| {
+                global_config_home_dir(candidate_path).as_ref() == Some(&preferred_home_dir)
+            }) {
+                return Some(candidate_path.clone());
+            }
+        }
+
+        return None;
+    }
+
+    if candidates.len() == 1 {
+        return candidates.into_iter().next();
+    }
+
+    None
+}
+
+fn select_wsl_host_global_config_path_with_root(users_root: &Path) -> Option<PathBuf> {
+    let userprofile = non_empty_env_var("USERPROFILE");
+    let homedrive = non_empty_env_var("HOMEDRIVE");
+    let homepath = non_empty_env_var("HOMEPATH");
+    let home = non_empty_env_var("HOME");
+
+    select_wsl_host_global_config_path_for(
+        users_root,
+        userprofile.as_deref(),
+        homedrive.as_deref(),
+        homepath.as_deref(),
+        home.as_deref(),
+    )
+}
+
+fn build_required_wsl_config_resolution_error(users_root: &Path) -> String {
+    let preferred_home_dirs = resolve_preferred_wsl_host_home_dirs_with_root(users_root);
+    let candidates = find_wsl_host_global_config_paths_with_root(users_root);
+    let config_lookup_pattern = format!(
+        "\"{}/*/{}/{}\"",
+        users_root.to_string_lossy(),
+        DEFAULT_GLOBAL_CONFIG_DIR,
+        DEFAULT_CONFIG_FILE_NAME
+    );
+
+    if candidates.is_empty() {
+        return format!("WSL host config file not found under {config_lookup_pattern}.");
+    }
+
+    if !preferred_home_dirs.is_empty() {
+        return format!(
+            "WSL host config file for the current Windows user was not found under {config_lookup_pattern}."
+        );
+    }
+
+    format!(
+        "WSL host config file could not be matched to the current Windows user under {config_lookup_pattern}."
+    )
+}
+
+fn is_wsl_runtime_for(os_name: &str, wsl_distro_name: Option<&str>, wsl_interop: Option<&str>, release: &str) -> bool {
+    if os_name != "linux" {
+        return false;
+    }
+
+    if wsl_distro_name.is_some_and(|value| !value.is_empty()) || wsl_interop.is_some_and(|value| !value.is_empty()) {
+        return true;
+    }
+
+    release.to_lowercase().contains("microsoft")
+}
+
+pub fn is_wsl_runtime() -> bool {
+    let release = fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default();
+    let wsl_distro_name = env::var("WSL_DISTRO_NAME").ok();
+    let wsl_interop = env::var("WSL_INTEROP").ok();
+
+    is_wsl_runtime_for(
+        env::consts::OS,
+        wsl_distro_name.as_deref(),
+        wsl_interop.as_deref(),
+        &release,
+    )
+}
+
+pub fn find_wsl_host_global_config_paths_with_root(users_root: &Path) -> Vec<PathBuf> {
+    if !users_root.is_dir() {
+        return vec![];
+    }
+
+    let mut candidates: Vec<PathBuf> = match fs::read_dir(users_root) {
+        Ok(entries) => entries
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| {
+                let entry_path = entry.path();
+                if !entry_path.is_dir() {
+                    return None;
+                }
+
+                let candidate_path = entry_path
+                    .join(DEFAULT_GLOBAL_CONFIG_DIR)
+                    .join(DEFAULT_CONFIG_FILE_NAME);
+                if candidate_path.is_file() {
+                    Some(candidate_path)
+                } else {
+                    None
+                }
+            })
+            .collect(),
+        Err(_) => vec![],
+    };
+
+    candidates.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
+    candidates
+}
+
+pub fn resolve_runtime_environment_with_root(users_root: PathBuf) -> RuntimeEnvironmentContext {
+    let native_home_dir = home_dir();
+    let is_wsl = is_wsl_runtime();
+    let selected_global_config_path = if is_wsl {
+        select_wsl_host_global_config_path_with_root(&users_root)
+    } else {
+        None
+    };
+    let effective_home_dir = selected_global_config_path
+        .as_ref()
+        .and_then(|config_path| config_path.parent().and_then(|parent| parent.parent()))
+        .map(PathBuf::from)
+        .or_else(|| native_home_dir.clone());
+
+    RuntimeEnvironmentContext {
+        is_wsl,
+        native_home_dir,
+        effective_home_dir,
+        selected_global_config_path,
+        windows_users_root: users_root,
+    }
+}
+
+pub fn resolve_runtime_environment() -> RuntimeEnvironmentContext {
+    resolve_runtime_environment_with_root(PathBuf::from(DEFAULT_WSL_WINDOWS_USERS_ROOT))
+}
+
 /// Resolve `~` prefix to the user's home directory.
 pub fn resolve_tilde(p: &str) -> PathBuf {
+    let runtime_environment = resolve_runtime_environment();
     if let Some(rest) = p.strip_prefix('~') {
-        if let Some(home) = home_dir() {
+        if let Some(home) = runtime_environment
+            .effective_home_dir
+            .or(runtime_environment.native_home_dir)
+        {
             let rest = rest
                 .strip_prefix('/')
                 .or_else(|| rest.strip_prefix('\\'))
@@ -198,12 +543,33 @@ pub fn resolve_tilde(p: &str) -> PathBuf {
 
 /// Get the global config file path: `~/.aindex/.tnmsc.json`
 pub fn get_global_config_path() -> PathBuf {
-    match home_dir() {
+    let runtime_environment = resolve_runtime_environment();
+
+    if let Some(selected_path) = runtime_environment.selected_global_config_path {
+        return selected_path;
+    }
+
+    match runtime_environment
+        .effective_home_dir
+        .or(runtime_environment.native_home_dir)
+    {
         Some(home) => home
             .join(DEFAULT_GLOBAL_CONFIG_DIR)
             .join(DEFAULT_CONFIG_FILE_NAME),
         None => PathBuf::from(DEFAULT_GLOBAL_CONFIG_DIR).join(DEFAULT_CONFIG_FILE_NAME),
     }
+}
+
+pub fn get_required_global_config_path() -> Result<PathBuf, String> {
+    let runtime_environment = resolve_runtime_environment();
+
+    if runtime_environment.is_wsl && runtime_environment.selected_global_config_path.is_none() {
+        return Err(build_required_wsl_config_resolution_error(
+            &runtime_environment.windows_users_root,
+        ));
+    }
+
+    Ok(get_global_config_path())
 }
 
 // ---------------------------------------------------------------------------
@@ -230,9 +596,31 @@ fn merge_aindex(a: &Option<AindexConfig>, b: &Option<AindexConfig>) -> Option<Ai
     }
 }
 
+fn merge_windows(a: &Option<WindowsOptions>, b: &Option<WindowsOptions>) -> Option<WindowsOptions> {
+    match (a, b) {
+        (None, None) => None,
+        (Some(v), None) => Some(v.clone()),
+        (None, Some(v)) => Some(v.clone()),
+        (Some(base), Some(over)) => Some(WindowsOptions {
+            wsl2: match (&base.wsl2, &over.wsl2) {
+                (None, None) => None,
+                (Some(v), None) => Some(v.clone()),
+                (None, Some(v)) => Some(v.clone()),
+                (Some(base_wsl2), Some(over_wsl2)) => Some(WindowsWsl2Options {
+                    instances: over_wsl2
+                        .instances
+                        .clone()
+                        .or_else(|| base_wsl2.instances.clone()),
+                }),
+            },
+        }),
+    }
+}
+
 /// Merge two configs. `over` fields take priority over `base`.
 pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserConfigFile {
     let merged_aindex = merge_aindex(&base.aindex, &over.aindex);
+    let merged_windows = merge_windows(&base.windows, &over.windows);
 
     UserConfigFile {
         version: over.version.clone().or_else(|| base.version.clone()),
@@ -247,6 +635,7 @@ pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserC
             .clone()
             .or_else(|| base.fast_command_series_options.clone()),
         profile: over.profile.clone().or_else(|| base.profile.clone()),
+        windows: merged_windows,
     }
 }
 
@@ -291,6 +680,34 @@ impl ConfigLoader {
 
     pub fn with_defaults() -> Self {
         Self::new(ConfigLoaderOptions::default())
+    }
+
+    pub fn try_get_search_paths(&self, _cwd: &Path) -> Result<Vec<PathBuf>, String> {
+        let runtime_environment = resolve_runtime_environment();
+
+        if runtime_environment.is_wsl {
+            self.logger.info(
+                Value::String("wsl environment detected".into()),
+                Some(serde_json::json!({
+                    "effectiveHomeDir": runtime_environment
+                        .effective_home_dir
+                        .as_ref()
+                        .map(|path| path.to_string_lossy().into_owned())
+                })),
+            );
+        }
+
+        let config_path = get_required_global_config_path()?;
+        if runtime_environment.is_wsl {
+            self.logger.info(
+                Value::String("using wsl host global config".into()),
+                Some(serde_json::json!({
+                    "path": config_path.to_string_lossy()
+                })),
+            );
+        }
+
+        Ok(vec![config_path])
     }
 
     /// Get the list of config file paths to search.
@@ -353,9 +770,8 @@ impl ConfigLoader {
         }
     }
 
-    /// Load and merge all config files.
-    pub fn load(&self, cwd: &Path) -> MergedConfigResult {
-        let search_paths = self.get_search_paths(cwd);
+    pub fn try_load(&self, cwd: &Path) -> Result<MergedConfigResult, String> {
+        let search_paths = self.try_get_search_paths(cwd)?;
         let mut loaded: Vec<ConfigLoadResult> = Vec::new();
 
         for path in &search_paths {
@@ -369,11 +785,33 @@ impl ConfigLoader {
         let merged = merge_configs(&configs);
         let sources: Vec<String> = loaded.iter().filter_map(|r| r.source.clone()).collect();
 
-        MergedConfigResult {
+        Ok(MergedConfigResult {
             config: merged,
             sources,
             found: !loaded.is_empty(),
-        }
+        })
+    }
+
+    /// Load and merge all config files.
+    pub fn load(&self, cwd: &Path) -> MergedConfigResult {
+        self.try_load(cwd).unwrap_or_else(|error| {
+            self.logger.error(diagnostic(
+                "GLOBAL_CONFIG_PATH_RESOLUTION_FAILED",
+                "Failed to resolve the global config path",
+                line("The runtime could not determine which global config file should be loaded."),
+                Some(line(
+                    "Ensure the expected global config exists and retry the command.",
+                )),
+                None,
+                optional_details(serde_json::json!({ "error": error })),
+            ));
+
+            MergedConfigResult {
+                config: UserConfigFile::default(),
+                sources: vec![],
+                found: false,
+            }
+        })
     }
 
     fn parse_config(&self, content: &str, file_path: &Path) -> Result<UserConfigFile, String> {
@@ -414,8 +852,8 @@ impl ConfigLoader {
 // ---------------------------------------------------------------------------
 
 /// Load user configuration using default loader.
-pub fn load_user_config(cwd: &Path) -> MergedConfigResult {
-    ConfigLoader::with_defaults().load(cwd)
+pub fn load_user_config(cwd: &Path) -> Result<MergedConfigResult, String> {
+    ConfigLoader::with_defaults().try_load(cwd)
 }
 
 // ---------------------------------------------------------------------------
@@ -475,7 +913,27 @@ pub fn validate_and_ensure_global_config(
     default_config: &UserConfigFile,
 ) -> GlobalConfigValidationResult {
     let logger = create_logger("ConfigLoader", None);
-    let config_path = get_global_config_path();
+    let config_path = match get_required_global_config_path() {
+        Ok(path) => path,
+        Err(error) => {
+            logger.error(diagnostic(
+                "GLOBAL_CONFIG_PATH_RESOLUTION_FAILED",
+                "Failed to resolve the global config path",
+                line("The runtime could not determine the expected global config file location."),
+                Some(line(
+                    "Ensure the required host config exists before retrying tnmsc.",
+                )),
+                None,
+                optional_details(serde_json::json!({ "error": error })),
+            ));
+            return GlobalConfigValidationResult {
+                valid: false,
+                exists: false,
+                errors: vec![error],
+                should_exit: true,
+            };
+        }
+    };
 
     if !config_path.exists() {
         logger.warn(diagnostic(
@@ -691,6 +1149,29 @@ mod tests {
     }
 
     #[test]
+    fn test_user_config_file_deserialize_with_windows_wsl2_instances() {
+        let json = r#"{
+            "windows": {
+                "wsl2": {
+                    "instances": ["Ubuntu", "Debian"]
+                }
+            }
+        }"#;
+        let config: UserConfigFile = serde_json::from_str(json).unwrap();
+
+        match config
+            .windows
+            .and_then(|windows| windows.wsl2)
+            .and_then(|wsl2| wsl2.instances)
+        {
+            Some(StringOrStrings::Multiple(instances)) => {
+                assert_eq!(instances, vec!["Ubuntu".to_string(), "Debian".to_string()]);
+            }
+            other => panic!("expected windows.wsl2.instances array, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn test_user_config_file_roundtrip() {
         let config = UserConfigFile {
             workspace_dir: Some("~/workspace".into()),
@@ -753,6 +1234,32 @@ mod tests {
     }
 
     #[test]
+    fn test_merge_configs_merges_windows_options() {
+        let base_config = UserConfigFile {
+            windows: Some(WindowsOptions {
+                wsl2: Some(WindowsWsl2Options {
+                    instances: Some(StringOrStrings::Single("Ubuntu".into())),
+                }),
+            }),
+            ..Default::default()
+        };
+        let override_config = UserConfigFile {
+            log_level: Some("debug".into()),
+            ..Default::default()
+        };
+
+        let merged = merge_configs_pair(&base_config, &override_config);
+        match merged
+            .windows
+            .and_then(|windows| windows.wsl2)
+            .and_then(|wsl2| wsl2.instances)
+        {
+            Some(StringOrStrings::Single(instance)) => assert_eq!(instance, "Ubuntu"),
+            other => panic!("expected merged windows.wsl2.instances value, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn test_merge_aindex_deep() {
         let cwd_config = UserConfigFile {
             aindex: Some(AindexConfig {
@@ -798,6 +1305,83 @@ mod tests {
         let paths = loader.get_search_paths(&cwd);
 
         assert_eq!(paths, vec![get_global_config_path()]);
+    }
+
+    #[test]
+    fn test_find_wsl_host_global_config_paths_with_root_sorts_candidates() {
+        let temp_dir = TempDir::new().unwrap();
+        let users_root = temp_dir.path().join("Users");
+        let alpha_config_path = users_root.join("alpha").join(".aindex").join(".tnmsc.json");
+        let bravo_config_path = users_root.join("bravo").join(".aindex").join(".tnmsc.json");
+
+        fs::create_dir_all(alpha_config_path.parent().unwrap()).unwrap();
+        fs::create_dir_all(bravo_config_path.parent().unwrap()).unwrap();
+        fs::write(&alpha_config_path, "{}\n").unwrap();
+        fs::write(&bravo_config_path, "{}\n").unwrap();
+
+        let candidates = find_wsl_host_global_config_paths_with_root(&users_root);
+        assert_eq!(candidates, vec![alpha_config_path, bravo_config_path]);
+    }
+
+    #[test]
+    fn test_select_wsl_host_global_config_path_for_prefers_matching_userprofile() {
+        let temp_dir = TempDir::new().unwrap();
+        let users_root = temp_dir.path().join("Users");
+        let alpha_config_path = users_root.join("alpha").join(".aindex").join(".tnmsc.json");
+        let bravo_config_path = users_root.join("bravo").join(".aindex").join(".tnmsc.json");
+
+        fs::create_dir_all(alpha_config_path.parent().unwrap()).unwrap();
+        fs::create_dir_all(bravo_config_path.parent().unwrap()).unwrap();
+        fs::write(&alpha_config_path, "{}\n").unwrap();
+        fs::write(&bravo_config_path, "{}\n").unwrap();
+
+        let selected = select_wsl_host_global_config_path_for(
+            &users_root,
+            Some(&users_root.join("bravo").to_string_lossy()),
+            None,
+            None,
+            None,
+        );
+
+        assert_eq!(selected, Some(bravo_config_path));
+    }
+
+    #[test]
+    fn test_select_wsl_host_global_config_path_for_rejects_other_windows_profile() {
+        let temp_dir = TempDir::new().unwrap();
+        let users_root = temp_dir.path().join("Users");
+        let alpha_config_path = users_root.join("alpha").join(".aindex").join(".tnmsc.json");
+
+        fs::create_dir_all(alpha_config_path.parent().unwrap()).unwrap();
+        fs::write(&alpha_config_path, "{}\n").unwrap();
+
+        let selected = select_wsl_host_global_config_path_for(
+            &users_root,
+            Some(&users_root.join("bravo").to_string_lossy()),
+            None,
+            None,
+            None,
+        );
+
+        assert_eq!(selected, None);
+    }
+
+    #[test]
+    fn test_is_wsl_runtime_for_detects_linux_wsl_inputs() {
+        assert!(is_wsl_runtime_for("linux", Some("Ubuntu"), None, ""));
+        assert!(is_wsl_runtime_for(
+            "linux",
+            None,
+            Some("/run/WSL/12_interop"),
+            ""
+        ));
+        assert!(is_wsl_runtime_for(
+            "linux",
+            None,
+            None,
+            "5.15.167.4-microsoft-standard-WSL2"
+        ));
+        assert!(!is_wsl_runtime_for("windows", Some("Ubuntu"), None, ""));
     }
 
     #[test]
@@ -875,14 +1459,16 @@ mod napi_binding {
     #[napi]
     pub fn load_user_config(cwd: String) -> napi::Result<String> {
         let path = std::path::Path::new(&cwd);
-        let result = ConfigLoader::with_defaults().load(path);
+        let result = super::load_user_config(path).map_err(napi::Error::from_reason)?;
         serde_json::to_string(&result.config).map_err(|e| napi::Error::from_reason(e.to_string()))
     }
 
     /// Get the global config file path (~/.aindex/.tnmsc.json).
     #[napi]
-    pub fn get_global_config_path_str() -> String {
-        get_global_config_path().to_string_lossy().into_owned()
+    pub fn get_global_config_path_str() -> napi::Result<String> {
+        get_required_global_config_path()
+            .map(|path| path.to_string_lossy().into_owned())
+            .map_err(napi::Error::from_reason)
     }
 
     /// Merge two config JSON strings. `over` fields take priority over `base`.

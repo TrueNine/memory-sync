@@ -4,6 +4,7 @@ import process from 'node:process'
 
 import {mdxToMd} from '@truenine/md-compiler'
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
+import {getGlobalConfigPath} from '@/ConfigLoader'
 import {
   buildConfigDiagnostic,
   buildFileOperationDiagnostic,
@@ -117,15 +118,16 @@ export class ReadmeMdInputCapability extends AbstractInputCapability {
               }
             }))
             if (e instanceof ScopeError) {
+              const globalConfigPath = getGlobalConfigPath()
               logger.error(buildConfigDiagnostic({
                 code: 'README_SCOPE_VARIABLES_MISSING',
                 title: 'Readme-family prompt references missing config variables',
                 reason: diagnosticLines(
-                  'The readme-family prompt uses scope variables that are not defined in `~/.aindex/.tnmsc.json`.'
+                  `The readme-family prompt uses scope variables that are not defined in "${globalConfigPath}".`
                 ),
-                configPath: '~/.aindex/.tnmsc.json',
+                configPath: globalConfigPath,
                 exactFix: diagnosticLines(
-                  'Define the missing variables in `~/.aindex/.tnmsc.json` and rerun tnmsc.'
+                  `Define the missing variables in "${globalConfigPath}" and rerun tnmsc.`
                 ),
                 details: {
                   promptPath: filePath,

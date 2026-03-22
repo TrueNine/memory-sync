@@ -1,9 +1,8 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
-import {DEFAULT_CONFIG_FILE_NAME, DEFAULT_GLOBAL_CONFIG_DIR} from '@/ConfigLoader'
 import {buildUsageDiagnostic, diagnosticLines} from '@/diagnostics'
+import {getRequiredGlobalConfigPath} from '@/runtime-environment'
 
 /**
  * Valid configuration keys that can be set via `tnmsc config key=value`.
@@ -53,7 +52,7 @@ function isValidLogLevel(value: string): boolean {
  * Get global config file path
  */
 function getGlobalConfigPath(): string {
-  return path.join(os.homedir(), DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
+  return getRequiredGlobalConfigPath()
 }
 
 /**
@@ -157,7 +156,21 @@ export class ConfigCommand implements Command {
       }
     }
 
-    const config = readGlobalConfig() // Read existing config
+    let config: ConfigObject
+
+    try {
+      config = readGlobalConfig()
+    }
+    catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return {
+        success: false,
+        filesAffected: 0,
+        dirsAffected: 0,
+        message: errorMessage
+      }
+    }
+
     const errors: string[] = []
     const updated: string[] = []
 
@@ -209,7 +222,18 @@ export class ConfigCommand implements Command {
     }
 
     if (updated.length > 0) { // Write config if there are valid updates
-      writeGlobalConfig(config)
+      try {
+        writeGlobalConfig(config)
+      }
+      catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        return {
+          success: false,
+          filesAffected: 0,
+          dirsAffected: 0,
+          message: errorMessage
+        }
+      }
       logger.info('global config written', {path: getGlobalConfigPath()})
     }
 

@@ -1,17 +1,18 @@
 import type {InputCapabilityContext, InputCollectedContext} from '../plugins/plugin-core'
 
-import * as os from 'node:os'
 import process from 'node:process'
 
 import {mdxToMd} from '@truenine/md-compiler'
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
+import {getGlobalConfigPath} from '@/ConfigLoader'
 import {
   buildConfigDiagnostic,
   buildPathStateDiagnostic,
   buildPromptCompilerDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
+import {getEffectiveHomeDir} from '@/runtime-environment'
 import {AbstractInputCapability, FilePathKind, GlobalConfigDirectoryType, PromptKind} from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
 import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
@@ -24,6 +25,8 @@ export class GlobalMemoryInputCapability extends AbstractInputCapability {
   async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, fs, path, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
+    const globalConfigPath = getGlobalConfigPath()
+    const effectiveHomeDir = getEffectiveHomeDir()
 
     const globalMemoryFile = this.resolveAindexPath(options.aindex.globalPrompt.dist, aindexDir)
 
@@ -84,11 +87,11 @@ export class GlobalMemoryInputCapability extends AbstractInputCapability {
             code: 'GLOBAL_MEMORY_SCOPE_VARIABLES_MISSING',
             title: 'Global memory prompt references missing config variables',
             reason: diagnosticLines(
-              'The global memory prompt uses scope variables that are not defined in `~/.aindex/.tnmsc.json`.'
+              `The global memory prompt uses scope variables that are not defined in "${globalConfigPath}".`
             ),
-            configPath: '~/.aindex/.tnmsc.json',
+            configPath: globalConfigPath,
             exactFix: diagnosticLines(
-              'Add the missing variables to `~/.aindex/.tnmsc.json` and rerun tnmsc.'
+              `Add the missing variables to "${globalConfigPath}" and rerun tnmsc.`
             ),
             possibleFixes: [
               diagnosticLines('If you reference `{profile.name}`, define `profile.name` in the config file.')
@@ -127,9 +130,9 @@ export class GlobalMemoryInputCapability extends AbstractInputCapability {
           directory: {
             pathKind: FilePathKind.Relative,
             path: '',
-            basePath: os.homedir(),
-            getDirectoryName: () => path.basename(os.homedir()),
-            getAbsolutePath: () => os.homedir()
+            basePath: effectiveHomeDir,
+            getDirectoryName: () => path.basename(effectiveHomeDir),
+            getAbsolutePath: () => effectiveHomeDir
           }
         }
       }

@@ -8,7 +8,8 @@ import type {
   OutputScopeOptions,
   OutputScopeSelection,
   PluginOutputScopeTopics,
-  ProtectionMode
+  ProtectionMode,
+  WindowsOptions
 } from './ConfigTypes.schema'
 import type {PluginKind} from './enums'
 import type {
@@ -98,6 +99,16 @@ export interface OutputWriteContext extends OutputPluginContext {
   readonly dryRun?: boolean
 
   readonly registeredPluginNames?: readonly string[]
+}
+
+/**
+ * Declarative host-home file that should be mirrored into configured WSL instances.
+ */
+export interface WslMirrorFileDeclaration {
+  /** Source path on the Windows host, typically under ~ */
+  readonly sourcePath: string
+  /** Optional label for diagnostics/logging */
+  readonly label?: string
 }
 
 /**
@@ -219,6 +230,8 @@ export interface OutputPlugin extends Plugin {
   convertContent: (declaration: OutputFileDeclaration, ctx: OutputWriteContext) => Awaitable<string | Buffer>
 
   declareCleanupPaths?: (ctx: OutputCleanContext) => Awaitable<OutputCleanupDeclarations>
+
+  declareWslMirrorFiles?: (ctx: OutputWriteContext) => Awaitable<readonly WslMirrorFileDeclaration[]>
 }
 
 /**
@@ -529,6 +542,8 @@ export interface PluginOptions {
   readonly frontMatter?: FrontMatterOptions
 
   readonly cleanupProtection?: CleanupProtectionOptions
+
+  readonly windows?: WindowsOptions
 
   plugins?: readonly (InputCapability | OutputPlugin)[]
   logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'

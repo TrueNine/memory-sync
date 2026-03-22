@@ -7,11 +7,10 @@ import type {
   ILogger,
   OutputScopeOptions,
   PluginOutputScopeTopics,
-  UserConfigFile
+  UserConfigFile,
+  WindowsOptions
 } from './plugins/plugin-core'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
-import * as path from 'node:path'
 import process from 'node:process'
 import {
   buildConfigDiagnostic,
@@ -20,6 +19,13 @@ import {
   splitDiagnosticText
 } from './diagnostics'
 import {createLogger, ZUserConfigFile} from './plugins/plugin-core'
+import {
+  getRequiredGlobalConfigPath,
+  resolveRuntimeEnvironment,
+  resolveUserPath,
+  DEFAULT_GLOBAL_CONFIG_FILE_NAME as RUNTIME_DEFAULT_CONFIG_FILE_NAME,
+  DEFAULT_GLOBAL_CONFIG_DIR as RUNTIME_DEFAULT_GLOBAL_CONFIG_DIR
+} from './runtime-environment'
 
 /**
  * Default config file name
@@ -35,7 +41,7 @@ export const DEFAULT_GLOBAL_CONFIG_DIR = '.aindex'
  * Get global config file path
  */
 export function getGlobalConfigPath(): string {
-  return path.join(os.homedir(), DEFAULT_GLOBAL_CONFIG_DIR, DEFAULT_CONFIG_FILE_NAME)
+  return getRequiredGlobalConfigPath()
 }
 
 /**
@@ -67,7 +73,22 @@ export class ConfigLoader {
 
   getSearchPaths(cwd: string = process.cwd()): string[] {
     void cwd
-    return [getGlobalConfigPath()]
+    const runtimeEnvironment = resolveRuntimeEnvironment()
+
+    if (!runtimeEnvironment.isWsl) return [getRequiredGlobalConfigPath()]
+
+    this.logger.info('wsl environment detected', {
+      effectiveHomeDir: runtimeEnvironment.effectiveHomeDir
+    })
+    if (runtimeEnvironment.selectedGlobalConfigPath == null) {
+      throw new Error(
+        `WSL host config file not found under "${runtimeEnvironment.windowsUsersRoot}/*/${DEFAULT_GLOBAL_CONFIG_DIR}/${DEFAULT_CONFIG_FILE_NAME}".`
+      )
+    }
+    this.logger.info('using wsl host global config', {
+      path: runtimeEnvironment.selectedGlobalConfigPath
+    })
+    return [getRequiredGlobalConfigPath()]
   }
 
   loadFromFile(filePath: string): ConfigLoadResult {
@@ -147,6 +168,7 @@ export class ConfigLoader {
         acc.cleanupProtection,
         config.cleanupProtection
       )
+      const mergedWindows = this.mergeWindowsOptions(acc.windows, config.windows)
 
       return {
         ...acc,
@@ -154,7 +176,8 @@ export class ConfigLoader {
         ...mergedAindex != null ? {aindex: mergedAindex} : {},
         ...mergedOutputScopes != null ? {outputScopes: mergedOutputScopes} : {},
         ...mergedFrontMatter != null ? {frontMatter: mergedFrontMatter} : {},
-        ...mergedCleanupProtection != null ? {cleanupProtection: mergedCleanupProtection} : {}
+        ...mergedCleanupProtection != null ? {cleanupProtection: mergedCleanupProtection} : {},
+        ...mergedWindows != null ? {windows: mergedWindows} : {}
       }
     }, {})
   }
@@ -237,9 +260,30 @@ export class ConfigLoader {
     }
   }
 
+  private mergeWindowsOptions(
+    a?: WindowsOptions,
+    b?: WindowsOptions
+  ): WindowsOptions | undefined {
+    if (a == null && b == null) return void 0
+    if (a == null) return b
+    if (b == null) return a
+
+    return {
+      ...a,
+      ...b,
+      ...a.wsl2 != null || b.wsl2 != null
+        ? {
+            wsl2: {
+              ...a.wsl2,
+              ...b.wsl2
+            }
+          }
+        : {}
+    }
+  }
+
   private resolveTilde(p: string): string {
-    if (p.startsWith('~')) return path.join(os.homedir(), p.slice(1))
-    return p
+    return p.startsWith('~') ? resolveUserPath(p) : p
   }
 }
 
@@ -283,7 +327,29 @@ export function loadUserConfig(cwd?: string): MergedConfigResult {
  */
 export function validateGlobalConfig(): GlobalConfigValidationResult {
   const logger = createLogger('ConfigLoader')
-  const configPath = getGlobalConfigPath()
+  let configPath: string
+
+  try {
+    configPath = getRequiredGlobalConfigPath()
+  }
+  catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error(buildConfigDiagnostic({
+      code: 'GLOBAL_CONFIG_PATH_RESOLUTION_FAILED',
+      title: 'Failed to resolve global config path',
+      reason: diagnosticLines(errorMessage),
+      configPath: `${RUNTIME_DEFAULT_GLOBAL_CONFIG_DIR}/${RUNTIME_DEFAULT_CONFIG_FILE_NAME}`,
+      exactFix: diagnosticLines(
+        'Ensure the required global config exists in the expected runtime-specific location before running tnmsc again.'
+      )
+    }))
+    return {
+      valid: false,
+      exists: false,
+      errors: [errorMessage],
+      shouldExit: true
+    }
+  }
 
   if (!fs.existsSync(configPath)) { // Check if config file exists - do not auto-create
     const error = `Global config not found at ${configPath}. Please create it manually.`
