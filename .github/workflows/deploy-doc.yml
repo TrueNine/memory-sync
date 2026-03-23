@@ -50,10 +50,10 @@ jobs:
           fi
 
       - name: Pull Vercel production settings
-        run: pnpm dlx vercel@latest pull --yes --environment=production --cwd doc --token="$VERCEL_TOKEN"
+        run: pnpm dlx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
 
       - name: Build docs on Vercel
-        run: pnpm dlx vercel@latest build --prod --cwd doc --token="$VERCEL_TOKEN"
+        run: pnpm dlx vercel@latest build --prod --token="$VERCEL_TOKEN"
 
       - name: Deploy docs to Vercel production
-        run: pnpm dlx vercel@latest deploy --prebuilt --prod --cwd doc --token="$VERCEL_TOKEN"
+        run: pnpm dlx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
