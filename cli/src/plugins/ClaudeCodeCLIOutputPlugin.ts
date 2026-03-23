@@ -53,6 +53,10 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
           }
         }
       },
+      wslMirrors: [
+        '~/.claude/settings.json',
+        '~/.claude/config.json'
+      ],
       capabilities: {
         prompt: {
           scopes: ['project', 'global'],

@@ -12,6 +12,7 @@ import process from 'node:process'
 import {mdxToMd} from '@truenine/md-compiler'
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
+import {getGlobalConfigPath} from '@/ConfigLoader'
 import {
   buildConfigDiagnostic,
   buildFileOperationDiagnostic,
@@ -126,15 +127,16 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
             }
           }))
           if (e instanceof ScopeError) {
+            const globalConfigPath = getGlobalConfigPath()
             logger.error(buildConfigDiagnostic({
               code: 'WORKSPACE_ROOT_MEMORY_SCOPE_VARIABLES_MISSING',
               title: 'Workspace root memory prompt references missing config variables',
               reason: diagnosticLines(
-                'The workspace root memory prompt uses scope variables that are not defined in `~/.aindex/.tnmsc.json`.'
+                `The workspace root memory prompt uses scope variables that are not defined in "${globalConfigPath}".`
               ),
-              configPath: '~/.aindex/.tnmsc.json',
+              configPath: globalConfigPath,
               exactFix: diagnosticLines(
-                'Define the missing variables in `~/.aindex/.tnmsc.json` and rerun tnmsc.'
+                `Define the missing variables in "${globalConfigPath}" and rerun tnmsc.`
               ),
               details: {
                 promptPath: filePath,
@@ -231,15 +233,16 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
             }
           }))
           if (e instanceof ScopeError) {
+            const globalConfigPath = getGlobalConfigPath()
             logger.error(buildConfigDiagnostic({
               code: 'PROJECT_ROOT_MEMORY_SCOPE_VARIABLES_MISSING',
               title: 'Project root memory prompt references missing config variables',
               reason: diagnosticLines(
-                'The project root memory prompt uses scope variables that are not defined in `~/.aindex/.tnmsc.json`.'
+                `The project root memory prompt uses scope variables that are not defined in "${globalConfigPath}".`
               ),
-              configPath: '~/.aindex/.tnmsc.json',
+              configPath: globalConfigPath,
               exactFix: diagnosticLines(
-                'Define the missing variables in `~/.aindex/.tnmsc.json` and rerun tnmsc.'
+                `Define the missing variables in "${globalConfigPath}" and rerun tnmsc.`
               ),
               details: {
                 promptPath: filePath,
@@ -377,15 +380,16 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
             }
           }))
           if (e instanceof ScopeError) {
+            const globalConfigPath = getGlobalConfigPath()
             logger.error(buildConfigDiagnostic({
               code: 'PROJECT_CHILD_MEMORY_SCOPE_VARIABLES_MISSING',
               title: 'Project child memory prompt references missing config variables',
               reason: diagnosticLines(
-                'The project child memory prompt uses scope variables that are not defined in `~/.aindex/.tnmsc.json`.'
+                `The project child memory prompt uses scope variables that are not defined in "${globalConfigPath}".`
               ),
-              configPath: '~/.aindex/.tnmsc.json',
+              configPath: globalConfigPath,
               exactFix: diagnosticLines(
-                'Define the missing variables in `~/.aindex/.tnmsc.json` and rerun tnmsc.'
+                `Define the missing variables in "${globalConfigPath}" and rerun tnmsc.`
               ),
               details: {
                 promptPath: filePath,

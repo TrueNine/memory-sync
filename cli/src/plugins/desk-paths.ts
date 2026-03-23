@@ -1,10 +1,10 @@
 import type {Buffer} from 'node:buffer'
 import type {LoggerDiagnosticInput} from './plugin-core'
 import * as fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
+import {resolveRuntimeEnvironment, resolveUserPath} from '@/runtime-environment'
 
 /**
  * Represents a fixed set of platform directory identifiers.
@@ -32,7 +32,7 @@ type PlatformFixedDir = 'win32' | 'darwin' | 'linux'
  */
 function getLinuxDataDir(homeDir: string): string {
   const xdgDataHome = process.env['XDG_DATA_HOME']
-  if (typeof xdgDataHome === 'string' && xdgDataHome.trim().length > 0) return xdgDataHome
+  if (typeof xdgDataHome === 'string' && xdgDataHome.trim().length > 0) return resolveUserPath(xdgDataHome)
   return path.join(homeDir, '.local', 'share')
 }
 
@@ -44,10 +44,11 @@ function getLinuxDataDir(homeDir: string): string {
  * @throws {Error} If the platform is unsupported.
  */
 export function getPlatformFixedDir(): string {
-  const platform = process.platform as PlatformFixedDir
-  const homeDir = os.homedir()
+  const runtimeEnvironment = resolveRuntimeEnvironment()
+  const platform = (runtimeEnvironment.isWsl ? 'win32' : runtimeEnvironment.platform) as PlatformFixedDir
+  const homeDir = runtimeEnvironment.effectiveHomeDir
 
-  if (platform === 'win32') return process.env['LOCALAPPDATA'] ?? path.join(homeDir, 'AppData', 'Local')
+  if (platform === 'win32') return resolveUserPath(process.env['LOCALAPPDATA'] ?? path.join(homeDir, 'AppData', 'Local'))
   if (platform === 'darwin') return path.join(homeDir, 'Library', 'Application Support')
   if (platform === 'linux') return getLinuxDataDir(homeDir)
 

@@ -1,7 +1,7 @@
 {
   "name": "@truenine/script-runtime",
   "type": "module",
-  "version": "2026.10323.10152",
+  "version": "2026.10323.10738",
   "private": true,
   "description": "Rust-backed TypeScript proxy runtime for tnmsc",
   "license": "AGPL-3.0-only",

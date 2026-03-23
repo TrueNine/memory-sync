@@ -1,15 +1,15 @@
 import type {BuildPromptTomlArtifactOptions} from '@truenine/md-compiler'
 import type {ToolPresetName} from './GlobalScopeCollector'
 import type {RegistryWriter} from './RegistryWriter'
-import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputCleanupScope, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, Path, Project, ProjectConfig, RegistryData, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt} from './types'
+import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputCleanupScope, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, Path, Project, ProjectConfig, RegistryData, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt, WslMirrorFileDeclaration} from './types'
 
 import {Buffer} from 'node:buffer'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import {buildPromptTomlArtifact, mdxToMd} from '@truenine/md-compiler'
 import {buildMarkdownWithFrontMatter, buildMarkdownWithRawFrontMatter} from '@truenine/md-compiler/markdown'
 import {buildConfigDiagnostic, diagnosticLines} from '@/diagnostics'
+import {getEffectiveHomeDir} from '@/runtime-environment'
 import {AbstractPlugin} from './AbstractPlugin'
 import {FilePathKind, PluginKind} from './enums'
 import {
@@ -197,6 +197,9 @@ export interface AbstractOutputPluginOptions {
   /** Cleanup configuration (declarative) */
   cleanup?: OutputCleanupConfig
 
+  /** Host-home files that should be mirrored into configured WSL instances */
+  wslMirrors?: readonly string[]
+
   /** Explicit output capability matrix for scope override validation */
   capabilities?: OutputPluginCapabilities
 
@@ -290,6 +293,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
 
   protected readonly cleanupConfig: OutputCleanupConfig
 
+  protected readonly wslMirrorPaths: readonly string[]
+
   protected readonly supportsBlankLineAfterFrontMatter: boolean
 
   private readonly registryWriterCache: Map<string, RegistryWriter<unknown>> = new Map()
@@ -317,6 +322,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       sourceScopes: options?.rules?.sourceScopes ?? ['project', 'global']
     } // Initialize rule output config with defaults
     this.cleanupConfig = options?.cleanup ?? {}
+    this.wslMirrorPaths = options?.wslMirrors ?? []
     this.supportsBlankLineAfterFrontMatter = options?.supportsBlankLineAfterFrontMatter ?? true
 
     this.outputCapabilities = options?.capabilities != null
@@ -538,7 +544,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   }
 
   protected getHomeDir(): string {
-    return os.homedir()
+    return getEffectiveHomeDir()
   }
 
   protected joinPath(...segments: string[]): string {
@@ -1111,6 +1117,11 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       ...cleanupProtect.length > 0 && {protect: cleanupProtect},
       ...excludeScanGlobs != null && excludeScanGlobs.length > 0 && {excludeScanGlobs}
     }
+  }
+
+  async declareWslMirrorFiles(ctx: OutputWriteContext): Promise<readonly WslMirrorFileDeclaration[]> {
+    void ctx
+    return this.wslMirrorPaths.map(sourcePath => ({sourcePath}))
   }
 
   async convertContent(

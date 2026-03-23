@@ -60,6 +60,10 @@ const CODEX_OUTPUT_OPTIONS = {
       }
     }
   },
+  wslMirrors: [
+    '~/.codex/config.toml',
+    '~/.codex/auth.json'
+  ],
   dependsOn: [PLUGIN_NAMES.AgentsOutput],
   capabilities: {
     prompt: {

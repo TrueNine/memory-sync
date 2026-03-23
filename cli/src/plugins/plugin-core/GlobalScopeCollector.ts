@@ -4,6 +4,7 @@ import type {UserConfigFile} from './types'
 import * as os from 'node:os'
 import process from 'node:process'
 import {OsKind, ShellKind, ToolPresets} from '@truenine/md-compiler/globals'
+import {getEffectiveHomeDir} from '@/runtime-environment'
 
 /**
  * Tool preset names supported by GlobalScopeCollector
@@ -49,7 +50,7 @@ export class GlobalScopeCollector {
       platform,
       arch: os.arch(),
       hostname: os.hostname(),
-      homedir: os.homedir(),
+      homedir: getEffectiveHomeDir(),
       tmpdir: os.tmpdir(),
       type: os.type(),
       release: os.release(),

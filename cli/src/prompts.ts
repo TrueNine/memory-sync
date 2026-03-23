@@ -1,12 +1,12 @@
 import type {PluginOptions, YAMLFrontMatter} from '@/plugins/plugin-core'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import glob from 'fast-glob'
 import {mergeConfig, userConfigToPluginOptions} from './config'
 import {getConfigLoader} from './ConfigLoader'
 import {PathPlaceholders} from './plugins/plugin-core'
+import {resolveUserPath} from './runtime-environment'
 
 export type ManagedPromptKind
   = | 'global-memory'
@@ -144,11 +144,9 @@ function isSingleSegmentIdentifier(value: string): boolean {
 function resolveConfiguredPath(rawPath: string, workspaceDir: string): string {
   let resolved = rawPath
 
-  if (resolved.startsWith(PathPlaceholders.USER_HOME)) resolved = resolved.replace(PathPlaceholders.USER_HOME, os.homedir())
-
   if (resolved.includes(PathPlaceholders.WORKSPACE)) resolved = resolved.replace(PathPlaceholders.WORKSPACE, workspaceDir)
 
-  return path.normalize(resolved)
+  return resolveUserPath(resolved)
 }
 
 function resolvePromptEnvironment(options: PromptServiceOptions = {}): ResolvedPromptEnvironment {

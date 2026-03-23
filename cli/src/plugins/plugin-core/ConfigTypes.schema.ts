@@ -82,6 +82,13 @@ export const ZCleanupProtectionRule = z.object({
 })
 
 export const ZCleanupProtectionOptions = z.object({rules: z.array(ZCleanupProtectionRule).optional()})
+export const ZStringOrStringArray = z.union([z.string(), z.array(z.string()).min(1)])
+export const ZWindowsWsl2Options = z.object({
+  instances: ZStringOrStringArray.optional()
+})
+export const ZWindowsOptions = z.object({
+  wsl2: ZWindowsWsl2Options.optional()
+})
 
 /**
  * Zod schema for user profile information.
@@ -105,6 +112,7 @@ export const ZUserConfigFile = z.object({
   outputScopes: ZOutputScopeOptions.optional(),
   frontMatter: ZFrontMatterOptions.optional(),
   cleanupProtection: ZCleanupProtectionOptions.optional(),
+  windows: ZWindowsOptions.optional(),
   profile: ZUserProfile.optional()
 })
 
@@ -152,6 +160,9 @@ export type ProtectionMode = z.infer<typeof ZProtectionMode>
 export type ProtectionRuleMatcher = z.infer<typeof ZProtectionRuleMatcher>
 export type CleanupProtectionRule = z.infer<typeof ZCleanupProtectionRule>
 export type CleanupProtectionOptions = z.infer<typeof ZCleanupProtectionOptions>
+export type StringOrStringArray = z.infer<typeof ZStringOrStringArray>
+export type WindowsWsl2Options = z.infer<typeof ZWindowsWsl2Options>
+export type WindowsOptions = z.infer<typeof ZWindowsOptions>
 export type UserConfigFile = z.infer<typeof ZUserConfigFile>
 export type McpProjectConfig = z.infer<typeof ZMcpProjectConfig>
 export type TypeSeriesConfig = z.infer<typeof ZTypeSeriesConfig>

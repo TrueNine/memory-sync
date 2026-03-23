@@ -14,13 +14,13 @@ import type {
 } from '@/plugins/plugin-core'
 
 import {spawn} from 'node:child_process'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import {createLogger} from '@truenine/logger'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {buildDiagnostic, diagnosticLines} from '@/diagnostics'
 import {PathPlaceholders} from '@/plugins/plugin-core'
 import {logProtectedDeletionGuardError, ProtectedDeletionGuardError} from '@/ProtectedDeletionGuard'
+import {resolveUserPath} from '@/runtime-environment'
 
 export abstract class AbstractInputCapability implements InputCapability {
   private readonly inputEffects: InputEffectRegistration[] = []
@@ -165,11 +165,11 @@ export abstract class AbstractInputCapability implements InputCapability {
   protected resolvePath(rawPath: string, workspaceDir: string): string {
     let resolved = rawPath
 
-    if (resolved.startsWith(PathPlaceholders.USER_HOME)) resolved = resolved.replace(PathPlaceholders.USER_HOME, os.homedir())
-
     if (resolved.includes(PathPlaceholders.WORKSPACE)) resolved = resolved.replace(PathPlaceholders.WORKSPACE, workspaceDir)
 
-    return path.normalize(resolved)
+    if (resolved.startsWith(PathPlaceholders.USER_HOME)) return resolveUserPath(resolved)
+
+    return path.normalize(resolveUserPath(resolved))
   }
 
   protected resolveAindexPath(relativePath: string, aindexDir: string): string {

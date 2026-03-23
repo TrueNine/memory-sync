@@ -4,11 +4,26 @@ use crate::diagnostic_helpers::{diagnostic, line, optional_details};
 use serde_json::json;
 use tnmsc_logger::create_logger;
 
-use crate::core::config::{ConfigLoader, get_global_config_path};
+use crate::core::config::{ConfigLoader, get_required_global_config_path};
 
 pub fn execute(pairs: &[(String, String)]) -> ExitCode {
     let logger = create_logger("config", None);
-    let result = ConfigLoader::with_defaults().load(std::path::Path::new("."));
+    let result = match ConfigLoader::with_defaults().try_load(std::path::Path::new(".")) {
+        Ok(result) => result,
+        Err(error) => {
+            logger.error(diagnostic(
+                "GLOBAL_CONFIG_PATH_RESOLUTION_FAILED",
+                "Failed to resolve the global config path",
+                line("The runtime could not determine which global config file should be updated."),
+                Some(line(
+                    "Ensure the required global config exists and retry the command.",
+                )),
+                None,
+                optional_details(json!({ "error": error })),
+            ));
+            return ExitCode::FAILURE;
+        }
+    };
     let mut config = result.config;
 
     for (key, value) in pairs {
@@ -30,7 +45,22 @@ pub fn execute(pairs: &[(String, String)]) -> ExitCode {
         }
     }
 
-    let config_path = get_global_config_path();
+    let config_path = match get_required_global_config_path() {
+        Ok(path) => path,
+        Err(error) => {
+            logger.error(diagnostic(
+                "GLOBAL_CONFIG_PATH_RESOLUTION_FAILED",
+                "Failed to resolve the global config path",
+                line("The runtime could not determine which global config file should be written."),
+                Some(line(
+                    "Ensure the required global config exists and retry the command.",
+                )),
+                None,
+                optional_details(json!({ "error": error })),
+            ));
+            return ExitCode::FAILURE;
+        }
+    };
     match serde_json::to_string_pretty(&config) {
         Ok(json) => {
             if let Some(parent) = config_path.parent() {

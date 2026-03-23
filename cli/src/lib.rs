@@ -54,12 +54,16 @@ pub fn version() -> &'static str {
 
 /// Load and merge configuration from the canonical global config path.
 pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliError> {
-    Ok(core::config::ConfigLoader::with_defaults().load(cwd))
+    core::config::ConfigLoader::with_defaults()
+        .try_load(cwd)
+        .map_err(CliError::ConfigError)
 }
 
 /// Return the merged global configuration as a pretty-printed JSON string.
 pub fn config_show(cwd: &Path) -> Result<String, CliError> {
-    let result = core::config::ConfigLoader::with_defaults().load(cwd);
+    let result = core::config::ConfigLoader::with_defaults()
+        .try_load(cwd)
+        .map_err(CliError::ConfigError)?;
     serde_json::to_string_pretty(&result.config).map_err(CliError::from)
 }
 

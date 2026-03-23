@@ -1,12 +1,12 @@
 import type {ILogger, OutputCollectedContext, PluginOptions} from './plugins/plugin-core'
 import type {PublicDefinitionResolveOptions} from './public-config-paths'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
 import {buildProtectedDeletionDiagnostic} from './diagnostics'
 import {collectKnownPublicConfigDefinitionPaths} from './public-config-paths'
+import {getEffectiveHomeDir, resolveUserPath} from './runtime-environment'
 
 interface DirPathLike {
   readonly path: string
@@ -126,8 +126,7 @@ function resolveAbsolutePathFromDir(dir: DirPathLike | undefined): string | unde
 }
 
 export function expandHomePath(rawPath: string): string {
-  if (rawPath === '~') return os.homedir()
-  if (rawPath.startsWith('~/') || rawPath.startsWith('~\\')) return path.resolve(os.homedir(), rawPath.slice(2))
+  if (rawPath === '~' || rawPath.startsWith('~/') || rawPath.startsWith('~\\')) return resolveUserPath(rawPath)
   return rawPath
 }
 
@@ -256,7 +255,7 @@ function detectPathProtectionMode(rawPath: string, fallback: ProtectionMode): Pr
 }
 
 function collectBuiltInDangerousPathRules(): ProtectedPathRule[] {
-  const homeDir = os.homedir()
+  const homeDir = getEffectiveHomeDir()
 
   return [
     createProtectedPathRule(path.parse(homeDir).root, 'direct', 'built-in dangerous root path', 'built-in-dangerous-root'),
