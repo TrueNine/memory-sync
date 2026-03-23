@@ -51,7 +51,7 @@ describe('runtime environment', () => {
         USERPROFILE: windowsHomeDir
       },
       homedir: windowsHomeDir
-    })).toBe(path.join(windowsHomeDir, '.codex', 'config.toml'))
+    })).toBe(path.win32.join(windowsHomeDir, '.codex', 'config.toml'))
   })
 
   it('selects the host config path that matches the current Windows profile in WSL', () => {
