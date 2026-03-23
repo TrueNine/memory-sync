@@ -1,0 +1,59 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - doc/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+concurrency:
+  group: deploy-doc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-doc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Preflight Vercel secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${VERCEL_TOKEN:-}" ]]; then
+            echo "::error::VERCEL_TOKEN is missing."
+            exit 1
+          fi
+
+          if [[ -z "${VERCEL_ORG_ID:-}" ]]; then
+            echo "::error::VERCEL_ORG_ID is missing."
+            exit 1
+          fi
+
+          if [[ -z "${VERCEL_PROJECT_ID:-}" ]]; then
+            echo "::error::VERCEL_PROJECT_ID is missing."
+            exit 1
+          fi
+
+      - name: Pull Vercel production settings
+        run: pnpm dlx vercel@latest pull --yes --environment=production --cwd doc --token="$VERCEL_TOKEN"
+
+      - name: Build docs on Vercel
+        run: pnpm dlx vercel@latest build --prod --cwd doc --token="$VERCEL_TOKEN"
+
+      - name: Deploy docs to Vercel production
+        run: pnpm dlx vercel@latest deploy --prebuilt --prod --cwd doc --token="$VERCEL_TOKEN"
