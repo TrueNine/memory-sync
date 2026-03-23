@@ -3,18 +3,29 @@
  * Version Sync Script
  * Auto-sync all publishable package versions before commit.
  */
+import {execFileSync} from 'node:child_process'
 import {readdirSync, readFileSync, writeFileSync} from 'node:fs'
-import {join, relative, resolve} from 'node:path'
+import {basename, join, relative, resolve} from 'node:path'
 import process from 'node:process'
+import {pathToFileURL} from 'node:url'
 
 interface VersionedJson {
   version?: string
   [key: string]: unknown
 }
 
-const ROOT_DIR = resolve('.')
-const ROOT_PACKAGE_PATH = resolve(ROOT_DIR, 'package.json')
-const ROOT_CARGO_PATH = resolve(ROOT_DIR, 'Cargo.toml')
+export interface SyncVersionsOptions {
+  readonly requestedVersion?: string
+  readonly rootDir?: string
+}
+
+export interface SyncVersionsResult {
+  readonly changedPaths: readonly string[]
+  readonly rootDir: string
+  readonly targetVersion: string
+  readonly versionSource: string
+}
+
 const IGNORED_DIRECTORIES = new Set([
   '.git',
   '.next',
@@ -24,6 +35,7 @@ const IGNORED_DIRECTORIES = new Set([
   'node_modules',
   'target',
 ])
+const CALVER_VERSION_REGEX = /^\d{4}\.(?:0|1\d{2}(?:\d{2})?)\.(?:0|1\d{2}(?:\d{2}(?:\d{2})?)?)$/u
 
 function readJsonFile(filePath: string): VersionedJson {
   return JSON.parse(readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '')) as VersionedJson
@@ -102,101 +114,229 @@ function updateVersionLineInSection(
   return content
 }
 
+function runGit(rootDir: string, args: readonly string[]): string {
+  return execFileSync('git', args, {
+    cwd: rootDir,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  }).trim()
+}
+
+function validateVersion(version: string, source: string): void {
+  if (!CALVER_VERSION_REGEX.test(version)) {
+    throw new Error(`Invalid CalVer version in ${source}: ${version}`)
+  }
+}
+
 function syncJsonVersion(
   filePath: string,
-  rootVersion: string,
+  targetVersion: string,
   changedPaths: Set<string>,
 ): void {
   try {
     const json = readJsonFile(filePath)
-    if (json.version === rootVersion) {
+    if (json.version === targetVersion) {
       return
     }
 
-    console.log(`  ✓ ${relative(ROOT_DIR, filePath)}: version ${String(json.version ?? '(none)')} -> ${rootVersion}`)
-    json.version = rootVersion
+    json.version = targetVersion
     writeJsonFile(filePath, json)
     changedPaths.add(filePath)
   } catch {
-    console.log(`⚠️ ${relative(ROOT_DIR, filePath)} not found or invalid, skipping`)
+    console.log(`⚠️ ${filePath} not found or invalid, skipping`)
   }
 }
 
 function syncCargoVersion(
   filePath: string,
   sectionName: string,
-  rootVersion: string,
+  targetVersion: string,
   changedPaths: Set<string>,
 ): void {
   try {
     const originalContent = readFileSync(filePath, 'utf-8')
-    const updatedContent = updateVersionLineInSection(originalContent, sectionName, rootVersion)
+    const updatedContent = updateVersionLineInSection(originalContent, sectionName, targetVersion)
 
     if (updatedContent === originalContent) {
       return
     }
 
     writeFileSync(filePath, updatedContent, 'utf-8')
-    console.log(`  ✓ ${relative(ROOT_DIR, filePath)}: version -> ${rootVersion}`)
     changedPaths.add(filePath)
   } catch {
-    console.log(`⚠️ ${relative(ROOT_DIR, filePath)} not found or invalid, skipping`)
+    console.log(`⚠️ ${filePath} not found or invalid, skipping`)
   }
 }
 
-const requestedVersion = process.argv[2]?.trim()
-const rootPkg = readJsonFile(ROOT_PACKAGE_PATH)
-const changedPaths = new Set<string>()
+function getStagedPackageVersionCandidates(rootDir: string, rootVersion: string): Map<string, string[]> {
+  const stagedFiles = runGit(rootDir, ['diff', '--cached', '--name-only', '--diff-filter=ACMR'])
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .filter(filePath => basename(filePath) === 'package.json')
 
-if (requestedVersion && rootPkg.version !== requestedVersion) {
-  rootPkg.version = requestedVersion
-  writeJsonFile(ROOT_PACKAGE_PATH, rootPkg)
-  changedPaths.add(ROOT_PACKAGE_PATH)
+  const candidates = new Map<string, string[]>()
+
+  for (const relativePath of stagedFiles) {
+    const stagedContent = runGit(rootDir, ['show', `:${relativePath}`])
+    const json = JSON.parse(stagedContent.replace(/^\uFEFF/, '')) as VersionedJson
+    const version = typeof json.version === 'string' ? json.version.trim() : ''
+
+    if (version.length === 0 || version === rootVersion) {
+      continue
+    }
+
+    validateVersion(version, `${relativePath} (staged)`)
+
+    const existingPaths = candidates.get(version)
+    if (existingPaths == null) {
+      candidates.set(version, [relativePath])
+      continue
+    }
+
+    existingPaths.push(relativePath)
+  }
+
+  return candidates
 }
 
-const rootVersion = rootPkg.version
+function resolveTargetVersion(
+  rootDir: string,
+  rootVersion: string,
+  requestedVersion?: string,
+): {readonly version: string, readonly source: string} {
+  if (requestedVersion != null && requestedVersion !== '') {
+    validateVersion(requestedVersion, 'requested version')
+    return {
+      version: requestedVersion,
+      source: 'command argument'
+    }
+  }
 
-if (rootVersion == null || rootVersion === '') {
-  console.error('Root package.json missing version field')
-  process.exit(1)
+  const candidates = getStagedPackageVersionCandidates(rootDir, rootVersion)
+  const versions = [...candidates.keys()]
+
+  if (versions.length === 0) {
+    validateVersion(rootVersion, 'root package.json')
+    return {
+      version: rootVersion,
+      source: 'root package.json'
+    }
+  }
+
+  if (versions.length > 1) {
+    const details = versions
+      .sort()
+      .map(version => `${version}: ${candidates.get(version)?.sort().join(', ') ?? ''}`)
+      .join('; ')
+    throw new Error(`Conflicting staged package.json versions detected: ${details}`)
+  }
+
+  const [version] = versions
+  const sourcePaths = candidates.get(version) ?? []
+
+  return {
+    version,
+    source: sourcePaths.sort().join(', ')
+  }
 }
 
-console.log(`🔄 Syncing version: ${rootVersion}`)
+function stageFiles(rootDir: string, filePaths: readonly string[]): void {
+  if (filePaths.length === 0) {
+    return
+  }
 
-const packageJsonPaths = discoverFilesByName(ROOT_DIR, 'package.json')
-  .filter(filePath => resolve(filePath) !== ROOT_PACKAGE_PATH)
-  .sort()
-
-for (const filePath of packageJsonPaths) {
-  syncJsonVersion(filePath, rootVersion, changedPaths)
+  runGit(rootDir, ['add', '--', ...filePaths.map(filePath => relative(rootDir, filePath))])
 }
 
-syncCargoVersion(ROOT_CARGO_PATH, 'workspace.package', rootVersion, changedPaths)
+export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersionsResult {
+  const rootDir = resolve(options.rootDir ?? '.')
+  const rootPackagePath = resolve(rootDir, 'package.json')
+  const rootCargoPath = resolve(rootDir, 'Cargo.toml')
+  const rootPkg = readJsonFile(rootPackagePath)
+  const currentRootVersion = typeof rootPkg.version === 'string' ? rootPkg.version.trim() : ''
 
-const cargoTomlPaths = discoverFilesByName(ROOT_DIR, 'Cargo.toml')
-  .filter(filePath => resolve(filePath) !== ROOT_CARGO_PATH)
-  .sort()
+  if (currentRootVersion === '') {
+    throw new Error('Root package.json missing version field')
+  }
 
-for (const filePath of cargoTomlPaths) {
-  syncCargoVersion(filePath, 'package', rootVersion, changedPaths)
+  validateVersion(currentRootVersion, 'root package.json')
+
+  const target = resolveTargetVersion(rootDir, currentRootVersion, options.requestedVersion?.trim())
+  const changedPaths = new Set<string>()
+
+  if (rootPkg.version !== target.version) {
+    rootPkg.version = target.version
+    writeJsonFile(rootPackagePath, rootPkg)
+    changedPaths.add(rootPackagePath)
+  }
+
+  const packageJsonPaths = discoverFilesByName(rootDir, 'package.json')
+    .filter(filePath => resolve(filePath) !== rootPackagePath)
+    .sort()
+
+  for (const filePath of packageJsonPaths) {
+    syncJsonVersion(filePath, target.version, changedPaths)
+  }
+
+  syncCargoVersion(rootCargoPath, 'workspace.package', target.version, changedPaths)
+
+  const cargoTomlPaths = discoverFilesByName(rootDir, 'Cargo.toml')
+    .filter(filePath => resolve(filePath) !== rootCargoPath)
+    .sort()
+
+  for (const filePath of cargoTomlPaths) {
+    syncCargoVersion(filePath, 'package', target.version, changedPaths)
+  }
+
+  for (const filePath of discoverFilesByName(rootDir, 'tauri.conf.json').sort()) {
+    syncJsonVersion(filePath, target.version, changedPaths)
+  }
+
+  stageFiles(rootDir, [...changedPaths].sort())
+
+  return {
+    changedPaths: [...changedPaths].sort(),
+    rootDir,
+    targetVersion: target.version,
+    versionSource: target.source
+  }
 }
 
-for (const filePath of discoverFilesByName(ROOT_DIR, 'tauri.conf.json').sort()) {
-  syncJsonVersion(filePath, rootVersion, changedPaths)
+function shouldRunAsCli(entryPath: string | undefined): boolean {
+  if (entryPath == null || entryPath === '') {
+    return false
+  }
+
+  return import.meta.url === pathToFileURL(resolve(entryPath)).href
 }
 
-if (changedPaths.size === 0) {
-  console.log('\n✅ All versions consistent, no update needed')
-  process.exit(0)
+function main(): number {
+  try {
+    const requestedVersion = process.argv[2]?.trim()
+    const result = runSyncVersions({requestedVersion})
+
+    console.log(`🔄 Syncing version: ${result.targetVersion}`)
+    console.log(`   source: ${result.versionSource}`)
+
+    if (result.changedPaths.length === 0) {
+      console.log('\n✅ All versions consistent, no update needed')
+      return 0
+    }
+
+    console.log('\n✅ Synced and staged version updates:')
+    for (const filePath of result.changedPaths) {
+      console.log(`  - ${relative(result.rootDir, filePath)}`)
+    }
+
+    return 0
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`\n❌ ${message}`)
+    return 1
+  }
 }
 
-const changedRelativePaths = [...changedPaths]
-  .map(filePath => relative(ROOT_DIR, filePath))
-  .sort()
-
-console.error('\n❌ Versions were out of sync. Updated files:')
-for (const relativePath of changedRelativePaths) {
-  console.error(`  - ${relativePath}`)
+if (shouldRunAsCli(process.argv[1])) {
+  process.exit(main())
 }
-console.error('\nReview these changes and rerun the commit.')
-process.exit(1)
