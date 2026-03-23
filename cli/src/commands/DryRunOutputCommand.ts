@@ -1,6 +1,7 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import {syncWindowsConfigIntoWsl} from '@/wsl-mirror-sync'
 import {
+  collectOutputDeclarations,
   executeDeclarativeWriteOutputs
 } from '../plugins/plugin-core'
 
@@ -15,7 +16,8 @@ export class DryRunOutputCommand implements Command {
     logger.info('started', {command: 'dry-run-output', dryRun: true})
 
     const writeCtx = createWriteContext(true)
-    const results = await executeDeclarativeWriteOutputs(outputPlugins, writeCtx)
+    const predeclaredOutputs = await collectOutputDeclarations(outputPlugins, writeCtx)
+    const results = await executeDeclarativeWriteOutputs(outputPlugins, writeCtx, predeclaredOutputs)
 
     let totalFiles = 0
     let totalDirs = 0
@@ -25,7 +27,7 @@ export class DryRunOutputCommand implements Command {
       logger.info('plugin result', {plugin: pluginName, files: result.files.length, dirs: result.dirs.length, dryRun: true})
     }
 
-    const wslMirrorResult = await syncWindowsConfigIntoWsl(outputPlugins, writeCtx)
+    const wslMirrorResult = await syncWindowsConfigIntoWsl(outputPlugins, writeCtx, void 0, predeclaredOutputs)
     if (wslMirrorResult.errors.length > 0) {
       return {
         success: false,

@@ -1,16 +1,18 @@
 import type {
   ILogger,
+  OutputFileDeclaration,
   OutputPlugin,
   OutputWriteContext,
   PluginOptions,
   WslMirrorFileDeclaration
 } from './plugins/plugin-core'
+import {Buffer} from 'node:buffer'
 import type {RuntimeEnvironmentContext} from './runtime-environment'
 import {spawnSync} from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
-import {getEffectiveHomeDir, resolveUserPath} from './runtime-environment'
+import {getEffectiveHomeDir, resolveRuntimeEnvironment, resolveUserPath} from './runtime-environment'
 
 type MirrorFs = Pick<typeof fs, 'existsSync' | 'mkdirSync' | 'readFileSync' | 'writeFileSync'>
 type SpawnSyncFn = typeof spawnSync
@@ -21,6 +23,8 @@ export interface WslMirrorRuntimeDependencies {
   readonly spawnSync?: SpawnSyncFn
   readonly platform?: NodeJS.Platform
   readonly effectiveHomeDir?: string
+  readonly nativeHomeDir?: string
+  readonly isWsl?: boolean
 }
 
 export interface ResolvedWslInstanceTarget {
@@ -36,6 +40,12 @@ export interface WslMirrorSyncResult {
 }
 
 class WslUnavailableError extends Error {}
+
+interface ResolvedWslMirrorSource {
+  readonly kind: 'declared' | 'generated'
+  readonly sourcePath: string
+  readonly relativePathSegments: readonly string[]
+}
 
 function getFs(dependencies?: WslMirrorRuntimeDependencies): MirrorFs {
   return dependencies?.fs ?? fs
@@ -53,6 +63,26 @@ function getHostHomeDir(dependencies?: WslMirrorRuntimeDependencies): string {
   return dependencies?.effectiveHomeDir ?? getEffectiveHomeDir()
 }
 
+function getNativeHomeDir(dependencies?: WslMirrorRuntimeDependencies): string {
+  return dependencies?.nativeHomeDir ?? resolveRuntimeEnvironment().nativeHomeDir
+}
+
+function isWslExecutionRuntime(dependencies?: WslMirrorRuntimeDependencies): boolean {
+  return dependencies?.isWsl ?? resolveRuntimeEnvironment().isWsl
+}
+
+function getPathModuleForPlatform(
+  platform: NodeJS.Platform
+): typeof path.win32 | typeof path.posix {
+  return platform === 'win32' ? path.win32 : path.posix
+}
+
+function normalizeInstanceNames(
+  instances: readonly string[]
+): string[] {
+  return [...new Set(instances.map(instance => instance.trim()).filter(instance => instance.length > 0))]
+}
+
 function normalizeConfiguredInstances(
   pluginOptions?: PluginOptions
 ): string[] {
@@ -63,11 +93,7 @@ function normalizeConfiguredInstances(
       ? configuredInstances
       : [configuredInstances]
 
-  const normalizedInstances = instanceList
-    .map(instance => instance.trim())
-    .filter(instance => instance.length > 0)
-
-  return [...new Set(normalizedInstances)]
+  return normalizeInstanceNames(instanceList)
 }
 
 function buildWindowsWslHomePath(
@@ -82,25 +108,48 @@ function buildWindowsWslHomePath(
   return path.win32.join(`\\\\wsl$\\${instance}`, ...pathSegments)
 }
 
-function validateMirroredSourcePath(
+function resolveMirroredRelativePathSegments(
   sourcePath: string,
-  hostHomeDir: string
-): string {
-  const normalizedHostHome = path.win32.normalize(hostHomeDir)
-  const normalizedSourcePath = path.win32.normalize(sourcePath)
-  const relativePath = path.win32.relative(normalizedHostHome, normalizedSourcePath)
+  hostHomeDir: string,
+  platform: NodeJS.Platform
+): string[] {
+  const pathModule = getPathModuleForPlatform(platform)
+  const normalizedHostHome = pathModule.normalize(hostHomeDir)
+  const normalizedSourcePath = pathModule.normalize(sourcePath)
+  const relativePath = pathModule.relative(normalizedHostHome, normalizedSourcePath)
 
   if (
     relativePath.length === 0
     || relativePath.startsWith('..')
-    || path.win32.isAbsolute(relativePath)
+    || pathModule.isAbsolute(relativePath)
   ) {
     throw new Error(
       `WSL mirror source "${sourcePath}" must stay under the host home directory "${hostHomeDir}".`
     )
   }
 
-  return relativePath
+  return relativePath.split(/[\\/]+/u).filter(segment => segment.length > 0)
+}
+
+function decodeWslCliOutput(
+  value: unknown
+): string {
+  if (typeof value === 'string') return value
+  if (!Buffer.isBuffer(value) || value.length === 0) return ''
+
+  const hasUtf16LeBom = value.length >= 2 && value[0] === 0xff && value[1] === 0xfe
+  const hasUtf16BeBom = value.length >= 2 && value[0] === 0xfe && value[1] === 0xff
+  if (hasUtf16LeBom || hasUtf16BeBom) return value.toString('utf16le').replace(/^\uFEFF/u, '')
+
+  const utf8Text = value.toString('utf8')
+  if (utf8Text.includes('\u0000')) return value.toString('utf16le').replace(/^\uFEFF/u, '')
+  return utf8Text
+}
+
+function getSpawnOutputText(
+  value: unknown
+): string {
+  return decodeWslCliOutput(value).replaceAll('\u0000', '')
 }
 
 function getSpawnSyncErrorCode(result: SpawnSyncResult): string | undefined {
@@ -114,7 +163,8 @@ function getWslUnavailableReason(result: SpawnSyncResult): string | undefined {
   if (errorCode === 'ENOENT') return 'wsl.exe is not available on PATH.'
 
   const combinedOutput = [result.stderr, result.stdout]
-    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map(value => getSpawnOutputText(value).trim())
+    .filter(value => value.length > 0)
     .join('\n')
     .toLowerCase()
 
@@ -154,6 +204,185 @@ export async function collectDeclaredWslMirrorFiles(
   return [...dedupedDeclarations.values()]
 }
 
+function buildWindowsMirrorPathRuntimeContext(
+  hostHomeDir: string
+): RuntimeEnvironmentContext {
+  return {
+    platform: 'win32',
+    isWsl: false,
+    nativeHomeDir: hostHomeDir,
+    effectiveHomeDir: hostHomeDir,
+    globalConfigCandidates: [],
+    windowsUsersRoot: '',
+    expandedEnv: {
+      HOME: hostHomeDir,
+      USERPROFILE: hostHomeDir
+    }
+  }
+}
+
+function buildWslHostMirrorPathRuntimeContext(
+  hostHomeDir: string,
+  nativeHomeDir: string
+): RuntimeEnvironmentContext {
+  return {
+    platform: 'linux',
+    isWsl: true,
+    nativeHomeDir,
+    effectiveHomeDir: hostHomeDir,
+    globalConfigCandidates: [],
+    windowsUsersRoot: '',
+    expandedEnv: {
+      HOME: hostHomeDir,
+      USERPROFILE: hostHomeDir
+    }
+  }
+}
+
+function parseWslInstanceList(
+  rawOutput: string
+): string[] {
+  const instanceList = rawOutput
+    .split(/\r?\n/u)
+    .map(line => line.replace(/^\*/u, '').trim())
+    .filter(line => line.length > 0)
+
+  return normalizeInstanceNames(instanceList)
+}
+
+function discoverWslInstances(
+  logger: ILogger,
+  dependencies?: WslMirrorRuntimeDependencies
+): string[] {
+  const spawnSyncImpl = getSpawnSync(dependencies)
+  const listResult = spawnSyncImpl('wsl.exe', ['--list', '--quiet'], {
+    shell: false,
+    windowsHide: true
+  })
+
+  const unavailableReason = getWslUnavailableReason(listResult)
+  if (unavailableReason != null) throw new WslUnavailableError(unavailableReason)
+
+  if (listResult.status !== 0) {
+    const stderr = getSpawnOutputText(listResult.stderr).trim()
+    throw new Error(
+      `Failed to enumerate WSL instances. ${stderr.length > 0 ? stderr : 'wsl.exe returned a non-zero exit status.'}`
+    )
+  }
+
+  const discoveredInstances = parseWslInstanceList(getSpawnOutputText(listResult.stdout))
+  logger.info('discovered wsl instances', {
+    instances: discoveredInstances
+  })
+  return discoveredInstances
+}
+
+function resolveConfiguredOrDiscoveredInstances(
+  pluginOptions: Required<PluginOptions>,
+  logger: ILogger,
+  dependencies?: WslMirrorRuntimeDependencies
+): string[] {
+  const configuredInstances = normalizeConfiguredInstances(pluginOptions)
+  if (configuredInstances.length > 0) return configuredInstances
+  return discoverWslInstances(logger, dependencies)
+}
+
+function resolveGeneratedWslMirrorSource(
+  declaration: OutputFileDeclaration,
+  hostHomeDir: string,
+  platform: NodeJS.Platform
+): ResolvedWslMirrorSource | undefined {
+  if (declaration.scope !== 'global') return void 0
+
+  const pathModule = getPathModuleForPlatform(platform)
+  const sourcePath = pathModule.normalize(declaration.path)
+  let relativePathSegments: string[]
+  try {
+    relativePathSegments = resolveMirroredRelativePathSegments(sourcePath, hostHomeDir, platform)
+  }
+  catch {
+    return void 0
+  }
+
+  const [topLevelSegment] = relativePathSegments
+
+  // Mirror home-style tool config roots only. Windows app-data trees such as
+  // AppData\Local\JetBrains\... stay Windows-only even though they live under the user profile.
+  if (topLevelSegment == null || !topLevelSegment.startsWith('.')) return void 0
+
+  return {
+    kind: 'generated',
+    sourcePath,
+    relativePathSegments
+  }
+}
+
+function collectGeneratedWslMirrorSources(
+  predeclaredOutputs: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]> | undefined,
+  hostHomeDir: string,
+  platform: NodeJS.Platform
+): readonly ResolvedWslMirrorSource[] {
+  if (predeclaredOutputs == null) return []
+
+  const dedupedSources = new Map<string, ResolvedWslMirrorSource>()
+  for (const declarations of predeclaredOutputs.values()) {
+    for (const declaration of declarations) {
+      const resolvedSource = resolveGeneratedWslMirrorSource(declaration, hostHomeDir, platform)
+      if (resolvedSource == null) continue
+      dedupedSources.set(resolvedSource.sourcePath, resolvedSource)
+    }
+  }
+
+  return [...dedupedSources.values()]
+}
+
+function resolveDeclaredWslMirrorSource(
+  declaration: WslMirrorFileDeclaration,
+  pathRuntimeContext: RuntimeEnvironmentContext,
+  hostHomeDir: string,
+  platform: NodeJS.Platform
+): ResolvedWslMirrorSource {
+  const pathModule = getPathModuleForPlatform(platform)
+  const sourcePath = pathModule.normalize(resolveUserPath(declaration.sourcePath, pathRuntimeContext))
+  const relativePathSegments = resolveMirroredRelativePathSegments(sourcePath, hostHomeDir, platform)
+
+  return {
+    kind: 'declared',
+    sourcePath,
+    relativePathSegments
+  }
+}
+
+function combineWslMirrorSources(
+  mirrorDeclarations: readonly WslMirrorFileDeclaration[],
+  generatedMirrorSources: readonly ResolvedWslMirrorSource[],
+  pathRuntimeContext: RuntimeEnvironmentContext,
+  hostHomeDir: string,
+  platform: NodeJS.Platform
+): {readonly sources: readonly ResolvedWslMirrorSource[], readonly errors: readonly string[]} {
+  const dedupedSources = new Map<string, ResolvedWslMirrorSource>()
+  const errors: string[] = []
+
+  for (const declaration of mirrorDeclarations) {
+    try {
+      const resolvedSource = resolveDeclaredWslMirrorSource(declaration, pathRuntimeContext, hostHomeDir, platform)
+      dedupedSources.set(resolvedSource.sourcePath, resolvedSource)
+    }
+    catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  for (const source of generatedMirrorSources) {
+    dedupedSources.set(source.sourcePath, source)
+  }
+
+  return {
+    sources: [...dedupedSources.values()],
+    errors
+  }
+}
+
 export function resolveWslInstanceTargets(
   pluginOptions: Required<PluginOptions>,
   logger: ILogger,
@@ -161,7 +390,7 @@ export function resolveWslInstanceTargets(
 ): ResolvedWslInstanceTarget[] {
   if (getPlatform(dependencies) !== 'win32') return []
 
-  const configuredInstances = normalizeConfiguredInstances(pluginOptions)
+  const configuredInstances = resolveConfiguredOrDiscoveredInstances(pluginOptions, logger, dependencies)
   if (configuredInstances.length === 0) return []
 
   const fsImpl = getFs(dependencies)
@@ -170,7 +399,6 @@ export function resolveWslInstanceTargets(
 
   for (const instance of configuredInstances) {
     const probeResult = spawnSyncImpl('wsl.exe', ['-d', instance, 'sh', '-lc', 'printf %s "$HOME"'], {
-      encoding: 'utf8',
       shell: false,
       windowsHide: true
     })
@@ -179,13 +407,13 @@ export function resolveWslInstanceTargets(
     if (unavailableReason != null) throw new WslUnavailableError(unavailableReason)
 
     if (probeResult.status !== 0) {
-      const stderr = typeof probeResult.stderr === 'string' ? probeResult.stderr.trim() : ''
+      const stderr = getSpawnOutputText(probeResult.stderr).trim()
       throw new Error(
         `Failed to probe WSL instance "${instance}". ${stderr.length > 0 ? stderr : 'wsl.exe returned a non-zero exit status.'}`
       )
     }
 
-    const linuxHomeDir = typeof probeResult.stdout === 'string' ? probeResult.stdout.trim() : ''
+    const linuxHomeDir = getSpawnOutputText(probeResult.stdout).trim()
     if (linuxHomeDir.length === 0) throw new Error(`WSL instance "${instance}" returned an empty home directory.`)
 
     const windowsHomeDir = buildWindowsWslHomePath(instance, linuxHomeDir)
@@ -211,12 +439,75 @@ export function resolveWslInstanceTargets(
   return resolvedTargets
 }
 
+function syncResolvedMirrorSourcesIntoCurrentWslHome(
+  sources: readonly ResolvedWslMirrorSource[],
+  ctx: OutputWriteContext,
+  dependencies?: WslMirrorRuntimeDependencies
+): WslMirrorSyncResult {
+  const fsImpl = getFs(dependencies)
+  const nativeHomeDir = path.posix.normalize(getNativeHomeDir(dependencies))
+  let mirroredFiles = 0
+  const warnings: string[] = []
+  const errors: string[] = []
+
+  for (const source of sources) {
+    if (source.kind === 'declared' && !fsImpl.existsSync(source.sourcePath)) {
+      const warningMessage = `Skipping missing WSL mirror source file: ${source.sourcePath}`
+      warnings.push(warningMessage)
+      ctx.logger.warn({
+        code: 'WSL_MIRROR_SOURCE_MISSING',
+        title: 'WSL mirror source file is missing',
+        rootCause: [warningMessage],
+        exactFix: [
+          'Create the source file on the Windows host or remove the WSL mirror declaration before retrying tnmsc.'
+        ]
+      })
+      continue
+    }
+
+    const targetPath = path.posix.join(nativeHomeDir, ...source.relativePathSegments)
+    try {
+      if (ctx.dryRun === true) {
+        ctx.logger.info('would mirror host config into wsl runtime home', {
+          sourcePath: source.sourcePath,
+          targetPath,
+          dryRun: true
+        })
+      } else {
+        const content = fsImpl.readFileSync(source.sourcePath)
+        fsImpl.mkdirSync(path.posix.dirname(targetPath), {recursive: true})
+        fsImpl.writeFileSync(targetPath, content)
+        ctx.logger.info('mirrored host config into wsl runtime home', {
+          sourcePath: source.sourcePath,
+          targetPath
+        })
+      }
+
+      mirroredFiles += 1
+    }
+    catch (error) {
+      errors.push(
+        `Failed to mirror "${source.sourcePath}" into the current WSL home at "${targetPath}": ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+
+  return {
+    mirroredFiles,
+    warnings,
+    errors
+  }
+}
+
 export async function syncWindowsConfigIntoWsl(
   outputPlugins: readonly OutputPlugin[],
   ctx: OutputWriteContext,
-  dependencies?: WslMirrorRuntimeDependencies
+  dependencies?: WslMirrorRuntimeDependencies,
+  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
 ): Promise<WslMirrorSyncResult> {
-  if (getPlatform(dependencies) !== 'win32') {
+  const platform = getPlatform(dependencies)
+  const wslRuntime = platform === 'linux' && isWslExecutionRuntime(dependencies)
+  if (platform !== 'win32' && !wslRuntime) {
     return {
       mirroredFiles: 0,
       warnings: [],
@@ -224,8 +515,12 @@ export async function syncWindowsConfigIntoWsl(
     }
   }
 
+  const hostHomeDir = wslRuntime
+    ? path.posix.normalize(getHostHomeDir(dependencies))
+    : path.win32.normalize(getHostHomeDir(dependencies))
   const mirrorDeclarations = await collectDeclaredWslMirrorFiles(outputPlugins, ctx)
-  if (mirrorDeclarations.length === 0) {
+  const generatedMirrorSources = collectGeneratedWslMirrorSources(predeclaredOutputs, hostHomeDir, platform)
+  if (mirrorDeclarations.length === 0 && generatedMirrorSources.length === 0) {
     return {
       mirroredFiles: 0,
       warnings: [],
@@ -234,6 +529,40 @@ export async function syncWindowsConfigIntoWsl(
   }
 
   const pluginOptions = (ctx.pluginOptions ?? {}) as Required<PluginOptions>
+  const nativeHomeDir = wslRuntime ? path.posix.normalize(getNativeHomeDir(dependencies)) : void 0
+  const pathRuntimeContext = wslRuntime
+    ? buildWslHostMirrorPathRuntimeContext(hostHomeDir, nativeHomeDir ?? hostHomeDir)
+    : buildWindowsMirrorPathRuntimeContext(hostHomeDir)
+  const resolvedMirrorSources = combineWslMirrorSources(
+    mirrorDeclarations,
+    generatedMirrorSources,
+    pathRuntimeContext,
+    hostHomeDir,
+    platform
+  )
+
+  if (wslRuntime) {
+    if (resolvedMirrorSources.sources.length === 0 || nativeHomeDir == null || hostHomeDir === nativeHomeDir) {
+      return {
+        mirroredFiles: 0,
+        warnings: [],
+        errors: [...resolvedMirrorSources.errors]
+      }
+    }
+
+    const localMirrorResult = syncResolvedMirrorSourcesIntoCurrentWslHome(
+      resolvedMirrorSources.sources,
+      ctx,
+      dependencies
+    )
+
+    return {
+      mirroredFiles: localMirrorResult.mirroredFiles,
+      warnings: [...localMirrorResult.warnings],
+      errors: [...resolvedMirrorSources.errors, ...localMirrorResult.errors]
+    }
+  }
+
   let resolvedTargets: ResolvedWslInstanceTarget[]
   try {
     resolvedTargets = resolveWslInstanceTargets(pluginOptions, ctx.logger, dependencies)
@@ -257,47 +586,22 @@ export async function syncWindowsConfigIntoWsl(
     }
   }
 
-  if (resolvedTargets.length === 0) {
+  if (resolvedTargets.length === 0 || resolvedMirrorSources.sources.length === 0) {
     return {
       mirroredFiles: 0,
       warnings: [],
-      errors: []
+      errors: [...resolvedMirrorSources.errors]
     }
   }
 
   const fsImpl = getFs(dependencies)
-  const hostHomeDir = path.win32.normalize(getHostHomeDir(dependencies))
-  const pathRuntimeContext: RuntimeEnvironmentContext = {
-    platform: getPlatform(dependencies),
-    isWsl: false,
-    nativeHomeDir: hostHomeDir,
-    effectiveHomeDir: hostHomeDir,
-    globalConfigCandidates: [],
-    windowsUsersRoot: '',
-    expandedEnv: {
-      HOME: hostHomeDir,
-      USERPROFILE: hostHomeDir
-    }
-  }
   let mirroredFiles = 0
   const warnings: string[] = []
-  const errors: string[] = []
+  const errors: string[] = [...resolvedMirrorSources.errors]
 
-  for (const declaration of mirrorDeclarations) {
-    let sourcePath: string,
-      relativeHomePath: string
-
-    try {
-      sourcePath = path.win32.normalize(resolveUserPath(declaration.sourcePath, pathRuntimeContext))
-      relativeHomePath = validateMirroredSourcePath(sourcePath, hostHomeDir)
-    }
-    catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error))
-      continue
-    }
-
-    if (!fsImpl.existsSync(sourcePath)) {
-      const warningMessage = `Skipping missing WSL mirror source file: ${sourcePath}`
+  for (const declaration of resolvedMirrorSources.sources) {
+    if (declaration.kind === 'declared' && !fsImpl.existsSync(declaration.sourcePath)) {
+      const warningMessage = `Skipping missing WSL mirror source file: ${declaration.sourcePath}`
       warnings.push(warningMessage)
       ctx.logger.warn({
         code: 'WSL_MIRROR_SOURCE_MISSING',
@@ -311,7 +615,8 @@ export async function syncWindowsConfigIntoWsl(
     }
 
     for (const resolvedTarget of resolvedTargets) {
-      const targetPath = path.win32.join(resolvedTarget.windowsHomeDir, relativeHomePath)
+      const sourcePath = declaration.sourcePath
+      const targetPath = path.win32.join(resolvedTarget.windowsHomeDir, ...declaration.relativePathSegments)
 
       try {
         if (ctx.dryRun === true) {

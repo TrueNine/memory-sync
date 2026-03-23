@@ -55,7 +55,7 @@ export class ExecuteCommand implements Command {
       }
     }
 
-    const wslMirrorResult = await syncWindowsConfigIntoWsl(outputPlugins, writeCtx)
+    const wslMirrorResult = await syncWindowsConfigIntoWsl(outputPlugins, writeCtx, void 0, predeclaredOutputs)
 
     if (wslMirrorResult.errors.length > 0) {
       return {
