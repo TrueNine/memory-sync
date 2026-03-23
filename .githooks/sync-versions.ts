@@ -1,221 +1,202 @@
 #!/usr/bin/env tsx
 /**
  * Version Sync Script
- * Auto-sync all sub-package versions before commit
+ * Auto-sync all publishable package versions before commit.
  */
-import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs'
-import { execSync } from 'node:child_process'
-import { resolve, join } from 'node:path'
+import {readdirSync, readFileSync, writeFileSync} from 'node:fs'
+import {join, relative, resolve} from 'node:path'
 import process from 'node:process'
 
-interface PackageEntry {
-  readonly path: string
-  readonly name: string
-}
-
-interface PackageJson {
+interface VersionedJson {
   version?: string
+  [key: string]: unknown
 }
 
-function getCatalogVersion(pkgName: string): string | null {
+const ROOT_DIR = resolve('.')
+const ROOT_PACKAGE_PATH = resolve(ROOT_DIR, 'package.json')
+const ROOT_CARGO_PATH = resolve(ROOT_DIR, 'Cargo.toml')
+const IGNORED_DIRECTORIES = new Set([
+  '.git',
+  '.next',
+  '.turbo',
+  'coverage',
+  'dist',
+  'node_modules',
+  'target',
+])
+
+function readJsonFile(filePath: string): VersionedJson {
+  return JSON.parse(readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '')) as VersionedJson
+}
+
+function writeJsonFile(filePath: string, value: VersionedJson): void {
+  writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n', 'utf-8')
+}
+
+function discoverFilesByName(baseDir: string, fileName: string): string[] {
+  const found: string[] = []
+  const entries = readdirSync(baseDir, {withFileTypes: true})
+
+  for (const entry of entries) {
+    const entryPath = join(baseDir, entry.name)
+
+    if (entry.isDirectory()) {
+      if (entry.name.startsWith('.')) {
+        continue
+      }
+
+      if (IGNORED_DIRECTORIES.has(entry.name)) {
+        continue
+      }
+
+      found.push(...discoverFilesByName(entryPath, fileName))
+      continue
+    }
+
+    if (entry.isFile() && entry.name === fileName) {
+      found.push(entryPath)
+    }
+  }
+
+  return found
+}
+
+function updateVersionLineInSection(
+  content: string,
+  sectionName: string,
+  targetVersion: string,
+): string {
+  const lines = content.split(/\r?\n/)
+  let inTargetSection = false
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
+    const trimmed = line.trim()
+
+    if (/^\[.*\]$/.test(trimmed)) {
+      inTargetSection = trimmed === `[${sectionName}]`
+      continue
+    }
+
+    if (!inTargetSection) {
+      continue
+    }
+
+    if (/^version\.workspace\s*=/.test(trimmed)) {
+      return content
+    }
+
+    const match = line.match(/^(\s*version\s*=\s*")([^"]+)(".*)$/)
+    if (match == null) {
+      continue
+    }
+
+    if (match[2] === targetVersion) {
+      return content
+    }
+
+    lines[index] = `${match[1]}${targetVersion}${match[3]}`
+    return lines.join('\n')
+  }
+
+  return content
+}
+
+function syncJsonVersion(
+  filePath: string,
+  rootVersion: string,
+  changedPaths: Set<string>,
+): void {
   try {
-    const yamlContent = readFileSync(resolve('pnpm-workspace.yaml'), 'utf-8')
-    const match = yamlContent.match(new RegExp(`${pkgName.replace('@', '\\@')}:\\s*\\^?([^\\s]+)`))
-    return match ? match[1] : null
+    const json = readJsonFile(filePath)
+    if (json.version === rootVersion) {
+      return
+    }
+
+    console.log(`  ✓ ${relative(ROOT_DIR, filePath)}: version ${String(json.version ?? '(none)')} -> ${rootVersion}`)
+    json.version = rootVersion
+    writeJsonFile(filePath, json)
+    changedPaths.add(filePath)
   } catch {
-    return null
+    console.log(`⚠️ ${relative(ROOT_DIR, filePath)} not found or invalid, skipping`)
   }
 }
 
-const eslintConfigVersion = getCatalogVersion('@truenine/eslint10-config')
-const rootPackagePath = resolve('package.json')
+function syncCargoVersion(
+  filePath: string,
+  sectionName: string,
+  rootVersion: string,
+  changedPaths: Set<string>,
+): void {
+  try {
+    const originalContent = readFileSync(filePath, 'utf-8')
+    const updatedContent = updateVersionLineInSection(originalContent, sectionName, rootVersion)
+
+    if (updatedContent === originalContent) {
+      return
+    }
+
+    writeFileSync(filePath, updatedContent, 'utf-8')
+    console.log(`  ✓ ${relative(ROOT_DIR, filePath)}: version -> ${rootVersion}`)
+    changedPaths.add(filePath)
+  } catch {
+    console.log(`⚠️ ${relative(ROOT_DIR, filePath)} not found or invalid, skipping`)
+  }
+}
+
 const requestedVersion = process.argv[2]?.trim()
-const rootPkg: PackageJson = JSON.parse(readFileSync(rootPackagePath, 'utf-8'))
+const rootPkg = readJsonFile(ROOT_PACKAGE_PATH)
+const changedPaths = new Set<string>()
 
 if (requestedVersion && rootPkg.version !== requestedVersion) {
   rootPkg.version = requestedVersion
-  writeFileSync(rootPackagePath, JSON.stringify(rootPkg, null, 2) + '\n', 'utf-8')
+  writeJsonFile(ROOT_PACKAGE_PATH, rootPkg)
+  changedPaths.add(ROOT_PACKAGE_PATH)
 }
 
 const rootVersion = rootPkg.version
 
-if (!rootVersion) {
-  console.error('❌ Root package.json missing version field')
+if (rootVersion == null || rootVersion === '') {
+  console.error('Root package.json missing version field')
   process.exit(1)
 }
 
 console.log(`🔄 Syncing version: ${rootVersion}`)
-if (eslintConfigVersion) {
-  console.log(`🔄 Catalog @truenine/eslint10-config: ^${eslintConfigVersion}`)
+
+const packageJsonPaths = discoverFilesByName(ROOT_DIR, 'package.json')
+  .filter(filePath => resolve(filePath) !== ROOT_PACKAGE_PATH)
+  .sort()
+
+for (const filePath of packageJsonPaths) {
+  syncJsonVersion(filePath, rootVersion, changedPaths)
 }
 
-const topLevelWorkspacePackages: readonly PackageEntry[] = [
-  { path: 'cli/package.json', name: 'cli' },
-  { path: 'mcp/package.json', name: 'mcp' },
-  { path: 'gui/package.json', name: 'gui' },
-  { path: 'doc/package.json', name: 'doc' },
-]
+syncCargoVersion(ROOT_CARGO_PATH, 'workspace.package', rootVersion, changedPaths)
 
-// Discover all libraries and their npm sub-packages
-function discoverLibraryPackages(): PackageEntry[] {
-  const entries: PackageEntry[] = []
-  const librariesDir = resolve('libraries')
-  if (!existsSync(librariesDir)) return entries
-  for (const lib of readdirSync(librariesDir)) {
-    const libDir = join(librariesDir, lib)
-    if (!statSync(libDir).isDirectory()) continue
-    const libPkg = join(libDir, 'package.json')
-    if (existsSync(libPkg)) {
-      entries.push({ path: `libraries/${lib}/package.json`, name: `lib:${lib}` })
-    }
-  }
-  return entries
+const cargoTomlPaths = discoverFilesByName(ROOT_DIR, 'Cargo.toml')
+  .filter(filePath => resolve(filePath) !== ROOT_CARGO_PATH)
+  .sort()
+
+for (const filePath of cargoTomlPaths) {
+  syncCargoVersion(filePath, 'package', rootVersion, changedPaths)
 }
 
-// Discover npm platform sub-packages under a given directory (e.g. cli/npm/)
-function discoverNpmSubPackages(baseDir: string, prefix: string): PackageEntry[] {
-  const entries: PackageEntry[] = []
-  const npmDir = resolve(baseDir, 'npm')
-  if (!existsSync(npmDir) || !statSync(npmDir).isDirectory()) return entries
-  for (const platform of readdirSync(npmDir)) {
-    const platformDir = join(npmDir, platform)
-    if (!statSync(platformDir).isDirectory()) continue
-    const platformPkg = join(platformDir, 'package.json')
-    if (existsSync(platformPkg)) {
-      entries.push({ path: `${baseDir}/npm/${platform}/package.json`, name: `${prefix}/${platform}` })
-    }
-  }
-  return entries
+for (const filePath of discoverFilesByName(ROOT_DIR, 'tauri.conf.json').sort()) {
+  syncJsonVersion(filePath, rootVersion, changedPaths)
 }
 
-// Discover all packages under packages/
-function discoverPackagesDir(): PackageEntry[] {
-  const entries: PackageEntry[] = []
-  const packagesDir = resolve('packages')
-  if (!existsSync(packagesDir)) return entries
-  for (const pkg of readdirSync(packagesDir)) {
-    const pkgDir = join(packagesDir, pkg)
-    if (!statSync(pkgDir).isDirectory()) continue
-    const pkgFile = join(pkgDir, 'package.json')
-    if (existsSync(pkgFile)) {
-      entries.push({ path: `packages/${pkg}/package.json`, name: `pkg:${pkg}` })
-    }
-  }
-  return entries
-}
-
-const libraryPackages = discoverLibraryPackages()
-const packagesPackages = discoverPackagesDir()
-const cliNpmPackages = discoverNpmSubPackages('cli', 'cli-napi')
-
-let changed = false
-
-for (const pkg of [...topLevelWorkspacePackages, ...libraryPackages, ...packagesPackages, ...cliNpmPackages]) {
-  const fullPath = resolve(pkg.path)
-  try {
-    const content = readFileSync(fullPath, 'utf-8').replace(/^\uFEFF/, '')
-    const pkgJson: PackageJson = JSON.parse(content)
-
-    if (pkgJson.version !== rootVersion) {
-      console.log(`  ✓ ${pkg.name}: version ${pkgJson.version} → ${rootVersion}`)
-      pkgJson.version = rootVersion
-      writeFileSync(fullPath, JSON.stringify(pkgJson, null, 2) + '\n', 'utf-8')
-      changed = true
-    }
-  } catch {
-    console.log(`⚠️ ${pkg.path} not found or invalid, skipping`)
-  }
-}
-
-// Sync root workspace Cargo.toml version
-const workspaceCargoTomlPath = resolve('Cargo.toml')
-try {
-  const cargoContent = readFileSync(workspaceCargoTomlPath, 'utf-8')
-  const cargoUpdated = cargoContent.replace(
-    /(\[workspace\.package\][\s\S]*?^version = ")([^"]+)(")/m,
-    `$1${rootVersion}$3`,
-  )
-  if (cargoContent !== cargoUpdated) {
-    writeFileSync(workspaceCargoTomlPath, cargoUpdated, 'utf-8')
-    console.log(`  ✓ workspace Cargo.toml: version → ${rootVersion}`)
-    changed = true
-  }
-} catch {
-  console.log('⚠️ Cargo.toml not found, skipping')
-}
-
-// Sync GUI Cargo.toml version
-const cargoTomlPath = resolve('gui/src-tauri/Cargo.toml')
-try {
-  const cargoContent = readFileSync(cargoTomlPath, 'utf-8')
-  const cargoUpdated = cargoContent.replace(/^version = ".*"/m, `version = "${rootVersion}"`)
-  if (cargoContent !== cargoUpdated) {
-    writeFileSync(cargoTomlPath, cargoUpdated, 'utf-8')
-    console.log(`  ✓ Cargo.toml: version → ${rootVersion}`)
-    changed = true
-  }
-} catch {
-  console.log('⚠️ gui/src-tauri/Cargo.toml not found, skipping')
-}
-
-// Sync tauri.conf.json version
-const tauriConfPath = resolve('gui/src-tauri/tauri.conf.json')
-try {
-  const tauriConfContent = readFileSync(tauriConfPath, 'utf-8')
-  const tauriConf = JSON.parse(tauriConfContent)
-  if (tauriConf.version !== rootVersion) {
-    console.log(`  ✓ tauri.conf.json: version ${tauriConf.version ?? '(none)'} → ${rootVersion}`)
-    tauriConf.version = rootVersion
-    writeFileSync(tauriConfPath, JSON.stringify(tauriConf, null, 2) + '\n', 'utf-8')
-    changed = true
-  }
-} catch {
-  console.log('⚠️ gui/src-tauri/tauri.conf.json not found, skipping')
-}
-
-// Sync version field in tnmsc.example.json files
-const exampleConfigPaths = [
-  'libraries/init-bundle/public/public/tnmsc.example.json',
-]
-
-for (const examplePath of exampleConfigPaths) {
-  const fullPath = resolve(examplePath)
-  try {
-    const content = readFileSync(fullPath, 'utf-8')
-    const exampleJson = JSON.parse(content) as Record<string, unknown>
-    if (exampleJson['version'] !== rootVersion) {
-      console.log(`  ✓ ${examplePath}: version ${String(exampleJson['version'] ?? '(none)')} → ${rootVersion}`)
-      exampleJson['version'] = rootVersion
-      writeFileSync(fullPath, JSON.stringify(exampleJson, null, 2) + '\n', 'utf-8')
-      changed = true
-    }
-  } catch {
-    console.log(`⚠️ ${examplePath} not found or invalid, skipping`)
-  }
-}
-
-if (changed) {
-  console.log('\n📦 Versions synced, auto-staging changes...')
-  try {
-    const filesToStage = [
-      'package.json',
-      'Cargo.toml',
-      'gui/src-tauri/Cargo.toml',
-      'gui/src-tauri/tauri.conf.json',
-      'libraries/init-bundle/public/public/tnmsc.example.json',
-      ...topLevelWorkspacePackages.map(p => p.path),
-      ...libraryPackages.map(p => p.path),
-      ...packagesPackages.map(p => p.path),
-      ...cliNpmPackages.map(p => p.path),
-    ].filter(path => existsSync(resolve(path)))
-    execSync(
-      `git add ${filesToStage.join(' ')}`,
-      { stdio: 'inherit' }
-    )
-    console.log('✅ Staged modified files')
-  } catch {
-    console.log('⚠️ git add failed, please execute manually')
-  }
-} else {
+if (changedPaths.size === 0) {
   console.log('\n✅ All versions consistent, no update needed')
+  process.exit(0)
 }
+
+const changedRelativePaths = [...changedPaths]
+  .map(filePath => relative(ROOT_DIR, filePath))
+  .sort()
+
+console.error('\n❌ Versions were out of sync. Updated files:')
+for (const relativePath of changedRelativePaths) {
+  console.error(`  - ${relativePath}`)
+}
+console.error('\nReview these changes and rerun the commit.')
+process.exit(1)

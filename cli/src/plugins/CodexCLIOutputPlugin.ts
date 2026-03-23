@@ -15,8 +15,8 @@ function transformCodexSubAgentFrontMatter(
   const frontMatter = {...sourceFrontMatter}
   frontMatter['name'] = subAgentCanonicalName
 
-  if (Array.isArray(frontMatter['allowTools']) && frontMatter['allowTools'].length > 0) frontMatter['allowedTools'] = frontMatter['allowTools'].join(', ')
-
+  // Codex agent role deserialization currently rejects `allowedTools`.
+  // Keep accepting upstream `allowTools` metadata for other outputs, but drop it here for Codex TOML compatibility.
   delete frontMatter['allowTools']
   return frontMatter
 }
