@@ -8,16 +8,24 @@ const AGENTS_SUBDIR = 'agents'
 const CODEX_SUBAGENT_FIELD_ORDER = ['name', 'description', 'developer_instructions'] as const
 const CODEX_EXCLUDED_SUBAGENT_FIELDS = ['scope', 'seriName', 'argumentHint', 'color', 'namingCase', 'model'] as const
 
+function sanitizeCodexFrontMatter(
+  sourceFrontMatter?: Record<string, unknown>
+): Record<string, unknown> {
+  const frontMatter = {...sourceFrontMatter}
+
+  // Codex front matter rejects tool allowlists. Keep accepting upstream metadata
+  // for other outputs, but drop both common spellings here for Codex compatibility.
+  delete frontMatter['allowTools']
+  delete frontMatter['allowedTools']
+  return frontMatter
+}
+
 function transformCodexSubAgentFrontMatter(
   subAgentCanonicalName: string,
   sourceFrontMatter?: Record<string, unknown>
 ): Record<string, unknown> {
-  const frontMatter = {...sourceFrontMatter}
+  const frontMatter = sanitizeCodexFrontMatter(sourceFrontMatter)
   frontMatter['name'] = subAgentCanonicalName
-
-  // Codex agent role deserialization currently rejects `allowedTools`.
-  // Keep accepting upstream `allowTools` metadata for other outputs, but drop it here for Codex TOML compatibility.
-  delete frontMatter['allowTools']
   return frontMatter
 }
 
@@ -29,7 +37,7 @@ const CODEX_OUTPUT_OPTIONS = {
     scopeRemap: {
       project: 'global'
     },
-    transformFrontMatter: (_cmd, context) => context.sourceFrontMatter ?? {}
+    transformFrontMatter: (_cmd, context) => sanitizeCodexFrontMatter(context.sourceFrontMatter)
   },
   subagents: {
     subDir: AGENTS_SUBDIR,

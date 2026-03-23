@@ -116,6 +116,18 @@ function createProjectCommandPrompt(): CommandPrompt {
   } as CommandPrompt
 }
 
+function createCommandPromptWithToolFields(): CommandPrompt {
+  return {
+    ...createProjectCommandPrompt(),
+    yamlFrontMatter: {
+      description: 'Tool-aware command',
+      scope: 'project',
+      allowTools: ['shell'],
+      allowedTools: ['shell']
+    } as unknown as CommandPrompt['yamlFrontMatter']
+  } as CommandPrompt
+}
+
 function createSubAgentPrompt(scope: 'project' | 'global'): SubAgentPrompt {
   return {
     type: PromptKind.SubAgent,
@@ -215,6 +227,23 @@ describe('codexCLIOutputPlugin command output', () => {
         path.join(workspace, '.codex', 'prompts', 'dev-build.md')
       )
       expect(declarations.every(declaration => declaration.scope === 'global')).toBe(true)
+    })
+  })
+
+  it('drops tool allowlist fields from codex command front matter', async () => {
+    await withTempCodexDirs('tnmsc-codex-command-tools', async ({workspace, homeDir}) => {
+      const plugin = new TestCodexCLIOutputPlugin(homeDir)
+      const writeCtx = createWriteContext(workspace, [createCommandPromptWithToolFields()])
+      const declarations = await plugin.declareOutputFiles(writeCtx)
+      const declaration = declarations.find(item => item.path === path.join(homeDir, '.codex', 'prompts', 'dev-build.md'))
+
+      expect(declaration).toBeDefined()
+      if (declaration == null) throw new Error('Expected codex command declaration')
+
+      const rendered = await plugin.convertContent(declaration, writeCtx)
+      expect(String(rendered)).toContain('description: Tool-aware command')
+      expect(String(rendered)).not.toContain('allowTools')
+      expect(String(rendered)).not.toContain('allowedTools')
     })
   })
 
