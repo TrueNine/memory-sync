@@ -6,8 +6,8 @@ import type {
   PluginOptions,
   WslMirrorFileDeclaration
 } from './plugins/plugin-core'
-import {Buffer} from 'node:buffer'
 import type {RuntimeEnvironmentContext} from './runtime-environment'
+import {Buffer} from 'node:buffer'
 import {spawnSync} from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -137,8 +137,8 @@ function decodeWslCliOutput(
   if (typeof value === 'string') return value
   if (!Buffer.isBuffer(value) || value.length === 0) return ''
 
-  const hasUtf16LeBom = value.length >= 2 && value[0] === 0xff && value[1] === 0xfe
-  const hasUtf16BeBom = value.length >= 2 && value[0] === 0xfe && value[1] === 0xff
+  const hasUtf16LeBom = value.length >= 2 && value[0] === 0xFF && value[1] === 0xFE
+  const hasUtf16BeBom = value.length >= 2 && value[0] === 0xFE && value[1] === 0xFF
   if (hasUtf16LeBom || hasUtf16BeBom) return value.toString('utf16le').replace(/^\uFEFF/u, '')
 
   const utf8Text = value.toString('utf8')
@@ -308,7 +308,7 @@ function resolveGeneratedWslMirrorSource(
 
   // Mirror home-style tool config roots only. Windows app-data trees such as
   // AppData\Local\JetBrains\... stay Windows-only even though they live under the user profile.
-  if (topLevelSegment == null || !topLevelSegment.startsWith('.')) return void 0
+  if (!topLevelSegment?.startsWith('.')) return void 0
 
   return {
     kind: 'generated',
@@ -614,9 +614,10 @@ export async function syncWindowsConfigIntoWsl(
       continue
     }
 
+    const {relativePathSegments, sourcePath} = declaration
+
     for (const resolvedTarget of resolvedTargets) {
-      const sourcePath = declaration.sourcePath
-      const targetPath = path.win32.join(resolvedTarget.windowsHomeDir, ...declaration.relativePathSegments)
+      const targetPath = path.win32.join(resolvedTarget.windowsHomeDir, ...relativePathSegments)
 
       try {
         if (ctx.dryRun === true) {
