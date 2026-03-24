@@ -35,6 +35,7 @@ export class RuleInputCapability extends AbstractInputCapability {
       {
         kind: PromptKind.Rule,
         localeExtensions: SourceLocaleExtensions,
+        hydrateSourceContents: false,
         isDirectoryStructure: false,
         createPrompt: async (content, _locale, name, metadata) => {
           const yamlFrontMatter = metadata as RuleYAMLFrontMatter | undefined

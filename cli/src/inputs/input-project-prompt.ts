@@ -9,9 +9,7 @@ import type {
 
 import process from 'node:process'
 
-import {mdxToMd} from '@truenine/md-compiler'
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
-import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {getGlobalConfigPath} from '@/ConfigLoader'
 import {
   buildConfigDiagnostic,
@@ -21,6 +19,7 @@ import {
 } from '@/diagnostics'
 import {AbstractInputCapability, FilePathKind, PromptKind, WORKSPACE_ROOT_PROJECT_NAME} from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
+import {readPromptArtifact} from '../plugins/plugin-core/PromptArtifactCache'
 import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
 
 const PROJECT_MEMORY_FILE = 'agt.mdx'
@@ -91,24 +90,18 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
     globalScope: InputCapabilityContext['globalScope'],
     projectConfig: Project['projectConfig']
   ): Promise<Project | undefined> {
-    const {fs, path, logger} = ctx
+    const {fs, logger} = ctx
 
     if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return
 
     try {
-      const rawContent = fs.readFileSync(filePath, 'utf8')
-      const parsed = parseMarkdown<YAMLFrontMatter>(rawContent)
-
-      let content: string
+      let artifact: Awaited<ReturnType<typeof readPromptArtifact>>
       try {
-        const {content: compiledContent} = await mdxToMd(rawContent, {
-          globalScope,
-          extractMetadata: true,
-          basePath: path.dirname(filePath),
-          filePath
+        artifact = await readPromptArtifact(filePath, {
+          mode: 'dist',
+          globalScope
         })
-        content = compiledContent
-        assertNoResidualModuleSyntax(content, filePath)
+        assertNoResidualModuleSyntax(artifact.content, filePath)
       }
       catch (e) {
         if (e instanceof CompilerDiagnosticError) {
@@ -151,13 +144,13 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
 
       const rootMemoryPrompt: ProjectRootMemoryPrompt = {
         type: PromptKind.ProjectRootMemory,
-        content,
-        length: content.length,
+        content: artifact.content,
+        length: artifact.content.length,
         filePathKind: FilePathKind.Relative,
-        ...parsed.yamlFrontMatter != null && {yamlFrontMatter: parsed.yamlFrontMatter},
-        ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
-        markdownAst: parsed.markdownAst,
-        markdownContents: parsed.markdownContents,
+        ...artifact.parsed.yamlFrontMatter != null && {yamlFrontMatter: artifact.parsed.yamlFrontMatter as YAMLFrontMatter},
+        ...artifact.parsed.rawFrontMatter != null && {rawFrontMatter: artifact.parsed.rawFrontMatter},
+        markdownAst: artifact.parsed.markdownAst,
+        markdownContents: artifact.parsed.markdownContents,
         dir: {
           pathKind: FilePathKind.Root,
           path: '',
@@ -202,19 +195,13 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
     if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return
 
     try {
-      const rawContent = fs.readFileSync(filePath, 'utf8')
-      const parsed = parseMarkdown<YAMLFrontMatter>(rawContent)
-
-      let content: string
+      let artifact: Awaited<ReturnType<typeof readPromptArtifact>>
       try {
-        const {content: compiledContent} = await mdxToMd(rawContent, {
-          globalScope,
-          extractMetadata: true,
-          basePath: projectPath,
-          filePath
+        artifact = await readPromptArtifact(filePath, {
+          mode: 'dist',
+          globalScope
         })
-        content = compiledContent
-        assertNoResidualModuleSyntax(content, filePath)
+        assertNoResidualModuleSyntax(artifact.content, filePath)
       }
       catch (e) {
         if (e instanceof CompilerDiagnosticError) {
@@ -257,13 +244,13 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
 
       return {
         type: PromptKind.ProjectRootMemory,
-        content,
-        length: content.length,
+        content: artifact.content,
+        length: artifact.content.length,
         filePathKind: FilePathKind.Relative,
-        ...parsed.yamlFrontMatter != null && {yamlFrontMatter: parsed.yamlFrontMatter},
-        ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
-        markdownAst: parsed.markdownAst,
-        markdownContents: parsed.markdownContents,
+        ...artifact.parsed.yamlFrontMatter != null && {yamlFrontMatter: artifact.parsed.yamlFrontMatter as YAMLFrontMatter},
+        ...artifact.parsed.rawFrontMatter != null && {rawFrontMatter: artifact.parsed.rawFrontMatter},
+        markdownAst: artifact.parsed.markdownAst,
+        markdownContents: artifact.parsed.markdownContents,
         dir: {
           pathKind: FilePathKind.Root,
           path: '',
@@ -345,23 +332,17 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
     targetProjectPath: string,
     globalScope: InputCapabilityContext['globalScope']
   ): Promise<ProjectChildrenMemoryPrompt | undefined> {
-    const {fs, path, logger} = ctx
+    const {path, logger} = ctx
     const filePath = path.join(shadowChildDir, PROJECT_MEMORY_FILE)
 
     try {
-      const rawContent = fs.readFileSync(filePath, 'utf8')
-      const parsed = parseMarkdown<YAMLFrontMatter>(rawContent)
-
-      let content: string
+      let artifact: Awaited<ReturnType<typeof readPromptArtifact>>
       try {
-        const {content: compiledContent} = await mdxToMd(rawContent, {
-          globalScope,
-          extractMetadata: true,
-          basePath: shadowChildDir,
-          filePath
+        artifact = await readPromptArtifact(filePath, {
+          mode: 'dist',
+          globalScope
         })
-        content = compiledContent
-        assertNoResidualModuleSyntax(content, filePath)
+        assertNoResidualModuleSyntax(artifact.content, filePath)
       }
       catch (e) {
         if (e instanceof CompilerDiagnosticError) {
@@ -408,13 +389,13 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
 
       return {
         type: PromptKind.ProjectChildrenMemory,
-        content,
-        length: content.length,
+        content: artifact.content,
+        length: artifact.content.length,
         filePathKind: FilePathKind.Relative,
-        ...parsed.yamlFrontMatter != null && {yamlFrontMatter: parsed.yamlFrontMatter},
-        ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
-        markdownAst: parsed.markdownAst,
-        markdownContents: parsed.markdownContents,
+        ...artifact.parsed.yamlFrontMatter != null && {yamlFrontMatter: artifact.parsed.yamlFrontMatter as YAMLFrontMatter},
+        ...artifact.parsed.rawFrontMatter != null && {rawFrontMatter: artifact.parsed.rawFrontMatter},
+        markdownAst: artifact.parsed.markdownAst,
+        markdownContents: artifact.parsed.markdownContents,
         dir: {
           pathKind: FilePathKind.Relative,
           path: relativePath,

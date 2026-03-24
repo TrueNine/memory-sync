@@ -14,14 +14,18 @@ import type {
   UserConfigFile,
   WindowsOptions
 } from './plugins/plugin-core'
+import * as path from 'node:path'
 import {checkVersionControl} from './Aindex'
 import {getConfigLoader} from './ConfigLoader'
-import {collectInputContext} from './inputs/runtime'
+import {collectInputContext, resolveRuntimeCommand} from './inputs/runtime'
 import {
   createLogger,
+  FilePathKind,
+  PathPlaceholders,
   toOutputCollectedContext,
   validateOutputScopeOverridesForPlugins
 } from './plugins/plugin-core'
+import {resolveUserPath} from './runtime-environment'
 
 /**
  * Pipeline configuration containing collected context and output plugins
@@ -30,6 +34,13 @@ export interface PipelineConfig {
   readonly context: OutputCollectedContext
   readonly outputPlugins: readonly OutputPlugin[]
   readonly userConfigOptions: Required<PluginOptions>
+}
+
+interface ResolvedPluginSetup {
+  readonly mergedOptions: Required<PluginOptions>
+  readonly outputPlugins: readonly OutputPlugin[]
+  readonly inputCapabilities: readonly InputCapability[]
+  readonly userConfigFile?: UserConfigFile
 }
 
 function isOutputPlugin(plugin: InputCapability | OutputPlugin): plugin is OutputPlugin {
@@ -287,18 +298,68 @@ function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): op
     || 'pipelineArgs' in options
 }
 
-/**
- * Define configuration with support for user config files.
- *
- * Configuration priority (highest to lowest):
- * 1. Programmatic options passed to defineConfig
- * 2. Global config file (~/.aindex/.tnmsc.json)
- * 3. Default values
- *
- * @param options - Plugin options or DefineConfigOptions
- */
-export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
-  let shouldLoadUserConfig: boolean, // Normalize options
+function getProgrammaticPluginDeclaration(
+  options: PluginOptions | DefineConfigOptions
+): {
+  readonly hasExplicitProgrammaticPlugins: boolean
+  readonly explicitProgrammaticPlugins?: PluginOptions['plugins']
+} {
+  if (isDefineConfigOptions(options)) {
+    return {
+      hasExplicitProgrammaticPlugins: Object.hasOwn(options.pluginOptions ?? {}, 'plugins'),
+      explicitProgrammaticPlugins: options.pluginOptions?.plugins
+    }
+  }
+
+  return {
+    hasExplicitProgrammaticPlugins: Object.hasOwn(options, 'plugins'),
+    explicitProgrammaticPlugins: options.plugins
+  }
+}
+
+function resolvePathForMinimalContext(rawPath: string, workspaceDir: string): string {
+  let resolvedPath = rawPath
+
+  if (resolvedPath.includes(PathPlaceholders.WORKSPACE)) {
+    resolvedPath = resolvedPath.replace(PathPlaceholders.WORKSPACE, workspaceDir)
+  }
+
+  return path.normalize(resolveUserPath(resolvedPath))
+}
+
+function createMinimalOutputCollectedContext(
+  options: Required<PluginOptions>
+): OutputCollectedContext {
+  const workspaceDir = resolvePathForMinimalContext(options.workspaceDir, '')
+  const aindexDir = path.join(workspaceDir, options.aindex.dir)
+
+  return toOutputCollectedContext({
+    workspace: {
+      directory: {
+        pathKind: FilePathKind.Absolute,
+        path: workspaceDir,
+        getDirectoryName: () => path.basename(workspaceDir)
+      },
+      projects: []
+    },
+    aindexDir
+  })
+}
+
+function shouldUsePluginsFastPath(pipelineArgs?: readonly string[]): boolean {
+  return resolveRuntimeCommand(pipelineArgs) === 'plugins'
+}
+
+async function resolvePluginSetup(
+  options: PluginOptions | DefineConfigOptions = {}
+): Promise<
+  ResolvedPluginSetup & {
+    readonly pipelineArgs?: readonly string[]
+    readonly userConfigFound: boolean
+    readonly userConfigSources: readonly string[]
+  }
+> {
+  let shouldLoadUserConfig: boolean,
     cwd: string | undefined,
     pluginOptions: PluginOptions,
     configLoaderOptions: ConfigLoaderOptions | undefined,
@@ -324,9 +385,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     pipelineArgs = void 0
   }
 
-  const hasExplicitProgrammaticPlugins = Object.hasOwn(pluginOptions, 'plugins')
-  const explicitProgrammaticPlugins = pluginOptions.plugins
-  let userConfigOptions: Partial<PluginOptions> = {} // Load user config if enabled
+  let userConfigOptions: Partial<PluginOptions> = {}
   let userConfigFound = false
   let userConfigSources: readonly string[] = []
   let userConfigFile: UserConfigFile | undefined
@@ -347,12 +406,13 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     }
   }
 
-  const mergedOptions = mergeConfig(userConfigOptions, pluginOptions) // Merge: defaults <- user config <- programmatic options
+  const mergedOptions = mergeConfig(userConfigOptions, pluginOptions)
   const {plugins = [], logLevel} = mergedOptions
   const logger = createLogger('defineConfig', logLevel)
 
-  if (userConfigFound) logger.info('user config loaded', {sources: userConfigSources})
-  else {
+  if (userConfigFound) {
+    logger.info('user config loaded', {sources: userConfigSources})
+  } else {
     logger.info('no user config found, using defaults/programmatic options', {
       workspaceDir: mergedOptions.workspaceDir,
       aindexDir: mergedOptions.aindex.dir,
@@ -364,6 +424,46 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   const inputCapabilities = plugins.filter(isInputCapability)
   validateOutputScopeOverridesForPlugins(outputPlugins, mergedOptions)
 
+  return {
+    mergedOptions,
+    outputPlugins,
+    inputCapabilities,
+    ...userConfigFile != null && {userConfigFile},
+    ...pipelineArgs != null && {pipelineArgs},
+    userConfigFound,
+    userConfigSources
+  }
+}
+
+/**
+ * Define configuration with support for user config files.
+ *
+ * Configuration priority (highest to lowest):
+ * 1. Programmatic options passed to defineConfig
+ * 2. Global config file (~/.aindex/.tnmsc.json)
+ * 3. Default values
+ *
+ * @param options - Plugin options or DefineConfigOptions
+ */
+export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
+  const {
+    hasExplicitProgrammaticPlugins,
+    explicitProgrammaticPlugins
+  } = getProgrammaticPluginDeclaration(options)
+  const {
+    mergedOptions,
+    outputPlugins,
+    inputCapabilities,
+    userConfigFile,
+    pipelineArgs
+  } = await resolvePluginSetup(options)
+  const logger = createLogger('defineConfig', mergedOptions.logLevel)
+
+  if (shouldUsePluginsFastPath(pipelineArgs)) {
+    const context = createMinimalOutputCollectedContext(mergedOptions)
+    return {context, outputPlugins, userConfigOptions: mergedOptions}
+  }
+
   const merged = await collectInputContext({
     userConfigOptions: mergedOptions,
     ...inputCapabilities.length > 0 ? {capabilities: inputCapabilities} : {},
@@ -372,7 +472,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     ...userConfigFile != null ? {userConfig: userConfigFile} : {}
   })
 
-  if (merged.workspace == null) throw new Error('Workspace not initialized by any plugin') // Validate workspace exists
+  if (merged.workspace == null) throw new Error('Workspace not initialized by any plugin')
 
   const inputContext: InputCollectedContext = {
     workspace: merged.workspace,
@@ -393,7 +493,9 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
 
   const context = toOutputCollectedContext(inputContext)
 
-  if (merged.aindexDir != null) checkVersionControl(merged.aindexDir, logger) // Check version control status for aindex
+  if (merged.aindexDir != null) {
+    checkVersionControl(merged.aindexDir, logger)
+  }
 
   return {context, outputPlugins, userConfigOptions: mergedOptions}
 }

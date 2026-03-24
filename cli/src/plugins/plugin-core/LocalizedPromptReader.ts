@@ -13,8 +13,6 @@ import type {
   PromptKind,
   ReadError
 } from './types'
-import {mdxToMd} from '@truenine/md-compiler'
-import {parseMarkdown} from '@truenine/md-compiler/markdown' // Re-export types for convenience
 import {
   buildDiagnostic,
   buildFileOperationDiagnostic,
@@ -26,6 +24,7 @@ import {
   MissingCompiledPromptError,
   ResidualModuleSyntaxError
 } from './DistPromptGuards'
+import {readPromptArtifact} from './PromptArtifactCache'
 import {
   formatPromptCompilerDiagnostic,
   resolveSourcePathForDistFile
@@ -314,6 +313,7 @@ export class LocalizedPromptReader {
     isDirectoryStructure = true
   ): Promise<LocalizedPrompt<T, K> | null> {
     const {localeExtensions, entryFileName, createPrompt, kind} = options
+    const hydrateSourceContents = options.hydrateSourceContents ?? true
 
     const baseFileName = entryFileName ?? name
     const zhExtensions = this.normalizeExtensions(localeExtensions.zh)
@@ -321,9 +321,11 @@ export class LocalizedPromptReader {
     const srcZhPath = this.resolveLocalizedPath(srcEntryDir, baseFileName, zhExtensions)
     const srcEnPath = this.resolveLocalizedPath(srcEntryDir, baseFileName, enExtensions)
     const distPath = this.path.join(distEntryDir, `${baseFileName}.mdx`)
-    const existingSourcePath = this.exists(srcZhPath)
+    const hasSourceZh = this.exists(srcZhPath)
+    const hasSourceEn = this.exists(srcEnPath)
+    const existingSourcePath = hasSourceZh
       ? srcZhPath
-      : this.exists(srcEnPath)
+      : hasSourceEn
         ? srcEnPath
         : void 0
     const diagnosticContext: ReaderDiagnosticContext = {
@@ -334,15 +336,17 @@ export class LocalizedPromptReader {
     }
 
     const distContent = await this.readDistContent(distPath, createPrompt, name, diagnosticContext)
-    const zhContent = await this.readLocaleContent(srcZhPath, 'zh', createPrompt, name, String(kind))
-    const enContent = await this.readLocaleContent(srcEnPath, 'en', createPrompt, name, String(kind))
+    const zhContent = hasSourceZh && hydrateSourceContents
+      ? await this.readLocaleContent(srcZhPath, 'zh', createPrompt, name, String(kind))
+      : null
+    const enContent = hasSourceEn && hydrateSourceContents
+      ? await this.readLocaleContent(srcEnPath, 'en', createPrompt, name, String(kind))
+      : null
 
     const hasDist = distContent != null
-    const hasSrcZh = zhContent != null
-    const hasSrcEn = enContent != null
-    const sourcePath = hasSrcZh ? srcZhPath : hasSrcEn ? srcEnPath : void 0
+    const sourcePath = hasSourceZh ? srcZhPath : hasSourceEn ? srcEnPath : void 0
 
-    if (!hasDist && !hasSrcZh && !hasSrcEn) {
+    if (!hasDist && !hasSourceZh && !hasSourceEn) {
       this.logger.warn(buildDiagnostic({
         code: 'LOCALIZED_PROMPT_ARTIFACTS_MISSING',
         title: `Missing source and dist prompt artifacts for ${name}`,
@@ -372,10 +376,10 @@ export class LocalizedPromptReader {
       })
     }
 
-    const src: LocalizedPrompt<T, K>['src'] = hasSrcZh
+    const src: LocalizedPrompt<T, K>['src'] = hydrateSourceContents && zhContent != null
       ? {
           zh: zhContent,
-          ...hasSrcEn && {en: enContent},
+          ...enContent != null && {en: enContent},
           default: zhContent,
           defaultLocale: 'zh'
         }
@@ -392,13 +396,13 @@ export class LocalizedPromptReader {
       ...hasDist && {dist: distContent},
       metadata: {
         hasDist,
-        hasMultipleLocales: hasSrcEn,
+        hasMultipleLocales: hasSourceEn,
         isDirectoryStructure,
         ...children && children.length > 0 && {children}
       },
       paths: {
-        ...hasSrcZh && {zh: srcZhPath},
-        ...hasSrcEn && {en: srcEnPath},
+        ...hasSourceZh && {zh: srcZhPath},
+        ...hasSourceEn && {en: srcEnPath},
         ...hasDist && {dist: distPath}
       }
     }
@@ -416,6 +420,7 @@ export class LocalizedPromptReader {
     isSingleFile = false
   ): Promise<LocalizedPrompt<T, K> | null> {
     const {localeExtensions, createPrompt, kind} = options
+    const hydrateSourceContents = options.hydrateSourceContents ?? true
 
     const zhExtensions = this.normalizeExtensions(localeExtensions.zh)
     const enExtensions = this.normalizeExtensions(localeExtensions.en)
@@ -425,9 +430,11 @@ export class LocalizedPromptReader {
 
     const fullSrcZhPath = isSingleFile ? srcZhPath : this.path.join(srcDir, srcZhPath)
     const fullSrcEnPath = isSingleFile ? srcEnPath : this.path.join(srcDir, srcEnPath)
-    const existingSourcePath = this.exists(fullSrcZhPath)
+    const hasSourceZh = this.exists(fullSrcZhPath)
+    const hasSourceEn = this.exists(fullSrcEnPath)
+    const existingSourcePath = hasSourceZh
       ? fullSrcZhPath
-      : this.exists(fullSrcEnPath)
+      : hasSourceEn
         ? fullSrcEnPath
         : void 0
     const diagnosticContext: ReaderDiagnosticContext = {
@@ -438,15 +445,17 @@ export class LocalizedPromptReader {
     }
 
     const distContent = await this.readDistContent(distPath, createPrompt, name, diagnosticContext)
-    const zhContent = await this.readLocaleContent(fullSrcZhPath, 'zh', createPrompt, name, String(kind))
-    const enContent = await this.readLocaleContent(fullSrcEnPath, 'en', createPrompt, name, String(kind))
+    const zhContent = hasSourceZh && hydrateSourceContents
+      ? await this.readLocaleContent(fullSrcZhPath, 'zh', createPrompt, name, String(kind))
+      : null
+    const enContent = hasSourceEn && hydrateSourceContents
+      ? await this.readLocaleContent(fullSrcEnPath, 'en', createPrompt, name, String(kind))
+      : null
 
     const hasDist = distContent != null
-    const hasSrcZh = zhContent != null
-    const hasSrcEn = enContent != null
-    const sourcePath = hasSrcZh ? fullSrcZhPath : hasSrcEn ? fullSrcEnPath : void 0
+    const sourcePath = hasSourceZh ? fullSrcZhPath : hasSourceEn ? fullSrcEnPath : void 0
 
-    if (!hasDist && !hasSrcZh && !hasSrcEn) {
+    if (!hasDist && !hasSourceZh && !hasSourceEn) {
       this.logger.warn(buildDiagnostic({
         code: 'LOCALIZED_PROMPT_ARTIFACTS_MISSING',
         title: `Missing source and dist prompt artifacts for ${name}`,
@@ -476,10 +485,10 @@ export class LocalizedPromptReader {
       })
     }
 
-    const src: LocalizedPrompt<T, K>['src'] = hasSrcZh
+    const src: LocalizedPrompt<T, K>['src'] = hydrateSourceContents && zhContent != null
       ? {
           zh: zhContent,
-          ...hasSrcEn && {en: enContent},
+          ...enContent != null && {en: enContent},
           default: zhContent,
           defaultLocale: 'zh'
         }
@@ -492,12 +501,12 @@ export class LocalizedPromptReader {
       ...hasDist && {dist: distContent},
       metadata: {
         hasDist,
-        hasMultipleLocales: hasSrcEn,
+        hasMultipleLocales: hasSourceEn,
         isDirectoryStructure: false
       },
       paths: {
-        ...hasSrcZh && {zh: fullSrcZhPath},
-        ...hasSrcEn && {en: fullSrcEnPath},
+        ...hasSourceZh && {zh: fullSrcZhPath},
+        ...hasSourceEn && {en: fullSrcEnPath},
         ...hasDist && {dist: distPath}
       }
     }
@@ -513,31 +522,24 @@ export class LocalizedPromptReader {
     if (!this.exists(filePath)) return null
 
     try {
-      const rawMdx = this.fs.readFileSync(filePath, 'utf8')
-      const stats = this.fs.statSync(filePath)
-
-      const compileResult = await mdxToMd(rawMdx, { // Compile MDX to Markdown
-        globalScope: this.globalScope,
-        extractMetadata: true,
-        basePath: this.path.dirname(filePath),
-        filePath
+      const artifact = await readPromptArtifact(filePath, {
+        mode: 'source',
+        globalScope: this.globalScope
       })
-      assertNoResidualModuleSyntax(compileResult.content, filePath)
+      assertNoResidualModuleSyntax(artifact.content, filePath)
 
-      const parsed = parseMarkdown(rawMdx) // Parse front matter
-
-      const prompt = await createPrompt(compileResult.content, locale, name, compileResult.metadata.fields) // Create prompt object
+      const prompt = await createPrompt(artifact.content, locale, name, artifact.metadata)
 
       const result: LocalizedContent<T> = {
-        content: compileResult.content,
-        lastModified: stats.mtime,
+        content: artifact.content,
+        lastModified: artifact.lastModified,
         filePath
       }
 
-      if (rawMdx.length > 0) { // Add optional fields only if they exist
-        Object.assign(result, {rawMdx})
+      if (artifact.rawMdx.length > 0) {
+        Object.assign(result, {rawMdx: artifact.rawMdx})
       }
-      if (parsed.yamlFrontMatter != null) Object.assign(result, {frontMatter: parsed.yamlFrontMatter})
+      if (artifact.parsed.yamlFrontMatter != null) Object.assign(result, {frontMatter: artifact.parsed.yamlFrontMatter})
       if (prompt != null) Object.assign(result, {prompt})
 
       return result
@@ -570,33 +572,28 @@ export class LocalizedPromptReader {
     if (!this.exists(filePath)) return null
 
     try {
-      const rawMdx = this.fs.readFileSync(filePath, 'utf8')
-      const stats = this.fs.statSync(filePath)
-      const compileResult = await mdxToMd(rawMdx, {
-        globalScope: this.globalScope,
-        extractMetadata: true,
-        basePath: this.path.dirname(filePath),
-        filePath
+      const artifact = await readPromptArtifact(filePath, {
+        mode: 'dist',
+        globalScope: this.globalScope
       })
-      assertNoResidualModuleSyntax(compileResult.content, filePath)
-      const parsed = parseMarkdown(rawMdx)
+      assertNoResidualModuleSyntax(artifact.content, filePath)
 
       const prompt = await createPrompt(
-        compileResult.content,
+        artifact.content,
         'zh',
         name,
-        compileResult.metadata.fields
+        artifact.metadata
       )
 
       const result: LocalizedContent<T> = {
-        content: compileResult.content,
-        lastModified: stats.mtime,
+        content: artifact.content,
+        lastModified: artifact.lastModified,
         prompt,
         filePath,
-        rawMdx
+        rawMdx: artifact.rawMdx
       }
 
-      if (parsed.yamlFrontMatter != null) Object.assign(result, {frontMatter: parsed.yamlFrontMatter})
+      if (artifact.parsed.yamlFrontMatter != null) Object.assign(result, {frontMatter: artifact.parsed.yamlFrontMatter})
       return result
     } catch (error) {
       this.logger.error(this.buildDistReadDiagnostic(error, filePath, diagnosticContext))

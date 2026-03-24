@@ -6,7 +6,7 @@ import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanCon
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import process from 'node:process'
-import {buildPromptTomlArtifact, mdxToMd} from '@truenine/md-compiler'
+import {buildPromptTomlArtifact} from '@truenine/md-compiler'
 import {buildMarkdownWithFrontMatter, buildMarkdownWithRawFrontMatter} from '@truenine/md-compiler/markdown'
 import {buildConfigDiagnostic, diagnosticLines} from '@/diagnostics'
 import {getEffectiveHomeDir} from '@/runtime-environment'
@@ -17,6 +17,7 @@ import {
   filterByProjectConfig
 } from './filters'
 import {GlobalScopeCollector} from './GlobalScopeCollector'
+import {compileRawPromptArtifact} from './PromptArtifactCache'
 import {resolveSkillName, resolveSubAgentCanonicalName} from './PromptIdentity'
 import {resolveTopicScopes} from './scopePolicy'
 import {OUTPUT_SCOPE_TOPICS} from './types'
@@ -1332,14 +1333,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       })
       const scopeCollector = new GlobalScopeCollector({toolPreset: this.toolPreset})
       const globalScope = scopeCollector.collect()
-      const result = await mdxToMd(cmd.rawMdxContent, {
+      const result = await compileRawPromptArtifact({
+        filePath: cmd.dir.getAbsolutePath(),
         globalScope,
-        extractMetadata: true,
-        basePath: cmd.dir.basePath,
-        filePath: cmd.dir.getAbsolutePath()
+        rawMdx: cmd.rawMdxContent
       })
       compiledContent = result.content
-      compiledFrontMatter = result.metadata.fields as typeof cmd.yamlFrontMatter
+      compiledFrontMatter = result.metadata as typeof cmd.yamlFrontMatter
       useRecompiledFrontMatter = true
     }
 

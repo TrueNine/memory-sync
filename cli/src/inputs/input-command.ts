@@ -95,6 +95,7 @@ export class CommandInputCapability extends AbstractInputCapability {
       {
         kind: PromptKind.Command,
         localeExtensions: SourceLocaleExtensions,
+        hydrateSourceContents: false,
         isDirectoryStructure: false,
         createPrompt: (content, locale, name, metadata) => this.createCommandPrompt(
           content,

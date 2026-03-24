@@ -120,6 +120,7 @@ export class SubAgentInputCapability extends AbstractInputCapability {
       {
         kind: PromptKind.SubAgent,
         localeExtensions: SourceLocaleExtensions,
+        hydrateSourceContents: false,
         isDirectoryStructure: false,
         createPrompt: (content, locale, name, metadata) => this.createSubAgentPrompt(
           content,

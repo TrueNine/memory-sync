@@ -337,6 +337,9 @@ export interface LocalizedReadOptions<T extends Prompt, K extends PromptKind> {
   /** Entry file name (without extension, e.g., 'skill' for skills) */
   readonly entryFileName?: string
 
+  /** Whether source contents should be hydrated and compiled in addition to dist */
+  readonly hydrateSourceContents?: boolean
+
   /** Create prompt from content */
   readonly createPrompt: (content: string, locale: Locale, name: string, metadata?: Record<string, unknown>) => T | Promise<T>
 
