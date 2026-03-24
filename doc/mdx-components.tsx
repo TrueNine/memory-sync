@@ -1,6 +1,7 @@
 import type {ComponentPropsWithoutRef, ReactElement, ReactNode} from 'react'
 import {useMDXComponents as getDocsMDXComponents} from 'nextra-theme-docs'
 import {isValidElement} from 'react'
+import {CommandReference, FeatureMatrix, PlatformGrid, SupportMatrix} from './components/doc-widgets'
 import {Mermaid} from './components/mermaid'
 
 const docsComponents = getDocsMDXComponents()
@@ -45,7 +46,11 @@ function MermaidPre(props: MermaidPreProps) {
 export function useMDXComponents(components: MDXComponents = {}): MDXComponents {
   return {
     ...docsComponents,
+    CommandReference,
+    FeatureMatrix,
     Mermaid,
+    PlatformGrid,
+    SupportMatrix,
     pre: MermaidPre,
     ...components
   }

@@ -1,0 +1,160 @@
+---
+title: 文档组件
+description: 为 MDX 提供可复用的能力矩阵、系统支持表、平台卡片与命令参考组件。
+sidebarTitle: 文档组件
+status: stable
+---
+
+# 文档组件
+
+`doc/` 现在可以直接在 MDX 里使用一组文档组件，不必继续手写大段 Markdown 表格。它们已经通过 `doc/mdx-components.tsx` 全局注册，所以任意 `.mdx` 页面都能直接写 JSX 标签。
+
+## 1. 多工具功能矩阵
+
+<FeatureMatrix
+  title="memory-sync 工具能力矩阵"
+  description="适合把 CLI、MCP、GUI、文档站放在一张表里，说明各自负责什么。"
+  items={[
+    {
+      tool: 'CLI',
+      summary: '用户入口，负责执行同步与清理流程。',
+      status: 'stable',
+      capabilities: ['执行默认同步管线', '支持 dry-run / clean / config', '作为 npm / crate 暴露入口'],
+      surfaces: ['tnmsc', 'pnpm -C cli exec node dist/index.mjs --help'],
+      notes: '用户真正执行的入口还是 CLI，而不是文档或 GUI。'
+    },
+    {
+      tool: 'MCP Server',
+      summary: '对外暴露 prompt 管理能力。',
+      status: {label: 'Stable API', tone: 'stable'},
+      capabilities: ['列出 prompt', '读取 source / dist', '更新 zh/en source', '写入翻译产物'],
+      surfaces: ['memory-sync-mcp stdio server', 'MCP client integration'],
+      notes: '它复用 CLI 侧的 prompt service，不应单独发明新 Schema。'
+    },
+    {
+      tool: 'GUI',
+      summary: '桌面调用层与展示层。',
+      status: 'beta',
+      capabilities: ['调用 tnmsc crate', '承载桌面工作流', '展示项目状态与操作页面'],
+      surfaces: ['Tauri desktop shell', 'React frontend'],
+      notes: 'GUI 负责调用与呈现，不应反过来主导领域设计。'
+    }
+  ]}
+/>
+
+## 2. 多系统支持矩阵
+
+<SupportMatrix
+  title="系统支持表"
+  description="适合说明某个模块在不同平台上的支持级别和差异点。"
+  items={[
+    {
+      system: 'Windows',
+      support: 'full',
+      coverage: ['CLI 工作流', '文档站开发', 'Tauri 桌面开发'],
+      notes: '对本仓库用户群最关键，命令示例应优先覆盖。'
+    },
+    {
+      system: 'macOS',
+      support: 'partial',
+      coverage: ['CLI 工作流', '文档站开发'],
+      notes: '原则上支持，但桌面与签名链路需要单独验证。'
+    },
+    {
+      system: 'Linux',
+      support: 'partial',
+      coverage: ['CLI 工作流', '文档站开发', '部分桌面场景'],
+      notes: '适合 CI 与开发机，桌面分发要看发行版差异。'
+    },
+    {
+      system: 'WSL',
+      support: {label: 'Recommended', tone: 'stable'},
+      coverage: ['Node / pnpm / Rust 开发', '跨 Windows 文件系统协作'],
+      notes: '仓库当前就很适合在 WSL 下维护。'
+    }
+  ]}
+/>
+
+## 3. 系统展示卡片
+
+<PlatformGrid
+  title="平台展示"
+  description="适合在首页或安装页快速展示各平台定位，而不是只给一张冷冰冰的表。"
+  items={[
+    {
+      name: 'Windows',
+      family: 'Desktop',
+      support: 'full',
+      description: '主要桌面用户环境，适合搭配 WSL、PowerShell 与 Tauri GUI 一起说明。',
+      highlights: ['优先给出安装与升级路径', '适合展示 GUI 与 CLI 双入口', '文档截图与命令示例价值最高']
+    },
+    {
+      name: 'macOS',
+      family: 'Desktop',
+      support: 'partial',
+      description: '开发者常见环境，适合补充 Homebrew、codesign、桌面集成等细节。',
+      highlights: ['强调开发体验', '需要单独处理签名分发', '命令与路径写法要避免 Windows 假设']
+    },
+    {
+      name: 'Linux',
+      family: 'Desktop / CI',
+      support: 'partial',
+      description: '更适合作为自动化、CI 与本地开发环境的说明对象。',
+      highlights: ['适合展示 CI/构建命令', '发行版差异要写清楚', '桌面分发能力需按包格式拆开']
+    }
+  ]}
+/>
+
+## 4. 技术栈命令参考
+
+<CommandReference
+  title="技术栈命令表"
+  description="按行追加即可，不需要改组件结构。适合整理 pnpm、cargo、Tauri、文档站等命令。"
+  items={[
+    {
+      stack: 'pnpm workspace',
+      task: '安装依赖',
+      command: 'pnpm install',
+      runtime: 'Node.js 22+',
+      notes: '所有工作区都从根目录开始。'
+    },
+    {
+      stack: 'docs / Next.js',
+      task: '本地开发文档站',
+      command: 'pnpm -C doc dev',
+      runtime: 'Node.js 22+',
+      notes: '适合和 MDX 组件一起预览。'
+    },
+    {
+      stack: 'docs / Next.js',
+      task: '类型检查',
+      command: ['pnpm -C doc run validate:content', 'pnpm -C doc run typecheck'],
+      runtime: 'Node.js 22+',
+      notes: '改了 MDX、frontmatter 或组件后都应该跑。'
+    },
+    {
+      stack: 'Rust workspace',
+      task: '执行测试',
+      command: 'cargo test --workspace',
+      runtime: 'Rust 1.87+',
+      notes: '适合核对 Rust-first 侧是否被改动影响。'
+    }
+  ]}
+/>
+
+## 使用方式
+
+在任意 MDX 页面中直接写：
+
+```tsx
+<FeatureMatrix items={[{tool: 'CLI', capabilities: ['sync'], surfaces: ['tnmsc']}]}/>
+<SupportMatrix items={[{system: 'Windows', support: 'full'}]}/>
+<PlatformGrid items={[{name: 'Windows', description: 'Primary desktop target'}]}/>
+<CommandReference items={[{stack: 'pnpm', task: 'dev', command: 'pnpm -C doc dev'}]}/>
+```
+
+如果后面还要继续扩展，建议沿着这个方向做，而不是回到散乱的原生 Markdown 表格：
+
+- 表格类信息继续复用 `FeatureMatrix`、`SupportMatrix`、`CommandReference`
+- 偏展示型内容复用 `PlatformGrid`
+- 需要完全自由布局时，再单独加新的卡片或对比组件

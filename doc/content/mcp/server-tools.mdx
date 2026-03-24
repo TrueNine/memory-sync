@@ -27,12 +27,34 @@ status: stable
 
 ## 每个工具大致负责什么
 
-| 工具 | 职责 |
-| --- | --- |
-| `list_prompts` | 列出受管 prompt 记录及 zh/en/dist 状态 |
-| `get_prompt` | 读取单个 prompt 的 source 与 dist 产物 |
-| `upsert_prompt_src` | 更新 zh 或 en 源文件，不直接碰 dist |
-| `apply_prompt_translation` | 写入外部生成的 en 或 dist 内容 |
+<FeatureMatrix
+  items={[
+    {
+      tool: 'list_prompts',
+      capabilities: ['列出受管 prompt 记录', '返回 zh / en / dist 状态'],
+      surfaces: ['MCP tool call'],
+      notes: '适合让客户端先拿全量索引，再决定读取哪个 prompt。'
+    },
+    {
+      tool: 'get_prompt',
+      capabilities: ['读取单个 prompt', '返回 source 与 dist 产物'],
+      surfaces: ['MCP tool call'],
+      notes: '当你需要做差异比对或精确查看内容时用它。'
+    },
+    {
+      tool: 'upsert_prompt_src',
+      capabilities: ['更新 zh source', '更新 en source'],
+      surfaces: ['MCP tool call'],
+      notes: '它只碰 source，不直接改 dist。'
+    },
+    {
+      tool: 'apply_prompt_translation',
+      capabilities: ['写入外部生成的 en 内容', '写入外部生成的 dist 内容'],
+      surfaces: ['MCP tool call'],
+      notes: '适合翻译或编译产物已经在外部生成完成之后回写。'
+    }
+  ]}
+/>
 
 ## `workspaceDir` 的作用
 
