@@ -2,9 +2,7 @@ import type {InputCapabilityContext, InputCollectedContext} from '../plugins/plu
 
 import process from 'node:process'
 
-import {mdxToMd} from '@truenine/md-compiler'
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
-import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {getGlobalConfigPath} from '@/ConfigLoader'
 import {
   buildConfigDiagnostic,
@@ -15,6 +13,7 @@ import {
 import {getEffectiveHomeDir} from '@/runtime-environment'
 import {AbstractInputCapability, FilePathKind, GlobalConfigDirectoryType, PromptKind} from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
+import {readPromptArtifact} from '../plugins/plugin-core/PromptArtifactCache'
 import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
 
 export class GlobalMemoryInputCapability extends AbstractInputCapability {
@@ -52,18 +51,14 @@ export class GlobalMemoryInputCapability extends AbstractInputCapability {
       return {}
     }
 
-    const rawContent = fs.readFileSync(globalMemoryFile, 'utf8')
-    const parsed = parseMarkdown(rawContent)
-
-    let compiledContent: string
+    let compiledContent: string,
+      artifact: Awaited<ReturnType<typeof readPromptArtifact>>
     try {
-      const compileResult = await mdxToMd(rawContent, {
-        ...globalScope != null && {globalScope},
-        extractMetadata: true,
-        basePath: path.dirname(globalMemoryFile),
-        filePath: globalMemoryFile
+      artifact = await readPromptArtifact(globalMemoryFile, {
+        mode: 'dist',
+        globalScope
       })
-      compiledContent = compileResult.content
+      compiledContent = artifact.content
       assertNoResidualModuleSyntax(compiledContent, globalMemoryFile)
     }
     catch (e) {
@@ -115,9 +110,9 @@ export class GlobalMemoryInputCapability extends AbstractInputCapability {
         content: compiledContent,
         length: compiledContent.length,
         filePathKind: FilePathKind.Relative,
-        ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
-        markdownAst: parsed.markdownAst,
-        markdownContents: parsed.markdownContents,
+        ...artifact.parsed.rawFrontMatter != null && {rawFrontMatter: artifact.parsed.rawFrontMatter},
+        markdownAst: artifact.parsed.markdownAst,
+        markdownContents: artifact.parsed.markdownContents,
         dir: {
           pathKind: FilePathKind.Relative,
           path: path.basename(globalMemoryFile),

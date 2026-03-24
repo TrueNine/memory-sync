@@ -331,7 +331,10 @@ fn resolve_preferred_wsl_host_home_dirs_for(
     .into_iter()
     .flatten()
     {
-        if !preferred_home_dirs.iter().any(|existing| existing == &candidate) {
+        if !preferred_home_dirs
+            .iter()
+            .any(|existing| existing == &candidate)
+        {
             preferred_home_dirs.push(candidate);
         }
     }
@@ -440,12 +443,19 @@ fn build_required_wsl_config_resolution_error(users_root: &Path) -> String {
     )
 }
 
-fn is_wsl_runtime_for(os_name: &str, wsl_distro_name: Option<&str>, wsl_interop: Option<&str>, release: &str) -> bool {
+fn is_wsl_runtime_for(
+    os_name: &str,
+    wsl_distro_name: Option<&str>,
+    wsl_interop: Option<&str>,
+    release: &str,
+) -> bool {
     if os_name != "linux" {
         return false;
     }
 
-    if wsl_distro_name.is_some_and(|value| !value.is_empty()) || wsl_interop.is_some_and(|value| !value.is_empty()) {
+    if wsl_distro_name.is_some_and(|value| !value.is_empty())
+        || wsl_interop.is_some_and(|value| !value.is_empty())
+    {
         return true;
     }
 
@@ -1255,7 +1265,10 @@ mod tests {
             .and_then(|wsl2| wsl2.instances)
         {
             Some(StringOrStrings::Single(instance)) => assert_eq!(instance, "Ubuntu"),
-            other => panic!("expected merged windows.wsl2.instances value, got {:?}", other),
+            other => panic!(
+                "expected merged windows.wsl2.instances value, got {:?}",
+                other
+            ),
         }
     }
 

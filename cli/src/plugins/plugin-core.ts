@@ -107,6 +107,12 @@ export type {
 } from './plugin-core/McpConfigManager'
 
 export {
+  clearPromptArtifactCache,
+  compileRawPromptArtifact,
+  readPromptArtifact
+} from './plugin-core/PromptArtifactCache'
+
+export {
   deriveSubAgentIdentity,
   flattenPromptPath,
   resolveSkillName,

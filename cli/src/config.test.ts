@@ -120,6 +120,35 @@ describe('defineConfig', () => {
     }
   })
 
+  it('does not run builtin mutating input effects when shorthand plugins is explicitly empty', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-shorthand-empty-plugins-'))
+    const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-shorthand-empty-home-'))
+    const orphanSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'orphan-skill')
+    const orphanSkillFile = path.join(orphanSkillDir, 'SKILL.md')
+
+    process.env.HOME = tempHome
+    process.env.USERPROFILE = tempHome
+    delete process.env.HOMEDRIVE
+    delete process.env.HOMEPATH
+
+    fs.mkdirSync(orphanSkillDir, {recursive: true})
+    fs.writeFileSync(orphanSkillFile, 'orphan\n', 'utf8')
+
+    try {
+      const result = await defineConfig({
+        workspaceDir: tempWorkspace,
+        plugins: []
+      })
+
+      expect(result.context.workspace.directory.path).toBe(tempWorkspace)
+      expect(fs.existsSync(orphanSkillFile)).toBe(true)
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+      fs.rmSync(tempHome, {recursive: true, force: true})
+    }
+  })
+
   it('accepts legacy input capabilities in pluginOptions.plugins without crashing', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-legacy-input-capabilities-'))
 

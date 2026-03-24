@@ -240,12 +240,16 @@ fn colorize_key(key: &str) -> String {
 }
 
 fn colorize_level(level: LogLevel) -> String {
-    (level.color_fn())(&to_json_string_literal(&level.as_str().to_ascii_uppercase()))
+    (level.color_fn())(&to_json_string_literal(
+        &level.as_str().to_ascii_uppercase(),
+    ))
 }
 
 fn render_json_value(value: &Value, pretty: bool, depth: usize) -> String {
     match value {
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => colorize_scalar(value),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
+            colorize_scalar(value)
+        }
         Value::Array(items) => {
             if items.is_empty() {
                 return "[]".to_string();
@@ -276,7 +280,11 @@ fn render_json_value(value: &Value, pretty: bool, depth: usize) -> String {
                 let parts: Vec<String> = map
                     .iter()
                     .map(|(key, nested)| {
-                        format!("{}:{}", colorize_key(key), render_json_value(nested, false, depth + 1))
+                        format!(
+                            "{}:{}",
+                            colorize_key(key),
+                            render_json_value(nested, false, depth + 1)
+                        )
                     })
                     .collect();
                 return format!("{{{}}}", parts.join(","));
@@ -439,7 +447,12 @@ fn scalar_to_copy_text(value: &Value) -> String {
     }
 }
 
-fn extend_copy_text_value(lines: &mut Vec<String>, label: Option<&str>, value: &Value, depth: usize) {
+fn extend_copy_text_value(
+    lines: &mut Vec<String>,
+    label: Option<&str>,
+    value: &Value,
+    depth: usize,
+) {
     let prefix = "  ".repeat(depth);
 
     match value {
@@ -497,12 +510,18 @@ fn value_to_copy_text_lines(value: &Value) -> Vec<String> {
 }
 
 fn is_diagnostic_payload(payload: &Value) -> bool {
-    payload
-        .as_object()
-        .is_some_and(|map| map.contains_key("copyText") && map.contains_key("code") && map.contains_key("title"))
+    payload.as_object().is_some_and(|map| {
+        map.contains_key("copyText") && map.contains_key("code") && map.contains_key("title")
+    })
 }
 
-fn render_output(timestamp: &str, level: LogLevel, namespace: &str, payload: &Value, pretty: bool) -> String {
+fn render_output(
+    timestamp: &str,
+    level: LogLevel,
+    namespace: &str,
+    payload: &Value,
+    pretty: bool,
+) -> String {
     if !pretty {
         return format!(
             "{{{}:[{},{},{}],{}:{}}}",
@@ -701,7 +720,13 @@ fn emit_log_record(level: LogLevel, namespace: &str, payload: Value, pretty: boo
         payload: payload.clone(),
     };
 
-    let output = render_output(&ts, level, namespace, &payload, pretty && is_diagnostic_payload(&payload));
+    let output = render_output(
+        &ts,
+        level,
+        namespace,
+        &payload,
+        pretty && is_diagnostic_payload(&payload),
+    );
     print_output(level, &output);
     record
 }
@@ -1086,7 +1111,13 @@ mod tests {
             Value::String("hello".to_string()),
         )]));
 
-        let rendered = render_output("00:00:00.000", LogLevel::Info, "logger-test", &payload, false);
+        let rendered = render_output(
+            "00:00:00.000",
+            LogLevel::Info,
+            "logger-test",
+            &payload,
+            false,
+        );
         assert!(rendered.contains('\u{1b}'));
         assert!(!rendered.contains("\\u001b"));
 
@@ -1108,14 +1139,23 @@ mod tests {
             Value::String("C:\\runtime\\plugin\\\"quoted\"\nnext".to_string()),
         )]));
 
-        let rendered = render_output("00:00:00.000", LogLevel::Warn, "logger-test", &payload, false);
+        let rendered = render_output(
+            "00:00:00.000",
+            LogLevel::Warn,
+            "logger-test",
+            &payload,
+            false,
+        );
 
         let plain = strip_ansi(&rendered);
         let parsed: Value = match serde_json::from_str(&plain) {
             Ok(value) => value,
             Err(error) => panic!("failed to parse rendered json: {error}\n{plain}"),
         };
-        assert_eq!(parsed["_"]["message"], "C:\\runtime\\plugin\\\"quoted\"\nnext");
+        assert_eq!(
+            parsed["_"]["message"],
+            "C:\\runtime\\plugin\\\"quoted\"\nnext"
+        );
     }
 
     #[test]
@@ -1126,7 +1166,13 @@ mod tests {
             }
         });
 
-        let rendered = render_output("00:00:00.000", LogLevel::Info, "PluginPipeline", &payload, false);
+        let rendered = render_output(
+            "00:00:00.000",
+            LogLevel::Info,
+            "PluginPipeline",
+            &payload,
+            false,
+        );
         let plain = strip_ansi(&rendered);
         let parsed: Value = match serde_json::from_str(&plain) {
             Ok(value) => value,
@@ -1158,7 +1204,13 @@ mod tests {
             },
         ));
 
-        let rendered = render_output("00:00:00.000", LogLevel::Warn, "logger-test", &payload, true);
+        let rendered = render_output(
+            "00:00:00.000",
+            LogLevel::Warn,
+            "logger-test",
+            &payload,
+            true,
+        );
         assert!(rendered.contains("\n"));
         assert!(!rendered.contains("\\u001b"));
 
@@ -1187,13 +1239,20 @@ mod tests {
                 exact_fix: None,
                 possible_fixes: None,
                 details: Some(Map::from_iter([
-                    ("path".to_string(), Value::String("C:\\runtime\\plugin".to_string())),
+                    (
+                        "path".to_string(),
+                        Value::String("C:\\runtime\\plugin".to_string()),
+                    ),
                     ("phase".to_string(), Value::String("cleanup".to_string())),
                 ])),
             },
         );
 
-        assert!(record.copy_text.contains(&"  path: C:\\runtime\\plugin".to_string()));
+        assert!(
+            record
+                .copy_text
+                .contains(&"  path: C:\\runtime\\plugin".to_string())
+        );
         assert!(record.copy_text.contains(&"  phase: cleanup".to_string()));
         assert!(!record.copy_text.iter().any(|line| line == "{"));
     }

@@ -71,7 +71,7 @@ function createBuiltinInputReaderCapabilities(): InputCapability[] {
   ]
 }
 
-function resolveRuntimeCommand(
+export function resolveRuntimeCommand(
   pipelineArgs?: readonly string[]
 ): InputCapabilityContext['runtimeCommand'] {
   if (pipelineArgs == null || pipelineArgs.length === 0) return 'execute'

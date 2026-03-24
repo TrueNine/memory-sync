@@ -2,7 +2,6 @@ import type {InputCapabilityContext, InputCollectedContext, ReadmeFileKind, Read
 
 import process from 'node:process'
 
-import {mdxToMd} from '@truenine/md-compiler'
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
 import {getGlobalConfigPath} from '@/ConfigLoader'
 import {
@@ -13,6 +12,7 @@ import {
 } from '@/diagnostics'
 import {AbstractInputCapability, FilePathKind, PromptKind, README_FILE_KIND_MAP} from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax} from '../plugins/plugin-core/DistPromptGuards'
+import {readPromptArtifact} from '../plugins/plugin-core/PromptArtifactCache'
 import {formatPromptCompilerDiagnostic} from '../plugins/plugin-core/PromptCompilerDiagnostics'
 
 const ALL_FILE_KINDS = Object.entries(README_FILE_KIND_MAP) as [ReadmeFileKind, {src: string, out: string}][]
@@ -86,16 +86,13 @@ export class ReadmeMdInputCapability extends AbstractInputCapability {
       if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) continue
 
       try {
-        const rawContent = fs.readFileSync(filePath, 'utf8')
-
         let content: string
         try {
-          const {content: compiledContent} = await mdxToMd(rawContent, {
-            ...globalScope != null && {globalScope},
-            extractMetadata: true,
-            basePath: currentDir,
-            filePath
+          const artifact = await readPromptArtifact(filePath, {
+            mode: 'dist',
+            globalScope
           })
+          const {content: compiledContent} = artifact
           content = compiledContent
           assertNoResidualModuleSyntax(content, filePath)
         }

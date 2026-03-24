@@ -1,3 +1,4 @@
+import type {ParsedMarkdown} from '@truenine/md-compiler/markdown'
 import type {Dirent} from 'node:fs'
 import type {
   ILogger,
@@ -15,8 +16,7 @@ import type {ResourceScanResult} from './input-agentskills-types'
 
 import {Buffer} from 'node:buffer'
 import * as nodePath from 'node:path'
-import {mdxToMd} from '@truenine/md-compiler'
-import {parseMarkdown, transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
+import {transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
 import {
   buildConfigDiagnostic,
   buildDiagnostic,
@@ -35,6 +35,7 @@ import {
   validateSkillMetadata
 } from '../plugins/plugin-core'
 import {assertNoResidualModuleSyntax, MissingCompiledPromptError} from '../plugins/plugin-core/DistPromptGuards'
+import {readPromptArtifact} from '../plugins/plugin-core/PromptArtifactCache'
 import {
   formatPromptCompilerDiagnostic,
   resolveSourcePathForDistFile
@@ -287,15 +288,11 @@ class ResourceProcessor {
 
   private async processChildDoc(relativePath: string, filePath: string): Promise<SkillChildDoc | null> {
     try {
-      const rawContent = this.ctx.fs.readFileSync(filePath, 'utf8')
-      const parsed = parseMarkdown(rawContent)
-      const compileResult = await mdxToMd(rawContent, {
-        globalScope: this.ctx.globalScope,
-        extractMetadata: true,
-        basePath: nodePath.dirname(filePath),
-        filePath
+      const artifact = await readPromptArtifact(filePath, {
+        mode: 'dist',
+        globalScope: this.ctx.globalScope
       })
-      const compiledContent = transformMdxReferencesToMd(compileResult.content)
+      const compiledContent = transformMdxReferencesToMd(artifact.content)
       assertNoResidualModuleSyntax(compiledContent, filePath)
 
       return {
@@ -303,9 +300,9 @@ class ResourceProcessor {
         content: compiledContent,
         length: compiledContent.length,
         filePathKind: FilePathKind.Relative,
-        markdownAst: parsed.markdownAst,
-        markdownContents: parsed.markdownContents,
-        ...parsed.rawFrontMatter != null && {rawFrontMatter: parsed.rawFrontMatter},
+        markdownAst: artifact.parsed.markdownAst,
+        markdownContents: artifact.parsed.markdownContents,
+        ...artifact.parsed.rawFrontMatter != null && {rawFrontMatter: artifact.parsed.rawFrontMatter},
         relativePath,
         dir: {
           pathKind: FilePathKind.Relative,
@@ -595,30 +592,26 @@ async function createSkillPrompt(
   compiledMetadata?: Record<string, unknown>,
   warnedDerivedNames?: Set<string>
 ): Promise<SkillPrompt> {
-  const {logger, globalScope, fs} = ctx
+  const {logger, fs} = ctx
 
   const distFilePath = nodePath.join(skillAbsoluteDir, 'skill.mdx')
   const sourceFilePath = fs.existsSync(nodePath.join(sourceSkillAbsoluteDir, 'skill.src.mdx'))
     ? nodePath.join(sourceSkillAbsoluteDir, 'skill.src.mdx')
     : distFilePath
   let rawContent = content
-  let parsed: ReturnType<typeof parseMarkdown<SkillYAMLFrontMatter>> | undefined,
+  let parsed: ParsedMarkdown<SkillYAMLFrontMatter> | undefined,
     distMetadata: Record<string, unknown> | undefined
 
   if (fs.existsSync(distFilePath)) {
-    rawContent = fs.readFileSync(distFilePath, 'utf8')
-    parsed = parseMarkdown<SkillYAMLFrontMatter>(rawContent)
-
-    const compileResult = await mdxToMd(rawContent, {
-      globalScope,
-      extractMetadata: true,
-      basePath: skillAbsoluteDir,
-      filePath: distFilePath
+    const artifact = await readPromptArtifact(distFilePath, {
+      mode: 'dist',
+      globalScope: ctx.globalScope
     })
-
-    content = transformMdxReferencesToMd(compileResult.content)
+    rawContent = artifact.rawMdx
+    parsed = artifact.parsed as ParsedMarkdown<SkillYAMLFrontMatter>
+    content = transformMdxReferencesToMd(artifact.content)
     assertNoResidualModuleSyntax(content, distFilePath)
-    distMetadata = compileResult.metadata.fields
+    distMetadata = artifact.metadata
   }
 
   const exportMetadata = mergeDefinedSkillMetadata(
@@ -790,6 +783,7 @@ export class SkillInputCapability extends AbstractInputCapability {
         kind: PromptKind.Skill,
         entryFileName: 'skill',
         localeExtensions: SourceLocaleExtensions,
+        hydrateSourceContents: false,
         isDirectoryStructure: true,
         createPrompt: async (content, locale, name, metadata) => {
           const skillDistDir = pathModule.join(distSkillDir, name)

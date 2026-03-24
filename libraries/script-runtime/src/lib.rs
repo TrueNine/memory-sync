@@ -5,6 +5,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -16,6 +17,42 @@ struct ResolvePublicPathContext {
     aindex_dir: String,
     worker_path: Option<String>,
     timeout_ms: Option<u64>,
+}
+
+static NODE_COMMAND_CACHE: OnceLock<Mutex<Option<OsString>>> = OnceLock::new();
+
+fn read_cached_success<T: Clone>(cache: &Mutex<Option<T>>) -> Option<T> {
+    match cache.lock() {
+        Ok(guard) => guard.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
+    }
+}
+
+fn store_cached_success<T: Clone>(cache: &Mutex<Option<T>>, value: &T) {
+    match cache.lock() {
+        Ok(mut guard) => {
+            *guard = Some(value.clone());
+        }
+        Err(poisoned) => {
+            *poisoned.into_inner() = Some(value.clone());
+        }
+    }
+}
+
+fn detect_with_cached_success_result<T: Clone, E, F>(
+    cache: &Mutex<Option<T>>,
+    detect: F,
+) -> Result<T, E>
+where
+    F: FnOnce() -> Result<T, E>,
+{
+    if let Some(cached) = read_cached_success(cache) {
+        return Ok(cached);
+    }
+
+    let detected = detect()?;
+    store_cached_success(cache, &detected);
+    Ok(detected)
 }
 
 fn normalize_path(path: &Path) -> Result<PathBuf, String> {
@@ -129,6 +166,11 @@ fn candidate_node_commands() -> Vec<OsString> {
 }
 
 fn find_node_command() -> Result<OsString, String> {
+    let cache = NODE_COMMAND_CACHE.get_or_init(|| Mutex::new(None));
+    detect_with_cached_success_result(cache, detect_node_command)
+}
+
+fn detect_node_command() -> Result<OsString, String> {
     for candidate in candidate_node_commands() {
         let status = Command::new(&candidate)
             .arg("--version")
@@ -253,8 +295,11 @@ mod napi_binding {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_public_path_impl;
+    use super::{detect_with_cached_success_result, validate_public_path_impl};
+    use std::cell::Cell;
+    use std::ffi::OsString;
     use std::path::PathBuf;
+    use std::sync::Mutex;
 
     #[test]
     fn validate_public_path_rejects_absolute_paths() {
@@ -289,6 +334,33 @@ mod tests {
 
         let validated_path = PathBuf::from(validated);
         assert!(validated_path.ends_with(PathBuf::from("____git").join("info").join("exclude")));
+        Ok(())
+    }
+
+    #[test]
+    fn detect_with_cached_success_result_retries_until_success() -> Result<(), String> {
+        let cache = Mutex::new(None);
+        let attempts = Cell::new(0);
+
+        let first = detect_with_cached_success_result(&cache, || {
+            attempts.set(attempts.get() + 1);
+            Err(String::from("missing"))
+        });
+        assert!(first.is_err());
+
+        let second = detect_with_cached_success_result(&cache, || {
+            attempts.set(attempts.get() + 1);
+            Ok::<OsString, String>(OsString::from("node"))
+        })?;
+        assert_eq!(second, OsString::from("node"));
+
+        let third = detect_with_cached_success_result(&cache, || {
+            attempts.set(attempts.get() + 1);
+            Ok::<OsString, String>(OsString::from("other"))
+        })?;
+        assert_eq!(third, OsString::from("node"));
+        assert_eq!(attempts.get(), 2);
+
         Ok(())
     }
 }

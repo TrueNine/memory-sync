@@ -5,6 +5,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
+use std::sync::{Mutex, OnceLock};
 
 use crate::{
     BridgeCommandResult, CliError,
@@ -25,6 +26,41 @@ fn strip_win_prefix(path: PathBuf) -> PathBuf {
 }
 
 const PACKAGE_NAME: &str = "@truenine/memory-sync-cli";
+static PLUGIN_RUNTIME_CACHE: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
+static NODE_CACHE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+
+fn read_cached_success<T: Clone>(cache: &Mutex<Option<T>>) -> Option<T> {
+    match cache.lock() {
+        Ok(guard) => guard.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
+    }
+}
+
+fn store_cached_success<T: Clone>(cache: &Mutex<Option<T>>, value: &T) {
+    match cache.lock() {
+        Ok(mut guard) => {
+            *guard = Some(value.clone());
+        }
+        Err(poisoned) => {
+            *poisoned.into_inner() = Some(value.clone());
+        }
+    }
+}
+
+fn detect_with_cached_success<T: Clone, F>(cache: &Mutex<Option<T>>, detect: F) -> Option<T>
+where
+    F: FnOnce() -> Option<T>,
+{
+    if let Some(cached) = read_cached_success(cache) {
+        return Some(cached);
+    }
+
+    let detected = detect();
+    if let Some(value) = detected.as_ref() {
+        store_cached_success(cache, value);
+    }
+    detected
+}
 
 /// Locate the plugin runtime JS entry point.
 ///
@@ -37,6 +73,11 @@ const PACKAGE_NAME: &str = "@truenine/memory-sync-cli";
 /// 6. npm/pnpm global install: `<global_root>/@truenine/memory-sync-cli/dist/plugin-runtime.mjs`
 /// 7. Embedded JS extracted to `~/.aindex/.cache/plugin-runtime-<version>.mjs`
 pub(crate) fn find_plugin_runtime() -> Option<PathBuf> {
+    let cache = PLUGIN_RUNTIME_CACHE.get_or_init(|| Mutex::new(None));
+    detect_with_cached_success(cache, detect_plugin_runtime)
+}
+
+fn detect_plugin_runtime() -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
 
     // Relative to binary location
@@ -166,6 +207,11 @@ fn extract_embedded_runtime() -> Option<PathBuf> {
 
 /// Find the `node` executable.
 pub(crate) fn find_node() -> Option<String> {
+    let cache = NODE_CACHE.get_or_init(|| Mutex::new(None));
+    detect_with_cached_success(cache, detect_node)
+}
+
+fn detect_node() -> Option<String> {
     // Try `node` in PATH
     if Command::new("node")
         .arg("--version")
@@ -452,6 +498,8 @@ fn find_index_mjs() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::Cell;
+    use std::sync::Mutex;
 
     #[test]
     fn test_strip_win_prefix_with_prefix() {
@@ -472,5 +520,30 @@ mod tests {
         let path = PathBuf::from("/home/user/file.mjs");
         let result = strip_win_prefix(path.clone());
         assert_eq!(result, path);
+    }
+
+    #[test]
+    fn test_detect_with_cached_success_retries_until_success() {
+        let cache = Mutex::new(None);
+        let attempts = Cell::new(0);
+
+        let first = detect_with_cached_success(&cache, || {
+            attempts.set(attempts.get() + 1);
+            Option::<String>::None
+        });
+        assert_eq!(first, None);
+
+        let second = detect_with_cached_success(&cache, || {
+            attempts.set(attempts.get() + 1);
+            Some(String::from("node"))
+        });
+        assert_eq!(second, Some(String::from("node")));
+
+        let third = detect_with_cached_success(&cache, || {
+            attempts.set(attempts.get() + 1);
+            Some(String::from("other"))
+        });
+        assert_eq!(third, Some(String::from("node")));
+        assert_eq!(attempts.get(), 2);
     }
 }
