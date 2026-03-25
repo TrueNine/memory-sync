@@ -23,6 +23,22 @@ function createMockLogger(): ILogger {
   } as ILogger
 }
 
+function createRecordingLogger(): ILogger & {debugMessages: unknown[]} {
+  const debugMessages: unknown[] = []
+
+  return {
+    debugMessages,
+    trace: () => {},
+    debug: message => {
+      debugMessages.push(message)
+    },
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+    fatal: () => {}
+  } as ILogger & {debugMessages: unknown[]}
+}
+
 function createCleanContext(
   overrides?: Partial<OutputCleanContext['collectedOutputContext']>,
   pluginOptionsOverrides?: Parameters<typeof mergeConfig>[0]
@@ -625,6 +641,49 @@ describe('performCleanup', () => {
       }))
       expect(fs.existsSync(outputFile)).toBe(false)
       expect(fs.existsSync(outputDir)).toBe(false)
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('logs aggregated cleanup execution summaries instead of per-path success logs', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-perform-cleanup-logging-'))
+    const outputFile = path.join(tempDir, 'project-a', 'AGENTS.md')
+    const outputDir = path.join(tempDir, '.codex', 'prompts')
+    const stalePrompt = path.join(outputDir, 'demo.md')
+    const logger = createRecordingLogger()
+
+    fs.mkdirSync(path.dirname(outputFile), {recursive: true})
+    fs.mkdirSync(outputDir, {recursive: true})
+    fs.writeFileSync(outputFile, '# agent', 'utf8')
+    fs.writeFileSync(stalePrompt, '# prompt', 'utf8')
+
+    try {
+      const ctx = createCleanContext({
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: tempDir,
+            getDirectoryName: () => path.basename(tempDir),
+            getAbsolutePath: () => tempDir
+          },
+          projects: []
+        }
+      })
+      const plugin = createMockOutputPlugin('MockOutputPlugin', [outputFile], {
+        delete: [{kind: 'directory', path: outputDir}]
+      })
+
+      await performCleanup([plugin], ctx, logger)
+
+      expect(logger.debugMessages).toEqual(expect.arrayContaining([
+        'cleanup plan built',
+        'cleanup delete execution started',
+        'cleanup delete execution complete'
+      ]))
+      expect(logger.debugMessages).not.toContainEqual(expect.objectContaining({path: outputFile}))
+      expect(logger.debugMessages).not.toContainEqual(expect.objectContaining({path: outputDir}))
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})

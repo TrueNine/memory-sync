@@ -3,7 +3,7 @@ import type {ILogger, OutputRuntimeTargets} from '@/plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
-import {getPlatformFixedDir} from '@/plugins/desk-paths'
+import {getPlatformFixedDir} from '@/core/desk-paths'
 
 const JETBRAINS_VENDOR_DIR = 'JetBrains'
 const JETBRAINS_AIA_DIR = 'aia'

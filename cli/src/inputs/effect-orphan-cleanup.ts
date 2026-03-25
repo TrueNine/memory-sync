@@ -1,6 +1,8 @@
 import type {InputCapabilityContext, InputCollectedContext, InputEffectContext, InputEffectResult} from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {AbstractInputCapability, SourcePromptFileExtensions} from '../plugins/plugin-core'
+import {compactDeletionTargets} from '../cleanup/delete-targets'
+import {deleteTargets} from '../core/desk-paths'
 import {
   collectConfiguredAindexInputRules,
   createProtectedDeletionGuard,
@@ -63,7 +65,8 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
       const distSubDirPath = ctx.path.join(distDir, subDir)
       if (!ctx.fs.existsSync(distSubDirPath)) continue
       if (!ctx.fs.statSync(distSubDirPath).isDirectory()) continue
-      this.collectDirectoryPlan(ctx, distSubDirPath, subDir, srcPaths[subDir], filesToDelete, dirsToDelete, errors)
+      const subDirWillBeEmpty = this.collectDirectoryPlan(ctx, distSubDirPath, subDir, srcPaths[subDir], filesToDelete, dirsToDelete, errors)
+      if (subDirWillBeEmpty) dirsToDelete.push(distSubDirPath)
     }
 
     return {filesToDelete, dirsToDelete, errors}
@@ -96,6 +99,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     const guard = this.buildProtectedDeletionGuard(ctx)
     const filePartition = partitionDeletionTargets(plan.filesToDelete, guard)
     const dirPartition = partitionDeletionTargets(plan.dirsToDelete, guard)
+    const compactedPlan = compactDeletionTargets(filePartition.safePaths, dirPartition.safePaths)
     const violations = [...filePartition.violations, ...dirPartition.violations].sort((a, b) => a.targetPath.localeCompare(b.targetPath))
 
     if (violations.length > 0) {
@@ -111,60 +115,61 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     if (dryRun) {
       return {
         success: true,
-        description: `Would delete ${filePartition.safePaths.length} files and ${dirPartition.safePaths.length} directories`,
-        deletedFiles: [...filePartition.safePaths],
-        deletedDirs: [...dirPartition.safePaths].sort((a, b) => b.length - a.length)
+        description: `Would delete ${compactedPlan.files.length} files and ${compactedPlan.dirs.length} directories`,
+        deletedFiles: [...compactedPlan.files],
+        deletedDirs: [...compactedPlan.dirs]
       }
     }
 
-    const deletedFiles: string[] = []
-    const deletedDirs: string[] = []
     const deleteErrors: {path: string, error: Error}[] = [...plan.errors]
+    logger.debug('orphan cleanup delete execution started', {
+      filesToDelete: compactedPlan.files.length,
+      dirsToDelete: compactedPlan.dirs.length
+    })
 
-    for (const filePath of filePartition.safePaths) {
-      try {
-        fs.unlinkSync(filePath)
-        deletedFiles.push(filePath)
-        logger.debug({action: 'orphan-cleanup', deleted: filePath})
-      }
-      catch (error) {
-        deleteErrors.push({path: filePath, error: error as Error})
-        logger.warn(buildFileOperationDiagnostic({
-          code: 'ORPHAN_CLEANUP_FILE_DELETE_FAILED',
-          title: 'Orphan cleanup could not delete a file',
-          operation: 'delete',
-          targetKind: 'orphan file',
-          path: filePath,
-          error
-        }))
-      }
+    const result = await deleteTargets({
+      files: compactedPlan.files,
+      dirs: compactedPlan.dirs
+    })
+
+    for (const fileError of result.fileErrors) {
+      const normalizedError = fileError.error instanceof Error ? fileError.error : new Error(String(fileError.error))
+      deleteErrors.push({path: fileError.path, error: normalizedError})
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'ORPHAN_CLEANUP_FILE_DELETE_FAILED',
+        title: 'Orphan cleanup could not delete a file',
+        operation: 'delete',
+        targetKind: 'orphan file',
+        path: fileError.path,
+        error: normalizedError
+      }))
     }
 
-    for (const dirPath of [...dirPartition.safePaths].sort((a, b) => b.length - a.length)) {
-      try {
-        fs.rmdirSync(dirPath)
-        deletedDirs.push(dirPath)
-        logger.debug({action: 'orphan-cleanup', deletedDir: dirPath})
-      }
-      catch (error) {
-        deleteErrors.push({path: dirPath, error: error as Error})
-        logger.warn(buildFileOperationDiagnostic({
-          code: 'ORPHAN_CLEANUP_DIRECTORY_DELETE_FAILED',
-          title: 'Orphan cleanup could not delete a directory',
-          operation: 'delete',
-          targetKind: 'orphan directory',
-          path: dirPath,
-          error
-        }))
-      }
+    for (const dirError of result.dirErrors) {
+      const normalizedError = dirError.error instanceof Error ? dirError.error : new Error(String(dirError.error))
+      deleteErrors.push({path: dirError.path, error: normalizedError})
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'ORPHAN_CLEANUP_DIRECTORY_DELETE_FAILED',
+        title: 'Orphan cleanup could not delete a directory',
+        operation: 'delete',
+        targetKind: 'orphan directory',
+        path: dirError.path,
+        error: normalizedError
+      }))
     }
+
+    logger.debug('orphan cleanup delete execution complete', {
+      deletedFiles: result.deletedFiles.length,
+      deletedDirs: result.deletedDirs.length,
+      errors: deleteErrors.length
+    })
 
     const hasErrors = deleteErrors.length > 0
     return {
       success: !hasErrors,
-      description: `Deleted ${deletedFiles.length} files and ${deletedDirs.length} directories`,
-      deletedFiles,
-      deletedDirs,
+      description: `Deleted ${result.deletedFiles.length} files and ${result.deletedDirs.length} directories`,
+      deletedFiles: [...result.deletedFiles],
+      deletedDirs: [...result.deletedDirs],
       ...hasErrors && {error: new Error(`${deleteErrors.length} errors occurred during cleanup`)}
     }
   }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "version": "2026.10324.11958",
+  "version": "2026.10325.12228",
   "productName": "Memory Sync",
   "identifier": "org.truenine.memory-sync",
   "build": {

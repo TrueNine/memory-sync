@@ -79,10 +79,10 @@ export abstract class AbstractInputCapability implements InputCapability {
         if (result.success) {
           this.log.trace({action: 'inputEffect', name: effect.name, status: 'success', description: result.description})
           if (result.modifiedFiles != null && result.modifiedFiles.length > 0) {
-            this.log.debug({action: 'inputEffect', name: effect.name, modifiedFiles: result.modifiedFiles})
+            this.log.debug({action: 'inputEffect', name: effect.name, modifiedFileCount: result.modifiedFiles.length})
           }
           if (result.deletedFiles != null && result.deletedFiles.length > 0) {
-            this.log.debug({action: 'inputEffect', name: effect.name, deletedFiles: result.deletedFiles})
+            this.log.debug({action: 'inputEffect', name: effect.name, deletedFileCount: result.deletedFiles.length})
           }
         } else {
           const error = result.error ?? new Error(`Input effect failed: ${effect.name}`)

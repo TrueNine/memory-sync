@@ -56,9 +56,9 @@ describe('skill dist cleanup effect', () => {
         path.join(distSkillDir, 'guide.src.mdx'),
         path.join(distSkillDir, 'notes.md'),
         path.join(distSkillDir, 'demo.kts'),
-        path.join(distSkillDir, 'mcp.json'),
-        path.join(nestedLegacyDir, 'diagram.svg')
+        path.join(distSkillDir, 'mcp.json')
       ]))
+      expect(result?.deletedDirs).toContain(nestedLegacyDir)
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
@@ -85,6 +85,28 @@ describe('skill dist cleanup effect', () => {
       expect(fs.existsSync(path.join(distSkillDir, 'skill.mdx'))).toBe(true)
       expect(fs.existsSync(path.join(distSkillDir, 'legacy.txt'))).toBe(false)
       expect(result?.deletedFiles).toContain(path.join(distSkillDir, 'legacy.txt'))
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('collapses nested removable skill dist directories to the highest safe root', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-skill-dist-cleanup-collapse-test-'))
+    const distSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'demo')
+    const nestedLegacyDir = path.join(distSkillDir, 'legacy', 'deep')
+
+    try {
+      fs.mkdirSync(nestedLegacyDir, {recursive: true})
+      fs.writeFileSync(path.join(nestedLegacyDir, 'diagram.svg'), '<svg />', 'utf8')
+
+      const plugin = new SkillDistCleanupEffectInputCapability()
+      const [result] = await plugin.executeEffects(createContext(tempWorkspace))
+
+      expect(result?.success).toBe(true)
+      expect(result?.deletedFiles).toEqual([])
+      expect(result?.deletedDirs).toEqual([path.join(tempWorkspace, 'aindex', 'dist', 'skills')])
+      expect(fs.existsSync(path.join(tempWorkspace, 'aindex', 'dist', 'skills'))).toBe(false)
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

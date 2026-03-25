@@ -1,6 +1,8 @@
 import type {InputCapabilityContext, InputCollectedContext, InputEffectContext, InputEffectResult} from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {AbstractInputCapability, hasSourcePromptExtension} from '../plugins/plugin-core'
+import {compactDeletionTargets} from '../cleanup/delete-targets'
+import {deleteTargets} from '../core/desk-paths'
 
 export interface SkillDistCleanupEffectResult extends InputEffectResult {
   readonly deletedFiles: string[]
@@ -35,64 +37,66 @@ export class SkillDistCleanupEffectInputCapability extends AbstractInputCapabili
     }
 
     const plan = this.buildCleanupPlan(ctx, distSkillsDir)
+    const compactedPlan = compactDeletionTargets(plan.filesToDelete, plan.dirsToDelete)
 
     if (dryRun) {
       return {
         success: true,
-        description: `Would delete ${plan.filesToDelete.length} files and ${plan.dirsToDelete.length} directories`,
-        deletedFiles: [...plan.filesToDelete],
-        deletedDirs: [...plan.dirsToDelete].sort((a, b) => b.length - a.length)
+        description: `Would delete ${compactedPlan.files.length} files and ${compactedPlan.dirs.length} directories`,
+        deletedFiles: [...compactedPlan.files],
+        deletedDirs: [...compactedPlan.dirs]
       }
     }
 
-    const deletedFiles: string[] = []
-    const deletedDirs: string[] = []
     const deleteErrors: {path: string, error: Error}[] = [...plan.errors]
+    logger.debug('skill dist cleanup delete execution started', {
+      filesToDelete: compactedPlan.files.length,
+      dirsToDelete: compactedPlan.dirs.length
+    })
 
-    for (const filePath of plan.filesToDelete) {
-      try {
-        fs.unlinkSync(filePath)
-        deletedFiles.push(filePath)
-        logger.debug({action: 'skill-dist-cleanup', deleted: filePath})
-      }
-      catch (error) {
-        deleteErrors.push({path: filePath, error: error as Error})
-        logger.warn(buildFileOperationDiagnostic({
-          code: 'SKILL_DIST_CLEANUP_FILE_DELETE_FAILED',
-          title: 'Skill dist cleanup could not delete a file',
-          operation: 'delete',
-          targetKind: 'skill dist file',
-          path: filePath,
-          error
-        }))
-      }
+    const result = await deleteTargets({
+      files: compactedPlan.files,
+      dirs: compactedPlan.dirs
+    })
+
+    for (const fileError of result.fileErrors) {
+      const normalizedError = fileError.error instanceof Error ? fileError.error : new Error(String(fileError.error))
+      deleteErrors.push({path: fileError.path, error: normalizedError})
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'SKILL_DIST_CLEANUP_FILE_DELETE_FAILED',
+        title: 'Skill dist cleanup could not delete a file',
+        operation: 'delete',
+        targetKind: 'skill dist file',
+        path: fileError.path,
+        error: normalizedError
+      }))
     }
 
-    for (const dirPath of [...plan.dirsToDelete].sort((a, b) => b.length - a.length)) {
-      try {
-        fs.rmdirSync(dirPath)
-        deletedDirs.push(dirPath)
-        logger.debug({action: 'skill-dist-cleanup', deletedDir: dirPath})
-      }
-      catch (error) {
-        deleteErrors.push({path: dirPath, error: error as Error})
-        logger.warn(buildFileOperationDiagnostic({
-          code: 'SKILL_DIST_CLEANUP_DIRECTORY_DELETE_FAILED',
-          title: 'Skill dist cleanup could not delete a directory',
-          operation: 'delete',
-          targetKind: 'skill dist directory',
-          path: dirPath,
-          error
-        }))
-      }
+    for (const dirError of result.dirErrors) {
+      const normalizedError = dirError.error instanceof Error ? dirError.error : new Error(String(dirError.error))
+      deleteErrors.push({path: dirError.path, error: normalizedError})
+      logger.warn(buildFileOperationDiagnostic({
+        code: 'SKILL_DIST_CLEANUP_DIRECTORY_DELETE_FAILED',
+        title: 'Skill dist cleanup could not delete a directory',
+        operation: 'delete',
+        targetKind: 'skill dist directory',
+        path: dirError.path,
+        error: normalizedError
+      }))
     }
+
+    logger.debug('skill dist cleanup delete execution complete', {
+      deletedFiles: result.deletedFiles.length,
+      deletedDirs: result.deletedDirs.length,
+      errors: deleteErrors.length
+    })
 
     const hasErrors = deleteErrors.length > 0
     return {
       success: !hasErrors,
-      description: `Deleted ${deletedFiles.length} files and ${deletedDirs.length} directories`,
-      deletedFiles,
-      deletedDirs,
+      description: `Deleted ${result.deletedFiles.length} files and ${result.deletedDirs.length} directories`,
+      deletedFiles: [...result.deletedFiles],
+      deletedDirs: [...result.deletedDirs],
       ...hasErrors && {error: new Error(`${deleteErrors.length} errors occurred during cleanup`)}
     }
   }
@@ -102,7 +106,8 @@ export class SkillDistCleanupEffectInputCapability extends AbstractInputCapabili
     const dirsToDelete: string[] = []
     const errors: {path: string, error: Error}[] = []
 
-    this.collectCleanupPlan(ctx, distSkillsDir, filesToDelete, dirsToDelete, errors)
+    const rootWillBeEmpty = this.collectCleanupPlan(ctx, distSkillsDir, filesToDelete, dirsToDelete, errors)
+    if (rootWillBeEmpty) dirsToDelete.push(distSkillsDir)
 
     return {filesToDelete, dirsToDelete, errors}
   }

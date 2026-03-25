@@ -17,8 +17,8 @@
       "@/*": [
         "./src/*"
       ],
-      "@truenine/desk-paths": ["./src/plugins/desk-paths.ts"],
-      "@truenine/desk-paths/*": ["./src/plugins/desk-paths/*"],
+      "@truenine/desk-paths": ["./src/core/desk-paths.ts"],
+      "@truenine/desk-paths/*": ["./src/core/desk-paths/*"],
       "@truenine/plugin-output-shared": ["./src/plugins/plugin-output-shared/index.ts"],
       "@truenine/plugin-output-shared/*": ["./src/plugins/plugin-output-shared/*"],
       "@truenine/plugin-input-shared": ["./src/plugins/plugin-input-shared/index.ts"],
