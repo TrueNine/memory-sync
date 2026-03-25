@@ -1,8 +1,8 @@
 import type {InputCapabilityContext, InputCollectedContext, InputEffectContext, InputEffectResult} from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
-import {AbstractInputCapability, SourcePromptFileExtensions} from '../plugins/plugin-core'
 import {compactDeletionTargets} from '../cleanup/delete-targets'
 import {deleteTargets} from '../core/desk-paths'
+import {AbstractInputCapability, SourcePromptFileExtensions} from '../plugins/plugin-core'
 import {
   collectConfiguredAindexInputRules,
   createProtectedDeletionGuard,

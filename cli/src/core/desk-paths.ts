@@ -1,14 +1,14 @@
 import type {Buffer} from 'node:buffer'
-import {createRequire} from 'node:module'
-import process from 'node:process'
-import {buildFileOperationDiagnostic} from '@/diagnostics'
-import * as fallback from './desk-paths-fallback'
 import type {
   DeleteTargetsResult,
   DeletionResult,
   SafeWriteOptions,
   SafeWriteResult
 } from './desk-paths-fallback'
+import {createRequire} from 'node:module'
+import process from 'node:process'
+import {buildFileOperationDiagnostic} from '@/diagnostics'
+import * as fallback from './desk-paths-fallback'
 
 export type {
   DeleteTargetsResult,

@@ -112,7 +112,7 @@ async function mapWithConcurrencyLimit<T, TResult>(
 ): Promise<TResult[]> {
   if (items.length === 0) return []
 
-  const results = new Array<TResult>(items.length)
+  const results: TResult[] = []
   let nextIndex = 0
 
   const runWorker = async (): Promise<void> => {
@@ -126,7 +126,11 @@ async function mapWithConcurrencyLimit<T, TResult>(
   }
 
   const workerCount = Math.min(concurrency, items.length)
-  await Promise.all(Array.from({length: workerCount}, () => runWorker()))
+  const workers: Promise<void>[] = []
+  for (let index = 0; index < workerCount; index += 1) {
+    workers.push(runWorker())
+  }
+  await Promise.all(workers)
 
   return results
 }

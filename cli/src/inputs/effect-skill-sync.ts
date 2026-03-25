@@ -1,8 +1,8 @@
 import type {InputCapabilityContext, InputCollectedContext, InputEffectContext, InputEffectResult} from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
-import {AbstractInputCapability, hasSourcePromptExtension} from '../plugins/plugin-core'
 import {compactDeletionTargets} from '../cleanup/delete-targets'
 import {deleteTargets} from '../core/desk-paths'
+import {AbstractInputCapability, hasSourcePromptExtension} from '../plugins/plugin-core'
 
 export interface SkillDistCleanupEffectResult extends InputEffectResult {
   readonly deletedFiles: string[]

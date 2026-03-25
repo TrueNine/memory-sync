@@ -1,3 +1,4 @@
+import type {DeletionError} from '../core/desk-paths'
 import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputFileDeclaration, OutputPlugin, PluginOptions} from '../plugins/plugin-core'
 import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
 import * as fs from 'node:fs'
@@ -8,12 +9,11 @@ import {
   buildFileOperationDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
-import type {DeletionError} from '../core/desk-paths'
+import {compactDeletionTargets} from '../cleanup/delete-targets'
 import {deleteTargets as deskDeleteTargets} from '../core/desk-paths'
 import {
   collectAllPluginOutputs
 } from '../plugins/plugin-core'
-import {compactDeletionTargets} from '../cleanup/delete-targets'
 import {
   buildComparisonKeys,
   collectConfiguredAindexInputRules,
