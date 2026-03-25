@@ -278,8 +278,6 @@ export interface OutputFileDeclaration {
   readonly source: unknown
   /** Optional existing-file policy */
   readonly ifExists?: 'overwrite' | 'skip' | 'error'
-  /** Optional symlink target for declarative link creation */
-  readonly symlinkTarget?: string
   /** Optional label for logging */
   readonly label?: string
 }
@@ -447,13 +445,6 @@ export async function executeDeclarativeWriteOutputs(
         }
 
         if (declaration.ifExists === 'error' && fs.existsSync(declaration.path)) throw new Error(`Refusing to overwrite existing file: ${declaration.path}`)
-
-        if (declaration.symlinkTarget != null) {
-          if (fs.existsSync(declaration.path)) fs.rmSync(declaration.path, {force: true, recursive: false})
-          fs.symlinkSync(declaration.symlinkTarget, declaration.path, 'file')
-          fileResults.push({path: declaration.path, success: true})
-          continue
-        }
 
         const content = await plugin.convertContent(declaration, ctx)
         isNodeBufferLike(content)

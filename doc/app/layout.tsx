@@ -9,14 +9,16 @@ const docsThemeStorageKey = 'memory-sync-docs-theme'
 const docsThemeBootstrapScript = `
 try {
   const storageKey = '${docsThemeStorageKey}';
-  const storedTheme = window.localStorage.getItem(storageKey);
-  const normalizedTheme = storedTheme === 'light' ? 'light' : 'dark';
+  const root = document.documentElement;
+  const normalizedTheme = 'dark';
 
-  if (storedTheme !== normalizedTheme) {
+  if (window.localStorage.getItem(storageKey) !== normalizedTheme) {
     window.localStorage.setItem(storageKey, normalizedTheme);
   }
 
-  document.documentElement.classList.toggle('dark', normalizedTheme === 'dark');
+  root.classList.remove('light', 'dark');
+  root.classList.add(normalizedTheme);
+  root.style.colorScheme = normalizedTheme;
 } catch {}
 `
 
@@ -62,7 +64,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {readonly children: React.ReactNode}) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="zh-CN" className="dark" style={{colorScheme: 'dark', backgroundColor: '#0b0c10'}} suppressHydrationWarning>
       <body className={`${sans.variable} ${mono.variable}`}>
         <Script id="docs-theme-bootstrap" strategy="beforeInteractive">
           {docsThemeBootstrapScript}

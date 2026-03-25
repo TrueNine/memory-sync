@@ -137,4 +137,26 @@ describe('orphan file cleanup effect', () => {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
     }
   })
+
+  it('collapses nested orphan directories to the highest removable subtree root', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-orphan-cleanup-collapse-test-'))
+    const distDir = path.join(tempWorkspace, 'aindex', 'dist', 'commands', 'legacy', 'deep')
+    const orphanFile = path.join(distDir, 'demo.txt')
+
+    try {
+      fs.mkdirSync(distDir, {recursive: true})
+      fs.writeFileSync(orphanFile, 'Compiled prompt', 'utf8')
+
+      const plugin = new OrphanFileCleanupEffectInputCapability()
+      const [result] = await plugin.executeEffects(createContext(tempWorkspace))
+
+      expect(result?.success).toBe(true)
+      expect(result?.deletedFiles).toEqual([])
+      expect(result?.deletedDirs).toEqual([path.join(tempWorkspace, 'aindex', 'dist', 'commands')])
+      expect(fs.existsSync(path.join(tempWorkspace, 'aindex', 'dist', 'commands'))).toBe(false)
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
 })

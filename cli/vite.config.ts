@@ -13,7 +13,7 @@ const workspacePackageAliases: Record<string, string> = {
 }
 
 const pluginAliases: Record<string, string> = {
-  '@truenine/desk-paths': resolve('src/plugins/desk-paths.ts'),
+  '@truenine/desk-paths': resolve('src/core/desk-paths.ts'),
   '@truenine/plugin-output-shared': resolve('src/plugins/plugin-output-shared/index.ts'),
   '@truenine/plugin-output-shared/utils': resolve('src/plugins/plugin-output-shared/utils/index.ts'),
   '@truenine/plugin-output-shared/registry': resolve('src/plugins/plugin-output-shared/registry/index.ts'),

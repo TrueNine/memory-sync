@@ -1,3 +1,4 @@
+import type {DeletionError} from '../core/desk-paths'
 import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputFileDeclaration, OutputPlugin, PluginOptions} from '../plugins/plugin-core'
 import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
 import * as fs from 'node:fs'
@@ -8,7 +9,8 @@ import {
   buildFileOperationDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
-import {deleteDirectories as deskDeleteDirectories, deleteFiles as deskDeleteFiles} from '../plugins/desk-paths'
+import {compactDeletionTargets} from '../cleanup/delete-targets'
+import {deleteTargets as deskDeleteTargets} from '../core/desk-paths'
 import {
   collectAllPluginOutputs
 } from '../plugins/plugin-core'
@@ -84,19 +86,6 @@ function normalizeGlobPattern(pattern: string): string {
   return resolveAbsolutePath(pattern).replaceAll('\\', '/')
 }
 
-function stripTrailingSeparator(rawPath: string): string {
-  const {root} = path.parse(rawPath)
-  if (rawPath === root) return rawPath
-  return rawPath.endsWith(path.sep) ? rawPath.slice(0, -1) : rawPath
-}
-
-function isSameOrChildPath(candidate: string, parent: string): boolean {
-  const normalizedCandidate = stripTrailingSeparator(candidate)
-  const normalizedParent = stripTrailingSeparator(parent)
-  if (normalizedCandidate === normalizedParent) return true
-  return normalizedCandidate.startsWith(`${normalizedParent}${path.sep}`)
-}
-
 function expandCleanupGlob(
   pattern: string,
   ignoreGlobs: readonly string[]
@@ -146,41 +135,6 @@ async function collectPluginCleanupSnapshot(
   ])
 
   return {plugin, outputs, cleanup}
-}
-
-function compactDeletionTargets(
-  filesByKey: Map<string, string>,
-  dirsByKey: Map<string, string>
-): {files: string[], dirs: string[]} {
-  const compactedDirs = new Map<string, string>()
-  const sortedDirEntries = [...dirsByKey.entries()].sort((a, b) => a[0].length - b[0].length)
-
-  for (const [dirKey, dirPath] of sortedDirEntries) {
-    let coveredByParent = false
-    for (const existingParentKey of compactedDirs.keys()) {
-      if (isSameOrChildPath(dirKey, existingParentKey)) {
-        coveredByParent = true
-        break
-      }
-    }
-    if (!coveredByParent) compactedDirs.set(dirKey, dirPath)
-  }
-
-  const compactedFiles: string[] = []
-  for (const [fileKey, filePath] of filesByKey) {
-    let coveredByDir = false
-    for (const dirKey of compactedDirs.keys()) {
-      if (isSameOrChildPath(fileKey, dirKey)) {
-        coveredByDir = true
-        break
-      }
-    }
-    if (!coveredByDir) compactedFiles.push(filePath)
-  }
-
-  compactedFiles.sort((a, b) => a.localeCompare(b))
-  const compactedDirPaths = [...compactedDirs.values()].sort((a, b) => a.localeCompare(b))
-  return {files: compactedFiles, dirs: compactedDirPaths}
 }
 
 function buildCleanupProtectionConflictMessage(conflicts: readonly CleanupProtectionConflict[]): string {
@@ -402,8 +356,8 @@ export async function collectDeletionTargets(
   const dirPartition = partitionDeletionTargets([...deleteDirs], guard)
 
   const compactedTargets = compactDeletionTargets(
-    new Map(filePartition.safePaths.map(filePath => [filePath, filePath])),
-    new Map(dirPartition.safePaths.map(dirPath => [dirPath, dirPath]))
+    filePartition.safePaths,
+    dirPartition.safePaths
   )
 
   return {
@@ -415,66 +369,58 @@ export async function collectDeletionTargets(
   }
 }
 
-/**
- * Delete files with error handling.
- * Logs warnings for failed deletions and continues with remaining files.
- * Uses deletePathSync from @truenine/desk-paths for cross-platform safe deletion.
- */
-export async function deleteFiles(files: string[], logger: ILogger): Promise<{deleted: number, errors: CleanupError[]}> {
-  const resolved = files.map(f => path.isAbsolute(f) ? f : path.resolve(f))
-  const result = await deskDeleteFiles(resolved)
-
-  for (const f of resolved) {
-    if (!result.errors.some(e => e.path === f)) logger.debug({action: 'delete', type: 'file', path: f})
-  }
-  const errors: CleanupError[] = result.errors.map(e => {
-    const errorMessage = e.error instanceof Error ? e.error.message : String(e.error)
+function buildCleanupErrors(
+  logger: ILogger,
+  errors: readonly DeletionError[],
+  type: 'file' | 'directory'
+): CleanupError[] {
+  return errors.map(currentError => {
+    const errorMessage = currentError.error instanceof Error ? currentError.error.message : String(currentError.error)
     logger.warn(buildFileOperationDiagnostic({
-      code: 'CLEANUP_FILE_DELETE_FAILED',
-      title: 'Cleanup could not delete a file',
+      code: type === 'file' ? 'CLEANUP_FILE_DELETE_FAILED' : 'CLEANUP_DIRECTORY_DELETE_FAILED',
+      title: type === 'file' ? 'Cleanup could not delete a file' : 'Cleanup could not delete a directory',
       operation: 'delete',
-      targetKind: 'file',
-      path: e.path,
+      targetKind: type,
+      path: currentError.path,
       error: errorMessage,
       details: {
         phase: 'cleanup'
       }
     }))
-    return {path: e.path, type: 'file' as const, error: e.error}
-  })
 
-  return {deleted: result.deleted, errors}
+    return {path: currentError.path, type, error: currentError.error}
+  })
 }
 
-/**
- * Delete directories with error handling.
- * Sorts by length descending to handle nested dirs properly.
- * Logs warnings for failed deletions and continues with remaining directories.
- */
-export async function deleteDirectories(dirs: string[], logger: ILogger): Promise<{deleted: number, errors: CleanupError[]}> {
-  const resolved = dirs.map(d => path.isAbsolute(d) ? d : path.resolve(d))
-  const result = await deskDeleteDirectories(resolved)
-
-  for (const d of resolved) {
-    if (!result.errors.some(e => e.path === d)) logger.debug({action: 'delete', type: 'directory', path: d})
-  }
-  const errors: CleanupError[] = result.errors.map(e => {
-    const errorMessage = e.error instanceof Error ? e.error.message : String(e.error)
-    logger.warn(buildFileOperationDiagnostic({
-      code: 'CLEANUP_DIRECTORY_DELETE_FAILED',
-      title: 'Cleanup could not delete a directory',
-      operation: 'delete',
-      targetKind: 'directory',
-      path: e.path,
-      error: errorMessage,
-      details: {
-        phase: 'cleanup'
-      }
-    }))
-    return {path: e.path, type: 'directory' as const, error: e.error}
+async function executeCleanupTargets(
+  targets: CleanupTargetCollections,
+  logger: ILogger
+): Promise<{deletedFiles: number, deletedDirs: number, errors: CleanupError[]}> {
+  logger.debug('cleanup delete execution started', {
+    filesToDelete: targets.filesToDelete.length,
+    dirsToDelete: targets.dirsToDelete.length
   })
 
-  return {deleted: result.deleted, errors}
+  const result = await deskDeleteTargets({
+    files: targets.filesToDelete,
+    dirs: targets.dirsToDelete
+  })
+
+  const fileErrors = buildCleanupErrors(logger, result.fileErrors, 'file')
+  const dirErrors = buildCleanupErrors(logger, result.dirErrors, 'directory')
+  const allErrors = [...fileErrors, ...dirErrors]
+
+  logger.debug('cleanup delete execution complete', {
+    deletedFiles: result.deletedFiles.length,
+    deletedDirs: result.deletedDirs.length,
+    errors: allErrors.length
+  })
+
+  return {
+    deletedFiles: result.deletedFiles.length,
+    deletedDirs: result.deletedDirs.length,
+    errors: allErrors
+  }
 }
 
 function logCleanupPlanDiagnostics(
@@ -550,15 +496,12 @@ export async function performCleanup(
     }
   }
 
-  const [fileResult, dirResult] = await Promise.all([
-    deleteFiles(cleanupTargets.filesToDelete, logger),
-    deleteDirectories(cleanupTargets.dirsToDelete, logger)
-  ])
+  const executionResult = await executeCleanupTargets(cleanupTargets, logger)
 
   return {
-    deletedFiles: fileResult.deleted,
-    deletedDirs: dirResult.deleted,
-    errors: [...fileResult.errors, ...dirResult.errors],
+    deletedFiles: executionResult.deletedFiles,
+    deletedDirs: executionResult.deletedDirs,
+    errors: executionResult.errors,
     violations: [],
     conflicts: []
   }

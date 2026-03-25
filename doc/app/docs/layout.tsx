@@ -57,6 +57,7 @@ export default async function DocsLayout({children}: {readonly children: ReactNo
         link: siteConfig.issueUrl,
         labels: 'documentation'
       }}
+      darkMode={false}
       sidebar={{
         autoCollapse: false,
         defaultMenuCollapseLevel: 99,
@@ -77,6 +78,7 @@ export default async function DocsLayout({children}: {readonly children: ReactNo
         attribute: 'class',
         defaultTheme: 'dark',
         disableTransitionOnChange: true,
+        forcedTheme: 'dark',
         storageKey: 'memory-sync-docs-theme'
       }}
     >

@@ -3,6 +3,7 @@ export default {
   'architecture': '架构边界',
   'pipeline': '同步管线',
   'source-of-truth': '单一真源模型',
+  'documentation-components': '文档组件',
   'global-and-workspace-prompts': '全局与工作区 Prompt',
   'skills': 'Skills',
   'commands': 'Commands',

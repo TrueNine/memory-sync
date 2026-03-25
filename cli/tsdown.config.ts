@@ -6,7 +6,7 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as {version: stri
 const kiroGlobalPowersRegistry = '{"version":"1.0.0","powers":{},"repoSources":{}}'
 
 const pluginAliases: Record<string, string> = {
-  '@truenine/desk-paths': resolve('src/plugins/desk-paths.ts'),
+  '@truenine/desk-paths': resolve('src/core/desk-paths.ts'),
   '@truenine/plugin-output-shared': resolve('src/plugins/plugin-output-shared/index.ts'),
   '@truenine/plugin-input-shared': resolve('src/plugins/plugin-input-shared/index.ts'),
   '@truenine/plugin-agentskills-compact': resolve('src/plugins/plugin-agentskills-compact.ts'),
