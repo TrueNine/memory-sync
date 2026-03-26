@@ -65,7 +65,9 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
-    inlineOnly: false,
+    deps: {
+      onlyBundle: false
+    },
     alias: {
       '@': resolve('src'),
       ...pluginAliases
@@ -86,7 +88,9 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
-    inlineOnly: false,
+    deps: {
+      onlyBundle: false
+    },
     alias: {
       '@': resolve('src'),
       ...pluginAliases
@@ -106,7 +110,9 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
-    inlineOnly: false,
+    deps: {
+      onlyBundle: false
+    },
     alias: {
       '@': resolve('src'),
       ...pluginAliases

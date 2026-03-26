@@ -1,3 +1,16 @@
+import type {
+  ILogger,
+  LoggerDiagnosticRecord,
+  LogLevel
+} from '@truenine/logger'
+import {
+  clearBufferedDiagnostics as clearBufferedDiagnosticsNative,
+  createLogger as createLoggerNative,
+  drainBufferedDiagnostics as drainBufferedDiagnosticsNative,
+  getGlobalLogLevel as getGlobalLogLevelNative,
+  setGlobalLogLevel as setGlobalLogLevelNative
+} from '@truenine/logger'
+
 export {
   AbstractInputCapability
 } from '../inputs/AbstractInputCapability'
@@ -130,14 +143,6 @@ export {
 
 export * from './plugin-core/types'
 
-export {
-  clearBufferedDiagnostics,
-  createLogger,
-  drainBufferedDiagnostics,
-  getGlobalLogLevel,
-  setGlobalLogLevel
-} from '@truenine/logger'
-
 export type {
   DiagnosticLines,
   ILogger,
@@ -145,3 +150,23 @@ export type {
   LoggerDiagnosticRecord,
   LogLevel
 } from '@truenine/logger'
+
+export function clearBufferedDiagnostics(): void {
+  clearBufferedDiagnosticsNative()
+}
+
+export function createLogger(namespace: string, logLevel?: LogLevel): ILogger {
+  return createLoggerNative(namespace, logLevel)
+}
+
+export function drainBufferedDiagnostics(): LoggerDiagnosticRecord[] {
+  return drainBufferedDiagnosticsNative()
+}
+
+export function getGlobalLogLevel(): LogLevel | undefined {
+  return getGlobalLogLevelNative()
+}
+
+export function setGlobalLogLevel(level: LogLevel): void {
+  setGlobalLogLevelNative(level)
+}

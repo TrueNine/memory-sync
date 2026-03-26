@@ -1,14 +1,14 @@
-import type { ComponentType, ReactNode } from 'react'
-import { notFound } from 'next/navigation'
-import { generateStaticParamsFor, importPage } from 'nextra/pages'
-import { useMDXComponents as getMDXComponents } from '../../../../mdx-components'
-import { isDocSectionName } from '../../../../lib/docs-sections'
+import type {ComponentType, ReactNode} from 'react'
+import {notFound} from 'next/navigation'
+import {generateStaticParamsFor, importPage} from 'nextra/pages'
+import {isDocSectionName} from '../../../../lib/docs-sections'
+import {useMDXComponents as getMDXComponents} from '../../../../mdx-components'
 
 const getAllDocParams = generateStaticParamsFor('mdxPath')
 
 function isSectionDocParam(
-  value: { mdxPath?: string[] },
-): value is { mdxPath: [string, ...string[]] } {
+  value: {mdxPath?: string[]}
+): value is {mdxPath: [string, ...string[]]} {
   return value.mdxPath != null
     && value.mdxPath.length > 0
     && isDocSectionName(value.mdxPath[0])
@@ -16,21 +16,21 @@ function isSectionDocParam(
 
 export async function generateStaticParams() {
   const allParams = await getAllDocParams()
-  return (allParams as { mdxPath?: string[] }[])
+  return (allParams as {mdxPath?: string[]}[])
     .filter(isSectionDocParam)
     .map(p => ({
       section: p.mdxPath[0],
-      rest: p.mdxPath.length > 1 ? p.mdxPath.slice(1) : undefined,
+      rest: p.mdxPath.length > 1 ? p.mdxPath.slice(1) : void 0
     }))
 }
 
 export async function generateMetadata(props: {
-  readonly params: Promise<{ readonly section: string; readonly rest?: string[] }>
+  readonly params: Promise<{readonly section: string, readonly rest?: string[]}>
 }) {
   const params = await props.params
   if (!isDocSectionName(params.section)) notFound()
-  const mdxPath = [params.section, ...(params.rest ?? [])]
-  const { metadata } = await importPage(mdxPath)
+  const mdxPath = [params.section, ...params.rest ?? []]
+  const {metadata} = await importPage(mdxPath)
   return metadata
 }
 
@@ -48,16 +48,16 @@ const components = getMDXComponents() as {
 const Wrapper = components.wrapper
 
 export default async function SectionPage(props: {
-  readonly params: Promise<{ readonly section: string; readonly rest?: string[] }>
+  readonly params: Promise<{readonly section: string, readonly rest?: string[]}>
 }) {
   const params = await props.params
   if (!isDocSectionName(params.section)) notFound()
-  const mdxPath = [params.section, ...(params.rest ?? [])]
+  const mdxPath = [params.section, ...params.rest ?? []]
   const {
     default: MDXContent,
     toc,
     metadata,
-    sourceCode,
+    sourceCode
   } = await importPage(mdxPath)
 
   const page = <MDXContent {...props} params={params} />

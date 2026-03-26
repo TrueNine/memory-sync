@@ -10,7 +10,6 @@
     ],
     "moduleDetection": "force",
     "useDefineForClassFields": true,
-    "baseUrl": ".", // Path Mapping
     "module": "ESNext", // Module Resolution
     "moduleResolution": "Bundler",
     "paths": {
@@ -19,6 +18,9 @@
       ]
     },
     "resolveJsonModule": true,
+    "types": [
+      "node"
+    ],
     "allowImportingTsExtensions": true,
     "strict": true, // Type Checking - Maximum Strictness
     "strictBindCallApply": true,

@@ -5,7 +5,7 @@ import {useParams} from 'next/navigation'
 import {DOC_SECTION_LINKS} from '../lib/docs-sections'
 
 export function DocsSectionNav() {
-  const params = useParams<{section?: string | string[]}>()
+  const params = useParams()
   const currentSection = Array.isArray(params.section) ? params.section[0] : params.section
 
   return (
@@ -24,7 +24,7 @@ export function DocsSectionNav() {
             <Link
               key={link.href}
               href={link.href}
-              aria-current={isActive ? 'page' : undefined}
+              aria-current={isActive ? 'page' : void 0}
               className={`docs-nav-link${isActive ? ' is-active' : ''}`}
             >
               {link.label}

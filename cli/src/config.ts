@@ -15,11 +15,11 @@ import type {
   WindowsOptions
 } from './plugins/plugin-core'
 import * as path from 'node:path'
+import {createLogger} from '@truenine/logger'
 import {checkVersionControl} from './Aindex'
 import {getConfigLoader} from './ConfigLoader'
 import {collectInputContext, resolveRuntimeCommand} from './inputs/runtime'
 import {
-  createLogger,
   FilePathKind,
   PathPlaceholders,
   toOutputCollectedContext,
@@ -120,9 +120,10 @@ export interface DefineConfigOptions {
 export function mergeConfig(
   ...configs: Partial<PluginOptions>[]
 ): Required<PluginOptions> {
-  return configs.reduce<Required<PluginOptions>>(
-    (acc, config) => mergeTwoConfigs(acc, config),
-    {...DEFAULT_OPTIONS}
+  const initialConfig: Required<PluginOptions> = {...DEFAULT_OPTIONS}
+  return configs.reduce(
+    (acc: Required<PluginOptions>, config) => mergeTwoConfigs(acc, config),
+    initialConfig
   )
 }
 
