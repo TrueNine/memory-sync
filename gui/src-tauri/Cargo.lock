@@ -1774,7 +1774,7 @@ dependencies = [
 
 [[package]]
 name = "memory-sync-gui"
-version = "2026.10221.10208"
+version = "2026.10327.10010"
 dependencies = [
  "dirs",
  "json5",
