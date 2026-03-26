@@ -28,6 +28,7 @@ import {
   SkillInputCapability,
   SubAgentInputCapability,
   VSCodeConfigInputCapability,
+  ZedConfigInputCapability,
   WorkspaceInputCapability
 } from '@/inputs'
 import {extractUserArgs, parseArgs} from '@/pipeline/CliArgumentParser'
@@ -56,6 +57,7 @@ function createBuiltinInputReaderCapabilities(): InputCapability[] {
     new WorkspaceInputCapability(),
     new AindexInputCapability(),
     new VSCodeConfigInputCapability(),
+    new ZedConfigInputCapability(),
     new JetBrainsConfigInputCapability(),
     new EditorConfigInputCapability(),
     new SkillInputCapability(),

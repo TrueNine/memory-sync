@@ -3,23 +3,18 @@ export default {
     title: '文档总览'
   },
   'cli': {
-    title: 'CLI',
-    display: 'children'
+    title: 'CLI'
   },
   'mcp': {
-    title: 'MCP',
-    display: 'children'
+    title: 'MCP'
   },
   'gui': {
-    title: 'GUI',
-    display: 'children'
+    title: 'GUI'
   },
   'technical-details': {
-    title: '技术细节',
-    display: 'children'
+    title: '技术细节'
   },
   'design-rationale': {
-    title: '设计初衷',
-    display: 'children'
+    title: '设计初衷'
   }
 }

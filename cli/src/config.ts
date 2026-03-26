@@ -477,6 +477,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
   const inputContext: InputCollectedContext = {
     workspace: merged.workspace,
     ...merged.vscodeConfigFiles != null && {vscodeConfigFiles: merged.vscodeConfigFiles},
+    ...merged.zedConfigFiles != null && {zedConfigFiles: merged.zedConfigFiles},
     ...merged.jetbrainsConfigFiles != null && {jetbrainsConfigFiles: merged.jetbrainsConfigFiles},
     ...merged.editorConfigFiles != null && {editorConfigFiles: merged.editorConfigFiles},
     ...merged.commands != null && {commands: merged.commands},

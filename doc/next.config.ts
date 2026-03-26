@@ -29,6 +29,10 @@ const withNextra = nextra({
 
 const LEGACY_DOC_REDIRECTS = [
   {
+    source: '/docs',
+    destination: '/docs/cli'
+  },
+  {
     source: '/docs/quick-start/:path*',
     destination: '/docs/cli/:path*'
   },
