@@ -9,6 +9,7 @@ import type {
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {createLogger} from '@truenine/logger'
 import glob from 'fast-glob'
 import {
   AIAgentIgnoreInputCapability,
@@ -28,12 +29,13 @@ import {
   SkillInputCapability,
   SubAgentInputCapability,
   VSCodeConfigInputCapability,
-  WorkspaceInputCapability
+  WorkspaceInputCapability,
+  ZedConfigInputCapability
 } from '@/inputs'
 import {extractUserArgs, parseArgs} from '@/pipeline/CliArgumentParser'
 import {buildDependencyContext, mergeContexts} from '@/pipeline/ContextMerger'
 import {topologicalSort} from '@/pipeline/DependencyResolver'
-import {createLogger, GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/plugins/plugin-core'
+import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/plugins/plugin-core/GlobalScopeCollector'
 
 export interface InputRuntimeOptions {
   readonly pipelineArgs?: readonly string[]
@@ -56,6 +58,7 @@ function createBuiltinInputReaderCapabilities(): InputCapability[] {
     new WorkspaceInputCapability(),
     new AindexInputCapability(),
     new VSCodeConfigInputCapability(),
+    new ZedConfigInputCapability(),
     new JetBrainsConfigInputCapability(),
     new EditorConfigInputCapability(),
     new SkillInputCapability(),

@@ -433,6 +433,10 @@ export function collectProtectedInputSourceRules(
     addRuleFromDir(config.dir as DirPathLike | undefined, 'direct', 'vscode input config file', 'collected-input-config')
   }
 
+  for (const config of collectedOutputContext.zedConfigFiles ?? []) {
+    addRuleFromDir(config.dir as DirPathLike | undefined, 'direct', 'zed input config file', 'collected-input-config')
+  }
+
   for (const config of collectedOutputContext.jetbrainsConfigFiles ?? []) {
     addRuleFromDir(config.dir as DirPathLike | undefined, 'direct', 'jetbrains input config file', 'collected-input-config')
   }

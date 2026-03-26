@@ -26,6 +26,7 @@ export enum FilePathKind {
 
 export enum IDEKind {
   VSCode = 'vscode',
+  Zed = 'zed',
   IntellijIDEA = 'intellijIdea',
   Git = 'git',
   EditorConfig = 'editorconfig',

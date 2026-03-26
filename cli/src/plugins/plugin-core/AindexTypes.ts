@@ -61,6 +61,7 @@ export interface AindexDirectory {
     readonly idea: AindexDirectoryEntry
     readonly ideaCodeStyles: AindexDirectoryEntry
     readonly vscode: AindexDirectoryEntry
+    readonly zed: AindexDirectoryEntry
   }
   /** IDE configuration files */
   readonly ideFiles: readonly AindexFileEntry[]
@@ -81,7 +82,8 @@ export const AINDEX_DIR_NAMES = {
   APP: 'app',
   IDEA: '.idea', // IDE directories
   IDEA_CODE_STYLES: '.idea/codeStyles',
-  VSCODE: '.vscode'
+  VSCODE: '.vscode',
+  ZED: '.zed'
 } as const
 
 /**
@@ -98,6 +100,7 @@ export const AINDEX_FILE_NAMES = {
   IDEA_CODE_STYLE_CONFIG_XML: '.idea/codeStyles/codeStyleConfig.xml',
   VSCODE_SETTINGS: '.vscode/settings.json', // VS Code
   VSCODE_EXTENSIONS: '.vscode/extensions.json',
+  ZED_SETTINGS: '.zed/settings.json',
   QODER_IGNORE: '.qoderignore', // AI Agent ignore files
   CURSOR_IGNORE: '.cursorignore',
   WARP_INDEX_IGNORE: '.warpindexignore',
@@ -219,6 +222,11 @@ export const DEFAULT_AINDEX_STRUCTURE: AindexDirectory = {
       name: AINDEX_DIR_NAMES.VSCODE,
       required: false,
       description: 'VS Code configuration directory'
+    },
+    zed: {
+      name: AINDEX_DIR_NAMES.ZED,
+      required: false,
+      description: 'Zed configuration directory'
     }
   },
   ideFiles: [
@@ -251,6 +259,11 @@ export const DEFAULT_AINDEX_STRUCTURE: AindexDirectory = {
       name: AINDEX_FILE_NAMES.VSCODE_EXTENSIONS,
       required: false,
       description: 'VS Code extensions.json'
+    },
+    {
+      name: AINDEX_FILE_NAMES.ZED_SETTINGS,
+      required: false,
+      description: 'Zed settings.json'
     }
   ],
   ignoreFiles: [
@@ -285,14 +298,17 @@ export const DEFAULT_AINDEX_STRUCTURE: AindexDirectory = {
 /**
  * Type for directory names
  */
-export type AindexDirName = (typeof AINDEX_DIR_NAMES)[keyof typeof AINDEX_DIR_NAMES]
+export type AindexDirName
+  = (typeof AINDEX_DIR_NAMES)[keyof typeof AINDEX_DIR_NAMES]
 
 /**
  * Type for file names
  */
-export type AindexFileName = (typeof AINDEX_FILE_NAMES)[keyof typeof AINDEX_FILE_NAMES]
+export type AindexFileName
+  = (typeof AINDEX_FILE_NAMES)[keyof typeof AINDEX_FILE_NAMES]
 
 /**
  * Type for relative paths
  */
-export type AindexRelativePath = (typeof AINDEX_RELATIVE_PATHS)[keyof typeof AINDEX_RELATIVE_PATHS]
+export type AindexRelativePath
+  = (typeof AINDEX_RELATIVE_PATHS)[keyof typeof AINDEX_RELATIVE_PATHS]

@@ -1,4 +1,8 @@
-import type {OutputWriteContext, Project, ProjectIDEConfigFile} from './plugin-core'
+import type {
+  OutputWriteContext,
+  Project,
+  ProjectIDEConfigFile
+} from './plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
@@ -6,8 +10,13 @@ import {EditorConfigOutputPlugin} from './EditorConfigOutputPlugin'
 import {JetBrainsIDECodeStyleConfigOutputPlugin} from './JetBrainsIDECodeStyleConfigOutputPlugin'
 import {createLogger, FilePathKind, IDEKind} from './plugin-core'
 import {VisualStudioCodeIDEConfigOutputPlugin} from './VisualStudioCodeIDEConfigOutputPlugin'
+import {ZedIDEConfigOutputPlugin} from './ZedIDEConfigOutputPlugin'
 
-function createProject(workspaceBase: string, name: string, promptSource = false): Project {
+function createProject(
+  workspaceBase: string,
+  name: string,
+  promptSource = false
+): Project {
   return {
     name,
     isPromptSourceProject: promptSource,
@@ -21,7 +30,11 @@ function createProject(workspaceBase: string, name: string, promptSource = false
   } as Project
 }
 
-function createConfigFile(type: IDEKind, sourcePath: string, content: string): ProjectIDEConfigFile {
+function createConfigFile(
+  type: IDEKind,
+  sourcePath: string,
+  content: string
+): ProjectIDEConfigFile {
   return {
     type,
     content,
@@ -55,16 +68,73 @@ function createWriteContext(workspaceBase: string): OutputWriteContext {
         ]
       },
       editorConfigFiles: [
-        createConfigFile(IDEKind.EditorConfig, path.join(workspaceBase, 'aindex', 'public', '.editorconfig'), 'root = true\n')
+        createConfigFile(
+          IDEKind.EditorConfig,
+          path.join(workspaceBase, 'aindex', 'public', '.editorconfig'),
+          'root = true\n'
+        )
       ],
       vscodeConfigFiles: [
-        createConfigFile(IDEKind.VSCode, path.join(workspaceBase, 'aindex', 'public', '.vscode', 'settings.json'), '{}\n'),
-        createConfigFile(IDEKind.VSCode, path.join(workspaceBase, 'aindex', 'public', '.vscode', 'extensions.json'), '{}\n')
+        createConfigFile(
+          IDEKind.VSCode,
+          path.join(
+            workspaceBase,
+            'aindex',
+            'public',
+            '.vscode',
+            'settings.json'
+          ),
+          '{}\n'
+        ),
+        createConfigFile(
+          IDEKind.VSCode,
+          path.join(
+            workspaceBase,
+            'aindex',
+            'public',
+            '.vscode',
+            'extensions.json'
+          ),
+          '{}\n'
+        )
+      ],
+      zedConfigFiles: [
+        createConfigFile(
+          IDEKind.Zed,
+          path.join(workspaceBase, 'aindex', 'public', '.zed', 'settings.json'),
+          '{"tab_size": 2}\n'
+        )
       ],
       jetbrainsConfigFiles: [
-        createConfigFile(IDEKind.IntellijIDEA, path.join(workspaceBase, 'aindex', 'public', '.idea', '.gitignore'), '/workspace.xml\n'),
-        createConfigFile(IDEKind.IntellijIDEA, path.join(workspaceBase, 'aindex', 'public', '.idea', 'codeStyles', 'Project.xml'), '<project />\n'),
-        createConfigFile(IDEKind.IntellijIDEA, path.join(workspaceBase, 'aindex', 'public', '.idea', 'codeStyles', 'codeStyleConfig.xml'), '<component />\n')
+        createConfigFile(
+          IDEKind.IntellijIDEA,
+          path.join(workspaceBase, 'aindex', 'public', '.idea', '.gitignore'),
+          '/workspace.xml\n'
+        ),
+        createConfigFile(
+          IDEKind.IntellijIDEA,
+          path.join(
+            workspaceBase,
+            'aindex',
+            'public',
+            '.idea',
+            'codeStyles',
+            'Project.xml'
+          ),
+          '<project />\n'
+        ),
+        createConfigFile(
+          IDEKind.IntellijIDEA,
+          path.join(
+            workspaceBase,
+            'aindex',
+            'public',
+            '.idea',
+            'codeStyles',
+            'codeStyleConfig.xml'
+          ),
+          '<component />\n'
+        )
       ]
     }
   } as OutputWriteContext
@@ -74,7 +144,9 @@ describe('ide config output plugins', () => {
   it('includes the prompt source project for editorconfig output', async () => {
     const workspaceBase = path.resolve('tmp/ide-output-editorconfig')
     const plugin = new EditorConfigOutputPlugin()
-    const declarations = await plugin.declareOutputFiles(createWriteContext(workspaceBase))
+    const declarations = await plugin.declareOutputFiles(
+      createWriteContext(workspaceBase)
+    )
     const paths = declarations.map(declaration => declaration.path)
 
     expect(paths).toEqual([
@@ -86,7 +158,9 @@ describe('ide config output plugins', () => {
   it('includes the prompt source project for vscode output', async () => {
     const workspaceBase = path.resolve('tmp/ide-output-vscode')
     const plugin = new VisualStudioCodeIDEConfigOutputPlugin()
-    const declarations = await plugin.declareOutputFiles(createWriteContext(workspaceBase))
+    const declarations = await plugin.declareOutputFiles(
+      createWriteContext(workspaceBase)
+    )
     const paths = declarations.map(declaration => declaration.path)
 
     expect(paths).toEqual([
@@ -97,20 +171,67 @@ describe('ide config output plugins', () => {
     ])
   })
 
+  it('includes the prompt source project for zed output and cleanup', async () => {
+    const workspaceBase = path.resolve('tmp/ide-output-zed')
+    const plugin = new ZedIDEConfigOutputPlugin()
+    const ctx = createWriteContext(workspaceBase)
+    const declarations = await plugin.declareOutputFiles(ctx)
+    const cleanup = await plugin.declareCleanupPaths(ctx)
+
+    expect(declarations.map(declaration => declaration.path)).toEqual([
+      path.join(workspaceBase, 'aindex', '.zed', 'settings.json'),
+      path.join(workspaceBase, 'memory-sync', '.zed', 'settings.json')
+    ])
+    expect(cleanup.delete).toEqual([
+      {
+        kind: 'file',
+        label: 'delete.project',
+        path: path.join(workspaceBase, 'aindex', '.zed', 'settings.json'),
+        scope: 'project'
+      },
+      {
+        kind: 'file',
+        label: 'delete.project',
+        path: path.join(workspaceBase, 'memory-sync', '.zed', 'settings.json'),
+        scope: 'project'
+      }
+    ])
+  })
+
   it('includes the prompt source project for jetbrains output', async () => {
     const workspaceBase = path.resolve('tmp/ide-output-jetbrains')
     const plugin = new JetBrainsIDECodeStyleConfigOutputPlugin()
-    const declarations = await plugin.declareOutputFiles(createWriteContext(workspaceBase))
+    const declarations = await plugin.declareOutputFiles(
+      createWriteContext(workspaceBase)
+    )
     const paths = declarations.map(declaration => declaration.path)
 
     expect(paths).toEqual([
       path.join(workspaceBase, 'aindex', '.idea', '.gitignore'),
       path.join(workspaceBase, 'aindex', '.idea', 'codeStyles', 'Project.xml'),
-      path.join(workspaceBase, 'aindex', '.idea', 'codeStyles', 'codeStyleConfig.xml'),
+      path.join(
+        workspaceBase,
+        'aindex',
+        '.idea',
+        'codeStyles',
+        'codeStyleConfig.xml'
+      ),
       path.join(workspaceBase, 'aindex', '.editorconfig'),
       path.join(workspaceBase, 'memory-sync', '.idea', '.gitignore'),
-      path.join(workspaceBase, 'memory-sync', '.idea', 'codeStyles', 'Project.xml'),
-      path.join(workspaceBase, 'memory-sync', '.idea', 'codeStyles', 'codeStyleConfig.xml'),
+      path.join(
+        workspaceBase,
+        'memory-sync',
+        '.idea',
+        'codeStyles',
+        'Project.xml'
+      ),
+      path.join(
+        workspaceBase,
+        'memory-sync',
+        '.idea',
+        'codeStyles',
+        'codeStyleConfig.xml'
+      ),
       path.join(workspaceBase, 'memory-sync', '.editorconfig')
     ])
   })

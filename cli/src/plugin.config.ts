@@ -18,6 +18,7 @@ import {TraeIDEOutputPlugin} from '@truenine/plugin-trae-ide'
 import {VisualStudioCodeIDEConfigOutputPlugin} from '@truenine/plugin-vscode'
 import {WarpIDEOutputPlugin} from '@truenine/plugin-warp-ide'
 import {WindsurfOutputPlugin} from '@truenine/plugin-windsurf'
+import {ZedIDEConfigOutputPlugin} from '@truenine/plugin-zed'
 import {defineConfig} from '@/config'
 import {TraeCNIDEOutputPlugin} from '@/plugins/plugin-trae-cn-ide'
 
@@ -47,6 +48,7 @@ export async function createDefaultPluginConfig(
         new JetBrainsIDECodeStyleConfigOutputPlugin(),
         new EditorConfigOutputPlugin(),
         new VisualStudioCodeIDEConfigOutputPlugin(),
+        new ZedIDEConfigOutputPlugin(),
         new ReadmeMdConfigFileOutputPlugin()
       ]
     }

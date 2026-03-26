@@ -28,6 +28,7 @@ export const PLUGIN_NAMES = {
   GitExcludeOutput: 'GitExcludeOutputPlugin',
   ReadmeOutput: 'ReadmeMdConfigFileOutputPlugin',
   VSCodeOutput: 'VisualStudioCodeIDEConfigOutputPlugin',
+  ZedOutput: 'ZedIDEConfigOutputPlugin',
   EditorConfigOutput: 'EditorConfigOutputPlugin',
   AntigravityOutput: 'AntigravityOutputPlugin'
 } as const
@@ -90,7 +91,8 @@ export const SourceLocaleExtensions = {
 } as const
 
 export function hasSourcePromptExtension(fileName: string): boolean {
-  return SourcePromptFileExtensions.some(extension => fileName.endsWith(extension))
+  return SourcePromptFileExtensions.some(extension =>
+    fileName.endsWith(extension))
 }
 
 export const GlobalConfigDirs = {

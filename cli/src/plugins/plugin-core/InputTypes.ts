@@ -1,10 +1,5 @@
 import type {ProjectConfig} from './ConfigTypes.schema'
-import type {
-  FilePathKind,
-  IDEKind,
-  PromptKind,
-  RuleScope
-} from './enums'
+import type {FilePathKind, IDEKind, PromptKind, RuleScope} from './enums'
 import type {
   CommandYAMLFrontMatter,
   FileContent,
@@ -38,7 +33,9 @@ export interface Workspace {
 /**
  * IDE configuration file
  */
-export interface ProjectIDEConfigFile<I extends IDEKind = IDEKind.Original> extends FileContent<string, FilePathKind, Path> {
+export interface ProjectIDEConfigFile<
+  I extends IDEKind = IDEKind.Original
+> extends FileContent<string, FilePathKind, Path> {
   readonly type: I
 }
 
@@ -67,6 +64,7 @@ interface CollectedContextData {
 
   /** Other non-prompt fields */
   readonly vscodeConfigFiles?: readonly ProjectIDEConfigFile<IDEKind.VSCode>[]
+  readonly zedConfigFiles?: readonly ProjectIDEConfigFile<IDEKind.Zed>[]
   readonly jetbrainsConfigFiles?: readonly ProjectIDEConfigFile<IDEKind.IntellijIDEA>[]
   readonly editorConfigFiles?: readonly ProjectIDEConfigFile<IDEKind.EditorConfig>[]
   readonly aiAgentIgnoreConfigFiles?: readonly AIAgentIgnoreConfigFile[]
@@ -91,7 +89,9 @@ export interface OutputCollectedContext extends CollectedContextData {}
  * Convert input context to output context boundary object.
  * This keeps input and output stages decoupled while preserving data shape.
  */
-export function toOutputCollectedContext(input: InputCollectedContext): OutputCollectedContext {
+export function toOutputCollectedContext(
+  input: InputCollectedContext
+): OutputCollectedContext {
   return {
     workspace: {
       directory: input.workspace.directory,
@@ -101,14 +101,31 @@ export function toOutputCollectedContext(input: InputCollectedContext): OutputCo
     ...input.commands != null && {commands: [...input.commands]},
     ...input.subAgents != null && {subAgents: [...input.subAgents]},
     ...input.rules != null && {rules: [...input.rules]},
-    ...input.readmePrompts != null && {readmePrompts: [...input.readmePrompts]},
+    ...input.readmePrompts != null && {
+      readmePrompts: [...input.readmePrompts]
+    },
     ...input.globalMemory != null && {globalMemory: input.globalMemory},
-    ...input.vscodeConfigFiles != null && {vscodeConfigFiles: [...input.vscodeConfigFiles]},
-    ...input.jetbrainsConfigFiles != null && {jetbrainsConfigFiles: [...input.jetbrainsConfigFiles]},
-    ...input.editorConfigFiles != null && {editorConfigFiles: [...input.editorConfigFiles]},
-    ...input.aiAgentIgnoreConfigFiles != null && {aiAgentIgnoreConfigFiles: [...input.aiAgentIgnoreConfigFiles]},
-    ...input.globalGitIgnore != null && {globalGitIgnore: input.globalGitIgnore},
-    ...input.shadowGitExclude != null && {shadowGitExclude: input.shadowGitExclude},
+    ...input.vscodeConfigFiles != null && {
+      vscodeConfigFiles: [...input.vscodeConfigFiles]
+    },
+    ...input.zedConfigFiles != null && {
+      zedConfigFiles: [...input.zedConfigFiles]
+    },
+    ...input.jetbrainsConfigFiles != null && {
+      jetbrainsConfigFiles: [...input.jetbrainsConfigFiles]
+    },
+    ...input.editorConfigFiles != null && {
+      editorConfigFiles: [...input.editorConfigFiles]
+    },
+    ...input.aiAgentIgnoreConfigFiles != null && {
+      aiAgentIgnoreConfigFiles: [...input.aiAgentIgnoreConfigFiles]
+    },
+    ...input.globalGitIgnore != null && {
+      globalGitIgnore: input.globalGitIgnore
+    },
+    ...input.shadowGitExclude != null && {
+      shadowGitExclude: input.shadowGitExclude
+    },
     ...input.aindexDir != null && {aindexDir: input.aindexDir}
   }
 }
@@ -116,7 +133,13 @@ export function toOutputCollectedContext(input: InputCollectedContext): OutputCo
 /**
  * Rule prompt with glob patterns for file-scoped rule application
  */
-export interface RulePrompt extends Prompt<PromptKind.Rule, RuleYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
+export interface RulePrompt extends Prompt<
+  PromptKind.Rule,
+  RuleYAMLFrontMatter,
+  FilePathKind.Relative,
+  RelativePath,
+  string
+> {
   readonly type: PromptKind.Rule
   readonly prefix: string
   readonly ruleName: string
@@ -129,7 +152,13 @@ export interface RulePrompt extends Prompt<PromptKind.Rule, RuleYAMLFrontMatter,
 /**
  * Command prompt
  */
-export interface CommandPrompt extends Prompt<PromptKind.Command, CommandYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
+export interface CommandPrompt extends Prompt<
+  PromptKind.Command,
+  CommandYAMLFrontMatter,
+  FilePathKind.Relative,
+  RelativePath,
+  string
+> {
   readonly type: PromptKind.Command
   readonly globalOnly?: true
   readonly commandPrefix?: string
@@ -141,7 +170,13 @@ export interface CommandPrompt extends Prompt<PromptKind.Command, CommandYAMLFro
 /**
  * Sub-agent prompt
  */
-export interface SubAgentPrompt extends Prompt<PromptKind.SubAgent, SubAgentYAMLFrontMatter, FilePathKind.Relative, RelativePath, string> {
+export interface SubAgentPrompt extends Prompt<
+  PromptKind.SubAgent,
+  SubAgentYAMLFrontMatter,
+  FilePathKind.Relative,
+  RelativePath,
+  string
+> {
   readonly type: PromptKind.SubAgent
   readonly agentPrefix?: string
   readonly agentName: string
@@ -211,7 +246,10 @@ export interface SkillMcpConfig {
   readonly rawContent: string
 }
 
-export interface SkillPrompt extends Prompt<PromptKind.Skill, SkillYAMLFrontMatter> {
+export interface SkillPrompt extends Prompt<
+  PromptKind.Skill,
+  SkillYAMLFrontMatter
+> {
   readonly type: PromptKind.Skill
   readonly dir: RelativePath
   readonly skillName: string
@@ -234,7 +272,9 @@ export type ReadmeFileKind = 'Readme' | 'CodeOfConduct' | 'Security'
 /**
  * Mapping from ReadmeFileKind to source/output file names
  */
-export const README_FILE_KIND_MAP: Readonly<Record<ReadmeFileKind, {readonly src: string, readonly out: string}>> = {
+export const README_FILE_KIND_MAP: Readonly<
+  Record<ReadmeFileKind, {readonly src: string, readonly out: string}>
+> = {
   Readme: {src: 'rdm.mdx', out: 'README.md'},
   CodeOfConduct: {src: 'coc.mdx', out: 'CODE_OF_CONDUCT.md'},
   Security: {src: 'security.mdx', out: 'SECURITY.md'}
@@ -300,7 +340,10 @@ export interface LocalizedSource<T extends Prompt = Prompt> {
 }
 
 /** Universal localized prompt wrapper */
-export interface LocalizedPrompt<T extends Prompt = Prompt, K extends PromptKind = PromptKind> {
+export interface LocalizedPrompt<
+  T extends Prompt = Prompt,
+  K extends PromptKind = PromptKind
+> {
   readonly name: string // Prompt identifier name
   readonly type: K // Prompt type kind
   readonly src?: LocalizedSource<T> // Source files content (src directory, optional when dist-only)
@@ -341,7 +384,12 @@ export interface LocalizedReadOptions<T extends Prompt, K extends PromptKind> {
   readonly hydrateSourceContents?: boolean
 
   /** Create prompt from content */
-  readonly createPrompt: (content: string, locale: Locale, name: string, metadata?: Record<string, unknown>) => T | Promise<T>
+  readonly createPrompt: (
+    content: string,
+    locale: Locale,
+    name: string,
+    metadata?: Record<string, unknown>
+  ) => T | Promise<T>
 
   /** Prompt kind */
   readonly kind: K

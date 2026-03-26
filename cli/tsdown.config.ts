@@ -45,7 +45,8 @@ const pluginAliases: Record<string, string> = {
   '@truenine/plugin-trae-ide': resolve('src/plugins/plugin-trae-ide.ts'),
   '@truenine/plugin-vscode': resolve('src/plugins/plugin-vscode.ts'),
   '@truenine/plugin-warp-ide': resolve('src/plugins/plugin-warp-ide.ts'),
-  '@truenine/plugin-windsurf': resolve('src/plugins/plugin-windsurf.ts')
+  '@truenine/plugin-windsurf': resolve('src/plugins/plugin-windsurf.ts'),
+  '@truenine/plugin-zed': resolve('src/plugins/plugin-zed.ts')
 }
 
 const noExternalDeps = [
@@ -64,7 +65,9 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
-    inlineOnly: false,
+    deps: {
+      onlyBundle: false
+    },
     alias: {
       '@': resolve('src'),
       ...pluginAliases
@@ -85,7 +88,9 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
-    inlineOnly: false,
+    deps: {
+      onlyBundle: false
+    },
     alias: {
       '@': resolve('src'),
       ...pluginAliases
@@ -105,7 +110,9 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     unbundle: false,
-    inlineOnly: false,
+    deps: {
+      onlyBundle: false
+    },
     alias: {
       '@': resolve('src'),
       ...pluginAliases

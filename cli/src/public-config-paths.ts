@@ -1,4 +1,3 @@
-import type {ProxyCommand, ProxyContext} from '@truenine/script-runtime'
 import type {IDEKind} from './plugins/plugin-core/enums'
 import type {ProjectIDEConfigFile} from './plugins/plugin-core/InputTypes'
 import * as fs from 'node:fs'
@@ -30,6 +29,7 @@ export const KNOWN_PUBLIC_CONFIG_TARGET_RELATIVE_PATHS = [
   AINDEX_FILE_NAMES.EDITOR_CONFIG,
   AINDEX_FILE_NAMES.VSCODE_SETTINGS,
   AINDEX_FILE_NAMES.VSCODE_EXTENSIONS,
+  AINDEX_FILE_NAMES.ZED_SETTINGS,
   AINDEX_FILE_NAMES.IDEA_PROJECT_XML,
   AINDEX_FILE_NAMES.IDEA_CODE_STYLE_CONFIG_XML,
   AINDEX_FILE_NAMES.IDEA_GITIGNORE,
@@ -41,6 +41,16 @@ export interface PublicDefinitionResolveOptions {
   readonly workspaceDir?: string | undefined
 }
 
+type ProxyCommand = 'execute' | 'dry-run' | 'clean' | 'plugins'
+
+interface ProxyContext {
+  readonly cwd: string
+  readonly workspaceDir: string
+  readonly aindexDir: string
+  readonly command: ProxyCommand
+  readonly platform: NodeJS.Platform
+}
+
 const publicDefinitionPathCache = new Map<string, string>()
 
 function normalizeTargetRelativePath(targetRelativePath: string): string {
@@ -49,7 +59,8 @@ function normalizeTargetRelativePath(targetRelativePath: string): string {
     .filter(segment => segment.length > 0)
     .join('/')
 
-  if (normalizedPath.length === 0) throw new Error('public target relative path cannot be empty')
+  if (normalizedPath.length === 0)
+  { throw new Error('public target relative path cannot be empty') }
   return normalizedPath
 }
 
@@ -61,7 +72,9 @@ function getPublicProxyPath(aindexDir: string): string {
   return path.join(getPublicRootDir(aindexDir), PUBLIC_PROXY_FILE_NAME)
 }
 
-function getResolveCommand(options?: PublicDefinitionResolveOptions): ProxyCommand {
+function getResolveCommand(
+  options?: PublicDefinitionResolveOptions
+): ProxyCommand {
   return options?.command ?? 'execute'
 }
 
@@ -88,24 +101,41 @@ function buildProxyContext(
   }
 }
 
+function resolvePublicPathForDefinition(
+  filePath: string,
+  ctx: ProxyContext,
+  logicalPath: string
+): string {
+  // `tsc` resolves this workspace package correctly, but ESLint's type-aware rules
+  // sometimes treat it as an error-typed export during monorepo lint execution.
+  return resolvePublicPath(filePath, ctx, logicalPath)
+}
+
 function resolvePublicDefinitionRelativePath(
   aindexDir: string,
   targetRelativePath: string,
   options?: PublicDefinitionResolveOptions
 ): string {
   const normalizedTargetPath = normalizeTargetRelativePath(targetRelativePath)
-  if (normalizedTargetPath === PUBLIC_PROXY_FILE_NAME) return PUBLIC_PROXY_FILE_NAME
+  if (normalizedTargetPath === PUBLIC_PROXY_FILE_NAME)
+  { return PUBLIC_PROXY_FILE_NAME }
 
   const proxyFilePath = getPublicProxyPath(aindexDir)
-  if (!(fs.existsSync(proxyFilePath) && fs.statSync(proxyFilePath).isFile())) return normalizedTargetPath
+  if (!(fs.existsSync(proxyFilePath) && fs.statSync(proxyFilePath).isFile()))
+  { return normalizedTargetPath }
 
   const command = getResolveCommand(options)
   const workspaceDir = getResolveWorkspaceDir(aindexDir, options)
-  const cacheKey = [proxyFilePath, workspaceDir, command, normalizedTargetPath].join('::')
+  const cacheKey = [
+    proxyFilePath,
+    workspaceDir,
+    command,
+    normalizedTargetPath
+  ].join('::')
   const cachedPath = publicDefinitionPathCache.get(cacheKey)
   if (cachedPath != null) return cachedPath
 
-  const resolvedRelativePath = resolvePublicPath(
+  const resolvedRelativePath = resolvePublicPathForDefinition(
     proxyFilePath,
     buildProxyContext(aindexDir, workspaceDir, command),
     normalizedTargetPath
@@ -120,8 +150,15 @@ export function resolvePublicDefinitionPath(
   targetRelativePath: string,
   options?: PublicDefinitionResolveOptions
 ): string {
-  const resolvedRelativePath = resolvePublicDefinitionRelativePath(aindexDir, targetRelativePath, options)
-  return path.join(getPublicRootDir(aindexDir), ...resolvedRelativePath.split(/[\\/]+/))
+  const resolvedRelativePath = resolvePublicDefinitionRelativePath(
+    aindexDir,
+    targetRelativePath,
+    options
+  )
+  return path.join(
+    getPublicRootDir(aindexDir),
+    ...resolvedRelativePath.split(/[\\/]+/)
+  )
 }
 
 export function collectKnownPublicConfigDefinitionPaths(
@@ -133,7 +170,9 @@ export function collectKnownPublicConfigDefinitionPaths(
   ])
 
   for (const targetRelativePath of KNOWN_PUBLIC_CONFIG_TARGET_RELATIVE_PATHS) {
-    resolvedPaths.add(resolvePublicDefinitionPath(aindexDir, targetRelativePath, options))
+    resolvedPaths.add(
+      resolvePublicDefinitionPath(aindexDir, targetRelativePath, options)
+    )
   }
 
   return [...resolvedPaths]
@@ -146,8 +185,13 @@ export function readPublicIdeConfigDefinitionFile<T extends IDEKind>(
   fs: typeof import('node:fs'),
   options?: PublicDefinitionResolveOptions
 ): ProjectIDEConfigFile<T> | undefined {
-  const absolutePath = resolvePublicDefinitionPath(aindexDir, targetRelativePath, options)
-  if (!(fs.existsSync(absolutePath) && fs.statSync(absolutePath).isFile())) return void 0
+  const absolutePath = resolvePublicDefinitionPath(
+    aindexDir,
+    targetRelativePath,
+    options
+  )
+  if (!(fs.existsSync(absolutePath) && fs.statSync(absolutePath).isFile()))
+  { return void 0 }
 
   const content = fs.readFileSync(absolutePath, 'utf8')
   return {

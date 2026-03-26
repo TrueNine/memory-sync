@@ -10,7 +10,6 @@
     ],
     "moduleDetection": "force",
     "useDefineForClassFields": true,
-    "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
@@ -41,9 +40,13 @@
       "@truenine/plugin-trae-ide": ["./src/plugins/plugin-trae-ide.ts"],
       "@truenine/plugin-vscode": ["./src/plugins/plugin-vscode.ts"],
       "@truenine/plugin-warp-ide": ["./src/plugins/plugin-warp-ide.ts"],
-      "@truenine/plugin-windsurf": ["./src/plugins/plugin-windsurf.ts"]
+      "@truenine/plugin-windsurf": ["./src/plugins/plugin-windsurf.ts"],
+      "@truenine/plugin-zed": ["./src/plugins/plugin-zed.ts"]
     },
     "resolveJsonModule": true,
+    "types": [
+      "node"
+    ],
     "allowImportingTsExtensions": true,
     "strict": true,
     "strictBindCallApply": true,

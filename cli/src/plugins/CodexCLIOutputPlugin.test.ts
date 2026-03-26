@@ -1,9 +1,10 @@
-import type {CommandPrompt, InputCapabilityContext, OutputWriteContext, SubAgentPrompt} from './plugin-core'
+import type {CommandPrompt, InputCapabilityContext, OutputCleanContext, OutputWriteContext, SubAgentPrompt} from './plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
+import {collectDeletionTargets} from '../commands/CleanupUtils'
 import {mergeConfig} from '../config'
 import {CommandInputCapability} from '../inputs/input-command'
 import {CodexCLIOutputPlugin} from './CodexCLIOutputPlugin'
@@ -44,6 +45,38 @@ function createInputContext(tempWorkspace: string): InputCapabilityContext {
     userConfigOptions: mergeConfig({workspaceDir: tempWorkspace}),
     dependencyContext: {}
   } as InputCapabilityContext
+}
+
+function createCleanContext(): OutputCleanContext {
+  return {
+    logger: {
+      trace: () => {},
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+      fatal: () => {}
+    },
+    fs,
+    path,
+    glob,
+    dryRun: true,
+    runtimeTargets: {
+      jetbrainsCodexDirs: []
+    },
+    collectedOutputContext: {
+      workspace: {
+        directory: {
+          pathKind: FilePathKind.Relative,
+          path: '.',
+          basePath: '.',
+          getDirectoryName: () => '.',
+          getAbsolutePath: () => path.resolve('.')
+        },
+        projects: []
+      }
+    }
+  } as OutputCleanContext
 }
 
 function createWriteContext(
@@ -297,6 +330,35 @@ describe('codexCLIOutputPlugin command output', () => {
         path.join(homeDir, '.codex', 'agents', 'qa-reviewer.toml')
       )
       expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
+    })
+  })
+
+  it('cleans global codex skills while preserving the built-in .system directory', async () => {
+    await withTempCodexDirs('tnmsc-codex-cleanup-skills', async ({homeDir}) => {
+      const plugin = new TestCodexCLIOutputPlugin(homeDir)
+      const skillsDir = path.join(homeDir, '.codex', 'skills')
+      const preservedDir = path.join(skillsDir, '.system')
+      const staleDir = path.join(skillsDir, 'legacy-skill')
+
+      fs.mkdirSync(preservedDir, {recursive: true})
+      fs.mkdirSync(staleDir, {recursive: true})
+      fs.writeFileSync(path.join(preservedDir, 'SKILL.md'), '# preserved', 'utf8')
+      fs.writeFileSync(path.join(staleDir, 'SKILL.md'), '# stale', 'utf8')
+
+      const cleanupDeclarations = await plugin.declareCleanupPaths(createCleanContext())
+      const protectPaths = cleanupDeclarations.protect?.map(target => target.path.replaceAll('\\', '/')) ?? []
+      const skillCleanupTarget = cleanupDeclarations.delete?.find(target => target.kind === 'glob' && target.path.includes(`${path.sep}.codex${path.sep}skills${path.sep}`))
+      const cleanupPlan = await collectDeletionTargets([plugin], createCleanContext())
+      const normalizedDeleteDirs = cleanupPlan.dirsToDelete.map(target => target.replaceAll('\\', '/'))
+      const normalizedPreservedDir = preservedDir.replaceAll('\\', '/')
+      const normalizedStaleDir = staleDir.replaceAll('\\', '/')
+
+      expect(skillCleanupTarget).toBeDefined()
+      expect(skillCleanupTarget?.excludeBasenames).toEqual(['.system'])
+      expect(protectPaths).toContain(normalizedPreservedDir)
+      expect(normalizedDeleteDirs).toContain(normalizedStaleDir)
+      expect(normalizedDeleteDirs).not.toContain(normalizedPreservedDir)
+      expect(cleanupPlan.violations).toEqual([])
     })
   })
 })

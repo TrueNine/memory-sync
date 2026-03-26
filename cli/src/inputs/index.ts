@@ -54,3 +54,6 @@ export {
 export {
   WorkspaceInputCapability
 } from './input-workspace' // Regular Input Plugins
+export {
+  ZedConfigInputCapability
+} from './input-zed-config'
