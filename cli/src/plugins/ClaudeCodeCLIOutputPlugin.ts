@@ -1,4 +1,4 @@
-import type {RulePrompt} from './plugin-core'
+import type {OutputCleanContext, OutputCleanupDeclarations, RulePrompt} from './plugin-core'
 import {doubleQuoted} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from './plugin-core'
 
@@ -44,7 +44,6 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       cleanup: {
         delete: {
           project: {
-            files: [PROJECT_MEMORY_FILE],
             dirs: ['.claude/rules', '.claude/commands', '.claude/agents', '.claude/skills']
           },
           global: {
@@ -80,5 +79,17 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
         }
       }
     })
+  }
+
+  override async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
+    const declarations = await super.declareCleanupPaths(ctx)
+
+    return {
+      ...declarations,
+      delete: [
+        ...declarations.delete ?? [],
+        ...this.buildProjectPromptCleanupTargets(ctx, PROJECT_MEMORY_FILE)
+      ]
+    }
   }
 }

@@ -1,4 +1,6 @@
 import type {
+  OutputCleanContext,
+  OutputCleanupDeclarations,
   OutputFileDeclaration,
   OutputWriteContext
 } from './plugin-core'
@@ -11,13 +13,6 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     super('AgentsOutputPlugin', {
       outputFileName: PROJECT_MEMORY_FILE,
       treatWorkspaceRootProjectAsProject: true,
-      cleanup: {
-        delete: {
-          project: {
-            files: [PROJECT_MEMORY_FILE]
-          }
-        }
-      },
       capabilities: {
         prompt: {
           scopes: ['project'],
@@ -25,6 +20,18 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
         }
       }
     })
+  }
+
+  override async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
+    const declarations = await super.declareCleanupPaths(ctx)
+
+    return {
+      ...declarations,
+      delete: [
+        ...declarations.delete ?? [],
+        ...this.buildProjectPromptCleanupTargets(ctx, PROJECT_MEMORY_FILE)
+      ]
+    }
   }
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {

@@ -1,3 +1,4 @@
+import type {OutputCleanContext, OutputCleanupDeclarations} from './plugin-core'
 import {AbstractOutputPlugin} from './plugin-core'
 
 const PROJECT_MEMORY_FILE = 'GEMINI.md'
@@ -11,9 +12,6 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
       treatWorkspaceRootProjectAsProject: true,
       cleanup: {
         delete: {
-          project: {
-            globs: [PROJECT_MEMORY_FILE]
-          },
           global: {
             files: ['.gemini/GEMINI.md']
           }
@@ -26,5 +24,17 @@ export class GeminiCLIOutputPlugin extends AbstractOutputPlugin {
         }
       }
     })
+  }
+
+  override async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
+    const declarations = await super.declareCleanupPaths(ctx)
+
+    return {
+      ...declarations,
+      delete: [
+        ...declarations.delete ?? [],
+        ...this.buildProjectPromptCleanupTargets(ctx, PROJECT_MEMORY_FILE)
+      ]
+    }
   }
 }

@@ -1,112 +1,149 @@
-import type {DeletionError} from '../core/desk-paths'
 import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputFileDeclaration, OutputPlugin, PluginOptions} from '../plugins/plugin-core'
-import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-import glob from 'fast-glob'
+import type {ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
 import {
   buildDiagnostic,
   buildFileOperationDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
-import {compactDeletionTargets} from '../cleanup/delete-targets'
-import {deleteTargets as deskDeleteTargets} from '../core/desk-paths'
+import {getNativeBinding} from '../core/native-binding'
+import {collectAllPluginOutputs} from '../plugins/plugin-core'
 import {
-  collectAllPluginOutputs
-} from '../plugins/plugin-core'
-import {
-  buildComparisonKeys,
   collectConfiguredAindexInputRules,
   collectProjectRoots,
   collectProtectedInputSourceRules,
-  createProtectedDeletionGuard,
-  logProtectedDeletionGuardError,
-  partitionDeletionTargets,
-  resolveAbsolutePath
+  logProtectedDeletionGuardError
 } from '../ProtectedDeletionGuard'
+import {
+  CleanupProtectionConflictError,
+  collectDeletionTargets as collectDeletionTargetsFallback,
+  performCleanup as performCleanupFallback
+} from './CleanupUtils.fallback'
 
-/**
- * Result of cleanup operation
- */
-export interface CleanupResult {
-  readonly deletedFiles: number
-  readonly deletedDirs: number
-  readonly errors: readonly CleanupError[]
-  readonly violations: readonly import('../ProtectedDeletionGuard').ProtectedPathViolation[]
-  readonly conflicts: readonly CleanupProtectionConflict[]
-  readonly message?: string
+export type {
+  CleanupError,
+  CleanupProtectionConflict,
+  CleanupResult
+} from './CleanupUtils.fallback'
+export {
+  CleanupProtectionConflictError
+} from './CleanupUtils.fallback'
+
+interface NativeCleanupBinding {
+  readonly planCleanup?: (snapshotJson: string) => string | Promise<string>
+  readonly performCleanup?: (snapshotJson: string) => string | Promise<string>
 }
 
-/**
- * Error during cleanup operation
- */
-export interface CleanupError {
+type NativeProtectionMode = 'direct' | 'recursive'
+type NativeProtectionRuleMatcher = 'path' | 'glob'
+type NativeCleanupTargetKind = 'file' | 'directory' | 'glob'
+type NativeCleanupErrorKind = 'file' | 'directory'
+
+interface NativeCleanupTarget {
   readonly path: string
-  readonly type: 'file' | 'directory'
-  readonly error: unknown
+  readonly kind: NativeCleanupTargetKind
+  readonly excludeBasenames?: readonly string[]
+  readonly protectionMode?: NativeProtectionMode
+  readonly scope?: string
+  readonly label?: string
 }
 
-export interface CleanupProtectionConflict {
+interface NativeCleanupDeclarations {
+  readonly delete?: readonly NativeCleanupTarget[]
+  readonly protect?: readonly NativeCleanupTarget[]
+  readonly excludeScanGlobs?: readonly string[]
+}
+
+interface NativePluginCleanupSnapshot {
+  readonly pluginName: string
+  readonly outputs: readonly string[]
+  readonly cleanup: NativeCleanupDeclarations
+}
+
+interface NativeProtectedRule {
+  readonly path: string
+  readonly protectionMode: NativeProtectionMode
+  readonly reason: string
+  readonly source: string
+  readonly matcher?: NativeProtectionRuleMatcher | undefined
+}
+
+interface NativeCleanupSnapshot {
+  readonly workspaceDir: string
+  readonly aindexDir?: string
+  readonly projectRoots: readonly string[]
+  readonly protectedRules: readonly NativeProtectedRule[]
+  readonly pluginSnapshots: readonly NativePluginCleanupSnapshot[]
+}
+
+interface NativeProtectedPathViolation {
+  readonly targetPath: string
+  readonly protectedPath: string
+  readonly protectionMode: NativeProtectionMode
+  readonly reason: string
+  readonly source: string
+}
+
+interface NativeCleanupProtectionConflict {
   readonly outputPath: string
   readonly outputPlugin: string
   readonly protectedPath: string
-  readonly protectionMode: ProtectionMode
+  readonly protectionMode: NativeProtectionMode
   readonly protectedBy: string
   readonly reason: string
 }
 
-export class CleanupProtectionConflictError extends Error {
-  readonly conflicts: readonly CleanupProtectionConflict[]
-
-  constructor(conflicts: readonly CleanupProtectionConflict[]) {
-    super(buildCleanupProtectionConflictMessage(conflicts))
-    this.name = 'CleanupProtectionConflictError'
-    this.conflicts = conflicts
-  }
-}
-
-interface CleanupTargetCollections {
+interface NativeCleanupPlan {
   readonly filesToDelete: string[]
   readonly dirsToDelete: string[]
-  readonly violations: readonly import('../ProtectedDeletionGuard').ProtectedPathViolation[]
-  readonly conflicts: readonly CleanupProtectionConflict[]
+  readonly violations: readonly NativeProtectedPathViolation[]
+  readonly conflicts: readonly NativeCleanupProtectionConflict[]
   readonly excludedScanGlobs: string[]
 }
 
-const DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS = [
-  '**/node_modules/**',
-  '**/.git/**',
-  '**/.turbo/**',
-  '**/.pnpm-store/**',
-  '**/.yarn/**',
-  '**/.next/**'
-] as const
-
-function normalizeGlobPattern(pattern: string): string {
-  return resolveAbsolutePath(pattern).replaceAll('\\', '/')
+interface NativeCleanupError {
+  readonly path: string
+  readonly kind: NativeCleanupErrorKind
+  readonly error: string
 }
 
-function expandCleanupGlob(
-  pattern: string,
-  ignoreGlobs: readonly string[]
-): readonly string[] {
-  const normalizedPattern = normalizeGlobPattern(pattern)
-  return glob.sync(normalizedPattern, {
-    onlyFiles: false,
-    dot: true,
-    absolute: true,
-    followSymbolicLinks: false,
-    ignore: [...ignoreGlobs]
-  })
+interface NativeCleanupResult {
+  readonly deletedFiles: number
+  readonly deletedDirs: number
+  readonly errors: readonly NativeCleanupError[]
+  readonly violations: readonly NativeProtectedPathViolation[]
+  readonly conflicts: readonly NativeCleanupProtectionConflict[]
+  readonly filesToDelete: string[]
+  readonly dirsToDelete: string[]
+  readonly excludedScanGlobs: string[]
 }
 
-function shouldExcludeCleanupMatch(
-  matchedPath: string,
-  target: OutputCleanupPathDeclaration
-): boolean {
-  if (target.excludeBasenames == null || target.excludeBasenames.length === 0) return false
-  const basename = path.basename(matchedPath)
-  return target.excludeBasenames.includes(basename)
+const nativeBinding = getNativeBinding<NativeCleanupBinding>()
+
+export function hasNativeCleanupBinding(): boolean {
+  return nativeBinding?.planCleanup != null && nativeBinding.performCleanup != null
+}
+
+function mapProtectionMode(mode: ProtectionMode): NativeProtectionMode {
+  return mode
+}
+
+function mapProtectionRuleMatcher(
+  matcher: ProtectionRuleMatcher | undefined
+): NativeProtectionRuleMatcher | undefined {
+  return matcher
+}
+
+function mapCleanupTarget(target: OutputCleanupPathDeclaration): NativeCleanupTarget {
+  return {
+    path: target.path,
+    kind: target.kind,
+    ...target.excludeBasenames != null && target.excludeBasenames.length > 0
+      ? {excludeBasenames: [...target.excludeBasenames]}
+      : {},
+    ...target.protectionMode != null ? {protectionMode: mapProtectionMode(target.protectionMode)} : {},
+    ...target.scope != null ? {scope: target.scope} : {},
+    ...target.label != null ? {label: target.label} : {}
+  }
 }
 
 async function collectPluginCleanupDeclarations(
@@ -121,11 +158,7 @@ async function collectPluginCleanupSnapshot(
   plugin: OutputPlugin,
   cleanCtx: OutputCleanContext,
   predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
-): Promise<{
-  readonly plugin: OutputPlugin
-  readonly outputs: Awaited<ReturnType<OutputPlugin['declareOutputFiles']>>
-  readonly cleanup: OutputCleanupDeclarations
-}> {
+): Promise<NativePluginCleanupSnapshot> {
   const existingOutputDeclarations = predeclaredOutputs?.get(plugin)
   const [outputs, cleanup] = await Promise.all([
     existingOutputDeclarations != null
@@ -134,50 +167,45 @@ async function collectPluginCleanupSnapshot(
     collectPluginCleanupDeclarations(plugin, cleanCtx)
   ])
 
-  return {plugin, outputs, cleanup}
+  return {
+    pluginName: plugin.name,
+    outputs: outputs.map(output => output.path),
+    cleanup: {
+      ...cleanup.delete != null && cleanup.delete.length > 0
+        ? {delete: cleanup.delete.map(mapCleanupTarget)}
+        : {},
+      ...cleanup.protect != null && cleanup.protect.length > 0
+        ? {protect: cleanup.protect.map(mapCleanupTarget)}
+        : {},
+      ...cleanup.excludeScanGlobs != null && cleanup.excludeScanGlobs.length > 0
+        ? {excludeScanGlobs: [...cleanup.excludeScanGlobs]}
+        : {}
+    }
+  }
 }
 
-function buildCleanupProtectionConflictMessage(conflicts: readonly CleanupProtectionConflict[]): string {
+function collectConfiguredCleanupProtectionRules(
+  cleanCtx: OutputCleanContext
+): NativeProtectedRule[] {
+  return (cleanCtx.pluginOptions?.cleanupProtection?.rules ?? []).map(rule => ({
+    path: rule.path,
+    protectionMode: mapProtectionMode(rule.protectionMode),
+    reason: rule.reason ?? 'configured cleanup protection rule',
+    source: 'configured-cleanup-protection',
+    matcher: mapProtectionRuleMatcher(rule.matcher ?? 'path')
+  }))
+}
+
+function buildCleanupProtectionConflictMessage(
+  conflicts: readonly NativeCleanupProtectionConflict[]
+): string {
   const pathList = conflicts.map(conflict => conflict.outputPath).join(', ')
   return `Cleanup protection conflict: ${conflicts.length} output path(s) are also protected: ${pathList}`
 }
 
-function detectCleanupProtectionConflicts(
-  outputPathOwners: ReadonlyMap<string, readonly string[]>,
-  guard: ReturnType<typeof createProtectedDeletionGuard>
-): CleanupProtectionConflict[] {
-  const conflicts: CleanupProtectionConflict[] = []
-
-  for (const [outputPath, outputPlugins] of outputPathOwners.entries()) {
-    const outputKeys = new Set(buildComparisonKeys(outputPath))
-
-    for (const rule of guard.compiledRules) {
-      const isExactMatch = rule.comparisonKeys.some(ruleKey => outputKeys.has(ruleKey))
-      if (!isExactMatch) continue
-
-      for (const outputPlugin of outputPlugins) {
-        conflicts.push({
-          outputPath,
-          outputPlugin,
-          protectedPath: rule.path,
-          protectionMode: rule.protectionMode,
-          protectedBy: rule.source,
-          reason: rule.reason
-        })
-      }
-    }
-  }
-
-  return conflicts.sort((a, b) => {
-    const pathDiff = a.outputPath.localeCompare(b.outputPath)
-    if (pathDiff !== 0) return pathDiff
-    return a.protectedPath.localeCompare(b.protectedPath)
-  })
-}
-
 function logCleanupProtectionConflicts(
   logger: ILogger,
-  conflicts: readonly CleanupProtectionConflict[]
+  conflicts: readonly NativeCleanupProtectionConflict[]
 ): void {
   const firstConflict = conflicts[0]
 
@@ -199,190 +227,37 @@ function logCleanupProtectionConflicts(
     ],
     details: {
       count: conflicts.length,
-      conflicts: conflicts.map(conflict => ({
-        outputPath: conflict.outputPath,
-        outputPlugin: conflict.outputPlugin,
-        protectedPath: conflict.protectedPath,
-        protectionMode: conflict.protectionMode,
-        protectedBy: conflict.protectedBy,
-        reason: conflict.reason
-      }))
+      conflicts
     }
   }))
 }
 
-/**
- * Collect deletion targets from enabled output plugins.
- */
-export async function collectDeletionTargets(
-  outputPlugins: readonly OutputPlugin[],
-  cleanCtx: OutputCleanContext,
-  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
-): Promise<{
-  filesToDelete: string[]
-  dirsToDelete: string[]
-  violations: import('../ProtectedDeletionGuard').ProtectedPathViolation[]
-  conflicts: CleanupProtectionConflict[]
-  excludedScanGlobs: string[]
-}> {
-  const deleteFiles = new Set<string>()
-  const deleteDirs = new Set<string>()
-  const protectedRules = new Map<string, ProtectedPathRule>()
-  const excludeScanGlobSet = new Set<string>(DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS)
-  const outputPathOwners = new Map<string, string[]>()
-
-  const pluginSnapshots = await Promise.all(
-    outputPlugins.map(async plugin => collectPluginCleanupSnapshot(plugin, cleanCtx, predeclaredOutputs))
-  )
-
-  const addDeletePath = (rawPath: string, kind: 'file' | 'directory'): void => {
-    if (kind === 'directory') deleteDirs.add(resolveAbsolutePath(rawPath))
-    else deleteFiles.add(resolveAbsolutePath(rawPath))
-  }
-
-  const addProtectRule = (
-    rawPath: string,
-    protectionMode: ProtectionMode,
-    reason: string,
-    source: string,
-    matcher: ProtectionRuleMatcher = 'path'
-  ): void => {
-    const resolvedPath = resolveAbsolutePath(rawPath)
-    protectedRules.set(`${matcher}:${protectionMode}:${resolvedPath}`, {
-      path: resolvedPath,
-      protectionMode,
-      reason,
-      source,
-      matcher
-    })
-  }
-
-  const defaultProtectionModeForTarget = (target: OutputCleanupPathDeclaration): ProtectionMode => {
-    if (target.protectionMode != null) return target.protectionMode
-    return target.kind === 'file' ? 'direct' : 'recursive'
-  }
-
-  for (const rule of collectProtectedInputSourceRules(cleanCtx.collectedOutputContext)) addProtectRule(rule.path, rule.protectionMode, rule.reason, rule.source)
-  if (cleanCtx.collectedOutputContext.aindexDir != null && cleanCtx.pluginOptions != null) {
-    for (const rule of collectConfiguredAindexInputRules(cleanCtx.pluginOptions as Required<PluginOptions>, cleanCtx.collectedOutputContext.aindexDir, {
-      workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path
-    })) {
-      addProtectRule(rule.path, rule.protectionMode, rule.reason, rule.source, rule.matcher)
-    }
-  }
-
-  for (const rule of cleanCtx.pluginOptions?.cleanupProtection?.rules ?? []) {
-    addProtectRule(
-      rule.path,
-      rule.protectionMode,
-      rule.reason ?? 'configured cleanup protection rule',
-      'configured-cleanup-protection',
-      rule.matcher ?? 'path'
-    )
-  }
-
-  for (const snapshot of pluginSnapshots) {
-    for (const declaration of snapshot.outputs) {
-      const resolvedOutputPath = resolveAbsolutePath(declaration.path)
-      addDeletePath(resolvedOutputPath, 'file')
-      const existingOwners = outputPathOwners.get(resolvedOutputPath)
-      if (existingOwners == null) outputPathOwners.set(resolvedOutputPath, [snapshot.plugin.name])
-      else if (!existingOwners.includes(snapshot.plugin.name)) existingOwners.push(snapshot.plugin.name)
-    }
-    for (const ignoreGlob of snapshot.cleanup.excludeScanGlobs ?? []) excludeScanGlobSet.add(normalizeGlobPattern(ignoreGlob))
-  }
-
-  const excludeScanGlobs = [...excludeScanGlobSet]
-
-  const resolveDeleteGlob = (target: OutputCleanupPathDeclaration): void => {
-    for (const matchedPath of expandCleanupGlob(target.path, excludeScanGlobs)) {
-      if (shouldExcludeCleanupMatch(matchedPath, target)) continue
-
-      try {
-        const stat = fs.lstatSync(matchedPath)
-        if (stat.isDirectory()) addDeletePath(matchedPath, 'directory')
-        else addDeletePath(matchedPath, 'file')
-      }
-      catch {}
-    }
-  }
-
-  const resolveProtectGlob = (target: OutputCleanupPathDeclaration, pluginName: string): void => {
-    const protectionMode = defaultProtectionModeForTarget(target)
-    const reason = target.label != null
-      ? `plugin cleanup protect declaration (${target.label})`
-      : 'plugin cleanup protect declaration'
-
-    for (const matchedPath of expandCleanupGlob(target.path, excludeScanGlobs)) {
-      addProtectRule(matchedPath, protectionMode, reason, `plugin-cleanup-protect:${pluginName}`)
-    }
-  }
-
-  for (const {plugin, cleanup} of pluginSnapshots) {
-    for (const target of cleanup.protect ?? []) {
-      if (target.kind === 'glob') {
-        resolveProtectGlob(target, plugin.name)
-        continue
-      }
-      addProtectRule(
-        target.path,
-        defaultProtectionModeForTarget(target),
-        target.label != null ? `plugin cleanup protect declaration (${target.label})` : 'plugin cleanup protect declaration',
-        `plugin-cleanup-protect:${plugin.name}`
-      )
-    }
-
-    for (const target of cleanup.delete ?? []) {
-      if (target.kind === 'glob') {
-        resolveDeleteGlob(target)
-        continue
-      }
-      if (target.kind === 'directory') addDeletePath(target.path, 'directory')
-      else addDeletePath(target.path, 'file')
-    }
-  }
-
-  const guard = createProtectedDeletionGuard({
-    workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path,
-    projectRoots: collectProjectRoots(cleanCtx.collectedOutputContext),
-    rules: [...protectedRules.values()],
-    ...cleanCtx.collectedOutputContext.aindexDir != null
-      ? {aindexDir: cleanCtx.collectedOutputContext.aindexDir}
-      : {}
+function logCleanupPlanDiagnostics(
+  logger: ILogger,
+  plan: Pick<NativeCleanupPlan | NativeCleanupResult, 'filesToDelete' | 'dirsToDelete' | 'violations' | 'conflicts' | 'excludedScanGlobs'>
+): void {
+  logger.debug('cleanup plan built', {
+    filesToDelete: plan.filesToDelete.length,
+    dirsToDelete: plan.dirsToDelete.length,
+    violations: plan.violations.length,
+    conflicts: plan.conflicts.length,
+    excludedScanGlobs: plan.excludedScanGlobs
   })
-  const conflicts = detectCleanupProtectionConflicts(outputPathOwners, guard)
-  if (conflicts.length > 0) throw new CleanupProtectionConflictError(conflicts)
-  const filePartition = partitionDeletionTargets([...deleteFiles], guard)
-  const dirPartition = partitionDeletionTargets([...deleteDirs], guard)
-
-  const compactedTargets = compactDeletionTargets(
-    filePartition.safePaths,
-    dirPartition.safePaths
-  )
-
-  return {
-    filesToDelete: compactedTargets.files,
-    dirsToDelete: compactedTargets.dirs,
-    violations: [...filePartition.violations, ...dirPartition.violations].sort((a, b) => a.targetPath.localeCompare(b.targetPath)),
-    conflicts: [],
-    excludedScanGlobs: [...excludeScanGlobSet].sort((a, b) => a.localeCompare(b))
-  }
 }
 
-function buildCleanupErrors(
+function logNativeCleanupErrors(
   logger: ILogger,
-  errors: readonly DeletionError[],
-  type: 'file' | 'directory'
-): CleanupError[] {
+  errors: readonly NativeCleanupError[]
+): readonly {path: string, type: 'file' | 'directory', error: string}[] {
   return errors.map(currentError => {
-    const errorMessage = currentError.error instanceof Error ? currentError.error.message : String(currentError.error)
+    const type = currentError.kind === 'directory' ? 'directory' : 'file'
     logger.warn(buildFileOperationDiagnostic({
       code: type === 'file' ? 'CLEANUP_FILE_DELETE_FAILED' : 'CLEANUP_DIRECTORY_DELETE_FAILED',
       title: type === 'file' ? 'Cleanup could not delete a file' : 'Cleanup could not delete a directory',
       operation: 'delete',
       targetKind: type,
       path: currentError.path,
-      error: errorMessage,
+      error: currentError.error,
       details: {
         phase: 'cleanup'
       }
@@ -392,61 +267,116 @@ function buildCleanupErrors(
   })
 }
 
-async function executeCleanupTargets(
-  targets: CleanupTargetCollections,
-  logger: ILogger
-): Promise<{deletedFiles: number, deletedDirs: number, errors: CleanupError[]}> {
-  logger.debug('cleanup delete execution started', {
-    filesToDelete: targets.filesToDelete.length,
-    dirsToDelete: targets.dirsToDelete.length
-  })
+async function buildCleanupSnapshot(
+  outputPlugins: readonly OutputPlugin[],
+  cleanCtx: OutputCleanContext,
+  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
+): Promise<NativeCleanupSnapshot> {
+  const pluginSnapshots = await Promise.all(
+    outputPlugins.map(async plugin => collectPluginCleanupSnapshot(plugin, cleanCtx, predeclaredOutputs))
+  )
 
-  const result = await deskDeleteTargets({
-    files: targets.filesToDelete,
-    dirs: targets.dirsToDelete
-  })
+  const protectedRules: NativeProtectedRule[] = []
+  for (const rule of collectProtectedInputSourceRules(cleanCtx.collectedOutputContext)) {
+    protectedRules.push({
+      path: rule.path,
+      protectionMode: mapProtectionMode(rule.protectionMode),
+      reason: rule.reason,
+      source: rule.source,
+      ...rule.matcher != null ? {matcher: mapProtectionRuleMatcher(rule.matcher)} : {}
+    })
+  }
 
-  const fileErrors = buildCleanupErrors(logger, result.fileErrors, 'file')
-  const dirErrors = buildCleanupErrors(logger, result.dirErrors, 'directory')
-  const allErrors = [...fileErrors, ...dirErrors]
+  if (cleanCtx.collectedOutputContext.aindexDir != null && cleanCtx.pluginOptions != null) {
+    for (const rule of collectConfiguredAindexInputRules(
+      cleanCtx.pluginOptions as Required<PluginOptions>,
+      cleanCtx.collectedOutputContext.aindexDir,
+      {workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path}
+    )) {
+      protectedRules.push({
+        path: rule.path,
+        protectionMode: mapProtectionMode(rule.protectionMode),
+        reason: rule.reason,
+        source: rule.source,
+        ...rule.matcher != null ? {matcher: mapProtectionRuleMatcher(rule.matcher)} : {}
+      })
+    }
+  }
 
-  logger.debug('cleanup delete execution complete', {
-    deletedFiles: result.deletedFiles.length,
-    deletedDirs: result.deletedDirs.length,
-    errors: allErrors.length
-  })
+  protectedRules.push(...collectConfiguredCleanupProtectionRules(cleanCtx))
 
   return {
-    deletedFiles: result.deletedFiles.length,
-    deletedDirs: result.deletedDirs.length,
-    errors: allErrors
+    workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path,
+    ...cleanCtx.collectedOutputContext.aindexDir != null
+      ? {aindexDir: cleanCtx.collectedOutputContext.aindexDir}
+      : {},
+    projectRoots: collectProjectRoots(cleanCtx.collectedOutputContext),
+    protectedRules,
+    pluginSnapshots
   }
 }
 
-function logCleanupPlanDiagnostics(
-  logger: ILogger,
-  targets: CleanupTargetCollections
-): void {
-  logger.debug('cleanup plan built', {
-    filesToDelete: targets.filesToDelete.length,
-    dirsToDelete: targets.dirsToDelete.length,
-    violations: targets.violations.length,
-    conflicts: targets.conflicts.length,
-    excludedScanGlobs: targets.excludedScanGlobs
-  })
+function parseNativeJson<T>(json: string): T {
+  return JSON.parse(json) as T
 }
 
-/**
- * Perform cleanup operation for output plugins.
- * This is the main reusable cleanup function that can be called from both
- * CleanCommand and ExecuteCommand (for pre-cleanup).
- */
+export async function planCleanupWithNative(
+  snapshot: NativeCleanupSnapshot
+): Promise<NativeCleanupPlan> {
+  if (nativeBinding?.planCleanup == null) throw new Error('Native cleanup planning is unavailable')
+  const result = await Promise.resolve(nativeBinding.planCleanup(JSON.stringify(snapshot)))
+  return parseNativeJson<NativeCleanupPlan>(result)
+}
+
+export async function performCleanupWithNative(
+  snapshot: NativeCleanupSnapshot
+): Promise<NativeCleanupResult> {
+  if (nativeBinding?.performCleanup == null) throw new Error('Native cleanup execution is unavailable')
+  const result = await Promise.resolve(nativeBinding.performCleanup(JSON.stringify(snapshot)))
+  return parseNativeJson<NativeCleanupResult>(result)
+}
+
+export async function collectDeletionTargets(
+  outputPlugins: readonly OutputPlugin[],
+  cleanCtx: OutputCleanContext,
+  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
+): Promise<{
+  filesToDelete: string[]
+  dirsToDelete: string[]
+  violations: import('../ProtectedDeletionGuard').ProtectedPathViolation[]
+  conflicts: import('./CleanupUtils.fallback').CleanupProtectionConflict[]
+  excludedScanGlobs: string[]
+}> {
+  if (!hasNativeCleanupBinding()) {
+    return collectDeletionTargetsFallback(outputPlugins, cleanCtx, predeclaredOutputs)
+  }
+
+  const snapshot = await buildCleanupSnapshot(outputPlugins, cleanCtx, predeclaredOutputs)
+  const plan = await planCleanupWithNative(snapshot)
+
+  if (plan.conflicts.length > 0) {
+    throw new CleanupProtectionConflictError(plan.conflicts)
+  }
+
+  return {
+    filesToDelete: plan.filesToDelete,
+    dirsToDelete: plan.dirsToDelete,
+    violations: [...plan.violations],
+    conflicts: [],
+    excludedScanGlobs: plan.excludedScanGlobs
+  }
+}
+
 export async function performCleanup(
   outputPlugins: readonly OutputPlugin[],
   cleanCtx: OutputCleanContext,
   logger: ILogger,
   predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
-): Promise<CleanupResult> {
+): Promise<import('./CleanupUtils.fallback').CleanupResult> {
+  if (!hasNativeCleanupBinding()) {
+    return performCleanupFallback(outputPlugins, cleanCtx, logger, predeclaredOutputs)
+  }
+
   if (predeclaredOutputs != null) {
     const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx, predeclaredOutputs)
     logger.debug('Collected outputs for cleanup', {
@@ -457,51 +387,50 @@ export async function performCleanup(
     })
   }
 
-  let targets: Awaited<ReturnType<typeof collectDeletionTargets>>
-  try {
-    targets = await collectDeletionTargets(outputPlugins, cleanCtx, predeclaredOutputs)
-  }
-  catch (error) {
-    if (error instanceof CleanupProtectionConflictError) {
-      logCleanupProtectionConflicts(logger, error.conflicts)
-      return {
-        deletedFiles: 0,
-        deletedDirs: 0,
-        errors: [],
-        violations: [],
-        conflicts: error.conflicts,
-        message: error.message
-      }
-    }
-    throw error
-  }
-  const cleanupTargets: CleanupTargetCollections = {
-    filesToDelete: targets.filesToDelete,
-    dirsToDelete: targets.dirsToDelete,
-    violations: targets.violations,
-    conflicts: targets.conflicts,
-    excludedScanGlobs: targets.excludedScanGlobs
-  }
-  logCleanupPlanDiagnostics(logger, cleanupTargets)
+  const snapshot = await buildCleanupSnapshot(outputPlugins, cleanCtx, predeclaredOutputs)
+  const result = await performCleanupWithNative(snapshot)
 
-  if (cleanupTargets.violations.length > 0) {
-    logProtectedDeletionGuardError(logger, 'cleanup', cleanupTargets.violations)
+  logCleanupPlanDiagnostics(logger, result)
+
+  if (result.conflicts.length > 0) {
+    logCleanupProtectionConflicts(logger, result.conflicts)
     return {
       deletedFiles: 0,
       deletedDirs: 0,
       errors: [],
-      violations: cleanupTargets.violations,
-      conflicts: [],
-      message: `Protected deletion guard blocked cleanup for ${cleanupTargets.violations.length} path(s)`
+      violations: [],
+      conflicts: result.conflicts,
+      message: buildCleanupProtectionConflictMessage(result.conflicts)
     }
   }
 
-  const executionResult = await executeCleanupTargets(cleanupTargets, logger)
+  if (result.violations.length > 0) {
+    logProtectedDeletionGuardError(logger, 'cleanup', result.violations)
+    return {
+      deletedFiles: 0,
+      deletedDirs: 0,
+      errors: [],
+      violations: result.violations,
+      conflicts: [],
+      message: `Protected deletion guard blocked cleanup for ${result.violations.length} path(s)`
+    }
+  }
+
+  logger.debug('cleanup delete execution started', {
+    filesToDelete: result.filesToDelete.length,
+    dirsToDelete: result.dirsToDelete.length
+  })
+  const loggedErrors = logNativeCleanupErrors(logger, result.errors)
+  logger.debug('cleanup delete execution complete', {
+    deletedFiles: result.deletedFiles,
+    deletedDirs: result.deletedDirs,
+    errors: loggedErrors.length
+  })
 
   return {
-    deletedFiles: executionResult.deletedFiles,
-    deletedDirs: executionResult.deletedDirs,
-    errors: executionResult.errors,
+    deletedFiles: result.deletedFiles,
+    deletedDirs: result.deletedDirs,
+    errors: loggedErrors,
     violations: [],
     conflicts: []
   }

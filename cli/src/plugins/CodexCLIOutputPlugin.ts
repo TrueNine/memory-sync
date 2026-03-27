@@ -97,6 +97,12 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
     super('CodexCLIOutputPlugin', CODEX_OUTPUT_OPTIONS)
   }
 
+  /**
+   * Project-scoped output still writes to the workspace project, but Codex also
+   * resolves user-installed skills from `~/.codex/skills/`. Cleanup therefore
+   * needs to prune that global skills directory as well, while preserving the
+   * built-in `.system/` subtree.
+   */
   override async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
     const declarations = await super.declareCleanupPaths(ctx)
 
