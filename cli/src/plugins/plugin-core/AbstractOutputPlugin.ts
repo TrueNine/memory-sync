@@ -560,6 +560,47 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return path.dirname(p)
   }
 
+  protected buildProjectPromptCleanupTargets(
+    ctx: OutputCleanContext,
+    fileName: string = this.outputFileName
+  ): readonly OutputCleanupPathDeclaration[] {
+    if (fileName.length === 0) return []
+
+    const declarations: OutputCleanupPathDeclaration[] = []
+    const seenPaths = new Set<string>()
+
+    const pushCleanupFile = (
+      targetPath: string,
+      label: string
+    ): void => {
+      if (seenPaths.has(targetPath)) return
+      seenPaths.add(targetPath)
+      declarations.push({
+        path: targetPath,
+        kind: 'file',
+        scope: 'project',
+        label
+      })
+    }
+
+    for (const project of this.getProjectPromptOutputProjects(ctx)) {
+      const projectRootDir = this.resolveProjectRootDir(ctx, project)
+      if (projectRootDir == null) continue
+
+      pushCleanupFile(this.resolvePath(projectRootDir, fileName), 'delete.project')
+
+      if (project.childMemoryPrompts == null) continue
+      for (const child of project.childMemoryPrompts) {
+        pushCleanupFile(
+          this.resolveFullPath(child.dir, fileName),
+          'delete.project.child'
+        )
+      }
+    }
+
+    return declarations
+  }
+
   protected basename(p: string, ext?: string): string {
     return path.basename(p, ext)
   }

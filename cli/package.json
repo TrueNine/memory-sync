@@ -58,7 +58,9 @@
     "lint": "eslint --cache .",
     "prepublishOnly": "run-s build",
     "test": "run-s build:deps test:run",
+    "test:native-cleanup-smoke": "tsx scripts/cleanup-native-smoke.ts",
     "test:run": "vitest run",
+    "benchmark:cleanup": "tsx scripts/benchmark-cleanup.ts",
     "lintfix": "eslint --fix --cache .",
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },

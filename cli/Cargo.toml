@@ -33,6 +33,8 @@ sha2 = { workspace = true }
 napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
 reqwest = { version = "0.13.2", default-features = false, features = ["blocking", "json", "rustls"] }
+globset = "0.4.16"
+walkdir = "2.5.0"
 
 [dev-dependencies]
 proptest = "1.10.0"
