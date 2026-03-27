@@ -233,7 +233,7 @@ fn resolve_absolute_path(raw_path: &str) -> PathBuf {
 }
 
 fn path_to_string(path: &Path) -> String {
-    path.to_string_lossy().into_owned()
+    normalize_path(path).to_string_lossy().into_owned()
 }
 
 fn path_to_glob_string(path: &Path) -> String {
