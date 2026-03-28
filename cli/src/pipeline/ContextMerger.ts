@@ -3,7 +3,7 @@
  * Handles merging of partial InputCollectedContext objects
  */
 
-import type {InputCollectedContext, Workspace} from '../plugins/plugin-core'
+import type {InputCollectedContext, Project, Workspace} from '../plugins/plugin-core'
 
 /**
  * Merge strategy types for context fields
@@ -100,14 +100,21 @@ function mergeArrays<T>(
 /**
  * Merge workspace projects. Later projects with the same name replace earlier ones.
  */
+function buildProjectMergeKey(project: Project): string {
+  if (project.isWorkspaceRootProject === true) return `workspace-root:${project.name ?? ''}`
+
+  const promptSeries = project.promptSeries ?? 'workspace'
+  return `${promptSeries}:${project.name ?? ''}`
+}
+
 function mergeWorkspaceProjects(
   base: Workspace,
   addition: Workspace
 ): Workspace {
   const projectMap = new Map<string | undefined, (typeof base.projects)[0]>()
-  for (const project of base.projects) projectMap.set(project.name, project)
+  for (const project of base.projects) projectMap.set(buildProjectMergeKey(project), project)
   for (const project of addition.projects)
-  { projectMap.set(project.name, project) }
+  { projectMap.set(buildProjectMergeKey(project), project) }
   return {
     directory: addition.directory ?? base.directory,
     projects: [...projectMap.values()]

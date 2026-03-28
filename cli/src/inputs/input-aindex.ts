@@ -1,6 +1,11 @@
 import type {InputCapabilityContext, InputCollectedContext, Project, ProjectConfig, Workspace} from '../plugins/plugin-core'
+import type {AindexProjectSeriesConfig} from '@/aindex-project-series'
 
 import JSON5 from 'json5'
+import {
+  collectAindexProjectSeriesProjectNameConflicts,
+  resolveAindexProjectSeriesConfigs
+} from '@/aindex-project-series'
 import {
   buildConfigDiagnostic,
   buildFileOperationDiagnostic,
@@ -10,6 +15,7 @@ import {AbstractInputCapability, FilePathKind} from '../plugins/plugin-core'
 
 export class AindexInputCapability extends AbstractInputCapability {
   private static readonly projectConfigFileName = 'project.json5'
+  private static readonly conflictingProjectSeriesCode = 'AINDEX_PROJECT_SERIES_NAME_CONFLICT'
 
   constructor() {
     super('AindexInputCapability')
@@ -78,73 +84,164 @@ export class AindexInputCapability extends AbstractInputCapability {
     }
   }
 
-  collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
-    const {userConfigOptions: options, logger, fs, path} = ctx
-    const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
+  private async scanSeriesProjects(
+    ctx: InputCapabilityContext,
+    workspaceDir: string,
+    aindexDir: string,
+    aindexName: string,
+    projectNameSource: readonly AindexProjectSeriesConfig[]
+  ): Promise<Project[]> {
+    const {logger, fs, path} = ctx
+    const projectGroups = await Promise.all(projectNameSource.map(async series => {
+      const aindexProjectsDir = this.resolveAindexPath(series.dist, aindexDir)
+      const distDirStat = await fs.promises.stat(aindexProjectsDir).catch(() => void 0)
+      if (!(distDirStat?.isDirectory() === true)) return []
 
-    const aindexProjectsDir = this.resolveAindexPath(options.aindex.app.dist, aindexDir)
-
-    const aindexName = path.basename(aindexDir)
-
-    const aindexProjects: Project[] = []
-
-    if (fs.existsSync(aindexProjectsDir) && fs.statSync(aindexProjectsDir).isDirectory()) {
       try {
-        const entries = fs.readdirSync(aindexProjectsDir, {withFileTypes: true})
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            const isTheAindex = entry.name === aindexName
-            const projectConfig = this.loadProjectConfig(entry.name, aindexDir, options.aindex.app.src, fs, path, logger)
+        const entries = (await fs.promises.readdir(aindexProjectsDir, {withFileTypes: true}))
+          .filter(entry => entry.isDirectory())
+          .sort((a, b) => a.name.localeCompare(b.name))
+        const projects: Project[] = []
 
-            aindexProjects.push({
-              name: entry.name,
-              ...isTheAindex && {isPromptSourceProject: true},
-              ...projectConfig != null && {projectConfig},
-              dirFromWorkspacePath: {
-                pathKind: FilePathKind.Relative,
-                path: entry.name,
-                basePath: workspaceDir,
-                getDirectoryName: () => entry.name,
-                getAbsolutePath: () => path.resolve(workspaceDir, entry.name)
-              }
-            })
-          }
+        for (const entry of entries) {
+          const isTheAindex = entry.name === aindexName
+          const projectConfig = this.loadProjectConfig(entry.name, aindexDir, series.src, fs, path, logger)
+
+          projects.push({
+            name: entry.name,
+            promptSeries: series.name,
+            ...isTheAindex && {isPromptSourceProject: true},
+            ...projectConfig != null && {projectConfig},
+            dirFromWorkspacePath: {
+              pathKind: FilePathKind.Relative,
+              path: entry.name,
+              basePath: workspaceDir,
+              getDirectoryName: () => entry.name,
+              getAbsolutePath: () => path.resolve(workspaceDir, entry.name)
+            }
+          })
         }
+
+        return projects
       }
       catch (e) {
         logger.error(buildFileOperationDiagnostic({
           code: 'AINDEX_PROJECT_DIRECTORY_SCAN_FAILED',
-          title: 'Failed to scan aindex projects directory',
+          title: `Failed to scan aindex ${series.name} projects directory`,
           operation: 'scan',
-          targetKind: 'aindex projects directory',
+          targetKind: `aindex ${series.name} projects directory`,
           path: aindexProjectsDir,
           error: e
         }))
+
+        return []
       }
+    }))
+
+    return projectGroups.flat()
+  }
+
+  private loadFallbackProjectConfig(
+    projectName: string,
+    aindexDir: string,
+    ctx: Pick<InputCapabilityContext, 'fs' | 'path' | 'logger' | 'userConfigOptions'>
+  ): ProjectConfig | undefined {
+    for (const series of resolveAindexProjectSeriesConfigs(ctx.userConfigOptions)) {
+      const config = this.loadProjectConfig(projectName, aindexDir, series.src, ctx.fs, ctx.path, ctx.logger)
+      if (config != null) return config
     }
 
-    if (aindexProjects.length === 0 && fs.existsSync(workspaceDir) && fs.statSync(workspaceDir).isDirectory()) {
-      logger.debug('no projects in dist/app/, falling back to workspace scan', {workspaceDir})
-      try {
-        const entries = fs.readdirSync(workspaceDir, {withFileTypes: true})
-        for (const entry of entries) {
-          if (entry.isDirectory() && !entry.name.startsWith('.')) {
-            const isTheAindex = entry.name === aindexName
-            const projectConfig = this.loadProjectConfig(entry.name, aindexDir, options.aindex.app.src, fs, path, logger)
+    return void 0
+  }
 
-            aindexProjects.push({
-              name: entry.name,
-              ...isTheAindex && {isPromptSourceProject: true},
-              ...projectConfig != null && {projectConfig},
-              dirFromWorkspacePath: {
-                pathKind: FilePathKind.Relative,
-                path: entry.name,
-                basePath: workspaceDir,
-                getDirectoryName: () => entry.name,
-                getAbsolutePath: () => path.resolve(workspaceDir, entry.name)
-              }
-            })
-          }
+  private assertNoCrossSeriesProjectNameConflicts(
+    ctx: Pick<InputCapabilityContext, 'logger' | 'fs' | 'path'>,
+    aindexDir: string,
+    projectSeries: readonly AindexProjectSeriesConfig[]
+  ): void {
+    const {logger, fs, path} = ctx
+    const projectRefs = projectSeries.flatMap(series => {
+      const seriesSourceDir = path.join(aindexDir, series.src)
+      if (!(fs.existsSync(seriesSourceDir) && fs.statSync(seriesSourceDir).isDirectory())) return []
+
+      return fs
+        .readdirSync(seriesSourceDir, {withFileTypes: true})
+        .filter(entry => entry.isDirectory())
+        .map(entry => ({
+          projectName: entry.name,
+          seriesName: series.name,
+          seriesDir: path.join(seriesSourceDir, entry.name)
+        }))
+    })
+    const conflicts = collectAindexProjectSeriesProjectNameConflicts(projectRefs)
+    if (conflicts.length === 0) return
+
+    logger.error(buildConfigDiagnostic({
+      code: AindexInputCapability.conflictingProjectSeriesCode,
+      title: 'Project names must be unique across app, ext, and arch',
+      reason: diagnosticLines(
+        'tnmsc maps project-scoped outputs back to workspace project names, so app/ext/arch cannot reuse the same directory name.',
+        `Conflicting project names: ${conflicts.map(conflict => conflict.projectName).join(', ')}`
+      ),
+      exactFix: diagnosticLines(
+        'Rename the conflicting project directory in one of the app/ext/arch source trees and rerun tnmsc.'
+      ),
+      possibleFixes: conflicts.map(conflict => diagnosticLines(
+        `"${conflict.projectName}" is currently declared in: ${conflict.refs.map(ref => `${ref.seriesName} (${ref.seriesDir})`).join(', ')}`
+      )),
+      details: {
+        aindexDir,
+        conflicts: conflicts.map(conflict => ({
+          projectName: conflict.projectName,
+          refs: conflict.refs.map(ref => ({
+            seriesName: ref.seriesName,
+            seriesDir: ref.seriesDir
+          }))
+        }))
+      }
+    }))
+
+    throw new Error('Aindex project series name conflict')
+  }
+
+  async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
+    const {userConfigOptions: options, logger, fs, path} = ctx
+    const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
+    const aindexName = path.basename(aindexDir)
+    const projectSeries = resolveAindexProjectSeriesConfigs(options)
+
+    // Project outputs intentionally collapse to <workspace>/<projectName>, so
+    // app/ext/arch must never reuse the same project directory name.
+    this.assertNoCrossSeriesProjectNameConflicts(ctx, aindexDir, projectSeries)
+
+    const aindexProjects = await this.scanSeriesProjects(ctx, workspaceDir, aindexDir, aindexName, projectSeries)
+
+    if (aindexProjects.length === 0 && fs.existsSync(workspaceDir) && fs.statSync(workspaceDir).isDirectory()) {
+      logger.debug('no projects in dist/app, dist/ext, or dist/arch; falling back to workspace scan', {workspaceDir})
+      try {
+        const entries = fs
+          .readdirSync(workspaceDir, {withFileTypes: true})
+          .filter(entry => entry.isDirectory())
+          .sort((a, b) => a.name.localeCompare(b.name))
+
+        for (const entry of entries) {
+          if (entry.name.startsWith('.')) continue
+
+          const isTheAindex = entry.name === aindexName
+          const projectConfig = this.loadFallbackProjectConfig(entry.name, aindexDir, ctx)
+
+          aindexProjects.push({
+            name: entry.name,
+            ...isTheAindex && {isPromptSourceProject: true},
+            ...projectConfig != null && {projectConfig},
+            dirFromWorkspacePath: {
+              pathKind: FilePathKind.Relative,
+              path: entry.name,
+              basePath: workspaceDir,
+              getDirectoryName: () => entry.name,
+              getAbsolutePath: () => path.resolve(workspaceDir, entry.name)
+            }
+          })
         }
       }
       catch (e) {

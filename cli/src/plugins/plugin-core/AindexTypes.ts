@@ -51,11 +51,15 @@ export interface AindexDirectory {
     readonly agents: AindexDirectoryEntry
     readonly rules: AindexDirectoryEntry
     readonly app: AindexDirectoryEntry
+    readonly ext: AindexDirectoryEntry
+    readonly arch: AindexDirectoryEntry
     readonly globalMemoryFile: AindexFileEntry
     readonly workspaceMemoryFile: AindexFileEntry
   }
   /** App directory (project-specific prompts source, standalone at root) */
   readonly app: AindexDirectoryEntry
+  readonly ext: AindexDirectoryEntry
+  readonly arch: AindexDirectoryEntry
   /** IDE configuration directories */
   readonly ide: {
     readonly idea: AindexDirectoryEntry
@@ -69,6 +73,10 @@ export interface AindexDirectory {
   readonly ignoreFiles: readonly AindexFileEntry[]
 }
 
+export const AINDEX_PROJECT_SERIES_NAMES = ['app', 'ext', 'arch'] as const
+
+export type AindexProjectSeriesName = (typeof AINDEX_PROJECT_SERIES_NAMES)[number]
+
 /**
  * Directory names used in aindex project
  */
@@ -80,6 +88,8 @@ export const AINDEX_DIR_NAMES = {
   AGENTS: 'agents',
   RULES: 'rules',
   APP: 'app',
+  EXT: 'ext',
+  ARCH: 'arch',
   IDEA: '.idea', // IDE directories
   IDEA_CODE_STYLES: '.idea/codeStyles',
   VSCODE: '.vscode',
@@ -116,16 +126,20 @@ export const AINDEX_RELATIVE_PATHS = {
   SRC_COMMANDS: 'src/commands',
   SRC_AGENTS: 'src/agents',
   SRC_RULES: 'src/rules',
-  SRC_GLOBAL_MEMORY: 'app/global.src.mdx',
-  SRC_WORKSPACE_MEMORY: 'app/workspace.src.mdx',
+  SRC_GLOBAL_MEMORY: 'global.src.mdx',
+  SRC_WORKSPACE_MEMORY: 'workspace.src.mdx',
   DIST_SKILLS: 'dist/skills', // Distribution paths
   DIST_COMMANDS: 'dist/commands',
   DIST_AGENTS: 'dist/agents',
   DIST_RULES: 'dist/rules',
   DIST_APP: 'dist/app',
+  DIST_EXT: 'dist/ext',
+  DIST_ARCH: 'dist/arch',
   DIST_GLOBAL_MEMORY: 'dist/global.mdx',
   DIST_WORKSPACE_MEMORY: 'dist/workspace.mdx',
-  APP: 'app' // App source path (standalone at root)
+  APP: 'app', // App source path (standalone at root)
+  EXT: 'ext',
+  ARCH: 'arch'
 } as const
 
 /**
@@ -200,12 +214,32 @@ export const DEFAULT_AINDEX_STRUCTURE: AindexDirectory = {
       name: AINDEX_DIR_NAMES.APP,
       required: false,
       description: 'Compiled project-specific prompts'
+    },
+    ext: {
+      name: AINDEX_DIR_NAMES.EXT,
+      required: false,
+      description: 'Compiled extension-specific prompts'
+    },
+    arch: {
+      name: AINDEX_DIR_NAMES.ARCH,
+      required: false,
+      description: 'Compiled architecture-specific prompts'
     }
   },
   app: {
     name: AINDEX_DIR_NAMES.APP,
     required: false,
     description: 'Project-specific prompts (standalone directory)'
+  },
+  ext: {
+    name: AINDEX_DIR_NAMES.EXT,
+    required: false,
+    description: 'Extension-specific prompts (standalone directory)'
+  },
+  arch: {
+    name: AINDEX_DIR_NAMES.ARCH,
+    required: false,
+    description: 'Architecture-specific prompts (standalone directory)'
   },
   ide: {
     idea: {

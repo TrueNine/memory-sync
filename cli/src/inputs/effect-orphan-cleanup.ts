@@ -1,4 +1,5 @@
 import type {InputCapabilityContext, InputCollectedContext, InputEffectContext, InputEffectResult} from '../plugins/plugin-core'
+import {resolveAindexProjectSeriesConfigs} from '@/aindex-project-series'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {compactDeletionTargets} from '../cleanup/delete-targets'
 import {deleteTargets} from '../core/desk-paths'
@@ -15,7 +16,7 @@ export interface OrphanCleanupEffectResult extends InputEffectResult {
   readonly deletedDirs: string[]
 }
 
-const OrphanCleanupDistSubDirs = ['skills', 'commands', 'agents', 'app'] as const
+const OrphanCleanupDistSubDirs = ['skills', 'commands', 'agents', 'app', 'ext', 'arch'] as const
 
 type OrphanCleanupSubDir = (typeof OrphanCleanupDistSubDirs)[number]
 
@@ -37,6 +38,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     return createProtectedDeletionGuard({
       workspaceDir: ctx.workspaceDir,
       aindexDir: ctx.aindexDir,
+      includeReservedWorkspaceContentRoots: false,
       rules: [
         ...collectConfiguredAindexInputRules(ctx.userConfigOptions, ctx.aindexDir, {
           workspaceDir: ctx.workspaceDir
@@ -87,11 +89,14 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     }
 
     const aindexConfig = userConfigOptions.aindex
+    const projectSeries = resolveAindexProjectSeriesConfigs(userConfigOptions)
     const srcPaths: OrphanCleanupSourcePaths = {
       skills: aindexConfig?.skills?.src ?? 'skills',
       commands: aindexConfig?.commands?.src ?? 'commands',
       agents: aindexConfig?.subAgents?.src ?? 'subagents',
-      app: aindexConfig?.app?.src ?? 'app'
+      app: projectSeries.find(series => series.name === 'app')?.src ?? 'app',
+      ext: projectSeries.find(series => series.name === 'ext')?.src ?? 'ext',
+      arch: projectSeries.find(series => series.name === 'arch')?.src ?? 'arch'
     }
 
     const plan = this.buildDeletionPlan(ctx, distDir, srcPaths)
@@ -276,6 +281,8 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
       case 'commands':
       case 'agents':
       case 'app':
+      case 'ext':
+      case 'arch':
         return relativeDir === '.'
           ? SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, `${baseName}${extension}`))
           : SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}${extension}`))

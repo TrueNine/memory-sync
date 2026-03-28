@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10327.10010",
+  "version": "2026.10328.106",
   "description": "TrueNine Memory Synchronization CLI",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -48,20 +48,20 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "run-s build:deps build:napi bundle finalize:bundle generate:schema check",
+    "build": "run-s build:deps build:napi bundle finalize:bundle generate:schema",
     "build:napi": "tsx ../scripts/copy-napi.ts",
     "build:deps": "pnpm -F @truenine/logger -F @truenine/md-compiler -F @truenine/script-runtime run build",
     "bundle": "tsx ../scripts/build-quiet.ts",
     "check": "run-p typecheck lint",
     "finalize:bundle": "tsx scripts/finalize-bundle.ts",
     "generate:schema": "tsx scripts/generate-schema.ts",
-    "lint": "eslint --cache .",
-    "prepublishOnly": "run-s build",
+    "lint": "eslint --cache --cache-location node_modules/.cache/.eslintcache .",
+    "prepublishOnly": "run-s build check",
     "test": "run-s build:deps test:run",
     "test:native-cleanup-smoke": "tsx scripts/cleanup-native-smoke.ts",
     "test:run": "vitest run",
     "benchmark:cleanup": "tsx scripts/benchmark-cleanup.ts",
-    "lintfix": "eslint --fix --cache .",
+    "lintfix": "eslint --fix --cache --cache-location node_modules/.cache/.eslintcache .",
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {

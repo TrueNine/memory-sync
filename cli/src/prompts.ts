@@ -1,8 +1,13 @@
-import type {PluginOptions, YAMLFrontMatter} from '@/plugins/plugin-core'
+import type {AindexProjectSeriesName, PluginOptions, YAMLFrontMatter} from '@/plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import glob from 'fast-glob'
+import {
+  isAindexProjectSeriesName,
+  resolveAindexProjectSeriesConfig,
+  resolveAindexProjectSeriesConfigs
+} from '@/aindex-project-series'
 import {mergeConfig, userConfigToPluginOptions} from './config'
 import {getConfigLoader} from './ConfigLoader'
 import {PathPlaceholders} from './plugins/plugin-core'
@@ -107,6 +112,7 @@ interface PromptDefinition {
 
 interface PromptIdDescriptor {
   readonly kind: ManagedPromptKind
+  readonly seriesName?: AindexProjectSeriesName
   readonly projectName?: string
   readonly relativeName?: string
   readonly skillName?: string
@@ -227,6 +233,7 @@ function buildWorkspaceMemoryDefinition(env: ResolvedPromptEnvironment): PromptD
 
 function buildProjectMemoryDefinition(
   env: ResolvedPromptEnvironment,
+  seriesName: AindexProjectSeriesName,
   projectName: string,
   relativeName?: string
 ): PromptDefinition {
@@ -236,20 +243,21 @@ function buildProjectMemoryDefinition(
   const normalizedRelativeName = relativeName == null
     ? ''
     : normalizeRelativeIdentifier(relativeName, 'relativeName')
+  const seriesConfig = resolveAindexProjectSeriesConfig(env.options, seriesName)
   const sourceDir = normalizedRelativeName.length === 0
-    ? path.join(env.aindexDir, env.options.aindex.app.src, normalizedProjectName)
-    : path.join(env.aindexDir, env.options.aindex.app.src, normalizedProjectName, normalizedRelativeName)
+    ? path.join(env.aindexDir, seriesConfig.src, normalizedProjectName)
+    : path.join(env.aindexDir, seriesConfig.src, normalizedProjectName, normalizedRelativeName)
   const distDir = normalizedRelativeName.length === 0
-    ? path.join(env.aindexDir, env.options.aindex.app.dist, normalizedProjectName)
-    : path.join(env.aindexDir, env.options.aindex.app.dist, normalizedProjectName, normalizedRelativeName)
+    ? path.join(env.aindexDir, seriesConfig.dist, normalizedProjectName)
+    : path.join(env.aindexDir, seriesConfig.dist, normalizedProjectName, normalizedRelativeName)
   const legacyPath = path.join(sourceDir, `${PROJECT_MEMORY_FILE_NAME}${MDX_EXTENSION}`)
   const logicalSuffix = normalizedRelativeName.length === 0
-    ? normalizedProjectName
-    : `${normalizedProjectName}/${normalizedRelativeName}`
+    ? `${seriesName}/${normalizedProjectName}`
+    : `${seriesName}/${normalizedProjectName}/${normalizedRelativeName}`
 
   return {
     promptId: normalizedRelativeName.length === 0
-      ? `project-memory:${normalizedProjectName}`
+      ? `project-memory:${logicalSuffix}`
       : `project-child-memory:${logicalSuffix}`,
     kind: normalizedRelativeName.length === 0 ? 'project-memory' : 'project-child-memory',
     logicalName: logicalSuffix,
@@ -353,13 +361,9 @@ function parsePromptId(promptId: string): PromptIdDescriptor {
 
   switch (kind) {
     case 'project-memory':
-      if (!isSingleSegmentIdentifier(normalizedValue)) throw new Error('project-memory promptId must include a single project name')
-      return {kind, projectName: normalizedValue}
+      return parseProjectPromptDescriptor(kind, normalizedValue)
     case 'project-child-memory': {
-      const [projectName, ...rest] = normalizedValue.split('/')
-      const relativeName = rest.join('/')
-      if (projectName == null || relativeName.length === 0) throw new Error('project-child-memory promptId must include project and child path')
-      return {kind, projectName, relativeName}
+      return parseProjectPromptDescriptor(kind, normalizedValue)
     }
     case 'skill':
       if (!isSingleSegmentIdentifier(normalizedValue)) throw new Error('skill promptId must include a single skill name')
@@ -377,6 +381,38 @@ function parsePromptId(promptId: string): PromptIdDescriptor {
   }
 }
 
+function parseProjectPromptDescriptor(
+  kind: Extract<ManagedPromptKind, 'project-memory' | 'project-child-memory'>,
+  normalizedValue: string
+): PromptIdDescriptor {
+  const segments = normalizedValue.split('/')
+  const maybeSeriesName = segments[0]
+  const hasSeriesName = maybeSeriesName != null && isAindexProjectSeriesName(maybeSeriesName)
+
+  if (kind === 'project-memory') {
+    if (hasSeriesName) {
+      const projectName = segments[1]
+      if (projectName == null || segments.length !== 2) throw new Error('project-memory promptId must include exactly one project name after the series')
+      return {kind, seriesName: maybeSeriesName, projectName}
+    }
+
+    if (!isSingleSegmentIdentifier(normalizedValue)) throw new Error('project-memory promptId must include a single project name')
+    return {kind, seriesName: 'app', projectName: normalizedValue}
+  }
+
+  if (hasSeriesName) {
+    const projectName = segments[1]
+    const relativeName = segments.slice(2).join('/')
+    if (projectName == null || relativeName.length === 0) throw new Error('project-child-memory promptId must include series, project, and child path')
+    return {kind, seriesName: maybeSeriesName, projectName, relativeName}
+  }
+
+  const [projectName, ...rest] = segments
+  const relativeName = rest.join('/')
+  if (projectName == null || relativeName.length === 0) throw new Error('project-child-memory promptId must include project and child path')
+  return {kind, seriesName: 'app', projectName, relativeName}
+}
+
 function buildPromptDefinitionFromId(
   promptId: string,
   env: ResolvedPromptEnvironment
@@ -388,12 +424,12 @@ function buildPromptDefinitionFromId(
     case 'workspace-memory': return buildWorkspaceMemoryDefinition(env)
     case 'project-memory':
       if (descriptor.projectName == null) throw new Error('project-memory promptId must include a project name')
-      return buildProjectMemoryDefinition(env, descriptor.projectName)
+      return buildProjectMemoryDefinition(env, descriptor.seriesName ?? 'app', descriptor.projectName)
     case 'project-child-memory':
       if (descriptor.projectName == null || descriptor.relativeName == null) {
         throw new Error('project-child-memory promptId must include project and child path')
       }
-      return buildProjectMemoryDefinition(env, descriptor.projectName, descriptor.relativeName)
+      return buildProjectMemoryDefinition(env, descriptor.seriesName ?? 'app', descriptor.projectName, descriptor.relativeName)
     case 'skill':
       if (descriptor.skillName == null) throw new Error('skill promptId must include a skill name')
       return buildSkillDefinition(env, descriptor.skillName)
@@ -478,30 +514,32 @@ function collectSkillPromptIds(env: ResolvedPromptEnvironment): string[] {
 }
 
 function collectProjectPromptIds(env: ResolvedPromptEnvironment): string[] {
-  const sourceRoot = path.join(env.aindexDir, env.options.aindex.app.src)
-  const distRoot = path.join(env.aindexDir, env.options.aindex.app.dist)
-  const relativeDirs = new Set<string>()
-
-  for (const match of listFiles(sourceRoot, [`**/${PROJECT_MEMORY_FILE_NAME}${SOURCE_PROMPT_EXTENSION}`, `**/${PROJECT_MEMORY_FILE_NAME}${MDX_EXTENSION}`])) {
-    const directory = normalizeSlashPath(path.posix.dirname(normalizeSlashPath(match)))
-    if (directory !== '.') relativeDirs.add(directory)
-  }
-
-  for (const match of listFiles(distRoot, [`**/${PROJECT_MEMORY_FILE_NAME}${MDX_EXTENSION}`])) {
-    const directory = normalizeSlashPath(path.posix.dirname(normalizeSlashPath(match)))
-    if (directory !== '.') relativeDirs.add(directory)
-  }
-
   const promptIds: string[] = []
 
-  for (const relativeDir of [...relativeDirs].sort()) {
-    const [projectName, ...rest] = relativeDir.split('/')
-    const childPath = rest.join('/')
-    if (projectName == null || projectName.length === 0) continue
+  for (const series of resolveAindexProjectSeriesConfigs(env.options)) {
+    const sourceRoot = path.join(env.aindexDir, series.src)
+    const distRoot = path.join(env.aindexDir, series.dist)
+    const relativeDirs = new Set<string>()
 
-    promptIds.push(childPath.length === 0
-      ? `project-memory:${projectName}`
-      : `project-child-memory:${projectName}/${childPath}`)
+    for (const match of listFiles(sourceRoot, [`**/${PROJECT_MEMORY_FILE_NAME}${SOURCE_PROMPT_EXTENSION}`, `**/${PROJECT_MEMORY_FILE_NAME}${MDX_EXTENSION}`])) {
+      const directory = normalizeSlashPath(path.posix.dirname(normalizeSlashPath(match)))
+      if (directory !== '.') relativeDirs.add(directory)
+    }
+
+    for (const match of listFiles(distRoot, [`**/${PROJECT_MEMORY_FILE_NAME}${MDX_EXTENSION}`])) {
+      const directory = normalizeSlashPath(path.posix.dirname(normalizeSlashPath(match)))
+      if (directory !== '.') relativeDirs.add(directory)
+    }
+
+    for (const relativeDir of [...relativeDirs].sort()) {
+      const [projectName, ...rest] = relativeDir.split('/')
+      const childPath = rest.join('/')
+      if (projectName == null || projectName.length === 0) continue
+
+      promptIds.push(childPath.length === 0
+        ? `project-memory:${series.name}/${projectName}`
+        : `project-child-memory:${series.name}/${projectName}/${childPath}`)
+    }
   }
 
   return promptIds

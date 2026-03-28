@@ -1,3 +1,4 @@
+import type {AindexProjectSeriesName} from './AindexTypes'
 import type {ProjectConfig} from './ConfigTypes.schema'
 import type {FilePathKind, IDEKind, PromptKind, RuleScope} from './enums'
 import type {
@@ -23,6 +24,7 @@ export interface Project {
   readonly isPromptSourceProject?: boolean
   readonly isWorkspaceRootProject?: boolean
   readonly projectConfig?: ProjectConfig
+  readonly promptSeries?: AindexProjectSeriesName
 }
 
 export interface Workspace {

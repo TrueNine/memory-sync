@@ -282,25 +282,24 @@ function collectWorkspaceReservedRules(
 
   for (const projectRoot of projectRoots) rules.push(createProtectedPathRule(projectRoot, 'direct', 'workspace project root', 'workspace-project-root'))
 
-  if (includeReservedWorkspaceContentRoots) {
-    rules.push(
-      createProtectedPathRule(
-        path.join(workspaceDir, 'aindex', 'dist', '**', '*.mdx'),
-        'direct',
-        'reserved workspace aindex dist mdx files',
-        'workspace-reserved',
-        'glob'
-      ),
-      createProtectedPathRule(
-        path.join(workspaceDir, 'aindex', 'app', '**', '*.mdx'),
-        'direct',
-        'reserved workspace aindex app mdx files',
-        'workspace-reserved',
-        'glob'
-      )
-    )
-  }
+  if (!includeReservedWorkspaceContentRoots) return rules
 
+  rules.push(createProtectedPathRule(
+    path.join(workspaceDir, 'aindex', 'dist', '**', '*.mdx'),
+    'direct',
+    'reserved workspace aindex dist mdx files',
+    'workspace-reserved',
+    'glob'
+  ))
+  for (const seriesName of ['app', 'ext', 'arch'] as const) {
+    rules.push(createProtectedPathRule(
+      path.join(workspaceDir, 'aindex', seriesName, '**', '*.mdx'),
+      'direct',
+      `reserved workspace aindex ${seriesName} mdx files`,
+      'workspace-reserved',
+      'glob'
+    ))
+  }
   return rules
 }
 

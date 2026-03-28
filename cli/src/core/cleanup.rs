@@ -305,7 +305,9 @@ fn compile_rule(rule: &ProtectedRuleDto) -> CompiledProtectedRule {
         reason: rule.reason.clone(),
         source: rule.source.clone(),
         comparison_keys: build_comparison_keys(&rule.path),
-        specificity: normalized_path.trim_end_matches(std::path::MAIN_SEPARATOR).len(),
+        specificity: normalized_path
+            .trim_end_matches(std::path::MAIN_SEPARATOR)
+            .len(),
         normalized_path,
     }
 }
@@ -333,8 +335,12 @@ fn dedupe_and_compile_rules(rules: &[ProtectedRuleDto]) -> Vec<CompiledProtected
         b.specificity
             .cmp(&a.specificity)
             .then_with(|| match (a.protection_mode, b.protection_mode) {
-                (ProtectionModeDto::Recursive, ProtectionModeDto::Direct) => std::cmp::Ordering::Less,
-                (ProtectionModeDto::Direct, ProtectionModeDto::Recursive) => std::cmp::Ordering::Greater,
+                (ProtectionModeDto::Recursive, ProtectionModeDto::Direct) => {
+                    std::cmp::Ordering::Less
+                }
+                (ProtectionModeDto::Direct, ProtectionModeDto::Recursive) => {
+                    std::cmp::Ordering::Greater
+                }
                 _ => std::cmp::Ordering::Equal,
             })
             .then_with(|| a.path.cmp(&b.path))
@@ -611,7 +617,9 @@ fn collect_workspace_reserved_rules(
             None,
         ),
         create_protected_rule(
-            &path_to_string(&resolve_absolute_path(&format!("{workspace_dir}/knowladge"))),
+            &path_to_string(&resolve_absolute_path(&format!(
+                "{workspace_dir}/knowladge"
+            ))),
             ProtectionModeDto::Direct,
             "reserved workspace knowladge root",
             "workspace-reserved",
@@ -637,19 +645,24 @@ fn collect_workspace_reserved_rules(
             "workspace-reserved",
             Some(ProtectionRuleMatcherDto::Glob),
         ));
-        rules.push(create_protected_rule(
-            &format!("{workspace_dir}/aindex/app/**/*.mdx"),
-            ProtectionModeDto::Direct,
-            "reserved workspace aindex app mdx files",
-            "workspace-reserved",
-            Some(ProtectionRuleMatcherDto::Glob),
-        ));
+        for series_name in ["app", "ext", "arch"] {
+            rules.push(create_protected_rule(
+                &format!("{workspace_dir}/aindex/{series_name}/**/*.mdx"),
+                ProtectionModeDto::Direct,
+                &format!("reserved workspace aindex {series_name} mdx files"),
+                "workspace-reserved",
+                Some(ProtectionRuleMatcherDto::Glob),
+            ));
+        }
     }
 
     rules
 }
 
-fn create_guard(snapshot: &CleanupSnapshot, rules: &[ProtectedRuleDto]) -> Result<ProtectedDeletionGuard, String> {
+fn create_guard(
+    snapshot: &CleanupSnapshot,
+    rules: &[ProtectedRuleDto],
+) -> Result<ProtectedDeletionGuard, String> {
     let mut all_rules = collect_built_in_dangerous_path_rules();
     all_rules.extend(collect_workspace_reserved_rules(
         &snapshot.workspace_dir,
@@ -677,7 +690,8 @@ fn is_rule_match(target_key: &str, rule_key: &str, protection_mode: ProtectionMo
     match protection_mode {
         ProtectionModeDto::Direct => is_same_or_child_path(rule_key, target_key),
         ProtectionModeDto::Recursive => {
-            is_same_or_child_path(target_key, rule_key) || is_same_or_child_path(rule_key, target_key)
+            is_same_or_child_path(target_key, rule_key)
+                || is_same_or_child_path(rule_key, target_key)
         }
     }
 }
@@ -763,7 +777,10 @@ fn partition_deletion_targets(paths: &[String], guard: &ProtectedDeletionGuard) 
     safe_paths.sort();
     violations.sort_by(|a, b| a.target_path.cmp(&b.target_path));
 
-    PartitionResult { safe_paths, violations }
+    PartitionResult {
+        safe_paths,
+        violations,
+    }
 }
 
 fn compact_deletion_targets(files: &[String], dirs: &[String]) -> (Vec<String>, Vec<String>) {
@@ -783,7 +800,8 @@ fn compact_deletion_targets(files: &[String], dirs: &[String]) -> (Vec<String>, 
         .collect::<HashMap<_, _>>();
 
     let mut sorted_dir_entries = dirs_by_key.into_iter().collect::<Vec<_>>();
-    sorted_dir_entries.sort_by(|(left_key, _), (right_key, _)| left_key.len().cmp(&right_key.len()));
+    sorted_dir_entries
+        .sort_by(|(left_key, _), (right_key, _)| left_key.len().cmp(&right_key.len()));
 
     let mut compacted_dirs: HashMap<String, String> = HashMap::new();
     for (dir_key, dir_path) in sorted_dir_entries {
@@ -869,7 +887,9 @@ fn should_exclude_cleanup_match(matched_path: &str, target: &CleanupTargetDto) -
 fn default_protection_mode_for_target(target: &CleanupTargetDto) -> ProtectionModeDto {
     target.protection_mode.unwrap_or(match target.kind {
         CleanupTargetKindDto::File => ProtectionModeDto::Direct,
-        CleanupTargetKindDto::Directory | CleanupTargetKindDto::Glob => ProtectionModeDto::Recursive,
+        CleanupTargetKindDto::Directory | CleanupTargetKindDto::Glob => {
+            ProtectionModeDto::Recursive
+        }
     })
 }
 
@@ -877,8 +897,11 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
     let mut delete_files = HashSet::new();
     let mut delete_dirs = HashSet::new();
     let mut protected_rules = snapshot.protected_rules.clone();
-    let mut exclude_scan_globs =
-        BTreeSet::from_iter(DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS.iter().map(|value| (*value).to_string()));
+    let mut exclude_scan_globs = BTreeSet::from_iter(
+        DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS
+            .iter()
+            .map(|value| (*value).to_string()),
+    );
     let mut output_path_owners = HashMap::<String, Vec<String>>::new();
 
     for plugin_snapshot in &snapshot.plugin_snapshots {
@@ -1022,11 +1045,16 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
             error: error.error,
         })
         .collect::<Vec<_>>();
-    errors.extend(delete_result.dir_errors.into_iter().map(|error| CleanupErrorDto {
-        path: error.path,
-        kind: CleanupErrorKindDto::Directory,
-        error: error.error,
-    }));
+    errors.extend(
+        delete_result
+            .dir_errors
+            .into_iter()
+            .map(|error| CleanupErrorDto {
+                path: error.path,
+                kind: CleanupErrorKindDto::Directory,
+                error: error.error,
+            }),
+    );
 
     Ok(CleanupExecutionResultDto {
         deleted_files: delete_result.deleted_files.len(),
@@ -1047,7 +1075,8 @@ mod napi_binding {
     use super::{CleanupExecutionResultDto, CleanupPlan, CleanupSnapshot};
 
     fn parse_snapshot(snapshot_json: String) -> napi::Result<CleanupSnapshot> {
-        serde_json::from_str(&snapshot_json).map_err(|error| napi::Error::from_reason(error.to_string()))
+        serde_json::from_str(&snapshot_json)
+            .map_err(|error| napi::Error::from_reason(error.to_string()))
     }
 
     fn serialize_result<T: serde::Serialize>(result: &T) -> napi::Result<String> {
@@ -1173,7 +1202,10 @@ mod tests {
 
         let snapshot = single_plugin_snapshot(
             &workspace_dir,
-            vec![path_to_string(&direct_file), path_to_string(&recursive_file)],
+            vec![
+                path_to_string(&direct_file),
+                path_to_string(&recursive_file),
+            ],
             CleanupDeclarationsDto {
                 protect: vec![
                     CleanupTargetDto {
@@ -1199,10 +1231,11 @@ mod tests {
 
         let plan = plan_cleanup(snapshot).unwrap();
         assert!(plan.files_to_delete.contains(&path_to_string(&direct_file)));
-        assert!(plan
-            .violations
-            .iter()
-            .any(|violation| violation.target_path == path_to_string(&recursive_file)));
+        assert!(
+            plan.violations
+                .iter()
+                .any(|violation| violation.target_path == path_to_string(&recursive_file))
+        );
     }
 
     #[test]
@@ -1232,7 +1265,10 @@ mod tests {
         let plan = plan_cleanup(snapshot).unwrap();
         assert!(plan.dirs_to_delete.is_empty());
         assert_eq!(plan.violations.len(), 1);
-        assert_eq!(plan.violations[0].protected_path, path_to_string(&protected_file));
+        assert_eq!(
+            plan.violations[0].protected_path,
+            path_to_string(&protected_file)
+        );
     }
 
     #[cfg(unix)]
@@ -1264,10 +1300,11 @@ mod tests {
 
         let plan = plan_cleanup(snapshot).unwrap();
         assert!(plan.dirs_to_delete.is_empty());
-        assert!(plan
-            .violations
-            .iter()
-            .any(|violation| violation.target_path == path_to_string(&symlink_path)));
+        assert!(
+            plan.violations
+                .iter()
+                .any(|violation| violation.target_path == path_to_string(&symlink_path))
+        );
     }
 
     #[test]
