@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { PipelineResult, PluginExecutionResult } from '@/api/bridge'
+import type { AindexStats, PipelineResult, PluginExecutionResult } from '@/api/bridge'
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -8,7 +8,15 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 import { invoke } from '@tauri-apps/api/core'
 
-import { cleanOutputs, executePipeline, listPlugins, loadConfig } from '@/api/bridge'
+import {
+  cleanOutputs,
+  executePipeline,
+  getAindexStats,
+  listAindexFiles,
+  listCategoryFiles,
+  listPlugins,
+  loadConfig,
+} from '@/api/bridge'
 
 const mockedInvoke = vi.mocked(invoke)
 
@@ -185,5 +193,50 @@ describe('listPlugins', () => {
     mockedInvoke.mockRejectedValue(new Error('timeout'))
 
     await expect(listPlugins('/slow')).rejects.toThrow('timeout')
+  })
+})
+
+describe('aindex file bridge commands', () => {
+  it('invokes list_aindex_files with cwd only', async () => {
+    mockedInvoke.mockResolvedValue([])
+
+    await listAindexFiles('/workspace')
+
+    expect(mockedInvoke).toHaveBeenCalledWith('list_aindex_files', {
+      cwd: '/workspace',
+    })
+  })
+
+  it('invokes list_category_files with the selected category', async () => {
+    mockedInvoke.mockResolvedValue([])
+
+    await listCategoryFiles('/workspace', 'ext')
+
+    expect(mockedInvoke).toHaveBeenCalledWith('list_category_files', {
+      cwd: '/workspace',
+      category: 'ext',
+    })
+  })
+
+  it('invokes get_aindex_stats with cwd only', async () => {
+    const stats: AindexStats = {
+      totalFiles: 1,
+      totalChars: 2,
+      totalLines: 3,
+      totalSourceMdx: 1,
+      totalResources: 0,
+      totalTranslated: 1,
+      categories: [],
+      projects: [],
+      extensions: [],
+    }
+    mockedInvoke.mockResolvedValue(stats)
+
+    const result = await getAindexStats('/workspace')
+
+    expect(mockedInvoke).toHaveBeenCalledWith('get_aindex_stats', {
+      cwd: '/workspace',
+    })
+    expect(result).toEqual(stats)
   })
 })

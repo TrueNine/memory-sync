@@ -10,6 +10,7 @@ import type {
 import process from 'node:process'
 
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
+import {resolveAindexProjectSeriesConfig, resolveAindexProjectSeriesConfigs} from '@/aindex-project-series'
 import {getGlobalConfigPath} from '@/ConfigLoader'
 import {
   buildConfigDiagnostic,
@@ -33,8 +34,6 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
   async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
     const {dependencyContext, fs, userConfigOptions: options, path, globalScope} = ctx
     const {aindexDir} = this.resolveBasePaths(options)
-
-    const shadowProjectsDir = this.resolveAindexPath(options.aindex.app.dist, aindexDir)
     const workspacePromptPath = this.resolveAindexPath(options.aindex.workspacePrompt.dist, aindexDir)
 
     const dependencyWorkspace = dependencyContext.workspace
@@ -50,8 +49,16 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
       if (projectName == null) return project
       if (project.isWorkspaceRootProject === true) return project
 
-      const shadowProjectPath = path.join(shadowProjectsDir, projectName)
-      if (!fs.existsSync(shadowProjectPath) || !fs.statSync(shadowProjectPath).isDirectory()) return project
+      const seriesConfigs = project.promptSeries != null
+        ? [resolveAindexProjectSeriesConfig(options, project.promptSeries)]
+        : resolveAindexProjectSeriesConfigs(options)
+      const matchingSeries = seriesConfigs.find(series => {
+        const shadowProjectPath = path.join(aindexDir, series.dist, projectName)
+        return fs.existsSync(shadowProjectPath) && fs.statSync(shadowProjectPath).isDirectory()
+      })
+      if (matchingSeries == null) return project
+
+      const shadowProjectPath = path.join(aindexDir, matchingSeries.dist, projectName)
 
       const targetProjectPath = project.dirFromWorkspacePath?.getAbsolutePath()
 
@@ -62,6 +69,7 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
 
       return {
         ...project,
+        ...project.promptSeries == null ? {promptSeries: matchingSeries.name} : {},
         ...rootMemoryPrompt != null && {rootMemoryPrompt},
         ...childMemoryPrompts.length > 0 && {childMemoryPrompts}
       }

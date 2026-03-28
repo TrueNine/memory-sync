@@ -44,12 +44,12 @@ describe('prompt catalog service', () => {
     const now = Date.now()
 
     writeFile(
-      path.join(aindexDir, 'app', 'global.src.mdx'),
+      path.join(aindexDir, 'global.src.mdx'),
       '---\ndescription: global zh\n---\nGlobal zh',
       new Date(now)
     )
     writeFile(
-      path.join(aindexDir, 'app', 'global.mdx'),
+      path.join(aindexDir, 'global.mdx'),
       '---\ndescription: global en\n---\nGlobal en',
       new Date(now - 10_000)
     )
@@ -60,12 +60,12 @@ describe('prompt catalog service', () => {
     )
 
     writeFile(
-      path.join(aindexDir, 'app', 'workspace.src.mdx'),
+      path.join(aindexDir, 'workspace.src.mdx'),
       '---\ndescription: workspace zh\n---\nWorkspace zh',
       new Date(now)
     )
     writeFile(
-      path.join(aindexDir, 'app', 'workspace.mdx'),
+      path.join(aindexDir, 'workspace.mdx'),
       '---\ndescription: workspace en\n---\nWorkspace en',
       new Date(now + 1_000)
     )
@@ -99,6 +99,28 @@ describe('prompt catalog service', () => {
     writeFile(
       path.join(aindexDir, 'dist', 'app', 'project-b', 'docs', 'agt.mdx'),
       '---\ndescription: child dist\n---\nChild dist',
+      new Date(now + 1_000)
+    )
+
+    writeFile(
+      path.join(aindexDir, 'ext', 'project-a', 'agt.src.mdx'),
+      '---\ndescription: ext project zh\n---\nExt project zh',
+      new Date(now)
+    )
+    writeFile(
+      path.join(aindexDir, 'dist', 'ext', 'project-a', 'agt.mdx'),
+      '---\ndescription: ext project dist\n---\nExt project dist',
+      new Date(now + 1_000)
+    )
+
+    writeFile(
+      path.join(aindexDir, 'arch', 'system-a', 'agt.src.mdx'),
+      '---\ndescription: arch project zh\n---\nArch project zh',
+      new Date(now)
+    )
+    writeFile(
+      path.join(aindexDir, 'dist', 'arch', 'system-a', 'agt.mdx'),
+      '---\ndescription: arch project dist\n---\nArch project dist',
       new Date(now + 1_000)
     )
 
@@ -168,33 +190,43 @@ describe('prompt catalog service', () => {
 
     const prompts = await listPrompts(serviceOptions(workspaceDir))
 
-    expect(prompts.map(prompt => prompt.kind)).toEqual([
-      'command',
+    expect(prompts.map(prompt => prompt.promptId)).toEqual([
+      'command:dev/build',
       'global-memory',
-      'project-child-memory',
-      'project-memory',
-      'rule',
-      'skill-child-doc',
-      'skill',
-      'subagent',
+      'project-child-memory:app/project-b/docs',
+      'project-memory:app/project-a',
+      'project-memory:arch/system-a',
+      'project-memory:ext/project-a',
+      'rule:frontend',
+      'skill-child-doc:reviewer/guide',
+      'skill:reviewer',
+      'subagent:qa/boot',
       'workspace-memory'
     ])
     expect(prompts.find(prompt => prompt.promptId === 'global-memory')).toEqual(expect.objectContaining({enStatus: 'stale', distStatus: 'stale'}))
     expect(prompts.find(prompt => prompt.promptId === 'workspace-memory')).toEqual(expect.objectContaining({enStatus: 'ready', distStatus: 'ready'}))
-    expect(prompts.find(prompt => prompt.promptId === 'project-child-memory:project-b/docs')).toEqual(expect.objectContaining({
+    expect(prompts.find(prompt => prompt.promptId === 'project-child-memory:app/project-b/docs')).toEqual(expect.objectContaining({
       legacyZhSource: true,
       enStatus: 'missing',
+      distStatus: 'ready'
+    }))
+    expect(prompts.find(prompt => prompt.promptId === 'project-memory:ext/project-a')).toEqual(expect.objectContaining({
+      logicalName: 'ext/project-a',
       distStatus: 'ready'
     }))
     expect(prompts.find(prompt => prompt.promptId === 'command:dev/build')).toEqual(expect.objectContaining({enStatus: 'missing', distStatus: 'ready'}))
 
     const filtered = await listPrompts({
       ...serviceOptions(workspaceDir),
-      kinds: ['command'],
+      kinds: ['project-memory'],
       distStatus: ['ready']
     })
 
-    expect(filtered.map(prompt => prompt.promptId)).toEqual(['command:dev/build'])
+    expect(filtered.map(prompt => prompt.promptId)).toEqual([
+      'project-memory:app/project-a',
+      'project-memory:arch/system-a',
+      'project-memory:ext/project-a'
+    ])
   })
 
   it('returns prompt contents and expected paths', async () => {
@@ -251,6 +283,7 @@ describe('prompt catalog service', () => {
 
     expect(fs.readFileSync(path.join(aindexDir, 'app', 'project-c', 'agt.src.mdx'), 'utf8')).toContain('Legacy zh')
     expect(fs.readFileSync(legacyPath, 'utf8')).toContain('Translated en')
+    expect(migrated.promptId).toBe('project-memory:app/project-c')
     expect(migrated.src.zh?.legacySource).toBeUndefined()
     expect(migrated.src.en?.content).toContain('Translated en')
 
@@ -264,6 +297,30 @@ describe('prompt catalog service', () => {
     expect(fs.readFileSync(path.join(aindexDir, 'app', 'project-c', 'agt.src.mdx'), 'utf8')).toContain('Rewritten zh')
     expect(fs.existsSync(legacyPath)).toBe(false)
     expect(rewritten.exists.en).toBe(false)
+  })
+
+  it('accepts legacy app project IDs while resolving to series-aware paths', async () => {
+    const workspaceDir = createTempWorkspace('tnmsc-project-legacy-id-')
+    const aindexDir = path.join(workspaceDir, 'aindex')
+    const modifiedAt = new Date()
+
+    writeFile(
+      path.join(aindexDir, 'app', 'project-a', 'agt.src.mdx'),
+      '---\ndescription: project zh\n---\nProject zh',
+      modifiedAt
+    )
+    writeFile(
+      path.join(aindexDir, 'dist', 'app', 'project-a', 'agt.mdx'),
+      '---\ndescription: project dist\n---\nProject dist',
+      modifiedAt
+    )
+
+    const prompt = await getPrompt('project-memory:project-a', serviceOptions(workspaceDir))
+    const resolvedPaths = await resolvePromptDefinition('project-memory:project-a', serviceOptions(workspaceDir))
+
+    expect(prompt?.promptId).toBe('project-memory:app/project-a')
+    expect(resolvedPaths.zh).toBe(path.join(aindexDir, 'app', 'project-a', 'agt.src.mdx'))
+    expect(resolvedPaths.dist).toBe(path.join(aindexDir, 'dist', 'app', 'project-a', 'agt.mdx'))
   })
 
   it('writes translation artifacts independently for en and dist', async () => {

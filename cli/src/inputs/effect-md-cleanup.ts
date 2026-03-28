@@ -4,6 +4,7 @@ import type {
   InputEffectContext,
   InputEffectResult
 } from '../plugins/plugin-core'
+import {resolveAindexProjectSeriesConfigs} from '@/aindex-project-series'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {AbstractInputCapability} from '../plugins/plugin-core'
 
@@ -19,15 +20,17 @@ export class MarkdownWhitespaceCleanupEffectInputCapability extends AbstractInpu
   }
 
   private async cleanupWhitespace(ctx: InputEffectContext): Promise<WhitespaceCleanupEffectResult> {
-    const {fs, path, aindexDir, dryRun, logger} = ctx
+    const {fs, path, aindexDir, dryRun, logger, userConfigOptions} = ctx
 
     const modifiedFiles: string[] = []
     const skippedFiles: string[] = []
     const errors: {path: string, error: Error}[] = []
+    const projectSeriesDirs = resolveAindexProjectSeriesConfigs(userConfigOptions)
+      .map(series => path.join(aindexDir, series.src))
 
     const dirsToScan = [
       path.join(aindexDir, 'src'),
-      path.join(aindexDir, 'app'),
+      ...projectSeriesDirs,
       path.join(aindexDir, 'dist')
     ]
 

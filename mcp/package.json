@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-mcp",
   "type": "module",
-  "version": "2026.10327.10010",
+  "version": "2026.10328.106",
   "description": "MCP stdio server for managing memory-sync prompt sources and translation artifacts",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -34,8 +34,8 @@
   "scripts": {
     "build": "tsdown",
     "check": "run-p typecheck lint",
-    "lint": "eslint --cache .",
-    "lintfix": "eslint --fix --cache .",
+    "lint": "eslint --cache --cache-location node_modules/.cache/.eslintcache .",
+    "lintfix": "eslint --fix --cache --cache-location node_modules/.cache/.eslintcache .",
     "prepublishOnly": "run-s build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.lib.json"

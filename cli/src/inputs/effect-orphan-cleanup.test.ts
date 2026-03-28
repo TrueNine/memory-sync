@@ -67,7 +67,7 @@ describe('orphan file cleanup effect', () => {
     }
   })
 
-  it('blocks deleting dist command mdx files when only a legacy cn source remains', async () => {
+  it('deletes dist command mdx files when only a legacy cn source remains', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-orphan-cleanup-legacy-test-'))
     const srcDir = path.join(tempWorkspace, 'aindex', 'commands')
     const distDir = path.join(tempWorkspace, 'aindex', 'dist', 'commands')
@@ -80,8 +80,11 @@ describe('orphan file cleanup effect', () => {
       fs.writeFileSync(distFile, 'Compiled prompt', 'utf8')
 
       const plugin = new OrphanFileCleanupEffectInputCapability()
-      await expect(plugin.executeEffects(createContext(tempWorkspace))).rejects.toThrow('Protected deletion guard blocked orphan-file-cleanup')
-      expect(fs.existsSync(distFile)).toBe(true)
+      const [result] = await plugin.executeEffects(createContext(tempWorkspace))
+
+      expect(result?.success).toBe(true)
+      expect(fs.existsSync(distFile)).toBe(false)
+      expect(result?.deletedDirs ?? []).toContain(path.join(tempWorkspace, 'aindex', 'dist', 'commands'))
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
@@ -154,6 +157,34 @@ describe('orphan file cleanup effect', () => {
       expect(result?.deletedFiles).toEqual([])
       expect(result?.deletedDirs).toEqual([path.join(tempWorkspace, 'aindex', 'dist', 'commands')])
       expect(fs.existsSync(path.join(tempWorkspace, 'aindex', 'dist', 'commands'))).toBe(false)
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('cleans orphaned ext and arch dist files using matching series source roots', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-orphan-cleanup-series-'))
+    const extSrcFile = path.join(tempWorkspace, 'aindex', 'ext', 'plugin-a', 'agt.src.mdx')
+    const extDistFile = path.join(tempWorkspace, 'aindex', 'dist', 'ext', 'plugin-a', 'agt.mdx')
+    const archDistFile = path.join(tempWorkspace, 'aindex', 'dist', 'arch', 'system-a', 'agt.mdx')
+
+    try {
+      fs.mkdirSync(path.dirname(extSrcFile), {recursive: true})
+      fs.mkdirSync(path.dirname(extDistFile), {recursive: true})
+      fs.mkdirSync(path.dirname(archDistFile), {recursive: true})
+      fs.writeFileSync(extSrcFile, '---\ndescription: ext\n---\nExt prompt', 'utf8')
+      fs.writeFileSync(extDistFile, 'Ext dist', 'utf8')
+      fs.writeFileSync(archDistFile, 'Arch dist', 'utf8')
+
+      const plugin = new OrphanFileCleanupEffectInputCapability()
+      const [result] = await plugin.executeEffects(createContext(tempWorkspace))
+
+      expect(result?.success).toBe(true)
+      expect(fs.existsSync(extDistFile)).toBe(true)
+      expect(fs.existsSync(archDistFile)).toBe(false)
+      expect(result?.deletedDirs ?? []).toContain(path.join(tempWorkspace, 'aindex', 'dist', 'arch'))
+      expect(result?.deletedFiles ?? []).not.toContain(extDistFile)
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

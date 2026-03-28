@@ -3,6 +3,10 @@ import type {InputCapabilityContext, InputCollectedContext, ReadmeFileKind, Read
 import process from 'node:process'
 
 import {CompilerDiagnosticError, ScopeError} from '@truenine/md-compiler/errors'
+import {
+  collectAindexProjectSeriesProjectNameConflicts,
+  resolveAindexProjectSeriesConfigs
+} from '@/aindex-project-series'
 import {getGlobalConfigPath} from '@/ConfigLoader'
 import {
   buildConfigDiagnostic,
@@ -25,46 +29,100 @@ export class ReadmeMdInputCapability extends AbstractInputCapability {
   async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
     const {userConfigOptions: options, logger, fs, path, globalScope} = ctx
     const {workspaceDir, aindexDir} = this.resolveBasePaths(options)
-
-    const aindexProjectsDir = this.resolveAindexPath(options.aindex.app.dist, aindexDir)
-
     const readmePrompts: ReadmePrompt[] = []
+    const projectSeries = resolveAindexProjectSeriesConfigs(options)
+    const projectRefs = projectSeries.flatMap(series => {
+      const seriesSourceDir = this.resolveAindexPath(series.src, aindexDir)
+      if (!(fs.existsSync(seriesSourceDir) && fs.statSync(seriesSourceDir).isDirectory())) return []
 
-    if (!fs.existsSync(aindexProjectsDir) || !fs.statSync(aindexProjectsDir).isDirectory()) {
-      logger.debug('aindex projects directory does not exist', {path: aindexProjectsDir})
-      return {readmePrompts}
-    }
-
-    try {
-      const projectEntries = fs.readdirSync(aindexProjectsDir, {withFileTypes: true})
-
-      for (const projectEntry of projectEntries) {
-        if (!projectEntry.isDirectory()) continue
-
-        const projectName = projectEntry.name
-        const projectDir = path.join(aindexProjectsDir, projectName)
-
-        await this.collectReadmeFiles(
-          ctx,
-          projectDir,
-          projectName,
-          workspaceDir,
-          '',
-          readmePrompts,
-          globalScope
-        )
-      }
-    }
-    catch (e) {
-      logger.error(buildFileOperationDiagnostic({
-        code: 'README_PROJECT_SCAN_FAILED',
-        title: 'Failed to scan aindex projects for readme prompts',
-        operation: 'scan',
-        targetKind: 'aindex project directory',
-        path: aindexProjectsDir,
-        error: e
+      return fs
+        .readdirSync(seriesSourceDir, {withFileTypes: true})
+        .filter(entry => entry.isDirectory())
+        .map(entry => ({
+          projectName: entry.name,
+          seriesName: series.name,
+          seriesDir: path.join(seriesSourceDir, entry.name)
+        }))
+    })
+    const conflicts = collectAindexProjectSeriesProjectNameConflicts(projectRefs)
+    if (conflicts.length > 0) {
+      logger.error(buildConfigDiagnostic({
+        code: 'README_PROJECT_SERIES_NAME_CONFLICT',
+        title: 'Readme project names must be unique across app, ext, and arch',
+        reason: diagnosticLines(
+          'Readme-family outputs target bare workspace project directories, so app/ext/arch cannot reuse the same project directory name.',
+          `Conflicting project names: ${conflicts.map(conflict => conflict.projectName).join(', ')}`
+        ),
+        exactFix: diagnosticLines(
+          'Rename the conflicting project directory in one of the app/ext/arch source trees and rerun tnmsc.'
+        ),
+        possibleFixes: conflicts.map(conflict => diagnosticLines(
+          `"${conflict.projectName}" is currently declared in: ${conflict.refs.map(ref => `${ref.seriesName} (${ref.seriesDir})`).join(', ')}`
+        )),
+        details: {
+          aindexDir,
+          conflicts: conflicts.map(conflict => ({
+            projectName: conflict.projectName,
+            refs: conflict.refs.map(ref => ({
+              seriesName: ref.seriesName,
+              seriesDir: ref.seriesDir
+            }))
+          }))
+        }
       }))
+
+      throw new Error('Readme project series name conflict')
     }
+
+    await Promise.all(projectSeries.map(async series => {
+      const aindexProjectsDir = this.resolveAindexPath(series.dist, aindexDir)
+      if (!(fs.existsSync(aindexProjectsDir) && fs.statSync(aindexProjectsDir).isDirectory())) {
+        logger.debug('aindex project series directory does not exist', {path: aindexProjectsDir, series: series.name})
+        return
+      }
+
+      try {
+        const projectEntries = fs
+          .readdirSync(aindexProjectsDir, {withFileTypes: true})
+          .filter(entry => entry.isDirectory())
+          .sort((a, b) => a.name.localeCompare(b.name))
+
+        for (const projectEntry of projectEntries) {
+          const projectName = projectEntry.name
+          const projectDir = path.join(aindexProjectsDir, projectName)
+
+          await this.collectReadmeFiles(
+            ctx,
+            projectDir,
+            projectName,
+            workspaceDir,
+            '',
+            readmePrompts,
+            globalScope
+          )
+        }
+      }
+      catch (e) {
+        logger.error(buildFileOperationDiagnostic({
+          code: 'README_PROJECT_SCAN_FAILED',
+          title: `Failed to scan aindex ${series.name} projects for readme prompts`,
+          operation: 'scan',
+          targetKind: `aindex ${series.name} project directory`,
+          path: aindexProjectsDir,
+          error: e
+        }))
+      }
+    }))
+
+    readmePrompts.sort((a, b) => {
+      const projectDiff = a.projectName.localeCompare(b.projectName)
+      if (projectDiff !== 0) return projectDiff
+
+      const targetDiff = a.targetDir.path.localeCompare(b.targetDir.path)
+      if (targetDiff !== 0) return targetDiff
+
+      return a.fileKind.localeCompare(b.fileKind)
+    })
 
     return {readmePrompts}
   }
@@ -137,6 +195,9 @@ export class ReadmeMdInputCapability extends AbstractInputCapability {
           throw e
         }
 
+        // Readme-family outputs intentionally land in <workspace>/<projectName>.
+        // Cross-series duplicate project names are rejected earlier to keep this
+        // workspace mapping deterministic and overwrite-free.
         const targetPath = isRoot ? projectName : path.join(projectName, relativePath)
 
         const targetDir: RelativePath = {

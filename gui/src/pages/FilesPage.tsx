@@ -9,12 +9,13 @@ import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import { ChevronDown, ChevronRight, RefreshCw, Save } from 'lucide-react'
 
 import type { AindexFileEntry } from '@/api/bridge'
-import { listAindexFiles, listCategoryFiles, readAindexFile, writeAindexFile } from '@/api/bridge'
+import { listCategoryFiles, readAindexFile, writeAindexFile } from '@/api/bridge'
 import { useFont } from '@/hooks/useFont'
 import { useTheme } from '@/hooks/useTheme'
 import { useI18n } from '@/i18n'
 import { getFileIconUrl, getFolderIconUrl } from '@/lib/file-icons'
 import { cn } from '@/lib/utils'
+import { FILE_CATEGORY_TABS, fileCategoryRootPrefix, type FileCategory } from '@/pages/files-page-categories'
 import { registerVitesseThemes, vitesseTheme } from '@/themes'
 
 // Monaco setup — reuse worker config, register MDX as markdown variant
@@ -61,12 +62,17 @@ interface TreeNode {
 function buildTree(entries: readonly AindexFileEntry[], rootPrefix: string): TreeNode {
   const root: TreeNode = { name: rootPrefix, path: rootPrefix, isDir: true, children: [] }
   const dirs = new Map<string, TreeNode>()
-  dirs.set(rootPrefix, root)
+  dirs.set('', root)
 
   for (const entry of entries) {
-    const parts = entry.sourcePath.split('/')
+    const normalizedSourcePath = entry.sourcePath.startsWith(`${rootPrefix}/`)
+      ? entry.sourcePath.slice(rootPrefix.length + 1)
+      : entry.sourcePath
+    const parts = normalizedSourcePath.split('/').filter(part => part.length > 0)
+    if (parts.length === 0) continue
+
     // Ensure all parent dirs exist
-    for (let i = 1; i < parts.length - 1; i++) {
+    for (let i = 0; i < parts.length - 1; i++) {
       const dirPath = parts.slice(0, i + 1).join('/')
       if (!dirs.has(dirPath)) {
         const node: TreeNode = { name: parts[i]!, path: dirPath, isDir: true, children: [] }
@@ -265,32 +271,6 @@ const EditorPane: FC<EditorPaneProps> = ({ label, fileName, value, original, onC
 }
 
 // ---------------------------------------------------------------------------
-// Category types
-// ---------------------------------------------------------------------------
-
-type FileCategory = 'projects' | 'skills' | 'commands' | 'agents'
-
-const CATEGORY_TABS: readonly { readonly value: FileCategory; readonly labelKey: string }[] = [
-  { value: 'projects', labelKey: 'files.tab.projects' },
-  { value: 'skills', labelKey: 'files.tab.skills' },
-  { value: 'commands', labelKey: 'files.tab.commands' },
-  { value: 'agents', labelKey: 'files.tab.agents' },
-]
-
-/** Root prefix for tree building per category */
-function categoryRootPrefix(cat: FileCategory): string {
-  if (cat === 'projects') {
-    return 'app'
-  }
-
-  if (cat === 'agents') {
-    return 'subagents'
-  }
-
-  return cat
-}
-
-// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
@@ -299,7 +279,7 @@ const FilesPage: FC = () => {
   const { resolved } = useTheme()
   const { fontCss } = useFont()
 
-  const [category, setCategory] = useState<FileCategory>('projects')
+  const [category, setCategory] = useState<FileCategory>('app')
   const [files, setFiles] = useState<readonly AindexFileEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<AindexFileEntry | null>(null)
@@ -346,9 +326,7 @@ const FilesPage: FC = () => {
   const fetchFiles = useCallback(async () => {
     setLoading(true)
     try {
-      const result = category === 'projects'
-        ? await listAindexFiles(cwd)
-        : await listCategoryFiles(cwd, category)
+      const result = await listCategoryFiles(cwd, category)
       setFiles(result)
     } catch (e) {
       console.error(`[FilesPage] fetchFiles(${category}) failed:`, e)
@@ -359,10 +337,7 @@ const FilesPage: FC = () => {
 
   useEffect(() => { fetchFiles() }, [fetchFiles])
 
-  const treeRootPrefix = useMemo(
-    () => files[0]?.sourcePath.split('/')[0] ?? categoryRootPrefix(category),
-    [files, category]
-  )
+  const treeRootPrefix = useMemo(() => fileCategoryRootPrefix(category), [category])
   const tree = useMemo(() => buildTree(files, treeRootPrefix), [files, treeRootPrefix])
 
   const handleSelect = useCallback(async (entry: AindexFileEntry) => {
@@ -445,7 +420,7 @@ const FilesPage: FC = () => {
         </div>
         {/* Category tabs */}
         <div className="flex border-b border-border">
-          {CATEGORY_TABS.map((tab) => (
+          {FILE_CATEGORY_TABS.map((tab) => (
             <button
               key={tab.value}
               type="button"

@@ -9,19 +9,22 @@ import {AindexInputCapability} from './input-aindex'
 
 function createLoggerMock(): {
   readonly logger: InputCapabilityContext['logger']
+  readonly error: ReturnType<typeof vi.fn>
   readonly warn: ReturnType<typeof vi.fn>
 } {
+  const error = vi.fn()
   const warn = vi.fn()
 
   return {
     logger: {
-      error: vi.fn(),
+      error,
       warn,
       info: vi.fn(),
       debug: vi.fn(),
       trace: vi.fn(),
       fatal: vi.fn()
     },
+    error,
     warn
   }
 }
@@ -40,11 +43,15 @@ function createContext(
   } as InputCapabilityContext
 }
 
-function createAindexProject(tempWorkspace: string, projectName: string): {
+function createAindexProject(
+  tempWorkspace: string,
+  projectName: string,
+  series: 'app' | 'ext' | 'arch' = 'app'
+): {
   readonly configDir: string
 } {
-  const distProjectDir = path.join(tempWorkspace, 'aindex', 'dist', 'app', projectName)
-  const configDir = path.join(tempWorkspace, 'aindex', 'app', projectName)
+  const distProjectDir = path.join(tempWorkspace, 'aindex', 'dist', series, projectName)
+  const configDir = path.join(tempWorkspace, 'aindex', series, projectName)
 
   fs.mkdirSync(distProjectDir, {recursive: true})
   fs.mkdirSync(configDir, {recursive: true})
@@ -53,7 +60,7 @@ function createAindexProject(tempWorkspace: string, projectName: string): {
 }
 
 describe('aindex input capability project config loading', () => {
-  it('loads project.json5 using JSON5 features without any jsonc fallback', () => {
+  it('loads project.json5 using JSON5 features without any jsonc fallback', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-aindex-project-json5-'))
     const {logger, warn} = createLoggerMock()
 
@@ -70,7 +77,7 @@ describe('aindex input capability project config loading', () => {
         ''
       ].join('\n'), 'utf8')
 
-      const result = new AindexInputCapability().collect(createContext(tempWorkspace, logger))
+      const result = await new AindexInputCapability().collect(createContext(tempWorkspace, logger))
       const project = result.workspace?.projects[0]
 
       expect(project?.name).toBe('project-a')
@@ -87,7 +94,7 @@ describe('aindex input capability project config loading', () => {
     }
   })
 
-  it('ignores legacy project.jsonc after the hard cut', () => {
+  it('ignores legacy project.jsonc after the hard cut', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-aindex-project-jsonc-legacy-'))
     const {logger, warn} = createLoggerMock()
 
@@ -95,7 +102,7 @@ describe('aindex input capability project config loading', () => {
       const {configDir} = createAindexProject(tempWorkspace, 'project-b')
       fs.writeFileSync(path.join(configDir, 'project.jsonc'), '{"includeSeries":["legacy"]}\n', 'utf8')
 
-      const result = new AindexInputCapability().collect(createContext(tempWorkspace, logger))
+      const result = await new AindexInputCapability().collect(createContext(tempWorkspace, logger))
       const project = result.workspace?.projects[0]
 
       expect(project?.name).toBe('project-b')
@@ -107,7 +114,7 @@ describe('aindex input capability project config loading', () => {
     }
   })
 
-  it('emits JSON5 diagnostics for invalid project.json5 syntax', () => {
+  it('emits JSON5 diagnostics for invalid project.json5 syntax', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-aindex-project-json5-invalid-'))
     const {logger, warn} = createLoggerMock()
 
@@ -115,7 +122,7 @@ describe('aindex input capability project config loading', () => {
       const {configDir} = createAindexProject(tempWorkspace, 'project-c')
       fs.writeFileSync(path.join(configDir, 'project.json5'), '{includeSeries: [\'broken\',]} trailing', 'utf8')
 
-      const result = new AindexInputCapability().collect(createContext(tempWorkspace, logger))
+      const result = await new AindexInputCapability().collect(createContext(tempWorkspace, logger))
       const project = result.workspace?.projects[0]
       const diagnostic = warn.mock.calls[0]?.[0]
 
@@ -126,6 +133,49 @@ describe('aindex input capability project config loading', () => {
         code: 'AINDEX_PROJECT_JSON5_INVALID',
         title: 'Failed to parse project.json5 for project-c',
         exactFix: ['Fix the JSON5 syntax in project.json5 and rerun tnmsc.']
+      }))
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('collects app, ext, and arch projects with series-aware metadata', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-aindex-project-series-'))
+    const {logger} = createLoggerMock()
+
+    try {
+      createAindexProject(tempWorkspace, 'project-a', 'app')
+      createAindexProject(tempWorkspace, 'plugin-a', 'ext')
+      createAindexProject(tempWorkspace, 'system-a', 'arch')
+
+      const result = await new AindexInputCapability().collect(createContext(tempWorkspace, logger))
+      const projects = result.workspace?.projects ?? []
+
+      expect(projects.map(project => `${project.promptSeries}:${project.name}`)).toEqual([
+        'app:project-a',
+        'ext:plugin-a',
+        'arch:system-a'
+      ])
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('fails fast when app, ext, and arch reuse the same project name', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-aindex-project-conflict-'))
+    const {logger, error} = createLoggerMock()
+
+    try {
+      createAindexProject(tempWorkspace, 'project-a', 'app')
+      createAindexProject(tempWorkspace, 'project-a', 'ext')
+
+      await expect(new AindexInputCapability().collect(createContext(tempWorkspace, logger)))
+        .rejects
+        .toThrow('Aindex project series name conflict')
+      expect(error).toHaveBeenCalledWith(expect.objectContaining({
+        code: 'AINDEX_PROJECT_SERIES_NAME_CONFLICT'
       }))
     }
     finally {

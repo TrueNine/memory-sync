@@ -20,6 +20,17 @@ const DEFAULT_SUB_AGENTS_SRC_DIR: &str = "subagents";
 const DEFAULT_SUB_AGENTS_DIST_DIR: &str = "dist/subagents";
 const DEFAULT_RULES_SRC_DIR: &str = "rules";
 const DEFAULT_RULES_DIST_DIR: &str = "dist/rules";
+const DEFAULT_APP_SRC_DIR: &str = "app";
+const DEFAULT_APP_DIST_DIR: &str = "dist/app";
+const DEFAULT_EXT_SRC_DIR: &str = "ext";
+const DEFAULT_EXT_DIST_DIR: &str = "dist/ext";
+const DEFAULT_ARCH_SRC_DIR: &str = "arch";
+const DEFAULT_ARCH_DIST_DIR: &str = "dist/arch";
+const DEFAULT_GLOBAL_PROMPT_SRC: &str = "global.src.mdx";
+const DEFAULT_GLOBAL_PROMPT_DIST: &str = "dist/global.mdx";
+const DEFAULT_WORKSPACE_PROMPT_SRC: &str = "workspace.src.mdx";
+const DEFAULT_WORKSPACE_PROMPT_DIST: &str = "dist/workspace.mdx";
+const PROJECT_SERIES_CATEGORIES: [&str; 3] = ["app", "ext", "arch"];
 
 fn has_source_mdx_extension(name: &str) -> bool {
     name.ends_with(PRIMARY_SOURCE_MDX_EXTENSION)
@@ -286,8 +297,127 @@ fn resolve_category_paths(
             DEFAULT_RULES_SRC_DIR,
             DEFAULT_RULES_DIST_DIR,
         )),
+        "app" => Ok(resolve_pair(
+            aindex.and_then(|value| value.app.as_ref()),
+            DEFAULT_APP_SRC_DIR,
+            DEFAULT_APP_DIST_DIR,
+        )),
+        "ext" => Ok(resolve_pair(
+            aindex.and_then(|value| value.ext.as_ref()),
+            DEFAULT_EXT_SRC_DIR,
+            DEFAULT_EXT_DIST_DIR,
+        )),
+        "arch" => Ok(resolve_pair(
+            aindex.and_then(|value| value.arch.as_ref()),
+            DEFAULT_ARCH_SRC_DIR,
+            DEFAULT_ARCH_DIST_DIR,
+        )),
         _ => Err(format!("Unknown category: {category}")),
     }
+}
+
+fn collect_project_series_category_files(
+    src_dir: &std::path::Path,
+    base: &std::path::Path,
+    translated_root_rel: &str,
+    dist_dir: &std::path::Path,
+    out: &mut Vec<AindexFileEntry>,
+) -> std::io::Result<()> {
+    if let Ok(top_entries) = std::fs::read_dir(src_dir) {
+        for top in top_entries.flatten() {
+            if top.path().is_dir() {
+                collect_category_source_mdx(
+                    &top.path(),
+                    src_dir,
+                    base,
+                    translated_root_rel,
+                    dist_dir,
+                    out,
+                )?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn collect_root_memory_prompt_files(
+    base: &std::path::Path,
+    config: &tnmsc::core::config::UserConfigFile,
+    out: &mut Vec<AindexFileEntry>,
+) {
+    for (source_rel, translated_rel) in collect_root_memory_prompt_pairs(config) {
+        let source_abs = base.join(&source_rel);
+        if !(source_abs.exists() && source_abs.is_file()) {
+            continue;
+        }
+
+        out.push(AindexFileEntry {
+            source_path: source_rel,
+            translated_path: translated_rel.clone(),
+            translated_exists: base.join(translated_rel).exists(),
+            file_type: SOURCE_MDX_FILE_TYPE.to_string(),
+        });
+    }
+}
+
+fn collect_root_memory_prompt_pairs(
+    config: &tnmsc::core::config::UserConfigFile,
+) -> Vec<(String, String)> {
+    let aindex = config.aindex.as_ref();
+    [
+        (
+            aindex.and_then(|value| value.global_prompt.as_ref()),
+            DEFAULT_GLOBAL_PROMPT_SRC,
+            DEFAULT_GLOBAL_PROMPT_DIST,
+        ),
+        (
+            aindex.and_then(|value| value.workspace_prompt.as_ref()),
+            DEFAULT_WORKSPACE_PROMPT_SRC,
+            DEFAULT_WORKSPACE_PROMPT_DIST,
+        ),
+    ]
+    .into_iter()
+    .map(|(pair, default_source, default_dist)| {
+        let source_rel = pair
+            .and_then(|value| value.src.as_deref())
+            .unwrap_or(default_source)
+            .replace('\\', "/");
+        let translated_rel = pair
+            .and_then(|value| value.dist.as_deref())
+            .unwrap_or(default_dist)
+            .replace('\\', "/");
+        (source_rel, translated_rel)
+    })
+    .collect()
+}
+
+fn collect_category_file_entries(
+    base: &std::path::Path,
+    config: &tnmsc::core::config::UserConfigFile,
+    category: &str,
+) -> Result<Vec<AindexFileEntry>, String> {
+    let paths = resolve_category_paths(config, category)?;
+    let dist_dir = base.join(&paths.translated_rel);
+    let src_dir = base.join(&paths.source_rel);
+    let mut entries = Vec::new();
+
+    if category == "app" {
+        collect_root_memory_prompt_files(base, config, &mut entries);
+    }
+    if src_dir.exists() {
+        collect_project_series_category_files(
+            &src_dir,
+            base,
+            &paths.translated_rel,
+            &dist_dir,
+            &mut entries,
+        )
+        .map_err(|e| format!("Failed to scan {}: {e}", category))?;
+    }
+
+    entries.sort_by(|a, b| a.source_path.cmp(&b.source_path));
+    Ok(entries)
 }
 
 /// Read and resolve the merged tnmsc config for the current working directory.
@@ -319,63 +449,36 @@ fn resolve_aindex_root(cwd: &str) -> Result<std::path::PathBuf, String> {
     Ok(path)
 }
 
-/// Recursively collect all source prompt files under `aindex/app/`.
+/// Collect project-like source prompt files under `aindex/app/`, `aindex/ext/`, and `aindex/arch/`.
 #[tauri::command]
 pub fn list_aindex_files(cwd: String) -> Result<Vec<AindexFileEntry>, String> {
-    let base = resolve_aindex_root(&cwd)?;
-    let app_dir = base.join("app");
-    if !app_dir.exists() {
-        return Ok(vec![]);
-    }
+    let ResolvedConfig {
+        aindex_root: base,
+        config,
+    } = load_resolved_config(&cwd)?;
     let mut entries = Vec::new();
-    collect_source_mdx(&app_dir, &base, &mut entries)
-        .map_err(|e| format!("Failed to scan aindex: {e}"))?;
+    collect_root_memory_prompt_files(&base, &config, &mut entries);
+
+    for category in PROJECT_SERIES_CATEGORIES {
+        let paths = resolve_category_paths(&config, category)?;
+        let src_dir = base.join(&paths.source_rel);
+        if !src_dir.exists() {
+            continue;
+        }
+
+        let dist_dir = base.join(&paths.translated_rel);
+        collect_project_series_category_files(
+            &src_dir,
+            &base,
+            &paths.translated_rel,
+            &dist_dir,
+            &mut entries,
+        )
+        .map_err(|e| format!("Failed to scan aindex {category}: {e}"))?;
+    }
+
     entries.sort_by(|a, b| a.source_path.cmp(&b.source_path));
     Ok(entries)
-}
-
-fn collect_source_mdx(
-    dir: &std::path::Path,
-    base: &std::path::Path,
-    out: &mut Vec<AindexFileEntry>,
-) -> std::io::Result<()> {
-    for entry in std::fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() {
-            collect_source_mdx(&path, base, out)?;
-        } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if has_source_mdx_extension(name) {
-                let rel = path.strip_prefix(base).unwrap_or(&path);
-                let source_path = rel.to_string_lossy().replace('\\', "/");
-                // Determine translated path:
-                // - app/global.src.mdx -> dist/global.mdx (root-level files)
-                // - app/X/foo.src.mdx -> dist/app/X/foo.mdx (subdirectory files)
-                let without_ext = replace_source_mdx_extension(&source_path)
-                    .unwrap_or_else(|| source_path.clone());
-                let translated_rel = if without_ext.starts_with("app/") {
-                    let after_app = &without_ext["app/".len()..];
-                    if after_app.contains('/') {
-                        // Subdirectory: keep app/ prefix under dist/
-                        format!("dist/{without_ext}")
-                    } else {
-                        // Root-level file in app/: goes to dist/ directly
-                        format!("dist/{after_app}")
-                    }
-                } else {
-                    format!("dist/{without_ext}")
-                };
-                let translated_abs = base.join(&translated_rel);
-                out.push(AindexFileEntry {
-                    source_path,
-                    translated_path: translated_rel,
-                    translated_exists: translated_abs.exists(),
-                    file_type: SOURCE_MDX_FILE_TYPE.to_string(),
-                });
-            }
-        }
-    }
-    Ok(())
 }
 
 /// Read a file relative to the aindex directory (resolved from config).
@@ -401,7 +504,7 @@ pub fn write_aindex_file(cwd: String, rel_path: String, content: String) -> Resu
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write {}: {e}", path.display()))
 }
 
-/// List source prompt files for a given category (skills, commands, agents).
+/// List source prompt files for a given category.
 /// Reads the corresponding `aindex` config field to resolve source and output directories.
 #[tauri::command]
 pub fn list_category_files(cwd: String, category: String) -> Result<Vec<AindexFileEntry>, String> {
@@ -409,33 +512,7 @@ pub fn list_category_files(cwd: String, category: String) -> Result<Vec<AindexFi
         aindex_root: base,
         config,
     } = load_resolved_config(&cwd)?;
-    let paths = resolve_category_paths(&config, &category)?;
-    let dist_dir = base.join(&paths.translated_rel);
-    let src_dir = base.join(&paths.source_rel);
-
-    if !src_dir.exists() {
-        return Ok(vec![]);
-    }
-
-    let mut entries = Vec::new();
-    // Only scan subdirectories — skip root-level files (e.g. AGENTS.md, CLAUDE.md)
-    if let Ok(top_entries) = std::fs::read_dir(&src_dir) {
-        for top in top_entries.flatten() {
-            if top.path().is_dir() {
-                collect_category_source_mdx(
-                    &top.path(),
-                    &src_dir,
-                    &base,
-                    &paths.translated_rel,
-                    &dist_dir,
-                    &mut entries,
-                )
-                .map_err(|e| format!("Failed to scan {}: {e}", category))?;
-            }
-        }
-    }
-    entries.sort_by(|a, b| a.source_path.cmp(&b.source_path));
-    Ok(entries)
+    collect_category_file_entries(&base, &config, &category)
 }
 
 fn collect_category_source_mdx(
@@ -508,7 +585,7 @@ pub struct CategoryStats {
     pub translated_count: u32,
 }
 
-/// Per-project statistics (under app/).
+/// Per-project statistics for project-like series (`app/`, `ext/`, `arch/`).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectStats {
@@ -541,67 +618,215 @@ pub struct ExtensionCount {
     pub count: u32,
 }
 
-/// Recursively count files and accumulate chars/lines.
-fn stat_dir(
-    dir: &std::path::Path,
-) -> (
-    u32,
-    u64,
-    u64,
-    u32,
-    u32,
-    u32,
-    std::collections::HashMap<String, u32>,
-) {
-    let mut file_count = 0u32;
-    let mut total_chars = 0u64;
-    let mut total_lines = 0u64;
-    let mut source_mdx = 0u32;
-    let mut resource = 0u32;
-    let mut translated = 0u32;
-    let mut ext_map: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+#[derive(Debug, Clone, Default)]
+struct StatAccumulator {
+    file_count: u32,
+    total_chars: u64,
+    total_lines: u64,
+    source_mdx_count: u32,
+    resource_count: u32,
+    translated_count: u32,
+    ext_map: std::collections::HashMap<String, u32>,
+}
 
+impl StatAccumulator {
+    fn add(&mut self, other: Self) {
+        self.file_count += other.file_count;
+        self.total_chars += other.total_chars;
+        self.total_lines += other.total_lines;
+        self.source_mdx_count += other.source_mdx_count;
+        self.resource_count += other.resource_count;
+        self.translated_count += other.translated_count;
+        for (key, value) in other.ext_map {
+            *self.ext_map.entry(key).or_default() += value;
+        }
+    }
+
+    fn from_file(path: &std::path::Path) -> Self {
+        let mut stats = Self::default();
+        if !path.is_file() {
+            return stats;
+        }
+
+        stats.file_count = 1;
+        if let Ok(content) = std::fs::read_to_string(path) {
+            stats.total_chars = content.len() as u64;
+            stats.total_lines = content.lines().count() as u64;
+        }
+
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if has_source_mdx_extension(name) {
+            stats.source_mdx_count = 1;
+            stats.ext_map.insert("src.mdx".to_string(), 1);
+        } else {
+            let ext = name.rsplit('.').next().unwrap_or("other").to_lowercase();
+            stats.ext_map.insert(ext, 1);
+        }
+
+        stats
+    }
+}
+
+/// Recursively count files and accumulate chars/lines.
+fn stat_dir(dir: &std::path::Path) -> StatAccumulator {
+    let mut stats = StatAccumulator::default();
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                let (fc, tc, tl, cm, rc, tr, em) = stat_dir(&path);
-                file_count += fc;
-                total_chars += tc;
-                total_lines += tl;
-                source_mdx += cm;
-                resource += rc;
-                translated += tr;
-                for (k, v) in em {
-                    *ext_map.entry(k).or_default() += v;
-                }
+                stats.add(stat_dir(&path));
             } else if path.is_file() {
-                file_count += 1;
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    total_chars += content.len() as u64;
-                    total_lines += content.lines().count() as u64;
-                }
-                let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if has_source_mdx_extension(name) {
-                    source_mdx += 1;
-                    *ext_map.entry("src.mdx".to_string()).or_default() += 1;
-                } else {
-                    // Extract extension
-                    let ext = name.rsplit('.').next().unwrap_or("other").to_lowercase();
-                    *ext_map.entry(ext).or_default() += 1;
+                stats.add(StatAccumulator::from_file(&path));
+            }
+        }
+    }
+    stats
+}
+
+fn derive_english_source_rel(source_rel: &str) -> Option<String> {
+    replace_source_mdx_extension(source_rel).filter(|derived| derived != source_rel)
+}
+
+fn collect_root_memory_prompt_stats(
+    base: &std::path::Path,
+    config: &tnmsc::core::config::UserConfigFile,
+) -> StatAccumulator {
+    let mut stats = StatAccumulator::default();
+    let mut seen_paths = std::collections::HashSet::new();
+
+    for (source_rel, _) in collect_root_memory_prompt_pairs(config) {
+        for relative_path in std::iter::once(source_rel.clone())
+            .chain(derive_english_source_rel(&source_rel).into_iter())
+        {
+            if !seen_paths.insert(relative_path.clone()) {
+                continue;
+            }
+
+            let absolute_path = base.join(&relative_path);
+            if absolute_path.exists() && absolute_path.is_file() {
+                stats.add(StatAccumulator::from_file(&absolute_path));
+            }
+        }
+    }
+
+    stats
+}
+
+fn accumulate_overall_stats(
+    summary: &StatAccumulator,
+    stats: &mut AindexStats,
+    all_ext: &mut std::collections::HashMap<String, u32>,
+) {
+    stats.total_files += summary.file_count;
+    stats.total_chars += summary.total_chars;
+    stats.total_lines += summary.total_lines;
+    stats.total_source_mdx += summary.source_mdx_count;
+    stats.total_resources += summary.resource_count;
+    for (key, value) in &summary.ext_map {
+        *all_ext.entry(key.clone()).or_default() += *value;
+    }
+}
+
+fn collect_project_series_stats(
+    base: &std::path::Path,
+    config: &tnmsc::core::config::UserConfigFile,
+    stats: &mut AindexStats,
+    all_ext: &mut std::collections::HashMap<String, u32>,
+) -> Result<(), String> {
+    for series_name in PROJECT_SERIES_CATEGORIES {
+        let category_paths = resolve_category_paths(config, series_name)?;
+        let src_dir = base.join(&category_paths.source_rel);
+        if !src_dir.exists() {
+            continue;
+        }
+
+        if let Ok(entries) = std::fs::read_dir(&src_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    let project_name = path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let label = if series_name == "app" {
+                        project_name
+                    } else {
+                        format!("{series_name}/{project_name}")
+                    };
+                    let project_stats = stat_dir(&path);
+                    stats.projects.push(ProjectStats {
+                        name: label,
+                        file_count: project_stats.file_count,
+                        total_chars: project_stats.total_chars,
+                        total_lines: project_stats.total_lines,
+                    });
+                    accumulate_overall_stats(&project_stats, stats, all_ext);
                 }
             }
         }
     }
-    (
-        file_count,
-        total_chars,
-        total_lines,
-        source_mdx,
-        resource,
-        translated,
-        ext_map,
-    )
+
+    Ok(())
+}
+
+fn build_aindex_stats(
+    base: &std::path::Path,
+    config: &tnmsc::core::config::UserConfigFile,
+) -> Result<AindexStats, String> {
+    let mut stats = AindexStats::default();
+    let mut all_ext: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    let root_prompt_stats = collect_root_memory_prompt_stats(base, config);
+
+    accumulate_overall_stats(&root_prompt_stats, &mut stats, &mut all_ext);
+    collect_project_series_stats(base, config, &mut stats, &mut all_ext)?;
+
+    // Root global/workspace prompts live outside the project-series directories,
+    // so the App category needs them merged back in explicitly.
+    for cat_name in &["app", "ext", "arch", "skills", "commands", "agents"] {
+        let category_paths = resolve_category_paths(config, cat_name)?;
+        let src_dir = base.join(&category_paths.source_rel);
+        let mut category_stats = if src_dir.exists() {
+            stat_dir(&src_dir)
+        } else {
+            StatAccumulator::default()
+        };
+        if *cat_name == "app" {
+            category_stats.add(root_prompt_stats.clone());
+        }
+
+        stats.categories.push(CategoryStats {
+            name: cat_name.to_string(),
+            file_count: category_stats.file_count,
+            total_chars: category_stats.total_chars,
+            total_lines: category_stats.total_lines,
+            source_mdx_count: category_stats.source_mdx_count,
+            resource_count: category_stats.resource_count,
+            translated_count: category_stats.translated_count,
+        });
+
+        if !PROJECT_SERIES_CATEGORIES.contains(cat_name) {
+            accumulate_overall_stats(&category_stats, &mut stats, &mut all_ext);
+        }
+    }
+
+    let dist_dir = base.join("dist");
+    if dist_dir.exists() {
+        stats.total_translated = stat_dir(&dist_dir).file_count;
+    }
+
+    let mut ext_vec: Vec<_> = all_ext.into_iter().collect();
+    ext_vec.sort_by(|a, b| b.1.cmp(&a.1));
+    stats.extensions = ext_vec
+        .into_iter()
+        .map(|(ext, count)| ExtensionCount { ext, count })
+        .collect();
+
+    stats
+        .projects
+        .sort_by(|a, b| b.file_count.cmp(&a.file_count));
+
+    Ok(stats)
 }
 
 /// Gather comprehensive statistics about the aindex project.
@@ -611,91 +836,262 @@ pub fn get_aindex_stats(cwd: String) -> Result<AindexStats, String> {
         aindex_root: base,
         config,
     } = load_resolved_config(&cwd)?;
-    let mut stats = AindexStats::default();
-    let mut all_ext: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    build_aindex_stats(&base, &config)
+}
 
-    // Scan app/ for project stats
-    let app_dir = base.join("app");
-    if app_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(&app_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    let name = path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("")
-                        .to_string();
-                    let (fc, tc, tl, cm, rc, _tr, em) = stat_dir(&path);
-                    stats.projects.push(ProjectStats {
-                        name,
-                        file_count: fc,
-                        total_chars: tc,
-                        total_lines: tl,
-                    });
-                    stats.total_files += fc;
-                    stats.total_chars += tc;
-                    stats.total_lines += tl;
-                    stats.total_source_mdx += cm;
-                    stats.total_resources += rc;
-                    for (k, v) in em {
-                        *all_ext.entry(k).or_default() += v;
-                    }
-                }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn create_temp_dir(prefix: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("{prefix}-{unique}"));
+        std::fs::create_dir_all(&dir).expect("temp dir should be created");
+        dir
+    }
+
+    fn create_test_config() -> tnmsc::core::config::UserConfigFile {
+        serde_json::from_value(serde_json::json!({
+            "aindex": {
+                "app": {"src": "app", "dist": "dist/app"},
+                "ext": {"src": "ext", "dist": "dist/ext"},
+                "arch": {"src": "arch", "dist": "dist/arch"},
+                "skills": {"src": "skills", "dist": "dist/skills"},
+                "commands": {"src": "commands", "dist": "dist/commands"},
+                "subAgents": {"src": "subagents", "dist": "dist/subagents"},
+                "rules": {"src": "rules", "dist": "dist/rules"}
             }
-        }
+        }))
+        .expect("test config should deserialize")
     }
 
-    // Scan configured source directories for skills, commands, agents
-    for cat_name in &["skills", "commands", "agents"] {
-        let category_paths = resolve_category_paths(&config, cat_name)?;
-        let src_dir = base.join(&category_paths.source_rel);
-        if !src_dir.exists() {
-            stats.categories.push(CategoryStats {
-                name: cat_name.to_string(),
-                ..Default::default()
-            });
-            continue;
-        }
-        let (fc, tc, tl, cm, rc, _tr, em) = stat_dir(&src_dir);
-        stats.categories.push(CategoryStats {
-            name: cat_name.to_string(),
-            file_count: fc,
-            total_chars: tc,
-            total_lines: tl,
-            source_mdx_count: cm,
-            resource_count: rc,
-            translated_count: 0,
-        });
-        stats.total_files += fc;
-        stats.total_chars += tc;
-        stats.total_lines += tl;
-        stats.total_source_mdx += cm;
-        stats.total_resources += rc;
-        for (k, v) in em {
-            *all_ext.entry(k).or_default() += v;
-        }
+    #[test]
+    fn resolve_category_paths_supports_project_series() {
+        let config = create_test_config();
+
+        let app = resolve_category_paths(&config, "app").expect("app paths should resolve");
+        let ext = resolve_category_paths(&config, "ext").expect("ext paths should resolve");
+        let arch = resolve_category_paths(&config, "arch").expect("arch paths should resolve");
+
+        assert_eq!(app.source_rel, "app");
+        assert_eq!(app.translated_rel, "dist/app");
+        assert_eq!(ext.source_rel, "ext");
+        assert_eq!(ext.translated_rel, "dist/ext");
+        assert_eq!(arch.source_rel, "arch");
+        assert_eq!(arch.translated_rel, "dist/arch");
     }
 
-    // Count translated files in dist/
-    let dist_dir = base.join("dist");
-    if dist_dir.exists() {
-        let (fc, _tc, _tl, _cm, _rc, _tr, _em) = stat_dir(&dist_dir);
-        stats.total_translated = fc;
+    #[test]
+    fn collect_project_series_category_files_scans_app_ext_and_arch() {
+        let base = create_temp_dir("tnmsc-tauri-series-files");
+
+        let app_src = base.join("app").join("project-a");
+        let ext_src = base.join("ext").join("plugin-a");
+        let arch_src = base.join("arch").join("system-a");
+        let app_dist = base.join("dist").join("app");
+        let ext_dist = base.join("dist").join("ext");
+        let arch_dist = base.join("dist").join("arch");
+
+        std::fs::create_dir_all(&app_src).expect("app dir should be created");
+        std::fs::create_dir_all(&ext_src).expect("ext dir should be created");
+        std::fs::create_dir_all(&arch_src).expect("arch dir should be created");
+        std::fs::create_dir_all(app_dist.join("project-a"))
+            .expect("app dist dir should be created");
+        std::fs::create_dir_all(ext_dist.join("plugin-a")).expect("ext dist dir should be created");
+        std::fs::create_dir_all(arch_dist.join("system-a"))
+            .expect("arch dist dir should be created");
+
+        std::fs::write(app_src.join("agt.src.mdx"), "App").expect("app src file should exist");
+        std::fs::write(ext_src.join("agt.src.mdx"), "Ext").expect("ext src file should exist");
+        std::fs::write(arch_src.join("agt.src.mdx"), "Arch").expect("arch src file should exist");
+        std::fs::write(app_dist.join("project-a").join("agt.mdx"), "App dist")
+            .expect("app dist file should exist");
+        std::fs::write(ext_dist.join("plugin-a").join("agt.mdx"), "Ext dist")
+            .expect("ext dist file should exist");
+        std::fs::write(arch_dist.join("system-a").join("agt.mdx"), "Arch dist")
+            .expect("arch dist file should exist");
+
+        let mut entries = Vec::new();
+        collect_project_series_category_files(
+            &base.join("app"),
+            &base,
+            "dist/app",
+            &app_dist,
+            &mut entries,
+        )
+        .expect("app series files should collect");
+        collect_project_series_category_files(
+            &base.join("ext"),
+            &base,
+            "dist/ext",
+            &ext_dist,
+            &mut entries,
+        )
+        .expect("ext series files should collect");
+        collect_project_series_category_files(
+            &base.join("arch"),
+            &base,
+            "dist/arch",
+            &arch_dist,
+            &mut entries,
+        )
+        .expect("arch series files should collect");
+
+        let source_paths: Vec<_> = entries
+            .iter()
+            .map(|entry| entry.source_path.as_str())
+            .collect();
+        assert!(source_paths.contains(&"app/project-a/agt.src.mdx"));
+        assert!(source_paths.contains(&"ext/plugin-a/agt.src.mdx"));
+        assert!(source_paths.contains(&"arch/system-a/agt.src.mdx"));
+        assert!(entries.iter().all(|entry| entry.translated_exists));
+
+        std::fs::remove_dir_all(base).expect("temp dir should be removed");
     }
 
-    // Build extension distribution
-    let mut ext_vec: Vec<_> = all_ext.into_iter().collect();
-    ext_vec.sort_by(|a, b| b.1.cmp(&a.1));
-    stats.extensions = ext_vec
-        .into_iter()
-        .map(|(ext, count)| ExtensionCount { ext, count })
-        .collect();
+    #[test]
+    fn collect_root_memory_prompt_files_includes_root_level_sources() {
+        let base = create_temp_dir("tnmsc-tauri-root-prompts");
+        let config = create_test_config();
+        std::fs::create_dir_all(base.join("dist")).expect("dist dir should be created");
+        std::fs::write(base.join("global.src.mdx"), "Global")
+            .expect("global source prompt should be created");
+        std::fs::write(base.join("workspace.src.mdx"), "Workspace")
+            .expect("workspace source prompt should be created");
+        std::fs::write(base.join("dist").join("global.mdx"), "Global dist")
+            .expect("global dist prompt should be created");
 
-    // Sort projects by file count descending
-    stats
-        .projects
-        .sort_by(|a, b| b.file_count.cmp(&a.file_count));
+        let mut entries = Vec::new();
+        collect_root_memory_prompt_files(&base, &config, &mut entries);
+        entries.sort_by(|a, b| a.source_path.cmp(&b.source_path));
 
-    Ok(stats)
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].source_path, "global.src.mdx");
+        assert_eq!(entries[0].translated_path, "dist/global.mdx");
+        assert!(entries[0].translated_exists);
+        assert_eq!(entries[1].source_path, "workspace.src.mdx");
+        assert_eq!(entries[1].translated_path, "dist/workspace.mdx");
+        assert!(!entries[1].translated_exists);
+
+        std::fs::remove_dir_all(base).expect("temp dir should be removed");
+    }
+
+    #[test]
+    fn collect_category_file_entries_keeps_root_prompts_without_app_directory() {
+        let base = create_temp_dir("tnmsc-tauri-root-only-files");
+        let config = create_test_config();
+        std::fs::create_dir_all(base.join("dist")).expect("dist dir should be created");
+        std::fs::write(base.join("global.src.mdx"), "Global")
+            .expect("global source prompt should be created");
+        std::fs::write(base.join("workspace.src.mdx"), "Workspace")
+            .expect("workspace source prompt should be created");
+
+        let entries =
+            collect_category_file_entries(&base, &config, "app").expect("app files should collect");
+        let source_paths: Vec<_> = entries
+            .iter()
+            .map(|entry| entry.source_path.as_str())
+            .collect();
+
+        assert_eq!(entries.len(), 2);
+        assert!(source_paths.contains(&"global.src.mdx"));
+        assert!(source_paths.contains(&"workspace.src.mdx"));
+
+        std::fs::remove_dir_all(base).expect("temp dir should be removed");
+    }
+
+    #[test]
+    fn collect_project_series_stats_includes_ext_and_arch_projects() {
+        let base = create_temp_dir("tnmsc-tauri-series-stats");
+        let config = create_test_config();
+        std::fs::create_dir_all(base.join("app").join("project-a"))
+            .expect("app project dir should be created");
+        std::fs::create_dir_all(base.join("ext").join("plugin-a"))
+            .expect("ext project dir should be created");
+        std::fs::create_dir_all(base.join("arch").join("system-a"))
+            .expect("arch project dir should be created");
+        std::fs::write(
+            base.join("app").join("project-a").join("agt.src.mdx"),
+            "App",
+        )
+        .expect("app project file should be created");
+        std::fs::write(base.join("ext").join("plugin-a").join("agt.src.mdx"), "Ext")
+            .expect("ext project file should be created");
+        std::fs::write(
+            base.join("arch").join("system-a").join("agt.src.mdx"),
+            "Arch",
+        )
+        .expect("arch project file should be created");
+
+        let mut stats = AindexStats::default();
+        let mut all_ext = std::collections::HashMap::new();
+        collect_project_series_stats(&base, &config, &mut stats, &mut all_ext)
+            .expect("project stats should collect");
+
+        let names: Vec<_> = stats
+            .projects
+            .iter()
+            .map(|project| project.name.as_str())
+            .collect();
+        assert!(names.contains(&"project-a"));
+        assert!(names.contains(&"ext/plugin-a"));
+        assert!(names.contains(&"arch/system-a"));
+
+        std::fs::remove_dir_all(base).expect("temp dir should be removed");
+    }
+
+    #[test]
+    fn build_aindex_stats_counts_root_memory_prompts() {
+        let base = create_temp_dir("tnmsc-tauri-root-stats");
+        let config = create_test_config();
+        std::fs::create_dir_all(base.join("app").join("project-a"))
+            .expect("app project dir should be created");
+        std::fs::create_dir_all(base.join("dist").join("app").join("project-a"))
+            .expect("app dist dir should be created");
+        std::fs::create_dir_all(base.join("dist")).expect("dist dir should be created");
+        std::fs::write(base.join("global.src.mdx"), "Global zh")
+            .expect("global source prompt should be created");
+        std::fs::write(base.join("global.mdx"), "Global en")
+            .expect("global english source should be created");
+        std::fs::write(base.join("workspace.src.mdx"), "Workspace zh")
+            .expect("workspace source prompt should be created");
+        std::fs::write(base.join("workspace.mdx"), "Workspace en")
+            .expect("workspace english source should be created");
+        std::fs::write(
+            base.join("app").join("project-a").join("agt.src.mdx"),
+            "App project zh",
+        )
+        .expect("app project source should be created");
+        std::fs::write(base.join("dist").join("global.mdx"), "Global dist")
+            .expect("global dist should be created");
+        std::fs::write(base.join("dist").join("workspace.mdx"), "Workspace dist")
+            .expect("workspace dist should be created");
+        std::fs::write(
+            base.join("dist")
+                .join("app")
+                .join("project-a")
+                .join("agt.mdx"),
+            "App project dist",
+        )
+        .expect("app project dist should be created");
+
+        let stats = build_aindex_stats(&base, &config).expect("stats should build");
+        let app_category = stats
+            .categories
+            .iter()
+            .find(|category| category.name == "app")
+            .expect("app category should exist");
+
+        assert_eq!(stats.total_files, 5);
+        assert_eq!(stats.total_source_mdx, 3);
+        assert_eq!(stats.total_translated, 3);
+        assert_eq!(app_category.file_count, 5);
+        assert_eq!(app_category.source_mdx_count, 3);
+
+        std::fs::remove_dir_all(base).expect("temp dir should be removed");
+    }
 }
