@@ -27,6 +27,8 @@ struct SerializeContext {
     list_depth: usize,
     /// Whether we're inside a tight list
     tight: bool,
+    /// Whether the current serialization target is a link label
+    in_link_label: bool,
 }
 
 fn serialize_node(node: &Node, out: &mut String, ctx: &SerializeContext) {
@@ -79,8 +81,28 @@ fn serialize_node(node: &Node, out: &mut String, ctx: &SerializeContext) {
             out.push_str("\n```\n\n");
         }
         Node::Link(link) => {
+            if ctx.in_link_label {
+                let plain_label = collect_plain_text(&link.children);
+                if plain_label.is_empty() {
+                    out.push_str(&link.url);
+                } else {
+                    out.push_str(&plain_label);
+                }
+                return;
+            }
+
+            if link.title.is_none()
+                && is_bare_autolink_label(&link.children, &link.url)
+                && is_autolink_destination(&link.url)
+            {
+                out.push('<');
+                out.push_str(&link.url);
+                out.push('>');
+                return;
+            }
+
             out.push('[');
-            serialize_inline_children(&link.children, out, ctx);
+            serialize_link_label_children(&link.children, out, ctx);
             out.push_str("](");
             out.push_str(&link.url);
             if let Some(title) = &link.title {
@@ -106,6 +128,7 @@ fn serialize_node(node: &Node, out: &mut String, ctx: &SerializeContext) {
             let child_ctx = SerializeContext {
                 list_depth: ctx.list_depth + 1,
                 tight: !list.spread,
+                in_link_label: ctx.in_link_label,
             };
             for (i, child) in list.children.iter().enumerate() {
                 if let Node::ListItem(item) = child {
@@ -225,6 +248,17 @@ fn serialize_inline_children(children: &[Node], out: &mut String, ctx: &Serializ
     }
 }
 
+fn serialize_link_label_children(children: &[Node], out: &mut String, ctx: &SerializeContext) {
+    let label_ctx = SerializeContext {
+        in_link_label: true,
+        ..ctx.clone()
+    };
+
+    for child in children {
+        serialize_node(child, out, &label_ctx);
+    }
+}
+
 fn serialize_list_item_children(children: &[Node], out: &mut String, ctx: &SerializeContext) {
     for (i, child) in children.iter().enumerate() {
         match child {
@@ -299,6 +333,90 @@ fn serialize_table(table: &markdown::mdast::Table, out: &mut String) {
         }
     }
     out.push('\n');
+}
+
+fn is_autolink_destination(url: &str) -> bool {
+    let normalized = url.trim();
+    if normalized.is_empty()
+        || normalized.contains(char::is_whitespace)
+        || normalized.contains('<')
+        || normalized.contains('>')
+    {
+        return false;
+    }
+
+    let lower = normalized.to_ascii_lowercase();
+    lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("ftp://")
+        || lower.starts_with("mailto:")
+        || looks_like_email_address(normalized)
+}
+
+fn is_bare_autolink_label(children: &[Node], url: &str) -> bool {
+    match children {
+        [Node::Text(text)] => text.value == url,
+        [Node::Link(link)] => {
+            link.title.is_none() && link.url == url && collect_plain_text(&link.children) == url
+        }
+        _ => false,
+    }
+}
+
+fn looks_like_email_address(value: &str) -> bool {
+    let mut parts = value.split('@');
+    let local_part = parts.next().unwrap_or_default();
+    let domain = parts.next().unwrap_or_default();
+
+    parts.next().is_none()
+        && !local_part.is_empty()
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+}
+
+fn collect_plain_text(children: &[Node]) -> String {
+    let mut output = String::new();
+
+    for child in children {
+        collect_node_plain_text(child, &mut output);
+    }
+
+    output
+}
+
+fn collect_node_plain_text(node: &Node, out: &mut String) {
+    match node {
+        Node::Text(text) => out.push_str(&text.value),
+        Node::InlineCode(code) => out.push_str(&code.value),
+        Node::Image(image) => out.push_str(&image.alt),
+        Node::Break(_) => out.push(' '),
+        Node::Html(html) => out.push_str(&html.value),
+        Node::Link(link) => {
+            let label = collect_plain_text(&link.children);
+            if label.is_empty() {
+                out.push_str(&link.url);
+            } else {
+                out.push_str(&label);
+            }
+        }
+        Node::Strong(strong) => {
+            for child in &strong.children {
+                collect_node_plain_text(child, out);
+            }
+        }
+        Node::Emphasis(emphasis) => {
+            for child in &emphasis.children {
+                collect_node_plain_text(child, out);
+            }
+        }
+        Node::Delete(delete) => {
+            for child in &delete.children {
+                collect_node_plain_text(child, out);
+            }
+        }
+        _ => {}
+    }
 }
 
 #[cfg(test)]

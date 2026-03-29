@@ -221,7 +221,7 @@ pub fn mdx_to_md(content: &str, options: Option<MdxToMdOptions>) -> Result<Strin
     let opts = options.unwrap_or_default();
     let ast = parse_mdx(content)?;
     let merged_scope = merge_scopes(&opts.global_scope, &opts.scope);
-    let ctx = ProcessingContext::new(merged_scope);
+    let ctx = ProcessingContext::new(merged_scope, Some(content.to_string()));
     let transformed = transform_ast(&ast, &ctx);
     Ok(serialize(&transformed))
 }
@@ -268,7 +268,7 @@ pub fn mdx_to_md_with_metadata(
     let stripped = strip_metadata_nodes(&ast);
 
     let merged_scope = merge_scopes(&opts.global_scope, &opts.scope);
-    let ctx = ProcessingContext::new(merged_scope);
+    let ctx = ProcessingContext::new(merged_scope, Some(stripped_source));
     let transformed = transform_ast(&stripped, &ctx);
     let markdown = serialize(&transformed);
 
@@ -417,5 +417,97 @@ mod tests {
         let result = mdx_to_md("OS: {os.platform}\n", Some(opts)).unwrap();
         // Custom scope should override global
         assert!(result.contains("OS: darwin"), "Got: {}", result);
+    }
+
+    #[test]
+    fn test_preserves_intrinsic_html_block_with_nested_image() {
+        let source = "<p align=\"center\">\n    <img alt=\"logo\" src=\"./src/app/icon.svg\"\n        width=\"138\" />\n</p>\n";
+        let result = mdx_to_md(source, None).unwrap();
+
+        assert!(result.contains("<p align=\"center\">"), "Got: {}", result);
+        assert!(
+            result.contains("<img alt=\"logo\" src=\"./src/app/icon.svg\""),
+            "Got: {}",
+            result
+        );
+        assert!(result.contains("width=\"138\" />"), "Got: {}", result);
+        assert!(result.contains("</p>"), "Got: {}", result);
+    }
+
+    #[test]
+    fn test_preserves_intrinsic_html_block_with_inline_markup() {
+        let source = "<p align=\"right\">\n    <b>English</b> | <a href=\"./README_zh.md\">简体中文</a>\n</p>\n";
+        let result = mdx_to_md(source, None).unwrap();
+
+        assert!(result.contains("<p align=\"right\">"), "Got: {}", result);
+        assert!(
+            result.contains("<b>English</b> | <a href=\"./README_zh.md\">简体中文</a>"),
+            "Got: {}",
+            result
+        );
+        assert!(result.contains("</p>"), "Got: {}", result);
+    }
+
+    #[test]
+    fn test_url_labeled_links_serialize_as_valid_autolinks() {
+        let source = "Open [http://localhost:9002](http://localhost:9002) in your browser.\n";
+        let result = mdx_to_md(source, None).unwrap();
+
+        assert!(!result.contains("[["), "Got: {}", result);
+        assert_eq!(result, "Open <http://localhost:9002> in your browser.");
+    }
+
+    #[test]
+    fn test_non_url_self_labeled_links_remain_bracketed() {
+        let source = "[README](README) and [#section](#section)\n";
+        let result = mdx_to_md(source, None).unwrap();
+
+        assert_eq!(result, "[README](README) and [#section](#section)");
+    }
+
+    #[test]
+    fn test_formatted_url_labels_do_not_collapse_to_autolinks() {
+        let source = "[**http://localhost:9002**](http://localhost:9002)\n";
+        let result = mdx_to_md(source, None).unwrap();
+
+        assert_eq!(result, "[**http://localhost:9002**](http://localhost:9002)");
+    }
+
+    #[test]
+    fn test_preserved_intrinsic_html_evaluates_children_and_attributes() {
+        let source = "<p align={side}>{count}<img src={logo} width={width} /></p>\n";
+        let mut scope = EvaluationScope::new();
+        scope.insert("side".into(), json!("right"));
+        scope.insert("count".into(), json!(2));
+        scope.insert("logo".into(), json!("./logo.svg"));
+        scope.insert("width".into(), json!(138));
+
+        let result = mdx_to_md(
+            source,
+            Some(MdxToMdOptions {
+                scope: Some(scope),
+                ..Default::default()
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            "<p align=\"right\">2<img src=\"./logo.svg\" width=\"138\" /></p>"
+        );
+    }
+
+    #[test]
+    fn test_preserves_opening_sample_section() {
+        let source = "<p align=\"center\">\n    <img alt=\"logo\" src=\"./src/app/icon.svg\"\n        width=\"138\" />\n</p>\n\n# China Unemployment Watch\n\n<p align=\"right\">\n    <b>English</b> | <a href=\"./README_zh.md\">简体中文</a>\n</p>\n";
+        let result = mdx_to_md(source, None).unwrap();
+
+        assert!(result.contains("<p align=\"center\">"), "Got: {}", result);
+        assert!(
+            result.contains("# China Unemployment Watch"),
+            "Got: {}",
+            result
+        );
+        assert!(result.contains("<p align=\"right\">"), "Got: {}", result);
     }
 }

@@ -6,6 +6,7 @@ import process from 'node:process'
 import * as YAML from 'yaml'
 
 import {parseMdx} from '../compiler/parser' // Napi binding types
+import {shouldSkipNativeBinding} from '../native-binding'
 
 interface NapiMdCompilerModule {
   buildFrontMatter: (frontMatterJson: string) => string
@@ -74,23 +75,25 @@ function loadBindingFromCliBinaryPackage(
 }
 
 try {
-  const require = createRequire(import.meta.url)
-  const {platform, arch} = process
-  const platforms: Record<string, [local: string, suffix: string]> = {
-    'win32-x64': ['napi-md-compiler.win32-x64-msvc', 'win32-x64-msvc'],
-    'linux-x64': ['napi-md-compiler.linux-x64-gnu', 'linux-x64-gnu'],
-    'linux-arm64': ['napi-md-compiler.linux-arm64-gnu', 'linux-arm64-gnu'],
-    'darwin-arm64': ['napi-md-compiler.darwin-arm64', 'darwin-arm64'],
-    'darwin-x64': ['napi-md-compiler.darwin-x64', 'darwin-x64']
-  }
-  const entry = platforms[`${platform}-${arch}`]
-  if (entry != null) {
-    const [local, suffix] = entry
-    try {
-      napiBinding = require(`../${local}.node`) as NapiMdCompilerModule
+  if (!shouldSkipNativeBinding()) {
+    const require = createRequire(import.meta.url)
+    const {platform, arch} = process
+    const platforms: Record<string, [local: string, suffix: string]> = {
+      'win32-x64': ['napi-md-compiler.win32-x64-msvc', 'win32-x64-msvc'],
+      'linux-x64': ['napi-md-compiler.linux-x64-gnu', 'linux-x64-gnu'],
+      'linux-arm64': ['napi-md-compiler.linux-arm64-gnu', 'linux-arm64-gnu'],
+      'darwin-arm64': ['napi-md-compiler.darwin-arm64', 'darwin-arm64'],
+      'darwin-x64': ['napi-md-compiler.darwin-x64', 'darwin-x64']
     }
-    catch {
-      napiBinding = loadBindingFromCliBinaryPackage(require, suffix)
+    const entry = platforms[`${platform}-${arch}`]
+    if (entry != null) {
+      const [local, suffix] = entry
+      try {
+        napiBinding = require(`../${local}.node`) as NapiMdCompilerModule
+      }
+      catch {
+        napiBinding = loadBindingFromCliBinaryPackage(require, suffix)
+      }
     }
   }
 }

@@ -5,6 +5,7 @@ import {createRequire} from 'node:module'
 import {dirname, join} from 'node:path'
 import process from 'node:process'
 import {mdxToMd as fallbackMdxToMd} from './compiler/mdx-to-md'
+import {shouldSkipNativeBinding} from './native-binding'
 
 interface NapiMdCompilerModule {
   compileMdxToMd: (content: string, optionsJson?: string | null) => string
@@ -70,24 +71,42 @@ function loadBindingFromCliBinaryPackage(
   return null
 }
 
-try {
-  const require = createRequire(import.meta.url)
-  const {platform, arch} = process
-  const platforms: Record<string, [local: string, suffix: string]> = {
-    'win32-x64': ['napi-md-compiler.win32-x64-msvc', 'win32-x64-msvc'],
-    'linux-x64': ['napi-md-compiler.linux-x64-gnu', 'linux-x64-gnu'],
-    'linux-arm64': ['napi-md-compiler.linux-arm64-gnu', 'linux-arm64-gnu'],
-    'darwin-arm64': ['napi-md-compiler.darwin-arm64', 'darwin-arm64'],
-    'darwin-x64': ['napi-md-compiler.darwin-x64', 'darwin-x64']
-  }
-  const entry = platforms[`${platform}-${arch}`]
-  if (entry != null) {
-    const [local, suffix] = entry
+function loadLocalBinding(
+  requireFn: ReturnType<typeof createRequire>,
+  local: string
+): NapiMdCompilerModule | null {
+  const candidates = [
+    `./${local}.node`,
+    `../dist/${local}.node`
+  ]
+
+  for (const candidate of candidates) {
     try {
-      napiBinding = require(`./${local}.node`) as NapiMdCompilerModule
+      const binding = requireFn(candidate) as unknown
+      if (isNapiMdCompilerModule(binding)) return binding
     }
     catch {
-      napiBinding = loadBindingFromCliBinaryPackage(require, suffix)
+    }
+  }
+
+  return null
+}
+
+try {
+  if (!shouldSkipNativeBinding()) {
+    const require = createRequire(import.meta.url)
+    const {platform, arch} = process
+    const platforms: Record<string, [local: string, suffix: string]> = {
+      'win32-x64': ['napi-md-compiler.win32-x64-msvc', 'win32-x64-msvc'],
+      'linux-x64': ['napi-md-compiler.linux-x64-gnu', 'linux-x64-gnu'],
+      'linux-arm64': ['napi-md-compiler.linux-arm64-gnu', 'linux-arm64-gnu'],
+      'darwin-arm64': ['napi-md-compiler.darwin-arm64', 'darwin-arm64'],
+      'darwin-x64': ['napi-md-compiler.darwin-x64', 'darwin-x64']
+    }
+    const entry = platforms[`${platform}-${arch}`]
+    if (entry != null) {
+      const [local, suffix] = entry
+      napiBinding = loadLocalBinding(require, local) ?? loadBindingFromCliBinaryPackage(require, suffix)
     }
   }
 }

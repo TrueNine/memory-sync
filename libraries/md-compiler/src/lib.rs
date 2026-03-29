@@ -27,8 +27,6 @@ pub use transformer::ProcessingContext;
 
 #[cfg(feature = "napi")]
 mod napi_binding {
-    use std::collections::HashMap;
-
     use super::{
         EvaluationScope, MdxGlobalScope, MdxToMdOptions, mdx_to_md, mdx_to_md_with_metadata,
     };

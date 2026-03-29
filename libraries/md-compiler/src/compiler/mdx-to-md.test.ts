@@ -232,7 +232,69 @@ Content inside
     it('should handle HTML-like elements', async () => {
       const input = '<div>Some content</div>'
       const result = await mdxToMd(input)
-      expect(typeof result).toBe('string') // Should either convert or skip gracefully
+      expect(result).toContain('<div>Some content</div>')
+    })
+  })
+
+  describe('intrinsic HTML preservation regressions', () => {
+    it('preserves an unhandled intrinsic block with nested image markup', async () => {
+      const input = `<p align="center">
+    <img alt="logo" src="./src/app/icon.svg"
+        width="138" />
+</p>`
+
+      const result = await mdxToMd(input)
+
+      expect(result).toContain('<p align="center">')
+      expect(result).toContain('<img alt="logo" src="./src/app/icon.svg"')
+      expect(result).toContain('width="138" />')
+      expect(result).toContain('</p>')
+    })
+
+    it('preserves an unhandled intrinsic block with inline formatting and links', async () => {
+      const input = `<p align="right">
+    <b>English</b> | <a href="./README_zh.md">简体中文</a>
+</p>`
+
+      const result = await mdxToMd(input)
+
+      expect(result).toContain('<p align="right">')
+      expect(result).toContain('<b>English</b> | <a href="./README_zh.md">简体中文</a>')
+      expect(result).toContain('</p>')
+    })
+
+    it('preserves the opening sample section without dropping intrinsic blocks', async () => {
+      const input = `<p align="center">
+    <img alt="logo" src="./src/app/icon.svg"
+        width="138" />
+</p>
+
+# China Unemployment Watch
+
+<p align="right">
+    <b>English</b> | <a href="./README_zh.md">简体中文</a>
+</p>`
+
+      const result = await mdxToMd(input)
+
+      expect(result).toContain('<p align="center">')
+      expect(result).toContain('# China Unemployment Watch')
+      expect(result).toContain('<p align="right">')
+    })
+
+    it('evaluates expressions and attribute expressions inside preserved intrinsic blocks', async () => {
+      const input = '<p align={side}>{count}<img src={logo} width={width} /></p>'
+
+      const result = await mdxToMd(input, {
+        scope: {
+          side: 'right',
+          count: 2,
+          logo: './logo.svg',
+          width: 138
+        }
+      })
+
+      expect(result).toBe('<p align="right">2<img src="./logo.svg" width="138" /></p>')
     })
   })
 
@@ -282,6 +344,13 @@ Content inside
       const result = await mdxToMd(input)
       expect(result).toContain('[file.js]')
       expect(result).toContain('(https://example.com/path/to/file.js)')
+    })
+
+    it('should not collapse non-URL self-labeled links into autolinks', async () => {
+      const input = '[README](README) and [#section](#section)'
+      const result = await mdxToMd(input)
+
+      expect(result).toBe('[README](README) and [#section](#section)')
     })
   })
 
