@@ -1,39 +1,22 @@
 import type {Command, CommandContext, CommandResult} from './Command'
+import type {AindexConfigKeyPath} from '@/plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {buildUsageDiagnostic, diagnosticLines} from '@/diagnostics'
+import {AINDEX_CONFIG_KEY_PATHS} from '@/plugins/plugin-core'
 import {getRequiredGlobalConfigPath} from '@/runtime-environment'
 
 /**
  * Valid configuration keys that can be set via `tnmsc config key=value`.
  * Nested keys use dot-notation: aindex.skills.src, aindex.commands.src, etc.
  */
-const VALID_CONFIG_KEYS = [
-  'workspaceDir',
-  'aindex.skills.src',
-  'aindex.skills.dist',
-  'aindex.commands.src',
-  'aindex.commands.dist',
-  'aindex.subAgents.src',
-  'aindex.subAgents.dist',
-  'aindex.rules.src',
-  'aindex.rules.dist',
-  'aindex.globalPrompt.src',
-  'aindex.globalPrompt.dist',
-  'aindex.workspacePrompt.src',
-  'aindex.workspacePrompt.dist',
-  'aindex.app.src',
-  'aindex.app.dist',
-  'aindex.ext.src',
-  'aindex.ext.dist',
-  'aindex.arch.src',
-  'aindex.arch.dist',
-  'aindex.softwares.src',
-  'aindex.softwares.dist',
-  'logLevel'
-] as const
+type ValidConfigKey = 'workspaceDir' | 'logLevel' | AindexConfigKeyPath
 
-type ValidConfigKey = typeof VALID_CONFIG_KEYS[number]
+const VALID_CONFIG_KEYS: readonly ValidConfigKey[] = [
+  'workspaceDir',
+  ...AINDEX_CONFIG_KEY_PATHS,
+  'logLevel'
+]
 
 /**
  * Validate if a key is a valid config key

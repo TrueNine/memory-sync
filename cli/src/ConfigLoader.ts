@@ -1,10 +1,10 @@
+import type {ILogger} from '@truenine/logger'
 import type {
   AindexConfig,
   CleanupProtectionOptions,
   ConfigLoaderOptions,
   ConfigLoadResult,
   FrontMatterOptions,
-  ILogger,
   OutputScopeOptions,
   PluginOutputScopeTopics,
   UserConfigFile,
@@ -12,13 +12,14 @@ import type {
 } from './plugins/plugin-core'
 import * as fs from 'node:fs'
 import process from 'node:process'
+import {createLogger} from '@truenine/logger'
 import {
   buildConfigDiagnostic,
   buildFileOperationDiagnostic,
   diagnosticLines,
   splitDiagnosticText
 } from './diagnostics'
-import {createLogger, ZUserConfigFile} from './plugins/plugin-core'
+import {mergeAindexConfig, ZUserConfigFile} from './plugins/plugin-core'
 import {
   getRequiredGlobalConfigPath,
   resolveRuntimeEnvironment,
@@ -189,19 +190,7 @@ export class ConfigLoader {
     if (a == null && b == null) return void 0
     if (a == null) return b
     if (b == null) return a
-    return {
-      dir: b.dir ?? a.dir,
-      skills: {...a.skills, ...b.skills},
-      commands: {...a.commands, ...b.commands},
-      subAgents: {...a.subAgents, ...b.subAgents},
-      rules: {...a.rules, ...b.rules},
-      globalPrompt: {...a.globalPrompt, ...b.globalPrompt},
-      workspacePrompt: {...a.workspacePrompt, ...b.workspacePrompt},
-      app: {...a.app, ...b.app},
-      ext: {...a.ext, ...b.ext},
-      arch: {...a.arch, ...b.arch},
-      softwares: {...a.softwares, ...b.softwares}
-    }
+    return mergeAindexConfig(a, b)
   }
 
   private mergeOutputScopeTopics(

@@ -1,4 +1,12 @@
-import type {ILogger, LoggerDiagnosticRecord, OutputCleanContext, OutputCollectedContext, OutputPlugin, OutputWriteContext, PluginOptions, UserConfigFile} from '../plugins/plugin-core'
+import type {ILogger, LoggerDiagnosticRecord} from '@truenine/logger'
+import type {
+  OutputCleanContext,
+  OutputCollectedContext,
+  OutputPlugin,
+  OutputWriteContext,
+  PluginOptions,
+  UserConfigFile
+} from '../plugins/plugin-core'
 
 /**
  * Command execution context

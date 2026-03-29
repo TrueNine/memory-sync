@@ -1,3 +1,4 @@
+export * from './AindexConfigDefaults'
 export * from './AindexTypes'
 export * from './ConfigTypes.schema'
 export * from './enums'

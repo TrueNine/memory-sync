@@ -1,7 +1,9 @@
 import type {Command, CommandContext, CommandResult} from './Command'
+import {AINDEX_CONFIG_KEY_PATHS} from '@/plugins/plugin-core'
 import {getCliVersion} from './VersionCommand'
 
 const CLI_NAME = 'tnmsc'
+const CONFIG_KEY_LIST_TEXT = ['workspaceDir', 'logLevel', ...AINDEX_CONFIG_KEY_PATHS].join(',\n              ')
 
 const HELP_TEXT = `
 ${CLI_NAME} v${getCliVersion()} - Memory Sync CLI
@@ -44,17 +46,7 @@ CLEAN OPTIONS:
 
 CONFIG OPTIONS:
   key=value          Set a configuration value in global config (~/.aindex/.tnmsc.json)
-  Valid keys: workspaceDir, logLevel,
-              aindex.skills.src, aindex.skills.dist,
-              aindex.commands.src, aindex.commands.dist,
-              aindex.subAgents.src, aindex.subAgents.dist,
-              aindex.rules.src, aindex.rules.dist,
-              aindex.globalPrompt.src, aindex.globalPrompt.dist,
-              aindex.workspacePrompt.src, aindex.workspacePrompt.dist,
-              aindex.app.src, aindex.app.dist,
-              aindex.ext.src, aindex.ext.dist,
-              aindex.arch.src, aindex.arch.dist,
-              aindex.softwares.src, aindex.softwares.dist
+  Valid keys: ${CONFIG_KEY_LIST_TEXT}
 
   Examples:
     ${CLI_NAME} config workspaceDir=~/my-project

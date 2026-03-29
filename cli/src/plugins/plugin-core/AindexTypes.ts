@@ -1,3 +1,11 @@
+export {
+  AINDEX_PROJECT_SERIES_NAMES
+} from './AindexConfigDefaults'
+
+export type {
+  AindexProjectSeriesName
+} from './AindexConfigDefaults'
+
 /**
  * Aindex directory structure types and constants
  * Used for directory structure validation and generation
@@ -74,10 +82,6 @@ export interface AindexDirectory {
   /** AI Agent ignore files */
   readonly ignoreFiles: readonly AindexFileEntry[]
 }
-
-export const AINDEX_PROJECT_SERIES_NAMES = ['app', 'ext', 'arch', 'softwares'] as const
-
-export type AindexProjectSeriesName = (typeof AINDEX_PROJECT_SERIES_NAMES)[number]
 
 /**
  * Directory names used in aindex project

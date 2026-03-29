@@ -20,7 +20,9 @@ import {checkVersionControl} from './Aindex'
 import {getConfigLoader} from './ConfigLoader'
 import {collectInputContext, resolveRuntimeCommand} from './inputs/runtime'
 import {
+  buildDefaultAindexConfig,
   FilePathKind,
+  mergeAindexConfig,
   PathPlaceholders,
   toOutputCollectedContext,
   validateOutputScopeOverridesForPlugins
@@ -51,19 +53,7 @@ function isInputCapability(plugin: InputCapability | OutputPlugin): plugin is In
   return 'collect' in plugin && !isOutputPlugin(plugin)
 }
 
-const DEFAULT_AINDEX: Required<AindexConfig> = {
-  dir: 'aindex',
-  skills: {src: 'skills', dist: 'dist/skills'},
-  commands: {src: 'commands', dist: 'dist/commands'},
-  subAgents: {src: 'subagents', dist: 'dist/subagents'},
-  rules: {src: 'rules', dist: 'dist/rules'},
-  globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
-  workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
-  app: {src: 'app', dist: 'dist/app'},
-  ext: {src: 'ext', dist: 'dist/ext'},
-  arch: {src: 'arch', dist: 'dist/arch'},
-  softwares: {src: 'softwares', dist: 'dist/softwares'}
-}
+const DEFAULT_AINDEX: Required<AindexConfig> = buildDefaultAindexConfig()
 
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
   version: '0.0.0',
@@ -142,7 +132,7 @@ function mergeTwoConfigs(
   return {
     ...base,
     ...override,
-    aindex: mergeAindex(base.aindex, override.aindex),
+    aindex: mergeAindexConfig(base.aindex, override.aindex),
     plugins: [ // Array concatenation for plugins
       ...base.plugins,
       ...overridePlugins ?? []
@@ -152,26 +142,6 @@ function mergeTwoConfigs(
     frontMatter: mergeFrontMatterOptions(base.frontMatter, overrideFrontMatter),
     cleanupProtection: mergeCleanupProtectionOptions(base.cleanupProtection, overrideCleanupProtection),
     windows: mergeWindowsOptions(base.windows, overrideWindows)
-  }
-}
-
-function mergeAindex(
-  base: AindexConfig,
-  override?: AindexConfig
-): AindexConfig {
-  if (override == null) return base
-  return {
-    dir: override.dir ?? base.dir,
-    skills: {...base.skills, ...override.skills},
-    commands: {...base.commands, ...override.commands},
-    subAgents: {...base.subAgents, ...override.subAgents},
-    rules: {...base.rules, ...override.rules},
-    globalPrompt: {...base.globalPrompt, ...override.globalPrompt},
-    workspacePrompt: {...base.workspacePrompt, ...override.workspacePrompt},
-    app: {...base.app, ...override.app},
-    ext: {...base.ext, ...override.ext},
-    arch: {...base.arch, ...override.arch},
-    softwares: {...base.softwares, ...override.softwares}
   }
 }
 
