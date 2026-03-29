@@ -44,7 +44,8 @@ describe('defineConfig', () => {
         workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
         app: {src: 'app', dist: 'dist/app'},
         ext: {src: 'ext', dist: 'dist/ext'},
-        arch: {src: 'arch', dist: 'dist/arch'}
+        arch: {src: 'arch', dist: 'dist/arch'},
+        softwares: {src: 'softwares', dist: 'dist/softwares'}
       },
       logLevel: 'info'
     }), 'utf8')
@@ -54,6 +55,7 @@ describe('defineConfig', () => {
       const result = await defineConfig({cwd: tempWorkspace})
 
       expect(result.userConfigOptions.workspaceDir).toBe(tempWorkspace)
+      expect(result.userConfigOptions.aindex.softwares).toEqual({src: 'softwares', dist: 'dist/softwares'})
       expect(result.context.workspace.directory.path).toBe(tempWorkspace)
       expect(result.context.aindexDir).toBe(path.join(tempWorkspace, 'aindex'))
     }

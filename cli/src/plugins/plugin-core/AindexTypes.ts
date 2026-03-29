@@ -53,6 +53,7 @@ export interface AindexDirectory {
     readonly app: AindexDirectoryEntry
     readonly ext: AindexDirectoryEntry
     readonly arch: AindexDirectoryEntry
+    readonly softwares: AindexDirectoryEntry
     readonly globalMemoryFile: AindexFileEntry
     readonly workspaceMemoryFile: AindexFileEntry
   }
@@ -60,6 +61,7 @@ export interface AindexDirectory {
   readonly app: AindexDirectoryEntry
   readonly ext: AindexDirectoryEntry
   readonly arch: AindexDirectoryEntry
+  readonly softwares: AindexDirectoryEntry
   /** IDE configuration directories */
   readonly ide: {
     readonly idea: AindexDirectoryEntry
@@ -73,7 +75,7 @@ export interface AindexDirectory {
   readonly ignoreFiles: readonly AindexFileEntry[]
 }
 
-export const AINDEX_PROJECT_SERIES_NAMES = ['app', 'ext', 'arch'] as const
+export const AINDEX_PROJECT_SERIES_NAMES = ['app', 'ext', 'arch', 'softwares'] as const
 
 export type AindexProjectSeriesName = (typeof AINDEX_PROJECT_SERIES_NAMES)[number]
 
@@ -90,6 +92,7 @@ export const AINDEX_DIR_NAMES = {
   APP: 'app',
   EXT: 'ext',
   ARCH: 'arch',
+  SOFTWARES: 'softwares',
   IDEA: '.idea', // IDE directories
   IDEA_CODE_STYLES: '.idea/codeStyles',
   VSCODE: '.vscode',
@@ -135,11 +138,13 @@ export const AINDEX_RELATIVE_PATHS = {
   DIST_APP: 'dist/app',
   DIST_EXT: 'dist/ext',
   DIST_ARCH: 'dist/arch',
+  DIST_SOFTWARES: 'dist/softwares',
   DIST_GLOBAL_MEMORY: 'dist/global.mdx',
   DIST_WORKSPACE_MEMORY: 'dist/workspace.mdx',
   APP: 'app', // App source path (standalone at root)
   EXT: 'ext',
-  ARCH: 'arch'
+  ARCH: 'arch',
+  SOFTWARES: 'softwares'
 } as const
 
 /**
@@ -224,6 +229,11 @@ export const DEFAULT_AINDEX_STRUCTURE: AindexDirectory = {
       name: AINDEX_DIR_NAMES.ARCH,
       required: false,
       description: 'Compiled architecture-specific prompts'
+    },
+    softwares: {
+      name: AINDEX_DIR_NAMES.SOFTWARES,
+      required: false,
+      description: 'Compiled software-repository prompts'
     }
   },
   app: {
@@ -240,6 +250,11 @@ export const DEFAULT_AINDEX_STRUCTURE: AindexDirectory = {
     name: AINDEX_DIR_NAMES.ARCH,
     required: false,
     description: 'Architecture-specific prompts (standalone directory)'
+  },
+  softwares: {
+    name: AINDEX_DIR_NAMES.SOFTWARES,
+    required: false,
+    description: 'Software-repository prompts (standalone directory)'
   },
   ide: {
     idea: {

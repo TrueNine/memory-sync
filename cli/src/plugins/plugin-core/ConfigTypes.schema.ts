@@ -20,7 +20,8 @@ export const ZAindexConfig = z.object({
   workspacePrompt: ZAindexDirPair,
   app: ZAindexDirPair,
   ext: ZAindexDirPair,
-  arch: ZAindexDirPair
+  arch: ZAindexDirPair,
+  softwares: ZAindexDirPair.default({src: 'softwares', dist: 'dist/softwares'})
 })
 
 /**

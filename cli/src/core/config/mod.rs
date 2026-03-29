@@ -91,6 +91,8 @@ pub struct AindexConfig {
     pub ext: Option<DirPair>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arch: Option<DirPair>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub softwares: Option<DirPair>,
 }
 
 /// Per-plugin fast command series override options.
@@ -602,6 +604,7 @@ fn merge_aindex(a: &Option<AindexConfig>, b: &Option<AindexConfig>) -> Option<Ai
             app: DirPair::merge(&base.app, &over.app),
             ext: DirPair::merge(&base.ext, &over.ext),
             arch: DirPair::merge(&base.arch, &over.arch),
+            softwares: DirPair::merge(&base.softwares, &over.softwares),
         }),
     }
 }
@@ -1123,7 +1126,8 @@ mod tests {
                 "workspacePrompt": {"src": "workspace.src.mdx", "dist": "dist/workspace.mdx"},
                 "app": {"src": "app", "dist": "dist/app"},
                 "ext": {"src": "ext", "dist": "dist/ext"},
-                "arch": {"src": "arch", "dist": "dist/arch"}
+                "arch": {"src": "arch", "dist": "dist/arch"},
+                "softwares": {"src": "softwares", "dist": "dist/softwares"}
             }
         }"#;
         let config: UserConfigFile = serde_json::from_str(json).unwrap();

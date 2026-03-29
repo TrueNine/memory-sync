@@ -16,7 +16,7 @@ export interface OrphanCleanupEffectResult extends InputEffectResult {
   readonly deletedDirs: string[]
 }
 
-const OrphanCleanupDistSubDirs = ['skills', 'commands', 'agents', 'app', 'ext', 'arch'] as const
+const OrphanCleanupDistSubDirs = ['skills', 'commands', 'agents', 'app', 'ext', 'arch', 'softwares'] as const
 
 type OrphanCleanupSubDir = (typeof OrphanCleanupDistSubDirs)[number]
 
@@ -96,7 +96,8 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
       agents: aindexConfig?.subAgents?.src ?? 'subagents',
       app: projectSeries.find(series => series.name === 'app')?.src ?? 'app',
       ext: projectSeries.find(series => series.name === 'ext')?.src ?? 'ext',
-      arch: projectSeries.find(series => series.name === 'arch')?.src ?? 'arch'
+      arch: projectSeries.find(series => series.name === 'arch')?.src ?? 'arch',
+      softwares: projectSeries.find(series => series.name === 'softwares')?.src ?? 'softwares'
     }
 
     const plan = this.buildDeletionPlan(ctx, distDir, srcPaths)
@@ -283,6 +284,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
       case 'app':
       case 'ext':
       case 'arch':
+      case 'softwares':
         return relativeDir === '.'
           ? SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, `${baseName}${extension}`))
           : SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}${extension}`))

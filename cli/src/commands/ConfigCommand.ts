@@ -28,6 +28,8 @@ const VALID_CONFIG_KEYS = [
   'aindex.ext.dist',
   'aindex.arch.src',
   'aindex.arch.dist',
+  'aindex.softwares.src',
+  'aindex.softwares.dist',
   'logLevel'
 ] as const
 

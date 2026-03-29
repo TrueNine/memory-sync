@@ -199,7 +199,8 @@ export class ConfigLoader {
       workspacePrompt: {...a.workspacePrompt, ...b.workspacePrompt},
       app: {...a.app, ...b.app},
       ext: {...a.ext, ...b.ext},
-      arch: {...a.arch, ...b.arch}
+      arch: {...a.arch, ...b.arch},
+      softwares: {...a.softwares, ...b.softwares}
     }
   }
 

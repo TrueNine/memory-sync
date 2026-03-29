@@ -61,7 +61,8 @@ const DEFAULT_AINDEX: Required<AindexConfig> = {
   workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
   app: {src: 'app', dist: 'dist/app'},
   ext: {src: 'ext', dist: 'dist/ext'},
-  arch: {src: 'arch', dist: 'dist/arch'}
+  arch: {src: 'arch', dist: 'dist/arch'},
+  softwares: {src: 'softwares', dist: 'dist/softwares'}
 }
 
 const DEFAULT_OPTIONS: Required<PluginOptions> = {
@@ -169,7 +170,8 @@ function mergeAindex(
     workspacePrompt: {...base.workspacePrompt, ...override.workspacePrompt},
     app: {...base.app, ...override.app},
     ext: {...base.ext, ...override.ext},
-    arch: {...base.arch, ...override.arch}
+    arch: {...base.arch, ...override.arch},
+    softwares: {...base.softwares, ...override.softwares}
   }
 }
 

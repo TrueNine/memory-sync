@@ -46,7 +46,7 @@ function createContext(
 function createAindexProject(
   tempWorkspace: string,
   projectName: string,
-  series: 'app' | 'ext' | 'arch' = 'app'
+  series: 'app' | 'ext' | 'arch' | 'softwares' = 'app'
 ): {
   readonly configDir: string
 } {
@@ -140,7 +140,7 @@ describe('aindex input capability project config loading', () => {
     }
   })
 
-  it('collects app, ext, and arch projects with series-aware metadata', async () => {
+  it('collects app, ext, arch, and softwares projects with series-aware metadata', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-aindex-project-series-'))
     const {logger} = createLoggerMock()
 
@@ -148,6 +148,7 @@ describe('aindex input capability project config loading', () => {
       createAindexProject(tempWorkspace, 'project-a', 'app')
       createAindexProject(tempWorkspace, 'plugin-a', 'ext')
       createAindexProject(tempWorkspace, 'system-a', 'arch')
+      createAindexProject(tempWorkspace, 'tool-a', 'softwares')
 
       const result = await new AindexInputCapability().collect(createContext(tempWorkspace, logger))
       const projects = result.workspace?.projects ?? []
@@ -155,7 +156,8 @@ describe('aindex input capability project config loading', () => {
       expect(projects.map(project => `${project.promptSeries}:${project.name}`)).toEqual([
         'app:project-a',
         'ext:plugin-a',
-        'arch:system-a'
+        'arch:system-a',
+        'softwares:tool-a'
       ])
     }
     finally {
@@ -163,13 +165,13 @@ describe('aindex input capability project config loading', () => {
     }
   })
 
-  it('fails fast when app, ext, and arch reuse the same project name', async () => {
+  it('fails fast when app, ext, arch, and softwares reuse the same project name', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-aindex-project-conflict-'))
     const {logger, error} = createLoggerMock()
 
     try {
       createAindexProject(tempWorkspace, 'project-a', 'app')
-      createAindexProject(tempWorkspace, 'project-a', 'ext')
+      createAindexProject(tempWorkspace, 'project-a', 'softwares')
 
       await expect(new AindexInputCapability().collect(createContext(tempWorkspace, logger)))
         .rejects

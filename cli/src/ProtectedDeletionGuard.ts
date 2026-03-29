@@ -77,7 +77,8 @@ const CONFIGURED_AINDEX_DIRECTORY_KEYS = [
   'rules',
   'app',
   'ext',
-  'arch'
+  'arch',
+  'softwares'
 ] as const satisfies readonly (keyof Required<PluginOptions>['aindex'])[]
 
 const CONFIGURED_AINDEX_FILE_KEYS = [
@@ -291,7 +292,7 @@ function collectWorkspaceReservedRules(
     'workspace-reserved',
     'glob'
   ))
-  for (const seriesName of ['app', 'ext', 'arch'] as const) {
+  for (const seriesName of ['app', 'ext', 'arch', 'softwares'] as const) {
     rules.push(createProtectedPathRule(
       path.join(workspaceDir, 'aindex', seriesName, '**', '*.mdx'),
       'direct',
@@ -322,9 +323,12 @@ export function collectConfiguredAindexInputRules(
   const rules: ProtectedPathRule[] = []
 
   for (const key of CONFIGURED_AINDEX_DIRECTORY_KEYS) {
+    const configuredDir = pluginOptions.aindex[key]
+    if (configuredDir == null) continue
+
     rules.push(
       createProtectedPathRule(
-        path.join(aindexDir, pluginOptions.aindex[key].src),
+        path.join(aindexDir, configuredDir.src),
         'recursive',
         `configured aindex ${key} source directory`,
         'configured-aindex-source'
@@ -333,9 +337,12 @@ export function collectConfiguredAindexInputRules(
   }
 
   for (const key of CONFIGURED_AINDEX_FILE_KEYS) {
+    const configuredFile = pluginOptions.aindex[key]
+    if (configuredFile == null) continue
+
     rules.push(
       createProtectedPathRule(
-        path.join(aindexDir, pluginOptions.aindex[key].src),
+        path.join(aindexDir, configuredFile.src),
         'direct',
         `configured aindex ${key} source file`,
         'configured-aindex-source'

@@ -53,7 +53,8 @@ CONFIG OPTIONS:
               aindex.workspacePrompt.src, aindex.workspacePrompt.dist,
               aindex.app.src, aindex.app.dist,
               aindex.ext.src, aindex.ext.dist,
-              aindex.arch.src, aindex.arch.dist
+              aindex.arch.src, aindex.arch.dist,
+              aindex.softwares.src, aindex.softwares.dist
 
   Examples:
     ${CLI_NAME} config workspaceDir=~/my-project
