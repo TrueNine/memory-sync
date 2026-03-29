@@ -125,6 +125,17 @@ describe('prompt catalog service', () => {
     )
 
     writeFile(
+      path.join(aindexDir, 'softwares', 'tool-a', 'agt.src.mdx'),
+      '---\ndescription: software project zh\n---\nSoftware project zh',
+      new Date(now)
+    )
+    writeFile(
+      path.join(aindexDir, 'dist', 'softwares', 'tool-a', 'agt.mdx'),
+      '---\ndescription: software project dist\n---\nSoftware project dist',
+      new Date(now + 1_000)
+    )
+
+    writeFile(
       path.join(aindexDir, 'skills', 'reviewer', 'skill.src.mdx'),
       '---\ndescription: skill zh\n---\nSkill zh',
       new Date(now)
@@ -197,6 +208,7 @@ describe('prompt catalog service', () => {
       'project-memory:app/project-a',
       'project-memory:arch/system-a',
       'project-memory:ext/project-a',
+      'project-memory:softwares/tool-a',
       'rule:frontend',
       'skill-child-doc:reviewer/guide',
       'skill:reviewer',
@@ -225,7 +237,8 @@ describe('prompt catalog service', () => {
     expect(filtered.map(prompt => prompt.promptId)).toEqual([
       'project-memory:app/project-a',
       'project-memory:arch/system-a',
-      'project-memory:ext/project-a'
+      'project-memory:ext/project-a',
+      'project-memory:softwares/tool-a'
     ])
   })
 

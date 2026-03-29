@@ -645,7 +645,7 @@ fn collect_workspace_reserved_rules(
             "workspace-reserved",
             Some(ProtectionRuleMatcherDto::Glob),
         ));
-        for series_name in ["app", "ext", "arch"] {
+        for series_name in ["app", "ext", "arch", "softwares"] {
             rules.push(create_protected_rule(
                 &format!("{workspace_dir}/aindex/{series_name}/**/*.mdx"),
                 ProtectionModeDto::Direct,

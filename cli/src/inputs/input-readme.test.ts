@@ -19,7 +19,7 @@ function createContext(tempWorkspace: string, logger: InputCapabilityContext['lo
 }
 
 describe('readme input capability project series validation', () => {
-  it('fails fast when app, ext, and arch reuse the same project name', async () => {
+  it('fails fast when app, ext, arch, and softwares reuse the same project name', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-readme-series-conflict-'))
     const error = vi.fn()
     const logger = {
@@ -33,7 +33,7 @@ describe('readme input capability project series validation', () => {
 
     try {
       fs.mkdirSync(path.join(tempWorkspace, 'aindex', 'app', 'project-a'), {recursive: true})
-      fs.mkdirSync(path.join(tempWorkspace, 'aindex', 'ext', 'project-a'), {recursive: true})
+      fs.mkdirSync(path.join(tempWorkspace, 'aindex', 'softwares', 'project-a'), {recursive: true})
 
       await expect(new ReadmeMdInputCapability().collect(createContext(tempWorkspace, logger)))
         .rejects

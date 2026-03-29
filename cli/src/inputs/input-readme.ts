@@ -48,13 +48,13 @@ export class ReadmeMdInputCapability extends AbstractInputCapability {
     if (conflicts.length > 0) {
       logger.error(buildConfigDiagnostic({
         code: 'README_PROJECT_SERIES_NAME_CONFLICT',
-        title: 'Readme project names must be unique across app, ext, and arch',
+        title: 'Readme project names must be unique across app, ext, arch, and softwares',
         reason: diagnosticLines(
-          'Readme-family outputs target bare workspace project directories, so app/ext/arch cannot reuse the same project directory name.',
+          'Readme-family outputs target bare workspace project directories, so app/ext/arch/softwares cannot reuse the same project directory name.',
           `Conflicting project names: ${conflicts.map(conflict => conflict.projectName).join(', ')}`
         ),
         exactFix: diagnosticLines(
-          'Rename the conflicting project directory in one of the app/ext/arch source trees and rerun tnmsc.'
+          'Rename the conflicting project directory in one of the app/ext/arch/softwares source trees and rerun tnmsc.'
         ),
         possibleFixes: conflicts.map(conflict => diagnosticLines(
           `"${conflict.projectName}" is currently declared in: ${conflict.refs.map(ref => `${ref.seriesName} (${ref.seriesDir})`).join(', ')}`

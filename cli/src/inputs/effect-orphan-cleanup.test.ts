@@ -190,4 +190,60 @@ describe('orphan file cleanup effect', () => {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
     }
   })
+
+  it('cleans orphaned softwares dist files using the matching software source root', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-orphan-cleanup-softwares-'))
+    const softwareSrcFile = path.join(tempWorkspace, 'aindex', 'softwares', 'tool-a', 'agt.src.mdx')
+    const softwareDistFile = path.join(tempWorkspace, 'aindex', 'dist', 'softwares', 'tool-a', 'agt.mdx')
+    const orphanSoftwareDistFile = path.join(tempWorkspace, 'aindex', 'dist', 'softwares', 'tool-b', 'agt.mdx')
+
+    try {
+      fs.mkdirSync(path.dirname(softwareSrcFile), {recursive: true})
+      fs.mkdirSync(path.dirname(softwareDistFile), {recursive: true})
+      fs.mkdirSync(path.dirname(orphanSoftwareDistFile), {recursive: true})
+      fs.writeFileSync(softwareSrcFile, '---\ndescription: software\n---\nSoftware prompt', 'utf8')
+      fs.writeFileSync(softwareDistFile, 'Software dist', 'utf8')
+      fs.writeFileSync(orphanSoftwareDistFile, 'Orphan software dist', 'utf8')
+
+      const plugin = new OrphanFileCleanupEffectInputCapability()
+      const [result] = await plugin.executeEffects(createContext(tempWorkspace))
+
+      expect(result?.success).toBe(true)
+      expect(fs.existsSync(softwareDistFile)).toBe(true)
+      expect(fs.existsSync(orphanSoftwareDistFile)).toBe(false)
+      expect(result?.deletedDirs ?? []).toContain(path.dirname(orphanSoftwareDistFile))
+      expect(result?.deletedFiles ?? []).not.toContain(softwareDistFile)
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('cleans orphaned subagent dist files using the configured subagents source root', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-orphan-cleanup-subagents-'))
+    const subAgentSrcFile = path.join(tempWorkspace, 'aindex', 'subagents', 'qa', 'boot.src.mdx')
+    const subAgentDistFile = path.join(tempWorkspace, 'aindex', 'dist', 'subagents', 'qa', 'boot.mdx')
+    const orphanSubAgentDistFile = path.join(tempWorkspace, 'aindex', 'dist', 'subagents', 'ops', 'boot.mdx')
+
+    try {
+      fs.mkdirSync(path.dirname(subAgentSrcFile), {recursive: true})
+      fs.mkdirSync(path.dirname(subAgentDistFile), {recursive: true})
+      fs.mkdirSync(path.dirname(orphanSubAgentDistFile), {recursive: true})
+      fs.writeFileSync(subAgentSrcFile, '---\ndescription: subagent\n---\nSubagent prompt', 'utf8')
+      fs.writeFileSync(subAgentDistFile, 'Subagent dist', 'utf8')
+      fs.writeFileSync(orphanSubAgentDistFile, 'Orphan subagent dist', 'utf8')
+
+      const plugin = new OrphanFileCleanupEffectInputCapability()
+      const [result] = await plugin.executeEffects(createContext(tempWorkspace))
+
+      expect(result?.success).toBe(true)
+      expect(fs.existsSync(subAgentDistFile)).toBe(true)
+      expect(fs.existsSync(orphanSubAgentDistFile)).toBe(false)
+      expect(result?.deletedDirs ?? []).toContain(path.dirname(orphanSubAgentDistFile))
+      expect(result?.deletedFiles ?? []).not.toContain(subAgentDistFile)
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
 })

@@ -4,6 +4,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it, vi} from 'vitest'
+import {mergeConfig} from '../config'
 import {createLogger, FilePathKind, PluginKind} from '../plugins/plugin-core'
 import {CleanCommand} from './CleanCommand'
 import {DryRunCleanCommand} from './DryRunCleanCommand'
@@ -49,6 +50,7 @@ function createCommandContext(
   workspaceDir: string = path.resolve('tmp-workspace-command')
 ): CommandContext {
   const aindexDir = path.join(workspaceDir, 'aindex')
+  const userConfigOptions = mergeConfig({workspaceDir})
   const collectedOutputContext = {
     workspace: {
       directory: {
@@ -74,54 +76,14 @@ function createCommandContext(
     logger: createMockLogger(),
     outputPlugins,
     collectedOutputContext,
-    userConfigOptions: {
-      version: '0.0.0',
-      workspaceDir,
-      logLevel: 'info',
-      aindex: {
-        dir: 'aindex',
-        skills: {src: 'skills', dist: 'dist/skills'},
-        commands: {src: 'commands', dist: 'dist/commands'},
-        subAgents: {src: 'subagents', dist: 'dist/subagents'},
-        rules: {src: 'rules', dist: 'dist/rules'},
-        globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
-        workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
-        app: {src: 'app', dist: 'dist/app'},
-        ext: {src: 'ext', dist: 'dist/ext'},
-        arch: {src: 'arch', dist: 'dist/arch'}
-      },
-      commandSeriesOptions: {},
-      outputScopes: {},
-      cleanupProtection: {},
-      plugins: []
-    },
+    userConfigOptions,
     createCleanContext: (dryRun: boolean): OutputCleanContext => ({
       logger: createMockLogger(),
       fs,
       path,
       glob,
       collectedOutputContext,
-      pluginOptions: {
-        version: '0.0.0',
-        workspaceDir,
-        logLevel: 'info',
-        aindex: {
-          dir: 'aindex',
-          skills: {src: 'skills', dist: 'dist/skills'},
-          commands: {src: 'commands', dist: 'dist/commands'},
-          subAgents: {src: 'subagents', dist: 'dist/subagents'},
-          rules: {src: 'rules', dist: 'dist/rules'},
-          globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
-          workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
-          app: {src: 'app', dist: 'dist/app'},
-          ext: {src: 'ext', dist: 'dist/ext'},
-          arch: {src: 'arch', dist: 'dist/arch'}
-        },
-        commandSeriesOptions: {},
-        outputScopes: {},
-        cleanupProtection: {},
-        plugins: []
-      },
+      pluginOptions: userConfigOptions,
       dryRun
     }),
     createWriteContext: (dryRun: boolean): OutputWriteContext => ({

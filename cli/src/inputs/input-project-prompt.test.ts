@@ -132,22 +132,27 @@ describe('project prompt input plugin workspace prompt support', () => {
     }
   })
 
-  it('loads ext and arch project prompts using the same agt.mdx workflow as app', async () => {
+  it('loads ext, arch, and softwares project prompts using the same agt.mdx workflow as app', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-project-prompt-series-'))
     const extRoot = path.join(tempWorkspace, 'aindex', 'dist', 'ext', 'plugin-a')
     const archRoot = path.join(tempWorkspace, 'aindex', 'dist', 'arch', 'system-a')
+    const softwareRoot = path.join(tempWorkspace, 'aindex', 'dist', 'softwares', 'tool-a')
 
     try {
       fs.mkdirSync(path.join(extRoot, 'docs'), {recursive: true})
       fs.mkdirSync(path.join(archRoot, 'design'), {recursive: true})
+      fs.mkdirSync(path.join(softwareRoot, 'manual'), {recursive: true})
       fs.writeFileSync(path.join(extRoot, 'agt.mdx'), 'Ext root prompt', 'utf8')
       fs.writeFileSync(path.join(extRoot, 'docs', 'agt.mdx'), 'Ext child prompt', 'utf8')
       fs.writeFileSync(path.join(archRoot, 'agt.mdx'), 'Arch root prompt', 'utf8')
       fs.writeFileSync(path.join(archRoot, 'design', 'agt.mdx'), 'Arch child prompt', 'utf8')
+      fs.writeFileSync(path.join(softwareRoot, 'agt.mdx'), 'Software root prompt', 'utf8')
+      fs.writeFileSync(path.join(softwareRoot, 'manual', 'agt.mdx'), 'Software child prompt', 'utf8')
 
       const workspace = createWorkspace(tempWorkspace, [
         createProject(tempWorkspace, 'plugin-a', {promptSeries: 'ext'}),
-        createProject(tempWorkspace, 'system-a', {promptSeries: 'arch'})
+        createProject(tempWorkspace, 'system-a', {promptSeries: 'arch'}),
+        createProject(tempWorkspace, 'tool-a', {promptSeries: 'softwares'})
       ])
 
       const plugin = new ProjectPromptInputCapability()
@@ -155,11 +160,14 @@ describe('project prompt input plugin workspace prompt support', () => {
       const projects = result.workspace?.projects ?? []
       const extProject = projects.find(project => project.name === 'plugin-a')
       const archProject = projects.find(project => project.name === 'system-a')
+      const softwareProject = projects.find(project => project.name === 'tool-a')
 
       expect(extProject?.rootMemoryPrompt?.content).toContain('Ext root prompt')
       expect(extProject?.childMemoryPrompts?.[0]?.content).toContain('Ext child prompt')
       expect(archProject?.rootMemoryPrompt?.content).toContain('Arch root prompt')
       expect(archProject?.childMemoryPrompts?.[0]?.content).toContain('Arch child prompt')
+      expect(softwareProject?.rootMemoryPrompt?.content).toContain('Software root prompt')
+      expect(softwareProject?.childMemoryPrompts?.[0]?.content).toContain('Software child prompt')
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

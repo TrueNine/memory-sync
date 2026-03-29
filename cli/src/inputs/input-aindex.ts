@@ -178,13 +178,13 @@ export class AindexInputCapability extends AbstractInputCapability {
 
     logger.error(buildConfigDiagnostic({
       code: AindexInputCapability.conflictingProjectSeriesCode,
-      title: 'Project names must be unique across app, ext, and arch',
+      title: 'Project names must be unique across app, ext, arch, and softwares',
       reason: diagnosticLines(
-        'tnmsc maps project-scoped outputs back to workspace project names, so app/ext/arch cannot reuse the same directory name.',
+        'tnmsc maps project-scoped outputs back to workspace project names, so app/ext/arch/softwares cannot reuse the same directory name.',
         `Conflicting project names: ${conflicts.map(conflict => conflict.projectName).join(', ')}`
       ),
       exactFix: diagnosticLines(
-        'Rename the conflicting project directory in one of the app/ext/arch source trees and rerun tnmsc.'
+        'Rename the conflicting project directory in one of the app/ext/arch/softwares source trees and rerun tnmsc.'
       ),
       possibleFixes: conflicts.map(conflict => diagnosticLines(
         `"${conflict.projectName}" is currently declared in: ${conflict.refs.map(ref => `${ref.seriesName} (${ref.seriesDir})`).join(', ')}`
@@ -211,7 +211,7 @@ export class AindexInputCapability extends AbstractInputCapability {
     const projectSeries = resolveAindexProjectSeriesConfigs(options)
 
     // Project outputs intentionally collapse to <workspace>/<projectName>, so
-    // app/ext/arch must never reuse the same project directory name.
+    // app/ext/arch/softwares must never reuse the same project directory name.
     this.assertNoCrossSeriesProjectNameConflicts(ctx, aindexDir, projectSeries)
 
     const aindexProjects = await this.scanSeriesProjects(ctx, workspaceDir, aindexDir, aindexName, projectSeries)

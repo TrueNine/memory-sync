@@ -1,10 +1,15 @@
-import type {ILogger, OutputCollectedContext, PluginOptions} from './plugins/plugin-core'
+import type {ILogger} from '@truenine/logger'
+import type {OutputCollectedContext, PluginOptions} from './plugins/plugin-core'
 import type {PublicDefinitionResolveOptions} from './public-config-paths'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
 import {buildProtectedDeletionDiagnostic} from './diagnostics'
+import {
+  AINDEX_CONFIG_DIRECTORY_PAIR_KEYS,
+  AINDEX_PROJECT_SERIES_NAMES
+} from './plugins/plugin-core'
 import {collectKnownPublicConfigDefinitionPaths} from './public-config-paths'
 import {getEffectiveHomeDir, resolveUserPath} from './runtime-environment'
 
@@ -69,16 +74,6 @@ export class ProtectedDeletionGuardError extends Error {
     this.violations = violations
   }
 }
-
-const CONFIGURED_AINDEX_DIRECTORY_KEYS = [
-  'skills',
-  'commands',
-  'subAgents',
-  'rules',
-  'app',
-  'ext',
-  'arch'
-] as const satisfies readonly (keyof Required<PluginOptions>['aindex'])[]
 
 const CONFIGURED_AINDEX_FILE_KEYS = [
   'globalPrompt',
@@ -291,7 +286,7 @@ function collectWorkspaceReservedRules(
     'workspace-reserved',
     'glob'
   ))
-  for (const seriesName of ['app', 'ext', 'arch'] as const) {
+  for (const seriesName of AINDEX_PROJECT_SERIES_NAMES) {
     rules.push(createProtectedPathRule(
       path.join(workspaceDir, 'aindex', seriesName, '**', '*.mdx'),
       'direct',
@@ -321,10 +316,13 @@ export function collectConfiguredAindexInputRules(
 ): ProtectedPathRule[] {
   const rules: ProtectedPathRule[] = []
 
-  for (const key of CONFIGURED_AINDEX_DIRECTORY_KEYS) {
+  for (const key of AINDEX_CONFIG_DIRECTORY_PAIR_KEYS) {
+    const configuredDir = pluginOptions.aindex[key]
+    if (configuredDir == null) continue
+
     rules.push(
       createProtectedPathRule(
-        path.join(aindexDir, pluginOptions.aindex[key].src),
+        path.join(aindexDir, configuredDir.src),
         'recursive',
         `configured aindex ${key} source directory`,
         'configured-aindex-source'
@@ -333,9 +331,12 @@ export function collectConfiguredAindexInputRules(
   }
 
   for (const key of CONFIGURED_AINDEX_FILE_KEYS) {
+    const configuredFile = pluginOptions.aindex[key]
+    if (configuredFile == null) continue
+
     rules.push(
       createProtectedPathRule(
-        path.join(aindexDir, pluginOptions.aindex[key].src),
+        path.join(aindexDir, configuredFile.src),
         'direct',
         `configured aindex ${key} source file`,
         'configured-aindex-source'

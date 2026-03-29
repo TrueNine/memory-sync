@@ -1,4 +1,9 @@
 import {z} from 'zod/v3'
+import {
+  AINDEX_CONFIG_PAIR_DEFAULTS,
+  AINDEX_CONFIG_PAIR_KEYS,
+  AINDEX_DEFAULT_DIR_NAME
+} from './AindexConfigDefaults'
 
 /**
  * Zod schema for a source/dist path pair.
@@ -6,21 +11,25 @@ import {z} from 'zod/v3'
  */
 export const ZAindexDirPair = z.object({src: z.string(), dist: z.string()})
 
+const AINDEX_CONFIG_PAIR_SCHEMAS = Object.fromEntries(
+  AINDEX_CONFIG_PAIR_KEYS.map(key => [
+    key,
+    key === 'softwares'
+      ? ZAindexDirPair.default(AINDEX_CONFIG_PAIR_DEFAULTS[key])
+      : ZAindexDirPair
+  ])
+) as Record<
+  (typeof AINDEX_CONFIG_PAIR_KEYS)[number],
+  typeof ZAindexDirPair | z.ZodDefault<typeof ZAindexDirPair>
+>
+
 /**
  * Zod schema for the aindex configuration.
  * All paths are relative to <workspaceDir>/<aindex.dir>.
  */
 export const ZAindexConfig = z.object({
-  dir: z.string().default('aindex'),
-  skills: ZAindexDirPair,
-  commands: ZAindexDirPair,
-  subAgents: ZAindexDirPair,
-  rules: ZAindexDirPair,
-  globalPrompt: ZAindexDirPair,
-  workspacePrompt: ZAindexDirPair,
-  app: ZAindexDirPair,
-  ext: ZAindexDirPair,
-  arch: ZAindexDirPair
+  dir: z.string().default(AINDEX_DEFAULT_DIR_NAME),
+  ...AINDEX_CONFIG_PAIR_SCHEMAS
 })
 
 /**

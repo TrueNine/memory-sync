@@ -2094,7 +2094,7 @@ dependencies = [
 
 [[package]]
 name = "memory-sync-gui"
-version = "2026.10328.106"
+version = "2026.10329.110"
 dependencies = [
  "dirs",
  "proptest",
@@ -4372,7 +4372,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tnmsc"
-version = "2026.10328.106"
+version = "2026.10329.110"
 dependencies = [
  "clap",
  "dirs",
@@ -4394,7 +4394,7 @@ dependencies = [
 
 [[package]]
 name = "tnmsc-logger"
-version = "2026.10328.106"
+version = "2026.10329.110"
 dependencies = [
  "chrono",
  "napi",
@@ -4406,7 +4406,7 @@ dependencies = [
 
 [[package]]
 name = "tnmsc-md-compiler"
-version = "2026.10328.106"
+version = "2026.10329.110"
 dependencies = [
  "markdown",
  "napi",
@@ -4421,7 +4421,7 @@ dependencies = [
 
 [[package]]
 name = "tnmsc-script-runtime"
-version = "2026.10328.106"
+version = "2026.10329.110"
 dependencies = [
  "napi",
  "napi-build",

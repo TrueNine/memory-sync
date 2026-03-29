@@ -32,4 +32,36 @@ describe('configLoader', () => {
       fs.rmSync(tempHome, {recursive: true, force: true})
     }
   })
+
+  it('defaults aindex.softwares when loading an older config file', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-config-loader-'))
+    const configPath = path.join(tempDir, '.tnmsc.json')
+
+    try {
+      fs.writeFileSync(configPath, JSON.stringify({
+        workspaceDir: '/tmp/workspace',
+        aindex: {
+          dir: 'aindex',
+          skills: {src: 'skills', dist: 'dist/skills'},
+          commands: {src: 'commands', dist: 'dist/commands'},
+          subAgents: {src: 'subagents', dist: 'dist/subagents'},
+          rules: {src: 'rules', dist: 'dist/rules'},
+          globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
+          workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
+          app: {src: 'app', dist: 'dist/app'},
+          ext: {src: 'ext', dist: 'dist/ext'},
+          arch: {src: 'arch', dist: 'dist/arch'}
+        }
+      }), 'utf8')
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile(configPath)
+
+      expect(result.found).toBe(true)
+      expect(result.config.aindex?.softwares).toEqual({src: 'softwares', dist: 'dist/softwares'})
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
 })

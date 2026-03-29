@@ -1,9 +1,19 @@
-import type {InputCapabilityContext, InputCollectedContext, InputEffectContext, InputEffectResult} from '../plugins/plugin-core'
-import {resolveAindexProjectSeriesConfigs} from '@/aindex-project-series'
+import type {
+  AindexPromptTreeDirectoryPairKey,
+  InputCapabilityContext,
+  InputCollectedContext,
+  InputEffectContext,
+  InputEffectResult,
+  PluginOptions
+} from '../plugins/plugin-core'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
 import {compactDeletionTargets} from '../cleanup/delete-targets'
 import {deleteTargets} from '../core/desk-paths'
-import {AbstractInputCapability, SourcePromptFileExtensions} from '../plugins/plugin-core'
+import {
+  AbstractInputCapability,
+  AINDEX_PROMPT_TREE_DIRECTORY_PAIR_KEYS,
+  SourcePromptFileExtensions
+} from '../plugins/plugin-core'
 import {
   collectConfiguredAindexInputRules,
   createProtectedDeletionGuard,
@@ -16,11 +26,11 @@ export interface OrphanCleanupEffectResult extends InputEffectResult {
   readonly deletedDirs: string[]
 }
 
-const OrphanCleanupDistSubDirs = ['skills', 'commands', 'agents', 'app', 'ext', 'arch'] as const
-
-type OrphanCleanupSubDir = (typeof OrphanCleanupDistSubDirs)[number]
-
-type OrphanCleanupSourcePaths = Readonly<Record<OrphanCleanupSubDir, string>>
+interface OrphanCleanupDirectoryConfig {
+  readonly key: AindexPromptTreeDirectoryPairKey
+  readonly srcPath: string
+  readonly distPath: string
+}
 
 interface OrphanCleanupPlan {
   readonly filesToDelete: string[]
@@ -56,22 +66,29 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
 
   protected buildDeletionPlan(
     ctx: InputEffectContext,
-    distDir: string,
-    srcPaths: OrphanCleanupSourcePaths
+    directoryConfigs: readonly OrphanCleanupDirectoryConfig[]
   ): OrphanCleanupPlan {
     const filesToDelete: string[] = []
     const dirsToDelete: string[] = []
     const errors: {path: string, error: Error}[] = []
 
-    for (const subDir of OrphanCleanupDistSubDirs) {
-      const distSubDirPath = ctx.path.join(distDir, subDir)
+    for (const directoryConfig of directoryConfigs) {
+      const distSubDirPath = ctx.path.join(ctx.aindexDir, directoryConfig.distPath)
       if (!ctx.fs.existsSync(distSubDirPath)) continue
       if (!ctx.fs.statSync(distSubDirPath).isDirectory()) continue
-      const subDirWillBeEmpty = this.collectDirectoryPlan(ctx, distSubDirPath, subDir, srcPaths[subDir], filesToDelete, dirsToDelete, errors)
+      const subDirWillBeEmpty = this.collectDirectoryPlan(ctx, distSubDirPath, directoryConfig, filesToDelete, dirsToDelete, errors)
       if (subDirWillBeEmpty) dirsToDelete.push(distSubDirPath)
     }
 
     return {filesToDelete, dirsToDelete, errors}
+  }
+
+  protected resolveDirectoryConfigs(options: Required<PluginOptions>): readonly OrphanCleanupDirectoryConfig[] {
+    return AINDEX_PROMPT_TREE_DIRECTORY_PAIR_KEYS.map(key => ({
+      key,
+      srcPath: options.aindex[key].src,
+      distPath: options.aindex[key].dist
+    }))
   }
 
   private async cleanupOrphanFiles(ctx: InputEffectContext): Promise<OrphanCleanupEffectResult> {
@@ -88,18 +105,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
       }
     }
 
-    const aindexConfig = userConfigOptions.aindex
-    const projectSeries = resolveAindexProjectSeriesConfigs(userConfigOptions)
-    const srcPaths: OrphanCleanupSourcePaths = {
-      skills: aindexConfig?.skills?.src ?? 'skills',
-      commands: aindexConfig?.commands?.src ?? 'commands',
-      agents: aindexConfig?.subAgents?.src ?? 'subagents',
-      app: projectSeries.find(series => series.name === 'app')?.src ?? 'app',
-      ext: projectSeries.find(series => series.name === 'ext')?.src ?? 'ext',
-      arch: projectSeries.find(series => series.name === 'arch')?.src ?? 'arch'
-    }
-
-    const plan = this.buildDeletionPlan(ctx, distDir, srcPaths)
+    const plan = this.buildDeletionPlan(ctx, this.resolveDirectoryConfigs(userConfigOptions))
 
     const guard = this.buildProtectedDeletionGuard(ctx)
     const filePartition = partitionDeletionTargets(plan.filesToDelete, guard)
@@ -182,8 +188,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
   protected collectDirectoryPlan(
     ctx: InputEffectContext,
     distDirPath: string,
-    dirType: string,
-    srcPath: string,
+    directoryConfig: OrphanCleanupDirectoryConfig,
     filesToDelete: string[],
     dirsToDelete: string[],
     errors: {path: string, error: Error}[]
@@ -213,7 +218,14 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
       const entryPath = path.join(distDirPath, entry.name)
 
       if (entry.isDirectory()) {
-        const childWillBeEmpty = this.collectDirectoryPlan(ctx, entryPath, dirType, srcPath, filesToDelete, dirsToDelete, errors)
+        const childWillBeEmpty = this.collectDirectoryPlan(
+          ctx,
+          entryPath,
+          directoryConfig,
+          filesToDelete,
+          dirsToDelete,
+          errors
+        )
         if (childWillBeEmpty) dirsToDelete.push(entryPath)
         else hasRetainedEntries = true
         continue
@@ -224,7 +236,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
         continue
       }
 
-      const isOrphan = this.isOrphanFile(ctx, entryPath, dirType, srcPath, aindexDir)
+      const isOrphan = this.isOrphanFile(ctx, entryPath, directoryConfig, aindexDir)
       if (isOrphan) filesToDelete.push(entryPath)
       else hasRetainedEntries = true
     }
@@ -235,8 +247,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
   private isOrphanFile(
     ctx: InputEffectContext,
     distFilePath: string,
-    dirType: string,
-    srcPath: string,
+    directoryConfig: OrphanCleanupDirectoryConfig,
     aindexDir: string
   ): boolean {
     const {fs, path} = ctx
@@ -244,50 +255,50 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     const fileName = path.basename(distFilePath)
     const isMdxFile = fileName.endsWith('.mdx')
 
-    const distTypeDir = path.join(aindexDir, 'dist', dirType)
+    const distTypeDir = path.join(aindexDir, directoryConfig.distPath)
     const relativeFromType = path.relative(distTypeDir, distFilePath)
     const relativeDir = path.dirname(relativeFromType)
     const baseName = fileName.replace(/\.mdx$/, '')
 
-    if (!isMdxFile) return !fs.existsSync(path.join(aindexDir, srcPath, relativeFromType))
+    if (!isMdxFile) return !fs.existsSync(path.join(aindexDir, directoryConfig.srcPath, relativeFromType))
 
-    const possibleSrcPaths = this.getPossibleSourcePaths(path, aindexDir, dirType, srcPath, baseName, relativeDir)
+    const possibleSrcPaths = this.getPossibleSourcePaths(
+      path,
+      aindexDir,
+      directoryConfig.key,
+      directoryConfig.srcPath,
+      baseName,
+      relativeDir
+    )
     return !possibleSrcPaths.some(candidatePath => fs.existsSync(candidatePath))
   }
 
   private getPossibleSourcePaths(
     nodePath: typeof import('node:path'),
     aindexDir: string,
-    dirType: string,
+    directoryKey: AindexPromptTreeDirectoryPairKey,
     srcPath: string,
     baseName: string,
     relativeDir: string
   ): string[] {
-    switch (dirType) {
-      case 'skills': {
-        const skillParts = relativeDir === '.' ? [baseName] : relativeDir.split(nodePath.sep)
-        const skillName = skillParts[0] ?? baseName
-        const remainingPath = relativeDir === '.' ? '' : relativeDir.slice(skillName.length + 1)
+    if (directoryKey === 'skills') {
+      const skillParts = relativeDir === '.' ? [baseName] : relativeDir.split(nodePath.sep)
+      const skillName = skillParts[0] ?? baseName
+      const remainingPath = relativeDir === '.' ? '' : relativeDir.slice(skillName.length + 1)
 
-        if (remainingPath !== '') {
-          return SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, skillName, remainingPath, `${baseName}${extension}`))
-        }
-
-        return [
-          ...SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, skillName, `SKILL${extension}`)),
-          ...SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, skillName, `skill${extension}`))
-        ]
+      if (remainingPath !== '') {
+        return SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, skillName, remainingPath, `${baseName}${extension}`))
       }
-      case 'commands':
-      case 'agents':
-      case 'app':
-      case 'ext':
-      case 'arch':
-        return relativeDir === '.'
-          ? SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, `${baseName}${extension}`))
-          : SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}${extension}`))
-      default: return []
+
+      return [
+        ...SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, skillName, `SKILL${extension}`)),
+        ...SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, skillName, `skill${extension}`))
+      ]
     }
+
+    return relativeDir === '.'
+      ? SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, `${baseName}${extension}`))
+      : SourcePromptFileExtensions.map(extension => nodePath.join(aindexDir, srcPath, relativeDir, `${baseName}${extension}`))
   }
 
   collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
