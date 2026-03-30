@@ -5,17 +5,13 @@
     "incremental": true,
     "composite": false,
     "target": "ESNext",
-    "lib": [
-      "ESNext"
-    ],
+    "lib": ["ESNext"],
     "moduleDetection": "force",
     "useDefineForClassFields": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
+      "@/*": ["./src/*"],
       "@truenine/desk-paths": ["./src/core/desk-paths.ts"],
       "@truenine/desk-paths/*": ["./src/core/desk-paths/*"],
       "@truenine/plugin-output-shared": ["./src/plugins/plugin-output-shared/index.ts"],
@@ -44,9 +40,7 @@
       "@truenine/plugin-zed": ["./src/plugins/plugin-zed.ts"]
     },
     "resolveJsonModule": true,
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "allowImportingTsExtensions": true,
     "strict": true,
     "strictBindCallApply": true,
@@ -83,16 +77,6 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
-  "include": [
-    "src/**/*",
-    "env.d.ts",
-    "eslint.config.ts",
-    "tsdown.config.ts",
-    "vite.config.ts",
-    "vitest.config.ts"
-  ],
-  "exclude": [
-    "../node_modules",
-    "dist"
-  ]
+  "include": ["src/**/*", "test/**/*.ts", "env.d.ts", "eslint.config.ts", "tsdown.config.ts", "vite.config.ts", "vitest.config.ts"],
+  "exclude": ["../node_modules", "dist"]
 }
