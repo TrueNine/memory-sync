@@ -8,20 +8,28 @@ import {Buffer} from 'node:buffer'
 import {AbstractOutputPlugin, filterByProjectConfig} from './plugin-core'
 
 const PROJECT_SKILLS_DIR = '.agents/skills'
+const LEGACY_SKILLS_DIR = '.skills'
 const SKILL_FILE_NAME = 'SKILL.md'
 const MCP_CONFIG_FILE = 'mcp.json'
 
 type GenericSkillOutputSource
-  = {readonly kind: 'skillMain', readonly skill: SkillPrompt}
+  = | {readonly kind: 'skillMain', readonly skill: SkillPrompt}
     | {readonly kind: 'skillMcp', readonly rawContent: string}
     | {readonly kind: 'skillChildDoc', readonly content: string}
-    | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
+    | {
+      readonly kind: 'skillResource'
+      readonly content: string
+      readonly encoding: 'text' | 'base64'
+    }
 
 /**
  * Output plugin that writes skills directly to each project's .agents/skills/ directory.
  *
  * Structure:
  * - Project: <project>/.agents/skills/<skill-name>/SKILL.md, mcp.json, child docs, resources
+ *
+ * @deprecated Legacy compact skills output. Cleanup must remove the entire
+ * global `~/.skills/` directory in addition to the current skill targets.
  */
 export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -32,10 +40,10 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       cleanup: {
         delete: {
           project: {
-            dirs: [PROJECT_SKILLS_DIR]
+            dirs: [PROJECT_SKILLS_DIR, LEGACY_SKILLS_DIR]
           },
           global: {
-            dirs: [PROJECT_SKILLS_DIR]
+            dirs: [PROJECT_SKILLS_DIR, LEGACY_SKILLS_DIR]
           }
         }
       },
@@ -52,7 +60,9 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+  override async declareOutputFiles(
+    ctx: OutputWriteContext
+  ): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
     const {skills} = ctx.collectedOutputContext
 
@@ -68,7 +78,8 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       skills,
       this.skillsConfig.sourceScopes,
       skill => this.resolveSkillSourceScope(skill),
-      this.getTopicScopeOverride(ctx, 'mcp') ?? this.getTopicScopeOverride(ctx, 'skills')
+      this.getTopicScopeOverride(ctx, 'mcp')
+      ?? this.getTopicScopeOverride(ctx, 'skills')
     )
 
     const pushSkillDeclarations = (
@@ -83,13 +94,19 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
         declarations.push({
           path: this.joinPath(skillDir, SKILL_FILE_NAME),
           scope,
-          source: {kind: 'skillMain', skill} satisfies GenericSkillOutputSource
+          source: {
+            kind: 'skillMain',
+            skill
+          } satisfies GenericSkillOutputSource
         })
 
         if (skill.childDocs != null) {
           for (const childDoc of skill.childDocs) {
             declarations.push({
-              path: this.joinPath(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
+              path: this.joinPath(
+                skillDir,
+                childDoc.relativePath.replace(/\.mdx$/, '.md')
+              ),
               scope,
               source: {
                 kind: 'skillChildDoc',
@@ -124,7 +141,11 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
         if (skill.mcpConfig == null) continue
 
         declarations.push({
-          path: this.joinPath(baseSkillsDir, this.getSkillName(skill), MCP_CONFIG_FILE),
+          path: this.joinPath(
+            baseSkillsDir,
+            this.getSkillName(skill),
+            MCP_CONFIG_FILE
+          ),
           scope,
           source: {
             kind: 'skillMcp',
@@ -134,33 +155,63 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (selectedSkills.selectedScope === 'project' || selectedMcpSkills.selectedScope === 'project') {
+    if (
+      selectedSkills.selectedScope === 'project'
+      || selectedMcpSkills.selectedScope === 'project'
+    ) {
       for (const project of this.getProjectOutputProjects(ctx)) {
         const projectRootDir = this.resolveProjectRootDir(ctx, project)
         if (projectRootDir == null) continue
 
-        const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
-        const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, project.projectConfig, 'skills')
+        const filteredSkills = filterByProjectConfig(
+          selectedSkills.items,
+          project.projectConfig,
+          'skills'
+        )
+        const filteredMcpSkills = filterByProjectConfig(
+          selectedMcpSkills.items,
+          project.projectConfig,
+          'skills'
+        )
         const baseSkillsDir = this.joinPath(projectRootDir, PROJECT_SKILLS_DIR)
 
-        if (selectedSkills.selectedScope === 'project' && filteredSkills.length > 0) pushSkillDeclarations(baseSkillsDir, 'project', filteredSkills)
+        if (
+          selectedSkills.selectedScope === 'project'
+          && filteredSkills.length > 0
+        )
+        { pushSkillDeclarations(baseSkillsDir, 'project', filteredSkills) }
 
-        if (selectedMcpSkills.selectedScope === 'project') pushMcpDeclarations(baseSkillsDir, 'project', filteredMcpSkills)
+        if (selectedMcpSkills.selectedScope === 'project')
+        { pushMcpDeclarations(baseSkillsDir, 'project', filteredMcpSkills) }
       }
     }
 
-    if (selectedSkills.selectedScope !== 'global' && selectedMcpSkills.selectedScope !== 'global') return declarations
+    if (
+      selectedSkills.selectedScope !== 'global'
+      && selectedMcpSkills.selectedScope !== 'global'
+    )
+    { return declarations }
 
     const baseSkillsDir = this.joinPath(this.getHomeDir(), PROJECT_SKILLS_DIR)
-    const promptSourceProjectConfig = this.resolvePromptSourceProjectConfig(ctx)
+    const promptSourceProjectConfig
+      = this.resolvePromptSourceProjectConfig(ctx)
     if (selectedSkills.selectedScope === 'global') {
-      const filteredSkills = filterByProjectConfig(selectedSkills.items, promptSourceProjectConfig, 'skills')
-      if (filteredSkills.length > 0) pushSkillDeclarations(baseSkillsDir, 'global', filteredSkills)
+      const filteredSkills = filterByProjectConfig(
+        selectedSkills.items,
+        promptSourceProjectConfig,
+        'skills'
+      )
+      if (filteredSkills.length > 0)
+      { pushSkillDeclarations(baseSkillsDir, 'global', filteredSkills) }
     }
 
     if (selectedMcpSkills.selectedScope !== 'global') return declarations
 
-    const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, promptSourceProjectConfig, 'skills')
+    const filteredMcpSkills = filterByProjectConfig(
+      selectedMcpSkills.items,
+      promptSourceProjectConfig,
+      'skills'
+    )
     pushMcpDeclarations(baseSkillsDir, 'global', filteredMcpSkills)
     return declarations
   }
@@ -173,12 +224,22 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
     switch (source.kind) {
       case 'skillMain': {
         const frontMatterData = this.buildSkillFrontMatter(source.skill)
-        return this.buildMarkdownContent(source.skill.content as string, frontMatterData, ctx)
+        return this.buildMarkdownContent(
+          source.skill.content as string,
+          frontMatterData,
+          ctx
+        )
       }
-      case 'skillMcp': return source.rawContent
-      case 'skillChildDoc': return source.content
-      case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
-      default: throw new Error(`Unsupported declaration source for ${this.name}`)
+      case 'skillMcp':
+        return source.rawContent
+      case 'skillChildDoc':
+        return source.content
+      case 'skillResource':
+        return source.encoding === 'base64'
+          ? Buffer.from(source.content, 'base64')
+          : source.content
+      default:
+        throw new Error(`Unsupported declaration source for ${this.name}`)
     }
   }
 }

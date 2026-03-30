@@ -229,11 +229,11 @@ fn normalize_posix_like_path(raw_path: &str) -> String {
         }
 
         if component == ".." {
-            if let Some(last_component) = components.last() {
-                if *last_component != ".." {
-                    components.pop();
-                    continue;
-                }
+            if let Some(last_component) = components.last()
+                && *last_component != ".."
+            {
+                components.pop();
+                continue;
             }
 
             if !has_root {
@@ -538,17 +538,16 @@ pub fn resolve_runtime_environment() -> RuntimeEnvironmentContext {
 /// Resolve `~` prefix to the user's home directory.
 pub fn resolve_tilde(p: &str) -> PathBuf {
     let runtime_environment = resolve_runtime_environment();
-    if let Some(rest) = p.strip_prefix('~') {
-        if let Some(home) = runtime_environment
+    if let Some(rest) = p.strip_prefix('~')
+        && let Some(home) = runtime_environment
             .effective_home_dir
             .or(runtime_environment.native_home_dir)
-        {
-            let rest = rest
-                .strip_prefix('/')
-                .or_else(|| rest.strip_prefix('\\'))
-                .unwrap_or(rest);
-            return home.join(rest);
-        }
+    {
+        let rest = rest
+            .strip_prefix('/')
+            .or_else(|| rest.strip_prefix('\\'))
+            .unwrap_or(rest);
+        return home.join(rest);
     }
     PathBuf::from(p)
 }
@@ -875,10 +874,10 @@ pub fn load_user_config(cwd: &Path) -> Result<MergedConfigResult, String> {
 
 /// Write a config file with pretty JSON formatting.
 pub fn write_config(path: &Path, config: &UserConfigFile, logger: &Logger) {
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            let _ = fs::create_dir_all(parent);
-        }
+    if let Some(parent) = path.parent()
+        && !parent.exists()
+    {
+        let _ = fs::create_dir_all(parent);
     }
 
     match serde_json::to_string_pretty(config) {
@@ -1209,7 +1208,7 @@ mod tests {
             workspace_dir: Some("~/ws".into()),
             ..Default::default()
         };
-        let result = merge_configs(&[config.clone()]);
+        let result = merge_configs(std::slice::from_ref(&config));
         assert_eq!(result, config);
     }
 

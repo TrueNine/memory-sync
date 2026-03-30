@@ -5,11 +5,7 @@ import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {mergeConfig} from '../config'
-import {
-  FilePathKind,
-  IDEKind,
-  PluginKind
-} from '../plugins/plugin-core'
+import {FilePathKind, IDEKind, PluginKind} from '../plugins/plugin-core'
 import {collectDeletionTargets, performCleanup} from './CleanupUtils'
 
 function createMockLogger(): ILogger {
@@ -91,22 +87,26 @@ describe('collectDeletionTargets', () => {
     const ignoreSource = path.resolve('tmp-aindex/public/.cursorignore')
 
     const ctx = createCleanContext({
-      editorConfigFiles: [{
-        type: IDEKind.EditorConfig,
-        content: 'root = true',
-        length: 11,
-        filePathKind: FilePathKind.Absolute,
-        dir: {
-          pathKind: FilePathKind.Absolute,
-          path: editorSource,
-          getDirectoryName: () => '.editorconfig'
+      editorConfigFiles: [
+        {
+          type: IDEKind.EditorConfig,
+          content: 'root = true',
+          length: 11,
+          filePathKind: FilePathKind.Absolute,
+          dir: {
+            pathKind: FilePathKind.Absolute,
+            path: editorSource,
+            getDirectoryName: () => '.editorconfig'
+          }
         }
-      }],
-      aiAgentIgnoreConfigFiles: [{
-        fileName: '.cursorignore',
-        content: 'node_modules',
-        sourcePath: ignoreSource
-      }]
+      ],
+      aiAgentIgnoreConfigFiles: [
+        {
+          fileName: '.cursorignore',
+          content: 'node_modules',
+          sourcePath: ignoreSource
+        }
+      ]
     })
 
     const plugin = createMockOutputPlugin('MockOutputPlugin', [editorSource, ignoreSource])
@@ -140,17 +140,13 @@ describe('collectDeletionTargets', () => {
     const ruleDir = path.join(claudeBaseDir, 'rules')
     const ruleFile = path.join(ruleDir, 'a.md')
     const ctx = createCleanContext()
-    const plugin = createMockOutputPlugin(
-      'MockOutputPlugin',
-      [ruleFile],
-      {
-        delete: [
-          {kind: 'directory', path: claudeBaseDir},
-          {kind: 'directory', path: ruleDir},
-          {kind: 'file', path: ruleFile}
-        ]
-      }
-    )
+    const plugin = createMockOutputPlugin('MockOutputPlugin', [ruleFile], {
+      delete: [
+        {kind: 'directory', path: claudeBaseDir},
+        {kind: 'directory', path: ruleDir},
+        {kind: 'file', path: ruleFile}
+      ]
+    })
 
     const result = await collectDeletionTargets([plugin], ctx)
 
@@ -163,19 +159,13 @@ describe('collectDeletionTargets', () => {
     const promptsDir = path.join(codexBaseDir, 'prompts')
     const protectedSystemDir = path.join(codexBaseDir, 'skills', '.system')
     const ctx = createCleanContext()
-    const plugin = createMockOutputPlugin(
-      'MockOutputPlugin',
-      [],
-      {
-        delete: [
-          {kind: 'directory', path: codexBaseDir},
-          {kind: 'directory', path: promptsDir}
-        ],
-        protect: [
-          {kind: 'directory', path: protectedSystemDir}
-        ]
-      }
-    )
+    const plugin = createMockOutputPlugin('MockOutputPlugin', [], {
+      delete: [
+        {kind: 'directory', path: codexBaseDir},
+        {kind: 'directory', path: promptsDir}
+      ],
+      protect: [{kind: 'directory', path: protectedSystemDir}]
+    })
 
     const result = await collectDeletionTargets([plugin], ctx)
 
@@ -186,23 +176,21 @@ describe('collectDeletionTargets', () => {
   it('blocks deleting dangerous roots and returns the most specific matching rule', async () => {
     const homeDir = os.homedir()
     const ctx = createCleanContext()
-    const plugin = createMockOutputPlugin(
-      'MockOutputPlugin',
-      [],
-      {
-        delete: [{kind: 'directory', path: homeDir}]
-      }
-    )
+    const plugin = createMockOutputPlugin('MockOutputPlugin', [], {
+      delete: [{kind: 'directory', path: homeDir}]
+    })
 
     const result = await collectDeletionTargets([plugin], ctx)
 
     expect(result.dirsToDelete).toEqual([])
     expect(result.filesToDelete).toEqual([])
-    expect(result.violations).toEqual([expect.objectContaining({
-      targetPath: path.resolve(homeDir),
-      protectedPath: path.resolve('tmp-cleanup-utils-workspace', 'knowladge'),
-      protectionMode: 'direct'
-    })])
+    expect(result.violations).toEqual([
+      expect.objectContaining({
+        targetPath: path.resolve(homeDir),
+        protectedPath: path.resolve('tmp-cleanup-utils-workspace', 'knowladge'),
+        protectionMode: 'direct'
+      })
+    ])
   })
 
   it('throws when an output path matches a built-in protected path before directory guards run', async () => {
@@ -219,32 +207,32 @@ describe('collectDeletionTargets', () => {
           getDirectoryName: () => path.basename(workspaceDir),
           getAbsolutePath: () => workspaceDir
         },
-        projects: [{
-          dirFromWorkspacePath: {
-            pathKind: FilePathKind.Relative,
-            path: 'project-a',
-            basePath: workspaceDir,
-            getDirectoryName: () => 'project-a',
-            getAbsolutePath: () => projectRoot
+        projects: [
+          {
+            dirFromWorkspacePath: {
+              pathKind: FilePathKind.Relative,
+              path: 'project-a',
+              basePath: workspaceDir,
+              getDirectoryName: () => 'project-a',
+              getAbsolutePath: () => projectRoot
+            }
           }
-        }]
+        ]
       },
       aindexDir
     })
-    const plugin = createMockOutputPlugin(
-      'MockOutputPlugin',
-      [globalConfigPath],
-      {
-        delete: [
-          {kind: 'directory', path: globalAindexDir},
-          {kind: 'directory', path: workspaceDir},
-          {kind: 'directory', path: projectRoot},
-          {kind: 'directory', path: aindexDir}
-        ]
-      }
-    )
+    const plugin = createMockOutputPlugin('MockOutputPlugin', [globalConfigPath], {
+      delete: [
+        {kind: 'directory', path: globalAindexDir},
+        {kind: 'directory', path: workspaceDir},
+        {kind: 'directory', path: projectRoot},
+        {kind: 'directory', path: aindexDir}
+      ]
+    })
 
-    await expect(collectDeletionTargets([plugin], ctx)).rejects.toThrow(`Cleanup protection conflict: 1 output path(s) are also protected: ${path.resolve(globalConfigPath)}`)
+    await expect(collectDeletionTargets([plugin], ctx)).rejects.toThrow(
+      `Cleanup protection conflict: 1 output path(s) are also protected: ${path.resolve(globalConfigPath)}`
+    )
   })
 
   it('allows deleting non-mdx files under dist while blocking reserved dist mdx files', async () => {
@@ -273,22 +261,21 @@ describe('collectDeletionTargets', () => {
             getDirectoryName: () => path.basename(workspaceDir),
             getAbsolutePath: () => workspaceDir
           },
-          projects: [{
-            dirFromWorkspacePath: {
-              pathKind: FilePathKind.Relative,
-              path: 'project-a',
-              basePath: workspaceDir,
-              getDirectoryName: () => 'project-a',
-              getAbsolutePath: () => path.join(workspaceDir, 'project-a')
+          projects: [
+            {
+              dirFromWorkspacePath: {
+                pathKind: FilePathKind.Relative,
+                path: 'project-a',
+                basePath: workspaceDir,
+                getDirectoryName: () => 'project-a',
+                getAbsolutePath: () => path.join(workspaceDir, 'project-a')
+              }
             }
-          }]
+          ]
         },
         aindexDir: path.join(workspaceDir, 'aindex')
       })
-      const plugin = createMockOutputPlugin('MockOutputPlugin', [
-        projectChildFile,
-        safeDistMarkdownFile
-      ], {
+      const plugin = createMockOutputPlugin('MockOutputPlugin', [projectChildFile, safeDistMarkdownFile], {
         delete: [
           {kind: 'file', path: protectedDistMdxFile},
           {kind: 'directory', path: globalChildDir},
@@ -298,25 +285,20 @@ describe('collectDeletionTargets', () => {
 
       const result = await collectDeletionTargets([plugin], ctx)
 
-      expect(new Set(result.filesToDelete)).toEqual(new Set([
-        path.resolve(projectChildFile),
-        path.resolve(safeDistMarkdownFile)
-      ]))
-      expect(new Set(result.dirsToDelete)).toEqual(new Set([
-        path.resolve(globalChildDir),
-        path.resolve(aindexSourceDir),
-        path.resolve(workspaceDir, 'project-a')
-      ]))
-      expect(result.violations).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          targetPath: path.resolve(protectedDistMdxFile),
-          protectionMode: 'direct',
-          protectedPath: path.resolve(protectedDistMdxFile)
-        }),
-        expect.objectContaining({targetPath: path.resolve(aindexSourceDir)})
-      ]))
-    }
-    finally {
+      expect(new Set(result.filesToDelete)).toEqual(new Set([path.resolve(projectChildFile), path.resolve(safeDistMarkdownFile)]))
+      const allDirsToDelete = [...result.dirsToDelete, ...result.emptyDirsToDelete]
+      expect(new Set(allDirsToDelete)).toEqual(new Set([path.resolve(globalChildDir), path.resolve(aindexSourceDir), path.resolve(workspaceDir, 'project-a')]))
+      expect(result.violations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            targetPath: path.resolve(protectedDistMdxFile),
+            protectionMode: 'direct',
+            protectedPath: path.resolve(protectedDistMdxFile)
+          }),
+          expect.objectContaining({targetPath: path.resolve(aindexSourceDir)})
+        ])
+      )
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -351,13 +333,14 @@ describe('collectDeletionTargets', () => {
 
       expect(result.dirsToDelete).toEqual([])
       expect(result.filesToDelete).toEqual([])
-      expect(result.violations).toEqual([expect.objectContaining({
-        targetPath: path.resolve(distCommandDir),
-        protectionMode: 'direct',
-        protectedPath: path.resolve(protectedDistMdxFile)
-      })])
-    }
-    finally {
+      expect(result.violations).toEqual([
+        expect.objectContaining({
+          targetPath: path.resolve(distCommandDir),
+          protectionMode: 'direct',
+          protectedPath: path.resolve(protectedDistMdxFile)
+        })
+      ])
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -393,16 +376,17 @@ describe('collectDeletionTargets', () => {
       const result = await collectDeletionTargets([plugin], ctx)
 
       expect(result.filesToDelete).toEqual([])
-      expect(result.violations).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          targetPath: path.resolve(protectedAppMdxFile),
-          protectionMode: 'direct',
-          protectedPath: path.resolve(protectedAppMdxFile)
-        }),
-        expect.objectContaining({targetPath: path.resolve(safeAppMarkdownFile)})
-      ]))
-    }
-    finally {
+      expect(result.violations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            targetPath: path.resolve(protectedAppMdxFile),
+            protectionMode: 'direct',
+            protectedPath: path.resolve(protectedAppMdxFile)
+          }),
+          expect.objectContaining({targetPath: path.resolve(safeAppMarkdownFile)})
+        ])
+      )
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -447,13 +431,14 @@ describe('collectDeletionTargets', () => {
 
       expect(result.dirsToDelete).toEqual([])
       expect(result.filesToDelete).toEqual([])
-      expect(result.violations).toEqual([expect.objectContaining({
-        targetPath: path.resolve(path.join(workspaceDir, 'aindex', 'app')),
-        protectionMode: 'direct',
-        protectedPath: path.resolve(protectedAppMdxFile)
-      })])
-    }
-    finally {
+      expect(result.violations).toEqual([
+        expect.objectContaining({
+          targetPath: path.resolve(path.join(workspaceDir, 'aindex', 'app')),
+          protectionMode: 'direct',
+          protectedPath: path.resolve(protectedAppMdxFile)
+        })
+      ])
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -487,13 +472,14 @@ describe('collectDeletionTargets', () => {
       const result = await collectDeletionTargets([plugin], ctx)
 
       expect(result.dirsToDelete).toEqual([])
-      expect(result.violations).toEqual([expect.objectContaining({
-        targetPath: path.resolve(symlinkPath),
-        protectedPath: path.resolve(path.join(workspaceDir, 'knowladge')),
-        protectionMode: 'direct'
-      })])
-    }
-    finally {
+      expect(result.violations).toEqual([
+        expect.objectContaining({
+          targetPath: path.resolve(symlinkPath),
+          protectedPath: path.resolve(path.join(workspaceDir, 'knowladge')),
+          protectionMode: 'direct'
+        })
+      ])
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -525,11 +511,13 @@ describe('collectDeletionTargets', () => {
     const result = await collectDeletionTargets([plugin], ctx)
 
     expect(result.filesToDelete).toEqual([path.resolve(directChildFile)])
-    expect(result.violations).toEqual([expect.objectContaining({
-      targetPath: path.resolve(recursiveChildFile),
-      protectionMode: 'recursive',
-      protectedPath: path.resolve(recursiveProtectedDir)
-    })])
+    expect(result.violations).toEqual([
+      expect.objectContaining({
+        targetPath: path.resolve(recursiveChildFile),
+        protectionMode: 'recursive',
+        protectedPath: path.resolve(recursiveProtectedDir)
+      })
+    ])
   })
 
   it('skips delete glob matches covered by excludeScanGlobs while still deleting other sibling directories', async () => {
@@ -556,8 +544,7 @@ describe('collectDeletionTargets', () => {
       expect(result.dirsToDelete).toEqual([path.resolve(staleDir)])
       expect(result.filesToDelete).toEqual([])
       expect(result.violations).toEqual([])
-    }
-    finally {
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -599,8 +586,7 @@ describe('collectDeletionTargets', () => {
       const plugin = createMockOutputPlugin('MockOutputPlugin', [workspacePromptSource])
 
       await expect(collectDeletionTargets([plugin], ctx)).rejects.toThrow('Cleanup protection conflict')
-    }
-    finally {
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -646,17 +632,14 @@ describe('collectDeletionTargets', () => {
       const result = await collectDeletionTargets([plugin], ctx)
 
       expect(result.filesToDelete).toEqual([])
-      expect(result.dirsToDelete).toEqual([
-        path.resolve(workspaceDir, 'source', 'empty'),
-        path.resolve(sourceLeafDir)
-      ])
-      expect(result.dirsToDelete).not.toContain(path.resolve(workspaceDir))
-      expect(result.dirsToDelete).not.toContain(path.resolve(distEmptyDir))
-      expect(result.dirsToDelete).not.toContain(path.resolve(nodeModulesEmptyDir))
-      expect(result.dirsToDelete).not.toContain(path.resolve(gitEmptyDir))
-      expect(result.dirsToDelete).not.toContain(path.resolve(symlinkParentDir))
-    }
-    finally {
+      expect(result.dirsToDelete).toEqual([])
+      expect(result.emptyDirsToDelete).toEqual([path.resolve(workspaceDir, 'source', 'empty'), path.resolve(sourceLeafDir)])
+      expect(result.emptyDirsToDelete).not.toContain(path.resolve(workspaceDir))
+      expect(result.emptyDirsToDelete).not.toContain(path.resolve(distEmptyDir))
+      expect(result.emptyDirsToDelete).not.toContain(path.resolve(nodeModulesEmptyDir))
+      expect(result.emptyDirsToDelete).not.toContain(path.resolve(gitEmptyDir))
+      expect(result.emptyDirsToDelete).not.toContain(path.resolve(symlinkParentDir))
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -692,19 +675,20 @@ describe('performCleanup', () => {
 
       const result = await performCleanup([plugin], ctx, createMockLogger())
 
-      expect(result).toEqual(expect.objectContaining({
-        deletedFiles: 1,
-        deletedDirs: 3,
-        errors: [],
-        violations: [],
-        conflicts: []
-      }))
+      expect(result).toEqual(
+        expect.objectContaining({
+          deletedFiles: 1,
+          deletedDirs: 3,
+          errors: [],
+          violations: [],
+          conflicts: []
+        })
+      )
       expect(fs.existsSync(outputFile)).toBe(false)
       expect(fs.existsSync(outputDir)).toBe(false)
       expect(fs.existsSync(path.dirname(outputFile))).toBe(false)
       expect(fs.existsSync(path.dirname(outputDir))).toBe(false)
-    }
-    finally {
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -739,15 +723,12 @@ describe('performCleanup', () => {
 
       await performCleanup([plugin], ctx, logger)
 
-      expect(logger.debugMessages).toEqual(expect.arrayContaining([
-        'cleanup plan built',
-        'cleanup delete execution started',
-        'cleanup delete execution complete'
-      ]))
+      expect(logger.debugMessages).toEqual(
+        expect.arrayContaining(['cleanup plan built', 'cleanup delete execution started', 'cleanup delete execution complete'])
+      )
       expect(logger.debugMessages).not.toContainEqual(expect.objectContaining({path: outputFile}))
       expect(logger.debugMessages).not.toContainEqual(expect.objectContaining({path: outputDir}))
-    }
-    finally {
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -780,20 +761,21 @@ describe('performCleanup', () => {
 
       const result = await performCleanup([plugin], ctx, createMockLogger())
 
-      expect(result).toEqual(expect.objectContaining({
-        deletedFiles: 1,
-        deletedDirs: 3,
-        errors: [],
-        violations: [],
-        conflicts: []
-      }))
+      expect(result).toEqual(
+        expect.objectContaining({
+          deletedFiles: 1,
+          deletedDirs: 3,
+          errors: [],
+          violations: [],
+          conflicts: []
+        })
+      )
       expect(fs.existsSync(outputFile)).toBe(false)
       expect(fs.existsSync(path.dirname(outputFile))).toBe(false)
       expect(fs.existsSync(path.join(tempDir, 'scratch', 'empty', 'leaf'))).toBe(false)
       expect(fs.existsSync(path.join(tempDir, 'scratch', 'empty'))).toBe(false)
       expect(fs.existsSync(path.join(tempDir, 'scratch'))).toBe(true)
-    }
-    finally {
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })

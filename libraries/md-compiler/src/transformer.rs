@@ -78,19 +78,19 @@ fn register_built_in_components(ctx: &mut ProcessingContext) {
 /// Evaluate the `when` attribute of a JSX element.
 fn evaluate_when_condition(element: &MdxJsxFlowElement, ctx: &ProcessingContext) -> bool {
     for attr in &element.attributes {
-        if let AttributeContent::Property(prop) = attr {
-            if prop.name == "when" {
-                return match &prop.value {
-                    Some(AttributeValue::Literal(s)) => s == "true",
-                    Some(AttributeValue::Expression(expr)) => {
-                        match evaluate_expression(&expr.value, &ctx.scope) {
-                            Ok(v) => is_truthy(&v),
-                            Err(_) => false,
-                        }
+        if let AttributeContent::Property(prop) = attr
+            && prop.name == "when"
+        {
+            return match &prop.value {
+                Some(AttributeValue::Literal(s)) => s == "true",
+                Some(AttributeValue::Expression(expr)) => {
+                    match evaluate_expression(&expr.value, &ctx.scope) {
+                        Ok(v) => is_truthy(&v),
+                        Err(_) => false,
                     }
-                    None => false,
-                };
-            }
+                }
+                None => false,
+            };
         }
     }
     true // No `when` attribute = always true
@@ -99,19 +99,19 @@ fn evaluate_when_condition(element: &MdxJsxFlowElement, ctx: &ProcessingContext)
 /// Check the `when` condition for text elements too.
 fn evaluate_when_condition_text(element: &MdxJsxTextElement, ctx: &ProcessingContext) -> bool {
     for attr in &element.attributes {
-        if let AttributeContent::Property(prop) = attr {
-            if prop.name == "when" {
-                return match &prop.value {
-                    Some(AttributeValue::Literal(s)) => s == "true",
-                    Some(AttributeValue::Expression(expr)) => {
-                        match evaluate_expression(&expr.value, &ctx.scope) {
-                            Ok(v) => is_truthy(&v),
-                            Err(_) => false,
-                        }
+        if let AttributeContent::Property(prop) = attr
+            && prop.name == "when"
+        {
+            return match &prop.value {
+                Some(AttributeValue::Literal(s)) => s == "true",
+                Some(AttributeValue::Expression(expr)) => {
+                    match evaluate_expression(&expr.value, &ctx.scope) {
+                        Ok(v) => is_truthy(&v),
+                        Err(_) => false,
                     }
-                    None => false,
-                };
-            }
+                }
+                None => false,
+            };
         }
     }
     true
@@ -284,10 +284,10 @@ fn parse_expression_literal_value(expression: &str) -> Option<Value> {
         return Some(Value::Number(number.into()));
     }
 
-    if let Ok(number) = expression.parse::<f64>() {
-        if let Some(number) = Number::from_f64(number) {
-            return Some(Value::Number(number));
-        }
+    if let Ok(number) = expression.parse::<f64>()
+        && let Some(number) = Number::from_f64(number)
+    {
+        return Some(Value::Number(number));
     }
 
     None
@@ -314,7 +314,7 @@ fn evaluate_attribute_expression_value(expression: &str, scope: &EvaluationScope
 
     serde_json::from_str::<Value>(&rendered)
         .ok()
-        .or_else(|| Some(Value::String(rendered)))
+        .or(Some(Value::String(rendered)))
 }
 
 fn stringify_html_attribute(name: &str, value: &Value) -> Option<String> {
@@ -465,15 +465,17 @@ fn render_source_aware_node(node: &Node, ctx: &ProcessingContext) -> String {
         _ => {
             let source_slice = get_source_slice(node.position(), ctx.source_text.as_deref());
             let Some(children) = node.children() else {
-                return source_slice.unwrap_or_else(|| serialize_generated_nodes(&[node.clone()]));
+                return source_slice
+                    .unwrap_or_else(|| serialize_generated_nodes(std::slice::from_ref(node)));
             };
 
             if children.is_empty() {
-                return source_slice.unwrap_or_else(|| serialize_generated_nodes(&[node.clone()]));
+                return source_slice
+                    .unwrap_or_else(|| serialize_generated_nodes(std::slice::from_ref(node)));
             }
 
             let Some(source_slice) = source_slice else {
-                return serialize_generated_nodes(&[node.clone()]);
+                return serialize_generated_nodes(std::slice::from_ref(node));
             };
             let Some(start_offset) = node.position().map(|position| position.start.offset) else {
                 return source_slice;
@@ -615,16 +617,16 @@ fn get_attribute_value(
     scope: &EvaluationScope,
 ) -> Option<String> {
     for attr in attrs {
-        if let AttributeContent::Property(prop) = attr {
-            if prop.name == name {
-                return match &prop.value {
-                    Some(AttributeValue::Literal(s)) => Some(s.clone()),
-                    Some(AttributeValue::Expression(expr)) => {
-                        evaluate_expression(&expr.value, scope).ok()
-                    }
-                    None => Some(String::new()),
-                };
-            }
+        if let AttributeContent::Property(prop) = attr
+            && prop.name == name
+        {
+            return match &prop.value {
+                Some(AttributeValue::Literal(s)) => Some(s.clone()),
+                Some(AttributeValue::Expression(expr)) => {
+                    evaluate_expression(&expr.value, scope).ok()
+                }
+                None => Some(String::new()),
+            };
         }
     }
     None
@@ -869,10 +871,10 @@ fn transform_children(children: &[Node], ctx: &ProcessingContext) -> Vec<Node> {
                     result.extend(transform_children(&nodes, ctx));
                 } else if let Some(converted) = convert_jsx_to_markdown(element, ctx) {
                     result.extend(converted);
-                } else if is_intrinsic_jsx_name(name) {
-                    if let Some(preserved) = preserve_intrinsic_flow_element(element, ctx) {
-                        result.extend(preserved);
-                    }
+                } else if is_intrinsic_jsx_name(name)
+                    && let Some(preserved) = preserve_intrinsic_flow_element(element, ctx)
+                {
+                    result.extend(preserved);
                 }
                 // Unknown JSX elements are silently skipped
             }
@@ -933,15 +935,15 @@ fn transform_children(children: &[Node], ctx: &ProcessingContext) -> Vec<Node> {
                 let simplified = new_children
                     .into_iter()
                     .map(|c| {
-                        if let Node::Text(t) = &c {
-                            if t.value.contains('/') && t.value.contains('.') {
-                                if let Some(basename) = t.value.rsplit('/').next() {
-                                    return Node::Text(Text {
-                                        value: basename.to_string(),
-                                        position: t.position.clone(),
-                                    });
-                                }
-                            }
+                        if let Node::Text(t) = &c
+                            && t.value.contains('/')
+                            && t.value.contains('.')
+                            && let Some(basename) = t.value.rsplit('/').next()
+                        {
+                            return Node::Text(Text {
+                                value: basename.to_string(),
+                                position: t.position.clone(),
+                            });
                         }
                         c
                     })
@@ -1071,10 +1073,10 @@ fn transform_inline_children(children: &[Node], ctx: &ProcessingContext) -> Vec<
                     }
                 } else if let Some(converted) = convert_jsx_text_to_markdown(element, ctx) {
                     result.extend(converted);
-                } else if is_intrinsic_jsx_name(name) {
-                    if let Some(preserved) = preserve_intrinsic_text_element(element, ctx) {
-                        result.extend(preserved);
-                    }
+                } else if is_intrinsic_jsx_name(name)
+                    && let Some(preserved) = preserve_intrinsic_text_element(element, ctx)
+                {
+                    result.extend(preserved);
                 }
                 // Unknown inline JSX elements are silently skipped
             }

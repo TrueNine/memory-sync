@@ -3,6 +3,7 @@ name = "tnmsc"
 description = "Cross-AI-tool prompt synchronisation CLI"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
@@ -33,11 +34,11 @@ sha2 = { workspace = true }
 napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
 reqwest = { version = "0.13.2", default-features = false, features = ["blocking", "json", "rustls"] }
-globset = "0.4.16"
+globset = "0.4.18"
 walkdir = "2.5.0"
 
 [dev-dependencies]
-proptest = "1.10.0"
+proptest = "1.11.0"
 tempfile = "3.27.0"
 
 [build-dependencies]

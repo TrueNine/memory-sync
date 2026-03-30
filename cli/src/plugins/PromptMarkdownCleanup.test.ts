@@ -1,4 +1,9 @@
-import type {OutputCleanContext, OutputPlugin, ProjectChildrenMemoryPrompt, ProjectRootMemoryPrompt} from './plugin-core'
+import type {
+  OutputCleanContext,
+  OutputPlugin,
+  ProjectChildrenMemoryPrompt,
+  ProjectRootMemoryPrompt
+} from './plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -117,7 +122,14 @@ function createCleanContext(workspaceDir: string): OutputCleanContext {
               getAbsolutePath: () => path.join(workspaceDir, 'aindex')
             },
             rootMemoryPrompt: createRootPrompt('prompt-source root'),
-            childMemoryPrompts: [createChildPrompt(workspaceDir, 'aindex', 'commands', 'prompt-source child')]
+            childMemoryPrompts: [
+              createChildPrompt(
+                workspaceDir,
+                'aindex',
+                'commands',
+                'prompt-source child'
+              )
+            ]
           },
           {
             name: 'project-a',
@@ -129,7 +141,14 @@ function createCleanContext(workspaceDir: string): OutputCleanContext {
               getAbsolutePath: () => path.join(workspaceDir, 'project-a')
             },
             rootMemoryPrompt: createRootPrompt('project root'),
-            childMemoryPrompts: [createChildPrompt(workspaceDir, 'project-a', 'commands', 'project child')]
+            childMemoryPrompts: [
+              createChildPrompt(
+                workspaceDir,
+                'project-a',
+                'commands',
+                'project child'
+              )
+            ]
           }
         ]
       }
@@ -139,14 +158,31 @@ function createCleanContext(workspaceDir: string): OutputCleanContext {
 
 describe.each(TEST_CASES)('$name cleanup', ({fileName, createPlugin}) => {
   it('cleans workspace and non-prompt project markdown outputs without touching prompt-source paths', async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `tnmsc-${fileName.toLowerCase()}-cleanup-`))
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), `tnmsc-${fileName.toLowerCase()}-cleanup-`)
+    )
     const workspaceDir = path.join(tempDir, 'workspace')
     const workspaceFile = path.join(workspaceDir, fileName)
     const promptSourceRootFile = path.join(workspaceDir, 'aindex', fileName)
-    const promptSourceChildFile = path.join(workspaceDir, 'aindex', 'commands', fileName)
+    const promptSourceChildFile = path.join(
+      workspaceDir,
+      'aindex',
+      'commands',
+      fileName
+    )
     const projectRootFile = path.join(workspaceDir, 'project-a', fileName)
-    const projectChildFile = path.join(workspaceDir, 'project-a', 'commands', fileName)
-    const manualProjectChildFile = path.join(workspaceDir, 'project-a', 'docs', fileName)
+    const projectChildFile = path.join(
+      workspaceDir,
+      'project-a',
+      'commands',
+      fileName
+    )
+    const manualProjectChildFile = path.join(
+      workspaceDir,
+      'project-a',
+      'docs',
+      fileName
+    )
 
     fs.mkdirSync(path.dirname(promptSourceChildFile), {recursive: true})
     fs.mkdirSync(path.dirname(manualProjectChildFile), {recursive: true})
@@ -159,19 +195,28 @@ describe.each(TEST_CASES)('$name cleanup', ({fileName, createPlugin}) => {
     fs.writeFileSync(manualProjectChildFile, '# manual child', 'utf8')
 
     try {
-      const result = await collectDeletionTargets([createPlugin()], createCleanContext(workspaceDir))
-      const normalizedFilesToDelete = result.filesToDelete.map(target => target.replaceAll('\\', '/'))
+      const result = await collectDeletionTargets(
+        [createPlugin()],
+        createCleanContext(workspaceDir)
+      )
+      const normalizedFilesToDelete = result.filesToDelete.map(target =>
+        target.replaceAll('\\', '/'))
 
-      expect(normalizedFilesToDelete).toEqual(expect.arrayContaining([
-        workspaceFile.replaceAll('\\', '/'),
-        projectRootFile.replaceAll('\\', '/'),
-        projectChildFile.replaceAll('\\', '/')
-      ]))
-      expect(normalizedFilesToDelete).not.toContain(manualProjectChildFile.replaceAll('\\', '/'))
-      expect(normalizedFilesToDelete).not.toContain(promptSourceRootFile.replaceAll('\\', '/'))
-      expect(normalizedFilesToDelete).not.toContain(promptSourceChildFile.replaceAll('\\', '/'))
-    }
-    finally {
+      expect(normalizedFilesToDelete).toEqual(
+        expect.arrayContaining([
+          workspaceFile.replaceAll('\\', '/'),
+          projectRootFile.replaceAll('\\', '/'),
+          projectChildFile.replaceAll('\\', '/'),
+          manualProjectChildFile.replaceAll('\\', '/')
+        ])
+      )
+      expect(normalizedFilesToDelete).not.toContain(
+        promptSourceRootFile.replaceAll('\\', '/')
+      )
+      expect(normalizedFilesToDelete).not.toContain(
+        promptSourceChildFile.replaceAll('\\', '/')
+      )
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
@@ -179,7 +224,9 @@ describe.each(TEST_CASES)('$name cleanup', ({fileName, createPlugin}) => {
 
 describe('claudeCodeCLIOutputPlugin cleanup', () => {
   it('keeps project-scope .claude cleanup directories registered', async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-claude-cleanup-'))
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'tnmsc-claude-cleanup-')
+    )
     const workspaceDir = path.join(tempDir, 'workspace')
     const projectClaudeDirs = [
       path.join(workspaceDir, 'project-a', '.claude', 'rules'),
@@ -193,14 +240,19 @@ describe('claudeCodeCLIOutputPlugin cleanup', () => {
     }
 
     try {
-      const result = await collectDeletionTargets([new ClaudeCodeCLIOutputPlugin()], createCleanContext(workspaceDir))
-      const normalizedDirsToDelete = result.dirsToDelete.map(target => target.replaceAll('\\', '/'))
+      const result = await collectDeletionTargets(
+        [new ClaudeCodeCLIOutputPlugin()],
+        createCleanContext(workspaceDir)
+      )
+      const normalizedDirsToDelete = result.dirsToDelete.map(target =>
+        target.replaceAll('\\', '/'))
 
-      expect(normalizedDirsToDelete).toEqual(expect.arrayContaining(
-        projectClaudeDirs.map(target => target.replaceAll('\\', '/'))
-      ))
-    }
-    finally {
+      expect(normalizedDirsToDelete).toEqual(
+        expect.arrayContaining(
+          projectClaudeDirs.map(target => target.replaceAll('\\', '/'))
+        )
+      )
+    } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })

@@ -81,12 +81,12 @@ fn detect_plugin_runtime() -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
 
     // Relative to binary location
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(exe_dir) = exe.parent() {
-            candidates.push(exe_dir.join("plugin-runtime.mjs"));
-            candidates.push(exe_dir.join("../dist/plugin-runtime.mjs"));
-            candidates.push(exe_dir.join("../cli/dist/plugin-runtime.mjs"));
-        }
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(exe_dir) = exe.parent()
+    {
+        candidates.push(exe_dir.join("plugin-runtime.mjs"));
+        candidates.push(exe_dir.join("../dist/plugin-runtime.mjs"));
+        candidates.push(exe_dir.join("../cli/dist/plugin-runtime.mjs"));
     }
 
     // Relative to CWD
@@ -181,15 +181,15 @@ fn run_silent(cmd: &str, args: &[&str]) -> Option<String> {
 #[cfg(feature = "embedded-runtime")]
 const EMBEDDED_RUNTIME: &str = include_str!(concat!(env!("OUT_DIR"), "/plugin-runtime.mjs"));
 
+/// Extract embedded JS to `~/.aindex/.cache/plugin-runtime-<version>.mjs`.
 #[cfg(not(feature = "embedded-runtime"))]
-const EMBEDDED_RUNTIME: &str = "";
+fn extract_embedded_runtime() -> Option<PathBuf> {
+    None
+}
 
 /// Extract embedded JS to `~/.aindex/.cache/plugin-runtime-<version>.mjs`.
+#[cfg(feature = "embedded-runtime")]
 fn extract_embedded_runtime() -> Option<PathBuf> {
-    if EMBEDDED_RUNTIME.is_empty() {
-        return None;
-    }
-
     let version = env!("CARGO_PKG_VERSION");
     let cache_dir = dirs::home_dir()?.join(".aindex/.cache");
     let cache_file = cache_dir.join(format!("plugin-runtime-{version}.mjs"));
@@ -469,12 +469,12 @@ pub fn run_node_fallback(args: &[String]) -> ExitCode {
 fn find_index_mjs() -> Option<PathBuf> {
     let candidates: Vec<PathBuf> = {
         let mut c = Vec::new();
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(exe_dir) = exe.parent() {
-                c.push(exe_dir.join("index.mjs"));
-                c.push(exe_dir.join("../dist/index.mjs"));
-                c.push(exe_dir.join("../cli/dist/index.mjs"));
-            }
+        if let Ok(exe) = std::env::current_exe()
+            && let Some(exe_dir) = exe.parent()
+        {
+            c.push(exe_dir.join("index.mjs"));
+            c.push(exe_dir.join("../dist/index.mjs"));
+            c.push(exe_dir.join("../cli/dist/index.mjs"));
         }
         if let Ok(cwd) = std::env::current_dir() {
             c.push(cwd.join("dist/index.mjs"));

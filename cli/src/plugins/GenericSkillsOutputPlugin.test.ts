@@ -1,4 +1,4 @@
-import type {OutputWriteContext, SkillPrompt} from './plugin-core'
+import type {OutputCleanContext, OutputWriteContext, SkillPrompt} from './plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
@@ -76,6 +76,31 @@ function createContext(
   } as OutputWriteContext
 }
 
+function createCleanContext(): OutputCleanContext {
+  return {
+    logger: createLogger('GenericSkillsOutputPlugin', 'error'),
+    fs,
+    path,
+    glob: {} as never,
+    dryRun: true,
+    runtimeTargets: {
+      jetbrainsCodexDirs: []
+    },
+    collectedOutputContext: {
+      workspace: {
+        directory: {
+          pathKind: FilePathKind.Relative,
+          path: '.',
+          basePath: '.',
+          getDirectoryName: () => '.',
+          getAbsolutePath: () => path.resolve('.')
+        },
+        projects: []
+      }
+    }
+  } as OutputCleanContext
+}
+
 describe('genericSkillsOutputPlugin synthetic workspace project output', () => {
   it('writes project-scoped skills into workspace root .agents/skills via the synthetic workspace project', async () => {
     const workspaceBase = path.resolve('tmp/generic-skills-workspace')
@@ -145,6 +170,23 @@ describe('genericSkillsOutputPlugin synthetic workspace project output', () => {
     )
     expect(declarations.map(declaration => declaration.path)).toContain(
       path.join(workspaceBase, '.agents', 'skills', 'inspect-locally', 'mcp.json')
+    )
+  })
+})
+
+describe('genericSkillsOutputPlugin cleanup', () => {
+  it('declares cleanup for the full legacy global ~/.skills directory', async () => {
+    const homeDir = path.resolve('tmp/generic-skills-home')
+    const plugin = new TestGenericSkillsOutputPlugin(homeDir)
+
+    const cleanup = await plugin.declareCleanupPaths(createCleanContext())
+    const deletePaths = cleanup.delete?.map(target => target.path.replaceAll('\\', '/')) ?? []
+
+    expect(deletePaths).toContain(
+      path.join(homeDir, '.agents', 'skills').replaceAll('\\', '/')
+    )
+    expect(deletePaths).toContain(
+      path.join(homeDir, '.skills').replaceAll('\\', '/')
     )
   })
 })

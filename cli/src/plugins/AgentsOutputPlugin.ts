@@ -22,22 +22,40 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  override async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
+  override async declareCleanupPaths(
+    ctx: OutputCleanContext
+  ): Promise<OutputCleanupDeclarations> {
     const declarations = await super.declareCleanupPaths(ctx)
+    const promptSourceProjects
+      = ctx.collectedOutputContext.workspace.projects.filter(
+        project => project.isPromptSourceProject === true
+      )
+    const promptSourceExcludeGlobs = promptSourceProjects
+      .map(project => project.dirFromWorkspacePath)
+      .filter((dir): dir is NonNullable<typeof dir> => dir != null)
+      .map(dir => this.resolvePath(dir.basePath, dir.path, '**'))
 
     return {
       ...declarations,
       delete: [
         ...declarations.delete ?? [],
         ...this.buildProjectPromptCleanupTargets(ctx, PROJECT_MEMORY_FILE)
+      ],
+      excludeScanGlobs: [
+        ...declarations.excludeScanGlobs ?? [],
+        ...promptSourceExcludeGlobs
       ]
     }
   }
 
-  override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
+  override async declareOutputFiles(
+    ctx: OutputWriteContext
+  ): Promise<OutputFileDeclaration[]> {
     const results: OutputFileDeclaration[] = []
     const promptProjects = this.getProjectPromptOutputProjects(ctx)
-    const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project']))
+    const activePromptScopes = new Set(
+      this.selectPromptScopes(ctx, ['project'])
+    )
     if (!activePromptScopes.has('project')) return results
 
     for (const [projectIndex, project] of promptProjects.entries()) {
@@ -51,7 +69,10 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
       }
 
       if (project.childMemoryPrompts != null) {
-        for (const [childIndex, child] of project.childMemoryPrompts.entries()) {
+        for (const [
+          childIndex,
+          child
+        ] of project.childMemoryPrompts.entries()) {
           results.push({
             path: this.resolveFullPath(child.dir),
             scope: 'project',
@@ -69,23 +90,35 @@ export class AgentsOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputWriteContext
   ): Promise<string> {
     const projects = this.getProjectPromptOutputProjects(ctx)
-    const source = declaration.source as {type?: string, projectIndex?: number, childIndex?: number}
+    const source = declaration.source as {
+      type?: string
+      projectIndex?: number
+      childIndex?: number
+    }
 
     const projectIndex = source.projectIndex ?? -1
-    if (projectIndex < 0 || projectIndex >= projects.length) throw new Error(`Invalid project index in declaration for ${this.name}`)
+    if (projectIndex < 0 || projectIndex >= projects.length)
+    { throw new Error(`Invalid project index in declaration for ${this.name}`) }
 
     const project = projects[projectIndex]
-    if (project == null) throw new Error(`Project not found for declaration in ${this.name}`)
+    if (project == null)
+    { throw new Error(`Project not found for declaration in ${this.name}`) }
 
     if (source.type === 'projectRootMemory') {
-      if (project.rootMemoryPrompt == null) throw new Error(`Root memory prompt missing for project index ${projectIndex}`)
+      if (project.rootMemoryPrompt == null)
+      { throw new Error(
+        `Root memory prompt missing for project index ${projectIndex}`
+      ) }
       return project.rootMemoryPrompt.content as string
     }
 
     if (source.type === 'projectChildMemory') {
       const childIndex = source.childIndex ?? -1
       const child = project.childMemoryPrompts?.[childIndex]
-      if (child == null) throw new Error(`Child memory prompt missing for project ${projectIndex}, child ${childIndex}`)
+      if (child == null)
+      { throw new Error(
+        `Child memory prompt missing for project ${projectIndex}, child ${childIndex}`
+      ) }
       return child.content as string
     }
 

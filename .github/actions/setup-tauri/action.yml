@@ -2,18 +2,22 @@ name: Setup Tauri Build
 description: Common Tauri GUI build setup - cargo cache with deps-only hash, version sync, route generation
 
 inputs:
+  rust-version:
+    description: Rust toolchain version
+    required: false
+    default: "1.93.1"
   rust-targets:
     description: Rust targets to install (comma-separated)
     required: false
-    default: ''
+    default: ""
   signing-private-key:
     description: Tauri updater signing private key content
     required: false
-    default: ''
+    default: ""
   signing-private-key-password:
     description: Tauri updater signing private key password
     required: false
-    default: ''
+    default: ""
   version:
     description: Version string to sync into Cargo.toml and tauri.conf.json
     required: true
@@ -45,9 +49,10 @@ runs:
           patchelf \
           libssl-dev
 
-    - name: Install Rust stable
+    - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
+        toolchain: ${{ inputs.rust-version }}
         targets: ${{ inputs.rust-targets }}
 
     - name: Normalize Tauri signing key
@@ -86,8 +91,9 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-cargo-${{ steps.cargo-deps-hash.outputs.hash }}
+        key: ${{ runner.os }}-cargo-${{ inputs.rust-version }}-${{ steps.cargo-deps-hash.outputs.hash }}
         restore-keys: |
+          ${{ runner.os }}-cargo-${{ inputs.rust-version }}-
           ${{ runner.os }}-cargo-
 
     - name: Sync Tauri version

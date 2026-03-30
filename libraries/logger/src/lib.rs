@@ -195,10 +195,10 @@ fn resolve_log_level(explicit: Option<LogLevel>) -> LogLevel {
     if let Some(l) = get_global_log_level() {
         return l;
     }
-    if let Ok(env_val) = std::env::var("LOG_LEVEL") {
-        if let Some(l) = LogLevel::from_str_loose(&env_val) {
-            return l;
-        }
+    if let Ok(env_val) = std::env::var("LOG_LEVEL")
+        && let Some(l) = LogLevel::from_str_loose(&env_val)
+    {
+        return l;
     }
     LogLevel::Info
 }
@@ -554,32 +554,32 @@ fn build_copy_text(record: &LoggerDiagnosticRecord) -> Vec<String> {
         append_section(&mut lines, "Exact Fix", exact_fix, None);
     }
 
-    if let Some(possible_fixes) = &record.possible_fixes {
-        if !possible_fixes.is_empty() {
-            if !lines.is_empty() {
-                lines.push(String::new());
+    if let Some(possible_fixes) = &record.possible_fixes
+        && !possible_fixes.is_empty()
+    {
+        if !lines.is_empty() {
+            lines.push(String::new());
+        }
+        lines.push("Possible Fixes".to_string());
+        for (index, fix) in possible_fixes.iter().enumerate() {
+            let mut iter = fix.iter();
+            if let Some(first) = iter.next() {
+                lines.push(format!("{}. {}", index + 1, first));
             }
-            lines.push("Possible Fixes".to_string());
-            for (index, fix) in possible_fixes.iter().enumerate() {
-                let mut iter = fix.iter();
-                if let Some(first) = iter.next() {
-                    lines.push(format!("{}. {}", index + 1, first));
-                }
-                for entry in iter {
-                    lines.push(format!("   {entry}"));
-                }
+            for entry in iter {
+                lines.push(format!("   {entry}"));
             }
         }
     }
 
-    if let Some(details) = &record.details {
-        if !details.is_empty() {
-            if !lines.is_empty() {
-                lines.push(String::new());
-            }
-            lines.push("Context".to_string());
-            lines.extend(value_to_copy_text_lines(&Value::Object(details.clone())));
+    if let Some(details) = &record.details
+        && !details.is_empty()
+    {
+        if !lines.is_empty() {
+            lines.push(String::new());
         }
+        lines.push("Context".to_string());
+        lines.extend(value_to_copy_text_lines(&Value::Object(details.clone())));
     }
 
     lines

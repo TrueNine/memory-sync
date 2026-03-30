@@ -1,7 +1,34 @@
 import type {BuildPromptTomlArtifactOptions} from '@truenine/md-compiler'
 import type {ToolPresetName} from './GlobalScopeCollector'
 import type {RegistryWriter} from './RegistryWriter'
-import type {CommandPrompt, CommandSeriesPluginOverride, ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputCleanupPathDeclaration, OutputCleanupScope, OutputDeclarationScope, OutputFileDeclaration, OutputPlugin, OutputPluginCapabilities, OutputPluginContext, OutputScopeSelection, OutputScopeTopic, OutputTopicCapability, OutputWriteContext, Path, Project, ProjectConfig, RegistryData, RegistryOperationResult, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt, WslMirrorFileDeclaration} from './types'
+import type {
+  CommandPrompt,
+  CommandSeriesPluginOverride,
+  ILogger,
+  OutputCleanContext,
+  OutputCleanupDeclarations,
+  OutputCleanupPathDeclaration,
+  OutputCleanupScope,
+  OutputDeclarationScope,
+  OutputFileDeclaration,
+  OutputPlugin,
+  OutputPluginCapabilities,
+  OutputPluginContext,
+  OutputScopeSelection,
+  OutputScopeTopic,
+  OutputTopicCapability,
+  OutputWriteContext,
+  Path,
+  Project,
+  ProjectConfig,
+  RegistryData,
+  RegistryOperationResult,
+  RulePrompt,
+  RuleScope,
+  SkillPrompt,
+  SubAgentPrompt,
+  WslMirrorFileDeclaration
+} from './types'
 
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
@@ -12,10 +39,7 @@ import {buildConfigDiagnostic, diagnosticLines} from '@/diagnostics'
 import {getEffectiveHomeDir} from '@/runtime-environment'
 import {AbstractPlugin} from './AbstractPlugin'
 import {FilePathKind, PluginKind} from './enums'
-import {
-  applySubSeriesGlobPrefix,
-  filterByProjectConfig
-} from './filters'
+import {applySubSeriesGlobPrefix, filterByProjectConfig} from './filters'
 import {GlobalScopeCollector} from './GlobalScopeCollector'
 import {compileRawPromptArtifact} from './PromptArtifactCache'
 import {resolveSkillName, resolveSubAgentCanonicalName} from './PromptIdentity'
@@ -74,10 +98,13 @@ export interface CommandOutputConfig {
   /** Commands subdirectory, default 'commands' */
   readonly subDir?: string
   /** Custom command frontmatter transformer */
-  readonly transformFrontMatter?: (cmd: CommandPrompt, context: {
-    readonly sourceFrontMatter?: Record<string, unknown>
-    readonly isRecompiled: boolean
-  }) => Record<string, unknown>
+  readonly transformFrontMatter?: (
+    cmd: CommandPrompt,
+    context: {
+      readonly sourceFrontMatter?: Record<string, unknown>
+      readonly isRecompiled: boolean
+    }
+  ) => Record<string, unknown>
   /** Allowed command source scopes, default ['project', 'global'] */
   readonly sourceScopes?: readonly OutputDeclarationScope[]
   /** Optional source-scope remap before output selection */
@@ -114,9 +141,12 @@ export interface SubAgentsOutputConfig extends ScopedSourceConfig {
   /** Preferred root-level field order for emitted artifact */
   readonly fieldOrder?: readonly string[]
   /** Optional frontmatter transformer */
-  readonly transformFrontMatter?: (subAgent: SubAgentPrompt, context: {
-    readonly sourceFrontMatter?: Record<string, unknown>
-  }) => Record<string, unknown>
+  readonly transformFrontMatter?: (
+    subAgent: SubAgentPrompt,
+    context: {
+      readonly sourceFrontMatter?: Record<string, unknown>
+    }
+  ) => Record<string, unknown>
 }
 
 /**
@@ -227,7 +257,11 @@ type DeclarativeOutputSource
     | {readonly kind: 'subAgent', readonly subAgent: SubAgentPrompt}
     | {readonly kind: 'skillMain', readonly skill: SkillPrompt}
     | {readonly kind: 'skillReference', readonly content: string}
-    | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
+    | {
+      readonly kind: 'skillResource'
+      readonly content: string
+      readonly encoding: 'text' | 'base64'
+    }
     | {readonly kind: 'rule', readonly rule: RulePrompt}
     | {readonly kind: 'ignoreFile', readonly content: string}
 
@@ -246,10 +280,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
 
   protected readonly commandsConfig: {
     readonly subDir: string
-    readonly transformFrontMatter?: (cmd: CommandPrompt, context: {
-      readonly sourceFrontMatter?: Record<string, unknown>
-      readonly isRecompiled: boolean
-    }) => Record<string, unknown>
+    readonly transformFrontMatter?: (
+      cmd: CommandPrompt,
+      context: {
+        readonly sourceFrontMatter?: Record<string, unknown>
+        readonly isRecompiled: boolean
+      }
+    ) => Record<string, unknown>
     readonly sourceScopes: readonly OutputDeclarationScope[]
     readonly scopeRemap?: Partial<Record<OutputDeclarationScope, OutputDeclarationScope>>
   }
@@ -268,9 +305,12 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     readonly extraFields?: Readonly<Record<string, unknown>>
     readonly fieldOrder?: readonly string[]
     readonly scopeRemap?: Partial<Record<OutputDeclarationScope, OutputDeclarationScope>>
-    readonly transformFrontMatter?: (subAgent: SubAgentPrompt, context: {
-      readonly sourceFrontMatter?: Record<string, unknown>
-    }) => Record<string, unknown>
+    readonly transformFrontMatter?: (
+      subAgent: SubAgentPrompt,
+      context: {
+        readonly sourceFrontMatter?: Record<string, unknown>
+      }
+    ) => Record<string, unknown>
   }
 
   protected readonly commandOutputEnabled: boolean
@@ -326,25 +366,21 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     this.wslMirrorPaths = options?.wslMirrors ?? []
     this.supportsBlankLineAfterFrontMatter = options?.supportsBlankLineAfterFrontMatter ?? true
 
-    this.outputCapabilities = options?.capabilities != null
-      ? this.normalizeCapabilities(options.capabilities)
-      : this.buildInferredCapabilities()
+    this.outputCapabilities = options?.capabilities != null ? this.normalizeCapabilities(options.capabilities) : this.buildInferredCapabilities()
   }
 
-  private createCommandsConfig(
-    config?: CommandOutputConfig
-  ): AbstractOutputPlugin['commandsConfig'] {
+  private createCommandsConfig(config?: CommandOutputConfig): AbstractOutputPlugin['commandsConfig'] {
     return {
       subDir: config?.subDir ?? 'commands',
       sourceScopes: config?.sourceScopes ?? ['project', 'global'],
       ...config?.scopeRemap != null && {scopeRemap: config.scopeRemap},
-      ...config?.transformFrontMatter != null && {transformFrontMatter: config.transformFrontMatter}
+      ...config?.transformFrontMatter != null && {
+        transformFrontMatter: config.transformFrontMatter
+      }
     }
   }
 
-  private createSubAgentsConfig(
-    config?: SubAgentsOutputConfig
-  ): AbstractOutputPlugin['subAgentsConfig'] {
+  private createSubAgentsConfig(config?: SubAgentsOutputConfig): AbstractOutputPlugin['subAgentsConfig'] {
     return {
       subDir: config?.subDir ?? 'agents',
       sourceScopes: config?.sourceScopes ?? ['project', 'global'],
@@ -353,19 +389,25 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       ext: config?.ext ?? '.md',
       artifactFormat: config?.artifactFormat ?? 'markdown',
       fileNameSource: config?.fileNameSource ?? 'derivedPath',
-      ...config?.bodyFieldName != null && {bodyFieldName: config.bodyFieldName},
-      ...config?.fieldNameMap != null && {fieldNameMap: config.fieldNameMap},
-      ...config?.excludedFrontMatterFields != null && {excludedFrontMatterFields: config.excludedFrontMatterFields},
+      ...config?.bodyFieldName != null && {
+        bodyFieldName: config.bodyFieldName
+      },
+      ...config?.fieldNameMap != null && {
+        fieldNameMap: config.fieldNameMap
+      },
+      ...config?.excludedFrontMatterFields != null && {
+        excludedFrontMatterFields: config.excludedFrontMatterFields
+      },
       ...config?.extraFields != null && {extraFields: config.extraFields},
       ...config?.fieldOrder != null && {fieldOrder: config.fieldOrder},
       ...config?.scopeRemap != null && {scopeRemap: config.scopeRemap},
-      ...config?.transformFrontMatter != null && {transformFrontMatter: config.transformFrontMatter}
+      ...config?.transformFrontMatter != null && {
+        transformFrontMatter: config.transformFrontMatter
+      }
     }
   }
 
-  private createSkillsConfig(
-    config?: SkillsOutputConfig
-  ): AbstractOutputPlugin['skillsConfig'] {
+  private createSkillsConfig(config?: SkillsOutputConfig): AbstractOutputPlugin['skillsConfig'] {
     return {
       subDir: config?.subDir ?? 'skills',
       sourceScopes: config?.sourceScopes ?? ['project', 'global'],
@@ -414,9 +456,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return capabilities
   }
 
-  private normalizeCapabilities(
-    capabilities: OutputPluginCapabilities
-  ): OutputPluginCapabilities {
+  private normalizeCapabilities(capabilities: OutputPluginCapabilities): OutputPluginCapabilities {
     const normalizedCapabilities: OutputPluginCapabilities = {}
     for (const topic of OUTPUT_SCOPE_TOPICS) {
       const capability = capabilities[topic]
@@ -428,9 +468,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return normalizedCapabilities
   }
 
-  private normalizeCapability(
-    capability: OutputTopicCapability
-  ): OutputTopicCapability | undefined {
+  private normalizeCapability(capability: OutputTopicCapability): OutputTopicCapability | undefined {
     const uniqueScopes: OutputDeclarationScope[] = []
     for (const scope of capability.scopes) {
       if (!uniqueScopes.includes(scope)) uniqueScopes.push(scope)
@@ -473,21 +511,17 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return ctx.collectedOutputContext.workspace.projects.find(project => project.isWorkspaceRootProject === true)
   }
 
-  protected resolveProjectRootDir(
-    ctx: OutputPluginContext | OutputWriteContext,
-    project: Project
-  ): string | undefined {
-    if (project.isWorkspaceRootProject === true) return this.resolveDirectoryPath(ctx.collectedOutputContext.workspace.directory)
+  protected resolveProjectRootDir(ctx: OutputPluginContext | OutputWriteContext, project: Project): string | undefined {
+    if (project.isWorkspaceRootProject === true) {
+      return this.resolveDirectoryPath(ctx.collectedOutputContext.workspace.directory)
+    }
 
     const projectDir = project.dirFromWorkspacePath
     if (projectDir == null) return void 0
     return this.resolveDirectoryPath(projectDir)
   }
 
-  protected resolveProjectConfigDir(
-    ctx: OutputPluginContext | OutputWriteContext,
-    project: Project
-  ): string | undefined {
+  protected resolveProjectConfigDir(ctx: OutputPluginContext | OutputWriteContext, project: Project): string | undefined {
     const projectRootDir = this.resolveProjectRootDir(ctx, project)
     if (projectRootDir == null) return void 0
     if (this.globalConfigDir.length === 0) return projectRootDir
@@ -512,7 +546,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
 
   protected resolveDirectoryPath(targetPath: Path): string {
     if (targetPath.pathKind === FilePathKind.Absolute) return targetPath.path
-    if ('basePath' in targetPath) return path.resolve(targetPath.basePath as string, targetPath.path)
+    if ('basePath' in targetPath) {
+      return path.resolve(targetPath.basePath as string, targetPath.path)
+    }
     return path.resolve(process.cwd(), targetPath.path)
   }
 
@@ -521,11 +557,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return path.join(workspaceDir, this.globalConfigDir)
   }
 
-  protected createRelativePath(
-    pathStr: string,
-    basePath: string,
-    dirNameFn: () => string
-  ): string {
+  protected createRelativePath(pathStr: string, basePath: string, dirNameFn: () => string): string {
     void dirNameFn
     return path.join(basePath, pathStr)
   }
@@ -540,7 +572,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
 
   protected getXdgConfigHomeDir(): string {
     const xdgConfigHome = process.env['XDG_CONFIG_HOME']
-    if (typeof xdgConfigHome === 'string' && xdgConfigHome.trim().length > 0) return xdgConfigHome
+    if (typeof xdgConfigHome === 'string' && xdgConfigHome.trim().length > 0) {
+      return xdgConfigHome
+    }
     return path.join(this.getHomeDir(), '.config')
   }
 
@@ -560,19 +594,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return path.dirname(p)
   }
 
-  protected buildProjectPromptCleanupTargets(
-    ctx: OutputCleanContext,
-    fileName: string = this.outputFileName
-  ): readonly OutputCleanupPathDeclaration[] {
+  protected buildProjectPromptCleanupTargets(ctx: OutputCleanContext, fileName: string = this.outputFileName): readonly OutputCleanupPathDeclaration[] {
     if (fileName.length === 0) return []
 
     const declarations: OutputCleanupPathDeclaration[] = []
     const seenPaths = new Set<string>()
 
-    const pushCleanupFile = (
-      targetPath: string,
-      label: string
-    ): void => {
+    const pushCleanupFile = (targetPath: string, label: string): void => {
       if (seenPaths.has(targetPath)) return
       seenPaths.add(targetPath)
       declarations.push({
@@ -587,14 +615,20 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       const projectRootDir = this.resolveProjectRootDir(ctx, project)
       if (projectRootDir == null) continue
 
+      // Add glob pattern to match all files with the given name in the project directory
+      // This ensures files in subdirectories not explicitly tracked as childMemoryPrompts are also cleaned up
+      declarations.push({
+        path: this.resolvePath(projectRootDir, '**', fileName),
+        kind: 'glob',
+        scope: 'project',
+        label: 'delete.project.glob'
+      })
+
       pushCleanupFile(this.resolvePath(projectRootDir, fileName), 'delete.project')
 
       if (project.childMemoryPrompts == null) continue
       for (const child of project.childMemoryPrompts) {
-        pushCleanupFile(
-          this.resolveFullPath(child.dir, fileName),
-          'delete.project.child'
-        )
+        pushCleanupFile(this.resolveFullPath(child.dir, fileName), 'delete.project.child')
       }
     }
 
@@ -610,10 +644,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return this.indexignore
   }
 
-  private resolveCleanupScopeBasePaths(
-    scope: OutputCleanupScope,
-    ctx: OutputCleanContext
-  ): readonly string[] {
+  private resolveCleanupScopeBasePaths(scope: OutputCleanupScope, ctx: OutputCleanContext): readonly string[] {
     if (scope === 'global') return [this.getHomeDir()]
     if (scope === 'xdgConfig') return [this.getXdgConfigHomeDir()]
 
@@ -629,7 +660,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   private resolveCleanupDeclaredPath(basePath: string, declaredPath: string): string {
     if (path.isAbsolute(declaredPath)) return path.resolve(declaredPath)
     if (declaredPath === '~') return this.getHomeDir()
-    if (declaredPath.startsWith('~/') || declaredPath.startsWith('~\\')) return path.resolve(this.getHomeDir(), declaredPath.slice(2))
+    if (declaredPath.startsWith('~/') || declaredPath.startsWith('~\\')) {
+      return path.resolve(this.getHomeDir(), declaredPath.slice(2))
+    }
     return path.resolve(basePath, declaredPath)
   }
 
@@ -647,19 +680,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     const declarations: OutputCleanupPathDeclaration[] = []
     const scopes: readonly OutputCleanupScope[] = ['project', 'global', 'xdgConfig']
 
-    const pushTargets = (
-      scope: OutputCleanupScope,
-      targetKind: 'file' | 'directory' | 'glob',
-      entries: readonly string[] | undefined
-    ): void => {
+    const pushTargets = (scope: OutputCleanupScope, targetKind: 'file' | 'directory' | 'glob', entries: readonly string[] | undefined): void => {
       if (entries == null || entries.length === 0) return
       const basePaths = this.resolveCleanupScopeBasePaths(scope, ctx)
 
       for (const entry of entries) {
         for (const basePath of basePaths) {
-          const resolved = path.isAbsolute(entry)
-            ? path.resolve(entry)
-            : this.resolveCleanupDeclaredPath(basePath, entry)
+          const resolved = path.isAbsolute(entry) ? path.resolve(entry) : this.resolveCleanupDeclaredPath(basePath, entry)
 
           declarations.push({
             path: targetKind === 'glob' ? this.normalizeGlobPattern(resolved) : resolved,
@@ -687,23 +714,16 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return ctx?.pluginOptions?.frontMatter?.blankLineAfter ?? true
   }
 
-  protected buildMarkdownContent(
-    content: string,
-    frontMatter?: Record<string, unknown>,
-    ctx?: OutputPluginContext
-  ): string {
+  protected buildMarkdownContent(content: string, frontMatter?: Record<string, unknown>, ctx?: OutputPluginContext): string {
     return buildMarkdownWithFrontMatter(frontMatter, content, {
       blankLineAfter: this.resolveFrontMatterBlankLineAfter(ctx)
     })
   }
 
-  protected buildMarkdownContentWithRaw(
-    content: string,
-    frontMatter?: Record<string, unknown>,
-    rawFrontMatter?: string,
-    ctx?: OutputPluginContext
-  ): string {
-    if (frontMatter != null && Object.keys(frontMatter).length > 0) return this.buildMarkdownContent(content, frontMatter, ctx) // If we have parsed front matter, use it
+  protected buildMarkdownContentWithRaw(content: string, frontMatter?: Record<string, unknown>, rawFrontMatter?: string, ctx?: OutputPluginContext): string {
+    if (frontMatter != null && Object.keys(frontMatter).length > 0) {
+      return this.buildMarkdownContent(content, frontMatter, ctx)
+    } // If we have parsed front matter, use it
 
     if (rawFrontMatter != null && rawFrontMatter.length > 0) {
       return buildMarkdownWithRawFrontMatter(rawFrontMatter, content, {
@@ -722,22 +742,18 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return ctx.collectedOutputContext.globalMemory?.content as string | undefined
   }
 
-  protected combineGlobalWithContent(
-    globalContent: string | undefined,
-    projectContent: string,
-    options?: CombineOptions
-  ): string {
-    const {
-      separator = '\n\n',
-      skipIfEmpty = true,
-      position = 'before'
-    } = options ?? {}
+  protected combineGlobalWithContent(globalContent: string | undefined, projectContent: string, options?: CombineOptions): string {
+    const {separator = '\n\n', skipIfEmpty = true, position = 'before'} = options ?? {}
 
-    if (skipIfEmpty && (globalContent == null || globalContent.trim().length === 0)) return projectContent // Skip if global content is undefined/null or empty/whitespace when skipIfEmpty is true
+    if (skipIfEmpty && (globalContent == null || globalContent.trim().length === 0)) {
+      return projectContent
+    } // Skip if global content is undefined/null or empty/whitespace when skipIfEmpty is true
 
     const effectiveGlobalContent = globalContent ?? '' // If global content is null/undefined but skipIfEmpty is false, treat as empty string
 
-    if (position === 'after') return `${projectContent}${separator}${effectiveGlobalContent}` // Combine based on position
+    if (position === 'after') {
+      return `${projectContent}${separator}${effectiveGlobalContent}`
+    } // Combine based on position
 
     return `${effectiveGlobalContent}${separator}${projectContent}` // Default: 'before'
   }
@@ -750,21 +766,17 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return resolveSubAgentCanonicalName(subAgent)
   }
 
-  protected transformCommandName(
-    cmd: CommandPrompt,
-    options?: CommandNameTransformOptions
-  ): string {
+  protected transformCommandName(cmd: CommandPrompt, options?: CommandNameTransformOptions): string {
     const {includeSeriesPrefix = true, seriesSeparator = '-'} = options ?? {}
 
-    if (!includeSeriesPrefix || cmd.commandPrefix == null) return `${cmd.commandName}.md` // If prefix should not be included or prefix is not present, return just commandName
+    if (!includeSeriesPrefix || cmd.commandPrefix == null) {
+      return `${cmd.commandName}.md`
+    } // If prefix should not be included or prefix is not present, return just commandName
 
     return `${cmd.commandPrefix}${seriesSeparator}${cmd.commandName}.md`
   }
 
-  protected transformSubAgentName(
-    subAgent: SubAgentPrompt,
-    options?: SubAgentNameTransformOptions
-  ): string {
+  protected transformSubAgentName(subAgent: SubAgentPrompt, options?: SubAgentNameTransformOptions): string {
     const {fileNameSource} = this.subAgentsConfig
     const includePrefix = options?.includePrefix ?? this.subAgentsConfig.includePrefix
     const linkSymbol = options?.linkSymbol ?? this.subAgentsConfig.linkSymbol
@@ -787,9 +799,13 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     })
     let normalized = sanitizedCharacters.join('')
 
-    while (normalized.endsWith('.') || normalized.endsWith(' ')) normalized = normalized.slice(0, -1)
+    while (normalized.endsWith('.') || normalized.endsWith(' ')) {
+      normalized = normalized.slice(0, -1)
+    }
 
-    if (normalized.length === 0) throw new Error(`Cannot derive a valid output file name from "${value}"`)
+    if (normalized.length === 0) {
+      throw new Error(`Cannot derive a valid output file name from "${value}"`)
+    }
 
     return normalized
   }
@@ -798,21 +814,23 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     if (this.warnedDeprecatedSubAgentFileNameSource) return
     this.warnedDeprecatedSubAgentFileNameSource = true
 
-    this.log.warn(buildConfigDiagnostic({
-      code: 'SUBAGENT_FRONTMATTER_NAME_SOURCE_DEPRECATED',
-      title: 'Sub-agent fileNameSource="frontMatterName" now resolves from derived names',
-      reason: diagnosticLines(
-        `The ${this.name} plugin no longer reads authored sub-agent front matter names.`,
-        'tnmsc now derives sub-agent names from the sub-agent path.'
-      ),
-      exactFix: diagnosticLines(
-        'Remove authored `name` fields from sub-agent sources.',
-        'Keep using `fileNameSource="frontMatterName"` only as a temporary alias for the derived-path naming behavior.'
-      ),
-      details: {
-        plugin: this.name
-      }
-    }))
+    this.log.warn(
+      buildConfigDiagnostic({
+        code: 'SUBAGENT_FRONTMATTER_NAME_SOURCE_DEPRECATED',
+        title: 'Sub-agent fileNameSource="frontMatterName" now resolves from derived names',
+        reason: diagnosticLines(
+          `The ${this.name} plugin no longer reads authored sub-agent front matter names.`,
+          'tnmsc now derives sub-agent names from the sub-agent path.'
+        ),
+        exactFix: diagnosticLines(
+          'Remove authored `name` fields from sub-agent sources.',
+          'Keep using `fileNameSource="frontMatterName"` only as a temporary alias for the derived-path naming behavior.'
+        ),
+        details: {
+          plugin: this.name
+        }
+      })
+    )
   }
 
   protected appendSubAgentDeclarations(
@@ -881,7 +899,10 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
           declarations.push({
             path: path.join(skillDir, childDoc.dir.path.replace(/\.mdx$/, '.md')),
             scope,
-            source: {kind: 'skillReference', content: childDoc.content as string}
+            source: {
+              kind: 'skillReference',
+              content: childDoc.content as string
+            }
           })
         }
       }
@@ -891,19 +912,18 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
           declarations.push({
             path: path.join(skillDir, resource.relativePath),
             scope,
-            source: {kind: 'skillResource', content: resource.content, encoding: resource.encoding}
+            source: {
+              kind: 'skillResource',
+              content: resource.content,
+              encoding: resource.encoding
+            }
           })
         }
       }
     }
   }
 
-  protected appendRuleDeclarations(
-    declarations: OutputFileDeclaration[],
-    basePath: string,
-    scope: OutputDeclarationScope,
-    rules: readonly RulePrompt[]
-  ): void {
+  protected appendRuleDeclarations(declarations: OutputFileDeclaration[], basePath: string, scope: OutputDeclarationScope, rules: readonly RulePrompt[]): void {
     const rulesDir = path.join(basePath, this.rulesConfig.subDir ?? 'rules')
 
     for (const rule of rules) {
@@ -915,21 +935,28 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     }
   }
 
-  protected buildSubAgentTomlContent(
-    agent: SubAgentPrompt,
-    frontMatter: Record<string, unknown> | undefined
-  ): string {
+  protected buildSubAgentTomlContent(agent: SubAgentPrompt, frontMatter: Record<string, unknown> | undefined): string {
     const {bodyFieldName} = this.subAgentsConfig
-    if (bodyFieldName == null || bodyFieldName.length === 0) throw new Error(`subagents.bodyFieldName is required when artifactFormat="toml" for ${this.name}`)
+    if (bodyFieldName == null || bodyFieldName.length === 0) {
+      throw new Error(`subagents.bodyFieldName is required when artifactFormat="toml" for ${this.name}`)
+    }
 
     return this.buildTomlContent({
       content: agent.content,
       bodyFieldName,
       ...frontMatter != null && {frontMatter},
-      ...this.subAgentsConfig.fieldNameMap != null && {fieldNameMap: this.subAgentsConfig.fieldNameMap},
-      ...this.subAgentsConfig.excludedFrontMatterFields != null && {excludedKeys: this.subAgentsConfig.excludedFrontMatterFields},
-      ...this.subAgentsConfig.extraFields != null && {extraFields: this.subAgentsConfig.extraFields},
-      ...this.subAgentsConfig.fieldOrder != null && {fieldOrder: this.subAgentsConfig.fieldOrder}
+      ...this.subAgentsConfig.fieldNameMap != null && {
+        fieldNameMap: this.subAgentsConfig.fieldNameMap
+      },
+      ...this.subAgentsConfig.excludedFrontMatterFields != null && {
+        excludedKeys: this.subAgentsConfig.excludedFrontMatterFields
+      },
+      ...this.subAgentsConfig.extraFields != null && {
+        extraFields: this.subAgentsConfig.extraFields
+      },
+      ...this.subAgentsConfig.fieldOrder != null && {
+        fieldOrder: this.subAgentsConfig.fieldOrder
+      }
     })
   }
 
@@ -940,22 +967,23 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     const includeSeriesPrefix = pluginOverride?.includeSeriesPrefix ?? globalOptions?.includeSeriesPrefix // Only include properties that have defined values to satisfy exactOptionalPropertyTypes // Plugin-specific overrides take precedence over global settings
     const seriesSeparator = pluginOverride?.seriesSeparator
 
-    if (includeSeriesPrefix != null && seriesSeparator != null) return {includeSeriesPrefix, seriesSeparator} // Build result object conditionally to avoid assigning undefined to readonly properties
+    if (includeSeriesPrefix != null && seriesSeparator != null) {
+      return {includeSeriesPrefix, seriesSeparator}
+    } // Build result object conditionally to avoid assigning undefined to readonly properties
     if (includeSeriesPrefix != null) return {includeSeriesPrefix}
     if (seriesSeparator != null) return {seriesSeparator}
     return {}
   }
 
-  protected getTransformOptionsFromContext(
-    ctx: OutputWriteContext,
-    additionalOptions?: CommandNameTransformOptions
-  ): CommandNameTransformOptions {
+  protected getTransformOptionsFromContext(ctx: OutputWriteContext, additionalOptions?: CommandNameTransformOptions): CommandNameTransformOptions {
     const seriesOptions = this.getCommandSeriesOptions(ctx)
 
     const includeSeriesPrefix = seriesOptions.includeSeriesPrefix ?? additionalOptions?.includeSeriesPrefix // Only include properties that have defined values to satisfy exactOptionalPropertyTypes // Merge: additionalOptions (plugin defaults) <- seriesOptions (config overrides)
     const seriesSeparator = seriesOptions.seriesSeparator ?? additionalOptions?.seriesSeparator
 
-    if (includeSeriesPrefix != null && seriesSeparator != null) return {includeSeriesPrefix, seriesSeparator} // Build result object conditionally to avoid assigning undefined to readonly properties
+    if (includeSeriesPrefix != null && seriesSeparator != null) {
+      return {includeSeriesPrefix, seriesSeparator}
+    } // Build result object conditionally to avoid assigning undefined to readonly properties
     if (includeSeriesPrefix != null) return {includeSeriesPrefix}
     if (seriesSeparator != null) return {seriesSeparator}
     return {}
@@ -967,13 +995,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return registeredPlugins.includes(precedingPluginName)
   }
 
-  protected getRegistryWriter<
-    TEntry,
-    TRegistry extends RegistryData,
-    T extends RegistryWriter<TEntry, TRegistry>
-  >(
-    WriterClass: new (logger: ILogger) => T
-  ): T {
+  protected getRegistryWriter<TEntry, TRegistry extends RegistryData, T extends RegistryWriter<TEntry, TRegistry>>(WriterClass: new (logger: ILogger) => T): T {
     const cacheKey = WriterClass.name
 
     const cached = this.registryWriterCache.get(cacheKey) // Check cache first
@@ -984,10 +1006,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return writer
   }
 
-  protected async registerInRegistry<
-    TEntry,
-    TRegistry extends RegistryData
-  >(
+  protected async registerInRegistry<TEntry, TRegistry extends RegistryData>(
     writer: RegistryWriter<TEntry, TRegistry>,
     entries: readonly TEntry[],
     ctx: OutputWriteContext
@@ -1032,7 +1051,10 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     sourceScopes: readonly OutputDeclarationScope[],
     resolveScope: (item: T) => OutputDeclarationScope,
     requestedScopes?: OutputScopeSelection
-  ): {readonly selectedScope?: OutputDeclarationScope, readonly items: readonly T[]} {
+  ): {
+    readonly selectedScope?: OutputDeclarationScope
+    readonly items: readonly T[]
+  } {
     if (items.length === 0) return {items: []}
 
     const availableScopes = [...new Set(items.map(resolveScope))]
@@ -1052,10 +1074,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     }
   }
 
-  protected selectRuleScopes(
-    ctx: OutputWriteContext,
-    rules: readonly RulePrompt[]
-  ): readonly OutputDeclarationScope[] {
+  protected selectRuleScopes(ctx: OutputWriteContext, rules: readonly RulePrompt[]): readonly OutputDeclarationScope[] {
     const availableScopes = [...new Set(rules.map(rule => this.normalizeSourceScope(this.normalizeRuleScope(rule))))]
     return resolveTopicScopes({
       requestedScopes: this.getTopicScopeOverride(ctx, 'rules'),
@@ -1079,27 +1098,24 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     })
   }
 
-  protected getTopicScopeOverride(
-    ctx: OutputPluginContext | OutputWriteContext,
-    topic: OutputScopeTopic
-  ): OutputScopeSelection | undefined {
+  protected getTopicScopeOverride(ctx: OutputPluginContext | OutputWriteContext, topic: OutputScopeTopic): OutputScopeSelection | undefined {
     return ctx.pluginOptions?.outputScopes?.plugins?.[this.name]?.[topic]
   }
 
-  protected buildSkillFrontMatter(
-    skill: SkillPrompt,
-    options?: SkillFrontMatterOptions
-  ): Record<string, unknown> {
+  protected buildSkillFrontMatter(skill: SkillPrompt, options?: SkillFrontMatterOptions): Record<string, unknown> {
     const fm = skill.yamlFrontMatter
     const result: Record<string, unknown> = {
       name: this.getSkillName(skill),
       description: fm.description
     }
 
-    if ('displayName' in fm && fm.displayName != null) { // Conditionally add optional fields
+    if ('displayName' in fm && fm.displayName != null) {
+      // Conditionally add optional fields
       result['displayName'] = fm.displayName
     }
-    if ('keywords' in fm && fm.keywords != null && fm.keywords.length > 0) result['keywords'] = fm.keywords
+    if ('keywords' in fm && fm.keywords != null && fm.keywords.length > 0) {
+      result['keywords'] = fm.keywords
+    }
     if ('author' in fm && fm.author != null) result['author'] = fm.author
     if ('version' in fm && fm.version != null) result['version'] = fm.version
 
@@ -1109,7 +1125,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       result['allowTools'] = toolFormat === 'string' ? fm.allowTools.join(',') : fm.allowTools
     }
 
-    if (options?.additionalFields != null) { // Add any additional custom fields
+    if (options?.additionalFields != null) {
+      // Add any additional custom fields
       Object.assign(result, options.additionalFields)
     }
 
@@ -1117,13 +1134,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   }
 
   protected buildRuleContent(rule: RulePrompt, ctx?: OutputPluginContext): string {
-    const fmData = this.rulesConfig.transformFrontMatter
-      ? this.rulesConfig.transformFrontMatter(rule)
-      : {globs: rule.globs.join(', ')}
+    const fmData = this.rulesConfig.transformFrontMatter ? this.rulesConfig.transformFrontMatter(rule) : {globs: rule.globs.join(', ')}
 
-    const sanitizedFmData = fmData == null || Object.keys(fmData).length === 0
-      ? void 0
-      : fmData
+    const sanitizedFmData = fmData == null || Object.keys(fmData).length === 0 ? void 0 : fmData
 
     return this.buildMarkdownContent(rule.content, sanitizedFmData, ctx)
   }
@@ -1131,15 +1144,6 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   protected buildRuleFileName(rule: RulePrompt): string {
     const prefix = `${this.rulesConfig.prefix ?? 'rule'}${this.rulesConfig.linkSymbol ?? '-'}`
     const fileName = `${prefix}${rule.prefix}${this.rulesConfig.linkSymbol ?? '-'}${rule.ruleName}${this.rulesConfig.ext ?? '.md'}`
-    this.log.trace('buildRuleFileName', {
-      plugin: this.name,
-      rulePrefix: rule.prefix,
-      ruleName: rule.ruleName,
-      prefix: this.rulesConfig.prefix ?? 'rule',
-      linkSymbol: this.rulesConfig.linkSymbol ?? '-',
-      ext: this.rulesConfig.ext ?? '.md',
-      result: fileName
-    })
     return fileName
   }
 
@@ -1152,7 +1156,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     const cleanupProtect = this.buildCleanupTargetsFromScopeConfig(this.cleanupConfig.protect, 'protect', ctx)
     const {excludeScanGlobs} = this.cleanupConfig
 
-    if (cleanupDelete.length === 0 && cleanupProtect.length === 0 && (excludeScanGlobs == null || excludeScanGlobs.length === 0)) return {}
+    if (cleanupDelete.length === 0 && cleanupProtect.length === 0 && (excludeScanGlobs == null || excludeScanGlobs.length === 0)) {
+      return {}
+    }
 
     return {
       ...cleanupDelete.length > 0 && {delete: cleanupDelete},
@@ -1166,10 +1172,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     return this.wslMirrorPaths.map(sourcePath => ({sourcePath}))
   }
 
-  async convertContent(
-    declaration: OutputFileDeclaration,
-    ctx: OutputWriteContext
-  ): Promise<string | Buffer> {
+  async convertContent(declaration: OutputFileDeclaration, ctx: OutputWriteContext): Promise<string | Buffer> {
     const source = declaration.source as DeclarativeOutputSource
 
     switch (source.kind) {
@@ -1177,66 +1180,62 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       case 'projectChildMemory':
       case 'globalMemory':
       case 'skillReference':
-      case 'ignoreFile': return source.content
-      case 'command': return this.buildCommandContent(source.command, ctx)
-      case 'subAgent': return this.buildSubAgentContent(source.subAgent, ctx)
-      case 'skillMain': return this.buildSkillMainContent(source.skill, ctx)
-      case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
-      case 'rule': return this.buildRuleContent(source.rule, ctx)
-      default: throw new Error(`Unsupported declaration source for plugin ${this.name}`)
+      case 'ignoreFile':
+        return source.content
+      case 'command':
+        return this.buildCommandContent(source.command, ctx)
+      case 'subAgent':
+        return this.buildSubAgentContent(source.subAgent, ctx)
+      case 'skillMain':
+        return this.buildSkillMainContent(source.skill, ctx)
+      case 'skillResource':
+        return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
+      case 'rule':
+        return this.buildRuleContent(source.rule, ctx)
+      default:
+        throw new Error(`Unsupported declaration source for plugin ${this.name}`)
     }
   }
 
   protected async buildDefaultOutputDeclarations(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
-    const {
-      globalMemory,
-      commands,
-      subAgents,
-      skills,
-      rules,
-      aiAgentIgnoreConfigFiles
-    } = ctx.collectedOutputContext
+    const {globalMemory, commands, subAgents, skills, rules, aiAgentIgnoreConfigFiles} = ctx.collectedOutputContext
     const transformOptions = this.getTransformOptionsFromContext(ctx)
     const ignoreOutputPath = this.getIgnoreOutputPath()
-    const ignoreFile = this.indexignore == null
-      ? void 0
-      : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
-    const selectedCommands = this.commandOutputEnabled && commands != null
-      ? this.selectSingleScopeItems(
-          commands,
-          this.commandsConfig.sourceScopes,
-          cmd => this.resolveCommandSourceScope(cmd),
-          this.getTopicScopeOverride(ctx, 'commands')
-        )
-      : {items: [] as readonly CommandPrompt[]}
+    const ignoreFile = this.indexignore == null ? void 0 : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
+    const selectedCommands
+      = this.commandOutputEnabled && commands != null
+        ? this.selectSingleScopeItems(
+            commands,
+            this.commandsConfig.sourceScopes,
+            cmd => this.resolveCommandSourceScope(cmd),
+            this.getTopicScopeOverride(ctx, 'commands')
+          )
+        : {items: [] as readonly CommandPrompt[]}
 
-    const selectedSubAgents = this.subAgentOutputEnabled && subAgents != null
-      ? this.selectSingleScopeItems(
-          subAgents,
-          this.subAgentsConfig.sourceScopes,
-          subAgent => this.resolveSubAgentSourceScope(subAgent),
-          this.getTopicScopeOverride(ctx, 'subagents')
-        )
-      : {items: [] as readonly SubAgentPrompt[]}
+    const selectedSubAgents
+      = this.subAgentOutputEnabled && subAgents != null
+        ? this.selectSingleScopeItems(
+            subAgents,
+            this.subAgentsConfig.sourceScopes,
+            subAgent => this.resolveSubAgentSourceScope(subAgent),
+            this.getTopicScopeOverride(ctx, 'subagents')
+          )
+        : {items: [] as readonly SubAgentPrompt[]}
 
-    const selectedSkills = this.skillOutputEnabled && skills != null
-      ? this.selectSingleScopeItems(
-          skills,
-          this.skillsConfig.sourceScopes,
-          skill => this.resolveSkillSourceScope(skill),
-          this.getTopicScopeOverride(ctx, 'skills')
-        )
-      : {items: [] as readonly SkillPrompt[]}
+    const selectedSkills
+      = this.skillOutputEnabled && skills != null
+        ? this.selectSingleScopeItems(
+            skills,
+            this.skillsConfig.sourceScopes,
+            skill => this.resolveSkillSourceScope(skill),
+            this.getTopicScopeOverride(ctx, 'skills')
+          )
+        : {items: [] as readonly SkillPrompt[]}
 
     const allRules = rules ?? []
-    const activeRuleScopes = this.ruleOutputEnabled && allRules.length > 0
-      ? new Set(this.selectRuleScopes(ctx, allRules))
-      : new Set<OutputDeclarationScope>()
-    const activePromptScopes = new Set(this.selectPromptScopes(
-      ctx,
-      this.outputCapabilities.prompt?.scopes ?? ['project', 'global']
-    ))
+    const activeRuleScopes = this.ruleOutputEnabled && allRules.length > 0 ? new Set(this.selectRuleScopes(ctx, allRules)) : new Set<OutputDeclarationScope>()
+    const activePromptScopes = new Set(this.selectPromptScopes(ctx, this.outputCapabilities.prompt?.scopes ?? ['project', 'global']))
 
     const rulesByScope: Record<OutputDeclarationScope, RulePrompt[]> = {
       project: [],
@@ -1252,16 +1251,15 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       const basePath = this.resolveProjectConfigDir(ctx, project)
       if (projectRootDir == null || basePath == null) continue
 
-      if (
-        this.outputFileName.length > 0
-        && activePromptScopes.has('project')
-        && this.isProjectPromptOutputTarget(project)
-      ) {
+      if (this.outputFileName.length > 0 && activePromptScopes.has('project') && this.isProjectPromptOutputTarget(project)) {
         if (project.rootMemoryPrompt != null) {
           declarations.push({
             path: path.join(projectRootDir, this.outputFileName),
             scope: 'project',
-            source: {kind: 'projectRootMemory', content: project.rootMemoryPrompt.content as string}
+            source: {
+              kind: 'projectRootMemory',
+              content: project.rootMemoryPrompt.content as string
+            }
           })
         }
 
@@ -1270,7 +1268,10 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
             declarations.push({
               path: this.resolveFullPath(child.dir),
               scope: 'project',
-              source: {kind: 'projectChildMemory', content: child.content as string}
+              source: {
+                kind: 'projectChildMemory',
+                content: child.content as string
+              }
             })
           }
         }
@@ -1294,10 +1295,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       }
 
       if (activeRuleScopes.has('project')) {
-        const projectRules = applySubSeriesGlobPrefix(
-          filterByProjectConfig(rulesByScope.project, projectConfig, 'rules'),
-          projectConfig
-        )
+        const projectRules = applySubSeriesGlobPrefix(filterByProjectConfig(rulesByScope.project, projectConfig, 'rules'), projectConfig)
         this.appendRuleDeclarations(declarations, basePath, 'project', projectRules)
       }
 
@@ -1346,15 +1344,14 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       this.appendRuleDeclarations(declarations, basePath, ruleScope, filteredRules)
     }
 
-    if (
-      globalMemory != null
-      && this.outputFileName.length > 0
-      && activePromptScopes.has('global')
-    ) {
+    if (globalMemory != null && this.outputFileName.length > 0 && activePromptScopes.has('global')) {
       declarations.push({
         path: path.join(this.getGlobalConfigDir(), this.outputFileName),
         scope: 'global',
-        source: {kind: 'globalMemory', content: globalMemory.content as string}
+        source: {
+          kind: 'globalMemory',
+          content: globalMemory.content as string
+        }
       })
     }
 
@@ -1372,7 +1369,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
         toolPreset: this.toolPreset,
         hasRawContent: true
       })
-      const scopeCollector = new GlobalScopeCollector({toolPreset: this.toolPreset})
+      const scopeCollector = new GlobalScopeCollector({
+        toolPreset: this.toolPreset
+      })
       const globalScope = scopeCollector.collect()
       const result = await compileRawPromptArtifact({
         filePath: cmd.dir.getAbsolutePath(),
@@ -1385,11 +1384,15 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     }
 
     const commandFrontMatterTransformer = this.commandsConfig.transformFrontMatter
-    if (commandFrontMatterTransformer == null) throw new Error(`commands.transformFrontMatter is required for command output plugin: ${this.name}`)
+    if (commandFrontMatterTransformer == null) {
+      throw new Error(`commands.transformFrontMatter is required for command output plugin: ${this.name}`)
+    }
 
     const transformedFrontMatter = commandFrontMatterTransformer(cmd, {
       isRecompiled: useRecompiledFrontMatter,
-      ...compiledFrontMatter != null && {sourceFrontMatter: compiledFrontMatter as Record<string, unknown>}
+      ...compiledFrontMatter != null && {
+        sourceFrontMatter: compiledFrontMatter as Record<string, unknown>
+      }
     })
 
     return this.buildMarkdownContent(compiledContent, transformedFrontMatter, ctx)
@@ -1398,7 +1401,9 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   protected buildSubAgentContent(agent: SubAgentPrompt, ctx?: OutputPluginContext): string {
     const subAgentFrontMatterTransformer = this.subAgentsConfig.transformFrontMatter
     const transformedFrontMatter = subAgentFrontMatterTransformer?.(agent, {
-      ...agent.yamlFrontMatter != null && {sourceFrontMatter: agent.yamlFrontMatter as Record<string, unknown>}
+      ...agent.yamlFrontMatter != null && {
+        sourceFrontMatter: agent.yamlFrontMatter as Record<string, unknown>
+      }
     })
 
     if (this.subAgentsConfig.artifactFormat === 'toml') {
@@ -1406,22 +1411,14 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       return this.buildSubAgentTomlContent(agent, sourceFrontMatter)
     }
 
-    if (transformedFrontMatter != null) return this.buildMarkdownContent(agent.content, transformedFrontMatter, ctx)
+    if (transformedFrontMatter != null) {
+      return this.buildMarkdownContent(agent.content, transformedFrontMatter, ctx)
+    }
 
-    return this.buildMarkdownContentWithRaw(
-      agent.content,
-      agent.yamlFrontMatter,
-      agent.rawFrontMatter,
-      ctx
-    )
+    return this.buildMarkdownContentWithRaw(agent.content, agent.yamlFrontMatter, agent.rawFrontMatter, ctx)
   }
 
   protected buildSkillMainContent(skill: SkillPrompt, ctx?: OutputPluginContext): string {
-    return this.buildMarkdownContentWithRaw(
-      skill.content as string,
-      skill.yamlFrontMatter,
-      skill.rawFrontMatter,
-      ctx
-    )
+    return this.buildMarkdownContentWithRaw(skill.content as string, skill.yamlFrontMatter, skill.rawFrontMatter, ctx)
   }
 }

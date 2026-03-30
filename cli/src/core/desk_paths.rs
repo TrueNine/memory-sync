@@ -66,10 +66,10 @@ fn get_windows_fixed_dir(ctx: &config::RuntimeEnvironmentContext) -> PathBuf {
 }
 
 fn get_linux_data_dir(ctx: &config::RuntimeEnvironmentContext) -> PathBuf {
-    if let Ok(xdg_data_home) = env::var("XDG_DATA_HOME") {
-        if !xdg_data_home.trim().is_empty() {
-            return PathBuf::from(resolve_user_path(&xdg_data_home, ctx));
-        }
+    if let Ok(xdg_data_home) = env::var("XDG_DATA_HOME")
+        && !xdg_data_home.trim().is_empty()
+    {
+        return PathBuf::from(resolve_user_path(&xdg_data_home, ctx));
     }
     get_home_dir(ctx).join(".local").join("share")
 }
@@ -455,28 +455,30 @@ mod napi_binding {
         super::read_file_sync(path).map_err(|err| napi::Error::from_reason(err.to_string()))
     }
 
-    #[allow(non_snake_case)]
     #[napi(object)]
     pub struct NapiDeletionError {
         pub path: String,
         pub error: String,
     }
 
-    #[allow(non_snake_case)]
     #[napi(object)]
     pub struct NapiDeletionResult {
         pub deleted: u32,
-        pub deletedPaths: Vec<String>,
+        #[napi(js_name = "deletedPaths")]
+        pub deleted_paths: Vec<String>,
         pub errors: Vec<NapiDeletionError>,
     }
 
-    #[allow(non_snake_case)]
     #[napi(object)]
     pub struct NapiDeleteTargetsResult {
-        pub deletedFiles: Vec<String>,
-        pub deletedDirs: Vec<String>,
-        pub fileErrors: Vec<NapiDeletionError>,
-        pub dirErrors: Vec<NapiDeletionError>,
+        #[napi(js_name = "deletedFiles")]
+        pub deleted_files: Vec<String>,
+        #[napi(js_name = "deletedDirs")]
+        pub deleted_dirs: Vec<String>,
+        #[napi(js_name = "fileErrors")]
+        pub file_errors: Vec<NapiDeletionError>,
+        #[napi(js_name = "dirErrors")]
+        pub dir_errors: Vec<NapiDeletionError>,
     }
 
     fn to_napi_error(err: DeletionError) -> NapiDeletionError {
@@ -491,7 +493,7 @@ mod napi_binding {
         let result = super::delete_files(&paths);
         NapiDeletionResult {
             deleted: result.deleted as u32,
-            deletedPaths: result.deleted_paths,
+            deleted_paths: result.deleted_paths,
             errors: result.errors.into_iter().map(to_napi_error).collect(),
         }
     }
@@ -501,7 +503,7 @@ mod napi_binding {
         let result = super::delete_directories(&paths);
         NapiDeletionResult {
             deleted: result.deleted as u32,
-            deletedPaths: result.deleted_paths,
+            deleted_paths: result.deleted_paths,
             errors: result.errors.into_iter().map(to_napi_error).collect(),
         }
     }
@@ -511,7 +513,7 @@ mod napi_binding {
         let result = super::delete_empty_directories(&paths);
         NapiDeletionResult {
             deleted: result.deleted as u32,
-            deletedPaths: result.deleted_paths,
+            deleted_paths: result.deleted_paths,
             errors: result.errors.into_iter().map(to_napi_error).collect(),
         }
     }
@@ -528,10 +530,10 @@ mod napi_binding {
         let dirs = paths.dirs.unwrap_or_default();
         let result = super::delete_targets(&files, &dirs);
         NapiDeleteTargetsResult {
-            deletedFiles: result.deleted_files,
-            deletedDirs: result.deleted_dirs,
-            fileErrors: result.file_errors.into_iter().map(to_napi_error).collect(),
-            dirErrors: result.dir_errors.into_iter().map(to_napi_error).collect(),
+            deleted_files: result.deleted_files,
+            deleted_dirs: result.deleted_dirs,
+            file_errors: result.file_errors.into_iter().map(to_napi_error).collect(),
+            dir_errors: result.dir_errors.into_iter().map(to_napi_error).collect(),
         }
     }
 }
@@ -548,7 +550,7 @@ mod tests {
         let files_dir = dir.path().join("files");
         let dirs_dir = dir.path().join("dirs");
         fs::create_dir_all(&files_dir).unwrap();
-        fs::create_dir_all(&dirs_dir.join("nested")).unwrap();
+        fs::create_dir_all(dirs_dir.join("nested")).unwrap();
         let file = files_dir.join("artifact.txt");
         fs::write(&file, b"data").unwrap();
         let leaf = dirs_dir.join("nested").join("inner.txt");
