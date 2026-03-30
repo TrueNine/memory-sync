@@ -25,7 +25,8 @@ export class DryRunCleanCommand implements Command {
       globalFiles: outputs.globalFiles.length
     })
 
-    const {filesToDelete, dirsToDelete, violations, excludedScanGlobs} = await collectDeletionTargets(outputPlugins, cleanCtx)
+    const {filesToDelete, dirsToDelete, emptyDirsToDelete, violations, excludedScanGlobs} = await collectDeletionTargets(outputPlugins, cleanCtx)
+    const totalDirsToDelete = [...dirsToDelete, ...emptyDirsToDelete]
 
     if (violations.length > 0) {
       logProtectedDeletionGuardError(logger, 'dry-run-cleanup', violations)
@@ -38,12 +39,12 @@ export class DryRunCleanCommand implements Command {
     }
 
     this.logDryRunFiles(filesToDelete, logger)
-    this.logDryRunDirectories(dirsToDelete, logger)
+    this.logDryRunDirectories(totalDirsToDelete, logger)
 
     logger.info('clean complete', {
       dryRun: true,
       filesAffected: filesToDelete.length,
-      dirsAffected: dirsToDelete.length,
+      dirsAffected: totalDirsToDelete.length,
       violations: 0,
       excludedScanGlobs
     })
@@ -51,7 +52,7 @@ export class DryRunCleanCommand implements Command {
     return {
       success: true,
       filesAffected: filesToDelete.length,
-      dirsAffected: dirsToDelete.length,
+      dirsAffected: totalDirsToDelete.length,
       message: 'Dry-run complete, no files were deleted'
     }
   }

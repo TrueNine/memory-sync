@@ -439,7 +439,7 @@ export async function performCleanup(
 
   return {
     deletedFiles: result.deletedFiles,
-    deletedDirs: result.deletedDirs,
+    deletedDirs: result.deletedDirs + result.emptyDirsToDelete.length,
     errors: loggedErrors,
     violations: [],
     conflicts: []

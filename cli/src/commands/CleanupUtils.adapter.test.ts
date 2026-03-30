@@ -45,15 +45,17 @@ function createCleanContext(workspaceDir: string): OutputCleanContext {
           getDirectoryName: () => path.basename(workspaceDir),
           getAbsolutePath: () => workspaceDir
         },
-        projects: [{
-          dirFromWorkspacePath: {
-            pathKind: FilePathKind.Relative,
-            path: 'project-a',
-            basePath: workspaceDir,
-            getDirectoryName: () => 'project-a',
-            getAbsolutePath: () => path.join(workspaceDir, 'project-a')
+        projects: [
+          {
+            dirFromWorkspacePath: {
+              pathKind: FilePathKind.Relative,
+              path: 'project-a',
+              basePath: workspaceDir,
+              getDirectoryName: () => 'project-a',
+              getAbsolutePath: () => path.join(workspaceDir, 'project-a')
+            }
           }
-        }]
+        ]
       },
       aindexDir: path.join(workspaceDir, 'aindex')
     }
@@ -86,25 +88,29 @@ describe('cleanupUtils native adapter', () => {
     nativeBindingMocks.planCleanup.mockReset()
     nativeBindingMocks.performCleanup.mockReset()
 
-    nativeBindingMocks.planCleanup.mockReturnValue(JSON.stringify({
-      filesToDelete: ['/tmp/project-a/AGENTS.md'],
-      dirsToDelete: ['/tmp/.codex/skills/legacy'],
-      emptyDirsToDelete: ['/tmp/.codex/skills'],
-      violations: [],
-      conflicts: [],
-      excludedScanGlobs: ['**/.git/**']
-    }))
-    nativeBindingMocks.performCleanup.mockReturnValue(JSON.stringify({
-      deletedFiles: 1,
-      deletedDirs: 2,
-      errors: [],
-      violations: [],
-      conflicts: [],
-      filesToDelete: ['/tmp/project-a/AGENTS.md'],
-      dirsToDelete: ['/tmp/.codex/skills/legacy'],
-      emptyDirsToDelete: ['/tmp/.codex/skills'],
-      excludedScanGlobs: ['**/.git/**']
-    }))
+    nativeBindingMocks.planCleanup.mockReturnValue(
+      JSON.stringify({
+        filesToDelete: ['/tmp/project-a/AGENTS.md'],
+        dirsToDelete: ['/tmp/.codex/skills/legacy'],
+        emptyDirsToDelete: ['/tmp/.codex/skills'],
+        violations: [],
+        conflicts: [],
+        excludedScanGlobs: ['**/.git/**']
+      })
+    )
+    nativeBindingMocks.performCleanup.mockReturnValue(
+      JSON.stringify({
+        deletedFiles: 1,
+        deletedDirs: 2,
+        errors: [],
+        violations: [],
+        conflicts: [],
+        filesToDelete: ['/tmp/project-a/AGENTS.md'],
+        dirsToDelete: ['/tmp/.codex/skills/legacy'],
+        emptyDirsToDelete: ['/tmp/.codex/skills'],
+        excludedScanGlobs: ['**/.git/**']
+      })
+    )
 
     const {collectDeletionTargets, hasNativeCleanupBinding, performCleanup} = await cleanupModulePromise
     const workspaceDir = path.resolve('tmp-native-cleanup-adapter')
@@ -116,7 +122,8 @@ describe('cleanupUtils native adapter', () => {
     const plan = await collectDeletionTargets([plugin], cleanCtx)
     expect(plan).toEqual({
       filesToDelete: ['/tmp/project-a/AGENTS.md'],
-      dirsToDelete: ['/tmp/.codex/skills', '/tmp/.codex/skills/legacy'],
+      dirsToDelete: ['/tmp/.codex/skills/legacy'],
+      emptyDirsToDelete: ['/tmp/.codex/skills'],
       violations: [],
       conflicts: [],
       excludedScanGlobs: ['**/.git/**']
@@ -139,7 +146,7 @@ describe('cleanupUtils native adapter', () => {
     const result = await performCleanup([plugin], cleanCtx, createMockLogger())
     expect(result).toEqual({
       deletedFiles: 1,
-      deletedDirs: 2,
+      deletedDirs: 3,
       errors: [],
       violations: [],
       conflicts: []
