@@ -16,8 +16,8 @@ status: stable
 | `tnmsc version` | 查看版本 |
 | `tnmsc init` | 已废弃，不再初始化 aindex |
 | `tnmsc dry-run` | 预览会写出的文件 |
-| `tnmsc clean` | 删除已生成的输出文件 |
-| `tnmsc clean --dry-run` | 预览会清理什么 |
+| `tnmsc clean` | 删除已生成的输出文件，并继续清理 project 源码树中的空目录 |
+| `tnmsc clean --dry-run` | 预览会清理什么，包括后续会被回收的空目录 |
 | `tnmsc config key=value` | 修改全局配置 |
 
 ## 关键结论

@@ -20,11 +20,15 @@ status: stable
 
 `tnmsc clean` 用来清除已生成的输出文件。它不是“无差别删目录”，而是依据当前输出模型和清理保护规则执行。
 
+在完成常规 cleanup 之后，`tnmsc clean` 还会继续扫描当前 project 的源码树，把剩余的空目录一并清掉。这个 empty-dir sweep 会明确跳过 Git 内部目录，以及依赖、构建产物、缓存一类目录树。
+
 在真正执行前，优先用：
 
 ```sh
 tnmsc clean --dry-run
 ```
+
+`--dry-run` 也会把这些后续会被清掉的空目录一起展示出来。
 
 ## 风险边界
 

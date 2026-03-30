@@ -18,6 +18,24 @@ const DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS: [&str; 6] = [
     "**/.next/**",
 ];
 
+const EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES: [&str; 15] = [
+    ".git",
+    "node_modules",
+    "dist",
+    "target",
+    ".next",
+    ".turbo",
+    "coverage",
+    ".nyc_output",
+    ".cache",
+    ".vite",
+    ".vite-temp",
+    ".pnpm-store",
+    ".yarn",
+    ".idea",
+    ".vscode",
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ProtectionModeDto {
@@ -129,6 +147,7 @@ pub struct CleanupProtectionConflictDto {
 pub struct CleanupPlan {
     pub files_to_delete: Vec<String>,
     pub dirs_to_delete: Vec<String>,
+    pub empty_dirs_to_delete: Vec<String>,
     pub violations: Vec<ProtectedPathViolationDto>,
     pub conflicts: Vec<CleanupProtectionConflictDto>,
     pub excluded_scan_globs: Vec<String>,
@@ -152,6 +171,7 @@ pub struct CleanupExecutionResultDto {
     pub conflicts: Vec<CleanupProtectionConflictDto>,
     pub files_to_delete: Vec<String>,
     pub dirs_to_delete: Vec<String>,
+    pub empty_dirs_to_delete: Vec<String>,
     pub excluded_scan_globs: Vec<String>,
 }
 
@@ -830,6 +850,132 @@ fn compact_deletion_targets(files: &[String], dirs: &[String]) -> (Vec<String>, 
     (compacted_files, compacted_dir_paths)
 }
 
+fn should_skip_empty_directory_tree(workspace_dir: &str, current_dir: &str) -> bool {
+    if current_dir == workspace_dir {
+        return false;
+    }
+
+    Path::new(current_dir)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .is_some_and(|basename| EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES.contains(&basename))
+}
+
+fn collect_empty_workspace_directories(
+    current_dir: &Path,
+    workspace_dir: &str,
+    files_to_delete: &HashSet<String>,
+    dirs_to_delete: &HashSet<String>,
+    empty_dirs_to_delete: &mut BTreeSet<String>,
+) -> bool {
+    let current_dir = normalize_path(current_dir);
+    let current_dir_string = path_to_string(&current_dir);
+
+    if dirs_to_delete.contains(&current_dir_string) {
+        return true;
+    }
+
+    if should_skip_empty_directory_tree(workspace_dir, &current_dir_string) {
+        return false;
+    }
+
+    let Ok(entries) = fs::read_dir(&current_dir) else {
+        return false;
+    };
+
+    let mut has_retained_entries = false;
+
+    for entry in entries {
+        let Ok(entry) = entry else {
+            has_retained_entries = true;
+            continue;
+        };
+
+        let entry_path = normalize_path(&entry.path());
+        let entry_string = path_to_string(&entry_path);
+
+        if dirs_to_delete.contains(&entry_string) {
+            continue;
+        }
+
+        let Ok(file_type) = entry.file_type() else {
+            has_retained_entries = true;
+            continue;
+        };
+
+        if file_type.is_dir() {
+            if should_skip_empty_directory_tree(workspace_dir, &entry_string) {
+                has_retained_entries = true;
+                continue;
+            }
+
+            if collect_empty_workspace_directories(
+                &entry_path,
+                workspace_dir,
+                files_to_delete,
+                dirs_to_delete,
+                empty_dirs_to_delete,
+            ) {
+                empty_dirs_to_delete.insert(entry_string);
+                continue;
+            }
+
+            has_retained_entries = true;
+            continue;
+        }
+
+        if files_to_delete.contains(&entry_string) {
+            continue;
+        }
+
+        has_retained_entries = true;
+    }
+
+    !has_retained_entries
+}
+
+fn plan_workspace_empty_directory_cleanup(
+    workspace_dir: &str,
+    files_to_delete: &[String],
+    dirs_to_delete: &[String],
+    guard: &ProtectedDeletionGuard,
+) -> (Vec<String>, Vec<ProtectedPathViolationDto>) {
+    let workspace_dir = path_to_string(&resolve_absolute_path(workspace_dir));
+    let files_to_delete = files_to_delete
+        .iter()
+        .map(|path| path_to_string(&resolve_absolute_path(path)))
+        .collect::<HashSet<_>>();
+    let dirs_to_delete = dirs_to_delete
+        .iter()
+        .map(|path| path_to_string(&resolve_absolute_path(path)))
+        .collect::<HashSet<_>>();
+    let mut discovered_empty_dirs = BTreeSet::new();
+
+    collect_empty_workspace_directories(
+        Path::new(&workspace_dir),
+        &workspace_dir,
+        &files_to_delete,
+        &dirs_to_delete,
+        &mut discovered_empty_dirs,
+    );
+
+    let mut safe_empty_dirs = Vec::new();
+    let mut violations = Vec::new();
+
+    for empty_dir in discovered_empty_dirs {
+        if let Some(violation) = get_protected_path_violation(&empty_dir, guard) {
+            violations.push(violation);
+        } else {
+            safe_empty_dirs.push(empty_dir);
+        }
+    }
+
+    safe_empty_dirs.sort();
+    violations.sort_by(|a, b| a.target_path.cmp(&b.target_path));
+
+    (safe_empty_dirs, violations)
+}
+
 fn detect_cleanup_protection_conflicts(
     output_path_owners: &HashMap<String, Vec<String>>,
     guard: &ProtectedDeletionGuard,
@@ -994,6 +1140,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
         return Ok(CleanupPlan {
             files_to_delete: Vec::new(),
             dirs_to_delete: Vec::new(),
+            empty_dirs_to_delete: Vec::new(),
             violations: Vec::new(),
             conflicts,
             excluded_scan_globs: ignore_globs,
@@ -1006,14 +1153,22 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
         partition_deletion_targets(&delete_dirs.into_iter().collect::<Vec<_>>(), &guard);
     let (files_to_delete, dirs_to_delete) =
         compact_deletion_targets(&file_partition.safe_paths, &dir_partition.safe_paths);
+    let (empty_dirs_to_delete, empty_dir_violations) = plan_workspace_empty_directory_cleanup(
+        &snapshot.workspace_dir,
+        &files_to_delete,
+        &dirs_to_delete,
+        &guard,
+    );
 
     let mut violations = file_partition.violations;
     violations.extend(dir_partition.violations);
+    violations.extend(empty_dir_violations);
     violations.sort_by(|a, b| a.target_path.cmp(&b.target_path));
 
     Ok(CleanupPlan {
         files_to_delete,
         dirs_to_delete,
+        empty_dirs_to_delete,
         violations,
         conflicts: Vec::new(),
         excluded_scan_globs: ignore_globs,
@@ -1031,11 +1186,13 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
             conflicts: plan.conflicts,
             files_to_delete: plan.files_to_delete,
             dirs_to_delete: plan.dirs_to_delete,
+            empty_dirs_to_delete: plan.empty_dirs_to_delete,
             excluded_scan_globs: plan.excluded_scan_globs,
         });
     }
 
     let delete_result = desk_paths::delete_targets(&plan.files_to_delete, &plan.dirs_to_delete);
+    let empty_dir_result = desk_paths::delete_empty_directories(&plan.empty_dirs_to_delete);
     let mut errors = delete_result
         .file_errors
         .into_iter()
@@ -1055,15 +1212,26 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
                 error: error.error,
             }),
     );
+    errors.extend(
+        empty_dir_result
+            .errors
+            .into_iter()
+            .map(|error| CleanupErrorDto {
+                path: error.path,
+                kind: CleanupErrorKindDto::Directory,
+                error: error.error,
+            }),
+    );
 
     Ok(CleanupExecutionResultDto {
         deleted_files: delete_result.deleted_files.len(),
-        deleted_dirs: delete_result.deleted_dirs.len(),
+        deleted_dirs: delete_result.deleted_dirs.len() + empty_dir_result.deleted_paths.len(),
         errors,
         violations: Vec::new(),
         conflicts: Vec::new(),
         files_to_delete: plan.files_to_delete,
         dirs_to_delete: plan.dirs_to_delete,
+        empty_dirs_to_delete: plan.empty_dirs_to_delete,
         excluded_scan_globs: plan.excluded_scan_globs,
     })
 }
@@ -1231,11 +1399,10 @@ mod tests {
 
         let plan = plan_cleanup(snapshot).unwrap();
         assert!(plan.files_to_delete.contains(&path_to_string(&direct_file)));
-        assert!(
-            plan.violations
-                .iter()
-                .any(|violation| violation.target_path == path_to_string(&recursive_file))
-        );
+        assert!(plan
+            .violations
+            .iter()
+            .any(|violation| violation.target_path == path_to_string(&recursive_file)));
     }
 
     #[test]
@@ -1300,11 +1467,10 @@ mod tests {
 
         let plan = plan_cleanup(snapshot).unwrap();
         assert!(plan.dirs_to_delete.is_empty());
-        assert!(
-            plan.violations
-                .iter()
-                .any(|violation| violation.target_path == path_to_string(&symlink_path))
-        );
+        assert!(plan
+            .violations
+            .iter()
+            .any(|violation| violation.target_path == path_to_string(&symlink_path)));
     }
 
     #[test]
@@ -1354,5 +1520,80 @@ mod tests {
         let plan = plan_cleanup(snapshot).unwrap();
         assert_eq!(plan.dirs_to_delete, vec![path_to_string(&base_dir)]);
         assert!(plan.files_to_delete.is_empty());
+    }
+
+    #[test]
+    fn plans_workspace_empty_directories_while_skipping_excluded_trees() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let source_leaf_dir = workspace_dir.join("source/empty/leaf");
+        let source_keep_file = workspace_dir.join("source/keep.md");
+        let dist_empty_dir = workspace_dir.join("dist/ghost");
+        let node_modules_empty_dir = workspace_dir.join("node_modules/pkg/ghost");
+        let git_empty_dir = workspace_dir.join(".git/objects/info");
+
+        fs::create_dir_all(&source_leaf_dir).unwrap();
+        fs::create_dir_all(source_keep_file.parent().unwrap()).unwrap();
+        fs::create_dir_all(&dist_empty_dir).unwrap();
+        fs::create_dir_all(&node_modules_empty_dir).unwrap();
+        fs::create_dir_all(&git_empty_dir).unwrap();
+        fs::write(&source_keep_file, "# keep").unwrap();
+
+        let snapshot =
+            single_plugin_snapshot(&workspace_dir, vec![], CleanupDeclarationsDto::default());
+
+        let plan = plan_cleanup(snapshot).unwrap();
+        assert!(plan.files_to_delete.is_empty());
+        assert!(plan.dirs_to_delete.is_empty());
+        assert_eq!(
+            plan.empty_dirs_to_delete,
+            vec![
+                path_to_string(&workspace_dir.join("source/empty")),
+                path_to_string(&source_leaf_dir),
+            ]
+        );
+        assert!(!plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&workspace_dir)));
+        assert!(!plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&dist_empty_dir)));
+        assert!(!plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&node_modules_empty_dir)));
+        assert!(!plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&git_empty_dir)));
+    }
+
+    #[test]
+    fn performs_cleanup_and_prunes_workspace_empty_directories() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let output_file = workspace_dir.join("generated/AGENTS.md");
+        let empty_leaf_dir = workspace_dir.join("scratch/empty/leaf");
+        let retained_scratch_file = workspace_dir.join("scratch/keep.md");
+
+        fs::create_dir_all(output_file.parent().unwrap()).unwrap();
+        fs::create_dir_all(&empty_leaf_dir).unwrap();
+        fs::create_dir_all(retained_scratch_file.parent().unwrap()).unwrap();
+        fs::write(&output_file, "# generated").unwrap();
+        fs::write(&retained_scratch_file, "# keep").unwrap();
+
+        let snapshot = single_plugin_snapshot(
+            &workspace_dir,
+            vec![path_to_string(&output_file)],
+            CleanupDeclarationsDto::default(),
+        );
+
+        let result = perform_cleanup(snapshot).unwrap();
+        assert_eq!(result.deleted_files, 1);
+        assert_eq!(result.deleted_dirs, 3);
+        assert!(result.errors.is_empty());
+        assert!(!output_file.exists());
+        assert!(!workspace_dir.join("generated").exists());
+        assert!(!empty_leaf_dir.exists());
+        assert!(!workspace_dir.join("scratch/empty").exists());
+        assert!(workspace_dir.join("scratch").exists());
     }
 }

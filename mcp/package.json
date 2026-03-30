@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-mcp",
   "type": "module",
-  "version": "2026.10329.110",
+  "version": "2026.10330.108",
   "description": "MCP stdio server for managing memory-sync prompt sources and translation artifacts",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",

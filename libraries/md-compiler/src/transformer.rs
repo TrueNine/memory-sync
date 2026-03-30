@@ -4,7 +4,9 @@
 //! and converting JSX elements to Markdown equivalents.
 
 use crate::expression_eval::{EvaluationScope, evaluate_expression};
+use crate::serializer::serialize;
 use markdown::mdast::*;
+use serde_json::{Number, Value};
 use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
@@ -21,15 +23,17 @@ pub struct ProcessingContext {
     pub components: HashMap<String, ComponentHandler>,
     pub processing_stack: Vec<String>,
     pub base_path: Option<String>,
+    pub source_text: Option<String>,
 }
 
 impl ProcessingContext {
-    pub fn new(scope: EvaluationScope) -> Self {
+    pub fn new(scope: EvaluationScope, source_text: Option<String>) -> Self {
         let mut ctx = Self {
             scope,
             components: HashMap::new(),
             processing_stack: Vec::new(),
             base_path: None,
+            source_text,
         };
         register_built_in_components(&mut ctx);
         ctx
@@ -115,6 +119,440 @@ fn evaluate_when_condition_text(element: &MdxJsxTextElement, ctx: &ProcessingCon
 
 fn is_truthy(s: &str) -> bool {
     !s.is_empty() && s != "false" && s != "0" && s != "undefined" && s != "null"
+}
+
+fn is_intrinsic_jsx_name(name: &str) -> bool {
+    name.chars()
+        .next()
+        .is_some_and(|character| character.is_ascii_lowercase())
+        || name.contains('-')
+}
+
+#[derive(Debug)]
+struct SourceReplacement {
+    start: usize,
+    end: usize,
+    value: String,
+}
+
+fn get_source_slice(
+    position: Option<&markdown::unist::Position>,
+    source_text: Option<&str>,
+) -> Option<String> {
+    let position = position?;
+    let source_text = source_text?;
+
+    if position.start.offset >= position.end.offset {
+        return None;
+    }
+
+    source_text
+        .get(position.start.offset..position.end.offset)
+        .map(ToString::to_string)
+}
+
+fn is_block_serializable_node(node: &Node) -> bool {
+    matches!(
+        node,
+        Node::Root(_)
+            | Node::Yaml(_)
+            | Node::Heading(_)
+            | Node::Paragraph(_)
+            | Node::Code(_)
+            | Node::List(_)
+            | Node::ListItem(_)
+            | Node::Blockquote(_)
+            | Node::ThematicBreak(_)
+            | Node::Table(_)
+            | Node::Definition(_)
+            | Node::FootnoteDefinition(_)
+            | Node::MdxFlowExpression(_)
+            | Node::MdxjsEsm(_)
+            | Node::Toml(_)
+            | Node::Math(_)
+            | Node::MdxJsxFlowElement(_)
+    )
+}
+
+fn serialize_generated_nodes(nodes: &[Node]) -> String {
+    if nodes.is_empty() {
+        return String::new();
+    }
+
+    let root = if nodes.iter().any(is_block_serializable_node) {
+        Root {
+            children: nodes.to_vec(),
+            position: None,
+        }
+    } else {
+        Root {
+            children: vec![Node::Paragraph(Paragraph {
+                children: nodes.to_vec(),
+                position: None,
+            })],
+            position: None,
+        }
+    };
+
+    serialize(&Node::Root(root))
+}
+
+fn apply_source_replacements(
+    source_slice: &str,
+    start_offset: usize,
+    mut replacements: Vec<SourceReplacement>,
+) -> String {
+    replacements.sort_by(|left, right| right.start.cmp(&left.start));
+
+    let mut rendered = source_slice.to_string();
+    for replacement in replacements {
+        let relative_start = replacement.start.saturating_sub(start_offset);
+        let relative_end = replacement.end.saturating_sub(start_offset);
+
+        if relative_start > relative_end || relative_end > rendered.len() {
+            continue;
+        }
+
+        rendered.replace_range(relative_start..relative_end, &replacement.value);
+    }
+
+    rendered
+}
+
+fn escape_html_attribute_value(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+}
+
+fn looks_like_simple_reference(expression: &str) -> bool {
+    let mut chars = expression.chars().peekable();
+
+    match chars.peek() {
+        Some(c) if c.is_ascii_alphabetic() || *c == '_' || *c == '$' => {
+            chars.next();
+        }
+        _ => return false,
+    }
+
+    chars.all(|character| {
+        character.is_ascii_alphanumeric()
+            || character == '_'
+            || character == '$'
+            || character == '.'
+    })
+}
+
+fn resolve_reference_value(reference: &str, scope: &EvaluationScope) -> Option<Value> {
+    let mut parts = reference.split('.');
+    let root_name = parts.next()?;
+    let mut value = scope.get(root_name)?.clone();
+
+    for part in parts {
+        let Value::Object(map) = &value else {
+            return None;
+        };
+        value = map.get(part)?.clone();
+    }
+
+    Some(value)
+}
+
+fn parse_expression_literal_value(expression: &str) -> Option<Value> {
+    if ((expression.starts_with('"') && expression.ends_with('"'))
+        || (expression.starts_with('\'') && expression.ends_with('\'')))
+        && expression.len() >= 2
+    {
+        return Some(Value::String(
+            expression[1..expression.len() - 1].to_string(),
+        ));
+    }
+
+    match expression {
+        "true" => return Some(Value::Bool(true)),
+        "false" => return Some(Value::Bool(false)),
+        "null" | "undefined" => return Some(Value::Null),
+        _ => {}
+    }
+
+    if let Ok(number) = expression.parse::<i64>() {
+        return Some(Value::Number(number.into()));
+    }
+
+    if let Ok(number) = expression.parse::<u64>() {
+        return Some(Value::Number(number.into()));
+    }
+
+    if let Ok(number) = expression.parse::<f64>() {
+        if let Some(number) = Number::from_f64(number) {
+            return Some(Value::Number(number));
+        }
+    }
+
+    None
+}
+
+fn evaluate_attribute_expression_value(expression: &str, scope: &EvaluationScope) -> Option<Value> {
+    let trimmed = expression.trim();
+    if trimmed.is_empty() {
+        return Some(Value::String(String::new()));
+    }
+
+    if let Some(literal) = parse_expression_literal_value(trimmed) {
+        return Some(literal);
+    }
+
+    if looks_like_simple_reference(trimmed) {
+        return resolve_reference_value(trimmed, scope);
+    }
+
+    let rendered = evaluate_expression(trimmed, scope).ok()?;
+    if rendered.is_empty() {
+        return Some(Value::String(rendered));
+    }
+
+    serde_json::from_str::<Value>(&rendered)
+        .ok()
+        .or_else(|| Some(Value::String(rendered)))
+}
+
+fn stringify_html_attribute(name: &str, value: &Value) -> Option<String> {
+    match value {
+        Value::Null => None,
+        Value::Bool(true) => Some(name.to_string()),
+        Value::Bool(false) => None,
+        Value::String(value) => Some(format!(
+            r#"{name}="{}""#,
+            escape_html_attribute_value(value)
+        )),
+        Value::Number(value) => Some(format!(
+            r#"{name}="{}""#,
+            escape_html_attribute_value(&value.to_string())
+        )),
+        Value::Array(_) | Value::Object(_) => {
+            let serialized = serde_json::to_string(value).ok()?;
+            Some(format!(
+                r#"{name}="{}""#,
+                escape_html_attribute_value(&serialized)
+            ))
+        }
+    }
+}
+
+fn serialize_intrinsic_attributes(
+    attributes: &[AttributeContent],
+    scope: &EvaluationScope,
+) -> String {
+    let mut rendered = Vec::new();
+
+    for attribute in attributes {
+        match attribute {
+            AttributeContent::Property(property) => match &property.value {
+                None => rendered.push(property.name.clone()),
+                Some(AttributeValue::Literal(value)) => rendered.push(format!(
+                    r#"{}="{}""#,
+                    property.name,
+                    escape_html_attribute_value(value)
+                )),
+                Some(AttributeValue::Expression(expression)) => {
+                    let Some(value) = evaluate_attribute_expression_value(&expression.value, scope)
+                    else {
+                        continue;
+                    };
+
+                    if let Some(serialized) = stringify_html_attribute(&property.name, &value) {
+                        rendered.push(serialized);
+                    }
+                }
+            },
+            AttributeContent::Expression(expression) => {
+                let spread_expression = expression.value.trim_start_matches("...").trim();
+                let Some(Value::Object(map)) =
+                    evaluate_attribute_expression_value(spread_expression, scope)
+                else {
+                    continue;
+                };
+
+                for (name, value) in map {
+                    if let Some(serialized) = stringify_html_attribute(&name, &value) {
+                        rendered.push(serialized);
+                    }
+                }
+            }
+        }
+    }
+
+    if rendered.is_empty() {
+        String::new()
+    } else {
+        format!(" {}", rendered.join(" "))
+    }
+}
+
+fn is_self_closing_intrinsic_element(
+    position: Option<&markdown::unist::Position>,
+    source_text: Option<&str>,
+) -> bool {
+    get_source_slice(position, source_text).is_some_and(|source| source.trim_end().ends_with("/>"))
+}
+
+fn render_source_aware_node(node: &Node, ctx: &ProcessingContext) -> String {
+    match node {
+        Node::MdxjsEsm(_) => String::new(),
+        Node::MdxFlowExpression(expression) => {
+            let trimmed = expression.value.trim();
+            if trimmed.starts_with("/*") && trimmed.ends_with("*/") {
+                return String::new();
+            }
+            evaluate_expression(&expression.value, &ctx.scope).unwrap_or_default()
+        }
+        Node::MdxTextExpression(expression) => {
+            let trimmed = expression.value.trim();
+            if trimmed.starts_with("/*") && trimmed.ends_with("*/") {
+                return String::new();
+            }
+            evaluate_expression(&expression.value, &ctx.scope).unwrap_or_default()
+        }
+        Node::MdxJsxFlowElement(element) => {
+            let name = element.name.as_deref().unwrap_or_default();
+            if let Some(handler) = ctx.components.get(name) {
+                return serialize_generated_nodes(&handler(element, ctx));
+            }
+            if is_intrinsic_jsx_name(name) {
+                return render_intrinsic_element(
+                    name,
+                    &element.attributes,
+                    &element.children,
+                    element.position.as_ref(),
+                    ctx,
+                );
+            }
+            convert_jsx_to_markdown(element, ctx)
+                .map(|nodes| serialize_generated_nodes(&nodes))
+                .unwrap_or_default()
+        }
+        Node::MdxJsxTextElement(element) => {
+            let name = element.name.as_deref().unwrap_or_default();
+            if name == "Md.Line" {
+                if evaluate_when_condition_text(element, ctx) {
+                    return extract_text_content(&element.children, &ctx.scope);
+                }
+                return String::new();
+            }
+            if name == "Md" {
+                if evaluate_when_condition_text(element, ctx) {
+                    return serialize_generated_nodes(&transform_inline_children(
+                        &element.children,
+                        ctx,
+                    ));
+                }
+                return String::new();
+            }
+            if is_intrinsic_jsx_name(name) {
+                return render_intrinsic_element(
+                    name,
+                    &element.attributes,
+                    &element.children,
+                    element.position.as_ref(),
+                    ctx,
+                );
+            }
+            convert_jsx_text_to_markdown(element, ctx)
+                .map(|nodes| serialize_generated_nodes(&nodes))
+                .unwrap_or_default()
+        }
+        _ => {
+            let source_slice = get_source_slice(node.position(), ctx.source_text.as_deref());
+            let Some(children) = node.children() else {
+                return source_slice.unwrap_or_else(|| serialize_generated_nodes(&[node.clone()]));
+            };
+
+            if children.is_empty() {
+                return source_slice.unwrap_or_else(|| serialize_generated_nodes(&[node.clone()]));
+            }
+
+            let Some(source_slice) = source_slice else {
+                return serialize_generated_nodes(&[node.clone()]);
+            };
+            let Some(start_offset) = node.position().map(|position| position.start.offset) else {
+                return source_slice;
+            };
+
+            let replacements = children
+                .iter()
+                .filter_map(|child| {
+                    let position = child.position()?;
+                    Some(SourceReplacement {
+                        start: position.start.offset,
+                        end: position.end.offset,
+                        value: render_source_aware_node(child, ctx),
+                    })
+                })
+                .collect();
+
+            apply_source_replacements(&source_slice, start_offset, replacements)
+        }
+    }
+}
+
+fn render_intrinsic_element(
+    name: &str,
+    attributes: &[AttributeContent],
+    children: &[Node],
+    position: Option<&markdown::unist::Position>,
+    ctx: &ProcessingContext,
+) -> String {
+    let attributes = serialize_intrinsic_attributes(attributes, &ctx.scope);
+    let content = children
+        .iter()
+        .map(|child| render_source_aware_node(child, ctx))
+        .collect::<String>();
+
+    if content.is_empty() && is_self_closing_intrinsic_element(position, ctx.source_text.as_deref())
+    {
+        return format!("<{name}{attributes} />");
+    }
+
+    format!("<{name}{attributes}>{content}</{name}>")
+}
+
+fn preserve_intrinsic_flow_element(
+    element: &MdxJsxFlowElement,
+    ctx: &ProcessingContext,
+) -> Option<Vec<Node>> {
+    let name = element.name.as_deref()?;
+    let rendered = render_intrinsic_element(
+        name,
+        &element.attributes,
+        &element.children,
+        element.position.as_ref(),
+        ctx,
+    );
+
+    Some(vec![Node::Html(Html {
+        value: rendered,
+        position: element.position.clone(),
+    })])
+}
+
+fn preserve_intrinsic_text_element(
+    element: &MdxJsxTextElement,
+    ctx: &ProcessingContext,
+) -> Option<Vec<Node>> {
+    let name = element.name.as_deref()?;
+    let rendered = render_intrinsic_element(
+        name,
+        &element.attributes,
+        &element.children,
+        element.position.as_ref(),
+        ctx,
+    );
+
+    Some(vec![Node::Text(Text {
+        value: rendered,
+        position: element.position.clone(),
+    })])
 }
 
 /// Extract text content from child nodes, evaluating expressions.
@@ -431,6 +869,10 @@ fn transform_children(children: &[Node], ctx: &ProcessingContext) -> Vec<Node> {
                     result.extend(transform_children(&nodes, ctx));
                 } else if let Some(converted) = convert_jsx_to_markdown(element, ctx) {
                     result.extend(converted);
+                } else if is_intrinsic_jsx_name(name) {
+                    if let Some(preserved) = preserve_intrinsic_flow_element(element, ctx) {
+                        result.extend(preserved);
+                    }
                 }
                 // Unknown JSX elements are silently skipped
             }
@@ -629,6 +1071,10 @@ fn transform_inline_children(children: &[Node], ctx: &ProcessingContext) -> Vec<
                     }
                 } else if let Some(converted) = convert_jsx_text_to_markdown(element, ctx) {
                     result.extend(converted);
+                } else if is_intrinsic_jsx_name(name) {
+                    if let Some(preserved) = preserve_intrinsic_text_element(element, ctx) {
+                        result.extend(preserved);
+                    }
                 }
                 // Unknown inline JSX elements are silently skipped
             }
@@ -715,7 +1161,7 @@ mod tests {
 
     fn compile(source: &str, scope: EvaluationScope) -> String {
         let ast = parse_mdx(source).unwrap();
-        let ctx = ProcessingContext::new(scope);
+        let ctx = ProcessingContext::new(scope, Some(source.to_string()));
         let transformed = transform_ast(&ast, &ctx);
         serialize(&transformed)
     }

@@ -5,7 +5,7 @@ export const siteConfig = {
   shortName: 'memory-sync Docs',
   title: 'memory-sync 文档',
   description:
-    '面向多 AI 工具的 prompt、rule、skill、command 与 workspace memory sync 文档站。',
+    '面向多 AI 工具的 prompt、rule、skill、command 与 project memory sync 文档站。',
   repoUrl: 'https://github.com/TrueNine/memory-sync',
   docsRepositoryBase: 'https://github.com/TrueNine/memory-sync/blob/main/doc',
   issueUrl: 'https://github.com/TrueNine/memory-sync/issues/new/choose'
@@ -34,7 +34,7 @@ export const homeEntryCards = [
   {
     href: '/docs/cli',
     title: 'CLI',
-    detail: '围绕安装、工作区准备、第一次同步、配置字段与命令表面组织。'
+    detail: '围绕安装、项目准备、第一次同步、配置字段与命令表面组织。'
   },
   {
     href: '/docs/mcp',
@@ -92,14 +92,14 @@ export const readingPath = [
   {
     step: '02',
     href: '/docs/cli/workspace-setup',
-    title: '准备工作区结构',
+    title: '准备项目结构',
     description: '按照 aindex 与项目配置的真实目录约定组织源文件。'
   },
   {
     step: '03',
     href: '/docs/technical-details/source-of-truth',
     title: '开始维护源内容',
-    description: '先建立真源模型，再区分全局 Prompt、工作区 Prompt 与其他输入资产。'
+    description: '先建立真源模型，再区分全局 Prompt、项目 Prompt 与其他输入资产。'
   },
   {
     step: '04',

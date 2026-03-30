@@ -1,6 +1,12 @@
 import {createRequire} from 'node:module'
 import process from 'node:process'
 
+declare global {
+  interface GlobalThis {
+    __TNMSC_TEST_NATIVE_BINDING__?: object
+  }
+}
+
 function shouldSkipNativeBinding(): boolean {
   if (process.env['TNMSC_FORCE_NATIVE_BINDING'] === '1') return false
   if (process.env['TNMSC_DISABLE_NATIVE_BINDING'] === '1') return true
@@ -11,6 +17,8 @@ function shouldSkipNativeBinding(): boolean {
 }
 
 export function tryLoadNativeBinding<T extends object>(): T | undefined {
+  const testBinding: unknown = globalThis.__TNMSC_TEST_NATIVE_BINDING__
+  if (testBinding != null && typeof testBinding === 'object') return testBinding as T
   if (shouldSkipNativeBinding()) return void 0
 
   const suffixMap: Readonly<Record<string, string>> = {

@@ -1,5 +1,5 @@
 import type {Buffer} from 'node:buffer'
-import type {LoggerDiagnosticInput} from '../plugins/plugin-core'
+import type {LoggerDiagnosticInput} from '../../src/plugins/plugin-core'
 import * as fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -105,6 +105,18 @@ async function deletePath(p: string): Promise<boolean> {
   }
 }
 
+async function deleteEmptyDirectory(p: string): Promise<boolean> {
+  try {
+    await fs.promises.rmdir(p)
+    return true
+  }
+  catch (error) {
+    const {code} = error as NodeJS.ErrnoException
+    if (code === 'ENOENT' || code === 'ENOTEMPTY') return false
+    throw error
+  }
+}
+
 async function mapWithConcurrencyLimit<T, TResult>(
   items: readonly T[],
   concurrency: number,
@@ -178,6 +190,28 @@ export async function deleteFiles(files: readonly string[]): Promise<DeletionRes
 
 export async function deleteDirectories(dirs: readonly string[]): Promise<DeletionResult> {
   return deletePaths(dirs, {sortByDepthDescending: true})
+}
+
+export async function deleteEmptyDirectories(dirs: readonly string[]): Promise<DeletionResult> {
+  const sortedPaths = [...dirs].sort((a, b) => b.length - a.length || b.localeCompare(a))
+  const deletedPaths: string[] = []
+  const errors: DeletionError[] = []
+
+  for (const currentPath of sortedPaths) {
+    try {
+      const deleted = await deleteEmptyDirectory(currentPath)
+      if (deleted) deletedPaths.push(currentPath)
+    }
+    catch (error) {
+      errors.push({path: currentPath, error})
+    }
+  }
+
+  return {
+    deleted: deletedPaths.length,
+    deletedPaths,
+    errors
+  }
 }
 
 export async function deleteTargets(targets: {

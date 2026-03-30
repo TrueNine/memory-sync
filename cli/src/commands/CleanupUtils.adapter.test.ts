@@ -12,6 +12,7 @@ const nativeBindingMocks = vi.hoisted(() => ({
 
 vi.mock('../core/native-binding', () => ({
   getNativeBinding: () => ({
+    ...globalThis.__TNMSC_TEST_NATIVE_BINDING__,
     planCleanup: nativeBindingMocks.planCleanup,
     performCleanup: nativeBindingMocks.performCleanup
   })
@@ -88,18 +89,20 @@ describe('cleanupUtils native adapter', () => {
     nativeBindingMocks.planCleanup.mockReturnValue(JSON.stringify({
       filesToDelete: ['/tmp/project-a/AGENTS.md'],
       dirsToDelete: ['/tmp/.codex/skills/legacy'],
+      emptyDirsToDelete: ['/tmp/.codex/skills'],
       violations: [],
       conflicts: [],
       excludedScanGlobs: ['**/.git/**']
     }))
     nativeBindingMocks.performCleanup.mockReturnValue(JSON.stringify({
       deletedFiles: 1,
-      deletedDirs: 1,
+      deletedDirs: 2,
       errors: [],
       violations: [],
       conflicts: [],
       filesToDelete: ['/tmp/project-a/AGENTS.md'],
       dirsToDelete: ['/tmp/.codex/skills/legacy'],
+      emptyDirsToDelete: ['/tmp/.codex/skills'],
       excludedScanGlobs: ['**/.git/**']
     }))
 
@@ -113,7 +116,7 @@ describe('cleanupUtils native adapter', () => {
     const plan = await collectDeletionTargets([plugin], cleanCtx)
     expect(plan).toEqual({
       filesToDelete: ['/tmp/project-a/AGENTS.md'],
-      dirsToDelete: ['/tmp/.codex/skills/legacy'],
+      dirsToDelete: ['/tmp/.codex/skills', '/tmp/.codex/skills/legacy'],
       violations: [],
       conflicts: [],
       excludedScanGlobs: ['**/.git/**']
@@ -136,7 +139,7 @@ describe('cleanupUtils native adapter', () => {
     const result = await performCleanup([plugin], cleanCtx, createMockLogger())
     expect(result).toEqual({
       deletedFiles: 1,
-      deletedDirs: 1,
+      deletedDirs: 2,
       errors: [],
       violations: [],
       conflicts: []

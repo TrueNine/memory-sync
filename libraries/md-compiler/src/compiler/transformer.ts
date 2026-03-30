@@ -1,16 +1,58 @@
 import type {Program} from 'estree' // AST transformation module for lossless MDX to Markdown conversion // transformer.ts
 import type {Paragraph, Parent, Root, RootContent, Text} from 'mdast'
-import type {MdxJsxFlowElement} from 'mdast-util-mdx'
+import type {MdxJsxFlowElement, MdxJsxTextElement} from 'mdast-util-mdx'
 import type {EvaluateExpressionOptions} from './expression-eval'
 import type {ExpressionDiagnosticContext, ProcessingContext} from './types'
+import remarkGfm from 'remark-gfm'
+import remarkStringify from 'remark-stringify'
+import {unified} from 'unified'
 import {isMdxComponent, processComponent} from './component-processor'
 import {evaluateExpression} from './expression-eval'
 import {convertJsxToMarkdown} from './jsx-converter'
 import {evaluateJsxExpression, hasJsxInEstree} from './jsx-expression-eval'
 
 type ChildNode = RootContent | Text
+type SourceRenderableNode = ChildNode
+interface PositionedNode {
+  position?: ExpressionDiagnosticContext['position']
+}
+
+interface SourceReplacement {
+  start: number
+  end: number
+  value: string
+}
 
 const FILE_PATH_SUFFIX_PATTERN = /\.\w+$/u
+const INTRINSIC_JSX_NAME_PATTERN = /^[a-z]/u
+const SPREAD_ATTRIBUTE_PREFIX_PATTERN = /^\.\.\./u
+const TRAILING_NEWLINES_PATTERN = /\n+$/u
+const INLINE_RENDERABLE_TYPES = new Set([
+  'break',
+  'delete',
+  'emphasis',
+  'html',
+  'image',
+  'inlineCode',
+  'link',
+  'strong',
+  'text'
+])
+const MARKDOWN_STRINGIFIER = unified()
+  .use(remarkGfm)
+  .use(remarkStringify, {
+    bullet: '-',
+    fence: '`',
+    fences: true,
+    emphasis: '*',
+    strong: '*',
+    rule: '-',
+    handlers: {
+      text(node: {value: string}) {
+        return node.value
+      }
+    }
+  })
 
 function createExpressionOptions(
   ctx: ProcessingContext,
@@ -37,6 +79,284 @@ function simplifyLinkText(text: string): string {
 
   const lastSlashIndex = text.lastIndexOf('/')
   return text.slice(lastSlashIndex + 1)
+}
+
+function isIntrinsicJsxName(name: string | null | undefined): name is string {
+  if (name == null || name === '') return false
+  return INTRINSIC_JSX_NAME_PATTERN.test(name) || name.includes('-')
+}
+
+function isInlineRenderableNode(node: ChildNode): boolean {
+  return INLINE_RENDERABLE_TYPES.has(node.type)
+}
+
+function getNodeSourceSlice(
+  node: PositionedNode,
+  ctx: ProcessingContext
+): string | undefined {
+  const startOffset = node.position?.start.offset
+  const endOffset = node.position?.end?.offset
+
+  if (ctx.sourceText == null || startOffset == null || endOffset == null || startOffset >= endOffset) return void 0
+
+  return ctx.sourceText.slice(startOffset, endOffset)
+}
+
+function applySourceReplacements(
+  sourceSlice: string,
+  startOffset: number,
+  replacements: SourceReplacement[]
+): string {
+  let rendered = sourceSlice
+
+  for (const replacement of [...replacements].sort((left, right) => right.start - left.start)) {
+    const relativeStart = replacement.start - startOffset
+    const relativeEnd = replacement.end - startOffset
+
+    if (relativeStart < 0 || relativeEnd < relativeStart || relativeEnd > rendered.length) continue
+
+    rendered = rendered.slice(0, relativeStart) + replacement.value + rendered.slice(relativeEnd)
+  }
+
+  return rendered
+}
+
+function escapeHtmlAttributeValue(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+}
+
+function evaluateExpressionValue(
+  expression: string,
+  ctx: ProcessingContext,
+  node: PositionedNode,
+  nodeType: string
+): unknown {
+  const trimmed = expression.trim()
+  if (trimmed === '') return ''
+
+  const scopeKeys = Object.keys(ctx.scope)
+  const scopeValues = scopeKeys.map(key => ctx.scope[key])
+
+  try {
+    // eslint-disable-next-line ts/no-implied-eval, no-new-func
+    const fn = new Function(...scopeKeys, `return (${trimmed})`) as (...args: unknown[]) => unknown
+    return fn(...scopeValues)
+  }
+  catch (error) {
+    evaluateExpression(expression, ctx.scope, createExpressionOptions(ctx, node, nodeType))
+    throw error
+  }
+}
+
+function stringifyHtmlAttribute(
+  name: string,
+  value: unknown
+): string | null {
+  if (value == null || value === false) return null
+  if (value === true) return name
+
+  const serialized
+    = typeof value === 'string'
+      ? value
+      : typeof value === 'number' || typeof value === 'bigint'
+        ? String(value)
+        : typeof value === 'boolean'
+          ? String(value)
+          : JSON.stringify(value)
+
+  return `${name}="${escapeHtmlAttributeValue(serialized)}"`
+}
+
+function serializeIntrinsicAttributes(
+  attributes: MdxJsxFlowElement['attributes'] | MdxJsxTextElement['attributes'],
+  ctx: ProcessingContext
+): string {
+  const rendered: string[] = []
+
+  for (const attribute of attributes) {
+    if (attribute.type === 'mdxJsxAttribute') {
+      if (attribute.value == null) {
+        rendered.push(attribute.name)
+        continue
+      }
+
+      if (typeof attribute.value === 'string') {
+        rendered.push(`${attribute.name}="${escapeHtmlAttributeValue(attribute.value)}"`)
+        continue
+      }
+
+      const evaluated = evaluateExpressionValue(
+        attribute.value.value,
+        ctx,
+        attribute,
+        'mdxJsxAttributeValueExpression'
+      )
+      const serialized = stringifyHtmlAttribute(attribute.name, evaluated)
+      if (serialized != null) rendered.push(serialized)
+      continue
+    }
+
+    const spreadExpression = attribute.value.replace(SPREAD_ATTRIBUTE_PREFIX_PATTERN, '').trim()
+    const evaluated = evaluateExpressionValue(
+      spreadExpression,
+      ctx,
+      attribute,
+      'mdxJsxExpressionAttribute'
+    )
+
+    if (evaluated == null || typeof evaluated !== 'object' || Array.isArray(evaluated)) continue
+
+    for (const [name, value] of Object.entries(evaluated as Record<string, unknown>)) {
+      const serialized = stringifyHtmlAttribute(name, value)
+      if (serialized != null) rendered.push(serialized)
+    }
+  }
+
+  return rendered.length === 0 ? '' : ` ${rendered.join(' ')}`
+}
+
+function stringifyRenderedNodes(nodes: ChildNode[]): string {
+  if (nodes.length === 0) return ''
+
+  const root: Root = nodes.every(isInlineRenderableNode)
+    ? {
+        type: 'root',
+        children: [{
+          type: 'paragraph',
+          children: nodes as Text[]
+        } as RootContent]
+      }
+    : {
+        type: 'root',
+        children: nodes as RootContent[]
+      }
+
+  return MARKDOWN_STRINGIFIER.stringify(root).replace(TRAILING_NEWLINES_PATTERN, '')
+}
+
+async function renderGeneratedNodes(nodes: ChildNode[]): Promise<string> {
+  return stringifyRenderedNodes(nodes)
+}
+
+async function renderSourceAwareNode(
+  node: SourceRenderableNode,
+  ctx: ProcessingContext
+): Promise<string> {
+  if (node.type === 'mdxjsEsm') return ''
+
+  if (node.type === 'mdxFlowExpression' || node.type === 'mdxTextExpression') {
+    const estree = (node.data as {estree?: Program} | undefined)?.estree
+    const trimmedValue = node.value.trim()
+
+    if (trimmedValue.startsWith('/*') && trimmedValue.endsWith('*/')) return ''
+
+    if (hasJsxInEstree(estree)) {
+      const rendered = await evaluateJsxExpression(node, ctx, async (children, c) => {
+        const tempRoot: Root = {type: 'root', children}
+        const processed = await processAst(tempRoot, c)
+        return processed.children
+      })
+
+      return renderGeneratedNodes(rendered as ChildNode[])
+    }
+
+    return evaluateExpression(node.value, ctx.scope, createExpressionOptions(ctx, node, node.type))
+  }
+
+  if (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') {
+    if (node.name != null && isMdxComponent(node.name, ctx)) {
+      const rendered = await processComponent(node, ctx, processAst)
+      return renderGeneratedNodes(rendered as ChildNode[])
+    }
+
+    if (isIntrinsicJsxName(node.name)) return renderIntrinsicElement(node, ctx)
+
+    const converted = convertJsxToMarkdown(node, ctx)
+    if (converted != null) return renderGeneratedNodes(converted as ChildNode[])
+
+    return ''
+  }
+
+  const sourceSlice = getNodeSourceSlice(node, ctx)
+
+  if (!('children' in node) || !Array.isArray(node.children) || node.children.length === 0) {
+    if (sourceSlice != null) return sourceSlice
+    return renderGeneratedNodes([node])
+  }
+
+  if (sourceSlice == null) return renderGeneratedNodes([node])
+
+  const startOffset = node.position?.start.offset
+  if (startOffset == null) return sourceSlice
+
+  const replacements: SourceReplacement[] = []
+  for (const child of node.children as SourceRenderableNode[]) {
+    const childStart = child.position?.start.offset
+    const childEnd = child.position?.end?.offset
+
+    if (childStart == null || childEnd == null || childStart > childEnd) continue
+
+    replacements.push({
+      start: childStart,
+      end: childEnd,
+      value: await renderSourceAwareNode(child, ctx)
+    })
+  }
+
+  return applySourceReplacements(sourceSlice, startOffset, replacements)
+}
+
+function isSelfClosingIntrinsicElement(
+  element: MdxJsxFlowElement | MdxJsxTextElement,
+  ctx: ProcessingContext
+): boolean {
+  return getNodeSourceSlice(element, ctx)?.trimEnd().endsWith('/>') ?? false
+}
+
+async function renderIntrinsicElement(
+  element: MdxJsxFlowElement | MdxJsxTextElement,
+  ctx: ProcessingContext
+): Promise<string> {
+  if (!isIntrinsicJsxName(element.name)) return ''
+
+  const attributes = serializeIntrinsicAttributes(element.attributes, ctx)
+  const renderedChildren = await Promise.all(
+    element.children.map(async child => renderSourceAwareNode(child as SourceRenderableNode, ctx))
+  )
+  const content = renderedChildren.join('')
+
+  if (content === '' && isSelfClosingIntrinsicElement(element, ctx)) return `<${element.name}${attributes} />`
+
+  return `<${element.name}${attributes}>${content}</${element.name}>`
+}
+
+async function preserveIntrinsicFlowElement(
+  element: MdxJsxFlowElement,
+  ctx: ProcessingContext
+): Promise<RootContent[]> {
+  const rendered = await renderIntrinsicElement(element, ctx)
+  if (rendered === '') return []
+
+  return [{
+    type: 'html',
+    value: rendered
+  } as RootContent]
+}
+
+async function preserveIntrinsicTextElement(
+  element: MdxJsxTextElement,
+  ctx: ProcessingContext
+): Promise<ChildNode[]> {
+  const rendered = await renderIntrinsicElement(element, ctx)
+  if (rendered === '') return []
+
+  return [{
+    type: 'text',
+    value: rendered
+  }]
 }
 
 /**
@@ -133,6 +453,8 @@ async function transformJsxElement(
   const converted = convertJsxToMarkdown(element, ctx)
   if (converted != null) return converted
 
+  if (isIntrinsicJsxName(element.name)) return preserveIntrinsicFlowElement(element, ctx)
+
   return []
 }
 
@@ -196,6 +518,11 @@ async function transformChildren(
           if (node.type === 'paragraph' && 'children' in node) result.push(...node.children)
           else result.push(node as ChildNode)
         }
+        continue
+      }
+
+      if (isIntrinsicJsxName(textElement.name)) {
+        result.push(...await preserveIntrinsicTextElement(textElement, ctx))
       }
       continue
     }

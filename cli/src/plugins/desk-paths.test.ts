@@ -3,68 +3,32 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 
-import {deleteFiles, deleteTargets, getPlatformFixedDir} from '../core/desk-paths'
+import {deleteEmptyDirectories, deleteFiles, deleteTargets, getPlatformFixedDir} from '../core/desk-paths'
 
-const {resolveRuntimeEnvironmentMock, resolveUserPathMock} = vi.hoisted(() => ({
-  resolveRuntimeEnvironmentMock: vi.fn(),
-  resolveUserPathMock: vi.fn((value: string) => value)
-}))
-
-vi.mock('@/runtime-environment', async importActual => {
-  const actual = await importActual<typeof import('@/runtime-environment')>()
-  return {
-    ...actual,
-    resolveRuntimeEnvironment: resolveRuntimeEnvironmentMock,
-    resolveUserPath: resolveUserPathMock
-  }
-})
-
-const originalXdgDataHome = process.env['XDG_DATA_HOME']
-const originalLocalAppData = process.env['LOCALAPPDATA']
+const defaultNativeBinding = globalThis.__TNMSC_TEST_NATIVE_BINDING__
 
 describe('desk paths', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.clearAllMocks()
-
-    if (originalXdgDataHome == null) delete process.env['XDG_DATA_HOME']
-    else process.env['XDG_DATA_HOME'] = originalXdgDataHome
-    if (originalLocalAppData == null) delete process.env['LOCALAPPDATA']
-    else process.env['LOCALAPPDATA'] = originalLocalAppData
+    globalThis.__TNMSC_TEST_NATIVE_BINDING__ = defaultNativeBinding
   })
 
-  it('uses linux data paths outside WSL', () => {
-    delete process.env['XDG_DATA_HOME']
-    resolveRuntimeEnvironmentMock.mockReturnValue({
-      platform: 'linux',
-      isWsl: false,
-      nativeHomeDir: '/home/alpha',
-      effectiveHomeDir: '/home/alpha',
-      globalConfigCandidates: [],
-      windowsUsersRoot: '/mnt/c/Users',
-      expandedEnv: {}
-    })
+  it('delegates getPlatformFixedDir to the native binding', () => {
+    const getPlatformFixedDirMock = vi.fn(() => '/tmp/native-fixed-dir')
+    globalThis.__TNMSC_TEST_NATIVE_BINDING__ = {
+      ...defaultNativeBinding,
+      getPlatformFixedDir: getPlatformFixedDirMock
+    }
 
-    expect(getPlatformFixedDir().replaceAll('\\', '/')).toBe(path.join('/home/alpha', '.local', 'share').replaceAll('\\', '/'))
+    expect(getPlatformFixedDir()).toBe('/tmp/native-fixed-dir')
+    expect(getPlatformFixedDirMock).toHaveBeenCalledOnce()
   })
 
-  it('uses Windows fixed-dir semantics when WSL targets the host home', () => {
-    process.env['LOCALAPPDATA'] = 'C:\\Users\\alpha\\AppData\\Local'
-    resolveRuntimeEnvironmentMock.mockReturnValue({
-      platform: 'linux',
-      isWsl: true,
-      nativeHomeDir: '/home/alpha',
-      effectiveHomeDir: '/mnt/c/Users/alpha',
-      globalConfigCandidates: ['/mnt/c/Users/alpha/.aindex/.tnmsc.json'],
-      selectedGlobalConfigPath: '/mnt/c/Users/alpha/.aindex/.tnmsc.json',
-      wslHostHomeDir: '/mnt/c/Users/alpha',
-      windowsUsersRoot: '/mnt/c/Users',
-      expandedEnv: {}
-    })
-    resolveUserPathMock.mockReturnValue('/mnt/c/Users/alpha/AppData/Local')
+  it('throws when the native desk-paths binding is unavailable', () => {
+    globalThis.__TNMSC_TEST_NATIVE_BINDING__ = void 0
 
-    expect(getPlatformFixedDir()).toBe('/mnt/c/Users/alpha/AppData/Local')
-    expect(resolveUserPathMock).toHaveBeenCalledWith('C:\\Users\\alpha\\AppData\\Local')
+    expect(() => getPlatformFixedDir()).toThrow('Native desk-paths binding is required')
   })
 
   it('deletes mixed file and directory targets in one batch', async () => {
@@ -125,6 +89,50 @@ describe('desk paths', () => {
       expect(result.errors).toEqual([])
       expect(maxActive).toBeLessThanOrEqual(32)
       expect(maxActive).toBeGreaterThan(1)
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('deletes only empty directories from deepest to shallowest', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-desk-paths-empty-dirs-'))
+    const parentDir = path.join(tempDir, 'empty-parent')
+    const childDir = path.join(parentDir, 'leaf')
+    const nonEmptyDir = path.join(tempDir, 'non-empty')
+
+    try {
+      fs.mkdirSync(childDir, {recursive: true})
+      fs.mkdirSync(nonEmptyDir, {recursive: true})
+      fs.writeFileSync(path.join(nonEmptyDir, 'keep.txt'), 'keep', 'utf8')
+
+      const result = await deleteEmptyDirectories([parentDir, childDir, nonEmptyDir])
+
+      expect(result.deleted).toBe(2)
+      expect(result.deletedPaths).toEqual([childDir, parentDir])
+      expect(result.errors).toEqual([])
+      expect(fs.existsSync(parentDir)).toBe(false)
+      expect(fs.existsSync(nonEmptyDir)).toBe(true)
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('skips directories that become non-empty before empty-directory deletion runs', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-desk-paths-empty-race-'))
+    const targetDir = path.join(tempDir, 'maybe-empty')
+
+    try {
+      fs.mkdirSync(targetDir, {recursive: true})
+      fs.writeFileSync(path.join(targetDir, 'new-file.txt'), 'late write', 'utf8')
+
+      const result = await deleteEmptyDirectories([targetDir, path.join(tempDir, 'missing')])
+
+      expect(result.deleted).toBe(0)
+      expect(result.deletedPaths).toEqual([])
+      expect(result.errors).toEqual([])
+      expect(fs.existsSync(targetDir)).toBe(true)
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})

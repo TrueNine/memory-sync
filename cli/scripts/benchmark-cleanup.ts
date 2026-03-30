@@ -10,7 +10,6 @@ delete process.env['VITEST']
 delete process.env['VITEST_WORKER_ID']
 
 const cleanupModule = await import('../src/commands/CleanupUtils')
-const fallbackModule = await import('../src/commands/CleanupUtils.fallback')
 const pluginCore = await import('../src/plugins/plugin-core')
 
 function createMockLogger(): ILogger {
@@ -136,15 +135,9 @@ async function main(): Promise<void> {
     const iterations = 25
 
     process.stdout.write(`cleanup benchmark iterations=${iterations}\n`)
-    const fallbackAvg = await measure('fallback-plan', iterations, async () => {
-      await fallbackModule.collectDeletionTargets([plugin], cleanCtx)
-    })
-    const nativeAvg = await measure('native-plan', iterations, async () => {
+    await measure('native-plan', iterations, async () => {
       await cleanupModule.collectDeletionTargets([plugin], cleanCtx)
     })
-
-    const delta = nativeAvg - fallbackAvg
-    process.stdout.write(`delta=${delta.toFixed(2)}ms (${((delta / fallbackAvg) * 100).toFixed(2)}%)\n`)
   }
   finally {
     fs.rmSync(tempDir, {recursive: true, force: true})

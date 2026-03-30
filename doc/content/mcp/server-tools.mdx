@@ -58,12 +58,12 @@ status: stable
 
 ## `workspaceDir` 的作用
 
-这些工具都接受可选的 `workspaceDir`。它的语义不是“随便切目录”，而是把 prompt service 的工作区根显式绑定到某个项目上下文。
+这些工具都接受可选的 `workspaceDir`。它的语义不是“随便切目录”，而是把 prompt service 的项目根显式绑定到某个项目上下文。
 
 如果不传，server 会按默认当前工作目录解释；如果传入，则会同时进入 `cwd` 与 `pluginOptions.workspaceDir`。
 
 ## 使用边界
 
-- 先保证 CLI 侧的工作区结构是正确的，再接入 MCP
+- 先保证 CLI 侧的项目结构是正确的，再接入 MCP
 - MCP 只暴露当前已有的 prompt 管理行为，不替你发明新的 Schema
 - 需要确认 prompt 类型与真源职责时，回看 [技术细节](/docs/technical-details)
