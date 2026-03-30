@@ -1,4 +1,8 @@
-import type {OutputCleanContext, OutputCleanupDeclarations, RulePrompt} from './plugin-core'
+import type {
+  OutputCleanContext,
+  OutputCleanupDeclarations,
+  RulePrompt
+} from './plugin-core'
 import {doubleQuoted} from '@truenine/md-compiler/markdown'
 import {AbstractOutputPlugin} from './plugin-core'
 
@@ -26,7 +30,8 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       toolPreset: 'claudeCode',
       commands: {
         subDir: COMMANDS_SUBDIR,
-        transformFrontMatter: (_cmd, context) => context.sourceFrontMatter ?? {}
+        transformFrontMatter: (_cmd, context) =>
+          context.sourceFrontMatter ?? {}
       },
       subagents: {
         subDir: AGENTS_SUBDIR,
@@ -39,23 +44,32 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
         subDir: SKILLS_SUBDIR
       },
       rules: {
-        transformFrontMatter: (rule: RulePrompt) => ({paths: rule.globs.map(doubleQuoted)})
+        transformFrontMatter: (rule: RulePrompt) => ({
+          paths: rule.globs.map(doubleQuoted)
+        })
       },
       cleanup: {
         delete: {
           project: {
-            dirs: ['.claude/rules', '.claude/commands', '.claude/agents', '.claude/skills']
+            dirs: [
+              '.claude/rules',
+              '.claude/commands',
+              '.claude/agents',
+              '.claude/skills'
+            ]
           },
           global: {
             files: ['.claude/CLAUDE.md'],
-            dirs: ['.claude/rules', '.claude/commands', '.claude/agents', '.claude/skills']
+            dirs: [
+              '.claude/rules',
+              '.claude/commands',
+              '.claude/agents',
+              '.claude/skills'
+            ]
           }
         }
       },
-      wslMirrors: [
-        '~/.claude/settings.json',
-        '~/.claude/config.json'
-      ],
+      wslMirrors: ['~/.claude/settings.json', '~/.claude/config.json'],
       capabilities: {
         prompt: {
           scopes: ['project', 'global'],
@@ -81,14 +95,28 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     })
   }
 
-  override async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
+  override async declareCleanupPaths(
+    ctx: OutputCleanContext
+  ): Promise<OutputCleanupDeclarations> {
     const declarations = await super.declareCleanupPaths(ctx)
+    const promptSourceProjects
+      = ctx.collectedOutputContext.workspace.projects.filter(
+        project => project.isPromptSourceProject === true
+      )
+    const promptSourceExcludeGlobs = promptSourceProjects
+      .map(project => project.dirFromWorkspacePath)
+      .filter((dir): dir is NonNullable<typeof dir> => dir != null)
+      .map(dir => this.resolvePath(dir.basePath, dir.path, '**'))
 
     return {
       ...declarations,
       delete: [
         ...declarations.delete ?? [],
         ...this.buildProjectPromptCleanupTargets(ctx, PROJECT_MEMORY_FILE)
+      ],
+      excludeScanGlobs: [
+        ...declarations.excludeScanGlobs ?? [],
+        ...promptSourceExcludeGlobs
       ]
     }
   }

@@ -165,7 +165,7 @@ describe('cursorOutputPlugin cleanup', () => {
       const normalizedCommandsDir = path.join(tempHomeDir, '.cursor', 'commands').replaceAll('\\', '/')
       const normalizedStaleDir = staleDir.replaceAll('\\', '/')
       const normalizedPreservedDir = preservedDir.replaceAll('\\', '/')
-      const skillCleanupTarget = result.delete?.find(target => target.kind === 'glob' && target.path.includes('skills-cursor'))
+      const skillCleanupTarget = result.delete?.find(target => target.kind === 'glob' && target.path.includes('skills'))
       const cleanupPlan = await collectDeletionTargets([plugin], createCleanContext())
       const normalizedDeleteDirs = cleanupPlan.dirsToDelete.map(target => target.replaceAll('\\', '/'))
 
@@ -211,7 +211,7 @@ describe('cursorOutputPlugin cleanup', () => {
     const paths = declarations.map(declaration => declaration.path)
 
     expect(paths).toContain(path.join(workspaceBase, '.cursor', 'commands', 'dev-build.md'))
-    expect(paths).toContain(path.join(workspaceBase, '.cursor', 'skills-cursor', 'ship-it', 'SKILL.md'))
+    expect(paths).toContain(path.join(workspaceBase, '.cursor', 'skills', 'ship-it', 'SKILL.md'))
     expect(paths).toContain(path.join(workspaceBase, '.cursor', 'mcp.json'))
     expect(paths).toContain(path.join(workspaceBase, '.cursor', 'rules', 'rule-ops-guard.md'))
     expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
@@ -260,9 +260,9 @@ describe('cursorOutputPlugin cleanup', () => {
     const paths = declarations.map(declaration => declaration.path)
 
     expect(paths).toContain(path.join(homeDir, '.cursor', 'skills-cursor', 'ship-it', 'SKILL.md'))
-    expect(paths).toContain(path.join(workspaceBase, '.cursor', 'skills-cursor', 'inspect-locally', 'mcp.json'))
+    expect(paths).toContain(path.join(workspaceBase, '.cursor', 'skills', 'inspect-locally', 'mcp.json'))
     expect(paths).toContain(path.join(workspaceBase, '.cursor', 'mcp.json'))
-    expect(paths).not.toContain(path.join(workspaceBase, '.cursor', 'skills-cursor', 'ship-it', 'SKILL.md'))
+    expect(paths).not.toContain(path.join(workspaceBase, '.cursor', 'skills', 'ship-it', 'SKILL.md'))
     expect(paths).not.toContain(path.join(homeDir, '.cursor', 'skills-cursor', 'inspect-locally', 'SKILL.md'))
     expect(paths).not.toContain(path.join(homeDir, '.cursor', 'mcp.json'))
   })
@@ -309,11 +309,11 @@ describe('cursorOutputPlugin cleanup', () => {
     const declarations = await plugin.declareOutputFiles(ctx)
     const paths = declarations.map(declaration => declaration.path)
 
-    expect(paths).toContain(path.join(workspaceBase, '.cursor', 'skills-cursor', 'ship-it', 'SKILL.md'))
+    expect(paths).toContain(path.join(workspaceBase, '.cursor', 'skills', 'ship-it', 'SKILL.md'))
     expect(paths).toContain(path.join(homeDir, '.cursor', 'skills-cursor', 'inspect-globally', 'mcp.json'))
     expect(paths).toContain(path.join(homeDir, '.cursor', 'mcp.json'))
     expect(paths).not.toContain(path.join(homeDir, '.cursor', 'skills-cursor', 'ship-it', 'SKILL.md'))
-    expect(paths).not.toContain(path.join(workspaceBase, '.cursor', 'skills-cursor', 'inspect-globally', 'SKILL.md'))
+    expect(paths).not.toContain(path.join(workspaceBase, '.cursor', 'skills', 'inspect-globally', 'SKILL.md'))
     expect(paths).not.toContain(path.join(workspaceBase, '.cursor', 'mcp.json'))
   })
 

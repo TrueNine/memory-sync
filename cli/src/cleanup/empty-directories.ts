@@ -16,7 +16,8 @@ const EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES = new Set([
   '.pnpm-store',
   '.yarn',
   '.idea',
-  '.vscode'
+  '.volumes',
+  'volumes'
 ])
 
 export interface WorkspaceEmptyDirectoryPlan {
@@ -37,7 +38,9 @@ function shouldSkipEmptyDirectoryTree(
   currentDir: string
 ): boolean {
   if (currentDir === workspaceDir) return false
-  return EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES.has(nodePath.basename(currentDir))
+  return EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES.has(
+    nodePath.basename(currentDir)
+  )
 }
 
 export function planWorkspaceEmptyDirectoryCleanup(
@@ -48,27 +51,34 @@ export function planWorkspaceEmptyDirectoryCleanup(
   const dirsToDelete = new Set(options.dirsToDelete.map(resolveAbsolutePath))
   const emptyDirsToDelete = new Set<string>()
 
+  // Track which directories are scheduled for deletion (dirsToDelete + emptyDirsToDelete)
+  const isScheduledForDeletion = (dirPath: string): boolean => dirsToDelete.has(dirPath) || emptyDirsToDelete.has(dirPath)
+
   const collectEmptyDirectories = (currentDir: string): boolean => {
-    if (dirsToDelete.has(currentDir)) return true
-    if (shouldSkipEmptyDirectoryTree(options.path, workspaceDir, currentDir)) return false
+    if (isScheduledForDeletion(currentDir)) return true
+    if (shouldSkipEmptyDirectoryTree(options.path, workspaceDir, currentDir))
+    { return false }
 
     let entries: fs.Dirent[]
     try {
       entries = options.fs.readdirSync(currentDir, {withFileTypes: true})
-    }
-    catch {
+    } catch {
       return false
     }
 
     let hasRetainedEntries = false
 
     for (const entry of entries) {
-      const entryPath = resolveAbsolutePath(options.path.join(currentDir, entry.name))
+      const entryPath = resolveAbsolutePath(
+        options.path.join(currentDir, entry.name)
+      )
 
-      if (dirsToDelete.has(entryPath)) continue
+      if (isScheduledForDeletion(entryPath)) continue
 
       if (entry.isDirectory()) {
-        if (shouldSkipEmptyDirectoryTree(options.path, workspaceDir, entryPath)) {
+        if (
+          shouldSkipEmptyDirectoryTree(options.path, workspaceDir, entryPath)
+        ) {
           hasRetainedEntries = true
           continue
         }
@@ -89,9 +99,16 @@ export function planWorkspaceEmptyDirectoryCleanup(
     return !hasRetainedEntries
   }
 
-  collectEmptyDirectories(workspaceDir)
+  // Iteratively collect empty directories until no new ones are found
+  // This handles the case where deleting a child directory makes its parent empty
+  let previousSize = -1
+  while (emptyDirsToDelete.size !== previousSize) {
+    previousSize = emptyDirsToDelete.size
+    collectEmptyDirectories(workspaceDir)
+  }
 
   return {
-    emptyDirsToDelete: [...emptyDirsToDelete].sort((a, b) => a.localeCompare(b))
+    emptyDirsToDelete: [...emptyDirsToDelete].sort((a, b) =>
+      a.localeCompare(b))
   }
 }

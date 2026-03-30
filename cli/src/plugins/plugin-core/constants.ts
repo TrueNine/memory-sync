@@ -81,9 +81,7 @@ export const SourcePromptExtensions = {
   PRIMARY: '.src.mdx'
 } as const
 
-export const SourcePromptFileExtensions = [
-  SourcePromptExtensions.PRIMARY
-] as const
+export const SourcePromptFileExtensions = [SourcePromptExtensions.PRIMARY] as const
 
 export const SourceLocaleExtensions = {
   zh: SourcePromptFileExtensions,
@@ -91,8 +89,7 @@ export const SourceLocaleExtensions = {
 } as const
 
 export function hasSourcePromptExtension(fileName: string): boolean {
-  return SourcePromptFileExtensions.some(extension =>
-    fileName.endsWith(extension))
+  return SourcePromptFileExtensions.some(extension => fileName.endsWith(extension))
 }
 
 export const GlobalConfigDirs = {
@@ -108,13 +105,7 @@ export const IgnoreFiles = {
 } as const
 
 export const PreservedSkills = {
-  CURSOR: new Set<string>([
-    'create-rule',
-    'create-skill',
-    'create-subagent',
-    'migrate-to-skills',
-    'update-cursor-settings'
-  ])
+  CURSOR: new Set<string>(['create-rule', 'create-skill', 'create-subagent', 'migrate-to-skills', 'update-cursor-settings'])
 } as const
 
 export const ToolPresets = {

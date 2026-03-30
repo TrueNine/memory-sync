@@ -1,8 +1,9 @@
-import type {CommandPrompt, OutputFileDeclaration, OutputWriteContext, SkillPrompt, SubAgentPrompt} from './plugin-core'
+import type {CommandPrompt, OutputFileDeclaration, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt} from './plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {
   AbstractOutputPlugin,
+  applySubSeriesGlobPrefix,
   collectMcpServersFromSkills,
   filterByProjectConfig,
   PLUGIN_NAMES,
@@ -18,6 +19,7 @@ const PROJECT_RULES_DIR = '.opencode'
 const COMMANDS_SUBDIR = 'commands'
 const AGENTS_SUBDIR = 'agents'
 const SKILLS_SUBDIR = 'skills'
+const RULES_SUBDIR = 'rules'
 
 type OpencodeOutputSource
   = | {readonly kind: 'globalMemory', readonly content: string}
@@ -29,6 +31,7 @@ type OpencodeOutputSource
     | {readonly kind: 'skillReference', readonly content: string}
     | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
     | {readonly kind: 'mcpConfig', readonly mcpServers: Record<string, Record<string, unknown>>}
+    | {readonly kind: 'rule', readonly rule: RulePrompt}
 
 function transformOpencodeCommandFrontMatter(
   _cmd: CommandPrompt,
@@ -72,25 +75,34 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       skills: {
         subDir: SKILLS_SUBDIR
       },
+      rules: {
+        subDir: RULES_SUBDIR,
+        prefix: 'rule',
+        sourceScopes: ['project', 'global']
+      },
       cleanup: {
         delete: {
           project: {
             files: [GLOBAL_MEMORY_FILE, '.opencode/opencode.json'],
-            dirs: ['.opencode/commands', '.opencode/agents', '.opencode/skills']
+            dirs: ['.opencode/commands', '.opencode/agents', '.opencode/skills', '.opencode/rules']
           },
           global: {
             files: ['.config/opencode/AGENTS.md', '.config/opencode/opencode.json'],
-            dirs: ['.config/opencode/commands', '.config/opencode/agents', '.config/opencode/skills']
+            dirs: ['.config/opencode/commands', '.config/opencode/agents', '.config/opencode/skills', '.config/opencode/rules']
           },
           xdgConfig: {
             files: ['opencode/AGENTS.md', 'opencode/opencode.json'],
-            dirs: ['opencode/commands', 'opencode/agents', 'opencode/skills']
+            dirs: ['opencode/commands', 'opencode/agents', 'opencode/skills', 'opencode/rules']
           }
         }
       },
       dependsOn: [PLUGIN_NAMES.AgentsOutput],
       capabilities: {
         prompt: {
+          scopes: ['project', 'global'],
+          singleScope: false
+        },
+        rules: {
           scopes: ['project', 'global'],
           singleScope: false
         },
@@ -116,28 +128,47 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
-    const {globalMemory, commands, subAgents, skills} = ctx.collectedOutputContext
+    const {globalMemory, commands, subAgents, skills, rules} = ctx.collectedOutputContext
     const globalDir = this.getGlobalConfigDir()
     const activePromptScopes = new Set(this.selectPromptScopes(ctx, ['project', 'global']))
     const promptProjects = this.getProjectPromptOutputProjects(ctx)
     const promptSourceProjectConfig = this.resolvePromptSourceProjectConfig(ctx)
-    const selectedCommands = commands != null
-      ? this.selectSingleScopeItems(commands, this.commandsConfig.sourceScopes, command => this.resolveCommandSourceScope(command), this.getTopicScopeOverride(ctx, 'commands'))
-      : {items: [] as readonly CommandPrompt[]}
-    const selectedSubAgents = subAgents != null
-      ? this.selectSingleScopeItems(subAgents, this.subAgentsConfig.sourceScopes, subAgent => this.resolveSubAgentSourceScope(subAgent), this.getTopicScopeOverride(ctx, 'subagents'))
-      : {items: [] as readonly SubAgentPrompt[]}
-    const selectedSkills = skills != null
-      ? this.selectSingleScopeItems(skills, this.skillsConfig.sourceScopes, skill => this.resolveSkillSourceScope(skill), this.getTopicScopeOverride(ctx, 'skills'))
-      : {items: [] as readonly SkillPrompt[]}
-    const selectedMcpSkills = skills != null
-      ? this.selectSingleScopeItems(
-          skills,
-          this.skillsConfig.sourceScopes,
-          skill => this.resolveSkillSourceScope(skill),
-          this.getTopicScopeOverride(ctx, 'mcp') ?? this.getTopicScopeOverride(ctx, 'skills')
-        )
-      : {items: [] as readonly SkillPrompt[]}
+    const selectedCommands
+      = commands != null
+        ? this.selectSingleScopeItems(
+            commands,
+            this.commandsConfig.sourceScopes,
+            command => this.resolveCommandSourceScope(command),
+            this.getTopicScopeOverride(ctx, 'commands')
+          )
+        : {items: [] as readonly CommandPrompt[]}
+    const selectedSubAgents
+      = subAgents != null
+        ? this.selectSingleScopeItems(
+            subAgents,
+            this.subAgentsConfig.sourceScopes,
+            subAgent => this.resolveSubAgentSourceScope(subAgent),
+            this.getTopicScopeOverride(ctx, 'subagents')
+          )
+        : {items: [] as readonly SubAgentPrompt[]}
+    const selectedSkills
+      = skills != null
+        ? this.selectSingleScopeItems(
+            skills,
+            this.skillsConfig.sourceScopes,
+            skill => this.resolveSkillSourceScope(skill),
+            this.getTopicScopeOverride(ctx, 'skills')
+          )
+        : {items: [] as readonly SkillPrompt[]}
+    const selectedMcpSkills
+      = skills != null
+        ? this.selectSingleScopeItems(
+            skills,
+            this.skillsConfig.sourceScopes,
+            skill => this.resolveSkillSourceScope(skill),
+            this.getTopicScopeOverride(ctx, 'mcp') ?? this.getTopicScopeOverride(ctx, 'skills')
+          )
+        : {items: [] as readonly SkillPrompt[]}
 
     if (globalMemory != null && activePromptScopes.has('global')) {
       declarations.push({
@@ -150,11 +181,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       })
     }
 
-    const pushMcpDeclaration = (
-      basePath: string,
-      scope: 'project' | 'global',
-      filteredSkills: readonly SkillPrompt[]
-    ): void => {
+    const pushMcpDeclaration = (basePath: string, scope: 'project' | 'global', filteredSkills: readonly SkillPrompt[]): void => {
       if (filteredSkills.length === 0) return
 
       const servers = collectMcpServersFromSkills(filteredSkills, this.log)
@@ -170,11 +197,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       })
     }
 
-    const pushSkillDeclarations = (
-      basePath: string,
-      scope: 'project' | 'global',
-      filteredSkills: readonly SkillPrompt[]
-    ): void => {
+    const pushSkillDeclarations = (basePath: string, scope: 'project' | 'global', filteredSkills: readonly SkillPrompt[]): void => {
       for (const skill of filteredSkills) {
         const normalizedSkillName = this.validateAndNormalizeSkillName(this.getSkillName(skill))
         const skillDir = path.join(basePath, SKILLS_SUBDIR, normalizedSkillName)
@@ -316,24 +339,61 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       pushSkillDeclarations(globalDir, 'global', filteredSkills)
     }
 
-    if (selectedMcpSkills.selectedScope !== 'global') return declarations
+    if (selectedMcpSkills.selectedScope === 'global') {
+      const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, promptSourceProjectConfig, 'skills')
+      pushMcpDeclaration(globalDir, 'global', filteredMcpSkills)
+    }
 
-    const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, promptSourceProjectConfig, 'skills')
-    pushMcpDeclaration(globalDir, 'global', filteredMcpSkills)
+    if (rules == null || rules.length === 0) return declarations
+
+    const activeRuleScopes = this.selectRuleScopes(ctx, rules)
+    for (const ruleScope of activeRuleScopes) {
+      if (ruleScope === 'global') {
+        const globalRules = rules.filter(rule => this.normalizeSourceScope(this.normalizeRuleScope(rule)) === 'global')
+        for (const rule of globalRules) {
+          declarations.push({
+            path: path.join(globalDir, RULES_SUBDIR, this.buildRuleFileName(rule)),
+            scope: 'global',
+            source: {kind: 'rule', rule} satisfies OpencodeOutputSource
+          })
+        }
+      } else if (ruleScope === 'project') {
+        for (const project of this.getProjectOutputProjects(ctx)) {
+          const projectRootDir = this.resolveProjectRootDir(ctx, project)
+          if (projectRootDir == null) continue
+          const basePath = path.join(projectRootDir, PROJECT_RULES_DIR)
+
+          const projectRules = applySubSeriesGlobPrefix(
+            filterByProjectConfig(
+              rules.filter(rule => this.normalizeSourceScope(this.normalizeRuleScope(rule)) === 'project'),
+              project.projectConfig,
+              'rules'
+            ),
+            project.projectConfig
+          )
+          for (const rule of projectRules) {
+            declarations.push({
+              path: path.join(basePath, RULES_SUBDIR, this.buildRuleFileName(rule)),
+              scope: 'project',
+              source: {kind: 'rule', rule} satisfies OpencodeOutputSource
+            })
+          }
+        }
+      }
+    }
     return declarations
   }
 
-  override async convertContent(
-    declaration: OutputFileDeclaration,
-    ctx: OutputWriteContext
-  ): Promise<string | Buffer> {
+  override async convertContent(declaration: OutputFileDeclaration, ctx: OutputWriteContext): Promise<string | Buffer> {
     const source = declaration.source as OpencodeOutputSource
     switch (source.kind) {
       case 'globalMemory':
       case 'projectRootMemory':
       case 'projectChildMemory':
-      case 'skillReference': return source.content
-      case 'command': return this.buildCommandContent(source.command, ctx)
+      case 'skillReference':
+        return source.content
+      case 'command':
+        return this.buildCommandContent(source.command, ctx)
       case 'subAgent': {
         const frontMatter = this.buildOpencodeAgentFrontMatter(source.agent)
         return this.buildMarkdownContent(source.agent.content, frontMatter, ctx)
@@ -342,14 +402,22 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
         const frontMatter = this.buildOpencodeSkillFrontMatter(source.skill, source.normalizedSkillName)
         return this.buildMarkdownContent(source.skill.content as string, frontMatter, ctx)
       }
-      case 'skillResource': return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
+      case 'skillResource':
+        return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
       case 'mcpConfig':
-        return JSON.stringify({
-          $schema: 'https://opencode.ai/config.json',
-          plugin: [OPENCODE_RULES_PLUGIN_NAME],
-          mcp: source.mcpServers
-        }, null, 2)
-      default: throw new Error(`Unsupported declaration source for ${this.name}`)
+        return JSON.stringify(
+          {
+            $schema: 'https://opencode.ai/config.json',
+            plugin: [OPENCODE_RULES_PLUGIN_NAME],
+            mcp: source.mcpServers
+          },
+          null,
+          2
+        )
+      case 'rule':
+        return this.buildRuleContent(source.rule, ctx)
+      default:
+        throw new Error(`Unsupported declaration source for ${this.name}`)
     }
   }
 
@@ -400,7 +468,18 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       if (source?.[field] != null) metadata[field] = source[field]
     }
 
-    const reservedFields = new Set(['name', 'description', 'license', 'compatibility', 'namingCase', 'allowTools', 'keywords', 'displayName', 'author', 'version'])
+    const reservedFields = new Set([
+      'name',
+      'description',
+      'license',
+      'compatibility',
+      'namingCase',
+      'allowTools',
+      'keywords',
+      'displayName',
+      'author',
+      'version'
+    ])
     for (const [key, value] of Object.entries(source ?? {})) {
       if (!reservedFields.has(key)) metadata[key] = value
     }

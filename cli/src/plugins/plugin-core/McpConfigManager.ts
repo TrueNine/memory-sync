@@ -39,28 +39,37 @@ export interface McpWriteResult {
  */
 export type McpConfigTransformer = (config: McpServerConfig) => Record<string, unknown>
 
-export function collectMcpServersFromSkills(
-  skills: readonly SkillPrompt[],
-  logger?: ILogger
-): Map<string, McpServerConfig> {
+export function collectMcpServersFromSkills(skills: readonly SkillPrompt[], logger?: ILogger): Map<string, McpServerConfig> {
   const merged = new Map<string, McpServerConfig>()
+  const serverCountsBySkill = new Map<string, number>()
 
   for (const skill of skills) {
     if (skill.mcpConfig == null) continue
 
+    const skillName = resolveSkillName(skill)
+    let count = 0
     for (const [name, config] of Object.entries(skill.mcpConfig.mcpServers)) {
       merged.set(name, config)
-      logger?.debug('mcp server collected', {skill: resolveSkillName(skill), mcpName: name})
+      count++
+    }
+    if (count > 0) {
+      serverCountsBySkill.set(skillName, count)
     }
   }
 
+  // Emit aggregated summary log instead of per-item logs
+  if (serverCountsBySkill.size > 0 && logger == null) return merged
+
+  const totalServers = [...serverCountsBySkill.values()].reduce((a, b) => a + b, 0)
+  logger?.debug('mcp servers collected', {
+    totalSkills: serverCountsBySkill.size,
+    totalServers,
+    bySkill: Object.fromEntries(serverCountsBySkill)
+  })
   return merged
 }
 
-export function transformMcpServerMap(
-  servers: Map<string, McpServerConfig>,
-  transformer: McpConfigTransformer
-): TransformedMcpConfig {
+export function transformMcpServerMap(servers: Map<string, McpServerConfig>, transformer: McpConfigTransformer): TransformedMcpConfig {
   const result: TransformedMcpConfig = {}
 
   for (const [name, config] of servers) result[name] = transformer(config)
@@ -85,10 +94,7 @@ export class McpConfigManager {
     return collectMcpServersFromSkills(skills, this.logger)
   }
 
-  transformMcpServers(
-    servers: Map<string, McpServerConfig>,
-    transformer: McpConfigTransformer
-  ): TransformedMcpConfig {
+  transformMcpServers(servers: Map<string, McpServerConfig>, transformer: McpConfigTransformer): TransformedMcpConfig {
     return transformMcpServerMap(servers, transformer)
   }
 
@@ -98,28 +104,25 @@ export class McpConfigManager {
         const content = this.fs.readFileSync(configPath, 'utf8')
         return JSON.parse(content) as Record<string, unknown>
       }
-    }
-    catch (error) {
-      this.logger.warn(buildFileOperationDiagnostic({
-        code: 'MCP_CONFIG_READ_FAILED',
-        title: 'Failed to read existing MCP config',
-        operation: 'read',
-        targetKind: 'MCP config file',
-        path: configPath,
-        error,
-        details: {
-          fallback: 'starting fresh'
-        }
-      }))
+    } catch (error) {
+      this.logger.warn(
+        buildFileOperationDiagnostic({
+          code: 'MCP_CONFIG_READ_FAILED',
+          title: 'Failed to read existing MCP config',
+          operation: 'read',
+          targetKind: 'MCP config file',
+          path: configPath,
+          error,
+          details: {
+            fallback: 'starting fresh'
+          }
+        })
+      )
     }
     return {}
   }
 
-  writeCursorMcpConfig(
-    configPath: string,
-    servers: TransformedMcpConfig,
-    dryRun: boolean
-  ): McpWriteResult {
+  writeCursorMcpConfig(configPath: string, servers: TransformedMcpConfig, dryRun: boolean): McpWriteResult {
     const existingConfig = this.readExistingConfig(configPath)
     const existingMcpServers = (existingConfig['mcpServers'] as Record<string, unknown>) ?? {}
 
@@ -129,15 +132,11 @@ export class McpConfigManager {
     return this.writeConfigFile(configPath, content, Object.keys(servers).length, dryRun)
   }
 
-  writeOpencodeMcpConfig(
-    configPath: string,
-    servers: TransformedMcpConfig,
-    dryRun: boolean,
-    additionalConfig?: Record<string, unknown>
-  ): McpWriteResult {
+  writeOpencodeMcpConfig(configPath: string, servers: TransformedMcpConfig, dryRun: boolean, additionalConfig?: Record<string, unknown>): McpWriteResult {
     const existingConfig = this.readExistingConfig(configPath)
 
-    const mergedConfig = { // Merge with additional config (like $schema, plugin array)
+    const mergedConfig = {
+      // Merge with additional config (like $schema, plugin array)
       ...existingConfig,
       ...additionalConfig,
       mcp: servers
@@ -147,11 +146,7 @@ export class McpConfigManager {
     return this.writeConfigFile(configPath, content, Object.keys(servers).length, dryRun)
   }
 
-  writeSkillMcpConfig(
-    configPath: string,
-    rawContent: string,
-    dryRun: boolean
-  ): McpWriteResult {
+  writeSkillMcpConfig(configPath: string, rawContent: string, dryRun: boolean): McpWriteResult {
     return this.writeConfigFile(configPath, rawContent, 1, dryRun)
   }
 
@@ -159,34 +154,45 @@ export class McpConfigManager {
     if (!this.fs.existsSync(dir)) this.fs.mkdirSync(dir, {recursive: true})
   }
 
-  private writeConfigFile(
-    configPath: string,
-    content: string,
-    serverCount: number,
-    dryRun: boolean
-  ): McpWriteResult {
+  private writeConfigFile(configPath: string, content: string, serverCount: number, dryRun: boolean): McpWriteResult {
     if (dryRun) {
-      this.logger.trace({action: 'dryRun', type: 'mcpConfig', path: configPath, serverCount})
+      this.logger.trace({
+        action: 'dryRun',
+        type: 'mcpConfig',
+        path: configPath,
+        serverCount
+      })
       return {success: true, path: configPath, serverCount, skipped: true}
     }
 
     try {
       this.ensureDirectory(path.dirname(configPath))
       this.fs.writeFileSync(configPath, content)
-      this.logger.trace({action: 'write', type: 'mcpConfig', path: configPath, serverCount})
-      return {success: true, path: configPath, serverCount}
-    }
-    catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      this.logger.error(buildFileOperationDiagnostic({
-        code: 'MCP_CONFIG_WRITE_FAILED',
-        title: 'Failed to write MCP config',
-        operation: 'write',
-        targetKind: 'MCP config file',
+      this.logger.trace({
+        action: 'write',
+        type: 'mcpConfig',
         path: configPath,
-        error: errMsg
-      }))
-      return {success: false, path: configPath, serverCount: 0, error: error as Error}
+        serverCount
+      })
+      return {success: true, path: configPath, serverCount}
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.logger.error(
+        buildFileOperationDiagnostic({
+          code: 'MCP_CONFIG_WRITE_FAILED',
+          title: 'Failed to write MCP config',
+          operation: 'write',
+          targetKind: 'MCP config file',
+          path: configPath,
+          error: errMsg
+        })
+      )
+      return {
+        success: false,
+        path: configPath,
+        serverCount: 0,
+        error: error as Error
+      }
     }
   }
 }
@@ -234,7 +240,9 @@ export function transformMcpConfigForOpencode(config: McpServerConfig): Record<s
     result['type'] = 'remote'
     const configRecord = config as unknown as Record<string, unknown>
     if (configRecord['url'] != null) result['url'] = configRecord['url']
-    else if (configRecord['serverUrl'] != null) result['url'] = configRecord['serverUrl']
+    else if (configRecord['serverUrl'] != null) {
+      result['url'] = configRecord['serverUrl']
+    }
   }
 
   result['enabled'] = config.disabled !== true

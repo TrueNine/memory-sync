@@ -9,6 +9,7 @@ import type {
 } from '../plugins/plugin-core'
 import type {ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
 import {buildDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '@/diagnostics'
+import {loadAindexProjectConfig} from '../aindex-config/AindexProjectConfigLoader'
 import {getNativeBinding} from '../core/native-binding'
 import {collectAllPluginOutputs} from '../plugins/plugin-core'
 import {
@@ -99,6 +100,7 @@ interface NativeCleanupSnapshot {
   readonly projectRoots: readonly string[]
   readonly protectedRules: readonly NativeProtectedRule[]
   readonly pluginSnapshots: readonly NativePluginCleanupSnapshot[]
+  readonly emptyDirExcludeGlobs?: readonly string[]
 }
 
 interface NativeProtectedPathViolation {
@@ -324,12 +326,25 @@ async function buildCleanupSnapshot(
 
   protectedRules.push(...collectConfiguredCleanupProtectionRules(cleanCtx))
 
+  // Load aindex project config (aindex.config.ts) for empty-dir exclude globs
+  let emptyDirExcludeGlobs: string[] | undefined
+  if (cleanCtx.collectedOutputContext.aindexDir != null) {
+    const aindexConfig = await loadAindexProjectConfig(cleanCtx.collectedOutputContext.aindexDir)
+    if (aindexConfig.found) {
+      const exclude = aindexConfig.config.emptyDirCleanup?.exclude
+      if (exclude != null && exclude.length > 0) {
+        emptyDirExcludeGlobs = [...exclude]
+      }
+    }
+  }
+
   return {
     workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path,
     ...cleanCtx.collectedOutputContext.aindexDir != null ? {aindexDir: cleanCtx.collectedOutputContext.aindexDir} : {},
     projectRoots: collectProjectRoots(cleanCtx.collectedOutputContext),
     protectedRules,
-    pluginSnapshots
+    pluginSnapshots,
+    ...emptyDirExcludeGlobs != null && emptyDirExcludeGlobs.length > 0 ? {emptyDirExcludeGlobs} : {}
   }
 }
 
