@@ -1,6 +1,6 @@
 ---
 title: overview
-description: memory-sync 文档入口，按 CLI、MCP、GUI、技术细节与设计初衷五个一级门类组织。
+description: memory-sync 文档入口，按 CLI、SDK、MCP、GUI、技术细节与设计初衷六个一级门类组织。
 sidebarTitle: overview
 status: stable
 keywords:
@@ -11,21 +11,23 @@ keywords:
 
 # 文档总览
 
-这套文档站围绕当前仓库事实组织，一级结构固定为 `CLI`、`MCP`、`GUI`、`技术细节`、`设计初衷`。这样写文档时，面向用户的操作入口、面向集成的 server、桌面层说明、实现原理和背景动机不再混在一起。
+这套文档站围绕当前仓库事实组织，一级结构固定为 `CLI`、`SDK`、`MCP`、`GUI`、`技术细节`、`设计初衷`。这样写文档时，面向用户的操作入口、repo 内部 mixed core、面向集成的 server、桌面层说明、实现原理和背景动机不再混在一起。
 
-## 五个一级门类
+## 六个一级门类
 
 | 门类 | 主要回答的问题 | 入口 |
 | --- | --- | --- |
 | CLI | 如何安装、准备项目、执行同步、理解命令与配置字段 | [CLI](/docs/cli) |
+| SDK | `sdk/` 为什么是 mixed core、拥有哪些能力、内部消费者该如何依赖它 | [SDK](/docs/sdk) |
 | MCP | `memory-sync-mcp` 是什么、暴露了哪些工具、适合怎么接入 | [MCP](/docs/mcp) |
-| GUI | 桌面层负责什么、有哪些页面、它与 `tnmsc` crate / CLI 如何配合 | [GUI](/docs/gui) |
+| GUI | 桌面层负责什么、有哪些页面、它与 `sdk/` / `tnmsc` crate / CLI 如何配合 | [GUI](/docs/gui) |
 | 技术细节 | 架构边界、同步管线、真源模型，以及 prompts / skills / commands / rules 等输入资产如何组织 | [技术细节](/docs/technical-details) |
 | 设计初衷 | 为什么要做这个项目，为什么文档也要这样分层 | [设计初衷](/docs/design-rationale) |
 
 ## 从哪里开始
 
 - 第一次使用 `memory-sync`，从 [CLI](/docs/cli) 开始，先把安装、项目准备和第一次同步跑通。
+- 需要理解 repo 内部核心层怎么分工、为什么以后统一复用 `sdk/`，先看 [SDK](/docs/sdk)。
 - 需要把 `memory-sync-mcp` 接入到支持 MCP 的宿主里，直接进 [MCP](/docs/mcp)。
 - 关注桌面应用而不是终端入口时，查看 [GUI](/docs/gui)。
 - 需要理解 Rust-first / NAPI-first、真源模型和输入资产职责时，进入 [技术细节](/docs/technical-details)。

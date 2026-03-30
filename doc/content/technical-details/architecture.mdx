@@ -9,7 +9,8 @@ status: stable
 
 当前仓库的核心方向不是“继续堆更多纯 TypeScript 兼容层”，而是：
 
-- `cli/` 作为公开入口与编排层
+- `sdk/` 作为私有 mixed core
+- `cli/` 作为公开入口与兼容发布层
 - Rust crate / NAPI 作为长期核心实现重心
 - TypeScript 主要负责接口暴露、配置装配、桥接运行时与声明描述
 
@@ -17,8 +18,9 @@ status: stable
 
 | 组件 | 职责 |
 | --- | --- |
-| `cli/` | `tnmsc` 命令入口、crate 暴露、npm 包暴露 |
-| `mcp/` | MCP stdio server，复用 CLI prompt service |
+| `sdk/` | `tnmsc` crate、Node bridge runtime、prompt service、schema 与 NAPI 真源 |
+| `cli/` | `tnmsc` 命令入口、公开 npm CLI 包、兼容发布壳 |
+| `mcp/` | MCP stdio server，复用 sdk prompt service |
 | `gui/` | Tauri 桌面调用层与展示层 |
 | `libraries/` | Rust-first / NAPI-first 基础库 |
 
@@ -26,6 +28,9 @@ status: stable
 
 - GUI 不是核心实现中心
 - MCP 不是新的真源模型
+- CLI 不是 repo 内部共享 API 的默认依赖点
 - 文档站不是架构真相的唯一来源
 
 如果你需要看用户操作面，回到 [CLI](/docs/cli) 或 [GUI](/docs/gui)；这里只说明实现分层为什么这样划。
+
+如果你需要专门看 `sdk/` 这层本身的职责、消费方向与身份保持策略，直接进入 [SDK](/docs/sdk)。

@@ -37,6 +37,11 @@ export const homeEntryCards = [
     detail: '围绕安装、项目准备、第一次同步、配置字段与命令表面组织。'
   },
   {
+    href: '/docs/sdk',
+    title: 'SDK',
+    detail: '单独说明 private mixed core 的职责边界、消费方向，以及它与 tnmsc crate / cli shell 的关系。'
+  },
+  {
     href: '/docs/mcp',
     title: 'MCP',
     detail: '独立查看 stdio server、工具列表、workspaceDir 约束与适用边界。'
@@ -44,7 +49,7 @@ export const homeEntryCards = [
   {
     href: '/docs/gui',
     title: 'GUI',
-    detail: '单独查看桌面层的职责、页面结构，以及它与 tnmsc crate / CLI 的关系。'
+    detail: '单独查看桌面层的职责、页面结构，以及它与 sdk / tnmsc crate / CLI 的关系。'
   },
   {
     href: '/docs/technical-details',

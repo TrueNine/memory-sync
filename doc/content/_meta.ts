@@ -5,6 +5,9 @@ export default {
   'cli': {
     title: 'CLI'
   },
+  'sdk': {
+    title: 'SDK'
+  },
   'mcp': {
     title: 'MCP'
   },

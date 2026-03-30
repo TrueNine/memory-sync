@@ -1,6 +1,6 @@
 ---
 title: MCP
-description: 说明 memory-sync-mcp 的定位、运行方式，以及它与 CLI prompt service 的关系。
+description: 说明 memory-sync-mcp 的定位、运行方式，以及它与 sdk prompt service 的关系。
 sidebarTitle: 概览
 status: stable
 ---
@@ -12,7 +12,7 @@ status: stable
 ## 它负责什么
 
 - 作为 MCP stdio server 暴露 `memory-sync` 的 prompt 管理能力
-- 复用 `@truenine/memory-sync-cli` 导出的 prompt service，而不是重新实现一套独立逻辑
+- 复用 `@truenine/memory-sync-sdk` 导出的 prompt service，而不是重新实现一套独立逻辑
 - 让支持 MCP 的宿主按工具调用方式读取、更新和写回 prompt 资产
 
 ## 它不负责什么

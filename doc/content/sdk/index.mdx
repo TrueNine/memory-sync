@@ -1,0 +1,56 @@
+---
+title: SDK
+description: 说明 sdk/ 作为 private mixed core 的职责、边界、消费方向与对外身份保持策略。
+sidebarTitle: 概览
+status: stable
+---
+
+# SDK
+
+`sdk/` 是当前仓库里的 private mixed core，也是 repo 内部共享能力的单一入口。它不是一个“给外部用户单独安装的 npm 包”，而是把原先放在 `cli/` 里的核心实现收拢后的真源层。
+
+## 这层负责什么
+
+- 承载私有 npm 包 `@truenine/memory-sync-sdk`
+- 承载 Rust crate `tnmsc` 的实际工作区路径
+- 持有 TypeScript 同步管线、prompt service、schema 生成与 `plugin-runtime`
+- 持有 Rust library、NAPI 构建、Node bridge runtime 与嵌入式运行时逻辑
+- 作为 `mcp/`、`gui/` 以及未来 repo 内部消费者的默认依赖点
+
+## 这层不负责什么
+
+- 不直接承担公开 npm CLI 的发布入口
+- 不承担平台 shim 包 `@truenine/memory-sync-cli-<suffix>` 的分发身份
+- 不把 repo 内部共享 API 再挂回 `cli/` 做二次真源
+
+## 身份保持不变的部分
+
+这次分层调整没有改动这些公开身份：
+
+- CLI binary 仍然是 `tnmsc`
+- 公共 npm CLI 包仍然是 `@truenine/memory-sync-cli`
+- 公共平台包仍然是 `@truenine/memory-sync-cli-<suffix>`
+- Rust crate 名仍然是 `tnmsc`
+
+变化的是“路径与所有权”，不是这些对外身份本身。
+
+## 消费方向
+
+| 消费方 | 依赖方式 |
+| --- | --- |
+| `cli/` | 作为 shell 与兼容层，薄封装 `sdk/` 导出的能力 |
+| `mcp/` | 直接导入 `@truenine/memory-sync-sdk` 的 prompt service |
+| `gui/src-tauri` | 继续依赖 crate `tnmsc`，但 crate 实际路径位于 `sdk/` |
+
+## 边界规则
+
+- repo 内部新代码不应再把 `cli/` 当成默认共享 API 入口
+- `cli/` 只保留命令入口、兼容导出与发布打包职责
+- 需要解释实现边界时，先看 `sdk/`，再看 `cli/`、`mcp/` 或 `gui/`
+
+## 推荐阅读
+
+- [技术细节 / 架构边界](/docs/technical-details/architecture)：查看 `sdk/`、`cli/`、`mcp/`、`gui/` 的整体分层。
+- [CLI](/docs/cli)：查看公开命令入口、安装与兼容发布表面。
+- [MCP](/docs/mcp)：查看 `sdk` prompt service 如何被 stdio server 消费。
+- [GUI](/docs/gui)：查看桌面层如何调用 `sdk/` 中的 `tnmsc` crate。

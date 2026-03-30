@@ -1,13 +1,13 @@
 ---
 title: GUI
-description: 说明 Tauri 桌面层的职责、边界，以及它与 tnmsc crate / CLI 的关系。
+description: 说明 Tauri 桌面层的职责、边界，以及它与 sdk / tnmsc crate / CLI 的关系。
 sidebarTitle: 概览
 status: stable
 ---
 
 # GUI
 
-`gui/` 是基于 Tauri + React 的桌面调用层。它的角色不是成为系统架构中心，而是把 `tnmsc` 的配置编辑、执行、展示与日志观察做成桌面工作流。
+`gui/` 是基于 Tauri + React 的桌面调用层。它的角色不是成为系统架构中心，而是把 `sdk/` 中 `tnmsc` crate 暴露的配置编辑、执行、展示与日志观察做成桌面工作流。
 
 ## 这层负责什么
 
