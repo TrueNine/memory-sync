@@ -283,6 +283,30 @@ pub struct DeleteTargetsResult {
     pub dir_errors: Vec<DeletionError>,
 }
 
+fn delete_empty_directory(path: impl AsRef<Path>) -> io::Result<bool> {
+    let path = path.as_ref();
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(false),
+        Err(err) => return Err(err),
+    };
+
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Ok(false);
+    }
+
+    match fs::remove_dir(path) {
+        Ok(()) => Ok(true),
+        Err(err)
+            if err.kind() == io::ErrorKind::NotFound
+                || err.kind() == io::ErrorKind::DirectoryNotEmpty =>
+        {
+            Ok(false)
+        }
+        Err(err) => Err(err),
+    }
+}
+
 pub fn delete_files(paths: &[String]) -> DeletionResult {
     let mut result = DeletionResult {
         deleted: 0,
@@ -316,6 +340,31 @@ pub fn delete_directories(paths: &[String]) -> DeletionResult {
     };
     for path in &sorted_paths {
         match delete_path(Path::new(path)) {
+            Ok(true) => {
+                result.deleted += 1;
+                result.deleted_paths.push(path.clone());
+            }
+            Ok(false) => {}
+            Err(err) => result.errors.push(DeletionError {
+                path: path.clone(),
+                error: err.to_string(),
+            }),
+        }
+    }
+    result
+}
+
+pub fn delete_empty_directories(paths: &[String]) -> DeletionResult {
+    let mut sorted_paths = paths.to_vec();
+    sorted_paths.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| b.cmp(a)));
+
+    let mut result = DeletionResult {
+        deleted: 0,
+        deleted_paths: Vec::new(),
+        errors: Vec::new(),
+    };
+    for path in &sorted_paths {
+        match delete_empty_directory(Path::new(path)) {
             Ok(true) => {
                 result.deleted += 1;
                 result.deleted_paths.push(path.clone());
@@ -457,6 +506,16 @@ mod napi_binding {
         }
     }
 
+    #[napi]
+    pub fn delete_empty_directories(paths: Vec<String>) -> NapiDeletionResult {
+        let result = super::delete_empty_directories(&paths);
+        NapiDeletionResult {
+            deleted: result.deleted as u32,
+            deletedPaths: result.deleted_paths,
+            errors: result.errors.into_iter().map(to_napi_error).collect(),
+        }
+    }
+
     #[napi(object)]
     pub struct DeleteTargetsInput {
         pub files: Option<Vec<String>>,
@@ -511,5 +570,52 @@ mod tests {
         );
         assert!(result.file_errors.is_empty());
         assert!(result.dir_errors.is_empty());
+    }
+
+    #[test]
+    fn delete_empty_directories_only_removes_empty_paths() {
+        let dir = tempdir().unwrap();
+        let parent_dir = dir.path().join("empty-parent");
+        let child_dir = parent_dir.join("leaf");
+        let non_empty_dir = dir.path().join("non-empty");
+        fs::create_dir_all(&child_dir).unwrap();
+        fs::create_dir_all(&non_empty_dir).unwrap();
+        fs::write(non_empty_dir.join("keep.txt"), b"keep").unwrap();
+
+        let result = delete_empty_directories(&[
+            parent_dir.to_string_lossy().into_owned(),
+            child_dir.to_string_lossy().into_owned(),
+            non_empty_dir.to_string_lossy().into_owned(),
+        ]);
+
+        assert_eq!(result.deleted, 2);
+        assert_eq!(
+            result.deleted_paths,
+            vec![
+                child_dir.to_string_lossy().into_owned(),
+                parent_dir.to_string_lossy().into_owned(),
+            ]
+        );
+        assert!(result.errors.is_empty());
+        assert!(!parent_dir.exists());
+        assert!(non_empty_dir.exists());
+    }
+
+    #[test]
+    fn delete_empty_directories_skips_non_empty_and_missing_paths() {
+        let dir = tempdir().unwrap();
+        let target_dir = dir.path().join("maybe-empty");
+        fs::create_dir_all(&target_dir).unwrap();
+        fs::write(target_dir.join("new-file.txt"), b"late write").unwrap();
+
+        let result = delete_empty_directories(&[
+            target_dir.to_string_lossy().into_owned(),
+            dir.path().join("missing").to_string_lossy().into_owned(),
+        ]);
+
+        assert_eq!(result.deleted, 0);
+        assert!(result.deleted_paths.is_empty());
+        assert!(result.errors.is_empty());
+        assert!(target_dir.exists());
     }
 }

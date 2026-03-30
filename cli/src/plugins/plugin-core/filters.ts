@@ -4,98 +4,42 @@ import type {
   SeriName
 } from './types'
 import * as fs from 'node:fs'
-import {createRequire} from 'node:module'
 import * as path from 'node:path'
-import process from 'node:process'
-
-/** Core series filtering helpers. Delegates to the unified CLI Rust NAPI when available, falls back to pure-TS implementations otherwise. */
-function resolveEffectiveIncludeSeriesTS(topLevel?: readonly string[], typeSpecific?: readonly string[]): string[] {
-  if (topLevel == null && typeSpecific == null) return []
-  return [...new Set([...topLevel ?? [], ...typeSpecific ?? []])]
-}
-
-function matchesSeriesTS(seriName: string | readonly string[] | null | undefined, effectiveIncludeSeries: readonly string[]): boolean {
-  if (seriName == null) return true
-  if (effectiveIncludeSeries.length === 0) return true
-  if (typeof seriName === 'string') return effectiveIncludeSeries.includes(seriName)
-  return seriName.some(name => effectiveIncludeSeries.includes(name))
-}
-
-function resolveSubSeriesTS(
-  topLevel?: Readonly<Record<string, readonly string[]>>,
-  typeSpecific?: Readonly<Record<string, readonly string[]>>
-): Record<string, string[]> {
-  if (topLevel == null && typeSpecific == null) return {}
-  const merged: Record<string, string[]> = {}
-  for (const [key, values] of Object.entries(topLevel ?? {})) merged[key] = [...values]
-  for (const [key, values] of Object.entries(typeSpecific ?? {})) {
-    const existingValues = merged[key] ?? []
-    merged[key] = Object.hasOwn(merged, key) ? [...new Set([...existingValues, ...values])] : [...values]
-  }
-  return merged
-}
+import {getNativeBinding} from '@/core/native-binding'
 
 interface SeriesFilterFns {
-  resolveEffectiveIncludeSeries: typeof resolveEffectiveIncludeSeriesTS
-  matchesSeries: typeof matchesSeriesTS
-  resolveSubSeries: typeof resolveSubSeriesTS
+  readonly resolveEffectiveIncludeSeries: (
+    topLevel?: readonly string[],
+    typeSpecific?: readonly string[]
+  ) => string[]
+  readonly matchesSeries: (
+    seriName: string | readonly string[] | null | undefined,
+    effectiveIncludeSeries: readonly string[]
+  ) => boolean
+  readonly resolveSubSeries: (
+    topLevel?: Readonly<Record<string, readonly string[]>>,
+    typeSpecific?: Readonly<Record<string, readonly string[]>>
+  ) => Record<string, string[]>
 }
 
-function isSeriesFilterFns(candidate: unknown): candidate is SeriesFilterFns {
-  if (candidate == null || typeof candidate !== 'object') return false
-  const c = candidate as Record<string, unknown>
-  return typeof c['matchesSeries'] === 'function'
-    && typeof c['resolveEffectiveIncludeSeries'] === 'function'
-    && typeof c['resolveSubSeries'] === 'function'
-}
-
-function tryLoadNapi(): SeriesFilterFns | undefined {
-  const suffixMap: Record<string, string> = {
-    'win32-x64': 'win32-x64-msvc',
-    'linux-x64': 'linux-x64-gnu',
-    'linux-arm64': 'linux-arm64-gnu',
-    'darwin-arm64': 'darwin-arm64',
-    'darwin-x64': 'darwin-x64'
+function requireSeriesFilterFns(): SeriesFilterFns {
+  const candidate = getNativeBinding<SeriesFilterFns>()
+  if (candidate == null) {
+    throw new TypeError('Native series-filter binding is required. Build or install the Rust NAPI package before running tnmsc.')
   }
-  const suffix = suffixMap[`${process.platform}-${process.arch}`]
-  if (suffix == null) return void 0
-
-  const packageName = `@truenine/memory-sync-cli-${suffix}`
-  const binaryFile = `napi-memory-sync-cli.${suffix}.node`
-
-  try {
-    const _require = createRequire(import.meta.url)
-    const candidates = [
-      packageName,
-      `${packageName}/${binaryFile}`,
-      `./${binaryFile}`
-    ]
-
-    for (const specifier of candidates) {
-      try {
-        const loaded = _require(specifier) as unknown
-        const possible = [loaded, (loaded as {default?: unknown})?.default, (loaded as {config?: unknown})?.config]
-        for (const candidate of possible) {
-          if (isSeriesFilterFns(candidate)) return candidate
-        }
-      }
-      catch {}
-    }
+  if (typeof candidate.matchesSeries !== 'function'
+    || typeof candidate.resolveEffectiveIncludeSeries !== 'function'
+    || typeof candidate.resolveSubSeries !== 'function') {
+    throw new TypeError('Native series-filter binding is incomplete. Rebuild the Rust NAPI package before running tnmsc.')
   }
-  catch {
-  } // NAPI unavailable — pure-TS fallback will be used.
-  return void 0
+  return candidate
 }
 
 const {
   resolveEffectiveIncludeSeries,
   matchesSeries,
   resolveSubSeries
-}: SeriesFilterFns = tryLoadNapi() ?? {
-  resolveEffectiveIncludeSeries: resolveEffectiveIncludeSeriesTS,
-  matchesSeries: matchesSeriesTS,
-  resolveSubSeries: resolveSubSeriesTS
-}
+}: SeriesFilterFns = requireSeriesFilterFns()
 
 /**
  * Interface for items that can be filtered by series name

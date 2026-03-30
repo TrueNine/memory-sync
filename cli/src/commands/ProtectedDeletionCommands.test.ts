@@ -229,4 +229,49 @@ describe('protected deletion commands', () => {
       writeSpy.mockRestore()
     }
   })
+
+  it('includes workspace empty directories in clean dry-run results', async () => {
+    const workspaceDir = path.resolve('tmp-workspace-command-dry-run-empty')
+    const generatedDir = path.join(workspaceDir, 'generated')
+    const generatedFile = path.join(generatedDir, 'AGENTS.md')
+    const emptyLeafDir = path.join(workspaceDir, 'scratch', 'empty', 'leaf')
+    const retainedScratchFile = path.join(workspaceDir, 'scratch', 'keep.md')
+    const plugin: OutputPlugin = {
+      type: PluginKind.Output,
+      name: 'DryRunEmptyDirPlugin',
+      log: createMockLogger(),
+      declarativeOutput: true,
+      outputCapabilities: {},
+      async declareOutputFiles() {
+        return [{path: generatedFile, source: {}}]
+      },
+      async declareCleanupPaths() {
+        return {}
+      },
+      async convertContent() {
+        return ''
+      }
+    }
+
+    fs.rmSync(workspaceDir, {recursive: true, force: true})
+    fs.mkdirSync(generatedDir, {recursive: true})
+    fs.mkdirSync(emptyLeafDir, {recursive: true})
+    fs.mkdirSync(path.dirname(retainedScratchFile), {recursive: true})
+    fs.writeFileSync(generatedFile, '# generated', 'utf8')
+    fs.writeFileSync(retainedScratchFile, '# keep', 'utf8')
+
+    try {
+      const ctx = createCommandContext([plugin], workspaceDir)
+      const result = await new DryRunCleanCommand().execute(ctx)
+
+      expect(result).toEqual(expect.objectContaining({
+        success: true,
+        filesAffected: 1,
+        dirsAffected: 3
+      }))
+    }
+    finally {
+      fs.rmSync(workspaceDir, {recursive: true, force: true})
+    }
+  })
 })

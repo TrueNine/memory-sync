@@ -43,6 +43,7 @@ function createCleanContext(
   overrides?: Partial<OutputCleanContext['collectedOutputContext']>,
   pluginOptionsOverrides?: Parameters<typeof mergeConfig>[0]
 ): OutputCleanContext {
+  const workspaceDir = path.resolve('tmp-cleanup-utils-workspace')
   return {
     logger: createMockLogger(),
     fs,
@@ -53,11 +54,10 @@ function createCleanContext(
     collectedOutputContext: {
       workspace: {
         directory: {
-          pathKind: FilePathKind.Relative,
-          path: '.',
-          basePath: '.',
-          getDirectoryName: () => '.',
-          getAbsolutePath: () => path.resolve('.')
+          pathKind: FilePathKind.Absolute,
+          path: workspaceDir,
+          getDirectoryName: () => path.basename(workspaceDir),
+          getAbsolutePath: () => workspaceDir
         },
         projects: []
       },
@@ -200,7 +200,7 @@ describe('collectDeletionTargets', () => {
     expect(result.filesToDelete).toEqual([])
     expect(result.violations).toEqual([expect.objectContaining({
       targetPath: path.resolve(homeDir),
-      protectedPath: path.resolve('knowladge'),
+      protectedPath: path.resolve('tmp-cleanup-utils-workspace', 'knowladge'),
       protectionMode: 'direct'
     })])
   })
@@ -302,7 +302,11 @@ describe('collectDeletionTargets', () => {
         path.resolve(projectChildFile),
         path.resolve(safeDistMarkdownFile)
       ]))
-      expect(new Set(result.dirsToDelete)).toEqual(new Set([path.resolve(globalChildDir)]))
+      expect(new Set(result.dirsToDelete)).toEqual(new Set([
+        path.resolve(globalChildDir),
+        path.resolve(aindexSourceDir),
+        path.resolve(workspaceDir, 'project-a')
+      ]))
       expect(result.violations).toEqual(expect.arrayContaining([
         expect.objectContaining({
           targetPath: path.resolve(protectedDistMdxFile),
@@ -600,6 +604,62 @@ describe('collectDeletionTargets', () => {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
+
+  it('plans workspace empty directories while skipping excluded trees and symlink entries', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-cleanup-empty-sweep-'))
+    const workspaceDir = path.join(tempDir, 'workspace')
+    const sourceLeafDir = path.join(workspaceDir, 'source', 'empty', 'leaf')
+    const sourceKeepFile = path.join(workspaceDir, 'source', 'keep.md')
+    const distEmptyDir = path.join(workspaceDir, 'dist', 'ghost')
+    const nodeModulesEmptyDir = path.join(workspaceDir, 'node_modules', 'pkg', 'ghost')
+    const gitEmptyDir = path.join(workspaceDir, '.git', 'objects', 'info')
+    const symlinkTarget = path.join(tempDir, 'symlink-target')
+    const symlinkParentDir = path.join(workspaceDir, 'symlink-parent')
+    const symlinkPath = path.join(symlinkParentDir, 'linked')
+
+    fs.mkdirSync(sourceLeafDir, {recursive: true})
+    fs.mkdirSync(path.dirname(sourceKeepFile), {recursive: true})
+    fs.mkdirSync(distEmptyDir, {recursive: true})
+    fs.mkdirSync(nodeModulesEmptyDir, {recursive: true})
+    fs.mkdirSync(gitEmptyDir, {recursive: true})
+    fs.mkdirSync(symlinkTarget, {recursive: true})
+    fs.mkdirSync(symlinkParentDir, {recursive: true})
+    fs.writeFileSync(sourceKeepFile, '# keep', 'utf8')
+
+    try {
+      const symlinkType: 'junction' | 'dir' = process.platform === 'win32' ? 'junction' : 'dir'
+      fs.symlinkSync(symlinkTarget, symlinkPath, symlinkType)
+
+      const ctx = createCleanContext({
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: workspaceDir,
+            getDirectoryName: () => path.basename(workspaceDir),
+            getAbsolutePath: () => workspaceDir
+          },
+          projects: []
+        }
+      })
+      const plugin = createMockOutputPlugin('MockOutputPlugin', [])
+
+      const result = await collectDeletionTargets([plugin], ctx)
+
+      expect(result.filesToDelete).toEqual([])
+      expect(result.dirsToDelete).toEqual([
+        path.resolve(workspaceDir, 'source', 'empty'),
+        path.resolve(sourceLeafDir)
+      ])
+      expect(result.dirsToDelete).not.toContain(path.resolve(workspaceDir))
+      expect(result.dirsToDelete).not.toContain(path.resolve(distEmptyDir))
+      expect(result.dirsToDelete).not.toContain(path.resolve(nodeModulesEmptyDir))
+      expect(result.dirsToDelete).not.toContain(path.resolve(gitEmptyDir))
+      expect(result.dirsToDelete).not.toContain(path.resolve(symlinkParentDir))
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
 })
 
 describe('performCleanup', () => {
@@ -634,13 +694,15 @@ describe('performCleanup', () => {
 
       expect(result).toEqual(expect.objectContaining({
         deletedFiles: 1,
-        deletedDirs: 1,
+        deletedDirs: 3,
         errors: [],
         violations: [],
         conflicts: []
       }))
       expect(fs.existsSync(outputFile)).toBe(false)
       expect(fs.existsSync(outputDir)).toBe(false)
+      expect(fs.existsSync(path.dirname(outputFile))).toBe(false)
+      expect(fs.existsSync(path.dirname(outputDir))).toBe(false)
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
@@ -684,6 +746,52 @@ describe('performCleanup', () => {
       ]))
       expect(logger.debugMessages).not.toContainEqual(expect.objectContaining({path: outputFile}))
       expect(logger.debugMessages).not.toContainEqual(expect.objectContaining({path: outputDir}))
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('deletes generated files and then prunes workspace empty directories', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-perform-cleanup-empty-sweep-'))
+    const outputFile = path.join(tempDir, 'generated', 'AGENTS.md')
+    const emptyLeafDir = path.join(tempDir, 'scratch', 'empty', 'leaf')
+    const retainedScratchFile = path.join(tempDir, 'scratch', 'keep.md')
+
+    fs.mkdirSync(path.dirname(outputFile), {recursive: true})
+    fs.mkdirSync(emptyLeafDir, {recursive: true})
+    fs.mkdirSync(path.dirname(retainedScratchFile), {recursive: true})
+    fs.writeFileSync(outputFile, '# agent', 'utf8')
+    fs.writeFileSync(retainedScratchFile, '# keep', 'utf8')
+
+    try {
+      const ctx = createCleanContext({
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: tempDir,
+            getDirectoryName: () => path.basename(tempDir),
+            getAbsolutePath: () => tempDir
+          },
+          projects: []
+        }
+      })
+      const plugin = createMockOutputPlugin('MockOutputPlugin', [outputFile])
+
+      const result = await performCleanup([plugin], ctx, createMockLogger())
+
+      expect(result).toEqual(expect.objectContaining({
+        deletedFiles: 1,
+        deletedDirs: 3,
+        errors: [],
+        violations: [],
+        conflicts: []
+      }))
+      expect(fs.existsSync(outputFile)).toBe(false)
+      expect(fs.existsSync(path.dirname(outputFile))).toBe(false)
+      expect(fs.existsSync(path.join(tempDir, 'scratch', 'empty', 'leaf'))).toBe(false)
+      expect(fs.existsSync(path.join(tempDir, 'scratch', 'empty'))).toBe(false)
+      expect(fs.existsSync(path.join(tempDir, 'scratch'))).toBe(true)
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})

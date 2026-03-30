@@ -4,7 +4,7 @@ export default {
   'pipeline': '同步管线',
   'source-of-truth': '单一真源模型',
   'documentation-components': '文档组件',
-  'global-and-workspace-prompts': '全局与工作区 Prompt',
+  'global-and-workspace-prompts': '全局与项目 Prompt',
   'skills': 'Skills',
   'commands': 'Commands',
   'subagents': 'Sub-agents',

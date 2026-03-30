@@ -9,7 +9,6 @@ delete process.env['VITEST']
 delete process.env['VITEST_WORKER_ID']
 
 const cleanupModule = await import('../src/commands/CleanupUtils')
-const fallbackModule = await import('../src/commands/CleanupUtils.fallback')
 const pluginCore = await import('../src/plugins/plugin-core')
 
 function createMockLogger(): ILogger {
@@ -106,21 +105,18 @@ async function main(): Promise<void> {
     const cleanCtx = createCleanContext(workspaceDir)
 
     const nativePlan = await cleanupModule.collectDeletionTargets([plugin], cleanCtx)
-    const fallbackPlan = await fallbackModule.collectDeletionTargets([plugin], cleanCtx)
-
-    const sortPaths = (value: {filesToDelete: string[], dirsToDelete: string[], excludedScanGlobs: string[]}) => ({
-      ...value,
-      filesToDelete: [...value.filesToDelete].sort(),
-      dirsToDelete: [...value.dirsToDelete].sort(),
-      excludedScanGlobs: [...value.excludedScanGlobs].sort()
-    })
-
-    if (JSON.stringify(sortPaths(nativePlan)) !== JSON.stringify(sortPaths(fallbackPlan))) {
-      throw new Error(`Native cleanup plan mismatch.\nNative: ${JSON.stringify(nativePlan, null, 2)}\nFallback: ${JSON.stringify(fallbackPlan, null, 2)}`)
+    expectSetEqual(nativePlan.filesToDelete, [rootOutput, childOutput], 'native cleanup plan files')
+    expectSetEqual(nativePlan.dirsToDelete, [
+      legacySkillDir,
+      path.join(workspaceDir, 'project-a', 'commands'),
+      path.join(workspaceDir, 'project-a')
+    ], 'native cleanup plan directories')
+    if (nativePlan.violations.length > 0 || nativePlan.conflicts.length > 0) {
+      throw new Error(`Unexpected native cleanup plan: ${JSON.stringify(nativePlan, null, 2)}`)
     }
 
     const result = await cleanupModule.performCleanup([plugin], cleanCtx, createMockLogger())
-    if (result.deletedFiles !== 2 || result.deletedDirs !== 1 || result.errors.length > 0) {
+    if (result.deletedFiles !== 2 || result.deletedDirs !== 3 || result.errors.length > 0) {
       throw new Error(`Unexpected native cleanup result: ${JSON.stringify(result, null, 2)}`)
     }
 
@@ -135,6 +131,14 @@ async function main(): Promise<void> {
   }
   finally {
     fs.rmSync(tempDir, {recursive: true, force: true})
+  }
+}
+
+function expectSetEqual(actual: readonly string[], expected: readonly string[], label: string): void {
+  const actualSorted = [...actual].sort()
+  const expectedSorted = [...expected].sort()
+  if (JSON.stringify(actualSorted) !== JSON.stringify(expectedSorted)) {
+    throw new Error(`Unexpected ${label}: ${JSON.stringify(actualSorted)} !== ${JSON.stringify(expectedSorted)}`)
   }
 }
 
