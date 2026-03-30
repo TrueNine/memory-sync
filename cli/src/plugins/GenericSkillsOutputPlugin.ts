@@ -8,6 +8,7 @@ import {Buffer} from 'node:buffer'
 import {AbstractOutputPlugin, filterByProjectConfig} from './plugin-core'
 
 const PROJECT_SKILLS_DIR = '.agents/skills'
+const LEGACY_SKILLS_DIR = '.skills'
 const SKILL_FILE_NAME = 'SKILL.md'
 const MCP_CONFIG_FILE = 'mcp.json'
 
@@ -26,6 +27,9 @@ type GenericSkillOutputSource
  *
  * Structure:
  * - Project: <project>/.agents/skills/<skill-name>/SKILL.md, mcp.json, child docs, resources
+ *
+ * @deprecated Legacy compact skills output. Cleanup must remove the entire
+ * global `~/.skills/` directory in addition to the current skill targets.
  */
 export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
   constructor() {
@@ -36,10 +40,10 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       cleanup: {
         delete: {
           project: {
-            dirs: [PROJECT_SKILLS_DIR, '.skills']
+            dirs: [PROJECT_SKILLS_DIR, LEGACY_SKILLS_DIR]
           },
           global: {
-            dirs: [PROJECT_SKILLS_DIR]
+            dirs: [PROJECT_SKILLS_DIR, LEGACY_SKILLS_DIR]
           }
         }
       },

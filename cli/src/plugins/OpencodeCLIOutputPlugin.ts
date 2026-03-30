@@ -1,15 +1,7 @@
 import type {CommandPrompt, OutputFileDeclaration, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt} from './plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {
-  AbstractOutputPlugin,
-  applySubSeriesGlobPrefix,
-  collectMcpServersFromSkills,
-  filterByProjectConfig,
-  PLUGIN_NAMES,
-  transformMcpConfigForOpencode,
-  transformMcpServerMap
-} from './plugin-core'
+import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterByProjectConfig, PLUGIN_NAMES} from './plugin-core'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.config/opencode'
@@ -87,11 +79,11 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
             dirs: ['.opencode/commands', '.opencode/agents', '.opencode/skills', '.opencode/rules']
           },
           global: {
-            files: ['.config/opencode/AGENTS.md', '.config/opencode/opencode.json'],
+            files: ['.config/opencode/AGENTS.md'],
             dirs: ['.config/opencode/commands', '.config/opencode/agents', '.config/opencode/skills', '.config/opencode/rules']
           },
           xdgConfig: {
-            files: ['opencode/AGENTS.md', 'opencode/opencode.json'],
+            files: ['opencode/AGENTS.md'],
             dirs: ['opencode/commands', 'opencode/agents', 'opencode/skills', 'opencode/rules']
           }
         }
@@ -181,22 +173,6 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       })
     }
 
-    const pushMcpDeclaration = (basePath: string, scope: 'project' | 'global', filteredSkills: readonly SkillPrompt[]): void => {
-      if (filteredSkills.length === 0) return
-
-      const servers = collectMcpServersFromSkills(filteredSkills, this.log)
-      if (servers.size === 0) return
-
-      declarations.push({
-        path: path.join(basePath, OPENCODE_CONFIG_FILE),
-        scope,
-        source: {
-          kind: 'mcpConfig',
-          mcpServers: transformMcpServerMap(servers, transformMcpConfigForOpencode)
-        } satisfies OpencodeOutputSource
-      })
-    }
-
     const pushSkillDeclarations = (basePath: string, scope: 'project' | 'global', filteredSkills: readonly SkillPrompt[]): void => {
       for (const skill of filteredSkills) {
         const normalizedSkillName = this.validateAndNormalizeSkillName(this.getSkillName(skill))
@@ -239,6 +215,18 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
           }
         }
       }
+    }
+
+    const pushMcpDeclaration = (basePath: string, scope: 'project' | 'global', _filteredSkills: readonly SkillPrompt[]): void => {
+      void _filteredSkills
+      declarations.push({
+        path: path.join(basePath, OPENCODE_CONFIG_FILE),
+        scope,
+        source: {
+          kind: 'mcpConfig',
+          mcpServers: {}
+        } satisfies OpencodeOutputSource
+      })
     }
 
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
@@ -307,8 +295,10 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
         const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
         if (selectedSkills.selectedScope === 'project') pushSkillDeclarations(basePath, 'project', filteredSkills)
 
-        const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, project.projectConfig, 'skills')
-        if (selectedMcpSkills.selectedScope === 'project') pushMcpDeclaration(basePath, 'project', filteredMcpSkills)
+        if (selectedMcpSkills.selectedScope === 'project') {
+          const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, project.projectConfig, 'skills')
+          pushMcpDeclaration(basePath, 'project', filteredMcpSkills)
+        }
       }
     }
 
@@ -343,6 +333,9 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, promptSourceProjectConfig, 'skills')
       pushMcpDeclaration(globalDir, 'global', filteredMcpSkills)
     }
+
+    // Keep opencode.json managed so the generated config can preserve user fields
+    // while normalizing the MCP section to an empty object.
 
     if (rules == null || rules.length === 0) return declarations
 
@@ -409,7 +402,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
           {
             $schema: 'https://opencode.ai/config.json',
             plugin: [OPENCODE_RULES_PLUGIN_NAME],
-            mcp: source.mcpServers
+            mcp: {}
           },
           null,
           2
