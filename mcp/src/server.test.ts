@@ -12,6 +12,7 @@ const tempDirs: string[] = []
 const serverMainPath = fileURLToPath(new URL('./main.ts', import.meta.url))
 const tsxPackageJsonPath = fileURLToPath(new URL('../node_modules/tsx/package.json', import.meta.url))
 const tsxCliPath = path.join(path.dirname(tsxPackageJsonPath), 'dist', 'cli.mjs')
+const cliNativeBindingSetupPath = fileURLToPath(new URL('../test/setup-native-binding.ts', import.meta.url))
 
 function createTempDir(prefix: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
@@ -20,8 +21,7 @@ function createTempDir(prefix: string): string {
 }
 
 function createTransportEnv(homeDir: string): Record<string, string> {
-  const envEntries = Object.entries(process.env)
-    .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+  const envEntries = Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')
 
   return {
     ...Object.fromEntries(envEntries),
@@ -30,7 +30,9 @@ function createTransportEnv(homeDir: string): Record<string, string> {
     XDG_CACHE_HOME: path.join(homeDir, '.cache'),
     XDG_CONFIG_HOME: path.join(homeDir, '.config'),
     XDG_DATA_HOME: path.join(homeDir, '.local', 'share'),
-    XDG_STATE_HOME: path.join(homeDir, '.local', 'state')
+    XDG_STATE_HOME: path.join(homeDir, '.local', 'state'),
+    VITEST: 'true',
+    NODE_ENV: 'test'
   }
 }
 
@@ -40,17 +42,13 @@ interface TextContentBlock {
 }
 
 function getTextBlock(result: unknown): string {
-  if (
-    typeof result !== 'object'
-    || result == null
-    || !('content' in result)
-    || !Array.isArray(result.content)
-  ) {
+  if (typeof result !== 'object' || result == null || !('content' in result) || !Array.isArray(result.content)) {
     throw new Error('Expected content blocks in MCP result')
   }
 
-  const textBlock = result.content
-    .find((block): block is TextContentBlock => typeof block === 'object' && block != null && 'type' in block && (block as {type?: unknown}).type === 'text')
+  const textBlock = result.content.find(
+    (block): block is TextContentBlock => typeof block === 'object' && block != null && 'type' in block && (block as {type?: unknown}).type === 'text'
+  )
   if (textBlock?.text == null) throw new Error('Expected a text content block in MCP result')
   return textBlock.text
 }
@@ -73,28 +71,21 @@ describe('memory-sync MCP stdio server', () => {
     })
     const transport = new StdioClientTransport({
       command: process.execPath,
-      args: [tsxCliPath, serverMainPath],
+      args: [tsxCliPath, '--import', cliNativeBindingSetupPath, serverMainPath],
       cwd: workspaceDir,
       env: createTransportEnv(homeDir),
       stderr: 'pipe'
     })
     let stderrOutput = ''
 
-    transport.stderr?.on('data', (chunk: Buffer | string) => stderrOutput += String(chunk))
+    transport.stderr?.on('data', (chunk: Buffer | string) => (stderrOutput += String(chunk)))
 
     try {
       await client.connect(transport)
 
       const tools = await client.listTools()
-      expect(tools.tools.map(tool => tool.name).sort()).toEqual([
-        'apply_prompt_translation',
-        'get_prompt',
-        'list_prompts',
-        'upsert_prompt_src'
-      ])
-      expect(
-        tools.tools.find(tool => tool.name === 'apply_prompt_translation')?.inputSchema.properties
-      ).toMatchObject({
+      expect(tools.tools.map(tool => tool.name).sort()).toEqual(['apply_prompt_translation', 'get_prompt', 'list_prompts', 'upsert_prompt_src'])
+      expect(tools.tools.find(tool => tool.name === 'apply_prompt_translation')?.inputSchema.properties).toMatchObject({
         promptId: expect.any(Object),
         enContent: expect.any(Object),
         distContent: expect.any(Object)
@@ -241,14 +232,12 @@ describe('memory-sync MCP stdio server', () => {
       })
       const filteredPrompts = parseToolResult<{prompts: {promptId: string}[]}>(filteredListResult)
       expect(filteredPrompts.prompts.map(prompt => prompt.promptId)).toEqual(['command:demo/build'])
-    }
-    catch (error) {
+    } catch (error) {
       if (stderrOutput.trim().length === 0) throw error
 
       const errorMessage = error instanceof Error ? error.message : String(error)
       throw new Error(`${errorMessage}\nMCP stderr:\n${stderrOutput.trim()}`)
-    }
-    finally {
+    } finally {
       await client.close()
     }
   })

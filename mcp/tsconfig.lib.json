@@ -3,10 +3,5 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": [
-    "src/**/*",
-    "eslint.config.ts",
-    "tsdown.config.ts",
-    "vitest.config.ts"
-  ]
+  "include": ["src/**/*", "test/**/*.ts", "eslint.config.ts", "tsdown.config.ts", "vitest.config.ts"]
 }

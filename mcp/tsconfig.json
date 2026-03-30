@@ -5,22 +5,16 @@
     "incremental": true,
     "composite": false,
     "target": "ESNext",
-    "lib": [
-      "ESNext"
-    ],
+    "lib": ["ESNext"],
     "moduleDetection": "force",
     "useDefineForClassFields": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"]
     },
     "resolveJsonModule": true,
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "allowImportingTsExtensions": true,
     "strict": true,
     "strictBindCallApply": true,
@@ -57,14 +51,6 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
-  "include": [
-    "src/**/*",
-    "eslint.config.ts",
-    "tsdown.config.ts",
-    "vitest.config.ts"
-  ],
-  "exclude": [
-    "../node_modules",
-    "dist"
-  ]
+  "include": ["src/**/*", "test/**/*.ts", "eslint.config.ts", "tsdown.config.ts", "vitest.config.ts"],
+  "exclude": ["../node_modules", "dist"]
 }
