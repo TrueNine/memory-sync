@@ -122,12 +122,10 @@ fn merge_scopes(
 fn extract_yaml_frontmatter(ast: &markdown::mdast::Node) -> Option<HashMap<String, Value>> {
     if let markdown::mdast::Node::Root(root) = ast {
         for child in &root.children {
-            if let markdown::mdast::Node::Yaml(yaml) = child {
-                if let Ok(parsed) = serde_yml::from_str::<Value>(&yaml.value) {
-                    if let Value::Object(map) = parsed {
-                        return Some(map.into_iter().collect());
-                    }
-                }
+            if let markdown::mdast::Node::Yaml(yaml) = child
+                && let Ok(Value::Object(map)) = serde_yml::from_str::<Value>(&yaml.value)
+            {
+                return Some(map.into_iter().collect());
             }
         }
     }
@@ -147,13 +145,13 @@ fn extract_exports_from_source(source: &str) -> HashMap<String, Value> {
         }
 
         // Try to parse: export const NAME = VALUE
-        if let Some(rest) = trimmed.strip_prefix("export const ") {
-            if let Some(eq_pos) = rest.find('=') {
-                let name = rest[..eq_pos].trim();
-                let value_str = rest[eq_pos + 1..].trim();
-                if let Ok(val) = serde_json::from_str::<Value>(value_str) {
-                    exports.insert(name.to_string(), val);
-                }
+        if let Some(rest) = trimmed.strip_prefix("export const ")
+            && let Some(eq_pos) = rest.find('=')
+        {
+            let name = rest[..eq_pos].trim();
+            let value_str = rest[eq_pos + 1..].trim();
+            if let Ok(val) = serde_json::from_str::<Value>(value_str) {
+                exports.insert(name.to_string(), val);
             }
         }
     }

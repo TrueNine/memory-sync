@@ -188,7 +188,7 @@ fn detect_node_command() -> Result<OsString, String> {
 
 fn build_aindex_public_dir(aindex_dir: &str) -> Result<PathBuf, String> {
     let normalized = absolute_base_path(aindex_dir)?;
-    Ok(normalize_path(&normalized.join("public"))?)
+    normalize_path(&normalized.join("public"))
 }
 
 fn read_pipe_to_string<R: Read>(pipe: &mut Option<R>, label: &str) -> Result<String, String> {

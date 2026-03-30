@@ -5,7 +5,6 @@
 ///
 /// These tests read the source file at compile time (via `include_str!`) and
 /// assert that the removed function definitions are no longer present.
-
 const COMMANDS_SRC: &str = include_str!("../src/commands.rs");
 
 /// Helper: assert a `fn <name>` definition is absent from the source.

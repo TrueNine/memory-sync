@@ -127,10 +127,10 @@ fn evaluate_simple_reference(reference: &str, scope: &EvaluationScope) -> Result
 
 /// Try to parse a string literal ("..." or '...').
 fn try_parse_string_literal(s: &str) -> Option<String> {
-    if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
-        if s.len() >= 2 {
-            return Some(s[1..s.len() - 1].to_string());
-        }
+    if ((s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')))
+        && s.len() >= 2
+    {
+        return Some(s[1..s.len() - 1].to_string());
     }
     None
 }

@@ -175,18 +175,18 @@ fn parse_key_value_pairs(args: &ConfigArgs) -> Vec<(String, String)> {
     let mut pairs = Vec::new();
 
     for s in &args.set {
-        if let Some(eq_idx) = s.find('=') {
-            if eq_idx > 0 {
-                pairs.push((s[..eq_idx].to_string(), s[eq_idx + 1..].to_string()));
-            }
+        if let Some(eq_idx) = s.find('=')
+            && eq_idx > 0
+        {
+            pairs.push((s[..eq_idx].to_string(), s[eq_idx + 1..].to_string()));
         }
     }
 
     for s in &args.positional {
-        if let Some(eq_idx) = s.find('=') {
-            if eq_idx > 0 {
-                pairs.push((s[..eq_idx].to_string(), s[eq_idx + 1..].to_string()));
-            }
+        if let Some(eq_idx) = s.find('=')
+            && eq_idx > 0
+        {
+            pairs.push((s[..eq_idx].to_string(), s[eq_idx + 1..].to_string()));
         }
     }
 

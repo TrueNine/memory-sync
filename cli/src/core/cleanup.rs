@@ -464,6 +464,9 @@ struct GlobTargetMetadata {
     exclude_basenames: Vec<String>,
 }
 
+type GlobMatchResults = Vec<(usize, Vec<String>)>;
+type BatchedGlobExecutionResult = (GlobMatchResults, GlobMatchResults);
+
 /// Batched glob planner that groups patterns by scan root and ignore set.
 /// This reduces the number of directory walks from O(patterns) to O(unique scan roots).
 #[derive(Debug)]
@@ -526,7 +529,7 @@ impl BatchedGlobPlanner {
 
     /// Execute the batched glob expansion and fan results back to targets.
     /// Returns (protected_matches, delete_matches) where each is a vec of (target_index, matched_paths).
-    fn execute(&self) -> Result<(Vec<(usize, Vec<String>)>, Vec<(usize, Vec<String>)>), String> {
+    fn execute(&self) -> Result<BatchedGlobExecutionResult, String> {
         let mut protected_results: HashMap<usize, Vec<String>> = HashMap::new();
         let mut delete_results: HashMap<usize, Vec<String>> = HashMap::new();
 
@@ -554,16 +557,17 @@ impl BatchedGlobPlanner {
             let normalized_entry = path_to_string(&absolute_path);
 
             // Check exclude_basenames for delete targets
-            if !metadata.is_protected && !metadata.exclude_basenames.is_empty() {
-                if let Some(basename) = Path::new(&normalized_entry).file_name() {
-                    let basename_str = basename.to_string_lossy();
-                    if metadata
-                        .exclude_basenames
-                        .iter()
-                        .any(|excluded| excluded == basename_str.as_ref())
-                    {
-                        continue;
-                    }
+            if !metadata.is_protected
+                && !metadata.exclude_basenames.is_empty()
+                && let Some(basename) = Path::new(&normalized_entry).file_name()
+            {
+                let basename_str = basename.to_string_lossy();
+                if metadata
+                    .exclude_basenames
+                    .iter()
+                    .any(|excluded| excluded == basename_str.as_ref())
+                {
+                    continue;
                 }
             }
 
@@ -622,16 +626,17 @@ impl BatchedGlobPlanner {
                     let metadata = &self.metadata[pattern_index];
 
                     // Check exclude_basenames for delete targets
-                    if !metadata.is_protected && !metadata.exclude_basenames.is_empty() {
-                        if let Some(basename) = Path::new(&normalized_entry).file_name() {
-                            let basename_str = basename.to_string_lossy();
-                            if metadata
-                                .exclude_basenames
-                                .iter()
-                                .any(|excluded| excluded == basename_str.as_ref())
-                            {
-                                continue;
-                            }
+                    if !metadata.is_protected
+                        && !metadata.exclude_basenames.is_empty()
+                        && let Some(basename) = Path::new(&normalized_entry).file_name()
+                    {
+                        let basename_str = basename.to_string_lossy();
+                        if metadata
+                            .exclude_basenames
+                            .iter()
+                            .any(|excluded| excluded == basename_str.as_ref())
+                        {
+                            continue;
                         }
                     }
 
@@ -889,7 +894,7 @@ fn collect_workspace_reserved_rules(
             rules.push(create_protected_rule(
                 &format!("{workspace_dir}/aindex/{series_name}/**/*.mdx"),
                 ProtectionModeDto::Direct,
-                &format!("reserved workspace aindex {series_name} mdx files"),
+                format!("reserved workspace aindex {series_name} mdx files"),
                 "workspace-reserved",
                 Some(ProtectionRuleMatcherDto::Glob),
             ));
@@ -2007,10 +2012,10 @@ mod tests {
         let logs_dir = workspace_dir.join("logs");
 
         // Create test directories
-        fs::create_dir_all(&cache_dir.join("sub1")).unwrap();
-        fs::create_dir_all(&cache_dir.join("sub2")).unwrap();
-        fs::create_dir_all(&temp_dir_path.join("tmp1")).unwrap();
-        fs::create_dir_all(&logs_dir.join("2024")).unwrap();
+        fs::create_dir_all(cache_dir.join("sub1")).unwrap();
+        fs::create_dir_all(cache_dir.join("sub2")).unwrap();
+        fs::create_dir_all(temp_dir_path.join("tmp1")).unwrap();
+        fs::create_dir_all(logs_dir.join("2024")).unwrap();
 
         let snapshot = single_plugin_snapshot(
             &workspace_dir,
@@ -2243,8 +2248,8 @@ mod tests {
         let project_a = workspace_dir.join("project-a/temp");
         let project_b = workspace_dir.join("project-b/temp");
 
-        fs::create_dir_all(&project_a.join("old")).unwrap();
-        fs::create_dir_all(&project_b.join("cache")).unwrap();
+        fs::create_dir_all(project_a.join("old")).unwrap();
+        fs::create_dir_all(project_b.join("cache")).unwrap();
 
         // Multi-plugin snapshot to test cross-plugin batching
         let snapshot = CleanupSnapshot {
