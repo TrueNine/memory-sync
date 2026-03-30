@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-gui",
-  "version": "2026.10330.108",
+  "version": "2026.10330.118",
   "private": true,
   "engines": {
     "node": ">=25.2.1",
