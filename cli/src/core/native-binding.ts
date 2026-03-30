@@ -1,23 +1,16 @@
 import {createRequire} from 'node:module'
 import process from 'node:process'
 
-declare global {
-  interface GlobalThis {
-    __TNMSC_TEST_NATIVE_BINDING__?: object
-  }
-}
-
 function shouldSkipNativeBinding(): boolean {
   if (process.env['TNMSC_FORCE_NATIVE_BINDING'] === '1') return false
   if (process.env['TNMSC_DISABLE_NATIVE_BINDING'] === '1') return true
 
-  return process.env['NODE_ENV'] === 'test'
-    || process.env['VITEST'] != null
-    || process.env['VITEST_WORKER_ID'] != null
+  return process.env['NODE_ENV'] === 'test' || process.env['VITEST'] != null || process.env['VITEST_WORKER_ID'] != null
 }
 
 export function tryLoadNativeBinding<T extends object>(): T | undefined {
-  const testBinding: unknown = globalThis.__TNMSC_TEST_NATIVE_BINDING__
+  const testGlobals = globalThis as typeof globalThis & {__TNMSC_TEST_NATIVE_BINDING__?: object}
+  const testBinding: unknown = testGlobals.__TNMSC_TEST_NATIVE_BINDING__
   if (testBinding != null && typeof testBinding === 'object') return testBinding as T
   if (shouldSkipNativeBinding()) return void 0
 
@@ -58,12 +51,9 @@ export function tryLoadNativeBinding<T extends object>(): T | undefined {
         for (const candidate of possibleBindings) {
           if (candidate != null && typeof candidate === 'object') return candidate as T
         }
-      }
-      catch {}
+      } catch {}
     }
-  }
-  catch {
-  }
+  } catch {}
 
   return void 0
 }

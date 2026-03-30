@@ -1,45 +1,51 @@
-import type {
-  ProjectConfig,
-  RulePrompt,
-  SeriName
-} from './types'
+import type {ProjectConfig, RulePrompt, SeriName} from './types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {getNativeBinding} from '@/core/native-binding'
 
 interface SeriesFilterFns {
-  readonly resolveEffectiveIncludeSeries: (
-    topLevel?: readonly string[],
-    typeSpecific?: readonly string[]
-  ) => string[]
-  readonly matchesSeries: (
-    seriName: string | readonly string[] | null | undefined,
-    effectiveIncludeSeries: readonly string[]
-  ) => boolean
+  readonly resolveEffectiveIncludeSeries: (topLevel?: readonly string[], typeSpecific?: readonly string[]) => string[]
+  readonly matchesSeries: (seriName: string | readonly string[] | null | undefined, effectiveIncludeSeries: readonly string[]) => boolean
   readonly resolveSubSeries: (
     topLevel?: Readonly<Record<string, readonly string[]>>,
     typeSpecific?: Readonly<Record<string, readonly string[]>>
   ) => Record<string, string[]>
 }
 
-function requireSeriesFilterFns(): SeriesFilterFns {
+let seriesFilterFnsCache: SeriesFilterFns | undefined
+
+function getSeriesFilterFns(): SeriesFilterFns {
+  if (seriesFilterFnsCache != null) return seriesFilterFnsCache
+
   const candidate = getNativeBinding<SeriesFilterFns>()
   if (candidate == null) {
     throw new TypeError('Native series-filter binding is required. Build or install the Rust NAPI package before running tnmsc.')
   }
-  if (typeof candidate.matchesSeries !== 'function'
+  if (
+    typeof candidate.matchesSeries !== 'function'
     || typeof candidate.resolveEffectiveIncludeSeries !== 'function'
-    || typeof candidate.resolveSubSeries !== 'function') {
+    || typeof candidate.resolveSubSeries !== 'function'
+  ) {
     throw new TypeError('Native series-filter binding is incomplete. Rebuild the Rust NAPI package before running tnmsc.')
   }
+  seriesFilterFnsCache = candidate
   return candidate
 }
 
-const {
-  resolveEffectiveIncludeSeries,
-  matchesSeries,
-  resolveSubSeries
-}: SeriesFilterFns = requireSeriesFilterFns()
+function resolveEffectiveIncludeSeries(topLevel?: readonly string[], typeSpecific?: readonly string[]): string[] {
+  return getSeriesFilterFns().resolveEffectiveIncludeSeries(topLevel, typeSpecific)
+}
+
+function matchesSeries(seriName: string | readonly string[] | null | undefined, effectiveIncludeSeries: readonly string[]): boolean {
+  return getSeriesFilterFns().matchesSeries(seriName, effectiveIncludeSeries)
+}
+
+function resolveSubSeries(
+  topLevel?: Readonly<Record<string, readonly string[]>>,
+  typeSpecific?: Readonly<Record<string, readonly string[]>>
+): Record<string, string[]> {
+  return getSeriesFilterFns().resolveSubSeries(topLevel, typeSpecific)
+}
 
 /**
  * Interface for items that can be filtered by series name
@@ -58,10 +64,7 @@ export function filterByProjectConfig<T extends SeriesFilterable>(
   projectConfig: ProjectConfig | undefined,
   configPath: FilterConfigPath
 ): readonly T[] {
-  const effectiveSeries = resolveEffectiveIncludeSeries(
-    projectConfig?.includeSeries,
-    projectConfig?.[configPath]?.includeSeries
-  )
+  const effectiveSeries = resolveEffectiveIncludeSeries(projectConfig?.includeSeries, projectConfig?.[configPath]?.includeSeries)
   return items.filter(item => matchesSeries(item.seriName, effectiveSeries))
 }
 
@@ -77,10 +80,7 @@ function smartConcatGlob(prefix: string, glob: string): string {
   return `${prefix}/${glob}`
 }
 
-function extractPrefixAndBaseGlob(
-  glob: string,
-  prefixes: readonly string[]
-): {prefix: string | null, baseGlob: string} {
+function extractPrefixAndBaseGlob(glob: string, prefixes: readonly string[]): {prefix: string | null, baseGlob: string} {
   for (const prefix of prefixes) {
     const normalizedPrefix = prefix.replaceAll(/\/+$/g, '')
     const patterns = [
@@ -95,10 +95,7 @@ function extractPrefixAndBaseGlob(
   return {prefix: null, baseGlob: glob}
 }
 
-export function applySubSeriesGlobPrefix(
-  rules: readonly RulePrompt[],
-  projectConfig: ProjectConfig | undefined
-): readonly RulePrompt[] {
+export function applySubSeriesGlobPrefix(rules: readonly RulePrompt[], projectConfig: ProjectConfig | undefined): readonly RulePrompt[] {
   const subSeries = resolveSubSeries(projectConfig?.subSeries, projectConfig?.rules?.subSeries)
   if (Object.keys(subSeries).length === 0) return rules
 
@@ -115,9 +112,7 @@ export function applySubSeriesGlobPrefix(
 
     const matchedPrefixes: string[] = []
     for (const [subdir, seriNames] of Object.entries(normalizedSubSeries)) {
-      const matched = Array.isArray(rule.seriName)
-        ? rule.seriName.some(name => seriNames.includes(name))
-        : seriNames.includes(rule.seriName)
+      const matched = Array.isArray(rule.seriName) ? rule.seriName.some(name => seriNames.includes(name)) : seriNames.includes(rule.seriName)
       if (matched) matchedPrefixes.push(subdir)
     }
 
@@ -168,9 +163,7 @@ export function resolveGitInfoDir(projectDir: string): string | null {
         const gitdir = path.resolve(projectDir, match[1])
         return path.join(gitdir, 'info')
       }
-    }
-    catch {
-    } // ignore read errors
+    } catch {} // ignore read errors
   }
 
   return null
@@ -193,8 +186,7 @@ export function findAllGitRepos(rootDir: string, maxDepth = 5): string[] {
       const raw = fs.readdirSync(dir, {withFileTypes: true})
       if (!Array.isArray(raw)) return
       entries = raw
-    }
-    catch {
+    } catch {
       return
     }
 
@@ -229,8 +221,7 @@ export function findGitModuleInfoDirs(dotGitDir: string): string[] {
       const raw = fs.readdirSync(dir, {withFileTypes: true})
       if (!Array.isArray(raw)) return
       entries = raw
-    }
-    catch {
+    } catch {
       return
     }
 
@@ -245,8 +236,7 @@ export function findGitModuleInfoDirs(dotGitDir: string): string[] {
       const raw = fs.readdirSync(path.join(dir, 'modules'), {withFileTypes: true})
       if (!Array.isArray(raw)) return
       subEntries = raw
-    }
-    catch {
+    } catch {
       return
     }
     for (const sub of subEntries) {
@@ -259,8 +249,7 @@ export function findGitModuleInfoDirs(dotGitDir: string): string[] {
     const raw = fs.readdirSync(modulesDir, {withFileTypes: true})
     if (!Array.isArray(raw)) return results
     topEntries = raw
-  }
-  catch {
+  } catch {
     return results
   }
 

@@ -49,7 +49,9 @@
   },
   "scripts": {
     "build": "run-s build:deps build:napi bundle finalize:bundle generate:schema",
-    "build:napi": "tsx ../scripts/copy-napi.ts",
+    "build:napi": "run-s build:native build:napi:copy",
+    "build:napi:copy": "tsx ../scripts/copy-napi.ts",
+    "build:native": "napi build --platform --release --output-dir dist -- --features napi",
     "build:deps": "pnpm -F @truenine/logger -F @truenine/md-compiler -F @truenine/script-runtime run build",
     "build:deps:ts": "pnpm -F @truenine/logger -F @truenine/md-compiler -F @truenine/script-runtime run build:ts",
     "bundle": "tsx ../scripts/build-quiet.ts",

@@ -3,8 +3,8 @@ import type {LoggerDiagnosticInput} from '../../src/plugins/plugin-core'
 import * as fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-import {buildFileOperationDiagnostic} from '@/diagnostics'
-import {resolveRuntimeEnvironment, resolveUserPath} from '@/runtime-environment'
+import {buildFileOperationDiagnostic} from '../../src/diagnostics'
+import {resolveRuntimeEnvironment, resolveUserPath} from '../../src/runtime-environment'
 
 type PlatformFixedDir = 'win32' | 'darwin' | 'linux'
 
@@ -41,8 +41,7 @@ export function deletePathSync(p: string): void {
   if (stat.isSymbolicLink()) {
     if (process.platform === 'win32') fs.rmSync(p, {recursive: true, force: true})
     else fs.unlinkSync(p)
-  }
-  else if (stat.isDirectory()) fs.rmSync(p, {recursive: true, force: true})
+  } else if (stat.isDirectory()) fs.rmSync(p, {recursive: true, force: true})
   else fs.unlinkSync(p)
 }
 
@@ -56,8 +55,7 @@ export function writeFileSync(filePath: string, data: string | Buffer, encoding:
 export function readFileSync(filePath: string, encoding: BufferEncoding = 'utf8'): string {
   try {
     return fs.readFileSync(filePath, encoding)
-  }
-  catch (error) {
+  } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     throw new Error(`Failed to read file "${filePath}": ${msg}`)
   }
@@ -98,8 +96,7 @@ async function deletePath(p: string): Promise<boolean> {
 
     await fs.promises.unlink(p)
     return true
-  }
-  catch (error) {
+  } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
     throw error
   }
@@ -109,19 +106,14 @@ async function deleteEmptyDirectory(p: string): Promise<boolean> {
   try {
     await fs.promises.rmdir(p)
     return true
-  }
-  catch (error) {
+  } catch (error) {
     const {code} = error as NodeJS.ErrnoException
     if (code === 'ENOENT' || code === 'ENOTEMPTY') return false
     throw error
   }
 }
 
-async function mapWithConcurrencyLimit<T, TResult>(
-  items: readonly T[],
-  concurrency: number,
-  worker: (item: T) => Promise<TResult>
-): Promise<TResult[]> {
+async function mapWithConcurrencyLimit<T, TResult>(items: readonly T[], concurrency: number, worker: (item: T) => Promise<TResult>): Promise<TResult[]> {
   if (items.length === 0) return []
 
   const results: TResult[] = []
@@ -147,20 +139,14 @@ async function mapWithConcurrencyLimit<T, TResult>(
   return results
 }
 
-async function deletePaths(
-  paths: readonly string[],
-  options?: {readonly sortByDepthDescending?: boolean}
-): Promise<DeletionResult> {
-  const sortedPaths = options?.sortByDepthDescending === true
-    ? [...paths].sort((a, b) => b.length - a.length || b.localeCompare(a))
-    : [...paths]
+async function deletePaths(paths: readonly string[], options?: {readonly sortByDepthDescending?: boolean}): Promise<DeletionResult> {
+  const sortedPaths = options?.sortByDepthDescending === true ? [...paths].sort((a, b) => b.length - a.length || b.localeCompare(a)) : [...paths]
 
   const results = await mapWithConcurrencyLimit(sortedPaths, DELETE_CONCURRENCY, async currentPath => {
     try {
       const deleted = await deletePath(currentPath)
       return {path: currentPath, deleted}
-    }
-    catch (error) {
+    } catch (error) {
       return {path: currentPath, error}
     }
   })
@@ -201,8 +187,7 @@ export async function deleteEmptyDirectories(dirs: readonly string[]): Promise<D
     try {
       const deleted = await deleteEmptyDirectory(currentPath)
       if (deleted) deletedPaths.push(currentPath)
-    }
-    catch (error) {
+    } catch (error) {
       errors.push({path: currentPath, error})
     }
   }
@@ -214,14 +199,8 @@ export async function deleteEmptyDirectories(dirs: readonly string[]): Promise<D
   }
 }
 
-export async function deleteTargets(targets: {
-  readonly files?: readonly string[]
-  readonly dirs?: readonly string[]
-}): Promise<DeleteTargetsResult> {
-  const [fileResult, dirResult] = await Promise.all([
-    deleteFiles(targets.files ?? []),
-    deleteDirectories(targets.dirs ?? [])
-  ])
+export async function deleteTargets(targets: {readonly files?: readonly string[], readonly dirs?: readonly string[]}): Promise<DeleteTargetsResult> {
+  const [fileResult, dirResult] = await Promise.all([deleteFiles(targets.files ?? []), deleteDirectories(targets.dirs ?? [])])
 
   return {
     deletedFiles: fileResult.deletedPaths,
@@ -264,21 +243,22 @@ export function writeFileSafe(options: SafeWriteOptions): SafeWriteResult {
     writeFileSync(fullPath, content)
     logger.trace({action: 'write', type, path: fullPath})
     return {path: relativePath, success: true}
-  }
-  catch (error) {
+  } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error)
-    logger.error(buildFileOperationDiagnostic({
-      code: 'OUTPUT_FILE_WRITE_FAILED',
-      title: `Failed to write ${type} output`,
-      operation: 'write',
-      targetKind: `${type} output file`,
-      path: fullPath,
-      error: errMsg,
-      details: {
-        relativePath,
-        type
-      }
-    }))
+    logger.error(
+      buildFileOperationDiagnostic({
+        code: 'OUTPUT_FILE_WRITE_FAILED',
+        title: `Failed to write ${type} output`,
+        operation: 'write',
+        targetKind: `${type} output file`,
+        path: fullPath,
+        error: errMsg,
+        details: {
+          relativePath,
+          type
+        }
+      })
+    )
     return {path: relativePath, success: false, error: error as Error}
   }
 }
