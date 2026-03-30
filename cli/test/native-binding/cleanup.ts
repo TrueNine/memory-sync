@@ -12,9 +12,9 @@ import type {DeletionError} from './desk-paths'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
-import {buildDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '@/diagnostics'
 import {compactDeletionTargets} from '../../src/cleanup/delete-targets'
 import {planWorkspaceEmptyDirectoryCleanup} from '../../src/cleanup/empty-directories'
+import {buildDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '../../src/diagnostics'
 import {collectAllPluginOutputs} from '../../src/plugins/plugin-core'
 import {
   buildComparisonKeys,
@@ -231,8 +231,9 @@ async function collectCleanupTargets(
     return target.kind === 'file' ? 'direct' : 'recursive'
   }
 
-  for (const rule of collectProtectedInputSourceRules(cleanCtx.collectedOutputContext))
-  { addProtectRule(rule.path, rule.protectionMode, rule.reason, rule.source) }
+  for (const rule of collectProtectedInputSourceRules(cleanCtx.collectedOutputContext)) {
+    addProtectRule(rule.path, rule.protectionMode, rule.reason, rule.source)
+  }
   if (cleanCtx.collectedOutputContext.aindexDir != null && cleanCtx.pluginOptions != null) {
     for (const rule of collectConfiguredAindexInputRules(cleanCtx.pluginOptions as Required<PluginOptions>, cleanCtx.collectedOutputContext.aindexDir, {
       workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path
