@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
-    "@truenine/memory-sync-cli": "workspace:*",
+    "@truenine/memory-sync-sdk": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

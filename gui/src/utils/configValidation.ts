@@ -1,9 +1,9 @@
 /**
  * Config validation for the UI frontend.
  *
- * Replicates the validation logic from Core_CLI's `validateConfigStrict`
- * (memory-sync-cli/src/ConfigLoader.ts) so the webview can validate
- * config objects before saving — without importing from the CLI package
+ * Replicates the validation logic from the sdk config loader
+ * (`sdk/src/ConfigLoader.ts`) so the webview can validate
+ * config objects before saving — without importing from the sdk package
  * directly (different runtime context).
  */
 
