@@ -3,6 +3,7 @@ name = "tnmsc-script-runtime"
 description = "Rust-backed TypeScript proxy runtime validation for tnmsc"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true

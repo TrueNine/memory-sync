@@ -11,6 +11,7 @@ members = [
 [workspace.package]
 version = "2026.10330.118"
 edition = "2024"
+rust-version = "1.88"
 license = "AGPL-3.0-only"
 authors = ["TrueNine"]
 repository = "https://github.com/TrueNine/memory-sync"

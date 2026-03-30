@@ -5,7 +5,7 @@ inputs:
   rust-version:
     description: Rust toolchain version
     required: false
-    default: "1.87.0"
+    default: "1.88.0"
   targets:
     description: Additional Rust targets to install (comma-separated)
     required: false
