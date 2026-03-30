@@ -1,3 +1,0 @@
-export {
-  TraeIDEOutputPlugin
-} from './TraeIDEOutputPlugin'

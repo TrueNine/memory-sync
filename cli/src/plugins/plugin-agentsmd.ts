@@ -1,3 +1,0 @@
-export {
-  AgentsOutputPlugin
-} from './AgentsOutputPlugin'

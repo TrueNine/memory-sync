@@ -1,3 +1,0 @@
-export {
-  DroidCLIOutputPlugin
-} from './DroidCLIOutputPlugin'

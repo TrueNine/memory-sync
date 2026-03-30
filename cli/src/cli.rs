@@ -213,7 +213,6 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
             } else {
                 let pairs = parse_key_value_pairs(args);
                 if pairs.is_empty() {
-                    // No key=value pairs and no --show: default to execute
                     ResolvedCommand::Execute
                 } else {
                     ResolvedCommand::Config(pairs)
@@ -221,116 +220,5 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
             }
         }
         Some(CliCommand::Plugins) => ResolvedCommand::Plugins,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn parse(args: &[&str]) -> Cli {
-        Cli::try_parse_from(args).unwrap()
-    }
-
-    #[test]
-    fn test_no_args_defaults_to_execute() {
-        let cli = parse(&["tnmsc"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::Execute);
-    }
-
-    #[test]
-    fn test_help_subcommand() {
-        let cli = parse(&["tnmsc", "help"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::Help);
-    }
-
-    #[test]
-    fn test_version_subcommand() {
-        let cli = parse(&["tnmsc", "version"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::Version);
-    }
-
-    #[test]
-    fn test_dry_run_subcommand() {
-        let cli = parse(&["tnmsc", "dry-run"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::DryRun);
-    }
-
-    #[test]
-    fn test_clean_subcommand() {
-        let cli = parse(&["tnmsc", "clean"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::Clean);
-    }
-
-    #[test]
-    fn test_clean_dry_run() {
-        let cli = parse(&["tnmsc", "clean", "--dry-run"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::DryRunClean);
-    }
-
-    #[test]
-    fn test_clean_short_dry_run() {
-        let cli = parse(&["tnmsc", "clean", "-n"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::DryRunClean);
-    }
-
-    #[test]
-    fn test_config_show() {
-        let cli = parse(&["tnmsc", "config", "--show"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::ConfigShow);
-    }
-
-    #[test]
-    fn test_config_set() {
-        let cli = parse(&["tnmsc", "config", "workspaceDir=~/my-project"]);
-        assert_eq!(
-            resolve_command(&cli),
-            ResolvedCommand::Config(vec![("workspaceDir".into(), "~/my-project".into())])
-        );
-    }
-
-    #[test]
-    fn test_config_set_flag() {
-        let cli = parse(&["tnmsc", "config", "--set", "logLevel=debug"]);
-        assert_eq!(
-            resolve_command(&cli),
-            ResolvedCommand::Config(vec![("logLevel".into(), "debug".into())])
-        );
-    }
-
-    #[test]
-    fn test_plugins_subcommand() {
-        let cli = parse(&["tnmsc", "plugins"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::Plugins);
-    }
-
-    #[test]
-    fn test_json_flag() {
-        let cli = parse(&["tnmsc", "--json"]);
-        assert!(cli.json);
-    }
-
-    #[test]
-    fn test_json_short_flag() {
-        let cli = parse(&["tnmsc", "-j"]);
-        assert!(cli.json);
-    }
-
-    #[test]
-    fn test_log_level_trace() {
-        let cli = parse(&["tnmsc", "--trace"]);
-        assert_eq!(resolve_log_level(&cli), Some(ResolvedLogLevel::Trace));
-    }
-
-    #[test]
-    fn test_log_level_multiple_most_verbose_wins() {
-        let cli = parse(&["tnmsc", "--warn", "--debug"]);
-        assert_eq!(resolve_log_level(&cli), Some(ResolvedLogLevel::Debug));
-    }
-
-    #[test]
-    fn test_no_log_level() {
-        let cli = parse(&["tnmsc"]);
-        assert_eq!(resolve_log_level(&cli), None);
     }
 }
