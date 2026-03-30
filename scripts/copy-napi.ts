@@ -8,7 +8,7 @@ const NATIVE_MODULES = [
   {name: 'logger', distDir: 'libraries/logger/dist'},
   {name: 'md-compiler', distDir: 'libraries/md-compiler/dist'},
   {name: 'script-runtime', distDir: 'libraries/script-runtime/dist'},
-  {name: 'cli', distDir: 'cli/dist'},
+  {name: 'sdk', distDir: 'sdk/dist'},
 ] as const
 
 const PLATFORM_MAP: Record<string, string> = {
@@ -113,5 +113,5 @@ if (copied > 0) {
   console.warn('[copy-napi] No .node files found. Build napi first:')
   console.warn('  pnpm -F @truenine/logger run build:native')
   console.warn('  pnpm -F @truenine/md-compiler run build:native')
-  console.warn('  pnpm -C cli exec napi build --platform --release --output-dir dist -- --features napi')
+  console.warn('  pnpm -F @truenine/memory-sync-sdk run build:native')
 }
