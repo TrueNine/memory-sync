@@ -4457,6 +4457,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tnmsc-cli-shell"
+version = "2026.10330.118"
+dependencies = [
+ "clap",
+ "tnmsc",
+ "tnmsc-logger",
+]
+
+[[package]]
 name = "tnmsc-logger"
 version = "2026.10330.118"
 dependencies = [

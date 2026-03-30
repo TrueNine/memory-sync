@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "sdk",
   "cli",
   "libraries/logger",
   "libraries/md-compiler",
@@ -18,7 +19,7 @@ repository = "https://github.com/TrueNine/memory-sync"
 
 [workspace.dependencies]
 # Internal crates
-tnmsc = { path = "cli" }
+tnmsc = { path = "sdk" }
 tnmsc-logger = { path = "libraries/logger" }
 tnmsc-md-compiler = { path = "libraries/md-compiler" }
 tnmsc-script-runtime = { path = "libraries/script-runtime" }
