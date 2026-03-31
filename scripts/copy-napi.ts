@@ -1,8 +1,10 @@
 #!/usr/bin/env tsx
-import {cpSync, existsSync, mkdirSync, readdirSync, writeFileSync} from 'node:fs'
+import {cpSync, existsSync, mkdirSync, readdirSync} from 'node:fs'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import process from 'node:process'
+
+import {resolveTargetDirs, writePlatformPackageShims} from './write-platform-package-shims'
 
 const NATIVE_MODULES = [
   {name: 'logger', distDir: 'libraries/logger/dist'},
@@ -23,59 +25,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
 const suffix = PLATFORM_MAP[`${process.platform}-${process.arch}`]
 
-const PLATFORM_PACKAGE_SHIM = `'use strict'
-
-const {readdirSync} = require('node:fs')
-const {join} = require('node:path')
-
-const EXPORT_BINDINGS = [
-  ['logger', 'napi-logger.'],
-  ['mdCompiler', 'napi-md-compiler.'],
-  ['scriptRuntime', 'napi-script-runtime.'],
-  ['config', 'napi-memory-sync-cli.']
-]
-
-const nodeFiles = readdirSync(__dirname).filter(file => file.endsWith('.node'))
-const bindings = {}
-
-for (const [exportName, prefix] of EXPORT_BINDINGS) {
-  const file = nodeFiles.find(candidate => candidate.startsWith(prefix))
-  if (file == null) continue
-
-  Object.defineProperty(bindings, exportName, {
-    enumerable: true,
-    get() {
-      return require(join(__dirname, file))
-    }
-  })
-}
-
-module.exports = bindings
-`
-
-const PLATFORM_PACKAGE_TYPES = `declare const bindings: {
-  readonly logger?: unknown
-  readonly mdCompiler?: unknown
-  readonly scriptRuntime?: unknown
-  readonly config?: unknown
-}
-
-export = bindings
-`
-
-function writePlatformPackageShim(targetDir: string): void {
-  writeFileSync(join(targetDir, 'noop.cjs'), PLATFORM_PACKAGE_SHIM, 'utf8')
-  writeFileSync(join(targetDir, 'noop.d.ts'), PLATFORM_PACKAGE_TYPES, 'utf8')
-}
-
 const npmPackagesDir = join(root, 'cli', 'npm')
-const platformPackageDirs = readdirSync(npmPackagesDir, {withFileTypes: true})
-  .filter(entry => entry.isDirectory())
-  .map(entry => join(npmPackagesDir, entry.name))
-
-for (const targetDir of platformPackageDirs) {
-  writePlatformPackageShim(targetDir)
-}
+writePlatformPackageShims(resolveTargetDirs([]))
 
 if (suffix == null) {
   console.warn(`[copy-napi] Unsupported platform: ${process.platform}-${process.arch}, wrote package shims only`)
