@@ -29,13 +29,13 @@ export function tryLoadNativeBinding<T extends object>(): T | undefined {
     const packageName = `@truenine/memory-sync-cli-${suffix}`
     const binaryFile = `napi-memory-sync-cli.${suffix}.node`
     const candidates = [
-      packageName,
       `${packageName}/${binaryFile}`,
       `./${binaryFile}`,
-      `../npm/${suffix}`,
       `../npm/${suffix}/${binaryFile}`,
-      `../../npm/${suffix}`,
-      `../../npm/${suffix}/${binaryFile}`
+      `../../npm/${suffix}/${binaryFile}`,
+      packageName,
+      `../npm/${suffix}`,
+      `../../npm/${suffix}`
     ]
 
     for (const specifier of candidates) {
