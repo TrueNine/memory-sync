@@ -1,11 +1,6 @@
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
-import type {
-  InputCapability,
-  InputCapabilityContext,
-  InputCollectedContext,
-  PluginOptions,
-  UserConfigFile
-} from '@/plugins/plugin-core'
+import type {InputCapability, InputCapabilityContext, InputCollectedContext, PluginOptions, UserConfigFile} from '@/plugins/plugin-core'
+import type {RuntimeCommand} from '@/runtime-command'
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -32,13 +27,12 @@ import {
   WorkspaceInputCapability,
   ZedConfigInputCapability
 } from '@/inputs'
-import {extractUserArgs, parseArgs} from '@/pipeline/CliArgumentParser'
 import {buildDependencyContext, mergeContexts} from '@/pipeline/ContextMerger'
 import {topologicalSort} from '@/pipeline/DependencyResolver'
 import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/plugins/plugin-core/GlobalScopeCollector'
 
 export interface InputRuntimeOptions {
-  readonly pipelineArgs?: readonly string[]
+  readonly runtimeCommand?: RuntimeCommand
   readonly userConfigOptions: Required<PluginOptions>
   readonly userConfig?: UserConfigFile
   readonly capabilities?: readonly InputCapability[]
@@ -46,11 +40,7 @@ export interface InputRuntimeOptions {
 }
 
 function createBuiltinInputEffectCapabilities(): InputCapability[] {
-  return [
-    new SkillDistCleanupEffectInputCapability(),
-    new OrphanFileCleanupEffectInputCapability(),
-    new MarkdownWhitespaceCleanupEffectInputCapability()
-  ]
+  return [new SkillDistCleanupEffectInputCapability(), new OrphanFileCleanupEffectInputCapability(), new MarkdownWhitespaceCleanupEffectInputCapability()]
 }
 
 function createBuiltinInputReaderCapabilities(): InputCapability[] {
@@ -74,35 +64,9 @@ function createBuiltinInputReaderCapabilities(): InputCapability[] {
   ]
 }
 
-export function resolveRuntimeCommand(
-  pipelineArgs?: readonly string[]
-): InputCapabilityContext['runtimeCommand'] {
-  if (pipelineArgs == null || pipelineArgs.length === 0) return 'execute'
-
-  const filteredArgs = pipelineArgs.filter((arg): arg is string => arg != null)
-  const userArgs = extractUserArgs(filteredArgs)
-  const args = parseArgs(userArgs)
-
-  if (args.helpFlag || args.versionFlag || args.unknownCommand != null) return void 0
-  if (args.subcommand === 'clean') return 'clean'
-  if (args.subcommand === 'plugins') return 'plugins'
-  if (args.subcommand === 'dry-run' || args.dryRun) return 'dry-run'
-  if (args.subcommand == null) return 'execute'
-  return void 0
-}
-
-export async function collectInputContext(
-  options: InputRuntimeOptions
-): Promise<Partial<InputCollectedContext>> {
-  const {
-    pipelineArgs,
-    userConfigOptions,
-    userConfig,
-    capabilities,
-    includeBuiltinEffects = true
-  } = options
+export async function collectInputContext(options: InputRuntimeOptions): Promise<Partial<InputCollectedContext>> {
+  const {runtimeCommand, userConfigOptions, userConfig, capabilities, includeBuiltinEffects = true} = options
   const logger = createLogger('InputRuntime', userConfigOptions.logLevel)
-  const runtimeCommand = resolveRuntimeCommand(pipelineArgs)
   const baseCtx: Omit<InputCapabilityContext, 'dependencyContext' | 'globalScope' | 'scopeRegistry'> = {
     logger,
     userConfigOptions,

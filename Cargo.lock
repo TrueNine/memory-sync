@@ -4461,6 +4461,7 @@ name = "tnmsc-cli-shell"
 version = "2026.10330.118"
 dependencies = [
  "clap",
+ "serde_json",
  "tnmsc",
  "tnmsc-logger",
 ]

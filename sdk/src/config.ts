@@ -14,11 +14,12 @@ import type {
   UserConfigFile,
   WindowsOptions
 } from './plugins/plugin-core'
+import type {RuntimeCommand} from './runtime-command'
 import * as path from 'node:path'
 import {createLogger} from '@truenine/logger'
 import {checkVersionControl} from './Aindex'
 import {getConfigLoader} from './ConfigLoader'
-import {collectInputContext, resolveRuntimeCommand} from './inputs/runtime'
+import {collectInputContext} from './inputs/runtime'
 import {
   buildDefaultAindexConfig,
   FilePathKind,
@@ -100,7 +101,7 @@ export interface DefineConfigOptions {
 
   readonly cwd?: string
 
-  readonly pipelineArgs?: readonly string[]
+  readonly runtimeCommand?: RuntimeCommand
 }
 
 /**
@@ -108,20 +109,12 @@ export interface DefineConfigOptions {
  * Later options override earlier ones.
  * Similar to vite/vitest mergeConfig.
  */
-export function mergeConfig(
-  ...configs: Partial<PluginOptions>[]
-): Required<PluginOptions> {
+export function mergeConfig(...configs: Partial<PluginOptions>[]): Required<PluginOptions> {
   const initialConfig: Required<PluginOptions> = {...DEFAULT_OPTIONS}
-  return configs.reduce(
-    (acc: Required<PluginOptions>, config) => mergeTwoConfigs(acc, config),
-    initialConfig
-  )
+  return configs.reduce((acc: Required<PluginOptions>, config) => mergeTwoConfigs(acc, config), initialConfig)
 }
 
-function mergeTwoConfigs(
-  base: Required<PluginOptions>,
-  override: Partial<PluginOptions>
-): Required<PluginOptions> {
+function mergeTwoConfigs(base: Required<PluginOptions>, override: Partial<PluginOptions>): Required<PluginOptions> {
   const overridePlugins = override.plugins
   const overrideCommandSeries = override.commandSeriesOptions
   const overrideOutputScopes = override.outputScopes
@@ -133,7 +126,8 @@ function mergeTwoConfigs(
     ...base,
     ...override,
     aindex: mergeAindexConfig(base.aindex, override.aindex),
-    plugins: [ // Array concatenation for plugins
+    plugins: [
+      // Array concatenation for plugins
       ...base.plugins,
       ...overridePlugins ?? []
     ],
@@ -145,20 +139,19 @@ function mergeTwoConfigs(
   }
 }
 
-function mergeCommandSeriesOptions(
-  base?: CommandSeriesOptions,
-  override?: CommandSeriesOptions
-): CommandSeriesOptions {
+function mergeCommandSeriesOptions(base?: CommandSeriesOptions, override?: CommandSeriesOptions): CommandSeriesOptions {
   if (override == null) return base ?? {}
   if (base == null) return override
 
   const mergedPluginOverrides: Record<string, CommandSeriesPluginOverride> = {} // Merge pluginOverrides deeply
 
-  if (base.pluginOverrides != null) { // Copy base plugin overrides
+  if (base.pluginOverrides != null) {
+    // Copy base plugin overrides
     for (const [key, value] of Object.entries(base.pluginOverrides)) mergedPluginOverrides[key] = {...value}
   }
 
-  if (override.pluginOverrides != null) { // Merge override plugin overrides
+  if (override.pluginOverrides != null) {
+    // Merge override plugin overrides
     for (const [key, value] of Object.entries(override.pluginOverrides)) {
       mergedPluginOverrides[key] = {
         ...mergedPluginOverrides[key],
@@ -176,20 +169,14 @@ function mergeCommandSeriesOptions(
   return {}
 }
 
-function mergeOutputScopeTopics(
-  base?: PluginOutputScopeTopics,
-  override?: PluginOutputScopeTopics
-): PluginOutputScopeTopics | undefined {
+function mergeOutputScopeTopics(base?: PluginOutputScopeTopics, override?: PluginOutputScopeTopics): PluginOutputScopeTopics | undefined {
   if (base == null && override == null) return void 0
   if (base == null) return override
   if (override == null) return base
   return {...base, ...override}
 }
 
-function mergeOutputScopeOptions(
-  base?: OutputScopeOptions,
-  override?: OutputScopeOptions
-): OutputScopeOptions {
+function mergeOutputScopeOptions(base?: OutputScopeOptions, override?: OutputScopeOptions): OutputScopeOptions {
   if (override == null) return base ?? {}
   if (base == null) return override
 
@@ -221,25 +208,16 @@ function mergeFrontMatterOptions(
   }
 }
 
-function mergeCleanupProtectionOptions(
-  base?: CleanupProtectionOptions,
-  override?: CleanupProtectionOptions
-): CleanupProtectionOptions {
+function mergeCleanupProtectionOptions(base?: CleanupProtectionOptions, override?: CleanupProtectionOptions): CleanupProtectionOptions {
   if (override == null) return base ?? {}
   if (base == null) return override
 
   return {
-    rules: [
-      ...base.rules ?? [],
-      ...override.rules ?? []
-    ]
+    rules: [...base.rules ?? [], ...override.rules ?? []]
   }
 }
 
-function mergeWindowsOptions(
-  base?: WindowsOptions,
-  override?: WindowsOptions
-): WindowsOptions {
+function mergeWindowsOptions(base?: WindowsOptions, override?: WindowsOptions): WindowsOptions {
   if (override == null) return base ?? {}
   if (base == null) return override
 
@@ -264,16 +242,10 @@ function mergeWindowsOptions(
  * Check if options is DefineConfigOptions
  */
 function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): options is DefineConfigOptions {
-  return 'pluginOptions' in options
-    || 'configLoaderOptions' in options
-    || 'loadUserConfig' in options
-    || 'cwd' in options
-    || 'pipelineArgs' in options
+  return 'pluginOptions' in options || 'configLoaderOptions' in options || 'loadUserConfig' in options || 'cwd' in options || 'runtimeCommand' in options
 }
 
-function getProgrammaticPluginDeclaration(
-  options: PluginOptions | DefineConfigOptions
-): {
+function getProgrammaticPluginDeclaration(options: PluginOptions | DefineConfigOptions): {
   readonly hasExplicitProgrammaticPlugins: boolean
   readonly explicitProgrammaticPlugins?: PluginOptions['plugins']
 } {
@@ -300,9 +272,7 @@ function resolvePathForMinimalContext(rawPath: string, workspaceDir: string): st
   return path.normalize(resolveUserPath(resolvedPath))
 }
 
-function createMinimalOutputCollectedContext(
-  options: Required<PluginOptions>
-): OutputCollectedContext {
+function createMinimalOutputCollectedContext(options: Required<PluginOptions>): OutputCollectedContext {
   const workspaceDir = resolvePathForMinimalContext(options.workspaceDir, '')
   const aindexDir = path.join(workspaceDir, options.aindex.dir)
 
@@ -319,15 +289,13 @@ function createMinimalOutputCollectedContext(
   })
 }
 
-function shouldUsePluginsFastPath(pipelineArgs?: readonly string[]): boolean {
-  return resolveRuntimeCommand(pipelineArgs) === 'plugins'
+function shouldUsePluginsFastPath(runtimeCommand?: RuntimeCommand): boolean {
+  return runtimeCommand === 'plugins'
 }
 
-async function resolvePluginSetup(
-  options: PluginOptions | DefineConfigOptions = {}
-): Promise<
+async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions = {}): Promise<
   ResolvedPluginSetup & {
-    readonly pipelineArgs?: readonly string[]
+    readonly runtimeCommand?: RuntimeCommand
     readonly userConfigFound: boolean
     readonly userConfigSources: readonly string[]
   }
@@ -336,26 +304,26 @@ async function resolvePluginSetup(
     cwd: string | undefined,
     pluginOptions: PluginOptions,
     configLoaderOptions: ConfigLoaderOptions | undefined,
-    pipelineArgs: readonly string[] | undefined
+    runtimeCommand: RuntimeCommand | undefined
 
   if (isDefineConfigOptions(options)) {
     ({
       pluginOptions = {},
       cwd,
       configLoaderOptions,
-      pipelineArgs
+      runtimeCommand
     } = {
       pluginOptions: options.pluginOptions,
       cwd: options.cwd,
       configLoaderOptions: options.configLoaderOptions,
-      pipelineArgs: options.pipelineArgs
+      runtimeCommand: options.runtimeCommand
     })
     shouldLoadUserConfig = options.loadUserConfig ?? true
   } else {
     pluginOptions = options
     shouldLoadUserConfig = true
     configLoaderOptions = void 0
-    pipelineArgs = void 0
+    runtimeCommand = void 0
   }
 
   let userConfigOptions: Partial<PluginOptions> = {}
@@ -372,8 +340,7 @@ async function resolvePluginSetup(
         userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
         userConfigFile = userConfigResult.config
       }
-    }
-    catch (error) {
+    } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       throw new Error(`Failed to load user config: ${errorMessage}`)
     }
@@ -402,7 +369,7 @@ async function resolvePluginSetup(
     outputPlugins,
     inputCapabilities,
     ...userConfigFile != null && {userConfigFile},
-    ...pipelineArgs != null && {pipelineArgs},
+    ...runtimeCommand != null && {runtimeCommand},
     userConfigFound,
     userConfigSources
   }
@@ -419,20 +386,11 @@ async function resolvePluginSetup(
  * @param options - Plugin options or DefineConfigOptions
  */
 export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
-  const {
-    hasExplicitProgrammaticPlugins,
-    explicitProgrammaticPlugins
-  } = getProgrammaticPluginDeclaration(options)
-  const {
-    mergedOptions,
-    outputPlugins,
-    inputCapabilities,
-    userConfigFile,
-    pipelineArgs
-  } = await resolvePluginSetup(options)
+  const {hasExplicitProgrammaticPlugins, explicitProgrammaticPlugins} = getProgrammaticPluginDeclaration(options)
+  const {mergedOptions, outputPlugins, inputCapabilities, userConfigFile, runtimeCommand} = await resolvePluginSetup(options)
   const logger = createLogger('defineConfig', mergedOptions.logLevel)
 
-  if (shouldUsePluginsFastPath(pipelineArgs)) {
+  if (shouldUsePluginsFastPath(runtimeCommand)) {
     const context = createMinimalOutputCollectedContext(mergedOptions)
     return {context, outputPlugins, userConfigOptions: mergedOptions}
   }
@@ -441,7 +399,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     userConfigOptions: mergedOptions,
     ...inputCapabilities.length > 0 ? {capabilities: inputCapabilities} : {},
     includeBuiltinEffects: !(inputCapabilities.length > 0 || (hasExplicitProgrammaticPlugins && (explicitProgrammaticPlugins?.length ?? 0) === 0)),
-    ...pipelineArgs != null ? {pipelineArgs} : {},
+    ...runtimeCommand != null ? {runtimeCommand} : {},
     ...userConfigFile != null ? {userConfig: userConfigFile} : {}
   })
 

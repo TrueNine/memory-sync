@@ -222,3 +222,40 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
         Some(CliCommand::Plugins) => ResolvedCommand::Plugins,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn resolve_command_defaults_to_execute() {
+        let cli = Cli::parse_from(["tnmsc"]);
+        assert_eq!(resolve_command(&cli), ResolvedCommand::Execute);
+    }
+
+    #[test]
+    fn resolve_command_parses_clean_dry_run() {
+        let cli = Cli::parse_from(["tnmsc", "clean", "--dry-run"]);
+        assert_eq!(resolve_command(&cli), ResolvedCommand::DryRunClean);
+    }
+
+    #[test]
+    fn config_key_value_parsing_combines_flag_and_positional_pairs() {
+        let cli = Cli::parse_from([
+            "tnmsc",
+            "config",
+            "--set",
+            "workspaceDir=/tmp/workspace",
+            "logLevel=debug",
+        ]);
+
+        assert_eq!(
+            resolve_command(&cli),
+            ResolvedCommand::Config(vec![
+                ("workspaceDir".to_string(), "/tmp/workspace".to_string()),
+                ("logLevel".to_string(), "debug".to_string()),
+            ])
+        );
+    }
+}

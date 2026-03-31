@@ -66,14 +66,12 @@ where
 ///
 /// Search order:
 /// 1. `<binary_dir>/plugin-runtime.mjs` (release archive: binary + JS co-located)
-/// 2. `<binary_dir>/../dist/plugin-runtime.mjs` (dev mode: sdk/dist/)
-/// 3. `<binary_dir>/../sdk/dist/plugin-runtime.mjs` (dev mode from repo root)
-/// 4. `<binary_dir>/../cli/dist/plugin-runtime.mjs` (published CLI shell asset copy)
-/// 5. `<cwd>/dist/plugin-runtime.mjs` (fallback)
-/// 6. `<cwd>/sdk/dist/plugin-runtime.mjs` (fallback from repo root cwd)
-/// 7. `<cwd>/cli/dist/plugin-runtime.mjs` (published CLI shell fallback from repo root cwd)
-/// 8. npm/pnpm global install: `<global_root>/@truenine/memory-sync-cli/dist/plugin-runtime.mjs`
-/// 9. Embedded JS extracted to `~/.aindex/.cache/plugin-runtime-<version>.mjs`
+/// 2. `<binary_dir>/../dist/plugin-runtime.mjs` (dev mode: cli/dist/)
+/// 3. `<binary_dir>/../cli/dist/plugin-runtime.mjs` (repo-root fallback)
+/// 4. `<cwd>/dist/plugin-runtime.mjs` (fallback)
+/// 5. `<cwd>/cli/dist/plugin-runtime.mjs` (repo-root fallback from cwd)
+/// 6. npm/pnpm global install: `<global_root>/@truenine/memory-sync-cli/dist/plugin-runtime.mjs`
+/// 7. Embedded JS extracted to `~/.aindex/.cache/plugin-runtime-<version>.mjs`
 pub(crate) fn find_plugin_runtime() -> Option<PathBuf> {
     let cache = PLUGIN_RUNTIME_CACHE.get_or_init(|| Mutex::new(None));
     detect_with_cached_success(cache, detect_plugin_runtime)
@@ -88,14 +86,12 @@ fn detect_plugin_runtime() -> Option<PathBuf> {
     {
         candidates.push(exe_dir.join("plugin-runtime.mjs"));
         candidates.push(exe_dir.join("../dist/plugin-runtime.mjs"));
-        candidates.push(exe_dir.join("../sdk/dist/plugin-runtime.mjs"));
         candidates.push(exe_dir.join("../cli/dist/plugin-runtime.mjs"));
     }
 
     // Relative to CWD
     if let Ok(cwd) = std::env::current_dir() {
         candidates.push(cwd.join("dist/plugin-runtime.mjs"));
-        candidates.push(cwd.join("sdk/dist/plugin-runtime.mjs"));
         candidates.push(cwd.join("cli/dist/plugin-runtime.mjs"));
     }
 

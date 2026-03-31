@@ -3,8 +3,10 @@
 import {existsSync, realpathSync} from 'node:fs'
 import process from 'node:process'
 import {fileURLToPath} from 'node:url'
-import {runCli} from '@truenine/memory-sync-sdk'
+import {runCli} from './cli-runtime'
 
+export * from './cli-runtime'
+export * from './plugin.config'
 export * from '@truenine/memory-sync-sdk'
 
 function isCliEntrypoint(argv: readonly string[] = process.argv): boolean {
@@ -13,8 +15,7 @@ function isCliEntrypoint(argv: readonly string[] = process.argv): boolean {
 
   try {
     return realpathSync(entryPath) === realpathSync(fileURLToPath(import.meta.url))
-  }
-  catch {
+  } catch {
     return false
   }
 }

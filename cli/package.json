@@ -67,6 +67,7 @@
     "typecheck:run": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {
+    "@truenine/script-runtime": "workspace:*",
     "json5": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"

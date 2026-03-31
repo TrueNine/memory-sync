@@ -34,22 +34,23 @@ Don't rush.
 
 ## Scope
 
-`memory-sync` is a CLI tool that **reads source files only and writes target configs only**. Its security boundary:
+`memory-sync` is now a toolkit made of CLI / SDK / MCP / GUI surfaces, not just a single CLI binary. Its security boundary:
 
-- **Reads**: user `.src.mdx` source files, the global config file (`~/.aindex/.tnmsc.json`)
-- **Writes**: target tool config directories (`.cursor/`, `.claude/`, `.kiro/`, etc.)
-- **Cleans**: removes stale files from target directories during sync
+- **Reads**: user `.src.mdx` source files, project config files, the global config file (`~/.aindex/.tnmsc.json`), and repository metadata needed for sync
+- **Writes**: target-tool config directories, managed prompt artifacts such as `dist/`, generated skills / README-like outputs, and related helper configs
+- **Cleans**: removes stale managed outputs and target-directory residue during sync or cleanup
 The following are **out of scope**:
 
 - Security vulnerabilities in target AI tools themselves
 - Compliance of user prompt content
-- Supply chain security of third-party plugins (`packages/`) — all plugins are `private` and not published to npm
+- Hardening of third-party dependencies, hosted platforms, or the local workstation outside this repository
+- External scripts, private plugins, or unmanaged files injected by the user into the workflow
 ## Design Principles
 
-- **Never modifies source files**: read-only on source; writes only to target
-- **Full clean mode**: after sync, only explicitly authorised content remains in target directories — no hidden residue
-- **No network requests**: CLI core makes no outbound network requests (version check excepted, and times out gracefully)
-- **No telemetry**: no user data collected or reported
+- **Separation between source and derived state**: source files, generated artifacts, and target-tool configs must stay clearly separated, auditable, and traceable
+- **Cleanup touches managed outputs only**: cleanup should only remove generated outputs or explicitly configured targets, never silently widen its delete boundary
+- **No hidden telemetry**: no user data is collected or reported
+- **External network behavior must be explicit**: core sync logic must not depend on hidden outbound requests; if release or docs-deploy automation talks to npm, GitHub, or Vercel, that behavior must remain visible in workflow files
 ## License
 
 This project is licensed under [AGPL-3.0](LICENSE). Unauthorised commercial use in violation of the licence will be pursued legally.

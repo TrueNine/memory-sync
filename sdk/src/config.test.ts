@@ -32,23 +32,27 @@ describe('defineConfig', () => {
     delete process.env.HOMEPATH
 
     fs.mkdirSync(globalConfigDir, {recursive: true})
-    fs.writeFileSync(globalConfigPath, JSON.stringify({
-      workspaceDir: tempWorkspace,
-      aindex: {
-        dir: 'aindex',
-        skills: {src: 'skills', dist: 'dist/skills'},
-        commands: {src: 'commands', dist: 'dist/commands'},
-        subAgents: {src: 'subagents', dist: 'dist/subagents'},
-        rules: {src: 'rules', dist: 'dist/rules'},
-        globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
-        workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
-        app: {src: 'app', dist: 'dist/app'},
-        ext: {src: 'ext', dist: 'dist/ext'},
-        arch: {src: 'arch', dist: 'dist/arch'},
-        softwares: {src: 'softwares', dist: 'dist/softwares'}
-      },
-      logLevel: 'info'
-    }), 'utf8')
+    fs.writeFileSync(
+      globalConfigPath,
+      JSON.stringify({
+        workspaceDir: tempWorkspace,
+        aindex: {
+          dir: 'aindex',
+          skills: {src: 'skills', dist: 'dist/skills'},
+          commands: {src: 'commands', dist: 'dist/commands'},
+          subAgents: {src: 'subagents', dist: 'dist/subagents'},
+          rules: {src: 'rules', dist: 'dist/rules'},
+          globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
+          workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
+          app: {src: 'app', dist: 'dist/app'},
+          ext: {src: 'ext', dist: 'dist/ext'},
+          arch: {src: 'arch', dist: 'dist/arch'},
+          softwares: {src: 'softwares', dist: 'dist/softwares'}
+        },
+        logLevel: 'info'
+      }),
+      'utf8'
+    )
     fs.writeFileSync(localConfigPath, JSON.stringify({workspaceDir: '/wrong/workspace', logLevel: 'error'}), 'utf8')
 
     try {
@@ -58,8 +62,7 @@ describe('defineConfig', () => {
       expect(result.userConfigOptions.aindex.softwares).toEqual({src: 'softwares', dist: 'dist/softwares'})
       expect(result.context.workspace.directory.path).toBe(tempWorkspace)
       expect(result.context.aindexDir).toBe(path.join(tempWorkspace, 'aindex'))
-    }
-    finally {
+    } finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
       fs.rmSync(tempHome, {recursive: true, force: true})
     }
@@ -72,27 +75,25 @@ describe('defineConfig', () => {
 
     fs.mkdirSync(path.join(publicDir, 'execute'), {recursive: true})
     fs.mkdirSync(path.join(publicDir, 'dry-run'), {recursive: true})
-    fs.writeFileSync(path.join(publicDir, 'proxy.ts'), [
-      'export default (_logicalPath, ctx) => ctx.command === "dry-run"',
-      '  ? "dry-run/gitignore"',
-      '  : "execute/gitignore"',
-      ''
-    ].join('\n'), 'utf8')
+    fs.writeFileSync(
+      path.join(publicDir, 'proxy.ts'),
+      ['export default (_logicalPath, ctx) => ctx.command === "dry-run"', '  ? "dry-run/gitignore"', '  : "execute/gitignore"', ''].join('\n'),
+      'utf8'
+    )
     fs.writeFileSync(path.join(publicDir, 'execute', 'gitignore'), 'execute\n', 'utf8')
     fs.writeFileSync(path.join(publicDir, 'dry-run', 'gitignore'), 'dry-run\n', 'utf8')
 
     try {
       const result = await defineConfig({
         loadUserConfig: false,
-        pipelineArgs: ['node', 'tnmsc', 'dry-run'],
+        runtimeCommand: 'dry-run',
         pluginOptions: {
           workspaceDir: tempWorkspace
         }
       })
 
       expect(result.context.globalGitIgnore).toBe('dry-run\n')
-    }
-    finally {
+    } finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
     }
   })
@@ -116,8 +117,7 @@ describe('defineConfig', () => {
 
       expect(result.context.workspace.directory.path).toBe(tempWorkspace)
       expect(fs.existsSync(orphanSkillFile)).toBe(true)
-    }
-    finally {
+    } finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
     }
   })
@@ -144,8 +144,7 @@ describe('defineConfig', () => {
 
       expect(result.context.workspace.directory.path).toBe(tempWorkspace)
       expect(fs.existsSync(orphanSkillFile)).toBe(true)
-    }
-    finally {
+    } finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
       fs.rmSync(tempHome, {recursive: true, force: true})
     }
@@ -165,8 +164,7 @@ describe('defineConfig', () => {
 
       expect(result.context.workspace.directory.path).toBe(tempWorkspace)
       expect(result.outputPlugins).toEqual([])
-    }
-    finally {
+    } finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
     }
   })

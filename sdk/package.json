@@ -70,15 +70,15 @@
     "typecheck:run": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {
+    "@truenine/logger": "workspace:*",
+    "@truenine/md-compiler": "workspace:*",
+    "@truenine/script-runtime": "workspace:*",
     "json5": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@clack/prompts": "catalog:",
-    "@truenine/logger": "workspace:*",
-    "@truenine/md-compiler": "workspace:*",
-    "@truenine/script-runtime": "workspace:*",
     "@types/fs-extra": "catalog:",
     "@types/picomatch": "catalog:",
     "@vitest/coverage-v8": "catalog:",

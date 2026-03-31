@@ -1,93 +1,96 @@
 # memory-sync
 
-Rats 🐀 are like this: even our own brains, even our memories, are things we haul around while running through this fucked-up world!!!
+A rat is like this. Even its own brain, even its memory, has to be carried around in this rotten world!!!
 
-I am a rat. No resources will ever be proactively provided to me.
-So as a rat, I eat whatever I can reach: maggots in the sewer, leftovers in the slop bucket, and in extreme cases even my own kind—this is the survival mode in a world where resource allocation is brutally unfair.
+I am a rat. No resource is going to walk up and offer itself to me.
+So as a rat, I eat whatever I can reach: maggots in the sewer, leftovers in a slop bucket, and in extreme cases even my own kind. That is what survival looks like in a world where resource distribution is brutally unequal.
 
 `memory-sync` is the same kind of **tool-rat**:
 
-- Does not expect any platform to grant an "official all-in-one solution"
-- Does not rely on privileged interfaces of any single IDE / CLI
-- Treats every readable config, prompt, and memory file as "edible matter" to be carried, dismantled, and recombined
-In this ecosystem, giants monopolise the resources, and developers are thrown into the corner like rats.
-`memory-sync` accepts this cruel reality, does not fantasise about fairness, and focuses on one thing only: **to chew up every fragment of resource you already have, and convert it into portable "memory" that can flow between any AI tool.**
+- It does not wait for any platform to hand out an "official all-in-one solution"
+- It does not rely on the privileged interface of any single IDE or CLI
+- Any configuration, prompt, memory file, or generated artifact it can read becomes something edible: something to haul away, break apart, and recombine
+In this ecosystem, the giants hoard the resources while developers get thrown into a corner like rats.
+`memory-sync` accepts this cruel reality, does not fantasize about fairness, and focuses on one thing only: **to chew through every fragment of resource you already have and turn it into portable "memory" that can flow between AI tools.**
 
 ![rat](/.attachments/rat.svg)
 
-What can it help you do?
+What can it do for you?
 
-- **`.mdx` as the prompt source format**: write your prompts in MDX; `memory-sync` reads, transforms, and writes them into each tool's native config format—you maintain one source, it handles the rest.
-- A **universal prompt spec**: write Global / Root / Child / Skill / Command / Agent prompts in a unified structure.
-- **Auto-write tool config files**: AGENTS.md, .cursorrules, .kiro/, CLAUDE.md, etc.—if there is an entry point, it stuffs your memory in.
-- **Generate copy-ready one-shot prompts**: package project context, tech stack, and current task into AI-friendly Markdown, paste into any chat box directly.
-- Like a rat gnawing on cables, **gnaw structured memory out of existing directory structures and config files**, instead of asking you to rewrite everything from scratch.
-- **Fine-grained control**: describe rules in YAML / JSON config files, choose what to sync by project, by Agent, by tool type—no "one-size-fits-all" overwrites.
-- **Read-only source files**: never modifies your original repository directly, only reads and transforms, then materialises the result on the target tool side.
-- **Full wipe**: on sync, erases all stale prompt traces in target tools—prompts are fully computable and auditable, leaving no residue for bad actors.
-- **Prompts grow with you only**: memory follows you as a person, not the project. Someone else takes over the project—they cannot take your context. You move to a new project—your accumulated knowledge moves with you intact.
+- **Use `.mdx` / `.src.mdx` as the source of truth**: you maintain one source, and `memory-sync` turns it into native tool configs plus managed generated artifacts.
+- **Use one unified input-asset model**: Global / Workspace / Project Memory, Skills, Commands, Sub-agents, Rules, README-like outputs, and related assets all fit into one structure.
+- **Auto-write native tool configs**: AGENTS.md, Claude Code CLI, Codex CLI, Cursor, Windsurf, Qoder, Trae, Warp, JetBrains AI Assistant Codex, and more. If a native entry point exists, it can write there.
+- **Manage derived artifacts**: besides target-tool configs, it can maintain English prompt outputs, skill exports, README-like outputs, and other helper configs.
+- **Provide multiple entry points**: the public entry is the `tnmsc` CLI; internally there is also a private SDK, an MCP stdio server, and a Tauri GUI, all working around the same source-of-truth model.
+- **Control write scope precisely**: use `outputScopes`, `cleanupProtection`, and related settings to constrain writes and cleanup by project, topic, and tool.
+- **Keep source and derived outputs auditable**: source files, generated artifacts, and target-tool configs stay clearly separated. No hidden source edits. No hidden residue.
+- **Let memory grow with you**: memory follows you as a person instead of leaking with the project. If a project changes hands, they do not get your context. If you move to another project, your accumulated memory goes with you unchanged.
 ## Install
 
 ```sh
-npm install -g @truenine/memory-sync
+npm install -g @truenine/memory-sync-cli
 ```
 
-## Docs
+Optional MCP server:
 
-`https://docs.truenine.org/tnmsc`
+```sh
+npm install -g @truenine/memory-sync-mcp
+```
 
 ## Supported Tools
 
 | Type | Tools |
 | --- | --- |
-| IDE | Cursor, Kiro, Windsurf, JetBrains AI |
-| CLI | Claude CLI, Gemini CLI, Codex CLI, Warp |
+| IDE / Editor | Cursor, Windsurf, Qoder, Trae, Trae CN, JetBrains AI Assistant Codex, Zed, VS Code |
+| CLI | Claude Code CLI, OpenAI Codex CLI, Gemini CLI, Droid CLI, Opencode CLI, Warp |
+| Other Outputs | AGENTS.md-style outputs, Generic Skills, README-like outputs, `.editorconfig`, `.git/info/exclude` |
 
-More platforms being added continuously.
+More platforms are still being added.
 
 ## Architecture
 
-- **CLI** (`@truenine/memory-sync`): core sync engine—reads config, writes target tool files, generates copy-ready prompts.
-- **Core** (Rust): file I/O, directory traversal, format conversion.
-- **Config DSL** (JSON): reads only the global config file `~/.aindex/.tnmsc.json`, which defines sync rules and target tools.
-- **GUI** (Tauri): desktop app that calls the CLI as its backend, providing a visual interface.
+- **SDK** (`@truenine/memory-sync-sdk` / `tnmsc` crate): the private mixed core for pipeline, prompt service, schema, bridge runtime, and core integration logic.
+- **CLI Shell** (`@truenine/memory-sync-cli`): the public `tnmsc` command entry, compatibility export surface, and platform-distribution shell.
+- **MCP** (`@truenine/memory-sync-mcp`): an stdio server that exposes prompt-asset management to MCP-capable hosts.
+- **Libraries** (`logger`, `md-compiler`, `script-runtime`): Rust-first shared libraries.
+- **GUI** (Tauri): the desktop workflow entry, consuming the `tnmsc` crate from `sdk`.
 ## FAQ
 
 **When AI tools finally have a unified standard, what use will this project be?**
 
 Then it will have completed its historical mission.
 
-**There's already AGENTS.md, agentskills, and the MCP standard—why do I still need this junk?**
+**There's already AGENTS.md, agentskills, and the MCP standard. Why do I still need this junk?**
 
-Native-friendly, plus targeted conditional prompt authoring.
+Because native targets still differ, and because conditional prompt authoring still has to land somewhere concrete.
 
-`AGENTS.md` is the spec; `memory-sync` is the hauler—it writes the same memory into the native config formats of a dozen tools simultaneously, sparing you the manual copy-paste grind.
+`AGENTS.md` is the format. `memory-sync` is the hauler plus assembler. It writes the same source of truth into multiple native configs and managed artifacts at once, so you do not have to do the copy-paste labor by hand. CLI, SDK, MCP, and GUI are just different entry points around that same model.
 
-**Is there anything in your prompts you don't want to leave behind?**
+**Is there anything in the prompt or generated output that I may not want to leave behind?**
 
-Yes. That's why `memory-sync` provides a full-wipe mode: after sync, only the content you explicitly authorised remains in the target tools—everything else is erased. Prompts are fully computable, no hidden residue, no backdoor left for anyone else.
+Yes. That is why `memory-sync` gives you cleanup and protection boundaries. After sync, only the managed outputs you explicitly allow should remain. Anything else should either be cleaned or protected on purpose. Prompts and derived artifacts should stay computable, auditable, and residue-free.
 
 ## Who is this for
 
 To use `memory-sync` you need:
 
-- Solid development experience, years of working with various dev tools
-- Proficiency with version control (Git)
-- Proficiency with the terminal
+- Solid development experience and long-term exposure to dev tools
+- Competence with version control (Git)
+- Competence with the terminal
 ---
 
 - You are writing code in a forgotten sewer.
-No one will proactively feed you, not even a tiny free quota, not even a half-decent document.
-- As a rat, you can barely get your hands on anything good:
-scurrying between free tiers, trial credits, education discounts, and random third-party scripts.
+No one is going to proactively feed you, not even a tiny free quota, not even a decent document.
+- As a rat, you were never going to get good food anyway:
+you keep scurrying between free tiers, trial credits, education discounts, and random third-party scripts.
 - What can you do?
-Keep darting between IDEs, CLIs, browser extensions, and cloud Agents, copying and pasting the same memory a hundred times.
-- You leech API offers from vendors day after day:
-today one platform runs a discount so you top up a little; tomorrow another launches a promo so you rush to scrape it.
-- Once they have harvested the telemetry, user profiles, and usage patterns they want,
-they can kick you—this stinking rat—away at any moment: price hikes, rate limits, account bans, and you have no channel to complain.
+Keep darting between IDEs, CLIs, browser extensions, and cloud agents, copying and pasting the same memory a hundred times.
+- You keep scraping vendor API deals day after day:
+today one platform discounts something, so you top up a little; tomorrow another launches a promotion, so you rush over there too.
+- Once they have harvested the telemetry, user profile, and usage pattern they wanted,
+they can kick you away at any moment: price hikes, quotas, bans, and no real channel for complaint.
 If you are barely surviving in this environment, `memory-sync` is built for you:
-carry fewer bricks, copy prompts fewer times—at least on the "memory" front, you are no longer completely on the passive receiving end.
+to help you carry a little less brick, paste the same prompt a few fewer times, and at least stop being completely passive around "memory".
 
 ## Who is NOT welcome
 
@@ -96,17 +99,17 @@ Stable salary, project revenue share, budget to sign official APIs yearly.
 - And yet you still come down here,
 competing with us filthy sewer rats for the scraps in the slop bucket.
 - If you can afford APIs and enterprise plans, go pay for them.
-Do things that actually create value—pay properly, give proper feedback, nudge the ecosystem slightly in the right direction.
+Do things that actually create value: pay properly, give proper feedback, and nudge the ecosystem slightly in the right direction.
 - Instead of coming back down
-to strip away the tiny gap left for marginalised developers, squeezing out the last crumbs with us rats.
+to strip away the tiny gap left for marginalized developers, squeezing out the last crumbs with us rats.
 - You are a freeloader.
-Everything must be pre-chewed and spoon-fed; you won't even touch a terminal.
-- You love the grind culture.
+Everything must be pre-chewed and spoon-fed; you will not even touch a terminal.
+- You love grind culture.
 Treating "hustle" as virtue, "996" as glory, stepping on peers as a promotion strategy.
 - You leave no room for others.
-Not about whether you share—it's about actively stomping on people, competing maliciously, sustaining your position by suppressing peers, using others' survival space as your stepping stone.
+This is not about whether you share everything. It is about actively stomping on people, competing maliciously, and treating other people's survival space as your stepping stone.
 In other words:
-**this is not a tool for optimising capital costs, but a small counterattack prepared for the "rats with no choice" in a world of extreme resource inequality.**
+**this is not a tool for optimizing capital cost. It is a small counterattack for the "rats with no choice" in a world of extreme resource inequality.**
 
 ## Created by
 

@@ -31,7 +31,7 @@ describe('defineConfig plugins fast path', () => {
     try {
       const result = await defineConfig({
         loadUserConfig: false,
-        pipelineArgs: ['node', 'tnmsc', 'plugins', '--json'],
+        runtimeCommand: 'plugins',
         pluginOptions: {
           workspaceDir: tempWorkspace,
           plugins: []
@@ -42,8 +42,7 @@ describe('defineConfig plugins fast path', () => {
       expect(result.context.workspace.directory.path).toBe(tempWorkspace)
       expect(result.context.aindexDir).toBe(path.join(tempWorkspace, 'aindex'))
       expect(result.outputPlugins).toEqual([])
-    }
-    finally {
+    } finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
     }
   })

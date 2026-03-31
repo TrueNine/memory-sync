@@ -12,11 +12,8 @@ import type {
   WindowsOptions
 } from './ConfigTypes.schema'
 import type {PluginKind} from './enums'
-import type {
-  InputCollectedContext,
-  OutputCollectedContext,
-  Project
-} from './InputTypes'
+import type {InputCollectedContext, OutputCollectedContext, Project} from './InputTypes'
+import type {RuntimeCommand} from '@/runtime-command'
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -51,7 +48,7 @@ export interface PluginContext {
 export interface InputCapabilityContext extends PluginContext {
   readonly userConfigOptions: Required<PluginOptions>
   readonly dependencyContext: Partial<InputCollectedContext>
-  readonly runtimeCommand?: 'execute' | 'dry-run' | 'clean' | 'plugins'
+  readonly runtimeCommand?: RuntimeCommand
 
   readonly globalScope?: MdxGlobalScope
 
@@ -336,10 +333,7 @@ function normalizeScopeSelection(selection: OutputScopeSelection): readonly Outp
   return unique
 }
 
-function getPluginScopeOverrides(
-  pluginName: string,
-  pluginOptions?: PluginOptions
-): PluginOutputScopeTopics | undefined {
+function getPluginScopeOverrides(pluginName: string, pluginOptions?: PluginOptions): PluginOutputScopeTopics | undefined {
   return pluginOptions?.outputScopes?.plugins?.[pluginName]
 }
 
@@ -351,10 +345,7 @@ export function validateOutputPluginCapabilities(plugin: OutputPlugin): void {
   }
 }
 
-export function validateOutputScopeOverridesForPlugin(
-  plugin: OutputPlugin,
-  pluginOptions?: PluginOptions
-): void {
+export function validateOutputScopeOverridesForPlugin(plugin: OutputPlugin, pluginOptions?: PluginOptions): void {
   const overrides = getPluginScopeOverrides(plugin.name, pluginOptions)
   if (overrides == null) return
 
@@ -390,10 +381,7 @@ export function validateOutputScopeOverridesForPlugin(
   }
 }
 
-export function validateOutputScopeOverridesForPlugins(
-  plugins: readonly OutputPlugin[],
-  pluginOptions?: PluginOptions
-): void {
+export function validateOutputScopeOverridesForPlugins(plugins: readonly OutputPlugin[], pluginOptions?: PluginOptions): void {
   for (const plugin of plugins) {
     validateOutputPluginCapabilities(plugin)
     validateOutputScopeOverridesForPlugin(plugin, pluginOptions)
@@ -406,9 +394,7 @@ export async function collectOutputDeclarations(
 ): Promise<Map<OutputPlugin, readonly OutputFileDeclaration[]>> {
   validateOutputScopeOverridesForPlugins(plugins, ctx.pluginOptions)
 
-  const declarationEntries = await Promise.all(
-    plugins.map(async plugin => [plugin, await plugin.declareOutputFiles(ctx)] as const)
-  )
+  const declarationEntries = await Promise.all(plugins.map(async plugin => [plugin, await plugin.declareOutputFiles(ctx)] as const))
 
   return new Map(declarationEntries)
 }
@@ -447,12 +433,9 @@ export async function executeDeclarativeWriteOutputs(
         if (declaration.ifExists === 'error' && fs.existsSync(declaration.path)) throw new Error(`Refusing to overwrite existing file: ${declaration.path}`)
 
         const content = await plugin.convertContent(declaration, ctx)
-        isNodeBufferLike(content)
-          ? fs.writeFileSync(declaration.path, content)
-          : fs.writeFileSync(declaration.path, content, 'utf8')
+        isNodeBufferLike(content) ? fs.writeFileSync(declaration.path, content) : fs.writeFileSync(declaration.path, content, 'utf8')
         fileResults.push({path: declaration.path, success: true})
-      }
-      catch (error) {
+      } catch (error) {
         fileResults.push({path: declaration.path, success: false, error: error as Error})
       }
     }
@@ -489,12 +472,10 @@ export async function collectAllPluginOutputs(
   const globalDirs: string[] = []
   const globalFiles: string[] = []
 
-  const declarationGroups = predeclaredOutputs != null
-    ? [...predeclaredOutputs.values()]
-    : Array.from(
-        await collectOutputDeclarations(plugins, {...ctx, dryRun: true}),
-        ([, declarations]) => declarations
-      )
+  const declarationGroups
+    = predeclaredOutputs != null
+      ? [...predeclaredOutputs.values()]
+      : Array.from(await collectOutputDeclarations(plugins, {...ctx, dryRun: true}), ([, declarations]) => declarations)
 
   for (const declarations of declarationGroups) {
     for (const declaration of declarations) {

@@ -4,7 +4,6 @@
 //! Bridge commands (Node.js): run_bridge_command
 
 pub mod bridge;
-pub mod commands;
 pub mod core;
 pub(crate) mod diagnostic_helpers;
 
@@ -65,6 +64,33 @@ pub fn config_show(cwd: &Path) -> Result<String, CliError> {
         .try_load(cwd)
         .map_err(CliError::ConfigError)?;
     serde_json::to_string_pretty(&result.config).map_err(CliError::from)
+}
+
+/// Update the canonical global config from key/value pairs and return the saved path.
+pub fn update_global_config_from_pairs(
+    cwd: &Path,
+    pairs: &[(String, String)],
+) -> Result<std::path::PathBuf, CliError> {
+    let result = core::config::ConfigLoader::with_defaults()
+        .try_load(cwd)
+        .map_err(CliError::ConfigError)?;
+    let mut config = result.config;
+
+    for (key, value) in pairs {
+        match key.as_str() {
+            "workspaceDir" => config.workspace_dir = Some(value.clone()),
+            "logLevel" => config.log_level = Some(value.clone()),
+            _ => {}
+        }
+    }
+
+    let config_path = core::config::get_required_global_config_path().map_err(CliError::ConfigError)?;
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let json = serde_json::to_string_pretty(&config)?;
+    std::fs::write(&config_path, &json)?;
+    Ok(config_path)
 }
 
 /// Execute a bridge command (execute, dry-run, clean, plugins) via Node.js subprocess.

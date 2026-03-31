@@ -1,6 +1,6 @@
 import {defineConfig} from 'tsdown'
 
-const noExternalDeps = ['@truenine/memory-sync-sdk']
+const alwaysBundleDeps = ['@truenine/memory-sync-sdk']
 
 export default defineConfig([
   {
@@ -9,9 +9,9 @@ export default defineConfig([
     sourcemap: false,
     unbundle: false,
     deps: {
+      alwaysBundle: alwaysBundleDeps,
       onlyBundle: false
     },
-    noExternal: noExternalDeps,
     format: ['esm'],
     minify: true,
     dts: {sourcemap: false},
@@ -21,9 +21,33 @@ export default defineConfig([
     entry: ['./src/globals.ts'],
     platform: 'node',
     sourcemap: false,
-    noExternal: noExternalDeps,
+    deps: {
+      alwaysBundle: alwaysBundleDeps
+    },
     format: ['esm'],
     minify: false,
     dts: {sourcemap: false}
+  },
+  {
+    entry: ['./src/plugin-runtime.ts'],
+    platform: 'node',
+    sourcemap: false,
+    deps: {
+      alwaysBundle: alwaysBundleDeps
+    },
+    format: ['esm'],
+    minify: true,
+    dts: false
+  },
+  {
+    entry: ['./src/script-runtime-worker.ts'],
+    platform: 'node',
+    sourcemap: false,
+    deps: {
+      alwaysBundle: alwaysBundleDeps
+    },
+    format: ['esm'],
+    minify: true,
+    dts: false
   }
 ])

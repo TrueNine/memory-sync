@@ -16,3 +16,4 @@ path = "src/main.rs"
 tnmsc = { workspace = true }
 tnmsc-logger = { workspace = true }
 clap = { workspace = true }
+serde_json = { workspace = true }

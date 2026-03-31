@@ -15,12 +15,12 @@ fn main() {
 
         // Try multiple possible locations for plugin-runtime.mjs
         let possible_sources = vec![
-            // Already built in sdk/dist
-            PathBuf::from("dist/plugin-runtime.mjs"),
+            // Already built in cli/dist
+            PathBuf::from("../cli/dist/plugin-runtime.mjs"),
             // From repo root
-            PathBuf::from("sdk/dist/plugin-runtime.mjs"),
-            // CI workspace path (when building from repo root)
-            PathBuf::from("../sdk/dist/plugin-runtime.mjs"),
+            PathBuf::from("cli/dist/plugin-runtime.mjs"),
+            // Local fallback when building from cli package directory
+            PathBuf::from("dist/plugin-runtime.mjs"),
         ];
 
         let mut found = false;
@@ -36,7 +36,7 @@ fn main() {
         if !found {
             panic!(
                 "plugin-runtime.mjs not found for embedded-runtime feature. \
-                 Please build it first with: pnpm -F @truenine/memory-sync-sdk exec tsdown \
+                 Please build it first with: pnpm -F @truenine/memory-sync-cli run build:shell \
                  Searched paths: {:?}",
                 possible_sources
             );
