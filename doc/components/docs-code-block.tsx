@@ -43,6 +43,8 @@ export function DocsCodeBlock({
   const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const hasFilename = typeof filename === 'string' && filename !== ''
   const hasLanguage = language !== ''
+  const title = hasFilename ? filename : language
+  const showLanguage = hasFilename && hasLanguage && language !== 'TEXT'
 
   useEffect(() =>
     () => {
@@ -76,12 +78,10 @@ export function DocsCodeBlock({
     <div className="docs-code-block group">
       <div className="docs-code-block-header">
         <div className="docs-code-block-meta">
-          {hasFilename ? (
-            <span className="docs-code-block-title" title={filename}>
-              {filename}
-            </span>
-          ) : null}
-          {hasLanguage ? <span className="docs-code-block-language">{language}</span> : null}
+          <span className="docs-code-block-title" title={title}>
+            {title}
+          </span>
+          {showLanguage ? <span className="docs-code-block-language">{language}</span> : null}
         </div>
         <button
           type="button"
@@ -89,10 +89,11 @@ export function DocsCodeBlock({
           onClick={() => {
             void handleCopy()
           }}
-          aria-label="Copy code block"
+          aria-label={status === 'copied' ? 'Copied code block' : 'Copy code block'}
+          title={status === 'copied' ? 'Copied' : 'Copy'}
         >
           {status === 'copied' ? <CheckIcon /> : <CopyIcon />}
-          <span>{status === 'copied' ? 'Copied' : 'Copy'}</span>
+          <span className="docs-code-block-copy-label">{status === 'copied' ? 'Copied' : 'Copy'}</span>
         </button>
       </div>
       <div data-pagefind-ignore={pagefindIgnore} className="docs-code-block-content">
