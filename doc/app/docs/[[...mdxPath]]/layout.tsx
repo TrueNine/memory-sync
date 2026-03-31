@@ -1,18 +1,23 @@
 import type {ReactNode} from 'react'
-import Link from 'next/link'
 import {Footer, Layout, Navbar} from 'nextra-theme-docs'
 import {getPageMap} from 'nextra/page-map'
-import {siteConfig} from '../../lib/site'
+import {DocsSectionNav} from '../../../components/docs-section-nav'
+import {isDocSectionName} from '../../../lib/docs-sections'
+import {siteConfig} from '../../../lib/site'
 
-export default async function DocsLayout({children}: {readonly children: ReactNode}) {
-  const pageMap = await getPageMap('/docs')
-  const sectionLinks = [
-    {href: '/docs/cli', label: 'CLI'},
-    {href: '/docs/mcp', label: 'MCP'},
-    {href: '/docs/gui', label: 'GUI'},
-    {href: '/docs/technical-details', label: '技术细节'},
-    {href: '/docs/design-rationale', label: '设计初衷'}
-  ] as const
+export default async function DocsLayout({
+  children,
+  params: paramsPromise
+}: {
+  readonly children: ReactNode
+  readonly params: Promise<{readonly mdxPath?: string[]}>
+}) {
+  const params = await paramsPromise
+  const firstSegment = params.mdxPath?.[0]
+  const section = firstSegment != null && isDocSectionName(firstSegment)
+    ? firstSegment
+    : undefined
+  const pageMap = await getPageMap(section ? `/docs/${section}` : '/docs')
 
   return (
     <Layout
@@ -29,14 +34,7 @@ export default async function DocsLayout({children}: {readonly children: ReactNo
           )}
         >
           <div className="docs-navbar-shell">
-            <nav className="docs-navbar-links" aria-label="Primary">
-              {sectionLinks.map(link => (
-                <Link key={link.href} href={link.href} className="docs-nav-link">
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-
+            <DocsSectionNav />
             <div className="docs-navbar-actions">
               <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer" className="docs-navbar-action">
                 GitHub

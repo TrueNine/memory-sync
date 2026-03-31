@@ -36,7 +36,7 @@ export default async function DocsPage(props: {
     sourceCode
   } = await importPage(params.mdxPath)
 
-  const page = <MDXContent {...props} params={params} />
+  const page = <MDXContent {...props} params={params} components={components} />
 
   if (!Wrapper) {
     return page
