@@ -10,8 +10,33 @@ interface MermaidProps {
   readonly title?: string
 }
 
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
 let mermaidPromise: Promise<MermaidModule['default']> | undefined
 let mermaidInitialized = false
+
+function normalizeChart(chart: string): string {
+  return chart
+    .replaceAll('\\r\\n', '\n')
+    .replaceAll('\\n', '\n')
+    .replaceAll('\\t', '  ')
+    .trim()
+}
 
 async function loadMermaid() {
   mermaidPromise ??= import('mermaid').then(({default: mermaid}) => {
@@ -54,9 +79,13 @@ async function loadMermaid() {
 
 export function Mermaid({chart, title}: MermaidProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [svg, setSvg] = useState<string>()
   const [error, setError] = useState<string>()
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const id = useId().replaceAll(':', '')
+  const normalizedChart = normalizeChart(chart)
+  const diagramTitle = title ?? 'Mermaid'
 
   useEffect(() => {
     let cancelled = false
@@ -68,7 +97,7 @@ export function Mermaid({chart, title}: MermaidProps) {
       .then(async mermaid => {
         const {svg: renderedSvg, bindFunctions} = await mermaid.render(
           `mermaid-${id}-${Date.now()}`,
-          chart.trim()
+          normalizedChart
         )
 
         if (cancelled) {
@@ -94,7 +123,35 @@ export function Mermaid({chart, title}: MermaidProps) {
     return () => {
       cancelled = true
     }
-  }, [chart, id])
+  }, [id, normalizedChart])
+
+  useEffect(() =>
+    () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }, [])
+
+  async function handleCopy() {
+    if (!normalizedChart) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(normalizedChart)
+      setCopyStatus('copied')
+    } catch {
+      setCopyStatus('failed')
+    }
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      setCopyStatus('idle')
+    }, 1800)
+  }
 
   const hasTitle = title !== void 0 && title !== ''
   const hasSvg = svg !== void 0 && svg !== ''
@@ -106,14 +163,33 @@ export function Mermaid({chart, title}: MermaidProps) {
   } else if (hasError) {
     diagramBody = (
       <pre className="mermaid-diagram__fallback">
-        <code>{chart}</code>
+        <code>{normalizedChart}</code>
       </pre>
     )
   }
 
   return (
     <figure className="mermaid-diagram" data-mermaid-theme="dark">
-      {hasTitle && <figcaption className="mermaid-diagram__title">{title}</figcaption>}
+      <div className="docs-code-block-header mermaid-diagram__header">
+        <div className="docs-code-block-meta">
+          <span className="docs-code-block-title" title={diagramTitle}>
+            {diagramTitle}
+          </span>
+          <span className="docs-code-block-language">MERMAID</span>
+        </div>
+        <button
+          type="button"
+          className="docs-code-block-copy"
+          onClick={() => {
+            void handleCopy()
+          }}
+          aria-label={copyStatus === 'copied' ? 'Copied Mermaid source' : 'Copy Mermaid source'}
+          title={copyStatus === 'copied' ? 'Copied' : 'Copy Mermaid'}
+        >
+          {copyStatus === 'copied' ? <CheckIcon /> : <CopyIcon />}
+          <span className="docs-code-block-copy-label">{copyStatus === 'copied' ? 'Copied' : 'Copy Mermaid'}</span>
+        </button>
+      </div>
       <div ref={containerRef} className="mermaid-diagram__canvas">{diagramBody}</div>
       {hasError && (
         <p className="mermaid-diagram__error">

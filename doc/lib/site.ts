@@ -32,6 +32,11 @@ export const heroProofPoints = [
 
 export const homeEntryCards = [
   {
+    href: '/docs/quick-guide',
+    title: '快速指引',
+    detail: '先用一页判断你应该从 CLI、GUI 还是 MCP 进入，再跳到最短可执行路径。'
+  },
+  {
     href: '/docs/cli',
     title: 'CLI',
     detail: '围绕安装、项目准备、第一次同步、配置字段与命令表面组织。'
@@ -90,24 +95,30 @@ export const capabilityCards = [
 export const readingPath = [
   {
     step: '01',
+    href: '/docs/quick-guide',
+    title: '选择入口',
+    description: '先判断你当前是终端同步、桌面工作流还是 MCP 集成。'
+  },
+  {
+    step: '02',
     href: '/docs/cli/install',
     title: '确认运行前提',
     description: '先核对 Node、Rust、CLI 入口与当前支持边界。'
   },
   {
-    step: '02',
+    step: '03',
     href: '/docs/cli/workspace-setup',
     title: '准备项目结构',
     description: '按照 aindex 与项目配置的真实目录约定组织源文件。'
   },
   {
-    step: '03',
+    step: '04',
     href: '/docs/technical-details/source-of-truth',
     title: '开始维护源内容',
     description: '先建立真源模型，再区分全局 Prompt、项目 Prompt 与其他输入资产。'
   },
   {
-    step: '04',
+    step: '05',
     href: '/docs/cli/cli-commands',
     title: '执行 dry-run 与同步',
     description: '在写入目标工具前先验证输出列表、范围与清理行为。'

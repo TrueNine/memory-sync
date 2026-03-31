@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react'
-import {Footer, Layout, Navbar} from 'nextra-theme-docs'
+import {Layout, Navbar} from 'nextra-theme-docs'
 import {getPageMap} from 'nextra/page-map'
 import {DocsSectionNav} from '../../../components/docs-section-nav'
 import {isDocSectionName} from '../../../lib/docs-sections'
@@ -42,11 +42,6 @@ export default async function DocsLayout({
             </div>
           </div>
         </Navbar>
-      )}
-      footer={(
-        <Footer>
-          AGPL-3.0-only · 面向当前仓库实现、命令表面与配置边界
-        </Footer>
       )}
       docsRepositoryBase={`${siteConfig.docsRepositoryBase}/content`}
       editLink="在 GitHub 上编辑此页"

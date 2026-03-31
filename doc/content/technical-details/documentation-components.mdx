@@ -142,6 +142,18 @@ status: stable
   ]}
 />
 
+## 5. 包管理器安装切换
+
+`PackageManagerTabs` 适合放在安装页，避免只给 `npm` 一种写法。它会用统一组件切换 `npm`、`pnpm`、`yarn` 三组命令。
+
+<PackageManagerTabs
+  commands={{
+    npm: 'npm install -g @truenine/memory-sync-cli',
+    pnpm: 'pnpm add -g @truenine/memory-sync-cli',
+    yarn: 'yarn global add @truenine/memory-sync-cli'
+  }}
+/>
+
 ## 使用方式
 
 在任意 MDX 页面中直接写：
@@ -151,10 +163,12 @@ status: stable
 <SupportMatrix items={[{system: 'Windows', support: 'full'}]}/>
 <PlatformGrid items={[{name: 'Windows', description: 'Primary desktop target'}]}/>
 <CommandReference items={[{stack: 'pnpm', task: 'dev', command: 'pnpm -C doc dev'}]}/>
+<PackageManagerTabs commands={{npm: 'npm install -g pkg', pnpm: 'pnpm add -g pkg', yarn: 'yarn global add pkg'}}/>
 ```
 
 如果后面还要继续扩展，建议沿着这个方向做，而不是回到散乱的原生 Markdown 表格：
 
 - 表格类信息继续复用 `FeatureMatrix`、`SupportMatrix`、`CommandReference`
 - 偏展示型内容复用 `PlatformGrid`
+- 安装命令切换复用 `PackageManagerTabs`
 - 需要完全自由布局时，再单独加新的卡片或对比组件

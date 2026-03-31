@@ -1,9 +1,11 @@
 import type {ComponentPropsWithoutRef, ReactElement, ReactNode} from 'react'
 import {useMDXComponents as getDocsMDXComponents} from 'nextra-theme-docs'
 import {isValidElement} from 'react'
+import {DocsBlockquote} from './components/docs-callout'
 import {CommandReference, FeatureMatrix, PlatformGrid, SupportMatrix} from './components/doc-widgets'
 import {DocsCodeBlock} from './components/docs-code-block'
 import {Mermaid} from './components/mermaid'
+import {PackageManagerTabs} from './components/package-manager-tabs'
 
 const docsComponents = getDocsMDXComponents()
 const DocsPre = docsComponents.pre as ((props: MermaidPreProps) => ReactNode) | undefined
@@ -29,6 +31,14 @@ function extractMermaidChart(node: ReactNode): string {
   }
 
   return ''
+}
+
+function normalizeMermaidChart(chart: string): string {
+  return chart
+    .replaceAll('\\r\\n', '\n')
+    .replaceAll('\\n', '\n')
+    .replaceAll('\\t', '  ')
+    .trim()
 }
 
 function extractCodeText(node: ReactNode): string {
@@ -115,7 +125,7 @@ function MermaidPre(props: MermaidPreProps) {
     return <DocsCodeBlockPre {...props} />
   }
 
-  const chart = extractMermaidChart(props.children).trim()
+  const chart = normalizeMermaidChart(extractMermaidChart(props.children))
 
   if (!chart) {
     return <DocsPre {...props} />
@@ -127,9 +137,11 @@ function MermaidPre(props: MermaidPreProps) {
 export function useMDXComponents(components: MDXComponents = {}): MDXComponents {
   return {
     ...docsComponents,
+    blockquote: DocsBlockquote,
     CommandReference,
     FeatureMatrix,
     Mermaid,
+    PackageManagerTabs,
     PlatformGrid,
     SupportMatrix,
     pre: MermaidPre,
