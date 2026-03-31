@@ -9,13 +9,19 @@
   ],
   "license": "AGPL-3.0-only",
   "scripts": {
-    "prepack": "node ../../../scripts/write-platform-package-shims.mjs ."
+    "prepack": "pnpm exec tsx ../../../scripts/write-platform-package-shims.ts ."
   },
-  "main": "noop.cjs",
-  "types": "noop.d.ts",
+  "exports": {
+    ".": {
+      "types": "./noop.d.mts",
+      "import": "./noop.mjs"
+    },
+    "./*.node": "./*.node",
+    "./package.json": "./package.json"
+  },
   "files": [
     "*.node",
-    "noop.cjs",
-    "noop.d.ts"
+    "noop.mjs",
+    "noop.d.mts"
   ]
 }

@@ -17,8 +17,8 @@ const config = await eslint10({
   ignores: [
     '.turbo/**',
     'aindex/**',
-    'npm/**/noop.cjs',
-    'npm/**/noop.d.ts',
+    'npm/**/noop.mjs',
+    'npm/**/noop.d.mts',
     '*.md',
     '**/*.md',
     '*.toml',
