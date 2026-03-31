@@ -8,6 +8,9 @@
     "x64"
   ],
   "license": "AGPL-3.0-only",
+  "scripts": {
+    "prepack": "node ../../../scripts/write-platform-package-shims.mjs ."
+  },
   "main": "noop.cjs",
   "types": "noop.d.ts",
   "files": [

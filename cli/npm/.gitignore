@@ -2,5 +2,3 @@
 !.gitignore
 !*/
 !*/package.json
-!*/noop.cjs
-!*/noop.d.ts
