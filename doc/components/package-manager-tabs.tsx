@@ -39,6 +39,8 @@ export function PackageManagerTabs({
 }: PackageManagerTabsProps): ReactNode {
   const instanceId = useId()
   const [selectedManager, setSelectedManager] = useState<PackageManager>(defaultManager)
+  const hasTitle = title !== void 0 && title !== ''
+  const hasDescription = description !== void 0 && description !== null && description !== false
   const tabs: PackageManagerTab[] = TAB_ORDER.map(id => ({
     command: commands[id],
     id,
@@ -55,12 +57,14 @@ export function PackageManagerTabs({
 
   return (
     <section className="docs-package-manager-tabs">
-      {title || description ? (
-        <header className="docs-widget-header">
-          {title ? <h3>{title}</h3> : null}
-          {description ? <p>{description}</p> : null}
-        </header>
-      ) : null}
+      {hasTitle || hasDescription
+        ? (
+            <header className="docs-widget-header">
+              {hasTitle ? <h3>{title}</h3> : null}
+              {hasDescription ? <p>{description}</p> : null}
+            </header>
+          )
+        : null}
       <div className="docs-package-manager-tabs-list" role="tablist" aria-label="Package manager commands">
         {tabs.map(tab => {
           const isSelected = tab.id === activeTab.id
@@ -80,9 +84,9 @@ export function PackageManagerTabs({
               }}
             >
               {tab.label}
-              {tab.id === recommendedManager ? (
-                <span className="docs-package-manager-tab-badge">推荐</span>
-              ) : null}
+              {tab.id === recommendedManager
+                ? <span className="docs-package-manager-tab-badge">推荐</span>
+                : null}
             </button>
           )
         })}

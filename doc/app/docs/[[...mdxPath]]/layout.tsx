@@ -16,7 +16,7 @@ export default async function DocsLayout({
   const firstSegment = params.mdxPath?.[0]
   const section = firstSegment != null && isDocSectionName(firstSegment)
     ? firstSegment
-    : undefined
+    : void 0
   const pageMap = await getPageMap(section ? `/docs/${section}` : '/docs')
 
   return (

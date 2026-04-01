@@ -1,6 +1,7 @@
-import {siteConfig} from '../lib/site'
 import {execFileSync} from 'node:child_process'
 import path from 'node:path'
+import process from 'node:process'
+import {siteConfig} from '../lib/site'
 
 interface GitHubContributor {
   readonly avatar_url: string
@@ -44,10 +45,12 @@ const CONTRIBUTORS_PER_PAGE = 100
 const MAX_CONTRIBUTOR_PAGES = 10
 const CONTRIBUTORS_REVALIDATE_SECONDS = 60 * 60 * 12
 const REPO_ROOT = path.resolve(process.cwd(), '..')
+const LEADING_SLASHES_PATTERN = /^\/+/
+const CO_AUTHOR_PREFIX = 'co-authored-by:'
 
 function getRepoCoordinates(repoUrl: string) {
   const url = new URL(repoUrl)
-  const [owner, repo] = url.pathname.replace(/^\/+/, '').split('/')
+  const [owner, repo] = url.pathname.replace(LEADING_SLASHES_PATTERN, '').split('/')
 
   if (!owner || !repo) {
     throw new Error(`Invalid GitHub repository URL: ${repoUrl}`)
@@ -58,11 +61,15 @@ function getRepoCoordinates(repoUrl: string) {
 
 function getGitHubHeaders() {
   const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN
-
-  return {
-    Accept: 'application/vnd.github+json',
-    ...(token ? {Authorization: `Bearer ${token}`} : {})
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json'
   }
+
+  if (token != null && token !== '') {
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  return headers
 }
 
 async function fetchContributorsPage(page: number): Promise<GitHubContributor[]> {
@@ -117,20 +124,36 @@ async function fetchGitHubUser(login: string): Promise<ResolvedGitHubUser | null
 }
 
 function parseCoAuthors(message: string) {
-  const matches = message.matchAll(/^Co-authored-by:\s+(.+?)\s+<(.+?)>$/gim)
   const coAuthors: CoAuthorIdentity[] = []
 
-  for (const match of matches) {
-    const [, name, email] = match
+  for (const rawLine of message.split('\n')) {
+    const line = rawLine.trim()
 
-    if (!name || !email) {
+    if (!line.toLowerCase().startsWith(CO_AUTHOR_PREFIX)) {
+      continue
+    }
+
+    const footer = line.slice(CO_AUTHOR_PREFIX.length).trim()
+    const openAngleBracketIndex = footer.lastIndexOf('<')
+    const closeAngleBracketIndex = footer.endsWith('>')
+      ? footer.length - 1
+      : -1
+
+    if (openAngleBracketIndex <= 0 || closeAngleBracketIndex <= openAngleBracketIndex) {
+      continue
+    }
+
+    const name = footer.slice(0, openAngleBracketIndex).trim()
+    const email = footer.slice(openAngleBracketIndex + 1, closeAngleBracketIndex).trim()
+
+    if (name === '' || email === '') {
       continue
     }
 
     coAuthors.push({
       count: 1,
-      email: email.trim(),
-      name: name.trim()
+      email,
+      name
     })
   }
 
@@ -167,7 +190,7 @@ function getCoAuthorSearchQueries(identity: CoAuthorIdentity) {
 
   queries.push(`${identity.name} in:login`)
 
-  return Array.from(new Set(queries))
+  return [...new Set(queries)]
 }
 
 function getKnownCoAuthorProfile(identity: CoAuthorIdentity): KnownCoAuthorProfile | null {
@@ -252,7 +275,7 @@ async function getCoAuthors() {
     }
   }
 
-  return Array.from(coAuthors.values()).sort((left, right) => right.count - left.count)
+  return [...coAuthors.values()].sort((left, right) => right.count - left.count)
 }
 
 async function resolveCoAuthor(identity: CoAuthorIdentity) {
@@ -355,34 +378,33 @@ async function getContributorCards() {
     cards.set(key, value)
   }
 
-  return Array.from(cards.values())
-    .map(contributor => {
-      if (contributor.htmlUrl === 'https://github.com/cursoragent') {
-        return {
-          ...contributor,
-          kind: 'agent' as const,
-          label: 'cursoragent'
-        }
+  return Array.from(cards.values(), contributor => {
+    if (contributor.htmlUrl === 'https://github.com/cursoragent') {
+      return {
+        ...contributor,
+        kind: 'agent' as const,
+        label: 'cursoragent'
       }
+    }
 
-      if (contributor.htmlUrl === 'https://github.com/anthropics-claude-code') {
-        return {
-          ...contributor,
-          kind: 'agent' as const,
-          label: 'Claude Code'
-        }
+    if (contributor.htmlUrl === 'https://github.com/anthropics-claude-code') {
+      return {
+        ...contributor,
+        kind: 'agent' as const,
+        label: 'Claude Code'
       }
+    }
 
-      if (contributor.htmlUrl === 'https://github.com/windsurf') {
-        return {
-          ...contributor,
-          kind: 'agent' as const,
-          label: 'Windsurf'
-        }
+    if (contributor.htmlUrl === 'https://github.com/windsurf') {
+      return {
+        ...contributor,
+        kind: 'agent' as const,
+        label: 'Windsurf'
       }
+    }
 
-      return contributor
-    })
+    return contributor
+  })
     .sort((left, right) => right.sortWeight - left.sortWeight)
 }
 

@@ -12,7 +12,7 @@
     "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind",
     "check": "run-p lint typecheck",
     "validate:content": "tsx scripts/validate-content.ts",
-    "typecheck": "next typegen && tsc --noEmit --incremental false",
+    "typecheck": "next typegen && tsc --project tsconfig.typecheck.json --noEmit --incremental false",
     "start": "next start",
     "lint": "pnpm run validate:content && eslint ."
   },
