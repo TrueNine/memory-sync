@@ -6,6 +6,7 @@ type CalloutTone = 'note' | 'tip' | 'important' | 'warning' | 'caution'
 type BlockquoteProps = ComponentPropsWithoutRef<'blockquote'>
 
 const CALLOUT_PATTERN = /^\s*\[!(note|tip|important|warning|caution)\]\s*/i
+const CALLOUT_TONES = new Set<CalloutTone>(['note', 'tip', 'important', 'warning', 'caution'])
 
 const CALLOUT_LABELS: Record<CalloutTone, string> = {
   note: 'Note',
@@ -43,32 +44,43 @@ function getMeaningfulChildren(children: ReactNode): ReactNode[] {
 
 function stripMarkerFromChildren(children: ReactNode): ReactNode {
   const items = getMeaningfulChildren(children)
+  const strippedItems: ReactNode[] = []
 
-  return items.map(async (item, index) => {
+  for (const [index, item] of items.entries()) {
     if (index !== 0) {
-      return item
+      strippedItems.push(item)
+      continue
     }
 
     if (typeof item === 'string') {
-      return item.replace(CALLOUT_PATTERN, '')
+      strippedItems.push(item.replace(CALLOUT_PATTERN, ''))
+      continue
     }
 
     if (!isValidElement(item)) {
-      return item
+      strippedItems.push(item)
+      continue
     }
 
     const element = item as ReactElement<{children?: ReactNode}>
     const text = extractText(element.props.children)
 
     if (!CALLOUT_PATTERN.test(text)) {
-      return item
+      strippedItems.push(item)
+      continue
     }
 
-    return cloneElement(element, {
+    strippedItems.push(cloneElement(element, {
       ...element.props,
       children: text.replace(CALLOUT_PATTERN, '')
-    })
-  })
+    }))
+  }
+
+  return strippedItems
+}
+
+function isCalloutTone(value: string | undefined): value is CalloutTone {
+  return value != null && CALLOUT_TONES.has(value as CalloutTone)
 }
 
 function resolveCalloutTone(children: ReactNode): CalloutTone | null {
@@ -76,9 +88,7 @@ function resolveCalloutTone(children: ReactNode): CalloutTone | null {
   const firstText = extractText(firstChild).trimStart()
   const matched = CALLOUT_PATTERN.exec(firstText)?.[1]?.toLowerCase()
 
-  if (
-    new Set(['note', 'tip', 'important', 'warning', 'caution']).has(matched)
-  ) {
+  if (isCalloutTone(matched)) {
     return matched
   }
 

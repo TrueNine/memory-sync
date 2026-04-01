@@ -61,14 +61,15 @@ function getRepoCoordinates(repoUrl: string) {
 
 function getGitHubHeaders() {
   const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN
-  const authorization = token != null && token !== ''
-    ? {Authorization: `Bearer ${token}`}
-    : {}
-
-  return {
-    Accept: 'application/vnd.github+json',
-    ...authorization
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json'
   }
+
+  if (token != null && token !== '') {
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  return headers
 }
 
 async function fetchContributorsPage(page: number): Promise<GitHubContributor[]> {

@@ -1,0 +1,47 @@
+name: Pull Request Docs
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - doc/**
+      - .github/actions/setup-node-pnpm/action.yml
+      - .github/workflows/deploy-doc.yml
+      - .github/workflows/pull-request-doc.yml
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check-doc:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-filter: "@truenine/memory-sync-docs..."
+
+      - name: Validate docs content
+        run: pnpm -C doc run validate:content
+
+      - name: Lint docs
+        run: pnpm -C doc run lint
+
+      - name: Typecheck docs
+        run: pnpm -C doc run typecheck
+
+      - name: Build docs
+        run: pnpm -C doc run build
