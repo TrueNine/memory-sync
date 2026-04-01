@@ -746,10 +746,10 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
       - name: Build tnmsc binary (release, with embedded runtime)
-        run: cargo build --release --target ${{ matrix.target }} -p tnmsc --features embedded-runtime
+        run: cargo build --release --target ${{ matrix.target }} -p tnmsc-cli-shell --features tnmsc/embedded-runtime
       - name: Run tests (native only)
         if: ${{ !matrix.cross }}
-        run: cargo test --release --target ${{ matrix.target }} -p tnmsc --features embedded-runtime
+        run: cargo test --release --target ${{ matrix.target }} -p tnmsc-cli-shell --features tnmsc/embedded-runtime
       - name: Package (unix)
         if: runner.os != 'Windows'
         shell: bash
