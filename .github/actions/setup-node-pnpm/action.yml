@@ -10,6 +10,10 @@ inputs:
     description: pnpm version
     required: false
     default: "10.33.0"
+  registry-url:
+    description: Optional npm registry URL to configure for npm publish/auth steps
+    required: false
+    default: ""
   install:
     description: Whether to run pnpm install
     required: false
@@ -29,6 +33,7 @@ runs:
         node-version: ${{ inputs.node-version }}
         cache: pnpm
         cache-dependency-path: pnpm-lock.yaml
+        registry-url: ${{ inputs.registry-url }}
 
     - name: Install workspace dependencies
       if: inputs.install == 'true'

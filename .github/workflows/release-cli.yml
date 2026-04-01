@@ -1,7 +1,6 @@
 name: Release Packages
 
 env:
-  NODE_VERSION: "25.6.1"
   NPM_REGISTRY_URL: https://registry.npmjs.org/
   NPM_PUBLISH_VERIFY_ATTEMPTS: "90"
   NPM_PUBLISH_VERIFY_DELAY_SECONDS: "10"
@@ -57,9 +56,9 @@ jobs:
       version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          install: "false"
 
       - name: Check if should publish
         id: check
@@ -240,10 +239,6 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
         with:
           install: "true"
-      - name: Setup npm registry
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org/
       - name: Preflight npm auth
         shell: bash
@@ -464,10 +459,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-pnpm
-      - name: Setup npm registry
-        uses: actions/setup-node@v6
         with:
-          node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org/
       - name: Preflight npm auth
         shell: bash
@@ -590,10 +582,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-pnpm
-      - name: Setup npm registry
-        uses: actions/setup-node@v6
         with:
-          node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org/
       - name: Preflight npm auth
         shell: bash

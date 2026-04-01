@@ -153,7 +153,6 @@ export function Mermaid({chart, title}: MermaidProps) {
     }, 1800)
   }
 
-  const hasTitle = title !== void 0 && title !== ''
   const hasSvg = svg !== void 0 && svg !== ''
   const hasError = error !== void 0 && error !== ''
   let diagramBody: ReactNode = <div className="mermaid-diagram__loading">Rendering diagram...</div>

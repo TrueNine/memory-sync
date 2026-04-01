@@ -44,7 +44,7 @@ function getMeaningfulChildren(children: ReactNode): ReactNode[] {
 function stripMarkerFromChildren(children: ReactNode): ReactNode {
   const items = getMeaningfulChildren(children)
 
-  return items.map((item, index) => {
+  return items.map(async (item, index) => {
     if (index !== 0) {
       return item
     }
@@ -74,14 +74,10 @@ function stripMarkerFromChildren(children: ReactNode): ReactNode {
 function resolveCalloutTone(children: ReactNode): CalloutTone | null {
   const firstChild = getMeaningfulChildren(children)[0]
   const firstText = extractText(firstChild).trimStart()
-  const matched = firstText.match(CALLOUT_PATTERN)?.[1]?.toLowerCase()
+  const matched = CALLOUT_PATTERN.exec(firstText)?.[1]?.toLowerCase()
 
   if (
-    matched === 'note'
-    || matched === 'tip'
-    || matched === 'important'
-    || matched === 'warning'
-    || matched === 'caution'
+    new Set(['note', 'tip', 'important', 'warning', 'caution']).has(matched)
   ) {
     return matched
   }
