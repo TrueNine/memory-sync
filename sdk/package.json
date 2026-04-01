@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-sdk",
   "type": "module",
-  "version": "2026.10330.118",
+  "version": "2026.10402.103",
   "private": true,
   "description": "TrueNine Memory Synchronization SDK",
   "author": "TrueNine",
