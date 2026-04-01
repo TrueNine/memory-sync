@@ -8,8 +8,7 @@ export class InitCommandFactory implements CommandFactory {
     return args.subcommand === 'init'
   }
 
-  createCommand(args: ParsedCliArgs): Command {
-    void args
+  createCommand(): Command {
     return new InitCommand()
   }
 }

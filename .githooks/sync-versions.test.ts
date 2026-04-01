@@ -35,6 +35,11 @@ function createFixtureRepo(): string {
     name: '@truenine/memory-sync-cli',
     version: initialVersion
   })
+  writeJson(join(rootDir, 'sdk', 'package.json'), {
+    name: '@truenine/memory-sync-sdk',
+    version: initialVersion,
+    private: true
+  })
   writeJson(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), {
     name: '@truenine/memory-sync-cli-darwin-arm64',
     version: initialVersion
@@ -101,6 +106,7 @@ describe('sync-versions hook', () => {
     expect(result.versionSource).toBe('cli/npm/darwin-arm64/package.json')
     expect(JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
     expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+    expect(JSON.parse(readFileSync(join(rootDir, 'sdk', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
     expect(JSON.parse(readFileSync(join(rootDir, 'libraries', 'logger', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
     expect(readFileSync(join(rootDir, 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
     expect(readFileSync(join(rootDir, 'cli-crate', 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
@@ -112,7 +118,44 @@ describe('sync-versions hook', () => {
       'cli/package.json',
       'gui/src-tauri/tauri.conf.json',
       'libraries/logger/package.json',
-      'package.json'
+      'package.json',
+      'sdk/package.json'
+    ]))
+  })
+
+  it('accepts sdk/package.json as a staged version source and propagates it', () => {
+    const rootDir = createFixtureRepo()
+    tempDirs.push(rootDir)
+
+    const nextVersion = '2026.10324.10316'
+    writeJson(join(rootDir, 'sdk', 'package.json'), {
+      name: '@truenine/memory-sync-sdk',
+      version: nextVersion,
+      private: true
+    })
+    runGit(rootDir, ['add', 'sdk/package.json'])
+
+    const result = runSyncVersions({rootDir})
+    const stagedFiles = new Set(runGit(rootDir, ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean))
+
+    expect(result.targetVersion).toBe(nextVersion)
+    expect(result.versionSource).toBe('sdk/package.json')
+    expect(JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+    expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+    expect(JSON.parse(readFileSync(join(rootDir, 'sdk', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+    expect(JSON.parse(readFileSync(join(rootDir, 'libraries', 'logger', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+    expect(readFileSync(join(rootDir, 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
+    expect(readFileSync(join(rootDir, 'cli-crate', 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
+    expect(JSON.parse(readFileSync(join(rootDir, 'gui', 'src-tauri', 'tauri.conf.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+    expect(stagedFiles).toEqual(new Set([
+      'Cargo.toml',
+      'cli-crate/Cargo.toml',
+      'cli/npm/darwin-arm64/package.json',
+      'cli/package.json',
+      'gui/src-tauri/tauri.conf.json',
+      'libraries/logger/package.json',
+      'package.json',
+      'sdk/package.json'
     ]))
   })
 

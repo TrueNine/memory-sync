@@ -1,79 +1,84 @@
-import type {OutputCleanContext, OutputWriteContext} from './plugins/plugin-core'
-/**
- * Plugin Runtime Entry Point
- *
- * Streamlined entry for the Rust CLI binary to spawn via Node.js.
- * Accepts a subcommand and flags, executes the plugin pipeline,
- * and outputs results to stdout.
- *
- * Usage: node plugin-runtime.mjs <subcommand> [--json] [--dry-run]
- *
- * Subcommands: execute, dry-run, clean, plugins
- */
+import type {OutputCleanContext, OutputWriteContext, RuntimeCommand} from '@truenine/memory-sync-sdk'
 import type {Command, CommandContext} from '@/commands/Command'
-import type {PipelineConfig} from '@/config'
 import process from 'node:process'
+import {
+  buildUnhandledExceptionDiagnostic,
+  createLogger,
+  discoverOutputRuntimeTargets,
+  drainBufferedDiagnostics,
+  flushOutput,
+  setGlobalLogLevel
+} from '@truenine/memory-sync-sdk'
 import {CleanCommand} from '@/commands/CleanCommand'
 import {DryRunCleanCommand} from '@/commands/DryRunCleanCommand'
 import {DryRunOutputCommand} from '@/commands/DryRunOutputCommand'
 import {ExecuteCommand} from '@/commands/ExecuteCommand'
 import {JsonOutputCommand, toJsonCommandResult} from '@/commands/JsonOutputCommand'
 import {PluginsCommand} from '@/commands/PluginsCommand'
-import {buildUnhandledExceptionDiagnostic} from '@/diagnostics'
-import {discoverOutputRuntimeTargets} from '@/pipeline/OutputRuntimeTargets'
 import {createDefaultPluginConfig} from './plugin.config'
-import {createLogger, drainBufferedDiagnostics, setGlobalLogLevel} from './plugins/plugin-core'
 
-/**
- * Parse runtime arguments.
- * Expected: node plugin-runtime.mjs <subcommand> [--json] [--dry-run]
- */
-function parseRuntimeArgs(argv: string[]): {subcommand: string, json: boolean, dryRun: boolean} {
-  const args = argv.slice(2) // Skip node and script path
-  let subcommand = 'execute'
+function parseRuntimeArgs(argv: string[]): {subcommand: RuntimeCommand, json: boolean, dryRun: boolean} {
+  const args = argv.slice(2)
+  let subcommand: RuntimeCommand = 'execute'
   let json = false
   let dryRun = false
-
   for (const arg of args) {
     if (arg === '--json' || arg === '-j') json = true
     else if (arg === '--dry-run' || arg === '-n') dryRun = true
-    else if (!arg.startsWith('-')) subcommand = arg
+    else if (!arg.startsWith('-')) {
+      subcommand = arg === 'plugins' || arg === 'clean' || arg === 'dry-run' ? arg : 'execute'
+    }
   }
-
   return {subcommand, json, dryRun}
 }
 
-/**
- * Resolve command from subcommand string.
- */
-function resolveRuntimeCommand(subcommand: string, dryRun: boolean): Command {
+function resolveRuntimeCommand(subcommand: RuntimeCommand, dryRun: boolean): Command {
   switch (subcommand) {
-    case 'execute': return new ExecuteCommand()
-    case 'dry-run': return new DryRunOutputCommand()
-    case 'clean': return dryRun ? new DryRunCleanCommand() : new CleanCommand()
-    case 'plugins': return new PluginsCommand()
-    default: return new ExecuteCommand()
+    case 'execute':
+      return new ExecuteCommand()
+    case 'dry-run':
+      return new DryRunOutputCommand()
+    case 'clean':
+      return dryRun ? new DryRunCleanCommand() : new CleanCommand()
+    case 'plugins':
+      return new PluginsCommand()
   }
+}
+
+function writeJsonFailure(error: unknown): void {
+  const logger = createLogger('plugin-runtime', 'silent')
+  logger.error(buildUnhandledExceptionDiagnostic('plugin-runtime', error))
+  process.stdout.write(
+    `${JSON.stringify(
+      toJsonCommandResult(
+        {
+          success: false,
+          filesAffected: 0,
+          dirsAffected: 0,
+          message: error instanceof Error ? error.message : String(error)
+        },
+        drainBufferedDiagnostics()
+      )
+    )}\n`
+  )
+}
+
+function flushAndExit(code: number): never {
+  flushOutput()
+  process.exit(code)
 }
 
 async function main(): Promise<void> {
   const {subcommand, json, dryRun} = parseRuntimeArgs(process.argv)
-
   if (json) setGlobalLogLevel('silent')
 
-  const userPluginConfig: PipelineConfig = await createDefaultPluginConfig(process.argv)
-
+  const userPluginConfig = await createDefaultPluginConfig(process.argv, subcommand)
   let command = resolveRuntimeCommand(subcommand, dryRun)
-
-  if (json) {
-    const selfJsonCommands = new Set(['plugins'])
-    if (!selfJsonCommands.has(command.name)) command = new JsonOutputCommand(command)
-  }
+  if (json && !new Set(['plugins']).has(command.name)) command = new JsonOutputCommand(command)
 
   const {context, outputPlugins, userConfigOptions} = userPluginConfig
   const logger = createLogger('PluginRuntime')
   const runtimeTargets = discoverOutputRuntimeTargets(logger)
-
   const createCleanContext = (dry: boolean): OutputCleanContext => ({
     logger,
     collectedOutputContext: context,
@@ -81,7 +86,6 @@ async function main(): Promise<void> {
     runtimeTargets,
     dryRun: dry
   })
-
   const createWriteContext = (dry: boolean): OutputWriteContext => ({
     logger,
     collectedOutputContext: context,
@@ -90,7 +94,6 @@ async function main(): Promise<void> {
     dryRun: dry,
     registeredPluginNames: Array.from(outputPlugins, plugin => plugin.name)
   })
-
   const commandCtx: CommandContext = {
     logger,
     outputPlugins: [...outputPlugins],
@@ -99,30 +102,18 @@ async function main(): Promise<void> {
     createCleanContext,
     createWriteContext
   }
-
   const result = await command.execute(commandCtx)
-  if (!result.success) process.exit(1)
+  if (!result.success) flushAndExit(1)
+  flushOutput()
 }
 
-function writeJsonFailure(error: unknown): void {
-  const errorMessage = error instanceof Error ? error.message : String(error)
-  const logger = createLogger('plugin-runtime', 'silent')
-  logger.error(buildUnhandledExceptionDiagnostic('plugin-runtime', error))
-  process.stdout.write(`${JSON.stringify(toJsonCommandResult({
-    success: false,
-    filesAffected: 0,
-    dirsAffected: 0,
-    message: errorMessage
-  }, drainBufferedDiagnostics()))}\n`)
-}
-
-main().catch((e: unknown) => {
+main().catch(error => {
   const {json} = parseRuntimeArgs(process.argv)
   if (json) {
-    writeJsonFailure(e)
-    process.exit(1)
+    writeJsonFailure(error)
+    flushAndExit(1)
   }
   const logger = createLogger('plugin-runtime', 'error')
-  logger.error(buildUnhandledExceptionDiagnostic('plugin-runtime', e))
-  process.exit(1)
+  logger.error(buildUnhandledExceptionDiagnostic('plugin-runtime', error))
+  flushAndExit(1)
 })

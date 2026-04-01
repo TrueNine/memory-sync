@@ -4,10 +4,6 @@ import type {ParsedCliArgs} from '@/pipeline/CliArgumentParser'
 import {FactoryPriority} from '../CommandFactory'
 import {VersionCommand} from '../VersionCommand'
 
-/**
- * Factory for creating VersionCommand
- * Handles --version flag and 'version' subcommand
- */
 export class VersionCommandFactory implements PrioritizedCommandFactory {
   readonly priority = FactoryPriority.Flags
 
@@ -15,8 +11,7 @@ export class VersionCommandFactory implements PrioritizedCommandFactory {
     return args.versionFlag || args.subcommand === 'version'
   }
 
-  createCommand(args: ParsedCliArgs): Command {
-    void args
+  createCommand(): Command {
     return new VersionCommand()
   }
 }

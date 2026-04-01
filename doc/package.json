@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-docs",
-  "version": "2026.10330.118",
+  "version": "2026.10402.103",
   "private": true,
   "description": "Chinese-first manifesto-led documentation site for @truenine/memory-sync.",
   "engines": {
@@ -23,7 +23,8 @@
     "nextra": "catalog:",
     "nextra-theme-docs": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "sass": "^1.98.0"
   },
   "devDependencies": {
     "@truenine/eslint10-config": "catalog:",

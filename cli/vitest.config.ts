@@ -12,7 +12,7 @@ export default mergeConfig(
       passWithNoTests: true,
       exclude: [...configDefaults.exclude, 'e2e/*'],
       root: fileURLToPath(new URL('./', import.meta.url)),
-      setupFiles: ['./test/setup-native-binding.ts'],
+      setupFiles: ['../sdk/test/setup-native-binding.ts'],
       typecheck: {
         enabled: true,
         tsconfig: './tsconfig.test.json'

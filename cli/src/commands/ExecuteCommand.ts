@@ -1,15 +1,6 @@
 import type {Command, CommandContext, CommandResult} from './Command'
-import {syncWindowsConfigIntoWsl} from '@/wsl-mirror-sync'
-import {
-  collectOutputDeclarations,
-  executeDeclarativeWriteOutputs
-} from '../plugins/plugin-core'
-import {performCleanup} from './CleanupUtils'
+import {collectOutputDeclarations, executeDeclarativeWriteOutputs, performCleanup, syncWindowsConfigIntoWsl} from '@truenine/memory-sync-sdk'
 
-/**
- * Execute command - performs actual write operations
- * Includes pre-cleanup to remove stale files before writing new outputs
- */
 export class ExecuteCommand implements Command {
   readonly name = 'execute'
 
@@ -19,21 +10,13 @@ export class ExecuteCommand implements Command {
 
     const writeCtx = createWriteContext(false)
     const predeclaredOutputs = await collectOutputDeclarations(outputPlugins, writeCtx)
-    const cleanCtx = createCleanContext(false) // Step 1: Pre-cleanup (non-dry-run only)
-    const cleanupResult = await performCleanup(outputPlugins, cleanCtx, logger, predeclaredOutputs)
-
+    const cleanupResult = await performCleanup(outputPlugins, createCleanContext(false), logger, predeclaredOutputs)
     if (cleanupResult.violations.length > 0 || cleanupResult.conflicts.length > 0) {
-      return {
-        success: false,
-        filesAffected: 0,
-        dirsAffected: 0,
-        ...cleanupResult.message != null ? {message: cleanupResult.message} : {}
-      }
+      return {success: false, filesAffected: 0, dirsAffected: 0, ...cleanupResult.message != null ? {message: cleanupResult.message} : {}}
     }
 
     logger.info('cleanup complete', {deletedFiles: cleanupResult.deletedFiles, deletedDirs: cleanupResult.deletedDirs})
-
-    const results = await executeDeclarativeWriteOutputs(outputPlugins, writeCtx, predeclaredOutputs) // Step 2: Write outputs
+    const results = await executeDeclarativeWriteOutputs(outputPlugins, writeCtx, predeclaredOutputs)
 
     let totalFiles = 0
     let totalDirs = 0
@@ -47,33 +30,16 @@ export class ExecuteCommand implements Command {
     }
 
     if (writeErrors.length > 0) {
-      return {
-        success: false,
-        filesAffected: totalFiles,
-        dirsAffected: totalDirs,
-        message: writeErrors.join('\n')
-      }
+      return {success: false, filesAffected: totalFiles, dirsAffected: totalDirs, message: writeErrors.join('\n')}
     }
 
     const wslMirrorResult = await syncWindowsConfigIntoWsl(outputPlugins, writeCtx, void 0, predeclaredOutputs)
-
     if (wslMirrorResult.errors.length > 0) {
-      return {
-        success: false,
-        filesAffected: totalFiles,
-        dirsAffected: totalDirs,
-        message: wslMirrorResult.errors.join('\n')
-      }
+      return {success: false, filesAffected: totalFiles, dirsAffected: totalDirs, message: wslMirrorResult.errors.join('\n')}
     }
 
     totalFiles += wslMirrorResult.mirroredFiles
-
     logger.info('complete', {command: 'execute', pluginCount: results.size})
-
-    return {
-      success: true,
-      filesAffected: totalFiles,
-      dirsAffected: totalDirs
-    }
+    return {success: true, filesAffected: totalFiles, dirsAffected: totalDirs}
   }
 }

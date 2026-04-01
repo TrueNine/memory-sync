@@ -5,20 +5,9 @@ import process from 'node:process'
 import {fileURLToPath} from 'node:url'
 import {runCli} from './cli-runtime'
 
-export * from './Aindex'
 export * from './cli-runtime'
-export * from './config'
-export * from './ConfigLoader'
-export {
-  createDefaultPluginConfig
-} from './plugin.config'
-export * from './PluginPipeline'
-export {
-  DEFAULT_USER_CONFIG,
-  PathPlaceholders
-} from './plugins/plugin-core'
-
-export * from './prompts'
+export * from './plugin.config'
+export * from '@truenine/memory-sync-sdk'
 
 function isCliEntrypoint(argv: readonly string[] = process.argv): boolean {
   const entryPath = argv[1]
@@ -26,8 +15,7 @@ function isCliEntrypoint(argv: readonly string[] = process.argv): boolean {
 
   try {
     return realpathSync(entryPath) === realpathSync(fileURLToPath(import.meta.url))
-  }
-  catch {
+  } catch {
     return false
   }
 }

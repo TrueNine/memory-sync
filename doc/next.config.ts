@@ -4,6 +4,8 @@ import nextra from 'nextra'
 
 const mermaidTurbopackAlias = './components/mermaid'
 const mermaidWebpackAlias = fileURLToPath(new URL('./components/mermaid.tsx', import.meta.url))
+const nextThemesTurbopackAlias = './lib/next-themes-compat'
+const nextThemesWebpackAlias = fileURLToPath(new URL('./lib/next-themes-compat.tsx', import.meta.url))
 
 interface WebpackResolveAliasEntry {
   readonly alias: string
@@ -30,7 +32,7 @@ const withNextra = nextra({
 const LEGACY_DOC_REDIRECTS = [
   {
     source: '/docs',
-    destination: '/docs/cli'
+    destination: '/docs/quick-guide'
   },
   {
     source: '/docs/quick-start/:path*',
@@ -69,7 +71,8 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     resolveAlias: {
-      '@theguild/remark-mermaid/mermaid': mermaidTurbopackAlias
+      '@theguild/remark-mermaid/mermaid': mermaidTurbopackAlias,
+      'next-themes': nextThemesTurbopackAlias
     }
   },
   webpack(config: WebpackConfig) {
@@ -84,11 +87,17 @@ const nextConfig: NextConfig = {
         name: '@theguild/remark-mermaid/mermaid',
         onlyModule: false,
         target: mermaidWebpackAlias
+      }, {
+        alias: 'next-themes',
+        name: 'next-themes',
+        onlyModule: false,
+        target: nextThemesWebpackAlias
       })
     } else {
       resolve.alias = {
         ...alias,
-        '@theguild/remark-mermaid/mermaid': mermaidWebpackAlias
+        '@theguild/remark-mermaid/mermaid': mermaidWebpackAlias,
+        'next-themes': nextThemesWebpackAlias
       }
     }
 

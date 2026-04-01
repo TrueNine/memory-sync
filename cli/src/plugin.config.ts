@@ -1,32 +1,45 @@
-import type {PipelineConfig} from '@/config'
+import type {PipelineConfig, RuntimeCommand} from '@truenine/memory-sync-sdk'
 import process from 'node:process'
-import {GenericSkillsOutputPlugin} from '@truenine/plugin-agentskills-compact'
-import {AgentsOutputPlugin} from '@truenine/plugin-agentsmd'
-import {ClaudeCodeCLIOutputPlugin} from '@truenine/plugin-claude-code-cli'
-import {CursorOutputPlugin} from '@truenine/plugin-cursor'
-import {DroidCLIOutputPlugin} from '@truenine/plugin-droid-cli'
-import {EditorConfigOutputPlugin} from '@truenine/plugin-editorconfig'
-import {GeminiCLIOutputPlugin} from '@truenine/plugin-gemini-cli'
-import {GitExcludeOutputPlugin} from '@truenine/plugin-git-exclude'
-import {JetBrainsAIAssistantCodexOutputPlugin} from '@truenine/plugin-jetbrains-ai-codex'
-import {JetBrainsIDECodeStyleConfigOutputPlugin} from '@truenine/plugin-jetbrains-codestyle'
-import {CodexCLIOutputPlugin} from '@truenine/plugin-openai-codex-cli'
-import {OpencodeCLIOutputPlugin} from '@truenine/plugin-opencode-cli'
-import {QoderIDEPluginOutputPlugin} from '@truenine/plugin-qoder-ide'
-import {ReadmeMdConfigFileOutputPlugin} from '@truenine/plugin-readme'
-import {TraeIDEOutputPlugin} from '@truenine/plugin-trae-ide'
-import {VisualStudioCodeIDEConfigOutputPlugin} from '@truenine/plugin-vscode'
-import {WarpIDEOutputPlugin} from '@truenine/plugin-warp-ide'
-import {WindsurfOutputPlugin} from '@truenine/plugin-windsurf'
-import {ZedIDEConfigOutputPlugin} from '@truenine/plugin-zed'
-import {defineConfig} from '@/config'
-import {TraeCNIDEOutputPlugin} from '@/plugins/plugin-trae-cn-ide'
+import {
+  AgentsOutputPlugin,
+  ClaudeCodeCLIOutputPlugin,
+  CodexCLIOutputPlugin,
+  CursorOutputPlugin,
+  defineConfig,
+  DroidCLIOutputPlugin,
+  EditorConfigOutputPlugin,
+  GeminiCLIOutputPlugin,
+  GenericSkillsOutputPlugin,
+  GitExcludeOutputPlugin,
+  JetBrainsAIAssistantCodexOutputPlugin,
+  JetBrainsIDECodeStyleConfigOutputPlugin,
+  OpencodeCLIOutputPlugin,
+  QoderIDEPluginOutputPlugin,
+  ReadmeMdConfigFileOutputPlugin,
+  TraeCNIDEOutputPlugin,
+  TraeIDEOutputPlugin,
+  VisualStudioCodeIDEConfigOutputPlugin,
+  WarpIDEOutputPlugin,
+  WindsurfOutputPlugin,
+  ZedIDEConfigOutputPlugin
+} from '@truenine/memory-sync-sdk'
+
+export function resolveRuntimeCommandFromArgv(argv: readonly string[] = process.argv): RuntimeCommand {
+  const args = argv.filter((arg): arg is string => arg != null)
+  const userArgs = args.slice(2)
+  const subcommand = userArgs.find(arg => !arg.startsWith('-'))
+  if (subcommand === 'plugins') return 'plugins'
+  if (subcommand === 'clean') return 'clean'
+  if (subcommand === 'dry-run' || userArgs.includes('--dry-run') || userArgs.includes('-n')) return 'dry-run'
+  return 'execute'
+}
 
 export async function createDefaultPluginConfig(
-  pipelineArgs: readonly string[] = process.argv
+  argv: readonly string[] = process.argv,
+  runtimeCommand: RuntimeCommand = resolveRuntimeCommandFromArgv(argv)
 ): Promise<PipelineConfig> {
   return defineConfig({
-    pipelineArgs,
+    runtimeCommand,
     pluginOptions: {
       plugins: [
         new AgentsOutputPlugin(),
@@ -44,7 +57,6 @@ export async function createDefaultPluginConfig(
         new WindsurfOutputPlugin(),
         new CursorOutputPlugin(),
         new GitExcludeOutputPlugin(),
-
         new JetBrainsIDECodeStyleConfigOutputPlugin(),
         new EditorConfigOutputPlugin(),
         new VisualStudioCodeIDEConfigOutputPlugin(),

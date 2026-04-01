@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-cli-linux-arm64-gnu",
-  "version": "2026.10330.118",
+  "version": "2026.10402.103",
   "os": [
     "linux"
   ],
@@ -8,11 +8,20 @@
     "arm64"
   ],
   "license": "AGPL-3.0-only",
-  "main": "noop.cjs",
-  "types": "noop.d.ts",
+  "exports": {
+    ".": {
+      "types": "./noop.d.mts",
+      "import": "./noop.mjs"
+    },
+    "./*.node": "./*.node",
+    "./package.json": "./package.json"
+  },
   "files": [
     "*.node",
-    "noop.cjs",
-    "noop.d.ts"
-  ]
+    "noop.d.mts",
+    "noop.mjs"
+  ],
+  "scripts": {
+    "prepack": "pnpm exec tsx ../../../scripts/write-platform-package-shims.ts ."
+  }
 }

@@ -1,0 +1,49 @@
+---
+title: 快速安装
+description: 用最短命令安装 memory-sync CLI，并确认你面对的是当前命令集。
+sidebarTitle: 快速安装
+status: stable
+keywords:
+  - quick install
+  - install
+  - tnmsc
+  - cli
+---
+
+# 快速安装
+
+如果你现在只想先把 CLI 装起来，按你常用的包管理器执行：
+
+<PackageManagerTabs
+  commands={{
+    npm: 'npm install -g @truenine/memory-sync-cli',
+    pnpm: 'pnpm add -g @truenine/memory-sync-cli',
+    yarn: 'yarn global add @truenine/memory-sync-cli'
+  }}
+/>
+
+然后确认命令可用：
+
+```sh
+tnmsc help
+```
+
+你应该看到 `dry-run`、`clean` 与 `config`，同时看到 `init` 已经是 deprecated。
+
+## monorepo 本地开发
+
+如果你是在这个 monorepo 里本地开发，改用：
+
+```sh
+pnpm install
+pnpm -C cli exec node dist/index.mjs --help
+```
+
+> [!warning]
+> 目前仅推荐使用 pnpm 进行开发
+
+## 装完后下一步
+
+- 只想先跑一次真实流程，继续看 [第一次同步](/docs/cli/first-sync)。
+- 还没确认 Node、pnpm、Rust 的版本要求，继续看 [安装与前提](/docs/cli/install)。
+- 还没决定该走 CLI、GUI 还是 MCP，回到 [快速指引](/docs/quick-guide)。

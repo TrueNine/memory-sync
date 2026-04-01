@@ -1,5 +1,7 @@
 export const DOC_SECTION_LINKS = [
+  {href: '/docs/quick-guide', label: '快速指引', section: 'quick-guide'},
   {href: '/docs/cli', label: 'CLI', section: 'cli'},
+  {href: '/docs/sdk', label: 'SDK', section: 'sdk'},
   {href: '/docs/mcp', label: 'MCP', section: 'mcp'},
   {href: '/docs/gui', label: 'GUI', section: 'gui'},
   {

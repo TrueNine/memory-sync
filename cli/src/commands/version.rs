@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
 pub fn execute() -> ExitCode {
-    println!("{}", env!("CARGO_PKG_VERSION"));
+    println!("{}", tnmsc::version());
     ExitCode::SUCCESS
 }

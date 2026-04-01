@@ -48,7 +48,8 @@ const PLATFORM_BINDINGS: Record<string, PlatformBinding> = {
   'darwin-x64': {local: 'napi-script-runtime.darwin-x64', suffix: 'darwin-x64'}
 }
 
-let binding: ScriptRuntimeBinding | undefined, bindingLoadError: Error | undefined
+let binding: ScriptRuntimeBinding | undefined, bindingLoadError: Error | undefined,
+  workerPathCache: string | undefined
 
 function getPlatformBinding(): PlatformBinding {
   const platformBinding = PLATFORM_BINDINGS[`${process.platform}-${process.arch}`]
@@ -162,16 +163,22 @@ function callResolvePublicPathBinding(filePath: string, ctxJson: string, logical
 }
 
 function getWorkerPath(): string {
+  if (workerPathCache != null) return workerPathCache
+
   const candidatePaths: [string, string] = [
     fileURLToPath(new URL('./resolve-proxy-worker.mjs', import.meta.url)),
     fileURLToPath(new URL('./script-runtime-worker.mjs', import.meta.url))
   ]
 
   for (const candidatePath of candidatePaths) {
-    if (fs.existsSync(candidatePath)) return candidatePath
+    if (fs.existsSync(candidatePath)) {
+      workerPathCache = candidatePath
+      return candidatePath
+    }
   }
 
-  return candidatePaths[0]
+  workerPathCache = candidatePaths[0]
+  return workerPathCache
 }
 
 export function defineProxy<T extends ProxyDefinition | ProxyRouteHandler>(value: T): T {

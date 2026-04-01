@@ -3,17 +3,12 @@ import type {CommandFactory} from '../CommandFactory'
 import type {ParsedCliArgs} from '@/pipeline/CliArgumentParser'
 import {DryRunOutputCommand} from '../DryRunOutputCommand'
 
-/**
- * Factory for creating DryRunOutputCommand
- * Handles 'dry-run' subcommand
- */
 export class DryRunCommandFactory implements CommandFactory {
   canHandle(args: ParsedCliArgs): boolean {
     return args.subcommand === 'dry-run'
   }
 
-  createCommand(args: ParsedCliArgs): Command {
-    void args
+  createCommand(): Command {
     return new DryRunOutputCommand()
   }
 }

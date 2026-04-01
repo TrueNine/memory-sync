@@ -4,10 +4,6 @@ import type {ParsedCliArgs} from '@/pipeline/CliArgumentParser'
 import {FactoryPriority} from '../CommandFactory'
 import {HelpCommand} from '../HelpCommand'
 
-/**
- * Factory for creating HelpCommand
- * Handles --help flag and 'help' subcommand
- */
 export class HelpCommandFactory implements PrioritizedCommandFactory {
   readonly priority = FactoryPriority.Flags
 
@@ -15,8 +11,7 @@ export class HelpCommandFactory implements PrioritizedCommandFactory {
     return args.helpFlag || args.subcommand === 'help'
   }
 
-  createCommand(args: ParsedCliArgs): Command {
-    void args
+  createCommand(): Command {
     return new HelpCommand()
   }
 }

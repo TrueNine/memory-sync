@@ -1,1 +1,1 @@
-export * from '@truenine/md-compiler/globals'
+export * from '@truenine/memory-sync-sdk/globals'

@@ -4,10 +4,10 @@ import type {
   PromptArtifactState,
   PromptServiceOptions,
   PromptSourceLocale
-} from '@truenine/memory-sync-cli'
+} from '@truenine/memory-sync-sdk'
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'
-import {getPrompt, listPrompts, upsertPromptSource, writePromptArtifacts} from '@truenine/memory-sync-cli'
+import {getPrompt, listPrompts, upsertPromptSource, writePromptArtifacts} from '@truenine/memory-sync-sdk'
 import {z} from 'zod'
 
 const promptKindSchema = z.enum([

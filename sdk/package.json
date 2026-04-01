@@ -1,0 +1,95 @@
+{
+  "name": "@truenine/memory-sync-sdk",
+  "type": "module",
+  "version": "2026.10402.103",
+  "private": true,
+  "description": "TrueNine Memory Synchronization SDK",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://github.com/TrueNine/memory-sync",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TrueNine/memory-sync.git",
+    "directory": "sdk"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./globals": {
+      "types": "./dist/globals.d.mts",
+      "import": "./dist/globals.mjs"
+    },
+    "./schema.json": "./dist/tnmsc.schema.json",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist",
+    "dist/tnmsc.schema.json"
+  ],
+  "napi": {
+    "binaryName": "napi-memory-sync-cli",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin"
+    ]
+  },
+  "scripts": {
+    "build": "run-s build:deps build:napi bundle finalize:bundle generate:schema",
+    "build:napi": "run-s build:native build:napi:copy",
+    "build:napi:copy": "tsx ../scripts/copy-napi.ts",
+    "build:native": "napi build --platform --release --output-dir dist -- --features napi",
+    "build:deps": "run-s build:deps:runtime build:deps:md-compiler",
+    "build:deps:runtime": "pnpm -F @truenine/logger -F @truenine/script-runtime run build",
+    "build:deps:md-compiler": "run-s build:deps:md-compiler:ts build:deps:md-compiler:native",
+    "build:deps:md-compiler:ts": "pnpm -F @truenine/md-compiler run build:ts",
+    "build:deps:md-compiler:native": "pnpm -F @truenine/md-compiler run build:native",
+    "build:deps:ts": "pnpm -F @truenine/logger -F @truenine/md-compiler -F @truenine/script-runtime run build:ts",
+    "bundle": "tsx ../scripts/build-quiet.ts",
+    "check": "run-s build:deps:ts check:run",
+    "check:run": "run-p lint:run typecheck:run",
+    "finalize:bundle": "tsx scripts/finalize-bundle.ts",
+    "generate:schema": "tsx scripts/generate-schema.ts",
+    "lint": "run-s build:deps:ts lint:run",
+    "lint:run": "eslint --cache --cache-location node_modules/.cache/.eslintcache .",
+    "prepublishOnly": "run-s build check",
+    "test": "run-s build:deps test:run",
+    "test:native-cleanup-smoke": "tsx scripts/cleanup-native-smoke.ts",
+    "test:run": "vitest run",
+    "benchmark:cleanup": "tsx scripts/benchmark-cleanup.ts",
+    "lintfix": "run-s build:deps:ts lintfix:run",
+    "lintfix:run": "eslint --fix --cache --cache-location node_modules/.cache/.eslintcache .",
+    "typecheck": "run-s typecheck:run",
+    "typecheck:run": "tsc --noEmit -p tsconfig.lib.json"
+  },
+  "dependencies": {
+    "@truenine/logger": "workspace:*",
+    "@truenine/md-compiler": "workspace:*",
+    "@truenine/script-runtime": "workspace:*",
+    "json5": "catalog:",
+    "yaml": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@clack/prompts": "catalog:",
+    "@types/fs-extra": "catalog:",
+    "@types/picomatch": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "fast-glob": "catalog:",
+    "fs-extra": "catalog:",
+    "jiti": "catalog:",
+    "lightningcss": "catalog:",
+    "picocolors": "catalog:",
+    "picomatch": "catalog:",
+    "tsx": "catalog:",
+    "vitest": "catalog:",
+    "zod-to-json-schema": "catalog:"
+  }
+}

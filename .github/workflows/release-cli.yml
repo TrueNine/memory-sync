@@ -239,7 +239,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          install: "false"
+          install: "true"
       - name: Setup npm registry
         uses: actions/setup-node@v6
         with:
@@ -299,6 +299,16 @@ jobs:
             echo "Copying from ${artifact_dir} to ${target_dir}"
             cp "${artifact_dir}"*.node "$target_dir/" || { echo "ERROR: no .node files found in ${artifact_dir}"; exit 1; }
           done
+      - name: Generate CLI platform package shims
+        shell: bash
+        run: |
+          shopt -s nullglob
+          dirs=(cli/npm/*/)
+          if [ "${#dirs[@]}" -eq 0 ]; then
+            echo "No CLI platform package directories found"
+            exit 0
+          fi
+          pnpm exec tsx scripts/write-platform-package-shims.ts "${dirs[@]}"
       - name: Validate CLI platform packages
         shell: bash
         run: |
@@ -314,12 +324,12 @@ jobs:
             if [ ! -f "${target_dir}package.json" ]; then
               continue
             fi
-            if [ ! -f "${target_dir}noop.cjs" ]; then
-              echo "ERROR: missing ${target_dir}noop.cjs"
+            if [ ! -f "${target_dir}noop.mjs" ]; then
+              echo "ERROR: missing ${target_dir}noop.mjs"
               exit 1
             fi
-            if [ ! -f "${target_dir}noop.d.ts" ]; then
-              echo "ERROR: missing ${target_dir}noop.d.ts"
+            if [ ! -f "${target_dir}noop.d.mts" ]; then
+              echo "ERROR: missing ${target_dir}noop.d.mts"
               exit 1
             fi
             actual_count=$(find "${target_dir}" -maxdepth 1 -type f -name '*.node' | wc -l | tr -d ' ')

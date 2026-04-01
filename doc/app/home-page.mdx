@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import {HomeContributors} from '../components/home-contributors'
 import {
   capabilityCards,
   heroProofPoints,
@@ -15,7 +16,7 @@ import {
     </Link>
 
     <nav className="home-topbar-nav" aria-label="Primary">
-      <Link href="/docs">文档</Link>
+      <Link href="/docs">Docs</Link>
       <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer">
         GitHub
       </a>
@@ -23,29 +24,23 @@ import {
   </header>
 
   <section className="home-hero">
-    <div className="home-hero-copy motion-rise">
-      <p className="section-kicker">Documentation</p>
-      <h1>面向多 AI 工具的 prompt 与 config sync 文档。</h1>
+    <div className="home-hero-copy">
+      <p className="section-kicker">Unified Synchronization</p>
+      <h1>Sync your Prompts and Configs across every AI tool.</h1>
       <div className="home-hero-lead">
-        {siteConfig.productName}
-        {' '}
-        以 MDX 维护源内容，通过 Rust-first / NAPI-first pipeline 将 prompts、rules、skills、commands
-        与 project memory 物化为目标工具原生配置。
+        {siteConfig.productName} is a high-performance, Rust-first pipeline that synchronizes prompts, rules, and workspace memory into native tool configurations.
       </div>
 
       <div className="home-actions">
-        <Link href="/docs" className="hero-button hero-button-primary">
-          打开文档
+        <Link href="/docs/quick-guide" className="hero-button hero-button-primary">
+          Get Started
         </Link>
         <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer" className="hero-button hero-button-secondary">
-          查看 GitHub
-        </a>
-        <a href={siteConfig.issueUrl} target="_blank" rel="noreferrer" className="hero-button hero-button-secondary">
-          报告问题
+          View on GitHub
         </a>
       </div>
 
-      <ul className="home-proof-strip" aria-label="Core proof points">
+      <ul className="home-proof-strip">
         {heroProofPoints.map(point => (
           <li key={point.label} className="proof-pill">
             <span>{point.label}</span>
@@ -56,21 +51,21 @@ import {
     </div>
   </section>
 
+  <HomeContributors />
+
   <section className="home-section">
     <div className="section-heading">
-      <p className="section-kicker">Start Here</p>
-      <h2>先选门类，再进入具体页面</h2>
-      <p className="section-summary">
-        现在文档按 CLI、MCP、GUI、技术细节、设计初衷五个一级门类组织，避免写作和阅读时把产品入口、实现原理与背景叙事混在一起。
-      </p>
+      <p className="section-kicker">The Pillars</p>
+      <h2>Explore the Core Sections</h2>
+      <p className="section-summary">Our documentation is divided into seven logical pillars to help you find exactly what you need.</p>
     </div>
 
-    <div className="home-link-grid motion-stagger">
+    <div className="home-link-grid">
       {homeEntryCards.map(link => (
         <Link key={link.href} href={link.href} className="home-link-card">
           <strong>{link.title}</strong>
           <p>{link.detail}</p>
-          <span>Open</span>
+          <span>Learn more &rarr;</span>
         </Link>
       ))}
     </div>
@@ -79,13 +74,11 @@ import {
   <section className="home-section">
     <div className="section-heading">
       <p className="section-kicker">Capabilities</p>
-      <h2>文档重点覆盖的能力边界</h2>
-      <p className="section-summary">
-        先明确项目能做什么，再进入具体配置字段、命令表面与实现边界。
-      </p>
+      <h2>Built for Modern Workflows</h2>
+      <p className="section-summary">From prompt engineering to automated cleanup, {siteConfig.productName} provides the tools to keep your AI environment consistent.</p>
     </div>
 
-    <div className="capability-grid motion-stagger">
+    <div className="capability-grid">
       {capabilityCards.map(card => (
         <article key={card.title} className="capability-card">
           <span>{card.label}</span>
@@ -99,13 +92,11 @@ import {
   <section className="home-section">
     <div className="section-heading">
       <p className="section-kicker">Recommended Path</p>
-      <h2>按这条路线进入，能最快建立正确心智模型</h2>
-      <p className="section-summary">
-        路线从运行前提开始，先建立真源模型，再回到 CLI 执行与边界验证。
-      </p>
+      <h2>Getting Up to Speed</h2>
+      <p className="section-summary">Follow this path to quickly establish the correct mental model and start syncing.</p>
     </div>
 
-    <div className="reading-path-grid motion-stagger">
+    <div className="reading-path-grid">
       {readingPath.map(item => (
         <Link key={item.href} href={item.href} className="reading-path-card">
           <small>{item.step}</small>
@@ -115,4 +106,11 @@ import {
       ))}
     </div>
   </section>
+
+  <footer className="home-site-footer">
+    <div className="home-site-footer__inner">
+      <span>AGPL-3.0-only</span>
+      <span>面向当前仓库实现、命令表面与配置边界</span>
+    </div>
+  </footer>
 </main>

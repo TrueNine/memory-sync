@@ -1,5 +1,5 @@
 import type {Command, CommandContext, CommandResult} from './Command'
-import {AINDEX_CONFIG_KEY_PATHS} from '@/plugins/plugin-core'
+import {AINDEX_CONFIG_KEY_PATHS} from '@truenine/memory-sync-sdk'
 import {getCliVersion} from './VersionCommand'
 
 const CLI_NAME = 'tnmsc'
@@ -58,20 +58,11 @@ CONFIGURATION:
   See documentation for detailed configuration options.
 `.trim()
 
-/**
- * Help command - displays CLI usage information
- */
 export class HelpCommand implements Command {
   readonly name = 'help'
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
     ctx.logger.info(HELP_TEXT)
-
-    return {
-      success: true,
-      filesAffected: 0,
-      dirsAffected: 0,
-      message: 'Help displayed'
-    }
+    return {success: true, filesAffected: 0, dirsAffected: 0, message: 'Help displayed'}
   }
 }

@@ -25,11 +25,15 @@ keywords:
 
 ## 安装 CLI
 
-README 当前给出的安装方式是：
+README 当前给出的安装方式，可以按你常用的包管理器执行：
 
-```sh
-npm install -g @truenine/memory-sync
-```
+<PackageManagerTabs
+  commands={{
+    npm: 'npm install -g @truenine/memory-sync-cli',
+    pnpm: 'pnpm add -g @truenine/memory-sync-cli',
+    yarn: 'yarn global add @truenine/memory-sync-cli'
+  }}
+/>
 
 如果你在 monorepo 本地开发，通常会直接在仓库根执行：
 

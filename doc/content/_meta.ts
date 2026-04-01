@@ -2,8 +2,14 @@ export default {
   'index': {
     title: '文档总览'
   },
+  'quick-guide': {
+    title: '快速指引'
+  },
   'cli': {
     title: 'CLI'
+  },
+  'sdk': {
+    title: 'SDK'
   },
   'mcp': {
     title: 'MCP'

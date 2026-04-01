@@ -1,17 +1,7 @@
 import type {Command, CommandContext, CommandResult, ConfigSource, JsonConfigInfo} from './Command'
 import process from 'node:process'
-import {ConfigLoader} from '@/ConfigLoader'
+import {ConfigLoader} from '@truenine/memory-sync-sdk'
 
-/**
- * Command that outputs the current merged configuration and its source layers as JSON.
- *
- * Invoked via `tnmsc config --show --json`.
- * Writes a `JsonConfigInfo` object to stdout containing:
- * - `merged`: the final merged UserConfigFile
- * - `sources`: an array of ConfigSource entries describing each layer
- *
- * When used without `--json`, logs the config info via the logger.
- */
 export class ConfigShowCommand implements Command {
   readonly name = 'config-show'
 
@@ -19,30 +9,13 @@ export class ConfigShowCommand implements Command {
     const {logger} = ctx
     const loader = new ConfigLoader()
     const mergedResult = loader.load()
-
     const sources: ConfigSource[] = mergedResult.sources.map(sourcePath => {
       const loaded = loader.loadFromFile(sourcePath)
-      return {
-        path: sourcePath,
-        layer: 'global',
-        config: loaded.config
-      }
+      return {path: sourcePath, layer: 'global', config: loaded.config}
     })
-
-    const configInfo: JsonConfigInfo = {
-      merged: mergedResult.config,
-      sources
-    }
-
+    const configInfo: JsonConfigInfo = {merged: mergedResult.config, sources}
     process.stdout.write(`${JSON.stringify(configInfo)}\n`)
-
     logger.info('config shown', {sources: mergedResult.sources.length})
-
-    return {
-      success: true,
-      filesAffected: 0,
-      dirsAffected: 0,
-      message: `Configuration displayed (${sources.length} source(s))`
-    }
+    return {success: true, filesAffected: 0, dirsAffected: 0, message: `Configuration displayed (${sources.length} source(s))`}
   }
 }
