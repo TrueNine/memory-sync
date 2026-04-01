@@ -7,7 +7,7 @@ import type {
   JSXSpreadChild,
   JSXText
 } from 'estree-jsx'
-import type {RootContent} from 'mdast'
+import type {Root, RootContent} from 'mdast'
 import type {MdxFlowExpression, MdxJsxFlowElement, MdxTextExpression} from 'mdast-util-mdx'
 import type {EvaluateExpressionOptions} from './expression-eval'
 import type {ProcessingContext} from './types'
@@ -246,8 +246,10 @@ async function processJsxElement(
   const mdxElement = convertEstreeJsxToMdx(jsxElement, ctx)
 
   if (mdxElement.name != null && isMdxComponent(mdxElement.name, ctx)) {
-    const {processAst} = await import('./transformer')
-    return processComponent(mdxElement, ctx, processAst)
+    return processComponent(mdxElement, ctx, async (ast: Root, c: ProcessingContext) => ({
+      type: 'root',
+      children: await processAstFn(ast.children, c)
+    }))
   }
 
   const converted = convertJsxToMarkdown(mdxElement, ctx)
