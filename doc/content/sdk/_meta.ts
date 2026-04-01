@@ -1,3 +1,3 @@
 export default {
-  index: '概览'
+  index: 'Overview'
 }

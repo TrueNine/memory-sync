@@ -1,36 +1,36 @@
 ---
-title: 架构边界
-description: 说明 tnmsc、crate、npm 包、MCP 与 GUI 之间的职责边界。
-sidebarTitle: 架构边界
+title: Architecture Boundaries
+description: Explains the responsibility boundaries between tnmsc, the crate, npm packages, MCP, and the GUI.
+sidebarTitle: Architecture Boundaries
 status: stable
 ---
 
-# 架构边界
+# Architecture Boundaries
 
-当前仓库的核心方向不是“继续堆更多纯 TypeScript 兼容层”，而是：
+The core direction of the repository is not "keep stacking more pure TypeScript compatibility layers." It is:
 
-- `sdk/` 作为私有 mixed core
-- `cli/` 作为公开入口与兼容发布层
-- Rust crate / NAPI 作为长期核心实现重心
-- TypeScript 主要负责接口暴露、配置装配、桥接运行时与声明描述
+- `sdk/` as the private mixed core
+- `cli/` as the public entrypoint and compatibility release layer
+- Rust crate / NAPI as the long-term center of core implementation
+- TypeScript focused mainly on interface exposure, config assembly, bridge runtime logic, and declarations
 
-## 组件分工
+## Component Responsibilities
 
-| 组件 | 职责 |
+| Component | Responsibility |
 | --- | --- |
-| `sdk/` | `tnmsc` crate、Node bridge runtime、prompt service、schema 与 NAPI 真源 |
-| `cli/` | `tnmsc` 命令入口、公开 npm CLI 包、兼容发布壳 |
-| `mcp/` | MCP stdio server，复用 sdk prompt service |
-| `gui/` | Tauri 桌面调用层与展示层 |
-| `libraries/` | Rust-first / NAPI-first 基础库 |
+| `sdk/` | Source of truth for the `tnmsc` crate, Node bridge runtime, prompt service, schema, and NAPI |
+| `cli/` | `tnmsc` command entrypoint, public npm CLI package, and compatibility release shell |
+| `mcp/` | MCP stdio server that reuses the sdk prompt service |
+| `gui/` | Tauri desktop invocation and presentation layer |
+| `libraries/` | Rust-first / NAPI-first foundational libraries |
 
-## 关键边界
+## Key Boundaries
 
-- GUI 不是核心实现中心
-- MCP 不是新的真源模型
-- CLI 不是 repo 内部共享 API 的默认依赖点
-- 文档站不是架构真相的唯一来源
+- GUI is not the center of core implementation
+- MCP is not a new source-of-truth model
+- CLI is not the default dependency point for shared internal APIs
+- The docs site is not the only source of architectural truth
 
-如果你需要看用户操作面，回到 [CLI](/docs/cli) 或 [GUI](/docs/gui)；这里只说明实现分层为什么这样划。
+If you need the user-facing operational surface, go back to [CLI](/docs/cli) or [GUI](/docs/gui). This page explains only why the implementation is split this way.
 
-如果你需要专门看 `sdk/` 这层本身的职责、消费方向与身份保持策略，直接进入 [SDK](/docs/sdk)。
+If you need the responsibilities, consumer direction, and identity-preservation strategy of `sdk/` specifically, go straight to [SDK](/docs/sdk).

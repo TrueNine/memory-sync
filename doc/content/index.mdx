@@ -1,6 +1,6 @@
 ---
 title: overview
-description: memory-sync 文档入口，按快速指引、CLI、SDK、MCP、GUI、技术细节与设计初衷七个一级门类组织。
+description: Entry page for the memory-sync docs, organized into Quick Guide, CLI, SDK, MCP, GUI, Technical Details, and Design Rationale.
 sidebarTitle: overview
 status: stable
 keywords:
@@ -9,34 +9,34 @@ keywords:
   - overview
 ---
 
-# 文档总览
+# Docs Overview
 
-这套文档站围绕当前仓库事实组织，一级结构固定为 `快速指引`、`CLI`、`SDK`、`MCP`、`GUI`、`技术细节`、`设计初衷`。这样写文档时，第一次进入的最短路径、面向用户的操作入口、repo 内部 mixed core、面向集成的 server、桌面层说明、实现原理和背景动机不再混在一起。
+This docs site is organized around the current repository as it actually exists. The top-level structure is fixed as `Quick Guide`, `CLI`, `SDK`, `MCP`, `GUI`, `Technical Details`, and `Design Rationale`. That keeps the shortest onboarding path, the user-facing operation surface, the internal mixed core, the integration server, the desktop layer, implementation details, and project motivation from collapsing into one bucket.
 
-## 七个一级门类
+## The Seven Top-Level Sections
 
-| 门类 | 主要回答的问题 | 入口 |
+| Section | Main Question | Entry |
 | --- | --- | --- |
-| 快速指引 | 我现在该从 CLI、GUI 还是 MCP 开始，最短路径分别是什么 | [快速指引](/docs/quick-guide) |
-| CLI | 如何安装、准备项目、执行同步、理解命令与配置字段 | [CLI](/docs/cli) |
-| SDK | `sdk/` 为什么是 mixed core、拥有哪些能力、内部消费者该如何依赖它 | [SDK](/docs/sdk) |
-| MCP | `memory-sync-mcp` 是什么、暴露了哪些工具、适合怎么接入 | [MCP](/docs/mcp) |
-| GUI | 桌面层负责什么、有哪些页面、它与 `sdk/` / `tnmsc` crate / CLI 如何配合 | [GUI](/docs/gui) |
-| 技术细节 | 架构边界、同步管线、真源模型，以及 prompts / skills / commands / rules 等输入资产如何组织 | [技术细节](/docs/technical-details) |
-| 设计初衷 | 为什么要做这个项目，为什么文档也要这样分层 | [设计初衷](/docs/design-rationale) |
+| Quick Guide | Should I start with CLI, GUI, or MCP, and what is the shortest path for each? | [Quick Guide](/docs/quick-guide) |
+| CLI | How do I install, prepare a project, run sync, and understand the commands and config fields? | [CLI](/docs/cli) |
+| SDK | Why is `sdk/` the mixed core, what does it own, and how should internal consumers depend on it? | [SDK](/docs/sdk) |
+| MCP | What is `memory-sync-mcp`, which tools does it expose, and how should it be integrated? | [MCP](/docs/mcp) |
+| GUI | What does the desktop layer own, which pages exist, and how does it work with `sdk/`, the `tnmsc` crate, and the CLI? | [GUI](/docs/gui) |
+| Technical Details | How are the architecture boundaries, sync pipeline, source-of-truth model, and input assets such as prompts, skills, commands, and rules organized? | [Technical Details](/docs/technical-details) |
+| Design Rationale | Why does this project exist, and why are the docs layered this way? | [Design Rationale](/docs/design-rationale) |
 
-## 从哪里开始
+## Where to Start
 
-- 第一次进入文档站，先看 [快速指引](/docs/quick-guide)，先判断你要走 CLI、GUI 还是 MCP 路径。
-- 第一次使用 `memory-sync` 的同步能力，再进入 [CLI](/docs/cli)，把安装、项目准备和第一次同步跑通。
-- 需要理解 repo 内部核心层怎么分工、为什么以后统一复用 `sdk/`，先看 [SDK](/docs/sdk)。
-- 需要把 `memory-sync-mcp` 接入到支持 MCP 的宿主里，直接进 [MCP](/docs/mcp)。
-- 关注桌面应用而不是终端入口时，查看 [GUI](/docs/gui)。
-- 需要理解 Rust-first / NAPI-first、真源模型和输入资产职责时，进入 [技术细节](/docs/technical-details)。
-- 需要项目背景、动机和设计理由时，再补读 [设计初衷](/docs/design-rationale)。
+- If this is your first time opening the docs site, start with the [Quick Guide](/docs/quick-guide) and decide whether you need the CLI, GUI, or MCP path.
+- If you want to use `memory-sync` for real work right away, continue into [CLI](/docs/cli) and get installation, project setup, and the first sync run working.
+- If you need to understand how the internal core is split and why `sdk/` is now the shared center, go to [SDK](/docs/sdk).
+- If you want to integrate `memory-sync-mcp` into an MCP-capable host, jump straight to [MCP](/docs/mcp).
+- If you care about the desktop app rather than the terminal surface, open [GUI](/docs/gui).
+- If you need the Rust-first / NAPI-first direction, the source-of-truth model, and the asset boundaries, go to [Technical Details](/docs/technical-details).
+- If you need the project background, motivation, and design reasoning, finish with [Design Rationale](/docs/design-rationale).
 
-## 文档边界
+## Documentation Boundaries
 
-- 文档以仓库当前可验证实现为准，不把未落地的自动化、页面或工作流写成既成事实。
-- 当前公开文档以中文为权威版本；命令、API 名称和关键术语保持英文。
-- 如果 README、旧页面和当前实现冲突，这里优先跟随 `tnmsc --help`、Schema、目录结构和实际代码。
+- The docs follow the repository's currently verifiable implementation and do not present unshipped automation, pages, or workflows as facts.
+- Command names, API names, and key technical terms remain in English.
+- If the README, older pages, and the current implementation disagree, this site follows `tnmsc --help`, the schema, the directory structure, and the actual code.

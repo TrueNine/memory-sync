@@ -1,28 +1,28 @@
 ---
 title: CLI
-description: 以 tnmsc 命令面为中心组织安装、项目准备、同步流程、配置字段与排障信息。
-sidebarTitle: 概览
+description: Organizes installation, project setup, sync workflow, configuration fields, and troubleshooting around the tnmsc command surface.
+sidebarTitle: Overview
 status: stable
 ---
 
 # CLI
 
-这一节围绕 `tnmsc` 这个公开命令面组织。凡是“怎么安装”“怎么准备项目”“怎么执行同步”“某个配置字段到底是什么意思”这类问题，都优先从这里进入。
+This section is organized around the public `tnmsc` command surface. Questions such as how to install, how to prepare a project, how to run sync, or what a configuration field really means should start here first.
 
-## 这一节包含什么
+## What This Section Covers
 
-- [安装与前提](/docs/cli/install)：确认 Node、pnpm、Rust 与 GUI 的更高开发引擎边界。
-- [项目与 aindex](/docs/cli/workspace-setup)：准备源文件目录与项目配置入口。
-- [第一次同步](/docs/cli/first-sync)：按推荐顺序跑 `help`、`dry-run` 与真实写入。
-- [CLI 命令](/docs/cli/cli-commands)：核对 `tnmsc --help` 当前公开的命令表面。
-- [dry-run 与 clean](/docs/cli/dry-run-and-clean)：先预览、再写入、再清理。
-- [plugin.config.ts](/docs/cli/plugin-config) 与 [JSON Schema](/docs/cli/schema)：集中核对配置事实。
-- [输出范围](/docs/cli/output-scopes)、[Front Matter](/docs/cli/frontmatter)、[清理保护](/docs/cli/cleanup-protection)：确认边界控制行为。
-- [支持的输出目标](/docs/cli/supported-outputs)、[排障](/docs/cli/troubleshooting)、[升级说明](/docs/cli/upgrade-notes)：应对日常使用与版本迁移。
+- [Installation and Requirements](/docs/cli/install): confirm the Node, pnpm, Rust, and higher GUI development-engine boundaries.
+- [Workspace and aindex](/docs/cli/workspace-setup): prepare the source directories and the project configuration entrypoint.
+- [First Sync](/docs/cli/first-sync): run `help`, `dry-run`, and the real write flow in the recommended order.
+- [CLI Commands](/docs/cli/cli-commands): check the command surface currently exposed by `tnmsc --help`.
+- [dry-run and clean](/docs/cli/dry-run-and-clean): preview first, write second, clean last.
+- [plugin.config.ts](/docs/cli/plugin-config) and [JSON Schema](/docs/cli/schema): verify configuration facts in one place.
+- [Output Scopes](/docs/cli/output-scopes), [Front Matter](/docs/cli/frontmatter), and [Cleanup Protection](/docs/cli/cleanup-protection): confirm boundary-control behavior.
+- [Supported Outputs](/docs/cli/supported-outputs), [Troubleshooting](/docs/cli/troubleshooting), and [Upgrade Notes](/docs/cli/upgrade-notes): handle day-to-day usage and version migration.
 
-## 推荐顺序
+## Recommended Order
 
-1. 先读 [安装与前提](/docs/cli/install)。
-2. 再读 [项目与 aindex](/docs/cli/workspace-setup)。
-3. 接着用 [第一次同步](/docs/cli/first-sync) 跑通一次真实流程。
-4. 需要核对事实时，再回看 [CLI 命令](/docs/cli/cli-commands) 与 [JSON Schema](/docs/cli/schema)。
+1. Start with [Installation and Requirements](/docs/cli/install).
+2. Continue with [Workspace and aindex](/docs/cli/workspace-setup).
+3. Then use [First Sync](/docs/cli/first-sync) to complete one real run.
+4. When you need to verify facts, come back to [CLI Commands](/docs/cli/cli-commands) and [JSON Schema](/docs/cli/schema).

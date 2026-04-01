@@ -1,39 +1,39 @@
 ---
-title: 项目与 aindex
-description: 说明 aindex 源目录、全局配置与项目配置入口在当前仓库中的职责分工。
-sidebarTitle: 项目与 aindex
+title: Workspace and aindex
+description: Explains how the aindex source directory, global config, and project config entrypoint divide responsibilities in the current repo.
+sidebarTitle: Workspace and aindex
 status: stable
 ---
 
-# 项目与 aindex
+# Workspace and aindex
 
-## 先记住这件事
+## Remember This First
 
-`memory-sync` 不是把目标工具配置文件当真源维护，而是围绕 aindex 源目录与项目配置入口来生成目标输出。
+`memory-sync` does not treat target-tool config files as the source of truth. It generates outputs from the aindex source directory and the project configuration entrypoint.
 
-## 你至少需要准备什么
+## What You Need at Minimum
 
-- 一个项目根目录
-- aindex 风格的源内容目录
-- 全局配置文件
-- 项目级 `plugin.config.ts`
+- A project root directory
+- An aindex-style source-content directory
+- A global config file
+- A project-level `plugin.config.ts`
 
-## 源内容通常怎么分
+## How Source Content Is Usually Split
 
-当前文档里单独拆出的输入资产包括：
+The input assets documented separately right now are:
 
-- 全局 Prompt 与项目 Prompt
+- Global prompts and workspace prompts
 - `skills/`
 - `commands/`
 - `subagents/`
 - `rules/`
 
-这些输入资产的职责说明在 [技术细节](/docs/technical-details) 里统一解释，而 CLI 侧只负责告诉你它们会被怎样读取、校验和写出。
+Their responsibility boundaries are explained in [Technical Details](/docs/technical-details). The CLI docs focus only on how those assets are read, validated, and written out.
 
-## 项目配置入口
+## Project Configuration Entrypoint
 
-项目级装配入口是 [plugin.config.ts](/docs/cli/plugin-config)。它决定默认装配哪些输出插件，以及项目级运行参数如何并入真实执行配置。
+The project-level assembly entrypoint is [plugin.config.ts](/docs/cli/plugin-config). It decides which output plugins are assembled by default and how project-level runtime options are merged into the real execution config.
 
-## 下一步
+## Next Step
 
-目录准备完后，直接进入 [第一次同步](/docs/cli/first-sync)，先用 `dry-run` 验证输出范围，再做真实写入。
+Once the directories are ready, continue to [First Sync](/docs/cli/first-sync). Use `dry-run` to validate the output scope before doing a real write.

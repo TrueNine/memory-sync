@@ -1,34 +1,34 @@
 ---
-title: CLI 命令
-description: 基于当前 tnmsc --help 输出整理的命令与行为说明。
-sidebarTitle: CLI 命令
+title: CLI Commands
+description: Summarizes the commands and behavior currently exposed by tnmsc --help.
+sidebarTitle: CLI Commands
 status: stable
 ---
 
-# CLI 命令
+# CLI Commands
 
-当前 `tnmsc --help` 暴露的命令是：
+The commands currently exposed by `tnmsc --help` are:
 
-| 命令 | 说明 |
+| Command | Description |
 | --- | --- |
-| `tnmsc` | 执行默认同步管线 |
-| `tnmsc help` | 查看帮助 |
-| `tnmsc version` | 查看版本 |
-| `tnmsc init` | 已废弃，不再初始化 aindex |
-| `tnmsc dry-run` | 预览会写出的文件 |
-| `tnmsc clean` | 删除已生成的输出文件，并继续清理 project 源码树中的空目录 |
-| `tnmsc clean --dry-run` | 预览会清理什么，包括后续会被回收的空目录 |
-| `tnmsc config key=value` | 修改全局配置 |
+| `tnmsc` | Run the default sync pipeline |
+| `tnmsc help` | Show help |
+| `tnmsc version` | Show the version |
+| `tnmsc init` | Deprecated and no longer initializes aindex |
+| `tnmsc dry-run` | Preview the files that would be written |
+| `tnmsc clean` | Delete generated outputs and continue cleaning empty directories from the project source tree |
+| `tnmsc clean --dry-run` | Preview what would be cleaned, including empty directories that would be swept afterward |
+| `tnmsc config key=value` | Change global config |
 
-## 关键结论
+## Key Takeaways
 
-### `init` 已经不应该出现在新流程里
+### `init` Should No Longer Appear in New Workflows
 
-当前实现明确把它视为 deprecated，因此新文档不会再把它写成推荐入口。
+The current implementation treats it as deprecated, so new docs no longer present it as a recommended entrypoint.
 
-### `config` 只能改一组白名单键
+### `config` Can Only Change a Whitelisted Set of Keys
 
-当前 `ConfigCommand` 允许的键包括：
+The current `ConfigCommand` allows these keys:
 
 - `workspaceDir`
 - `aindex.skills.src/dist`
@@ -42,17 +42,17 @@ status: stable
 - `aindex.arch.src/dist`
 - `logLevel`
 
-### `logLevel` 也有严格枚举
+### `logLevel` Is Also Strictly Enumerated
 
-只能是：
+It can only be:
 
 ```text
 trace / debug / info / warn / error
 ```
 
-## 推荐操作习惯
+## Recommended Habits
 
-1. 新环境先 `tnmsc help`
-2. 写出前先 `tnmsc dry-run`
-3. 清理前先 `tnmsc clean --dry-run`
-4. 真要改全局配置时，用 `tnmsc config`，不要手写出一份和 Schema 漂移的 JSON
+1. Run `tnmsc help` first in a new environment.
+2. Run `tnmsc dry-run` before writing outputs.
+3. Run `tnmsc clean --dry-run` before cleanup.
+4. If you really need to change global config, use `tnmsc config` instead of hand-editing JSON that can drift from the schema.

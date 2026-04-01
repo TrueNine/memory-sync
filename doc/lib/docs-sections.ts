@@ -1,17 +1,17 @@
 export const DOC_SECTION_LINKS = [
-  {href: '/docs/quick-guide', label: '快速指引', section: 'quick-guide'},
+  {href: '/docs/quick-guide', label: 'Quick Guide', section: 'quick-guide'},
   {href: '/docs/cli', label: 'CLI', section: 'cli'},
   {href: '/docs/sdk', label: 'SDK', section: 'sdk'},
   {href: '/docs/mcp', label: 'MCP', section: 'mcp'},
   {href: '/docs/gui', label: 'GUI', section: 'gui'},
   {
     href: '/docs/technical-details',
-    label: '技术细节',
+    label: 'Technical Details',
     section: 'technical-details'
   },
   {
     href: '/docs/design-rationale',
-    label: '设计初衷',
+    label: 'Design Rationale',
     section: 'design-rationale'
   }
 ] as const

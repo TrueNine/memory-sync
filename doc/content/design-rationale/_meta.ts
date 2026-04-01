@@ -1,4 +1,4 @@
 export default {
-  index: '概览',
-  manifesto: '为什么要做这个工具'
+  index: 'Overview',
+  manifesto: 'Why This Tool Exists'
 }

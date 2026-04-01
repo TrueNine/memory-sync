@@ -1,30 +1,30 @@
 ---
-title: 升级说明
-description: 汇总当前文档结构、命令认知与运行边界中最需要注意的升级点。
-sidebarTitle: 升级说明
+title: Upgrade Notes
+description: Summarizes the most important upgrades in the current docs structure, command expectations, and runtime boundaries.
+sidebarTitle: Upgrade Notes
 status: stable
 ---
 
-# 升级说明
+# Upgrade Notes
 
-## 文档结构升级
+## Docs Structure Upgrade
 
-文档站已经从“快速上手 / 概念 / 内容编写 / 参考 / 运维”的混合结构，重排为：
+The docs site has been reorganized from a mixed structure of quick start, concepts, authoring, reference, and operations into:
 
 - `CLI`
 - `MCP`
 - `GUI`
-- `技术细节`
-- `设计初衷`
+- `Technical Details`
+- `Design Rationale`
 
-如果你在维护页面或补文档，请先按这五类放置目录，再开始写内容。
+If you are maintaining or adding pages, place them under one of those five categories before you start writing.
 
-## 命令认知升级
+## Command Model Upgrade
 
-- `tnmsc init` 不再是初始化入口
-- `dry-run` 应作为默认验证动作
-- `clean --dry-run` 应作为默认清理前检查
+- `tnmsc init` is no longer the initialization entrypoint
+- `dry-run` should be the default validation step
+- `clean --dry-run` should be the default pre-clean check
 
-## 运行边界升级
+## Runtime Boundary Upgrade
 
-仓库的长期方向仍然是 Rust-first / NAPI-first。TypeScript 在这里更偏接口暴露、配置装配、桥接运行时和声明层，而不是长期核心实现中心。
+The long-term direction of the repository is still Rust-first / NAPI-first. TypeScript is primarily for exposed interfaces, configuration assembly, bridge runtime logic, and declarations rather than the long-term center of the core implementation.

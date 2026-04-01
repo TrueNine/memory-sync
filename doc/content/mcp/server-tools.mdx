@@ -1,69 +1,69 @@
 ---
-title: Server 与 Tools
-description: 说明 memory-sync-mcp 的 stdio server 入口、四个已暴露工具，以及 workspaceDir 的作用。
-sidebarTitle: Server 与 Tools
+title: Server and Tools
+description: Explains the memory-sync-mcp stdio server entrypoints, the four exposed tools, and the role of workspaceDir.
+sidebarTitle: Server and Tools
 status: stable
 ---
 
-# Server 与 Tools
+# Server and Tools
 
-## 公开入口
+## Public Entrypoints
 
-`mcp/src/index.ts` 当前只公开两个入口：
+`mcp/src/index.ts` currently exposes only two entrypoints:
 
 - `createMemorySyncMcpServer`
 - `runMemorySyncMcpStdioServer`
 
-这说明这个包的职责非常明确，就是提供 server 构造与 stdio 运行入口。
+That makes the package boundary very clear: it provides server construction and the stdio runtime entrypoint.
 
-## 当前已暴露的工具
+## Currently Exposed Tools
 
-`mcp/src/server.ts` 当前注册的工具包括：
+`mcp/src/server.ts` currently registers these tools:
 
 - `list_prompts`
 - `get_prompt`
 - `upsert_prompt_src`
 - `apply_prompt_translation`
 
-## 每个工具大致负责什么
+## What Each Tool Does at a High Level
 
 <FeatureMatrix
   items={[
     {
       tool: 'list_prompts',
-      capabilities: ['列出受管 prompt 记录', '返回 zh / en / dist 状态'],
+      capabilities: ['List managed prompt records', 'Return zh / en / dist status'],
       surfaces: ['MCP tool call'],
-      notes: '适合让客户端先拿全量索引，再决定读取哪个 prompt。'
+      notes: 'Useful when a client should fetch the full index first and decide which prompt to read afterward.'
     },
     {
       tool: 'get_prompt',
-      capabilities: ['读取单个 prompt', '返回 source 与 dist 产物'],
+      capabilities: ['Read a single prompt', 'Return source and dist artifacts'],
       surfaces: ['MCP tool call'],
-      notes: '当你需要做差异比对或精确查看内容时用它。'
+      notes: 'Use it when you need a precise read or a diff target.'
     },
     {
       tool: 'upsert_prompt_src',
-      capabilities: ['更新 zh source', '更新 en source'],
+      capabilities: ['Update zh source', 'Update en source'],
       surfaces: ['MCP tool call'],
-      notes: '它只碰 source，不直接改 dist。'
+      notes: 'It touches source only and does not modify dist directly.'
     },
     {
       tool: 'apply_prompt_translation',
-      capabilities: ['写入外部生成的 en 内容', '写入外部生成的 dist 内容'],
+      capabilities: ['Write externally generated en content', 'Write externally generated dist content'],
       surfaces: ['MCP tool call'],
-      notes: '适合翻译或编译产物已经在外部生成完成之后回写。'
+      notes: 'Useful when translation or compilation artifacts have already been generated elsewhere and only need to be written back.'
     }
   ]}
 />
 
-## `workspaceDir` 的作用
+## What `workspaceDir` Does
 
-这些工具都接受可选的 `workspaceDir`。它的语义不是“随便切目录”，而是把 prompt service 的项目根显式绑定到某个项目上下文。
+All of these tools accept an optional `workspaceDir`. Its meaning is not "switch directories arbitrarily." It explicitly binds the prompt service project root to a specific project context.
 
-如果不传，server 会按默认当前工作目录解释；如果传入，则会同时进入 `cwd` 与 `pluginOptions.workspaceDir`。
+If you do not pass it, the server resolves paths from the default current working directory. If you do pass it, the value is applied to both `cwd` and `pluginOptions.workspaceDir`.
 
-## 使用边界
+## Usage Boundary
 
-- 先保证 CLI 侧的项目结构是正确的，再接入 MCP
-- MCP 只暴露当前已有的 prompt 管理行为，不替你发明新的 Schema
-- 需要确认 prompt 类型与真源职责时，回看 [技术细节](/docs/technical-details)
+- Make sure the CLI-side project structure is correct before integrating MCP
+- MCP exposes only the prompt-management behavior that already exists and does not invent a new schema
+- If you need to confirm prompt types and source-of-truth responsibilities, go back to [Technical Details](/docs/technical-details)

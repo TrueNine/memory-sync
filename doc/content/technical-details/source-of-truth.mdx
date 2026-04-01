@@ -1,34 +1,34 @@
 ---
-title: 单一真源模型
-description: 解释 .src.mdx、源目录与目标工具产物之间的关系，以及为什么输出文件不应被当作真源维护。
-sidebarTitle: 单一真源模型
+title: Single Source of Truth
+description: Explains the relationship between .src.mdx, source directories, and target-tool outputs, and why output files should not be maintained as the source of truth.
+sidebarTitle: Single Source of Truth
 status: stable
 ---
 
-# 单一真源模型
+# Single Source of Truth
 
-`memory-sync` 的关键前提是：真源应该是你维护的输入资产，而不是目标工具最终读到的派生文件。
+The key premise of `memory-sync` is this: the source of truth should be the input assets you maintain, not the derived files consumed by target tools.
 
-## 哪些通常是真源
+## What Is Usually Source of Truth
 
-- 全局 Prompt
-- 项目 Prompt
+- Global prompts
+- Workspace prompts
 - `skills/`
 - `commands/`
 - `subagents/`
 - `rules/`
 
-## 哪些通常不是
+## What Usually Is Not
 
-- 各种工具原生配置落点
-- 导出的 dist 内容
-- 桌面层展示状态
-- MCP 返回的读取结果
+- Native config destinations for different tools
+- Exported dist content
+- Desktop-layer display state
+- Data returned by MCP reads
 
-## 为什么不能把输出文件当真源
+## Why Output Files Cannot Be the Source of Truth
 
-因为输出文件会天然带上目标工具的路径、命名、格式和能力限制。一旦把它们当真源，迁移成本和清理复杂度都会急剧上升。
+Because output files naturally carry the path, naming, formatting, and capability constraints of their target tools. Once you treat those as the source of truth, migration cost and cleanup complexity both rise sharply.
 
-## 实操含义
+## Practical Meaning
 
-需要调整行为时，优先改真源和配置，而不是去目标工具目录里热修一份派生文件。
+When behavior needs to change, modify the source-of-truth inputs and config first instead of hot-fixing a derived file inside a target-tool directory.

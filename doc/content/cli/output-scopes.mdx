@@ -1,21 +1,21 @@
 ---
-title: 输出范围
-description: 说明 outputScopes 如何按插件、按 topic 限制 project/global 输出范围。
-sidebarTitle: 输出范围
+title: Output Scopes
+description: Explains how outputScopes restrict project and global output scopes per plugin and per topic.
+sidebarTitle: Output Scopes
 status: stable
 ---
 
-# 输出范围
+# Output Scopes
 
-`outputScopes` 是当前实现里最重要也最容易被忽视的一个安全阀。
+`outputScopes` is one of the most important safety valves in the current implementation, and also one of the easiest to overlook.
 
-## 它解决什么问题
+## What Problem It Solves
 
-不是所有内容都应该被所有插件同时输出到全局和项目级。`outputScopes` 让你可以按插件、按 topic 指定来源范围。
+Not every piece of content should be emitted by every plugin to both global and project destinations. `outputScopes` lets you declare the source scope by plugin and by topic.
 
-## 支持的 topic
+## Supported Topics
 
-当前核心常量与 Schema 对齐，支持：
+The current core constants and schema support:
 
 - `prompt`
 - `rules`
@@ -24,14 +24,14 @@ status: stable
 - `skills`
 - `mcp`
 
-## 可选范围
+## Allowed Scopes
 
 - `project`
 - `global`
 
-有些 topic 允许多值数组，有些插件会声明为单值 topic。如果你给单值 topic 传多个范围，运行前校验会直接报错。
+Some topics allow multi-value arrays, while some plugins declare a topic as single-valued. If you pass multiple scopes to a single-valued topic, validation fails before execution.
 
-## 示例
+## Example
 
 ```json
 {
@@ -46,12 +46,12 @@ status: stable
 }
 ```
 
-## 什么时候该先看它
+## When to Check It First
 
-当你遇到这些现象时：
+Look here first when you see any of these:
 
-- 规则被写进了全局配置，但你只想要项目级
-- 全局 Prompt 被错误地带进某个局部目标
-- 技能、命令或 MCP 相关输出出现在不该出现的目标里
+- Rules are written into global config even though you only wanted project-level output
+- A global prompt is incorrectly pulled into a local target
+- Skill, command, or MCP-related outputs appear in targets where they do not belong
 
-优先检查 `outputScopes`，不要先改源文件本身。
+Check `outputScopes` before you edit the source files themselves.
