@@ -8,9 +8,6 @@
     "x64"
   ],
   "license": "AGPL-3.0-only",
-  "scripts": {
-    "prepack": "pnpm exec tsx ../../../scripts/write-platform-package-shims.ts ."
-  },
   "exports": {
     ".": {
       "types": "./noop.d.mts",
@@ -21,7 +18,10 @@
   },
   "files": [
     "*.node",
-    "noop.mjs",
-    "noop.d.mts"
-  ]
+    "noop.d.mts",
+    "noop.mjs"
+  ],
+  "scripts": {
+    "prepack": "pnpm exec tsx ../../../scripts/write-platform-package-shims.ts ."
+  }
 }

@@ -6,6 +6,7 @@ import {
   createLogger,
   discoverOutputRuntimeTargets,
   drainBufferedDiagnostics,
+  flushOutput,
   setGlobalLogLevel
 } from '@truenine/memory-sync-sdk'
 import {CleanCommand} from '@/commands/CleanCommand'
@@ -62,6 +63,11 @@ function writeJsonFailure(error: unknown): void {
   )
 }
 
+function flushAndExit(code: number): never {
+  flushOutput()
+  process.exit(code)
+}
+
 async function main(): Promise<void> {
   const {subcommand, json, dryRun} = parseRuntimeArgs(process.argv)
   if (json) setGlobalLogLevel('silent')
@@ -97,16 +103,17 @@ async function main(): Promise<void> {
     createWriteContext
   }
   const result = await command.execute(commandCtx)
-  if (!result.success) process.exit(1)
+  if (!result.success) flushAndExit(1)
+  flushOutput()
 }
 
 main().catch(error => {
   const {json} = parseRuntimeArgs(process.argv)
   if (json) {
     writeJsonFailure(error)
-    process.exit(1)
+    flushAndExit(1)
   }
   const logger = createLogger('plugin-runtime', 'error')
   logger.error(buildUnhandledExceptionDiagnostic('plugin-runtime', error))
-  process.exit(1)
+  flushAndExit(1)
 })

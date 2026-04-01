@@ -10,6 +10,7 @@ const nativeModule = vi.hoisted(() => ({
   setGlobalLogLevel: vi.fn(),
   getGlobalLogLevel: vi.fn(() => 'info'),
   clearBufferedDiagnostics: vi.fn(),
+  flushOutput: vi.fn(),
   drainBufferedDiagnostics: vi.fn(() => JSON.stringify([
     {
       code: 'BUFFERED_WARN',
@@ -86,14 +87,38 @@ describe('logger bindings', () => {
     expect(nativeLogger.logDiagnostic).not.toHaveBeenCalled()
   })
 
+  it('skips serializing filtered plain logs on the JS side', async () => {
+    const {createLogger} = await import('./index')
+    const logger = createLogger('logger-test', 'info')
+
+    logger.debug('suppressed', {count: 1})
+
+    expect(nativeLogger.log).not.toHaveBeenCalled()
+  })
+
+  it('keeps silent diagnostics flowing to native buffering', async () => {
+    const {createLogger} = await import('./index')
+    const logger = createLogger('logger-test', 'silent')
+
+    logger.warn({
+      code: 'BUFFERED_WARN',
+      title: 'Buffered warning',
+      rootCause: ['Silent mode should still buffer diagnostics.']
+    })
+
+    expect(nativeLogger.logDiagnostic).toHaveBeenCalledTimes(1)
+  })
+
   it('exposes buffered diagnostics helpers', async () => {
-    const {clearBufferedDiagnostics, drainBufferedDiagnostics} = await import('./index')
+    const {clearBufferedDiagnostics, drainBufferedDiagnostics, flushOutput} = await import('./index')
 
     clearBufferedDiagnostics()
     const diagnostics = drainBufferedDiagnostics()
+    flushOutput()
 
     expect(nativeModule.clearBufferedDiagnostics).toHaveBeenCalledTimes(1)
     expect(nativeModule.drainBufferedDiagnostics).toHaveBeenCalledTimes(1)
+    expect(nativeModule.flushOutput).toHaveBeenCalledTimes(1)
     expect(diagnostics).toEqual([
       expect.objectContaining({
         code: 'BUFFERED_WARN',

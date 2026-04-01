@@ -7,6 +7,7 @@ import {
   clearBufferedDiagnostics as clearBufferedDiagnosticsNative,
   createLogger as createLoggerNative,
   drainBufferedDiagnostics as drainBufferedDiagnosticsNative,
+  flushOutput as flushOutputNative,
   getGlobalLogLevel as getGlobalLogLevelNative,
   setGlobalLogLevel as setGlobalLogLevelNative
 } from '@truenine/logger'
@@ -161,6 +162,10 @@ export function createLogger(namespace: string, logLevel?: LogLevel): ILogger {
 
 export function drainBufferedDiagnostics(): LoggerDiagnosticRecord[] {
   return drainBufferedDiagnosticsNative()
+}
+
+export function flushOutput(): void {
+  flushOutputNative()
 }
 
 export function getGlobalLogLevel(): LogLevel | undefined {

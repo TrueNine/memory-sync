@@ -66,7 +66,7 @@
     "benchmark:cleanup": "tsx scripts/benchmark-cleanup.ts",
     "lintfix": "run-s build:deps:ts lintfix:run",
     "lintfix:run": "eslint --fix --cache --cache-location node_modules/.cache/.eslintcache .",
-    "typecheck": "run-s build:deps:ts typecheck:run",
+    "typecheck": "run-s typecheck:run",
     "typecheck:run": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {

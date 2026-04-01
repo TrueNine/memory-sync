@@ -316,19 +316,6 @@ importers:
         version: 4.1.2(@types/node@25.5.0)(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.98.0)(tsx@4.21.0)(yaml@2.8.3))
 
   cli:
-    dependencies:
-      '@truenine/script-runtime':
-        specifier: workspace:*
-        version: link:../libraries/script-runtime
-      json5:
-        specifier: 'catalog:'
-        version: 2.2.3
-      yaml:
-        specifier: 'catalog:'
-        version: 2.8.3
-      zod:
-        specifier: 'catalog:'
-        version: 4.3.6
     devDependencies:
       '@truenine/eslint10-config':
         specifier: 'catalog:'
@@ -376,6 +363,18 @@ importers:
       '@truenine/memory-sync-cli-win32-x64-msvc':
         specifier: workspace:*
         version: link:npm/win32-x64-msvc
+      '@truenine/script-runtime':
+        specifier: workspace:*
+        version: link:../libraries/script-runtime
+      json5:
+        specifier: 'catalog:'
+        version: 2.2.3
+      yaml:
+        specifier: 'catalog:'
+        version: 2.8.3
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
 
   cli/npm/darwin-arm64: {}
 

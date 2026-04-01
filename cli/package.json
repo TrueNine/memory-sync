@@ -66,18 +66,17 @@
     "typecheck": "run-s ensure:sdk-build typecheck:run",
     "typecheck:run": "tsc --noEmit -p tsconfig.lib.json"
   },
-  "dependencies": {
-    "@truenine/script-runtime": "workspace:*",
-    "json5": "catalog:",
-    "yaml": "catalog:",
-    "zod": "catalog:"
-  },
+  "dependencies": {},
   "optionalDependencies": {
     "@truenine/memory-sync-cli-darwin-arm64": "workspace:*",
     "@truenine/memory-sync-cli-darwin-x64": "workspace:*",
     "@truenine/memory-sync-cli-linux-arm64-gnu": "workspace:*",
     "@truenine/memory-sync-cli-linux-x64-gnu": "workspace:*",
-    "@truenine/memory-sync-cli-win32-x64-msvc": "workspace:*"
+    "@truenine/memory-sync-cli-win32-x64-msvc": "workspace:*",
+    "@truenine/script-runtime": "workspace:*",
+    "json5": "catalog:",
+    "yaml": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@truenine/eslint10-config": "catalog:",

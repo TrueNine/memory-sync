@@ -4470,7 +4470,6 @@ dependencies = [
 name = "tnmsc-logger"
 version = "2026.10330.118"
 dependencies = [
- "chrono",
  "napi",
  "napi-build",
  "napi-derive",

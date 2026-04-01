@@ -453,7 +453,7 @@ export async function performCleanup(
 
   return {
     deletedFiles: result.deletedFiles,
-    deletedDirs: result.deletedDirs + result.emptyDirsToDelete.length,
+    deletedDirs: result.deletedDirs,
     errors: loggedErrors,
     violations: [],
     conflicts: []

@@ -1,37 +1,19 @@
 #![deny(clippy::all)]
 
-//! Structured JSON logger with ANSI color support.
+//! AI-friendly Markdown logger with minimal terminal noise.
 //!
-//! Output format: `{"$":["HH:MM:SS.mmm","LEVEL","namespace"],"_":{...payload}}`
-//!
-//! This logger emits a single ANSI-colored JSON shape for humans.
+//! Output format:
+//! - Messages: `**LEVEL** `namespace` message` with optional bullet metadata
+//! - Diagnostics: `**LEVEL** `namespace` [CODE] Title` with Markdown sections
 
-use chrono::{Local, Timelike};
+use std::io::{BufWriter, Write};
 use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{LazyLock, Mutex};
+use std::thread;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-
-// ---------------------------------------------------------------------------
-// ANSI colors
-// ---------------------------------------------------------------------------
-
-const RESET: &str = "\x1B[0m";
-const RED: &str = "\x1B[31m";
-const YELLOW: &str = "\x1B[33m";
-const CYAN: &str = "\x1B[36m";
-const MAGENTA: &str = "\x1B[35m";
-const GRAY: &str = "\x1B[90m";
-const BLUE: &str = "\x1B[34m";
-const GREEN: &str = "\x1B[32m";
-const WHITE: &str = "\x1B[37m";
-const DIM: &str = "\x1B[2m";
-const BG_RED: &str = "\x1B[41m";
-
-fn colorize(color: &str, text: &str) -> String {
-    format!("{color}{text}{RESET}")
-}
 
 // ---------------------------------------------------------------------------
 // Log levels
@@ -62,18 +44,6 @@ impl LogLevel {
         }
     }
 
-    fn color_fn(self) -> fn(&str) -> String {
-        match self {
-            Self::Error => |s| colorize(RED, s),
-            Self::Warn => |s| colorize(YELLOW, s),
-            Self::Info => |s| colorize(CYAN, s),
-            Self::Debug => |s| colorize(MAGENTA, s),
-            Self::Trace => |s| colorize(GRAY, s),
-            Self::Fatal => |s| colorize(BG_RED, s),
-            Self::Silent => |s| colorize(WHITE, s),
-        }
-    }
-
     fn as_str(self) -> &'static str {
         match self {
             Self::Silent => "silent",
@@ -83,6 +53,18 @@ impl LogLevel {
             Self::Info => "info",
             Self::Debug => "debug",
             Self::Trace => "trace",
+        }
+    }
+
+    fn display_label(self) -> &'static str {
+        match self {
+            Self::Silent => "SILENT",
+            Self::Fatal => "FATAL",
+            Self::Error => "ERROR",
+            Self::Warn => "WARN",
+            Self::Info => "INFO",
+            Self::Debug => "DEBUG",
+            Self::Trace => "TRACE",
         }
     }
 
@@ -150,6 +132,12 @@ pub struct LoggerDiagnosticRecord {
 static GLOBAL_LOG_LEVEL: AtomicU8 = AtomicU8::new(255); // 255 = unset
 static BUFFERED_DIAGNOSTICS: LazyLock<Mutex<Vec<LoggerDiagnosticRecord>>> =
     LazyLock::new(|| Mutex::new(Vec::new()));
+static OUTPUT_SINK: LazyLock<Sender<OutputCommand>> = LazyLock::new(spawn_output_sink);
+
+enum OutputCommand {
+    Write { use_stderr: bool, output: String },
+    Flush { ack: Sender<()> },
+}
 
 /// Set the global log level for all loggers.
 pub fn set_global_log_level(level: LogLevel) {
@@ -172,6 +160,16 @@ pub fn drain_buffered_diagnostics() -> Vec<LoggerDiagnosticRecord> {
     match BUFFERED_DIAGNOSTICS.lock() {
         Ok(mut buffered) => std::mem::take(&mut *buffered),
         Err(_) => Vec::new(),
+    }
+}
+
+pub fn flush_output() {
+    let (ack_tx, ack_rx) = mpsc::channel();
+    if OUTPUT_SINK
+        .send(OutputCommand::Flush { ack: ack_tx })
+        .is_ok()
+    {
+        let _ = ack_rx.recv();
     }
 }
 
@@ -207,120 +205,15 @@ fn resolve_log_level(explicit: Option<LogLevel>) -> LogLevel {
 // JSON formatting
 // ---------------------------------------------------------------------------
 
+fn indent(level: usize) -> String {
+    "  ".repeat(level)
+}
+
 fn to_plain_json(value: &Value) -> String {
     match serde_json::to_string(value) {
         Ok(serialized) => serialized,
         Err(_) => r#"{"error":"failed to serialize output"}"#.to_string(),
     }
-}
-
-fn to_json_string_literal(value: &str) -> String {
-    match serde_json::to_string(value) {
-        Ok(serialized) => serialized,
-        Err(_) => r#""<failed to serialize string>""#.to_string(),
-    }
-}
-
-fn colorize_scalar(value: &Value) -> String {
-    match value {
-        Value::Null => colorize(DIM, "null"),
-        Value::Bool(_) => colorize(YELLOW, &to_plain_json(value)),
-        Value::Number(_) => colorize(BLUE, &to_plain_json(value)),
-        Value::String(text) => colorize(GREEN, &to_json_string_literal(text)),
-        Value::Array(_) | Value::Object(_) => to_plain_json(value),
-    }
-}
-
-fn indent(level: usize) -> String {
-    "  ".repeat(level)
-}
-
-fn colorize_key(key: &str) -> String {
-    colorize(MAGENTA, &to_json_string_literal(key))
-}
-
-fn colorize_level(level: LogLevel) -> String {
-    (level.color_fn())(&to_json_string_literal(
-        &level.as_str().to_ascii_uppercase(),
-    ))
-}
-
-fn render_json_value(value: &Value, pretty: bool, depth: usize) -> String {
-    match value {
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
-            colorize_scalar(value)
-        }
-        Value::Array(items) => {
-            if items.is_empty() {
-                return "[]".to_string();
-            }
-
-            if !pretty {
-                let parts: Vec<String> = items
-                    .iter()
-                    .map(|item| render_json_value(item, false, depth + 1))
-                    .collect();
-                return format!("[{}]", parts.join(","));
-            }
-
-            let child_indent = indent(depth + 1);
-            let closing_indent = indent(depth);
-            let parts: Vec<String> = items
-                .iter()
-                .map(|item| format!("{child_indent}{}", render_json_value(item, true, depth + 1)))
-                .collect();
-            format!("[\n{}\n{closing_indent}]", parts.join(",\n"))
-        }
-        Value::Object(map) => {
-            if map.is_empty() {
-                return "{}".to_string();
-            }
-
-            if !pretty {
-                let parts: Vec<String> = map
-                    .iter()
-                    .map(|(key, nested)| {
-                        format!(
-                            "{}:{}",
-                            colorize_key(key),
-                            render_json_value(nested, false, depth + 1)
-                        )
-                    })
-                    .collect();
-                return format!("{{{}}}", parts.join(","));
-            }
-
-            let child_indent = indent(depth + 1);
-            let closing_indent = indent(depth);
-            let parts: Vec<String> = map
-                .iter()
-                .map(|(key, nested)| {
-                    format!(
-                        "{child_indent}{}: {}",
-                        colorize_key(key),
-                        render_json_value(nested, true, depth + 1)
-                    )
-                })
-                .collect();
-            format!("{{\n{}\n{closing_indent}}}", parts.join(",\n"))
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Timestamp
-// ---------------------------------------------------------------------------
-
-#[allow(dead_code)]
-fn timestamp() -> String {
-    let now = Local::now();
-    format!(
-        "{:02}:{:02}:{:02}.{:03}",
-        now.hour(),
-        now.minute(),
-        now.second(),
-        now.timestamp_subsec_millis()
-    )
 }
 
 // ---------------------------------------------------------------------------
@@ -437,7 +330,7 @@ fn append_section(
     }
 }
 
-fn scalar_to_copy_text(value: &Value) -> String {
+fn scalar_to_markdown_text(value: &Value) -> String {
     match value {
         Value::Null => "null".to_string(),
         Value::Bool(boolean) => boolean.to_string(),
@@ -447,111 +340,191 @@ fn scalar_to_copy_text(value: &Value) -> String {
     }
 }
 
-fn extend_copy_text_value(
+fn append_markdown_value(
     lines: &mut Vec<String>,
     label: Option<&str>,
     value: &Value,
     depth: usize,
 ) {
-    let prefix = "  ".repeat(depth);
+    let prefix = indent(depth);
+    let bullet = format!("{prefix}- ");
 
     match value {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => match label {
             Some(name) => {
-                lines.push(format!("{prefix}{name}: {}", scalar_to_copy_text(value)));
+                lines.push(format!(
+                    "{bullet}{name}: {}",
+                    scalar_to_markdown_text(value)
+                ));
             }
             None => {
-                lines.push(format!("{prefix}- {}", scalar_to_copy_text(value)));
+                lines.push(format!("{bullet}{}", scalar_to_markdown_text(value)));
             }
         },
         Value::Array(items) => {
-            if let Some(name) = label {
-                lines.push(format!("{prefix}{name}:"));
+            if items.is_empty() {
+                match label {
+                    Some(name) => {
+                        lines.push(format!("{bullet}{name}: []"));
+                    }
+                    None => {
+                        lines.push(format!("{bullet}[]"));
+                    }
+                }
+                return;
             }
 
-            if items.is_empty() {
-                lines.push(format!("{prefix}  - []"));
+            if let Some(name) = label {
+                lines.push(format!("{bullet}{name}:"));
+                for item in items {
+                    append_markdown_value(lines, None, item, depth + 1);
+                }
                 return;
             }
 
             for item in items {
-                match item {
-                    Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
-                        lines.push(format!("{prefix}  - {}", scalar_to_copy_text(item)));
-                    }
-                    Value::Array(_) | Value::Object(_) => {
-                        lines.push(format!("{prefix}  -"));
-                        extend_copy_text_value(lines, None, item, depth + 2);
-                    }
-                }
+                append_markdown_value(lines, None, item, depth);
             }
         }
         Value::Object(map) => {
-            if let Some(name) = label {
-                lines.push(format!("{prefix}{name}:"));
+            if map.is_empty() {
+                match label {
+                    Some(name) => {
+                        lines.push(format!("{bullet}{name}: {{}}"));
+                    }
+                    None => {
+                        lines.push(format!("{bullet}{{}}"));
+                    }
+                }
+                return;
             }
 
-            if map.is_empty() {
-                lines.push(format!("{prefix}  {{}}"));
+            if let Some(name) = label {
+                lines.push(format!("{bullet}{name}:"));
+                for (key, nested) in map {
+                    append_markdown_value(lines, Some(key), nested, depth + 1);
+                }
                 return;
             }
 
             for (key, nested) in map {
-                extend_copy_text_value(lines, Some(key), nested, depth + 1);
+                append_markdown_value(lines, Some(key), nested, depth);
             }
         }
     }
 }
 
-fn value_to_copy_text_lines(value: &Value) -> Vec<String> {
+fn value_to_markdown_lines(value: &Value) -> Vec<String> {
     let mut lines = Vec::new();
-    extend_copy_text_value(&mut lines, None, value, 0);
+    append_markdown_value(&mut lines, None, value, 0);
     lines
 }
 
-fn is_diagnostic_payload(payload: &Value) -> bool {
-    payload.as_object().is_some_and(|map| {
-        map.contains_key("copyText") && map.contains_key("code") && map.contains_key("title")
-    })
+fn extract_message_and_meta_lines(payload: &Value) -> (Option<String>, Vec<String>) {
+    match payload {
+        Value::String(text) => (Some(text.clone()), Vec::new()),
+        Value::Object(map) => {
+            if let Some(Value::String(message)) = map.get("message") {
+                let mut remainder = map.clone();
+                remainder.remove("message");
+                let lines = if remainder.is_empty() {
+                    Vec::new()
+                } else {
+                    value_to_markdown_lines(&Value::Object(remainder))
+                };
+                return (Some(message.clone()), lines);
+            }
+
+            if map.len() == 1
+                && let Some((message, nested)) = map.iter().next()
+            {
+                match nested {
+                    Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
+                        return (
+                            Some(format!("{message}: {}", scalar_to_markdown_text(nested))),
+                            Vec::new(),
+                        );
+                    }
+                    Value::Array(items) if !items.is_empty() => {
+                        return (Some(message.clone()), value_to_markdown_lines(nested));
+                    }
+                    Value::Object(object) if !object.is_empty() => {
+                        return (Some(message.clone()), value_to_markdown_lines(nested));
+                    }
+                    _ => {}
+                }
+            }
+
+            (None, value_to_markdown_lines(payload))
+        }
+        _ => (None, value_to_markdown_lines(payload)),
+    }
 }
 
-fn render_output(
-    timestamp: &str,
-    level: LogLevel,
-    namespace: &str,
-    payload: &Value,
-    pretty: bool,
-) -> String {
-    if !pretty {
-        return format!(
-            "{{{}:[{},{},{}],{}:{}}}",
-            colorize_key("$"),
-            colorize(GREEN, &to_json_string_literal(timestamp)),
-            colorize_level(level),
-            colorize(GREEN, &to_json_string_literal(namespace)),
-            colorize_key("_"),
-            render_json_value(payload, false, 1)
-        );
+fn split_preserved_lines(text: &str) -> Vec<String> {
+    text.split('\n')
+        .map(|line| line.trim_end_matches('\r').to_string())
+        .collect()
+}
+
+fn render_message_header(level: LogLevel, namespace: &str, message: Option<&str>) -> String {
+    match message {
+        Some(message) if !message.is_empty() => {
+            format!("**{}** `{namespace}` {message}", level.display_label())
+        }
+        _ => format!("**{}** `{namespace}`", level.display_label()),
+    }
+}
+
+fn render_message_output(level: LogLevel, namespace: &str, payload: &Value) -> String {
+    let (message, meta_lines) = extract_message_and_meta_lines(payload);
+    let mut lines = Vec::new();
+
+    match message {
+        Some(message) if message.contains('\n') => {
+            lines.push(render_message_header(level, namespace, None));
+            lines.push(String::new());
+            lines.extend(split_preserved_lines(&message));
+        }
+        Some(message) => {
+            lines.push(render_message_header(level, namespace, Some(&message)));
+        }
+        None => {
+            lines.push(render_message_header(level, namespace, None));
+        }
     }
 
-    format!(
-        "{{\n  {}: [\n    {},\n    {},\n    {}\n  ],\n  {}: {}\n}}",
-        colorize_key("$"),
-        colorize(GREEN, &to_json_string_literal(timestamp)),
-        colorize_level(level),
-        colorize(GREEN, &to_json_string_literal(namespace)),
-        colorize_key("_"),
-        render_json_value(payload, true, 1)
-    )
+    if !meta_lines.is_empty() {
+        lines.push(String::new());
+        lines.extend(meta_lines);
+    }
+
+    lines.join("\n")
+}
+
+fn render_diagnostic_output(level: LogLevel, record: &LoggerDiagnosticRecord) -> String {
+    let mut lines = vec![format!(
+        "**{}** `{}` {}",
+        level.display_label(),
+        record.namespace,
+        record.copy_text[0]
+    )];
+
+    if record.copy_text.len() > 1 {
+        lines.push(String::new());
+        lines.extend(record.copy_text.iter().skip(1).cloned());
+    }
+
+    lines.join("\n")
 }
 
 fn build_copy_text(record: &LoggerDiagnosticRecord) -> Vec<String> {
     let mut lines = vec![format!("[{}] {}", record.code, record.title)];
 
-    append_section(&mut lines, "Root Cause", &record.root_cause, None);
+    append_section(&mut lines, "**Root Cause**", &record.root_cause, None);
 
     if let Some(exact_fix) = &record.exact_fix {
-        append_section(&mut lines, "Exact Fix", exact_fix, None);
+        append_section(&mut lines, "**Exact Fix**", exact_fix, None);
     }
 
     if let Some(possible_fixes) = &record.possible_fixes
@@ -560,7 +533,7 @@ fn build_copy_text(record: &LoggerDiagnosticRecord) -> Vec<String> {
         if !lines.is_empty() {
             lines.push(String::new());
         }
-        lines.push("Possible Fixes".to_string());
+        lines.push("**Possible Fixes**".to_string());
         for (index, fix) in possible_fixes.iter().enumerate() {
             let mut iter = fix.iter();
             if let Some(first) = iter.next() {
@@ -578,8 +551,8 @@ fn build_copy_text(record: &LoggerDiagnosticRecord) -> Vec<String> {
         if !lines.is_empty() {
             lines.push(String::new());
         }
-        lines.push("Context".to_string());
-        lines.extend(value_to_copy_text_lines(&Value::Object(details.clone())));
+        lines.push("**Context**".to_string());
+        lines.extend(value_to_markdown_lines(&Value::Object(details.clone())));
     }
 
     lines
@@ -700,35 +673,96 @@ fn writes_to_stderr(level: LogLevel) -> bool {
 // Format and print
 // ---------------------------------------------------------------------------
 
-fn print_output(level: LogLevel, output: &str) {
-    if writes_to_stderr(level) {
-        eprintln!("{}", output);
+fn spawn_output_sink() -> Sender<OutputCommand> {
+    let (tx, rx) = mpsc::channel();
+    thread::Builder::new()
+        .name("tnmsc-logger-output".to_string())
+        .spawn(move || output_worker(rx))
+        .expect("failed to spawn tnmsc logger output worker");
+    tx
+}
+
+fn output_worker(receiver: Receiver<OutputCommand>) {
+    let stdout = std::io::stdout();
+    let stderr = std::io::stderr();
+    let mut stdout_writer = BufWriter::new(stdout);
+    let mut stderr_writer = BufWriter::new(stderr);
+
+    while let Ok(command) = receiver.recv() {
+        match command {
+            OutputCommand::Write { use_stderr, output } => {
+                if use_stderr {
+                    if stderr_writer.write_all(output.as_bytes()).is_ok() {
+                        let _ = stderr_writer.write_all(b"\n");
+                    }
+                } else {
+                    if stdout_writer.write_all(output.as_bytes()).is_ok() {
+                        let _ = stdout_writer.write_all(b"\n");
+                    }
+                }
+            }
+            OutputCommand::Flush { ack } => {
+                let _ = stdout_writer.flush();
+                let _ = stderr_writer.flush();
+                let _ = ack.send(());
+            }
+        }
+    }
+
+    let _ = stdout_writer.flush();
+    let _ = stderr_writer.flush();
+}
+
+fn print_output_direct(use_stderr: bool, output: &str) {
+    if use_stderr {
+        let mut stderr = std::io::stderr().lock();
+        let _ = writeln!(stderr, "{output}");
+        let _ = stderr.flush();
     } else {
-        println!("{}", output);
+        let mut stdout = std::io::stdout().lock();
+        let _ = writeln!(stdout, "{output}");
+        let _ = stdout.flush();
     }
 }
 
-fn emit_log_record(level: LogLevel, namespace: &str, payload: Value, pretty: bool) -> LogRecord {
-    let ts = timestamp();
+fn print_output(level: LogLevel, output: &str) {
+    let use_stderr = writes_to_stderr(level);
+    if OUTPUT_SINK
+        .send(OutputCommand::Write {
+            use_stderr,
+            output: output.to_string(),
+        })
+        .is_err()
+    {
+        print_output_direct(use_stderr, output);
+    }
+}
 
+fn emit_message_log_record(level: LogLevel, namespace: &str, payload: Value) -> LogRecord {
     let record = LogRecord {
         meta: (
-            ts.clone(),
+            String::new(),
             level.as_str().to_string(),
             namespace.to_string(),
         ),
         payload: payload.clone(),
     };
-
-    let output = render_output(
-        &ts,
-        level,
-        namespace,
-        &payload,
-        pretty && is_diagnostic_payload(&payload),
-    );
-    print_output(level, &output);
+    print_output(level, &render_message_output(level, namespace, &payload));
     record
+}
+
+fn emit_diagnostic_log_record(level: LogLevel, record: &LoggerDiagnosticRecord) -> LogRecord {
+    let payload = serialize_payload(record);
+    let emitted = LogRecord {
+        meta: (
+            String::new(),
+            level.as_str().to_string(),
+            record.namespace.clone(),
+        ),
+        payload,
+    };
+    print_output(level, &render_diagnostic_output(level, record));
+    emitted
 }
 
 // ---------------------------------------------------------------------------
@@ -783,7 +817,7 @@ impl Logger {
             return None;
         }
         let payload = build_payload(&message, meta.as_ref());
-        Some(emit_log_record(level, &self.namespace, payload, false))
+        Some(emit_message_log_record(level, &self.namespace, payload))
     }
 
     fn log_diagnostic(&self, level: LogLevel, diagnostic: Value) -> Option<LogRecord> {
@@ -797,12 +831,7 @@ impl Logger {
             return None;
         }
 
-        Some(emit_log_record(
-            level,
-            &self.namespace,
-            serialize_payload(&record),
-            true,
-        ))
+        Some(emit_diagnostic_log_record(level, &record))
     }
 }
 
@@ -861,7 +890,8 @@ mod napi_binding {
     use super::{
         LogLevel, Logger, clear_buffered_diagnostics as core_clear_buffered,
         create_logger as core_create_logger, drain_buffered_diagnostics as core_drain_buffered,
-        get_global_log_level as core_get_global, set_global_log_level as core_set_global,
+        flush_output as core_flush_output, get_global_log_level as core_get_global,
+        set_global_log_level as core_set_global,
     };
     use napi_derive::napi;
     use serde_json::Value;
@@ -954,32 +984,16 @@ mod napi_binding {
             Err(_) => "[]".to_string(),
         }
     }
+
+    #[napi]
+    pub fn flush_output() {
+        core_flush_output();
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn strip_ansi(input: &str) -> String {
-        let mut result = String::new();
-        let mut chars = input.chars().peekable();
-
-        while let Some(ch) = chars.next() {
-            if ch == '\u{1b}' && chars.peek() == Some(&'[') {
-                chars.next();
-                for next in chars.by_ref() {
-                    if next == 'm' {
-                        break;
-                    }
-                }
-                continue;
-            }
-
-            result.push(ch);
-        }
-
-        result
-    }
 
     #[test]
     fn test_log_level_priority() {
@@ -997,15 +1011,6 @@ mod tests {
         assert_eq!(LogLevel::from_str_loose("INFO"), Some(LogLevel::Info));
         assert_eq!(LogLevel::from_str_loose("Debug"), Some(LogLevel::Debug));
         assert_eq!(LogLevel::from_str_loose("unknown"), None);
-    }
-
-    #[test]
-    fn test_to_plain_json() {
-        let val = Value::Object(Map::from_iter([(
-            "hello".to_string(),
-            Value::String("world".to_string()),
-        )]));
-        assert_eq!(to_plain_json(&val), r#"{"hello":"world"}"#);
     }
 
     #[test]
@@ -1098,94 +1103,47 @@ mod tests {
         );
 
         assert_eq!(record.copy_text[0], "[TEST_ERROR] Example diagnostic");
-        assert!(record.copy_text.contains(&"Root Cause".to_string()));
-        assert!(record.copy_text.contains(&"Exact Fix".to_string()));
-        assert!(record.copy_text.contains(&"Possible Fixes".to_string()));
-        assert!(record.copy_text.contains(&"Context".to_string()));
+        assert!(record.copy_text.contains(&"**Root Cause**".to_string()));
+        assert!(record.copy_text.contains(&"**Exact Fix**".to_string()));
+        assert!(record.copy_text.contains(&"**Possible Fixes**".to_string()));
+        assert!(record.copy_text.contains(&"**Context**".to_string()));
     }
 
     #[test]
-    fn test_render_output_is_ansi_colored_json() {
+    fn test_render_message_output_formats_markdown() {
         let payload = Value::Object(Map::from_iter([(
             "message".to_string(),
             Value::String("hello".to_string()),
         )]));
 
-        let rendered = render_output(
-            "00:00:00.000",
-            LogLevel::Info,
-            "logger-test",
-            &payload,
-            false,
-        );
-        assert!(rendered.contains('\u{1b}'));
-        assert!(!rendered.contains("\\u001b"));
-
-        let plain = strip_ansi(&rendered);
-        let parsed: Value = match serde_json::from_str(&plain) {
-            Ok(value) => value,
-            Err(error) => panic!("failed to parse rendered json: {error}\n{plain}"),
-        };
-        assert_eq!(parsed["$"][0], "00:00:00.000");
-        assert_eq!(parsed["$"][1], "INFO");
-        assert_eq!(parsed["$"][2], "logger-test");
-        assert_eq!(parsed["_"]["message"], "hello");
+        let rendered = render_message_output(LogLevel::Info, "logger-test", &payload);
+        assert_eq!(rendered, "**INFO** `logger-test` hello");
     }
 
     #[test]
-    fn test_render_output_preserves_escaped_strings() {
-        let payload = Value::Object(Map::from_iter([(
-            "message".to_string(),
-            Value::String("C:\\runtime\\plugin\\\"quoted\"\nnext".to_string()),
-        )]));
+    fn test_render_message_output_moves_multiline_message_to_block_body() {
+        let payload = Value::String("line one\nline two".to_string());
+        let rendered = render_message_output(LogLevel::Info, "logger-test", &payload);
 
-        let rendered = render_output(
-            "00:00:00.000",
-            LogLevel::Warn,
-            "logger-test",
-            &payload,
-            false,
-        );
-
-        let plain = strip_ansi(&rendered);
-        let parsed: Value = match serde_json::from_str(&plain) {
-            Ok(value) => value,
-            Err(error) => panic!("failed to parse rendered json: {error}\n{plain}"),
-        };
-        assert_eq!(
-            parsed["_"]["message"],
-            "C:\\runtime\\plugin\\\"quoted\"\nnext"
-        );
+        assert_eq!(rendered, "**INFO** `logger-test`\n\nline one\nline two");
     }
 
     #[test]
-    fn test_render_output_keeps_structured_shape_for_nested_payloads() {
+    fn test_render_message_output_renders_nested_payloads() {
         let payload = serde_json::json!({
             "started": {
                 "command": "execute",
             }
         });
 
-        let rendered = render_output(
-            "00:00:00.000",
-            LogLevel::Info,
-            "PluginPipeline",
-            &payload,
-            false,
-        );
-        let plain = strip_ansi(&rendered);
-        let parsed: Value = match serde_json::from_str(&plain) {
-            Ok(value) => value,
-            Err(error) => panic!("failed to parse rendered json: {error}\n{plain}"),
-        };
-
-        assert_eq!(parsed["$"][2], "PluginPipeline");
-        assert_eq!(parsed["_"]["started"]["command"], "execute");
+        let rendered = render_message_output(LogLevel::Info, "PluginPipeline", &payload);
+        assert!(rendered.contains("**INFO** `PluginPipeline` started"));
+        assert!(rendered.contains("- command: execute"));
     }
 
     #[test]
-    fn test_render_output_pretty_prints_diagnostics() {
-        let payload = serialize_payload(diagnostic_record_from_input(
+    fn test_render_diagnostic_output_uses_markdown_sections() {
+        let record = diagnostic_record_from_input(
             "logger-test",
             LogLevel::Warn,
             LoggerDiagnosticInput {
@@ -1202,29 +1160,14 @@ mod tests {
                     Value::String("C:\\runtime\\plugin".to_string()),
                 )])),
             },
-        ));
-
-        let rendered = render_output(
-            "00:00:00.000",
-            LogLevel::Warn,
-            "logger-test",
-            &payload,
-            true,
         );
-        assert!(rendered.contains("\n"));
-        assert!(!rendered.contains("\\u001b"));
 
-        let plain = strip_ansi(&rendered);
-        let parsed: Value = match serde_json::from_str(&plain) {
-            Ok(value) => value,
-            Err(error) => panic!("failed to parse rendered json: {error}\n{plain}"),
-        };
-
-        let copy_text = parsed["_"]["copyText"]
-            .as_array()
-            .expect("copyText should be an array");
-        assert!(copy_text.len() > 4);
-        assert_eq!(copy_text[0], "[TEST_WARN] Pretty output");
+        let rendered = render_diagnostic_output(LogLevel::Warn, &record);
+        assert!(rendered.contains("**WARN** `logger-test` [TEST_WARN] Pretty output"));
+        assert!(rendered.contains("**Root Cause**"));
+        assert!(rendered.contains("- The warning must stay readable."));
+        assert!(rendered.contains("**Context**"));
+        assert!(rendered.contains("- path: C:\\runtime\\plugin"));
     }
 
     #[test]
@@ -1251,9 +1194,9 @@ mod tests {
         assert!(
             record
                 .copy_text
-                .contains(&"  path: C:\\runtime\\plugin".to_string())
+                .contains(&"- path: C:\\runtime\\plugin".to_string())
         );
-        assert!(record.copy_text.contains(&"  phase: cleanup".to_string()));
+        assert!(record.copy_text.contains(&"- phase: cleanup".to_string()));
         assert!(!record.copy_text.iter().any(|line| line == "{"));
     }
 

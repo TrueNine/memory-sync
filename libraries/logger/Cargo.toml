@@ -1,6 +1,6 @@
 [package]
 name = "tnmsc-logger"
-description = "Structured JSON logger with ANSI color support for tnmsc"
+description = "AI-friendly Markdown logger with minimal terminal noise for tnmsc"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -16,7 +16,6 @@ default = []
 napi = ["dep:napi", "dep:napi-derive"]
 
 [dependencies]
-chrono = { version = "0.4.44", default-features = false, features = ["clock", "std"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 napi = { workspace = true, optional = true }

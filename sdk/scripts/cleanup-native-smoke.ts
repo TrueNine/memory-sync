@@ -90,6 +90,7 @@ async function main(): Promise<void> {
   const preservedSkillDir = path.join(workspaceDir, '.codex', 'skills', '.system')
   const rootOutput = path.join(workspaceDir, 'project-a', 'AGENTS.md')
   const childOutput = path.join(workspaceDir, 'project-a', 'commands', 'AGENTS.md')
+  const preservedProjectFile = path.join(workspaceDir, 'project-a', 'README.md')
 
   fs.mkdirSync(path.dirname(rootOutput), {recursive: true})
   fs.mkdirSync(path.dirname(childOutput), {recursive: true})
@@ -97,6 +98,7 @@ async function main(): Promise<void> {
   fs.mkdirSync(preservedSkillDir, {recursive: true})
   fs.writeFileSync(rootOutput, '# root', 'utf8')
   fs.writeFileSync(childOutput, '# child', 'utf8')
+  fs.writeFileSync(preservedProjectFile, '# keep project root', 'utf8')
   fs.writeFileSync(path.join(legacySkillDir, 'SKILL.md'), '# stale', 'utf8')
   fs.writeFileSync(path.join(preservedSkillDir, 'SKILL.md'), '# keep', 'utf8')
 
@@ -107,24 +109,25 @@ async function main(): Promise<void> {
     const nativePlan = await cleanupModule.collectDeletionTargets([plugin], cleanCtx)
     expectSetEqual(nativePlan.filesToDelete, [rootOutput, childOutput], 'native cleanup plan files')
     expectSetEqual(nativePlan.dirsToDelete, [
-      legacySkillDir,
-      path.join(workspaceDir, 'project-a', 'commands'),
-      path.join(workspaceDir, 'project-a')
+      legacySkillDir
     ], 'native cleanup plan directories')
+    expectSetEqual(nativePlan.emptyDirsToDelete, [
+      path.join(workspaceDir, 'project-a', 'commands')
+    ], 'native cleanup plan empty directories')
     if (nativePlan.violations.length > 0 || nativePlan.conflicts.length > 0) {
       throw new Error(`Unexpected native cleanup plan: ${JSON.stringify(nativePlan, null, 2)}`)
     }
 
     const result = await cleanupModule.performCleanup([plugin], cleanCtx, createMockLogger())
-    if (result.deletedFiles !== 2 || result.deletedDirs !== 3 || result.errors.length > 0) {
+    if (result.deletedFiles !== 2 || result.deletedDirs !== 2 || result.errors.length > 0) {
       throw new Error(`Unexpected native cleanup result: ${JSON.stringify(result, null, 2)}`)
     }
 
     if (fs.existsSync(rootOutput) || fs.existsSync(childOutput) || fs.existsSync(legacySkillDir)) {
       throw new Error('Native cleanup did not remove the expected outputs')
     }
-    if (!fs.existsSync(preservedSkillDir)) {
-      throw new Error('Native cleanup removed the preserved .system skill directory')
+    if (!fs.existsSync(preservedSkillDir) || !fs.existsSync(preservedProjectFile)) {
+      throw new Error('Native cleanup removed a preserved path')
     }
 
     process.stdout.write('cleanup-native-smoke: ok\n')

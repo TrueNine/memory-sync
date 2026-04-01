@@ -6,6 +6,7 @@ import {
   createLogger,
   drainBufferedDiagnostics,
   FilePathKind,
+  flushOutput,
   mergeConfig,
   setGlobalLogLevel
 } from '@truenine/memory-sync-sdk'
@@ -81,20 +82,24 @@ export async function runCli(argv: readonly string[] = process.argv): Promise<nu
     const lightweightCommand = resolveLightweightCommand(argv)
     if (lightweightCommand != null) {
       const result: CommandResult = await lightweightCommand.command.execute(lightweightCommand.context)
+      flushOutput()
       return result.success ? 0 : 1
     }
 
     const pipeline = new PluginPipeline(...argv)
     const userPluginConfig = await createDefaultPluginConfig(argv)
     const result = await pipeline.run(userPluginConfig)
+    flushOutput()
     return result.success ? 0 : 1
   } catch (error) {
     if (isJsonMode(argv)) {
       writeJsonFailure(error)
+      flushOutput()
       return 1
     }
     const logger = createLogger('main', 'error')
     logger.error(buildUnhandledExceptionDiagnostic('main', error))
+    flushOutput()
     return 1
   }
 }

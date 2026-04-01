@@ -9,7 +9,7 @@ mod commands;
 use std::process::ExitCode;
 
 use clap::Parser;
-use tnmsc_logger::set_global_log_level;
+use tnmsc_logger::{flush_output, set_global_log_level};
 
 use cli::{Cli, ResolvedCommand, resolve_command, resolve_log_level};
 
@@ -27,7 +27,7 @@ fn main() -> ExitCode {
 
     let command = resolve_command(&cli);
 
-    match command {
+    let exit_code = match command {
         ResolvedCommand::Help => commands::help::execute(),
         ResolvedCommand::Version => commands::version::execute(),
         ResolvedCommand::Config(pairs) => commands::config_cmd::execute(&pairs),
@@ -37,5 +37,8 @@ fn main() -> ExitCode {
         ResolvedCommand::Clean => commands::bridge::clean(json_mode),
         ResolvedCommand::DryRunClean => commands::bridge::dry_run_clean(json_mode),
         ResolvedCommand::Plugins => commands::bridge::plugins(json_mode),
-    }
+    };
+
+    flush_output();
+    exit_code
 }

@@ -48,6 +48,7 @@ interface NapiLoggerModule {
   getGlobalLogLevel: () => string | undefined
   clearBufferedDiagnostics: () => void
   drainBufferedDiagnostics: () => string
+  flushOutput?: () => void
 }
 
 const PLATFORM_BINDINGS: Record<string, PlatformBinding> = {
@@ -60,6 +61,15 @@ const PLATFORM_BINDINGS: Record<string, PlatformBinding> = {
 
 const DIAGNOSTIC_LOG_LEVELS: readonly LoggerDiagnosticLevel[] = ['error', 'warn', 'fatal']
 const PLAIN_LOG_LEVELS: readonly PlainLogLevel[] = ['info', 'debug', 'trace']
+const LOG_LEVEL_PRIORITY: Readonly<Record<LogLevel, number>> = {
+  silent: 0,
+  fatal: 1,
+  error: 2,
+  warn: 3,
+  info: 4,
+  debug: 5,
+  trace: 6
+}
 
 let napiBinding: NapiLoggerModule | undefined,
   napiBindingError: Error | undefined
@@ -212,6 +222,33 @@ function parseBufferedDiagnostics(serialized: string): LoggerDiagnosticRecord[] 
   }
 }
 
+function normalizeLogLevel(level: string | undefined): LogLevel | undefined {
+  if (level == null) return void 0
+
+  const normalizedLevel = level.toLowerCase() as LogLevel
+  return normalizedLevel in LOG_LEVEL_PRIORITY ? normalizedLevel : void 0
+}
+
+function resolveLoggerLevel(logLevel?: LogLevel): LogLevel {
+  if (logLevel != null) return logLevel
+
+  const globalLogLevel = normalizeLogLevel(getNapiBinding().getGlobalLogLevel())
+  if (globalLogLevel != null) return globalLogLevel
+
+  const envLogLevel = normalizeLogLevel(process.env['LOG_LEVEL'])
+  if (envLogLevel != null) return envLogLevel
+
+  return 'info'
+}
+
+function shouldEmitLog(level: LogLevel, loggerLevel: LogLevel): boolean {
+  return LOG_LEVEL_PRIORITY[level] <= LOG_LEVEL_PRIORITY[loggerLevel]
+}
+
+function shouldSendDiagnostic(level: LoggerDiagnosticLevel, loggerLevel: LogLevel): boolean {
+  return loggerLevel === 'silent' || shouldEmitLog(level, loggerLevel)
+}
+
 function normalizeLogArguments(message: string | object, meta: unknown[]): {message: string, metaJson: string | undefined} {
   if (typeof message !== 'string') {
     return {
@@ -230,25 +267,31 @@ function normalizeLogArguments(message: string | object, meta: unknown[]): {mess
   }
 }
 
-function createLogMethod(instance: NapiLoggerInstance, level: PlainLogLevel): LoggerMethod {
+function createLogMethod(instance: NapiLoggerInstance, loggerLevel: LogLevel, level: PlainLogLevel): LoggerMethod {
   return (message: string | object, ...meta: unknown[]): void => {
+    if (!shouldEmitLog(level, loggerLevel)) return
+
     const {message: normalizedMessage, metaJson} = normalizeLogArguments(message, meta)
     instance.log(level, normalizedMessage, metaJson)
   }
 }
 
-function createDiagnosticMethod(instance: NapiLoggerInstance, level: LoggerDiagnosticLevel): LoggerDiagnosticMethod {
-  return (diagnostic: LoggerDiagnosticInput) => instance.logDiagnostic(level, serializePayload(diagnostic))
+function createDiagnosticMethod(instance: NapiLoggerInstance, loggerLevel: LogLevel, level: LoggerDiagnosticLevel): LoggerDiagnosticMethod {
+  return (diagnostic: LoggerDiagnosticInput) => {
+    if (!shouldSendDiagnostic(level, loggerLevel)) return
+
+    instance.logDiagnostic(level, serializePayload(diagnostic))
+  }
 }
 
-function createNapiAdapter(instance: NapiLoggerInstance): ILogger {
+function createNapiAdapter(instance: NapiLoggerInstance, loggerLevel: LogLevel): ILogger {
   const messageMethods = PLAIN_LOG_LEVELS.reduce((logger, level) => {
-    logger[level] = createLogMethod(instance, level)
+    logger[level] = createLogMethod(instance, loggerLevel, level)
     return logger
   }, {} as Record<PlainLogLevel, LoggerMethod>)
 
   const diagnosticMethods = DIAGNOSTIC_LOG_LEVELS.reduce((logger, level) => {
-    logger[level] = createDiagnosticMethod(instance, level)
+    logger[level] = createDiagnosticMethod(instance, loggerLevel, level)
     return logger
   }, {} as Record<LoggerDiagnosticLevel, LoggerDiagnosticMethod>)
 
@@ -284,10 +327,15 @@ export function drainBufferedDiagnostics(): LoggerDiagnosticRecord[] {
   return parseBufferedDiagnostics(getNapiBinding().drainBufferedDiagnostics())
 }
 
+export function flushOutput(): void {
+  getNapiBinding().flushOutput?.()
+}
+
 /**
  * Create a logger backed by the Rust native binding.
  */
 export function createLogger(namespace: string, logLevel?: LogLevel): ILogger {
-  const instance = getNapiBinding().createLogger(namespace, logLevel)
-  return createNapiAdapter(instance)
+  const resolvedLogLevel = resolveLoggerLevel(logLevel)
+  const instance = getNapiBinding().createLogger(namespace, resolvedLogLevel)
+  return createNapiAdapter(instance, resolvedLogLevel)
 }
