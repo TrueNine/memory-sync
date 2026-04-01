@@ -1,25 +1,25 @@
 ---
 title: plugin.config.ts
-description: 说明项目级 plugin.config.ts 如何装配默认输出插件与运行参数。
+description: Explains how the project-level plugin.config.ts assembles default output plugins and runtime options.
 sidebarTitle: plugin.config.ts
 status: stable
 ---
 
 # `plugin.config.ts`
 
-## 它的职责
+## What It Does
 
-`plugin.config.ts` 是项目级装配入口。它把：
+`plugin.config.ts` is the project-level assembly entrypoint. It passes:
 
-- 管线参数
-- 插件列表
-- 可能的程序化覆盖
+- pipeline options
+- the plugin list
+- any programmatic overrides
 
-交给 `defineConfig()`，最终产出真正执行同步所需的 `PipelineConfig`。
+into `defineConfig()`, which produces the `PipelineConfig` used for real execution.
 
-## 当前默认输出插件
+## Current Default Output Plugins
 
-当前仓库 `sdk/src/plugin.config.ts` 默认装配的输出插件包括：
+The default output plugins currently assembled in `sdk/src/plugin.config.ts` include:
 
 - `AgentsOutputPlugin`
 - `ClaudeCodeCLIOutputPlugin`
@@ -27,7 +27,7 @@ status: stable
 - `JetBrainsAIAssistantCodexOutputPlugin`
 - `DroidCLIOutputPlugin`
 - `GeminiCLIOutputPlugin`
-- `GenericSkillsOutputPlugin`（deprecated，保留用于兼容旧技能分发；清理时需要连同全局 `~/.skills/` 整个目录一起移除）
+- `GenericSkillsOutputPlugin` (deprecated, kept only for compatibility with older skill distribution; cleanup must also remove the global `~/.skills/` directory)
 - `OpencodeCLIOutputPlugin`
 - `QoderIDEPluginOutputPlugin`
 - `TraeIDEOutputPlugin`
@@ -41,14 +41,14 @@ status: stable
 - `VisualStudioCodeIDEConfigOutputPlugin`
 - `ReadmeMdConfigFileOutputPlugin`
 
-## 这意味着什么
+## What That Means
 
-这份配置不是“文档示意”，而是当前默认同步现实。只要这里有插件，就意味着默认执行里会考虑该目标。
+This configuration is not illustrative documentation. It is the current default sync reality. If a plugin appears here, the default execution path considers that target.
 
-## 最小认知模型
+## Minimal Mental Model
 
-你可以把 `plugin.config.ts` 理解为：
+You can think of `plugin.config.ts` as the file that:
 
-- 选择要输出到哪些目标
-- 决定是否在项目里追加程序化配置
-- 保持与全局用户配置合并，而不是完全绕开用户配置
+- chooses which targets receive outputs
+- decides whether to append programmatic config at the project level
+- keeps project config merged with global user config rather than bypassing it entirely

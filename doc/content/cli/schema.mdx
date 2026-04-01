@@ -1,27 +1,27 @@
 ---
 title: JSON Schema
-description: 梳理 tnmsc.schema.json 当前公开的配置字段与约束。
+description: Summarizes the configuration fields and constraints currently exposed by tnmsc.schema.json.
 sidebarTitle: JSON Schema
 status: stable
 ---
 
 # JSON Schema
 
-`cli/dist/tnmsc.schema.json` 当前公开的根字段有：
+`cli/dist/tnmsc.schema.json` currently exposes these root fields:
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 | --- | --- | --- |
-| `version` | `string` | 配置版本或发布版本标记 |
-| `workspaceDir` | `string` | 项目根目录 |
-| `aindex` | `object` | 输入源与导出目录映射 |
+| `version` | `string` | Config version or release version marker |
+| `workspaceDir` | `string` | Project root directory |
+| `aindex` | `object` | Mapping of source inputs to export directories |
 | `logLevel` | enum | `trace` / `debug` / `info` / `warn` / `error` |
-| `commandSeriesOptions` | `object` | command 系列命名与插件覆盖 |
-| `outputScopes` | `object` | 各插件输出范围覆盖 |
-| `frontMatter` | `object` | 输出时的 front matter 处理选项 |
-| `cleanupProtection` | `object` | 清理保护规则 |
-| `profile` | `object` | 个人资料字段 |
+| `commandSeriesOptions` | `object` | Command-series naming and per-plugin overrides |
+| `outputScopes` | `object` | Output-scope overrides per plugin |
+| `frontMatter` | `object` | Front matter handling during output |
+| `cleanupProtection` | `object` | Cleanup protection rules |
+| `profile` | `object` | Profile fields |
 
-## `aindex` 下的关键子项
+## Key `aindex` Children
 
 - `skills`
 - `commands`
@@ -33,11 +33,11 @@ status: stable
 - `ext`
 - `arch`
 
-每个子项都由 `src` / `dist` 组成。
+Each child contains `src` and `dist`.
 
-## `outputScopes` 支持的 topic
+## Topics Supported by `outputScopes`
 
-Schema 当前允许的 topic 包括：
+The schema currently allows these topics:
 
 - `prompt`
 - `rules`
@@ -46,11 +46,11 @@ Schema 当前允许的 topic 包括：
 - `skills`
 - `mcp`
 
-详细行为见 [输出范围](/docs/cli/output-scopes)。
+See [Output Scopes](/docs/cli/output-scopes) for detailed behavior.
 
 ## `frontMatter`
 
-当前公开字段只有一个：
+The only public field right now is:
 
 ```json
 {
@@ -60,15 +60,15 @@ Schema 当前允许的 topic 包括：
 }
 ```
 
-详细区分见 [Front Matter](/docs/cli/frontmatter)。
+See [Front Matter](/docs/cli/frontmatter) for the distinction.
 
 ## `cleanupProtection`
 
-每条规则支持：
+Each rule supports:
 
 - `path`
 - `protectionMode`: `direct` / `recursive`
 - `matcher`: `path` / `glob`
 - `reason`
 
-详细语义见 [清理保护](/docs/cli/cleanup-protection)。
+See [Cleanup Protection](/docs/cli/cleanup-protection) for the semantics.

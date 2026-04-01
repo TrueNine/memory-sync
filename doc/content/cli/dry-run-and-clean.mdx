@@ -1,41 +1,41 @@
 ---
-title: dry-run 与 clean
-description: 说明 tnmsc 如何先预览输出，再执行清理，并配合 cleanupProtection 控制风险。
-sidebarTitle: dry-run 与 clean
+title: dry-run and clean
+description: Explains how tnmsc previews outputs, then performs cleanup, with cleanupProtection used to control risk.
+sidebarTitle: dry-run and clean
 status: stable
 ---
 
-# dry-run 与 clean
+# dry-run and clean
 
-## `dry-run` 的职责
+## What `dry-run` Does
 
-`tnmsc dry-run` 用来预览当前执行会写出哪些文件与目录。它适合在这些场景先跑一遍：
+`tnmsc dry-run` previews the files and directories that the current execution would write. It is especially useful in these situations:
 
-- 第一次接入某个项目
-- 刚修改过 `plugin.config.ts`
-- 刚改过 [输出范围](/docs/cli/output-scopes)
-- 准备验证某次批量源内容变更的影响
+- When integrating a project for the first time
+- Right after changing `plugin.config.ts`
+- Right after changing [Output Scopes](/docs/cli/output-scopes)
+- Before validating the impact of a large source-content change
 
-## `clean` 的职责
+## What `clean` Does
 
-`tnmsc clean` 用来清除已生成的输出文件。它不是“无差别删目录”，而是依据当前输出模型和清理保护规则执行。
+`tnmsc clean` removes generated output files. It is not a blind directory deletion command. It follows the current output model and cleanup-protection rules.
 
-在完成常规 cleanup 之后，`tnmsc clean` 还会继续扫描当前 project 的源码树，把剩余的空目录一并清掉。这个 empty-dir sweep 会明确跳过 Git 内部目录，以及依赖、构建产物、缓存一类目录树。
+After normal cleanup finishes, `tnmsc clean` also scans the current project source tree and removes remaining empty directories. That empty-dir sweep explicitly skips Git internals as well as dependency, build-output, and cache directory trees.
 
-在真正执行前，优先用：
+Before running it for real, prefer:
 
 ```sh
 tnmsc clean --dry-run
 ```
 
-`--dry-run` 也会把这些后续会被清掉的空目录一起展示出来。
+`--dry-run` will also show the empty directories that would be removed afterward.
 
-## 风险边界
+## Risk Boundary
 
-如果输出目录里混有人工文件或其他工具产物，必须先看 [清理保护](/docs/cli/cleanup-protection)。没有保护规则时，`clean` 的风险会显著上升。
+If your output directories also contain hand-written files or outputs from other tools, read [Cleanup Protection](/docs/cli/cleanup-protection) first. Without protection rules, the risk of `clean` rises sharply.
 
-## 推荐习惯
+## Recommended Habits
 
-1. 改配置或换项目时先 `dry-run`
-2. 真要清理时先 `clean --dry-run`
-3. 出现异常时再结合 [排障](/docs/cli/troubleshooting) 定位
+1. Run `dry-run` first when you change config or switch projects.
+2. Run `clean --dry-run` first when you really intend to clean.
+3. If something looks wrong, continue with [Troubleshooting](/docs/cli/troubleshooting).

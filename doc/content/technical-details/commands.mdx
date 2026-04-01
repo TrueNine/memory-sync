@@ -1,43 +1,43 @@
 ---
 title: Commands
-description: 介绍 commands 的职责，以及它们与 commandSeriesOptions 的关系。
+description: Introduces the role of commands and explains how they relate to commandSeriesOptions.
 sidebarTitle: Commands
 status: stable
 ---
 
 # Commands
 
-## Commands 适合什么
+## What Commands Are Good For
 
-Commands 适合那些：
+Commands are a good fit for operations that:
 
-- 会高频复用
-- 执行目标清晰
-- 适合短文本触发
+- are reused frequently
+- have a clear execution goal
+- are easy to trigger with short text
 
-的操作入口。
+They work best as concise operation entrypoints.
 
-典型例子包括“生成发布说明”“复查某类错误”“按某个格式整理上下文”等。
+Typical examples include generating release notes, rechecking a class of errors, or reshaping context into a specific format.
 
-## 当前路径约定
+## Current Path Convention
 
-默认输入路径：
+Default input path:
 
 ```text
 commands/
 ```
 
-默认输出路径：
+Default output path:
 
 ```text
 dist/commands/
 ```
 
-## `commandSeriesOptions` 是干什么的
+## What `commandSeriesOptions` Does
 
-Schema 里 `commandSeriesOptions` 允许你：
+The schema lets `commandSeriesOptions`:
 
-- 设置 `includeSeriesPrefix`
-- 按插件覆盖 `includeSeriesPrefix` 或 `seriesSeparator`
+- set `includeSeriesPrefix`
+- override `includeSeriesPrefix` or `seriesSeparator` per plugin
 
-这说明 commands 不只是平铺输出，还能带有“系列化”命名规则。你可以把它理解成对同一命令簇的分组与命名控制，而不是单一文件名规则。
+That means commands are not just flat output files. They can also carry series-based naming rules. Think of it as grouping and naming control for a command family rather than a single-file naming rule.

@@ -1,36 +1,36 @@
 ---
 title: GUI
-description: 说明 Tauri 桌面层的职责、边界，以及它与 sdk / tnmsc crate / CLI 的关系。
-sidebarTitle: 概览
+description: Explains the responsibilities and boundaries of the Tauri desktop layer, and how it relates to sdk, the tnmsc crate, and the CLI.
+sidebarTitle: Overview
 status: stable
 ---
 
 # GUI
 
-`gui/` 是基于 Tauri + React 的桌面调用层。它的角色不是成为系统架构中心，而是把 `sdk/` 中 `tnmsc` crate 暴露的配置编辑、执行、展示与日志观察做成桌面工作流。
+`gui/` is the desktop invocation layer built with Tauri and React. Its job is not to become the center of the system architecture. Its job is to turn the configuration editing, execution, display, and log inspection exposed by the `tnmsc` crate in `sdk/` into a desktop workflow.
 
-## 这层负责什么
+## What This Layer Owns
 
-- 发起同步、`dry-run` 与清理
-- 编辑或展示配置
-- 浏览文件、插件结果与日志
-- 提供桌面端页面化工作流
+- Trigger sync, `dry-run`, and cleanup
+- Edit or display config
+- Browse files, plugin results, and logs
+- Provide a page-based desktop workflow
 
-## 这层不负责什么
+## What This Layer Does Not Own
 
-- 不重新实现 sync core
-- 不在前端重新推导 CLI 规则
-- 不改变 Rust-first / NAPI-first 的长期方向
+- It does not reimplement the sync core
+- It does not re-derive CLI rules in the frontend
+- It does not change the long-term Rust-first / NAPI-first direction
 
-## 版本边界
+## Version Boundary
 
-当前 `gui/package.json` 对开发引擎要求高于根工作区：
+`gui/package.json` currently requires higher development engines than the root workspace:
 
 - `node >= 25.2.1`
 - `pnpm >= 10.28.0`
 - `rust >= 1.93.1`
 
-## 推荐阅读
+## Recommended Reading
 
-- [页面与工作流](/docs/gui/workflows-and-pages)：查看当前导航、主要页面与桌面工作流。
-- [技术细节 / 架构边界](/docs/technical-details/architecture)：理解 GUI 为什么只能是调用层而不是核心层。
+- [Workflows and Pages](/docs/gui/workflows-and-pages): see the current navigation, main pages, and desktop workflow
+- [Technical Details / Architecture Boundaries](/docs/technical-details/architecture): understand why the GUI is an invocation layer rather than the core

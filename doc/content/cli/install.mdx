@@ -1,7 +1,7 @@
 ---
-title: 安装与前提
-description: 说明 memory-sync 当前要求的 Node、pnpm、Rust 与 CLI 安装方式。
-sidebarTitle: 安装与前提
+title: Installation and Requirements
+description: Explains the current Node, pnpm, Rust, and CLI installation requirements for memory-sync.
+sidebarTitle: Installation and Requirements
 status: stable
 keywords:
   - install
@@ -10,22 +10,22 @@ keywords:
   - rust
 ---
 
-# 安装与前提
+# Installation and Requirements
 
-## 运行时要求
+## Runtime Requirements
 
-根据当前仓库配置：
+According to the current repository configuration:
 
-- 根工作区要求 `Node.js >= 22`
-- 根工作区开发引擎要求 `pnpm 10.30.1`
-- Rust workspace 目标基线为 `rust >= 1.88.0`
-- `gui/` 的开发引擎要求更高，当前声明为 `rust >= 1.93.1` 与 `node >= 25.2.1`
+- The root workspace requires `Node.js >= 22`
+- The root workspace development engine requires `pnpm 10.30.1`
+- The Rust workspace baseline is `rust >= 1.88.0`
+- `gui/` requires higher development engines: currently `rust >= 1.93.1` and `node >= 25.2.1`
 
-如果你只使用文档站与 CLI，先满足根工作区要求即可；如果你还要构建桌面 GUI，再对齐 `gui/` 的更高版本。
+If you only use the docs site and the CLI, the root workspace requirements are enough. If you also build the desktop GUI, align with the higher versions required by `gui/`.
 
-## 安装 CLI
+## Install the CLI
 
-README 当前给出的安装方式，可以按你常用的包管理器执行：
+The README currently recommends these installation commands, depending on the package manager you use:
 
 <PackageManagerTabs
   commands={{
@@ -35,33 +35,33 @@ README 当前给出的安装方式，可以按你常用的包管理器执行：
   }}
 />
 
-如果你在 monorepo 本地开发，通常会直接在仓库根执行：
+If you are developing inside the monorepo, you will usually run this from the repository root instead:
 
 ```sh
 pnpm install
 pnpm -C cli exec node dist/index.mjs --help
 ```
 
-## 先确认你装的是当前命令集
+## Confirm That You Installed the Current Command Set
 
-当前 CLI 帮助里可见的核心命令是：
+The core commands currently visible in CLI help are:
 
-- 默认执行同步管线
+- the default sync pipeline
 - `help`
 - `version`
-- `init`，但已经废弃
+- `init`, but deprecated
 - `dry-run`
 - `clean`
 - `config key=value`
 
-这意味着旧文档里把 `tnmsc init` 当成初始化入口的说法已经过时。现在它只会返回废弃提示，不再为你生成 aindex。
+That means any older docs that still describe `tnmsc init` as the setup entrypoint are outdated. It now only returns a deprecation message and no longer generates aindex for you.
 
-## 第一次检查
+## First Check
 
-安装后先跑：
+Run this immediately after installation:
 
 ```sh
 tnmsc help
 ```
 
-你应该看到 `dry-run`、`clean` 与 `config`，同时看到 `init` 被标记为 deprecated。只要这里不对，后面的文档都不该继续跟。
+You should see `dry-run`, `clean`, and `config`, with `init` marked as deprecated. If that is not what you see, stop there instead of following the rest of the docs.

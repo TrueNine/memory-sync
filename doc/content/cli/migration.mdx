@@ -1,30 +1,30 @@
 ---
-title: 从旧文档迁移
-description: 说明旧页面、旧命令认知与当前五大门类文档结构之间的映射关系。
-sidebarTitle: 从旧文档迁移
+title: Migrating from Older Docs
+description: Explains how older pages and outdated command assumptions map onto the current top-level documentation structure.
+sidebarTitle: Migrating from Older Docs
 status: stable
 ---
 
-# 从旧文档迁移
+# Migrating from Older Docs
 
-## 结构变化
+## Structural Changes
 
-旧文档把“快速上手”“概念”“内容编写”“参考”“运维”混在同一层。现在一级结构改成：
+Older docs mixed quick start, concepts, authoring, reference, and operations into the same layer. The new top level is:
 
 - `CLI`
 - `MCP`
 - `GUI`
-- `技术细节`
-- `设计初衷`
+- `Technical Details`
+- `Design Rationale`
 
-这不是换名字，而是把阅读入口和写作目录按职责重新切开。
+This is not just a rename. It is a responsibility-based split between reading entrypoints and writing categories.
 
-## 旧入口现在该去哪
+## Where Older Entry Points Go Now
 
-- 旧的 `quick-start`、`reference`、`operations`，现在主要归到 [CLI](/docs/cli)。
-- 旧的 `concepts` 与 `authoring`，现在主要归到 [技术细节](/docs/technical-details)。
-- manifesto 类页面现在只放在 [设计初衷](/docs/design-rationale)。
+- Older `quick-start`, `reference`, and `operations` content now belongs mainly under [CLI](/docs/cli).
+- Older `concepts` and `authoring` content now belongs mainly under [Technical Details](/docs/technical-details).
+- Manifesto-style pages now live only under [Design Rationale](/docs/design-rationale).
 
-## 命令认知也要一起迁移
+## Command Expectations Must Move Too
 
-旧文档最容易误导人的地方，是把 `tnmsc init` 继续写成推荐入口。当前实现里它已经废弃，新的使用路径应以 [CLI 命令](/docs/cli/cli-commands) 为准。
+The most misleading part of the older docs is that they still present `tnmsc init` as the recommended entrypoint. In the current implementation it is deprecated, so the usage path should follow [CLI Commands](/docs/cli/cli-commands) instead.

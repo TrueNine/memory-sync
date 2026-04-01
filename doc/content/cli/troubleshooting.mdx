@@ -1,43 +1,43 @@
 ---
-title: 排障
-description: 整理当前最可能遇到的版本、命令与输出范围问题。
-sidebarTitle: 排障
+title: Troubleshooting
+description: Collects the version, command, and output-scope problems you are most likely to run into right now.
+sidebarTitle: Troubleshooting
 status: stable
 ---
 
-# 排障
+# Troubleshooting
 
-## 现象：我以为有某个页面，结果 404
+## Symptom: I Expected a Page, but I Got a 404
 
-新文档已经从旧的混合分组改成七个一级门类。优先从 [/docs](/docs) 或 [快速指引](/docs/quick-guide) 开始找，而不是沿用旧路径。
+The docs have moved from the old mixed grouping into seven top-level sections. Start from [/docs](/docs) or the [Quick Guide](/docs/quick-guide) instead of following older paths.
 
-## 现象：`tnmsc init` 没帮我生成任何内容
+## Symptom: `tnmsc init` Did Not Generate Anything
 
-这是当前实现预期行为。它已经废弃，不再初始化 aindex。请改为手动维护你的源目录和全局配置。
+That is expected in the current implementation. It is deprecated and no longer initializes aindex. Maintain your source directories and global config manually instead.
 
-## 现象：规则、Prompt 或 MCP 相关内容输出到了不该出现的地方
+## Symptom: Rules, Prompts, or MCP-Related Content Was Written to the Wrong Place
 
-先检查：
+Check these first:
 
-1. [plugin.config.ts](/docs/cli/plugin-config) 中到底装了哪些输出插件。
-2. [输出范围](/docs/cli/output-scopes) 有没有按 topic 限制范围。
-3. 你写的是 global 还是项目 Prompt 源。
+1. Which output plugins are actually assembled in [plugin.config.ts](/docs/cli/plugin-config).
+2. Whether [Output Scopes](/docs/cli/output-scopes) limits the topic correctly.
+3. Whether you authored a global prompt or a workspace prompt.
 
-## 现象：`clean` 不敢执行或执行后删过头
+## Symptom: `clean` Feels Unsafe or Deleted Too Much
 
-先回看 [清理保护](/docs/cli/cleanup-protection)。如果目录里混有人工文件，却没配置保护规则，`clean` 风险就会明显升高。
+Review [Cleanup Protection](/docs/cli/cleanup-protection) first. If your directories mix manual files with generated files and you do not configure protection rules, the risk of `clean` rises quickly.
 
-## 现象：文档页构建失败
+## Symptom: A Docs Page Fails to Build
 
-先跑：
+Run this first:
 
 ```sh
 pnpm -C doc run validate:content
 ```
 
-这套校验会先检查：
+This validation step checks:
 
-- 每个 MDX 是否有 `title` / `description`
-- 每个内容目录是否有 `_meta.ts`
-- `_meta.ts` 是否覆盖当前文件与子目录
-- 文档内部链接是否指向存在的页面
+- Whether every MDX file has `title` and `description`
+- Whether every content directory has `_meta.ts`
+- Whether `_meta.ts` covers the current files and subdirectories
+- Whether internal docs links point to real pages

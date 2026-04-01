@@ -1,27 +1,27 @@
 ---
-title: 技术细节
-description: 集中说明架构边界、同步管线、真源模型与各类输入资产的实现职责。
-sidebarTitle: 概览
+title: Technical Details
+description: Explains architecture boundaries, the sync pipeline, the source-of-truth model, and the implementation role of each input asset.
+sidebarTitle: Overview
 status: stable
 ---
 
-# 技术细节
+# Technical Details
 
-这一节不讲“第一次怎么用”，而是讲当前实现为什么这样分层，以及 prompts、skills、commands、sub-agents、rules 这些输入资产在系统里分别扮演什么角色。
+This section does not explain first-time usage. It explains why the current implementation is layered this way and what role prompts, skills, commands, sub-agents, and rules each play inside the system.
 
-## 这一节回答什么问题
+## Questions This Section Answers
 
-1. 哪些东西是真源，哪些只是派生输出。
-2. 为什么仓库明确转向 Rust-first / NAPI-first。
-3. 同步为什么必须显式建模写入目标、输出范围和清理边界。
-4. 各类输入资产为什么不能混写成一坨大 Prompt。
+1. Which things are sources of truth, and which are only derived outputs.
+2. Why the repository has clearly moved toward Rust-first / NAPI-first.
+3. Why sync must model output targets, output scopes, and cleanup boundaries explicitly.
+4. Why different input assets should not be collapsed into one giant prompt.
 
-## 推荐阅读
+## Recommended Reading
 
-- [架构边界](/docs/technical-details/architecture)
-- [单一真源模型](/docs/technical-details/source-of-truth)
-- [同步管线](/docs/technical-details/pipeline)
-- [全局与项目 Prompt](/docs/technical-details/global-and-workspace-prompts)
+- [Architecture Boundaries](/docs/technical-details/architecture)
+- [Single Source of Truth](/docs/technical-details/source-of-truth)
+- [Sync Pipeline](/docs/technical-details/pipeline)
+- [Global and Workspace Prompts](/docs/technical-details/global-and-workspace-prompts)
 - [Skills](/docs/technical-details/skills)
 - [Commands](/docs/technical-details/commands)
 - [Sub-agents](/docs/technical-details/subagents)

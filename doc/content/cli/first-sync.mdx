@@ -1,19 +1,19 @@
 ---
-title: 第一次同步
-description: 按最短路径完成 tnmsc help、dry-run、真实同步与结果核对。
-sidebarTitle: 第一次同步
+title: First Sync
+description: Walk through tnmsc help, dry-run, the real sync run, and result verification in the shortest path.
+sidebarTitle: First Sync
 status: stable
 ---
 
-# 第一次同步
+# First Sync
 
-## 推荐顺序
+## Recommended Order
 
-1. 先运行 `tnmsc help`，确认你面对的是当前命令集。
-2. 再运行 `tnmsc dry-run`，确认会写出哪些文件。
-3. 确认范围无误后，再执行默认同步管线。
+1. Run `tnmsc help` first to confirm that you are looking at the current command set.
+2. Run `tnmsc dry-run` next to see which files would be written.
+3. Only after confirming the scope should you run the default sync pipeline.
 
-## 最短流程
+## Shortest Flow
 
 ```sh
 tnmsc help
@@ -21,14 +21,14 @@ tnmsc dry-run
 tnmsc
 ```
 
-## 为什么不能直接跳过 `dry-run`
+## Why You Should Not Skip `dry-run`
 
-因为当前系统不仅会写文件，还会根据配置处理清理边界。第一次接入某个项目时，先看预览比事后回收误写和误删要便宜得多。
+The current system does more than write files. It also applies cleanup boundaries based on configuration. On a first integration, checking the preview is much cheaper than recovering from accidental writes or accidental deletions afterward.
 
-如果你不确定清理风险，先补读 [dry-run 与 clean](/docs/cli/dry-run-and-clean) 和 [清理保护](/docs/cli/cleanup-protection)。
+If you are unsure about cleanup risk, read [dry-run and clean](/docs/cli/dry-run-and-clean) and [Cleanup Protection](/docs/cli/cleanup-protection) first.
 
-## 同步后应该核对什么
+## What to Verify After Sync
 
-- 目标工具是不是出现在 [支持的输出目标](/docs/cli/supported-outputs) 范围内
-- 真实写入范围是否符合 [输出范围](/docs/cli/output-scopes)
-- 某些字段行为是否与 [JSON Schema](/docs/cli/schema) 一致
+- Whether the target tool appears in [Supported Outputs](/docs/cli/supported-outputs)
+- Whether the actual write scope matches [Output Scopes](/docs/cli/output-scopes)
+- Whether field behavior matches the [JSON Schema](/docs/cli/schema)

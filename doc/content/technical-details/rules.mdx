@@ -1,39 +1,39 @@
 ---
 title: Rules
-description: 说明 rules 在项目级与全局级之间的作用，以及它们为何适合做持续约束。
+description: Explains how rules work at project and global scope, and why they fit ongoing constraints.
 sidebarTitle: Rules
 status: stable
 ---
 
 # Rules
 
-## Rules 适合放什么
+## What Rules Are Good For
 
-Rules 更适合表达持续性约束，例如：
+Rules are better for long-lived constraints such as:
 
-- 目录职责
-- 架构边界
-- 代码风格红线
-- 审查与交付纪律
+- directory responsibilities
+- architecture boundaries
+- code-style red lines
+- review and delivery discipline
 
-它们比 command 更稳定，比 skill 更偏约束而非能力。
+They are more stable than commands and more constraint-oriented than skills.
 
-## 当前路径约定
+## Current Path Convention
 
-默认输入路径：
+Default input path:
 
 ```text
 rules/
 ```
 
-默认输出路径：
+Default output path:
 
 ```text
 dist/rules/
 ```
 
-## Rules 和 output scopes 的关系
+## How Rules Relate to output scopes
 
-Schema 允许你对 `rules` 单独设置 `project` 或 `global` 输出范围，这一点很关键。因为某些工具需要全局规则，而另一些规则只应留在当前项目。
+The schema lets you assign `rules` their own `project` or `global` output scope, and that matters a lot. Some tools need global rules, while others should only receive project-local rules.
 
-如果你发现规则被写到了不该出现的地方，不要先怀疑 rule 文件本身，先看 [CLI / 输出范围](/docs/cli/output-scopes)。
+If rules are written where they do not belong, do not blame the rule file first. Check [CLI / Output Scopes](/docs/cli/output-scopes) first.

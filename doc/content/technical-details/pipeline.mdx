@@ -1,33 +1,33 @@
 ---
-title: 同步管线
-description: 说明插件如何声明目标文件、生成流程、输出范围与清理行为。
-sidebarTitle: 同步管线
+title: Sync Pipeline
+description: Explains how plugins declare target files, generation flow, output scopes, and cleanup behavior.
+sidebarTitle: Sync Pipeline
 status: stable
 ---
 
-# 同步管线
+# Sync Pipeline
 
-同步不是“把几份 Prompt 文本复制到几个目录里”，而是由插件声明目标文件、输出主题、清理范围与写入方式的管线。
+Sync is not "copy a few prompt files into a few directories." It is a pipeline where plugins declare target files, output topics, cleanup scopes, and write behavior.
 
-## 管线最少包含什么
+## What the Pipeline Must Include at Minimum
 
-- 读取真源输入资产
-- 合并项目与全局配置
-- 按插件决定输出目标
-- 应用 `outputScopes` 约束
-- 写入目标文件
-- 在需要时执行清理
+- Read source-of-truth input assets
+- Merge project and global config
+- Decide output targets per plugin
+- Apply `outputScopes`
+- Write target files
+- Run cleanup when needed
 
-## 为什么这件事必须显式建模
+## Why This Must Be Modeled Explicitly
 
-如果不显式建模：
+Without explicit modeling:
 
-- 你无法知道哪些内容该写到全局，哪些只该写到项目级
-- 你无法在 `clean` 时给出可靠的删除边界
-- 你很容易把目标工具的偶然格式要求反向污染真源
+- You cannot know which content belongs in global outputs and which belongs only at the project level
+- You cannot offer reliable deletion boundaries during `clean`
+- You can easily let incidental formatting rules from target tools leak back into the source of truth
 
-## 相关入口
+## Related Pages
 
-- 配置字段行为：看 [CLI / JSON Schema](/docs/cli/schema)
-- 输出范围控制：看 [CLI / 输出范围](/docs/cli/output-scopes)
-- 真源与派生关系：看 [单一真源模型](/docs/technical-details/source-of-truth)
+- Config-field behavior: see [CLI / JSON Schema](/docs/cli/schema)
+- Output-scope control: see [CLI / Output Scopes](/docs/cli/output-scopes)
+- Source-versus-derived relationship: see [Single Source of Truth](/docs/technical-details/source-of-truth)

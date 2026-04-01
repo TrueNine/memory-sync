@@ -1,4 +1,4 @@
 export default {
-  'index': '概览',
-  'workflows-and-pages': '页面与工作流'
+  'index': 'Overview',
+  'workflows-and-pages': 'Workflows and Pages'
 }

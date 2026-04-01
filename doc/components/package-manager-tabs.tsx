@@ -85,7 +85,7 @@ export function PackageManagerTabs({
             >
               {tab.label}
               {tab.id === recommendedManager
-                ? <span className="docs-package-manager-tab-badge">推荐</span>
+                ? <span className="docs-package-manager-tab-badge">Recommended</span>
                 : null}
             </button>
           )

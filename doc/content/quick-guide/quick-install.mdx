@@ -1,7 +1,7 @@
 ---
-title: 快速安装
-description: 用最短命令安装 memory-sync CLI，并确认你面对的是当前命令集。
-sidebarTitle: 快速安装
+title: Quick Install
+description: Install the memory-sync CLI with the shortest possible commands and confirm that you are using the current command set.
+sidebarTitle: Quick Install
 status: stable
 keywords:
   - quick install
@@ -10,9 +10,9 @@ keywords:
   - cli
 ---
 
-# 快速安装
+# Quick Install
 
-如果你现在只想先把 CLI 装起来，按你常用的包管理器执行：
+If you just want to get the CLI installed first, use your preferred package manager:
 
 <PackageManagerTabs
   commands={{
@@ -22,17 +22,18 @@ keywords:
   }}
 />
 
-然后确认命令可用：
+Then confirm that the command works:
+Then confirm that the command works:
 
 ```sh
 tnmsc help
 ```
 
-你应该看到 `dry-run`、`clean` 与 `config`，同时看到 `init` 已经是 deprecated。
+You should see `dry-run`, `clean`, and `config`, and `init` should already be marked as deprecated.
 
-## monorepo 本地开发
+## Local Monorepo Development
 
-如果你是在这个 monorepo 里本地开发，改用：
+If you are developing inside this monorepo, use:
 
 ```sh
 pnpm install
@@ -40,10 +41,10 @@ pnpm -C cli exec node dist/index.mjs --help
 ```
 
 > [!warning]
-> 目前仅推荐使用 pnpm 进行开发
+> `pnpm` is the only recommended package manager for local development right now.
 
-## 装完后下一步
+## What to Read Next
 
-- 只想先跑一次真实流程，继续看 [第一次同步](/docs/cli/first-sync)。
-- 还没确认 Node、pnpm、Rust 的版本要求，继续看 [安装与前提](/docs/cli/install)。
-- 还没决定该走 CLI、GUI 还是 MCP，回到 [快速指引](/docs/quick-guide)。
+- If you want to run through the real flow once, continue with [First Sync](/docs/cli/first-sync).
+- If you still need the Node, pnpm, and Rust version requirements, continue with [Installation and Requirements](/docs/cli/install).
+- If you still have not decided between CLI, GUI, and MCP, go back to the [Quick Guide](/docs/quick-guide).
