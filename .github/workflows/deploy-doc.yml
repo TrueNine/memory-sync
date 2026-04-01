@@ -65,13 +65,10 @@ jobs:
         run: pnpm -C doc run typecheck
 
       - name: Pull Vercel production settings
-        working-directory: ./doc
         run: pnpm dlx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
 
       - name: Build docs on Vercel
-        working-directory: ./doc
         run: pnpm dlx vercel@latest build --prod --token="$VERCEL_TOKEN"
 
       - name: Deploy docs to Vercel production
-        working-directory: ./doc
         run: pnpm dlx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
