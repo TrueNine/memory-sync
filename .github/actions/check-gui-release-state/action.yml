@@ -1,0 +1,36 @@
+name: Check GUI Release State
+description: Check whether the current GUI version already has a GitHub release tag
+
+inputs:
+  github-token:
+    description: GitHub token used for release lookups
+    required: true
+
+outputs:
+  version:
+    description: GUI version from gui/package.json
+    value: ${{ steps.check.outputs.version }}
+  should_release:
+    description: Whether the GUI version still needs a GitHub release
+    value: ${{ steps.check.outputs.should_release }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check GUI release state
+      id: check
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        version=$(jq -r '.version' gui/package.json)
+        echo "GUI version: $version"
+
+        if gh release view "v${version}" >/dev/null 2>&1; then
+          echo "Release v${version} already exists on GitHub, skipping GUI"
+          echo "should_release=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "Release v${version} does not exist, will build GUI"
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+        fi
