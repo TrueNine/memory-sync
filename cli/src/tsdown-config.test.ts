@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
-import tsdownConfig from '../tsdown.config'
 import tsconfig from '../tsconfig.json'
+import tsdownConfig from '../tsdown.config'
 
 interface TsdownEntryConfig {
   readonly entry?: string | readonly string[]
@@ -23,8 +23,7 @@ describe('cli tsdown config', () => {
 
   it('bundles script runtime dependencies into the script runtime worker artifact', () => {
     const workerConfig = (tsdownConfig as readonly TsdownEntryConfig[]).find(config =>
-      includesEntry(config, './src/script-runtime-worker.ts')
-    )
+      includesEntry(config, './src/script-runtime-worker.ts'))
 
     expect(workerConfig?.deps?.alwaysBundle).toEqual(expect.arrayContaining([
       '@truenine/script-runtime',
