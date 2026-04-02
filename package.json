@@ -40,7 +40,7 @@
     "install:rust-deps": "tsx scripts/install-rust-deps.ts",
     "build:native": "tsx scripts/build-native.ts",
     "build:native:copy": "tsx scripts/copy-napi.ts",
-    "postinstall": "simple-git-hooks && pnpm run install:rust-deps && pnpm run build:native"
+    "postinstall": "tsx scripts/postinstall.ts"
   },
   "author": {
     "email": "truenine304520@gmail.com",
