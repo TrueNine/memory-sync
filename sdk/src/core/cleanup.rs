@@ -1494,7 +1494,6 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
         for output in &plugin_snapshot.outputs {
             let resolved_output_path = path_to_string(&resolve_absolute_path(output));
             delete_files.insert(resolved_output_path.clone());
-            exact_safe_file_paths.insert(resolved_output_path.clone());
             output_path_owners
                 .entry(resolved_output_path)
                 .or_default()
