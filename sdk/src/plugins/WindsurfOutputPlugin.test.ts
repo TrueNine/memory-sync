@@ -1,9 +1,20 @@
-import type {CommandPrompt, OutputScopeSelection, OutputWriteContext, Project, RulePrompt, SkillPrompt} from './plugin-core'
+import type {CommandPrompt, OutputCleanContext, OutputScopeSelection, OutputWriteContext, Project, RulePrompt, SkillPrompt} from './plugin-core'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
-import {createLogger, FilePathKind, PromptKind} from './plugin-core'
+import {createLogger, FilePathKind, IgnoreFiles, PromptKind} from './plugin-core'
 import {WindsurfOutputPlugin} from './WindsurfOutputPlugin'
+
+class TestWindsurfOutputPlugin extends WindsurfOutputPlugin {
+  constructor(private readonly testHomeDir?: string) {
+    super()
+  }
+
+  protected override getHomeDir(): string {
+    return this.testHomeDir ?? super.getHomeDir()
+  }
+}
 
 function createCommandPrompt(scope: 'project' | 'global', seriName: string): CommandPrompt {
   return {
@@ -137,6 +148,27 @@ function createWriteContext(
   } as OutputWriteContext
 }
 
+function createCleanContext(workspaceBase = path.resolve('tmp/windsurf-clean')): OutputCleanContext {
+  return {
+    logger: createLogger('WindsurfOutputPlugin', 'error'),
+    fs,
+    path,
+    glob: {} as never,
+    dryRun: true,
+    runtimeTargets: {},
+    collectedOutputContext: {
+      workspace: {
+        directory: {
+          pathKind: FilePathKind.Absolute,
+          path: workspaceBase,
+          getDirectoryName: () => path.basename(workspaceBase)
+        },
+        projects: [createWorkspaceRootProject()]
+      }
+    }
+  } as OutputCleanContext
+}
+
 describe('windsurfOutputPlugin synthetic workspace project output', () => {
   it('writes workflows and skills to each real project when project scope is selected', async () => {
     const workspaceBase = path.resolve('tmp/windsurf-project-scope')
@@ -208,5 +240,187 @@ describe('windsurfOutputPlugin synthetic workspace project output', () => {
       path.join(workspaceBase, '.windsurf', 'rules', 'rule-ops-guard.md')
     )
     expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
+  })
+
+  it('writes both Windsurf ignore files for non-prompt projects and keeps their matching content', async () => {
+    const workspaceBase = path.resolve('tmp/windsurf-ignore-output')
+    const plugin = new WindsurfOutputPlugin()
+    const context = {
+      logger: createLogger('WindsurfOutputPlugin', 'error'),
+      fs,
+      path,
+      glob: {} as never,
+      dryRun: true,
+      collectedOutputContext: {
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: workspaceBase,
+            getDirectoryName: () => path.basename(workspaceBase)
+          },
+          projects: [
+            createProject(workspaceBase, 'prompt-source', ['alpha'], true),
+            createProject(workspaceBase, 'consumer-app', ['beta'])
+          ]
+        },
+        aiAgentIgnoreConfigFiles: [
+          {
+            fileName: IgnoreFiles.WINDSURF_LEGACY,
+            content: 'legacy\n',
+            sourcePath: path.join(workspaceBase, 'aindex', 'public', IgnoreFiles.WINDSURF_LEGACY)
+          },
+          {
+            fileName: IgnoreFiles.WINDSURF,
+            content: 'new\n',
+            sourcePath: path.join(workspaceBase, 'aindex', 'public', IgnoreFiles.WINDSURF)
+          }
+        ]
+      }
+    } as OutputWriteContext
+
+    const declarations = await plugin.declareOutputFiles(context)
+    const codeIgnoreDeclaration = declarations.find(
+      declaration => declaration.path === path.join(workspaceBase, 'consumer-app', IgnoreFiles.WINDSURF)
+    )
+    const legacyIgnoreDeclaration = declarations.find(
+      declaration => declaration.path === path.join(workspaceBase, 'consumer-app', IgnoreFiles.WINDSURF_LEGACY)
+    )
+
+    expect(codeIgnoreDeclaration).toBeDefined()
+    expect(codeIgnoreDeclaration?.source).toMatchObject({
+      kind: 'ignoreFile',
+      content: 'new\n'
+    })
+    expect(legacyIgnoreDeclaration).toBeDefined()
+    expect(legacyIgnoreDeclaration?.source).toMatchObject({
+      kind: 'ignoreFile',
+      content: 'legacy\n'
+    })
+    expect(
+      declarations.some(
+        declaration => declaration.path === path.join(workspaceBase, 'prompt-source', IgnoreFiles.WINDSURF)
+      )
+    ).toBe(false)
+    expect(
+      declarations.some(
+        declaration => declaration.path === path.join(workspaceBase, 'prompt-source', IgnoreFiles.WINDSURF_LEGACY)
+      )
+    ).toBe(false)
+  })
+
+  it('falls back from legacy input and still writes both Windsurf ignore files', async () => {
+    const workspaceBase = path.resolve('tmp/windsurf-ignore-legacy')
+    const plugin = new WindsurfOutputPlugin()
+    const context = {
+      logger: createLogger('WindsurfOutputPlugin', 'error'),
+      fs,
+      path,
+      glob: {} as never,
+      dryRun: true,
+      collectedOutputContext: {
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: workspaceBase,
+            getDirectoryName: () => path.basename(workspaceBase)
+          },
+          projects: [createProject(workspaceBase, 'consumer-app', ['beta'])]
+        },
+        aiAgentIgnoreConfigFiles: [
+          {
+            fileName: IgnoreFiles.WINDSURF_LEGACY,
+            content: 'legacy\n',
+            sourcePath: path.join(workspaceBase, 'aindex', 'public', IgnoreFiles.WINDSURF_LEGACY)
+          }
+        ]
+      }
+    } as OutputWriteContext
+
+    const declarations = await plugin.declareOutputFiles(context)
+
+    expect(
+      declarations.find(
+        declaration => declaration.path === path.join(workspaceBase, 'consumer-app', IgnoreFiles.WINDSURF)
+      )?.source
+    ).toMatchObject({
+      kind: 'ignoreFile',
+      content: 'legacy\n'
+    })
+    expect(
+      declarations.find(
+        declaration => declaration.path === path.join(workspaceBase, 'consumer-app', IgnoreFiles.WINDSURF_LEGACY)
+      )?.source
+    ).toMatchObject({
+      kind: 'ignoreFile',
+      content: 'legacy\n'
+    })
+  })
+
+  it('falls back from .codeignore input and still writes legacy .codeiumignore', async () => {
+    const workspaceBase = path.resolve('tmp/windsurf-ignore-primary')
+    const plugin = new WindsurfOutputPlugin()
+    const context = {
+      logger: createLogger('WindsurfOutputPlugin', 'error'),
+      fs,
+      path,
+      glob: {} as never,
+      dryRun: true,
+      collectedOutputContext: {
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: workspaceBase,
+            getDirectoryName: () => path.basename(workspaceBase)
+          },
+          projects: [createProject(workspaceBase, 'consumer-app', ['beta'])]
+        },
+        aiAgentIgnoreConfigFiles: [
+          {
+            fileName: IgnoreFiles.WINDSURF,
+            content: 'new\n',
+            sourcePath: path.join(workspaceBase, 'aindex', 'public', IgnoreFiles.WINDSURF)
+          }
+        ]
+      }
+    } as OutputWriteContext
+
+    const declarations = await plugin.declareOutputFiles(context)
+
+    expect(
+      declarations.find(
+        declaration => declaration.path === path.join(workspaceBase, 'consumer-app', IgnoreFiles.WINDSURF)
+      )?.source
+    ).toMatchObject({
+      kind: 'ignoreFile',
+      content: 'new\n'
+    })
+    expect(
+      declarations.find(
+        declaration => declaration.path === path.join(workspaceBase, 'consumer-app', IgnoreFiles.WINDSURF_LEGACY)
+      )?.source
+    ).toMatchObject({
+      kind: 'ignoreFile',
+      content: 'new\n'
+    })
+  })
+})
+
+describe('windsurfOutputPlugin cleanup', () => {
+  it('declares cleanup for both .codeignore and legacy .codeiumignore', async () => {
+    const tempHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-windsurf-cleanup-'))
+    const workspaceBase = path.resolve('tmp/windsurf-clean')
+
+    try {
+      const plugin = new TestWindsurfOutputPlugin(tempHomeDir)
+      const cleanup = await plugin.declareCleanupPaths(createCleanContext(workspaceBase))
+      const deletePaths = cleanup.delete?.map(target => target.path.replaceAll('\\', '/')) ?? []
+
+      expect(deletePaths).toContain(path.join(workspaceBase, '.windsurf', 'rules').replaceAll('\\', '/'))
+      expect(deletePaths).toContain(path.join(workspaceBase, IgnoreFiles.WINDSURF).replaceAll('\\', '/'))
+      expect(deletePaths).toContain(path.join(workspaceBase, IgnoreFiles.WINDSURF_LEGACY).replaceAll('\\', '/'))
+      expect(deletePaths).toContain(path.join(tempHomeDir, '.codeium', 'windsurf', 'global_workflows').replaceAll('\\', '/'))
+    } finally {
+      fs.rmSync(tempHomeDir, {recursive: true, force: true})
+    }
   })
 })

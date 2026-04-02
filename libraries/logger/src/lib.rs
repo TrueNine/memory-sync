@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{LazyLock, Mutex};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -133,6 +134,8 @@ static GLOBAL_LOG_LEVEL: AtomicU8 = AtomicU8::new(255); // 255 = unset
 static BUFFERED_DIAGNOSTICS: LazyLock<Mutex<Vec<LoggerDiagnosticRecord>>> =
     LazyLock::new(|| Mutex::new(Vec::new()));
 static OUTPUT_SINK: LazyLock<Sender<OutputCommand>> = LazyLock::new(spawn_output_sink);
+static LOGGER_PROCESS_START: LazyLock<Instant> = LazyLock::new(Instant::now);
+static LOGGER_LAST_LOG_AT: LazyLock<Mutex<Option<Instant>>> = LazyLock::new(|| Mutex::new(None));
 
 enum OutputCommand {
     Write { use_stderr: bool, output: String },
@@ -292,6 +295,95 @@ fn build_payload(message: &Value, meta: Option<&Value>) -> Value {
     );
     map.insert("meta".to_string(), meta_val.clone());
     Value::Object(map)
+}
+
+fn format_elapsed_duration(duration: Duration) -> String {
+    let milliseconds = duration.as_secs_f64() * 1000.0;
+    if milliseconds <= 0.0 {
+        "0ms".to_string()
+    } else if milliseconds >= 1000.0 {
+        format!("{:.2}s", milliseconds / 1000.0)
+    } else if milliseconds >= 100.0 {
+        format!("{}ms", milliseconds.round() as i64)
+    } else {
+        format!("{milliseconds:.1}ms")
+    }
+}
+
+fn create_logger_timing_label() -> String {
+    let now = Instant::now();
+    let since_start = now.duration_since(*LOGGER_PROCESS_START);
+    let since_previous = match LOGGER_LAST_LOG_AT.lock() {
+        Ok(mut previous_log_at) => {
+            let previous = previous_log_at.unwrap_or(*LOGGER_PROCESS_START);
+            *previous_log_at = Some(now);
+            now.duration_since(previous)
+        }
+        Err(_) => since_start,
+    };
+
+    format!(
+        "+{} since previous log, {} since process start",
+        format_elapsed_duration(since_previous),
+        format_elapsed_duration(since_start)
+    )
+}
+
+fn payload_has_logger_timing(payload: &Value) -> bool {
+    match payload {
+        Value::Object(map) => {
+            if map.contains_key("loggerTiming") {
+                return true;
+            }
+
+            if map.len() == 1
+                && let Some(Value::Object(nested)) = map.values().next()
+            {
+                return nested.contains_key("loggerTiming");
+            }
+
+            false
+        }
+        _ => false,
+    }
+}
+
+fn attach_logger_timing(payload: &Value) -> Value {
+    if payload_has_logger_timing(payload) {
+        return payload.clone();
+    }
+
+    let logger_timing = Value::String(create_logger_timing_label());
+
+    match payload {
+        Value::String(message) => {
+            let mut map = Map::new();
+            map.insert("message".to_string(), Value::String(message.clone()));
+            map.insert("loggerTiming".to_string(), logger_timing.clone());
+            Value::Object(map)
+        }
+        Value::Object(map) => {
+            if map.len() == 1
+                && let Some((message, Value::Object(nested))) = map.iter().next()
+            {
+                let mut nested_map = nested.clone();
+                nested_map.insert("loggerTiming".to_string(), logger_timing.clone());
+                let mut map_with_timing = Map::new();
+                map_with_timing.insert(message.clone(), Value::Object(nested_map));
+                return Value::Object(map_with_timing);
+            }
+
+            let mut map_with_timing = map.clone();
+            map_with_timing.insert("loggerTiming".to_string(), logger_timing.clone());
+            Value::Object(map_with_timing)
+        }
+        _ => {
+            let mut map = Map::new();
+            map.insert("loggerTiming".to_string(), logger_timing);
+            map.insert("value".to_string(), payload.clone());
+            Value::Object(map)
+        }
+    }
 }
 
 fn append_section(
@@ -741,6 +833,7 @@ fn print_output(level: LogLevel, output: &str) {
 }
 
 fn emit_message_log_record(level: LogLevel, namespace: &str, payload: Value) -> LogRecord {
+    let payload = attach_logger_timing(&payload);
     let record = LogRecord {
         meta: (
             String::new(),

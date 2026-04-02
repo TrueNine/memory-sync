@@ -71,14 +71,27 @@ function flushAndExit(code: number): never {
 async function main(): Promise<void> {
   const {subcommand, json, dryRun} = parseRuntimeArgs(process.argv)
   if (json) setGlobalLogLevel('silent')
+  const logger = createLogger('PluginRuntime')
+
+  logger.info('runtime bootstrap started', {subcommand, json, dryRun})
 
   const userPluginConfig = await createDefaultPluginConfig(process.argv, subcommand)
   let command = resolveRuntimeCommand(subcommand, dryRun)
   if (json && !new Set(['plugins']).has(command.name)) command = new JsonOutputCommand(command)
 
   const {context, outputPlugins, userConfigOptions} = userPluginConfig
-  const logger = createLogger('PluginRuntime')
+  logger.info('runtime configuration resolved', {
+    command: command.name,
+    pluginCount: outputPlugins.length,
+    projectCount: context.workspace.projects.length,
+    workspaceDir: context.workspace.directory.path,
+    ...context.aindexDir != null ? {aindexDir: context.aindexDir} : {}
+  })
   const runtimeTargets = discoverOutputRuntimeTargets(logger)
+  logger.info('runtime targets discovered', {
+    command: command.name,
+    jetbrainsCodexDirs: runtimeTargets.jetbrainsCodexDirs.length
+  })
   const createCleanContext = (dry: boolean): OutputCleanContext => ({
     logger,
     collectedOutputContext: context,
@@ -102,7 +115,15 @@ async function main(): Promise<void> {
     createCleanContext,
     createWriteContext
   }
+  logger.info('command dispatch started', {command: command.name})
   const result = await command.execute(commandCtx)
+  logger.info('command dispatch complete', {
+    command: command.name,
+    success: result.success,
+    filesAffected: result.filesAffected,
+    dirsAffected: result.dirsAffected,
+    ...result.message != null ? {message: result.message} : {}
+  })
   if (!result.success) flushAndExit(1)
   flushOutput()
 }

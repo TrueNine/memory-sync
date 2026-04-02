@@ -5,6 +5,8 @@ use std::path::{Component, Path, PathBuf};
 
 use globset::{Glob, GlobBuilder, GlobSet, GlobSetBuilder};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use tnmsc_logger::create_logger;
 use walkdir::WalkDir;
 
 use crate::core::{config, desk_paths};
@@ -195,6 +197,8 @@ struct CompiledProtectedRule {
 #[derive(Debug, Clone)]
 struct ProtectedDeletionGuard {
     compiled_rules: Vec<CompiledProtectedRule>,
+    rule_indices_by_key: std::collections::BTreeMap<String, Vec<usize>>,
+    recursive_rule_indices_by_key: HashMap<String, Vec<usize>>,
 }
 
 struct PartitionResult {
@@ -530,10 +534,28 @@ impl BatchedGlobPlanner {
     /// Execute the batched glob expansion and fan results back to targets.
     /// Returns (protected_matches, delete_matches) where each is a vec of (target_index, matched_paths).
     fn execute(&self) -> Result<BatchedGlobExecutionResult, String> {
+        let logger = create_logger("CleanupNative", None);
         let mut protected_results: HashMap<usize, Vec<String>> = HashMap::new();
         let mut delete_results: HashMap<usize, Vec<String>> = HashMap::new();
+        let literal_pattern_count = self
+            .normalized_patterns
+            .iter()
+            .filter(|pattern| !has_glob_magic(pattern))
+            .count();
+        let glob_pattern_count = self.normalized_patterns.len() - literal_pattern_count;
+
+        tnmsc_logger::log_info!(
+            logger,
+            "cleanup native glob execute started",
+            json!({
+                "literalPatternCount": literal_pattern_count,
+                "globPatternCount": glob_pattern_count,
+                "groupCount": self.groups.len(),
+            })
+        );
 
         // Process literal paths (non-glob patterns) directly
+        let mut literal_match_count = 0usize;
         for (pattern_index, pattern) in self.normalized_patterns.iter().enumerate() {
             if has_glob_magic(pattern) {
                 continue;
@@ -580,9 +602,22 @@ impl BatchedGlobPlanner {
                 .entry(metadata.target_index)
                 .or_default()
                 .push(normalized_entry);
+            literal_match_count += 1;
         }
 
+        tnmsc_logger::log_info!(
+            logger,
+            "cleanup native glob literal processing complete",
+            json!({
+                "literalPatternCount": literal_pattern_count,
+                "literalMatches": literal_match_count,
+            })
+        );
+
         // Process each group's patterns with a single directory walk
+        let mut walked_entries = 0usize;
+        let mut matched_entries = 0usize;
+        let mut matched_pattern_events = 0usize;
         for group in &self.groups {
             if !group.scan_root.exists() {
                 continue;
@@ -612,12 +647,15 @@ impl BatchedGlobPlanner {
                 let Ok(entry) = entry else {
                     continue;
                 };
+                walked_entries += 1;
 
                 let candidate = path_to_glob_string(entry.path());
                 let matched_indices = matcher.matches(&candidate);
                 if matched_indices.is_empty() {
                     continue;
                 }
+                matched_entries += 1;
+                matched_pattern_events += matched_indices.len();
 
                 let normalized_entry = path_to_string(&normalize_path(entry.path()));
 
@@ -653,7 +691,19 @@ impl BatchedGlobPlanner {
             }
         }
 
+        tnmsc_logger::log_info!(
+            logger,
+            "cleanup native glob group walks complete",
+            json!({
+                "groupCount": self.groups.len(),
+                "walkedEntries": walked_entries,
+                "matchedEntries": matched_entries,
+                "matchedPatternEvents": matched_pattern_events,
+            })
+        );
+
         // Convert HashMaps to sorted Vecs and deduplicate
+        tnmsc_logger::log_info!(logger, "cleanup native glob result compaction started", json!({}));
         let mut protected_vec: Vec<(usize, Vec<String>)> = protected_results
             .into_iter()
             .map(|(idx, mut paths)| {
@@ -673,6 +723,17 @@ impl BatchedGlobPlanner {
             })
             .collect();
         delete_vec.sort_by_key(|(idx, _)| *idx);
+
+        tnmsc_logger::log_info!(
+            logger,
+            "cleanup native glob result compaction complete",
+            json!({
+                "protectedTargetCount": protected_vec.len(),
+                "deleteTargetCount": delete_vec.len(),
+                "protectedMatches": protected_vec.iter().map(|(_, paths)| paths.len()).sum::<usize>(),
+                "deleteMatches": delete_vec.iter().map(|(_, paths)| paths.len()).sum::<usize>(),
+            })
+        );
 
         Ok((protected_vec, delete_vec))
     }
@@ -927,49 +988,117 @@ fn create_guard(
 
     all_rules.extend_from_slice(rules);
     let compiled_rules = dedupe_and_compile_rules(&expand_protected_rules(&all_rules)?);
+    let mut rule_indices_by_key = std::collections::BTreeMap::<String, Vec<usize>>::new();
+    let mut recursive_rule_indices_by_key = HashMap::<String, Vec<usize>>::new();
 
-    Ok(ProtectedDeletionGuard { compiled_rules })
-}
-
-fn is_rule_match(target_key: &str, rule_key: &str, protection_mode: ProtectionModeDto) -> bool {
-    match protection_mode {
-        ProtectionModeDto::Direct => is_same_or_child_path(rule_key, target_key),
-        ProtectionModeDto::Recursive => {
-            is_same_or_child_path(target_key, rule_key)
-                || is_same_or_child_path(rule_key, target_key)
+    for (rule_index, rule) in compiled_rules.iter().enumerate() {
+        for comparison_key in &rule.comparison_keys {
+            rule_indices_by_key
+                .entry(comparison_key.clone())
+                .or_default()
+                .push(rule_index);
+            if rule.protection_mode == ProtectionModeDto::Recursive {
+                recursive_rule_indices_by_key
+                    .entry(comparison_key.clone())
+                    .or_default()
+                    .push(rule_index);
+            }
         }
     }
+
+    Ok(ProtectedDeletionGuard {
+        compiled_rules,
+        rule_indices_by_key,
+        recursive_rule_indices_by_key,
+    })
 }
 
-fn select_more_specific_rule(
-    candidate: &CompiledProtectedRule,
-    current: Option<&CompiledProtectedRule>,
-) -> CompiledProtectedRule {
+fn select_more_specific_rule<'a>(
+    candidate: &'a CompiledProtectedRule,
+    current: Option<&'a CompiledProtectedRule>,
+) -> &'a CompiledProtectedRule {
     let Some(current) = current else {
-        return candidate.clone();
+        return candidate;
     };
 
     if candidate.specificity != current.specificity {
         return if candidate.specificity > current.specificity {
-            candidate.clone()
+            candidate
         } else {
-            current.clone()
+            current
         };
     }
 
     if candidate.protection_mode != current.protection_mode {
         return if candidate.protection_mode == ProtectionModeDto::Recursive {
-            candidate.clone()
+            candidate
         } else {
-            current.clone()
+            current
         };
     }
 
     if candidate.path < current.path {
-        candidate.clone()
+        candidate
     } else {
-        current.clone()
+        current
     }
+}
+
+fn comparison_key_ancestors(target_key: &str) -> impl Iterator<Item = String> + '_ {
+    Path::new(target_key)
+        .ancestors()
+        .map(path_to_string)
+        .map(|ancestor| {
+            if cfg!(windows) {
+                ancestor.to_lowercase()
+            } else {
+                ancestor
+            }
+        })
+}
+
+fn get_protected_path_violation_for_key<'a>(
+    absolute_target_path: &'a str,
+    target_key: &'a str,
+    guard: &'a ProtectedDeletionGuard,
+) -> Option<ProtectedPathViolationDto> {
+    let mut matched_rule: Option<&CompiledProtectedRule> = None;
+    let mut seen_rule_indices = HashSet::new();
+
+    for ancestor_key in comparison_key_ancestors(target_key) {
+        let Some(rule_indices) = guard.recursive_rule_indices_by_key.get(&ancestor_key) else {
+            continue;
+        };
+        for &rule_index in rule_indices {
+            if !seen_rule_indices.insert(rule_index) {
+                continue;
+            }
+            let rule = &guard.compiled_rules[rule_index];
+            matched_rule = Some(select_more_specific_rule(rule, matched_rule));
+        }
+    }
+
+    for (rule_key, rule_indices) in guard.rule_indices_by_key.range(target_key.to_string()..) {
+        if !is_same_or_child_path(rule_key, target_key) {
+            break;
+        }
+
+        for &rule_index in rule_indices {
+            if !seen_rule_indices.insert(rule_index) {
+                continue;
+            }
+            let rule = &guard.compiled_rules[rule_index];
+            matched_rule = Some(select_more_specific_rule(rule, matched_rule));
+        }
+    }
+
+    matched_rule.map(|rule| ProtectedPathViolationDto {
+        target_path: absolute_target_path.to_string(),
+        protected_path: rule.path.clone(),
+        protection_mode: rule.protection_mode,
+        reason: rule.reason.clone(),
+        source: rule.source.clone(),
+    })
 }
 
 fn get_protected_path_violation(
@@ -977,34 +1106,23 @@ fn get_protected_path_violation(
     guard: &ProtectedDeletionGuard,
 ) -> Option<ProtectedPathViolationDto> {
     let absolute_target_path = path_to_string(&resolve_absolute_path(target_path));
-    let target_keys = build_comparison_keys(&absolute_target_path);
-    let mut matched_rule: Option<CompiledProtectedRule> = None;
+    let normalized_target_key = normalize_for_comparison(&absolute_target_path);
 
-    for rule in &guard.compiled_rules {
-        let mut did_match = false;
-        for target_key in &target_keys {
-            for rule_key in &rule.comparison_keys {
-                if !is_rule_match(target_key, rule_key, rule.protection_mode) {
-                    continue;
-                }
-
-                matched_rule = Some(select_more_specific_rule(rule, matched_rule.as_ref()));
-                did_match = true;
-                break;
-            }
-            if did_match {
-                break;
-            }
-        }
+    if let Some(violation) =
+        get_protected_path_violation_for_key(&absolute_target_path, &normalized_target_key, guard)
+    {
+        return Some(violation);
     }
 
-    matched_rule.map(|rule| ProtectedPathViolationDto {
-        target_path: absolute_target_path,
-        protected_path: rule.path,
-        protection_mode: rule.protection_mode,
-        reason: rule.reason,
-        source: rule.source,
-    })
+    let Ok(real_path) = fs::canonicalize(&absolute_target_path) else {
+        return None;
+    };
+    let canonical_target_key = normalize_for_comparison(&path_to_string(&real_path));
+    if canonical_target_key == normalized_target_key {
+        return None;
+    }
+
+    get_protected_path_violation_for_key(&absolute_target_path, &canonical_target_key, guard)
 }
 
 fn partition_deletion_targets(paths: &[String], guard: &ProtectedDeletionGuard) -> PartitionResult {
@@ -1031,45 +1149,44 @@ fn partition_deletion_targets(paths: &[String], guard: &ProtectedDeletionGuard) 
 fn compact_deletion_targets(files: &[String], dirs: &[String]) -> (Vec<String>, Vec<String>) {
     let files_by_key = files
         .iter()
-        .map(|file_path| {
-            let resolved = path_to_string(&resolve_absolute_path(file_path));
-            (resolved.clone(), resolved)
-        })
-        .collect::<HashMap<_, _>>();
+        .map(|file_path| path_to_string(&resolve_absolute_path(file_path)))
+        .collect::<HashSet<_>>();
     let dirs_by_key = dirs
         .iter()
-        .map(|dir_path| {
-            let resolved = path_to_string(&resolve_absolute_path(dir_path));
-            (resolved.clone(), resolved)
-        })
-        .collect::<HashMap<_, _>>();
+        .map(|dir_path| path_to_string(&resolve_absolute_path(dir_path)))
+        .collect::<HashSet<_>>();
 
     let mut sorted_dir_entries = dirs_by_key.into_iter().collect::<Vec<_>>();
     sorted_dir_entries
-        .sort_by(|(left_key, _), (right_key, _)| left_key.len().cmp(&right_key.len()));
+        .sort_by(|left_key, right_key| left_key.len().cmp(&right_key.len()).then_with(|| left_key.cmp(right_key)));
 
-    let mut compacted_dirs: HashMap<String, String> = HashMap::new();
-    for (dir_key, dir_path) in sorted_dir_entries {
-        let covered_by_parent = compacted_dirs
-            .keys()
-            .any(|existing_parent_key| is_same_or_child_path(&dir_key, existing_parent_key));
+    let mut compacted_dir_set = HashSet::new();
+    let mut compacted_dir_paths = Vec::new();
+    for dir_key in sorted_dir_entries {
+        let covered_by_parent = Path::new(&dir_key)
+            .ancestors()
+            .skip(1)
+            .map(path_to_string)
+            .any(|ancestor| compacted_dir_set.contains(&ancestor));
         if !covered_by_parent {
-            compacted_dirs.insert(dir_key, dir_path);
+            compacted_dir_set.insert(dir_key.clone());
+            compacted_dir_paths.push(dir_key);
         }
     }
 
     let mut compacted_files = Vec::new();
-    for (file_key, file_path) in files_by_key {
-        let covered_by_dir = compacted_dirs
-            .keys()
-            .any(|dir_key| is_same_or_child_path(&file_key, dir_key));
+    for file_path in files_by_key {
+        let covered_by_dir = Path::new(&file_path)
+            .ancestors()
+            .skip(1)
+            .map(path_to_string)
+            .any(|ancestor| compacted_dir_set.contains(&ancestor));
         if !covered_by_dir {
             compacted_files.push(file_path);
         }
     }
 
     compacted_files.sort();
-    let mut compacted_dir_paths = compacted_dirs.into_values().collect::<Vec<_>>();
     compacted_dir_paths.sort();
 
     (compacted_files, compacted_dir_paths)
@@ -1314,6 +1431,17 @@ fn default_protection_mode_for_target(target: &CleanupTargetDto) -> ProtectionMo
 }
 
 pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
+    let logger = create_logger("CleanupNative", None);
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native plan started",
+        json!({
+            "pluginCount": snapshot.plugin_snapshots.len(),
+            "projectRootCount": snapshot.project_roots.len(),
+            "protectedRuleCount": snapshot.protected_rules.len(),
+            "emptyDirExcludeGlobs": snapshot.empty_dir_exclude_globs.len(),
+        })
+    );
     let mut delete_files = HashSet::new();
     let mut delete_dirs = HashSet::new();
     let mut protected_rules = snapshot.protected_rules.clone();
@@ -1393,6 +1521,18 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
         }
     }
 
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native plan inventory collected",
+        json!({
+            "outputCount": output_path_owners.len(),
+            "deleteFileCandidates": delete_files.len(),
+            "deleteDirCandidates": delete_dirs.len(),
+            "protectedGlobTargets": protected_glob_targets.len(),
+            "deleteGlobTargets": delete_glob_targets.len(),
+        })
+    );
+
     // Batch all glob patterns (both protected and delete) into a single planner
     // to minimize directory walks. This is the key performance optimization.
     let mut planner = BatchedGlobPlanner::new(&ignore_globs)?;
@@ -1418,7 +1558,32 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
     }
 
     // Execute the batched glob expansion
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native glob expansion started",
+        json!({
+            "protectedGlobTargets": protected_glob_targets.len(),
+            "deleteGlobTargets": delete_glob_targets.len(),
+            "excludeScanGlobs": ignore_globs.len(),
+        })
+    );
     let (protected_results, delete_results) = planner.execute()?;
+    let protected_glob_match_count = protected_results
+        .iter()
+        .map(|(_, paths)| paths.len())
+        .sum::<usize>();
+    let delete_glob_match_count = delete_results
+        .iter()
+        .map(|(_, paths)| paths.len())
+        .sum::<usize>();
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native glob expansion complete",
+        json!({
+            "protectedMatches": protected_glob_match_count,
+            "deleteMatches": delete_glob_match_count,
+        })
+    );
 
     // Fan protected glob results back to their targets
     for (target_index, matched_paths) in protected_results {
@@ -1451,6 +1616,14 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
     let guard = create_guard(&snapshot, &protected_rules)?;
     let conflicts = detect_cleanup_protection_conflicts(&output_path_owners, &guard);
     if !conflicts.is_empty() {
+        tnmsc_logger::log_info!(
+            logger,
+            "cleanup native plan blocked",
+            json!({
+                "reason": "conflicts",
+                "conflicts": conflicts.len(),
+            })
+        );
         return Ok(CleanupPlan {
             files_to_delete: Vec::new(),
             dirs_to_delete: Vec::new(),
@@ -1461,28 +1634,88 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
         });
     }
 
-    let file_partition =
-        partition_deletion_targets(&delete_files.into_iter().collect::<Vec<_>>(), &guard);
-    let dir_partition =
-        partition_deletion_targets(&delete_dirs.into_iter().collect::<Vec<_>>(), &guard);
+    let file_candidates = delete_files.into_iter().collect::<Vec<_>>();
+    let dir_candidates = delete_dirs.into_iter().collect::<Vec<_>>();
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native file partition started",
+        json!({
+            "candidateCount": file_candidates.len(),
+            "compiledRuleCount": guard.compiled_rules.len(),
+        })
+    );
+    let file_partition = partition_deletion_targets(&file_candidates, &guard);
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native file partition complete",
+        json!({
+            "candidateCount": file_candidates.len(),
+            "safeCount": file_partition.safe_paths.len(),
+            "violationCount": file_partition.violations.len(),
+        })
+    );
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native directory partition started",
+        json!({
+            "candidateCount": dir_candidates.len(),
+            "compiledRuleCount": guard.compiled_rules.len(),
+        })
+    );
+    let dir_partition = partition_deletion_targets(&dir_candidates, &guard);
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native directory partition complete",
+        json!({
+            "candidateCount": dir_candidates.len(),
+            "safeCount": dir_partition.safe_paths.len(),
+            "violationCount": dir_partition.violations.len(),
+        })
+    );
+    tnmsc_logger::log_info!(logger, "cleanup native target compaction started", json!({}));
     let (files_to_delete, dirs_to_delete) =
         compact_deletion_targets(&file_partition.safe_paths, &dir_partition.safe_paths);
-    let empty_dir_absolute_exclude_set = build_globset(
-        &snapshot
-            .empty_dir_exclude_globs
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native target compaction complete",
+        json!({
+            "compactedFiles": files_to_delete.len(),
+            "compactedDirs": dirs_to_delete.len(),
+        })
+    );
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native target partition complete",
+        json!({
+            "safeFiles": files_to_delete.len(),
+            "safeDirs": dirs_to_delete.len(),
+            "fileViolations": file_partition.violations.len(),
+            "dirViolations": dir_partition.violations.len(),
+        })
+    );
+    let mut empty_dir_absolute_exclude_patterns = snapshot
+        .empty_dir_exclude_globs
+        .iter()
+        .map(|pattern| {
+            if expand_home_path(pattern).is_absolute() {
+                normalize_glob_pattern(pattern)
+            } else {
+                path_to_glob_string(&resolve_absolute_path(&format!(
+                    "{}/{}",
+                    snapshot.workspace_dir, pattern
+                )))
+            }
+        })
+        .collect::<Vec<_>>();
+    // Skip workspace project trees entirely during workspace-level empty-directory pruning.
+    // Their internal cleanup is handled by the project-specific passes already.
+    empty_dir_absolute_exclude_patterns.extend(
+        snapshot
+            .project_roots
             .iter()
-            .map(|pattern| {
-                if expand_home_path(pattern).is_absolute() {
-                    normalize_glob_pattern(pattern)
-                } else {
-                    path_to_glob_string(&resolve_absolute_path(&format!(
-                        "{}/{}",
-                        snapshot.workspace_dir, pattern
-                    )))
-                }
-            })
-            .collect::<Vec<_>>(),
-    )?;
+            .map(|project_root| path_to_glob_string(&resolve_absolute_path(project_root))),
+    );
+    let empty_dir_absolute_exclude_set = build_globset(&empty_dir_absolute_exclude_patterns)?;
     let empty_dir_relative_exclude_set = build_globset(
         &snapshot
             .empty_dir_exclude_globs
@@ -1491,6 +1724,13 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
             .map(|pattern| normalize_relative_glob_pattern(pattern))
             .collect::<Vec<_>>(),
     )?;
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native empty directory planning started",
+        json!({
+            "workspaceDir": snapshot.workspace_dir,
+        })
+    );
     let (empty_dirs_to_delete, empty_dir_violations) = plan_workspace_empty_directory_cleanup(
         &snapshot.workspace_dir,
         &files_to_delete,
@@ -1499,11 +1739,31 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
         &empty_dir_absolute_exclude_set,
         &empty_dir_relative_exclude_set,
     );
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native empty directory planning complete",
+        json!({
+            "emptyDirsToDelete": empty_dirs_to_delete.len(),
+            "emptyDirViolations": empty_dir_violations.len(),
+        })
+    );
 
     let mut violations = file_partition.violations;
     violations.extend(dir_partition.violations);
     violations.extend(empty_dir_violations);
     violations.sort_by(|a, b| a.target_path.cmp(&b.target_path));
+
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native plan complete",
+        json!({
+            "filesToDelete": files_to_delete.len(),
+            "dirsToDelete": dirs_to_delete.len(),
+            "emptyDirsToDelete": empty_dirs_to_delete.len(),
+            "violations": violations.len(),
+            "conflicts": 0,
+        })
+    );
 
     Ok(CleanupPlan {
         files_to_delete,
@@ -1516,8 +1776,18 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
 }
 
 pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResultDto, String> {
+    let logger = create_logger("CleanupNative", None);
+    tnmsc_logger::log_info!(logger, "cleanup native perform started", json!({}));
     let plan = plan_cleanup(snapshot)?;
     if !plan.conflicts.is_empty() || !plan.violations.is_empty() {
+        tnmsc_logger::log_info!(
+            logger,
+            "cleanup native perform blocked",
+            json!({
+                "conflicts": plan.conflicts.len(),
+                "violations": plan.violations.len(),
+            })
+        );
         return Ok(CleanupExecutionResultDto {
             deleted_files: 0,
             deleted_dirs: 0,
@@ -1531,10 +1801,56 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
         });
     }
 
-    let delete_result = desk_paths::delete_targets(&plan.files_to_delete, &plan.dirs_to_delete);
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native file deletion started",
+        json!({
+            "filesToDelete": plan.files_to_delete.len(),
+        })
+    );
+    let file_result = desk_paths::delete_files(&plan.files_to_delete);
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native file deletion complete",
+        json!({
+            "deletedFiles": file_result.deleted_paths.len(),
+            "fileErrors": file_result.errors.len(),
+        })
+    );
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native directory deletion started",
+        json!({
+            "dirsToDelete": plan.dirs_to_delete.len(),
+        })
+    );
+    let dir_result = desk_paths::delete_directories(&plan.dirs_to_delete);
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native directory deletion complete",
+        json!({
+            "deletedDirs": dir_result.deleted_paths.len(),
+            "dirErrors": dir_result.errors.len(),
+        })
+    );
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native empty directory deletion started",
+        json!({
+            "emptyDirsToDelete": plan.empty_dirs_to_delete.len(),
+        })
+    );
     let empty_dir_result = desk_paths::delete_empty_directories(&plan.empty_dirs_to_delete);
-    let mut errors = delete_result
-        .file_errors
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native empty directory deletion complete",
+        json!({
+            "deletedEmptyDirs": empty_dir_result.deleted_paths.len(),
+            "emptyDirErrors": empty_dir_result.errors.len(),
+        })
+    );
+    let mut errors = file_result
+        .errors
         .into_iter()
         .map(|error| CleanupErrorDto {
             path: error.path,
@@ -1543,8 +1859,8 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
         })
         .collect::<Vec<_>>();
     errors.extend(
-        delete_result
-            .dir_errors
+        dir_result
+            .errors
             .into_iter()
             .map(|error| CleanupErrorDto {
                 path: error.path,
@@ -1563,9 +1879,9 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
             }),
     );
 
-    Ok(CleanupExecutionResultDto {
-        deleted_files: delete_result.deleted_files.len(),
-        deleted_dirs: delete_result.deleted_dirs.len() + empty_dir_result.deleted_paths.len(),
+    let result = CleanupExecutionResultDto {
+        deleted_files: file_result.deleted_paths.len(),
+        deleted_dirs: dir_result.deleted_paths.len() + empty_dir_result.deleted_paths.len(),
         errors,
         violations: Vec::new(),
         conflicts: Vec::new(),
@@ -1573,7 +1889,17 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
         dirs_to_delete: plan.dirs_to_delete,
         empty_dirs_to_delete: plan.empty_dirs_to_delete,
         excluded_scan_globs: plan.excluded_scan_globs,
-    })
+    };
+    tnmsc_logger::log_info!(
+        logger,
+        "cleanup native perform complete",
+        json!({
+            "deletedFiles": result.deleted_files,
+            "deletedDirs": result.deleted_dirs,
+            "errors": result.errors.len(),
+        })
+    );
+    Ok(result)
 }
 
 #[cfg(feature = "napi")]
@@ -1959,6 +2285,39 @@ mod tests {
         assert!(!plan
             .empty_dirs_to_delete
             .contains(&path_to_string(&excluded_leaf_dir)));
+        assert!(plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&workspace_dir.join("scratch/empty"))));
+        assert!(plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&regular_leaf_dir)));
+    }
+
+    #[test]
+    fn skips_workspace_project_trees_during_empty_directory_scan() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let project_root = workspace_dir.join("packages/app");
+        let project_leaf_dir = project_root.join("empty/leaf");
+        let regular_leaf_dir = workspace_dir.join("scratch/empty/leaf");
+
+        fs::create_dir_all(&project_leaf_dir).unwrap();
+        fs::create_dir_all(&regular_leaf_dir).unwrap();
+
+        let mut snapshot =
+            single_plugin_snapshot(&workspace_dir, vec![], CleanupDeclarationsDto::default());
+        snapshot.project_roots = vec![path_to_string(&project_root)];
+
+        let plan = plan_cleanup(snapshot).unwrap();
+        assert!(!plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&project_root.join("empty"))));
+        assert!(!plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&project_leaf_dir)));
+        assert!(!plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&workspace_dir.join("packages"))));
         assert!(plan
             .empty_dirs_to_delete
             .contains(&path_to_string(&workspace_dir.join("scratch/empty"))));

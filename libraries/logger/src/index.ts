@@ -74,6 +74,11 @@ const LOG_LEVEL_PRIORITY: Readonly<Record<LogLevel, number>> = {
 let napiBinding: NapiLoggerModule | undefined,
   napiBindingError: Error | undefined
 
+const LOGGER_TIMING_STATE = {
+  processStartNs: process.hrtime.bigint(),
+  lastLogNs: void 0 as bigint | undefined
+}
+
 function isNapiLoggerModule(value: unknown): value is NapiLoggerModule {
   if (value == null || typeof value !== 'object') return false
 
@@ -267,12 +272,55 @@ function normalizeLogArguments(message: string | object, meta: unknown[]): {mess
   }
 }
 
+function formatElapsedMilliseconds(milliseconds: number): string {
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) return '0ms'
+  if (milliseconds >= 1000) return `${(milliseconds / 1000).toFixed(2)}s`
+  if (milliseconds >= 100) return `${Math.round(milliseconds)}ms`
+  return `${milliseconds.toFixed(1)}ms`
+}
+
+function createLoggerTimingLabel(): string {
+  const nowNs = process.hrtime.bigint()
+  const sinceStartMs = Number(nowNs - LOGGER_TIMING_STATE.processStartNs) / 1_000_000
+  const sincePreviousMs = LOGGER_TIMING_STATE.lastLogNs == null
+    ? sinceStartMs
+    : Number(nowNs - LOGGER_TIMING_STATE.lastLogNs) / 1_000_000
+
+  LOGGER_TIMING_STATE.lastLogNs = nowNs
+  return `+${formatElapsedMilliseconds(sincePreviousMs)} since previous log, ${formatElapsedMilliseconds(sinceStartMs)} since process start`
+}
+
+function injectLoggerTiming(metaJson: string | undefined): string {
+  const loggerTiming = createLoggerTimingLabel()
+  if (metaJson == null) return serializePayload({loggerTiming})
+
+  try {
+    const parsed = JSON.parse(metaJson) as unknown
+    if (parsed != null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return serializePayload({
+        ...(parsed as Record<string, unknown>),
+        loggerTiming
+      })
+    }
+
+    return serializePayload({
+      loggerTiming,
+      meta: parsed
+    })
+  } catch {
+    return serializePayload({
+      loggerTiming,
+      meta: metaJson
+    })
+  }
+}
+
 function createLogMethod(instance: NapiLoggerInstance, loggerLevel: LogLevel, level: PlainLogLevel): LoggerMethod {
   return (message: string | object, ...meta: unknown[]): void => {
     if (!shouldEmitLog(level, loggerLevel)) return
 
     const {message: normalizedMessage, metaJson} = normalizeLogArguments(message, meta)
-    instance.log(level, normalizedMessage, metaJson)
+    instance.log(level, normalizedMessage, injectLoggerTiming(metaJson))
   }
 }
 
