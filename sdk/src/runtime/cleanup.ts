@@ -8,6 +8,7 @@ import type {
   PluginOptions
 } from '../plugins/plugin-core'
 import type {ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
+import * as path from 'node:path'
 import {buildDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '@/diagnostics'
 import {loadAindexProjectConfig} from '../aindex-config/AindexProjectConfigLoader'
 import {getNativeBinding} from '../core/native-binding'
@@ -268,6 +269,52 @@ function logCleanupPlanDiagnostics(
   })
 }
 
+function collectExactSafeFilePaths(snapshot: NativeCleanupSnapshot): Set<string> {
+  const exactSafeFilePaths = new Set<string>()
+
+  for (const pluginSnapshot of snapshot.pluginSnapshots) {
+    for (const outputPath of pluginSnapshot.outputs) {
+      exactSafeFilePaths.add(path.resolve(outputPath))
+    }
+
+    for (const target of pluginSnapshot.cleanup.delete ?? []) {
+      if (target.kind !== 'file') continue
+      exactSafeFilePaths.add(path.resolve(target.path))
+    }
+  }
+
+  return exactSafeFilePaths
+}
+
+function reconcileExactSafeFileViolations<T extends {
+  filesToDelete: string[]
+  violations: readonly NativeProtectedPathViolation[]
+}>(
+  result: T,
+  exactSafeFilePaths: ReadonlySet<string>
+): T {
+  if (exactSafeFilePaths.size === 0 || result.violations.length === 0) return result
+
+  const rescuedFiles = new Set(result.filesToDelete.map(filePath => path.resolve(filePath)))
+  const remainingViolations: NativeProtectedPathViolation[] = []
+
+  for (const violation of result.violations) {
+    const resolvedTargetPath = path.resolve(violation.targetPath)
+    if (exactSafeFilePaths.has(resolvedTargetPath)) {
+      rescuedFiles.add(resolvedTargetPath)
+      continue
+    }
+
+    remainingViolations.push(violation)
+  }
+
+  return {
+    ...result,
+    filesToDelete: [...rescuedFiles].sort((a, b) => a.localeCompare(b)),
+    violations: remainingViolations
+  }
+}
+
 function summarizeCleanupSnapshot(snapshot: NativeCleanupSnapshot): {
   pluginCount: number
   outputCount: number
@@ -321,8 +368,20 @@ async function buildCleanupSnapshot(
 ): Promise<NativeCleanupSnapshot> {
   const pluginSnapshots = await Promise.all(outputPlugins.map(async plugin => collectPluginCleanupSnapshot(plugin, cleanCtx, predeclaredOutputs)))
 
+  // Collect all delete targets from plugin snapshots - these should bypass protection rules
+  const deleteTargetPaths = new Set<string>()
+  for (const snapshot of pluginSnapshots) {
+    if (snapshot.cleanup.delete != null) {
+      for (const target of snapshot.cleanup.delete) {
+        deleteTargetPaths.add(path.resolve(target.path))
+      }
+    }
+  }
+
   const protectedRules: NativeProtectedRule[] = []
   for (const rule of collectProtectedInputSourceRules(cleanCtx.collectedOutputContext)) {
+    // Skip protection rules for paths that are explicitly marked as delete targets
+    if (deleteTargetPaths.has(path.resolve(rule.path))) continue
     protectedRules.push({
       path: rule.path,
       protectionMode: mapProtectionMode(rule.protectionMode),
@@ -336,6 +395,8 @@ async function buildCleanupSnapshot(
     for (const rule of collectConfiguredAindexInputRules(cleanCtx.pluginOptions as Required<PluginOptions>, cleanCtx.collectedOutputContext.aindexDir, {
       workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path
     })) {
+      // Skip protection rules for paths that are explicitly marked as delete targets
+      if (deleteTargetPaths.has(path.resolve(rule.path))) continue
       protectedRules.push({
         path: rule.path,
         protectionMode: mapProtectionMode(rule.protectionMode),
@@ -410,7 +471,10 @@ export async function collectDeletionTargets(
     phase: 'cleanup-plan',
     ...summarizeCleanupSnapshot(snapshot)
   })
-  const plan = await planCleanupWithNative(snapshot)
+  const plan = reconcileExactSafeFileViolations(
+    await planCleanupWithNative(snapshot),
+    collectExactSafeFilePaths(snapshot)
+  )
   cleanCtx.logger.info('cleanup planning complete', {
     phase: 'cleanup-plan',
     filesToDelete: plan.filesToDelete.length,
@@ -467,7 +531,10 @@ export async function performCleanup(
     pluginCount: snapshot.pluginSnapshots.length,
     outputCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + plugin.outputs.length, 0)
   })
-  const result = await performCleanupWithNative(snapshot)
+  const result = reconcileExactSafeFileViolations(
+    await performCleanupWithNative(snapshot),
+    collectExactSafeFilePaths(snapshot)
+  )
   logger.info('cleanup native execution finished', {
     phase: 'cleanup-execute',
     deletedFiles: result.deletedFiles,

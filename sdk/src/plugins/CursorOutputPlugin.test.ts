@@ -165,15 +165,20 @@ describe('cursorOutputPlugin cleanup', () => {
       const normalizedCommandsDir = path.join(tempHomeDir, '.cursor', 'commands').replaceAll('\\', '/')
       const normalizedStaleDir = staleDir.replaceAll('\\', '/')
       const normalizedPreservedDir = preservedDir.replaceAll('\\', '/')
-      const skillCleanupTarget = result.delete?.find(target => target.kind === 'glob' && target.path.includes('skills'))
+      const skillCleanupTarget = result.delete?.find(
+        target => target.kind === 'glob' && target.path.replaceAll('\\', '/').includes(`/.cursor/skills-cursor/`)
+      )
       const cleanupPlan = await collectDeletionTargets([plugin], createCleanContext())
       const normalizedDeleteDirs = cleanupPlan.dirsToDelete.map(target => target.replaceAll('\\', '/'))
+      const normalizedViolationTargets = cleanupPlan.violations.map(violation => violation.targetPath.replaceAll('\\', '/'))
 
       expect(result.delete?.map(target => target.path.replaceAll('\\', '/')) ?? []).toContain(normalizedCommandsDir)
       expect(skillCleanupTarget?.excludeBasenames).toEqual(expect.arrayContaining(['create-rule']))
       expect(normalizedDeleteDirs).toContain(normalizedStaleDir)
       expect(normalizedDeleteDirs).not.toContain(normalizedPreservedDir)
       expect(protectPaths).toContain(normalizedPreservedDir)
+      expect(normalizedViolationTargets).not.toContain(path.join(preservedDir, 'SKILL.md').replaceAll('\\', '/'))
+      expect(cleanupPlan.violations).toEqual([])
     }
     finally {
       fs.rmSync(tempHomeDir, {recursive: true, force: true})

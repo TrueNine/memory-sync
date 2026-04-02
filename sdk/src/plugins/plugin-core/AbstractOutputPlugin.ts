@@ -611,7 +611,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
       })
     }
 
-    for (const project of this.getProjectPromptOutputProjects(ctx)) {
+    for (const project of this.getProjectOutputProjects(ctx)) {
       const projectRootDir = this.resolveProjectRootDir(ctx, project)
       if (projectRootDir == null) continue
 
@@ -1152,9 +1152,27 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   }
 
   async declareCleanupPaths(ctx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
-    const cleanupDelete = this.buildCleanupTargetsFromScopeConfig(this.cleanupConfig.delete, 'delete', ctx)
-    const cleanupProtect = this.buildCleanupTargetsFromScopeConfig(this.cleanupConfig.protect, 'protect', ctx)
+    const cleanupDelete = [...this.buildCleanupTargetsFromScopeConfig(this.cleanupConfig.delete, 'delete', ctx)]
+    const cleanupProtect = [...this.buildCleanupTargetsFromScopeConfig(this.cleanupConfig.protect, 'protect', ctx)]
     const {excludeScanGlobs} = this.cleanupConfig
+
+    // Add indexignore files to cleanup targets if this plugin has an indexignore configured
+    const ignoreOutputPath = this.getIgnoreOutputPath()
+    if (ignoreOutputPath != null) {
+      for (const project of this.getProjectOutputProjects(ctx)) {
+        // Skip workspace root and prompt source projects
+        if (project.isWorkspaceRootProject === true || project.isPromptSourceProject === true) continue
+        const projectRootDir = this.resolveProjectRootDir(ctx, project)
+        if (projectRootDir == null) continue
+
+        cleanupDelete.push({
+          path: path.join(projectRootDir, ignoreOutputPath),
+          kind: 'file',
+          scope: 'project',
+          label: 'delete.indexignore'
+        })
+      }
+    }
 
     if (cleanupDelete.length === 0 && cleanupProtect.length === 0 && (excludeScanGlobs == null || excludeScanGlobs.length === 0)) {
       return {}

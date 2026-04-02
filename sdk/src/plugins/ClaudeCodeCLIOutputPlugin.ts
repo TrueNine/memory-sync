@@ -51,6 +51,7 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
       cleanup: {
         delete: {
           project: {
+            files: ['.claude/settings.json', '.claude/settings.local.json'],
             dirs: [
               '.claude/rules',
               '.claude/commands',
@@ -99,24 +100,12 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
     ctx: OutputCleanContext
   ): Promise<OutputCleanupDeclarations> {
     const declarations = await super.declareCleanupPaths(ctx)
-    const promptSourceProjects
-      = ctx.collectedOutputContext.workspace.projects.filter(
-        project => project.isPromptSourceProject === true
-      )
-    const promptSourceExcludeGlobs = promptSourceProjects
-      .map(project => project.dirFromWorkspacePath)
-      .filter((dir): dir is NonNullable<typeof dir> => dir != null)
-      .map(dir => this.resolvePath(dir.basePath, dir.path, '**'))
 
     return {
       ...declarations,
       delete: [
         ...declarations.delete ?? [],
         ...this.buildProjectPromptCleanupTargets(ctx, PROJECT_MEMORY_FILE)
-      ],
-      excludeScanGlobs: [
-        ...declarations.excludeScanGlobs ?? [],
-        ...promptSourceExcludeGlobs
       ]
     }
   }
