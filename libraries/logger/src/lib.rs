@@ -692,13 +692,9 @@ fn output_worker(receiver: Receiver<OutputCommand>) {
         match command {
             OutputCommand::Write { use_stderr, output } => {
                 if use_stderr {
-                    if stderr_writer.write_all(output.as_bytes()).is_ok() {
-                        let _ = stderr_writer.write_all(b"\n");
-                    }
+                    let _ = write_output_line(&mut stderr_writer, &output);
                 } else {
-                    if stdout_writer.write_all(output.as_bytes()).is_ok() {
-                        let _ = stdout_writer.write_all(b"\n");
-                    }
+                    let _ = write_output_line(&mut stdout_writer, &output);
                 }
             }
             OutputCommand::Flush { ack } => {
@@ -711,6 +707,12 @@ fn output_worker(receiver: Receiver<OutputCommand>) {
 
     let _ = stdout_writer.flush();
     let _ = stderr_writer.flush();
+}
+
+fn write_output_line(writer: &mut impl Write, output: &str) -> std::io::Result<()> {
+    writer.write_all(output.as_bytes())?;
+    writer.write_all(b"\n")?;
+    writer.flush()
 }
 
 fn print_output_direct(use_stderr: bool, output: &str) {
@@ -1221,5 +1223,33 @@ mod tests {
         let drained = drain_buffered_diagnostics();
         assert_eq!(drained.len(), 1);
         assert_eq!(drained[0].code, "BUFFERED_WARN");
+    }
+
+    #[derive(Default)]
+    struct FlushTrackingWriter {
+        writes: Vec<u8>,
+        flush_count: usize,
+    }
+
+    impl Write for FlushTrackingWriter {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.writes.extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.flush_count += 1;
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_write_output_line_flushes_each_message() {
+        let mut writer = FlushTrackingWriter::default();
+
+        write_output_line(&mut writer, "**INFO** `logger-test` hello").unwrap();
+
+        assert_eq!(String::from_utf8(writer.writes).unwrap(), "**INFO** `logger-test` hello\n");
+        assert_eq!(writer.flush_count, 1);
     }
 }
