@@ -83,8 +83,26 @@ describe('logger bindings', () => {
 
     logger.info('hello', {count: 1})
 
-    expect(nativeLogger.log).toHaveBeenCalledWith('info', 'hello', '{"count":1}')
+    expect(nativeLogger.log).toHaveBeenCalledTimes(1)
+    expect(nativeLogger.log).toHaveBeenCalledWith(
+      'info',
+      'hello',
+      expect.any(String)
+    )
+    const payload = JSON.parse(String(nativeLogger.log.mock.calls[0]?.[2])) as Record<string, unknown>
+    expect(payload['count']).toBe(1)
+    expect(payload['loggerTiming']).toEqual(expect.any(String))
     expect(nativeLogger.logDiagnostic).not.toHaveBeenCalled()
+  })
+
+  it('adds logger timing even when no metadata is provided', async () => {
+    const {createLogger} = await import('./index')
+    const logger = createLogger('logger-test')
+
+    logger.info('hello')
+
+    const payload = JSON.parse(String(nativeLogger.log.mock.calls[0]?.[2])) as Record<string, unknown>
+    expect(payload['loggerTiming']).toEqual(expect.any(String))
   })
 
   it('skips serializing filtered plain logs on the JS side', async () => {

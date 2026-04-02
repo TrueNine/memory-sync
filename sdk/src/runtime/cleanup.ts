@@ -268,6 +268,28 @@ function logCleanupPlanDiagnostics(
   })
 }
 
+function summarizeCleanupSnapshot(snapshot: NativeCleanupSnapshot): {
+  pluginCount: number
+  outputCount: number
+  cleanupDeleteCount: number
+  cleanupProtectCount: number
+  cleanupExcludeScanGlobs: number
+  protectedRuleCount: number
+  projectRootCount: number
+  emptyDirExcludeGlobs: number
+} {
+  return {
+    pluginCount: snapshot.pluginSnapshots.length,
+    outputCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + plugin.outputs.length, 0),
+    cleanupDeleteCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + (plugin.cleanup.delete?.length ?? 0), 0),
+    cleanupProtectCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + (plugin.cleanup.protect?.length ?? 0), 0),
+    cleanupExcludeScanGlobs: snapshot.pluginSnapshots.reduce((total, plugin) => total + (plugin.cleanup.excludeScanGlobs?.length ?? 0), 0),
+    protectedRuleCount: snapshot.protectedRules.length,
+    projectRootCount: snapshot.projectRoots.length,
+    emptyDirExcludeGlobs: snapshot.emptyDirExcludeGlobs?.length ?? 0
+  }
+}
+
 function logNativeCleanupErrors(
   logger: ILogger,
   errors: readonly NativeCleanupError[]
@@ -377,8 +399,26 @@ export async function collectDeletionTargets(
   conflicts: CleanupProtectionConflict[]
   excludedScanGlobs: string[]
 }> {
+  cleanCtx.logger.info('cleanup planning started', {
+    phase: 'cleanup-plan',
+    dryRun: cleanCtx.dryRun === true,
+    pluginCount: outputPlugins.length,
+    workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path
+  })
   const snapshot = await buildCleanupSnapshot(outputPlugins, cleanCtx, predeclaredOutputs)
+  cleanCtx.logger.info('cleanup snapshot prepared', {
+    phase: 'cleanup-plan',
+    ...summarizeCleanupSnapshot(snapshot)
+  })
   const plan = await planCleanupWithNative(snapshot)
+  cleanCtx.logger.info('cleanup planning complete', {
+    phase: 'cleanup-plan',
+    filesToDelete: plan.filesToDelete.length,
+    dirsToDelete: plan.dirsToDelete.length + plan.emptyDirsToDelete.length,
+    emptyDirsToDelete: plan.emptyDirsToDelete.length,
+    violations: plan.violations.length,
+    conflicts: plan.conflicts.length
+  })
 
   if (plan.conflicts.length > 0) {
     throw new CleanupProtectionConflictError(plan.conflicts)
@@ -400,9 +440,16 @@ export async function performCleanup(
   logger: ILogger,
   predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
 ): Promise<CleanupResult> {
+  logger.info('cleanup execution started', {
+    phase: 'cleanup-execute',
+    dryRun: cleanCtx.dryRun === true,
+    pluginCount: outputPlugins.length,
+    workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path
+  })
   if (predeclaredOutputs != null) {
     const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx, predeclaredOutputs)
-    logger.debug('Collected outputs for cleanup', {
+    logger.info('cleanup outputs collected', {
+      phase: 'cleanup-execute',
       projectDirs: outputs.projectDirs.length,
       projectFiles: outputs.projectFiles.length,
       globalDirs: outputs.globalDirs.length,
@@ -411,12 +458,37 @@ export async function performCleanup(
   }
 
   const snapshot = await buildCleanupSnapshot(outputPlugins, cleanCtx, predeclaredOutputs)
+  logger.info('cleanup snapshot prepared', {
+    phase: 'cleanup-execute',
+    ...summarizeCleanupSnapshot(snapshot)
+  })
+  logger.info('cleanup native execution started', {
+    phase: 'cleanup-execute',
+    pluginCount: snapshot.pluginSnapshots.length,
+    outputCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + plugin.outputs.length, 0)
+  })
   const result = await performCleanupWithNative(snapshot)
+  logger.info('cleanup native execution finished', {
+    phase: 'cleanup-execute',
+    deletedFiles: result.deletedFiles,
+    deletedDirs: result.deletedDirs,
+    plannedFiles: result.filesToDelete.length,
+    plannedDirs: result.dirsToDelete.length + result.emptyDirsToDelete.length,
+    emptyDirsToDelete: result.emptyDirsToDelete.length,
+    violations: result.violations.length,
+    conflicts: result.conflicts.length,
+    errors: result.errors.length
+  })
 
   logCleanupPlanDiagnostics(logger, result)
 
   if (result.conflicts.length > 0) {
     logCleanupProtectionConflicts(logger, result.conflicts)
+    logger.info('cleanup execution blocked', {
+      phase: 'cleanup-execute',
+      reason: 'conflicts',
+      conflicts: result.conflicts.length
+    })
     return {
       deletedFiles: 0,
       deletedDirs: 0,
@@ -429,6 +501,11 @@ export async function performCleanup(
 
   if (result.violations.length > 0) {
     logProtectedDeletionGuardError(logger, 'cleanup', result.violations)
+    logger.info('cleanup execution blocked', {
+      phase: 'cleanup-execute',
+      reason: 'protected-path-violations',
+      violations: result.violations.length
+    })
     return {
       deletedFiles: 0,
       deletedDirs: 0,
@@ -446,6 +523,12 @@ export async function performCleanup(
   })
   const loggedErrors = logNativeCleanupErrors(logger, result.errors)
   logger.debug('cleanup delete execution complete', {
+    deletedFiles: result.deletedFiles,
+    deletedDirs: result.deletedDirs,
+    errors: loggedErrors.length
+  })
+  logger.info('cleanup execution complete', {
+    phase: 'cleanup-execute',
     deletedFiles: result.deletedFiles,
     deletedDirs: result.deletedDirs,
     errors: loggedErrors.length

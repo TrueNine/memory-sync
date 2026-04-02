@@ -1,4 +1,6 @@
 import type {
+  OutputCleanContext,
+  OutputCleanupDeclarations,
   OutputFileDeclaration,
   OutputWriteContext
 } from './plugin-core'
@@ -12,37 +14,34 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
 
   override async declareOutputFiles(ctx: OutputWriteContext): Promise<OutputFileDeclaration[]> {
     const declarations: OutputFileDeclaration[] = []
-    const {workspace, globalGitIgnore, shadowGitExclude} = ctx.collectedOutputContext
+    const {globalGitIgnore, shadowGitExclude} = ctx.collectedOutputContext
     const managedContent = this.buildManagedContent(globalGitIgnore, shadowGitExclude)
     if (managedContent.length === 0) return declarations
 
     const finalContent = this.normalizeContent(managedContent)
-    const writtenPaths = new Set<string>()
-    const {projects} = workspace
-
-    for (const project of projects) {
-      if (project.dirFromWorkspacePath == null) continue
-
-      const projectDir = project.dirFromWorkspacePath.getAbsolutePath()
-      const gitRepoDirs = [projectDir, ...findAllGitRepos(projectDir)]
-
-      for (const repoDir of gitRepoDirs) {
-        const gitInfoDir = resolveGitInfoDir(repoDir)
-        if (gitInfoDir == null) continue
-
-        const excludePath = path.join(gitInfoDir, 'exclude')
-        if (writtenPaths.has(excludePath)) continue
-        writtenPaths.add(excludePath)
-
-        declarations.push({
-          path: excludePath,
-          scope: 'project',
-          source: {content: finalContent}
-        })
-      }
+    for (const excludePath of this.collectManagedExcludePaths(ctx)) {
+      declarations.push({
+        path: excludePath,
+        scope: 'project',
+        source: {content: finalContent}
+      })
     }
 
     return declarations
+  }
+
+  override async declareCleanupPaths(
+    ctx: OutputCleanContext
+  ): Promise<OutputCleanupDeclarations> {
+    const deletePaths = this.collectManagedExcludePaths(ctx).map(excludePath => ({
+      path: excludePath,
+      kind: 'file' as const,
+      scope: 'project' as const,
+      label: 'delete.project'
+    }))
+
+    if (deletePaths.length === 0) return {}
+    return {delete: deletePaths}
   }
 
   override async convertContent(
@@ -86,5 +85,28 @@ export class GitExcludeOutputPlugin extends AbstractOutputPlugin {
     const trimmed = content.trim()
     if (trimmed.length === 0) return ''
     return `${trimmed}\n`
+  }
+
+  private collectManagedExcludePaths(
+    ctx: Pick<OutputWriteContext, 'collectedOutputContext'>
+  ): string[] {
+    const {workspace} = ctx.collectedOutputContext
+    const repoRoots = new Set<string>([path.resolve(workspace.directory.path)])
+    const excludePaths = new Set<string>()
+
+    for (const project of workspace.projects) {
+      if (project.dirFromWorkspacePath == null) continue
+      repoRoots.add(project.dirFromWorkspacePath.getAbsolutePath())
+    }
+
+    for (const repoRoot of repoRoots) {
+      for (const repoDir of [repoRoot, ...findAllGitRepos(repoRoot)]) {
+        const gitInfoDir = resolveGitInfoDir(repoDir)
+        if (gitInfoDir == null) continue
+        excludePaths.add(path.join(gitInfoDir, 'exclude'))
+      }
+    }
+
+    return [...excludePaths]
   }
 }

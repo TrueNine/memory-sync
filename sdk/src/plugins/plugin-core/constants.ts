@@ -101,7 +101,8 @@ export const GlobalConfigDirs = {
 
 export const IgnoreFiles = {
   CURSOR: '.cursorignore',
-  WINDSURF: '.codeiumignore'
+  WINDSURF: '.codeignore',
+  WINDSURF_LEGACY: '.codeiumignore'
 } as const
 
 export const PreservedSkills = {

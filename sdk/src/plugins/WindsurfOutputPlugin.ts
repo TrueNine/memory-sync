@@ -1,7 +1,7 @@
 import type {CommandPrompt, OutputFileDeclaration, OutputWriteContext, RulePrompt, SkillPrompt} from './plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterByProjectConfig, PLUGIN_NAMES} from './plugin-core'
+import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterByProjectConfig, IgnoreFiles, PLUGIN_NAMES} from './plugin-core'
 
 const CODEIUM_WINDSURF_DIR = '.codeium/windsurf'
 const WORKFLOWS_SUBDIR = 'global_workflows'
@@ -13,6 +13,8 @@ const SKILL_FILE_NAME = 'SKILL.md'
 const WINDSURF_RULES_DIR = '.windsurf'
 const WINDSURF_RULES_SUBDIR = 'rules'
 const RULE_FILE_PREFIX = 'rule-'
+const WINDSURF_IGNORE_FILES = [IgnoreFiles.WINDSURF, IgnoreFiles.WINDSURF_LEGACY] as const
+const LEGACY_WINDSURF_IGNORE_FILE = IgnoreFiles.WINDSURF_LEGACY
 
 type WindsurfOutputSource
   = | {readonly kind: 'globalMemory', readonly content: string}
@@ -30,7 +32,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       outputFileName: '',
       treatWorkspaceRootProjectAsProject: true,
       dependsOn: [PLUGIN_NAMES.AgentsOutput],
-      indexignore: '.codeiumignore',
+      indexignore: IgnoreFiles.WINDSURF,
       commands: {
         subDir: WORKFLOWS_SUBDIR,
         transformFrontMatter: (_cmd, context) => context.sourceFrontMatter ?? {}
@@ -44,6 +46,7 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       cleanup: {
         delete: {
           project: {
+            files: [IgnoreFiles.WINDSURF, LEGACY_WINDSURF_IGNORE_FILE],
             dirs: ['.windsurf/rules', '.windsurf/workflows', '.windsurf/global_workflows', '.windsurf/skills', '.codeium/windsurf/global_workflows', '.codeium/windsurf/skills']
           },
           global: {
@@ -214,22 +217,34 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    const ignoreOutputPath = this.getIgnoreOutputPath()
-    const ignoreFile = this.indexignore == null
-      ? void 0
-      : aiAgentIgnoreConfigFiles?.find(file => file.fileName === this.indexignore)
-    if (ignoreOutputPath != null && ignoreFile != null) {
+    const ignoreFilesByName = new Map(
+      (aiAgentIgnoreConfigFiles ?? []).map(file => [file.fileName, file.content] as const)
+    )
+    if (ignoreFilesByName.size > 0) {
+      const primaryIgnoreContent = ignoreFilesByName.get(IgnoreFiles.WINDSURF)
+        ?? ignoreFilesByName.get(LEGACY_WINDSURF_IGNORE_FILE)
+      const legacyIgnoreContent = ignoreFilesByName.get(LEGACY_WINDSURF_IGNORE_FILE)
+        ?? ignoreFilesByName.get(IgnoreFiles.WINDSURF)
+
       for (const project of concreteProjects) {
         const projectDir = project.dirFromWorkspacePath
         if (projectDir == null || project.isPromptSourceProject === true) continue
-        declarations.push({
-          path: path.join(projectDir.basePath, projectDir.path, ignoreOutputPath),
-          scope: 'project',
-          source: {
-            kind: 'ignoreFile',
-            content: ignoreFile.content
-          } satisfies WindsurfOutputSource
-        })
+
+        for (const ignoreFileName of WINDSURF_IGNORE_FILES) {
+          const content = ignoreFileName === IgnoreFiles.WINDSURF
+            ? primaryIgnoreContent
+            : legacyIgnoreContent
+          if (content == null) continue
+
+          declarations.push({
+            path: path.join(projectDir.basePath, projectDir.path, ignoreFileName),
+            scope: 'project',
+            source: {
+              kind: 'ignoreFile',
+              content
+            } satisfies WindsurfOutputSource
+          })
+        }
       }
     }
 

@@ -122,7 +122,8 @@ export const AINDEX_FILE_NAMES = {
   CURSOR_IGNORE: '.cursorignore',
   WARP_INDEX_IGNORE: '.warpindexignore',
   AI_IGNORE: '.aiignore',
-  CODEIUM_IGNORE: '.codeiumignore' // Windsurf ignore file
+  WINDSURF_IGNORE: '.codeignore', // Windsurf ignore file
+  CODEIUM_IGNORE: '.codeiumignore' // Windsurf legacy ignore file
 } as const
 
 /**
@@ -341,9 +342,14 @@ export const DEFAULT_AINDEX_STRUCTURE: AindexDirectory = {
       description: 'AI ignore file'
     },
     {
-      name: AINDEX_FILE_NAMES.CODEIUM_IGNORE,
+      name: AINDEX_FILE_NAMES.WINDSURF_IGNORE,
       required: false,
       description: 'Windsurf ignore file'
+    },
+    {
+      name: AINDEX_FILE_NAMES.CODEIUM_IGNORE,
+      required: false,
+      description: 'Windsurf legacy ignore file'
     }
   ]
 } as const
