@@ -1,3 +1,4 @@
+import {resolve} from 'node:path'
 import {defineConfig} from 'tsdown'
 
 const alwaysBundleDeps = ['@truenine/memory-sync-sdk']
@@ -46,6 +47,9 @@ export default defineConfig([
     sourcemap: false,
     deps: {
       alwaysBundle: scriptRuntimeWorkerBundleDeps
+    },
+    alias: {
+      '@truenine/script-runtime': resolve('../libraries/script-runtime/dist/index.mjs')
     },
     format: ['esm'],
     minify: true,

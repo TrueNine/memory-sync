@@ -1,9 +1,11 @@
+import {resolve} from 'node:path'
 import {describe, expect, it} from 'vitest'
 import tsconfig from '../tsconfig.json'
 import tsdownConfig from '../tsdown.config'
 
 interface TsdownEntryConfig {
   readonly entry?: string | readonly string[]
+  readonly alias?: Record<string, string>
   readonly deps?: {
     readonly alwaysBundle?: readonly string[]
   }
@@ -15,16 +17,17 @@ function includesEntry(config: TsdownEntryConfig, targetEntry: string): boolean 
 }
 
 describe('cli tsdown config', () => {
-  it('resolves the script runtime package to the built runtime module', () => {
-    expect(tsconfig.compilerOptions.paths['@truenine/script-runtime']).toEqual([
-      '../libraries/script-runtime/dist/index.mjs'
-    ])
+  it('lets TypeScript resolve the script runtime package through workspace metadata', () => {
+    expect(tsconfig.compilerOptions.paths['@truenine/script-runtime']).toBeUndefined()
   })
 
-  it('bundles script runtime dependencies into the script runtime worker artifact', () => {
+  it('bundles the worker against the built script runtime module', () => {
     const workerConfig = (tsdownConfig as readonly TsdownEntryConfig[]).find(config =>
       includesEntry(config, './src/script-runtime-worker.ts'))
 
+    expect(workerConfig?.alias?.['@truenine/script-runtime']).toBe(
+      resolve('../libraries/script-runtime/dist/index.mjs')
+    )
     expect(workerConfig?.deps?.alwaysBundle).toEqual(expect.arrayContaining([
       '@truenine/script-runtime',
       'jiti'
