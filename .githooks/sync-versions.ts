@@ -114,6 +114,85 @@ function updateVersionLineInSection(
   return content
 }
 
+function extractTomlSectionValue(content: string, sectionName: string, key: string): string | undefined {
+  const lines = content.split(/\r?\n/)
+  let inTargetSection = false
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+
+    if (/^\[.*\]$/.test(trimmed)) {
+      inTargetSection = trimmed === `[${sectionName}]`
+      continue
+    }
+
+    if (!inTargetSection) {
+      continue
+    }
+
+    const match = trimmed.match(new RegExp(`^${key}\\s*=\\s*"([^"]+)"$`, 'u'))
+    if (match != null) {
+      return match[1]
+    }
+  }
+
+  return undefined
+}
+
+function updateCargoLockPackageVersions(
+  content: string,
+  packageNames: ReadonlySet<string>,
+  targetVersion: string,
+): string {
+  const lines = content.split(/\r?\n/)
+  let currentPackageName: string | undefined
+  let inPackageBlock = false
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
+    const trimmed = line.trim()
+
+    if (trimmed === '[[package]]') {
+      inPackageBlock = true
+      currentPackageName = undefined
+      continue
+    }
+
+    if (/^\[\[.+\]\]$|^\[.+\]$/u.test(trimmed)) {
+      inPackageBlock = false
+      currentPackageName = undefined
+      continue
+    }
+
+    if (!inPackageBlock) {
+      continue
+    }
+
+    const nameMatch = trimmed.match(/^name\s*=\s*"([^"]+)"$/u)
+    if (nameMatch != null) {
+      currentPackageName = nameMatch[1]
+      continue
+    }
+
+    if (currentPackageName == null || !packageNames.has(currentPackageName)) {
+      continue
+    }
+
+    const versionMatch = line.match(/^(\s*version\s*=\s*")([^"]+)(".*)$/u)
+    if (versionMatch == null) {
+      continue
+    }
+
+    if (versionMatch[2] === targetVersion) {
+      continue
+    }
+
+    lines[index] = `${versionMatch[1]}${targetVersion}${versionMatch[3]}`
+  }
+
+  return lines.join('\n')
+}
+
 function runGit(rootDir: string, args: readonly string[]): string {
   return execFileSync('git', args, {
     cwd: rootDir,
@@ -156,6 +235,49 @@ function syncCargoVersion(
   try {
     const originalContent = readFileSync(filePath, 'utf-8')
     const updatedContent = updateVersionLineInSection(originalContent, sectionName, targetVersion)
+
+    if (updatedContent === originalContent) {
+      return
+    }
+
+    writeFileSync(filePath, updatedContent, 'utf-8')
+    changedPaths.add(filePath)
+  } catch {
+    console.log(`⚠️ ${filePath} not found or invalid, skipping`)
+  }
+}
+
+function collectCargoPackageNames(cargoTomlPaths: readonly string[]): Set<string> {
+  const packageNames = new Set<string>()
+
+  for (const filePath of cargoTomlPaths) {
+    try {
+      const content = readFileSync(filePath, 'utf-8')
+      const packageName = extractTomlSectionValue(content, 'package', 'name')
+      if (packageName != null && packageName !== '') {
+        packageNames.add(packageName)
+      }
+    } catch {
+      console.log(`⚠️ ${filePath} not found or invalid, skipping`)
+    }
+  }
+
+  return packageNames
+}
+
+function syncCargoLockVersion(
+  filePath: string,
+  packageNames: ReadonlySet<string>,
+  targetVersion: string,
+  changedPaths: Set<string>,
+): void {
+  if (packageNames.size === 0) {
+    return
+  }
+
+  try {
+    const originalContent = readFileSync(filePath, 'utf-8')
+    const updatedContent = updateCargoLockPackageVersions(originalContent, packageNames, targetVersion)
 
     if (updatedContent === originalContent) {
       return
@@ -253,6 +375,7 @@ export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersions
   const rootDir = resolve(options.rootDir ?? '.')
   const rootPackagePath = resolve(rootDir, 'package.json')
   const rootCargoPath = resolve(rootDir, 'Cargo.toml')
+  const cargoLockPath = resolve(rootDir, 'Cargo.lock')
   const rootPkg = readJsonFile(rootPackagePath)
   const currentRootVersion = typeof rootPkg.version === 'string' ? rootPkg.version.trim() : ''
 
@@ -284,10 +407,13 @@ export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersions
   const cargoTomlPaths = discoverFilesByName(rootDir, 'Cargo.toml')
     .filter(filePath => resolve(filePath) !== rootCargoPath)
     .sort()
+  const cargoPackageNames = collectCargoPackageNames([rootCargoPath, ...cargoTomlPaths])
 
   for (const filePath of cargoTomlPaths) {
     syncCargoVersion(filePath, 'package', target.version, changedPaths)
   }
+
+  syncCargoLockVersion(cargoLockPath, cargoPackageNames, target.version, changedPaths)
 
   for (const filePath of discoverFilesByName(rootDir, 'tauri.conf.json').sort()) {
     syncJsonVersion(filePath, target.version, changedPaths)
