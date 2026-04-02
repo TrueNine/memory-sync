@@ -10,9 +10,12 @@ import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {collectDeletionTargets} from '../commands/CleanupUtils'
+import {mergeConfig} from '../config'
 import {AgentsOutputPlugin} from './AgentsOutputPlugin'
 import {ClaudeCodeCLIOutputPlugin} from './ClaudeCodeCLIOutputPlugin'
+import {CursorOutputPlugin} from './CursorOutputPlugin'
 import {GeminiCLIOutputPlugin} from './GeminiCLIOutputPlugin'
+import {KiroCLIOutputPlugin} from './KiroCLIOutputPlugin'
 import {FilePathKind, PromptKind} from './plugin-core'
 
 interface CleanupTestCase {
@@ -157,7 +160,7 @@ function createCleanContext(workspaceDir: string): OutputCleanContext {
 }
 
 describe.each(TEST_CASES)('$name cleanup', ({fileName, createPlugin}) => {
-  it('cleans workspace and non-prompt project markdown outputs without touching prompt-source paths', async () => {
+  it('cleans workspace, prompt-source, and non-prompt project markdown outputs', async () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), `tnmsc-${fileName.toLowerCase()}-cleanup-`)
     )
@@ -205,17 +208,172 @@ describe.each(TEST_CASES)('$name cleanup', ({fileName, createPlugin}) => {
       expect(normalizedFilesToDelete).toEqual(
         expect.arrayContaining([
           workspaceFile.replaceAll('\\', '/'),
+          promptSourceRootFile.replaceAll('\\', '/'),
+          promptSourceChildFile.replaceAll('\\', '/'),
           projectRootFile.replaceAll('\\', '/'),
           projectChildFile.replaceAll('\\', '/'),
           manualProjectChildFile.replaceAll('\\', '/')
         ])
       )
-      expect(normalizedFilesToDelete).not.toContain(
-        promptSourceRootFile.replaceAll('\\', '/')
+    } finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+})
+
+describe('prompt-source cleanup regression', () => {
+  it('allows exact aindex source prompt outputs to be cleaned without protected-path violations', async () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'tnmsc-prompt-source-protected-cleanup-')
+    )
+    const workspaceDir = path.join(tempDir, 'workspace')
+    const aindexDir = path.join(workspaceDir, 'aindex')
+    const aindexAppDir = path.join(aindexDir, 'app')
+    const agentsFile = path.join(aindexAppDir, 'AGENTS.md')
+    const claudeFile = path.join(aindexAppDir, 'CLAUDE.md')
+    const geminiFile = path.join(aindexAppDir, 'GEMINI.md')
+
+    fs.mkdirSync(aindexAppDir, {recursive: true})
+    fs.writeFileSync(agentsFile, '# agents', 'utf8')
+    fs.writeFileSync(claudeFile, '# claude', 'utf8')
+    fs.writeFileSync(geminiFile, '# gemini', 'utf8')
+
+    try {
+      const result = await collectDeletionTargets(
+        [
+          new AgentsOutputPlugin(),
+          new ClaudeCodeCLIOutputPlugin(),
+          new GeminiCLIOutputPlugin()
+        ],
+        {
+          ...createCleanContext(workspaceDir),
+          pluginOptions: mergeConfig({workspaceDir}),
+          collectedOutputContext: {
+            ...createCleanContext(workspaceDir).collectedOutputContext,
+            aindexDir,
+            workspace: {
+              ...createCleanContext(workspaceDir).collectedOutputContext.workspace,
+              projects: [
+                {
+                  name: 'app',
+                  isPromptSourceProject: true,
+                  dirFromWorkspacePath: {
+                    pathKind: FilePathKind.Relative,
+                    path: path.join('aindex', 'app'),
+                    basePath: workspaceDir,
+                    getDirectoryName: () => 'app',
+                    getAbsolutePath: () => aindexAppDir
+                  },
+                  rootMemoryPrompt: createRootPrompt('prompt-source root')
+                }
+              ]
+            }
+          }
+        }
       )
-      expect(normalizedFilesToDelete).not.toContain(
-        promptSourceChildFile.replaceAll('\\', '/')
+      const normalizedFilesToDelete = result.filesToDelete.map(target =>
+        target.replaceAll('\\', '/'))
+      const normalizedViolationTargets = result.violations.map(violation =>
+        violation.targetPath.replaceAll('\\', '/'))
+
+      expect(normalizedFilesToDelete).toEqual(
+        expect.arrayContaining([
+          agentsFile.replaceAll('\\', '/'),
+          claudeFile.replaceAll('\\', '/'),
+          geminiFile.replaceAll('\\', '/')
+        ])
       )
+      expect(normalizedViolationTargets).not.toContain(
+        agentsFile.replaceAll('\\', '/')
+      )
+      expect(normalizedViolationTargets).not.toContain(
+        claudeFile.replaceAll('\\', '/')
+      )
+      expect(normalizedViolationTargets).not.toContain(
+        geminiFile.replaceAll('\\', '/')
+      )
+    } finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('keeps aindex prompt-source IDE cleanup targets visible to glob-based cleanup', async () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'tnmsc-prompt-source-ide-cleanup-')
+    )
+    const workspaceDir = path.join(tempDir, 'workspace')
+    const promptSourceCursorCommandsDir = path.join(
+      workspaceDir,
+      'aindex',
+      '.cursor',
+      'commands'
+    )
+    const promptSourceCursorSkillDir = path.join(
+      workspaceDir,
+      'aindex',
+      '.cursor',
+      'skills-cursor',
+      'ship-it'
+    )
+    const promptSourceKiroStreeningDir = path.join(
+      workspaceDir,
+      'aindex',
+      '.kiro',
+      'streening'
+    )
+    const promptSourceKiroSpecsDir = path.join(
+      workspaceDir,
+      'aindex',
+      '.kiro',
+      'specs'
+    )
+
+    fs.mkdirSync(promptSourceCursorCommandsDir, {recursive: true})
+    fs.mkdirSync(promptSourceCursorSkillDir, {recursive: true})
+    fs.mkdirSync(promptSourceKiroStreeningDir, {recursive: true})
+    fs.mkdirSync(promptSourceKiroSpecsDir, {recursive: true})
+    fs.writeFileSync(
+      path.join(promptSourceCursorCommandsDir, 'build.md'),
+      '# build',
+      'utf8'
+    )
+    fs.writeFileSync(
+      path.join(promptSourceCursorSkillDir, 'SKILL.md'),
+      '# ship it',
+      'utf8'
+    )
+    fs.writeFileSync(
+      path.join(promptSourceKiroStreeningDir, 'project.json'),
+      '{}',
+      'utf8'
+    )
+    fs.writeFileSync(
+      path.join(promptSourceKiroSpecsDir, 'plan.md'),
+      '# plan',
+      'utf8'
+    )
+
+    try {
+      const result = await collectDeletionTargets(
+        [
+          new AgentsOutputPlugin(),
+          new CursorOutputPlugin(),
+          new KiroCLIOutputPlugin()
+        ],
+        createCleanContext(workspaceDir)
+      )
+      const normalizedDirsToDelete = result.dirsToDelete.map(target =>
+        target.replaceAll('\\', '/'))
+
+      expect(normalizedDirsToDelete).toEqual(
+        expect.arrayContaining([
+          promptSourceCursorCommandsDir.replaceAll('\\', '/'),
+          promptSourceCursorSkillDir.replaceAll('\\', '/'),
+          promptSourceKiroStreeningDir.replaceAll('\\', '/'),
+          promptSourceKiroSpecsDir.replaceAll('\\', '/')
+        ])
+      )
+      expect(result.violations).toEqual([])
     } finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }

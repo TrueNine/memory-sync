@@ -220,34 +220,32 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
     const ignoreFilesByName = new Map(
       (aiAgentIgnoreConfigFiles ?? []).map(file => [file.fileName, file.content] as const)
     )
-    if (ignoreFilesByName.size > 0) {
-      const primaryIgnoreContent = ignoreFilesByName.get(IgnoreFiles.WINDSURF)
-        ?? ignoreFilesByName.get(LEGACY_WINDSURF_IGNORE_FILE)
-      const legacyIgnoreContent = ignoreFilesByName.get(LEGACY_WINDSURF_IGNORE_FILE)
-        ?? ignoreFilesByName.get(IgnoreFiles.WINDSURF)
+    if (ignoreFilesByName.size <= 0) return declarations
 
-      for (const project of concreteProjects) {
-        const projectDir = project.dirFromWorkspacePath
-        if (projectDir == null || project.isPromptSourceProject === true) continue
+    const primaryIgnoreContent = ignoreFilesByName.get(IgnoreFiles.WINDSURF)
+      ?? ignoreFilesByName.get(LEGACY_WINDSURF_IGNORE_FILE)
+    const legacyIgnoreContent = ignoreFilesByName.get(LEGACY_WINDSURF_IGNORE_FILE)
+      ?? ignoreFilesByName.get(IgnoreFiles.WINDSURF)
+    for (const project of concreteProjects) {
+      const projectDir = project.dirFromWorkspacePath
+      if (projectDir == null || project.isPromptSourceProject === true) continue
 
-        for (const ignoreFileName of WINDSURF_IGNORE_FILES) {
-          const content = ignoreFileName === IgnoreFiles.WINDSURF
-            ? primaryIgnoreContent
-            : legacyIgnoreContent
-          if (content == null) continue
+      for (const ignoreFileName of WINDSURF_IGNORE_FILES) {
+        const content = ignoreFileName === IgnoreFiles.WINDSURF
+          ? primaryIgnoreContent
+          : legacyIgnoreContent
+        if (content == null) continue
 
-          declarations.push({
-            path: path.join(projectDir.basePath, projectDir.path, ignoreFileName),
-            scope: 'project',
-            source: {
-              kind: 'ignoreFile',
-              content
-            } satisfies WindsurfOutputSource
-          })
-        }
+        declarations.push({
+          path: path.join(projectDir.basePath, projectDir.path, ignoreFileName),
+          scope: 'project',
+          source: {
+            kind: 'ignoreFile',
+            content
+          } satisfies WindsurfOutputSource
+        })
       }
     }
-
     return declarations
   }
 

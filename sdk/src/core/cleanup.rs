@@ -20,7 +20,7 @@ const DEFAULT_CLEANUP_SCAN_EXCLUDE_GLOBS: [&str; 6] = [
     "**/.next/**",
 ];
 
-const EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES: [&str; 17] = [
+const EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES: [&str; 15] = [
     ".git",
     "node_modules",
     "dist",
@@ -34,8 +34,6 @@ const EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES: [&str; 17] = [
     ".vite-temp",
     ".pnpm-store",
     ".yarn",
-    ".idea",
-    ".vscode",
     ".volumes",
     "volumes",
 ];
@@ -1125,15 +1123,34 @@ fn get_protected_path_violation(
     get_protected_path_violation_for_key(&absolute_target_path, &canonical_target_key, guard)
 }
 
-fn partition_deletion_targets(paths: &[String], guard: &ProtectedDeletionGuard) -> PartitionResult {
+fn target_matches_project_root(
+    target_path: &str,
+    project_root_keys: &HashSet<String>,
+) -> bool {
+    build_comparison_keys(target_path)
+        .into_iter()
+        .any(|key| project_root_keys.contains(&key))
+}
+
+fn partition_deletion_targets(
+    paths: &[String],
+    guard: &ProtectedDeletionGuard,
+    exact_safe_paths: Option<&HashSet<String>>,
+) -> PartitionResult {
     let mut safe_paths = Vec::new();
     let mut violations = Vec::new();
 
     for target_path in paths {
-        if let Some(violation) = get_protected_path_violation(target_path, guard) {
+        let resolved_target_path = path_to_string(&resolve_absolute_path(target_path));
+        if exact_safe_paths.is_some_and(|allowed| allowed.contains(&resolved_target_path)) {
+            safe_paths.push(resolved_target_path);
+            continue;
+        }
+
+        if let Some(violation) = get_protected_path_violation(&resolved_target_path, guard) {
             violations.push(violation);
         } else {
-            safe_paths.push(path_to_string(&resolve_absolute_path(target_path)));
+            safe_paths.push(resolved_target_path);
         }
     }
 
@@ -1230,6 +1247,7 @@ fn collect_empty_workspace_directories(
     files_to_delete: &HashSet<String>,
     dirs_to_delete: &HashSet<String>,
     empty_dirs_to_delete: &mut BTreeSet<String>,
+    retained_directory_roots: &HashSet<String>,
     empty_dir_absolute_exclude: &Option<GlobSet>,
     empty_dir_relative_exclude: &Option<GlobSet>,
 ) -> bool {
@@ -1300,9 +1318,14 @@ fn collect_empty_workspace_directories(
                 files_to_delete,
                 dirs_to_delete,
                 empty_dirs_to_delete,
+                retained_directory_roots,
                 empty_dir_absolute_exclude,
                 empty_dir_relative_exclude,
             ) {
+                if retained_directory_roots.contains(&entry_string) {
+                    has_retained_entries = true;
+                    continue;
+                }
                 empty_dirs_to_delete.insert(entry_string);
                 continue;
             }
@@ -1338,6 +1361,17 @@ fn plan_workspace_empty_directory_cleanup(
         .iter()
         .map(|path| path_to_string(&resolve_absolute_path(path)))
         .collect::<HashSet<_>>();
+    let retained_directory_roots = guard
+        .compiled_rules
+        .iter()
+        .filter(|rule| rule.protection_mode == ProtectionModeDto::Direct)
+        .filter_map(|rule| {
+            fs::symlink_metadata(&rule.path)
+                .ok()
+                .filter(|metadata| metadata.is_dir())
+                .map(|_| path_to_string(&resolve_absolute_path(&rule.path)))
+        })
+        .collect::<HashSet<_>>();
     let mut discovered_empty_dirs = BTreeSet::new();
 
     collect_empty_workspace_directories(
@@ -1346,6 +1380,7 @@ fn plan_workspace_empty_directory_cleanup(
         &files_to_delete,
         &dirs_to_delete,
         &mut discovered_empty_dirs,
+        &retained_directory_roots,
         empty_dir_absolute_exclude,
         empty_dir_relative_exclude,
     );
@@ -1451,6 +1486,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
             .map(|value| (*value).to_string()),
     );
     let mut output_path_owners = HashMap::<String, Vec<String>>::new();
+    let mut exact_safe_file_paths = HashSet::<String>::new();
     let mut protected_glob_targets = Vec::<ProtectedGlobCleanupTarget>::new();
     let mut delete_glob_targets = Vec::<DeleteGlobCleanupTarget>::new();
 
@@ -1514,7 +1550,10 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
                     delete_dirs.insert(path_to_string(&resolve_absolute_path(&target.path)));
                 }
                 CleanupTargetKindDto::File => {
-                    delete_files.insert(path_to_string(&resolve_absolute_path(&target.path)));
+                    let resolved_target_path =
+                        path_to_string(&resolve_absolute_path(&target.path));
+                    exact_safe_file_paths.insert(resolved_target_path.clone());
+                    delete_files.insert(resolved_target_path);
                 }
                 CleanupTargetKindDto::Glob => {}
             }
@@ -1644,7 +1683,8 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
             "compiledRuleCount": guard.compiled_rules.len(),
         })
     );
-    let file_partition = partition_deletion_targets(&file_candidates, &guard);
+    let file_partition =
+        partition_deletion_targets(&file_candidates, &guard, Some(&exact_safe_file_paths));
     tnmsc_logger::log_info!(
         logger,
         "cleanup native file partition complete",
@@ -1662,7 +1702,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
             "compiledRuleCount": guard.compiled_rules.len(),
         })
     );
-    let dir_partition = partition_deletion_targets(&dir_candidates, &guard);
+    let dir_partition = partition_deletion_targets(&dir_candidates, &guard, None);
     tnmsc_logger::log_info!(
         logger,
         "cleanup native directory partition complete",
@@ -1693,7 +1733,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
             "dirViolations": dir_partition.violations.len(),
         })
     );
-    let mut empty_dir_absolute_exclude_patterns = snapshot
+    let empty_dir_absolute_exclude_patterns = snapshot
         .empty_dir_exclude_globs
         .iter()
         .map(|pattern| {
@@ -1707,14 +1747,6 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
             }
         })
         .collect::<Vec<_>>();
-    // Skip workspace project trees entirely during workspace-level empty-directory pruning.
-    // Their internal cleanup is handled by the project-specific passes already.
-    empty_dir_absolute_exclude_patterns.extend(
-        snapshot
-            .project_roots
-            .iter()
-            .map(|project_root| path_to_glob_string(&resolve_absolute_path(project_root))),
-    );
     let empty_dir_absolute_exclude_set = build_globset(&empty_dir_absolute_exclude_patterns)?;
     let empty_dir_relative_exclude_set = build_globset(
         &snapshot
@@ -1731,7 +1763,12 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
             "workspaceDir": snapshot.workspace_dir,
         })
     );
-    let (empty_dirs_to_delete, empty_dir_violations) = plan_workspace_empty_directory_cleanup(
+    let project_root_keys = snapshot
+        .project_roots
+        .iter()
+        .flat_map(|project_root| build_comparison_keys(project_root))
+        .collect::<HashSet<_>>();
+    let (raw_empty_dirs_to_delete, raw_empty_dir_violations) = plan_workspace_empty_directory_cleanup(
         &snapshot.workspace_dir,
         &files_to_delete,
         &dirs_to_delete,
@@ -1739,6 +1776,14 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
         &empty_dir_absolute_exclude_set,
         &empty_dir_relative_exclude_set,
     );
+    let empty_dirs_to_delete = raw_empty_dirs_to_delete
+        .into_iter()
+        .filter(|empty_dir| !target_matches_project_root(empty_dir, &project_root_keys))
+        .collect::<Vec<_>>();
+    let empty_dir_violations = raw_empty_dir_violations
+        .into_iter()
+        .filter(|violation| !target_matches_project_root(&violation.target_path, &project_root_keys))
+        .collect::<Vec<_>>();
     tnmsc_logger::log_info!(
         logger,
         "cleanup native empty directory planning complete",
@@ -2294,7 +2339,7 @@ mod tests {
     }
 
     #[test]
-    fn skips_workspace_project_trees_during_empty_directory_scan() {
+    fn prunes_empty_directories_inside_project_trees_without_deleting_project_roots() {
         let temp_dir = tempdir().unwrap();
         let workspace_dir = temp_dir.path().join("workspace");
         let project_root = workspace_dir.join("packages/app");
@@ -2309,15 +2354,23 @@ mod tests {
         snapshot.project_roots = vec![path_to_string(&project_root)];
 
         let plan = plan_cleanup(snapshot).unwrap();
-        assert!(!plan
+        assert!(plan
             .empty_dirs_to_delete
             .contains(&path_to_string(&project_root.join("empty"))));
-        assert!(!plan
+        assert!(plan
             .empty_dirs_to_delete
             .contains(&path_to_string(&project_leaf_dir)));
         assert!(!plan
             .empty_dirs_to_delete
             .contains(&path_to_string(&workspace_dir.join("packages"))));
+        assert!(!plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&project_root)));
+        assert!(!plan
+            .violations
+            .iter()
+            .any(|violation| violation.target_path == path_to_string(&project_root)));
+        assert!(plan.violations.is_empty());
         assert!(plan
             .empty_dirs_to_delete
             .contains(&path_to_string(&workspace_dir.join("scratch/empty"))));
@@ -2360,6 +2413,41 @@ mod tests {
         assert!(plan
             .empty_dirs_to_delete
             .contains(&path_to_string(&regular_leaf_dir)));
+    }
+
+    #[test]
+    fn prunes_empty_ide_directories() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let project_root = workspace_dir.join("packages/app");
+        let vscode_dir = project_root.join(".vscode");
+        let idea_code_styles_dir = project_root.join(".idea/codeStyles");
+
+        fs::create_dir_all(&vscode_dir).unwrap();
+        fs::create_dir_all(&idea_code_styles_dir).unwrap();
+
+        let mut snapshot =
+            single_plugin_snapshot(&workspace_dir, vec![], CleanupDeclarationsDto::default());
+        snapshot.project_roots = vec![path_to_string(&project_root)];
+
+        let plan = plan_cleanup(snapshot).unwrap();
+        assert!(plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&vscode_dir)));
+        assert!(plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&idea_code_styles_dir)));
+        assert!(plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&project_root.join(".idea"))));
+        assert!(!plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&project_root)));
+        assert!(!plan
+            .violations
+            .iter()
+            .any(|violation| violation.target_path == path_to_string(&project_root)));
+        assert!(plan.violations.is_empty());
     }
 
     #[test]

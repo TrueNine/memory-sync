@@ -1,4 +1,4 @@
-import type {CommandPrompt, InputCapabilityContext, OutputCleanContext, OutputWriteContext, SubAgentPrompt} from './plugin-core'
+import type {CommandPrompt, InputCapabilityContext, OutputCleanContext, OutputWriteContext, SkillPrompt, SubAgentPrompt} from './plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -47,7 +47,43 @@ function createInputContext(tempWorkspace: string): InputCapabilityContext {
   } as InputCapabilityContext
 }
 
-function createCleanContext(): OutputCleanContext {
+function createCleanContext(tempWorkspace?: string): OutputCleanContext {
+  const workspaceDirectory = tempWorkspace == null
+    ? {
+        pathKind: FilePathKind.Relative,
+        path: '.',
+        basePath: '.',
+        getDirectoryName: () => '.',
+        getAbsolutePath: () => path.resolve('.')
+      }
+    : {
+        pathKind: FilePathKind.Absolute,
+        path: tempWorkspace,
+        getDirectoryName: () => path.basename(tempWorkspace)
+      }
+
+  const projects = tempWorkspace == null
+    ? []
+    : [{
+        name: 'project-a',
+        dirFromWorkspacePath: {
+          pathKind: FilePathKind.Relative,
+          path: 'project-a',
+          basePath: tempWorkspace,
+          getDirectoryName: () => 'project-a',
+          getAbsolutePath: () => path.join(tempWorkspace, 'project-a')
+        }
+      }, {
+        name: 'project-b',
+        dirFromWorkspacePath: {
+          pathKind: FilePathKind.Relative,
+          path: 'project-b',
+          basePath: tempWorkspace,
+          getDirectoryName: () => 'project-b',
+          getAbsolutePath: () => path.join(tempWorkspace, 'project-b')
+        }
+      }]
+
   return {
     logger: {
       trace: () => {},
@@ -66,14 +102,8 @@ function createCleanContext(): OutputCleanContext {
     },
     collectedOutputContext: {
       workspace: {
-        directory: {
-          pathKind: FilePathKind.Relative,
-          path: '.',
-          basePath: '.',
-          getDirectoryName: () => '.',
-          getAbsolutePath: () => path.resolve('.')
-        },
-        projects: []
+        directory: workspaceDirectory,
+        projects
       }
     }
   } as OutputCleanContext
@@ -83,7 +113,8 @@ function createWriteContext(
   tempWorkspace: string,
   commands: readonly CommandPrompt[],
   subAgents: readonly SubAgentPrompt[] = [],
-  pluginOptions?: OutputWriteContext['pluginOptions']
+  pluginOptions?: OutputWriteContext['pluginOptions'],
+  skills: readonly SkillPrompt[] = []
 ): OutputWriteContext {
   return {
     logger: createLogger('CodexCLIOutputPluginTest', 'error'),
@@ -121,7 +152,8 @@ function createWriteContext(
         }]
       },
       commands,
-      subAgents
+      subAgents,
+      skills
     }
   } as OutputWriteContext
 }
@@ -194,6 +226,41 @@ function createSubAgentPrompt(scope: 'project' | 'global'): SubAgentPrompt {
     } as unknown as SubAgentPrompt['yamlFrontMatter'],
     markdownContents: []
   } as SubAgentPrompt
+}
+
+function createSkillPrompt(
+  scope: 'project' | 'global',
+  name: string
+): SkillPrompt {
+  return {
+    type: PromptKind.Skill,
+    content: 'skill body',
+    length: 10,
+    filePathKind: FilePathKind.Relative,
+    skillName: name,
+    dir: {
+      pathKind: FilePathKind.Relative,
+      path: `skills/${name}`,
+      basePath: path.resolve('tmp/dist/skills'),
+      getDirectoryName: () => name,
+      getAbsolutePath: () => path.resolve('tmp/dist/skills', name)
+    },
+    yamlFrontMatter: {
+      description: 'Skill description',
+      scope
+    },
+    mcpConfig: {
+      type: PromptKind.SkillMcpConfig,
+      mcpServers: {
+        inspector: {
+          command: 'npx',
+          args: ['inspector']
+        }
+      },
+      rawContent: '{"mcpServers":{"inspector":{"command":"npx","args":["inspector"]}}}'
+    },
+    markdownContents: []
+  } as SkillPrompt
 }
 
 describe('codexCLIOutputPlugin command output', () => {
@@ -333,6 +400,126 @@ describe('codexCLIOutputPlugin command output', () => {
     })
   })
 
+  it('writes project-scoped skills and mcp into each project .codex/skills directory', async () => {
+    await withTempCodexDirs('tnmsc-codex-project-skills', async ({workspace, homeDir}) => {
+      const plugin = new TestCodexCLIOutputPlugin(homeDir)
+      const writeCtx = createWriteContext(
+        workspace,
+        [],
+        [],
+        void 0,
+        [createSkillPrompt('project', 'ship-it')]
+      )
+
+      const declarations = await plugin.declareOutputFiles(writeCtx)
+      const paths = declarations.map(declaration => declaration.path)
+
+      expect(paths).toContain(
+        path.join(workspace, 'project-a', '.codex', 'skills', 'ship-it', 'SKILL.md')
+      )
+      expect(paths).toContain(
+        path.join(workspace, 'project-a', '.codex', 'skills', 'ship-it', 'mcp.json')
+      )
+      expect(paths).toContain(
+        path.join(workspace, 'project-b', '.codex', 'skills', 'ship-it', 'SKILL.md')
+      )
+      expect(paths).toContain(
+        path.join(workspace, 'project-b', '.codex', 'skills', 'ship-it', 'mcp.json')
+      )
+      expect(paths).not.toContain(
+        path.join(homeDir, '.codex', 'skills', 'ship-it', 'SKILL.md')
+      )
+    })
+  })
+
+  it('keeps codex skill files global when only mcp is project-scoped', async () => {
+    await withTempCodexDirs('tnmsc-codex-split-scope-project-mcp', async ({workspace, homeDir}) => {
+      const plugin = new TestCodexCLIOutputPlugin(homeDir)
+      const writeCtx = createWriteContext(
+        workspace,
+        [],
+        [],
+        {
+          outputScopes: {
+            plugins: {
+              CodexCLIOutputPlugin: {
+                skills: 'global',
+                mcp: 'project'
+              }
+            }
+          }
+        },
+        [
+          createSkillPrompt('project', 'inspect-locally'),
+          createSkillPrompt('global', 'ship-it')
+        ]
+      )
+
+      const declarations = await plugin.declareOutputFiles(writeCtx)
+      const paths = declarations.map(declaration => declaration.path)
+
+      expect(paths).toContain(
+        path.join(homeDir, '.codex', 'skills', 'ship-it', 'SKILL.md')
+      )
+      expect(paths).toContain(
+        path.join(workspace, 'project-a', '.codex', 'skills', 'inspect-locally', 'mcp.json')
+      )
+      expect(paths).toContain(
+        path.join(workspace, 'project-b', '.codex', 'skills', 'inspect-locally', 'mcp.json')
+      )
+      expect(paths).not.toContain(
+        path.join(workspace, 'project-a', '.codex', 'skills', 'ship-it', 'SKILL.md')
+      )
+      expect(paths).not.toContain(
+        path.join(homeDir, '.codex', 'skills', 'inspect-locally', 'mcp.json')
+      )
+    })
+  })
+
+  it('keeps codex skill files project-scoped when only mcp is global-scoped', async () => {
+    await withTempCodexDirs('tnmsc-codex-split-scope-global-mcp', async ({workspace, homeDir}) => {
+      const plugin = new TestCodexCLIOutputPlugin(homeDir)
+      const writeCtx = createWriteContext(
+        workspace,
+        [],
+        [],
+        {
+          outputScopes: {
+            plugins: {
+              CodexCLIOutputPlugin: {
+                skills: 'project',
+                mcp: 'global'
+              }
+            }
+          }
+        },
+        [
+          createSkillPrompt('project', 'ship-it'),
+          createSkillPrompt('global', 'inspect-globally')
+        ]
+      )
+
+      const declarations = await plugin.declareOutputFiles(writeCtx)
+      const paths = declarations.map(declaration => declaration.path)
+
+      expect(paths).toContain(
+        path.join(workspace, 'project-a', '.codex', 'skills', 'ship-it', 'SKILL.md')
+      )
+      expect(paths).toContain(
+        path.join(workspace, 'project-b', '.codex', 'skills', 'ship-it', 'SKILL.md')
+      )
+      expect(paths).toContain(
+        path.join(homeDir, '.codex', 'skills', 'inspect-globally', 'mcp.json')
+      )
+      expect(paths).not.toContain(
+        path.join(homeDir, '.codex', 'skills', 'ship-it', 'SKILL.md')
+      )
+      expect(paths).not.toContain(
+        path.join(workspace, 'project-a', '.codex', 'skills', 'inspect-globally', 'mcp.json')
+      )
+    })
+  })
+
   it('cleans global codex skills while preserving the built-in .system directory', async () => {
     await withTempCodexDirs('tnmsc-codex-cleanup-skills', async ({homeDir}) => {
       const plugin = new TestCodexCLIOutputPlugin(homeDir)
@@ -359,6 +546,42 @@ describe('codexCLIOutputPlugin command output', () => {
       expect(normalizedDeleteDirs).toContain(normalizedStaleDir)
       expect(normalizedDeleteDirs).not.toContain(normalizedPreservedDir)
       expect(cleanupPlan.violations).toEqual([])
+    })
+  })
+
+  it('keeps legacy .skills cleanup declarations for both project and global scopes', async () => {
+    await withTempCodexDirs('tnmsc-codex-cleanup-legacy-skills', async ({workspace, homeDir}) => {
+      const plugin = new TestCodexCLIOutputPlugin(homeDir)
+      const cleanupDeclarations = await plugin.declareCleanupPaths(createCleanContext(workspace))
+      const deletePaths = cleanupDeclarations.delete?.map(target => target.path.replaceAll('\\', '/')) ?? []
+
+      expect(deletePaths).toContain(
+        path.join(workspace, 'project-a', '.skills').replaceAll('\\', '/')
+      )
+      expect(deletePaths).toContain(
+        path.join(workspace, 'project-b', '.skills').replaceAll('\\', '/')
+      )
+      expect(deletePaths).toContain(
+        path.join(homeDir, '.skills').replaceAll('\\', '/')
+      )
+    })
+  })
+
+  it('keeps legacy .agents/skills cleanup declarations for both project and global scopes', async () => {
+    await withTempCodexDirs('tnmsc-codex-cleanup-legacy-agentskills', async ({workspace, homeDir}) => {
+      const plugin = new TestCodexCLIOutputPlugin(homeDir)
+      const cleanupDeclarations = await plugin.declareCleanupPaths(createCleanContext(workspace))
+      const deletePaths = cleanupDeclarations.delete?.map(target => target.path.replaceAll('\\', '/')) ?? []
+
+      expect(deletePaths).toContain(
+        path.join(workspace, 'project-a', '.agents', 'skills').replaceAll('\\', '/')
+      )
+      expect(deletePaths).toContain(
+        path.join(workspace, 'project-b', '.agents', 'skills').replaceAll('\\', '/')
+      )
+      expect(deletePaths).toContain(
+        path.join(homeDir, '.agents', 'skills').replaceAll('\\', '/')
+      )
     })
   })
 })
