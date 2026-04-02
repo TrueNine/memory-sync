@@ -14,6 +14,10 @@ inputs:
     description: Optional npm registry URL to configure for npm publish/auth steps
     required: false
     default: ""
+  cache:
+    description: Whether to enable actions/setup-node pnpm cache
+    required: false
+    default: "true"
   install:
     description: Whether to run pnpm install
     required: false
@@ -31,12 +35,21 @@ runs:
       with:
         version: ${{ inputs.pnpm-version }}
 
-    - name: Setup Node
+    - name: Setup Node with pnpm cache
+      if: inputs.cache == 'true'
       uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
         cache: pnpm
         cache-dependency-path: pnpm-lock.yaml
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Setup Node without pnpm cache
+      if: inputs.cache != 'true'
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        package-manager-cache: false
         registry-url: ${{ inputs.registry-url }}
 
     - name: Install workspace dependencies

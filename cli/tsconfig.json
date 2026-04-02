@@ -14,8 +14,6 @@
       "@sdk": ["../sdk/src/index.ts"],
       "@sdk/*": ["../sdk/src/*"],
       "@/*": ["./src/*"],
-      "@truenine/script-runtime": ["../libraries/script-runtime/dist/index.d.mts"],
-      "@truenine/script-runtime/*": ["../libraries/script-runtime/dist/*"],
       "@truenine/desk-paths": ["./src/core/desk-paths.ts"],
       "@truenine/desk-paths/*": ["./src/core/desk-paths/*"],
       "@truenine/plugin-output-shared": ["./src/plugins/plugin-output-shared/index.ts"],
