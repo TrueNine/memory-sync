@@ -55,10 +55,10 @@ jobs:
         with:
           github-token: ${{ github.token }}
 
-  check:
+  build:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -74,14 +74,152 @@ jobs:
       - name: Build
         run: pnpm run build
 
+  lint:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: pr
+
+      - name: Build native modules
+        run: pnpm run build:native
+
       - name: Lint
         run: pnpm run lint
+
+  check-type:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: pr
+
+      - name: Build native modules
+        run: pnpm run build:native
 
       - name: Typecheck
         run: pnpm run check:type
 
-      - name: Run tests
+  test:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: pr
+
+      - name: Build native modules
+        run: pnpm run build:native
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Run all tests
         run: pnpm run test
+
+  test-sdk:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: pr
+
+      - name: Build native modules
+        run: pnpm run build:native
+
+      - name: SDK tests
+        run: pnpm turbo test --filter=@truenine/memory-sync-sdk
+
+  test-cli:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: pr
+
+      - name: Build native modules
+        run: pnpm run build:native
+
+      - name: CLI tests
+        run: pnpm turbo test --filter=@truenine/memory-sync-cli
+
+  test-mcp:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: pr
+
+      - name: Build native modules
+        run: pnpm run build:native
+
+      - name: MCP tests
+        run: pnpm turbo test --filter=@truenine/memory-sync-mcp
+
+  test-libraries:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: pr
+
+      - name: Build native modules
+        run: pnpm run build:native
+
+      - name: Library tests
+        run: pnpm turbo test --filter=@truenine/logger --filter=@truenine/md-compiler --filter=@truenine/script-runtime
+
+  test-rust:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: pr
 
       - name: Rust tests (excluding GUI)
         run: cargo test --workspace --exclude memory-sync-gui --lib --bins --tests
