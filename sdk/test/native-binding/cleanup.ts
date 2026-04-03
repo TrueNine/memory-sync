@@ -1,5 +1,5 @@
+import type {ILogger} from '@truenine/logger'
 import type {
-  ILogger,
   OutputCleanContext,
   OutputCleanupDeclarations,
   OutputCleanupPathDeclaration,
