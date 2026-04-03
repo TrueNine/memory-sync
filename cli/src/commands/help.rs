@@ -10,7 +10,6 @@ pub fn execute() -> ExitCode {
     println!("  (default)    Sync AI memory and configuration files");
     println!("  dry-run      Preview changes without writing files");
     println!("  clean        Remove all generated output files");
-    println!("  config       Set or show configuration values");
     println!("  plugins      List all registered plugins");
     println!("  version      Show version information");
     println!("  help         Show this help message");
@@ -21,5 +20,9 @@ pub fn execute() -> ExitCode {
     println!("  --info       Set log level to info");
     println!("  --warn       Set log level to warn");
     println!("  --error      Set log level to error");
+    println!();
+    println!("CONFIGURATION:");
+    println!("  Global user config: ~/.aindex/.tnmsc.json");
+    println!("  Project runtime assembly: plugin.config.ts");
     ExitCode::SUCCESS
 }

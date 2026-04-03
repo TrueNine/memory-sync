@@ -82,7 +82,6 @@ export function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<P
   return {
     ...userConfig.version != null ? {version: userConfig.version} : {},
     ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},
-    ...userConfig.aindex != null ? {aindex: userConfig.aindex} : {},
     ...userConfig.commandSeriesOptions != null ? {commandSeriesOptions: userConfig.commandSeriesOptions} : {},
     ...userConfig.outputScopes != null ? {outputScopes: userConfig.outputScopes} : {},
     ...userConfig.frontMatter != null ? {frontMatter: userConfig.frontMatter} : {},

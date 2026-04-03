@@ -32,8 +32,6 @@
   "config.openDir": "Open Config Dir",
   "config.field.workspaceDir": "Workspace Dir",
   "config.field.workspaceDir.desc": "Root workspace directory path",
-  "config.field.aindex.dir": "Aindex Dir",
-  "config.field.aindex.dir.desc": "Directory name of the aindex inside the workspace",
   "config.field.logLevel": "Log Level",
   "config.field.logLevel.desc": "CLI log output level",
   "plugins.title": "Plugins",

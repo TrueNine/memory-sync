@@ -85,16 +85,6 @@ const ConfigForm: FC<ConfigFormProps> = ({ data, onChange, t }) => {
     }
   }, [data, onChange])
 
-  const updateNestedField = useCallback((parent: string, field: string, value: unknown) => {
-    const parentObj = (typeof data[parent] === 'object' && data[parent] !== null ? data[parent] : {}) as Record<string, unknown>
-    const next = { ...data, [parent]: { ...parentObj, [field]: value === '' ? undefined : value } }
-    onChange(next)
-  }, [data, onChange])
-
-  const aindex = (typeof data['aindex'] === 'object' && data['aindex'] !== null
-    ? data['aindex']
-    : {}) as Record<string, unknown>
-
   return (
     <div className="flex flex-col gap-5 overflow-y-auto p-1">
       {TOP_LEVEL_STRING_FIELDS.map((field) => (
@@ -107,14 +97,6 @@ const ConfigForm: FC<ConfigFormProps> = ({ data, onChange, t }) => {
           placeholder="~/project"
         />
       ))}
-
-      <FormField
-        label={t('config.field.aindex.dir')}
-        description={t('config.field.aindex.dir.desc')}
-        value={(aindex['dir'] as string) ?? ''}
-        onChange={(v) => updateNestedField('aindex', 'dir', v)}
-        placeholder="aindex"
-      />
 
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-foreground">{t('config.field.logLevel')}</label>

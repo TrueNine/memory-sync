@@ -10,7 +10,7 @@
 export type ValidationSeverity = 'error' | 'warning'
 
 export interface ValidationError {
-  /** Dot-separated path to the offending field, e.g. "aindex.skills.src" */
+  /** Dot-separated path to the offending field, e.g. "workspaceDir" */
   readonly field: string
   /** Human-readable description of the problem */
   readonly message: string
@@ -19,16 +19,18 @@ export interface ValidationError {
 }
 
 /**
- * All fields that the CLI config schema recognises.
+ * All fields that the user config schema recognises.
  * Used to detect unknown / extra keys.
  */
 const KNOWN_FIELDS: ReadonlySet<string> = new Set([
   'version',
   'workspaceDir',
-  'aindex',
   'logLevel',
   'commandSeriesOptions',
   'outputScopes',
+  'frontMatter',
+  'cleanupProtection',
+  'windows',
   'profile',
 ])
 
@@ -39,37 +41,6 @@ const VALID_LOG_LEVELS: ReadonlySet<string> = new Set([
   'warn',
   'error',
 ])
-
-const AINDEX_PAIR_KEYS = [
-  'skills',
-  'commands',
-  'subAgents',
-  'rules',
-  'globalPrompt',
-  'workspacePrompt',
-  'app',
-  'ext',
-  'arch',
-] as const
-
-/**
- * Validate a { src, dist } pair object
- */
-function validateDirPair(value: unknown, fieldPath: string): ValidationError[] {
-  const errors: ValidationError[] = []
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    errors.push({field: fieldPath, message: `${fieldPath} must be an object with "src" and "dist" string fields`, severity: 'error'})
-    return errors
-  }
-  const pair = value as Record<string, unknown>
-  if (!('src' in pair) || typeof pair['src'] !== 'string') {
-    errors.push({field: `${fieldPath}.src`, message: `${fieldPath}.src must be a string`, severity: 'error'})
-  }
-  if (!('dist' in pair) || typeof pair['dist'] !== 'string') {
-    errors.push({field: `${fieldPath}.dist`, message: `${fieldPath}.dist must be a string`, severity: 'error'})
-  }
-  return errors
-}
 
 /**
  * Validate a raw config object and return all validation issues.
@@ -113,25 +84,6 @@ export function validateConfig(raw: unknown): readonly ValidationError[] {
   // ── workspaceDir ─────────────────────────────────────────────────────
   if ('workspaceDir' in obj && typeof obj['workspaceDir'] !== 'string') {
     errors.push({ field: 'workspaceDir', message: 'workspaceDir must be a string', severity: 'error' })
-  }
-
-  // ── aindex ──────────────────────────────────────────────
-  if ('aindex' in obj) {
-    const ssp = obj['aindex']
-    if (typeof ssp !== 'object' || ssp === null || Array.isArray(ssp)) {
-      errors.push({ field: 'aindex', message: 'aindex must be an object', severity: 'error' })
-    } else {
-      const sspObj = ssp as Record<string, unknown>
-      // Validate dir field (optional string)
-      if ('dir' in sspObj && typeof sspObj['dir'] !== 'string') {
-        errors.push({ field: 'aindex.dir', message: 'aindex.dir must be a string', severity: 'error' })
-      }
-      for (const key of AINDEX_PAIR_KEYS) {
-        if (key in sspObj) {
-          errors.push(...validateDirPair(sspObj[key], `aindex.${key}`))
-        }
-      }
-    }
   }
 
   // ── logLevel ─────────────────────────────────────────────────────────

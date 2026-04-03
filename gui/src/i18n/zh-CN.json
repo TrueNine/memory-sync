@@ -32,8 +32,6 @@
   "config.openDir": "打开配置目录",
   "config.field.workspaceDir": "工作区目录",
   "config.field.workspaceDir.desc": "工作区根目录路径",
-  "config.field.aindex.dir": "Aindex 目录名",
-  "config.field.aindex.dir.desc": "工作区内 aindex 目录的名称",
   "config.field.logLevel": "日志级别",
   "config.field.logLevel.desc": "CLI 日志输出级别",
   "plugins.title": "插件列表",

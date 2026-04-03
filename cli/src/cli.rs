@@ -52,9 +52,6 @@ pub enum CliCommand {
     /// Remove all generated output files and directories
     Clean(CleanArgs),
 
-    /// Set or show configuration values
-    Config(ConfigArgs),
-
     /// List all registered plugins
     Plugins,
 }
@@ -64,20 +61,6 @@ pub struct CleanArgs {
     /// Preview cleanup without removing files
     #[arg(short = 'n', long = "dry-run")]
     pub dry_run: bool,
-}
-
-#[derive(Args, Debug)]
-pub struct ConfigArgs {
-    /// Show merged configuration as JSON
-    #[arg(long = "show")]
-    pub show: bool,
-
-    /// Configuration key=value pairs to set
-    #[arg(long = "set", value_name = "KEY=VALUE")]
-    pub set: Vec<String>,
-
-    /// Positional key=value pairs
-    pub positional: Vec<String>,
 }
 
 /// Resolved log level from CLI flags.
@@ -161,32 +144,7 @@ pub enum ResolvedCommand {
     DryRun,
     Clean,
     DryRunClean,
-    Config(Vec<(String, String)>),
-    ConfigShow,
     Plugins,
-}
-
-/// Parse --set and positional key=value pairs into (key, value) tuples.
-fn parse_key_value_pairs(args: &ConfigArgs) -> Vec<(String, String)> {
-    let mut pairs = Vec::new();
-
-    for s in &args.set {
-        if let Some(eq_idx) = s.find('=')
-            && eq_idx > 0
-        {
-            pairs.push((s[..eq_idx].to_string(), s[eq_idx + 1..].to_string()));
-        }
-    }
-
-    for s in &args.positional {
-        if let Some(eq_idx) = s.find('=')
-            && eq_idx > 0
-        {
-            pairs.push((s[..eq_idx].to_string(), s[eq_idx + 1..].to_string()));
-        }
-    }
-
-    pairs
 }
 
 /// Resolve the command to execute from parsed CLI args.
@@ -201,18 +159,6 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
                 ResolvedCommand::DryRunClean
             } else {
                 ResolvedCommand::Clean
-            }
-        }
-        Some(CliCommand::Config(args)) => {
-            if args.show {
-                ResolvedCommand::ConfigShow
-            } else {
-                let pairs = parse_key_value_pairs(args);
-                if pairs.is_empty() {
-                    ResolvedCommand::Execute
-                } else {
-                    ResolvedCommand::Config(pairs)
-                }
             }
         }
         Some(CliCommand::Plugins) => ResolvedCommand::Plugins,
@@ -234,24 +180,5 @@ mod tests {
     fn resolve_command_parses_clean_dry_run() {
         let cli = Cli::parse_from(["tnmsc", "clean", "--dry-run"]);
         assert_eq!(resolve_command(&cli), ResolvedCommand::DryRunClean);
-    }
-
-    #[test]
-    fn config_key_value_parsing_combines_flag_and_positional_pairs() {
-        let cli = Cli::parse_from([
-            "tnmsc",
-            "config",
-            "--set",
-            "workspaceDir=/tmp/workspace",
-            "logLevel=debug",
-        ]);
-
-        assert_eq!(
-            resolve_command(&cli),
-            ResolvedCommand::Config(vec![
-                ("workspaceDir".to_string(), "/tmp/workspace".to_string()),
-                ("logLevel".to_string(), "debug".to_string()),
-            ])
-        );
     }
 }

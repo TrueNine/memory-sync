@@ -1,6 +1,5 @@
 import type {ILogger} from '@truenine/logger'
 import type {
-  AindexConfig,
   CleanupProtectionOptions,
   ConfigLoaderOptions,
   ConfigLoadResult,
@@ -19,7 +18,9 @@ import {
   diagnosticLines,
   splitDiagnosticText
 } from './diagnostics'
-import {mergeAindexConfig, ZUserConfigFile} from './plugins/plugin-core'
+import {
+  ZUserConfigFile
+} from './plugins/plugin-core'
 import {
   getRequiredGlobalConfigPath,
   resolveRuntimeEnvironment,
@@ -162,7 +163,6 @@ export class ConfigLoader {
     const reversed = [...configs].reverse() // Reverse to merge from lowest to highest priority
 
     return reversed.reduce<UserConfigFile>((acc, config) => {
-      const mergedAindex = this.mergeAindex(acc.aindex, config.aindex)
       const mergedOutputScopes = this.mergeOutputScopeOptions(acc.outputScopes, config.outputScopes)
       const mergedFrontMatter = this.mergeFrontMatterOptions(acc.frontMatter, config.frontMatter)
       const mergedCleanupProtection = this.mergeCleanupProtectionOptions(
@@ -174,23 +174,12 @@ export class ConfigLoader {
       return {
         ...acc,
         ...config,
-        ...mergedAindex != null ? {aindex: mergedAindex} : {},
         ...mergedOutputScopes != null ? {outputScopes: mergedOutputScopes} : {},
         ...mergedFrontMatter != null ? {frontMatter: mergedFrontMatter} : {},
         ...mergedCleanupProtection != null ? {cleanupProtection: mergedCleanupProtection} : {},
         ...mergedWindows != null ? {windows: mergedWindows} : {}
       }
     }, {})
-  }
-
-  private mergeAindex(
-    a?: AindexConfig,
-    b?: AindexConfig
-  ): AindexConfig | undefined {
-    if (a == null && b == null) return void 0
-    if (a == null) return b
-    if (b == null) return a
-    return mergeAindexConfig(a, b)
   }
 
   private mergeOutputScopeTopics(
