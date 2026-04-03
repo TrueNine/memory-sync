@@ -10,7 +10,7 @@ inputs:
     required: false
     default: "https://registry.npmjs.org/"
   package-dir:
-    description: Directory containing package.json to publish
+    description: Directory containing a package.json to publish, or a parent directory whose immediate children each contain a package.json
     required: true
   verify-attempts:
     description: Number of verification attempts
@@ -35,10 +35,9 @@ runs:
       run: |
         set -euo pipefail
 
-        package_name=$(jq -r '.name' "${PACKAGE_DIR}/package.json")
-        package_version=$(jq -r '.version' "${PACKAGE_DIR}/package.json")
-
         registry_version_exists() {
+          local package_name="$1"
+          local package_version="$2"
           local encoded_package_name
           local version_json
           local published_version
@@ -55,22 +54,34 @@ runs:
         }
 
         version_exists() {
+          local package_dir="$1"
+          local package_name
+          local package_version
           local published_version
+
+          package_name=$(jq -r '.name' "${package_dir}/package.json")
+          package_version=$(jq -r '.version' "${package_dir}/package.json")
           published_version=$(npm view "${package_name}@${package_version}" version --registry "$REGISTRY_URL" 2>/dev/null || true)
 
           if [[ "$published_version" == "$package_version" ]]; then
             return 0
           fi
 
-          registry_version_exists
+          registry_version_exists "$package_name" "$package_version"
         }
 
         verify_version_exists() {
+          local package_dir="$1"
+          local package_name
+          local package_version
           local attempts="$VERIFY_ATTEMPTS"
           local delay_seconds="$VERIFY_DELAY"
 
+          package_name=$(jq -r '.name' "${package_dir}/package.json")
+          package_version=$(jq -r '.version' "${package_dir}/package.json")
+
           for attempt in $(seq 1 "$attempts"); do
-            if version_exists; then
+            if version_exists "$package_dir"; then
               echo "Verified ${package_name}@${package_version} on npm"
               return 0
             fi
@@ -87,31 +98,61 @@ runs:
           return 1
         }
 
-        if version_exists; then
-          echo "${package_name}@${package_version} already exists on npm, skipping"
-          exit 0
-        fi
+        publish_package() {
+          local package_dir="$1"
+          local package_name
+          local package_version
+          local publish_log
 
-        publish_log=$(mktemp)
+          package_name=$(jq -r '.name' "${package_dir}/package.json")
+          package_version=$(jq -r '.version' "${package_dir}/package.json")
 
-        if (cd "$PACKAGE_DIR" && pnpm publish --access public --no-git-checks) 2>&1 | tee "$publish_log"; then
-          verify_version_exists
+          if version_exists "$package_dir"; then
+            echo "${package_name}@${package_version} already exists on npm, skipping"
+            return 0
+          fi
+
+          publish_log=$(mktemp)
+
+          if (cd "$package_dir" && pnpm publish --access public --no-git-checks) 2>&1 | tee "$publish_log"; then
+            verify_version_exists "$package_dir"
+            rm -f "$publish_log"
+            return 0
+          fi
+
+          if grep -Eiq 'cannot publish over the previously published versions|previously published versions' "$publish_log"; then
+            echo "${package_name}@${package_version} was already published according to npm, skipping"
+            rm -f "$publish_log"
+            return 0
+          fi
+
+          if version_exists "$package_dir"; then
+            echo "${package_name}@${package_version} already exists on npm after publish attempt, skipping"
+            rm -f "$publish_log"
+            return 0
+          fi
+
+          echo "::error::Failed to publish ${package_name}@${package_version}. Exact version is still missing from npm."
           rm -f "$publish_log"
-          exit 0
+          return 1
+        }
+
+        package_dirs=()
+        if [[ -f "${PACKAGE_DIR}/package.json" ]]; then
+          package_dirs+=("$PACKAGE_DIR")
+        else
+          shopt -s nullglob
+          for package_json in "$PACKAGE_DIR"/*/package.json; do
+            package_dirs+=("$(dirname "$package_json")")
+          done
         fi
 
-        if grep -Eiq 'cannot publish over the previously published versions|previously published versions' "$publish_log"; then
-          echo "${package_name}@${package_version} was already published according to npm, skipping"
-          rm -f "$publish_log"
-          exit 0
+        if [[ "${#package_dirs[@]}" -eq 0 ]]; then
+          echo "::error::No publishable package.json found in ${PACKAGE_DIR}"
+          exit 1
         fi
 
-        if version_exists; then
-          echo "${package_name}@${package_version} already exists on npm after publish attempt, skipping"
-          rm -f "$publish_log"
-          exit 0
-        fi
-
-        echo "::error::Failed to publish ${package_name}@${package_version}. Exact version is still missing from npm."
-        rm -f "$publish_log"
-        exit 1
+        for package_dir in "${package_dirs[@]}"; do
+          echo "Publishing package from ${package_dir}"
+          publish_package "$package_dir"
+        done
