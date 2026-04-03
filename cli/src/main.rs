@@ -1,6 +1,6 @@
 //! tnmsc — Rust CLI shell entry point.
 //!
-//! Pure Rust commands: help, version, config, config-show
+//! Pure Rust commands: help, version
 //! Bridge commands (Node.js): execute, dry-run, clean, plugins
 
 mod cli;
@@ -25,8 +25,6 @@ fn main() -> ExitCode {
     let exit_code = match command {
         ResolvedCommand::Help => commands::help::execute(),
         ResolvedCommand::Version => commands::version::execute(),
-        ResolvedCommand::Config(pairs) => commands::config_cmd::execute(&pairs),
-        ResolvedCommand::ConfigShow => commands::config_show::execute(),
         ResolvedCommand::Execute => commands::bridge::execute(),
         ResolvedCommand::DryRun => commands::bridge::dry_run(),
         ResolvedCommand::Clean => commands::bridge::clean(),

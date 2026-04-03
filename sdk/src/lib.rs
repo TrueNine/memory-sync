@@ -1,6 +1,6 @@
 //! tnmsc library — exposes core functionality for GUI backend direct invocation.
 //!
-//! Pure Rust commands: version, load_config, config_show
+//! Pure Rust commands: version, load_config
 //! Bridge commands (Node.js): run_bridge_command
 
 pub mod bridge;
@@ -58,41 +58,6 @@ pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliEr
         .map_err(CliError::ConfigError)
 }
 
-/// Return the merged global configuration as a pretty-printed JSON string.
-pub fn config_show(cwd: &Path) -> Result<String, CliError> {
-    let result = core::config::ConfigLoader::with_defaults()
-        .try_load(cwd)
-        .map_err(CliError::ConfigError)?;
-    serde_json::to_string_pretty(&result.config).map_err(CliError::from)
-}
-
-/// Update the canonical global config from key/value pairs and return the saved path.
-pub fn update_global_config_from_pairs(
-    cwd: &Path,
-    pairs: &[(String, String)],
-) -> Result<std::path::PathBuf, CliError> {
-    let result = core::config::ConfigLoader::with_defaults()
-        .try_load(cwd)
-        .map_err(CliError::ConfigError)?;
-    let mut config = result.config;
-
-    for (key, value) in pairs {
-        match key.as_str() {
-            "workspaceDir" => config.workspace_dir = Some(value.clone()),
-            "logLevel" => config.log_level = Some(value.clone()),
-            _ => {}
-        }
-    }
-
-    let config_path = core::config::get_required_global_config_path().map_err(CliError::ConfigError)?;
-    if let Some(parent) = config_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let json = serde_json::to_string_pretty(&config)?;
-    std::fs::write(&config_path, &json)?;
-    Ok(config_path)
-}
-
 /// Execute a bridge command (execute, dry-run, clean, plugins) via Node.js subprocess.
 ///
 /// The subprocess output is captured (piped) and returned as a [`BridgeCommandResult`].
@@ -147,19 +112,6 @@ mod property_tests {
             let merged = result.unwrap();
             prop_assert!(merged.sources.is_empty() || !merged.sources.is_empty(),
                 "sources should be a valid Vec");
-        }
-
-        // ---- config_show(cwd) ----
-
-        /// For any temporary directory, config_show returns Ok(String) containing valid JSON.
-        #[test]
-        fn prop_config_show_returns_valid_json(_seed in 0u64..100) {
-            let tmp = TempDir::new().expect("failed to create tempdir");
-            let result = config_show(tmp.path());
-            prop_assert!(result.is_ok(), "config_show should return Ok, got: {:?}", result.err());
-            let json_str = result.unwrap();
-            let parsed: Result<serde_json::Value, _> = serde_json::from_str(&json_str);
-            prop_assert!(parsed.is_ok(), "config_show output should be valid JSON, got: {}", json_str);
         }
 
         // ---- BridgeCommandResult structural property ----

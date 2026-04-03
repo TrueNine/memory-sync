@@ -79,9 +79,9 @@ const arbInvalidLogLevel: fc.Arbitrary<unknown> = fc.oneof(
 )
 
 /**
- * Arbitrary for an invalid aindex value — anything that is not a valid object.
+ * Arbitrary for removed aindex fields — any value should only trigger warnings now.
  */
-const arbInvalidAindex: fc.Arbitrary<unknown> = fc.oneof(
+const arbRemovedAindexField: fc.Arbitrary<unknown> = fc.oneof(
   fc.string(),
   fc.integer(),
   fc.boolean(),
@@ -155,16 +155,18 @@ describe('Property 3: 无效配置产生错误', () => {
   /**
    * **Validates: Requirements 3.4**
    *
-   * For any invalid aindex value (non-object), validateConfig should
-   * return at least one error for the aindex field.
+   * Removed aindex fields are ignored by the real loader, so the UI should
+   * surface them as warnings instead of blocking saves with hard errors.
    */
-  it('invalid aindex values produce errors', () => {
+  it('removed aindex fields produce warnings', () => {
     fc.assert(
-      fc.property(arbInvalidAindex, (badValue) => {
+      fc.property(arbRemovedAindexField, (badValue) => {
         const config = { aindex: badValue }
         const errors = validateConfig(config)
-        const aindexErrors = errors.filter((e) => e.field.startsWith('aindex') && e.severity === 'error')
-        expect(aindexErrors.length).toBeGreaterThan(0)
+        const aindexWarnings = errors.filter((e) => e.field === 'aindex' && e.severity === 'warning')
+        const aindexErrors = errors.filter((e) => e.field === 'aindex' && e.severity === 'error')
+        expect(aindexWarnings.length).toBeGreaterThan(0)
+        expect(aindexErrors).toHaveLength(0)
       }),
       { numRuns: 200 },
     )

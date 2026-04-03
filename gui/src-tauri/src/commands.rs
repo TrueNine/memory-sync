@@ -9,28 +9,10 @@ use std::process::Command as StdCommand;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use tnmsc::core::config as core_config;
 
 const PRIMARY_SOURCE_MDX_EXTENSION: &str = ".src.mdx";
 const SOURCE_MDX_FILE_TYPE: &str = "sourceMdx";
-const DEFAULT_AINDEX_DIR: &str = "aindex";
-const DEFAULT_SKILLS_SRC_DIR: &str = "skills";
-const DEFAULT_SKILLS_DIST_DIR: &str = "dist/skills";
-const DEFAULT_COMMANDS_SRC_DIR: &str = "commands";
-const DEFAULT_COMMANDS_DIST_DIR: &str = "dist/commands";
-const DEFAULT_SUB_AGENTS_SRC_DIR: &str = "subagents";
-const DEFAULT_SUB_AGENTS_DIST_DIR: &str = "dist/subagents";
-const DEFAULT_RULES_SRC_DIR: &str = "rules";
-const DEFAULT_RULES_DIST_DIR: &str = "dist/rules";
-const DEFAULT_APP_SRC_DIR: &str = "app";
-const DEFAULT_APP_DIST_DIR: &str = "dist/app";
-const DEFAULT_EXT_SRC_DIR: &str = "ext";
-const DEFAULT_EXT_DIST_DIR: &str = "dist/ext";
-const DEFAULT_ARCH_SRC_DIR: &str = "arch";
-const DEFAULT_ARCH_DIST_DIR: &str = "dist/arch";
-const DEFAULT_GLOBAL_PROMPT_SRC: &str = "global.src.mdx";
-const DEFAULT_GLOBAL_PROMPT_DIST: &str = "dist/global.mdx";
-const DEFAULT_WORKSPACE_PROMPT_SRC: &str = "workspace.src.mdx";
-const DEFAULT_WORKSPACE_PROMPT_DIST: &str = "dist/workspace.mdx";
 const PROJECT_SERIES_CATEGORIES: [&str; 3] = ["app", "ext", "arch"];
 const INTERNAL_BRIDGE_JSON_FLAG: &str = "--bridge-json";
 
@@ -399,7 +381,7 @@ fn resolve_category_paths(
     config: &tnmsc::core::config::UserConfigFile,
     category: &str,
 ) -> Result<CategoryPaths, String> {
-    let aindex = config.aindex.as_ref();
+    let aindex = &config.aindex;
 
     let resolve_pair = |pair: Option<&tnmsc::core::config::DirPair>,
                         default_source: &str,
@@ -419,39 +401,39 @@ fn resolve_category_paths(
 
     match category {
         "skills" => Ok(resolve_pair(
-            aindex.and_then(|value| value.skills.as_ref()),
-            DEFAULT_SKILLS_SRC_DIR,
-            DEFAULT_SKILLS_DIST_DIR,
+            aindex.skills.as_ref(),
+            core_config::DEFAULT_SKILLS_SRC_DIR,
+            core_config::DEFAULT_SKILLS_DIST_DIR,
         )),
         "commands" => Ok(resolve_pair(
-            aindex.and_then(|value| value.commands.as_ref()),
-            DEFAULT_COMMANDS_SRC_DIR,
-            DEFAULT_COMMANDS_DIST_DIR,
+            aindex.commands.as_ref(),
+            core_config::DEFAULT_COMMANDS_SRC_DIR,
+            core_config::DEFAULT_COMMANDS_DIST_DIR,
         )),
         "agents" => Ok(resolve_pair(
-            aindex.and_then(|value| value.sub_agents.as_ref()),
-            DEFAULT_SUB_AGENTS_SRC_DIR,
-            DEFAULT_SUB_AGENTS_DIST_DIR,
+            aindex.sub_agents.as_ref(),
+            core_config::DEFAULT_SUB_AGENTS_SRC_DIR,
+            core_config::DEFAULT_SUB_AGENTS_DIST_DIR,
         )),
         "rules" => Ok(resolve_pair(
-            aindex.and_then(|value| value.rules.as_ref()),
-            DEFAULT_RULES_SRC_DIR,
-            DEFAULT_RULES_DIST_DIR,
+            aindex.rules.as_ref(),
+            core_config::DEFAULT_RULES_SRC_DIR,
+            core_config::DEFAULT_RULES_DIST_DIR,
         )),
         "app" => Ok(resolve_pair(
-            aindex.and_then(|value| value.app.as_ref()),
-            DEFAULT_APP_SRC_DIR,
-            DEFAULT_APP_DIST_DIR,
+            aindex.app.as_ref(),
+            core_config::DEFAULT_APP_SRC_DIR,
+            core_config::DEFAULT_APP_DIST_DIR,
         )),
         "ext" => Ok(resolve_pair(
-            aindex.and_then(|value| value.ext.as_ref()),
-            DEFAULT_EXT_SRC_DIR,
-            DEFAULT_EXT_DIST_DIR,
+            aindex.ext.as_ref(),
+            core_config::DEFAULT_EXT_SRC_DIR,
+            core_config::DEFAULT_EXT_DIST_DIR,
         )),
         "arch" => Ok(resolve_pair(
-            aindex.and_then(|value| value.arch.as_ref()),
-            DEFAULT_ARCH_SRC_DIR,
-            DEFAULT_ARCH_DIST_DIR,
+            aindex.arch.as_ref(),
+            core_config::DEFAULT_ARCH_SRC_DIR,
+            core_config::DEFAULT_ARCH_DIST_DIR,
         )),
         _ => Err(format!("Unknown category: {category}")),
     }
@@ -505,17 +487,17 @@ fn collect_root_memory_prompt_files(
 fn collect_root_memory_prompt_pairs(
     config: &tnmsc::core::config::UserConfigFile,
 ) -> Vec<(String, String)> {
-    let aindex = config.aindex.as_ref();
+    let aindex = &config.aindex;
     [
         (
-            aindex.and_then(|value| value.global_prompt.as_ref()),
-            DEFAULT_GLOBAL_PROMPT_SRC,
-            DEFAULT_GLOBAL_PROMPT_DIST,
+            aindex.global_prompt.as_ref(),
+            core_config::DEFAULT_GLOBAL_PROMPT_SRC,
+            core_config::DEFAULT_GLOBAL_PROMPT_DIST,
         ),
         (
-            aindex.and_then(|value| value.workspace_prompt.as_ref()),
-            DEFAULT_WORKSPACE_PROMPT_SRC,
-            DEFAULT_WORKSPACE_PROMPT_DIST,
+            aindex.workspace_prompt.as_ref(),
+            core_config::DEFAULT_WORKSPACE_PROMPT_SRC,
+            core_config::DEFAULT_WORKSPACE_PROMPT_DIST,
         ),
     ]
     .into_iter()
@@ -570,9 +552,9 @@ fn load_resolved_config(cwd: &str) -> Result<ResolvedConfig, String> {
     let workspace_dir = tnmsc::core::config::resolve_tilde(workspace_dir);
     let aindex_dir = config
         .aindex
-        .as_ref()
-        .and_then(|value| value.dir.as_deref())
-        .unwrap_or(DEFAULT_AINDEX_DIR);
+        .dir
+        .as_deref()
+        .unwrap_or(core_config::DEFAULT_AINDEX_DIR_NAME);
 
     Ok(ResolvedConfig {
         aindex_root: workspace_dir.join(aindex_dir),
@@ -996,18 +978,7 @@ mod tests {
     }
 
     fn create_test_config() -> tnmsc::core::config::UserConfigFile {
-        serde_json::from_value(serde_json::json!({
-            "aindex": {
-                "app": {"src": "app", "dist": "dist/app"},
-                "ext": {"src": "ext", "dist": "dist/ext"},
-                "arch": {"src": "arch", "dist": "dist/arch"},
-                "skills": {"src": "skills", "dist": "dist/skills"},
-                "commands": {"src": "commands", "dist": "dist/commands"},
-                "subAgents": {"src": "subagents", "dist": "dist/subagents"},
-                "rules": {"src": "rules", "dist": "dist/rules"}
-            }
-        }))
-        .expect("test config should deserialize")
+        tnmsc::core::config::UserConfigFile::default()
     }
 
     #[test]

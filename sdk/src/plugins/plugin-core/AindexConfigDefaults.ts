@@ -35,7 +35,6 @@ export const AINDEX_CONFIG_PAIR_KEYS = [
 export type AindexConfigPairKey = (typeof AINDEX_CONFIG_PAIR_KEYS)[number]
 export type AindexConfigDirectoryPairKey = (typeof AINDEX_CONFIG_DIRECTORY_PAIR_KEYS)[number]
 export type AindexConfigFilePairKey = (typeof AINDEX_CONFIG_FILE_PAIR_KEYS)[number]
-export type AindexConfigKeyPath = `aindex.${AindexConfigPairKey}.src` | `aindex.${AindexConfigPairKey}.dist`
 
 export const AINDEX_PROMPT_TREE_DIRECTORY_PAIR_KEYS = [
   'skills',
@@ -70,14 +69,6 @@ export const AINDEX_CONFIG_PAIR_DEFAULTS = {
   softwares: {src: 'softwares', dist: 'dist/softwares'}
 } as const satisfies Record<AindexConfigPairKey, AindexDirPairLike>
 
-function buildAindexConfigKeyPaths(): readonly AindexConfigKeyPath[] {
-  const paths: AindexConfigKeyPath[] = []
-  for (const key of AINDEX_CONFIG_PAIR_KEYS) {
-    paths.push(`aindex.${key}.src`, `aindex.${key}.dist`)
-  }
-  return paths
-}
-
 function cloneAindexConfigPairs(): {[K in AindexConfigPairKey]: MutableAindexDirPair} {
   return Object.fromEntries(
     AINDEX_CONFIG_PAIR_KEYS.map(key => [
@@ -88,8 +79,6 @@ function cloneAindexConfigPairs(): {[K in AindexConfigPairKey]: MutableAindexDir
     ])
   ) as {[K in AindexConfigPairKey]: MutableAindexDirPair}
 }
-
-export const AINDEX_CONFIG_KEY_PATHS = buildAindexConfigKeyPaths()
 
 export function buildDefaultAindexConfig(): AindexConfigLike {
   return {

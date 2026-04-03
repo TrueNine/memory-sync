@@ -24,8 +24,8 @@ const AINDEX_CONFIG_PAIR_SCHEMAS = Object.fromEntries(
 >
 
 /**
- * Zod schema for the aindex configuration.
- * All paths are relative to <workspaceDir>/<aindex.dir>.
+ * Zod schema for the fully resolved aindex configuration.
+ * All paths are relative to <workspaceDir>/aindex.
  */
 export const ZAindexConfig = z.object({
   dir: z.string().default(AINDEX_DEFAULT_DIR_NAME),
@@ -115,7 +115,6 @@ export const ZUserProfile = z.object({
 export const ZUserConfigFile = z.object({
   version: z.string().optional(),
   workspaceDir: z.string().optional(),
-  aindex: ZAindexConfig.optional(),
   logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error']).optional(),
   commandSeriesOptions: ZCommandSeriesOptions.optional(),
   outputScopes: ZOutputScopeOptions.optional(),

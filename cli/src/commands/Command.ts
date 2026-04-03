@@ -5,8 +5,7 @@ import type {
   OutputCollectedContext,
   OutputPlugin,
   OutputWriteContext,
-  PluginOptions,
-  UserConfigFile
+  PluginOptions
 } from '@truenine/memory-sync-sdk'
 
 export interface CommandContext {
@@ -33,17 +32,6 @@ export interface PluginExecutionResult {
   readonly filesWritten?: number
   readonly error?: string
   readonly duration?: number
-}
-
-export interface JsonConfigInfo {
-  readonly merged: UserConfigFile
-  readonly sources: readonly ConfigSource[]
-}
-
-export interface ConfigSource {
-  readonly path: string
-  readonly layer: 'programmatic' | 'global' | 'default'
-  readonly config: Partial<UserConfigFile>
 }
 
 export interface JsonPluginInfo {

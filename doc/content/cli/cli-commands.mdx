@@ -17,13 +17,12 @@ The commands currently exposed by `tnmsc --help` are:
 | `tnmsc dry-run` | Preview the files that would be written |
 | `tnmsc clean` | Delete generated outputs and continue cleaning empty directories from the project source tree |
 | `tnmsc clean --dry-run` | Preview what would be cleaned, including empty directories that would be swept afterward |
-| `tnmsc config key=value` | Change global config |
 
 ## Key Takeaways
 
-### `config` Can Only Change a Whitelisted Set of Keys
+### Global Config Is File-Based
 
-The full `.aindex` and `.tnmsc.json` key list now lives in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config), together with the config location and default path rules.
+The global user config lives at `~/.aindex/.tnmsc.json`. Edit that file directly. The authoritative field list and fixed aindex layout now live in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
 
 ### `logLevel` Is Also Strictly Enumerated
 
@@ -38,4 +37,4 @@ trace / debug / info / warn / error
 1. Run `tnmsc help` first in a new environment.
 2. Run `tnmsc dry-run` before writing outputs.
 3. Run `tnmsc clean --dry-run` before cleanup.
-4. If you really need to change global config, use `tnmsc config` and verify the supported keys in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
+4. If you need to change global config, edit `~/.aindex/.tnmsc.json` and keep only supported user-facing fields.

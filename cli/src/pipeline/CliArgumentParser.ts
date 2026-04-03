@@ -2,7 +2,6 @@ import type {Command} from '@/commands/Command'
 import {FactoryPriority} from '@/commands/CommandFactory'
 import {CommandRegistry} from '@/commands/CommandRegistry'
 import {CleanCommandFactory} from '@/commands/factories/CleanCommandFactory'
-import {ConfigCommandFactory} from '@/commands/factories/ConfigCommandFactory'
 import {DryRunCommandFactory} from '@/commands/factories/DryRunCommandFactory'
 import {ExecuteCommandFactory} from '@/commands/factories/ExecuteCommandFactory'
 import {HelpCommandFactory} from '@/commands/factories/HelpCommandFactory'
@@ -15,7 +14,6 @@ export type Subcommand
     | 'version'
     | 'dry-run'
     | 'clean'
-    | 'config'
     | 'plugins'
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error'
 
@@ -24,9 +22,7 @@ export interface ParsedCliArgs {
   readonly helpFlag: boolean
   readonly versionFlag: boolean
   readonly dryRun: boolean
-  readonly showFlag: boolean
   readonly logLevel: LogLevel | undefined
-  readonly setOption: readonly [key: string, value: string][]
   readonly unknownCommand: string | undefined
   readonly positional: readonly string[]
   readonly unknown: readonly string[]
@@ -37,7 +33,6 @@ const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set([
   'version',
   'dry-run',
   'clean',
-  'config',
   'plugins'
 ])
 const LOG_LEVEL_FLAGS: ReadonlyMap<string, LogLevel> = new Map([
@@ -108,9 +103,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     helpFlag: boolean
     versionFlag: boolean
     dryRun: boolean
-    showFlag: boolean
     logLevel: LogLevel | undefined
-    setOption: [key: string, value: string][]
     unknownCommand: string | undefined
     positional: string[]
     unknown: string[]
@@ -119,9 +112,7 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     helpFlag: false,
     versionFlag: false,
     dryRun: false,
-    showFlag: false,
     logLevel: void 0,
-    setOption: [],
     unknownCommand: void 0,
     positional: [],
     unknown: []
@@ -157,33 +148,6 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
         case '--dry-run':
           result.dryRun = true
           break
-        case '--show':
-          result.showFlag = true
-          break
-        case '--set': {
-          if (parts.length > 1) {
-            const keyValue = parts.slice(1).join('=')
-            const eqIndex = keyValue.indexOf('=')
-            if (eqIndex > 0)
-            { result.setOption.push([
-              keyValue.slice(0, eqIndex),
-              keyValue.slice(eqIndex + 1)
-            ]) }
-          } else {
-            const nextArg = args[i + 1]
-            if (nextArg != null) {
-              const eqIndex = nextArg.indexOf('=')
-              if (eqIndex > 0) {
-                result.setOption.push([
-                  nextArg.slice(0, eqIndex),
-                  nextArg.slice(eqIndex + 1)
-                ])
-                i++
-              }
-            }
-          }
-          break
-        }
         default:
           result.unknown.push(arg)
       }
@@ -239,10 +203,6 @@ function createDefaultCommandRegistry(): CommandRegistry {
   )
   registry.registerWithPriority(
     new PluginsCommandFactory(),
-    FactoryPriority.Subcommand
-  )
-  registry.registerWithPriority(
-    new ConfigCommandFactory(),
     FactoryPriority.Subcommand
   )
   registry.registerWithPriority(

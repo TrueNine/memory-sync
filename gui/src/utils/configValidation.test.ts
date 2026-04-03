@@ -86,56 +86,24 @@ describe('validateConfig — logLevel', () => {
   })
 })
 
-// ─── aindex ───────────────────────────────────────────────
-describe('validateConfig — aindex', () => {
-  const validAindex = {
-    skills: { src: 'skills', dist: 'dist/skills' },
-    commands: { src: 'commands', dist: 'dist/commands' },
-    subAgents: { src: 'subagents', dist: 'dist/subagents' },
-    rules: { src: 'rules', dist: 'dist/rules' },
-    globalPrompt: { src: 'global.src.mdx', dist: 'dist/global.mdx' },
-    workspacePrompt: { src: 'workspace.src.mdx', dist: 'dist/workspace.mdx' },
-    app: { src: 'app', dist: 'dist/app' },
-    ext: { src: 'ext', dist: 'dist/ext' },
-    arch: { src: 'arch', dist: 'dist/arch' },
-  }
-
-  it('accepts a fully valid aindex', () => {
-    expect(validateConfig({ aindex: validAindex })).toHaveLength(0)
+// ─── removed path fields ───────────────────────────────────────────────
+describe('validateConfig — removed aindex path fields', () => {
+  it('warns on removed flat dir field', () => {
+    const errors = validateConfig({ dir: 'aindex' })
+    expect(errorFields(errors)).toEqual([])
+    expect(warningFields(errors)).toContain('dir')
   })
 
-  it('accepts partial aindex with only skills', () => {
-    expect(validateConfig({ aindex: { skills: { src: 'skills', dist: 'dist/skills' } } })).toHaveLength(0)
+  it('warns on removed flat path pair fields', () => {
+    const errors = validateConfig({ skills: { src: 'skills', dist: 'dist/skills' } })
+    expect(errorFields(errors)).toEqual([])
+    expect(warningFields(errors)).toContain('skills')
   })
 
-  it('rejects non-object', () => {
-    const errors = validateConfig({ aindex: 'invalid' })
-    expect(errorFields(errors)).toContain('aindex')
-  })
-
-  it('rejects array', () => {
-    const errors = validateConfig({ aindex: ['a'] })
-    expect(errorFields(errors)).toContain('aindex')
-  })
-
-  it('rejects invalid dir pair (non-object)', () => {
-    const errors = validateConfig({ aindex: { skills: 'bad' } })
-    expect(errorFields(errors)).toContain('aindex.skills')
-  })
-
-  it('rejects dir pair missing src', () => {
-    const errors = validateConfig({ aindex: { skills: { dist: 'dist/skills' } } })
-    expect(errorFields(errors)).toContain('aindex.skills.src')
-  })
-
-  it('rejects dir pair missing dist', () => {
-    const errors = validateConfig({ aindex: { skills: { src: 'skills' } } })
-    expect(errorFields(errors)).toContain('aindex.skills.dist')
-  })
-
-  it('rejects dir pair with non-string src', () => {
-    const errors = validateConfig({ aindex: { skills: { src: 123, dist: 'dist/skills' } } })
-    expect(errorFields(errors)).toContain('aindex.skills.src')
+  it('warns on removed legacy nested aindex wrapper', () => {
+    const errors = validateConfig({ aindex: { skills: { src: 'skills', dist: 'dist/skills' } } })
+    expect(errorFields(errors)).toEqual([])
+    expect(warningFields(errors)).toContain('aindex')
   })
 })
 
@@ -242,6 +210,11 @@ describe('validateConfig — unknown fields', () => {
     const errors = validateConfig({ fastCommandSeriesOptions: { includeSeriesPrefix: true } })
     expect(warningFields(errors)).toContain('fastCommandSeriesOptions')
   })
+
+  it('warns on removed skills path override field', () => {
+    const errors = validateConfig({ skills: { src: 'skills', dist: 'dist/skills' } })
+    expect(warningFields(errors)).toContain('skills')
+  })
 })
 
 // ─── combined / realistic configs ──────────────────────────────────────
@@ -250,17 +223,6 @@ describe('validateConfig — realistic configs', () => {
     const config = {
       version: '2026.10218.0',
       workspaceDir: '/workspace',
-      aindex: {
-        skills: { src: 'skills', dist: 'dist/skills' },
-        commands: { src: 'commands', dist: 'dist/commands' },
-        subAgents: { src: 'subagents', dist: 'dist/subagents' },
-        rules: { src: 'rules', dist: 'dist/rules' },
-        globalPrompt: { src: 'global.src.mdx', dist: 'dist/global.mdx' },
-        workspacePrompt: { src: 'workspace.src.mdx', dist: 'dist/workspace.mdx' },
-        app: { src: 'app', dist: 'dist/app' },
-        ext: { src: 'ext', dist: 'dist/ext' },
-        arch: { src: 'arch', dist: 'dist/arch' },
-      },
       logLevel: 'debug',
       profile: { name: 'test' },
       commandSeriesOptions: { includeSeriesPrefix: true },
@@ -273,13 +235,13 @@ describe('validateConfig — realistic configs', () => {
     const config = {
       workspaceDir: 123,
       logLevel: 'invalid',
-      aindex: 'not-object',
+      aindex: 'ignored',
     }
     const errors = validateConfig(config)
     const fields = errorFields(errors)
     expect(fields).toContain('workspaceDir')
     expect(fields).toContain('logLevel')
-    expect(fields).toContain('aindex')
+    expect(warningFields(errors)).toContain('aindex')
   })
 
   it('mixes errors and warnings', () => {

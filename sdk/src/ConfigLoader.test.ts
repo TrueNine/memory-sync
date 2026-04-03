@@ -33,24 +33,48 @@ describe('configLoader', () => {
     }
   })
 
-  it('defaults aindex.softwares when loading an older config file', () => {
+  it('ignores removed root-level aindex path fields', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-config-loader-'))
     const configPath = path.join(tempDir, '.tnmsc.json')
 
     try {
       fs.writeFileSync(configPath, JSON.stringify({
         workspaceDir: '/tmp/workspace',
+        dir: 'aindex',
+        skills: {src: 'skills', dist: 'dist/skills'},
+        commands: {src: 'commands', dist: 'dist/commands'},
+        subAgents: {src: 'subagents', dist: 'dist/subagents'},
+        rules: {src: 'rules', dist: 'dist/rules'},
+        globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
+        workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
+        app: {src: 'app', dist: 'dist/app'},
+        ext: {src: 'ext', dist: 'dist/ext'},
+        arch: {src: 'arch', dist: 'dist/arch'}
+      }), 'utf8')
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile(configPath)
+
+      expect(result.found).toBe(true)
+      expect(result.config).toEqual({
+        workspaceDir: '/tmp/workspace'
+      })
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('ignores the removed legacy nested aindex wrapper', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-config-loader-legacy-'))
+    const configPath = path.join(tempDir, '.tnmsc.json')
+
+    try {
+      fs.writeFileSync(configPath, JSON.stringify({
+        workspaceDir: '/tmp/workspace',
         aindex: {
-          dir: 'aindex',
           skills: {src: 'skills', dist: 'dist/skills'},
-          commands: {src: 'commands', dist: 'dist/commands'},
-          subAgents: {src: 'subagents', dist: 'dist/subagents'},
-          rules: {src: 'rules', dist: 'dist/rules'},
-          globalPrompt: {src: 'global.src.mdx', dist: 'dist/global.mdx'},
-          workspacePrompt: {src: 'workspace.src.mdx', dist: 'dist/workspace.mdx'},
-          app: {src: 'app', dist: 'dist/app'},
-          ext: {src: 'ext', dist: 'dist/ext'},
-          arch: {src: 'arch', dist: 'dist/arch'}
+          commands: {src: 'commands', dist: 'dist/commands'}
         }
       }), 'utf8')
 
@@ -58,7 +82,9 @@ describe('configLoader', () => {
       const result = loader.loadFromFile(configPath)
 
       expect(result.found).toBe(true)
-      expect(result.config.aindex?.softwares).toEqual({src: 'softwares', dist: 'dist/softwares'})
+      expect(result.config).toEqual({
+        workspaceDir: '/tmp/workspace'
+      })
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})

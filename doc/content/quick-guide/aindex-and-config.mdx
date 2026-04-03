@@ -25,12 +25,6 @@ They are related, but they are not the same thing.
 The aindex content tree lives under:
 
 ```text
-<workspaceDir>/<aindex.dir>
-```
-
-With default settings, that becomes:
-
-```text
 <workspaceDir>/aindex
 ```
 
@@ -75,11 +69,7 @@ The separation is intentional:
 
 ```json
 {
-  "workspaceDir": "/repo/demo",
-  "aindex": {
-    "dir": "aindex"
-  },
-  "logLevel": "info"
+  "workspaceDir": "/repo/demo"
 }
 ```
 
@@ -89,6 +79,7 @@ With that config:
 - the aindex root is `/repo/demo/aindex`
 - `skills` resolves to `/repo/demo/aindex/skills`
 - the default global prompt source resolves to `/repo/demo/aindex/global.src.mdx`
+- `logLevel` falls back to `info` unless you set it explicitly
 
 ## Root fields in `~/.aindex/.tnmsc.json`
 
@@ -96,7 +87,6 @@ With that config:
 | --- | --- | --- | --- |
 | `version` | `string` | `"0.0.0"` in merged runtime options | Version or release marker passed through the runtime |
 | `workspaceDir` | `string` | `"~/project"` in merged runtime options | Project root directory |
-| `aindex` | `object` | See the table below | Source and output path mapping |
 | `logLevel` | enum | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `commandSeriesOptions` | `object` | `{}` | Command-series naming and per-plugin overrides |
 | `outputScopes` | `object` | `{}` | Output-scope overrides per plugin |
@@ -105,70 +95,37 @@ With that config:
 | `windows` | `object` | `{}` | Windows and WSL-specific runtime options |
 | `profile` | `object` | omitted | User profile metadata |
 
-## `aindex` fields
-
-All `aindex.*.src` and `aindex.*.dist` paths are resolved relative to:
+Everything under the workspace aindex tree keeps a fixed name and fixed relative location. The structure is:
 
 ```text
-<workspaceDir>/<aindex.dir>
+<workspaceDir>/
+  aindex/
+    skills/
+    commands/
+    subagents/
+    rules/
+    app/
+    ext/
+    arch/
+    softwares/
+    global.src.mdx
+    workspace.src.mdx
+    dist/
+      skills/
+      commands/
+      subagents/
+      rules/
+      app/
+      ext/
+      arch/
+      softwares/
+      global.mdx
+      workspace.mdx
 ```
 
-| Field | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| `aindex.dir` | `string` | `aindex` | Name of the aindex root inside `workspaceDir` |
-| `aindex.skills.src` | `string` | `skills` | Skill source tree |
-| `aindex.skills.dist` | `string` | `dist/skills` | Compiled skill output tree |
-| `aindex.commands.src` | `string` | `commands` | Command source tree |
-| `aindex.commands.dist` | `string` | `dist/commands` | Compiled command output tree |
-| `aindex.subAgents.src` | `string` | `subagents` | Sub-agent source tree |
-| `aindex.subAgents.dist` | `string` | `dist/subagents` | Compiled sub-agent output tree |
-| `aindex.rules.src` | `string` | `rules` | Rule source tree |
-| `aindex.rules.dist` | `string` | `dist/rules` | Compiled rule output tree |
-| `aindex.globalPrompt.src` | `string` | `global.src.mdx` | Source file for the root global prompt |
-| `aindex.globalPrompt.dist` | `string` | `dist/global.mdx` | Generated global prompt file |
-| `aindex.workspacePrompt.src` | `string` | `workspace.src.mdx` | Source file for the root workspace prompt |
-| `aindex.workspacePrompt.dist` | `string` | `dist/workspace.mdx` | Generated workspace prompt file |
-| `aindex.app.src` | `string` | `app` | Project-memory source tree for app projects |
-| `aindex.app.dist` | `string` | `dist/app` | Generated app project-memory tree |
-| `aindex.ext.src` | `string` | `ext` | Project-memory source tree for extension projects |
-| `aindex.ext.dist` | `string` | `dist/ext` | Generated extension project-memory tree |
-| `aindex.arch.src` | `string` | `arch` | Project-memory source tree for architecture projects |
-| `aindex.arch.dist` | `string` | `dist/arch` | Generated architecture project-memory tree |
-| `aindex.softwares.src` | `string` | `softwares` | Software-series source tree |
-| `aindex.softwares.dist` | `string` | `dist/softwares` | Generated software-series tree |
+None of the fixed paths inside that tree are user-configurable in `~/.aindex/.tnmsc.json`.
 
-## `tnmsc config` can change only these config keys
-
-The current `ConfigCommand` allows:
-
-- `workspaceDir`
-- `aindex.skills.src`
-- `aindex.skills.dist`
-- `aindex.commands.src`
-- `aindex.commands.dist`
-- `aindex.subAgents.src`
-- `aindex.subAgents.dist`
-- `aindex.rules.src`
-- `aindex.rules.dist`
-- `aindex.globalPrompt.src`
-- `aindex.globalPrompt.dist`
-- `aindex.workspacePrompt.src`
-- `aindex.workspacePrompt.dist`
-- `aindex.app.src`
-- `aindex.app.dist`
-- `aindex.ext.src`
-- `aindex.ext.dist`
-- `aindex.arch.src`
-- `aindex.arch.dist`
-- `aindex.softwares.src`
-- `aindex.softwares.dist`
-- `logLevel`
-
-`logLevel` can only be:
-
-```text
-trace / debug / info / warn / error
-```
+If old config files still contain `aindex`, `dir`, or `*.src` / `*.dist` override fields, treat them as removed legacy fields. The current system no longer documents or supports those user-facing overrides.
 
 ## Other supported config objects
 
