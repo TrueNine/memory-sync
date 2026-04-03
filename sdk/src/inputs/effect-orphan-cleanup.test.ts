@@ -114,7 +114,7 @@ describe('orphan file cleanup effect', () => {
     }
   })
 
-  it('fails without partial deletion when safe and subtree-protected candidates are mixed', async () => {
+  it('allows deleting files inside the aindex tree while still using root-level protection', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-orphan-cleanup-guard-subtree-'))
     const srcDir = path.join(tempWorkspace, 'aindex', 'commands')
     const protectedSourceFile = path.join(srcDir, 'demo.src.mdx')
@@ -132,9 +132,10 @@ describe('orphan file cleanup effect', () => {
         errors: []
       }))
 
-      await expect(plugin.executeEffects(createContext(tempWorkspace))).rejects.toThrow('Protected deletion guard blocked orphan-file-cleanup')
-      expect(fs.existsSync(safeDistFile)).toBe(true)
-      expect(fs.existsSync(protectedSourceFile)).toBe(true)
+      const [result] = await plugin.executeEffects(createContext(tempWorkspace))
+      expect(result?.success).toBe(true)
+      expect(fs.existsSync(safeDistFile)).toBe(false)
+      expect(fs.existsSync(protectedSourceFile)).toBe(false)
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

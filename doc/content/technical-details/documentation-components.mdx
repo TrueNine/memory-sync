@@ -16,29 +16,29 @@ status: stable
   description="Useful when you want one table that shows what the CLI, MCP, GUI, and docs site each own."
   items={[
     {
-      tool: 'CLI',
-      summary: 'User entrypoint responsible for sync and cleanup execution.',
-      status: 'stable',
-      capabilities: ['Run the default sync pipeline', 'Support dry-run / clean / config', 'Expose the npm and crate entrypoint'],
-      surfaces: ['tnmsc', 'pnpm -C cli exec node dist/index.mjs --help'],
-      notes: 'The real execution entrypoint for users is still the CLI, not the docs site or the GUI.'
+      tool: "CLI",
+      summary: "User entrypoint responsible for sync and cleanup execution.",
+      status: "stable",
+      capabilities: ["Run the default sync pipeline", "Support dry-run / clean / config", "Expose the npm and crate entrypoint"],
+      surfaces: ["tnmsc", "pnpm -C cli exec node dist/index.mjs --help"],
+      notes: "The real execution entrypoint for users is still the CLI, not the docs site or the GUI.",
     },
     {
-      tool: 'MCP Server',
-      summary: 'Exposes prompt-management capability externally.',
-      status: {label: 'Stable API', tone: 'stable'},
-      capabilities: ['List prompts', 'Read source / dist', 'Update zh/en source', 'Write translation artifacts'],
-      surfaces: ['memory-sync-mcp stdio server', 'MCP client integration'],
-      notes: 'It reuses the CLI-side prompt service and should not invent a separate schema.'
+      tool: "MCP Server",
+      summary: "Exposes prompt-management capability externally.",
+      status: { label: "Stable API", tone: "stable" },
+      capabilities: ["List prompts", "Read source / dist", "Update zh/en source", "Write translation artifacts"],
+      surfaces: ["memory-sync-mcp stdio server", "MCP client integration"],
+      notes: "It reuses the CLI-side prompt service and should not invent a separate schema.",
     },
     {
-      tool: 'GUI',
-      summary: 'Desktop invocation and presentation layer.',
-      status: 'beta',
-      capabilities: ['Call the tnmsc crate', 'Host the desktop workflow', 'Show project status and action pages'],
-      surfaces: ['Tauri desktop shell', 'React frontend'],
-      notes: 'The GUI owns invocation and presentation and should not drive domain design back from the frontend.'
-    }
+      tool: "GUI",
+      summary: "Desktop invocation and presentation layer.",
+      status: "beta",
+      capabilities: ["Call the tnmsc crate", "Host the desktop workflow", "Show project status and action pages"],
+      surfaces: ["Tauri desktop shell", "React frontend"],
+      notes: "The GUI owns invocation and presentation and should not drive domain design back from the frontend.",
+    },
   ]}
 />
 
@@ -49,29 +49,29 @@ status: stable
   description="Useful when you need to describe platform support levels and the differences between them."
   items={[
     {
-      system: 'Windows',
-      support: 'full',
-      coverage: ['CLI workflows', 'Docs-site development', 'Tauri desktop development'],
-      notes: 'This is the most important platform for the current user base, so command examples should prioritize it.'
+      system: "Windows",
+      support: "full",
+      coverage: ["CLI workflows", "Docs-site development", "Tauri desktop development"],
+      notes: "This is the most important platform for the current user base, so command examples should prioritize it.",
     },
     {
-      system: 'macOS',
-      support: 'partial',
-      coverage: ['CLI workflows', 'Docs-site development'],
-      notes: 'Supported in principle, but desktop packaging and signing need separate verification.'
+      system: "macOS",
+      support: "partial",
+      coverage: ["CLI workflows", "Docs-site development"],
+      notes: "Supported in principle, but desktop packaging and signing need separate verification.",
     },
     {
-      system: 'Linux',
-      support: 'partial',
-      coverage: ['CLI workflows', 'Docs-site development', 'Some desktop scenarios'],
-      notes: 'A good fit for CI and dev machines, but desktop distribution depends on distro differences.'
+      system: "Linux",
+      support: "partial",
+      coverage: ["CLI workflows", "Docs-site development", "Some desktop scenarios"],
+      notes: "A good fit for CI and dev machines, but desktop distribution depends on distro differences.",
     },
     {
-      system: 'WSL',
-      support: {label: 'Recommended', tone: 'stable'},
-      coverage: ['Node / pnpm / Rust development', 'Cross-filesystem collaboration on Windows'],
-      notes: 'The repository is already a strong fit for WSL-based maintenance.'
-    }
+      system: "WSL",
+      support: { label: "Recommended", tone: "stable" },
+      coverage: ["Node / pnpm / Rust development", "Cross-filesystem collaboration on Windows"],
+      notes: "The repository is already a strong fit for WSL-based maintenance.",
+    },
   ]}
 />
 
@@ -82,26 +82,34 @@ status: stable
   description="Useful on home and install pages when you want fast platform positioning instead of a cold support table."
   items={[
     {
-      name: 'Windows',
-      family: 'Desktop',
-      support: 'full',
-      description: 'Primary desktop environment for users, and a good place to explain WSL, PowerShell, and the Tauri GUI together.',
-      highlights: ['Prioritize installation and upgrade guidance', 'A good place to show both GUI and CLI entrypoints', 'Screenshots and command examples are most valuable here']
+      name: "Windows",
+      family: "Desktop",
+      support: "full",
+      description: "Primary desktop environment for users, and a good place to explain WSL, PowerShell, and the Tauri GUI together.",
+      highlights: [
+        "Prioritize installation and upgrade guidance",
+        "A good place to show both GUI and CLI entrypoints",
+        "Screenshots and command examples are most valuable here",
+      ],
     },
     {
-      name: 'macOS',
-      family: 'Desktop',
-      support: 'partial',
-      description: 'A common developer environment and a good place to document Homebrew, codesign, and desktop integration details.',
-      highlights: ['Emphasize developer experience', 'Handle signing and distribution separately', 'Avoid Windows-specific path assumptions in command examples']
+      name: "macOS",
+      family: "Desktop",
+      support: "partial",
+      description: "A common developer environment and a good place to document Homebrew, codesign, and desktop integration details.",
+      highlights: [
+        "Emphasize developer experience",
+        "Handle signing and distribution separately",
+        "Avoid Windows-specific path assumptions in command examples",
+      ],
     },
     {
-      name: 'Linux',
-      family: 'Desktop / CI',
-      support: 'partial',
-      description: 'Better suited for automation, CI, and local development guidance.',
-      highlights: ['A good place for CI and build commands', 'Call out distro differences clearly', 'Explain desktop distribution per package format']
-    }
+      name: "Linux",
+      family: "Desktop / CI",
+      support: "partial",
+      description: "Better suited for automation, CI, and local development guidance.",
+      highlights: ["A good place for CI and build commands", "Call out distro differences clearly", "Explain desktop distribution per package format"],
+    },
   ]}
 />
 
@@ -112,33 +120,33 @@ status: stable
   description="You can append rows without changing component structure. It works well for pnpm, cargo, Tauri, and docs-site commands."
   items={[
     {
-      stack: 'pnpm workspace',
-      task: 'Install dependencies',
-      command: 'pnpm install',
-      runtime: 'Node.js 22+',
-      notes: 'All workspaces start from the repository root.'
+      stack: "pnpm workspace",
+      task: "Install dependencies",
+      command: "pnpm install",
+      runtime: "Node.js 22+",
+      notes: "All workspaces start from the repository root.",
     },
     {
-      stack: 'docs / Next.js',
-      task: 'Run the docs site locally',
-      command: 'pnpm -C doc dev',
-      runtime: 'Node.js 22+',
-      notes: 'Useful when previewing MDX content and components together.'
+      stack: "docs / Next.js",
+      task: "Run the docs site locally",
+      command: "pnpm -C doc dev",
+      runtime: "Node.js 22+",
+      notes: "Useful when previewing MDX content and components together.",
     },
     {
-      stack: 'docs / Next.js',
-      task: 'Type-check',
-      command: ['pnpm -C doc run validate:content', 'pnpm -C doc run typecheck'],
-      runtime: 'Node.js 22+',
-      notes: 'Run this after changing MDX, frontmatter, or docs components.'
+      stack: "docs / Next.js",
+      task: "Type-check",
+      command: ["pnpm -C doc run validate:content", "pnpm -C doc run check:type"],
+      runtime: "Node.js 22+",
+      notes: "Run this after changing MDX, frontmatter, or docs components.",
     },
     {
-      stack: 'Rust workspace',
-      task: 'Run tests',
-      command: 'cargo test --workspace',
-      runtime: 'Rust 1.88+',
-      notes: 'Useful for checking whether changes affected the Rust-first side.'
-    }
+      stack: "Rust workspace",
+      task: "Run tests",
+      command: "cargo test --workspace",
+      runtime: "Rust 1.88+",
+      notes: "Useful for checking whether changes affected the Rust-first side.",
+    },
   ]}
 />
 
@@ -148,9 +156,9 @@ status: stable
 
 <PackageManagerTabs
   commands={{
-    npm: 'npm install -g @truenine/memory-sync-cli',
-    pnpm: 'pnpm add -g @truenine/memory-sync-cli',
-    yarn: 'yarn global add @truenine/memory-sync-cli'
+    npm: "npm install -g @truenine/memory-sync-cli",
+    pnpm: "pnpm add -g @truenine/memory-sync-cli",
+    yarn: "yarn global add @truenine/memory-sync-cli",
   }}
 />
 

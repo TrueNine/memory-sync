@@ -62,7 +62,7 @@ jobs:
         run: pnpm -C doc run lint
 
       - name: Typecheck docs
-        run: pnpm -C doc run typecheck
+        run: pnpm -C doc run check:type
 
       - name: Pull Vercel production settings
         run: pnpm dlx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"

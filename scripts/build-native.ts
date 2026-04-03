@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import {execFileSync, execSync} from 'node:child_process'
-import {existsSync} from 'node:fs'
+import {existsSync, readFileSync} from 'node:fs'
 import {homedir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import process from 'node:process'
@@ -15,6 +15,10 @@ const NATIVE_MODULES = [
 
 const __dirname = import.meta.dirname ?? dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
+
+interface PackageManifestWithScripts {
+  readonly scripts?: Readonly<Record<string, string>>
+}
 
 function findCargo(): string | null {
   const candidates: string[] = [
@@ -57,6 +61,15 @@ for (const mod of NATIVE_MODULES) {
   const moduleDir = join(root, mod.dir)
   console.log(`[build-native] Building ${mod.name}...`)
   try {
+    const packageJsonPath = join(moduleDir, 'package.json')
+    if (existsSync(packageJsonPath)) {
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as PackageManifestWithScripts
+      if (packageJson.scripts?.['build:ts'] != null) {
+        console.log(`[build-native] Building ${mod.name} TypeScript artifacts...`)
+        execSync('pnpm run build:ts', {stdio: 'inherit', cwd: moduleDir, env: envWithCargo})
+      }
+    }
+
     execSync(
       'npx napi build --platform --release --output-dir dist -- --features napi',
       {stdio: 'inherit', cwd: moduleDir, env: envWithCargo},

@@ -33,12 +33,12 @@
   },
   "scripts": {
     "build": "tsdown",
-    "check": "run-p typecheck lint",
-    "lint": "eslint --cache --cache-location node_modules/.cache/.eslintcache .",
-    "lintfix": "eslint --fix --cache --cache-location node_modules/.cache/.eslintcache .",
+    "check": "run-p check:type lint",
+    "lint": "eslint --cache --cache-location .eslintcache .",
+    "lint:fix": "eslint --fix --cache --cache-location .eslintcache .",
     "prepublishOnly": "run-s build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p tsconfig.lib.json"
+    "check:type": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:",

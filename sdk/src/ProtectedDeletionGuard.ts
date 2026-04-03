@@ -6,11 +6,6 @@ import * as path from 'node:path'
 import process from 'node:process'
 import glob from 'fast-glob'
 import {buildProtectedDeletionDiagnostic} from './diagnostics'
-import {
-  AINDEX_CONFIG_DIRECTORY_PAIR_KEYS,
-  AINDEX_PROJECT_SERIES_NAMES
-} from './plugins/plugin-core'
-import {collectKnownPublicConfigDefinitionPaths} from './public-config-paths'
 import {getEffectiveHomeDir, resolveUserPath} from './runtime-environment'
 
 interface DirPathLike {
@@ -74,11 +69,6 @@ export class ProtectedDeletionGuardError extends Error {
     this.violations = violations
   }
 }
-
-const CONFIGURED_AINDEX_FILE_KEYS = [
-  'globalPrompt',
-  'workspacePrompt'
-] as const satisfies readonly (keyof Required<PluginOptions>['aindex'])[]
 
 function resolveXdgConfigHome(homeDir: string): string {
   const xdgConfigHome = process.env['XDG_CONFIG_HOME']
@@ -269,6 +259,8 @@ function collectWorkspaceReservedRules(
   projectRoots: readonly string[],
   includeReservedWorkspaceContentRoots: boolean
 ): ProtectedPathRule[] {
+  void includeReservedWorkspaceContentRoots
+
   const rules: ProtectedPathRule[] = [
     createProtectedPathRule(workspaceDir, 'direct', 'workspace root', 'workspace-reserved'),
     createProtectedPathRule(path.join(workspaceDir, 'aindex'), 'direct', 'reserved workspace aindex root', 'workspace-reserved'),
@@ -276,25 +268,6 @@ function collectWorkspaceReservedRules(
   ]
 
   for (const projectRoot of projectRoots) rules.push(createProtectedPathRule(projectRoot, 'direct', 'workspace project root', 'workspace-project-root'))
-
-  if (!includeReservedWorkspaceContentRoots) return rules
-
-  rules.push(createProtectedPathRule(
-    path.join(workspaceDir, 'aindex', 'dist', '**', '*.mdx'),
-    'direct',
-    'reserved workspace aindex dist mdx files',
-    'workspace-reserved',
-    'glob'
-  ))
-  for (const seriesName of AINDEX_PROJECT_SERIES_NAMES) {
-    rules.push(createProtectedPathRule(
-      path.join(workspaceDir, 'aindex', seriesName, '**', '*.mdx'),
-      'direct',
-      `reserved workspace aindex ${seriesName} mdx files`,
-      'workspace-reserved',
-      'glob'
-    ))
-  }
   return rules
 }
 
@@ -306,7 +279,10 @@ export function collectKnownAindexInputConfigPaths(
   aindexDir: string,
   resolveOptions?: PublicDefinitionResolveOptions
 ): string[] {
-  return collectKnownPublicConfigDefinitionPaths(aindexDir, resolveOptions)
+  void aindexDir
+  void resolveOptions
+
+  return []
 }
 
 export function collectConfiguredAindexInputRules(
@@ -314,48 +290,13 @@ export function collectConfiguredAindexInputRules(
   aindexDir: string,
   resolveOptions?: PublicDefinitionResolveOptions
 ): ProtectedPathRule[] {
-  const rules: ProtectedPathRule[] = []
+  void pluginOptions
+  void aindexDir
+  void resolveOptions
 
-  for (const key of AINDEX_CONFIG_DIRECTORY_PAIR_KEYS) {
-    const configuredDir = pluginOptions.aindex[key]
-    if (configuredDir == null) continue
-
-    rules.push(
-      createProtectedPathRule(
-        path.join(aindexDir, configuredDir.src),
-        'recursive',
-        `configured aindex ${key} source directory`,
-        'configured-aindex-source'
-      )
-    )
-  }
-
-  for (const key of CONFIGURED_AINDEX_FILE_KEYS) {
-    const configuredFile = pluginOptions.aindex[key]
-    if (configuredFile == null) continue
-
-    rules.push(
-      createProtectedPathRule(
-        path.join(aindexDir, configuredFile.src),
-        'direct',
-        `configured aindex ${key} source file`,
-        'configured-aindex-source'
-      )
-    )
-  }
-
-  for (const protectedPath of collectKnownAindexInputConfigPaths(aindexDir, resolveOptions)) {
-    rules.push(
-      createProtectedPathRule(
-        protectedPath,
-        'direct',
-        'known aindex input config file',
-        'known-aindex-config'
-      )
-    )
-  }
-
-  return rules
+  // Root-level aindex protection is handled by the guard itself. Individual
+  // source trees and files under aindex stay eligible for cleanup.
+  return []
 }
 
 export function collectConfiguredAindexInputPaths(
@@ -447,14 +388,6 @@ export function collectProtectedInputSourceRules(
 
   for (const ignoreFile of collectedOutputContext.aiAgentIgnoreConfigFiles ?? []) {
     addRule(ignoreFile.sourcePath, 'direct', 'AI agent ignore config file', 'collected-input-config')
-  }
-
-  if (collectedOutputContext.aindexDir != null) {
-    for (const protectedPath of collectKnownAindexInputConfigPaths(collectedOutputContext.aindexDir, {
-      workspaceDir: collectedOutputContext.workspace.directory.path
-    })) {
-      addRule(protectedPath, 'direct', 'known aindex input config file', 'known-aindex-config')
-    }
   }
 
   return rules

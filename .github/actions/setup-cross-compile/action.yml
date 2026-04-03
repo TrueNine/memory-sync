@@ -1,0 +1,12 @@
+name: Setup Cross-Compile Linux ARM64
+description: Install aarch64-linux-gnu cross-compilation toolchain
+
+runs:
+  using: composite
+  steps:
+    - name: Install cross-compilation tools (aarch64-linux)
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV

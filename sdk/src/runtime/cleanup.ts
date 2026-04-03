@@ -4,8 +4,7 @@ import type {
   OutputCleanupDeclarations,
   OutputCleanupPathDeclaration,
   OutputFileDeclaration,
-  OutputPlugin,
-  PluginOptions
+  OutputPlugin
 } from '../plugins/plugin-core'
 import type {ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
 import * as path from 'node:path'
@@ -14,7 +13,6 @@ import {loadAindexProjectConfig} from '../aindex-config/AindexProjectConfigLoade
 import {getNativeBinding} from '../core/native-binding'
 import {collectAllPluginOutputs} from '../plugins/plugin-core'
 import {
-  collectConfiguredAindexInputRules,
   collectProjectRoots,
   collectProtectedInputSourceRules,
   logProtectedDeletionGuardError
@@ -389,22 +387,6 @@ async function buildCleanupSnapshot(
       source: rule.source,
       ...rule.matcher != null ? {matcher: mapProtectionRuleMatcher(rule.matcher)} : {}
     })
-  }
-
-  if (cleanCtx.collectedOutputContext.aindexDir != null && cleanCtx.pluginOptions != null) {
-    for (const rule of collectConfiguredAindexInputRules(cleanCtx.pluginOptions as Required<PluginOptions>, cleanCtx.collectedOutputContext.aindexDir, {
-      workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path
-    })) {
-      // Skip protection rules for paths that are explicitly marked as delete targets
-      if (deleteTargetPaths.has(path.resolve(rule.path))) continue
-      protectedRules.push({
-        path: rule.path,
-        protectionMode: mapProtectionMode(rule.protectionMode),
-        reason: rule.reason,
-        source: rule.source,
-        ...rule.matcher != null ? {matcher: mapProtectionRuleMatcher(rule.matcher)} : {}
-      })
-    }
   }
 
   protectedRules.push(...collectConfiguredCleanupProtectionRules(cleanCtx))

@@ -1,0 +1,114 @@
+name: NPM Publish Package
+description: Publish a package to npm with retry and verification logic
+
+inputs:
+  registry-url:
+    description: npm registry URL
+    required: false
+    default: "https://registry.npmjs.org/"
+  package-dir:
+    description: Directory containing package.json to publish
+    required: true
+  verify-attempts:
+    description: Number of verification attempts
+    required: false
+    default: "90"
+  verify-delay:
+    description: Delay between verification attempts in seconds
+    required: false
+    default: "10"
+
+runs:
+  using: composite
+  steps:
+    - name: Publish to npm
+      shell: bash
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        REGISTRY_URL: ${{ inputs.registry-url }}
+        PACKAGE_DIR: ${{ inputs.package-dir }}
+        VERIFY_ATTEMPTS: ${{ inputs.verify-attempts }}
+        VERIFY_DELAY: ${{ inputs.verify-delay }}
+      run: |
+        set -euo pipefail
+
+        package_name=$(jq -r '.name' "${PACKAGE_DIR}/package.json")
+        package_version=$(jq -r '.version' "${PACKAGE_DIR}/package.json")
+
+        registry_version_exists() {
+          local encoded_package_name
+          local version_json
+          local published_version
+
+          encoded_package_name=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$package_name")
+          version_json=$(curl --silent --show-error --fail "${REGISTRY_URL%/}/${encoded_package_name}/${package_version}" 2>/dev/null || true)
+
+          if [[ -z "$version_json" ]]; then
+            return 1
+          fi
+
+          published_version=$(jq -r '.version // empty' <<<"$version_json")
+          [[ "$published_version" == "$package_version" ]]
+        }
+
+        version_exists() {
+          local published_version
+          published_version=$(npm view "${package_name}@${package_version}" version --registry "$REGISTRY_URL" 2>/dev/null || true)
+
+          if [[ "$published_version" == "$package_version" ]]; then
+            return 0
+          fi
+
+          registry_version_exists
+        }
+
+        verify_version_exists() {
+          local attempts="$VERIFY_ATTEMPTS"
+          local delay_seconds="$VERIFY_DELAY"
+
+          for attempt in $(seq 1 "$attempts"); do
+            if version_exists; then
+              echo "Verified ${package_name}@${package_version} on npm"
+              return 0
+            fi
+
+            if [[ "$attempt" -eq "$attempts" ]]; then
+              break
+            fi
+
+            echo "Waiting for ${package_name}@${package_version} to appear on npm (${attempt}/${attempts})..."
+            sleep "$delay_seconds"
+          done
+
+          echo "::error::${package_name}@${package_version} is still missing from npm after publish."
+          return 1
+        }
+
+        if version_exists; then
+          echo "${package_name}@${package_version} already exists on npm, skipping"
+          exit 0
+        fi
+
+        publish_log=$(mktemp)
+
+        if (cd "$PACKAGE_DIR" && pnpm publish --access public --no-git-checks) 2>&1 | tee "$publish_log"; then
+          verify_version_exists
+          rm -f "$publish_log"
+          exit 0
+        fi
+
+        if grep -Eiq 'cannot publish over the previously published versions|previously published versions' "$publish_log"; then
+          echo "${package_name}@${package_version} was already published according to npm, skipping"
+          rm -f "$publish_log"
+          exit 0
+        fi
+
+        if version_exists; then
+          echo "${package_name}@${package_version} already exists on npm after publish attempt, skipping"
+          rm -f "$publish_log"
+          exit 0
+        fi
+
+        echo "::error::Failed to publish ${package_name}@${package_version}. Exact version is still missing from npm."
+        rm -f "$publish_log"
+        exit 1

@@ -1,0 +1,40 @@
+name: NPM Auth Preflight
+description: Validate npm authentication and report package access
+
+inputs:
+  registry-url:
+    description: npm registry URL
+    required: false
+    default: "https://registry.npmjs.org/"
+  package-dir:
+    description: Directory containing package.json to validate
+    required: true
+  package-name:
+    description: Display name for error messages
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Preflight npm auth
+      shell: bash
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        REGISTRY_URL: ${{ inputs.registry-url }}
+        PACKAGE_DIR: ${{ inputs.package-dir }}
+        PACKAGE_NAME: ${{ inputs.package-name }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
+          echo "::error::NPM_TOKEN is missing. Configure a publish-capable npm token for ${PACKAGE_NAME} before rerunning release."
+          exit 1
+        fi
+
+        pushd "$PACKAGE_DIR" >/dev/null
+        npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
+        npm_user=$(npm whoami --registry "$REGISTRY_URL")
+        popd >/dev/null
+
+        echo "Authenticated to npm as ${npm_user}"
+        echo "Deferring publish permission enforcement for ${PACKAGE_NAME} to the publish step because npm access output is not stable in this workflow."
