@@ -1,5 +1,9 @@
-import type {ILogger} from '@truenine/logger'
-import type {OutputCleanContext, OutputCleanupDeclarations, OutputPlugin} from '../src/plugins/plugin-core'
+import type {
+  ILogger,
+  OutputCleanContext,
+  OutputCleanupDeclarations,
+  OutputPlugin
+} from '../src/plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'

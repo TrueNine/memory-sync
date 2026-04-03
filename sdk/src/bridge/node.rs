@@ -227,9 +227,9 @@ fn detect_node() -> Option<String> {
 
 /// Run a Node.js plugin runtime command.
 ///
-/// Spawns: `node <plugin-runtime.mjs> <subcommand> [--json] [extra_args...]`
+/// Spawns: `node <plugin-runtime.mjs> <subcommand> [extra_args...]`
 /// Inherits stdin/stdout/stderr so the Node.js process output goes directly to terminal.
-pub fn run_node_command(subcommand: &str, json_mode: bool, extra_args: &[&str]) -> ExitCode {
+pub fn run_node_command(subcommand: &str, extra_args: &[&str]) -> ExitCode {
     let logger = create_logger("NodeBridge", None);
 
     // Find node
@@ -282,17 +282,12 @@ pub fn run_node_command(subcommand: &str, json_mode: bool, extra_args: &[&str]) 
             "node": &node,
             "runtime": runtime_path.to_string_lossy(),
             "subcommand": subcommand,
-            "json": json_mode
         })),
     );
 
     let mut cmd = Command::new(&node);
     cmd.arg(&runtime_path);
     cmd.arg(subcommand);
-
-    if json_mode {
-        cmd.arg("--json");
-    }
 
     for arg in extra_args {
         cmd.arg(arg);
@@ -338,7 +333,6 @@ pub fn run_node_command(subcommand: &str, json_mode: bool, extra_args: &[&str]) 
 pub fn run_node_command_captured(
     subcommand: &str,
     cwd: &Path,
-    json_mode: bool,
     extra_args: &[&str],
 ) -> Result<BridgeCommandResult, CliError> {
     let node = find_node().ok_or(CliError::NodeNotFound)?;
@@ -350,10 +344,6 @@ pub fn run_node_command_captured(
     let mut cmd = Command::new(&node);
     cmd.arg(&runtime_path);
     cmd.arg(subcommand);
-
-    if json_mode {
-        cmd.arg("--json");
-    }
 
     for arg in extra_args {
         cmd.arg(arg);
@@ -368,8 +358,9 @@ pub fn run_node_command_captured(
     let exit_code = output.status.code().unwrap_or(-1);
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let expects_structured_stdout = extra_args.iter().any(|arg| *arg == "--bridge-json");
 
-    if output.status.success() || (json_mode && !stdout.trim().is_empty()) {
+    if output.status.success() || (expects_structured_stdout && !stdout.trim().is_empty()) {
         Ok(BridgeCommandResult {
             stdout,
             stderr,

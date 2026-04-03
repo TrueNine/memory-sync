@@ -99,10 +99,9 @@ pub fn update_global_config_from_pairs(
 pub fn run_bridge_command(
     subcommand: &str,
     cwd: &Path,
-    json_mode: bool,
     extra_args: &[&str],
 ) -> Result<BridgeCommandResult, CliError> {
-    bridge::node::run_node_command_captured(subcommand, cwd, json_mode, extra_args)
+    bridge::node::run_node_command_captured(subcommand, cwd, extra_args)
 }
 
 // ---------------------------------------------------------------------------
@@ -250,7 +249,7 @@ mod property_tests {
         if !node_available {
             // Verify NodeNotFound is returned as a typed error
             let tmp = tempfile::TempDir::new().unwrap();
-            let result = run_bridge_command("version", tmp.path(), false, &[]);
+            let result = run_bridge_command("version", tmp.path(), &[]);
             assert!(
                 matches!(result, Err(CliError::NodeNotFound)),
                 "expected NodeNotFound when node is absent, got: {:?}",
@@ -259,7 +258,7 @@ mod property_tests {
         } else if !runtime_available {
             // Verify PluginRuntimeNotFound is returned as a typed error
             let tmp = tempfile::TempDir::new().unwrap();
-            let result = run_bridge_command("version", tmp.path(), false, &[]);
+            let result = run_bridge_command("version", tmp.path(), &[]);
             assert!(
                 matches!(result, Err(CliError::PluginRuntimeNotFound(_))),
                 "expected PluginRuntimeNotFound when runtime is absent, got: {:?}",
@@ -269,7 +268,7 @@ mod property_tests {
             // Both available — verify the function signature compiles and returns Result<BridgeCommandResult, CliError>
             // We do NOT actually spawn a process here to avoid hanging on unknown subcommands.
             // The typed return type is verified at compile time.
-            let _: fn(&str, &Path, bool, &[&str]) -> Result<BridgeCommandResult, CliError> =
+            let _: fn(&str, &Path, &[&str]) -> Result<BridgeCommandResult, CliError> =
                 run_bridge_command;
         }
     }
@@ -374,7 +373,7 @@ mod property_tests_cwd {
                 return Ok(());
             }
 
-            let result = run_bridge_command("execute", cwd, true, &[]);
+            let result = run_bridge_command("execute", cwd, &[]);
 
             match result {
                 Ok(_) => {
@@ -437,7 +436,7 @@ mod property_tests_cwd {
             let cwd = tmp.path();
             assert!(cwd.exists(), "temp dir must exist");
 
-            let result = run_bridge_command("execute", cwd, true, &[]);
+            let result = run_bridge_command("execute", cwd, &[]);
 
             match result {
                 Ok(_)
@@ -472,7 +471,7 @@ mod property_tests_cwd {
         let nonexistent = std::path::Path::new("/this/path/does/not/exist/tnmsc_test_8_1");
         assert!(!nonexistent.exists(), "path must not exist for this test");
 
-        let result = run_bridge_command("execute", nonexistent, true, &[]);
+        let result = run_bridge_command("execute", nonexistent, &[]);
 
         // Must NOT be Ok — a non-existent cwd should never produce a successful result.
         assert!(

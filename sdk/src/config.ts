@@ -16,9 +16,11 @@ import type {
 } from './plugins/plugin-core'
 import type {RuntimeCommand} from './runtime-command'
 import * as path from 'node:path'
+import process from 'node:process'
 import {createLogger} from '@truenine/logger'
 import {checkVersionControl} from './Aindex'
 import {getConfigLoader} from './ConfigLoader'
+import {resolveExecutionPlan} from './execution-plan'
 import {collectInputContext} from './inputs/runtime'
 import {
   buildDefaultAindexConfig,
@@ -37,6 +39,7 @@ export interface PipelineConfig {
   readonly context: OutputCollectedContext
   readonly outputPlugins: readonly OutputPlugin[]
   readonly userConfigOptions: Required<PluginOptions>
+  readonly executionPlan: import('./execution-plan').ExecutionPlan
 }
 
 interface ResolvedPluginSetup {
@@ -100,6 +103,8 @@ export interface DefineConfigOptions {
   readonly loadUserConfig?: boolean
 
   readonly cwd?: string
+
+  readonly executionCwd?: string
 
   readonly runtimeCommand?: RuntimeCommand
 }
@@ -242,7 +247,12 @@ function mergeWindowsOptions(base?: WindowsOptions, override?: WindowsOptions): 
  * Check if options is DefineConfigOptions
  */
 function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): options is DefineConfigOptions {
-  return 'pluginOptions' in options || 'configLoaderOptions' in options || 'loadUserConfig' in options || 'cwd' in options || 'runtimeCommand' in options
+  return 'pluginOptions' in options
+    || 'configLoaderOptions' in options
+    || 'loadUserConfig' in options
+    || 'cwd' in options
+    || 'executionCwd' in options
+    || 'runtimeCommand' in options
 }
 
 function getProgrammaticPluginDeclaration(options: PluginOptions | DefineConfigOptions): {
@@ -295,6 +305,7 @@ function shouldUsePluginsFastPath(runtimeCommand?: RuntimeCommand): boolean {
 
 async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions = {}): Promise<
   ResolvedPluginSetup & {
+    readonly executionCwd: string
     readonly runtimeCommand?: RuntimeCommand
     readonly userConfigFound: boolean
     readonly userConfigSources: readonly string[]
@@ -302,6 +313,7 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
 > {
   let shouldLoadUserConfig: boolean,
     cwd: string | undefined,
+    executionCwd: string | undefined,
     pluginOptions: PluginOptions,
     configLoaderOptions: ConfigLoaderOptions | undefined,
     runtimeCommand: RuntimeCommand | undefined
@@ -310,11 +322,13 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
     ({
       pluginOptions = {},
       cwd,
+      executionCwd,
       configLoaderOptions,
       runtimeCommand
     } = {
       pluginOptions: options.pluginOptions,
       cwd: options.cwd,
+      executionCwd: options.executionCwd,
       configLoaderOptions: options.configLoaderOptions,
       runtimeCommand: options.runtimeCommand
     })
@@ -349,6 +363,7 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
   const mergedOptions = mergeConfig(userConfigOptions, pluginOptions)
   const {plugins = [], logLevel} = mergedOptions
   const logger = createLogger('defineConfig', logLevel)
+  const resolvedExecutionCwd = path.resolve(executionCwd ?? cwd ?? process.cwd())
 
   if (userConfigFound) {
     logger.info('user config loaded', {sources: userConfigSources})
@@ -368,6 +383,7 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
     mergedOptions,
     outputPlugins,
     inputCapabilities,
+    executionCwd: resolvedExecutionCwd,
     ...userConfigFile != null && {userConfigFile},
     ...runtimeCommand != null && {runtimeCommand},
     userConfigFound,
@@ -387,12 +403,17 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
  */
 export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
   const {hasExplicitProgrammaticPlugins, explicitProgrammaticPlugins} = getProgrammaticPluginDeclaration(options)
-  const {mergedOptions, outputPlugins, inputCapabilities, userConfigFile, runtimeCommand} = await resolvePluginSetup(options)
+  const {mergedOptions, outputPlugins, inputCapabilities, userConfigFile, runtimeCommand, executionCwd} = await resolvePluginSetup(options)
   const logger = createLogger('defineConfig', mergedOptions.logLevel)
 
   if (shouldUsePluginsFastPath(runtimeCommand)) {
     const context = createMinimalOutputCollectedContext(mergedOptions)
-    return {context, outputPlugins, userConfigOptions: mergedOptions}
+    return {
+      context,
+      outputPlugins,
+      userConfigOptions: mergedOptions,
+      executionPlan: resolveExecutionPlan(context, executionCwd)
+    }
   }
 
   const merged = await collectInputContext({
@@ -429,5 +450,10 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
     checkVersionControl(merged.aindexDir, logger)
   }
 
-  return {context, outputPlugins, userConfigOptions: mergedOptions}
+  return {
+    context,
+    outputPlugins,
+    userConfigOptions: mergedOptions,
+    executionPlan: resolveExecutionPlan(context, executionCwd)
+  }
 }

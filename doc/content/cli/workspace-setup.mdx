@@ -7,16 +7,19 @@ status: stable
 
 # Workspace and aindex
 
-## Remember This First
+This topic is now centralized in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
+
+Use that page if you need:
+
+- where `.aindex` actually lives
+- where `~/.aindex/.tnmsc.json` is loaded from
+- what each `aindex.*` field means
+- which keys `tnmsc config` can change
+- the current defaults and path rules
+
+## What Still Belongs Here
 
 `memory-sync` does not treat target-tool config files as the source of truth. It generates outputs from the aindex source directory and the project configuration entrypoint.
-
-## What You Need at Minimum
-
-- A project root directory
-- An aindex-style source-content directory
-- A global config file
-- A project-level `plugin.config.ts`
 
 ## How Source Content Is Usually Split
 

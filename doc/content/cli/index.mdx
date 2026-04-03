@@ -12,17 +12,18 @@ This section is organized around the public `tnmsc` command surface. Questions s
 ## What This Section Covers
 
 - [Installation and Requirements](/docs/cli/install): confirm the Node, pnpm, Rust, and higher GUI development-engine boundaries.
-- [Workspace and aindex](/docs/cli/workspace-setup): prepare the source directories and the project configuration entrypoint.
+- [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config): prepare the source directories, the config file, and the path mapping from one page.
+- [Workspace and aindex](/docs/cli/workspace-setup): understand the remaining workspace-side separation from `plugin.config.ts`.
 - [First Sync](/docs/cli/first-sync): run `help`, `dry-run`, and the real write flow in the recommended order.
 - [CLI Commands](/docs/cli/cli-commands): check the command surface currently exposed by `tnmsc --help`.
 - [dry-run and clean](/docs/cli/dry-run-and-clean): preview first, write second, clean last.
-- [plugin.config.ts](/docs/cli/plugin-config) and [JSON Schema](/docs/cli/schema): verify configuration facts in one place.
+- [plugin.config.ts](/docs/cli/plugin-config) and [JSON Schema](/docs/cli/schema): verify runtime assembly and schema-specific behavior.
 - [Output Scopes](/docs/cli/output-scopes), [Front Matter](/docs/cli/frontmatter), and [Cleanup Protection](/docs/cli/cleanup-protection): confirm boundary-control behavior.
 - [Supported Outputs](/docs/cli/supported-outputs), [Troubleshooting](/docs/cli/troubleshooting), and [Upgrade Notes](/docs/cli/upgrade-notes): handle day-to-day usage and version migration.
 
 ## Recommended Order
 
 1. Start with [Installation and Requirements](/docs/cli/install).
-2. Continue with [Workspace and aindex](/docs/cli/workspace-setup).
+2. Continue with [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
 3. Then use [First Sync](/docs/cli/first-sync) to complete one real run.
 4. When you need to verify facts, come back to [CLI Commands](/docs/cli/cli-commands) and [JSON Schema](/docs/cli/schema).

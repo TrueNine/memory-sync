@@ -6,12 +6,17 @@ import {ConfigCommandFactory} from '@/commands/factories/ConfigCommandFactory'
 import {DryRunCommandFactory} from '@/commands/factories/DryRunCommandFactory'
 import {ExecuteCommandFactory} from '@/commands/factories/ExecuteCommandFactory'
 import {HelpCommandFactory} from '@/commands/factories/HelpCommandFactory'
-import {InitCommandFactory} from '@/commands/factories/InitCommandFactory'
 import {PluginsCommandFactory} from '@/commands/factories/PluginsCommandFactory'
 import {UnknownCommandFactory} from '@/commands/factories/UnknownCommandFactory'
 import {VersionCommandFactory} from '@/commands/factories/VersionCommandFactory'
 
-export type Subcommand = 'help' | 'version' | 'init' | 'dry-run' | 'clean' | 'config' | 'plugins'
+export type Subcommand
+  = | 'help'
+    | 'version'
+    | 'dry-run'
+    | 'clean'
+    | 'config'
+    | 'plugins'
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error'
 
 export interface ParsedCliArgs {
@@ -19,7 +24,6 @@ export interface ParsedCliArgs {
   readonly helpFlag: boolean
   readonly versionFlag: boolean
   readonly dryRun: boolean
-  readonly jsonFlag: boolean
   readonly showFlag: boolean
   readonly logLevel: LogLevel | undefined
   readonly setOption: readonly [key: string, value: string][]
@@ -28,7 +32,14 @@ export interface ParsedCliArgs {
   readonly unknown: readonly string[]
 }
 
-const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set(['help', 'version', 'init', 'dry-run', 'clean', 'config', 'plugins'])
+const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set([
+  'help',
+  'version',
+  'dry-run',
+  'clean',
+  'config',
+  'plugins'
+])
 const LOG_LEVEL_FLAGS: ReadonlyMap<string, LogLevel> = new Map([
   ['--trace', 'trace'],
   ['--debug', 'debug'],
@@ -54,9 +65,25 @@ export function extractUserArgs(argv: readonly string[]): string[] {
 }
 
 function isRuntimeExecutable(arg: string): boolean {
-  const runtimes = ['node', 'nodejs', 'bun', 'deno', 'tsx', 'ts-node', 'npx', 'pnpx', 'yarn', 'pnpm']
+  const runtimes = [
+    'node',
+    'nodejs',
+    'bun',
+    'deno',
+    'tsx',
+    'ts-node',
+    'npx',
+    'pnpx',
+    'yarn',
+    'pnpm'
+  ]
   const normalized = arg.toLowerCase().replaceAll('\\', '/')
-  return runtimes.some(runtime => new RegExp(`(?:^|/)${runtime}(?:\\.exe|\\.cmd|\\.ps1)?$`, 'i').test(normalized) || normalized === runtime)
+  return runtimes.some(
+    runtime =>
+      new RegExp(`(?:^|/)${runtime}(?:\\.exe|\\.cmd|\\.ps1)?$`, 'i').test(
+        normalized
+      ) || normalized === runtime
+  )
 }
 
 function isScriptOrPackage(arg: string): boolean {
@@ -65,7 +92,10 @@ function isScriptOrPackage(arg: string): boolean {
   return /^(?:@[\w-]+\/)?[\w-]+$/u.test(arg) && !arg.startsWith('-')
 }
 
-function pickMoreVerbose(current: LogLevel | undefined, candidate: LogLevel): LogLevel {
+function pickMoreVerbose(
+  current: LogLevel | undefined,
+  candidate: LogLevel
+): LogLevel {
   if (current == null) return candidate
   const currentPriority = LOG_LEVEL_PRIORITY.get(current) ?? 4
   const candidatePriority = LOG_LEVEL_PRIORITY.get(candidate) ?? 4
@@ -78,7 +108,6 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     helpFlag: boolean
     versionFlag: boolean
     dryRun: boolean
-    jsonFlag: boolean
     showFlag: boolean
     logLevel: LogLevel | undefined
     setOption: [key: string, value: string][]
@@ -90,7 +119,6 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     helpFlag: false,
     versionFlag: false,
     dryRun: false,
-    jsonFlag: false,
     showFlag: false,
     logLevel: void 0,
     setOption: [],
@@ -104,7 +132,9 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
     const arg = args[i]
     if (arg == null) continue
     if (arg === '--') {
-      result.positional.push(...args.slice(i + 1).filter((value): value is string => value != null))
+      result.positional.push(
+        ...args.slice(i + 1).filter((value): value is string => value != null)
+      )
       break
     }
 
@@ -127,9 +157,6 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
         case '--dry-run':
           result.dryRun = true
           break
-        case '--json':
-          result.jsonFlag = true
-          break
         case '--show':
           result.showFlag = true
           break
@@ -137,13 +164,20 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
           if (parts.length > 1) {
             const keyValue = parts.slice(1).join('=')
             const eqIndex = keyValue.indexOf('=')
-            if (eqIndex > 0) result.setOption.push([keyValue.slice(0, eqIndex), keyValue.slice(eqIndex + 1)])
+            if (eqIndex > 0)
+            { result.setOption.push([
+              keyValue.slice(0, eqIndex),
+              keyValue.slice(eqIndex + 1)
+            ]) }
           } else {
             const nextArg = args[i + 1]
             if (nextArg != null) {
               const eqIndex = nextArg.indexOf('=')
               if (eqIndex > 0) {
-                result.setOption.push([nextArg.slice(0, eqIndex), nextArg.slice(eqIndex + 1)])
+                result.setOption.push([
+                  nextArg.slice(0, eqIndex),
+                  nextArg.slice(eqIndex + 1)
+                ])
                 i++
               }
             }
@@ -167,9 +201,6 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
             break
           case 'n':
             result.dryRun = true
-            break
-          case 'j':
-            result.jsonFlag = true
             break
           default:
             result.unknown.push(`-${flag}`)
@@ -198,12 +229,26 @@ function createDefaultCommandRegistry(): CommandRegistry {
   registry.register(new VersionCommandFactory())
   registry.register(new HelpCommandFactory())
   registry.register(new UnknownCommandFactory())
-  registry.registerWithPriority(new InitCommandFactory(), FactoryPriority.Subcommand)
-  registry.registerWithPriority(new DryRunCommandFactory(), FactoryPriority.Subcommand)
-  registry.registerWithPriority(new CleanCommandFactory(), FactoryPriority.Subcommand)
-  registry.registerWithPriority(new PluginsCommandFactory(), FactoryPriority.Subcommand)
-  registry.registerWithPriority(new ConfigCommandFactory(), FactoryPriority.Subcommand)
-  registry.registerWithPriority(new ExecuteCommandFactory(), FactoryPriority.Subcommand)
+  registry.registerWithPriority(
+    new DryRunCommandFactory(),
+    FactoryPriority.Subcommand
+  )
+  registry.registerWithPriority(
+    new CleanCommandFactory(),
+    FactoryPriority.Subcommand
+  )
+  registry.registerWithPriority(
+    new PluginsCommandFactory(),
+    FactoryPriority.Subcommand
+  )
+  registry.registerWithPriority(
+    new ConfigCommandFactory(),
+    FactoryPriority.Subcommand
+  )
+  registry.registerWithPriority(
+    new ExecuteCommandFactory(),
+    FactoryPriority.Subcommand
+  )
   return registry
 }
 

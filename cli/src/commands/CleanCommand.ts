@@ -1,10 +1,14 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import {performCleanup} from '@truenine/memory-sync-sdk'
+import {runExecutionPreflight} from './execution-preflight'
 
 export class CleanCommand implements Command {
   readonly name = 'clean'
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
+    const preflightResult = runExecutionPreflight(ctx, this.name)
+    if (preflightResult != null) return preflightResult
+
     const {logger, outputPlugins, createCleanContext, collectedOutputContext} = ctx
     logger.info('started', {
       command: 'clean',

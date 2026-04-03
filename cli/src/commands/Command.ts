@@ -1,6 +1,6 @@
 import type {
+  ExecutionPlan,
   ILogger,
-  LoggerDiagnosticRecord,
   OutputCleanContext,
   OutputCollectedContext,
   OutputPlugin,
@@ -14,6 +14,7 @@ export interface CommandContext {
   readonly outputPlugins: readonly OutputPlugin[]
   readonly collectedOutputContext: OutputCollectedContext
   readonly userConfigOptions: Required<PluginOptions>
+  readonly executionPlan: ExecutionPlan
   readonly createCleanContext: (dryRun: boolean) => OutputCleanContext
   readonly createWriteContext: (dryRun: boolean) => OutputWriteContext
 }
@@ -32,16 +33,6 @@ export interface PluginExecutionResult {
   readonly filesWritten?: number
   readonly error?: string
   readonly duration?: number
-}
-
-export interface JsonCommandResult {
-  readonly success: boolean
-  readonly filesAffected: number
-  readonly dirsAffected: number
-  readonly message?: string
-  readonly pluginResults: readonly PluginExecutionResult[]
-  readonly warnings: readonly LoggerDiagnosticRecord[]
-  readonly errors: readonly LoggerDiagnosticRecord[]
 }
 
 export interface JsonConfigInfo {

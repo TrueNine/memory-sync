@@ -2,6 +2,9 @@ name: NPM Auth Preflight
 description: Validate npm authentication and report package access
 
 inputs:
+  npm-token:
+    description: npm authentication token
+    required: true
   registry-url:
     description: npm registry URL
     required: false
@@ -19,7 +22,7 @@ runs:
     - name: Preflight npm auth
       shell: bash
       env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
         REGISTRY_URL: ${{ inputs.registry-url }}
         PACKAGE_DIR: ${{ inputs.package-dir }}
         PACKAGE_NAME: ${{ inputs.package-name }}

@@ -1,4 +1,8 @@
-import type {OutputCleanContext, OutputWriteContext, RuntimeCommand} from '@truenine/memory-sync-sdk'
+import type {
+  OutputCleanContext,
+  OutputWriteContext,
+  RuntimeCommand
+} from '@truenine/memory-sync-sdk'
 import type {Command, CommandContext} from '@/commands/Command'
 import process from 'node:process'
 import {
@@ -17,22 +21,34 @@ import {JsonOutputCommand, toJsonCommandResult} from '@/commands/JsonOutputComma
 import {PluginsCommand} from '@/commands/PluginsCommand'
 import {createDefaultPluginConfig} from './plugin.config'
 
-function parseRuntimeArgs(argv: string[]): {subcommand: RuntimeCommand, json: boolean, dryRun: boolean} {
+const INTERNAL_BRIDGE_JSON_FLAG = '--bridge-json'
+
+function parseRuntimeArgs(argv: string[]): {
+  subcommand: RuntimeCommand
+  bridgeJson: boolean
+  dryRun: boolean
+} {
   const args = argv.slice(2)
   let subcommand: RuntimeCommand = 'execute'
-  let json = false
+  let bridgeJson = false
   let dryRun = false
   for (const arg of args) {
-    if (arg === '--json' || arg === '-j') json = true
+    if (arg === INTERNAL_BRIDGE_JSON_FLAG) bridgeJson = true
     else if (arg === '--dry-run' || arg === '-n') dryRun = true
     else if (!arg.startsWith('-')) {
-      subcommand = arg === 'plugins' || arg === 'clean' || arg === 'dry-run' ? arg : 'execute'
+      subcommand
+        = arg === 'plugins' || arg === 'clean' || arg === 'dry-run'
+          ? arg
+          : 'execute'
     }
   }
-  return {subcommand, json, dryRun}
+  return {subcommand, bridgeJson, dryRun}
 }
 
-function resolveRuntimeCommand(subcommand: RuntimeCommand, dryRun: boolean): Command {
+function resolveRuntimeCommand(
+  subcommand: RuntimeCommand,
+  dryRun: boolean
+): Command {
   switch (subcommand) {
     case 'execute':
       return new ExecuteCommand()
@@ -45,7 +61,12 @@ function resolveRuntimeCommand(subcommand: RuntimeCommand, dryRun: boolean): Com
   }
 }
 
-function writeJsonFailure(error: unknown): void {
+function flushAndExit(code: number): never {
+  flushOutput()
+  process.exit(code)
+}
+
+function writeBridgeJsonFailure(error: unknown): void {
   const logger = createLogger('plugin-runtime', 'silent')
   logger.error(buildUnhandledExceptionDiagnostic('plugin-runtime', error))
   process.stdout.write(
@@ -63,23 +84,25 @@ function writeJsonFailure(error: unknown): void {
   )
 }
 
-function flushAndExit(code: number): never {
-  flushOutput()
-  process.exit(code)
-}
-
 async function main(): Promise<void> {
-  const {subcommand, json, dryRun} = parseRuntimeArgs(process.argv)
-  if (json) setGlobalLogLevel('silent')
+  const {subcommand, bridgeJson, dryRun} = parseRuntimeArgs(process.argv)
+  if (bridgeJson) setGlobalLogLevel('silent')
   const logger = createLogger('PluginRuntime')
 
-  logger.info('runtime bootstrap started', {subcommand, json, dryRun})
+  logger.info('runtime bootstrap started', {subcommand, bridgeJson, dryRun})
 
-  const userPluginConfig = await createDefaultPluginConfig(process.argv, subcommand)
+  const userPluginConfig = await createDefaultPluginConfig(
+    process.argv,
+    subcommand,
+    process.cwd()
+  )
   let command = resolveRuntimeCommand(subcommand, dryRun)
-  if (json && !new Set(['plugins']).has(command.name)) command = new JsonOutputCommand(command)
+  if (bridgeJson && command.name !== 'plugins') {
+    command = new JsonOutputCommand(command)
+  }
 
-  const {context, outputPlugins, userConfigOptions} = userPluginConfig
+  const {context, outputPlugins, userConfigOptions, executionPlan}
+    = userPluginConfig
   logger.info('runtime configuration resolved', {
     command: command.name,
     pluginCount: outputPlugins.length,
@@ -97,6 +120,7 @@ async function main(): Promise<void> {
     collectedOutputContext: context,
     pluginOptions: userConfigOptions,
     runtimeTargets,
+    executionPlan,
     dryRun: dry
   })
   const createWriteContext = (dry: boolean): OutputWriteContext => ({
@@ -104,6 +128,7 @@ async function main(): Promise<void> {
     collectedOutputContext: context,
     pluginOptions: userConfigOptions,
     runtimeTargets,
+    executionPlan,
     dryRun: dry,
     registeredPluginNames: Array.from(outputPlugins, plugin => plugin.name)
   })
@@ -112,6 +137,7 @@ async function main(): Promise<void> {
     outputPlugins: [...outputPlugins],
     collectedOutputContext: context,
     userConfigOptions,
+    executionPlan,
     createCleanContext,
     createWriteContext
   }
@@ -129,9 +155,8 @@ async function main(): Promise<void> {
 }
 
 main().catch(error => {
-  const {json} = parseRuntimeArgs(process.argv)
-  if (json) {
-    writeJsonFailure(error)
+  if (parseRuntimeArgs(process.argv).bridgeJson) {
+    writeBridgeJsonFailure(error)
     flushAndExit(1)
   }
   const logger = createLogger('plugin-runtime', 'error')

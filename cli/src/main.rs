@@ -20,11 +20,6 @@ fn main() -> ExitCode {
         set_global_log_level(level.to_logger_level());
     }
 
-    let json_mode = cli.json;
-    if json_mode {
-        set_global_log_level(tnmsc_logger::LogLevel::Silent);
-    }
-
     let command = resolve_command(&cli);
 
     let exit_code = match command {
@@ -32,11 +27,11 @@ fn main() -> ExitCode {
         ResolvedCommand::Version => commands::version::execute(),
         ResolvedCommand::Config(pairs) => commands::config_cmd::execute(&pairs),
         ResolvedCommand::ConfigShow => commands::config_show::execute(),
-        ResolvedCommand::Execute => commands::bridge::execute(json_mode),
-        ResolvedCommand::DryRun => commands::bridge::dry_run(json_mode),
-        ResolvedCommand::Clean => commands::bridge::clean(json_mode),
-        ResolvedCommand::DryRunClean => commands::bridge::dry_run_clean(json_mode),
-        ResolvedCommand::Plugins => commands::bridge::plugins(json_mode),
+        ResolvedCommand::Execute => commands::bridge::execute(),
+        ResolvedCommand::DryRun => commands::bridge::dry_run(),
+        ResolvedCommand::Clean => commands::bridge::clean(),
+        ResolvedCommand::DryRunClean => commands::bridge::dry_run_clean(),
+        ResolvedCommand::Plugins => commands::bridge::plugins(),
     };
 
     flush_output();

@@ -19,10 +19,21 @@ type OpencodeOutputSource
     | {readonly kind: 'projectChildMemory', readonly content: string}
     | {readonly kind: 'command', readonly command: CommandPrompt}
     | {readonly kind: 'subAgent', readonly agent: SubAgentPrompt}
-    | {readonly kind: 'skillMain', readonly skill: SkillPrompt, readonly normalizedSkillName: string}
+    | {
+      readonly kind: 'skillMain'
+      readonly skill: SkillPrompt
+      readonly normalizedSkillName: string
+    }
     | {readonly kind: 'skillReference', readonly content: string}
-    | {readonly kind: 'skillResource', readonly content: string, readonly encoding: 'text' | 'base64'}
-    | {readonly kind: 'mcpConfig', readonly mcpServers: Record<string, Record<string, unknown>>}
+    | {
+      readonly kind: 'skillResource'
+      readonly content: string
+      readonly encoding: 'text' | 'base64'
+    }
+    | {
+      readonly kind: 'mcpConfig'
+      readonly mcpServers: Record<string, Record<string, unknown>>
+    }
     | {readonly kind: 'rule', readonly rule: RulePrompt}
 
 function transformOpencodeCommandFrontMatter(
@@ -34,7 +45,9 @@ function transformOpencodeCommandFrontMatter(
   const frontMatter: Record<string, unknown> = {}
   const source = context.sourceFrontMatter
 
-  if (source?.['description'] != null) frontMatter['description'] = source['description']
+  if (source?.['description'] != null) {
+    frontMatter['description'] = source['description']
+  }
   if (source?.['agent'] != null) frontMatter['agent'] = source['agent']
   if (source?.['model'] != null) frontMatter['model'] = source['model']
 
@@ -45,7 +58,9 @@ function transformOpencodeCommandFrontMatter(
   }
 
   for (const [key, value] of Object.entries(source ?? {})) {
-    if (!['description', 'agent', 'model', 'allowTools', 'namingCase', 'argumentHint'].includes(key)) frontMatter[key] = value
+    if (!['description', 'agent', 'model', 'allowTools', 'namingCase', 'argumentHint'].includes(key)) {
+      frontMatter[key] = value
+    }
   }
 
   return frontMatter
@@ -79,11 +94,11 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
             dirs: ['.opencode/commands', '.opencode/agents', '.opencode/skills', '.opencode/rules']
           },
           global: {
-            files: ['.config/opencode/AGENTS.md'],
+            files: ['.config/opencode/AGENTS.md', '.config/opencode/opencode.json'],
             dirs: ['.config/opencode/commands', '.config/opencode/agents', '.config/opencode/skills', '.config/opencode/rules']
           },
           xdgConfig: {
-            files: ['opencode/AGENTS.md'],
+            files: ['opencode/AGENTS.md', 'opencode/opencode.json'],
             dirs: ['opencode/commands', 'opencode/agents', 'opencode/skills', 'opencode/rules']
           }
         }
@@ -229,7 +244,9 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       })
     }
 
-    const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
+    const transformOptions = this.getTransformOptionsFromContext(ctx, {
+      includeSeriesPrefix: true
+    })
     for (const project of promptProjects) {
       const projectRootDir = this.resolveProjectRootDir(ctx, project)
       if (projectRootDir == null) continue
@@ -276,7 +293,10 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
             declarations.push({
               path: path.join(basePath, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
               scope: 'project',
-              source: {kind: 'command', command} satisfies OpencodeOutputSource
+              source: {
+                kind: 'command',
+                command
+              } satisfies OpencodeOutputSource
             })
           }
         }
@@ -287,13 +307,18 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
             declarations.push({
               path: path.join(basePath, AGENTS_SUBDIR, this.transformSubAgentName(agent)),
               scope: 'project',
-              source: {kind: 'subAgent', agent} satisfies OpencodeOutputSource
+              source: {
+                kind: 'subAgent',
+                agent
+              } satisfies OpencodeOutputSource
             })
           }
         }
 
         const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
-        if (selectedSkills.selectedScope === 'project') pushSkillDeclarations(basePath, 'project', filteredSkills)
+        if (selectedSkills.selectedScope === 'project') {
+          pushSkillDeclarations(basePath, 'project', filteredSkills)
+        }
 
         if (selectedMcpSkills.selectedScope === 'project') {
           const filteredMcpSkills = filterByProjectConfig(selectedMcpSkills.items, project.projectConfig, 'skills')
@@ -398,6 +423,10 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       case 'skillResource':
         return source.encoding === 'base64' ? Buffer.from(source.content, 'base64') : source.content
       case 'mcpConfig':
+        // lsp and formatter are disabled because memory-sync's self-execution
+        // support for these features is not yet mature. The fields are omitted
+        // from the generated config; running `tnmsc clean` will delete any
+        // legacy opencode.json files that still contain them.
         return JSON.stringify(
           {
             $schema: 'https://opencode.ai/config.json',
@@ -418,13 +447,19 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     const frontMatter: Record<string, unknown> = {}
     const source = agent.yamlFrontMatter as Record<string, unknown> | undefined
 
-    if (source?.['description'] != null) frontMatter['description'] = source['description']
+    if (source?.['description'] != null) {
+      frontMatter['description'] = source['description']
+    }
 
     frontMatter['mode'] = source?.['mode'] ?? 'subagent'
 
     if (source?.['model'] != null) frontMatter['model'] = source['model']
-    if (source?.['temperature'] != null) frontMatter['temperature'] = source['temperature']
-    if (source?.['maxSteps'] != null) frontMatter['maxSteps'] = source['maxSteps']
+    if (source?.['temperature'] != null) {
+      frontMatter['temperature'] = source['temperature']
+    }
+    if (source?.['maxSteps'] != null) {
+      frontMatter['maxSteps'] = source['maxSteps']
+    }
     if (source?.['hidden'] != null) frontMatter['hidden'] = source['hidden']
 
     if (source?.['allowTools'] != null && Array.isArray(source['allowTools'])) {
@@ -433,7 +468,9 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
       frontMatter['tools'] = tools
     }
 
-    if (source?.['permission'] != null && typeof source['permission'] === 'object') frontMatter['permission'] = source['permission']
+    if (source?.['permission'] != null && typeof source['permission'] === 'object') {
+      frontMatter['permission'] = source['permission']
+    }
 
     for (const [key, value] of Object.entries(source ?? {})) {
       if (!['description', 'mode', 'model', 'temperature', 'maxSteps', 'hidden', 'allowTools', 'permission', 'namingCase', 'name', 'color'].includes(key)) {
@@ -449,7 +486,9 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     const source = skill.yamlFrontMatter as Record<string, unknown> | undefined
 
     frontMatter['name'] = skillName
-    if (source?.['description'] != null) frontMatter['description'] = source['description']
+    if (source?.['description'] != null) {
+      frontMatter['description'] = source['description']
+    }
 
     frontMatter['license'] = source?.['license'] ?? 'MIT'
     frontMatter['compatibility'] = source?.['compatibility'] ?? 'opencode'

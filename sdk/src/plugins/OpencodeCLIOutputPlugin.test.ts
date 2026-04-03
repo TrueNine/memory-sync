@@ -101,7 +101,7 @@ describe('opencodeCLIOutputPlugin synthetic workspace project output', () => {
 })
 
 describe('opencodeCLIOutputPlugin cleanup', () => {
-  it('keeps global opencode.json out of cleanup delete targets', async () => {
+  it('includes global and xdgConfig opencode.json in cleanup delete targets', async () => {
     const tempHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-opencode-cleanup-'))
 
     try {
@@ -110,7 +110,7 @@ describe('opencodeCLIOutputPlugin cleanup', () => {
       const deletePaths = cleanup.delete?.map(target => target.path.replaceAll('\\', '/')) ?? []
 
       expect(deletePaths).toContain(path.join(tempHomeDir, '.config', 'opencode', 'AGENTS.md').replaceAll('\\', '/'))
-      expect(deletePaths).not.toContain(path.join(tempHomeDir, '.config', 'opencode', 'opencode.json').replaceAll('\\', '/'))
+      expect(deletePaths).toContain(path.join(tempHomeDir, '.config', 'opencode', 'opencode.json').replaceAll('\\', '/'))
     } finally {
       fs.rmSync(tempHomeDir, {recursive: true, force: true})
     }

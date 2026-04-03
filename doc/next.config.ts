@@ -1,26 +1,8 @@
 import type {NextConfig} from 'next'
-import {fileURLToPath} from 'node:url'
 import nextra from 'nextra'
 
-const mermaidTurbopackAlias = './components/mermaid'
-const mermaidWebpackAlias = fileURLToPath(new URL('./components/mermaid.tsx', import.meta.url))
-const nextThemesTurbopackAlias = './lib/next-themes-compat'
-const nextThemesWebpackAlias = fileURLToPath(new URL('./lib/next-themes-compat.tsx', import.meta.url))
-
-interface WebpackResolveAliasEntry {
-  readonly alias: string
-  readonly name: string
-  readonly onlyModule: boolean
-  readonly target: string
-}
-
-interface WebpackResolveConfig {
-  alias?: Record<string, string> | WebpackResolveAliasEntry[]
-}
-
-interface WebpackConfig {
-  resolve?: WebpackResolveConfig
-}
+const mermaidAliasPath = '@/components/mermaid'
+const nextThemesAliasPath = '@/lib/next-themes-compat'
 
 const withNextra = nextra({
   search: {
@@ -71,37 +53,11 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     resolveAlias: {
-      '@theguild/remark-mermaid/mermaid': mermaidTurbopackAlias,
-      'next-themes': nextThemesTurbopackAlias
+      // Keep docs on the Turbopack path for both dev and build so our local
+      // compatibility shims are resolved the same way in every environment.
+      '@theguild/remark-mermaid/mermaid': mermaidAliasPath,
+      'next-themes': nextThemesAliasPath
     }
-  },
-  webpack(config: WebpackConfig) {
-    const resolve = config.resolve ?? {}
-    const {alias} = resolve
-
-    config.resolve = resolve
-
-    if (Array.isArray(alias)) {
-      alias.push({
-        alias: '@theguild/remark-mermaid/mermaid',
-        name: '@theguild/remark-mermaid/mermaid',
-        onlyModule: false,
-        target: mermaidWebpackAlias
-      }, {
-        alias: 'next-themes',
-        name: 'next-themes',
-        onlyModule: false,
-        target: nextThemesWebpackAlias
-      })
-    } else {
-      resolve.alias = {
-        ...alias,
-        '@theguild/remark-mermaid/mermaid': mermaidWebpackAlias,
-        'next-themes': nextThemesWebpackAlias
-      }
-    }
-
-    return config
   }
 }
 

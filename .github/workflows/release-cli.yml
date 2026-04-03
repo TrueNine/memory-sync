@@ -251,6 +251,7 @@ jobs:
       - name: Publish CLI platform sub-packages
         uses: ./.github/actions/npm-publish-package
         with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: cli/npm
 
@@ -267,6 +268,7 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - uses: ./.github/actions/npm-auth-preflight
         with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: cli
           package-name: "@truenine/memory-sync-cli"
@@ -274,6 +276,7 @@ jobs:
         run: pnpm -F @truenine/memory-sync-cli run build
       - uses: ./.github/actions/npm-publish-package
         with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: cli
 
@@ -292,6 +295,7 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - uses: ./.github/actions/npm-auth-preflight
         with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: mcp
           package-name: "@truenine/memory-sync-mcp"
@@ -299,6 +303,7 @@ jobs:
         run: pnpm exec turbo run build --filter=@truenine/memory-sync-mcp
       - uses: ./.github/actions/npm-publish-package
         with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: mcp
 

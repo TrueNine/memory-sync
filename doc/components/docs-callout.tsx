@@ -1,19 +1,20 @@
 import type {ComponentPropsWithoutRef, ReactElement, ReactNode} from 'react'
 import {Children, cloneElement, isValidElement} from 'react'
 
-type CalloutTone = 'note' | 'tip' | 'important' | 'warning' | 'caution'
+type CalloutTone = 'note' | 'tip' | 'important' | 'warning' | 'caution' | 'danger'
 
 type BlockquoteProps = ComponentPropsWithoutRef<'blockquote'>
 
-const CALLOUT_PATTERN = /^\s*\[!(note|tip|important|warning|caution)\]\s*/i
-const CALLOUT_TONES = new Set<CalloutTone>(['note', 'tip', 'important', 'warning', 'caution'])
+const CALLOUT_PATTERN = /^\s*\[!(note|tip|important|warning|caution|danger)\]\s*/i
+const CALLOUT_TONES = new Set<CalloutTone>(['note', 'tip', 'important', 'warning', 'caution', 'danger'])
 
 const CALLOUT_LABELS: Record<CalloutTone, string> = {
   note: 'Note',
   tip: 'Tip',
   important: 'Important',
   warning: 'Warning',
-  caution: 'Caution'
+  caution: 'Caution',
+  danger: 'Danger'
 }
 
 function extractText(node: ReactNode): string {

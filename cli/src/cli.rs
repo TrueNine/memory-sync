@@ -16,10 +16,6 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Option<CliCommand>,
 
-    /// Output results as JSON (suppresses all log output)
-    #[arg(short = 'j', long = "json", global = true)]
-    pub json: bool,
-
     /// Set log level to trace (most verbose)
     #[arg(long = "trace", global = true)]
     pub trace: bool,
