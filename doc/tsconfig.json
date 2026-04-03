@@ -3,6 +3,12 @@
     "incremental": true,
     "target": "ES2022",
     "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
     "lib": [
       "DOM",
       "DOM.Iterable",
@@ -17,6 +23,7 @@
     "allowJs": false,
     "strict": true,
     "noEmit": true,
+    "ignoreDeprecations": "6.0",
     "esModuleInterop": true,
     "isolatedModules": true,
     "skipLibCheck": true,

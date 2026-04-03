@@ -620,10 +620,17 @@ samp {
 
 .nextra-toc a {
   font-size: 0.85rem;
+}
+
+.nextra-toc a[class*='x:text-gray-600'] {
   color: var(--page-fg-soft);
 }
 
-.nextra-toc a[data-active='true'] {
+.nextra-toc a[class*='x:text-gray-600']:hover {
+  color: var(--page-fg);
+}
+
+.nextra-toc a[class*='x:text-primary-600'] {
   color: var(--page-fg);
   font-weight: 600;
 }
@@ -1166,6 +1173,12 @@ main[data-pagefind-body] blockquote p,
 .docs-callout--caution {
   --callout-accent: #f87171;
   --callout-accent-strong: #fca5a5;
+  --callout-symbol: '!';
+}
+
+.docs-callout--danger {
+  --callout-accent: #ef4444;
+  --callout-accent-strong: #fda4af;
   --callout-symbol: '!';
 }
 

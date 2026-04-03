@@ -46,7 +46,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {readonly children: React.ReactNode}) {
   return (
-    <html lang="zh-CN" className="dark" style={{colorScheme: 'dark', backgroundColor: '#0b0c10'}} suppressHydrationWarning>
+    <html
+      lang="zh-CN"
+      className="dark"
+      data-scroll-behavior="smooth"
+      style={{colorScheme: 'dark', backgroundColor: '#0b0c10'}}
+      suppressHydrationWarning
+    >
       <body className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
         {children}
       </body>

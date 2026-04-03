@@ -67,13 +67,6 @@ export default async function DocsLayout({
         light: '亮色',
         system: '系统'
       }}
-      nextThemes={{
-        attribute: 'class',
-        defaultTheme: 'dark',
-        disableTransitionOnChange: true,
-        forcedTheme: 'dark',
-        storageKey: 'memory-sync-docs-theme'
-      }}
     >
       {children}
     </Layout>

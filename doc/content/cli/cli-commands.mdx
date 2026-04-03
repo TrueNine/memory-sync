@@ -28,19 +28,7 @@ The current implementation treats it as deprecated, so new docs no longer presen
 
 ### `config` Can Only Change a Whitelisted Set of Keys
 
-The current `ConfigCommand` allows these keys:
-
-- `workspaceDir`
-- `aindex.skills.src/dist`
-- `aindex.commands.src/dist`
-- `aindex.subAgents.src/dist`
-- `aindex.rules.src/dist`
-- `aindex.globalPrompt.src/dist`
-- `aindex.workspacePrompt.src/dist`
-- `aindex.app.src/dist`
-- `aindex.ext.src/dist`
-- `aindex.arch.src/dist`
-- `logLevel`
+The full `.aindex` and `.tnmsc.json` key list now lives in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config), together with the config location and default path rules.
 
 ### `logLevel` Is Also Strictly Enumerated
 
@@ -55,4 +43,4 @@ trace / debug / info / warn / error
 1. Run `tnmsc help` first in a new environment.
 2. Run `tnmsc dry-run` before writing outputs.
 3. Run `tnmsc clean --dry-run` before cleanup.
-4. If you really need to change global config, use `tnmsc config` instead of hand-editing JSON that can drift from the schema.
+4. If you really need to change global config, use `tnmsc config` and verify the supported keys in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).

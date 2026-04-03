@@ -7,33 +7,32 @@ status: stable
 
 # JSON Schema
 
-`cli/dist/tnmsc.schema.json` currently exposes these root fields:
+The `.aindex` and `.tnmsc.json` setup details are now centralized in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
 
-| Field | Type | Description |
+This page keeps the schema-level behavior that is not specific to the config file location or aindex path layout.
+
+## `commandSeriesOptions`
+
+```json
+{
+  "commandSeriesOptions": {
+    "includeSeriesPrefix": true,
+    "pluginOverrides": {
+      "some-plugin-name": {
+        "includeSeriesPrefix": false,
+        "seriesSeparator": "/"
+      }
+    }
+  }
+}
+```
+
+| Field | Type | Meaning |
 | --- | --- | --- |
-| `version` | `string` | Config version or release version marker |
-| `workspaceDir` | `string` | Project root directory |
-| `aindex` | `object` | Mapping of source inputs to export directories |
-| `logLevel` | enum | `trace` / `debug` / `info` / `warn` / `error` |
-| `commandSeriesOptions` | `object` | Command-series naming and per-plugin overrides |
-| `outputScopes` | `object` | Output-scope overrides per plugin |
-| `frontMatter` | `object` | Front matter handling during output |
-| `cleanupProtection` | `object` | Cleanup protection rules |
-| `profile` | `object` | Profile fields |
-
-## Key `aindex` Children
-
-- `skills`
-- `commands`
-- `subAgents`
-- `rules`
-- `globalPrompt`
-- `workspacePrompt`
-- `app`
-- `ext`
-- `arch`
-
-Each child contains `src` and `dist`.
+| `commandSeriesOptions.includeSeriesPrefix` | `boolean` | Whether command output names include the series prefix |
+| `commandSeriesOptions.pluginOverrides` | `Record<string, object>` | Per-plugin overrides |
+| `commandSeriesOptions.pluginOverrides.<plugin>.includeSeriesPrefix` | `boolean` | Override the top-level prefix behavior for one plugin |
+| `commandSeriesOptions.pluginOverrides.<plugin>.seriesSeparator` | `string` | Override the separator used by one plugin |
 
 ## Topics Supported by `outputScopes`
 
@@ -45,6 +44,26 @@ The schema currently allows these topics:
 - `subagents`
 - `skills`
 - `mcp`
+
+Each topic accepts either a single scope or an array of scopes:
+
+```json
+{
+  "outputScopes": {
+    "plugins": {
+      "some-plugin-name": {
+        "prompt": "project",
+        "skills": ["global", "project"]
+      }
+    }
+  }
+}
+```
+
+The only valid scope values are:
+
+- `project`
+- `global`
 
 See [Output Scopes](/docs/cli/output-scopes) for detailed behavior.
 
@@ -64,6 +83,21 @@ See [Front Matter](/docs/cli/frontmatter) for the distinction.
 
 ## `cleanupProtection`
 
+```json
+{
+  "cleanupProtection": {
+    "rules": [
+      {
+        "path": ".codex/skills/.system",
+        "protectionMode": "recursive",
+        "matcher": "path",
+        "reason": "Preserve built-in skills"
+      }
+    ]
+  }
+}
+```
+
 Each rule supports:
 
 - `path`
@@ -72,3 +106,30 @@ Each rule supports:
 - `reason`
 
 See [Cleanup Protection](/docs/cli/cleanup-protection) for the semantics.
+
+## `windows`
+
+```json
+{
+  "windows": {
+    "wsl2": {
+      "instances": ["Ubuntu", "Ubuntu-24.04"]
+    }
+  }
+}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `windows.wsl2.instances` | `string \| string[]` | WSL instance name or names used by Windows-specific integration |
+
+## `profile`
+
+`profile` is an open object. The schema explicitly recognizes these optional fields:
+
+- `name`
+- `username`
+- `gender`
+- `birthday`
+
+Additional keys are also accepted.

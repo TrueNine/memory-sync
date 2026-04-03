@@ -1,0 +1,270 @@
+---
+title: aindex and .tnmsc.json
+description: Explains in one place where `.aindex` lives, how `~/.aindex/.tnmsc.json` is loaded, and what every supported config field means.
+sidebarTitle: aindex and Config
+status: stable
+---
+
+# aindex and `.tnmsc.json`
+
+If you only need one page for project setup and config, use this one.
+
+## Two Things to Separate
+
+`memory-sync` treats these as different layers:
+
+- The source-content tree under your workspace aindex directory
+- The canonical global user config file at `~/.aindex/.tnmsc.json`
+
+They are related, but they are not the same thing.
+
+## What Lives Where
+
+### Workspace content
+
+The aindex content tree lives under:
+
+```text
+<workspaceDir>/<aindex.dir>
+```
+
+With default settings, that becomes:
+
+```text
+<workspaceDir>/aindex
+```
+
+This is where source content usually lives:
+
+- `skills/`
+- `commands/`
+- `subagents/`
+- `rules/`
+- `app/`
+- `ext/`
+- `arch/`
+- `softwares/`
+- `global.src.mdx`
+- `workspace.src.mdx`
+
+### User config
+
+The only user config file that `tnmsc` auto-loads today is:
+
+```text
+~/.aindex/.tnmsc.json
+```
+
+The current loader does not auto-discover `./.tnmsc.json` from the current project directory.
+
+## Minimal setup
+
+At minimum you need:
+
+- A project root directory
+- An aindex-style source tree
+- `~/.aindex/.tnmsc.json`
+- A project-level [plugin.config.ts](/docs/cli/plugin-config)
+
+The separation is intentional:
+
+- `~/.aindex/.tnmsc.json` stores user or machine-level config data
+- `plugin.config.ts` stores project-side plugin assembly and programmatic overrides
+
+## Minimal example
+
+```json
+{
+  "workspaceDir": "/repo/demo",
+  "aindex": {
+    "dir": "aindex"
+  },
+  "logLevel": "info"
+}
+```
+
+With that config:
+
+- the workspace root is `/repo/demo`
+- the aindex root is `/repo/demo/aindex`
+- `skills` resolves to `/repo/demo/aindex/skills`
+- the default global prompt source resolves to `/repo/demo/aindex/global.src.mdx`
+
+## Root fields in `~/.aindex/.tnmsc.json`
+
+| Field | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `version` | `string` | `"0.0.0"` in merged runtime options | Version or release marker passed through the runtime |
+| `workspaceDir` | `string` | `"~/project"` in merged runtime options | Project root directory |
+| `aindex` | `object` | See the table below | Source and output path mapping |
+| `logLevel` | enum | `info` | `trace` / `debug` / `info` / `warn` / `error` |
+| `commandSeriesOptions` | `object` | `{}` | Command-series naming and per-plugin overrides |
+| `outputScopes` | `object` | `{}` | Output-scope overrides per plugin |
+| `frontMatter` | `object` | `{ "blankLineAfter": true }` | Front matter formatting behavior |
+| `cleanupProtection` | `object` | `{}` | Cleanup protection rules |
+| `windows` | `object` | `{}` | Windows and WSL-specific runtime options |
+| `profile` | `object` | omitted | User profile metadata |
+
+## `aindex` fields
+
+All `aindex.*.src` and `aindex.*.dist` paths are resolved relative to:
+
+```text
+<workspaceDir>/<aindex.dir>
+```
+
+| Field | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `aindex.dir` | `string` | `aindex` | Name of the aindex root inside `workspaceDir` |
+| `aindex.skills.src` | `string` | `skills` | Skill source tree |
+| `aindex.skills.dist` | `string` | `dist/skills` | Compiled skill output tree |
+| `aindex.commands.src` | `string` | `commands` | Command source tree |
+| `aindex.commands.dist` | `string` | `dist/commands` | Compiled command output tree |
+| `aindex.subAgents.src` | `string` | `subagents` | Sub-agent source tree |
+| `aindex.subAgents.dist` | `string` | `dist/subagents` | Compiled sub-agent output tree |
+| `aindex.rules.src` | `string` | `rules` | Rule source tree |
+| `aindex.rules.dist` | `string` | `dist/rules` | Compiled rule output tree |
+| `aindex.globalPrompt.src` | `string` | `global.src.mdx` | Source file for the root global prompt |
+| `aindex.globalPrompt.dist` | `string` | `dist/global.mdx` | Generated global prompt file |
+| `aindex.workspacePrompt.src` | `string` | `workspace.src.mdx` | Source file for the root workspace prompt |
+| `aindex.workspacePrompt.dist` | `string` | `dist/workspace.mdx` | Generated workspace prompt file |
+| `aindex.app.src` | `string` | `app` | Project-memory source tree for app projects |
+| `aindex.app.dist` | `string` | `dist/app` | Generated app project-memory tree |
+| `aindex.ext.src` | `string` | `ext` | Project-memory source tree for extension projects |
+| `aindex.ext.dist` | `string` | `dist/ext` | Generated extension project-memory tree |
+| `aindex.arch.src` | `string` | `arch` | Project-memory source tree for architecture projects |
+| `aindex.arch.dist` | `string` | `dist/arch` | Generated architecture project-memory tree |
+| `aindex.softwares.src` | `string` | `softwares` | Software-series source tree |
+| `aindex.softwares.dist` | `string` | `dist/softwares` | Generated software-series tree |
+
+## `tnmsc config` can change only these config keys
+
+The current `ConfigCommand` allows:
+
+- `workspaceDir`
+- `aindex.skills.src`
+- `aindex.skills.dist`
+- `aindex.commands.src`
+- `aindex.commands.dist`
+- `aindex.subAgents.src`
+- `aindex.subAgents.dist`
+- `aindex.rules.src`
+- `aindex.rules.dist`
+- `aindex.globalPrompt.src`
+- `aindex.globalPrompt.dist`
+- `aindex.workspacePrompt.src`
+- `aindex.workspacePrompt.dist`
+- `aindex.app.src`
+- `aindex.app.dist`
+- `aindex.ext.src`
+- `aindex.ext.dist`
+- `aindex.arch.src`
+- `aindex.arch.dist`
+- `aindex.softwares.src`
+- `aindex.softwares.dist`
+- `logLevel`
+
+`logLevel` can only be:
+
+```text
+trace / debug / info / warn / error
+```
+
+## Other supported config objects
+
+### `commandSeriesOptions`
+
+```json
+{
+  "commandSeriesOptions": {
+    "includeSeriesPrefix": true,
+    "pluginOverrides": {
+      "some-plugin-name": {
+        "includeSeriesPrefix": false,
+        "seriesSeparator": "/"
+      }
+    }
+  }
+}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `commandSeriesOptions.includeSeriesPrefix` | `boolean` | Whether command output names include the series prefix |
+| `commandSeriesOptions.pluginOverrides` | `Record<string, object>` | Per-plugin overrides |
+| `commandSeriesOptions.pluginOverrides.<plugin>.includeSeriesPrefix` | `boolean` | Override the top-level prefix behavior for one plugin |
+| `commandSeriesOptions.pluginOverrides.<plugin>.seriesSeparator` | `string` | Override the separator used by one plugin |
+
+### `outputScopes`
+
+The schema currently allows these topics:
+
+- `prompt`
+- `rules`
+- `commands`
+- `subagents`
+- `skills`
+- `mcp`
+
+Each topic accepts either a single scope or an array of scopes. The only valid scope values are:
+
+- `project`
+- `global`
+
+See [Output Scopes](/docs/cli/output-scopes) for behavior details.
+
+### `frontMatter`
+
+```json
+{
+  "frontMatter": {
+    "blankLineAfter": true
+  }
+}
+```
+
+See [Front Matter](/docs/cli/frontmatter) for the formatting distinction.
+
+### `cleanupProtection`
+
+Each rule supports:
+
+- `path`
+- `protectionMode`: `direct` / `recursive`
+- `matcher`: `path` / `glob`
+- `reason`
+
+See [Cleanup Protection](/docs/cli/cleanup-protection) for cleanup semantics.
+
+### `windows`
+
+```json
+{
+  "windows": {
+    "wsl2": {
+      "instances": ["Ubuntu", "Ubuntu-24.04"]
+    }
+  }
+}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `windows.wsl2.instances` | `string \| string[]` | WSL instance name or names used by Windows-specific integration |
+
+### `profile`
+
+`profile` is an open object. The schema explicitly recognizes these optional fields:
+
+- `name`
+- `username`
+- `gender`
+- `birthday`
+
+Additional keys are also accepted.
+
+## What to read next
+
+- If you want the command workflow, continue with [First Sync](/docs/cli/first-sync)
+- If you need plugin assembly, read [plugin.config.ts](/docs/cli/plugin-config)
+- If you need cleanup or output-boundary behavior, continue with [CLI](/docs/cli)

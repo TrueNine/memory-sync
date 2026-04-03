@@ -1,4 +1,5 @@
 export default {
   'index': 'Overview',
-  'quick-install': 'Quick Install'
+  'quick-install': 'Quick Install',
+  'aindex-and-config': 'aindex and Config'
 }

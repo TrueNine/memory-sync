@@ -7,6 +7,13 @@ status: stable
 
 # GUI
 
+> [!danger]
+> The GUI is not the primary maintenance target right now. The CLI is the main focus.
+>
+> If the GUI feels under-maintained, please excuse that. The team is small, and I may not actively maintain the GUI for a while.
+>
+> I expect to come back and continue maintaining the GUI after the core functionality is more complete.
+
 `gui/` is the desktop invocation layer built with Tauri and React. Its job is not to become the center of the system architecture. Its job is to turn the configuration editing, execution, display, and log inspection exposed by the `tnmsc` crate in `sdk/` into a desktop workflow.
 
 ## What This Layer Owns
