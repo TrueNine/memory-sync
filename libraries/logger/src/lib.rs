@@ -408,15 +408,15 @@ fn append_section(
         Some(number) => {
             let mut iter = entries.iter();
             if let Some(first) = iter.next() {
-                lines.push(format!("{number}. {first}"));
+                lines.push(format!("  {number}. {first}"));
             }
             for entry in iter {
-                lines.push(format!("   {entry}"));
+                lines.push(format!("     {entry}"));
             }
         }
         None => {
             for entry in entries {
-                lines.push(format!("- {entry}"));
+                lines.push(format!("  - {entry}"));
             }
         }
     }
@@ -629,10 +629,10 @@ fn build_copy_text(record: &LoggerDiagnosticRecord) -> Vec<String> {
         for (index, fix) in possible_fixes.iter().enumerate() {
             let mut iter = fix.iter();
             if let Some(first) = iter.next() {
-                lines.push(format!("{}. {}", index + 1, first));
+                lines.push(format!("  {}. {}", index + 1, first));
             }
             for entry in iter {
-                lines.push(format!("   {entry}"));
+                lines.push(format!("     {entry}"));
             }
         }
     }
@@ -644,7 +644,11 @@ fn build_copy_text(record: &LoggerDiagnosticRecord) -> Vec<String> {
             lines.push(String::new());
         }
         lines.push("**Context**".to_string());
-        lines.extend(value_to_markdown_lines(&Value::Object(details.clone())));
+        let mut detail_lines = value_to_markdown_lines(&Value::Object(details.clone()));
+        for line in &mut detail_lines {
+            line.insert_str(0, "  ");
+        }
+        lines.extend(detail_lines);
     }
 
     lines
@@ -1260,9 +1264,9 @@ mod tests {
         let rendered = render_diagnostic_output(LogLevel::Warn, &record);
         assert!(rendered.contains("**WARN** `logger-test` [TEST_WARN] Pretty output"));
         assert!(rendered.contains("**Root Cause**"));
-        assert!(rendered.contains("- The warning must stay readable."));
+        assert!(rendered.contains("  - The warning must stay readable."));
         assert!(rendered.contains("**Context**"));
-        assert!(rendered.contains("- path: C:\\runtime\\plugin"));
+        assert!(rendered.contains("  - path: C:\\runtime\\plugin"));
     }
 
     #[test]
@@ -1289,9 +1293,9 @@ mod tests {
         assert!(
             record
                 .copy_text
-                .contains(&"- path: C:\\runtime\\plugin".to_string())
+                .contains(&"  - path: C:\\runtime\\plugin".to_string())
         );
-        assert!(record.copy_text.contains(&"- phase: cleanup".to_string()));
+        assert!(record.copy_text.contains(&"  - phase: cleanup".to_string()));
         assert!(!record.copy_text.iter().any(|line| line == "{"));
     }
 

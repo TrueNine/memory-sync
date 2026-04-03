@@ -15,7 +15,6 @@ import {
   SourcePromptFileExtensions
 } from '../plugins/plugin-core'
 import {
-  collectConfiguredAindexInputRules,
   createProtectedDeletionGuard,
   partitionDeletionTargets,
   ProtectedDeletionGuardError
@@ -50,9 +49,6 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
       aindexDir: ctx.aindexDir,
       includeReservedWorkspaceContentRoots: false,
       rules: [
-        ...collectConfiguredAindexInputRules(ctx.userConfigOptions, ctx.aindexDir, {
-          workspaceDir: ctx.workspaceDir
-        }),
         ...(ctx.userConfigOptions.cleanupProtection?.rules ?? []).map(rule => ({
           path: rule.path,
           protectionMode: rule.protectionMode,

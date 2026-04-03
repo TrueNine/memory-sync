@@ -100,7 +100,7 @@ pub struct PluginCleanupSnapshotDto {
     pub cleanup: CleanupDeclarationsDto,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProtectedRuleDto {
     pub path: String,
@@ -902,7 +902,7 @@ fn collect_built_in_dangerous_path_rules() -> Vec<ProtectedRuleDto> {
 fn collect_workspace_reserved_rules(
     workspace_dir: &str,
     project_roots: &[String],
-    include_reserved_workspace_content_roots: bool,
+    _include_reserved_workspace_content_roots: bool,
 ) -> Vec<ProtectedRuleDto> {
     let workspace_dir = path_to_string(&resolve_absolute_path(workspace_dir));
     let mut rules = vec![
@@ -939,25 +939,6 @@ fn collect_workspace_reserved_rules(
             "workspace-project-root",
             None,
         ));
-    }
-
-    if include_reserved_workspace_content_roots {
-        rules.push(create_protected_rule(
-            &format!("{workspace_dir}/aindex/dist/**/*.mdx"),
-            ProtectionModeDto::Direct,
-            "reserved workspace aindex dist mdx files",
-            "workspace-reserved",
-            Some(ProtectionRuleMatcherDto::Glob),
-        ));
-        for series_name in ["app", "ext", "arch", "softwares"] {
-            rules.push(create_protected_rule(
-                &format!("{workspace_dir}/aindex/{series_name}/**/*.mdx"),
-                ProtectionModeDto::Direct,
-                format!("reserved workspace aindex {series_name} mdx files"),
-                "workspace-reserved",
-                Some(ProtectionRuleMatcherDto::Glob),
-            ));
-        }
     }
 
     rules
@@ -2118,19 +2099,19 @@ mod tests {
     }
 
     #[test]
-    fn blocks_reserved_workspace_mdx_descendants() {
+    fn allows_aindex_descendants_but_blocks_aindex_root_deletion() {
         let temp_dir = tempdir().unwrap();
         let workspace_dir = temp_dir.path().join("workspace");
-        let protected_file = workspace_dir.join("aindex/dist/commands/demo.mdx");
-        fs::create_dir_all(protected_file.parent().unwrap()).unwrap();
-        fs::write(&protected_file, "# demo").unwrap();
+        let child_dir = workspace_dir.join("aindex/app/demo/backend/sql");
+        let aindex_dir = workspace_dir.join("aindex");
+        fs::create_dir_all(&child_dir).unwrap();
 
-        let snapshot = single_plugin_snapshot(
+        let child_plan = plan_cleanup(single_plugin_snapshot(
             &workspace_dir,
             vec![],
             CleanupDeclarationsDto {
                 delete: vec![CleanupTargetDto {
-                    path: path_to_string(&workspace_dir.join("aindex/dist")),
+                    path: path_to_string(&child_dir),
                     kind: CleanupTargetKindDto::Directory,
                     exclude_basenames: Vec::new(),
                     protection_mode: None,
@@ -2139,18 +2120,137 @@ mod tests {
                 }],
                 ..CleanupDeclarationsDto::default()
             },
-        );
+        ))
+        .unwrap();
 
-        let plan = plan_cleanup(snapshot).unwrap();
-        assert!(plan.dirs_to_delete.is_empty());
-        assert_eq!(plan.violations.len(), 1);
+        assert!(child_plan.violations.is_empty());
+        assert!(child_plan.dirs_to_delete.contains(&path_to_string(&child_dir)));
+
+        let root_plan = plan_cleanup(single_plugin_snapshot(
+            &workspace_dir,
+            vec![],
+            CleanupDeclarationsDto {
+                delete: vec![CleanupTargetDto {
+                    path: path_to_string(&aindex_dir),
+                    kind: CleanupTargetKindDto::Directory,
+                    exclude_basenames: Vec::new(),
+                    protection_mode: None,
+                    scope: None,
+                    label: None,
+                }],
+                ..CleanupDeclarationsDto::default()
+            },
+        ))
+        .unwrap();
+
+        assert!(root_plan.dirs_to_delete.is_empty());
+        assert_eq!(root_plan.violations.len(), 1);
         assert_eq!(
-            plan.violations[0].protected_path,
-            path_to_string(&protected_file)
+            root_plan.violations[0].protected_path,
+            path_to_string(&aindex_dir)
         );
     }
 
-    #[cfg(unix)]
+    #[test]
+    fn allows_deleting_all_aindex_series_descendants() {
+        let series_paths = [
+            "dist/commands/demo.mdx",
+            "dist/ext/plugin-a/agt.mdx",
+            "dist/arch/system-a/agt.mdx",
+            "dist/softwares/tool-a/agt.mdx",
+            "dist/subagents/qa/boot.mdx",
+            "app/demo/backend/sql/migration.sql",
+            "ext/plugin-a/agt.src.mdx",
+            "arch/system-a/agt.src.mdx",
+            "softwares/tool-a/agt.src.mdx",
+            "commands/demo.src.mdx",
+            "subagents/qa/boot.src.mdx",
+        ];
+
+        for series_path in series_paths {
+            let temp_dir = tempdir().unwrap();
+            let workspace_dir = temp_dir.path().join("workspace");
+            let target = workspace_dir.join(format!("aindex/{}", series_path));
+            fs::create_dir_all(target.parent().unwrap()).unwrap();
+            fs::write(&target, "content").unwrap();
+
+            let plan = plan_cleanup(single_plugin_snapshot(
+                &workspace_dir,
+                vec![],
+                CleanupDeclarationsDto {
+                    delete: vec![CleanupTargetDto {
+                        path: path_to_string(&target),
+                        kind: CleanupTargetKindDto::File,
+                        exclude_basenames: Vec::new(),
+                        protection_mode: None,
+                        scope: None,
+                        label: None,
+                    }],
+                    ..CleanupDeclarationsDto::default()
+                },
+            ))
+            .unwrap();
+
+            assert!(
+                plan.violations.is_empty(),
+                "expected no violations for aindex/{}",
+                series_path
+            );
+            assert!(plan.files_to_delete.contains(&path_to_string(&target)));
+        }
+    }
+
+    #[test]
+    fn include_reserved_workspace_content_roots_is_inert() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let aindex_dir = workspace_dir.join("aindex");
+        fs::create_dir_all(&aindex_dir).unwrap();
+
+        let rules_with_content = collect_workspace_reserved_rules(
+            &path_to_string(&workspace_dir),
+            &[],
+            true,
+        );
+        let rules_without_content = collect_workspace_reserved_rules(
+            &path_to_string(&workspace_dir),
+            &[],
+            false,
+        );
+
+        assert_eq!(rules_with_content.len(), rules_without_content.len());
+        assert_eq!(rules_with_content, rules_without_content);
+    }
+
+    #[test]
+    fn blocks_aindex_root_but_allows_deep_descendant_deletion() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let aindex_dir = workspace_dir.join("aindex");
+        let deep_dir = aindex_dir.join("dist/commands/legacy/deep");
+        fs::create_dir_all(&deep_dir).unwrap();
+
+        let plan = plan_cleanup(single_plugin_snapshot(
+            &workspace_dir,
+            vec![],
+            CleanupDeclarationsDto {
+                delete: vec![CleanupTargetDto {
+                    path: path_to_string(&deep_dir),
+                    kind: CleanupTargetKindDto::Directory,
+                    exclude_basenames: Vec::new(),
+                    protection_mode: None,
+                    scope: None,
+                    label: None,
+                }],
+                ..CleanupDeclarationsDto::default()
+            },
+        ))
+        .unwrap();
+
+        assert!(plan.violations.is_empty());
+        assert!(plan.dirs_to_delete.contains(&path_to_string(&deep_dir)));
+    }
+
     #[test]
     fn matches_symlink_realpaths_against_protected_paths() {
         use std::os::unix::fs::symlink;
@@ -2752,5 +2852,379 @@ mod tests {
         assert!(plan
             .dirs_to_delete
             .contains(&path_to_string(&project_b.join("cache"))));
+    }
+
+    // ──────────────────────────────────────────────
+    // Regression tests (prevent cleanup bugs from returning)
+    // ──────────────────────────────────────────────
+
+    /// Regression for 38d361a: plugin outputs must NOT be auto-whitelisted as safe paths.
+    /// If an output path overlaps a protected path, it must generate a violation.
+    #[test]
+    fn regression_plugin_outputs_not_auto_safe() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let project_root = workspace_dir.join("project-a");
+        let protected_file = project_root.join("AGENTS.md");
+        fs::create_dir_all(&project_root).unwrap();
+        fs::write(&protected_file, "# project").unwrap();
+
+        // Plugin declares AGENTS.md as an output AND tries to protect it
+        let snapshot = CleanupSnapshot {
+            workspace_dir: path_to_string(&workspace_dir),
+            aindex_dir: Some(path_to_string(&workspace_dir.join("aindex"))),
+            project_roots: vec![path_to_string(&project_root)],
+            protected_rules: Vec::new(),
+            plugin_snapshots: vec![PluginCleanupSnapshotDto {
+                plugin_name: "TestPlugin".to_string(),
+                outputs: vec![path_to_string(&protected_file)],
+                cleanup: CleanupDeclarationsDto {
+                    protect: vec![CleanupTargetDto {
+                        path: path_to_string(&protected_file),
+                        kind: CleanupTargetKindDto::File,
+                        exclude_basenames: Vec::new(),
+                        protection_mode: None,
+                        scope: None,
+                        label: None,
+                    }],
+                    ..CleanupDeclarationsDto::default()
+                },
+            }],
+            empty_dir_exclude_globs: Vec::new(),
+        };
+
+        let plan = plan_cleanup(snapshot).unwrap();
+        // Must detect the conflict between output and protect declaration
+        assert!(
+            !plan.conflicts.is_empty(),
+            "plugin output overlapping with protect declaration must generate a conflict"
+        );
+        // Must NOT be in the safe deletion list
+        assert!(!plan
+            .files_to_delete
+            .contains(&path_to_string(&protected_file)));
+    }
+
+    /// Regression for 38d361a: plugin outputs that land inside a project root
+    /// must still be checked against project-root protection.
+    #[test]
+    fn regression_plugin_output_inside_project_root_checked_against_protection() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let project_root = workspace_dir.join("project-a");
+        let output_file = project_root.join(".cursor/rules/generated.md");
+        fs::create_dir_all(output_file.parent().unwrap()).unwrap();
+        fs::write(&output_file, "# generated").unwrap();
+
+        let snapshot = single_plugin_snapshot(
+            &workspace_dir,
+            vec![path_to_string(&output_file)],
+            CleanupDeclarationsDto::default(),
+        );
+
+        let plan = plan_cleanup(snapshot).unwrap();
+        // The file is inside project-a which is a protected project root.
+        // Since project roots are protected with Direct mode, descendants
+        // should not be auto-deleted unless explicitly declared as file targets.
+        // Outputs are no longer auto-safe, so this should be checked.
+        // The file IS declared as an output (file kind), so it goes into
+        // exact_safe_file_paths and is allowed through.
+        assert!(plan
+            .files_to_delete
+            .contains(&path_to_string(&output_file)));
+    }
+
+    /// Regression for 31c3fef: .idea and .vscode must NOT be in the excluded basenames list.
+    /// They should be eligible for empty-directory cleanup when empty.
+    #[test]
+    fn regression_ide_directories_eligible_for_empty_dir_cleanup() {
+        assert!(
+            !EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES.contains(&".idea"),
+            ".idea must not be excluded from empty-directory scan"
+        );
+        assert!(
+            !EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES.contains(&".vscode"),
+            ".vscode must not be excluded from empty-directory scan"
+        );
+    }
+
+    /// Regression for 31c3fef: empty IDE directories inside project roots
+    /// should be pruned without deleting the project root itself.
+    #[test]
+    fn regression_empty_ide_dirs_in_project_roots_pruned_safely() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let project_root = workspace_dir.join("my-project");
+        let vscode_dir = project_root.join(".vscode");
+        let idea_dir = project_root.join(".idea");
+        let agents_file = project_root.join("AGENTS.md");
+
+        fs::create_dir_all(&vscode_dir).unwrap();
+        fs::create_dir_all(&idea_dir).unwrap();
+        fs::create_dir_all(&project_root).unwrap();
+        fs::write(&agents_file, "# project").unwrap();
+
+        let mut snapshot =
+            single_plugin_snapshot(&workspace_dir, vec![], CleanupDeclarationsDto::default());
+        snapshot.project_roots = vec![path_to_string(&project_root)];
+
+        let plan = plan_cleanup(snapshot).unwrap();
+
+        // Empty IDE directories should be cleaned up
+        assert!(plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&vscode_dir)));
+        assert!(plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&idea_dir)));
+
+        // Project root itself must NOT be deleted
+        assert!(!plan
+            .empty_dirs_to_delete
+            .contains(&path_to_string(&project_root)));
+        assert!(!plan
+            .dirs_to_delete
+            .contains(&path_to_string(&project_root)));
+
+        // No violations should be raised for the project root
+        assert!(
+            plan.violations.is_empty(),
+            "no violations expected for empty IDE dir cleanup inside project root"
+        );
+    }
+
+    /// Regression for 31c3fef: retained_directory_roots must prevent
+    /// empty-directory deletion of directories protected by Direct mode rules.
+    /// Without this fix, a Direct-protected directory that becomes empty
+    /// would still be collected as an empty directory to delete.
+    #[test]
+    fn regression_retained_directory_roots_prevent_over_deletion() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let project_root = workspace_dir.join("project-a");
+        let empty_subdir = project_root.join("empty/sub");
+        fs::create_dir_all(&empty_subdir).unwrap();
+
+        let mut snapshot =
+            single_plugin_snapshot(&workspace_dir, vec![], CleanupDeclarationsDto::default());
+        snapshot.project_roots = vec![path_to_string(&project_root)];
+
+        let plan = plan_cleanup(snapshot).unwrap();
+
+        // project-a is protected by Direct mode (workspace-project-root).
+        // The empty subdirectories inside it should be pruned, but project-a
+        // itself must NOT be collected as an empty directory to delete.
+        assert!(
+            plan.empty_dirs_to_delete
+                .contains(&path_to_string(&empty_subdir)),
+            "empty subdirectories inside project roots should be pruned"
+        );
+        assert!(
+            plan.empty_dirs_to_delete
+                .contains(&path_to_string(&project_root.join("empty"))),
+            "parent empty directories inside project roots should also be pruned"
+        );
+        assert!(
+            !plan
+                .empty_dirs_to_delete
+                .contains(&path_to_string(&project_root)),
+            "Direct-protected project root must not be scheduled for empty-directory deletion"
+        );
+    }
+
+    /// Regression for 31c3fef: project roots must NOT be blanket-excluded from
+    /// the empty-directory scan. Their internal empty directories should still
+    /// be pruned, only the project root path itself must be filtered out.
+    #[test]
+    fn regression_project_roots_not_blanket_excluded_from_empty_dir_scan() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let project_root = workspace_dir.join("packages/app");
+        let empty_subdir = project_root.join("src/empty/nested");
+        fs::create_dir_all(&empty_subdir).unwrap();
+
+        let mut snapshot =
+            single_plugin_snapshot(&workspace_dir, vec![], CleanupDeclarationsDto::default());
+        snapshot.project_roots = vec![path_to_string(&project_root)];
+
+        let plan = plan_cleanup(snapshot).unwrap();
+
+        // Internal empty directories within the project tree should be pruned
+        assert!(
+            plan.empty_dirs_to_delete
+                .contains(&path_to_string(&empty_subdir)),
+            "empty subdirectories inside project roots should still be pruned"
+        );
+        assert!(
+            plan.empty_dirs_to_delete
+                .contains(&path_to_string(&project_root.join("src/empty"))),
+            "parent empty directories inside project roots should also be pruned"
+        );
+
+        // But the project root itself must never appear in the deletion list
+        assert!(
+            !plan
+                .empty_dirs_to_delete
+                .contains(&path_to_string(&project_root)),
+            "project root itself must never be scheduled for empty-directory deletion"
+        );
+    }
+
+    /// Regression: plugin file-type cleanup declarations must be added to
+    /// exact_safe_file_paths so they bypass protection checks.
+    #[test]
+    fn regression_explicit_file_cleanup_declarations_bypass_protection() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let project_root = workspace_dir.join("project-a");
+        let generated_file = project_root.join(".cursor/rules/generated.md");
+        fs::create_dir_all(generated_file.parent().unwrap()).unwrap();
+        fs::write(&generated_file, "# generated").unwrap();
+
+        // Plugin explicitly declares a file for cleanup
+        let snapshot = single_plugin_snapshot(
+            &workspace_dir,
+            vec![],
+            CleanupDeclarationsDto {
+                delete: vec![CleanupTargetDto {
+                    path: path_to_string(&generated_file),
+                    kind: CleanupTargetKindDto::File,
+                    exclude_basenames: Vec::new(),
+                    protection_mode: None,
+                    scope: None,
+                    label: Some("stale-rule".to_string()),
+                }],
+                ..CleanupDeclarationsDto::default()
+            },
+        );
+
+        let plan = plan_cleanup(snapshot).unwrap();
+
+        // File-type cleanup declarations should be allowed through
+        assert!(plan
+            .files_to_delete
+            .contains(&path_to_string(&generated_file)));
+        assert!(
+            plan.violations.is_empty(),
+            "explicit file cleanup should not generate violations"
+        );
+    }
+
+    /// Regression: multiple plugins declaring the same output must not
+    /// cause duplicate entries in the deletion plan.
+    #[test]
+    fn regression_duplicate_outputs_across_plugins_compacted() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let shared_output = workspace_dir.join("shared-output.md");
+        fs::create_dir_all(shared_output.parent().unwrap()).unwrap();
+        fs::write(&shared_output, "shared").unwrap();
+
+        let snapshot = CleanupSnapshot {
+            workspace_dir: path_to_string(&workspace_dir),
+            aindex_dir: Some(path_to_string(&workspace_dir.join("aindex"))),
+            project_roots: Vec::new(),
+            protected_rules: Vec::new(),
+            plugin_snapshots: vec![
+                PluginCleanupSnapshotDto {
+                    plugin_name: "PluginA".to_string(),
+                    outputs: vec![path_to_string(&shared_output)],
+                    cleanup: CleanupDeclarationsDto::default(),
+                },
+                PluginCleanupSnapshotDto {
+                    plugin_name: "PluginB".to_string(),
+                    outputs: vec![path_to_string(&shared_output)],
+                    cleanup: CleanupDeclarationsDto::default(),
+                },
+            ],
+            empty_dir_exclude_globs: Vec::new(),
+        };
+
+        let plan = plan_cleanup(snapshot).unwrap();
+
+        // File should appear exactly once in the deletion list
+        let count = plan
+            .files_to_delete
+            .iter()
+            .filter(|p| **p == path_to_string(&shared_output))
+            .count();
+        assert_eq!(count, 1, "duplicate outputs must be compacted to single entry");
+    }
+
+    /// Regression: perform_cleanup must return zero deletions when conflicts exist.
+    #[test]
+    fn regression_perform_cleanup_aborts_on_conflicts() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let project_root = workspace_dir.join("project-a");
+        let shared_file = project_root.join("AGENTS.md");
+        fs::create_dir_all(&project_root).unwrap();
+        fs::write(&shared_file, "# project").unwrap();
+
+        let snapshot = CleanupSnapshot {
+            workspace_dir: path_to_string(&workspace_dir),
+            aindex_dir: Some(path_to_string(&workspace_dir.join("aindex"))),
+            project_roots: vec![path_to_string(&project_root)],
+            protected_rules: Vec::new(),
+            plugin_snapshots: vec![PluginCleanupSnapshotDto {
+                plugin_name: "TestPlugin".to_string(),
+                outputs: vec![path_to_string(&shared_file)],
+                cleanup: CleanupDeclarationsDto {
+                    protect: vec![CleanupTargetDto {
+                        path: path_to_string(&shared_file),
+                        kind: CleanupTargetKindDto::File,
+                        exclude_basenames: Vec::new(),
+                        protection_mode: None,
+                        scope: None,
+                        label: None,
+                    }],
+                    ..CleanupDeclarationsDto::default()
+                },
+            }],
+            empty_dir_exclude_globs: Vec::new(),
+        };
+
+        let result = perform_cleanup(snapshot).unwrap();
+
+        // Must not delete anything when conflicts exist
+        assert_eq!(result.deleted_files, 0);
+        assert_eq!(result.deleted_dirs, 0);
+        assert!(!result.conflicts.is_empty());
+        // The file must still exist
+        assert!(shared_file.exists());
+    }
+
+    /// Regression: perform_cleanup must return zero deletions when violations exist.
+    #[test]
+    fn regression_perform_cleanup_aborts_on_violations() {
+        let temp_dir = tempdir().unwrap();
+        let workspace_dir = temp_dir.path().join("workspace");
+        let aindex_dir = workspace_dir.join("aindex");
+        fs::create_dir_all(&aindex_dir).unwrap();
+
+        let snapshot = single_plugin_snapshot(
+            &workspace_dir,
+            vec![],
+            CleanupDeclarationsDto {
+                delete: vec![CleanupTargetDto {
+                    path: path_to_string(&aindex_dir),
+                    kind: CleanupTargetKindDto::Directory,
+                    exclude_basenames: Vec::new(),
+                    protection_mode: None,
+                    scope: None,
+                    label: None,
+                }],
+                ..CleanupDeclarationsDto::default()
+            },
+        );
+
+        let result = perform_cleanup(snapshot).unwrap();
+
+        // Must not delete anything when violations exist
+        assert_eq!(result.deleted_files, 0);
+        assert_eq!(result.deleted_dirs, 0);
+        assert!(!result.violations.is_empty());
+        // The aindex directory must still exist
+        assert!(aindex_dir.exists());
     }
 }

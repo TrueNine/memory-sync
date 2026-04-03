@@ -33,14 +33,14 @@
     "build:native": "napi build --platform --release --output-dir dist -- --features napi",
     "build:native:debug": "napi build --platform --output-dir dist -- --features napi",
     "build:ts": "tsx ../../scripts/build-quiet.ts",
-    "check": "run-p typecheck lint",
-    "lint": "eslint --cache --cache-location node_modules/.cache/.eslintcache .",
-    "lintfix": "eslint --fix --cache --cache-location node_modules/.cache/.eslintcache .",
+    "check": "run-p check:type lint",
+    "lint": "eslint --cache --cache-location .eslintcache .",
+    "lint:fix": "eslint --fix --cache --cache-location .eslintcache .",
     "prepublishOnly": "run-s build",
     "test": "run-s test:rust test:ts",
     "test:rust": "tsx ../../scripts/cargo-test.ts",
     "test:ts": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit -p tsconfig.lib.json"
+    "check:type": "tsc --noEmit -p tsconfig.lib.json"
   },
   "devDependencies": {
     "@napi-rs/cli": "catalog:",

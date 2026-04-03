@@ -6,19 +6,22 @@
       "outputs": ["dist/**", "*.node", ".next/**", "!.next/cache/**"]
     },
     "test": {
-      "dependsOn": ["build", "lint", "typecheck"],
+      "dependsOn": ["build", "lint", "check:type"],
       "outputs": []
     },
     "lint": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [".eslintcache"],
+      "cache": true
     },
-    "lintfix": {
-      "outputs": []
+    "lint:fix": {
+      "outputs": [".eslintcache"],
+      "cache": true
     },
-    "typecheck": {
+    "check:type": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
+      "cache": true
     }
   }
 }

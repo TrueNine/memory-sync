@@ -4,8 +4,7 @@ import type {
   OutputCleanupDeclarations,
   OutputCleanupPathDeclaration,
   OutputFileDeclaration,
-  OutputPlugin,
-  PluginOptions
+  OutputPlugin
 } from '../../src/plugins/plugin-core'
 import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../../src/ProtectedDeletionGuard'
 import type {DeletionError} from './desk-paths'
@@ -18,7 +17,6 @@ import {buildDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '..
 import {collectAllPluginOutputs} from '../../src/plugins/plugin-core'
 import {
   buildComparisonKeys,
-  collectConfiguredAindexInputRules,
   collectProjectRoots,
   collectProtectedInputSourceRules,
   createProtectedDeletionGuard,
@@ -233,13 +231,6 @@ async function collectCleanupTargets(
 
   for (const rule of collectProtectedInputSourceRules(cleanCtx.collectedOutputContext)) {
     addProtectRule(rule.path, rule.protectionMode, rule.reason, rule.source)
-  }
-  if (cleanCtx.collectedOutputContext.aindexDir != null && cleanCtx.pluginOptions != null) {
-    for (const rule of collectConfiguredAindexInputRules(cleanCtx.pluginOptions as Required<PluginOptions>, cleanCtx.collectedOutputContext.aindexDir, {
-      workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path
-    })) {
-      addProtectRule(rule.path, rule.protectionMode, rule.reason, rule.source, rule.matcher)
-    }
   }
 
   for (const rule of cleanCtx.pluginOptions?.cleanupProtection?.rules ?? []) {

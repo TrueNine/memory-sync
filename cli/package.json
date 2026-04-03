@@ -55,16 +55,16 @@
     "ensure:sdk-build": "tsx scripts/ensure-sdk-build.ts",
     "sync:sdk-assets": "tsx scripts/sync-sdk-dist.ts",
     "check": "run-s ensure:sdk-build check:run",
-    "check:run": "run-p lint:run typecheck:run",
+    "check:run": "run-p lint:run check:type:run",
     "lint": "run-s ensure:sdk-build lint:run",
-    "lint:run": "eslint --cache --cache-location node_modules/.cache/.eslintcache .",
+    "lint:run": "eslint --cache --cache-location .eslintcache .",
     "prepublishOnly": "run-s build check",
     "test": "run-s ensure:sdk-build test:run",
     "test:run": "vitest run",
-    "lintfix": "run-s ensure:sdk-build lintfix:run",
-    "lintfix:run": "eslint --fix --cache --cache-location node_modules/.cache/.eslintcache .",
-    "typecheck": "run-s ensure:sdk-build typecheck:run",
-    "typecheck:run": "tsc --noEmit -p tsconfig.lib.json"
+    "lint:fix": "run-s ensure:sdk-build lint:fix:run",
+    "lint:fix:run": "eslint --fix --cache --cache-location .eslintcache .",
+    "typecheck": "run-s ensure:sdk-build check:type:run",
+    "check:type:run": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {},
   "optionalDependencies": {
