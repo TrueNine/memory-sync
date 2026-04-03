@@ -14,17 +14,12 @@ The commands currently exposed by `tnmsc --help` are:
 | `tnmsc` | Run the default sync pipeline |
 | `tnmsc help` | Show help |
 | `tnmsc version` | Show the version |
-| `tnmsc init` | Deprecated and no longer initializes aindex |
 | `tnmsc dry-run` | Preview the files that would be written |
 | `tnmsc clean` | Delete generated outputs and continue cleaning empty directories from the project source tree |
 | `tnmsc clean --dry-run` | Preview what would be cleaned, including empty directories that would be swept afterward |
 | `tnmsc config key=value` | Change global config |
 
 ## Key Takeaways
-
-### `init` Should No Longer Appear in New Workflows
-
-The current implementation treats it as deprecated, so new docs no longer present it as a recommended entrypoint.
 
 ### `config` Can Only Change a Whitelisted Set of Keys
 

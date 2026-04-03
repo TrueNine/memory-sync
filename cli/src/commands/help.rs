@@ -16,7 +16,6 @@ pub fn execute() -> ExitCode {
     println!("  help         Show this help message");
     println!();
     println!("OPTIONS:");
-    println!("  -j, --json   Output results as JSON");
     println!("  --trace      Set log level to trace");
     println!("  --debug      Set log level to debug");
     println!("  --info       Set log level to info");

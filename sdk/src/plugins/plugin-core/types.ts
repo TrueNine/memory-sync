@@ -1,3 +1,4 @@
+export * from '../../execution-plan'
 export * from './AindexConfigDefaults'
 export * from './AindexTypes'
 export * from './ConfigTypes.schema'

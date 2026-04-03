@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 const PRIMARY_SOURCE_MDX_EXTENSION: &str = ".src.mdx";
 const SOURCE_MDX_FILE_TYPE: &str = "sourceMdx";
@@ -31,6 +32,7 @@ const DEFAULT_GLOBAL_PROMPT_DIST: &str = "dist/global.mdx";
 const DEFAULT_WORKSPACE_PROMPT_SRC: &str = "workspace.src.mdx";
 const DEFAULT_WORKSPACE_PROMPT_DIST: &str = "dist/workspace.mdx";
 const PROJECT_SERIES_CATEGORIES: [&str; 3] = ["app", "ext", "arch"];
+const INTERNAL_BRIDGE_JSON_FLAG: &str = "--bridge-json";
 
 fn has_source_mdx_extension(name: &str) -> bool {
     name.ends_with(PRIMARY_SOURCE_MDX_EXTENSION)
@@ -89,6 +91,27 @@ pub struct LogEntry {
     pub payload: serde_json::Value,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BridgeJsonCommandResult {
+    success: bool,
+    #[serde(default)]
+    files_affected: i32,
+    #[serde(default)]
+    dirs_affected: i32,
+    #[serde(default)]
+    message: Option<String>,
+    #[serde(default)]
+    warnings: Vec<Value>,
+    #[serde(default)]
+    errors: Vec<Value>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct PluginListEntry {
+    name: String,
+}
+
 // ---------------------------------------------------------------------------
 // Tauri commands
 // ---------------------------------------------------------------------------
@@ -97,10 +120,9 @@ pub struct LogEntry {
 #[tauri::command]
 pub fn execute_pipeline(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
     let subcommand = if dry_run { "dry-run" } else { "execute" };
-    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), true, &[])
+    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), &[INTERNAL_BRIDGE_JSON_FLAG])
         .map_err(|e| e.to_string())?;
-    serde_json::from_str::<PipelineResult>(&result.stdout)
-        .map_err(|e| format!("Failed to parse pipeline JSON output: {e}"))
+    parse_pipeline_result(&result.stdout, subcommand, dry_run)
 }
 
 /// Load the merged configuration via the tnmsc library API.
@@ -113,20 +135,28 @@ pub fn load_config(cwd: String) -> Result<serde_json::Value, String> {
 /// List all registered plugins via the tnmsc bridge command.
 #[tauri::command]
 pub fn list_plugins(cwd: String) -> Result<Vec<PluginExecutionResult>, String> {
-    let result = tnmsc::run_bridge_command("plugins", Path::new(&cwd), true, &[])
+    let result = tnmsc::run_bridge_command("plugins", Path::new(&cwd), &[INTERNAL_BRIDGE_JSON_FLAG])
         .map_err(|e| e.to_string())?;
-    serde_json::from_str::<Vec<PluginExecutionResult>>(&result.stdout)
-        .map_err(|e| format!("Failed to parse plugins JSON output: {e}"))
+    let plugins = serde_json::from_str::<Vec<PluginListEntry>>(&result.stdout)
+        .map_err(|e| format!("Failed to parse plugins output: {e}"))?;
+    Ok(plugins
+        .into_iter()
+        .map(|plugin| PluginExecutionResult {
+            plugin: plugin.name,
+            files: 0,
+            dirs: 0,
+            dry_run: false,
+        })
+        .collect())
 }
 
 /// Clean previously generated output files.
 #[tauri::command]
 pub fn clean_outputs(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
     let subcommand = if dry_run { "dry-run-clean" } else { "clean" };
-    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), true, &[])
+    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), &[INTERNAL_BRIDGE_JSON_FLAG])
         .map_err(|e| e.to_string())?;
-    serde_json::from_str::<PipelineResult>(&result.stdout)
-        .map_err(|e| format!("Failed to parse clean JSON output: {e}"))
+    parse_pipeline_result(&result.stdout, subcommand, dry_run)
 }
 
 /// Get log output from a CLI bridge command.
@@ -139,10 +169,8 @@ pub fn get_logs(cwd: String, command: String) -> Result<Vec<LogEntry>, String> {
     let args: Vec<&str> = command.split_whitespace().collect();
     let subcommand = args.first().copied().unwrap_or("execute");
     let extra_args: Vec<&str> = args.iter().skip(1).copied().collect();
-    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), false, &extra_args)
+    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), &extra_args)
         .map_err(|e| e.to_string())?;
-    // Try parsing stderr first (log output goes to stderr in non-JSON mode),
-    // fall back to stdout if stderr has no parseable entries.
     let logs = parse_log_lines(&result.stderr);
     if logs.is_empty() {
         Ok(parse_log_lines(&result.stdout))
@@ -151,29 +179,142 @@ pub fn get_logs(cwd: String, command: String) -> Result<Vec<LogEntry>, String> {
     }
 }
 
-/// Parse log lines from raw CLI output using JSON.
-///
-/// Each line is expected to be a JSON object with `$` (metadata array) and `_` (payload).
-/// Format: `{"$":["timestamp","LEVEL","logger"],"_":{...payload...}}`
+fn parse_pipeline_result(raw: &str, command: &str, dry_run: bool) -> Result<PipelineResult, String> {
+    let parsed = serde_json::from_str::<BridgeJsonCommandResult>(raw)
+        .map_err(|e| format!("Failed to parse bridge result: {e}"))?;
+
+    Ok(PipelineResult {
+        success: parsed.success,
+        total_files: parsed.files_affected,
+        total_dirs: parsed.dirs_affected,
+        dry_run,
+        command: Some(command.to_string()),
+        plugin_results: Vec::new(),
+        logs: Vec::new(),
+        errors: collect_bridge_messages(&parsed),
+    })
+}
+
+fn collect_bridge_messages(result: &BridgeJsonCommandResult) -> Vec<String> {
+    let mut messages = Vec::new();
+
+    if let Some(message) = result.message.as_ref()
+        && !message.is_empty()
+    {
+        messages.push(message.clone());
+    }
+
+    for diagnostic in &result.errors {
+        if let Some(message) = extract_diagnostic_message(diagnostic) {
+            messages.push(message);
+        }
+    }
+
+    for diagnostic in &result.warnings {
+        if let Some(message) = extract_diagnostic_message(diagnostic) {
+            messages.push(message);
+        }
+    }
+
+    messages
+}
+
+fn extract_diagnostic_message(diagnostic: &Value) -> Option<String> {
+    let object = diagnostic.as_object()?;
+    if let Some(copy_text) = object.get("copyText").and_then(Value::as_array) {
+        let lines = copy_text
+            .iter()
+            .filter_map(Value::as_str)
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        if !lines.is_empty() {
+            return Some(lines.join("\n"));
+        }
+    }
+
+    let title = object.get("title").and_then(Value::as_str)?;
+    let code = object.get("code").and_then(Value::as_str).unwrap_or("DIAGNOSTIC");
+    Some(format!("[{code}] {title}"))
+}
+
+/// Parse markdown-style log output into lightweight GUI log entries.
 fn parse_log_lines(raw: &str) -> Vec<LogEntry> {
-    raw.lines()
-        .filter_map(|line| {
-            let trimmed = line.trim();
-            let val: serde_json::Value = serde_json::from_str(trimmed).ok()?;
-            let obj = val.as_object()?;
-            let meta = obj.get("$")?.as_array()?;
-            let timestamp = meta.first()?.as_str()?.to_string();
-            let level = meta.get(1)?.as_str()?.to_string();
-            let logger = meta.get(2)?.as_str()?.to_string();
-            let payload = obj.get("_").cloned().unwrap_or(serde_json::Value::Null);
-            Some(LogEntry {
-                timestamp,
+    let mut entries = Vec::new();
+    let mut current: Option<LogEntry> = None;
+
+    for raw_line in raw.lines() {
+        let line = raw_line.trim_end();
+        if let Some((level, logger, message)) = parse_log_header(line) {
+            if let Some(entry) = current.take() {
+                entries.push(entry);
+            }
+
+            let mut payload = Map::new();
+            if let Some(message) = message {
+                payload.insert("message".to_string(), Value::String(message));
+            }
+
+            current = Some(LogEntry {
+                timestamp: String::new(),
                 level,
                 logger,
-                payload,
-            })
-        })
-        .collect()
+                payload: Value::Object(payload),
+            });
+            continue;
+        }
+
+        if let Some(entry) = current.as_mut() {
+            append_log_body_line(&mut entry.payload, line);
+        }
+    }
+
+    if let Some(entry) = current.take() {
+        entries.push(entry);
+    }
+
+    entries
+}
+
+fn parse_log_header(line: &str) -> Option<(String, String, Option<String>)> {
+    if !line.starts_with("**") {
+        return None;
+    }
+
+    let remainder = line.strip_prefix("**")?;
+    let level_end = remainder.find("**")?;
+    let level = remainder[..level_end].trim().to_string();
+    let after_level = remainder[level_end + 2..].trim_start();
+    let logger_start = after_level.find('`')?;
+    let after_logger_start = &after_level[logger_start + 1..];
+    let logger_end = after_logger_start.find('`')?;
+    let logger = after_logger_start[..logger_end].to_string();
+    let message = after_logger_start[logger_end + 1..].trim();
+
+    Some((
+        level,
+        logger,
+        if message.is_empty() {
+            None
+        } else {
+            Some(message.to_string())
+        },
+    ))
+}
+
+fn append_log_body_line(payload: &mut Value, line: &str) {
+    let object = match payload {
+        Value::Object(object) => object,
+        _ => return,
+    };
+
+    let entry = object
+        .entry("body".to_string())
+        .or_insert_with(|| Value::Array(Vec::new()));
+    if let Value::Array(lines) = entry
+        && !line.trim().is_empty()
+    {
+        lines.push(Value::String(line.trim().to_string()));
+    }
 }
 
 /// Resolve the canonical global config file path.

@@ -98,6 +98,31 @@ describe('defineConfig', () => {
     }
   })
 
+  it('keeps executionCwd separate from workspaceDir', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-execution-cwd-workspace-'))
+    const externalCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-execution-cwd-external-'))
+
+    try {
+      const result = await defineConfig({
+        loadUserConfig: false,
+        executionCwd: externalCwd,
+        pluginOptions: {
+          workspaceDir: tempWorkspace,
+          plugins: [new WorkspaceInputCapability()]
+        }
+      })
+
+      expect(result.userConfigOptions.workspaceDir).toBe(tempWorkspace)
+      expect(result.context.workspace.directory.path).toBe(tempWorkspace)
+      expect(result.executionPlan.cwd).toBe(externalCwd)
+      expect(result.executionPlan.workspaceDir).toBe(tempWorkspace)
+      expect(result.executionPlan.scope).toBe('external')
+    } finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+      fs.rmSync(externalCwd, {recursive: true, force: true})
+    }
+  })
+
   it('does not run builtin mutating input effects when plugins is explicitly empty', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-explicit-empty-plugins-'))
     const orphanSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'orphan-skill')

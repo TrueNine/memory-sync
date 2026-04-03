@@ -13,10 +13,12 @@ import type {
 } from './ConfigTypes.schema'
 import type {PluginKind} from './enums'
 import type {InputCollectedContext, OutputCollectedContext, Project} from './InputTypes'
+import type {ExecutionPlan} from '@/execution-plan'
 import type {RuntimeCommand} from '@/runtime-command'
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {filterPathScopedEntriesForExecutionPlan} from '@/execution-plan'
 
 export type FastGlobType = typeof import('fast-glob')
 
@@ -80,6 +82,7 @@ export interface OutputPluginContext {
   readonly collectedOutputContext: OutputCollectedContext
   readonly pluginOptions?: PluginOptions
   readonly runtimeTargets: OutputRuntimeTargets
+  readonly executionPlan: ExecutionPlan
 }
 
 /**
@@ -394,7 +397,10 @@ export async function collectOutputDeclarations(
 ): Promise<Map<OutputPlugin, readonly OutputFileDeclaration[]>> {
   validateOutputScopeOverridesForPlugins(plugins, ctx.pluginOptions)
 
-  const declarationEntries = await Promise.all(plugins.map(async plugin => [plugin, await plugin.declareOutputFiles(ctx)] as const))
+  const declarationEntries = await Promise.all(plugins.map(async plugin => {
+    const declarations = await plugin.declareOutputFiles(ctx)
+    return [plugin, filterPathScopedEntriesForExecutionPlan(declarations, ctx.executionPlan, ctx.collectedOutputContext)] as const
+  }))
 
   return new Map(declarationEntries)
 }

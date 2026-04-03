@@ -14,7 +14,6 @@ USAGE:
   ${CLI_NAME}                         Run the sync pipeline (default)
   ${CLI_NAME} help                    Show this help message
   ${CLI_NAME} version                 Show version information
-  ${CLI_NAME} init                    Deprecated; no longer initializes aindex
   ${CLI_NAME} dry-run                 Preview what would be written
   ${CLI_NAME} clean                   Remove all generated files
   ${CLI_NAME} clean --dry-run         Preview what would be cleaned
@@ -23,7 +22,6 @@ USAGE:
 SUBCOMMANDS:
   help       Show this help message
   version    Show version information
-  init       Deprecated; keep public target-relative definitions manually
   dry-run    Preview changes without writing files
   clean      Remove all generated output files and directories
   config     Set configuration values in global config file (~/.aindex/.tnmsc.json)

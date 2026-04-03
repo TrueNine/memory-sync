@@ -1,11 +1,15 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as path from 'node:path'
 import {collectAllPluginOutputs, collectDeletionTargets, logProtectedDeletionGuardError} from '@truenine/memory-sync-sdk'
+import {runExecutionPreflight} from './execution-preflight'
 
 export class DryRunCleanCommand implements Command {
   readonly name = 'dry-run-clean'
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
+    const preflightResult = runExecutionPreflight(ctx, this.name)
+    if (preflightResult != null) return preflightResult
+
     const {logger, outputPlugins, createCleanContext} = ctx
     logger.info('running clean pipeline', {command: 'dry-run-clean', dryRun: true})
     const cleanCtx = createCleanContext(true)

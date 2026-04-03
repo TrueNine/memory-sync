@@ -1,10 +1,14 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import {collectOutputDeclarations, executeDeclarativeWriteOutputs, syncWindowsConfigIntoWsl} from '@truenine/memory-sync-sdk'
+import {runExecutionPreflight} from './execution-preflight'
 
 export class DryRunOutputCommand implements Command {
   readonly name = 'dry-run-output'
 
   async execute(ctx: CommandContext): Promise<CommandResult> {
+    const preflightResult = runExecutionPreflight(ctx, this.name)
+    if (preflightResult != null) return preflightResult
+
     const {logger, outputPlugins, createWriteContext} = ctx
     logger.info('started', {command: 'dry-run-output', dryRun: true})
     const writeCtx = createWriteContext(true)

@@ -36,9 +36,11 @@ export function resolveRuntimeCommandFromArgv(argv: readonly string[] = process.
 
 export async function createDefaultPluginConfig(
   argv: readonly string[] = process.argv,
-  runtimeCommand: RuntimeCommand = resolveRuntimeCommandFromArgv(argv)
+  runtimeCommand: RuntimeCommand = resolveRuntimeCommandFromArgv(argv),
+  executionCwd: string = process.cwd()
 ): Promise<PipelineConfig> {
   return defineConfig({
+    executionCwd,
     runtimeCommand,
     pluginOptions: {
       plugins: [
