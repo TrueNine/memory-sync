@@ -2,6 +2,9 @@ name: NPM Publish Package
 description: Publish a package to npm with retry and verification logic
 
 inputs:
+  npm-token:
+    description: npm authentication token
+    required: true
   registry-url:
     description: npm registry URL
     required: false
@@ -24,7 +27,7 @@ runs:
     - name: Publish to npm
       shell: bash
       env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
         REGISTRY_URL: ${{ inputs.registry-url }}
         PACKAGE_DIR: ${{ inputs.package-dir }}
         VERIFY_ATTEMPTS: ${{ inputs.verify-attempts }}
