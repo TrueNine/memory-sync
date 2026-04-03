@@ -74,53 +74,44 @@ function getGitHubHeaders() {
 
 async function fetchContributorsPage(page: number): Promise<GitHubContributor[]> {
   const {owner, repo} = getRepoCoordinates(siteConfig.repoUrl)
-  const response = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/contributors?per_page=${CONTRIBUTORS_PER_PAGE}&page=${page}`,
-    {
-      headers: getGitHubHeaders(),
-      next: {revalidate: CONTRIBUTORS_REVALIDATE_SECONDS}
-    }
-  )
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contributors?per_page=${CONTRIBUTORS_PER_PAGE}&page=${page}`, {
+    headers: getGitHubHeaders(),
+    next: {revalidate: CONTRIBUTORS_REVALIDATE_SECONDS}
+  })
 
   if (!response.ok) {
     throw new Error(`Failed to fetch GitHub contributors: ${response.status}`)
   }
 
-  return await response.json() as GitHubContributor[]
+  return (await response.json()) as GitHubContributor[]
 }
 
 async function searchGitHubUser(query: string): Promise<ResolvedGitHubUser | null> {
-  const response = await fetch(
-    `https://api.github.com/search/users?q=${encodeURIComponent(query)}`,
-    {
-      headers: getGitHubHeaders(),
-      next: {revalidate: CONTRIBUTORS_REVALIDATE_SECONDS}
-    }
-  )
+  const response = await fetch(`https://api.github.com/search/users?q=${encodeURIComponent(query)}`, {
+    headers: getGitHubHeaders(),
+    next: {revalidate: CONTRIBUTORS_REVALIDATE_SECONDS}
+  })
 
   if (!response.ok) {
     return null
   }
 
-  const payload = await response.json() as {items?: ResolvedGitHubUser[]}
+  const payload = (await response.json()) as {items?: ResolvedGitHubUser[]}
 
   return payload.items?.[0] ?? null
 }
 
 async function fetchGitHubUser(login: string): Promise<ResolvedGitHubUser | null> {
-  const response = await fetch(
-    `https://api.github.com/users/${encodeURIComponent(login)}`,
-    {
-      headers: getGitHubHeaders(),
-      next: {revalidate: CONTRIBUTORS_REVALIDATE_SECONDS}
-    }
-  )
+  const response = await fetch(`https://api.github.com/users/${encodeURIComponent(login)}`, {
+    headers: getGitHubHeaders(),
+    next: {revalidate: CONTRIBUTORS_REVALIDATE_SECONDS}
+  })
 
   if (!response.ok) {
     return null
   }
 
-  return await response.json() as ResolvedGitHubUser
+  return (await response.json()) as ResolvedGitHubUser
 }
 
 function parseCoAuthors(message: string) {
@@ -135,9 +126,7 @@ function parseCoAuthors(message: string) {
 
     const footer = line.slice(CO_AUTHOR_PREFIX.length).trim()
     const openAngleBracketIndex = footer.lastIndexOf('<')
-    const closeAngleBracketIndex = footer.endsWith('>')
-      ? footer.length - 1
-      : -1
+    const closeAngleBracketIndex = footer.endsWith('>') ? footer.length - 1 : -1
 
     if (openAngleBracketIndex <= 0 || closeAngleBracketIndex <= openAngleBracketIndex) {
       continue
@@ -404,8 +393,7 @@ async function getContributorCards() {
     }
 
     return contributor
-  })
-    .sort((left, right) => right.sortWeight - left.sortWeight)
+  }).sort((left, right) => right.sortWeight - left.sortWeight)
 }
 
 function groupContributorCards(contributors: ContributorCard[]) {
@@ -475,6 +463,7 @@ export async function HomeContributors() {
                   className="home-contributor"
                   title={`${contributor.label} · ${contributor.subtitle}`}
                 >
+                  {/* eslint-disable-next-line next/no-img-element */}
                   <img
                     src={contributor.avatarUrl}
                     alt={`${contributor.label} GitHub avatar`}
@@ -490,12 +479,7 @@ export async function HomeContributors() {
           </div>
         ))}
 
-        <a
-          href={`${siteConfig.repoUrl}/graphs/contributors`}
-          target="_blank"
-          rel="noreferrer"
-          className="home-contributors-link"
-        >
+        <a href={`${siteConfig.repoUrl}/graphs/contributors`} target="_blank" rel="noreferrer" className="home-contributors-link">
           View Contributors on GitHub
         </a>
       </div>

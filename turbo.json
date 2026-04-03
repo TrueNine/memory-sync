@@ -11,17 +11,14 @@
     },
     "lint": {
       "dependsOn": ["^build"],
-      "outputs": [".eslintcache"],
-      "cache": true
+      "cache": false
     },
     "lint:fix": {
-      "outputs": [".eslintcache"],
-      "cache": true
+      "cache": false
     },
     "check:type": {
       "dependsOn": ["^build"],
-      "outputs": [],
-      "cache": true
+      "cache": false
     }
   }
 }

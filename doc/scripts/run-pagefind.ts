@@ -1,28 +1,25 @@
+import type {Buffer} from 'node:buffer'
 import {spawn} from 'node:child_process'
+import process from 'node:process'
 import {fileURLToPath} from 'node:url'
 
-const pagefindBin = fileURLToPath(
-  new URL('../node_modules/pagefind/lib/runner/bin.cjs', import.meta.url)
-)
-const pagefindArgs = [
-  pagefindBin,
-  '--site',
-  '.next/server/app',
-  '--output-path',
-  'public/_pagefind'
-] as const
+const pagefindBin = fileURLToPath(new URL('../node_modules/pagefind/lib/runner/bin.cjs', import.meta.url))
+const pagefindArgs = [pagefindBin, '--site', '.next/server/app', '--output-path', 'public/_pagefind'] as const
 
 const STEMMING_WARNING_LINES = new Set([
-  "Note: Pagefind doesn't support stemming for the language zh-cn.",
+  'Note: Pagefind doesn\'t support stemming for the language zh-cn.',
   'Search will still work, but will not match across root words.'
 ])
 
+const LINE_BREAK_REGEX = /\r?\n/u
+const TRAILING_NEWLINES_REGEX = /\n+$/u
+
 function filterKnownNoise(output: string): string {
   return output
-    .split(/\r?\n/u)
+    .split(LINE_BREAK_REGEX)
     .filter(line => !STEMMING_WARNING_LINES.has(line.trim()))
     .join('\n')
-    .replace(/\n+$/u, '\n')
+    .replace(TRAILING_NEWLINES_REGEX, '\n')
 }
 
 const child = spawn(process.execPath, pagefindArgs, {
@@ -34,15 +31,15 @@ const child = spawn(process.execPath, pagefindArgs, {
 let stdout = ''
 let stderr = ''
 
-child.stdout.on('data', chunk => {
+child.stdout.on('data', (chunk: Buffer) => {
   stdout += chunk.toString()
 })
 
-child.stderr.on('data', chunk => {
+child.stderr.on('data', (chunk: Buffer) => {
   stderr += chunk.toString()
 })
 
-child.on('close', code => {
+child.on('close', (code: number | null) => {
   const filteredStdout = filterKnownNoise(stdout)
   const filteredStderr = filterKnownNoise(stderr)
 
@@ -57,7 +54,7 @@ child.on('close', code => {
   process.exit(code ?? 1)
 })
 
-child.on('error', error => {
+child.on('error', (error: Error) => {
   process.stderr.write(`${error.message}\n`)
   process.exit(1)
 })

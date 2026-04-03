@@ -3,23 +3,15 @@
     "incremental": true,
     "target": "ES2022",
     "jsx": "react-jsx",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "baseUrl": ".",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ES2022"
-    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "@/*": ["./*"]
+    },
     "resolveJsonModule": true,
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "allowJs": false,
     "strict": true,
     "noEmit": true,
@@ -33,17 +25,6 @@
       }
     ]
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.mdx",
-    "**/_meta.ts",
-    ".next/dev/types/**/*.ts",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["next-env.d.ts", "**/*.d.ts", "**/*.ts", "**/*.tsx", "**/*.mdx", "**/_meta.ts", ".next/dev/types/**/*.ts", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }
