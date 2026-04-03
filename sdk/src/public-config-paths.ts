@@ -97,8 +97,8 @@ function buildProxyContext(aindexDir: string, workspaceDir: string, command: Pro
 function resolvePublicPathForDefinition(filePath: string, ctx: ProxyContext, logicalPath: string): string {
   // `tsc` resolves this workspace package correctly, but ESLint's type-aware rules
   // sometimes treat it as an error-typed export during monorepo lint execution.
-  // eslint-disable-next-line ts/no-unsafe-call
-  return resolvePublicPath(filePath, ctx, logicalPath) as string
+
+  return resolvePublicPath(filePath, ctx, logicalPath)
 }
 
 function resolvePublicDefinitionRelativePath(aindexDir: string, targetRelativePath: string, options?: PublicDefinitionResolveOptions): string {

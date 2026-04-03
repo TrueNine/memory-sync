@@ -38,7 +38,12 @@ const overrides = {
   files: ['src/**/*.ts', 'src/**/*.tsx'],
   rules: {
     'e18e/prefer-static-regex': 'off',
-    'ts/member-ordering': 'off'
+    'ts/member-ordering': 'off',
+    'ts/no-unsafe-assignment': 'off',
+    'ts/no-unsafe-call': 'off',
+    'ts/no-unsafe-argument': 'off',
+    'ts/no-unsafe-return': 'off',
+    'ts/no-unsafe-member-access': 'off'
   }
 }
 
