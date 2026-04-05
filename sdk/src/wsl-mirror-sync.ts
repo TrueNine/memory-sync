@@ -12,6 +12,7 @@ import {spawnSync} from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
+import {isOutputPluginEnabled} from './plugins/plugin-core'
 import {getEffectiveHomeDir, resolveRuntimeEnvironment, resolveUserPath} from './runtime-environment'
 
 type MirrorFs = Pick<typeof fs, 'existsSync' | 'mkdirSync' | 'readFileSync' | 'writeFileSync'>
@@ -190,6 +191,7 @@ export async function collectDeclaredWslMirrorFiles(
   ctx: OutputWriteContext
 ): Promise<readonly WslMirrorFileDeclaration[]> {
   const declarations = await Promise.all(outputPlugins.map(async plugin => {
+    if (!isOutputPluginEnabled(plugin, ctx.pluginOptions)) return []
     if (plugin.declareWslMirrorFiles == null) return []
     return plugin.declareWslMirrorFiles(ctx)
   }))

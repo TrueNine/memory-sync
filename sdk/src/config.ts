@@ -1,16 +1,12 @@
 import type {
   AindexConfig,
-  CleanupProtectionOptions,
-  CommandSeriesOptions,
-  CommandSeriesPluginOverride,
+  CodeStylesOptions,
   ConfigLoaderOptions,
-  InputCapability,
   InputCollectedContext,
   OutputCollectedContext,
   OutputPlugin,
-  OutputScopeOptions,
   PluginOptions,
-  PluginOutputScopeTopics,
+  PluginsConfig,
   UserConfigFile,
   WindowsOptions
 } from './plugins/plugin-core'
@@ -24,17 +20,15 @@ import {resolveExecutionPlan} from './execution-plan'
 import {collectInputContext} from './inputs/runtime'
 import {
   buildDefaultAindexConfig,
+  buildDefaultCodeStylesOptions,
   FilePathKind,
   mergeAindexConfig,
+  mergeCodeStylesOptions,
   PathPlaceholders,
-  toOutputCollectedContext,
-  validateOutputScopeOverridesForPlugins
+  toOutputCollectedContext
 } from './plugins/plugin-core'
 import {resolveUserPath} from './runtime-environment'
 
-/**
- * Pipeline configuration containing collected context and output plugins
- */
 export interface PipelineConfig {
   readonly context: OutputCollectedContext
   readonly outputPlugins: readonly OutputPlugin[]
@@ -45,57 +39,51 @@ export interface PipelineConfig {
 interface ResolvedPluginSetup {
   readonly mergedOptions: Required<PluginOptions>
   readonly outputPlugins: readonly OutputPlugin[]
-  readonly inputCapabilities: readonly InputCapability[]
   readonly userConfigFile?: UserConfigFile
-}
-
-function isOutputPlugin(plugin: InputCapability | OutputPlugin): plugin is OutputPlugin {
-  return 'declarativeOutput' in plugin
-}
-
-function isInputCapability(plugin: InputCapability | OutputPlugin): plugin is InputCapability {
-  return 'collect' in plugin && !isOutputPlugin(plugin)
 }
 
 const DEFAULT_AINDEX: Required<AindexConfig> = buildDefaultAindexConfig()
 
-const DEFAULT_OPTIONS: Required<PluginOptions> = {
+type MergeablePluginOptions = Omit<Required<PluginOptions>, 'workspaceDir'> & {
+  readonly workspaceDir?: string
+}
+
+const DEFAULT_OPTIONS: Omit<Required<PluginOptions>, 'workspaceDir'> = {
   version: '0.0.0',
-  workspaceDir: '~/project',
   logLevel: 'info',
   aindex: DEFAULT_AINDEX,
-  commandSeriesOptions: {},
-  outputScopes: {},
   frontMatter: {
     blankLineAfter: true
   },
-  cleanupProtection: {},
+  codeStyles: buildDefaultCodeStylesOptions(),
   windows: {},
-  plugins: []
+  plugins: {}
 }
 
-/**
- * Convert UserConfigFile to PluginOptions
- * UserConfigFile is the JSON schema, PluginOptions includes plugins
- */
+function resolveWorkspaceDirOption(workspaceDir: string | undefined, fallbackWorkspaceDir?: string): string {
+  if (typeof workspaceDir === 'string' && workspaceDir.trim().length > 0) {
+    return workspaceDir
+  }
+
+  return path.resolve(fallbackWorkspaceDir ?? process.cwd())
+}
+
 export function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOptions> {
   return {
     ...userConfig.version != null ? {version: userConfig.version} : {},
     ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},
-    ...userConfig.commandSeriesOptions != null ? {commandSeriesOptions: userConfig.commandSeriesOptions} : {},
-    ...userConfig.outputScopes != null ? {outputScopes: userConfig.outputScopes} : {},
     ...userConfig.frontMatter != null ? {frontMatter: userConfig.frontMatter} : {},
-    ...userConfig.cleanupProtection != null ? {cleanupProtection: userConfig.cleanupProtection} : {},
+    ...userConfig.codeStyles != null ? {codeStyles: userConfig.codeStyles} : {},
     ...userConfig.windows != null ? {windows: userConfig.windows} : {},
+    ...userConfig.plugins != null ? {plugins: userConfig.plugins} : {},
     ...userConfig.logLevel != null ? {logLevel: userConfig.logLevel} : {}
   }
 }
 
-/**
- * Options for defineConfig
- */
 export interface DefineConfigOptions {
   readonly pluginOptions?: PluginOptions
+
+  readonly outputPlugins?: readonly OutputPlugin[]
 
   readonly configLoaderOptions?: ConfigLoaderOptions
 
@@ -108,97 +96,45 @@ export interface DefineConfigOptions {
   readonly runtimeCommand?: RuntimeCommand
 }
 
-/**
- * Merge multiple PluginOptions with default configuration.
- * Later options override earlier ones.
- * Similar to vite/vitest mergeConfig.
- */
 export function mergeConfig(...configs: Partial<PluginOptions>[]): Required<PluginOptions> {
-  const initialConfig: Required<PluginOptions> = {...DEFAULT_OPTIONS}
-  return configs.reduce((acc: Required<PluginOptions>, config) => mergeTwoConfigs(acc, config), initialConfig)
+  return mergeConfigForRuntime(process.cwd(), ...configs)
 }
 
-function mergeTwoConfigs(base: Required<PluginOptions>, override: Partial<PluginOptions>): Required<PluginOptions> {
-  const overridePlugins = override.plugins
-  const overrideCommandSeries = override.commandSeriesOptions
-  const overrideOutputScopes = override.outputScopes
+export function mergeConfigForRuntime(
+  fallbackWorkspaceDir: string | undefined,
+  ...configs: Partial<PluginOptions>[]
+): Required<PluginOptions> {
+  const initialConfig: MergeablePluginOptions = {...DEFAULT_OPTIONS}
+  const mergedConfig = configs.reduce((acc: MergeablePluginOptions, config) => mergeTwoConfigs(acc, config), initialConfig)
+
+  return {
+    ...mergedConfig,
+    workspaceDir: resolveWorkspaceDirOption(mergedConfig.workspaceDir, fallbackWorkspaceDir)
+  }
+}
+
+function mergeTwoConfigs(base: MergeablePluginOptions, override: Partial<PluginOptions>): MergeablePluginOptions {
+  const overrideCodeStyles = override.codeStyles
   const overrideFrontMatter = override.frontMatter
-  const overrideCleanupProtection = override.cleanupProtection
+  const overridePlugins = override.plugins
   const overrideWindows = override.windows
 
   return {
     ...base,
     ...override,
     aindex: mergeAindexConfig(base.aindex, override.aindex),
-    plugins: [
-      // Array concatenation for plugins
-      ...base.plugins,
-      ...overridePlugins ?? []
-    ],
-    commandSeriesOptions: mergeCommandSeriesOptions(base.commandSeriesOptions, overrideCommandSeries), // Deep merge for commandSeriesOptions
-    outputScopes: mergeOutputScopeOptions(base.outputScopes, overrideOutputScopes),
+    codeStyles: mergeResolvedCodeStylesOptions(base.codeStyles, overrideCodeStyles),
     frontMatter: mergeFrontMatterOptions(base.frontMatter, overrideFrontMatter),
-    cleanupProtection: mergeCleanupProtectionOptions(base.cleanupProtection, overrideCleanupProtection),
+    plugins: mergePluginsOptions(base.plugins, overridePlugins),
     windows: mergeWindowsOptions(base.windows, overrideWindows)
   }
 }
 
-function mergeCommandSeriesOptions(base?: CommandSeriesOptions, override?: CommandSeriesOptions): CommandSeriesOptions {
-  if (override == null) return base ?? {}
-  if (base == null) return override
-
-  const mergedPluginOverrides: Record<string, CommandSeriesPluginOverride> = {} // Merge pluginOverrides deeply
-
-  if (base.pluginOverrides != null) {
-    // Copy base plugin overrides
-    for (const [key, value] of Object.entries(base.pluginOverrides)) mergedPluginOverrides[key] = {...value}
-  }
-
-  if (override.pluginOverrides != null) {
-    // Merge override plugin overrides
-    for (const [key, value] of Object.entries(override.pluginOverrides)) {
-      mergedPluginOverrides[key] = {
-        ...mergedPluginOverrides[key],
-        ...value
-      }
-    }
-  }
-
-  const includeSeriesPrefix = override.includeSeriesPrefix ?? base.includeSeriesPrefix // Build result with conditional properties to satisfy exactOptionalPropertyTypes
-  const hasPluginOverrides = Object.keys(mergedPluginOverrides).length > 0
-
-  if (includeSeriesPrefix != null && hasPluginOverrides) return {includeSeriesPrefix, pluginOverrides: mergedPluginOverrides}
-  if (includeSeriesPrefix != null) return {includeSeriesPrefix}
-  if (hasPluginOverrides) return {pluginOverrides: mergedPluginOverrides}
-  return {}
-}
-
-function mergeOutputScopeTopics(base?: PluginOutputScopeTopics, override?: PluginOutputScopeTopics): PluginOutputScopeTopics | undefined {
-  if (base == null && override == null) return void 0
-  if (base == null) return override
-  if (override == null) return base
-  return {...base, ...override}
-}
-
-function mergeOutputScopeOptions(base?: OutputScopeOptions, override?: OutputScopeOptions): OutputScopeOptions {
-  if (override == null) return base ?? {}
-  if (base == null) return override
-
-  const mergedPlugins: Record<string, PluginOutputScopeTopics> = {}
-  if (base.plugins != null) {
-    for (const [pluginName, topics] of Object.entries(base.plugins)) {
-      if (topics != null) mergedPlugins[pluginName] = {...topics}
-    }
-  }
-  if (override.plugins != null) {
-    for (const [pluginName, topics] of Object.entries(override.plugins)) {
-      const mergedTopics = mergeOutputScopeTopics(mergedPlugins[pluginName], topics)
-      if (mergedTopics != null) mergedPlugins[pluginName] = mergedTopics
-    }
-  }
-
-  if (Object.keys(mergedPlugins).length === 0) return {}
-  return {plugins: mergedPlugins}
+function mergeResolvedCodeStylesOptions(
+  base: Required<PluginOptions>['codeStyles'],
+  override?: CodeStylesOptions
+): Required<PluginOptions>['codeStyles'] {
+  return mergeCodeStylesOptions(base, override)
 }
 
 function mergeFrontMatterOptions(
@@ -212,12 +148,12 @@ function mergeFrontMatterOptions(
   }
 }
 
-function mergeCleanupProtectionOptions(base?: CleanupProtectionOptions, override?: CleanupProtectionOptions): CleanupProtectionOptions {
+function mergePluginsOptions(base?: PluginsConfig, override?: PluginsConfig): PluginsConfig {
   if (override == null) return base ?? {}
   if (base == null) return override
-
   return {
-    rules: [...base.rules ?? [], ...override.rules ?? []]
+    ...base,
+    ...override
   }
 }
 
@@ -242,9 +178,6 @@ function mergeWindowsOptions(base?: WindowsOptions, override?: WindowsOptions): 
   }
 }
 
-/**
- * Check if options is DefineConfigOptions
- */
 function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): options is DefineConfigOptions {
   return 'pluginOptions' in options
     || 'configLoaderOptions' in options
@@ -252,23 +185,6 @@ function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): op
     || 'cwd' in options
     || 'executionCwd' in options
     || 'runtimeCommand' in options
-}
-
-function getProgrammaticPluginDeclaration(options: PluginOptions | DefineConfigOptions): {
-  readonly hasExplicitProgrammaticPlugins: boolean
-  readonly explicitProgrammaticPlugins?: PluginOptions['plugins']
-} {
-  if (isDefineConfigOptions(options)) {
-    return {
-      hasExplicitProgrammaticPlugins: Object.hasOwn(options.pluginOptions ?? {}, 'plugins'),
-      explicitProgrammaticPlugins: options.pluginOptions?.plugins
-    }
-  }
-
-  return {
-    hasExplicitProgrammaticPlugins: Object.hasOwn(options, 'plugins'),
-    explicitProgrammaticPlugins: options.plugins
-  }
 }
 
 function resolvePathForMinimalContext(rawPath: string, workspaceDir: string): string {
@@ -314,18 +230,21 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
     cwd: string | undefined,
     executionCwd: string | undefined,
     pluginOptions: PluginOptions,
+    outputPlugins: readonly OutputPlugin[],
     configLoaderOptions: ConfigLoaderOptions | undefined,
     runtimeCommand: RuntimeCommand | undefined
 
   if (isDefineConfigOptions(options)) {
     ({
       pluginOptions = {},
+      outputPlugins = [],
       cwd,
       executionCwd,
       configLoaderOptions,
       runtimeCommand
     } = {
       pluginOptions: options.pluginOptions,
+      outputPlugins: options.outputPlugins,
       cwd: options.cwd,
       executionCwd: options.executionCwd,
       configLoaderOptions: options.configLoaderOptions,
@@ -334,6 +253,7 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
     shouldLoadUserConfig = options.loadUserConfig ?? true
   } else {
     pluginOptions = options
+    outputPlugins = []
     shouldLoadUserConfig = true
     configLoaderOptions = void 0
     runtimeCommand = void 0
@@ -359,10 +279,10 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
     }
   }
 
-  const mergedOptions = mergeConfig(userConfigOptions, pluginOptions)
-  const {plugins = [], logLevel} = mergedOptions
-  const logger = createLogger('defineConfig', logLevel)
   const resolvedExecutionCwd = path.resolve(executionCwd ?? cwd ?? process.cwd())
+  const mergedOptions = mergeConfigForRuntime(resolvedExecutionCwd, userConfigOptions, pluginOptions)
+  const {logLevel} = mergedOptions
+  const logger = createLogger('defineConfig', logLevel)
 
   if (userConfigFound) {
     logger.info('user config loaded', {sources: userConfigSources})
@@ -374,14 +294,9 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
     })
   }
 
-  const outputPlugins = plugins.filter(isOutputPlugin)
-  const inputCapabilities = plugins.filter(isInputCapability)
-  validateOutputScopeOverridesForPlugins(outputPlugins, mergedOptions)
-
   return {
     mergedOptions,
     outputPlugins,
-    inputCapabilities,
     executionCwd: resolvedExecutionCwd,
     ...userConfigFile != null && {userConfigFile},
     ...runtimeCommand != null && {runtimeCommand},
@@ -390,19 +305,8 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
   }
 }
 
-/**
- * Define configuration with support for user config files.
- *
- * Configuration priority (highest to lowest):
- * 1. Programmatic options passed to defineConfig
- * 2. Global config file (~/.aindex/.tnmsc.json)
- * 3. Default values
- *
- * @param options - Plugin options or DefineConfigOptions
- */
 export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
-  const {hasExplicitProgrammaticPlugins, explicitProgrammaticPlugins} = getProgrammaticPluginDeclaration(options)
-  const {mergedOptions, outputPlugins, inputCapabilities, userConfigFile, runtimeCommand, executionCwd} = await resolvePluginSetup(options)
+  const {mergedOptions, outputPlugins, userConfigFile, runtimeCommand, executionCwd} = await resolvePluginSetup(options)
   const logger = createLogger('defineConfig', mergedOptions.logLevel)
 
   if (shouldUsePluginsFastPath(runtimeCommand)) {
@@ -417,8 +321,7 @@ export async function defineConfig(options: PluginOptions | DefineConfigOptions 
 
   const merged = await collectInputContext({
     userConfigOptions: mergedOptions,
-    ...inputCapabilities.length > 0 ? {capabilities: inputCapabilities} : {},
-    includeBuiltinEffects: !(inputCapabilities.length > 0 || (hasExplicitProgrammaticPlugins && (explicitProgrammaticPlugins?.length ?? 0) === 0)),
+    includeBuiltinEffects: true,
     ...runtimeCommand != null ? {runtimeCommand} : {},
     ...userConfigFile != null ? {userConfig: userConfigFile} : {}
   })

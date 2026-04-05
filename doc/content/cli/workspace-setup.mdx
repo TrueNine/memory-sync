@@ -35,7 +35,8 @@ Their responsibility boundaries are explained in [Technical Details](/docs/techn
 
 ## Project Configuration Entrypoint
 
-The project-level assembly entrypoint is [plugin.config.ts](/docs/cli/plugin-config). It decides which output plugins are assembled by default and how project-level runtime options are merged into the real execution config.
+The project-level assembly entrypoint is [plugin.config.ts](/docs/cli/plugin-config). It decides which output plugins are assembled and how project-level runtime options are merged into the real execution config. Per-user output enablement then comes from `~/.aindex/.tnmsc.json`.
+`plugins.readme` covers both the README-family outputs and `.editorconfig`.
 
 ## Next Step
 

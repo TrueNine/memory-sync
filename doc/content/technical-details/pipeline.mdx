@@ -1,6 +1,6 @@
 ---
 title: Sync Pipeline
-description: Explains how plugins declare target files, generation flow, output scopes, and cleanup behavior.
+description: Explains how plugins declare target files, generation flow, scope selection, and cleanup behavior.
 sidebarTitle: Sync Pipeline
 status: stable
 ---
@@ -14,7 +14,7 @@ Sync is not "copy a few prompt files into a few directories." It is a pipeline w
 - Read source-of-truth input assets
 - Merge project and global config
 - Decide output targets per plugin
-- Apply `outputScopes`
+- Resolve project or global scope from source metadata and plugin behavior
 - Write target files
 - Run cleanup when needed
 
@@ -29,5 +29,5 @@ Without explicit modeling:
 ## Related Pages
 
 - Config-field behavior: see [CLI / JSON Schema](/docs/cli/schema)
-- Output-scope control: see [CLI / Output Scopes](/docs/cli/output-scopes)
+- Global config and fixed path layout: see [Quick Guide / aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config)
 - Source-versus-derived relationship: see [Single Source of Truth](/docs/technical-details/source-of-truth)

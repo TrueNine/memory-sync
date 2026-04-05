@@ -94,7 +94,7 @@ const ConfigForm: FC<ConfigFormProps> = ({ data, onChange, t }) => {
           description={t(`config.field.${field}.desc`)}
           value={(data[field] as string) ?? ''}
           onChange={(v) => updateField(field, v)}
-          placeholder="~/project"
+          placeholder="~/workspace/"
         />
       ))}
 

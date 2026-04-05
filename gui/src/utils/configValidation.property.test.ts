@@ -24,7 +24,7 @@ const STRING_FIELDS = [
   'version',
 ] as const
 
-const OBJECT_FIELDS = ['profile', 'commandSeriesOptions', 'outputScopes'] as const
+const NESTED_OBJECT_FIELDS = ['profile', 'commandSeriesOptions', 'outputScopes', 'codeStyles', 'plugins'] as const
 
 // ── Arbitraries ────────────────────────────────────────────────────────
 
@@ -175,14 +175,14 @@ describe('Property 3: 无效配置产生错误', () => {
   /**
    * **Validates: Requirements 3.4**
    *
-   * For any object field (profile, commandSeriesOptions, outputScopes)
+   * For any object field (profile, commandSeriesOptions, outputScopes, codeStyles, plugins)
    * set to a non-object value, validateConfig should return at least
    * one error for that field.
    */
   it('non-object values for object fields produce errors', () => {
     fc.assert(
       fc.property(
-        fc.constantFrom(...OBJECT_FIELDS),
+        fc.constantFrom(...NESTED_OBJECT_FIELDS),
         arbNonObject,
         (field, badValue) => {
           const config = { [field]: badValue }

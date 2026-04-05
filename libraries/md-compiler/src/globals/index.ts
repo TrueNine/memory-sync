@@ -12,6 +12,16 @@ export interface UserProfile {
 }
 
 /**
+ * User code style preferences
+ * @example {codeStyles.indent}, {codeStyles.tabSize}
+ */
+export interface CodeStylePreferences {
+  [key: string]: unknown
+  indent?: 'tab' | 'space'
+  tabSize?: number
+}
+
+/**
  * Tool references for AI assistants
  * @example {tool.websearch}, {tool.webfetch}, {tool.readFile}
  */
@@ -147,6 +157,8 @@ export interface MdComponent {
 export interface MdxGlobalScope {
   /** User profile information */
   profile: UserProfile
+  /** User code style preferences */
+  codeStyles: CodeStylePreferences
   /** Tool name references for AI assistants */
   tool: ToolReferences
   /** Environment variables context */
@@ -160,6 +172,8 @@ export interface MdxGlobalScope {
 declare global {
   /** User profile information */
   const profile: UserProfile,
+    /** User code style preferences */
+    codeStyles: CodeStylePreferences,
     /** Tool name references for AI assistants */
     tool: ToolReferences,
     /** Environment variables context */

@@ -2,17 +2,14 @@ import type {ILogger} from '@truenine/logger'
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {
   AindexConfig,
-  CleanupProtectionOptions,
-  CommandSeriesOptions,
+  CodeStylesOptions,
   FrontMatterOptions,
-  OutputScopeOptions,
-  OutputScopeSelection,
-  PluginOutputScopeTopics,
+  PluginsConfig,
   ProtectionMode,
   WindowsOptions
 } from './ConfigTypes.schema'
 import type {PluginKind} from './enums'
-import type {InputCollectedContext, OutputCollectedContext, Project} from './InputTypes'
+import type {InputCollectedContext, OutputCollectedContext} from './InputTypes'
 import type {ExecutionPlan} from '@/execution-plan'
 import type {RuntimeCommand} from '@/runtime-command'
 import {Buffer} from 'node:buffer'
@@ -59,15 +56,6 @@ export interface InputCapabilityContext extends PluginContext {
 
 export interface InputCapability extends DependencyNode {
   collect: (ctx: InputCapabilityContext) => Partial<InputCollectedContext> | Promise<Partial<InputCollectedContext>>
-}
-
-/**
- * Capability that can enhance projects after all projects are collected.
- * This is useful for capabilities that need to add data to projects
- * collected by earlier capabilities.
- */
-export interface ProjectEnhancerCapability extends InputCapability {
-  enhanceProjects: (ctx: InputCapabilityContext, projects: readonly Project[]) => Project[]
 }
 
 export interface OutputRuntimeTargets {
@@ -326,78 +314,122 @@ function isNodeBufferLike(value: unknown): value is Buffer {
   return Buffer.isBuffer(value)
 }
 
-function normalizeScopeSelection(selection: OutputScopeSelection): readonly OutputDeclarationScope[] {
-  if (typeof selection === 'string') return [selection]
-
-  const unique: OutputDeclarationScope[] = []
-  for (const scope of selection) {
-    if (!unique.includes(scope)) unique.push(scope)
-  }
-  return unique
+interface OutputPluginEnablementRule {
+  readonly configKey: string
+  readonly defaultEnabled: boolean
 }
 
-function getPluginScopeOverrides(pluginName: string, pluginOptions?: PluginOptions): PluginOutputScopeTopics | undefined {
-  return pluginOptions?.outputScopes?.plugins?.[pluginName]
-}
-
-export function validateOutputPluginCapabilities(plugin: OutputPlugin): void {
-  for (const topic of OUTPUT_SCOPE_TOPICS) {
-    const capability = plugin.outputCapabilities[topic]
-    if (capability == null) continue
-    if (capability.scopes.length === 0) throw new Error(`Plugin ${plugin.name} declares empty scopes for topic "${topic}"`)
+const OUTPUT_PLUGIN_ENABLEMENT_RULES: Readonly<Record<string, OutputPluginEnablementRule>> = {
+  AgentsOutputPlugin: {
+    configKey: 'agentsMd',
+    defaultEnabled: false
+  },
+  ClaudeCodeCLIOutputPlugin: {
+    configKey: 'claudeCode',
+    defaultEnabled: false
+  },
+  CodexCLIOutputPlugin: {
+    configKey: 'codex',
+    defaultEnabled: false
+  },
+  CursorOutputPlugin: {
+    configKey: 'cursor',
+    defaultEnabled: false
+  },
+  DroidCLIOutputPlugin: {
+    configKey: 'droid',
+    defaultEnabled: false
+  },
+  GeminiCLIOutputPlugin: {
+    configKey: 'gemini',
+    defaultEnabled: false
+  },
+  GitExcludeOutputPlugin: {
+    configKey: 'git',
+    defaultEnabled: true
+  },
+  JetBrainsAIAssistantCodexOutputPlugin: {
+    configKey: 'jetbrains',
+    defaultEnabled: false
+  },
+  JetBrainsIDECodeStyleConfigOutputPlugin: {
+    configKey: 'jetbrainsCodeStyle',
+    defaultEnabled: false
+  },
+  KiroCLIOutputPlugin: {
+    configKey: 'kiro',
+    defaultEnabled: false
+  },
+  OpencodeCLIOutputPlugin: {
+    configKey: 'opencode',
+    defaultEnabled: false
+  },
+  QoderIDEPluginOutputPlugin: {
+    configKey: 'qoder',
+    defaultEnabled: false
+  },
+  ReadmeMdConfigFileOutputPlugin: {
+    configKey: 'readme',
+    defaultEnabled: true
+  },
+  TraeIDEOutputPlugin: {
+    configKey: 'trae',
+    defaultEnabled: false
+  },
+  TraeCNIDEOutputPlugin: {
+    configKey: 'traeCn',
+    defaultEnabled: false
+  },
+  VisualStudioCodeIDEConfigOutputPlugin: {
+    configKey: 'vscode',
+    defaultEnabled: false
+  },
+  WarpIDEOutputPlugin: {
+    configKey: 'warp',
+    defaultEnabled: false
+  },
+  WindsurfOutputPlugin: {
+    configKey: 'windsurf',
+    defaultEnabled: false
+  },
+  ZedIDEConfigOutputPlugin: {
+    configKey: 'zed',
+    defaultEnabled: false
   }
 }
 
-export function validateOutputScopeOverridesForPlugin(plugin: OutputPlugin, pluginOptions?: PluginOptions): void {
-  const overrides = getPluginScopeOverrides(plugin.name, pluginOptions)
-  if (overrides == null) return
-
-  for (const topic of OUTPUT_SCOPE_TOPICS) {
-    const requestedSelection = overrides[topic]
-    if (requestedSelection == null) continue
-
-    const capability = plugin.outputCapabilities[topic]
-    if (capability == null) {
-      throw new Error(
-        `Invalid outputScopes configuration: outputScopes.plugins.${plugin.name}.${topic} is set, but plugin ${plugin.name} does not support topic "${topic}".`
-      )
-    }
-
-    const requestedScopes = normalizeScopeSelection(requestedSelection)
-    if (capability.singleScope && requestedScopes.length > 1) {
-      const requested = requestedScopes.join(', ')
-      throw new Error(
-        `Invalid outputScopes configuration: outputScopes.plugins.${plugin.name}.${topic} is single-scope and cannot request multiple scopes [${requested}].`
-      )
-    }
-
-    const allowedScopes = new Set(capability.scopes)
-    const unsupportedScopes = requestedScopes.filter(scope => !allowedScopes.has(scope))
-
-    if (unsupportedScopes.length > 0) {
-      const allowed = capability.scopes.join(', ')
-      const requested = unsupportedScopes.join(', ')
-      throw new Error(
-        `Invalid outputScopes configuration: outputScopes.plugins.${plugin.name}.${topic} requests unsupported scopes [${requested}]. Allowed scopes: [${allowed}].`
-      )
-    }
-  }
+function resolveConfiguredPluginEnabled(
+  plugins: PluginsConfig | undefined,
+  configKey: string
+): boolean | undefined {
+  return plugins?.[configKey]
 }
 
-export function validateOutputScopeOverridesForPlugins(plugins: readonly OutputPlugin[], pluginOptions?: PluginOptions): void {
-  for (const plugin of plugins) {
-    validateOutputPluginCapabilities(plugin)
-    validateOutputScopeOverridesForPlugin(plugin, pluginOptions)
-  }
+export function isOutputPluginEnabled(
+  plugin: OutputPlugin,
+  pluginOptions?: PluginOptions
+): boolean {
+  const enablementRule = OUTPUT_PLUGIN_ENABLEMENT_RULES[plugin.name]
+  if (enablementRule == null) return true
+
+  const configuredEnabled = resolveConfiguredPluginEnabled(
+    pluginOptions?.plugins,
+    enablementRule.configKey
+  )
+  if (configuredEnabled != null) return configuredEnabled
+
+  return enablementRule.defaultEnabled
 }
 
 export async function collectOutputDeclarations(
   plugins: readonly OutputPlugin[],
   ctx: OutputWriteContext
 ): Promise<Map<OutputPlugin, readonly OutputFileDeclaration[]>> {
-  validateOutputScopeOverridesForPlugins(plugins, ctx.pluginOptions)
-
   const declarationEntries = await Promise.all(plugins.map(async plugin => {
+    if (!isOutputPluginEnabled(plugin, ctx.pluginOptions)) {
+      return [plugin, [] as OutputFileDeclaration[]] as const
+    }
+
     const declarations = await plugin.declareOutputFiles(ctx)
     return [plugin, filterPathScopedEntriesForExecutionPlan(declarations, ctx.executionPlan, ctx.collectedOutputContext)] as const
   }))
@@ -436,18 +468,21 @@ export async function executeDeclarativeWriteOutputs(
           continue
         }
 
-        if (declaration.ifExists === 'error' && fs.existsSync(declaration.path)) throw new Error(`Refusing to overwrite existing file: ${declaration.path}`)
+        if (declaration.ifExists === 'error' && fs.existsSync(declaration.path)) {
+          throw new Error(`Refusing to overwrite existing file: ${declaration.path}`)
+        }
 
         const content = await plugin.convertContent(declaration, ctx)
-        isNodeBufferLike(content) ? fs.writeFileSync(declaration.path, content) : fs.writeFileSync(declaration.path, content, 'utf8')
+        if (isNodeBufferLike(content)) fs.writeFileSync(declaration.path, content)
+        else fs.writeFileSync(declaration.path, content, 'utf8')
         fileResults.push({path: declaration.path, success: true})
-      } catch (error) {
+      }
+      catch (error) {
         fileResults.push({path: declaration.path, success: false, error: error as Error})
       }
     }
 
-    const pluginResult: WriteResults = {files: fileResults, dirs: []}
-    results.set(plugin.name, pluginResult)
+    results.set(plugin.name, {files: fileResults, dirs: []})
   }
 
   return results
@@ -513,16 +548,13 @@ export interface PluginOptions {
 
   readonly aindex?: AindexConfig
 
-  readonly commandSeriesOptions?: CommandSeriesOptions
-
-  readonly outputScopes?: OutputScopeOptions
-
   readonly frontMatter?: FrontMatterOptions
 
-  readonly cleanupProtection?: CleanupProtectionOptions
+  readonly codeStyles?: CodeStylesOptions
 
   readonly windows?: WindowsOptions
 
-  plugins?: readonly (InputCapability | OutputPlugin)[]
+  readonly plugins?: PluginsConfig
+
   logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'
 }

@@ -1,6 +1,6 @@
 ---
 title: dry-run and clean
-description: Explains how tnmsc previews outputs, then performs cleanup, with cleanupProtection used to control risk.
+description: Explains how tnmsc previews outputs, then performs cleanup, with dry-run and built-in guardrails used to control risk.
 sidebarTitle: dry-run and clean
 status: stable
 ---
@@ -13,12 +13,12 @@ status: stable
 
 - When integrating a project for the first time
 - Right after changing `plugin.config.ts`
-- Right after changing [Output Scopes](/docs/cli/output-scopes)
+- Right after changing source prompt scope or global config
 - Before validating the impact of a large source-content change
 
 ## What `clean` Does
 
-`tnmsc clean` removes generated output files. It is not a blind directory deletion command. It follows the current output model and cleanup-protection rules.
+`tnmsc clean` removes generated output files. It is not a blind directory deletion command. It follows the current output model and the cleanup declarations built into the runtime.
 
 After normal cleanup finishes, `tnmsc clean` also scans the current project source tree and removes remaining empty directories. That empty-dir sweep explicitly skips Git internals as well as dependency, build-output, and cache directory trees.
 
@@ -32,10 +32,10 @@ tnmsc clean --dry-run
 
 ## Risk Boundary
 
-If your output directories also contain hand-written files or outputs from other tools, read [Cleanup Protection](/docs/cli/cleanup-protection) first. Without protection rules, the risk of `clean` rises sharply.
+If your output directories also contain hand-written files or outputs from other tools, do not rely on a `cleanupProtection` block in `~/.aindex/.tnmsc.json`. Keep those files out of tnmsc-managed output paths, or adjust the project/plugin assembly before running a real clean.
 
 ## Recommended Habits
 
-1. Run `dry-run` first when you change config or switch projects.
+1. Run `dry-run` first when you change config, source scope, or plugin assembly.
 2. Run `clean --dry-run` first when you really intend to clean.
 3. If something looks wrong, continue with [Troubleshooting](/docs/cli/troubleshooting).

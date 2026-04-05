@@ -1,21 +1,22 @@
+import type {OutputPlugin} from './plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {defineConfig} from './config'
-import {WorkspaceInputCapability} from './inputs/input-workspace'
+import {createLogger, PluginKind} from './plugins/plugin-core'
 
 describe('defineConfig', () => {
-  const originalHome = process.env.HOME
-  const originalUserProfile = process.env.USERPROFILE
-  const originalHomeDrive = process.env.HOMEDRIVE
-  const originalHomePath = process.env.HOMEPATH
+  const originalHome = process.env['HOME']
+  const originalUserProfile = process.env['USERPROFILE']
+  const originalHomeDrive = process.env['HOMEDRIVE']
+  const originalHomePath = process.env['HOMEPATH']
 
   afterEach(() => {
-    process.env.HOME = originalHome
-    process.env.USERPROFILE = originalUserProfile
-    process.env.HOMEDRIVE = originalHomeDrive
-    process.env.HOMEPATH = originalHomePath
+    process.env['HOME'] = originalHome
+    process.env['USERPROFILE'] = originalUserProfile
+    process.env['HOMEDRIVE'] = originalHomeDrive
+    process.env['HOMEPATH'] = originalHomePath
     vi.restoreAllMocks()
   })
 
@@ -26,10 +27,10 @@ describe('defineConfig', () => {
     const globalConfigPath = path.join(globalConfigDir, '.tnmsc.json')
     const localConfigPath = path.join(tempWorkspace, '.tnmsc.json')
 
-    process.env.HOME = tempHome
-    process.env.USERPROFILE = tempHome
-    delete process.env.HOMEDRIVE
-    delete process.env.HOMEPATH
+    process.env['HOME'] = tempHome
+    process.env['USERPROFILE'] = tempHome
+    delete process.env['HOMEDRIVE']
+    delete process.env['HOMEPATH']
 
     fs.mkdirSync(globalConfigDir, {recursive: true})
     fs.writeFileSync(
@@ -94,8 +95,7 @@ describe('defineConfig', () => {
         loadUserConfig: false,
         executionCwd: externalCwd,
         pluginOptions: {
-          workspaceDir: tempWorkspace,
-          plugins: [new WorkspaceInputCapability()]
+          workspaceDir: tempWorkspace
         }
       })
 
@@ -110,72 +110,71 @@ describe('defineConfig', () => {
     }
   })
 
-  it('does not run builtin mutating input effects when plugins is explicitly empty', async () => {
-    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-explicit-empty-plugins-'))
-    const orphanSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'orphan-skill')
-    const orphanSkillFile = path.join(orphanSkillDir, 'SKILL.md')
-
-    fs.mkdirSync(orphanSkillDir, {recursive: true})
-    fs.writeFileSync(orphanSkillFile, 'orphan\n', 'utf8')
+  it('applies default codeStyles when user config omits them', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-code-styles-default-workspace-'))
 
     try {
       const result = await defineConfig({
         loadUserConfig: false,
         pluginOptions: {
-          workspaceDir: tempWorkspace,
-          plugins: []
+          workspaceDir: tempWorkspace
         }
       })
 
-      expect(result.context.workspace.directory.path).toBe(tempWorkspace)
-      expect(fs.existsSync(orphanSkillFile)).toBe(true)
-    } finally {
-      fs.rmSync(tempWorkspace, {recursive: true, force: true})
-    }
-  })
-
-  it('does not run builtin mutating input effects when shorthand plugins is explicitly empty', async () => {
-    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-shorthand-empty-plugins-'))
-    const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-shorthand-empty-home-'))
-    const orphanSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'orphan-skill')
-    const orphanSkillFile = path.join(orphanSkillDir, 'SKILL.md')
-
-    process.env.HOME = tempHome
-    process.env.USERPROFILE = tempHome
-    delete process.env.HOMEDRIVE
-    delete process.env.HOMEPATH
-
-    fs.mkdirSync(orphanSkillDir, {recursive: true})
-    fs.writeFileSync(orphanSkillFile, 'orphan\n', 'utf8')
-
-    try {
-      const result = await defineConfig({
-        workspaceDir: tempWorkspace,
-        plugins: []
+      expect(result.userConfigOptions.codeStyles).toEqual({
+        indent: 'space',
+        tabSize: 2
       })
-
-      expect(result.context.workspace.directory.path).toBe(tempWorkspace)
-      expect(fs.existsSync(orphanSkillFile)).toBe(true)
     } finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
-      fs.rmSync(tempHome, {recursive: true, force: true})
     }
   })
 
-  it('accepts legacy input capabilities in pluginOptions.plugins without crashing', async () => {
-    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-legacy-input-capabilities-'))
+  it('uses executionCwd as the workspace root when workspaceDir is omitted', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-runtime-workspace-fallback-'))
 
     try {
       const result = await defineConfig({
         loadUserConfig: false,
+        executionCwd: tempWorkspace
+      })
+
+      expect(result.userConfigOptions.workspaceDir).toBe(tempWorkspace)
+      expect(result.context.workspace.directory.path).toBe(tempWorkspace)
+      expect(result.executionPlan.cwd).toBe(tempWorkspace)
+      expect(result.executionPlan.workspaceDir).toBe(tempWorkspace)
+    } finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('returns programmatically assembled output plugins separately from user config options', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-output-plugin-assembly-'))
+    const outputPlugin: OutputPlugin = {
+      name: 'TestOutputPlugin',
+      type: PluginKind.Output,
+      log: createLogger('TestOutputPlugin', 'error'),
+      declarativeOutput: true,
+      outputCapabilities: {},
+      async declareOutputFiles() {
+        return []
+      },
+      async convertContent() {
+        return ''
+      }
+    }
+
+    try {
+      const result = await defineConfig({
+        loadUserConfig: false,
+        outputPlugins: [outputPlugin],
         pluginOptions: {
-          workspaceDir: tempWorkspace,
-          plugins: [new WorkspaceInputCapability()]
+          workspaceDir: tempWorkspace
         }
       })
 
-      expect(result.context.workspace.directory.path).toBe(tempWorkspace)
-      expect(result.outputPlugins).toEqual([])
+      expect(result.outputPlugins).toEqual([outputPlugin])
+      expect(result.userConfigOptions.plugins).toEqual({})
     } finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
     }

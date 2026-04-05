@@ -71,26 +71,26 @@ export class ProtectedDeletionGuardError extends Error {
 }
 
 function resolveXdgConfigHome(homeDir: string): string {
-  const xdgConfigHome = process.env['XDG_CONFIG_HOME']
-  if (typeof xdgConfigHome === 'string' && xdgConfigHome.trim().length > 0) return xdgConfigHome
+  const xdgConfigHome = process.env['XDG_CONFIG_HOME']?.trim()
+  if (xdgConfigHome != null && xdgConfigHome.length > 0) return xdgConfigHome
   return path.join(homeDir, '.config')
 }
 
 function resolveXdgDataHome(homeDir: string): string {
-  const xdgDataHome = process.env['XDG_DATA_HOME']
-  if (typeof xdgDataHome === 'string' && xdgDataHome.trim().length > 0) return xdgDataHome
+  const xdgDataHome = process.env['XDG_DATA_HOME']?.trim()
+  if (xdgDataHome != null && xdgDataHome.length > 0) return xdgDataHome
   return path.join(homeDir, '.local', 'share')
 }
 
 function resolveXdgStateHome(homeDir: string): string {
-  const xdgStateHome = process.env['XDG_STATE_HOME']
-  if (typeof xdgStateHome === 'string' && xdgStateHome.trim().length > 0) return xdgStateHome
+  const xdgStateHome = process.env['XDG_STATE_HOME']?.trim()
+  if (xdgStateHome != null && xdgStateHome.length > 0) return xdgStateHome
   return path.join(homeDir, '.local', 'state')
 }
 
 function resolveXdgCacheHome(homeDir: string): string {
-  const xdgCacheHome = process.env['XDG_CACHE_HOME']
-  if (typeof xdgCacheHome === 'string' && xdgCacheHome.trim().length > 0) return xdgCacheHome
+  const xdgCacheHome = process.env['XDG_CACHE_HOME']?.trim()
+  if (xdgCacheHome != null && xdgCacheHome.length > 0) return xdgCacheHome
   return path.join(homeDir, '.cache')
 }
 

@@ -21,7 +21,15 @@ const commands = [
 ] as const
 
 for (const command of commands) {
-  execSync(command, {
-    stdio: 'inherit',
-  })
+  try {
+    execSync(command, {
+      stdio: 'inherit',
+    })
+  } catch (error) {
+    console.error(`[postinstall] Command failed: ${command}`)
+    if (error instanceof Error && 'status' in error) {
+      console.error(`[postinstall] Exit code: ${(error as {status: number}).status}`)
+    }
+    process.exit(1)
+  }
 }

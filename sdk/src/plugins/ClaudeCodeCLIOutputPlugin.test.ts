@@ -43,7 +43,7 @@ function createCleanContext(workspaceBase: string, projects: readonly Project[])
         projects: [...projects]
       }
     }
-  } as OutputCleanContext
+  } as unknown as OutputCleanContext
 }
 
 describe('claudeCodeCLIOutputPlugin cleanup', () => {

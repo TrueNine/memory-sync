@@ -19,7 +19,7 @@ function createGlobalMemoryPrompt(): GlobalMemoryPrompt {
       getAbsolutePath: () => path.resolve('aindex/dist/global.mdx')
     },
     markdownContents: []
-  } as GlobalMemoryPrompt
+  } as unknown as GlobalMemoryPrompt
 }
 
 function createWorkspaceRootPrompt(): ProjectRootMemoryPrompt {
@@ -62,7 +62,7 @@ describe('warpIDEOutputPlugin workspace prompt support', () => {
         },
         globalMemory: createGlobalMemoryPrompt()
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(ctx)
     const workspaceDeclaration = declarations.find(declaration => declaration.path === path.join(workspaceBase, 'WARP.md'))

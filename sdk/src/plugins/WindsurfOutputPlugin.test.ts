@@ -1,4 +1,4 @@
-import type {CommandPrompt, OutputCleanContext, OutputScopeSelection, OutputWriteContext, Project, RulePrompt, SkillPrompt} from './plugin-core'
+import type {CommandPrompt, OutputCleanContext, OutputWriteContext, Project, RulePrompt, SkillPrompt} from './plugin-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -38,7 +38,7 @@ function createCommandPrompt(scope: 'project' | 'global', seriName: string): Com
       scope
     },
     markdownContents: []
-  } as CommandPrompt
+  } as unknown as CommandPrompt
 }
 
 function createSkillPrompt(scope: 'project' | 'global', seriName: string): SkillPrompt {
@@ -62,7 +62,7 @@ function createSkillPrompt(scope: 'project' | 'global', seriName: string): Skill
       scope
     },
     markdownContents: []
-  } as SkillPrompt
+  } as unknown as SkillPrompt
 }
 
 function createRulePrompt(scope: 'project' | 'global'): RulePrompt {
@@ -83,7 +83,7 @@ function createRulePrompt(scope: 'project' | 'global'): RulePrompt {
     globs: ['src/**'],
     scope,
     markdownContents: []
-  } as RulePrompt
+  } as unknown as RulePrompt
 }
 
 function createProject(workspaceBase: string, name: string, includeSeries: readonly string[], promptSource = false): Project {
@@ -114,11 +114,7 @@ function createWriteContext(
   workspaceBase: string,
   projects: readonly Project[],
   commands: readonly CommandPrompt[],
-  skills: readonly SkillPrompt[],
-  scopeOverrides: {
-    readonly commands: OutputScopeSelection
-    readonly skills: OutputScopeSelection
-  }
+  skills: readonly SkillPrompt[]
 ): OutputWriteContext {
   return {
     logger: createLogger('WindsurfOutputPlugin', 'error'),
@@ -126,13 +122,7 @@ function createWriteContext(
     path,
     glob: {} as never,
     dryRun: true,
-    pluginOptions: {
-      outputScopes: {
-        plugins: {
-          WindsurfOutputPlugin: scopeOverrides
-        }
-      }
-    },
+    pluginOptions: {},
     collectedOutputContext: {
       workspace: {
         directory: {
@@ -145,7 +135,7 @@ function createWriteContext(
       commands,
       skills
     }
-  } as OutputWriteContext
+  } as unknown as OutputWriteContext
 }
 
 function createCleanContext(workspaceBase = path.resolve('tmp/windsurf-clean')): OutputCleanContext {
@@ -166,7 +156,7 @@ function createCleanContext(workspaceBase = path.resolve('tmp/windsurf-clean')):
         projects: [createWorkspaceRootProject()]
       }
     }
-  } as OutputCleanContext
+  } as unknown as OutputCleanContext
 }
 
 describe('windsurfOutputPlugin synthetic workspace project output', () => {
@@ -180,8 +170,7 @@ describe('windsurfOutputPlugin synthetic workspace project output', () => {
         createProject(workspaceBase, 'beta-project', ['beta'])
       ],
       [createCommandPrompt('project', 'alpha')],
-      [createSkillPrompt('project', 'alpha')],
-      {commands: 'project', skills: 'project'}
+      [createSkillPrompt('project', 'alpha')]
     )
 
     const declarations = await plugin.declareOutputFiles(context)
@@ -200,8 +189,7 @@ describe('windsurfOutputPlugin synthetic workspace project output', () => {
       workspaceBase,
       [createWorkspaceRootProject()],
       [createCommandPrompt('project', 'alpha')],
-      [createSkillPrompt('project', 'alpha')],
-      {commands: 'project', skills: 'project'}
+      [createSkillPrompt('project', 'alpha')]
     )
 
     const declarations = await plugin.declareOutputFiles(context)
@@ -232,7 +220,7 @@ describe('windsurfOutputPlugin synthetic workspace project output', () => {
         },
         rules: [createRulePrompt('project')]
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(context)
 
@@ -276,7 +264,7 @@ describe('windsurfOutputPlugin synthetic workspace project output', () => {
           }
         ]
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(context)
     const codeIgnoreDeclaration = declarations.find(
@@ -334,7 +322,7 @@ describe('windsurfOutputPlugin synthetic workspace project output', () => {
           }
         ]
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(context)
 
@@ -382,7 +370,7 @@ describe('windsurfOutputPlugin synthetic workspace project output', () => {
           }
         ]
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(context)
 

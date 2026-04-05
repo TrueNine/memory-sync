@@ -2,7 +2,7 @@ import type {MetadataRoute} from 'next'
 import {readdir} from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
-import {getSiteUrl} from '../lib/site'
+import {getSiteUrl} from '@/lib/site'
 
 const MDX_EXTENSION = '.mdx'
 const TRAILING_SLASHES_PATTERN = /\/+$/u

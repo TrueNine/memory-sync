@@ -129,6 +129,32 @@ describe('validateConfig — profile', () => {
   })
 })
 
+// ─── codeStyles ────────────────────────────────────────────────────────
+describe('validateConfig — codeStyles', () => {
+  it('accepts a valid codeStyles object', () => {
+    expect(validateConfig({ codeStyles: { indent: 'space', tabSize: 2 } })).toHaveLength(0)
+  })
+
+  it('accepts extra keys inside codeStyles', () => {
+    expect(validateConfig({ codeStyles: { indent: 'tab', quoteStyle: 'single' } })).toHaveLength(0)
+  })
+
+  it('rejects non-object', () => {
+    const errors = validateConfig({ codeStyles: 'bad' })
+    expect(errorFields(errors)).toContain('codeStyles')
+  })
+
+  it('rejects invalid indent', () => {
+    const errors = validateConfig({ codeStyles: { indent: 'mixed' } })
+    expect(errorFields(errors)).toContain('codeStyles.indent')
+  })
+
+  it('rejects non-positive tabSize', () => {
+    const errors = validateConfig({ codeStyles: { tabSize: 0 } })
+    expect(errorFields(errors)).toContain('codeStyles.tabSize')
+  })
+})
+
 // ─── commandSeriesOptions ───────────────────────────────────────────────
 describe('validateConfig — commandSeriesOptions', () => {
   it('accepts a plain object', () => {
@@ -173,12 +199,35 @@ describe('validateConfig — outputScopes', () => {
   })
 })
 
+// ─── plugins ────────────────────────────────────────────────────────────
+describe('validateConfig — plugins', () => {
+  it('accepts a plain object with boolean plugin flags', () => {
+    expect(validateConfig({ plugins: { trae: true, claudeCode: false } })).toHaveLength(0)
+  })
+
+  it('rejects non-object', () => {
+    const errors = validateConfig({ plugins: 42 })
+    expect(errorFields(errors)).toContain('plugins')
+  })
+
+  it('rejects non-boolean plugin flags', () => {
+    const errors = validateConfig({ plugins: { trae: 'yes' } })
+    expect(errorFields(errors)).toContain('plugins.trae')
+  })
+})
+
 // ─── unknown fields → warnings ─────────────────────────────────────────
 describe('validateConfig — unknown fields', () => {
   it('produces a warning for unknown top-level keys', () => {
     const errors = validateConfig({ unknownKey: 'value' })
     expect(warningFields(errors)).toContain('unknownKey')
     expect(errors[0].severity).toBe('warning')
+  })
+
+  it('treats removed agents config as an unknown-field warning', () => {
+    const errors = validateConfig({ agents: { codex: true } })
+    expect(errorFields(errors)).toEqual([])
+    expect(warningFields(errors)).toContain('agents')
   })
 
   it('produces warnings for multiple unknown keys', () => {
@@ -225,8 +274,10 @@ describe('validateConfig — realistic configs', () => {
       workspaceDir: '/workspace',
       logLevel: 'debug',
       profile: { name: 'test' },
+      codeStyles: { indent: 'space', tabSize: 2 },
       commandSeriesOptions: { includeSeriesPrefix: true },
       outputScopes: { plugins: {} },
+      plugins: { trae: true },
     }
     expect(validateConfig(config)).toHaveLength(0)
   })

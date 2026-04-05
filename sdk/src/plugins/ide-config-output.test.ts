@@ -6,9 +6,9 @@ import type {
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
-import {EditorConfigOutputPlugin} from './EditorConfigOutputPlugin'
 import {JetBrainsIDECodeStyleConfigOutputPlugin} from './JetBrainsIDECodeStyleConfigOutputPlugin'
 import {createLogger, FilePathKind, IDEKind} from './plugin-core'
+import {ReadmeMdConfigFileOutputPlugin} from './ReadmeMdConfigFileOutputPlugin'
 import {VisualStudioCodeIDEConfigOutputPlugin} from './VisualStudioCodeIDEConfigOutputPlugin'
 import {ZedIDEConfigOutputPlugin} from './ZedIDEConfigOutputPlugin'
 
@@ -137,22 +137,36 @@ function createWriteContext(workspaceBase: string): OutputWriteContext {
         )
       ]
     }
-  } as OutputWriteContext
+  } as unknown as OutputWriteContext
 }
 
 describe('ide config output plugins', () => {
-  it('includes the prompt source project for editorconfig output', async () => {
+  it('includes the prompt source project for editorconfig output via the readme plugin', async () => {
     const workspaceBase = path.resolve('tmp/ide-output-editorconfig')
-    const plugin = new EditorConfigOutputPlugin()
-    const declarations = await plugin.declareOutputFiles(
-      createWriteContext(workspaceBase)
-    )
+    const plugin = new ReadmeMdConfigFileOutputPlugin()
+    const ctx = createWriteContext(workspaceBase)
+    const declarations = await plugin.declareOutputFiles(ctx)
+    const cleanup = await plugin.declareCleanupPaths(ctx)
     const paths = declarations.map(declaration => declaration.path)
 
     expect(paths).toEqual([
       path.join(workspaceBase, 'aindex', '.editorconfig'),
       path.join(workspaceBase, 'memory-sync', '.editorconfig')
     ])
+    expect(cleanup.delete).toEqual(expect.arrayContaining([
+      {
+        kind: 'file',
+        label: 'delete.project',
+        path: path.join(workspaceBase, 'aindex', '.editorconfig'),
+        scope: 'project'
+      },
+      {
+        kind: 'file',
+        label: 'delete.project',
+        path: path.join(workspaceBase, 'memory-sync', '.editorconfig'),
+        scope: 'project'
+      }
+    ]))
   })
 
   it('includes the prompt source project for vscode output', async () => {

@@ -106,7 +106,7 @@ function createCleanContext(tempWorkspace?: string): OutputCleanContext {
         projects
       }
     }
-  } as OutputCleanContext
+  } as unknown as OutputCleanContext
 }
 
 function createWriteContext(
@@ -155,7 +155,7 @@ function createWriteContext(
       subAgents,
       skills
     }
-  } as OutputWriteContext
+  } as unknown as OutputWriteContext
 }
 
 function createProjectCommandPrompt(): CommandPrompt {
@@ -178,7 +178,7 @@ function createProjectCommandPrompt(): CommandPrompt {
       scope: 'project'
     },
     markdownContents: []
-  } as CommandPrompt
+  } as unknown as CommandPrompt
 }
 
 function createCommandPromptWithToolFields(): CommandPrompt {
@@ -190,7 +190,7 @@ function createCommandPromptWithToolFields(): CommandPrompt {
       allowTools: ['shell'],
       allowedTools: ['shell']
     } as unknown as CommandPrompt['yamlFrontMatter']
-  } as CommandPrompt
+  } as unknown as CommandPrompt
 }
 
 function createSubAgentPrompt(scope: 'project' | 'global'): SubAgentPrompt {
@@ -260,7 +260,7 @@ function createSkillPrompt(
       rawContent: '{"mcpServers":{"inspector":{"command":"npx","args":["inspector"]}}}'
     },
     markdownContents: []
-  } as SkillPrompt
+  } as unknown as SkillPrompt
 }
 
 describe('codexCLIOutputPlugin command output', () => {
@@ -428,94 +428,6 @@ describe('codexCLIOutputPlugin command output', () => {
       )
       expect(paths).not.toContain(
         path.join(homeDir, '.codex', 'skills', 'ship-it', 'SKILL.md')
-      )
-    })
-  })
-
-  it('keeps codex skill files global when only mcp is project-scoped', async () => {
-    await withTempCodexDirs('tnmsc-codex-split-scope-project-mcp', async ({workspace, homeDir}) => {
-      const plugin = new TestCodexCLIOutputPlugin(homeDir)
-      const writeCtx = createWriteContext(
-        workspace,
-        [],
-        [],
-        {
-          outputScopes: {
-            plugins: {
-              CodexCLIOutputPlugin: {
-                skills: 'global',
-                mcp: 'project'
-              }
-            }
-          }
-        },
-        [
-          createSkillPrompt('project', 'inspect-locally'),
-          createSkillPrompt('global', 'ship-it')
-        ]
-      )
-
-      const declarations = await plugin.declareOutputFiles(writeCtx)
-      const paths = declarations.map(declaration => declaration.path)
-
-      expect(paths).toContain(
-        path.join(homeDir, '.codex', 'skills', 'ship-it', 'SKILL.md')
-      )
-      expect(paths).toContain(
-        path.join(workspace, 'project-a', '.codex', 'skills', 'inspect-locally', 'mcp.json')
-      )
-      expect(paths).toContain(
-        path.join(workspace, 'project-b', '.codex', 'skills', 'inspect-locally', 'mcp.json')
-      )
-      expect(paths).not.toContain(
-        path.join(workspace, 'project-a', '.codex', 'skills', 'ship-it', 'SKILL.md')
-      )
-      expect(paths).not.toContain(
-        path.join(homeDir, '.codex', 'skills', 'inspect-locally', 'mcp.json')
-      )
-    })
-  })
-
-  it('keeps codex skill files project-scoped when only mcp is global-scoped', async () => {
-    await withTempCodexDirs('tnmsc-codex-split-scope-global-mcp', async ({workspace, homeDir}) => {
-      const plugin = new TestCodexCLIOutputPlugin(homeDir)
-      const writeCtx = createWriteContext(
-        workspace,
-        [],
-        [],
-        {
-          outputScopes: {
-            plugins: {
-              CodexCLIOutputPlugin: {
-                skills: 'project',
-                mcp: 'global'
-              }
-            }
-          }
-        },
-        [
-          createSkillPrompt('project', 'ship-it'),
-          createSkillPrompt('global', 'inspect-globally')
-        ]
-      )
-
-      const declarations = await plugin.declareOutputFiles(writeCtx)
-      const paths = declarations.map(declaration => declaration.path)
-
-      expect(paths).toContain(
-        path.join(workspace, 'project-a', '.codex', 'skills', 'ship-it', 'SKILL.md')
-      )
-      expect(paths).toContain(
-        path.join(workspace, 'project-b', '.codex', 'skills', 'ship-it', 'SKILL.md')
-      )
-      expect(paths).toContain(
-        path.join(homeDir, '.codex', 'skills', 'inspect-globally', 'mcp.json')
-      )
-      expect(paths).not.toContain(
-        path.join(homeDir, '.codex', 'skills', 'ship-it', 'SKILL.md')
-      )
-      expect(paths).not.toContain(
-        path.join(workspace, 'project-a', '.codex', 'skills', 'inspect-globally', 'mcp.json')
       )
     })
   })

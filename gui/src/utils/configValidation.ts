@@ -29,9 +29,11 @@ const KNOWN_FIELDS: ReadonlySet<string> = new Set([
   'commandSeriesOptions',
   'outputScopes',
   'frontMatter',
+  'codeStyles',
   'cleanupProtection',
   'windows',
   'profile',
+  'plugins',
 ])
 
 const VALID_LOG_LEVELS: ReadonlySet<string> = new Set([
@@ -41,6 +43,31 @@ const VALID_LOG_LEVELS: ReadonlySet<string> = new Set([
   'warn',
   'error',
 ])
+
+const VALID_INDENT_STYLES: ReadonlySet<string> = new Set([
+  'tab',
+  'space',
+])
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function validateObjectField(
+  obj: Record<string, unknown>,
+  field: string,
+  errors: ValidationError[]
+): Record<string, unknown> | undefined {
+  if (!(field in obj)) return void 0
+
+  const value = obj[field]
+  if (!isPlainObject(value)) {
+    errors.push({ field, message: `${field} must be an object`, severity: 'error' })
+    return void 0
+  }
+
+  return value
+}
 
 /**
  * Validate a raw config object and return all validation issues.
@@ -58,12 +85,12 @@ export function validateConfig(raw: unknown): readonly ValidationError[] {
     return errors
   }
 
-  if (typeof raw !== 'object' || Array.isArray(raw)) {
+  if (!isPlainObject(raw)) {
     errors.push({ field: '', message: 'Config must be a plain object', severity: 'error' })
     return errors
   }
 
-  const obj = raw as Record<string, unknown>
+  const obj = raw
 
   // ── Unknown / extra fields → warnings ────────────────────────────────
   for (const key of Object.keys(obj)) {
@@ -99,34 +126,54 @@ export function validateConfig(raw: unknown): readonly ValidationError[] {
   }
 
   // ── profile ──────────────────────────────────────────────────────────
-  if ('profile' in obj) {
-    const v = obj['profile']
-    if (typeof v !== 'object' || v === null || Array.isArray(v)) {
-      errors.push({ field: 'profile', message: 'profile must be an object', severity: 'error' })
+  validateObjectField(obj, 'profile', errors)
+
+  // ── commandSeriesOptions / outputScopes / frontMatter / cleanupProtection / windows / plugins ──
+  validateObjectField(obj, 'commandSeriesOptions', errors)
+  validateObjectField(obj, 'outputScopes', errors)
+  validateObjectField(obj, 'frontMatter', errors)
+  validateObjectField(obj, 'cleanupProtection', errors)
+  validateObjectField(obj, 'windows', errors)
+  const plugins = validateObjectField(obj, 'plugins', errors)
+  if (plugins != null) {
+    for (const [pluginName, enabled] of Object.entries(plugins)) {
+      if (typeof enabled !== 'boolean') {
+        errors.push({
+          field: `plugins.${pluginName}`,
+          message: `plugins.${pluginName} must be a boolean`,
+          severity: 'error',
+        })
+      }
     }
   }
 
-  // ── commandSeriesOptions ─────────────────────────────────────────────
-  if ('commandSeriesOptions' in obj) {
-    const v = obj['commandSeriesOptions']
-    if (typeof v !== 'object' || v === null || Array.isArray(v)) {
-      errors.push({
-        field: 'commandSeriesOptions',
-        message: 'commandSeriesOptions must be an object',
-        severity: 'error',
-      })
+  // ── codeStyles ───────────────────────────────────────────────────────
+  const codeStyles = validateObjectField(obj, 'codeStyles', errors)
+  if (codeStyles != null) {
+    if ('indent' in codeStyles) {
+      const indent = codeStyles['indent']
+      if (typeof indent !== 'string' || !VALID_INDENT_STYLES.has(indent)) {
+        errors.push({
+          field: 'codeStyles.indent',
+          message: `codeStyles.indent must be one of: ${[...VALID_INDENT_STYLES].join(', ')}`,
+          severity: 'error',
+        })
+      }
     }
-  }
 
-  // ── outputScopes ─────────────────────────────────────────────────────
-  if ('outputScopes' in obj) {
-    const v = obj['outputScopes']
-    if (typeof v !== 'object' || v === null || Array.isArray(v)) {
-      errors.push({
-        field: 'outputScopes',
-        message: 'outputScopes must be an object',
-        severity: 'error',
-      })
+    if ('tabSize' in codeStyles) {
+      const tabSize = codeStyles['tabSize']
+      if (
+        typeof tabSize !== 'number'
+        || !Number.isInteger(tabSize)
+        || tabSize <= 0
+      ) {
+        errors.push({
+          field: 'codeStyles.tabSize',
+          message: 'codeStyles.tabSize must be a positive integer',
+          severity: 'error',
+        })
+      }
     }
   }
 

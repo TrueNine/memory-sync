@@ -33,12 +33,12 @@ const localeSchema = z.enum(['zh', 'en'] satisfies readonly PromptSourceLocale[]
 const workspaceInputSchema = {
   workspaceDir: z.string().min(1).optional()
 }
-const MCP_PACKAGE_NAME = typeof __MCP_PACKAGE_NAME__ === 'string'
+const MCP_PACKAGE_NAME = typeof __MCP_PACKAGE_NAME__ !== 'undefined'
   ? __MCP_PACKAGE_NAME__
   : '@truenine/memory-sync-mcp'
-const MCP_VERSION = typeof __MCP_VERSION__ === 'string'
+const MCP_VERSION = typeof __MCP_VERSION__ !== 'undefined'
   ? __MCP_VERSION__
-  : '0.0.0-dev'
+  : 'dev'
 
 function createPromptServiceOptions(
   workspaceDir?: string

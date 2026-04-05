@@ -1,6 +1,6 @@
 ---
 title: JSON Schema
-description: Summarizes the configuration fields and constraints currently exposed by tnmsc.schema.json.
+description: Summarizes the stable `.tnmsc.json` config surface and the compatibility notes you should keep in mind when reading tnmsc.schema.json.
 sidebarTitle: JSON Schema
 status: stable
 ---
@@ -9,67 +9,24 @@ status: stable
 
 The `.aindex` and `.tnmsc.json` setup details are now centralized in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
 
-This page keeps the schema-level behavior that is not specific to the config file location or aindex path layout.
+The generated `tnmsc.schema.json` is currently more permissive than the small stable runtime config surface. For authoring new `~/.aindex/.tnmsc.json` files, use the stable fields below and treat older compatibility keys as legacy.
 
-## `commandSeriesOptions`
-
-```json
-{
-  "commandSeriesOptions": {
-    "includeSeriesPrefix": true,
-    "pluginOverrides": {
-      "some-plugin-name": {
-        "includeSeriesPrefix": false,
-        "seriesSeparator": "/"
-      }
-    }
-  }
-}
-```
+## Stable runtime fields
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `commandSeriesOptions.includeSeriesPrefix` | `boolean` | Whether command output names include the series prefix |
-| `commandSeriesOptions.pluginOverrides` | `Record<string, object>` | Per-plugin overrides |
-| `commandSeriesOptions.pluginOverrides.<plugin>.includeSeriesPrefix` | `boolean` | Override the top-level prefix behavior for one plugin |
-| `commandSeriesOptions.pluginOverrides.<plugin>.seriesSeparator` | `string` | Override the separator used by one plugin |
-
-## Topics Supported by `outputScopes`
-
-The schema currently allows these topics:
-
-- `prompt`
-- `rules`
-- `commands`
-- `subagents`
-- `skills`
-- `mcp`
-
-Each topic accepts either a single scope or an array of scopes:
-
-```json
-{
-  "outputScopes": {
-    "plugins": {
-      "some-plugin-name": {
-        "prompt": "project",
-        "skills": ["global", "project"]
-      }
-    }
-  }
-}
-```
-
-The only valid scope values are:
-
-- `project`
-- `global`
-
-See [Output Scopes](/docs/cli/output-scopes) for detailed behavior.
+| `version` | `string` | version marker passed through the runtime |
+| `workspaceDir` | `string` | workspace root |
+| `logLevel` | enum | `trace` / `debug` / `info` / `warn` / `error` |
+| `frontMatter` | `object` | front matter output-formatting options |
+| `codeStyles` | `object` | lightweight user code style preferences |
+| `windows` | `object` | Windows and WSL integration options |
+| `profile` | `object` | open user-profile object |
+| `plugins` | `object` | explicit per-plugin output enablement overrides |
 
 ## `frontMatter`
 
-The only public field right now is:
+The `frontMatter` block currently exposes one field:
 
 ```json
 {
@@ -81,31 +38,25 @@ The only public field right now is:
 
 See [Front Matter](/docs/cli/frontmatter) for the distinction.
 
-## `cleanupProtection`
+## `codeStyles`
 
 ```json
 {
-  "cleanupProtection": {
-    "rules": [
-      {
-        "path": ".codex/skills/.system",
-        "protectionMode": "recursive",
-        "matcher": "path",
-        "reason": "Preserve built-in skills"
-      }
-    ]
+  "codeStyles": {
+    "indent": "space",
+    "tabSize": 2
   }
 }
 ```
 
-Each rule supports:
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `codeStyles.indent` | `"tab" \| "space"` | preferred indentation style |
+| `codeStyles.tabSize` | `integer` | preferred indentation width |
 
-- `path`
-- `protectionMode`: `direct` / `recursive`
-- `matcher`: `path` / `glob`
-- `reason`
+Additional keys are currently accepted so the block can hold a few more simple personal style preferences without forcing a schema change for every tiny addition.
 
-See [Cleanup Protection](/docs/cli/cleanup-protection) for the semantics.
+The block itself is optional. When it is omitted, the merged runtime defaults still resolve to `indent = "space"` and `tabSize = 2`.
 
 ## `windows`
 
@@ -133,3 +84,65 @@ See [Cleanup Protection](/docs/cli/cleanup-protection) for the semantics.
 - `birthday`
 
 Additional keys are also accepted.
+
+## `plugins`
+
+The current TypeScript schema also recognizes:
+
+```json
+{
+  "plugins": {
+    "git": true,
+    "codex": false,
+    "trae": true
+  }
+}
+```
+
+Each plugin key accepts only:
+
+- `true`
+- `false`
+
+Known keys are:
+
+- `agentsMd`
+- `claudeCode`
+- `codex`
+- `cursor`
+- `droid`
+- `gemini`
+- `git`
+- `jetbrains`
+- `jetbrainsCodeStyle`
+- `kiro`
+- `opencode`
+- `qoder`
+- `readme`
+- `trae`
+- `traeCn`
+- `vscode`
+- `warp`
+- `windsurf`
+- `zed`
+
+When `plugins` is omitted, the current built-in default keeps `git` and `readme` enabled. The other known plugin keys stay off until you explicitly set them to `true`.
+
+Use `plugins.readme` for both README-like outputs and `.editorconfig`.
+
+Use `plugins.git`, not `plugins.gitExclude`.
+
+This block is the direct output gate. A plugin may still appear in [plugin.config.ts](/docs/cli/plugin-config) as an assembled integration target, but it will not emit files unless its enablement resolves to `true`.
+
+## Legacy compatibility keys
+
+Do not treat these as part of the supported user-facing config surface anymore:
+
+- `agents`
+- `commandSeriesOptions`
+- `outputScopes`
+- `cleanupProtection`
+- `aindex`, `dir`, and the old `*.src` / `*.dist` path overrides
+- Older migration-era fields such as `fastCommandSeriesOptions`, `externalProjects`, `excludePatterns`, and `shadowSourceProject`
+
+If you still see those keys in older examples or transitional schema output, treat them as compatibility leftovers and remove them from new configs.

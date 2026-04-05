@@ -127,7 +127,7 @@ export class CommandInputCapability extends AbstractInputCapability {
       }))
     }
 
-    if (errors.length > 0) throw new Error(errors.map(error => error.error instanceof Error ? error.error.message : String(error.error)).join('\n'))
+    if (errors.length > 0) throw new Error(errors.map(error => error.error.message).join('\n'))
 
     const flatCommands: CommandPrompt[] = []
     for (const localized of localizedCommands) {

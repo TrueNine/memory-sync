@@ -1,6 +1,6 @@
 ---
 title: Commands
-description: Introduces the role of commands and explains how they relate to commandSeriesOptions.
+description: Introduces the role of commands and explains the current path-derived naming model.
 sidebarTitle: Commands
 status: stable
 ---
@@ -33,11 +33,13 @@ Default output path:
 dist/commands/
 ```
 
-## What `commandSeriesOptions` Does
+## How Naming Works Now
 
-The schema lets `commandSeriesOptions`:
+Command naming now comes primarily from the source path and file name rather than a global config block.
 
-- set `includeSeriesPrefix`
-- override `includeSeriesPrefix` or `seriesSeparator` per plugin
+Examples:
 
-That means commands are not just flat output files. They can also carry series-based naming rules. Think of it as grouping and naming control for a command family rather than a single-file naming rule.
+- `commands/git/status.src.mdx` keeps a path-derived grouping
+- `commands/release_notes.src.mdx` can still derive a prefix from the flat file name
+
+The old `commandSeriesOptions` block in `~/.aindex/.tnmsc.json` is now legacy. New command configuration should start from the source tree shape and the output plugin behavior instead of trying to restore that removed global override layer.

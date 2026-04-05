@@ -5,24 +5,24 @@ import {afterEach, describe, expect, it} from 'vitest'
 import {ConfigLoader, getGlobalConfigPath} from './ConfigLoader'
 
 describe('configLoader', () => {
-  const originalHome = process.env.HOME
-  const originalUserProfile = process.env.USERPROFILE
-  const originalHomeDrive = process.env.HOMEDRIVE
-  const originalHomePath = process.env.HOMEPATH
+  const originalHome = process.env['HOME']
+  const originalUserProfile = process.env['USERPROFILE']
+  const originalHomeDrive = process.env['HOMEDRIVE']
+  const originalHomePath = process.env['HOMEPATH']
 
   afterEach(() => {
-    process.env.HOME = originalHome
-    process.env.USERPROFILE = originalUserProfile
-    process.env.HOMEDRIVE = originalHomeDrive
-    process.env.HOMEPATH = originalHomePath
+    process.env['HOME'] = originalHome
+    process.env['USERPROFILE'] = originalUserProfile
+    process.env['HOMEDRIVE'] = originalHomeDrive
+    process.env['HOMEPATH'] = originalHomePath
   })
 
   it('searches only the canonical global config path', () => {
     const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-home-'))
-    process.env.HOME = tempHome
-    process.env.USERPROFILE = tempHome
-    delete process.env.HOMEDRIVE
-    delete process.env.HOMEPATH
+    process.env['HOME'] = tempHome
+    process.env['USERPROFILE'] = tempHome
+    delete process.env['HOMEDRIVE']
+    delete process.env['HOMEPATH']
 
     try {
       const loader = new ConfigLoader()
@@ -84,6 +84,93 @@ describe('configLoader', () => {
       expect(result.found).toBe(true)
       expect(result.config).toEqual({
         workspaceDir: '/tmp/workspace'
+      })
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('loads codeStyles from the user config file', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-config-loader-code-styles-'))
+    const configPath = path.join(tempDir, '.tnmsc.json')
+
+    try {
+      fs.writeFileSync(configPath, JSON.stringify({
+        workspaceDir: '/tmp/workspace',
+        codeStyles: {
+          indent: 'space',
+          tabSize: 2,
+          quoteStyle: 'single'
+        }
+      }), 'utf8')
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile(configPath)
+
+      expect(result.found).toBe(true)
+      expect(result.config).toEqual({
+        workspaceDir: '/tmp/workspace',
+        codeStyles: {
+          indent: 'space',
+          tabSize: 2,
+          quoteStyle: 'single'
+        }
+      })
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('fills missing codeStyles fields with defaults when the block exists', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-config-loader-code-styles-defaults-'))
+    const configPath = path.join(tempDir, '.tnmsc.json')
+
+    try {
+      fs.writeFileSync(configPath, JSON.stringify({
+        codeStyles: {
+          tabSize: 4
+        }
+      }), 'utf8')
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile(configPath)
+
+      expect(result.found).toBe(true)
+      expect(result.config).toEqual({
+        codeStyles: {
+          indent: 'space',
+          tabSize: 4
+        }
+      })
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('loads plugin enablement flags from the user config file', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-config-loader-plugins-'))
+    const configPath = path.join(tempDir, '.tnmsc.json')
+
+    try {
+      fs.writeFileSync(configPath, JSON.stringify({
+        plugins: {
+          trae: true,
+          claudeCode: false
+        }
+      }), 'utf8')
+
+      const loader = new ConfigLoader()
+      const result = loader.loadFromFile(configPath)
+
+      expect(result.found).toBe(true)
+      expect(result.config).toEqual({
+        plugins: {
+          trae: true,
+          claudeCode: false
+        }
       })
     }
     finally {

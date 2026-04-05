@@ -24,7 +24,7 @@ function writeFile(filePath: string, content: string, modifiedAt: Date): void {
   fs.utimesSync(filePath, modifiedAt, modifiedAt)
 }
 
-function serviceOptions(workspaceDir: string) {
+function serviceOptions(workspaceDir: string | undefined) {
   return {
     loadUserConfig: false,
     pluginOptions: {
@@ -38,6 +38,27 @@ afterEach(() => {
 })
 
 describe('prompt catalog service', () => {
+  it('uses cwd as the workspace root when workspaceDir is omitted', async () => {
+    const workspaceDir = createTempWorkspace('tnmsc-prompts-cwd-fallback-')
+    const aindexDir = path.join(workspaceDir, 'aindex')
+
+    writeFile(
+      path.join(aindexDir, 'global.src.mdx'),
+      '---\ndescription: global zh\n---\nGlobal zh',
+      new Date()
+    )
+
+    const prompts = await listPrompts({
+      loadUserConfig: false,
+      cwd: workspaceDir
+    })
+
+    expect(prompts.some(prompt => prompt.promptId === 'global-memory')).toBe(true)
+    expect(prompts.find(prompt => prompt.promptId === 'global-memory')?.paths.zh).toBe(
+      path.join(aindexDir, 'global.src.mdx')
+    )
+  })
+
   it('lists every managed prompt family with status metadata', async () => {
     const workspaceDir = createTempWorkspace('tnmsc-prompts-')
     const aindexDir = path.join(workspaceDir, 'aindex')

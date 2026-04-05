@@ -1,6 +1,6 @@
 ---
 title: aindex and .tnmsc.json
-description: Explains in one place where `.aindex` lives, how `~/.aindex/.tnmsc.json` is loaded, and what every supported config field means.
+description: Explains where `.aindex` lives, how `~/.aindex/.tnmsc.json` is loaded, which fields are active today, and which legacy fields should be removed.
 sidebarTitle: aindex and Config
 status: stable
 ---
@@ -64,6 +64,7 @@ The separation is intentional:
 
 - `~/.aindex/.tnmsc.json` stores user or machine-level config data
 - `plugin.config.ts` stores project-side plugin assembly and programmatic overrides
+- `~/.aindex/.tnmsc.json` also decides which assembled output plugins are actually allowed to write
 
 ## Minimal example
 
@@ -81,19 +82,20 @@ With that config:
 - the default global prompt source resolves to `/repo/demo/aindex/global.src.mdx`
 - `logLevel` falls back to `info` unless you set it explicitly
 
-## Root fields in `~/.aindex/.tnmsc.json`
+## Stable top-level fields in `~/.aindex/.tnmsc.json`
+
+These are the user-facing fields the current runtime actually consumes from the global config file:
 
 | Field | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `version` | `string` | `"0.0.0"` in merged runtime options | Version or release marker passed through the runtime |
-| `workspaceDir` | `string` | `"~/project"` in merged runtime options | Project root directory |
+| `workspaceDir` | `string` | omitted in config; resolved from the runtime working directory when not supplied | Workspace root directory, typically under `~/workspace/` |
 | `logLevel` | enum | `info` | `trace` / `debug` / `info` / `warn` / `error` |
-| `commandSeriesOptions` | `object` | `{}` | Command-series naming and per-plugin overrides |
-| `outputScopes` | `object` | `{}` | Output-scope overrides per plugin |
 | `frontMatter` | `object` | `{ "blankLineAfter": true }` | Front matter formatting behavior |
-| `cleanupProtection` | `object` | `{}` | Cleanup protection rules |
+| `codeStyles` | `object` | `{ "indent": "space", "tabSize": 2 }` in merged runtime options | User code style preferences exposed to prompt evaluation |
 | `windows` | `object` | `{}` | Windows and WSL-specific runtime options |
 | `profile` | `object` | omitted | User profile metadata |
+| `plugins` | `object` | `{}` in merged runtime options | Explicit per-plugin output enablement overrides |
 
 Everything under the workspace aindex tree keeps a fixed name and fixed relative location. The structure is:
 
@@ -125,51 +127,6 @@ Everything under the workspace aindex tree keeps a fixed name and fixed relative
 
 None of the fixed paths inside that tree are user-configurable in `~/.aindex/.tnmsc.json`.
 
-If old config files still contain `aindex`, `dir`, or `*.src` / `*.dist` override fields, treat them as removed legacy fields. The current system no longer documents or supports those user-facing overrides.
-
-## Other supported config objects
-
-### `commandSeriesOptions`
-
-```json
-{
-  "commandSeriesOptions": {
-    "includeSeriesPrefix": true,
-    "pluginOverrides": {
-      "some-plugin-name": {
-        "includeSeriesPrefix": false,
-        "seriesSeparator": "/"
-      }
-    }
-  }
-}
-```
-
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `commandSeriesOptions.includeSeriesPrefix` | `boolean` | Whether command output names include the series prefix |
-| `commandSeriesOptions.pluginOverrides` | `Record<string, object>` | Per-plugin overrides |
-| `commandSeriesOptions.pluginOverrides.<plugin>.includeSeriesPrefix` | `boolean` | Override the top-level prefix behavior for one plugin |
-| `commandSeriesOptions.pluginOverrides.<plugin>.seriesSeparator` | `string` | Override the separator used by one plugin |
-
-### `outputScopes`
-
-The schema currently allows these topics:
-
-- `prompt`
-- `rules`
-- `commands`
-- `subagents`
-- `skills`
-- `mcp`
-
-Each topic accepts either a single scope or an array of scopes. The only valid scope values are:
-
-- `project`
-- `global`
-
-See [Output Scopes](/docs/cli/output-scopes) for behavior details.
-
 ### `frontMatter`
 
 ```json
@@ -182,16 +139,27 @@ See [Output Scopes](/docs/cli/output-scopes) for behavior details.
 
 See [Front Matter](/docs/cli/frontmatter) for the formatting distinction.
 
-### `cleanupProtection`
+### `codeStyles`
 
-Each rule supports:
+```json
+{
+  "codeStyles": {
+    "indent": "space",
+    "tabSize": 2
+  }
+}
+```
 
-- `path`
-- `protectionMode`: `direct` / `recursive`
-- `matcher`: `path` / `glob`
-- `reason`
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `codeStyles.indent` | `"tab" \| "space"` | Preferred indentation style |
+| `codeStyles.tabSize` | `integer` | Preferred indentation width |
 
-See [Cleanup Protection](/docs/cli/cleanup-protection) for cleanup semantics.
+Additional keys are also accepted so you can keep a few lightweight personal style preferences together in one place.
+
+The block itself is optional. When you omit it, the runtime still injects `codeStyles.indent = "space"` and `codeStyles.tabSize = 2`.
+
+When prompts are compiled, these values are available in MDX expressions such as `{codeStyles.indent}` and `{codeStyles.tabSize}`.
 
 ### `windows`
 
@@ -219,6 +187,72 @@ See [Cleanup Protection](/docs/cli/cleanup-protection) for cleanup semantics.
 - `birthday`
 
 Additional keys are also accepted.
+
+## `plugins`
+
+The current runtime also recognizes a `plugins` block:
+
+```json
+{
+  "plugins": {
+    "git": true,
+    "claudeCode": false,
+    "trae": true
+  }
+}
+```
+
+Each key accepts only a boolean:
+
+- `true`: allow that assembled plugin to emit outputs
+- `false`: suppress output generation for that plugin, while still keeping cleanup behavior
+
+Known keys are:
+
+- `agentsMd`
+- `claudeCode`
+- `codex`
+- `cursor`
+- `droid`
+- `gemini`
+- `git`
+- `jetbrains`
+- `jetbrainsCodeStyle`
+- `kiro`
+- `opencode`
+- `qoder`
+- `readme`
+- `trae`
+- `traeCn`
+- `vscode`
+- `warp`
+- `windsurf`
+- `zed`
+
+Current built-in default behavior is:
+
+- `git` is enabled by default
+- `readme` is enabled by default
+- the other known plugin keys are disabled by default until you explicitly turn them on
+
+Use `plugins.readme` for both README-like outputs and `.editorconfig`.
+
+Use `plugins.git`, not `plugins.gitExclude`.
+
+This block controls actual output emission. The project-level [plugin.config.ts](/docs/cli/plugin-config) still assembles the available plugin set, but assembly alone does not mean the plugin will write files.
+
+## Removed legacy fields
+
+Do not put these back into new `~/.aindex/.tnmsc.json` files:
+
+- `agents`
+- `aindex`, `dir`, and the old `*.src` / `*.dist` path-pair overrides such as `skills`, `commands`, `subAgents`, `rules`, `globalPrompt`, `workspacePrompt`, `app`, `ext`, `arch`, and `softwares`
+- `commandSeriesOptions`
+- `outputScopes`
+- `cleanupProtection`
+- Older experimental or pre-consolidation fields such as `fastCommandSeriesOptions`, `externalProjects`, `excludePatterns`, and `shadowSourceProject`
+
+Some compatibility layers may still parse or warn on those keys during migration, but they are no longer part of the supported user-facing config surface.
 
 ## What to read next
 

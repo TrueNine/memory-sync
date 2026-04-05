@@ -7,7 +7,6 @@ import {
   CursorOutputPlugin,
   defineConfig,
   DroidCLIOutputPlugin,
-  EditorConfigOutputPlugin,
   GeminiCLIOutputPlugin,
   GitExcludeOutputPlugin,
   JetBrainsAIAssistantCodexOutputPlugin,
@@ -24,6 +23,10 @@ import {
   ZedIDEConfigOutputPlugin
 } from '@truenine/memory-sync-sdk'
 
+type DefineConfigWithOutputPlugins = Parameters<typeof defineConfig>[0] & {
+  readonly outputPlugins: PipelineConfig['outputPlugins']
+}
+
 export function resolveRuntimeCommandFromArgv(argv: readonly string[] = process.argv): RuntimeCommand {
   const args = argv.filter((arg): arg is string => arg != null)
   const userArgs = args.slice(2)
@@ -39,34 +42,33 @@ export async function createDefaultPluginConfig(
   runtimeCommand: RuntimeCommand = resolveRuntimeCommandFromArgv(argv),
   executionCwd: string = process.cwd()
 ): Promise<PipelineConfig> {
+  const outputPlugins: PipelineConfig['outputPlugins'] = [
+    new AgentsOutputPlugin(),
+    new ClaudeCodeCLIOutputPlugin(),
+    new CodexCLIOutputPlugin(),
+    new JetBrainsAIAssistantCodexOutputPlugin(),
+    new DroidCLIOutputPlugin(),
+    new GeminiCLIOutputPlugin(),
+    new KiroCLIOutputPlugin(),
+    new OpencodeCLIOutputPlugin(),
+    new QoderIDEPluginOutputPlugin(),
+    new TraeIDEOutputPlugin(),
+    new TraeCNIDEOutputPlugin(),
+    new WarpIDEOutputPlugin(),
+    new WindsurfOutputPlugin(),
+    new CursorOutputPlugin(),
+    new GitExcludeOutputPlugin(),
+    new JetBrainsIDECodeStyleConfigOutputPlugin(),
+    new VisualStudioCodeIDEConfigOutputPlugin(),
+    new ZedIDEConfigOutputPlugin(),
+    new ReadmeMdConfigFileOutputPlugin()
+  ]
+
   return defineConfig({
     executionCwd,
     runtimeCommand,
-    pluginOptions: {
-      plugins: [
-        new AgentsOutputPlugin(),
-        new ClaudeCodeCLIOutputPlugin(),
-        new CodexCLIOutputPlugin(),
-        new JetBrainsAIAssistantCodexOutputPlugin(),
-        new DroidCLIOutputPlugin(),
-        new GeminiCLIOutputPlugin(),
-        new KiroCLIOutputPlugin(),
-        new OpencodeCLIOutputPlugin(),
-        new QoderIDEPluginOutputPlugin(),
-        new TraeIDEOutputPlugin(),
-        new TraeCNIDEOutputPlugin(),
-        new WarpIDEOutputPlugin(),
-        new WindsurfOutputPlugin(),
-        new CursorOutputPlugin(),
-        new GitExcludeOutputPlugin(),
-        new JetBrainsIDECodeStyleConfigOutputPlugin(),
-        new EditorConfigOutputPlugin(),
-        new VisualStudioCodeIDEConfigOutputPlugin(),
-        new ZedIDEConfigOutputPlugin(),
-        new ReadmeMdConfigFileOutputPlugin()
-      ]
-    }
-  })
+    outputPlugins
+  } as DefineConfigWithOutputPlugins)
 }
 
 export default createDefaultPluginConfig

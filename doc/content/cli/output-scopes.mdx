@@ -1,57 +1,33 @@
 ---
 title: Output Scopes
-description: Explains how outputScopes restrict project and global output scopes per plugin and per topic.
+description: Explains that `outputScopes` is now a legacy `.tnmsc.json` field and where output placement is controlled instead.
 sidebarTitle: Output Scopes
 status: stable
 ---
 
 # Output Scopes
 
-`outputScopes` is one of the most important safety valves in the current implementation, and also one of the easiest to overlook.
+`outputScopes` should now be treated as a legacy config block in `~/.aindex/.tnmsc.json`.
 
-## What Problem It Solves
+The current runtime no longer documents or supports per-plugin output-scope overrides from the global user config file.
 
-Not every piece of content should be emitted by every plugin to both global and project destinations. `outputScopes` lets you declare the source scope by plugin and by topic.
+## What Controls Output Placement Now
 
-## Supported Topics
+Output placement is now determined by the combination of:
 
-The current core constants and schema support:
+- which output plugins are assembled in [plugin.config.ts](/docs/cli/plugin-config)
+- whether the source asset itself is project-scoped or global-scoped
+- plugin-specific routing and remap behavior
 
-- `prompt`
-- `rules`
-- `commands`
-- `subagents`
-- `skills`
-- `mcp`
+That is the place to debug first when content lands in the wrong destination.
 
-## Allowed Scopes
+## What To Do With Older Config Files
 
-- `project`
-- `global`
+If an older config still contains `outputScopes`, remove it from `~/.aindex/.tnmsc.json` instead of expanding it further.
 
-Some topics allow multi-value arrays, while some plugins declare a topic as single-valued. If you pass multiple scopes to a single-valued topic, validation fails before execution.
+## Migration Checklist
 
-## Example
-
-```json
-{
-  "outputScopes": {
-    "plugins": {
-      "CursorOutputPlugin": {
-        "prompt": "project",
-        "rules": ["project", "global"]
-      }
-    }
-  }
-}
-```
-
-## When to Check It First
-
-Look here first when you see any of these:
-
-- Rules are written into global config even though you only wanted project-level output
-- A global prompt is incorrectly pulled into a local target
-- Skill, command, or MCP-related outputs appear in targets where they do not belong
-
-Check `outputScopes` before you edit the source files themselves.
+- Remove `outputScopes` from the global config.
+- Check the assembled plugins in [plugin.config.ts](/docs/cli/plugin-config).
+- Check the source item scope you authored.
+- Use `tnmsc dry-run` to verify the real write targets before a full sync.

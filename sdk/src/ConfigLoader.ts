@@ -1,11 +1,9 @@
 import type {ILogger} from '@truenine/logger'
 import type {
-  CleanupProtectionOptions,
+  CodeStylesOptions,
   ConfigLoaderOptions,
   ConfigLoadResult,
   FrontMatterOptions,
-  OutputScopeOptions,
-  PluginOutputScopeTopics,
   UserConfigFile,
   WindowsOptions
 } from './plugins/plugin-core'
@@ -29,42 +27,21 @@ import {
   DEFAULT_GLOBAL_CONFIG_DIR as RUNTIME_DEFAULT_GLOBAL_CONFIG_DIR
 } from './runtime-environment'
 
-/**
- * Default config file name
- */
 export const DEFAULT_CONFIG_FILE_NAME = '.tnmsc.json'
 
-/**
- * Default global config directory (relative to home)
- */
 export const DEFAULT_GLOBAL_CONFIG_DIR = '.aindex'
 
-/**
- * Get global config file path
- */
 export function getGlobalConfigPath(): string {
   return getRequiredGlobalConfigPath()
 }
 
-/**
- * Validation result for global config
- */
 export interface GlobalConfigValidationResult {
   readonly valid: boolean
-
   readonly exists: boolean
-
   readonly errors: readonly string[]
-
   readonly shouldExit: boolean
 }
 
-/**
- * ConfigLoader handles discovery and loading of user configuration files.
- *
- * The config source is fixed and unambiguous:
- * 1. Global: ~/.aindex/.tnmsc.json
- */
 export class ConfigLoader {
   private readonly logger: ILogger
 
@@ -127,7 +104,7 @@ export class ConfigLoader {
       if (result.found) loadedConfigs.push(result)
     }
 
-    const merged = this.mergeConfigs(loadedConfigs.map(r => r.config)) // Merge configs (first has highest priority)
+    const merged = this.mergeConfigs(loadedConfigs.map(r => r.config))
     const sources = loadedConfigs.map(r => r.source).filter((s): s is string => s !== null)
 
     return {
@@ -150,7 +127,7 @@ export class ConfigLoader {
     const result = ZUserConfigFile.safeParse(parsed)
     if (result.success) return result.data
 
-    const errors = result.error.issues.map((i: {path: (string | number)[], message: string}) => `${i.path.join('.')}: ${i.message}`) // Validation failed - throw error instead of returning empty config
+    const errors = result.error.issues.map((i: {path: (string | number)[], message: string}) => `${i.path.join('.')}: ${i.message}`)
     throw new Error(`Config validation failed in ${filePath}:\n${errors.join('\n')}`)
   }
 
@@ -160,57 +137,21 @@ export class ConfigLoader {
     const firstConfig = configs[0]
     if (configs.length === 1 && firstConfig != null) return firstConfig
 
-    const reversed = [...configs].reverse() // Reverse to merge from lowest to highest priority
+    const reversed = [...configs].reverse()
 
     return reversed.reduce<UserConfigFile>((acc, config) => {
-      const mergedOutputScopes = this.mergeOutputScopeOptions(acc.outputScopes, config.outputScopes)
+      const mergedCodeStyles = this.mergeCodeStylesOptions(acc.codeStyles, config.codeStyles)
       const mergedFrontMatter = this.mergeFrontMatterOptions(acc.frontMatter, config.frontMatter)
-      const mergedCleanupProtection = this.mergeCleanupProtectionOptions(
-        acc.cleanupProtection,
-        config.cleanupProtection
-      )
       const mergedWindows = this.mergeWindowsOptions(acc.windows, config.windows)
 
       return {
         ...acc,
         ...config,
-        ...mergedOutputScopes != null ? {outputScopes: mergedOutputScopes} : {},
+        ...mergedCodeStyles != null ? {codeStyles: mergedCodeStyles} : {},
         ...mergedFrontMatter != null ? {frontMatter: mergedFrontMatter} : {},
-        ...mergedCleanupProtection != null ? {cleanupProtection: mergedCleanupProtection} : {},
         ...mergedWindows != null ? {windows: mergedWindows} : {}
       }
     }, {})
-  }
-
-  private mergeOutputScopeTopics(
-    a?: PluginOutputScopeTopics,
-    b?: PluginOutputScopeTopics
-  ): PluginOutputScopeTopics | undefined {
-    if (a == null && b == null) return void 0
-    if (a == null) return b
-    if (b == null) return a
-    return {...a, ...b}
-  }
-
-  private mergeOutputScopeOptions(
-    a?: OutputScopeOptions,
-    b?: OutputScopeOptions
-  ): OutputScopeOptions | undefined {
-    if (a == null && b == null) return void 0
-    if (a == null) return b
-    if (b == null) return a
-
-    const mergedPlugins: Record<string, PluginOutputScopeTopics> = {}
-    for (const [pluginName, topics] of Object.entries(a.plugins ?? {})) {
-      if (topics != null) mergedPlugins[pluginName] = {...topics}
-    }
-    for (const [pluginName, topics] of Object.entries(b.plugins ?? {})) {
-      const mergedTopics = this.mergeOutputScopeTopics(mergedPlugins[pluginName], topics)
-      if (mergedTopics != null) mergedPlugins[pluginName] = mergedTopics
-    }
-
-    if (Object.keys(mergedPlugins).length === 0) return {}
-    return {plugins: mergedPlugins}
   }
 
   private mergeFrontMatterOptions(
@@ -223,20 +164,14 @@ export class ConfigLoader {
     return {...a, ...b}
   }
 
-  private mergeCleanupProtectionOptions(
-    a?: CleanupProtectionOptions,
-    b?: CleanupProtectionOptions
-  ): CleanupProtectionOptions | undefined {
+  private mergeCodeStylesOptions(
+    a?: CodeStylesOptions,
+    b?: CodeStylesOptions
+  ): CodeStylesOptions | undefined {
     if (a == null && b == null) return void 0
     if (a == null) return b
     if (b == null) return a
-
-    return {
-      rules: [
-        ...a.rules ?? [],
-        ...b.rules ?? []
-      ]
-    }
+    return {...a, ...b}
   }
 
   private mergeWindowsOptions(
@@ -266,44 +201,23 @@ export class ConfigLoader {
   }
 }
 
-/**
- * Result of loading and merging all configurations
- */
 export interface MergedConfigResult {
   readonly config: UserConfigFile
-
   readonly sources: readonly string[]
-
   readonly found: boolean
 }
 
-/**
- * Singleton instance for convenience
- */
 let defaultLoader: ConfigLoader | null = null
 
-/**
- * Get or create the default ConfigLoader instance
- */
 export function getConfigLoader(options?: ConfigLoaderOptions): ConfigLoader {
   if (options || !defaultLoader) defaultLoader = new ConfigLoader(options)
   return defaultLoader
 }
 
-/**
- * Load user configuration using default loader
- */
 export function loadUserConfig(cwd?: string): MergedConfigResult {
   return getConfigLoader().load(cwd)
 }
 
-/**
- * Validate global config file strictly.
- * - If config doesn't exist: return invalid result (do not auto-create)
- * - If config is invalid (parse error or validation error): return invalid result (do not recreate)
- *
- * @returns Validation result indicating whether program should continue or exit
- */
 export function validateGlobalConfig(): GlobalConfigValidationResult {
   const logger = createLogger('ConfigLoader')
   let configPath: string
@@ -330,7 +244,7 @@ export function validateGlobalConfig(): GlobalConfigValidationResult {
     }
   }
 
-  if (!fs.existsSync(configPath)) { // Check if config file exists - do not auto-create
+  if (!fs.existsSync(configPath)) {
     const error = `Global config not found at ${configPath}. Please create it manually.`
     logger.error(buildConfigDiagnostic({
       code: 'GLOBAL_CONFIG_MISSING',

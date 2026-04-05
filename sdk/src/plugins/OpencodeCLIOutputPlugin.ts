@@ -91,7 +91,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
         delete: {
           project: {
             files: [GLOBAL_MEMORY_FILE, '.opencode/opencode.json'],
-            dirs: ['.opencode/commands', '.opencode/agents', '.opencode/skills', '.opencode/rules']
+            dirs: ['.opencode', '.opencode/commands', '.opencode/agents', '.opencode/skills', '.opencode/rules']
           },
           global: {
             files: ['.config/opencode/AGENTS.md', '.config/opencode/opencode.json'],

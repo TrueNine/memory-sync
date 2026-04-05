@@ -114,64 +114,6 @@ describe('genericSkillsOutputPlugin synthetic workspace project output', () => {
     )
     expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
   })
-
-  it('writes global mcp.json even when skill files stay project-scoped', async () => {
-    const workspaceBase = path.resolve('tmp/generic-skills-workspace')
-    const homeDir = path.resolve('tmp/generic-skills-home')
-    const plugin = new TestGenericSkillsOutputPlugin(homeDir)
-    const skills = [
-      createSkillPrompt('project', 'ship-it'),
-      createSkillPrompt('global', 'inspect-globally')
-    ]
-    const ctx = createContext(workspaceBase, {
-      outputScopes: {
-        plugins: {
-          GenericSkillsOutputPlugin: {
-            skills: 'project',
-            mcp: 'global'
-          }
-        }
-      }
-    }, skills)
-
-    const declarations = await plugin.declareOutputFiles(ctx)
-
-    expect(declarations.map(declaration => declaration.path)).toContain(
-      path.join(workspaceBase, '.agents', 'skills', 'ship-it', 'SKILL.md')
-    )
-    expect(declarations.map(declaration => declaration.path)).toContain(
-      path.join(homeDir, '.agents', 'skills', 'inspect-globally', 'mcp.json')
-    )
-  })
-
-  it('writes project mcp.json even when skill files stay global-scoped', async () => {
-    const workspaceBase = path.resolve('tmp/generic-skills-workspace')
-    const homeDir = path.resolve('tmp/generic-skills-home')
-    const plugin = new TestGenericSkillsOutputPlugin(homeDir)
-    const skills = [
-      createSkillPrompt('project', 'inspect-locally'),
-      createSkillPrompt('global', 'ship-it')
-    ]
-    const ctx = createContext(workspaceBase, {
-      outputScopes: {
-        plugins: {
-          GenericSkillsOutputPlugin: {
-            skills: 'global',
-            mcp: 'project'
-          }
-        }
-      }
-    }, skills)
-
-    const declarations = await plugin.declareOutputFiles(ctx)
-
-    expect(declarations.map(declaration => declaration.path)).toContain(
-      path.join(homeDir, '.agents', 'skills', 'ship-it', 'SKILL.md')
-    )
-    expect(declarations.map(declaration => declaration.path)).toContain(
-      path.join(workspaceBase, '.agents', 'skills', 'inspect-locally', 'mcp.json')
-    )
-  })
 })
 
 describe('genericSkillsOutputPlugin cleanup', () => {

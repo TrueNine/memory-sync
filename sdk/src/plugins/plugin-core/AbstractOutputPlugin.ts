@@ -571,8 +571,8 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
   }
 
   protected getXdgConfigHomeDir(): string {
-    const xdgConfigHome = process.env['XDG_CONFIG_HOME']
-    if (typeof xdgConfigHome === 'string' && xdgConfigHome.trim().length > 0) {
+    const xdgConfigHome = process.env['XDG_CONFIG_HOME']?.trim()
+    if (xdgConfigHome != null && xdgConfigHome.length > 0) {
       return xdgConfigHome
     }
     return path.join(this.getHomeDir(), '.config')
@@ -960,32 +960,14 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     })
   }
 
-  protected getCommandSeriesOptions(ctx: OutputWriteContext): CommandSeriesPluginOverride {
-    const globalOptions = ctx.pluginOptions?.commandSeriesOptions
-    const pluginOverride = globalOptions?.pluginOverrides?.[this.name]
-
-    const includeSeriesPrefix = pluginOverride?.includeSeriesPrefix ?? globalOptions?.includeSeriesPrefix // Only include properties that have defined values to satisfy exactOptionalPropertyTypes // Plugin-specific overrides take precedence over global settings
-    const seriesSeparator = pluginOverride?.seriesSeparator
-
-    if (includeSeriesPrefix != null && seriesSeparator != null) {
-      return {includeSeriesPrefix, seriesSeparator}
-    } // Build result object conditionally to avoid assigning undefined to readonly properties
-    if (includeSeriesPrefix != null) return {includeSeriesPrefix}
-    if (seriesSeparator != null) return {seriesSeparator}
+  protected getCommandSeriesOptions(): CommandSeriesPluginOverride {
     return {}
   }
 
-  protected getTransformOptionsFromContext(ctx: OutputWriteContext, additionalOptions?: CommandNameTransformOptions): CommandNameTransformOptions {
-    const seriesOptions = this.getCommandSeriesOptions(ctx)
-
-    const includeSeriesPrefix = seriesOptions.includeSeriesPrefix ?? additionalOptions?.includeSeriesPrefix // Only include properties that have defined values to satisfy exactOptionalPropertyTypes // Merge: additionalOptions (plugin defaults) <- seriesOptions (config overrides)
-    const seriesSeparator = seriesOptions.seriesSeparator ?? additionalOptions?.seriesSeparator
-
-    if (includeSeriesPrefix != null && seriesSeparator != null) {
-      return {includeSeriesPrefix, seriesSeparator}
-    } // Build result object conditionally to avoid assigning undefined to readonly properties
-    if (includeSeriesPrefix != null) return {includeSeriesPrefix}
-    if (seriesSeparator != null) return {seriesSeparator}
+  protected getTransformOptionsFromContext(_ctx: OutputWriteContext, additionalOptions?: CommandNameTransformOptions): CommandNameTransformOptions {
+    if (additionalOptions?.includeSeriesPrefix != null) {
+      return {includeSeriesPrefix: additionalOptions.includeSeriesPrefix}
+    }
     return {}
   }
 
@@ -1098,8 +1080,10 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     })
   }
 
-  protected getTopicScopeOverride(ctx: OutputPluginContext | OutputWriteContext, topic: OutputScopeTopic): OutputScopeSelection | undefined {
-    return ctx.pluginOptions?.outputScopes?.plugins?.[this.name]?.[topic]
+  protected getTopicScopeOverride(_ctx: OutputPluginContext | OutputWriteContext, _topic: OutputScopeTopic): OutputScopeSelection | undefined {
+    void _ctx
+    void _topic
+    return void 0
   }
 
   protected buildSkillFrontMatter(skill: SkillPrompt, options?: SkillFrontMatterOptions): Record<string, unknown> {

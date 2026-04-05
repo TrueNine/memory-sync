@@ -1,5 +1,4 @@
-import type {ExportMetadata, MetadataSource} from './compiler/export-parser'
-import type {MdxToMdOptions, MdxToMdResult} from './compiler/types'
+import type {ExportMetadata, MdxToMdOptions, MdxToMdResult, MetadataSource} from '@/compiler'
 import {readdirSync} from 'node:fs'
 import {createRequire} from 'node:module'
 import {dirname, join} from 'node:path'
@@ -189,6 +188,7 @@ function serializeOptions(options?: MdxToMdOptions): string | null {
             os: options.globalScope.os,
             env: options.globalScope.env,
             profile: options.globalScope.profile,
+            codeStyles: options.globalScope.codeStyles,
             tool: options.globalScope.tool
           }
         }
