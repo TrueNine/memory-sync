@@ -134,6 +134,28 @@ jobs:
       - name: Run all tests
         run: pnpm run test
 
+  test-gui:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: pr
+
+      - name: Build native modules
+        run: pnpm run build:native
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Run GUI tests
+        run: pnpm turbo test --filter=@truenine/memory-sync-gui
+
   test-sdk:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
