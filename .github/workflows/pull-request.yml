@@ -146,7 +146,8 @@ jobs:
       - name: Read GUI version
         id: gui-version
         run: |
-          echo "version=$(node -p \"require('./gui/package.json').version\")" >> "$GITHUB_OUTPUT"
+          version="$(node -p 'require("./gui/package.json").version')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/actions/setup-tauri
         with:
