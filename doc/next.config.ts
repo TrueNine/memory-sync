@@ -1,5 +1,5 @@
-import {readFileSync} from 'node:fs'
 import type {NextConfig} from 'next'
+import {readFileSync} from 'node:fs'
 import nextra from 'nextra'
 
 const mermaidAliasPath = '@/components/mermaid'

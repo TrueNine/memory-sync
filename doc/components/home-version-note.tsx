@@ -1,3 +1,5 @@
+import process from 'node:process'
+
 export function HomeVersionNote() {
   const version = process.env.NEXT_PUBLIC_MEMORY_SYNC_VERSION
 
@@ -7,7 +9,9 @@ export function HomeVersionNote() {
 
   return (
     <p className="home-version-note">
-      Current version: <code>{version}</code>
+      Current version:
+      {' '}
+      <code>{version}</code>
     </p>
   )
 }
