@@ -1,0 +1,58 @@
+name: Build GUI Platform
+description: Setup, build, inspect, and upload Tauri GUI artifacts for one platform
+
+inputs:
+  version:
+    description: Version string to sync into Cargo.toml and tauri.conf.json
+    required: true
+  tauri-command:
+    description: Command used to build the GUI bundle
+    required: true
+  artifact-name:
+    description: Artifact name used by actions/upload-artifact
+    required: true
+  artifact-path:
+    description: Newline-separated artifact globs for upload-artifact
+    required: true
+  rust-targets:
+    description: Optional Rust targets to install (comma-separated)
+    required: false
+    default: ""
+  signing-private-key:
+    description: Tauri updater signing private key content
+    required: false
+    default: ""
+  signing-private-key-password:
+    description: Tauri updater signing private key password
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-node-pnpm
+
+    - uses: ./.github/actions/setup-tauri
+      with:
+        rust-targets: ${{ inputs.rust-targets }}
+        signing-private-key: ${{ inputs.signing-private-key }}
+        signing-private-key-password: ${{ inputs.signing-private-key-password }}
+        version: ${{ inputs.version }}
+
+    - name: Build GUI
+      shell: bash
+      working-directory: ./gui
+      run: ${{ inputs.tauri-command }}
+
+    - name: List bundle output
+      shell: bash
+      run: |
+        echo "=== Finding all bundle artifacts ==="
+        find target -path '*/bundle/*' -type f 2>/dev/null || echo 'No bundle files found'
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.artifact-path }}
+        if-no-files-found: error
