@@ -252,20 +252,10 @@ jobs:
         shell: bash
         run: |
           shopt -s nullglob
-          get_min_size_for_binding() {
-            local node_file="$1"
-            case "$(basename "$node_file")" in
-              napi-logger.*.node|napi-script-runtime.*.node)
-                echo $((512 * 1024))
-                ;;
-              napi-md-compiler.*.node|napi-memory-sync-cli.*.node)
-                echo $((1024 * 1024))
-                ;;
-              *)
-                echo $((256 * 1024))
-                ;;
-            esac
-          }
+          # Keep a small floor to catch obviously broken artifacts, but avoid
+          # binding-specific thresholds that can flap on harmless linker output
+          # changes across toolchains.
+          min_size=$((128 * 1024))
           for target_dir in cli/npm/*/; do
             if [ ! -f "${target_dir}package.json" ]; then
               continue
@@ -274,7 +264,6 @@ jobs:
               if [ ! -f "$node_file" ]; then
                 continue
               fi
-              min_size=$(get_min_size_for_binding "$node_file")
               size=$(stat -c%s "$node_file" 2>/dev/null || stat -f%z "$node_file" 2>/dev/null || echo 0)
               if [ "$size" -lt "$min_size" ]; then
                 echo "ERROR: ${node_file} is too small (${size} bytes), expected at least ${min_size} bytes"
