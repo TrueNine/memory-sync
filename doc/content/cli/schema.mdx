@@ -104,6 +104,8 @@ Each plugin key accepts only:
 - `true`
 - `false`
 
+Unknown keys are not ignored anymore. If `plugins` contains an unsupported key, `tnmsc` logs a config validation error, shows the supported key list, and exits.
+
 Known keys are:
 
 - `agentsMd`
@@ -133,6 +135,25 @@ Use `plugins.readme` for both README-like outputs and `.editorconfig`.
 Use `plugins.git`, not `plugins.gitExclude`.
 
 This block is the direct output gate. A plugin may still appear in [plugin.config.ts](/docs/cli/plugin-config) as an assembled integration target, but it will not emit files unless its enablement resolves to `true`.
+
+> **Warning**
+> Output plugins often write into tool-owned directories such as `.codex/` or `.claude/`. If a same-name file already exists where tnmsc needs a directory, that is treated as a conflict because the directory tree cannot be created normally.
+>
+> The runtime keeps moving by design: it warns, removes the blocking file, and then recreates the required directory path so the sync can finish.
+
+For example, this now fails validation:
+
+```json
+{
+  "plugins": {
+    "vscode": true,
+    "codex": true,
+    "foo": true
+  }
+}
+```
+
+`foo` is rejected because it is not one of the supported plugin keys listed above.
 
 ## Legacy compatibility keys
 

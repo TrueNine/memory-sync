@@ -168,8 +168,7 @@ export class SubAgentInputCapability extends AbstractInputCapability {
     }
 
     logger.debug('SubAgentInputCapability flattened subAgents', {
-      count: flatSubAgents.length,
-      agents: flatSubAgents.map(a => a.canonicalName)
+      count: flatSubAgents.length
     })
 
     return {

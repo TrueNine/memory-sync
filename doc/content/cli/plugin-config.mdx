@@ -57,6 +57,7 @@ The current built-in default behavior is:
 - `plugins.git` is enabled by default
 - `plugins.readme` is enabled by default and also covers `.editorconfig` output
 - the other assembled output plugins stay off until the user explicitly enables them in `~/.aindex/.tnmsc.json`
+- the `plugins` block in `~/.aindex/.tnmsc.json` must use only supported keys from [JSON Schema](/docs/cli/schema); unsupported keys now cause a config error and stop the run
 
 Example:
 

@@ -9,6 +9,7 @@ import {AbstractOutputPlugin, filterByProjectConfig} from './plugin-core'
 
 const PROJECT_SKILLS_DIR = '.agents/skills'
 const LEGACY_SKILLS_DIR = '.skills'
+const LEGACY_AINDEX_SKILLS_DIR = '.aindex/.skills'
 const SKILL_FILE_NAME = 'SKILL.md'
 const MCP_CONFIG_FILE = 'mcp.json'
 
@@ -43,7 +44,7 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
             dirs: [PROJECT_SKILLS_DIR, LEGACY_SKILLS_DIR]
           },
           global: {
-            dirs: [PROJECT_SKILLS_DIR, LEGACY_SKILLS_DIR]
+            dirs: [PROJECT_SKILLS_DIR, LEGACY_SKILLS_DIR, LEGACY_AINDEX_SKILLS_DIR]
           }
         }
       },

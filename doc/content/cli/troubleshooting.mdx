@@ -23,6 +23,23 @@ Check these first:
 
 Review [dry-run and clean](/docs/cli/dry-run-and-clean) first. If your directories mix manual files with generated files, move the manual files out of tnmsc-managed output paths before a real clean.
 
+> **Warning**
+> If tnmsc needs a directory such as `.codex/` but finds a same-name file there instead, that is treated as a path-type conflict. The point of the recovery behavior is to prevent that conflict from blocking the whole sync.
+>
+> The current runtime choice is to warn, delete the blocking file, and continue. That file is treated as disposable because it is occupying a path that must be a directory for the generated outputs.
+
+## Symptom: The Run Stops with an Unsupported `plugins` Key Error
+
+Check `~/.aindex/.tnmsc.json` first.
+
+`tnmsc` now fails fast when the `plugins` block contains an unknown key. The log tells you which key is unsupported and prints the supported key list.
+
+Fix it by:
+
+1. Removing the unsupported key.
+2. Renaming it to one of the supported keys listed in [JSON Schema](/docs/cli/schema) or [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
+3. Running the command again.
+
 ## Symptom: A Docs Page Fails to Build
 
 Run this first:

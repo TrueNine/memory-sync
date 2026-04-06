@@ -15,9 +15,11 @@ import {loadAindexProjectConfig} from '@/aindex-config'
 import {
   buildDiagnostic,
   buildFileOperationDiagnostic,
+  buildUsageDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
 import {filterPathScopedEntriesForExecutionPlan} from '@/execution-plan'
+import {removeBlockingFile, resolveBlockingFilePath} from '@/path-blocking-file'
 import {getNativeBinding} from '../core/native-binding'
 import {collectAllPluginOutputs, isOutputPluginEnabled} from '../plugins/plugin-core'
 import {
@@ -430,9 +432,49 @@ function summarizeCleanupSnapshot(snapshot: NativeCleanupSnapshot): {
 function logNativeCleanupErrors(
   logger: ILogger,
   errors: readonly NativeCleanupError[]
-): readonly {path: string, type: 'file' | 'directory', error: string}[] {
-  return errors.map(currentError => {
+): {
+    readonly errors: readonly {path: string, type: 'file' | 'directory', error: string}[]
+    readonly recoveredBlockingFiles: readonly string[]
+  } {
+  const unresolvedErrors: {path: string, type: 'file' | 'directory', error: string}[] = []
+  const recoveredBlockingFiles: string[] = []
+
+  for (const currentError of errors) {
     const type = currentError.kind === 'directory' ? 'directory' : 'file'
+
+    if (recoveredBlockingFiles.some(blockingPath =>
+      currentError.path === blockingPath
+      || currentError.path.startsWith(`${blockingPath}${path.sep}`)
+    )) {
+      continue
+    }
+
+    const blockingPath = resolveBlockingFilePath({
+      path: currentError.path,
+      targetKind: type,
+      error: currentError.error
+    })
+
+    if (blockingPath != null) {
+      const removal = removeBlockingFile(blockingPath)
+      if (removal.removed) {
+        recoveredBlockingFiles.push(blockingPath)
+        logger.warn(buildUsageDiagnostic({
+          code: 'BLOCKING_FILE_REMOVED_FOR_CLEANUP',
+          title: 'Removed blocking file and continued cleanup',
+          rootCause: diagnosticLines(
+            `tnmsc deleted the blocking file at "${blockingPath}" while recovering cleanup for "${currentError.path}".`
+          ),
+          details: {
+            phase: 'cleanup',
+            targetPath: currentError.path,
+            blockingPath
+          }
+        }))
+        continue
+      }
+    }
+
     logger.warn(
       buildFileOperationDiagnostic({
         code:
@@ -453,8 +495,13 @@ function logNativeCleanupErrors(
       })
     )
 
-    return {path: currentError.path, type, error: currentError.error}
-  })
+    unresolvedErrors.push({path: currentError.path, type, error: currentError.error})
+  }
+
+  return {
+    errors: unresolvedErrors,
+    recoveredBlockingFiles
+  }
 }
 
 async function buildCleanupSnapshot(
@@ -712,21 +759,25 @@ export async function performCleanup(
     dirsToDelete: result.dirsToDelete.length + result.emptyDirsToDelete.length,
     emptyDirsToDelete: result.emptyDirsToDelete.length
   })
-  const loggedErrors = logNativeCleanupErrors(logger, result.errors)
+  const {
+    errors: loggedErrors,
+    recoveredBlockingFiles
+  } = logNativeCleanupErrors(logger, result.errors)
+  const deletedFiles = result.deletedFiles + recoveredBlockingFiles.length
   logger.debug('cleanup delete execution complete', {
-    deletedFiles: result.deletedFiles,
+    deletedFiles,
     deletedDirs: result.deletedDirs,
     errors: loggedErrors.length
   })
   logger.info('cleanup execution complete', {
     phase: 'cleanup-execute',
-    deletedFiles: result.deletedFiles,
+    deletedFiles,
     deletedDirs: result.deletedDirs,
     errors: loggedErrors.length
   })
 
   return {
-    deletedFiles: result.deletedFiles,
+    deletedFiles,
     deletedDirs: result.deletedDirs,
     errors: loggedErrors,
     violations: [],

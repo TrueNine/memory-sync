@@ -21,6 +21,7 @@ const AGENTS_SUBDIR = 'agents'
 const SKILLS_SUBDIR = 'skills'
 const PRESERVED_SYSTEM_SKILL_DIR = '.system'
 const MCP_CONFIG_FILE = 'mcp.json'
+const LEGACY_AINDEX_SKILLS_DIR = '.aindex/.skills'
 const CODEX_SUBAGENT_FIELD_ORDER = ['name', 'description', 'developer_instructions'] as const
 const CODEX_EXCLUDED_SUBAGENT_FIELDS = ['scope', 'seriName', 'argumentHint', 'color', 'namingCase', 'model'] as const
 
@@ -85,7 +86,7 @@ const CODEX_OUTPUT_OPTIONS = {
       },
       global: {
         files: ['.codex/AGENTS.md'],
-        dirs: ['.codex/prompts', '.agents/skills', '.skills'],
+        dirs: ['.codex/prompts', '.agents/skills', '.skills', LEGACY_AINDEX_SKILLS_DIR],
         globs: ['.codex/skills/*']
       }
     },

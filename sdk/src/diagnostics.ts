@@ -5,6 +5,7 @@ import type {
 } from './plugins/plugin-core'
 import type {ProtectedPathViolation} from './ProtectedDeletionGuard'
 import process from 'node:process'
+import {resolveBlockingFilePath} from './path-blocking-file'
 
 export function diagnosticLines(firstLine: string, ...otherLines: string[]): DiagnosticLines {
   return [firstLine, ...otherLines]
@@ -78,7 +79,25 @@ function buildFileOperationAdvice(options: {
   readonly path: string
   readonly error: unknown
   readonly platform: NodeJS.Platform
+  readonly blockingPath?: string | undefined
 }): FileOperationAdvice {
+  if (options.blockingPath != null) {
+    return {
+      exactFix: diagnosticLines(
+        `Delete the blocking file at "${options.blockingPath}" and rerun tnmsc.`,
+        'tnmsc expects a directory there, so you do not need to keep that file.'
+      ),
+      possibleFixes: [
+        diagnosticLines(
+          `A file is occupying a directory path required for "${options.path}".`
+        ),
+        diagnosticLines(
+          'If that file came from an older tool or a mistaken manual edit, remove it and let tnmsc recreate the directory tree.'
+        )
+      ]
+    }
+  }
+
   if (isWindowsDirectoryDeletePermissionDenied(options)) {
     return {
       exactFix: diagnosticLines(
@@ -124,12 +143,16 @@ export function buildFileOperationDiagnostic(options: FileOperationDiagnosticOpt
     details
   } = options
   const errorMessage = toErrorMessage(error)
+  const blockingPath = targetKind === 'file' || targetKind === 'directory'
+    ? resolveBlockingFilePath({path, targetKind, error})
+    : void 0
   const advice = buildFileOperationAdvice({
     operation,
     targetKind,
     path,
     error,
-    platform: platform ?? process.platform
+    platform: platform ?? process.platform,
+    ...blockingPath != null ? {blockingPath} : {}
   })
 
   return buildDiagnostic({
@@ -147,6 +170,7 @@ export function buildFileOperationDiagnostic(options: FileOperationDiagnosticOpt
       path,
       errorMessage,
       platform: platform ?? process.platform,
+      ...blockingPath != null ? {blockingPath} : {},
       ...details ?? {}
     }
   })

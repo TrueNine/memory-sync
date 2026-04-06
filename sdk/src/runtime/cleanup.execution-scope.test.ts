@@ -1,4 +1,6 @@
 import type {OutputCleanContext, OutputPlugin, Project} from '../plugins/plugin-core'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, describe, expect, it} from 'vitest'
 import {
@@ -7,7 +9,7 @@ import {
   FilePathKind,
   PluginKind
 } from '../plugins/plugin-core'
-import {collectDeletionTargets} from './cleanup'
+import {collectDeletionTargets, performCleanup} from './cleanup'
 
 function createProject(workspaceDir: string | undefined, name: string, series: Project['promptSeries']): Project {
   return {
@@ -338,5 +340,77 @@ describe('cleanup execution scope filtering', () => {
 
     const pluginSnapshot = (capturedSnapshot?.['pluginSnapshots'] as Record<string, unknown>[] | undefined)?.[0]
     expect(pluginSnapshot?.['outputs']).toEqual([outputPath])
+  })
+
+  it('removes blocking files reported by cleanup errors and continues', async () => {
+    const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-cleanup-blocking-file-'))
+    const blockingFilePath = path.join(workspaceDir, '.codex')
+
+    fs.writeFileSync(blockingFilePath, '', 'utf8')
+
+    const testGlobals = globalThis as typeof globalThis & {__TNMSC_TEST_NATIVE_BINDING__?: object}
+    testGlobals.__TNMSC_TEST_NATIVE_BINDING__ = {
+      performCleanup() {
+        return JSON.stringify({
+          deletedFiles: 0,
+          deletedDirs: 0,
+          errors: [{
+            path: path.join(workspaceDir, '.codex', 'skills'),
+            kind: 'directory',
+            error: 'Not a directory (os error 20)'
+          }],
+          violations: [],
+          conflicts: [],
+          filesToDelete: [],
+          dirsToDelete: [],
+          emptyDirsToDelete: [],
+          excludedScanGlobs: []
+        })
+      },
+      planCleanup() {
+        return JSON.stringify({
+          filesToDelete: [],
+          dirsToDelete: [],
+          emptyDirsToDelete: [],
+          violations: [],
+          conflicts: [],
+          excludedScanGlobs: []
+        })
+      }
+    }
+
+    try {
+      const cleanCtx: OutputCleanContext = {
+        logger: createLogger('cleanup.execution-scope.test', 'error'),
+        collectedOutputContext: {
+          workspace: {
+            directory: {
+              pathKind: FilePathKind.Absolute,
+              path: workspaceDir,
+              getDirectoryName: () => path.basename(workspaceDir)
+            },
+            projects: []
+          }
+        },
+        pluginOptions: createPluginOptions(workspaceDir),
+        runtimeTargets: {jetbrainsCodexDirs: []},
+        executionPlan: {
+          scope: 'workspace',
+          cwd: workspaceDir,
+          workspaceDir,
+          projectsBySeries: createEmptyExecutionPlanProjectsBySeries()
+        },
+        dryRun: false
+      }
+
+      const result = await performCleanup([], cleanCtx, cleanCtx.logger)
+
+      expect(result.errors).toHaveLength(0)
+      expect(result.deletedFiles).toBe(1)
+      expect(fs.existsSync(blockingFilePath)).toBe(false)
+    }
+    finally {
+      fs.rmSync(workspaceDir, {recursive: true, force: true})
+    }
   })
 })

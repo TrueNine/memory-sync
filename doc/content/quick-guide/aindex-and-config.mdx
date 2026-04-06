@@ -207,6 +207,12 @@ Each key accepts only a boolean:
 - `true`: allow that assembled plugin to emit outputs
 - `false`: suppress output generation for that plugin, while still keeping cleanup behavior
 
+If `plugins` contains any unsupported key, `tnmsc` now treats that as a hard config error:
+
+- it logs which key is unsupported
+- it prints the supported key list
+- it exits instead of silently ignoring the bad entry
+
 Known keys are:
 
 - `agentsMd`
@@ -240,6 +246,25 @@ Use `plugins.readme` for both README-like outputs and `.editorconfig`.
 Use `plugins.git`, not `plugins.gitExclude`.
 
 This block controls actual output emission. The project-level [plugin.config.ts](/docs/cli/plugin-config) still assembles the available plugin set, but assembly alone does not mean the plugin will write files.
+
+> **Warning**
+> Some targets such as `.codex/`, `.claude/`, or other tool config directories must be real directories. If a same-name file is sitting in that path, tnmsc treats it as a directory/file-type conflict that would block output generation.
+>
+> The intent of this recovery path is to avoid that conflict and let sync continue. The current runtime choice is to warn, delete the blocking file, and recreate the expected directory structure automatically.
+
+Example of an invalid config:
+
+```json
+{
+  "plugins": {
+    "vscode": true,
+    "codex": true,
+    "foo": true
+  }
+}
+```
+
+That config fails because `foo` is not a supported key.
 
 ## Removed legacy fields
 

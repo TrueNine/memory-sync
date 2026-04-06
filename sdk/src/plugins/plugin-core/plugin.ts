@@ -6,6 +6,7 @@ import type {
   FrontMatterOptions,
   PluginsConfig,
   ProtectionMode,
+  SupportedPluginConfigKey,
   WindowsOptions
 } from './ConfigTypes.schema'
 import type {PluginKind} from './enums'
@@ -15,7 +16,13 @@ import type {RuntimeCommand} from '@/runtime-command'
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {buildUsageDiagnostic, diagnosticLines} from '@/diagnostics'
 import {filterPathScopedEntriesForExecutionPlan} from '@/execution-plan'
+import {
+  findBlockingNonDirectoryPath,
+  isDirectoryStructureMismatchError,
+  removeBlockingFile
+} from '@/path-blocking-file'
 
 export type FastGlobType = typeof import('fast-glob')
 
@@ -314,8 +321,51 @@ function isNodeBufferLike(value: unknown): value is Buffer {
   return Buffer.isBuffer(value)
 }
 
+function normalizeWriteOperationError(targetPath: string, error: unknown): Error {
+  if (!isDirectoryStructureMismatchError(error)) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+
+  const blockingPath = findBlockingNonDirectoryPath(path.dirname(targetPath))
+  if (blockingPath == null) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+
+  return new Error(
+    `Cannot write "${targetPath}" because a file is blocking a required directory path at "${blockingPath}". `
+    + 'Delete that file and rerun tnmsc; you do not need to keep it.'
+  )
+}
+
+function tryRecoverBlockingFileForWrite(
+  targetPath: string,
+  error: unknown,
+  logger: Pick<ILogger, 'warn'>
+): boolean {
+  if (!isDirectoryStructureMismatchError(error)) return false
+
+  const blockingPath = findBlockingNonDirectoryPath(path.dirname(targetPath))
+  if (blockingPath == null) return false
+
+  const removal = removeBlockingFile(blockingPath)
+  if (!removal.removed) return false
+
+  logger.warn(buildUsageDiagnostic({
+    code: 'BLOCKING_FILE_REMOVED_FOR_WRITE',
+    title: 'Removed blocking file and continued output write',
+    rootCause: diagnosticLines(
+      `tnmsc deleted the blocking file at "${blockingPath}" so it could continue writing "${targetPath}".`
+    ),
+    details: {
+      targetPath,
+      blockingPath
+    }
+  }))
+  return true
+}
+
 interface OutputPluginEnablementRule {
-  readonly configKey: string
+  readonly configKey: SupportedPluginConfigKey
   readonly defaultEnabled: boolean
 }
 
@@ -459,26 +509,40 @@ export async function executeDeclarativeWriteOutputs(
         continue
       }
 
-      try {
-        const parentDir = path.dirname(declaration.path)
-        fs.mkdirSync(parentDir, {recursive: true})
+      let recoveredBlockingFile = false
+      for (;;) {
+        try {
+          const parentDir = path.dirname(declaration.path)
+          fs.mkdirSync(parentDir, {recursive: true})
 
-        if (declaration.ifExists === 'skip' && fs.existsSync(declaration.path)) {
-          fileResults.push({path: declaration.path, success: true, skipped: true})
-          continue
+          if (declaration.ifExists === 'skip' && fs.existsSync(declaration.path)) {
+            fileResults.push({path: declaration.path, success: true, skipped: true})
+            break
+          }
+
+          if (declaration.ifExists === 'error' && fs.existsSync(declaration.path)) {
+            throw new Error(`Refusing to overwrite existing file: ${declaration.path}`)
+          }
+
+          const content = await plugin.convertContent(declaration, ctx)
+          if (isNodeBufferLike(content)) fs.writeFileSync(declaration.path, content)
+          else fs.writeFileSync(declaration.path, content, 'utf8')
+          fileResults.push({path: declaration.path, success: true})
+          break
         }
+        catch (error) {
+          if (!recoveredBlockingFile && tryRecoverBlockingFileForWrite(declaration.path, error, ctx.logger)) {
+            recoveredBlockingFile = true
+            continue
+          }
 
-        if (declaration.ifExists === 'error' && fs.existsSync(declaration.path)) {
-          throw new Error(`Refusing to overwrite existing file: ${declaration.path}`)
+          fileResults.push({
+            path: declaration.path,
+            success: false,
+            error: normalizeWriteOperationError(declaration.path, error)
+          })
+          break
         }
-
-        const content = await plugin.convertContent(declaration, ctx)
-        if (isNodeBufferLike(content)) fs.writeFileSync(declaration.path, content)
-        else fs.writeFileSync(declaration.path, content, 'utf8')
-        fileResults.push({path: declaration.path, success: true})
-      }
-      catch (error) {
-        fileResults.push({path: declaration.path, success: false, error: error as Error})
       }
     }
 
