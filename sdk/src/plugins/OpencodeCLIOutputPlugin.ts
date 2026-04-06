@@ -189,47 +189,16 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
     }
 
     const pushSkillDeclarations = (basePath: string, scope: 'project' | 'global', filteredSkills: readonly SkillPrompt[]): void => {
-      for (const skill of filteredSkills) {
-        const normalizedSkillName = this.validateAndNormalizeSkillName(this.getSkillName(skill))
-        const skillDir = path.join(basePath, SKILLS_SUBDIR, normalizedSkillName)
-
-        declarations.push({
-          path: path.join(skillDir, 'SKILL.md'),
-          scope,
-          source: {
-            kind: 'skillMain',
-            skill,
-            normalizedSkillName
-          } satisfies OpencodeOutputSource
+      this.appendSkillDeclarations(declarations, basePath, scope, filteredSkills, {
+        skillSubDir: SKILLS_SUBDIR,
+        resolveSkillDirName: skill =>
+          this.validateAndNormalizeSkillName(this.getSkillName(skill)),
+        buildSkillMainSource: (skill, normalizedSkillName) => ({
+          kind: 'skillMain',
+          skill,
+          normalizedSkillName
         })
-
-        if (skill.childDocs != null) {
-          for (const refDoc of skill.childDocs) {
-            declarations.push({
-              path: path.join(skillDir, refDoc.dir.path.replace(/\.mdx$/, '.md')),
-              scope,
-              source: {
-                kind: 'skillReference',
-                content: refDoc.content as string
-              } satisfies OpencodeOutputSource
-            })
-          }
-        }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            declarations.push({
-              path: path.join(skillDir, resource.relativePath),
-              scope,
-              source: {
-                kind: 'skillResource',
-                content: resource.content,
-                encoding: resource.encoding
-              } satisfies OpencodeOutputSource
-            })
-          }
-        }
-      }
+      })
     }
 
     const pushMcpDeclaration = (basePath: string, scope: 'project' | 'global', _filteredSkills: readonly SkillPrompt[]): void => {
@@ -289,16 +258,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
 
         const filteredCommands = filterByProjectConfig(selectedCommands.items, project.projectConfig, 'commands')
         if (selectedCommands.selectedScope === 'project') {
-          for (const command of filteredCommands) {
-            declarations.push({
-              path: path.join(basePath, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
-              scope: 'project',
-              source: {
-                kind: 'command',
-                command
-              } satisfies OpencodeOutputSource
-            })
-          }
+          this.appendCommandDeclarations(declarations, basePath, 'project', filteredCommands, transformOptions)
         }
 
         const filteredSubAgents = filterByProjectConfig(selectedSubAgents.items, project.projectConfig, 'subAgents')
@@ -329,13 +289,7 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
 
     if (selectedCommands.selectedScope === 'global') {
       const filteredCommands = filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
-      for (const command of filteredCommands) {
-        declarations.push({
-          path: path.join(globalDir, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
-          scope: 'global',
-          source: {kind: 'command', command} satisfies OpencodeOutputSource
-        })
-      }
+      this.appendCommandDeclarations(declarations, globalDir, 'global', filteredCommands, transformOptions)
     }
 
     if (selectedSubAgents.selectedScope === 'global') {

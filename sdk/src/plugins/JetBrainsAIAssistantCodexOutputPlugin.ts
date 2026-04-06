@@ -125,42 +125,15 @@ export class JetBrainsAIAssistantCodexOutputPlugin extends AbstractOutputPlugin 
       scope: 'project' | 'global',
       filteredSkills: readonly SkillPrompt[]
     ): void => {
-      for (const skill of filteredSkills) {
-        const skillName = this.getSkillName(skill)
-        const skillDir = path.join(basePath, SKILLS_SUBDIR, skillName)
-        declarations.push({
-          path: path.join(skillDir, SKILL_FILE_NAME),
-          scope,
-          source: {kind: 'skill', skill} satisfies JetBrainsCodexOutputSource
+      this.appendSkillDeclarations(declarations, basePath, scope, filteredSkills, {
+        skillSubDir: SKILLS_SUBDIR,
+        skillFileName: SKILL_FILE_NAME,
+        buildSkillMainSource: skill => ({kind: 'skill', skill}),
+        buildSkillReferenceSource: childDoc => ({
+          kind: 'skillReference',
+          content: childDoc.content as string
         })
-
-        if (skill.childDocs != null) {
-          for (const refDoc of skill.childDocs) {
-            declarations.push({
-              path: path.join(skillDir, refDoc.dir.path.replace(/\.mdx$/, '.md')),
-              scope,
-              source: {
-                kind: 'skillReference',
-                content: refDoc.content as string
-              } satisfies JetBrainsCodexOutputSource
-            })
-          }
-        }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            declarations.push({
-              path: path.join(skillDir, resource.relativePath),
-              scope,
-              source: {
-                kind: 'skillResource',
-                content: resource.content,
-                encoding: resource.encoding
-              } satisfies JetBrainsCodexOutputSource
-            })
-          }
-        }
-      }
+      })
     }
 
     if (selectedCommands.selectedScope === 'project' || selectedSkills.selectedScope === 'project') {

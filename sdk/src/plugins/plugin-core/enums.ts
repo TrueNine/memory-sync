@@ -18,6 +18,11 @@ export enum PromptKind {
 
 export type RuleScope = 'project' | 'global'
 
+export enum OutputDeclarationScopeKind {
+  Project = 'project',
+  Global = 'global'
+}
+
 export enum FilePathKind {
   Relative = 'relative',
   Absolute = 'absolute',

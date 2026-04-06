@@ -9,7 +9,12 @@ import type {
 } from './plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterByProjectConfig} from './plugin-core'
+import {
+  AbstractOutputPlugin,
+  applySubSeriesGlobPrefix,
+  filterByProjectConfig,
+  OutputDeclarationScopeKind
+} from './plugin-core'
 
 const QODER_CONFIG_DIR = '.qoder'
 const RULES_SUBDIR = 'rules'
@@ -18,7 +23,6 @@ const SKILLS_SUBDIR = 'skills'
 const GLOBAL_RULE_FILE = 'global.md'
 const PROJECT_RULE_FILE = 'always.md'
 const CHILD_RULE_FILE_PREFIX = 'glob-'
-const SKILL_FILE_NAME = 'SKILL.md'
 const MCP_CONFIG_FILE = 'mcp.json'
 const TRIGGER_ALWAYS = 'always_on'
 const TRIGGER_GLOB = 'glob'
@@ -136,42 +140,13 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       scope: 'project' | 'global',
       filteredSkills: readonly SkillPrompt[]
     ): void => {
-      for (const skill of filteredSkills) {
-        const skillName = this.getSkillName(skill)
-        const skillDir = path.join(baseDir, SKILLS_SUBDIR, skillName)
-        declarations.push({
-          path: path.join(skillDir, SKILL_FILE_NAME),
-          scope,
-          source: {kind: 'skillMain', skill} satisfies QoderOutputSource
+      this.appendSkillDeclarations(declarations, baseDir, scope, filteredSkills, {
+        skillSubDir: SKILLS_SUBDIR,
+        buildSkillReferenceSource: childDoc => ({
+          kind: 'skillChildDoc',
+          content: childDoc.content as string
         })
-
-        if (skill.childDocs != null) {
-          for (const childDoc of skill.childDocs) {
-            declarations.push({
-              path: path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
-              scope,
-              source: {
-                kind: 'skillChildDoc',
-                content: childDoc.content as string
-              } satisfies QoderOutputSource
-            })
-          }
-        }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            declarations.push({
-              path: path.join(skillDir, resource.relativePath),
-              scope,
-              source: {
-                kind: 'skillResource',
-                content: resource.content,
-                encoding: resource.encoding
-              } satisfies QoderOutputSource
-            })
-          }
-        }
-      }
+      })
     }
 
     const pushSkillMcpDeclarations = (
@@ -179,46 +154,43 @@ export class QoderIDEPluginOutputPlugin extends AbstractOutputPlugin {
       scope: 'project' | 'global',
       filteredMcpSkills: readonly SkillPrompt[]
     ): void => {
-      for (const skill of filteredMcpSkills) {
-        if (skill.mcpConfig == null) continue
-
-        const skillDir = path.join(baseDir, SKILLS_SUBDIR, this.getSkillName(skill))
-        declarations.push({
-          path: path.join(skillDir, MCP_CONFIG_FILE),
-          scope,
-          source: {
-            kind: 'skillMcpConfig',
-            rawContent: skill.mcpConfig.rawContent
-          } satisfies QoderOutputSource
-        })
-      }
+      this.appendSkillMcpDeclarations(
+        declarations,
+        baseDir,
+        scope,
+        filteredMcpSkills,
+        {
+          skillSubDir: SKILLS_SUBDIR,
+          fileName: MCP_CONFIG_FILE
+        }
+      )
     }
 
-    if (selectedCommands.selectedScope === 'project') {
+    if (selectedCommands.selectedScope === OutputDeclarationScopeKind.Project) {
       for (const project of this.getProjectOutputProjects(ctx)) {
         const projectBase = this.resolveProjectConfigDir(ctx, project)
         if (projectBase == null) continue
 
         const filteredCommands = filterByProjectConfig(selectedCommands.items, project.projectConfig, 'commands')
-        for (const command of filteredCommands) {
-          declarations.push({
-            path: path.join(projectBase, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
-            scope: 'project',
-            source: {kind: 'command', command} satisfies QoderOutputSource
-          })
-        }
+        this.appendCommandDeclarations(
+          declarations,
+          projectBase,
+          OutputDeclarationScopeKind.Project,
+          filteredCommands,
+          transformOptions
+        )
       }
     }
 
-    if (selectedCommands.selectedScope === 'global') {
+    if (selectedCommands.selectedScope === OutputDeclarationScopeKind.Global) {
       const filteredCommands = filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
-      for (const command of filteredCommands) {
-        declarations.push({
-          path: path.join(globalDir, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
-          scope: 'global',
-          source: {kind: 'command', command} satisfies QoderOutputSource
-        })
-      }
+      this.appendCommandDeclarations(
+        declarations,
+        globalDir,
+        OutputDeclarationScopeKind.Global,
+        filteredCommands,
+        transformOptions
+      )
     }
 
     if (selectedSkills.selectedScope === 'project' || selectedMcpSkills.selectedScope === 'project') {

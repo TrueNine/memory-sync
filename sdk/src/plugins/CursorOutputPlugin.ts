@@ -31,7 +31,6 @@ const RULES_SUBDIR = OutputSubdirectories.RULES
 const GLOBAL_RULE_FILE = OutputFileNames.CURSOR_GLOBAL_RULE
 const SKILLS_CURSOR_SUBDIR = OutputSubdirectories.CURSOR_SKILLS
 const SKILLS_PROJECT_SUBDIR = 'skills'
-const SKILL_FILE_NAME = OutputFileNames.SKILL
 const PRESERVED_SKILLS = PreservedSkills.CURSOR
 
 type CursorOutputSource
@@ -201,47 +200,23 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     ): void => {
       const skillsSubDir
         = scope === 'global' ? SKILLS_CURSOR_SUBDIR : SKILLS_PROJECT_SUBDIR
-      for (const skill of filteredSkills) {
-        const skillName = this.getSkillName(skill)
-        if (this.isPreservedSkill(skillName)) continue
-
-        const skillDir = path.join(baseDir, skillsSubDir, skillName)
-        declarations.push({
-          path: path.join(skillDir, SKILL_FILE_NAME),
-          scope,
-          source: {kind: 'skill', skill} satisfies CursorOutputSource
-        })
-
-        if (skill.childDocs != null) {
-          for (const childDoc of skill.childDocs) {
-            declarations.push({
-              path: path.join(
-                skillDir,
-                childDoc.relativePath.replace(/\.mdx$/, '.md')
-              ),
-              scope,
-              source: {
-                kind: 'skillChildDoc',
-                content: childDoc.content as string
-              } satisfies CursorOutputSource
-            })
-          }
+      const writableSkills = filteredSkills.filter(
+        skill => !this.isPreservedSkill(this.getSkillName(skill))
+      )
+      this.appendSkillDeclarations(
+        declarations,
+        baseDir,
+        scope,
+        writableSkills,
+        {
+          skillSubDir: skillsSubDir,
+          buildSkillMainSource: skill => ({kind: 'skill', skill}),
+          buildSkillReferenceSource: childDoc => ({
+            kind: 'skillChildDoc',
+            content: childDoc.content as string
+          })
         }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            declarations.push({
-              path: path.join(skillDir, resource.relativePath),
-              scope,
-              source: {
-                kind: 'skillResource',
-                content: resource.content,
-                encoding: resource.encoding
-              } satisfies CursorOutputSource
-            })
-          }
-        }
-      }
+      )
     }
 
     const pushSkillMcpDeclarations = (
@@ -251,23 +226,16 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
     ): void => {
       const skillsSubDir
         = scope === 'global' ? SKILLS_CURSOR_SUBDIR : SKILLS_PROJECT_SUBDIR
-      for (const skill of filteredMcpSkills) {
-        if (skill.mcpConfig == null) continue
-
-        const skillDir = path.join(
-          baseDir,
-          skillsSubDir,
-          this.getSkillName(skill)
-        )
-        declarations.push({
-          path: path.join(skillDir, MCP_CONFIG_FILE),
-          scope,
-          source: {
-            kind: 'skillMcpConfig',
-            rawContent: skill.mcpConfig.rawContent
-          } satisfies CursorOutputSource
-        })
-      }
+      this.appendSkillMcpDeclarations(
+        declarations,
+        baseDir,
+        scope,
+        filteredMcpSkills,
+        {
+          skillSubDir: skillsSubDir,
+          fileName: MCP_CONFIG_FILE
+        }
+      )
     }
 
     const pushMcpDeclaration = (
@@ -356,17 +324,13 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
           project.projectConfig,
           'commands'
         )
-        for (const command of filteredCommands) {
-          declarations.push({
-            path: path.join(
-              baseDir,
-              COMMANDS_SUBDIR,
-              this.transformCommandName(command, transformOptions)
-            ),
-            scope: 'project',
-            source: {kind: 'command', command} satisfies CursorOutputSource
-          })
-        }
+        this.appendCommandDeclarations(
+          declarations,
+          baseDir,
+          'project',
+          filteredCommands,
+          transformOptions
+        )
       }
     }
 
@@ -376,17 +340,13 @@ export class CursorOutputPlugin extends AbstractOutputPlugin {
         promptSourceProjectConfig,
         'commands'
       )
-      for (const command of filteredCommands) {
-        declarations.push({
-          path: path.join(
-            globalDir,
-            COMMANDS_SUBDIR,
-            this.transformCommandName(command, transformOptions)
-          ),
-          scope: 'global',
-          source: {kind: 'command', command} satisfies CursorOutputSource
-        })
-      }
+      this.appendCommandDeclarations(
+        declarations,
+        globalDir,
+        'global',
+        filteredCommands,
+        transformOptions
+      )
     }
 
     if (rules != null && rules.length > 0) {

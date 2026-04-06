@@ -25,7 +25,9 @@ import type {
   RegistryOperationResult,
   RulePrompt,
   RuleScope,
+  SkillChildDoc,
   SkillPrompt,
+  SkillResource,
   SubAgentPrompt,
   WslMirrorFileDeclaration
 } from './types'
@@ -247,6 +249,32 @@ export interface CombineOptions {
   skipIfEmpty?: boolean
 
   position?: 'before' | 'after'
+}
+
+export interface SkillDeclarationOptions {
+  readonly skillSubDir?: string
+  readonly skillFileName?: string
+  readonly resolveSkillDirName?: (skill: SkillPrompt) => string
+  readonly resolveChildDocPath?: (
+    skillDir: string,
+    childDoc: SkillChildDoc
+  ) => string
+  readonly buildSkillMainSource?: (
+    skill: SkillPrompt,
+    skillDirName: string
+  ) => unknown
+  readonly buildSkillReferenceSource?: (childDoc: SkillChildDoc) => unknown
+  readonly buildSkillResourceSource?: (resource: SkillResource) => unknown
+}
+
+export interface SkillMcpDeclarationOptions {
+  readonly skillSubDir?: string
+  readonly fileName?: string
+  readonly resolveSkillDirName?: (skill: SkillPrompt) => string
+  readonly buildSkillMcpSource?: (
+    skill: SkillPrompt,
+    skillDirName: string
+  ) => unknown
 }
 
 type DeclarativeOutputSource
@@ -882,27 +910,49 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     declarations: OutputFileDeclaration[],
     basePath: string,
     scope: OutputDeclarationScope,
-    scopedSkills: readonly SkillPrompt[]
+    scopedSkills: readonly SkillPrompt[],
+    options: SkillDeclarationOptions = {}
   ): void {
+    const skillSubDir = options.skillSubDir ?? this.skillsConfig.subDir
+    const skillFileName = options.skillFileName ?? 'SKILL.md'
+    const resolveSkillDirName
+      = options.resolveSkillDirName ?? (skill => this.getSkillName(skill))
+    const resolveChildDocPath
+      = options.resolveChildDocPath
+        ?? ((skillDir, childDoc) =>
+          path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')))
+    const buildSkillMainSource
+      = options.buildSkillMainSource ?? (skill => ({kind: 'skillMain', skill}))
+    const buildSkillReferenceSource
+      = options.buildSkillReferenceSource
+        ?? (childDoc => ({
+          kind: 'skillReference',
+          content: childDoc.content as string
+        }))
+    const buildSkillResourceSource
+      = options.buildSkillResourceSource
+        ?? (resource => ({
+          kind: 'skillResource',
+          content: resource.content,
+          encoding: resource.encoding
+        }))
+
     for (const skill of scopedSkills) {
-      const skillName = this.getSkillName(skill)
-      const skillDir = path.join(basePath, this.skillsConfig.subDir, skillName)
+      const skillDirName = resolveSkillDirName(skill)
+      const skillDir = path.join(basePath, skillSubDir, skillDirName)
 
       declarations.push({
-        path: path.join(skillDir, 'SKILL.md'),
+        path: path.join(skillDir, skillFileName),
         scope,
-        source: {kind: 'skillMain', skill}
+        source: buildSkillMainSource(skill, skillDirName)
       })
 
       if (skill.childDocs != null) {
         for (const childDoc of skill.childDocs) {
           declarations.push({
-            path: path.join(skillDir, childDoc.dir.path.replace(/\.mdx$/, '.md')),
+            path: resolveChildDocPath(skillDir, childDoc),
             scope,
-            source: {
-              kind: 'skillReference',
-              content: childDoc.content as string
-            }
+            source: buildSkillReferenceSource(childDoc)
           })
         }
       }
@@ -912,14 +962,40 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
           declarations.push({
             path: path.join(skillDir, resource.relativePath),
             scope,
-            source: {
-              kind: 'skillResource',
-              content: resource.content,
-              encoding: resource.encoding
-            }
+            source: buildSkillResourceSource(resource)
           })
         }
       }
+    }
+  }
+
+  protected appendSkillMcpDeclarations(
+    declarations: OutputFileDeclaration[],
+    basePath: string,
+    scope: OutputDeclarationScope,
+    scopedSkills: readonly SkillPrompt[],
+    options: SkillMcpDeclarationOptions = {}
+  ): void {
+    const skillSubDir = options.skillSubDir ?? this.skillsConfig.subDir
+    const fileName = options.fileName ?? 'mcp.json'
+    const resolveSkillDirName
+      = options.resolveSkillDirName ?? (skill => this.getSkillName(skill))
+    const buildSkillMcpSource
+      = options.buildSkillMcpSource
+        ?? (skill => ({
+          kind: 'skillMcpConfig',
+          rawContent: skill.mcpConfig?.rawContent ?? ''
+        }))
+
+    for (const skill of scopedSkills) {
+      if (skill.mcpConfig == null) continue
+
+      const skillDirName = resolveSkillDirName(skill)
+      declarations.push({
+        path: path.join(basePath, skillSubDir, skillDirName, fileName),
+        scope,
+        source: buildSkillMcpSource(skill, skillDirName)
+      })
     }
   }
 

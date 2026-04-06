@@ -121,9 +121,15 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
 
-      - uses: ./.github/actions/setup-rust
+      - name: Read GUI version
+        id: gui-version
+        run: |
+          version="$(node -p 'require("./gui/package.json").version')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/setup-tauri
         with:
-          cache-key: pr
+          version: ${{ steps.gui-version.outputs.version }}
 
       - name: Build native modules
         run: pnpm run build:native

@@ -15,7 +15,6 @@ const STEERING_SUBDIR = 'steering'
 const RULES_SUBDIR = 'rules'
 const COMMANDS_SUBDIR = 'commands'
 const SKILLS_SUBDIR = 'skills'
-const SKILL_FILE_NAME = 'SKILL.md'
 
 type TraeOutputSource
   = | {readonly kind: 'globalMemory', readonly content: string}
@@ -139,26 +138,14 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
         if (projectBase == null) continue
 
         const filteredCommands = filterByProjectConfig(selectedCommands.items, project.projectConfig, 'commands')
-        for (const command of filteredCommands) {
-          declarations.push({
-            path: path.join(projectBase, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
-            scope: 'project',
-            source: {kind: 'command', command} satisfies TraeOutputSource
-          })
-        }
+        this.appendCommandDeclarations(declarations, projectBase, 'project', filteredCommands, transformOptions)
       }
     }
 
     if (selectedCommands.selectedScope === 'global') {
       const baseDir = this.getGlobalConfigDir()
       const filteredCommands = filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
-      for (const command of filteredCommands) {
-        declarations.push({
-          path: path.join(baseDir, COMMANDS_SUBDIR, this.transformCommandName(command, transformOptions)),
-          scope: 'global',
-          source: {kind: 'command', command} satisfies TraeOutputSource
-        })
-      }
+      this.appendCommandDeclarations(declarations, baseDir, 'global', filteredCommands, transformOptions)
     }
 
     const pushSkillDeclarations = (
@@ -166,42 +153,13 @@ export class TraeIDEOutputPlugin extends AbstractOutputPlugin {
       scope: 'project' | 'global',
       filteredSkills: readonly SkillPrompt[]
     ): void => {
-      for (const skill of filteredSkills) {
-        const skillName = this.getSkillName(skill)
-        const skillDir = path.join(baseDir, SKILLS_SUBDIR, skillName)
-        declarations.push({
-          path: path.join(skillDir, SKILL_FILE_NAME),
-          scope,
-          source: {kind: 'skillMain', skill} satisfies TraeOutputSource
+      this.appendSkillDeclarations(declarations, baseDir, scope, filteredSkills, {
+        skillSubDir: SKILLS_SUBDIR,
+        buildSkillReferenceSource: childDoc => ({
+          kind: 'skillChildDoc',
+          content: childDoc.content as string
         })
-
-        if (skill.childDocs != null) {
-          for (const childDoc of skill.childDocs) {
-            declarations.push({
-              path: path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
-              scope,
-              source: {
-                kind: 'skillChildDoc',
-                content: childDoc.content as string
-              } satisfies TraeOutputSource
-            })
-          }
-        }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            declarations.push({
-              path: path.join(skillDir, resource.relativePath),
-              scope,
-              source: {
-                kind: 'skillResource',
-                content: resource.content,
-                encoding: resource.encoding
-              } satisfies TraeOutputSource
-            })
-          }
-        }
-      }
+      })
     }
 
     if (selectedSkills.selectedScope === 'project') {
