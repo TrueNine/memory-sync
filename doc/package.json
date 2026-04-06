@@ -24,7 +24,7 @@
     "nextra-theme-docs": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "sass": "^1.98.0"
+    "sass": "^1.99.0"
   },
   "devDependencies": {
     "@truenine/eslint10-config": "catalog:",
