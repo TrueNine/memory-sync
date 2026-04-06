@@ -63,7 +63,7 @@ catalog:
   nextra: ^4.6.1
   nextra-theme-docs: ^4.6.1
   npm-run-all2: ^8.0.4
-  pagefind: ^1.4.0
+  pagefind: ^1.5.0
   picocolors: ^1.1.1
   picomatch: ^4.0.4
   prettier: ^3.8.1
@@ -84,7 +84,7 @@ catalog:
   typescript: 6.0.2
   typescript-eslint: ^8.58.0
   unified: ^11.0.5
-  vite: ^8.0.3
+  vite: ^8.0.5
   vitest: ^4.1.2
   yaml: ^2.8.3
   zod: ^4.3.6
