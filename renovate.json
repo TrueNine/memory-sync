@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "baseBranchPatterns": [
+    "dev"
+  ],
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 5,
+  "branchConcurrentLimit": 5,
+  "labels": [
+    "dependencies"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "addLabels": [
+        "github-actions"
+      ]
+    },
+    {
+      "matchManagers": [
+        "npm"
+      ],
+      "addLabels": [
+        "javascript"
+      ]
+    },
+    {
+      "matchManagers": [
+        "cargo"
+      ],
+      "addLabels": [
+        "rust"
+      ]
+    }
+  ]
+}

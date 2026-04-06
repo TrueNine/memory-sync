@@ -1,5 +1,9 @@
 version: 2
 updates:
+  # GitHub Actions version updates are scoped by GitHub to `directory: /`.
+  # This checks workflow files under `/.github/workflows` on the `dev` branch.
+  # Composite actions under `/.github/actions/*/action.yml` are not separately
+  # configurable for Dependabot version updates in `dependabot.yml`.
   - package-ecosystem: github-actions
     directory: /
     target-branch: dev
