@@ -39,17 +39,11 @@ updates:
           - '*'
 
   # This repo uses a shared pnpm workspace lockfile plus `catalog:` versions.
-  # Keep npm updates in a single workspace-level Dependabot entry so manifests
-  # resolve against the same root context instead of as isolated packages.
+  # Dependabot succeeds when it enters through the workspace root and fails
+  # when the same workspace is fanned out into child directories, because the
+  # subdirectory runs cannot reliably rewrite shared catalog-backed versions.
   - package-ecosystem: npm
-    directories:
-      - /
-      - /cli
-      - /sdk
-      - /mcp
-      - /gui
-      - /doc
-      - /libraries/*
+    directory: /
     target-branch: dev
     schedule:
       interval: weekly
