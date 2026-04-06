@@ -1,7 +1,12 @@
 version: 2
 updates:
+  # GitHub Actions version updates are scoped by GitHub to `directory: /`.
+  # This checks workflow files under `/.github/workflows` on the `dev` branch.
+  # Composite actions under `/.github/actions/*/action.yml` are not separately
+  # configurable for Dependabot version updates in `dependabot.yml`.
   - package-ecosystem: github-actions
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -18,6 +23,7 @@ updates:
 
   - package-ecosystem: cargo
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -34,6 +40,7 @@ updates:
 
   - package-ecosystem: npm
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -50,6 +57,7 @@ updates:
 
   - package-ecosystem: npm
     directory: /cli
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -65,7 +73,42 @@ updates:
           - '*'
 
   - package-ecosystem: npm
+    directory: /sdk
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - javascript
+    groups:
+      npm-sdk:
+        patterns:
+          - '*'
+
+  - package-ecosystem: npm
+    directory: /mcp
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - javascript
+    groups:
+      npm-mcp:
+        patterns:
+          - '*'
+
+  - package-ecosystem: npm
     directory: /gui
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -82,6 +125,7 @@ updates:
 
   - package-ecosystem: npm
     directory: /doc
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -98,6 +142,7 @@ updates:
 
   - package-ecosystem: npm
     directory: /libraries/logger
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -114,6 +159,7 @@ updates:
 
   - package-ecosystem: npm
     directory: /libraries/md-compiler
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -130,6 +176,7 @@ updates:
 
   - package-ecosystem: npm
     directory: /libraries/script-runtime
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday

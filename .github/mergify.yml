@@ -1,0 +1,38 @@
+pull_request_rules:
+  - name: auto-approve and merge Dependabot docs updates into dev
+    conditions:
+      - author = dependabot[bot]
+      - base = dev
+      - -draft
+      - files ~= ^doc/
+      - check-success = check-doc
+    actions:
+      review:
+        type: APPROVE
+        message: Automatically approving Dependabot docs update after docs CI passes.
+      merge:
+        method: merge
+
+  - name: auto-approve and merge Dependabot updates into dev
+    conditions:
+      - author = dependabot[bot]
+      - base = dev
+      - -draft
+      - check-success = release-preflight
+      - check-success = gui-release-preflight
+      - check-success = build
+      - check-success = lint
+      - check-success = check-type
+      - check-success = test
+      - check-success = test-gui
+      - check-success = test-sdk
+      - check-success = test-cli
+      - check-success = test-mcp
+      - check-success = test-libraries
+      - check-success = test-rust
+    actions:
+      review:
+        type: APPROVE
+        message: Automatically approving Dependabot update after all dev CI checks pass.
+      merge:
+        method: merge
