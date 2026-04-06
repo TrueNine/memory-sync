@@ -1,33 +1,33 @@
 ---
-title: Sync Pipeline
-description: Explains how plugins declare target files, generation flow, scope selection, and cleanup behavior.
-sidebarTitle: Sync Pipeline
+title: 同步流水线
+description: 说明 plugins 如何声明目标文件、生成流程、范围选择和清理行为。
+sidebarTitle: 同步流水线
 status: stable
 ---
 
-# Sync Pipeline
+# 同步流水线
 
-Sync is not "copy a few prompt files into a few directories." It is a pipeline where plugins declare target files, output topics, cleanup scopes, and write behavior.
+同步不是“把几个 prompt 文件复制到几个目录里”。它是一条流水线，插件会在其中声明目标文件、输出主题、清理范围和写入行为。
 
-## What the Pipeline Must Include at Minimum
+## 这条流水线至少要包含什么
 
-- Read source-of-truth input assets
-- Merge project and global config
-- Decide output targets per plugin
-- Resolve project or global scope from source metadata and plugin behavior
-- Write target files
-- Run cleanup when needed
+- 读取作为事实来源的输入资产
+- 合并项目和全局配置
+- 决定每个插件的输出目标
+- 从源元数据和插件行为解析项目或全局范围
+- 写入目标文件
+- 需要时运行清理
 
-## Why This Must Be Modeled Explicitly
+## 为什么必须显式建模
 
-Without explicit modeling:
+如果不显式建模：
 
-- You cannot know which content belongs in global outputs and which belongs only at the project level
-- You cannot offer reliable deletion boundaries during `clean`
-- You can easily let incidental formatting rules from target tools leak back into the source of truth
+- 你就无法知道哪些内容应该进入全局输出，哪些只属于项目级
+- 你就无法在 `clean` 时提供可靠的删除边界
+- 目标工具里的偶发格式规则也很容易反向污染事实来源
 
-## Related Pages
+## 相关页面
 
-- Config-field behavior: see [CLI / JSON Schema](/docs/cli/schema)
-- Global config and fixed path layout: see [Quick Guide / aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config)
-- Source-versus-derived relationship: see [Single Source of Truth](/docs/technical-details/source-of-truth)
+- 配置字段行为：参见 [CLI / JSON Schema](/docs/cli/schema)
+- 全局配置和固定路径布局：参见 [快速指南 / aindex 与 `.tnmsc.json`](/docs/quick-guide/aindex-and-config)
+- 源与派生关系：参见 [单一事实来源](/docs/technical-details/source-of-truth)

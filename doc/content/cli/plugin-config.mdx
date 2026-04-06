@@ -1,31 +1,31 @@
 ---
 title: plugin.config.ts
-description: Explains how the project-level plugin.config.ts assembles default output plugins and runtime options.
+description: 说明项目级 `plugin.config.ts` 如何装配默认输出插件和运行时选项。
 sidebarTitle: plugin.config.ts
 status: stable
 ---
 
 # `plugin.config.ts`
 
-## What It Does
+## 它负责什么
 
-`plugin.config.ts` is the project-level assembly entrypoint. It passes:
+`plugin.config.ts` 是项目级装配入口。它会把以下内容传给：
 
-- pipeline options
-- the plugin list
-- any programmatic overrides
+- pipeline 选项
+- 插件列表
+- 任何编程式覆写
 
-into `defineConfig()`, which produces the `PipelineConfig` used for real execution.
+也就是传入 `defineConfig()`，由它生成实际执行时使用的 `PipelineConfig`。
 
-This file defines the assembled integration surface. It does not, by itself, mean every assembled plugin will emit outputs.
+这个文件定义了已经装配好的集成表面，但它本身并不意味着每个已装配插件都会真正输出文件。
 
-## Current Default Output Plugins
+## 当前默认装配的输出插件
 
-The default output plugins currently assembled in `cli/src/plugin.config.ts` include:
+当前在 `cli/src/plugin.config.ts` 中装配的默认输出插件包括：
 
 - `AgentsOutputPlugin`
 - `ClaudeCodeCLIOutputPlugin`
-- `CodexCLIOutputPlugin` (now also emits Codex skill bundles and per-skill `mcp.json` files)
+- `CodexCLIOutputPlugin`（现在也会输出 Codex skill bundle 和每个 skill 的 `mcp.json` 文件）
 - `JetBrainsAIAssistantCodexOutputPlugin`
 - `DroidCLIOutputPlugin`
 - `GeminiCLIOutputPlugin`
@@ -39,26 +39,27 @@ The default output plugins currently assembled in `cli/src/plugin.config.ts` inc
 - `GitExcludeOutputPlugin`
 - `JetBrainsIDECodeStyleConfigOutputPlugin`
 - `VisualStudioCodeIDEConfigOutputPlugin`
-- `ReadmeMdConfigFileOutputPlugin` (also emits `.editorconfig`)
+- `ReadmeMdConfigFileOutputPlugin`（也会输出 `.editorconfig`）
 
-## Assembly vs Enablement
+## 装配与启用的区别
 
-`plugin.config.ts` answers:
+`plugin.config.ts` 回答的是：
 
-- which plugin implementations are assembled into the runtime
-- which targets the project knows how to generate
+- 哪些插件实现被装配进运行时
+- 项目已知可以生成哪些目标
 
-`~/.aindex/.tnmsc.json` answers:
+`~/.aindex/.tnmsc.json` 回答的是：
 
-- which of those assembled plugins are currently allowed to emit outputs
+- 这些已装配插件中，当前哪些被允许实际输出
 
-The current built-in default behavior is:
+当前内建默认行为是：
 
-- `plugins.git` is enabled by default
-- `plugins.readme` is enabled by default and also covers `.editorconfig` output
-- the other assembled output plugins stay off until the user explicitly enables them in `~/.aindex/.tnmsc.json`
+- `plugins.git` 默认启用
+- `plugins.readme` 默认启用，同时也覆盖 `.editorconfig` 输出
+- 其他已装配的输出插件默认保持关闭，直到用户在 `~/.aindex/.tnmsc.json` 中显式启用
+- `~/.aindex/.tnmsc.json` 里的 `plugins` 配置块只能使用 [JSON Schema](/docs/cli/schema) 中受支持的键；不受支持的键现在会触发配置错误并中止运行
 
-Example:
+示例：
 
 ```json
 {
@@ -70,14 +71,14 @@ Example:
 }
 ```
 
-## What That Means
+## 这意味着什么
 
-This configuration is not illustrative documentation. It is the current assembled runtime surface. If a plugin appears here, the runtime knows how to target it. Whether it actually writes files depends on the user config enablement rules described above.
+这份配置不是展示性质的示例文档，而是当前真实装配后的运行时表面。只要某个插件出现在这里，运行时就知道如何面向它输出；至于它是否真的写文件，则取决于上面提到的用户配置启用规则。
 
-## Minimal Mental Model
+## 最小心智模型
 
-You can think of `plugin.config.ts` as the file that:
+你可以把 `plugin.config.ts` 理解为这样一个文件：
 
-- chooses which targets are assembled into the runtime
-- decides whether to append programmatic config at the project level
-- keeps project config merged with global user config rather than bypassing it entirely
+- 选择哪些目标被装配进运行时
+- 决定是否在项目级追加编程式配置
+- 让项目配置与全局用户配置合并，而不是完全绕过后者

@@ -1,33 +1,33 @@
 ---
-title: Output Scopes
-description: Explains that `outputScopes` is now a legacy `.tnmsc.json` field and where output placement is controlled instead.
-sidebarTitle: Output Scopes
+title: 输出范围
+description: 说明 `outputScopes` 现在已是遗留 `.tnmsc.json` 字段，以及输出落点现在由什么控制。
+sidebarTitle: 输出范围
 status: stable
 ---
 
-# Output Scopes
+# 输出范围
 
-`outputScopes` should now be treated as a legacy config block in `~/.aindex/.tnmsc.json`.
+`outputScopes` 现在应被视为 `~/.aindex/.tnmsc.json` 里的遗留配置块。
 
-The current runtime no longer documents or supports per-plugin output-scope overrides from the global user config file.
+当前运行时已经不再记录或支持通过全局用户配置文件按插件覆写输出作用域。
 
-## What Controls Output Placement Now
+## 现在由什么控制输出位置
 
-Output placement is now determined by the combination of:
+输出落点现在由以下因素共同决定：
 
-- which output plugins are assembled in [plugin.config.ts](/docs/cli/plugin-config)
-- whether the source asset itself is project-scoped or global-scoped
-- plugin-specific routing and remap behavior
+- 哪些输出插件被装配进了 [plugin.config.ts](/docs/cli/plugin-config)
+- 源资产本身是 project-scoped 还是 global-scoped
+- 插件自身的路由与重映射行为
 
-That is the place to debug first when content lands in the wrong destination.
+如果内容落到了错误的位置，首先就应该从这里开始排查。
 
-## What To Do With Older Config Files
+## 旧配置文件该怎么处理
 
-If an older config still contains `outputScopes`, remove it from `~/.aindex/.tnmsc.json` instead of expanding it further.
+如果旧配置里还保留着 `outputScopes`，请直接从 `~/.aindex/.tnmsc.json` 中移除，而不是继续扩展它。
 
-## Migration Checklist
+## 迁移检查清单
 
-- Remove `outputScopes` from the global config.
-- Check the assembled plugins in [plugin.config.ts](/docs/cli/plugin-config).
-- Check the source item scope you authored.
-- Use `tnmsc dry-run` to verify the real write targets before a full sync.
+- 从全局配置中移除 `outputScopes`。
+- 检查 [plugin.config.ts](/docs/cli/plugin-config) 中实际装配的插件。
+- 检查你编写的源条目作用域。
+- 在完整同步前使用 `tnmsc dry-run` 验证真实写入目标。

@@ -1,5 +1,5 @@
 export default {
-  'index': 'Overview',
-  'quick-install': 'Quick Install',
-  'aindex-and-config': 'aindex and Config'
+  'index': '概览',
+  'quick-install': '快速安装',
+  'aindex-and-config': 'aindex 与配置'
 }

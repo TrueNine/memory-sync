@@ -49,6 +49,31 @@ const VALID_INDENT_STYLES: ReadonlySet<string> = new Set([
   'space',
 ])
 
+const SUPPORTED_PLUGIN_KEYS = [
+  'agentsMd',
+  'claudeCode',
+  'codex',
+  'cursor',
+  'droid',
+  'gemini',
+  'git',
+  'jetbrains',
+  'jetbrainsCodeStyle',
+  'kiro',
+  'opencode',
+  'qoder',
+  'readme',
+  'trae',
+  'traeCn',
+  'vscode',
+  'warp',
+  'windsurf',
+  'zed',
+] as const
+
+const SUPPORTED_PLUGIN_KEY_SET: ReadonlySet<string> = new Set(SUPPORTED_PLUGIN_KEYS)
+const SUPPORTED_PLUGIN_KEYS_MESSAGE = SUPPORTED_PLUGIN_KEYS.join(', ')
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -137,6 +162,15 @@ export function validateConfig(raw: unknown): readonly ValidationError[] {
   const plugins = validateObjectField(obj, 'plugins', errors)
   if (plugins != null) {
     for (const [pluginName, enabled] of Object.entries(plugins)) {
+      if (!SUPPORTED_PLUGIN_KEY_SET.has(pluginName)) {
+        errors.push({
+          field: `plugins.${pluginName}`,
+          message: `Unsupported plugins key "${pluginName}". Supported keys: ${SUPPORTED_PLUGIN_KEYS_MESSAGE}`,
+          severity: 'error',
+        })
+        continue
+      }
+
       if (typeof enabled !== 'boolean') {
         errors.push({
           field: `plugins.${pluginName}`,

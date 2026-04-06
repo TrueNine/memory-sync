@@ -1,28 +1,28 @@
 ---
-title: Cleanup Protection
-description: Explains that `cleanupProtection` is now a legacy `.tnmsc.json` field and how cleanup safety works today.
-sidebarTitle: Cleanup Protection
+title: 清理保护
+description: 说明 `cleanupProtection` 现在已是遗留 `.tnmsc.json` 字段，以及当前清理安全机制如何工作。
+sidebarTitle: 清理保护
 status: stable
 ---
 
-# Cleanup Protection
+# 清理保护
 
-`cleanupProtection` should now be treated as a legacy config block in `~/.aindex/.tnmsc.json`.
+`cleanupProtection` 现在应被视为 `~/.aindex/.tnmsc.json` 中的遗留配置块。
 
-The `clean` command still has protection behavior, but it now comes from fixed runtime guardrails and plugin-declared cleanup boundaries rather than user-authored JSON rules in the global config file.
+`clean` 命令仍然具备保护行为，但它现在来自固定的运行时护栏和插件声明的清理边界，而不是全局配置文件里用户手写的 JSON 规则。
 
-## What Still Protects Cleanup Today
+## 现在仍在保护清理行为的是什么
 
-- `tnmsc clean --dry-run` lets you inspect the exact cleanup plan first.
-- Workspace-level reserved roots still stay protected.
-- Output plugins still declare their own cleanup and protection boundaries internally.
+- `tnmsc clean --dry-run` 允许你先检查精确的清理计划。
+- 工作区级保留根目录仍然受保护。
+- 输出插件仍会在内部声明自己的清理与保护边界。
 
-## What You Should Do Instead
+## 你现在应该怎么做
 
-- Keep hand-written files out of tnmsc-managed output directories.
-- Use `dry-run` before a real clean.
-- If a target needs different cleanup behavior, change the project/plugin assembly rather than adding a `cleanupProtection` block back into `~/.aindex/.tnmsc.json`.
+- 把手写文件放在 tnmsc 管理的输出目录之外。
+- 在真正清理前先运行 `dry-run`。
+- 如果某个目标需要不同的清理行为，应该调整项目或插件装配，而不是重新把 `cleanupProtection` 加回 `~/.aindex/.tnmsc.json`。
 
-## What To Remove From Old Configs
+## 旧配置里该移除什么
 
-If an older config still contains `cleanupProtection`, remove it. It is no longer part of the supported user-facing config surface.
+如果旧配置中仍包含 `cleanupProtection`，请移除它。它已经不再属于受支持的用户侧配置表面。

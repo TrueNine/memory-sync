@@ -1,28 +1,28 @@
 ---
 title: MCP
-description: Explains the role of memory-sync-mcp, how it runs, and how it relates to the sdk prompt service.
-sidebarTitle: Overview
+description: 说明 memory-sync-mcp 的角色、运行方式，以及它与 sdk prompt service 的关系。
+sidebarTitle: 概览
 status: stable
 ---
 
 # MCP
 
-`mcp/` is a standalone package in the current repository. It is published as `@truenine/memory-sync-mcp`, and its executable entrypoint is `memory-sync-mcp`. It is not an abstract concept from the docs. It is a real stdio server.
+`mcp/` 是当前仓库中的独立包。它以 `@truenine/memory-sync-mcp` 的形式发布，可执行入口为 `memory-sync-mcp`。它不是文档里的抽象概念，而是一个真实的 stdio server。
 
-## What It Owns
+## 它负责什么
 
-- It exposes `memory-sync` prompt-management capability as an MCP stdio server
-- It reuses the prompt service exported by `@truenine/memory-sync-sdk` instead of reimplementing separate logic
-- It lets MCP-capable hosts read, update, and write back prompt assets through tool calls
+- 它把 `memory-sync` 的 prompt 管理能力以 MCP stdio server 的形式暴露出来
+- 它复用 `@truenine/memory-sync-sdk` 导出的 prompt service，而不是重新实现一套独立逻辑
+- 它让支持 MCP 的宿主可以通过 tool call 读取、更新并回写 prompt 资产
 
-## What It Does Not Own
+## 它不负责什么
 
-- It is not a new source-of-truth format
-- It is not a replacement for the GUI
-- It is not a privileged path that bypasses CLI rules
+- 它不是新的事实来源格式
+- 它不是 GUI 的替代品
+- 它不是绕过 CLI 规则的特权通道
 
-## Recommended Reading
+## 推荐阅读
 
-- [Server and Tools](/docs/mcp/server-tools): see the stdio server entrypoints, tool list, and `workspaceDir` semantics
-- [CLI](/docs/cli): return there when you need project setup, schema details, or output boundaries
-- [Technical Details](/docs/technical-details/source-of-truth): start from the source-of-truth model when you need to understand why prompt assets are modeled this way
+- [服务端与工具](/docs/mcp/server-tools)：查看 stdio server 入口、工具列表以及 `workspaceDir` 的语义
+- [CLI](/docs/cli)：当你需要项目初始化、schema 细节或输出边界时，回到这里
+- [单一事实来源](/docs/technical-details/source-of-truth)：当你需要理解 prompt 资产为何采用这种建模方式时，从事实来源模型开始

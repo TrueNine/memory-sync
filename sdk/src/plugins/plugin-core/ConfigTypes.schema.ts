@@ -112,7 +112,53 @@ export const ZWindowsOptions = z.object({
   wsl2: ZWindowsWsl2Options.optional()
 })
 
-export const ZPluginsConfig = z.record(z.string(), z.boolean())
+export const SUPPORTED_PLUGIN_CONFIG_KEYS = [
+  'agentsMd',
+  'claudeCode',
+  'codex',
+  'cursor',
+  'droid',
+  'gemini',
+  'git',
+  'jetbrains',
+  'jetbrainsCodeStyle',
+  'kiro',
+  'opencode',
+  'qoder',
+  'readme',
+  'trae',
+  'traeCn',
+  'vscode',
+  'warp',
+  'windsurf',
+  'zed'
+] as const
+
+export type SupportedPluginConfigKey = (typeof SUPPORTED_PLUGIN_CONFIG_KEYS)[number]
+
+const SUPPORTED_PLUGIN_CONFIG_KEY_SET = new Set<string>(SUPPORTED_PLUGIN_CONFIG_KEYS)
+
+export function isSupportedPluginConfigKey(key: string): key is SupportedPluginConfigKey {
+  return SUPPORTED_PLUGIN_CONFIG_KEY_SET.has(key)
+}
+
+export function getSupportedPluginConfigKeysMessage(): string {
+  return SUPPORTED_PLUGIN_CONFIG_KEYS.join(', ')
+}
+
+export const ZPluginsConfig = z.record(z.string(), z.boolean()).superRefine((plugins, ctx) => {
+  const supportedKeysMessage = getSupportedPluginConfigKeysMessage()
+
+  for (const key of Object.keys(plugins)) {
+    if (isSupportedPluginConfigKey(key)) continue
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [key],
+      message: `Unsupported plugins key "${key}". Supported keys: ${supportedKeysMessage}`
+    })
+  }
+})
 
 /**
  * Zod schema for user profile information.

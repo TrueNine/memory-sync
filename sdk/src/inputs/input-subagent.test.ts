@@ -221,4 +221,46 @@ describe('subagent input plugin', () => {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})
     }
   })
+
+  it('does not log the legacy agents field name in subagent debug output', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-subagent-debug-log-test-'))
+    const aindexDir = path.join(tempWorkspace, 'aindex')
+    const distDir = path.join(aindexDir, 'dist', 'subagents')
+    const debugPayloads: unknown[] = []
+
+    try {
+      fs.mkdirSync(distDir, {recursive: true})
+      fs.writeFileSync(
+        path.join(distDir, 'demo.mdx'),
+        '---\ndescription: dist only\n---\nDist only subagent',
+        'utf8'
+      )
+
+      const plugin = new SubAgentInputCapability()
+      await plugin.collect({
+        logger: {
+          trace: () => {},
+          debug: (_message: string, payload?: unknown) => debugPayloads.push(payload),
+          info: () => {},
+          warn: () => {},
+          error: () => {},
+          fatal: () => {}
+        },
+        fs,
+        path,
+        glob,
+        userConfigOptions: mergeConfig({workspaceDir: tempWorkspace}),
+        dependencyContext: {}
+      } as InputCapabilityContext)
+
+      expect(debugPayloads).toContainEqual({count: 1})
+      expect(debugPayloads.some(payload =>
+        typeof payload === 'object'
+        && payload !== null
+        && 'agents' in payload)).toBe(false)
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
 })

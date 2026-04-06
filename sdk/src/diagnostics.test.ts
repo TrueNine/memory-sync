@@ -1,3 +1,6 @@
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
 import {buildFileOperationDiagnostic} from './diagnostics'
 
@@ -50,5 +53,34 @@ describe('buildFileOperationDiagnostic', () => {
       platform: 'linux',
       errorMessage: 'ENOENT: no such file or directory'
     })
+  })
+
+  it('explains that a blocking file can be safely deleted when a directory path is occupied', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-diagnostic-blocking-file-'))
+    const blockingFilePath = path.join(tempDir, '.codex')
+    fs.writeFileSync(blockingFilePath, '', 'utf8')
+
+    try {
+      const diagnostic = buildFileOperationDiagnostic({
+        code: 'CLEANUP_DIRECTORY_DELETE_FAILED',
+        title: 'Cleanup could not delete a directory',
+        operation: 'delete',
+        targetKind: 'directory',
+        path: path.join(tempDir, '.codex', 'skills'),
+        error: 'Not a directory (os error 20)',
+        platform: 'linux'
+      })
+
+      expect(diagnostic.exactFix).toEqual([
+        `Delete the blocking file at "${blockingFilePath}" and rerun tnmsc.`,
+        'tnmsc expects a directory there, so you do not need to keep that file.'
+      ])
+      expect(diagnostic.details).toMatchObject({
+        blockingPath: blockingFilePath
+      })
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
   })
 })

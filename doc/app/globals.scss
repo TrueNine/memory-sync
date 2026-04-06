@@ -313,6 +313,24 @@ samp {
   line-height: 1.6;
 }
 
+.home-version-note {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin: 16px 0 0;
+  color: var(--page-fg-muted);
+  font-size: 0.95rem;
+}
+
+.home-version-note code {
+  padding: 4px 8px;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--page-fg);
+  font-size: 0.9em;
+}
+
 .home-actions {
   display: flex;
   flex-wrap: wrap;

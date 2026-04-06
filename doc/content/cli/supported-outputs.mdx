@@ -1,17 +1,17 @@
 ---
-title: Supported Outputs
-description: Summarizes the output targets currently integrated by the assembled plugin surface, and clarifies that support is not the same thing as default enablement.
-sidebarTitle: Supported Outputs
+title: 支持的输出
+description: 汇总当前已由装配插件表面集成的输出目标，并说明“受支持”不等于“默认启用”。
+sidebarTitle: 支持的输出
 status: stable
 ---
 
-# Supported Outputs
+# 支持的输出
 
-The current assembled plugin surface shows that the project is integrated with at least these output targets:
+当前已装配的插件表面表明，项目至少已集成以下输出目标：
 
-## AI / IDE / CLI Targets
+## AI / IDE / CLI 目标
 
-- AGENTS.md-style output
+- AGENTS.md 风格输出
 - Claude Code CLI
 - OpenAI Codex CLI
 - Gemini CLI
@@ -25,31 +25,31 @@ The current assembled plugin surface shows that the project is integrated with a
 - Trae CN
 - JetBrains AI Assistant Codex
 
-## Generic Support Outputs
+## 通用支持输出
 
-- Generic Skills export
+- 通用 Skills 导出
 - `.git/info/exclude`
-- VS Code config
-- JetBrains code style config
-- README-like outputs (including `.editorconfig`)
+- VS Code 配置
+- JetBrains 代码风格配置
+- README 类输出（包括 `.editorconfig`）
 
-## Current Built-in Default
+## 当前内建默认行为
 
-Supported does not mean enabled by default.
+受支持并不等于默认启用。
 
-The current built-in default behavior is:
+当前内建默认行为是：
 
-- `plugins.git` is enabled
-- `plugins.readme` is enabled
-- the other supported outputs remain opt-in until `~/.aindex/.tnmsc.json` explicitly enables them
+- `plugins.git` 已启用
+- `plugins.readme` 已启用
+- 其他受支持输出仍然是 opt-in，直到 `~/.aindex/.tnmsc.json` 显式启用它们
 
-So this page is a capability list, not a list of outputs that always appear on disk.
+因此，这一页列出的是能力清单，而不是一定会出现在磁盘上的输出清单。
 
-## One Important Thing to Remember
+## 一个需要记住的重要点
 
-The "Supported Tools" table in the README is a high-level user-facing description. The real behavior comes from two layers together:
+README 中的 “Supported Tools” 表格只是面向用户的高层说明。真实行为由下面两层共同决定：
 
-- which plugins are assembled in [plugin.config.ts](/docs/cli/plugin-config)
-- which plugin keys are enabled in `~/.aindex/.tnmsc.json`
+- 哪些插件被装配进了 [plugin.config.ts](/docs/cli/plugin-config)
+- 哪些插件键在 `~/.aindex/.tnmsc.json` 中被启用
 
-If a target is assembled but disabled in user config, treat it as supported but currently inactive.
+如果某个目标已经装配，但在用户配置中被禁用，那么应把它视为“受支持但当前未激活”。

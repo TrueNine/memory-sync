@@ -177,4 +177,28 @@ describe('configLoader', () => {
       fs.rmSync(tempDir, {recursive: true, force: true})
     }
   })
+
+  it('throws when plugins contains an unsupported key', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-config-loader-plugins-invalid-'))
+    const configPath = path.join(tempDir, '.tnmsc.json')
+
+    try {
+      fs.writeFileSync(configPath, JSON.stringify({
+        plugins: {
+          vscode: true,
+          codex: true,
+          foo: true
+        }
+      }), 'utf8')
+
+      const loader = new ConfigLoader()
+
+      expect(() => loader.loadFromFile(configPath)).toThrowError(
+        /Unsupported plugins key "foo"\. Supported keys:/
+      )
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
 })

@@ -1,44 +1,44 @@
 ---
-title: Skills
-description: Introduces skills as reusable capability cards and explains how they relate to output plugins.
-sidebarTitle: Skills
+title: 技能
+description: 介绍作为可复用能力卡的 skills，以及它们与输出插件的关系。
+sidebarTitle: 技能
 status: stable
 ---
 
-# Skills
+# 技能
 
-## What Skills Are
+## Skills 是什么
 
-Skills are reusable capability cards split by task theme. They are a good fit for expressing:
+Skills 是按任务主题拆分的可复用能力卡，特别适合表达：
 
-- how to produce a certain type of deliverable
-- a method for making a certain type of architectural decision
-- step-by-step knowledge for a specific operational flow
+- 如何生成某种类型的可交付成果
+- 做出某种类型的架构决策的方法
+- 特定操作流程的逐步知识
 
-## Current Path Convention
+## 当前路径约定
 
-The default input path is:
+默认输入路径为：
 
 ```text
 skills/
 ```
 
-The default export path is:
+默认导出路径为：
 
 ```text
 dist/skills/
 ```
 
-## Why They Are Not the Same as Prompts
+## 为什么它们不同于 Prompts
 
-Prompts behave more like persistent context, while skills behave more like on-demand modules. Both can influence model behavior, but they are not the same abstraction layer.
+Prompts 更像持续上下文，而 skills 更像按需模块。两者都能影响模型行为，但不是同一个抽象层。
 
-## What the Output Layer Cares About
+## 输出层真正关心什么
 
-`tnmsc` now uses the skill directory name as the skill name by default.
+`tnmsc` 现在默认使用 skill 目录名作为 skill 名称。
 
-- You do not need to put `name` in skill frontmatter
-- If you do add `name`, sync ignores it and emits a warning
-- If you want to change the skill name, rename `skills/<dir>/`
+- 你不需要在 skill frontmatter 里写 `name`
+- 如果你写了 `name`，sync 会忽略它并发出警告
+- 如果你想改 skill 名称，就重命名 `skills/<dir>/`
 
-See [CLI / Front Matter](/docs/cli/frontmatter) for field details.
+字段细节请看 [CLI / Front Matter](/docs/cli/frontmatter)。

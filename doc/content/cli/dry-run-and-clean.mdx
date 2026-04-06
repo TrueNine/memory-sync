@@ -1,41 +1,41 @@
 ---
-title: dry-run and clean
-description: Explains how tnmsc previews outputs, then performs cleanup, with dry-run and built-in guardrails used to control risk.
-sidebarTitle: dry-run and clean
+title: dry-run 与 clean
+description: 说明 tnmsc 如何通过 `dry-run` 预览输出，再通过 `clean` 执行清理，并依靠内建护栏控制风险。
+sidebarTitle: dry-run 与 clean
 status: stable
 ---
 
-# dry-run and clean
+# `dry-run` 与 `clean`
 
-## What `dry-run` Does
+## `dry-run` 会做什么
 
-`tnmsc dry-run` previews the files and directories that the current execution would write. It is especially useful in these situations:
+`tnmsc dry-run` 会预览当前执行将要写入的文件和目录。它在以下场景中特别有用：
 
-- When integrating a project for the first time
-- Right after changing `plugin.config.ts`
-- Right after changing source prompt scope or global config
-- Before validating the impact of a large source-content change
+- 首次接入一个项目时
+- 修改 `plugin.config.ts` 之后
+- 修改源 prompt 作用域或全局配置之后
+- 想验证一次较大源内容变更的影响之前
 
-## What `clean` Does
+## `clean` 会做什么
 
-`tnmsc clean` removes generated output files. It is not a blind directory deletion command. It follows the current output model and the cleanup declarations built into the runtime.
+`tnmsc clean` 会移除生成出的输出文件。它不是一个盲删目录的命令，而是遵循当前输出模型和运行时内建的清理声明来执行。
 
-After normal cleanup finishes, `tnmsc clean` also scans the current project source tree and removes remaining empty directories. That empty-dir sweep explicitly skips Git internals as well as dependency, build-output, and cache directory trees.
+常规清理完成后，`tnmsc clean` 还会扫描当前项目源码树，删除剩余的空目录。这个空目录扫描会明确跳过 Git 内部目录，以及依赖、构建输出和缓存目录树。
 
-Before running it for real, prefer:
+在真正执行之前，优先先运行：
 
 ```sh
 tnmsc clean --dry-run
 ```
 
-`--dry-run` will also show the empty directories that would be removed afterward.
+`--dry-run` 也会显示后续将被移除的空目录。
 
-## Risk Boundary
+## 风险边界
 
-If your output directories also contain hand-written files or outputs from other tools, do not rely on a `cleanupProtection` block in `~/.aindex/.tnmsc.json`. Keep those files out of tnmsc-managed output paths, or adjust the project/plugin assembly before running a real clean.
+如果你的输出目录里还混有手写文件或其他工具生成的内容，不要依赖 `~/.aindex/.tnmsc.json` 中的 `cleanupProtection` 配置块。应把这些文件移出 tnmsc 管理的输出路径，或者在真正执行清理前调整项目或插件装配方式。
 
-## Recommended Habits
+## 推荐习惯
 
-1. Run `dry-run` first when you change config, source scope, or plugin assembly.
-2. Run `clean --dry-run` first when you really intend to clean.
-3. If something looks wrong, continue with [Troubleshooting](/docs/cli/troubleshooting).
+1. 当你修改配置、源作用域或插件装配时，先运行 `dry-run`。
+2. 当你确实准备清理时，先运行 `clean --dry-run`。
+3. 如果结果看起来不对，请继续查看 [故障排查](/docs/cli/troubleshooting)。

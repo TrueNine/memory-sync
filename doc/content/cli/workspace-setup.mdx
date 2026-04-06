@@ -1,43 +1,43 @@
 ---
-title: Workspace and aindex
-description: Explains how the aindex source directory, global config, and project config entrypoint divide responsibilities in the current repo.
-sidebarTitle: Workspace and aindex
+title: 工作区与 aindex
+description: 说明在当前仓库中，aindex 源目录、全局配置和项目配置入口如何分工。
+sidebarTitle: 工作区与 aindex
 status: stable
 ---
 
-# Workspace and aindex
+# 工作区与 aindex
 
-This topic is now centralized in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
+这个主题现在已经集中到 [aindex 与 `.tnmsc.json`](/docs/quick-guide/aindex-and-config) 页面。
 
-Use that page if you need:
+如果你想了解以下内容，请直接看那一页：
 
-- where `.aindex` actually lives
-- where `~/.aindex/.tnmsc.json` is loaded from
-- which user config fields are still supported
-- which aindex paths are fixed by convention
-- the current defaults and path rules
+- `.aindex` 实际放在哪里
+- `~/.aindex/.tnmsc.json` 从哪里加载
+- 哪些用户配置字段仍然受支持
+- 哪些 aindex 路径按约定是固定的
+- 当前默认值和路径规则
 
-## What Still Belongs Here
+## 这里仍然负责什么
 
-`memory-sync` does not treat target-tool config files as the source of truth. It generates outputs from the aindex source directory and the project configuration entrypoint.
+`memory-sync` 不会把目标工具的配置文件当作事实来源。它会根据 aindex 源目录和项目配置入口生成输出。
 
-## How Source Content Is Usually Split
+## 源内容通常如何拆分
 
-The input assets documented separately right now are:
+当前单独说明的输入资产包括：
 
-- Global prompts and workspace prompts
+- 全局 prompts 和工作区 prompts
 - `skills/`
 - `commands/`
 - `subagents/`
 - `rules/`
 
-Their responsibility boundaries are explained in [Technical Details](/docs/technical-details). The CLI docs focus only on how those assets are read, validated, and written out.
+它们的职责边界在[技术细节](/docs/technical-details)中说明。CLI 文档只关注这些资产如何被读取、校验并写出。
 
-## Project Configuration Entrypoint
+## 项目配置入口
 
-The project-level assembly entrypoint is [plugin.config.ts](/docs/cli/plugin-config). It decides which output plugins are assembled and how project-level runtime options are merged into the real execution config. Per-user output enablement then comes from `~/.aindex/.tnmsc.json`.
-`plugins.readme` covers both the README-family outputs and `.editorconfig`.
+项目级装配入口是 [plugin.config.ts](/docs/cli/plugin-config)。它决定要装配哪些输出插件，以及如何把项目级运行时选项合并进真实执行配置。用户级输出启用则来自 `~/.aindex/.tnmsc.json`。
+`plugins.readme` 同时覆盖 README 系列输出和 `.editorconfig`。
 
-## Next Step
+## 下一步
 
-Once the directories are ready, continue to [First Sync](/docs/cli/first-sync). Use `dry-run` to validate the output scope before doing a real write.
+目录准备好之后，继续看[第一次同步](/docs/cli/first-sync)。在真实写入前，先用 `dry-run` 校验输出范围。

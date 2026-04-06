@@ -214,6 +214,15 @@ describe('validateConfig — plugins', () => {
     const errors = validateConfig({ plugins: { trae: 'yes' } })
     expect(errorFields(errors)).toContain('plugins.trae')
   })
+
+  it('rejects unsupported plugin keys and shows the supported list', () => {
+    const errors = validateConfig({ plugins: { vscode: true, codex: true, foo: true } })
+    const pluginError = errors.find((error) => error.field === 'plugins.foo' && error.severity === 'error')
+
+    expect(pluginError).toBeDefined()
+    expect(pluginError?.message).toMatch(/Unsupported plugins key "foo"/)
+    expect(pluginError?.message).toMatch(/Supported keys:/)
+  })
 })
 
 // ─── unknown fields → warnings ─────────────────────────────────────────

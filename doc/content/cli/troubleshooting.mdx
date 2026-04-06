@@ -1,39 +1,56 @@
 ---
-title: Troubleshooting
-description: Collects the version, command, and output-placement problems you are most likely to run into right now.
-sidebarTitle: Troubleshooting
+title: 故障排查
+description: 汇总你现在最可能遇到的版本、命令和输出落点相关问题。
+sidebarTitle: 故障排查
 status: stable
 ---
 
-# Troubleshooting
+# 故障排查
 
-## Symptom: I Expected a Page, but I Got a 404
+## 症状：我本来想打开一个页面，却看到了 404
 
-The docs have moved from the old mixed grouping into seven top-level sections. Start from [/docs](/docs) or the [Quick Guide](/docs/quick-guide) instead of following older paths.
+文档已经从旧的混合分组迁移到七个顶层分区。请从 [/docs](/docs) 或 [快速指南](/docs/quick-guide) 开始，而不是继续沿用旧路径。
 
-## Symptom: Rules, Prompts, or MCP-Related Content Was Written to the Wrong Place
+## 症状：Rules、Prompts 或 MCP 相关内容被写到了错误的位置
 
-Check these first:
+先检查以下几点：
 
-1. Which output plugins are actually assembled in [plugin.config.ts](/docs/cli/plugin-config).
-2. Whether you authored a global prompt or a workspace prompt.
-3. Whether the target plugin has its own routing behavior for that content type.
+1. [plugin.config.ts](/docs/cli/plugin-config) 里实际装配了哪些输出插件。
+2. 你写的是 global prompt 还是 workspace prompt。
+3. 目标插件是否对该类内容有自己的路由行为。
 
-## Symptom: `clean` Feels Unsafe or Deleted Too Much
+## 症状：`clean` 看起来不安全，或者删掉了太多内容
 
-Review [dry-run and clean](/docs/cli/dry-run-and-clean) first. If your directories mix manual files with generated files, move the manual files out of tnmsc-managed output paths before a real clean.
+先查看 [dry-run 与 clean](/docs/cli/dry-run-and-clean)。如果你的目录同时混有手写文件和生成文件，请在真正执行清理前把手写文件移出 tnmsc 管理的输出路径。
 
-## Symptom: A Docs Page Fails to Build
+> **Warning**
+> 如果 tnmsc 需要的是 `.codex/` 这类目录，但在那里发现了一个同名文件，这会被视为路径类型冲突。恢复行为的目的，就是避免这种冲突阻塞整个同步过程。
+>
+> 当前运行时的处理方式是发出警告、删除阻塞文件，然后继续执行。之所以把该文件视为可丢弃，是因为它占据了一个对生成输出而言必须是目录的路径。
 
-Run this first:
+## 症状：运行因为不受支持的 `plugins` 键错误而停止
+
+先检查 `~/.aindex/.tnmsc.json`。
+
+现在只要 `plugins` 配置块里包含未知键，`tnmsc` 就会快速失败。日志会告诉你哪个键不受支持，并打印受支持键列表。
+
+可以这样修复：
+
+1. 删除不受支持的键。
+2. 把它改成 [JSON Schema](/docs/cli/schema) 或 [aindex 与 `.tnmsc.json`](/docs/quick-guide/aindex-and-config) 中列出的受支持键之一。
+3. 重新运行命令。
+
+## 症状：某个文档页面构建失败
+
+先运行：
 
 ```sh
 pnpm -C doc run validate:content
 ```
 
-This validation step checks:
+这一步校验会检查：
 
-- Whether every MDX file has `title` and `description`
-- Whether every content directory has `_meta.ts`
-- Whether `_meta.ts` covers the current files and subdirectories
-- Whether internal docs links point to real pages
+- 每个 MDX 文件是否都有 `title` 和 `description`
+- 每个内容目录是否都有 `_meta.ts`
+- `_meta.ts` 是否覆盖了当前文件和子目录
+- 站内文档链接是否指向真实页面

@@ -1,4 +1,4 @@
 export default {
-  'index': 'Overview',
-  'server-tools': 'Server and Tools'
+  'index': '概览',
+  'server-tools': '服务端与工具'
 }

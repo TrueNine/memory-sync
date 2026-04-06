@@ -130,5 +130,8 @@ describe('genericSkillsOutputPlugin cleanup', () => {
     expect(deletePaths).toContain(
       path.join(homeDir, '.skills').replaceAll('\\', '/')
     )
+    expect(deletePaths).toContain(
+      path.join(homeDir, '.aindex', '.skills').replaceAll('\\', '/')
+    )
   })
 })

@@ -1,41 +1,41 @@
 ---
-title: Why This Tool Exists
-description: Starts from the README's tool-rat framing and explains the real problem memory-sync is trying to solve.
-sidebarTitle: Why This Tool Exists
+title: 为什么会有这个工具
+description: 从 README 里“tool-rat”的定位出发，解释 memory-sync 真正想解决的问题。
+sidebarTitle: 为什么会有这个工具
 status: stable
 ---
 
-# Why This Tool Exists
+# 为什么会有这个工具
 
-The README describes the core positioning of `memory-sync` very directly: this is not a tool that waits for platforms to converge on a shared standard. It is a "tool-rat" that still works in a world where tools are fragmented, interfaces are private, and access is distributed unfairly.
+README 对 `memory-sync` 的核心定位说得很直接：这不是一个等着平台最终收敛到统一标准的工具。它是一个在工具割裂、接口私有、访问机会分配不均的现实世界里依然能工作的 “tool-rat”。
 
-## What the Project Is Not Promising
+## 这个项目不承诺什么
 
-It does not promise:
+它不承诺：
 
-- That a specific IDE or CLI will eventually give you one official unified entrypoint
-- That some platform will preserve your working memory reliably forever
-- That copying and pasting a few prompts is the same thing as a real migration
+- 某个特定 IDE 或 CLI 最终一定会给你一个官方统一入口
+- 某个平台会永远可靠地替你保存工作记忆
+- 复制粘贴几段 prompt 就等同于真正的迁移
 
-## What the Project Is Actually Trying to Do
+## 这个项目真正想做什么
 
-Its goal is to:
+它的目标是：
 
-1. Pull rule sources out of the tools where they are currently scattered.
-2. Give those rule sources one consistent authoring model.
-3. Deliver them back into the native locations required by different tools.
+1. 把当前散落在各个工具里的规则源提取出来。
+2. 为这些规则源提供一套一致的编写模型。
+3. 再把它们投递回不同工具各自要求的原生位置。
 
-## Why This Must Be a Sync System Instead of a Template Repository
+## 为什么这必须是一个 sync 系统，而不是模板仓库
 
-With only a template repository, you still have to do all of this by hand:
+如果只有一个模板仓库，你仍然要手动处理这些事情：
 
-- Decide where each tool should receive output
-- Decide what is global and what is project-specific
-- Decide how to remove old artifacts
-- Decide how to keep multiple configurations from stepping on each other
+- 决定每个工具的输出应该写到哪里
+- 决定哪些内容是全局的，哪些是项目级的
+- 决定如何移除旧产物
+- 决定如何避免多套配置互相踩踏
 
-The point of `memory-sync` is to move those decisions forward into declarative configuration and source-file structure.
+`memory-sync` 的意义，就在于把这些决策前移到声明式配置和 source 文件结构中。
 
-## Why the Docs Had to Be Rewritten Too
+## 为什么文档也必须一起重写
 
-If the docs kept the old loose narrative that could not map back to the real implementation, the docs themselves would become new residue. The docs-site rewrite is really the same discipline applied to docs: make them verifiable against the implementation instead of letting them drift.
+如果文档继续保留那种无法映射回真实实现的松散叙事，文档本身也会变成新的残留物。重写 docs-site，本质上就是把同样的纪律应用到文档上：让文档能够对照实现进行验证，而不是继续漂移。

@@ -14,9 +14,11 @@ import {
   buildConfigDiagnostic,
   buildFileOperationDiagnostic,
   diagnosticLines,
-  splitDiagnosticText
+  splitDiagnosticText,
+  toErrorMessage
 } from './diagnostics'
 import {
+  getSupportedPluginConfigKeysMessage,
   ZUserConfigFile
 } from './plugins/plugin-core'
 import {
@@ -73,9 +75,9 @@ export class ConfigLoader {
   loadFromFile(filePath: string): ConfigLoadResult {
     const resolvedPath = this.resolveTilde(filePath)
 
-    try {
-      if (!fs.existsSync(resolvedPath)) return {config: {}, source: null, found: false}
+    if (!fs.existsSync(resolvedPath)) return {config: {}, source: null, found: false}
 
+    try {
       const content = fs.readFileSync(resolvedPath, 'utf8')
       const config = this.parseConfig(content, resolvedPath)
 
@@ -83,15 +85,38 @@ export class ConfigLoader {
       return {config, source: resolvedPath, found: true}
     }
     catch (error) {
-      this.logger.warn(buildFileOperationDiagnostic({
-        code: 'CONFIG_FILE_LOAD_FAILED',
-        title: 'Failed to load config file',
-        operation: 'read',
-        targetKind: 'config file',
-        path: resolvedPath,
-        error
-      }))
-      return {config: {}, source: null, found: false}
+      const errorMessage = toErrorMessage(error)
+
+      if (errorMessage.startsWith('Invalid JSON in ') || errorMessage.startsWith('Config validation failed in ')) {
+        this.logger.error(buildConfigDiagnostic({
+          code: 'CONFIG_FILE_VALIDATION_FAILED',
+          title: 'Config file validation failed',
+          reason: splitDiagnosticText(errorMessage),
+          configPath: resolvedPath,
+          exactFix: diagnosticLines(
+            'Fix the invalid config entries so the file matches the tnmsc schema.'
+          ),
+          possibleFixes: [
+            diagnosticLines(
+              `If the error is under "plugins", only use supported keys: ${getSupportedPluginConfigKeysMessage()}`
+            )
+          ],
+          details: {
+            errorMessage
+          }
+        }))
+      } else {
+        this.logger.error(buildFileOperationDiagnostic({
+          code: 'CONFIG_FILE_LOAD_FAILED',
+          title: 'Failed to load config file',
+          operation: 'read',
+          targetKind: 'config file',
+          path: resolvedPath,
+          error
+        }))
+      }
+
+      throw error instanceof Error ? error : new Error(errorMessage)
     }
   }
 

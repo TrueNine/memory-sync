@@ -38,8 +38,18 @@ updates:
         patterns:
           - '*'
 
+  # This repo uses a shared pnpm workspace lockfile plus `catalog:` versions.
+  # Keep npm updates in a single workspace-level Dependabot entry so manifests
+  # resolve against the same root context instead of as isolated packages.
   - package-ecosystem: npm
-    directory: /
+    directories:
+      - /
+      - /cli
+      - /sdk
+      - /mcp
+      - /gui
+      - /doc
+      - /libraries/*
     target-branch: dev
     schedule:
       interval: weekly
@@ -51,142 +61,6 @@ updates:
       - dependencies
       - javascript
     groups:
-      npm-root:
-        patterns:
-          - '*'
-
-  - package-ecosystem: npm
-    directory: /cli
-    target-branch: dev
-    schedule:
-      interval: weekly
-      day: monday
-      time: '09:00'
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - javascript
-    groups:
-      npm-cli:
-        patterns:
-          - '*'
-
-  - package-ecosystem: npm
-    directory: /sdk
-    target-branch: dev
-    schedule:
-      interval: weekly
-      day: monday
-      time: '09:00'
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - javascript
-    groups:
-      npm-sdk:
-        patterns:
-          - '*'
-
-  - package-ecosystem: npm
-    directory: /mcp
-    target-branch: dev
-    schedule:
-      interval: weekly
-      day: monday
-      time: '09:00'
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - javascript
-    groups:
-      npm-mcp:
-        patterns:
-          - '*'
-
-  - package-ecosystem: npm
-    directory: /gui
-    target-branch: dev
-    schedule:
-      interval: weekly
-      day: monday
-      time: '09:00'
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - javascript
-    groups:
-      npm-gui:
-        patterns:
-          - '*'
-
-  - package-ecosystem: npm
-    directory: /doc
-    target-branch: dev
-    schedule:
-      interval: weekly
-      day: monday
-      time: '09:00'
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - javascript
-    groups:
-      npm-doc:
-        patterns:
-          - '*'
-
-  - package-ecosystem: npm
-    directory: /libraries/logger
-    target-branch: dev
-    schedule:
-      interval: weekly
-      day: monday
-      time: '09:00'
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - javascript
-    groups:
-      npm-logger:
-        patterns:
-          - '*'
-
-  - package-ecosystem: npm
-    directory: /libraries/md-compiler
-    target-branch: dev
-    schedule:
-      interval: weekly
-      day: monday
-      time: '09:00'
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - javascript
-    groups:
-      npm-md-compiler:
-        patterns:
-          - '*'
-
-  - package-ecosystem: npm
-    directory: /libraries/script-runtime
-    target-branch: dev
-    schedule:
-      interval: weekly
-      day: monday
-      time: '09:00'
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - javascript
-    groups:
-      npm-script-runtime:
+      npm-workspace:
         patterns:
           - '*'
