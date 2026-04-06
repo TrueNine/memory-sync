@@ -1,42 +1,42 @@
 ---
-title: CLI Commands
-description: Summarizes the commands and behavior currently exposed by tnmsc --help.
-sidebarTitle: CLI Commands
+title: CLI 命令
+description: 汇总 `tnmsc --help` 当前暴露的命令及其行为。
+sidebarTitle: CLI 命令
 status: stable
 ---
 
-# CLI Commands
+# CLI 命令
 
-The commands currently exposed by `tnmsc --help` are:
+`tnmsc --help` 当前暴露的命令如下：
 
-| Command | Description |
+| 命令 | 说明 |
 | --- | --- |
-| `tnmsc` | Run the default sync pipeline |
-| `tnmsc help` | Show help |
-| `tnmsc version` | Show the version |
-| `tnmsc dry-run` | Preview the files that would be written |
-| `tnmsc clean` | Delete generated outputs and continue cleaning empty directories from the project source tree |
-| `tnmsc clean --dry-run` | Preview what would be cleaned, including empty directories that would be swept afterward |
+| `tnmsc` | 运行默认同步流水线 |
+| `tnmsc help` | 显示帮助 |
+| `tnmsc version` | 显示版本 |
+| `tnmsc dry-run` | 预览将要写入的文件 |
+| `tnmsc clean` | 删除生成输出，并继续清理项目源码树中的空目录 |
+| `tnmsc clean --dry-run` | 预览将被清理的内容，包括后续会一并移除的空目录 |
 
-## Key Takeaways
+## 关键信息
 
-### Global Config Is File-Based
+### 全局配置基于文件
 
-The global user config lives at `~/.aindex/.tnmsc.json`. Edit that file directly. The authoritative field list and fixed aindex layout now live in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
+全局用户配置位于 `~/.aindex/.tnmsc.json`。请直接编辑该文件。权威字段列表和固定的 aindex 布局现在统一说明在 [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config)。
 
-That includes the newer `codeStyles` block for lightweight user code-style preferences such as `indent` and `tabSize`.
+其中也包括较新的 `codeStyles` 配置块，用于保存 `indent`、`tabSize` 这类轻量级用户代码风格偏好。
 
-### `logLevel` Is Also Strictly Enumerated
+### `logLevel` 也有严格枚举值
 
-It can only be:
+它只能取以下值：
 
 ```text
 trace / debug / info / warn / error
 ```
 
-## Recommended Habits
+## 推荐习惯
 
-1. Run `tnmsc help` first in a new environment.
-2. Run `tnmsc dry-run` before writing outputs.
-3. Run `tnmsc clean --dry-run` before cleanup.
-4. If you need to change global config, edit `~/.aindex/.tnmsc.json` and keep only supported user-facing fields.
+1. 在新环境里先运行 `tnmsc help`。
+2. 在写出输出前先运行 `tnmsc dry-run`。
+3. 在执行清理前先运行 `tnmsc clean --dry-run`。
+4. 如果需要修改全局配置，编辑 `~/.aindex/.tnmsc.json`，并只保留受支持的用户侧字段。

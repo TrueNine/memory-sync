@@ -1,34 +1,34 @@
 ---
-title: Single Source of Truth
-description: Explains the relationship between .src.mdx, source directories, and target-tool outputs, and why output files should not be maintained as the source of truth.
-sidebarTitle: Single Source of Truth
+title: 单一事实来源
+description: 解释 .src.mdx、源目录和目标工具输出之间的关系，以及为什么不应将输出文件保留为事实来源。
+sidebarTitle: 单一事实来源
 status: stable
 ---
 
-# Single Source of Truth
+# 单一事实来源
 
-The key premise of `memory-sync` is this: the source of truth should be the input assets you maintain, not the derived files consumed by target tools.
+`memory-sync` 的核心前提是：事实来源应该是你维护的输入资产，而不是目标工具消费的派生文件。
 
-## What Is Usually Source of Truth
+## 通常什么是事实来源
 
-- Global prompts
-- Workspace prompts
+- 全局 prompts
+- 工作区 prompts
 - `skills/`
 - `commands/`
 - `subagents/`
 - `rules/`
 
-## What Usually Is Not
+## 通常什么不是
 
-- Native config destinations for different tools
-- Exported dist content
-- Desktop-layer display state
-- Data returned by MCP reads
+- 不同工具的原生配置落点
+- 导出的 dist 内容
+- 桌面层显示状态
+- MCP 读取返回的数据
 
-## Why Output Files Cannot Be the Source of Truth
+## 为什么输出文件不能成为事实来源
 
-Because output files naturally carry the path, naming, formatting, and capability constraints of their target tools. Once you treat those as the source of truth, migration cost and cleanup complexity both rise sharply.
+因为输出文件天然带着目标工具的路径、命名、格式和能力约束。一旦把这些当作事实来源，迁移成本和清理复杂度都会迅速上升。
 
-## Practical Meaning
+## 实际意义
 
-When behavior needs to change, modify the source-of-truth inputs and config first instead of hot-fixing a derived file inside a target-tool directory.
+当行为需要变化时，应该先修改事实来源输入和配置，而不是在目标工具目录里热修派生文件。

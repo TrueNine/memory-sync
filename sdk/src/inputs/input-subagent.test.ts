@@ -257,8 +257,7 @@ describe('subagent input plugin', () => {
       expect(debugPayloads.some(payload =>
         typeof payload === 'object'
         && payload !== null
-        && 'agents' in payload
-      )).toBe(false)
+        && 'agents' in payload)).toBe(false)
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

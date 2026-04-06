@@ -1,30 +1,30 @@
 ---
 title: Front Matter
-description: Explains the difference between the frontMatter config option and content frontmatter in the current system.
+description: 说明当前系统里 `frontMatter` 配置项与内容 frontmatter 之间的区别。
 sidebarTitle: Front Matter
 status: stable
 ---
 
 # Front Matter
 
-Start by separating two different layers of front matter.
+先把两种不同层级的 front matter 区分开。
 
-## 1. A Docs Page's Own Frontmatter
+## 1. 文档页面自身的 Frontmatter
 
-Each MDX page in this docs site currently requires at least:
+这个文档站点中的每个 MDX 页面目前至少需要：
 
 - `title`
 - `description`
 
-Optional fields include:
+可选字段包括：
 
 - `sidebarTitle`
 - `status`
 - `keywords`
 
-## 2. The Sync System's `frontMatter` Config
+## 2. 同步系统中的 `frontMatter` 配置
 
-The `frontMatter` block currently exposes only one field:
+`frontMatter` 配置块目前只暴露一个字段：
 
 ```json
 {
@@ -34,27 +34,27 @@ The `frontMatter` block currently exposes only one field:
 }
 ```
 
-Its job is not to describe the page itself. It controls whether a blank line is preserved after front matter during output.
+它的职责不是描述页面本身，而是控制输出时是否在 front matter 后保留一个空行。
 
-If you are looking for lightweight personal indentation preferences such as `tabSize` or `indent`, that is now the separate `codeStyles` block in `~/.aindex/.tnmsc.json`, not `frontMatter`.
+如果你要找的是 `tabSize`、`indent` 这类轻量级个人缩进偏好，那么它们现在位于 `~/.aindex/.tnmsc.json` 中独立的 `codeStyles` 配置块，而不是 `frontMatter`。
 
-## 3. Source-Content Frontmatter
+## 3. 源内容的 Frontmatter
 
-Different input types also store description, trigger conditions, tool constraints, and similar fields in their own source-file frontmatter. Multiple output plugins consume those fields to map target metadata.
+不同输入类型也会在各自源文件的 frontmatter 中保存 description、触发条件、工具约束等字段。多个输出插件会读取这些字段来映射目标元数据。
 
-There is one important exception:
+这里有一个重要例外：
 
-- `skills` no longer read `name` from frontmatter and instead use the skill directory name directly
-- `subagents` no longer read `name` from frontmatter and instead derive the name from the relative path
-- If an older `name` field still exists, it is ignored and a warning is emitted
+- `skills` 不再从 frontmatter 读取 `name`，而是直接使用 skill 目录名
+- `subagents` 不再从 frontmatter 读取 `name`，而是改为从相对路径推导名称
+- 如果旧的 `name` 字段仍然存在，它会被忽略，并发出警告
 
-See [Technical Details](/docs/technical-details) for the boundary between those input types.
+这些输入类型之间的边界可参见[技术细节](/docs/technical-details)。
 
-## Summary
+## 总结
 
-- Docs frontmatter is for the docs site
-- The `frontMatter` config is for output behavior
-- `codeStyles` is the separate config block for lightweight code-style preferences such as indentation
-- Source-content frontmatter is for the sync system and output plugins, but `skills` and `subagents` now take their names from the path rather than `name`
+- Docs frontmatter 用于文档站点本身
+- `frontMatter` 配置用于控制输出行为
+- `codeStyles` 是单独的配置块，用于保存缩进等轻量级代码风格偏好
+- 源内容 frontmatter 用于同步系统和输出插件，但 `skills` 与 `subagents` 现在从路径而不是 `name` 获取名称
 
-These are three different concerns.
+这三者关注的是完全不同的问题。

@@ -1,30 +1,30 @@
 ---
 title: CLI
-description: Organizes installation, project setup, sync workflow, configuration fields, and troubleshooting around the tnmsc command surface.
-sidebarTitle: Overview
+description: 围绕 tnmsc 命令面组织安装、项目准备、同步流程、配置字段与故障排查内容。
+sidebarTitle: 概览
 status: stable
 ---
 
 # CLI
 
-This section is organized around the public `tnmsc` command surface. Questions such as how to install, how to prepare a project, how to run sync, or what a configuration field really means should start here first.
+这一部分围绕公开的 `tnmsc` 命令面展开。像“怎么安装”“怎么准备项目”“怎么运行 sync”以及“某个配置字段到底是什么意思”这类问题，都应该先从这里开始。
 
-## What This Section Covers
+## 本节包含什么
 
-- [Installation and Requirements](/docs/cli/install): confirm the Node, pnpm, Rust, and higher GUI development-engine boundaries.
-- [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config): prepare the source directories, the config file, and the path mapping from one page.
-- [Workspace and aindex](/docs/cli/workspace-setup): understand the remaining workspace-side separation from `plugin.config.ts`.
-- [First Sync](/docs/cli/first-sync): run `help`, `dry-run`, and the real write flow in the recommended order.
-- [CLI Commands](/docs/cli/cli-commands): check the command surface currently exposed by `tnmsc --help`.
-- [dry-run and clean](/docs/cli/dry-run-and-clean): preview first, write second, clean last.
-- [plugin.config.ts](/docs/cli/plugin-config) and [JSON Schema](/docs/cli/schema): verify runtime assembly and the current `.tnmsc.json` field surface.
-- [Front Matter](/docs/cli/frontmatter): understand what the `frontMatter` block does and what it does not do.
-- [Output Scopes](/docs/cli/output-scopes) and [Cleanup Protection](/docs/cli/cleanup-protection): migrate away from removed legacy config blocks.
-- [Supported Outputs](/docs/cli/supported-outputs), [Troubleshooting](/docs/cli/troubleshooting), and [Upgrade Notes](/docs/cli/upgrade-notes): handle day-to-day usage and version migration.
+- [安装与要求](/docs/cli/install)：确认 Node、pnpm、Rust，以及更高版本 GUI 开发引擎的边界。
+- [aindex 与 `.tnmsc.json`](/docs/quick-guide/aindex-and-config)：在一个页面里准备源目录、配置文件和路径映射。
+- [工作区与 aindex](/docs/cli/workspace-setup)：理解工作区侧剩余职责与 `plugin.config.ts` 的分工。
+- [第一次同步](/docs/cli/first-sync)：按推荐顺序运行 `help`、`dry-run` 和真实写入流程。
+- [CLI 命令](/docs/cli/cli-commands)：查看 `tnmsc --help` 当前暴露的命令面。
+- [dry-run 与 clean](/docs/cli/dry-run-and-clean)：先预览，再写入，最后再清理。
+- [plugin.config.ts](/docs/cli/plugin-config) 与 [JSON Schema](/docs/cli/schema)：核对运行时装配方式和当前 `.tnmsc.json` 字段面。
+- [Front Matter](/docs/cli/frontmatter)：理解 `frontMatter` 块能做什么、不能做什么。
+- [输出范围](/docs/cli/output-scopes) 与 [清理保护](/docs/cli/cleanup-protection)：从已删除的旧配置块迁移出来。
+- [支持的输出](/docs/cli/supported-outputs)、[故障排查](/docs/cli/troubleshooting) 与 [升级说明](/docs/cli/upgrade-notes)：处理日常使用和版本迁移。
 
-## Recommended Order
+## 推荐阅读顺序
 
-1. Start with [Installation and Requirements](/docs/cli/install).
-2. Continue with [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
-3. Then use [First Sync](/docs/cli/first-sync) to complete one real run.
-4. When you need to verify facts, come back to [CLI Commands](/docs/cli/cli-commands) and [JSON Schema](/docs/cli/schema).
+1. 先看[安装与要求](/docs/cli/install)。
+2. 接着看 [aindex 与 `.tnmsc.json`](/docs/quick-guide/aindex-and-config)。
+3. 然后按[第一次同步](/docs/cli/first-sync)完成一次真实运行。
+4. 需要核对事实时，再回来看 [CLI 命令](/docs/cli/cli-commands) 和 [JSON Schema](/docs/cli/schema)。

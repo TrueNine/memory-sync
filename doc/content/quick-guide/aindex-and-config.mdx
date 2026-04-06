@@ -1,34 +1,34 @@
 ---
-title: aindex and .tnmsc.json
-description: Explains where `.aindex` lives, how `~/.aindex/.tnmsc.json` is loaded, which fields are active today, and which legacy fields should be removed.
-sidebarTitle: aindex and Config
+title: aindex 与 .tnmsc.json
+description: 说明 `.aindex` 位于哪里、`~/.aindex/.tnmsc.json` 如何加载、当前哪些字段仍然有效，以及哪些遗留字段应该删除。
+sidebarTitle: aindex 与配置
 status: stable
 ---
 
-# aindex and `.tnmsc.json`
+# aindex 与 `.tnmsc.json`
 
-If you only need one page for project setup and config, use this one.
+如果你只想用一页搞清项目准备和配置，就看这一页。
 
-## Two Things to Separate
+## 需要分开的两件事
 
-`memory-sync` treats these as different layers:
+`memory-sync` 把下面两项视为不同层：
 
-- The source-content tree under your workspace aindex directory
-- The canonical global user config file at `~/.aindex/.tnmsc.json`
+- 工作区 aindex 目录下的源内容树
+- 位于 `~/.aindex/.tnmsc.json` 的规范全局用户配置文件
 
-They are related, but they are not the same thing.
+它们彼此相关，但不是同一回事。
 
-## What Lives Where
+## 各自放在哪里
 
-### Workspace content
+### 工作区内容
 
-The aindex content tree lives under:
+aindex 内容树位于：
 
 ```text
 <workspaceDir>/aindex
 ```
 
-This is where source content usually lives:
+这里通常放这些源内容：
 
 - `skills/`
 - `commands/`
@@ -41,32 +41,32 @@ This is where source content usually lives:
 - `global.src.mdx`
 - `workspace.src.mdx`
 
-### User config
+### 用户配置
 
-The only user config file that `tnmsc` auto-loads today is:
+当前 `tnmsc` 唯一会自动加载的用户配置文件是：
 
 ```text
 ~/.aindex/.tnmsc.json
 ```
 
-The current loader does not auto-discover `./.tnmsc.json` from the current project directory.
+当前加载器不会从当前项目目录自动发现 `./.tnmsc.json`。
 
-## Minimal setup
+## 最小准备
 
-At minimum you need:
+至少需要：
 
-- A project root directory
-- An aindex-style source tree
+- 一个项目根目录
+- 一棵符合 aindex 约定的源内容树
 - `~/.aindex/.tnmsc.json`
-- A project-level [plugin.config.ts](/docs/cli/plugin-config)
+- 一个项目级的 [plugin.config.ts](/docs/cli/plugin-config)
 
-The separation is intentional:
+这种拆分是有意为之：
 
-- `~/.aindex/.tnmsc.json` stores user or machine-level config data
-- `plugin.config.ts` stores project-side plugin assembly and programmatic overrides
-- `~/.aindex/.tnmsc.json` also decides which assembled output plugins are actually allowed to write
+- `~/.aindex/.tnmsc.json` 存放用户级或机器级配置数据
+- `plugin.config.ts` 存放项目侧的插件装配和程序化覆盖
+- `~/.aindex/.tnmsc.json` 还决定哪些已装配的输出插件真正被允许写入
 
-## Minimal example
+## 最小示例
 
 ```json
 {
@@ -74,30 +74,30 @@ The separation is intentional:
 }
 ```
 
-With that config:
+在这份配置下：
 
-- the workspace root is `/repo/demo`
-- the aindex root is `/repo/demo/aindex`
-- `skills` resolves to `/repo/demo/aindex/skills`
-- the default global prompt source resolves to `/repo/demo/aindex/global.src.mdx`
-- `logLevel` falls back to `info` unless you set it explicitly
+- 工作区根目录是 `/repo/demo`
+- aindex 根目录是 `/repo/demo/aindex`
+- `skills` 解析为 `/repo/demo/aindex/skills`
+- 默认的全局 prompt 源文件解析为 `/repo/demo/aindex/global.src.mdx`
+- 除非你显式设置，否则 `logLevel` 会回退到 `info`
 
-## Stable top-level fields in `~/.aindex/.tnmsc.json`
+## `~/.aindex/.tnmsc.json` 中稳定的顶层字段
 
-These are the user-facing fields the current runtime actually consumes from the global config file:
+这些是当前运行时真正会从全局配置文件中消费的用户侧字段：
 
-| Field | Type | Default | Meaning |
+| 字段 | 类型 | 默认值 | 含义 |
 | --- | --- | --- | --- |
-| `version` | `string` | `"0.0.0"` in merged runtime options | Version or release marker passed through the runtime |
-| `workspaceDir` | `string` | omitted in config; resolved from the runtime working directory when not supplied | Workspace root directory, typically under `~/workspace/` |
+| `version` | `string` | 合并后运行时选项中的 `"0.0.0"` | 透传给运行时的版本或发布标记 |
+| `workspaceDir` | `string` | 配置里可省略；未提供时从运行时工作目录推导 | 工作区根目录，通常位于 `~/workspace/` 下 |
 | `logLevel` | enum | `info` | `trace` / `debug` / `info` / `warn` / `error` |
-| `frontMatter` | `object` | `{ "blankLineAfter": true }` | Front matter formatting behavior |
-| `codeStyles` | `object` | `{ "indent": "space", "tabSize": 2 }` in merged runtime options | User code style preferences exposed to prompt evaluation |
-| `windows` | `object` | `{}` | Windows and WSL-specific runtime options |
-| `profile` | `object` | omitted | User profile metadata |
-| `plugins` | `object` | `{}` in merged runtime options | Explicit per-plugin output enablement overrides |
+| `frontMatter` | `object` | `{ "blankLineAfter": true }` | Front matter 的格式化行为 |
+| `codeStyles` | `object` | 合并后运行时选项中的 `{ "indent": "space", "tabSize": 2 }` | 暴露给 prompt 求值的用户代码风格偏好 |
+| `windows` | `object` | `{}` | Windows 和 WSL 专用运行时选项 |
+| `profile` | `object` | 省略 | 用户资料元数据 |
+| `plugins` | `object` | 合并后运行时选项中的 `{}` | 每个插件输出启用状态的显式覆盖 |
 
-Everything under the workspace aindex tree keeps a fixed name and fixed relative location. The structure is:
+工作区 aindex 树下的所有内容都保持固定名称和固定相对位置。结构如下：
 
 ```text
 <workspaceDir>/
@@ -125,7 +125,7 @@ Everything under the workspace aindex tree keeps a fixed name and fixed relative
       workspace.mdx
 ```
 
-None of the fixed paths inside that tree are user-configurable in `~/.aindex/.tnmsc.json`.
+这棵树里的固定路径都不能通过 `~/.aindex/.tnmsc.json` 进行用户配置。
 
 ### `frontMatter`
 
@@ -137,7 +137,7 @@ None of the fixed paths inside that tree are user-configurable in `~/.aindex/.tn
 }
 ```
 
-See [Front Matter](/docs/cli/frontmatter) for the formatting distinction.
+格式差异请参见 [Front Matter](/docs/cli/frontmatter)。
 
 ### `codeStyles`
 
@@ -150,16 +150,16 @@ See [Front Matter](/docs/cli/frontmatter) for the formatting distinction.
 }
 ```
 
-| Field | Type | Meaning |
+| 字段 | 类型 | 含义 |
 | --- | --- | --- |
-| `codeStyles.indent` | `"tab" \| "space"` | Preferred indentation style |
-| `codeStyles.tabSize` | `integer` | Preferred indentation width |
+| `codeStyles.indent` | `"tab" \| "space"` | 首选缩进方式 |
+| `codeStyles.tabSize` | `integer` | 首选缩进宽度 |
 
-Additional keys are also accepted so you can keep a few lightweight personal style preferences together in one place.
+也接受额外键，这样你可以把一些轻量的个人风格偏好放在同一个地方。
 
-The block itself is optional. When you omit it, the runtime still injects `codeStyles.indent = "space"` and `codeStyles.tabSize = 2`.
+这个区块本身是可选的。即使你省略它，运行时仍会注入 `codeStyles.indent = "space"` 和 `codeStyles.tabSize = 2`。
 
-When prompts are compiled, these values are available in MDX expressions such as `{codeStyles.indent}` and `{codeStyles.tabSize}`.
+编译 prompts 时，这些值可在 MDX 表达式中使用，例如 `{codeStyles.indent}` 和 `{codeStyles.tabSize}`。
 
 ### `windows`
 
@@ -173,24 +173,24 @@ When prompts are compiled, these values are available in MDX expressions such as
 }
 ```
 
-| Field | Type | Meaning |
+| 字段 | 类型 | 含义 |
 | --- | --- | --- |
-| `windows.wsl2.instances` | `string \| string[]` | WSL instance name or names used by Windows-specific integration |
+| `windows.wsl2.instances` | `string \| string[]` | Windows 专用集成所使用的 WSL 实例名称 |
 
 ### `profile`
 
-`profile` is an open object. The schema explicitly recognizes these optional fields:
+`profile` 是一个开放对象。schema 明确识别这些可选字段：
 
 - `name`
 - `username`
 - `gender`
 - `birthday`
 
-Additional keys are also accepted.
+也接受额外键。
 
 ## `plugins`
 
-The current runtime also recognizes a `plugins` block:
+当前运行时也识别 `plugins` 区块：
 
 ```json
 {
@@ -202,18 +202,18 @@ The current runtime also recognizes a `plugins` block:
 }
 ```
 
-Each key accepts only a boolean:
+每个键只接受布尔值：
 
-- `true`: allow that assembled plugin to emit outputs
-- `false`: suppress output generation for that plugin, while still keeping cleanup behavior
+- `true`：允许该已装配插件产出输出
+- `false`：禁止该插件生成输出，但仍保留清理行为
 
-If `plugins` contains any unsupported key, `tnmsc` now treats that as a hard config error:
+如果 `plugins` 含有任何不受支持的键，`tnmsc` 现在会把它视为硬性配置错误：
 
-- it logs which key is unsupported
-- it prints the supported key list
-- it exits instead of silently ignoring the bad entry
+- 它会记录哪个键不受支持
+- 它会打印受支持键的列表
+- 它会直接退出，而不是静默忽略这个错误项
 
-Known keys are:
+已知键包括：
 
 - `agentsMd`
 - `claudeCode`
@@ -235,24 +235,24 @@ Known keys are:
 - `windsurf`
 - `zed`
 
-Current built-in default behavior is:
+当前内建默认行为是：
 
-- `git` is enabled by default
-- `readme` is enabled by default
-- the other known plugin keys are disabled by default until you explicitly turn them on
+- `git` 默认启用
+- `readme` 默认启用
+- 其他已知插件键默认禁用，直到你显式开启
 
-Use `plugins.readme` for both README-like outputs and `.editorconfig`.
+`plugins.readme` 同时控制 README 类输出和 `.editorconfig`。
 
-Use `plugins.git`, not `plugins.gitExclude`.
+请使用 `plugins.git`，不要使用 `plugins.gitExclude`。
 
-This block controls actual output emission. The project-level [plugin.config.ts](/docs/cli/plugin-config) still assembles the available plugin set, but assembly alone does not mean the plugin will write files.
+这个区块控制的是实际输出行为。项目级的 [plugin.config.ts](/docs/cli/plugin-config) 仍然负责装配可用插件集合，但仅仅完成装配并不代表该插件一定会写文件。
 
 > **Warning**
-> Some targets such as `.codex/`, `.claude/`, or other tool config directories must be real directories. If a same-name file is sitting in that path, tnmsc treats it as a directory/file-type conflict that would block output generation.
+> 某些目标路径，例如 `.codex/`、`.claude/` 或其他工具配置目录，必须是真实目录。如果同名文件占据了该路径，tnmsc 会把它视为目录/文件类型冲突，并阻止输出生成。
 >
-> The intent of this recovery path is to avoid that conflict and let sync continue. The current runtime choice is to warn, delete the blocking file, and recreate the expected directory structure automatically.
+> 这个恢复路径的目标是避免冲突并让同步继续。当前运行时的做法是给出警告、删除阻塞文件，并自动重建预期的目录结构。
 
-Example of an invalid config:
+无效配置示例：
 
 ```json
 {
@@ -264,23 +264,23 @@ Example of an invalid config:
 }
 ```
 
-That config fails because `foo` is not a supported key.
+这份配置会失败，因为 `foo` 不是受支持的键。
 
-## Removed legacy fields
+## 已移除的遗留字段
 
-Do not put these back into new `~/.aindex/.tnmsc.json` files:
+不要把这些字段重新放回新的 `~/.aindex/.tnmsc.json` 文件：
 
 - `agents`
-- `aindex`, `dir`, and the old `*.src` / `*.dist` path-pair overrides such as `skills`, `commands`, `subAgents`, `rules`, `globalPrompt`, `workspacePrompt`, `app`, `ext`, `arch`, and `softwares`
+- `aindex`、`dir`，以及旧的 `*.src` / `*.dist` 路径对覆盖项，例如 `skills`、`commands`、`subAgents`、`rules`、`globalPrompt`、`workspacePrompt`、`app`、`ext`、`arch` 和 `softwares`
 - `commandSeriesOptions`
 - `outputScopes`
 - `cleanupProtection`
-- Older experimental or pre-consolidation fields such as `fastCommandSeriesOptions`, `externalProjects`, `excludePatterns`, and `shadowSourceProject`
+- 更早期的实验性或 consolidation 之前的字段，例如 `fastCommandSeriesOptions`、`externalProjects`、`excludePatterns` 和 `shadowSourceProject`
 
-Some compatibility layers may still parse or warn on those keys during migration, but they are no longer part of the supported user-facing config surface.
+某些兼容层在迁移期间可能仍会解析这些键或给出警告，但它们已经不再属于受支持的用户侧配置界面。
 
-## What to read next
+## 接下来读什么
 
-- If you want the command workflow, continue with [First Sync](/docs/cli/first-sync)
-- If you need plugin assembly, read [plugin.config.ts](/docs/cli/plugin-config)
-- If you need cleanup or output-boundary behavior, continue with [CLI](/docs/cli)
+- 如果你想了解命令工作流，继续看[第一次同步](/docs/cli/first-sync)
+- 如果你需要插件装配说明，阅读 [plugin.config.ts](/docs/cli/plugin-config)
+- 如果你需要清理或输出边界行为，继续看 [CLI](/docs/cli)

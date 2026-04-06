@@ -433,9 +433,9 @@ function logNativeCleanupErrors(
   logger: ILogger,
   errors: readonly NativeCleanupError[]
 ): {
-    readonly errors: readonly {path: string, type: 'file' | 'directory', error: string}[]
-    readonly recoveredBlockingFiles: readonly string[]
-  } {
+  readonly errors: readonly {path: string, type: 'file' | 'directory', error: string}[]
+  readonly recoveredBlockingFiles: readonly string[]
+} {
   const unresolvedErrors: {path: string, type: 'file' | 'directory', error: string}[] = []
   const recoveredBlockingFiles: string[] = []
 
@@ -444,8 +444,7 @@ function logNativeCleanupErrors(
 
     if (recoveredBlockingFiles.some(blockingPath =>
       currentError.path === blockingPath
-      || currentError.path.startsWith(`${blockingPath}${path.sep}`)
-    )) {
+      || currentError.path.startsWith(`${blockingPath}${path.sep}`))) {
       continue
     }
 

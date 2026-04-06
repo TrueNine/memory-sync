@@ -1,26 +1,26 @@
 ---
-title: Libraries
-description: Summarizes the responsibilities and exposed surfaces of the Rust-first / NAPI-first foundational libraries currently under libraries/.
-sidebarTitle: Libraries
+title: 基础库
+description: 总结当前 `libraries/` 下这些 Rust-first / NAPI-first 基础库的职责和暴露面。
+sidebarTitle: 基础库
 status: stable
 ---
 
-# Libraries
+# 基础库
 
-`libraries/` is the directory for Rust-first / NAPI-first foundational libraries. The main visible libraries right now are:
+`libraries/` 是 Rust-first / NAPI-first 基础库所在的目录。目前最主要的几个库是：
 
 - `logger`
 - `md-compiler`
 - `script-runtime`
 
-## Rough Responsibility of Each One
+## 各自的大致职责
 
-| Library | Role |
+| 库 | 角色 |
 | --- | --- |
-| `logger` | Logging capability with Rust implementation plus TypeScript-facing APIs and NAPI artifacts |
-| `md-compiler` | MDX / Markdown compilation and transformation capability |
-| `script-runtime` | Foundational script-runtime capability consumed by higher-level assembly |
+| `logger` | 以 Rust 实现日志能力，同时暴露 TypeScript API 和 NAPI 制品 |
+| `md-compiler` | 提供 MDX / Markdown 编译与转换能力 |
+| `script-runtime` | 被更高层装配消费的基础 script-runtime 能力 |
 
-## Why They Deserve Their Own Section
+## 为什么它们值得单独成节
 
-These libraries are not "extra documentation material." They are evidence that the repository keeps pushing core capability down into shared infrastructure. CLI, MCP, and GUI should all reuse them rather than duplicating their own versions of the same logic.
+这些库不是“额外的文档材料”，而是仓库持续把核心能力下沉进共享基础设施的证据。CLI、MCP 和 GUI 都应该复用它们，而不是各自复制一份相同逻辑。

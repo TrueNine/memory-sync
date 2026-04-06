@@ -1,46 +1,46 @@
 ---
-title: Global and Workspace Prompts
-description: Explains the path responsibilities and usage boundaries of globalPrompt and workspacePrompt.
-sidebarTitle: Global and Workspace Prompts
+title: 全局与工作区 Prompts
+description: 说明 globalPrompt 与 workspacePrompt 的路径职责和使用边界。
+sidebarTitle: 全局与工作区 Prompts
 status: stable
 ---
 
-# Global and Workspace Prompts
+# 全局与工作区 Prompts
 
-## Default Paths
+## 默认路径
 
-In the current default configuration, these two source files are:
+在当前默认配置下，这两个源文件分别是：
 
 ```text
 global.src.mdx
 workspace.src.mdx
 ```
 
-Their default output targets are:
+它们的默认输出目标是：
 
 ```text
 dist/global.mdx
 dist/workspace.mdx
 ```
 
-## How They Differ
+## 它们的区别
 
-- `globalPrompt` is for long-lived cross-project memory, such as personal work style, stable preferences, and constraints shared across repositories.
-- `workspacePrompt` is for the current project context, such as project rules, architecture limits, stack boundaries, and delivery constraints.
+- `globalPrompt` 用于长期、跨项目的记忆，比如个人工作风格、稳定偏好，以及跨仓库共享的约束。
+- `workspacePrompt` 用于当前项目上下文，比如项目规则、架构限制、技术栈边界和交付约束。
 
-## When Not to Put Content into global
+## 什么内容不该放进 global
 
-If the content clearly depends on a repository's:
+如果内容明显依赖某个仓库的：
 
-- directory structure
-- domain vocabulary
-- delivery boundary
-- team constraints
+- 目录结构
+- 领域词汇
+- 交付边界
+- 团队约束
 
-then it does not belong in `globalPrompt`. Otherwise you are just spreading project-specific noise into every future target.
+那它就不属于 `globalPrompt`。否则，你只是把项目特有噪音扩散到未来所有目标里。
 
-## Writing Principles
+## 写作原则
 
-1. If something can live in a workspace prompt, do not rush to put it in global.
-2. Do not hardcode target-tool-specific paths or formats into the source of truth.
-3. If a block of content is really a reusable card, prefer extracting it into a skill or rule instead of growing the prompt into a wall of text.
+1. 如果内容可以放在 workspace prompt，就不要急着塞进 global。
+2. 不要把目标工具特有的路径或格式硬编码进事实来源。
+3. 如果某一块内容本质上是可复用卡片，更适合抽成 skill 或 rule，而不是把 prompt 堆成一堵文字墙。

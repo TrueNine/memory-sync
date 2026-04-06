@@ -1,32 +1,32 @@
 ---
 title: JSON Schema
-description: Summarizes the stable `.tnmsc.json` config surface and the compatibility notes you should keep in mind when reading tnmsc.schema.json.
+description: 汇总稳定的 `.tnmsc.json` 配置表面，以及阅读 `tnmsc.schema.json` 时需要注意的兼容性说明。
 sidebarTitle: JSON Schema
 status: stable
 ---
 
 # JSON Schema
 
-The `.aindex` and `.tnmsc.json` setup details are now centralized in [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
+`.aindex` 和 `.tnmsc.json` 的配置细节现在统一收敛在 [aindex 与 `.tnmsc.json`](/docs/quick-guide/aindex-and-config)。
 
-The generated `tnmsc.schema.json` is currently more permissive than the small stable runtime config surface. For authoring new `~/.aindex/.tnmsc.json` files, use the stable fields below and treat older compatibility keys as legacy.
+当前生成的 `tnmsc.schema.json` 比稳定且精简的运行时配置表面更宽松。编写新的 `~/.aindex/.tnmsc.json` 时，请使用下列稳定字段，并把旧兼容键视为遗留项。
 
-## Stable runtime fields
+## 稳定运行时字段
 
-| Field | Type | Meaning |
+| 字段 | 类型 | 含义 |
 | --- | --- | --- |
-| `version` | `string` | version marker passed through the runtime |
-| `workspaceDir` | `string` | workspace root |
+| `version` | `string` | 贯穿运行时的版本标记 |
+| `workspaceDir` | `string` | 工作区根目录 |
 | `logLevel` | enum | `trace` / `debug` / `info` / `warn` / `error` |
-| `frontMatter` | `object` | front matter output-formatting options |
-| `codeStyles` | `object` | lightweight user code style preferences |
-| `windows` | `object` | Windows and WSL integration options |
-| `profile` | `object` | open user-profile object |
-| `plugins` | `object` | explicit per-plugin output enablement overrides |
+| `frontMatter` | `object` | front matter 输出格式选项 |
+| `codeStyles` | `object` | 轻量级用户代码风格偏好 |
+| `windows` | `object` | Windows 与 WSL 集成选项 |
+| `profile` | `object` | 开放式用户 profile 对象 |
+| `plugins` | `object` | 按插件显式覆写输出启用状态 |
 
 ## `frontMatter`
 
-The `frontMatter` block currently exposes one field:
+`frontMatter` 配置块目前只暴露一个字段：
 
 ```json
 {
@@ -36,7 +36,7 @@ The `frontMatter` block currently exposes one field:
 }
 ```
 
-See [Front Matter](/docs/cli/frontmatter) for the distinction.
+具体区别可参见 [Front Matter](/docs/cli/frontmatter)。
 
 ## `codeStyles`
 
@@ -49,14 +49,14 @@ See [Front Matter](/docs/cli/frontmatter) for the distinction.
 }
 ```
 
-| Field | Type | Meaning |
+| 字段 | 类型 | 含义 |
 | --- | --- | --- |
-| `codeStyles.indent` | `"tab" \| "space"` | preferred indentation style |
-| `codeStyles.tabSize` | `integer` | preferred indentation width |
+| `codeStyles.indent` | `"tab" \| "space"` | 偏好的缩进风格 |
+| `codeStyles.tabSize` | `integer` | 偏好的缩进宽度 |
 
-Additional keys are currently accepted so the block can hold a few more simple personal style preferences without forcing a schema change for every tiny addition.
+当前也接受额外键，这样这个配置块就能容纳更多简单的个人风格偏好，而不必为每一个小增量都修改 schema。
 
-The block itself is optional. When it is omitted, the merged runtime defaults still resolve to `indent = "space"` and `tabSize = 2`.
+这个配置块本身是可选的。若省略，合并后的运行时默认值仍会解析为 `indent = "space"` 和 `tabSize = 2`。
 
 ## `windows`
 
@@ -70,24 +70,24 @@ The block itself is optional. When it is omitted, the merged runtime defaults st
 }
 ```
 
-| Field | Type | Meaning |
+| 字段 | 类型 | 含义 |
 | --- | --- | --- |
-| `windows.wsl2.instances` | `string \| string[]` | WSL instance name or names used by Windows-specific integration |
+| `windows.wsl2.instances` | `string \| string[]` | Windows 特定集成中使用的 WSL 实例名 |
 
 ## `profile`
 
-`profile` is an open object. The schema explicitly recognizes these optional fields:
+`profile` 是一个开放对象。schema 目前显式识别以下可选字段：
 
 - `name`
 - `username`
 - `gender`
 - `birthday`
 
-Additional keys are also accepted.
+也接受额外键。
 
 ## `plugins`
 
-The current TypeScript schema also recognizes:
+当前 TypeScript schema 还识别如下写法：
 
 ```json
 {
@@ -99,14 +99,14 @@ The current TypeScript schema also recognizes:
 }
 ```
 
-Each plugin key accepts only:
+每个插件键只接受：
 
 - `true`
 - `false`
 
-Unknown keys are not ignored anymore. If `plugins` contains an unsupported key, `tnmsc` logs a config validation error, shows the supported key list, and exits.
+未知键现在不会再被忽略。如果 `plugins` 包含不受支持的键，`tnmsc` 会记录配置校验错误、显示受支持键列表，并直接退出。
 
-Known keys are:
+已知键包括：
 
 - `agentsMd`
 - `claudeCode`
@@ -128,20 +128,20 @@ Known keys are:
 - `windsurf`
 - `zed`
 
-When `plugins` is omitted, the current built-in default keeps `git` and `readme` enabled. The other known plugin keys stay off until you explicitly set them to `true`.
+当省略 `plugins` 时，当前内建默认行为会保持 `git` 和 `readme` 启用。其他已知插件键会保持关闭，直到你显式把它们设为 `true`。
 
-Use `plugins.readme` for both README-like outputs and `.editorconfig`.
+`plugins.readme` 同时用于 README 类输出和 `.editorconfig`。
 
-Use `plugins.git`, not `plugins.gitExclude`.
+请使用 `plugins.git`，而不是 `plugins.gitExclude`。
 
-This block is the direct output gate. A plugin may still appear in [plugin.config.ts](/docs/cli/plugin-config) as an assembled integration target, but it will not emit files unless its enablement resolves to `true`.
+这个配置块就是直接的输出闸门。某个插件即使出现在 [plugin.config.ts](/docs/cli/plugin-config) 里，作为已装配的集成目标存在，只要它的启用状态没有解析为 `true`，它就不会输出文件。
 
 > **Warning**
-> Output plugins often write into tool-owned directories such as `.codex/` or `.claude/`. If a same-name file already exists where tnmsc needs a directory, that is treated as a conflict because the directory tree cannot be created normally.
+> 输出插件经常会写入 `.codex/`、`.claude/` 这类由工具接管的目录。如果 tnmsc 需要创建目录的位置上已经存在一个同名文件，这会被视为冲突，因为目录树无法正常创建。
 >
-> The runtime keeps moving by design: it warns, removes the blocking file, and then recreates the required directory path so the sync can finish.
+> 当前运行时的设计是继续向前推进：它会先发出警告，删除阻塞文件，然后重建所需目录路径，以便同步可以完成。
 
-For example, this now fails validation:
+例如，下面这段配置现在会校验失败：
 
 ```json
 {
@@ -153,17 +153,17 @@ For example, this now fails validation:
 }
 ```
 
-`foo` is rejected because it is not one of the supported plugin keys listed above.
+`foo` 会被拒绝，因为它不在上面列出的受支持插件键之中。
 
-## Legacy compatibility keys
+## 遗留兼容键
 
-Do not treat these as part of the supported user-facing config surface anymore:
+不要再把下面这些键视为受支持的用户侧配置表面的一部分：
 
 - `agents`
 - `commandSeriesOptions`
 - `outputScopes`
 - `cleanupProtection`
-- `aindex`, `dir`, and the old `*.src` / `*.dist` path overrides
-- Older migration-era fields such as `fastCommandSeriesOptions`, `externalProjects`, `excludePatterns`, and `shadowSourceProject`
+- `aindex`、`dir`，以及旧的 `*.src` / `*.dist` 路径覆盖
+- 更早迁移时期的字段，如 `fastCommandSeriesOptions`、`externalProjects`、`excludePatterns` 和 `shadowSourceProject`
 
-If you still see those keys in older examples or transitional schema output, treat them as compatibility leftovers and remove them from new configs.
+如果你仍然在旧示例或过渡期 schema 输出中看到这些键，请把它们视为兼容性残留，并从新配置中移除。

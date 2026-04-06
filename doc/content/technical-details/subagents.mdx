@@ -1,45 +1,45 @@
 ---
-title: Sub-agents
-description: Explains the role of sub-agents as input assets in memory-sync and the naming constraints around them.
-sidebarTitle: Sub-agents
+title: 子代理
+description: 说明 subagents 作为 memory-sync 输入资产时所承担的角色，以及它们的命名约束。
+sidebarTitle: 子代理
 status: stable
 ---
 
-# Sub-agents
+# 子代理
 
-## The Role of Sub-agents
+## 子代理的角色
 
-Sub-agents split complex work into more specialized roles and boundaries. They are not copies of a normal prompt. They are closer to constrained specialist execution units.
+Subagents 会把复杂工作拆成更专门的角色和边界。它们不是普通 prompt 的拷贝，而更接近受约束的专家执行单元。
 
-## Current Path Convention
+## 当前路径约定
 
-Default input path:
+默认输入路径：
 
 ```text
 subagents/
 ```
 
-Default output path:
+默认输出路径：
 
 ```text
 dist/subagents/
 ```
 
-## Why Naming Matters
+## 为什么命名很重要
 
-`tnmsc` now derives the sub-agent name from its relative path by default:
+`tnmsc` 现在默认从相对路径派生 subagent 名称：
 
 - `subagents/reviewer.src.mdx` -> `reviewer`
 - `subagents/qa/boot.src.mdx` -> `qa-boot`
 
-That means:
+这意味着：
 
-- You do not need to put `name` in frontmatter
-- If you do add `name`, sync ignores it and emits a warning
-- If you want to change the sub-agent name, rename the directory or filename
+- 你不需要在 frontmatter 里写 `name`
+- 如果你写了 `name`，sync 会忽略它并发出警告
+- 如果你想改 subagent 名称，就去重命名目录或文件名
 
-## When It Should Be a Sub-agent Instead of a Skill
+## 什么时候它应该是子代理，而不是 Skill
 
-- You need a long-lived role with a clear responsibility boundary.
-- That role needs its own description of inputs, behavior constraints, and output shape.
-- It is not just a method for doing one thing. It is an agent configuration for owning a class of work.
+- 你需要一个长期存在、职责边界明确的角色。
+- 这个角色需要自己的输入描述、行为约束和输出形状。
+- 它不是“做某一件事的方法”，而是“负责某一类工作的 agent 配置”。

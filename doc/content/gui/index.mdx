@@ -1,43 +1,43 @@
 ---
 title: GUI
-description: Explains the responsibilities and boundaries of the Tauri desktop layer, and how it relates to sdk, the tnmsc crate, and the CLI.
-sidebarTitle: Overview
+description: 说明 Tauri 桌面层的职责与边界，以及它与 sdk、tnmsc crate 和 CLI 的关系。
+sidebarTitle: 概览
 status: stable
 ---
 
 # GUI
 
 > [!danger]
-> The GUI is not the primary maintenance target right now. The CLI is the main focus.
+> GUI 目前不是主要维护目标，当前重点仍然是 CLI。
 >
-> If the GUI feels under-maintained, please excuse that. The team is small, and I may not actively maintain the GUI for a while.
+> 如果你觉得 GUI 维护力度不足，还请见谅。团队规模很小，我可能会有一段时间无法积极维护 GUI。
 >
-> I expect to come back and continue maintaining the GUI after the core functionality is more complete.
+> 等核心功能更完整之后，我预计会回来继续维护 GUI。
 
-`gui/` is the desktop invocation layer built with Tauri and React. Its job is not to become the center of the system architecture. Its job is to turn the configuration editing, execution, display, and log inspection exposed by the `tnmsc` crate in `sdk/` into a desktop workflow.
+`gui/` 是基于 Tauri 和 React 构建的桌面调用层。它的职责不是变成系统架构的中心，而是把 `sdk/` 中 `tnmsc` crate 暴露出来的配置编辑、执行、展示和日志检查能力组织成桌面工作流。
 
-## What This Layer Owns
+## 这一层负责什么
 
-- Trigger sync, `dry-run`, and cleanup
-- Edit or display config
-- Browse files, plugin results, and logs
-- Provide a page-based desktop workflow
+- 触发 sync、`dry-run` 和 cleanup
+- 编辑或展示 config
+- 浏览文件、plugin 结果和日志
+- 提供基于页面的桌面工作流
 
-## What This Layer Does Not Own
+## 这一层不负责什么
 
-- It does not reimplement the sync core
-- It does not re-derive CLI rules in the frontend
-- It does not change the long-term Rust-first / NAPI-first direction
+- 它不会重新实现 sync core
+- 它不会在前端重新推导一套 CLI 规则
+- 它不会改变长期坚持的 Rust-first / NAPI-first 方向
 
-## Version Boundary
+## 版本边界
 
-`gui/package.json` currently requires higher development engines than the root workspace:
+`gui/package.json` 当前要求的开发环境版本高于根 workspace：
 
 - `node >= 25.2.1`
 - `pnpm >= 10.28.0`
 - `rust >= 1.93.1`
 
-## Recommended Reading
+## 推荐阅读
 
-- [Workflows and Pages](/docs/gui/workflows-and-pages): see the current navigation, main pages, and desktop workflow
-- [Technical Details / Architecture Boundaries](/docs/technical-details/architecture): understand why the GUI is an invocation layer rather than the core
+- [工作流与页面](/docs/gui/workflows-and-pages)：查看当前导航、主要页面和桌面工作流
+- [技术细节 / 架构边界](/docs/technical-details/architecture)：理解为什么 GUI 是调用层而不是核心层

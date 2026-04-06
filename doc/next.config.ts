@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs'
 import type {NextConfig} from 'next'
 import nextra from 'nextra'
 
@@ -42,7 +43,26 @@ const LEGACY_DOC_REDIRECTS = [
   }
 ] as const
 
+const DOC_PACKAGE_JSON_PATH = new URL('./package.json', import.meta.url)
+
+function readDocsVersion() {
+  const packageJson = JSON.parse(readFileSync(DOC_PACKAGE_JSON_PATH, 'utf8')) as {
+    version?: string
+  }
+
+  if (packageJson.version == null || packageJson.version === '') {
+    throw new Error('Unable to resolve docs version from doc/package.json')
+  }
+
+  return packageJson.version
+}
+
+const docsVersion = readDocsVersion()
+
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_MEMORY_SYNC_VERSION: docsVersion
+  },
   reactStrictMode: true,
   pageExtensions: ['tsx', 'ts', 'mdx'],
   async redirects() {

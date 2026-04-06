@@ -1,15 +1,15 @@
 ---
-title: Workflows and Pages
-description: Summarizes the current GUI navigation, main pages, and the desktop surfaces directly tied to the sync flow.
-sidebarTitle: Workflows and Pages
+title: 工作流与页面
+description: 总结当前 GUI 的导航、主要页面，以及与同步流程直接关联的桌面界面。
+sidebarTitle: 工作流与页面
 status: stable
 ---
 
-# Workflows and Pages
+# 工作流与页面
 
-## Current Main Navigation
+## 当前主导航
 
-`gui/src/components/Sidebar.tsx` currently registers these navigation items:
+`gui/src/components/Sidebar.tsx` 当前注册了这些导航项：
 
 - Dashboard
 - Pipeline
@@ -19,20 +19,20 @@ status: stable
 - Logs
 - Settings
 
-## What These Pages Mean
+## 这些页面分别表示什么
 
-- Dashboard: stats, quick actions, and a supported-tools overview
-- Pipeline: run sync and `dry-run`, then inspect plugin results and errors
-- Config: view or edit configuration
-- Plugins / Files / Logs: plugin results, file views, and log inspection
-- Settings: desktop-side preferences and settings
+- Dashboard：统计信息、快捷操作，以及受支持工具概览
+- Pipeline：运行 sync 和 `dry-run`，然后检查 plugin 结果与错误
+- Config：查看或编辑配置
+- Plugins / Files / Logs：plugin 结果、文件视图和日志检查
+- Settings：桌面端偏好设置与配置项
 
-## Relationship to the CLI
+## 与 CLI 的关系
 
-The desktop pages do not define a separate set of sync rules. They primarily call the lower-level capability through the bridge layer and turn command-style flows into page-style workflows.
+桌面页面并不会定义另一套独立的 sync 规则。它们主要是通过 bridge layer 调用更底层的能力，并把命令式流程转换成页面式工作流。
 
-That is why you should still return to the CLI docs first when these questions come up:
+所以当你遇到下面这些问题时，仍然应该优先回到 CLI 文档：
 
-- Has the command surface changed? See [CLI Commands](/docs/cli/cli-commands)
-- Is the output scope correct? See [Output Scopes](/docs/cli/output-scopes)
-- Is the cleanup boundary safe? See [Cleanup Protection](/docs/cli/cleanup-protection)
+- 命令表层是否发生变化？参见 [CLI 命令](/docs/cli/cli-commands)
+- 输出范围是否正确？参见 [输出范围](/docs/cli/output-scopes)
+- cleanup 边界是否安全？参见 [清理保护](/docs/cli/cleanup-protection)

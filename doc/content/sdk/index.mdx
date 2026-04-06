@@ -1,56 +1,56 @@
 ---
 title: SDK
-description: Explains the responsibilities, boundaries, consumers, and public-identity strategy of sdk/ as the private mixed core.
-sidebarTitle: Overview
+description: 说明作为私有混合核心的 sdk/ 所承担的职责、边界、消费者，以及公共标识策略。
+sidebarTitle: 概览
 status: stable
 ---
 
 # SDK
 
-`sdk/` is the private mixed core in the current repository and the single entrypoint for shared internal capability. It is not a standalone npm package meant for direct external installation. It is the source-of-truth layer created by pulling the old core implementation out of `cli/`.
+`sdk/` 是当前仓库中的私有混合核心，也是共享内部能力的唯一入口。它不是一个供外部直接安装的独立 npm 包。它是将旧核心实现从 `cli/` 中抽离出来后形成的事实来源层。
 
-## What This Layer Owns
+## 这一层负责什么
 
-- It contains the private npm package `@truenine/memory-sync-sdk`
-- It contains the actual workspace path for the Rust crate `tnmsc`
-- It owns the TypeScript sync pipeline, prompt service, schema generation, and `plugin-runtime`
-- It owns the Rust library, NAPI build, Node bridge runtime, and embedded runtime logic
-- It is the default dependency point for `mcp/`, `gui/`, and future internal consumers
+- 它包含私有 npm 包 `@truenine/memory-sync-sdk`
+- 它包含 Rust crate `tnmsc` 的实际 workspace 路径
+- 它负责 TypeScript 同步流水线、prompt service、schema 生成和 `plugin-runtime`
+- 它负责 Rust library、NAPI 构建、Node bridge runtime，以及嵌入式 runtime 逻辑
+- 它是 `mcp/`、`gui/` 以及未来内部消费者的默认依赖入口
 
-## What This Layer Does Not Own
+## 这一层不负责什么
 
-- It does not directly own the public npm CLI release entrypoint
-- It does not own distribution identity for platform shim packages such as `@truenine/memory-sync-cli-<suffix>`
-- It does not push shared internal APIs back into `cli/` as a second source of truth
+- 它不直接负责公共 npm CLI 的发布入口
+- 它不负责 `@truenine/memory-sync-cli-<suffix>` 这类平台 shim 包的分发标识
+- 它不会把共享内部 API 再塞回 `cli/`，从而形成第二个事实来源
 
-## Public Identities That Stay the Same
+## 保持不变的公共标识
 
-This layering change did not alter these public identities:
+这次分层调整没有改变下面这些公共标识：
 
-- The CLI binary is still `tnmsc`
-- The public npm CLI package is still `@truenine/memory-sync-cli`
-- The public platform package is still `@truenine/memory-sync-cli-<suffix>`
-- The Rust crate name is still `tnmsc`
+- CLI 二进制仍然是 `tnmsc`
+- 公共 npm CLI 包仍然是 `@truenine/memory-sync-cli`
+- 公共平台包仍然是 `@truenine/memory-sync-cli-<suffix>`
+- Rust crate 名称仍然是 `tnmsc`
 
-What changed was path and ownership, not the external identities themselves.
+变化的是路径和归属关系，而不是这些对外标识本身。
 
-## Consumer Direction
+## 消费者依赖方向
 
-| Consumer | Dependency Style |
+| 消费者 | 依赖方式 |
 | --- | --- |
-| `cli/` | A shell and compatibility layer that thinly wraps capability exported from `sdk/` |
-| `mcp/` | Imports the prompt service directly from `@truenine/memory-sync-sdk` |
-| `gui/src-tauri` | Continues to depend on the crate `tnmsc`, whose actual path now lives under `sdk/` |
+| `cli/` | 一个对 `sdk/` 导出能力做轻量封装的 shell 和兼容层 |
+| `mcp/` | 直接从 `@truenine/memory-sync-sdk` 导入 prompt service |
+| `gui/src-tauri` | 继续依赖 crate `tnmsc`，其实际路径现在位于 `sdk/` 下 |
 
-## Boundary Rules
+## 边界规则
 
-- New internal repo code should no longer treat `cli/` as the default shared API entrypoint
-- `cli/` keeps only the command entrypoint, compatibility exports, and release packaging duties
-- When you need to explain implementation boundaries, start with `sdk/` before looking at `cli/`, `mcp/`, or `gui/`
+- 仓库中的新内部代码不应再把 `cli/` 视为默认的共享 API 入口
+- `cli/` 只保留命令入口、兼容导出和发布打包职责
+- 当你需要说明实现边界时，应先从 `sdk/` 开始，再看 `cli/`、`mcp/` 或 `gui/`
 
-## Recommended Reading
+## 推荐阅读
 
-- [Technical Details / Architecture Boundaries](/docs/technical-details/architecture): see the full layering of `sdk/`, `cli/`, `mcp/`, and `gui/`
-- [CLI](/docs/cli): see the public command entrypoint, installation path, and compatibility-facing release surface
-- [MCP](/docs/mcp): see how the `sdk` prompt service is consumed by the stdio server
-- [GUI](/docs/gui): see how the desktop layer calls the `tnmsc` crate in `sdk/`
+- [技术细节 / 架构边界](/docs/technical-details/architecture)：查看 `sdk/`、`cli/`、`mcp/` 和 `gui/` 的完整分层
+- [CLI](/docs/cli)：查看公共命令入口、安装路径以及面向兼容性的发布表层
+- [MCP](/docs/mcp)：查看 stdio server 如何消费 `sdk` 的 prompt service
+- [GUI](/docs/gui)：查看桌面层如何调用 `sdk/` 中的 `tnmsc` crate

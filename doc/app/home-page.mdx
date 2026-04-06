@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import {HomeContributors} from '../components/home-contributors'
+import {HomeVersionNote} from '../components/home-version-note'
 import {
   capabilityCards,
   heroProofPoints,
@@ -30,6 +31,7 @@ import {
       <div className="home-hero-lead">
         {siteConfig.productName} is a high-performance, Rust-first pipeline that synchronizes prompts, rules, and workspace memory into native tool configurations.
       </div>
+      <HomeVersionNote />
 
       <div className="home-actions">
         <Link href="/docs/quick-guide" className="hero-button hero-button-primary">

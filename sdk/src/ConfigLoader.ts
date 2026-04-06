@@ -14,8 +14,8 @@ import {
   buildConfigDiagnostic,
   buildFileOperationDiagnostic,
   diagnosticLines,
-  toErrorMessage,
-  splitDiagnosticText
+  splitDiagnosticText,
+  toErrorMessage
 } from './diagnostics'
 import {
   getSupportedPluginConfigKeysMessage,

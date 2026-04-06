@@ -1,73 +1,73 @@
 ---
-title: Quick Guide
-description: Decide whether to enter the memory-sync docs through CLI, GUI, or MCP using the shortest path.
-sidebarTitle: Overview
+title: 快速指南
+description: 用最短路径判断应从 CLI、GUI 还是 MCP 进入 memory-sync 文档。
+sidebarTitle: 概览
 status: stable
 keywords:
   - memory-sync
-  - quick guide
-  - onboarding
+  - 快速指南
+  - 上手
 ---
 
-# Quick Guide
+# 快速指南
 
-This section does not dive into implementation details. It answers one question only: which path should you read first to get to a working state as quickly as possible?
+这一部分不深入实现细节，只回答一个问题：为了尽快进入可用状态，你应该先读哪条路径？
 
-## Architecture at a Glance
+## 架构一览
 
 ```mermaid
 flowchart LR;
-  Author["Source Author"] --> CLI["CLI Terminal Entry"];
-  Author --> GUI["GUI Desktop Workflow Entry"];
+  Author["源内容作者"] --> CLI["CLI 终端入口"];
+  Author --> GUI["GUI 桌面工作流入口"];
   Author --> Host["MCP Host"];
-  CLI --> SDK["sdk private mixed core"];
+  CLI --> SDK["sdk 私有混合核心"];
   GUI --> SDK;
-  Host --> MCP["mcp stdio server"];
+  Host --> MCP["mcp stdio 服务端"];
   MCP --> SDK;
-  SDK --> Outputs["Native Outputs for Target Tools"];
+  SDK --> Outputs["面向目标工具的原生输出"];
 ```
 
-This diagram highlights the current dependency direction only: `sdk/` is the single core layer, and `cli/`, `gui/`, and `mcp/` all work around it instead of maintaining parallel sources of truth.
+这张图只强调当前的依赖方向：`sdk/` 是唯一的核心层，`cli/`、`gui/` 和 `mcp/` 都围绕它工作，而不是各自维护平行的事实来源。
 
-## Decide Your Goal First
+## 先确定你的目标
 
-| Your Goal | Where to Go | Why |
+| 你的目标 | 去哪里 | 原因 |
 | --- | --- | --- |
-| Sync prompts, rules, skills, commands, or project memory from a terminal | [CLI](/docs/cli) | The real command surface, schema, output scopes, and cleanup boundaries are all verified there. |
-| Edit config, trigger execution, and inspect logs from the desktop app | [GUI](/docs/gui) | `gui/` owns the desktop workflow, but execution still depends on the `tnmsc` crate in `sdk/`. |
-| Connect `memory-sync-mcp` to an MCP-capable host | [MCP](/docs/mcp) | That section focuses on the stdio server, the tool list, and `workspaceDir` semantics. |
-| Understand the repo architecture before using anything | [SDK](/docs/sdk) and [Technical Details](/docs/technical-details) | The first explains the mixed-core boundary, and the second explains the source-of-truth model and the sync pipeline. |
+| 在终端里同步 prompts、rules、skills、commands 或 project memory | [CLI](/docs/cli) | 真实的命令界面、schema、输出范围和清理边界都在那里核实。 |
+| 在桌面应用里编辑配置、触发执行并查看日志 | [GUI](/docs/gui) | `gui/` 负责桌面工作流，但执行仍依赖 `sdk/` 中的 `tnmsc` crate。 |
+| 把 `memory-sync-mcp` 连接到支持 MCP 的宿主 | [MCP](/docs/mcp) | 这一部分重点说明 stdio 服务端、工具列表和 `workspaceDir` 语义。 |
+| 在使用任何东西之前先理解仓库架构 | [SDK](/docs/sdk) 和 [技术细节](/docs/technical-details) | 前者解释混合核心边界，后者解释事实来源模型和同步流水线。 |
 
-## Quick Install
+## 快速安装
 
-If you want to install the command first and decide between CLI, GUI, and MCP later, go straight to [Quick Install](/docs/quick-guide/quick-install).
+如果你想先把命令装好，之后再决定使用 CLI、GUI 还是 MCP，直接去看 [快速安装](/docs/quick-guide/quick-install)。
 
-## Config Setup in One Page
+## 一页看完配置准备
 
-If you need the real setup and config facts for `.aindex` and `~/.aindex/.tnmsc.json`, use [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config). That page now collects the setup path, config location, supported user fields, and fixed aindex layout in one place.
+如果你需要了解 `.aindex` 和 `~/.aindex/.tnmsc.json` 的真实准备方式与配置事实，请看 [aindex 与 `.tnmsc.json`](/docs/quick-guide/aindex-and-config)。这页把准备路径、配置位置、当前支持的用户字段和固定的 aindex 布局都汇总在一起。
 
-## Shortest Starting Paths
+## 最短起步路径
 
-### If You Start with CLI
+### 如果你从 CLI 开始
 
-1. Read [Installation and Requirements](/docs/cli/install).
-2. Continue with [aindex and `.tnmsc.json`](/docs/quick-guide/aindex-and-config).
-3. Then use [First Sync](/docs/cli/first-sync) to run through the real flow once.
+1. 阅读 [安装与要求](/docs/cli/install)。
+2. 接着看 [aindex 与 `.tnmsc.json`](/docs/quick-guide/aindex-and-config)。
+3. 然后使用 [第一次同步](/docs/cli/first-sync) 实际跑通一次完整流程。
 
-### If You Start with GUI
+### 如果你从 GUI 开始
 
-1. Read the [GUI Overview](/docs/gui).
-2. Continue with [Workflows and Pages](/docs/gui/workflows-and-pages).
-3. When command behavior, output scopes, or cleanup boundaries matter, go back to [CLI](/docs/cli) for the authoritative details.
+1. 阅读 [GUI 概览](/docs/gui)。
+2. 接着看 [工作流与页面](/docs/gui/workflows-and-pages)。
+3. 当你需要理解命令行为、输出范围或清理边界时，再回到 [CLI](/docs/cli) 查看权威说明。
 
-### If You Start with MCP
+### 如果你从 MCP 开始
 
-1. Read the [MCP Overview](/docs/mcp).
-2. Continue with [Server and Tools](/docs/mcp/server-tools).
-3. If you need project setup, schema details, or output boundaries, go back to [CLI](/docs/cli).
+1. 阅读 [MCP 概览](/docs/mcp)。
+2. 接着看 [服务端与工具](/docs/mcp/server-tools)。
+3. 如果你需要项目准备、schema 细节或输出边界，就回到 [CLI](/docs/cli)。
 
-## Three Things to Remember Before You Dive In
+## 开始前要记住的三件事
 
-- `sdk/` is the internal mixed core of the repo. `cli/`, `mcp/`, and `gui/` are consumers, not parallel sources of truth.
-- The public docs follow the current repository. If old pages, the README, and the code disagree, trust the actual directories, command surface, and schema.
-- If you are unsure where to begin, use this page to branch first instead of opening implementation details at random.
+- `sdk/` 是仓库内部的混合核心。`cli/`、`mcp/` 和 `gui/` 都是消费方，不是平行的事实来源。
+- 公共文档以当前仓库为准。如果旧页面、README 和代码彼此不一致，请相信真实目录、命令界面和 schema。
+- 如果你不确定从哪里开始，先用这页分流，不要随机打开实现细节。

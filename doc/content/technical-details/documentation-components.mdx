@@ -1,158 +1,158 @@
 ---
-title: Documentation Components
-description: Provides reusable capability matrices, system support tables, platform cards, and command-reference components for MDX.
-sidebarTitle: Documentation Components
+title: 文档组件
+description: 为 MDX 提供可复用的能力矩阵、系统支持表、平台卡片和命令参考组件。
+sidebarTitle: 文档组件
 status: stable
 ---
 
-# Documentation Components
+# 文档组件
 
-`doc/` can now use a shared set of documentation components directly inside MDX instead of hand-writing large Markdown tables. They are registered globally through `doc/mdx-components.tsx`, so any `.mdx` page can use the JSX tags directly.
+`doc/` 现在可以直接在 MDX 里使用一组共享文档组件，而不用手写大段 Markdown 表格。它们通过 `doc/mdx-components.tsx` 全局注册，所以任何 `.mdx` 页面都能直接使用这些 JSX 标签。
 
-## 1. Multi-Tool Capability Matrix
+## 1. 多工具能力矩阵
 
 <FeatureMatrix
-  title="memory-sync Capability Matrix"
-  description="Useful when you want one table that shows what the CLI, MCP, GUI, and docs site each own."
+  title="memory-sync 能力矩阵"
+  description="当你想用一张表展示 CLI、MCP、GUI 和文档站分别负责什么时，这个组件会很有用。"
   items={[
     {
       tool: "CLI",
-      summary: "User entrypoint responsible for sync and cleanup execution.",
+      summary: "负责 sync 与 clean 执行的用户入口。",
       status: "stable",
-      capabilities: ["Run the default sync pipeline", "Support dry-run / clean / config", "Expose the npm and crate entrypoint"],
+      capabilities: ["运行默认 sync 流水线", "支持 dry-run / clean / config", "暴露 npm 与 crate 入口"],
       surfaces: ["tnmsc", "pnpm -C cli exec node dist/index.mjs --help"],
-      notes: "The real execution entrypoint for users is still the CLI, not the docs site or the GUI.",
+      notes: "对用户来说，真正的执行入口仍然是 CLI，而不是文档站或 GUI。",
     },
     {
       tool: "MCP Server",
-      summary: "Exposes prompt-management capability externally.",
-      status: { label: "Stable API", tone: "stable" },
-      capabilities: ["List prompts", "Read source / dist", "Update zh/en source", "Write translation artifacts"],
-      surfaces: ["memory-sync-mcp stdio server", "MCP client integration"],
-      notes: "It reuses the CLI-side prompt service and should not invent a separate schema.",
+      summary: "向外暴露 prompt 管理能力。",
+      status: { label: "稳定 API", tone: "stable" },
+      capabilities: ["列出 prompts", "读取 source / dist", "更新 zh/en source", "写回翻译产物"],
+      surfaces: ["memory-sync-mcp stdio server", "MCP 客户端集成"],
+      notes: "它复用 CLI 侧 prompt service，不应该再发明另一套 schema。",
     },
     {
       tool: "GUI",
-      summary: "Desktop invocation and presentation layer.",
+      summary: "桌面调用与呈现层。",
       status: "beta",
-      capabilities: ["Call the tnmsc crate", "Host the desktop workflow", "Show project status and action pages"],
-      surfaces: ["Tauri desktop shell", "React frontend"],
-      notes: "The GUI owns invocation and presentation and should not drive domain design back from the frontend.",
+      capabilities: ["调用 tnmsc crate", "承载桌面工作流", "展示项目状态与操作页"],
+      surfaces: ["Tauri 桌面壳", "React 前端"],
+      notes: "GUI 负责调用与呈现，但不应反向从前端驱动领域设计。",
     },
   ]}
 />
 
-## 2. Multi-System Support Matrix
+## 2. 多系统支持矩阵
 
 <SupportMatrix
-  title="System Support Table"
-  description="Useful when you need to describe platform support levels and the differences between them."
+  title="系统支持表"
+  description="当你需要描述平台支持级别以及它们之间的差异时，这个组件很好用。"
   items={[
     {
       system: "Windows",
       support: "full",
-      coverage: ["CLI workflows", "Docs-site development", "Tauri desktop development"],
-      notes: "This is the most important platform for the current user base, so command examples should prioritize it.",
+      coverage: ["CLI 工作流", "文档站开发", "Tauri 桌面开发"],
+      notes: "这是当前用户群最重要的平台，所以命令示例应该优先照顾它。",
     },
     {
       system: "macOS",
       support: "partial",
-      coverage: ["CLI workflows", "Docs-site development"],
-      notes: "Supported in principle, but desktop packaging and signing need separate verification.",
+      coverage: ["CLI 工作流", "文档站开发"],
+      notes: "原则上支持，但桌面打包与签名仍需要单独验证。",
     },
     {
       system: "Linux",
       support: "partial",
-      coverage: ["CLI workflows", "Docs-site development", "Some desktop scenarios"],
-      notes: "A good fit for CI and dev machines, but desktop distribution depends on distro differences.",
+      coverage: ["CLI 工作流", "文档站开发", "部分桌面场景"],
+      notes: "很适合 CI 和开发机，但桌面分发仍受发行版差异影响。",
     },
     {
       system: "WSL",
-      support: { label: "Recommended", tone: "stable" },
-      coverage: ["Node / pnpm / Rust development", "Cross-filesystem collaboration on Windows"],
-      notes: "The repository is already a strong fit for WSL-based maintenance.",
+      support: { label: "推荐", tone: "stable" },
+      coverage: ["Node / pnpm / Rust 开发", "Windows 上的跨文件系统协作"],
+      notes: "这个仓库已经非常适合基于 WSL 的维护方式。",
     },
   ]}
 />
 
-## 3. Platform Cards
+## 3. 平台卡片
 
 <PlatformGrid
-  title="Platform Overview"
-  description="Useful on home and install pages when you want fast platform positioning instead of a cold support table."
+  title="平台概览"
+  description="当你想在首页或安装页快速表达平台定位，而不是摆一张冷冰冰的支持表时，这个组件很有用。"
   items={[
     {
       name: "Windows",
       family: "Desktop",
       support: "full",
-      description: "Primary desktop environment for users, and a good place to explain WSL, PowerShell, and the Tauri GUI together.",
+      description: "用户的主要桌面环境，也是同时说明 WSL、PowerShell 和 Tauri GUI 的好地方。",
       highlights: [
-        "Prioritize installation and upgrade guidance",
-        "A good place to show both GUI and CLI entrypoints",
-        "Screenshots and command examples are most valuable here",
+        "优先提供安装与升级指引",
+        "适合同时展示 GUI 和 CLI 两个入口",
+        "截图与命令示例在这里价值最高",
       ],
     },
     {
       name: "macOS",
       family: "Desktop",
       support: "partial",
-      description: "A common developer environment and a good place to document Homebrew, codesign, and desktop integration details.",
+      description: "常见的开发环境，也适合记录 Homebrew、codesign 和桌面集成细节。",
       highlights: [
-        "Emphasize developer experience",
-        "Handle signing and distribution separately",
-        "Avoid Windows-specific path assumptions in command examples",
+        "强调开发者体验",
+        "把签名和分发问题单独处理",
+        "命令示例里避免写死 Windows 特有路径假设",
       ],
     },
     {
       name: "Linux",
       family: "Desktop / CI",
       support: "partial",
-      description: "Better suited for automation, CI, and local development guidance.",
-      highlights: ["A good place for CI and build commands", "Call out distro differences clearly", "Explain desktop distribution per package format"],
+      description: "更适合自动化、CI 和本地开发说明。",
+      highlights: ["适合放 CI 与构建命令", "明确指出发行版差异", "按打包格式解释桌面分发"],
     },
   ]}
 />
 
-## 4. Tech-Stack Command Reference
+## 4. 技术栈命令参考
 
 <CommandReference
-  title="Tech-Stack Command Table"
-  description="You can append rows without changing component structure. It works well for pnpm, cargo, Tauri, and docs-site commands."
+  title="技术栈命令表"
+  description="你可以在不改组件结构的前提下继续追加行。它很适合列 pnpm、cargo、Tauri 和文档站命令。"
   items={[
     {
       stack: "pnpm workspace",
-      task: "Install dependencies",
+      task: "安装依赖",
       command: "pnpm install",
       runtime: "Node.js 22+",
-      notes: "All workspaces start from the repository root.",
+      notes: "所有 workspace 都从仓库根目录启动。",
     },
     {
       stack: "docs / Next.js",
-      task: "Run the docs site locally",
+      task: "本地运行文档站",
       command: "pnpm -C doc dev",
       runtime: "Node.js 22+",
-      notes: "Useful when previewing MDX content and components together.",
+      notes: "适合一起预览 MDX 内容和组件。",
     },
     {
       stack: "docs / Next.js",
-      task: "Type-check",
+      task: "类型检查",
       command: ["pnpm -C doc run validate:content", "pnpm -C doc run check:type"],
       runtime: "Node.js 22+",
-      notes: "Run this after changing MDX, frontmatter, or docs components.",
+      notes: "修改 MDX、frontmatter 或文档组件后，优先跑这个。",
     },
     {
       stack: "Rust workspace",
-      task: "Run tests",
+      task: "运行测试",
       command: "cargo test --workspace",
       runtime: "Rust 1.88+",
-      notes: "Useful for checking whether changes affected the Rust-first side.",
+      notes: "适合检查变更是否影响了 Rust-first 这一侧。",
     },
   ]}
 />
 
-## 5. Package-Manager Install Tabs
+## 5. 包管理器安装标签
 
-`PackageManagerTabs` works well on install pages so you do not hardcode only one `npm` example. It uses a shared component to switch between `npm`, `pnpm`, and `yarn`.
+`PackageManagerTabs` 很适合安装页，这样你就不用硬编码单一的 `npm` 示例。它通过共享组件在 `npm`、`pnpm` 和 `yarn` 之间切换。
 
 <PackageManagerTabs
   commands={{
@@ -162,9 +162,9 @@ status: stable
   }}
 />
 
-## Usage
+## 用法
 
-Write this directly in any MDX page:
+把下面这类代码直接写进任意 MDX 页面即可：
 
 ```tsx
 <FeatureMatrix items={[{tool: 'CLI', capabilities: ['sync'], surfaces: ['tnmsc']}]}/>
@@ -174,9 +174,9 @@ Write this directly in any MDX page:
 <PackageManagerTabs commands={{npm: 'npm install -g pkg', pnpm: 'pnpm add -g pkg', yarn: 'yarn global add pkg'}}/>
 ```
 
-If you extend this system later, keep moving in this direction instead of falling back to scattered raw Markdown tables:
+如果你以后继续扩展这套系统，建议继续沿着这个方向走，而不是退回到零散的原始 Markdown 表格：
 
-- Reuse `FeatureMatrix`, `SupportMatrix`, and `CommandReference` for tabular information
-- Reuse `PlatformGrid` for presentation-heavy content
-- Reuse `PackageManagerTabs` for installation command switches
-- Add new card or comparison components only when you truly need a freer layout
+- 对表格型信息复用 `FeatureMatrix`、`SupportMatrix` 和 `CommandReference`
+- 对展示型内容复用 `PlatformGrid`
+- 对安装命令切换复用 `PackageManagerTabs`
+- 只有在你真的需要更自由布局时，再新增卡片类或对比类组件

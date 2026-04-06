@@ -1,29 +1,29 @@
 ---
-title: Technical Details
-description: Explains architecture boundaries, the sync pipeline, the source-of-truth model, and the implementation role of each input asset.
-sidebarTitle: Overview
+title: 技术细节
+description: 说明架构边界、同步流水线、事实来源模型，以及每类输入资产在实现中的角色。
+sidebarTitle: 概览
 status: stable
 ---
 
-# Technical Details
+# 技术细节
 
-This section does not explain first-time usage. It explains why the current implementation is layered this way and what role prompts, skills, commands, sub-agents, and rules each play inside the system.
+这一部分不解释首次使用。它解释的是：为什么当前实现要按这种方式分层，以及 prompts、skills、commands、sub-agents 和 rules 在系统里分别承担什么角色。
 
-## Questions This Section Answers
+## 本节回答的问题
 
-1. Which things are sources of truth, and which are only derived outputs.
-2. Why the repository has clearly moved toward Rust-first / NAPI-first.
-3. Why sync must model output targets, output scopes, and cleanup boundaries explicitly.
-4. Why different input assets should not be collapsed into one giant prompt.
+1. 哪些东西是事实来源，哪些只是派生输出。
+2. 为什么仓库已经明确转向 Rust-first / NAPI-first。
+3. 为什么 sync 必须显式建模输出目标、输出范围和清理边界。
+4. 为什么不同类型的输入资产不应该塌缩成一个巨大的 prompt。
 
-## Recommended Reading
+## 推荐阅读
 
-- [Architecture Boundaries](/docs/technical-details/architecture)
-- [Single Source of Truth](/docs/technical-details/source-of-truth)
-- [Sync Pipeline](/docs/technical-details/pipeline)
-- [Global and Workspace Prompts](/docs/technical-details/global-and-workspace-prompts)
-- [Skills](/docs/technical-details/skills)
-- [Commands](/docs/technical-details/commands)
-- [Sub-agents](/docs/technical-details/subagents)
-- [Rules](/docs/technical-details/rules)
-- [Libraries](/docs/technical-details/libraries)
+- [架构边界](/docs/technical-details/architecture)
+- [单一事实来源](/docs/technical-details/source-of-truth)
+- [同步流水线](/docs/technical-details/pipeline)
+- [全局与工作区 Prompts](/docs/technical-details/global-and-workspace-prompts)
+- [技能](/docs/technical-details/skills)
+- [命令](/docs/technical-details/commands)
+- [子代理](/docs/technical-details/subagents)
+- [规则](/docs/technical-details/rules)
+- [基础库](/docs/technical-details/libraries)

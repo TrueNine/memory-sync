@@ -1,45 +1,45 @@
 ---
-title: Commands
-description: Introduces the role of commands and explains the current path-derived naming model.
-sidebarTitle: Commands
+title: 命令
+description: 介绍命令的作用并解释当前的路径派生命名模型。
+sidebarTitle: 命令
 status: stable
 ---
 
-# Commands
+# 命令
 
-## What Commands Are Good For
+## 命令适合做什么
 
-Commands are a good fit for operations that:
+命令很适合这类操作：
 
-- are reused frequently
-- have a clear execution goal
-- are easy to trigger with short text
+- 经常重复使用
+- 有明确的执行目标
+- 很容易用短文本触发
 
-They work best as concise operation entrypoints.
+它们最适合作为简洁的操作入口。
 
-Typical examples include generating release notes, rechecking a class of errors, or reshaping context into a specific format.
+典型例子包括生成发布说明、复查某类错误，或把上下文重组为特定格式。
 
-## Current Path Convention
+## 当前路径约定
 
-Default input path:
+默认输入路径：
 
 ```text
 commands/
 ```
 
-Default output path:
+默认输出路径：
 
 ```text
 dist/commands/
 ```
 
-## How Naming Works Now
+## 当前命名如何工作
 
-Command naming now comes primarily from the source path and file name rather than a global config block.
+命令命名现在主要来自源路径和文件名，而不是某个全局配置块。
 
-Examples:
+示例：
 
-- `commands/git/status.src.mdx` keeps a path-derived grouping
-- `commands/release_notes.src.mdx` can still derive a prefix from the flat file name
+- `commands/git/status.src.mdx` 保留路径派生的分组
+- `commands/release_notes.src.mdx` 仍然可以从平面文件名派生前缀
 
-The old `commandSeriesOptions` block in `~/.aindex/.tnmsc.json` is now legacy. New command configuration should start from the source tree shape and the output plugin behavior instead of trying to restore that removed global override layer.
+`~/.aindex/.tnmsc.json` 中旧的 `commandSeriesOptions` 块现在已经属于遗留项。新的命令配置应该从源树形状和输出插件行为出发，而不是试图恢复那个已经删除的全局覆盖层。

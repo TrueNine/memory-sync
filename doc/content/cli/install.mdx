@@ -1,7 +1,7 @@
 ---
-title: Installation and Requirements
-description: Explains the current Node, pnpm, Rust, and CLI installation requirements for memory-sync.
-sidebarTitle: Installation and Requirements
+title: 安装与要求
+description: 说明 memory-sync 当前对 Node、pnpm、Rust 和 CLI 安装的要求。
+sidebarTitle: 安装与要求
 status: stable
 keywords:
   - install
@@ -10,22 +10,22 @@ keywords:
   - rust
 ---
 
-# Installation and Requirements
+# 安装与要求
 
-## Runtime Requirements
+## 运行时要求
 
-According to the current repository configuration:
+根据当前仓库配置：
 
-- The root workspace requires `Node.js >= 22`
-- The root workspace development engine requires `pnpm 10.30.1`
-- The Rust workspace baseline is `rust >= 1.88.0`
-- `gui/` requires higher development engines: currently `rust >= 1.93.1` and `node >= 25.2.1`
+- 根工作区要求 `Node.js >= 22`
+- 根工作区开发引擎要求 `pnpm 10.30.1`
+- Rust 工作区基线为 `rust >= 1.88.0`
+- `gui/` 需要更高版本的开发引擎：当前为 `rust >= 1.93.1` 和 `node >= 25.2.1`
 
-If you only use the docs site and the CLI, the root workspace requirements are enough. If you also build the desktop GUI, align with the higher versions required by `gui/`.
+如果你只使用文档站点和 CLI，那么根工作区的要求就够了。如果你还要构建桌面 GUI，就需要对齐 `gui/` 要求的更高版本。
 
-## Install the CLI
+## 安装 CLI
 
-The README currently recommends these installation commands, depending on the package manager you use:
+README 当前按你使用的包管理器推荐以下安装命令：
 
 <PackageManagerTabs
   commands={{
@@ -35,30 +35,30 @@ The README currently recommends these installation commands, depending on the pa
   }}
 />
 
-If you are developing inside the monorepo, you will usually run this from the repository root instead:
+如果你是在 monorepo 内部开发，通常会改为在仓库根目录运行：
 
 ```sh
 pnpm install
 pnpm -C cli exec node dist/index.mjs --help
 ```
 
-## Confirm That You Installed the Current Command Set
+## 确认你安装的是当前命令集
 
-The core commands currently visible in CLI help are:
+CLI help 里当前可见的核心命令有：
 
-- the default sync pipeline
+- 默认 sync 流水线
 - `help`
 - `version`
 - `dry-run`
 - `clean`
 - `config key=value`
 
-## First Check
+## 首次检查
 
-Run this immediately after installation:
+安装后立刻运行：
 
 ```sh
 tnmsc help
 ```
 
-You should see `dry-run`, `clean`, and `config`. If that is not what you see, stop there instead of following the rest of the docs.
+你应该能看到 `dry-run`、`clean` 和 `config`。如果实际看到的不是这些，就先停在这里，不要继续照着后面的文档做。

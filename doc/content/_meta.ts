@@ -1,9 +1,9 @@
 export default {
   'index': {
-    title: 'Overview'
+    title: '概览'
   },
   'quick-guide': {
-    title: 'Quick Guide'
+    title: '快速指南'
   },
   'cli': {
     title: 'CLI'
@@ -18,9 +18,9 @@ export default {
     title: 'GUI'
   },
   'technical-details': {
-    title: 'Technical Details'
+    title: '技术细节'
   },
   'design-rationale': {
-    title: 'Design Rationale'
+    title: '设计缘由'
   }
 }
