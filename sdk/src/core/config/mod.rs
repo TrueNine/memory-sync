@@ -196,6 +196,52 @@ pub struct UserProfile {
     pub extra: HashMap<String, Value>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CodeStyleIndent {
+    Tab,
+    Space,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeStyles {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub indent: Option<CodeStyleIndent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tab_size: Option<u16>,
+    #[serde(flatten)]
+    pub extra: HashMap<String, Value>,
+}
+
+pub const DEFAULT_CODE_STYLE_TAB_SIZE: u16 = 2;
+
+pub fn build_default_code_styles() -> CodeStyles {
+    CodeStyles {
+        indent: Some(CodeStyleIndent::Space),
+        tab_size: Some(DEFAULT_CODE_STYLE_TAB_SIZE),
+        extra: HashMap::new(),
+    }
+}
+
+fn normalize_code_styles(code_styles: &Option<CodeStyles>) -> CodeStyles {
+    match code_styles {
+        Some(value) => {
+            let mut merged = build_default_code_styles();
+            merged.indent = value.indent.or(merged.indent);
+            merged.tab_size = value.tab_size.or(merged.tab_size);
+            merged.extra.extend(value.extra.clone());
+            merged
+        }
+        None => build_default_code_styles(),
+    }
+}
+
+fn normalize_user_config(mut config: UserConfigFile) -> UserConfigFile {
+    config.code_styles = Some(normalize_code_styles(&config.code_styles));
+    config
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum StringOrStrings {
@@ -239,6 +285,8 @@ pub struct UserConfigFile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile: Option<UserProfile>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code_styles: Option<CodeStyles>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub windows: Option<WindowsOptions>,
 }
 
@@ -251,6 +299,7 @@ impl Default for UserConfigFile {
             log_level: None,
             fast_command_series_options: None,
             profile: None,
+            code_styles: None,
             windows: None,
         }
     }
@@ -708,9 +757,28 @@ fn merge_windows(a: &Option<WindowsOptions>, b: &Option<WindowsOptions>) -> Opti
     }
 }
 
+fn merge_code_styles(a: &Option<CodeStyles>, b: &Option<CodeStyles>) -> Option<CodeStyles> {
+    match (a, b) {
+        (None, None) => None,
+        (Some(v), None) => Some(v.clone()),
+        (None, Some(v)) => Some(v.clone()),
+        (Some(base), Some(over)) => {
+            let mut merged_extra = base.extra.clone();
+            merged_extra.extend(over.extra.clone());
+
+            Some(CodeStyles {
+                indent: over.indent.or(base.indent),
+                tab_size: over.tab_size.or(base.tab_size),
+                extra: merged_extra,
+            })
+        }
+    }
+}
+
 /// Merge two configs. `over` fields take priority over `base`.
 pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserConfigFile {
     let merged_aindex = merge_aindex(&base.aindex, &over.aindex);
+    let merged_code_styles = merge_code_styles(&base.code_styles, &over.code_styles);
     let merged_windows = merge_windows(&base.windows, &over.windows);
 
     UserConfigFile {
@@ -726,6 +794,7 @@ pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserC
             .clone()
             .or_else(|| base.fast_command_series_options.clone()),
         profile: over.profile.clone().or_else(|| base.profile.clone()),
+        code_styles: merged_code_styles,
         windows: merged_windows,
     }
 }
@@ -873,7 +942,7 @@ impl ConfigLoader {
         }
 
         let configs: Vec<UserConfigFile> = loaded.iter().map(|r| r.config.clone()).collect();
-        let merged = merge_configs(&configs);
+        let merged = normalize_user_config(merge_configs(&configs));
         let sources: Vec<String> = loaded.iter().filter_map(|r| r.source.clone()).collect();
 
         Ok(MergedConfigResult {
@@ -898,7 +967,7 @@ impl ConfigLoader {
             ));
 
             MergedConfigResult {
-                config: UserConfigFile::default(),
+                config: normalize_user_config(UserConfigFile::default()),
                 sources: vec![],
                 found: false,
             }
@@ -1156,6 +1225,7 @@ fn preserve_invalid_config_and_exit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use tempfile::TempDir;
 
     #[test]
@@ -1179,6 +1249,7 @@ mod tests {
         assert!(config.workspace_dir.is_none());
         assert_eq!(config.aindex, build_default_aindex_config());
         assert!(config.log_level.is_none());
+        assert!(config.code_styles.is_none());
     }
 
     #[test]
@@ -1257,6 +1328,26 @@ mod tests {
     }
 
     #[test]
+    fn test_user_config_file_deserialize_with_code_styles() {
+        let json = r#"{
+            "codeStyles": {
+                "indent": "space",
+                "tabSize": 2,
+                "lineEnding": "lf"
+            }
+        }"#;
+        let config: UserConfigFile = serde_json::from_str(json).unwrap();
+        let code_styles = config.code_styles.unwrap();
+
+        assert_eq!(code_styles.indent, Some(CodeStyleIndent::Space));
+        assert_eq!(code_styles.tab_size, Some(2));
+        assert_eq!(
+            code_styles.extra.get("lineEnding").and_then(|v| v.as_str()),
+            Some("lf")
+        );
+    }
+
+    #[test]
     fn test_user_config_file_deserialize_with_windows_wsl2_instances() {
         let json = r#"{
             "windows": {
@@ -1284,6 +1375,11 @@ mod tests {
         let config = UserConfigFile {
             workspace_dir: Some("~/workspace".into()),
             log_level: Some("info".into()),
+            code_styles: Some(CodeStyles {
+                indent: Some(CodeStyleIndent::Space),
+                tab_size: Some(2),
+                extra: HashMap::new(),
+            }),
             ..Default::default()
         };
         let json = serde_json::to_string(&config).unwrap();
@@ -1361,6 +1457,70 @@ mod tests {
                 other
             ),
         }
+    }
+
+    #[test]
+    fn test_merge_configs_merges_code_styles() {
+        let mut base_extra = HashMap::new();
+        base_extra.insert("quoteStyle".into(), json!("single"));
+        let base_config = UserConfigFile {
+            code_styles: Some(CodeStyles {
+                indent: Some(CodeStyleIndent::Tab),
+                tab_size: Some(4),
+                extra: base_extra,
+            }),
+            ..Default::default()
+        };
+
+        let mut override_extra = HashMap::new();
+        override_extra.insert("lineEnding".into(), json!("lf"));
+        let override_config = UserConfigFile {
+            code_styles: Some(CodeStyles {
+                indent: Some(CodeStyleIndent::Space),
+                tab_size: None,
+                extra: override_extra,
+            }),
+            ..Default::default()
+        };
+
+        let merged = merge_configs_pair(&base_config, &override_config);
+        let code_styles = merged.code_styles.expect("expected merged code styles");
+
+        assert_eq!(code_styles.indent, Some(CodeStyleIndent::Space));
+        assert_eq!(code_styles.tab_size, Some(4));
+        assert_eq!(
+            code_styles.extra.get("quoteStyle").and_then(|value| value.as_str()),
+            Some("single")
+        );
+        assert_eq!(
+            code_styles.extra.get("lineEnding").and_then(|value| value.as_str()),
+            Some("lf")
+        );
+    }
+
+    #[test]
+    fn test_normalize_user_config_applies_default_code_styles() {
+        let config = normalize_user_config(UserConfigFile::default());
+        let code_styles = config.code_styles.expect("expected normalized code styles");
+
+        assert_eq!(code_styles.indent, Some(CodeStyleIndent::Space));
+        assert_eq!(code_styles.tab_size, Some(DEFAULT_CODE_STYLE_TAB_SIZE));
+    }
+
+    #[test]
+    fn test_normalize_user_config_merges_partial_code_styles() {
+        let config = normalize_user_config(UserConfigFile {
+            code_styles: Some(CodeStyles {
+                indent: None,
+                tab_size: Some(4),
+                extra: HashMap::new(),
+            }),
+            ..Default::default()
+        });
+        let code_styles = config.code_styles.expect("expected normalized code styles");
+
+        assert_eq!(code_styles.indent, Some(CodeStyleIndent::Space));
+        assert_eq!(code_styles.tab_size, Some(4));
     }
 
     #[test]

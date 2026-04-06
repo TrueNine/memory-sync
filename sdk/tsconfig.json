@@ -24,7 +24,6 @@
       "@truenine/plugin-claude-code-cli": ["./src/plugins/plugin-claude-code-cli.ts"],
       "@truenine/plugin-cursor": ["./src/plugins/plugin-cursor.ts"],
       "@truenine/plugin-droid-cli": ["./src/plugins/plugin-droid-cli.ts"],
-      "@truenine/plugin-editorconfig": ["./src/plugins/plugin-editorconfig.ts"],
       "@truenine/plugin-gemini-cli": ["./src/plugins/plugin-gemini-cli.ts"],
       "@truenine/plugin-git-exclude": ["./src/plugins/plugin-git-exclude.ts"],
       "@truenine/plugin-jetbrains-ai-codex": ["./src/plugins/plugin-jetbrains-ai-codex.ts"],
@@ -35,7 +34,7 @@
       "@truenine/plugin-readme": ["./src/plugins/plugin-readme.ts"],
       "@truenine/plugin-trae-ide": ["./src/plugins/plugin-trae-ide.ts"],
       "@truenine/plugin-vscode": ["./src/plugins/plugin-vscode.ts"],
-      "@truenine/plugin-warp-ide": ["./src/plugins/plugin-warp-ide.ts"],
+      "@truenine/plugin-warp-ide": ["./src/plugins/WarpIDEOutputPlugin.ts"],
       "@truenine/plugin-windsurf": ["./src/plugins/plugin-windsurf.ts"],
       "@truenine/plugin-zed": ["./src/plugins/plugin-zed.ts"]
     },

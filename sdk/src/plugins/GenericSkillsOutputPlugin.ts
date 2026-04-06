@@ -87,49 +87,19 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       scope: 'project' | 'global',
       filteredSkills: readonly SkillPrompt[]
     ): void => {
-      for (const skill of filteredSkills) {
-        const skillName = this.getSkillName(skill)
-        const skillDir = this.joinPath(baseSkillsDir, skillName)
-
-        declarations.push({
-          path: this.joinPath(skillDir, SKILL_FILE_NAME),
-          scope,
-          source: {
-            kind: 'skillMain',
-            skill
-          } satisfies GenericSkillOutputSource
-        })
-
-        if (skill.childDocs != null) {
-          for (const childDoc of skill.childDocs) {
-            declarations.push({
-              path: this.joinPath(
-                skillDir,
-                childDoc.relativePath.replace(/\.mdx$/, '.md')
-              ),
-              scope,
-              source: {
-                kind: 'skillChildDoc',
-                content: childDoc.content as string
-              } satisfies GenericSkillOutputSource
-            })
-          }
+      this.appendSkillDeclarations(
+        declarations,
+        baseSkillsDir,
+        scope,
+        filteredSkills,
+        {
+          skillSubDir: '',
+          buildSkillReferenceSource: childDoc => ({
+            kind: 'skillChildDoc',
+            content: childDoc.content as string
+          })
         }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            declarations.push({
-              path: this.joinPath(skillDir, resource.relativePath),
-              scope,
-              source: {
-                kind: 'skillResource',
-                content: resource.content,
-                encoding: resource.encoding
-              } satisfies GenericSkillOutputSource
-            })
-          }
-        }
-      }
+      )
     }
 
     const pushMcpDeclarations = (
@@ -137,22 +107,20 @@ export class GenericSkillsOutputPlugin extends AbstractOutputPlugin {
       scope: 'project' | 'global',
       filteredMcpSkills: readonly SkillPrompt[]
     ): void => {
-      for (const skill of filteredMcpSkills) {
-        if (skill.mcpConfig == null) continue
-
-        declarations.push({
-          path: this.joinPath(
-            baseSkillsDir,
-            this.getSkillName(skill),
-            MCP_CONFIG_FILE
-          ),
-          scope,
-          source: {
+      this.appendSkillMcpDeclarations(
+        declarations,
+        baseSkillsDir,
+        scope,
+        filteredMcpSkills,
+        {
+          skillSubDir: '',
+          fileName: MCP_CONFIG_FILE,
+          buildSkillMcpSource: skill => ({
             kind: 'skillMcp',
-            rawContent: skill.mcpConfig.rawContent
-          } satisfies GenericSkillOutputSource
-        })
-      }
+            rawContent: skill.mcpConfig?.rawContent ?? ''
+          })
+        }
+      )
     }
 
     if (

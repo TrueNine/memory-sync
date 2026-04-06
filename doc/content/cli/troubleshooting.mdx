@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: Collects the version, command, and output-scope problems you are most likely to run into right now.
+description: Collects the version, command, and output-placement problems you are most likely to run into right now.
 sidebarTitle: Troubleshooting
 status: stable
 ---
@@ -16,12 +16,12 @@ The docs have moved from the old mixed grouping into seven top-level sections. S
 Check these first:
 
 1. Which output plugins are actually assembled in [plugin.config.ts](/docs/cli/plugin-config).
-2. Whether [Output Scopes](/docs/cli/output-scopes) limits the topic correctly.
-3. Whether you authored a global prompt or a workspace prompt.
+2. Whether you authored a global prompt or a workspace prompt.
+3. Whether the target plugin has its own routing behavior for that content type.
 
 ## Symptom: `clean` Feels Unsafe or Deleted Too Much
 
-Review [Cleanup Protection](/docs/cli/cleanup-protection) first. If your directories mix manual files with generated files and you do not configure protection rules, the risk of `clean` rises quickly.
+Review [dry-run and clean](/docs/cli/dry-run-and-clean) first. If your directories mix manual files with generated files, move the manual files out of tnmsc-managed output paths before a real clean.
 
 ## Symptom: A Docs Page Fails to Build
 

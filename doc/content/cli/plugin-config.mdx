@@ -17,9 +17,11 @@ status: stable
 
 into `defineConfig()`, which produces the `PipelineConfig` used for real execution.
 
+This file defines the assembled integration surface. It does not, by itself, mean every assembled plugin will emit outputs.
+
 ## Current Default Output Plugins
 
-The default output plugins currently assembled in `sdk/src/plugin.config.ts` include:
+The default output plugins currently assembled in `cli/src/plugin.config.ts` include:
 
 - `AgentsOutputPlugin`
 - `ClaudeCodeCLIOutputPlugin`
@@ -36,18 +38,46 @@ The default output plugins currently assembled in `sdk/src/plugin.config.ts` inc
 - `CursorOutputPlugin`
 - `GitExcludeOutputPlugin`
 - `JetBrainsIDECodeStyleConfigOutputPlugin`
-- `EditorConfigOutputPlugin`
 - `VisualStudioCodeIDEConfigOutputPlugin`
-- `ReadmeMdConfigFileOutputPlugin`
+- `ReadmeMdConfigFileOutputPlugin` (also emits `.editorconfig`)
+
+## Assembly vs Enablement
+
+`plugin.config.ts` answers:
+
+- which plugin implementations are assembled into the runtime
+- which targets the project knows how to generate
+
+`~/.aindex/.tnmsc.json` answers:
+
+- which of those assembled plugins are currently allowed to emit outputs
+
+The current built-in default behavior is:
+
+- `plugins.git` is enabled by default
+- `plugins.readme` is enabled by default and also covers `.editorconfig` output
+- the other assembled output plugins stay off until the user explicitly enables them in `~/.aindex/.tnmsc.json`
+
+Example:
+
+```json
+{
+  "plugins": {
+    "git": true,
+    "claudeCode": true,
+    "trae": true
+  }
+}
+```
 
 ## What That Means
 
-This configuration is not illustrative documentation. It is the current default sync reality. If a plugin appears here, the default execution path considers that target.
+This configuration is not illustrative documentation. It is the current assembled runtime surface. If a plugin appears here, the runtime knows how to target it. Whether it actually writes files depends on the user config enablement rules described above.
 
 ## Minimal Mental Model
 
 You can think of `plugin.config.ts` as the file that:
 
-- chooses which targets receive outputs
+- chooses which targets are assembled into the runtime
 - decides whether to append programmatic config at the project level
 - keeps project config merged with global user config rather than bypassing it entirely

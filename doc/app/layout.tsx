@@ -1,6 +1,7 @@
 import type {Metadata} from 'next'
 import {Inter, JetBrains_Mono} from 'next/font/google'
-import {getSiteUrl, siteConfig} from '../lib/site'
+import React from 'react'
+import {getSiteUrl, siteConfig} from '@/lib/site'
 import 'nextra-theme-docs/style.css'
 import './globals.scss'
 

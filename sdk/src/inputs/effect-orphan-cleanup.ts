@@ -43,20 +43,12 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     this.registerEffect('orphan-file-cleanup', this.cleanupOrphanFiles.bind(this), 20)
   }
 
-  protected buildProtectedDeletionGuard(ctx: InputEffectContext): ReturnType<typeof createProtectedDeletionGuard> {
+  protected buildProtectedDeletionGuard(_ctx: InputEffectContext): ReturnType<typeof createProtectedDeletionGuard> {
     return createProtectedDeletionGuard({
-      workspaceDir: ctx.workspaceDir,
-      aindexDir: ctx.aindexDir,
+      workspaceDir: _ctx.workspaceDir,
+      aindexDir: _ctx.aindexDir,
       includeReservedWorkspaceContentRoots: false,
-      rules: [
-        ...(ctx.userConfigOptions.cleanupProtection?.rules ?? []).map(rule => ({
-          path: rule.path,
-          protectionMode: rule.protectionMode,
-          reason: rule.reason ?? 'configured cleanup protection rule',
-          source: 'configured-cleanup-protection',
-          matcher: rule.matcher ?? 'path'
-        }))
-      ]
+      rules: []
     })
   }
 

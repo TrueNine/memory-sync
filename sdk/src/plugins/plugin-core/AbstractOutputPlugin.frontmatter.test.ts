@@ -67,7 +67,7 @@ function createWriteContext(blankLineAfter?: boolean): OutputWriteContext {
         projects: []
       }
     }
-  } as OutputWriteContext
+  } as unknown as OutputWriteContext
 }
 
 function createCommandPrompt(): CommandPrompt {
@@ -90,7 +90,7 @@ function createCommandPrompt(): CommandPrompt {
       description: 'Build command'
     },
     markdownContents: []
-  } as CommandPrompt
+  } as unknown as CommandPrompt
 }
 
 function createSubAgentPrompt(): SubAgentPrompt {
@@ -137,7 +137,7 @@ function createSkillPrompt(): SkillPrompt {
       description: 'Ship release'
     },
     markdownContents: []
-  } as SkillPrompt
+  } as unknown as SkillPrompt
 }
 
 function createRulePrompt(): RulePrompt {
@@ -162,7 +162,7 @@ function createRulePrompt(): RulePrompt {
       description: 'Rule desc'
     },
     markdownContents: []
-  } as RulePrompt
+  } as unknown as RulePrompt
 }
 
 describe('abstract output plugin front matter formatting', () => {

@@ -70,7 +70,7 @@ function createWriteContext(subAgents: readonly SubAgentPrompt[]): OutputWriteCo
       },
       subAgents
     }
-  } as OutputWriteContext
+  } as unknown as OutputWriteContext
 }
 
 describe('abstract output plugin subagent naming', () => {

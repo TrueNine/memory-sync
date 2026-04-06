@@ -12,13 +12,14 @@ use crate::parser::parse_mdx;
 use crate::serializer::serialize;
 use crate::transformer::{ProcessingContext, transform_ast};
 
-/// Global scope for MDX compilation (os, env, profile, tool info).
+/// Global scope for MDX compilation (os, env, profile, code style, tool info).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MdxGlobalScope {
     pub os: Option<HashMap<String, Value>>,
     pub env: Option<HashMap<String, Value>>,
     pub profile: Option<HashMap<String, Value>>,
+    pub code_styles: Option<HashMap<String, Value>>,
     pub tool: Option<HashMap<String, Value>>,
 }
 
@@ -88,6 +89,12 @@ fn merge_scopes(
             result.insert(
                 "profile".into(),
                 serde_json::to_value(profile).unwrap_or(Value::Null),
+            );
+        }
+        if let Some(code_styles) = &gs.code_styles {
+            result.insert(
+                "codeStyles".into(),
+                serde_json::to_value(code_styles).unwrap_or(Value::Null),
             );
         }
         if let Some(tool) = &gs.tool {
@@ -392,6 +399,24 @@ mod tests {
         };
         let result = mdx_to_md("OS: {os.platform}\n", Some(opts)).unwrap();
         assert!(result.contains("OS: linux"), "Got: {}", result);
+    }
+
+    #[test]
+    fn test_global_scope_code_styles() {
+        let opts = MdxToMdOptions {
+            global_scope: Some(MdxGlobalScope {
+                code_styles: Some({
+                    let mut m = HashMap::new();
+                    m.insert("indent".into(), json!("space"));
+                    m.insert("tabSize".into(), json!(2));
+                    m
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let result = mdx_to_md("Indent: {codeStyles.indent}, width: {codeStyles.tabSize}\n", Some(opts)).unwrap();
+        assert!(result.contains("Indent: space, width: 2"), "Got: {}", result);
     }
 
     #[test]

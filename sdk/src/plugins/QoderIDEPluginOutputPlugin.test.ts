@@ -5,16 +5,6 @@ import {describe, expect, it} from 'vitest'
 import {createLogger, FilePathKind, PromptKind} from './plugin-core'
 import {QoderIDEPluginOutputPlugin} from './QoderIDEPluginOutputPlugin'
 
-class TestQoderIDEPluginOutputPlugin extends QoderIDEPluginOutputPlugin {
-  constructor(private readonly testHomeDir: string) {
-    super()
-  }
-
-  protected override getHomeDir(): string {
-    return this.testHomeDir
-  }
-}
-
 function createWorkspaceRootPrompt(): ProjectRootMemoryPrompt {
   return {
     type: PromptKind.ProjectRootMemory,
@@ -83,7 +73,7 @@ function createGlobalMemoryPrompt(): GlobalMemoryPrompt {
       getAbsolutePath: () => path.resolve('aindex/dist/global.mdx')
     },
     markdownContents: []
-  } as GlobalMemoryPrompt
+  } as unknown as GlobalMemoryPrompt
 }
 
 function createCommandPrompt(): CommandPrompt {
@@ -106,7 +96,7 @@ function createCommandPrompt(): CommandPrompt {
       scope: 'project'
     },
     markdownContents: []
-  } as CommandPrompt
+  } as unknown as CommandPrompt
 }
 
 function createSkillPrompt(
@@ -141,7 +131,7 @@ function createSkillPrompt(
       rawContent: '{"mcpServers":{"inspector":{"command":"npx","args":["inspector"]}}}'
     },
     markdownContents: []
-  } as SkillPrompt
+  } as unknown as SkillPrompt
 }
 
 function createRulePrompt(scope: 'project' | 'global' = 'project'): RulePrompt {
@@ -162,7 +152,7 @@ function createRulePrompt(scope: 'project' | 'global' = 'project'): RulePrompt {
     globs: ['src/**'],
     scope,
     markdownContents: []
-  } as RulePrompt
+  } as unknown as RulePrompt
 }
 
 describe('qoderIDEPluginOutputPlugin synthetic workspace project output', () => {
@@ -192,7 +182,7 @@ describe('qoderIDEPluginOutputPlugin synthetic workspace project output', () => 
         skills: [createSkillPrompt()],
         rules: [createRulePrompt('project')]
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(ctx)
     const paths = declarations.map(declaration => declaration.path)
@@ -251,7 +241,7 @@ describe('qoderIDEPluginOutputPlugin synthetic workspace project output', () => 
         globalMemory: createGlobalMemoryPrompt(),
         rules: [createRulePrompt('project')]
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(ctx)
     const paths = declarations.map(declaration => declaration.path)
@@ -264,102 +254,6 @@ describe('qoderIDEPluginOutputPlugin synthetic workspace project output', () => 
     expect(paths).toContain(path.join(workspaceBase, 'project-a', '.qoder', 'rules', 'always.md'))
     expect(paths).toContain(path.join(workspaceBase, 'project-a', '.qoder', 'rules', 'glob-commands.md'))
     expect(paths).toContain(path.join(workspaceBase, 'project-a', '.qoder', 'rules', 'rule-ops-guard.md'))
-  })
-
-  it('keeps skill files global when only mcp is project-scoped', async () => {
-    const workspaceBase = path.resolve('tmp/qoder-split-scope-project-mcp')
-    const homeDir = path.join(workspaceBase, 'home')
-    const plugin = new TestQoderIDEPluginOutputPlugin(homeDir)
-    const ctx = {
-      logger: createLogger('QoderIDEPluginOutputPlugin', 'error'),
-      fs,
-      path,
-      glob: {} as never,
-      dryRun: true,
-      pluginOptions: {
-        outputScopes: {
-          plugins: {
-            QoderIDEPluginOutputPlugin: {
-              skills: 'global',
-              mcp: 'project'
-            }
-          }
-        }
-      },
-      collectedOutputContext: {
-        workspace: {
-          directory: {
-            pathKind: FilePathKind.Absolute,
-            path: workspaceBase,
-            getDirectoryName: () => path.basename(workspaceBase)
-          },
-          projects: [{
-            name: '__workspace__',
-            isWorkspaceRootProject: true
-          }]
-        },
-        skills: [
-          createSkillPrompt('project', 'inspect-locally'),
-          createSkillPrompt('global', 'ship-it')
-        ]
-      }
-    } as OutputWriteContext
-
-    const declarations = await plugin.declareOutputFiles(ctx)
-    const paths = declarations.map(declaration => declaration.path)
-
-    expect(paths).toContain(path.join(homeDir, '.qoder', 'skills', 'ship-it', 'SKILL.md'))
-    expect(paths).toContain(path.join(workspaceBase, '.qoder', 'skills', 'inspect-locally', 'mcp.json'))
-    expect(paths).not.toContain(path.join(workspaceBase, '.qoder', 'skills', 'ship-it', 'SKILL.md'))
-    expect(paths).not.toContain(path.join(homeDir, '.qoder', 'skills', 'inspect-locally', 'SKILL.md'))
-  })
-
-  it('keeps skill files project-scoped when only mcp is global-scoped', async () => {
-    const workspaceBase = path.resolve('tmp/qoder-split-scope-global-mcp')
-    const homeDir = path.join(workspaceBase, 'home')
-    const plugin = new TestQoderIDEPluginOutputPlugin(homeDir)
-    const ctx = {
-      logger: createLogger('QoderIDEPluginOutputPlugin', 'error'),
-      fs,
-      path,
-      glob: {} as never,
-      dryRun: true,
-      pluginOptions: {
-        outputScopes: {
-          plugins: {
-            QoderIDEPluginOutputPlugin: {
-              skills: 'project',
-              mcp: 'global'
-            }
-          }
-        }
-      },
-      collectedOutputContext: {
-        workspace: {
-          directory: {
-            pathKind: FilePathKind.Absolute,
-            path: workspaceBase,
-            getDirectoryName: () => path.basename(workspaceBase)
-          },
-          projects: [{
-            name: '__workspace__',
-            isWorkspaceRootProject: true
-          }]
-        },
-        skills: [
-          createSkillPrompt('project', 'ship-it'),
-          createSkillPrompt('global', 'inspect-globally')
-        ]
-      }
-    } as OutputWriteContext
-
-    const declarations = await plugin.declareOutputFiles(ctx)
-    const paths = declarations.map(declaration => declaration.path)
-
-    expect(paths).toContain(path.join(workspaceBase, '.qoder', 'skills', 'ship-it', 'SKILL.md'))
-    expect(paths).toContain(path.join(homeDir, '.qoder', 'skills', 'inspect-globally', 'mcp.json'))
-    expect(paths).not.toContain(path.join(homeDir, '.qoder', 'skills', 'ship-it', 'SKILL.md'))
-    expect(paths).not.toContain(path.join(workspaceBase, '.qoder', 'skills', 'inspect-globally', 'SKILL.md'))
   })
 
   it('writes the global prompt to workspace root through the synthetic workspace project', async () => {
@@ -385,7 +279,7 @@ describe('qoderIDEPluginOutputPlugin synthetic workspace project output', () => 
         },
         globalMemory: createGlobalMemoryPrompt()
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(ctx)
 

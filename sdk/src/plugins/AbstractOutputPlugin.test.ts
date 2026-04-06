@@ -108,7 +108,7 @@ describe('abstractOutputPlugin prompt-source project exclusion', () => {
           ]
         }
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(ctx)
     const paths = declarations.map(declaration => declaration.path)

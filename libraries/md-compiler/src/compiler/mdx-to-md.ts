@@ -1,4 +1,4 @@
-import type {YAML} from 'mdast' // Main entry point for lossless MDX to Markdown conversion // mdx-to-md.ts
+import type {Yaml} from 'mdast' // Main entry point for lossless MDX to Markdown conversion // mdx-to-md.ts
 import type {EvaluationScope, MdxjsEsm, MdxToMdOptions, MdxToMdResult, ProcessingContext} from './types'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkGfm from 'remark-gfm'
@@ -18,7 +18,7 @@ registerBuiltInComponents() // Register built-in components on module load
  * Custom scope values take precedence over global scope values.
  * Objects are deeply merged, primitives are overwritten.
  *
- * @param globalScope - Global scope containing os, env, profile, tool
+ * @param globalScope - Global scope containing os, env, profile, codeStyles, tool
  * @param customScope - Custom scope values to merge
  * @returns Merged evaluation scope
  */
@@ -32,6 +32,7 @@ function mergeScopes(
     result['os'] = {...globalScope.os}
     result['env'] = {...globalScope.env}
     result['profile'] = {...globalScope.profile}
+    result['codeStyles'] = {...globalScope.codeStyles}
     result['tool'] = {...globalScope.tool}
   }
 
@@ -77,7 +78,7 @@ export async function mdxToMd(
 
   let metadata: MdxToMdResult['metadata'] | undefined // Extract metadata if requested (YAML frontmatter + ESM exports merged)
   if (options?.extractMetadata === true) {
-    const yamlNode = ast.children.find((n): n is YAML => n.type === 'yaml') // 1. Extract YAML frontmatter
+    const yamlNode = ast.children.find((n): n is Yaml => n.type === 'yaml') // 1. Extract YAML frontmatter
     let yamlFrontMatter: Record<string, unknown> | undefined
     if (yamlNode != null) {
       try {

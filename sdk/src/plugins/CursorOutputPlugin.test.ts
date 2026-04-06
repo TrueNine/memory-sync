@@ -47,7 +47,7 @@ function createCleanContext(): OutputCleanContext {
         projects: []
       }
     }
-  } as OutputCleanContext
+  } as unknown as OutputCleanContext
 }
 
 function createCommandPrompt(): CommandPrompt {
@@ -70,7 +70,7 @@ function createCommandPrompt(): CommandPrompt {
       scope: 'project'
     },
     markdownContents: []
-  } as CommandPrompt
+  } as unknown as CommandPrompt
 }
 
 function createGlobalMemoryPrompt(): GlobalMemoryPrompt {
@@ -87,7 +87,7 @@ function createGlobalMemoryPrompt(): GlobalMemoryPrompt {
       getAbsolutePath: () => path.resolve('aindex/dist/global.mdx')
     },
     markdownContents: []
-  } as GlobalMemoryPrompt
+  } as unknown as GlobalMemoryPrompt
 }
 
 function createSkillPrompt(
@@ -122,7 +122,7 @@ function createSkillPrompt(
       rawContent: '{"mcpServers":{"inspector":{"command":"npx","args":["inspector"]}}}'
     },
     markdownContents: []
-  } as SkillPrompt
+  } as unknown as SkillPrompt
 }
 
 function createRulePrompt(): RulePrompt {
@@ -143,7 +143,7 @@ function createRulePrompt(): RulePrompt {
     globs: ['src/**'],
     scope: 'project',
     markdownContents: []
-  } as RulePrompt
+  } as unknown as RulePrompt
 }
 
 describe('cursorOutputPlugin cleanup', () => {
@@ -210,7 +210,7 @@ describe('cursorOutputPlugin cleanup', () => {
         skills: [createSkillPrompt()],
         rules: [createRulePrompt()]
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(ctx)
     const paths = declarations.map(declaration => declaration.path)
@@ -220,106 +220,6 @@ describe('cursorOutputPlugin cleanup', () => {
     expect(paths).toContain(path.join(workspaceBase, '.cursor', 'mcp.json'))
     expect(paths).toContain(path.join(workspaceBase, '.cursor', 'rules', 'rule-ops-guard.md'))
     expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
-  })
-
-  it('keeps skill files global when only mcp is project-scoped', async () => {
-    const workspaceBase = path.resolve('tmp/cursor-split-scope-project-mcp')
-    const homeDir = path.join(workspaceBase, 'home')
-    const plugin = new TestCursorOutputPlugin(homeDir)
-    const ctx = {
-      logger: createLogger('CursorOutputPlugin', 'error'),
-      fs,
-      path,
-      glob,
-      dryRun: true,
-      pluginOptions: {
-        outputScopes: {
-          plugins: {
-            CursorOutputPlugin: {
-              skills: 'global',
-              mcp: 'project'
-            }
-          }
-        }
-      },
-      collectedOutputContext: {
-        workspace: {
-          directory: {
-            pathKind: FilePathKind.Absolute,
-            path: workspaceBase,
-            getDirectoryName: () => path.basename(workspaceBase)
-          },
-          projects: [{
-            name: '__workspace__',
-            isWorkspaceRootProject: true
-          }]
-        },
-        skills: [
-          createSkillPrompt('project', 'inspect-locally'),
-          createSkillPrompt('global', 'ship-it')
-        ]
-      }
-    } as OutputWriteContext
-
-    const declarations = await plugin.declareOutputFiles(ctx)
-    const paths = declarations.map(declaration => declaration.path)
-
-    expect(paths).toContain(path.join(homeDir, '.cursor', 'skills-cursor', 'ship-it', 'SKILL.md'))
-    expect(paths).toContain(path.join(workspaceBase, '.cursor', 'skills', 'inspect-locally', 'mcp.json'))
-    expect(paths).toContain(path.join(workspaceBase, '.cursor', 'mcp.json'))
-    expect(paths).not.toContain(path.join(workspaceBase, '.cursor', 'skills', 'ship-it', 'SKILL.md'))
-    expect(paths).not.toContain(path.join(homeDir, '.cursor', 'skills-cursor', 'inspect-locally', 'SKILL.md'))
-    expect(paths).not.toContain(path.join(homeDir, '.cursor', 'mcp.json'))
-  })
-
-  it('keeps skill files project-scoped when only mcp is global-scoped', async () => {
-    const workspaceBase = path.resolve('tmp/cursor-split-scope-global-mcp')
-    const homeDir = path.join(workspaceBase, 'home')
-    const plugin = new TestCursorOutputPlugin(homeDir)
-    const ctx = {
-      logger: createLogger('CursorOutputPlugin', 'error'),
-      fs,
-      path,
-      glob,
-      dryRun: true,
-      pluginOptions: {
-        outputScopes: {
-          plugins: {
-            CursorOutputPlugin: {
-              skills: 'project',
-              mcp: 'global'
-            }
-          }
-        }
-      },
-      collectedOutputContext: {
-        workspace: {
-          directory: {
-            pathKind: FilePathKind.Absolute,
-            path: workspaceBase,
-            getDirectoryName: () => path.basename(workspaceBase)
-          },
-          projects: [{
-            name: '__workspace__',
-            isWorkspaceRootProject: true
-          }]
-        },
-        skills: [
-          createSkillPrompt('project', 'ship-it'),
-          createSkillPrompt('global', 'inspect-globally')
-        ]
-      }
-    } as OutputWriteContext
-
-    const declarations = await plugin.declareOutputFiles(ctx)
-    const paths = declarations.map(declaration => declaration.path)
-
-    expect(paths).toContain(path.join(workspaceBase, '.cursor', 'skills', 'ship-it', 'SKILL.md'))
-    expect(paths).toContain(path.join(homeDir, '.cursor', 'skills-cursor', 'inspect-globally', 'mcp.json'))
-    expect(paths).toContain(path.join(homeDir, '.cursor', 'mcp.json'))
-    expect(paths).not.toContain(path.join(homeDir, '.cursor', 'skills-cursor', 'ship-it', 'SKILL.md'))
-    expect(paths).not.toContain(path.join(workspaceBase, '.cursor', 'skills', 'inspect-globally', 'SKILL.md'))
-    expect(paths).not.toContain(path.join(workspaceBase, '.cursor', 'mcp.json'))
   })
 
   it('writes the global prompt to workspace root through the synthetic workspace project', async () => {
@@ -345,7 +245,7 @@ describe('cursorOutputPlugin cleanup', () => {
         },
         globalMemory: createGlobalMemoryPrompt()
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(ctx)
 

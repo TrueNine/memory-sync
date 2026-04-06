@@ -52,6 +52,7 @@ export type {
 } from './types'
 
 export type {
+  CodeStylePreferences,
   EnvironmentContext,
   MdxGlobalScope,
   ToolReferences,

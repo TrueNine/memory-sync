@@ -1,10 +1,11 @@
 import type {EvaluationScope} from '@truenine/md-compiler'
-import type {EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@truenine/md-compiler/globals' // Collects and manages global scope variables for MDX expression evaluation. // src/scope/GlobalScopeCollector.ts
-import type {UserConfigFile} from './types'
+import type {CodeStylePreferences, EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@truenine/md-compiler/globals' // Collects and manages global scope variables for MDX expression evaluation. // src/scope/GlobalScopeCollector.ts
+import type {PluginOptions, UserConfigFile} from './types'
 import * as os from 'node:os'
 import process from 'node:process'
 import {OsKind, ShellKind, ToolPresets} from '@truenine/md-compiler/globals'
 import {getEffectiveHomeDir} from '@/runtime-environment'
+import {buildDefaultCodeStylesOptions, mergeCodeStylesOptions} from './ConfigTypes.schema'
 
 /**
  * Tool preset names supported by GlobalScopeCollector
@@ -17,6 +18,8 @@ export type ToolPresetName = keyof typeof ToolPresets
 export interface GlobalScopeCollectorOptions {
   /** User configuration file */
   readonly userConfig?: UserConfigFile | undefined
+  /** Resolved user config options */
+  readonly userConfigOptions?: Pick<PluginOptions, 'codeStyles'> | undefined
   /** Tool preset to use (default: 'default') */
   readonly toolPreset?: ToolPresetName | undefined
 }
@@ -27,10 +30,12 @@ export interface GlobalScopeCollectorOptions {
  */
 export class GlobalScopeCollector {
   private readonly userConfig: UserConfigFile | undefined
+  private readonly userConfigOptions: Pick<PluginOptions, 'codeStyles'> | undefined
   private readonly toolPreset: ToolPresetName
 
   constructor(options: GlobalScopeCollectorOptions = {}) {
     this.userConfig = options.userConfig
+    this.userConfigOptions = options.userConfigOptions
     this.toolPreset = options.toolPreset ?? 'default'
   }
 
@@ -39,6 +44,7 @@ export class GlobalScopeCollector {
       os: this.collectOsInfo(),
       env: this.collectEnvContext(),
       profile: this.collectProfile(),
+      codeStyles: this.collectCodeStyles(),
       tool: this.collectToolReferences(),
       Md: this.createMdComponent()
     }
@@ -96,6 +102,11 @@ export class GlobalScopeCollector {
     return {}
   }
 
+  private collectCodeStyles(): CodeStylePreferences {
+    const resolvedCodeStyles = this.userConfigOptions?.codeStyles ?? this.userConfig?.codeStyles
+    return mergeCodeStylesOptions(buildDefaultCodeStylesOptions(), resolvedCodeStyles) as CodeStylePreferences
+  }
+
   private collectToolReferences(): ToolReferences {
     const defaults: ToolReferences = {...ToolPresets.default}
     if (this.toolPreset === 'claudeCode') return {...defaults, ...ToolPresets.claudeCode}
@@ -134,7 +145,7 @@ export interface ScopeRegistration {
 export enum ScopePriority {
   /** System default values (os, default tool) */
   SystemDefault = 0,
-  /** Values from configuration file (profile, custom tool) */
+  /** Values from configuration file (profile, codeStyles, custom tool) */
   UserConfig = 10,
   /** Values registered by plugins */
   PluginRegistered = 20,
@@ -177,6 +188,7 @@ export class ScopeRegistry {
       result['os'] = {...this.globalScope.os}
       result['env'] = {...this.globalScope.env}
       result['profile'] = {...this.globalScope.profile}
+      result['codeStyles'] = {...this.globalScope.codeStyles}
       result['tool'] = {...this.globalScope.tool}
     }
 

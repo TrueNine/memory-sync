@@ -5,6 +5,7 @@
     "incremental": true,
     "composite": false, // Projects
     "target": "ESNext", // Language and Environment
+    "jsx": "react",
     "lib": [
       "ESNext"
     ],
@@ -55,7 +56,7 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "skipLibCheck": true // Completeness
+    "skipLibCheck": true
   },
   "include": [
     "src/**/*",

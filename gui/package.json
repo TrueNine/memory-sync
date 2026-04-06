@@ -3,9 +3,7 @@
   "version": "2026.10404.101",
   "private": true,
   "engines": {
-    "node": ">=25.2.1",
-    "pnpm": ">=10.28.0",
-    "rust": ">=1.93.1"
+    "node": ">= 22"
   },
   "type": "module",
   "scripts": {

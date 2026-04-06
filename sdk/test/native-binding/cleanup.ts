@@ -6,14 +6,14 @@ import type {
   OutputFileDeclaration,
   OutputPlugin
 } from '../../src/plugins/plugin-core'
-import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../../src/ProtectedDeletionGuard'
+import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../../src/ProtectedDeletionGuard.ts'
 import type {DeletionError} from './desk-paths'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
-import {compactDeletionTargets} from '../../src/cleanup/delete-targets'
-import {planWorkspaceEmptyDirectoryCleanup} from '../../src/cleanup/empty-directories'
-import {buildDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '../../src/diagnostics'
+import {compactDeletionTargets} from '../../src/cleanup/delete-targets.ts'
+import {planWorkspaceEmptyDirectoryCleanup} from '../../src/cleanup/empty-directories.ts'
+import {buildDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '../../src/diagnostics.ts'
 import {collectAllPluginOutputs} from '../../src/plugins/plugin-core'
 import {
   buildComparisonKeys,
@@ -23,7 +23,7 @@ import {
   logProtectedDeletionGuardError,
   partitionDeletionTargets,
   resolveAbsolutePath
-} from '../../src/ProtectedDeletionGuard'
+} from '../../src/ProtectedDeletionGuard.ts'
 import {deleteEmptyDirectories, deleteTargets as deskDeleteTargets} from './desk-paths'
 
 /**
@@ -231,16 +231,6 @@ async function collectCleanupTargets(
 
   for (const rule of collectProtectedInputSourceRules(cleanCtx.collectedOutputContext)) {
     addProtectRule(rule.path, rule.protectionMode, rule.reason, rule.source)
-  }
-
-  for (const rule of cleanCtx.pluginOptions?.cleanupProtection?.rules ?? []) {
-    addProtectRule(
-      rule.path,
-      rule.protectionMode,
-      rule.reason ?? 'configured cleanup protection rule',
-      'configured-cleanup-protection',
-      rule.matcher ?? 'path'
-    )
   }
 
   for (const snapshot of pluginSnapshots) {

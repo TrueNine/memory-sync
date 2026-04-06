@@ -5,7 +5,7 @@ import {dirname, join} from 'node:path'
 import process from 'node:process'
 import * as YAML from 'yaml'
 
-import {parseMdx} from '../compiler/parser' // Napi binding types
+import {parseMdx} from '@/compiler' // Napi binding types
 import {shouldSkipNativeBinding} from '../native-binding'
 
 interface NapiMdCompilerModule {
@@ -27,7 +27,6 @@ const EXTERNAL_URL_PATTERN = /^(?:https?:)?\/\//u
 const URL_TRAILING_MDX_EXTENSION_PATTERN = /\.mdx$/u
 const URL_HASH_MDX_EXTENSION_PATTERN = /\.mdx#/u
 const URL_QUERY_MDX_EXTENSION_PATTERN = /\.mdx\?/u
-
 let napiBinding: NapiMdCompilerModule | null = null
 
 function isNapiMdCompilerModule(value: unknown): value is NapiMdCompilerModule {
@@ -179,9 +178,9 @@ export function buildMarkdownWithRawFrontMatter(
 } // doubleQuoted — TS only (YAML-specific helper)
 
 export function doubleQuoted(value: string): unknown {
-  const s = new YAML.Scalar(value)
-  s.type = YAML.Scalar.QUOTE_DOUBLE
-  return s
+  const scalar = new YAML.Scalar(value)
+  scalar.type = YAML.Scalar.QUOTE_DOUBLE
+  return scalar
 } // parseMarkdown
 
 export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): ParsedMarkdown<Y> {
@@ -213,17 +212,21 @@ export function parseMarkdown<Y = Record<string, unknown>>(rawContent: string): 
 
 export function transformMdxReferencesToMd(content: string): string {
   if (napiBinding != null) return napiBinding.transformMdxReferencesToMd(content)
+
   return content.replaceAll(
     MDX_REFERENCE_PATTERN,
     (_match, prefix: string, text: string, middle: string, url: string, suffix: string) => {
       const transformedText = text
         .replace(TRAILING_MDX_EXTENSION_PATTERN, '.md')
         .replaceAll(LINK_TEXT_MDX_EXTENSION_PATTERN, '.md')
+
       if (EXTERNAL_URL_PATTERN.test(url)) return `${prefix}${transformedText}${middle}${url}${suffix}`
+
       const transformedUrl = url
         .replace(URL_TRAILING_MDX_EXTENSION_PATTERN, '.md')
         .replace(URL_HASH_MDX_EXTENSION_PATTERN, '.md#')
         .replace(URL_QUERY_MDX_EXTENSION_PATTERN, '.md?')
+
       return `${prefix}${transformedText}${middle}${transformedUrl}${suffix}`
     }
   )

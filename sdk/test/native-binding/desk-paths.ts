@@ -1,16 +1,14 @@
 import type {Buffer} from 'node:buffer'
-import type {LoggerDiagnosticInput} from '../../src/plugins/plugin-core'
 import * as fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-import {buildFileOperationDiagnostic} from '../../src/diagnostics'
-import {resolveRuntimeEnvironment, resolveUserPath} from '../../src/runtime-environment'
+import {resolveRuntimeEnvironment, resolveUserPath} from '../../src/runtime-environment.ts'
 
 type PlatformFixedDir = 'win32' | 'darwin' | 'linux'
 
 function getLinuxDataDir(homeDir: string): string {
   const xdgDataHome = process.env['XDG_DATA_HOME']
-  if (typeof xdgDataHome === 'string' && xdgDataHome.trim().length > 0) return resolveUserPath(xdgDataHome)
+  if ((xdgDataHome?.trim()?.length ?? 0) > 0 && xdgDataHome != null) return resolveUserPath(xdgDataHome)
   return path.join(homeDir, '.local', 'share')
 }
 
@@ -207,58 +205,5 @@ export async function deleteTargets(targets: {readonly files?: readonly string[]
     deletedDirs: dirResult.deletedPaths,
     fileErrors: fileResult.errors,
     dirErrors: dirResult.errors
-  }
-}
-
-export interface WriteLogger {
-  readonly trace: (data: object) => void
-  readonly error: (diagnostic: LoggerDiagnosticInput) => void
-}
-
-export interface SafeWriteOptions {
-  readonly fullPath: string
-  readonly content: string | Buffer
-  readonly type: string
-  readonly relativePath: string
-  readonly dryRun: boolean
-  readonly logger: WriteLogger
-}
-
-export interface SafeWriteResult {
-  readonly path: string
-  readonly success: boolean
-  readonly skipped?: boolean
-  readonly error?: Error
-}
-
-export function writeFileSafe(options: SafeWriteOptions): SafeWriteResult {
-  const {fullPath, content, type, relativePath, dryRun, logger} = options
-
-  if (dryRun) {
-    logger.trace({action: 'dryRun', type, path: fullPath})
-    return {path: relativePath, success: true, skipped: false}
-  }
-
-  try {
-    writeFileSync(fullPath, content)
-    logger.trace({action: 'write', type, path: fullPath})
-    return {path: relativePath, success: true}
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error)
-    logger.error(
-      buildFileOperationDiagnostic({
-        code: 'OUTPUT_FILE_WRITE_FAILED',
-        title: `Failed to write ${type} output`,
-        operation: 'write',
-        targetKind: `${type} output file`,
-        path: fullPath,
-        error: errMsg,
-        details: {
-          relativePath,
-          type
-        }
-      })
-    )
-    return {path: relativePath, success: false, error: error as Error}
   }
 }

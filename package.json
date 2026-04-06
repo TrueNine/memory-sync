@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "build": "turbo build",
-    "test": "turbo test --filter=!@truenine/memory-sync-gui",
+    "test": "turbo test",
     "lint": "turbo lint",
     "lint:fix": "turbo lint:fix",
     "check:type": "turbo check:type",

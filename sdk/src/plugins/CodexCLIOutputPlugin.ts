@@ -7,7 +7,6 @@ import type {
   SkillPrompt
 } from './plugin-core'
 import {Buffer} from 'node:buffer'
-import * as path from 'node:path'
 import {
   AbstractOutputPlugin,
   filterByProjectConfig,
@@ -21,7 +20,6 @@ const PROMPTS_SUBDIR = 'prompts'
 const AGENTS_SUBDIR = 'agents'
 const SKILLS_SUBDIR = 'skills'
 const PRESERVED_SYSTEM_SKILL_DIR = '.system'
-const SKILL_FILE_NAME = 'SKILL.md'
 const MCP_CONFIG_FILE = 'mcp.json'
 const CODEX_SUBAGENT_FIELD_ORDER = ['name', 'description', 'developer_instructions'] as const
 const CODEX_EXCLUDED_SUBAGENT_FIELDS = ['scope', 'seriName', 'argumentHint', 'color', 'namingCase', 'model'] as const
@@ -183,46 +181,13 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       scope: 'project' | 'global',
       filteredSkills: readonly SkillPrompt[]
     ): void => {
-      for (const skill of filteredSkills) {
-        const skillName = this.getSkillName(skill)
-        const skillDir = path.join(baseDir, SKILLS_SUBDIR, skillName)
-
-        declarations.push({
-          path: path.join(skillDir, SKILL_FILE_NAME),
-          scope,
-          source: {kind: 'skillMain', skill} satisfies CodexOutputSource
+      this.appendSkillDeclarations(declarations, baseDir, scope, filteredSkills, {
+        skillSubDir: SKILLS_SUBDIR,
+        buildSkillReferenceSource: childDoc => ({
+          kind: 'skillChildDoc',
+          content: childDoc.content as string
         })
-
-        if (skill.childDocs != null) {
-          for (const childDoc of skill.childDocs) {
-            declarations.push({
-              path: path.join(
-                skillDir,
-                childDoc.relativePath.replace(/\.mdx$/, '.md')
-              ),
-              scope,
-              source: {
-                kind: 'skillChildDoc',
-                content: childDoc.content as string
-              } satisfies CodexOutputSource
-            })
-          }
-        }
-
-        if (skill.resources != null) {
-          for (const resource of skill.resources) {
-            declarations.push({
-              path: path.join(skillDir, resource.relativePath),
-              scope,
-              source: {
-                kind: 'skillResource',
-                content: resource.content,
-                encoding: resource.encoding
-              } satisfies CodexOutputSource
-            })
-          }
-        }
-      }
+      })
     }
 
     const pushSkillMcpDeclarations = (
@@ -230,19 +195,16 @@ export class CodexCLIOutputPlugin extends AbstractOutputPlugin {
       scope: 'project' | 'global',
       filteredMcpSkills: readonly SkillPrompt[]
     ): void => {
-      for (const skill of filteredMcpSkills) {
-        if (skill.mcpConfig == null) continue
-
-        const skillDir = path.join(baseDir, SKILLS_SUBDIR, this.getSkillName(skill))
-        declarations.push({
-          path: path.join(skillDir, MCP_CONFIG_FILE),
-          scope,
-          source: {
-            kind: 'skillMcpConfig',
-            rawContent: skill.mcpConfig.rawContent
-          } satisfies CodexOutputSource
-        })
-      }
+      this.appendSkillMcpDeclarations(
+        declarations,
+        baseDir,
+        scope,
+        filteredMcpSkills,
+        {
+          skillSubDir: SKILLS_SUBDIR,
+          fileName: MCP_CONFIG_FILE
+        }
+      )
     }
 
     if (

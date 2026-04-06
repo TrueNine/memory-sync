@@ -133,6 +133,7 @@ never leave placeholders or "{TODO}" markers`
       const result = await mdxToMd(input, {
         globalScope: {
           profile: {name: 'TestUser'},
+          codeStyles: {},
           tool: {},
           env: {},
           os: {}
@@ -146,6 +147,7 @@ never leave placeholders or "{TODO}" markers`
       const result = await mdxToMd(input, {
         globalScope: {
           profile: {},
+          codeStyles: {},
           tool: {websearch: 'websearch'},
           env: {},
           os: {}
@@ -159,6 +161,7 @@ never leave placeholders or "{TODO}" markers`
       const result = await mdxToMd(input, {
         globalScope: {
           profile: {name: 'GlobalName'},
+          codeStyles: {},
           tool: {},
           env: {},
           os: {}
@@ -166,6 +169,20 @@ never leave placeholders or "{TODO}" markers`
         scope: {profile: {name: 'OverriddenName'}}
       })
       expect(result).toContain('Name: OverriddenName')
+    })
+
+    it('should have access to globalScope.codeStyles', async () => {
+      const input = 'Indent: {codeStyles.indent}, Width: {codeStyles.tabSize}'
+      const result = await mdxToMd(input, {
+        globalScope: {
+          profile: {},
+          codeStyles: {indent: 'space', tabSize: 2},
+          tool: {},
+          env: {},
+          os: {}
+        }
+      })
+      expect(result).toContain('Indent: space, Width: 2')
     })
   })
 

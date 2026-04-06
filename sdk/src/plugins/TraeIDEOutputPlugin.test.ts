@@ -61,7 +61,7 @@ describe('traeIDEOutputPlugin steering rule output', () => {
           ]
         }
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(ctx)
     const steering = declarations.find(d => d.source != null && (d.source as {kind?: string}).kind === 'steeringRule')
@@ -111,7 +111,7 @@ describe('traeIDEOutputPlugin steering rule output', () => {
           ]
         }
       }
-    } as OutputWriteContext
+    } as unknown as OutputWriteContext
 
     const declarations = await plugin.declareOutputFiles(ctx)
     const steering = declarations.find(d => d.source != null && (d.source as {kind?: string}).kind === 'steeringRule')

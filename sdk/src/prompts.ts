@@ -1,6 +1,7 @@
 import type {AindexProjectSeriesName, PluginOptions, YAMLFrontMatter} from '@/plugins/plugin-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import process from 'node:process'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import glob from 'fast-glob'
 import {
@@ -8,7 +9,7 @@ import {
   resolveAindexProjectSeriesConfig,
   resolveAindexProjectSeriesConfigs
 } from '@/aindex-project-series'
-import {mergeConfig, userConfigToPluginOptions} from './config'
+import {mergeConfigForRuntime, userConfigToPluginOptions} from './config'
 import {getConfigLoader} from './ConfigLoader'
 import {PathPlaceholders} from './plugins/plugin-core'
 import {resolveUserPath} from './runtime-environment'
@@ -164,7 +165,7 @@ function resolvePromptEnvironment(options: PromptServiceOptions = {}): ResolvedP
     if (userConfigResult.found) userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
   }
 
-  const mergedOptions = mergeConfig(userConfigOptions, pluginOptions)
+  const mergedOptions = mergeConfigForRuntime(cwd ?? process.cwd(), userConfigOptions, pluginOptions)
   const workspaceDir = resolveConfiguredPath(mergedOptions.workspaceDir, '')
   const aindexDir = path.join(workspaceDir, mergedOptions.aindex.dir)
 

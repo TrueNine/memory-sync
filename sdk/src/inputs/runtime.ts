@@ -79,7 +79,7 @@ export async function collectInputContext(options: InputRuntimeOptions): Promise
     ...includeBuiltinEffects ? createBuiltinInputEffectCapabilities() : [],
     ...capabilities ?? createBuiltinInputReaderCapabilities()
   ])
-  const globalScopeCollector = new GlobalScopeCollector({userConfig})
+  const globalScopeCollector = new GlobalScopeCollector({userConfig, userConfigOptions})
   const globalScope: MdxGlobalScope = globalScopeCollector.collect()
   const scopeRegistry = new ScopeRegistry()
   scopeRegistry.setGlobalScope(globalScope)
@@ -91,6 +91,7 @@ export async function collectInputContext(options: InputRuntimeOptions): Promise
       shellKind: globalScope.os.shellKind
     },
     hasProfile: Object.keys(globalScope.profile).length > 0,
+    hasCodeStyles: Object.keys(globalScope.codeStyles).length > 0,
     hasTool: Object.keys(globalScope.tool).length > 0
   })
 

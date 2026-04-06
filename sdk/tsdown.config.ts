@@ -15,7 +15,6 @@ const pluginAliases: Record<string, string> = {
   '@truenine/plugin-claude-code-cli': resolve('src/plugins/plugin-claude-code-cli.ts'),
   '@truenine/plugin-cursor': resolve('src/plugins/plugin-cursor.ts'),
   '@truenine/plugin-droid-cli': resolve('src/plugins/plugin-droid-cli.ts'),
-  '@truenine/plugin-editorconfig': resolve('src/plugins/plugin-editorconfig.ts'),
   '@truenine/plugin-gemini-cli': resolve('src/plugins/plugin-gemini-cli.ts'),
   '@truenine/plugin-git-exclude': resolve('src/plugins/plugin-git-exclude.ts'),
   '@truenine/plugin-input-agentskills': resolve('src/plugins/plugin-input-agentskills/index.ts'),
@@ -44,7 +43,7 @@ const pluginAliases: Record<string, string> = {
   '@truenine/plugin-readme': resolve('src/plugins/plugin-readme.ts'),
   '@truenine/plugin-trae-ide': resolve('src/plugins/plugin-trae-ide.ts'),
   '@truenine/plugin-vscode': resolve('src/plugins/plugin-vscode.ts'),
-  '@truenine/plugin-warp-ide': resolve('src/plugins/plugin-warp-ide.ts'),
+  '@truenine/plugin-warp-ide': resolve('src/plugins/WarpIDEOutputPlugin.ts'),
   '@truenine/plugin-windsurf': resolve('src/plugins/plugin-windsurf.ts'),
   '@truenine/plugin-zed': resolve('src/plugins/plugin-zed.ts')
 }

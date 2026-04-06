@@ -248,6 +248,33 @@ jobs:
               fi
             done <<< "$CLI_NATIVE_BINDING_PREFIXES"
           done
+      - name: Validate NAPI binary format and size
+        shell: bash
+        run: |
+          shopt -s nullglob
+          min_size=$((1024 * 1024))
+          for target_dir in cli/npm/*/; do
+            if [ ! -f "${target_dir}package.json" ]; then
+              continue
+            fi
+            for node_file in "${target_dir}"*.node; do
+              if [ ! -f "$node_file" ]; then
+                continue
+              fi
+              size=$(stat -c%s "$node_file" 2>/dev/null || stat -f%z "$node_file" 2>/dev/null || echo 0)
+              if [ "$size" -lt "$min_size" ]; then
+                echo "ERROR: ${node_file} is too small (${size} bytes), expected at least ${min_size} bytes"
+                exit 1
+              fi
+              file_output=$(file "$node_file")
+              echo "File info for ${node_file}: ${file_output}"
+              if [[ "$file_output" == *"ELF"* ]] || [[ "$file_output" == *"Mach-O"* ]] || [[ "$file_output" == *"PE"* ]]; then
+                echo "OK: ${node_file} is a valid native binary"
+              else
+                echo "WARNING: ${node_file} format could not be verified as ELF/Mach-O/PE"
+              fi
+            done
+          done
       - name: Publish CLI platform sub-packages
         uses: ./.github/actions/npm-publish-package
         with:

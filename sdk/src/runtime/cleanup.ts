@@ -11,15 +11,15 @@ import type {
   ProtectionRuleMatcher
 } from '../ProtectedDeletionGuard'
 import * as path from 'node:path'
+import {loadAindexProjectConfig} from '@/aindex-config'
 import {
   buildDiagnostic,
   buildFileOperationDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
 import {filterPathScopedEntriesForExecutionPlan} from '@/execution-plan'
-import {loadAindexProjectConfig} from '../aindex-config/AindexProjectConfigLoader'
 import {getNativeBinding} from '../core/native-binding'
-import {collectAllPluginOutputs} from '../plugins/plugin-core'
+import {collectAllPluginOutputs, isOutputPluginEnabled} from '../plugins/plugin-core'
 import {
   collectProjectRoots,
   collectProtectedInputSourceRules,
@@ -244,8 +244,12 @@ async function collectPluginCleanupSnapshot(
   >
 ): Promise<NativePluginCleanupSnapshot> {
   const existingOutputDeclarations = predeclaredOutputs?.get(plugin)
-  const declaredOutputs
-    = existingOutputDeclarations ?? await plugin.declareOutputFiles({...cleanCtx, dryRun: true})
+  const declaredOutputs = existingOutputDeclarations
+    ?? (
+      !isOutputPluginEnabled(plugin, cleanCtx.pluginOptions)
+        ? []
+        : await plugin.declareOutputFiles({...cleanCtx, dryRun: true})
+    )
   const outputs = filterPathScopedEntriesForExecutionPlan(
     declaredOutputs,
     cleanCtx.executionPlan,
@@ -271,18 +275,8 @@ async function collectPluginCleanupSnapshot(
   }
 }
 
-function collectConfiguredCleanupProtectionRules(
-  cleanCtx: OutputCleanContext
-): NativeProtectedRule[] {
-  return (cleanCtx.pluginOptions?.cleanupProtection?.rules ?? []).map(
-    rule => ({
-      path: rule.path,
-      protectionMode: mapProtectionMode(rule.protectionMode),
-      reason: rule.reason ?? 'configured cleanup protection rule',
-      source: 'configured-cleanup-protection',
-      matcher: mapProtectionRuleMatcher(rule.matcher ?? 'path')
-    })
-  )
+function collectConfiguredCleanupProtectionRules(): NativeProtectedRule[] {
+  return []
 }
 
 function buildCleanupProtectionConflictMessage(
@@ -503,7 +497,7 @@ async function buildCleanupSnapshot(
     })
   }
 
-  protectedRules.push(...collectConfiguredCleanupProtectionRules(cleanCtx))
+  protectedRules.push(...collectConfiguredCleanupProtectionRules())
 
   let emptyDirExcludeGlobs: string[] | undefined
   if (cleanCtx.collectedOutputContext.aindexDir != null) {
@@ -542,9 +536,7 @@ export async function planCleanupWithNative(
   const nativeBinding = requireNativeCleanupBinding()
   if (nativeBinding?.planCleanup == null)
   { throw new Error('Native cleanup planning is unavailable') }
-  const result = await Promise.resolve(
-    nativeBinding.planCleanup(JSON.stringify(snapshot))
-  )
+  const result = await nativeBinding.planCleanup(JSON.stringify(snapshot))
   return parseNativeJson<NativeCleanupPlan>(result)
 }
 
@@ -554,9 +546,7 @@ export async function performCleanupWithNative(
   const nativeBinding = requireNativeCleanupBinding()
   if (nativeBinding?.performCleanup == null)
   { throw new Error('Native cleanup execution is unavailable') }
-  const result = await Promise.resolve(
-    nativeBinding.performCleanup(JSON.stringify(snapshot))
-  )
+  const result = await nativeBinding.performCleanup(JSON.stringify(snapshot))
   return parseNativeJson<NativeCleanupResult>(result)
 }
 

@@ -16,7 +16,6 @@ export {
 export * from './plugins/plugin-core'
 export * from './plugins/plugin-cursor'
 export * from './plugins/plugin-droid-cli'
-export * from './plugins/plugin-editorconfig'
 export * from './plugins/plugin-gemini-cli'
 export * from './plugins/plugin-git-exclude'
 export * from './plugins/plugin-jetbrains-ai-codex'
@@ -29,9 +28,11 @@ export * from './plugins/plugin-readme'
 export * from './plugins/plugin-trae-cn-ide'
 export * from './plugins/plugin-trae-ide'
 export * from './plugins/plugin-vscode'
-export * from './plugins/plugin-warp-ide'
 export * from './plugins/plugin-windsurf'
 export * from './plugins/plugin-zed'
+export {
+  WarpIDEOutputPlugin
+} from './plugins/WarpIDEOutputPlugin'
 export * from './prompts'
 
 export {

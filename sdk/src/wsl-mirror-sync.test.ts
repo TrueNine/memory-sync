@@ -3,7 +3,7 @@ import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {describe, expect, it, vi} from 'vitest'
 import {PluginKind} from './plugins/plugin-core'
-import {syncWindowsConfigIntoWsl} from './wsl-mirror-sync'
+import {collectDeclaredWslMirrorFiles, syncWindowsConfigIntoWsl} from './wsl-mirror-sync'
 
 class MemoryMirrorFs {
   readonly files = new Map<string, Buffer>()
@@ -100,12 +100,15 @@ function createLogger(): RecordedLogger {
   } as RecordedLogger
 }
 
-function createMirrorPlugin(sourcePaths: string | readonly string[] = []): OutputPlugin {
+function createMirrorPlugin(
+  sourcePaths: string | readonly string[] = [],
+  pluginName: string = 'MirrorPlugin'
+): OutputPlugin {
   const normalizedPaths = Array.isArray(sourcePaths) ? sourcePaths : [sourcePaths]
 
   return {
     type: PluginKind.Output,
-    name: 'MirrorPlugin',
+    name: pluginName,
     log: createLogger(),
     declarativeOutput: true,
     outputCapabilities: {},
@@ -210,6 +213,46 @@ function wasWslListCalled(
 }
 
 describe('wsl mirror sync', () => {
+  it('skips declared WSL mirror files for opt-in plugins that are not enabled', async () => {
+    const declarations = await collectDeclaredWslMirrorFiles(
+      [createMirrorPlugin('~/.claude/settings.json', 'ClaudeCodeCLIOutputPlugin')],
+      {
+        ...createWriteContext('Ubuntu'),
+        pluginOptions: {
+          windows: {
+            wsl2: {
+              instances: 'Ubuntu'
+            }
+          },
+          plugins: {}
+        }
+      } as OutputWriteContext
+    )
+
+    expect(declarations).toEqual([])
+  })
+
+  it('collects declared WSL mirror files after an opt-in plugin is explicitly enabled', async () => {
+    const declarations = await collectDeclaredWslMirrorFiles(
+      [createMirrorPlugin('~/.claude/settings.json', 'ClaudeCodeCLIOutputPlugin')],
+      {
+        ...createWriteContext('Ubuntu'),
+        pluginOptions: {
+          windows: {
+            wsl2: {
+              instances: 'Ubuntu'
+            }
+          },
+          plugins: {
+            claudeCode: true
+          }
+        }
+      } as OutputWriteContext
+    )
+
+    expect(declarations).toEqual([{sourcePath: '~/.claude/settings.json'}])
+  })
+
   it('copies declared host config files into each resolved WSL home', async () => {
     const memoryFs = new MemoryMirrorFs()
     const hostHomeDir = 'C:\\Users\\alpha'

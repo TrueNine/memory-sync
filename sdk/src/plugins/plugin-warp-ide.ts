@@ -1,3 +1,0 @@
-export {
-  WarpIDEOutputPlugin
-} from './WarpIDEOutputPlugin'

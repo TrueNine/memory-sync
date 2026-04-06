@@ -1,13 +1,13 @@
 ---
 title: Supported Outputs
-description: Summarizes the output targets currently integrated by the default plugin.config.ts.
+description: Summarizes the output targets currently integrated by the assembled plugin surface, and clarifies that support is not the same thing as default enablement.
 sidebarTitle: Supported Outputs
 status: stable
 ---
 
 # Supported Outputs
 
-The current default plugin configuration shows that the project is integrated with at least these output targets:
+The current assembled plugin surface shows that the project is integrated with at least these output targets:
 
 ## AI / IDE / CLI Targets
 
@@ -29,11 +29,27 @@ The current default plugin configuration shows that the project is integrated wi
 
 - Generic Skills export
 - `.git/info/exclude`
-- `.editorconfig`
 - VS Code config
 - JetBrains code style config
-- README-like outputs
+- README-like outputs (including `.editorconfig`)
+
+## Current Built-in Default
+
+Supported does not mean enabled by default.
+
+The current built-in default behavior is:
+
+- `plugins.git` is enabled
+- `plugins.readme` is enabled
+- the other supported outputs remain opt-in until `~/.aindex/.tnmsc.json` explicitly enables them
+
+So this page is a capability list, not a list of outputs that always appear on disk.
 
 ## One Important Thing to Remember
 
-The "Supported Tools" table in the README is a high-level user-facing description. The thing that actually controls default sync behavior is which plugins are assembled in [plugin.config.ts](/docs/cli/plugin-config). If the two disagree, trust the latter.
+The "Supported Tools" table in the README is a high-level user-facing description. The real behavior comes from two layers together:
+
+- which plugins are assembled in [plugin.config.ts](/docs/cli/plugin-config)
+- which plugin keys are enabled in `~/.aindex/.tnmsc.json`
+
+If a target is assembled but disabled in user config, treat it as supported but currently inactive.

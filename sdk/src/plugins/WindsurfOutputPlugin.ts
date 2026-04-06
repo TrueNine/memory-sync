@@ -1,7 +1,15 @@
 import type {CommandPrompt, OutputFileDeclaration, OutputWriteContext, RulePrompt, SkillPrompt} from './plugin-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {AbstractOutputPlugin, applySubSeriesGlobPrefix, filterByProjectConfig, IgnoreFiles, PLUGIN_NAMES} from './plugin-core'
+import {
+  AbstractOutputPlugin,
+  applySubSeriesGlobPrefix,
+  filterByProjectConfig,
+  IgnoreFiles,
+  OutputDeclarationScopeKind,
+  PLUGIN_NAMES,
+  PromptKind
+} from './plugin-core'
 
 const CODEIUM_WINDSURF_DIR = '.codeium/windsurf'
 const WORKFLOWS_SUBDIR = 'global_workflows'
@@ -9,7 +17,6 @@ const PROJECT_WORKFLOWS_SUBDIR = 'workflows'
 const MEMORIES_SUBDIR = 'memories'
 const GLOBAL_MEMORY_FILE = 'global_rules.md'
 const SKILLS_SUBDIR = 'skills'
-const SKILL_FILE_NAME = 'SKILL.md'
 const WINDSURF_RULES_DIR = '.windsurf'
 const WINDSURF_RULES_SUBDIR = 'rules'
 const RULE_FILE_PREFIX = 'rule-'
@@ -100,64 +107,47 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       })
     }
 
-    const pushSkillDeclarations = (
-      basePath: string,
-      scope: 'project' | 'global',
-      skill: SkillPrompt
-    ): void => {
-      const skillName = this.getSkillName(skill)
-      const skillDir = path.join(basePath, SKILLS_SUBDIR, skillName)
-      declarations.push({
-        path: path.join(skillDir, SKILL_FILE_NAME),
-        scope,
-        source: {kind: 'skillMain', skill} satisfies WindsurfOutputSource
-      })
-
-      if (skill.childDocs != null) {
-        for (const childDoc of skill.childDocs) {
-          declarations.push({
-            path: path.join(skillDir, childDoc.relativePath.replace(/\.mdx$/, '.md')),
-            scope,
-            source: {
-              kind: 'skillChildDoc',
-              content: childDoc.content as string
-            } satisfies WindsurfOutputSource
-          })
-        }
-      }
-
-      if (skill.resources != null) {
-        for (const resource of skill.resources) {
-          declarations.push({
-            path: path.join(skillDir, resource.relativePath),
-            scope,
-            source: {
-              kind: 'skillResource',
-              content: resource.content,
-              encoding: resource.encoding
-            } satisfies WindsurfOutputSource
-          })
-        }
-      }
-    }
-
-    if (selectedSkills.selectedScope === 'project') {
+    if (selectedSkills.selectedScope === OutputDeclarationScopeKind.Project) {
       for (const project of this.getProjectOutputProjects(ctx)) {
         const projectRootDir = this.resolveProjectRootDir(ctx, project)
         const projectBase = projectRootDir == null ? void 0 : path.join(projectRootDir, WINDSURF_RULES_DIR)
         if (projectBase == null) continue
         const filteredSkills = filterByProjectConfig(selectedSkills.items, project.projectConfig, 'skills')
-        for (const skill of filteredSkills) pushSkillDeclarations(projectBase, 'project', skill)
+        this.appendSkillDeclarations(
+          declarations,
+          projectBase,
+          OutputDeclarationScopeKind.Project,
+          filteredSkills,
+          {
+            skillSubDir: SKILLS_SUBDIR,
+            buildSkillReferenceSource: childDoc => ({
+              kind: PromptKind.SkillChildDoc,
+              content: childDoc.content as string
+            })
+          }
+        )
       }
     }
 
-    if (selectedSkills.selectedScope === 'global') {
+    if (selectedSkills.selectedScope === OutputDeclarationScopeKind.Global) {
       const filteredSkills = filterByProjectConfig(selectedSkills.items, promptSourceProjectConfig, 'skills')
-      for (const skill of filteredSkills) pushSkillDeclarations(globalBase, 'global', skill)
+      this.appendSkillDeclarations(
+        declarations,
+        globalBase,
+        OutputDeclarationScopeKind.Global,
+        filteredSkills,
+        {
+          skillSubDir: SKILLS_SUBDIR,
+          buildSkillReferenceSource: childDoc => ({
+            kind: PromptKind.SkillChildDoc,
+            content: childDoc.content as string
+          })
+        }
+      )
     }
 
     const transformOptions = this.getTransformOptionsFromContext(ctx, {includeSeriesPrefix: true})
-    if (selectedCommands.selectedScope === 'project') {
+    if (selectedCommands.selectedScope === OutputDeclarationScopeKind.Project) {
       for (const project of this.getProjectOutputProjects(ctx)) {
         const projectRootDir = this.resolveProjectRootDir(ctx, project)
         const projectBase = projectRootDir == null ? void 0 : path.join(projectRootDir, WINDSURF_RULES_DIR)
@@ -173,15 +163,15 @@ export class WindsurfOutputPlugin extends AbstractOutputPlugin {
       }
     }
 
-    if (selectedCommands.selectedScope === 'global') {
+    if (selectedCommands.selectedScope === OutputDeclarationScopeKind.Global) {
       const filteredCommands = filterByProjectConfig(selectedCommands.items, promptSourceProjectConfig, 'commands')
-      for (const command of filteredCommands) {
-        declarations.push({
-          path: path.join(globalBase, WORKFLOWS_SUBDIR, this.transformCommandName(command, transformOptions)),
-          scope: 'global',
-          source: {kind: 'command', command} satisfies WindsurfOutputSource
-        })
-      }
+      this.appendCommandDeclarations(
+        declarations,
+        globalBase,
+        OutputDeclarationScopeKind.Global,
+        filteredCommands,
+        transformOptions
+      )
     }
 
     if (rules != null && rules.length > 0) {

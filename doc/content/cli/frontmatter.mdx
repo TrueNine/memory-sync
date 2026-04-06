@@ -24,7 +24,7 @@ Optional fields include:
 
 ## 2. The Sync System's `frontMatter` Config
 
-The only public config field in the schema and `config.ts` right now is:
+The `frontMatter` block currently exposes only one field:
 
 ```json
 {
@@ -35,6 +35,8 @@ The only public config field in the schema and `config.ts` right now is:
 ```
 
 Its job is not to describe the page itself. It controls whether a blank line is preserved after front matter during output.
+
+If you are looking for lightweight personal indentation preferences such as `tabSize` or `indent`, that is now the separate `codeStyles` block in `~/.aindex/.tnmsc.json`, not `frontMatter`.
 
 ## 3. Source-Content Frontmatter
 
@@ -52,6 +54,7 @@ See [Technical Details](/docs/technical-details) for the boundary between those 
 
 - Docs frontmatter is for the docs site
 - The `frontMatter` config is for output behavior
+- `codeStyles` is the separate config block for lightweight code-style preferences such as indentation
 - Source-content frontmatter is for the sync system and output plugins, but `skills` and `subagents` now take their names from the path rather than `name`
 
 These are three different concerns.

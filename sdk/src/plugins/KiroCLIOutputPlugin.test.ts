@@ -59,7 +59,7 @@ function createCleanContext(
         projects: [...projects]
       }
     }
-  } as OutputCleanContext
+  } as unknown as OutputCleanContext
 }
 
 describe('kiroCLIOutputPlugin cleanup', () => {

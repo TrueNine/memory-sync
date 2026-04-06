@@ -7,7 +7,7 @@ import type {
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
-import {FilePathKind, PluginKind} from '../src/plugins/plugin-core/enums'
+import {FilePathKind, PluginKind} from '../src/plugins/plugin-core/enums.ts'
 import * as deskPaths from './native-binding/desk-paths'
 
 interface NativeCleanupTarget {
@@ -86,21 +86,6 @@ function createSyntheticOutputPlugin(snapshot: NativePluginCleanupSnapshot): Out
 async function createSyntheticCleanContext(snapshot: NativeCleanupSnapshot): Promise<OutputCleanContext> {
   const {mergeConfig} = await import('../src/config')
   const workspaceDir = path.resolve(snapshot.workspaceDir)
-  const cleanupProtectionRules = snapshot.protectedRules.map(rule => ({
-    path: rule.path,
-    protectionMode: rule.protectionMode,
-    reason: rule.reason,
-    matcher: rule.matcher ?? 'path'
-  }))
-
-  if (snapshot.aindexDir != null) {
-    cleanupProtectionRules.push({
-      path: snapshot.aindexDir,
-      protectionMode: 'direct',
-      reason: 'resolved aindex root',
-      matcher: 'path'
-    })
-  }
 
   return {
     logger: createMockLogger(),
@@ -109,10 +94,7 @@ async function createSyntheticCleanContext(snapshot: NativeCleanupSnapshot): Pro
     glob,
     dryRun: false,
     pluginOptions: mergeConfig({
-      workspaceDir,
-      cleanupProtection: {
-        rules: cleanupProtectionRules
-      }
+      workspaceDir
     }),
     collectedOutputContext: {
       workspace: {

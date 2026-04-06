@@ -13,9 +13,9 @@ import type {
   SkillYAMLFrontMatter
 } from '../plugins/plugin-core'
 import type {ResourceScanResult} from './input-agentskills-types'
-
 import {Buffer} from 'node:buffer'
 import * as nodePath from 'node:path'
+
 import {transformMdxReferencesToMd} from '@truenine/md-compiler/markdown'
 import {
   buildConfigDiagnostic,
@@ -344,7 +344,7 @@ class ResourceProcessor {
       const {content, encoding, length} = this.readFileContent(filePath, ext)
       const mimeType = getMimeType(ext)
 
-      const resource: SkillResource = {
+      return {
         type: PromptKind.SkillResource,
         extension: ext,
         fileName,
@@ -355,8 +355,6 @@ class ResourceProcessor {
         length,
         ...mimeType != null && {mimeType}
       }
-
-      return resource
     }
     catch (e) {
       this.ctx.logger.warn(buildFileOperationDiagnostic({
@@ -701,14 +699,6 @@ export class SkillInputCapability extends AbstractInputCapability {
     super('SkillInputCapability')
   }
 
-  readMcpConfig(
-    skillDir: string,
-    fs: typeof import('node:fs'),
-    logger: ILogger
-  ): SkillMcpConfig | undefined {
-    return readMcpConfig(skillDir, fs, logger)
-  }
-
   async scanSkillDirectory(
     skillDir: string,
     fs: typeof import('node:fs'),
@@ -822,7 +812,7 @@ export class SkillInputCapability extends AbstractInputCapability {
       }))
     }
 
-    if (errors.length > 0) throw new Error(errors.map(error => error.error instanceof Error ? error.error.message : String(error.error)).join('\n'))
+    if (errors.length > 0) throw new Error(errors.map(error => error.error.message).join('\n'))
 
     for (const localized of localizedSkills) {
       const prompt = localized.dist?.prompt

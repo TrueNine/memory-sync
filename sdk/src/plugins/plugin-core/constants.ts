@@ -29,7 +29,6 @@ export const PLUGIN_NAMES = {
   ReadmeOutput: 'ReadmeMdConfigFileOutputPlugin',
   VSCodeOutput: 'VisualStudioCodeIDEConfigOutputPlugin',
   ZedOutput: 'ZedIDEConfigOutputPlugin',
-  EditorConfigOutput: 'EditorConfigOutputPlugin',
   AntigravityOutput: 'AntigravityOutputPlugin'
 } as const
 

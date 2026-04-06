@@ -80,6 +80,19 @@ export const ZOutputScopeOptions = z.object({plugins: z.record(z.string(), ZPlug
  */
 export const ZFrontMatterOptions = z.object({blankLineAfter: z.boolean().optional()})
 
+export const DEFAULT_CODE_STYLE_INDENT = 'space' as const
+export const DEFAULT_CODE_STYLE_TAB_SIZE = 2 as const
+export const DEFAULT_CODE_STYLES_OPTIONS = {
+  indent: DEFAULT_CODE_STYLE_INDENT,
+  tabSize: DEFAULT_CODE_STYLE_TAB_SIZE
+} as const
+
+export const ZCodeStyleIndent = z.enum(['tab', 'space'])
+export const ZCodeStylesOptions = z.object({
+  indent: ZCodeStyleIndent.default(DEFAULT_CODE_STYLES_OPTIONS.indent),
+  tabSize: z.number().int().positive().default(DEFAULT_CODE_STYLES_OPTIONS.tabSize)
+}).catchall(z.unknown())
+
 export const ZProtectionMode = z.enum(['direct', 'recursive'])
 export const ZProtectionRuleMatcher = z.enum(['path', 'glob'])
 
@@ -98,6 +111,8 @@ export const ZWindowsWsl2Options = z.object({
 export const ZWindowsOptions = z.object({
   wsl2: ZWindowsWsl2Options.optional()
 })
+
+export const ZPluginsConfig = z.record(z.string(), z.boolean())
 
 /**
  * Zod schema for user profile information.
@@ -119,9 +134,11 @@ export const ZUserConfigFile = z.object({
   commandSeriesOptions: ZCommandSeriesOptions.optional(),
   outputScopes: ZOutputScopeOptions.optional(),
   frontMatter: ZFrontMatterOptions.optional(),
+  codeStyles: ZCodeStylesOptions.optional(),
   cleanupProtection: ZCleanupProtectionOptions.optional(),
   windows: ZWindowsOptions.optional(),
-  profile: ZUserProfile.optional()
+  profile: ZUserProfile.optional(),
+  plugins: ZPluginsConfig.optional()
 })
 
 /**
@@ -164,6 +181,8 @@ export type OutputScopeSelection = z.infer<typeof ZOutputScopeSelection>
 export type PluginOutputScopeTopics = z.infer<typeof ZPluginOutputScopeTopics>
 export type OutputScopeOptions = z.infer<typeof ZOutputScopeOptions>
 export type FrontMatterOptions = z.infer<typeof ZFrontMatterOptions>
+export type CodeStyleIndent = z.infer<typeof ZCodeStyleIndent>
+export type CodeStylesOptions = z.infer<typeof ZCodeStylesOptions>
 export type ProtectionMode = z.infer<typeof ZProtectionMode>
 export type ProtectionRuleMatcher = z.infer<typeof ZProtectionRuleMatcher>
 export type CleanupProtectionRule = z.infer<typeof ZCleanupProtectionRule>
@@ -171,11 +190,32 @@ export type CleanupProtectionOptions = z.infer<typeof ZCleanupProtectionOptions>
 export type StringOrStringArray = z.infer<typeof ZStringOrStringArray>
 export type WindowsWsl2Options = z.infer<typeof ZWindowsWsl2Options>
 export type WindowsOptions = z.infer<typeof ZWindowsOptions>
+export type PluginsConfig = z.infer<typeof ZPluginsConfig>
 export type UserConfigFile = z.infer<typeof ZUserConfigFile>
 export type McpProjectConfig = z.infer<typeof ZMcpProjectConfig>
 export type TypeSeriesConfig = z.infer<typeof ZTypeSeriesConfig>
 export type ProjectConfig = z.infer<typeof ZProjectConfig>
 export type ConfigLoaderOptions = z.infer<typeof ZConfigLoaderOptions>
+
+export function buildDefaultCodeStylesOptions(): CodeStylesOptions {
+  return {...DEFAULT_CODE_STYLES_OPTIONS}
+}
+
+export function mergeCodeStylesOptions(
+  base: CodeStylesOptions = buildDefaultCodeStylesOptions(),
+  override?: Partial<CodeStylesOptions>
+): CodeStylesOptions {
+  if (override == null) return {...base}
+
+  const definedOverride = Object.fromEntries(
+    Object.entries(override).filter(([, value]) => value !== void 0)
+  ) as Partial<CodeStylesOptions>
+
+  return {
+    ...base,
+    ...definedOverride
+  }
+}
 
 /**
  * Result of loading a config file.
