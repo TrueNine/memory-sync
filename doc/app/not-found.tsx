@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import {withBasePath} from '@/lib/site'
 
 export default function NotFound() {
   return (
@@ -6,11 +7,11 @@ export default function NotFound() {
       <p className="not-found-code">404 / ROUTE NOT FOUND</p>
       <h1>你摸到了一条不存在的通道。</h1>
       <p>
-        当前文档已经重构为首页 `
-        /
-        ` 加文档命名空间 `
-        /docs/*
-        `。
+        当前文档已经重构为首页
+        <code>{withBasePath('/')}</code>
+        加文档命名空间
+        <code>{withBasePath('/docs/*')}</code>
+        。
         如果你是从旧链接跳来的，很可能命中了已经移除的平铺 MDX 路径。
       </p>
       <div className="not-found-actions">

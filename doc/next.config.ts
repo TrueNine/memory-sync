@@ -1,5 +1,6 @@
 import type {NextConfig} from 'next'
 import {readFileSync} from 'node:fs'
+import process from 'node:process'
 import nextra from 'nextra'
 
 const mermaidAliasPath = '@/components/mermaid'
@@ -45,6 +46,20 @@ const LEGACY_DOC_REDIRECTS = [
 
 const DOC_PACKAGE_JSON_PATH = new URL('./package.json', import.meta.url)
 
+function normalizeBasePath(rawBasePath: string | undefined): string {
+  if (rawBasePath == null) {
+    return ''
+  }
+
+  const trimmed = rawBasePath.trim()
+
+  if (trimmed === '' || trimmed === '/') {
+    return ''
+  }
+
+  return `/${trimmed.replaceAll(/^\/+|\/+$/gu, '')}`
+}
+
 function readDocsVersion() {
   const packageJson = JSON.parse(readFileSync(DOC_PACKAGE_JSON_PATH, 'utf8')) as {
     version?: string
@@ -58,10 +73,15 @@ function readDocsVersion() {
 }
 
 const docsVersion = readDocsVersion()
+const docsBasePath = normalizeBasePath(process.env.DOCS_BASE_PATH ?? process.env.NEXT_PUBLIC_DOCS_BASE_PATH)
 
 const nextConfig: NextConfig = {
+  ...docsBasePath !== '' && {
+    basePath: docsBasePath
+  },
   env: {
-    NEXT_PUBLIC_MEMORY_SYNC_VERSION: docsVersion
+    NEXT_PUBLIC_MEMORY_SYNC_VERSION: docsVersion,
+    NEXT_PUBLIC_DOCS_BASE_PATH: docsBasePath
   },
   reactStrictMode: true,
   pageExtensions: ['tsx', 'ts', 'mdx'],

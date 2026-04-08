@@ -11,8 +11,37 @@ export const siteConfig = {
   issueUrl: 'https://github.com/TrueNine/memory-sync/issues/new/choose'
 } as const
 
-export function getSiteUrl(): URL {
-  return new URL(process.env.NEXT_PUBLIC_DOCS_SITE_URL ?? 'http://localhost:3000')
+function normalizeBasePath(rawBasePath: string | undefined): string {
+  if (rawBasePath == null) {
+    return ''
+  }
+
+  const trimmed = rawBasePath.trim()
+
+  if (trimmed === '' || trimmed === '/') {
+    return ''
+  }
+
+  return `/${trimmed.replaceAll(/^\/+|\/+$/gu, '')}`
+}
+
+export function getBasePath(): string {
+  return normalizeBasePath(process.env.NEXT_PUBLIC_DOCS_BASE_PATH ?? process.env.DOCS_BASE_PATH)
+}
+
+export function withBasePath(route: string): string {
+  const normalizedRoute = route === '' ? '/' : route.startsWith('/') ? route : `/${route}`
+  const basePath = getBasePath()
+
+  if (normalizedRoute === '/') {
+    return basePath === '' ? '/' : `${basePath}/`
+  }
+
+  return `${basePath}${normalizedRoute}`
+}
+
+export function getSiteUrl(route = '/'): URL {
+  return new URL(withBasePath(route), process.env.NEXT_PUBLIC_DOCS_SITE_URL ?? 'http://localhost:3000')
 }
 
 export const heroProofPoints = [

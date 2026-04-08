@@ -3,7 +3,7 @@ import {Layout, Navbar} from 'nextra-theme-docs'
 import {getPageMap} from 'nextra/page-map'
 import {DocsSectionNav} from '../../../components/docs-section-nav'
 import {isDocSectionName} from '../../../lib/docs-sections'
-import {siteConfig} from '../../../lib/site'
+import {siteConfig, withBasePath} from '../../../lib/site'
 
 export default async function DocsLayout({
   children,
@@ -25,7 +25,7 @@ export default async function DocsLayout({
       navbar={(
         <Navbar
           className="docs-site-navbar"
-          logoLink="/"
+          logoLink={withBasePath('/')}
           logo={(
             <div className="docs-brand">
               <span className="docs-brand-badge">Docs</span>

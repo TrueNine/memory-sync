@@ -7,14 +7,14 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "pnpm run validate:content && next build",
+    "dev": "tsx scripts/run-next.ts dev",
+    "build": "tsx scripts/validate-content.ts && tsx scripts/run-next.ts build",
     "postbuild": "tsx scripts/run-pagefind.ts",
     "check": "run-p lint check:type",
     "validate:content": "tsx scripts/validate-content.ts",
-    "check:type": "next typegen && tsc --project tsconfig.typecheck.json --noEmit --incremental false",
-    "start": "next start",
-    "lint": "pnpm run validate:content && eslint --cache --cache-location .eslintcache ."
+    "check:type": "tsx scripts/run-next.ts typegen && tsc --project tsconfig.typecheck.json --noEmit --incremental false",
+    "start": "tsx scripts/run-next.ts start",
+    "lint": "tsx scripts/validate-content.ts && eslint --cache --cache-location .eslintcache ."
   },
   "dependencies": {
     "@theguild/remark-mermaid": "catalog:",

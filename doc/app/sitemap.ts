@@ -27,13 +27,12 @@ async function findMdxFiles(directory: string): Promise<string[]> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const contentDir = path.join(process.cwd(), 'content')
-  const siteUrl = getSiteUrl()
   const files = await findMdxFiles(contentDir)
 
   const routes = files.map(file => {
     const route = routeFromContentFile(file).replace(TRAILING_SLASHES_PATTERN, '') || '/docs'
     return {
-      url: new URL(route, siteUrl).toString(),
+      url: getSiteUrl(route).toString(),
       changeFrequency: 'weekly' as const,
       priority: route === '/docs' ? 0.9 : 0.7
     }
@@ -41,7 +40,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     {
-      url: new URL('/', siteUrl).toString(),
+      url: getSiteUrl('/').toString(),
       changeFrequency: 'weekly',
       priority: 1
     },

@@ -38,7 +38,12 @@ export class ClaudeCodeCLIOutputPlugin extends AbstractOutputPlugin {
         sourceScopes: ['project'],
         includePrefix: true,
         linkSymbol: '-',
-        ext: '.md'
+        ext: '.md',
+        transformFrontMatter: (agent, context) => ({
+          name: agent.canonicalName,
+          description: doubleQuoted(context.sourceFrontMatter?.description ?? ''),
+          memory: 'project'
+        })
       },
       skills: {
         subDir: SKILLS_SUBDIR
