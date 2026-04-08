@@ -28,6 +28,7 @@ import type {
   SkillChildDoc,
   SkillPrompt,
   SkillResource,
+  SubAgentYAMLFrontMatter,
   SubAgentPrompt,
   WslMirrorFileDeclaration
 } from './types'
@@ -146,7 +147,7 @@ export interface SubAgentsOutputConfig extends ScopedSourceConfig {
   readonly transformFrontMatter?: (
     subAgent: SubAgentPrompt,
     context: {
-      readonly sourceFrontMatter?: Record<string, unknown>
+      readonly sourceFrontMatter?: SubAgentYAMLFrontMatter
     }
   ) => Record<string, unknown>
 }
@@ -336,7 +337,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     readonly transformFrontMatter?: (
       subAgent: SubAgentPrompt,
       context: {
-        readonly sourceFrontMatter?: Record<string, unknown>
+        readonly sourceFrontMatter?: SubAgentYAMLFrontMatter
       }
     ) => Record<string, unknown>
   }
@@ -1480,7 +1481,7 @@ export abstract class AbstractOutputPlugin extends AbstractPlugin implements Out
     const subAgentFrontMatterTransformer = this.subAgentsConfig.transformFrontMatter
     const transformedFrontMatter = subAgentFrontMatterTransformer?.(agent, {
       ...agent.yamlFrontMatter != null && {
-        sourceFrontMatter: agent.yamlFrontMatter as Record<string, unknown>
+        sourceFrontMatter: agent.yamlFrontMatter
       }
     })
 
