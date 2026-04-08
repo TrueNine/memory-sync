@@ -17,29 +17,12 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-node-pnpm
 
-      - uses: ./.github/actions/setup-tauri
+      - uses: ./.github/actions/build-gui-platform
         with:
-          signing-private-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          signing-private-key-password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          version: ${{ inputs.version }}
-
-      - name: Build GUI
-        working-directory: ./gui
-        run: pnpm tauri build
-
-      - name: List bundle output (debug)
-        shell: bash
-        run: |
-          echo "=== Finding all bundle artifacts ==="
-          find target -path '*/bundle/*' -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.sig' \) 2>/dev/null || echo 'No bundle files found'
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: debug-gui-ubuntu-24.04
-          path: |
+          tauri-command: pnpm tauri build
+          artifact-name: debug-gui-ubuntu-24.04
+          artifact-path: |
             target/*/release/bundle/**/*.AppImage
             target/release/bundle/**/*.AppImage
             target/*/release/bundle/**/*.deb
@@ -48,4 +31,6 @@ jobs:
             target/release/bundle/**/*.rpm
             target/*/release/bundle/**/*.sig
             target/release/bundle/**/*.sig
-          if-no-files-found: error
+          signing-private-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          signing-private-key-password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          version: ${{ inputs.version }}

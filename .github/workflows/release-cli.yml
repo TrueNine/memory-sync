@@ -43,46 +43,41 @@ permissions:
   contents: read
 
 jobs:
-  # 1. 版本检查（快速，决定是否继续）
-  check-version:
+  # 1. 发布前检查（快速，决定是否继续）
+  preflight:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
-      publish_cli: ${{ steps.check.outputs.publish_cli }}
-      publish_mcp: ${{ steps.check.outputs.publish_mcp }}
-      publish_npm: ${{ steps.check.outputs.publish_npm }}
-      version: ${{ steps.check.outputs.version }}
+      publish_cli: ${{ steps.npm-check.outputs.publish_cli }}
+      publish_mcp: ${{ steps.npm-check.outputs.publish_mcp }}
+      publish_npm: ${{ steps.npm-check.outputs.publish_npm }}
+      version: ${{ steps.npm-check.outputs.version }}
+      gui_should_release: ${{ steps.gui-check.outputs.should_release }}
+      gui_version: ${{ steps.gui-check.outputs.version }}
     steps:
       - uses: actions/checkout@v6
+
       - uses: ./.github/actions/setup-node-pnpm
         with:
           cache: "false"
           install: "false"
-      - name: Check if should publish
-        id: check
+
+      - name: Check npm packages release state
+        id: npm-check
         uses: ./.github/actions/check-release-state
         with:
           registry-url: ${{ env.NPM_REGISTRY_URL }}
 
-  # 1.5. GUI 版本检查（独立于 npm，检查 GitHub Release）
-  check-gui-version:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    outputs:
-      should_release: ${{ steps.check.outputs.should_release }}
-      version: ${{ steps.check.outputs.version }}
-    steps:
-      - uses: actions/checkout@v6
-      - name: Check if GUI should be released
-        id: check
+      - name: Check GUI release state
+        id: gui-check
         uses: ./.github/actions/check-gui-release-state
         with:
           github-token: ${{ github.token }}
 
   # 2. 构建 NAPI 二进制（5 平台矩阵）
   build-napi:
-    needs: check-version
-    if: needs.check-version.outputs.publish_cli == 'true'
+    needs: preflight
+    if: needs.preflight.outputs.publish_cli == 'true'
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -173,8 +168,8 @@ jobs:
 
   # 3. 收集并发布 NAPI 平台子包到 npm
   publish-napi:
-    needs: [check-version, build-napi]
-    if: needs.check-version.outputs.publish_cli == 'true'
+    needs: [preflight, build-napi]
+    if: needs.preflight.outputs.publish_cli == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -285,64 +280,95 @@ jobs:
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: cli/npm
 
-  # 4. 架构包就绪后，发布主包到 npm
-  publish-cli:
-    needs: [check-version, publish-napi]
-    if: needs.check-version.outputs.publish_cli == 'true'
+  # 4. 架构包就绪后，顺序发布 npm 包
+  publish-npm-packages:
+    needs: [preflight, publish-napi]
+    if: |
+      needs.preflight.outputs.publish_npm == 'true' &&
+      (needs.publish-napi.result == 'success' || needs.publish-napi.result == 'skipped')
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-pnpm
         with:
           registry-url: https://registry.npmjs.org/
-      - uses: ./.github/actions/npm-auth-preflight
+
+      - name: Preflight CLI publish
+        if: needs.preflight.outputs.publish_cli == 'true'
+        uses: ./.github/actions/npm-auth-preflight
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: cli
           package-name: "@truenine/memory-sync-cli"
-      - name: Build
+
+      - name: Build CLI
+        if: needs.preflight.outputs.publish_cli == 'true'
         run: pnpm -F @truenine/memory-sync-cli run build
-      - uses: ./.github/actions/npm-publish-package
+
+      - name: Publish CLI
+        if: needs.preflight.outputs.publish_cli == 'true'
+        uses: ./.github/actions/npm-publish-package
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: cli
 
-  # 4.5. CLI 可用后，发布 MCP 包到 npm
-  publish-mcp:
-    needs: [check-version, publish-cli]
-    if: |
-      needs.check-version.outputs.publish_mcp == 'true' &&
-      (needs.publish-cli.result == 'success' || needs.publish-cli.result == 'skipped')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          registry-url: https://registry.npmjs.org/
-      - uses: ./.github/actions/npm-auth-preflight
+      - name: Preflight MCP publish
+        if: needs.preflight.outputs.publish_mcp == 'true'
+        uses: ./.github/actions/npm-auth-preflight
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: mcp
           package-name: "@truenine/memory-sync-mcp"
-      - name: Build
+
+      - name: Build MCP
+        if: needs.preflight.outputs.publish_mcp == 'true'
         run: pnpm exec turbo run build --filter=@truenine/memory-sync-mcp
-      - uses: ./.github/actions/npm-publish-package
+
+      - name: Publish MCP
+        if: needs.preflight.outputs.publish_mcp == 'true'
+        uses: ./.github/actions/npm-publish-package
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: mcp
 
-  # 5. 构建 CLI 独立二进制（仅 artifact，不发 Release）
-  build-binary:
-    needs: [check-version, check-gui-version, publish-napi]
+  # 5. 只构建一次 CLI runtime，供二进制矩阵复用
+  prepare-cli-runtime:
+    needs: preflight
     if: |
-      (needs.check-version.outputs.publish_cli == 'true' || needs.check-gui-version.outputs.should_release == 'true') &&
-      (needs.publish-napi.result == 'success' || needs.publish-napi.result == 'skipped')
+      needs.preflight.outputs.publish_cli == 'true' ||
+      needs.preflight.outputs.gui_should_release == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node-pnpm
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: cli-runtime
+      - name: Build plugin-runtime
+        shell: bash
+        run: |
+          pnpm -F @truenine/memory-sync-cli run build
+          ls -la cli/dist/plugin-runtime.mjs
+      - name: Upload plugin-runtime
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-plugin-runtime
+          path: cli/dist/plugin-runtime.mjs
+          if-no-files-found: error
+
+  # 6. 构建 CLI 独立二进制（仅 artifact，不发 Release）
+  build-binary:
+    needs: [preflight, publish-napi, prepare-cli-runtime]
+    if: |
+      (needs.preflight.outputs.publish_cli == 'true' || needs.preflight.outputs.gui_should_release == 'true') &&
+      (needs.publish-napi.result == 'success' || needs.publish-napi.result == 'skipped') &&
+      needs.prepare-cli-runtime.result == 'success'
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -372,12 +398,11 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-node-pnpm
-      - name: Build plugin-runtime
-        shell: bash
-        run: |
-          pnpm -F @truenine/memory-sync-cli run build
-          ls -la cli/dist/plugin-runtime.mjs
+      - name: Download plugin-runtime
+        uses: actions/download-artifact@v8
+        with:
+          name: cli-plugin-runtime
+          path: cli/dist
       - uses: ./.github/actions/setup-rust
         with:
           targets: ${{ matrix.target }}
@@ -414,22 +439,22 @@ jobs:
           path: ${{ matrix.archive }}
           if-no-files-found: error
 
-  # 6. 构建 GUI — 三平台并行（fail-fast: 任一失败则全部取消）
+  # 7. 构建 GUI — 三平台并行（fail-fast: 任一失败则全部取消）
   build-gui-all:
-    needs: [check-gui-version]
-    if: needs.check-gui-version.outputs.should_release == 'true'
+    needs: [preflight]
+    if: needs.preflight.outputs.gui_should_release == 'true'
     uses: ./.github/workflows/build-gui-all.yml
     with:
-      version: ${{ needs.check-gui-version.outputs.version }}
+      version: ${{ needs.preflight.outputs.gui_version }}
     secrets: inherit
 
-  # 7. 收集三平台产物，创建 GitHub Release + tag
+  # 8. 收集三平台产物，创建 GitHub Release + tag
   release-gui-collect:
-    needs: [check-gui-version, build-gui-all, build-binary]
-    if: needs.check-gui-version.outputs.should_release == 'true'
+    needs: [preflight, build-gui-all, build-binary]
+    if: needs.preflight.outputs.gui_should_release == 'true'
     permissions:
       contents: write
     uses: ./.github/workflows/release-gui-collect.yml
     with:
-      version: ${{ needs.check-gui-version.outputs.version }}
+      version: ${{ needs.preflight.outputs.gui_version }}
     secrets: inherit

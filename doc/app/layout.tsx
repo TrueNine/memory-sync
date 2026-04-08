@@ -1,7 +1,7 @@
 import type {Metadata} from 'next'
 import {Inter, JetBrains_Mono} from 'next/font/google'
 import React from 'react'
-import {getSiteUrl, siteConfig} from '@/lib/site'
+import {getSiteUrl, siteConfig, withBasePath} from '@/lib/site'
 import 'nextra-theme-docs/style.css'
 import './globals.scss'
 
@@ -18,7 +18,7 @@ const mono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  metadataBase: getSiteUrl(),
+  metadataBase: getSiteUrl('/'),
   title: {
     default: siteConfig.title,
     template: `%s | ${siteConfig.productName}`
@@ -26,13 +26,13 @@ export const metadata: Metadata = {
   description: siteConfig.description,
   applicationName: siteConfig.shortName,
   alternates: {
-    canonical: '/'
+    canonical: withBasePath('/')
   },
   category: 'developer tools',
-  manifest: '/manifest.webmanifest',
+  manifest: withBasePath('/manifest.webmanifest'),
   openGraph: {
     type: 'website',
-    url: '/',
+    url: withBasePath('/'),
     title: siteConfig.title,
     description: siteConfig.description,
     siteName: siteConfig.title,
