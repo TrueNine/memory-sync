@@ -919,24 +919,63 @@ mod napi_binding {
         set_global_log_level as core_set_global,
     };
     use napi_derive::napi;
-    use serde_json::Value;
+    use serde_json::{Map, Value};
 
     fn parse_level(s: &str) -> Option<LogLevel> {
         LogLevel::from_str_loose(s)
     }
 
-    fn parse_meta(meta_json: Option<String>) -> Option<Value> {
-        let meta = meta_json?;
-        match serde_json::from_str(&meta) {
-            Ok(value) => Some(value),
-            Err(_) => Some(Value::String(meta)),
+    fn normalize_json_value(value: Value) -> Value {
+        match value {
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => value,
+            Value::Array(items) => {
+                Value::Array(items.into_iter().map(normalize_json_value).collect())
+            }
+            Value::Object(map) => Value::Object(
+                map.into_iter()
+                    .map(|(key, nested)| (key, normalize_json_value(nested)))
+                    .collect(),
+            ),
         }
     }
 
-    fn parse_diagnostic(diagnostic_json: String) -> Value {
-        match serde_json::from_str(&diagnostic_json) {
-            Ok(value) => value,
-            Err(_) => Value::String(diagnostic_json),
+    fn build_meta_args(meta_items: Vec<Value>) -> Option<Value> {
+        if meta_items.is_empty() {
+            return None;
+        }
+
+        let normalized_args = meta_items
+            .into_iter()
+            .map(normalize_json_value)
+            .collect::<Vec<_>>();
+        let mut meta = Map::new();
+        meta.insert("args".to_string(), Value::Array(normalized_args));
+        Some(Value::Object(meta))
+    }
+
+    fn normalize_message_payload(message: Value, meta_items: Option<Vec<Value>>) -> (Value, Option<Value>) {
+        match message {
+            Value::String(message_text) => {
+                let Some(meta_items) = meta_items else {
+                    return (Value::String(message_text), None);
+                };
+
+                if meta_items.len() == 1 {
+                    let mut meta_items = meta_items.into_iter();
+                    let first = meta_items.next().unwrap_or(Value::Null);
+
+                    if matches!(first, Value::Object(_)) {
+                        return (Value::String(message_text), Some(normalize_json_value(first)));
+                    }
+
+                    let mut args = vec![first];
+                    args.extend(meta_items);
+                    return (Value::String(message_text), build_meta_args(args));
+                }
+
+                (Value::String(message_text), build_meta_args(meta_items))
+            }
+            other => (Value::String(String::new()), Some(normalize_json_value(other))),
         }
     }
 
@@ -953,23 +992,22 @@ mod napi_binding {
     #[napi]
     impl NapiLogger {
         #[napi]
-        pub fn log(
+        pub fn emit(
             &self,
             level: String,
-            message: String,
-            meta_json: Option<String>,
+            message: Value,
+            meta: Option<Vec<Value>>,
         ) -> napi::Result<()> {
             let level = parse_level_or_error(&level)?;
-            let meta = parse_meta(meta_json);
-            self.inner.log_message(level, Value::String(message), meta);
+            let (message, meta) = normalize_message_payload(message, meta);
+            self.inner.log_message(level, message, meta);
             Ok(())
         }
 
         #[napi]
-        pub fn log_diagnostic(&self, level: String, diagnostic_json: String) -> napi::Result<()> {
+        pub fn emit_diagnostic(&self, level: String, diagnostic: Value) -> napi::Result<()> {
             let level = parse_level_or_error(&level)?;
-            self.inner
-                .log_diagnostic(level, parse_diagnostic(diagnostic_json));
+            self.inner.log_diagnostic(level, normalize_json_value(diagnostic));
             Ok(())
         }
     }

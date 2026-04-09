@@ -21,6 +21,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yml = { workspace = true }
 markdown = { workspace = true }
+json5 = "0.4.1"
 napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
 regex-lite = { version = "0.1.9", optional = true }

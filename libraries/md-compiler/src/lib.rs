@@ -10,6 +10,7 @@ pub mod expression_eval;
 pub mod mdx_to_md;
 pub mod parser;
 pub mod serializer;
+pub mod toml_artifact;
 pub mod transformer;
 
 pub use expression_eval::EvaluationScope;
@@ -19,6 +20,10 @@ pub use mdx_to_md::{
 };
 pub use parser::parse_mdx;
 pub use serializer::serialize;
+pub use toml_artifact::{
+    BuildPromptTomlArtifactOptions, BuildTomlDocumentOptions, build_prompt_toml_artifact,
+    build_toml_document,
+};
 pub use transformer::ProcessingContext;
 
 // ===========================================================================
@@ -28,7 +33,9 @@ pub use transformer::ProcessingContext;
 #[cfg(feature = "napi")]
 mod napi_binding {
     use super::{
-        EvaluationScope, MdxGlobalScope, MdxToMdOptions, mdx_to_md, mdx_to_md_with_metadata,
+        BuildPromptTomlArtifactOptions, BuildTomlDocumentOptions, EvaluationScope,
+        MdxGlobalScope, MdxToMdOptions, build_prompt_toml_artifact, build_toml_document,
+        mdx_to_md, mdx_to_md_with_metadata,
     };
     use napi_derive::napi;
     use serde::Deserialize;
@@ -244,5 +251,31 @@ mod napi_binding {
             format!("{prefix}{text}{middle}{transformed_url}{suffix}")
         })
         .into_owned()
+    }
+
+    #[napi(js_name = "buildTomlDocument")]
+    pub fn build_toml_document_binding(
+        document_json: String,
+        options_json: Option<String>,
+    ) -> napi::Result<String> {
+        let document: Value = serde_json::from_str(&document_json)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        let options = match options_json {
+            None => None,
+            Some(json) => Some(
+                serde_json::from_str::<BuildTomlDocumentOptions>(&json)
+                    .map_err(|e| napi::Error::from_reason(e.to_string()))?,
+            ),
+        };
+
+        build_toml_document(document, options).map_err(napi::Error::from_reason)
+    }
+
+    #[napi(js_name = "buildPromptTomlArtifact")]
+    pub fn build_prompt_toml_artifact_binding(options_json: String) -> napi::Result<String> {
+        let options = serde_json::from_str::<BuildPromptTomlArtifactOptions>(&options_json)
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+
+        build_prompt_toml_artifact(options).map_err(napi::Error::from_reason)
     }
 } // mod napi_binding

@@ -145,6 +145,14 @@ fn extract_yaml_frontmatter(ast: &markdown::mdast::Node) -> Option<HashMap<Strin
 fn extract_exports_from_source(source: &str) -> HashMap<String, Value> {
     let mut exports = HashMap::new();
 
+    if let Some((_, _, object_literal)) = find_export_default_object(source)
+        && let Ok(Value::Object(map)) = json5::from_str::<Value>(&object_literal)
+    {
+        for (key, value) in map {
+            exports.insert(key, value);
+        }
+    }
+
     for line in source.lines() {
         let trimmed = line.trim();
         if !is_supported_export_metadata_line(trimmed) {
@@ -171,10 +179,24 @@ fn is_supported_export_metadata_line(trimmed: &str) -> bool {
 }
 
 fn strip_supported_export_lines(source: &str) -> String {
+    let stripped_source = if let Some((start, end, _)) = find_export_default_object(source) {
+        let mut after = end;
+        while let Some(character) = source[after..].chars().next() {
+            if character != '\r' && character != '\n' && character != ' ' && character != '\t' {
+                break;
+            }
+            after += character.len_utf8();
+        }
+
+        format!("{}{}", &source[..start], &source[after..])
+    } else {
+        source.to_string()
+    };
+
     let mut stripped = String::new();
     let mut skip_blank_line = false;
 
-    for line in source.lines() {
+    for line in stripped_source.lines() {
         let trimmed = line.trim();
         if is_supported_export_metadata_line(trimmed) {
             skip_blank_line = true;
@@ -190,11 +212,102 @@ fn strip_supported_export_lines(source: &str) -> String {
         stripped.push('\n');
     }
 
-    if !source.ends_with('\n') && stripped.ends_with('\n') {
+    if !stripped_source.ends_with('\n') && stripped.ends_with('\n') {
         stripped.pop();
     }
 
     stripped
+}
+
+fn find_export_default_object(source: &str) -> Option<(usize, usize, String)> {
+    let prefix_index = source.find("export default")?;
+    let mut object_start = prefix_index + "export default".len();
+
+    while let Some(character) = source[object_start..].chars().next() {
+        if !character.is_whitespace() {
+            break;
+        }
+        object_start += character.len_utf8();
+    }
+
+    if source[object_start..].chars().next()? != '{' {
+        return None;
+    }
+
+    extract_object_literal(source, object_start).map(|(literal, end_index)| {
+        (prefix_index, end_index, literal)
+    })
+}
+
+fn extract_object_literal(source: &str, start_index: usize) -> Option<(String, usize)> {
+    if source[start_index..].chars().next()? != '{' {
+        return None;
+    }
+
+    let mut depth = 0usize;
+    let mut in_string: Option<char> = None;
+    let mut escaped = false;
+    let mut in_line_comment = false;
+    let mut in_block_comment = false;
+
+    for (relative_index, character) in source[start_index..].char_indices() {
+        let absolute_index = start_index + relative_index;
+        let next = source[absolute_index + character.len_utf8()..].chars().next();
+
+        if in_line_comment {
+            if character == '\n' {
+                in_line_comment = false;
+            }
+            continue;
+        }
+
+        if in_block_comment {
+            if character == '*' && next == Some('/') {
+                in_block_comment = false;
+            }
+            continue;
+        }
+
+        if escaped {
+            escaped = false;
+            continue;
+        }
+
+        if let Some(quote) = in_string {
+            if character == '\\' {
+                escaped = true;
+                continue;
+            }
+
+            if character == quote {
+                in_string = None;
+            }
+            continue;
+        }
+
+        match character {
+            '"' | '\'' | '`' => {
+                in_string = Some(character);
+            }
+            '/' if next == Some('/') => {
+                in_line_comment = true;
+            }
+            '/' if next == Some('*') => {
+                in_block_comment = true;
+            }
+            '{' => depth += 1,
+            '}' => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    let end_index = absolute_index + character.len_utf8();
+                    return Some((source[start_index..end_index].to_string(), end_index));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
 }
 
 /// Remove YAML frontmatter and ESM export nodes from the AST.

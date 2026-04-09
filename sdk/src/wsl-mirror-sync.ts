@@ -571,9 +571,7 @@ export async function syncWindowsConfigIntoWsl(
   }
   catch (error) {
     if (error instanceof WslUnavailableError) {
-      ctx.logger.debug('WSL is unavailable, skipping mirror sync', {
-        reason: error.message
-      })
+      ctx.logger.info('wsl is unavailable, skipping WSL mirror sync')
       return {
         mirroredFiles: 0,
         warnings: [],

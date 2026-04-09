@@ -37,7 +37,7 @@
     "lint": "eslint --cache --cache-location .eslintcache .",
     "lint:fix": "eslint --fix --cache --cache-location .eslintcache .",
     "prepublishOnly": "run-s build",
-    "test": "run-s test:rust test:ts",
+    "test": "run-s build:native:debug test:rust test:ts",
     "test:rust": "tsx ../../scripts/cargo-test.ts",
     "test:ts": "vitest run --passWithNoTests",
     "check:type": "tsc --noEmit -p tsconfig.lib.json"

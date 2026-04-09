@@ -116,17 +116,24 @@ function loadBindingFromCliBinaryPackage(
 function loadNativeBinding(): ScriptRuntimeBinding {
   const runtimeRequire = createRequire(import.meta.url)
   const {local, suffix} = getPlatformBinding()
+  const localCandidates = [`./${local}.node`, `../dist/${local}.node`]
+
+  let localError: unknown = new Error(`No local candidate matched "${local}"`)
+
+  for (const candidate of localCandidates) {
+    try {
+      return runtimeRequire(candidate) as ScriptRuntimeBinding
+    }
+    catch (error) {
+      localError = error
+    }
+  }
 
   try {
-    return runtimeRequire(`./${local}.node`) as ScriptRuntimeBinding
+    return loadBindingFromCliBinaryPackage(runtimeRequire, suffix)
   }
-  catch (localError) {
-    try {
-      return loadBindingFromCliBinaryPackage(runtimeRequire, suffix)
-    }
-    catch (packageError) {
-      throw formatBindingLoadError(localError, packageError, suffix)
-    }
+  catch (packageError) {
+    throw formatBindingLoadError(localError, packageError, suffix)
   }
 }
 

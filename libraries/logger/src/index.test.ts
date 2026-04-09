@@ -1,8 +1,8 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 const nativeLogger = vi.hoisted(() => ({
-  log: vi.fn(),
-  logDiagnostic: vi.fn()
+  emit: vi.fn(),
+  emitDiagnostic: vi.fn()
 }))
 
 const nativeModule = vi.hoisted(() => ({
@@ -25,7 +25,7 @@ const nativeModule = vi.hoisted(() => ({
 
 vi.mock('node:module', () => ({
   createRequire: () => (specifier: string): unknown => {
-    if (specifier.startsWith('./')) return nativeModule
+    if (specifier.endsWith('.node')) return nativeModule
     throw new Error(`Unexpected require target: ${specifier}`)
   }
 }))
@@ -47,10 +47,7 @@ describe('logger bindings', () => {
     ]))
   })
 
-  it('routes warn diagnostics through logDiagnostic with serialized details', async () => {
-    const circular: {self?: unknown} = {}
-    circular.self = circular
-    const runtimeError = new Error('boom')
+  it('routes warn diagnostics through the native diagnostic path without JS serialization', async () => {
     const {createLogger} = await import('./index')
     const logger = createLogger('logger-test')
 
@@ -59,40 +56,34 @@ describe('logger bindings', () => {
       title: 'Warn title',
       rootCause: ['The warning explains the root cause.'],
       details: {
-        error: runtimeError,
-        circular
+        error: new Error('boom'),
+        count: 1
       }
     })
 
-    expect(nativeLogger.logDiagnostic).toHaveBeenCalledTimes(1)
-    expect(nativeLogger.logDiagnostic).toHaveBeenCalledWith(
+    expect(nativeLogger.emitDiagnostic).toHaveBeenCalledTimes(1)
+    expect(nativeLogger.emitDiagnostic).toHaveBeenCalledWith(
       'warn',
-      expect.stringContaining('"code":"WARN_CODE"')
+      expect.objectContaining({
+        code: 'WARN_CODE',
+        details: expect.objectContaining({count: 1})
+      })
     )
-
-    const payload = JSON.parse(String(nativeLogger.logDiagnostic.mock.calls[0]?.[1])) as Record<string, unknown>
-    expect(payload['details']).toMatchObject({
-      error: expect.objectContaining({message: 'boom'}),
-      circular: expect.objectContaining({self: '[Circular]'})
-    })
   })
 
-  it('keeps info logging on the generic log path', async () => {
+  it('forwards plain log arguments to the native emit path', async () => {
     const {createLogger} = await import('./index')
     const logger = createLogger('logger-test')
 
     logger.info('hello', {count: 1})
 
-    expect(nativeLogger.log).toHaveBeenCalledTimes(1)
-    expect(nativeLogger.log).toHaveBeenCalledWith(
+    expect(nativeLogger.emit).toHaveBeenCalledTimes(1)
+    expect(nativeLogger.emit).toHaveBeenCalledWith(
       'info',
       'hello',
-      expect.any(String)
+      [{count: 1}]
     )
-    const payload = JSON.parse(String(nativeLogger.log.mock.calls[0]?.[2])) as Record<string, unknown>
-    expect(payload['count']).toBe(1)
-    expect(payload['loggerTiming']).toBeUndefined()
-    expect(nativeLogger.logDiagnostic).not.toHaveBeenCalled()
+    expect(nativeLogger.emitDiagnostic).not.toHaveBeenCalled()
   })
 
   it('keeps metadata undefined when no extra fields are provided', async () => {
@@ -101,16 +92,17 @@ describe('logger bindings', () => {
 
     logger.info('hello')
 
-    expect(nativeLogger.log.mock.calls[0]?.[2]).toBeUndefined()
+    expect(nativeLogger.emit.mock.calls[0]?.[2]).toBeUndefined()
   })
 
-  it('skips serializing filtered plain logs on the JS side', async () => {
+  it('passes the explicit log level through to native logger creation', async () => {
     const {createLogger} = await import('./index')
     const logger = createLogger('logger-test', 'info')
 
-    logger.debug('suppressed', {count: 1})
+    logger.debug('visible-to-native', {count: 1})
 
-    expect(nativeLogger.log).not.toHaveBeenCalled()
+    expect(nativeModule.createLogger).toHaveBeenCalledWith('logger-test', 'info')
+    expect(nativeLogger.emit).toHaveBeenCalledWith('debug', 'visible-to-native', [{count: 1}])
   })
 
   it('keeps silent diagnostics flowing to native buffering', async () => {
@@ -123,7 +115,7 @@ describe('logger bindings', () => {
       rootCause: ['Silent mode should still buffer diagnostics.']
     })
 
-    expect(nativeLogger.logDiagnostic).toHaveBeenCalledTimes(1)
+    expect(nativeLogger.emitDiagnostic).toHaveBeenCalledTimes(1)
   })
 
   it('exposes buffered diagnostics helpers', async () => {
