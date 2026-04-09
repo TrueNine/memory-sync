@@ -1,7 +1,7 @@
 /// Tauri commands that bridge the frontend to the `tnmsc` CLI.
 ///
 /// Commands use the `tnmsc` crate's library API for direct in-process invocation.
-/// Bridge commands (execute, dry-run, clean, plugins) still spawn a Node.js subprocess
+/// Bridge commands (install, dry-run, clean, plugins) still spawn a Node.js subprocess
 /// internally via `tnmsc::run_bridge_command`, but the GUI no longer searches for or
 /// invokes the CLI binary as a sidecar.
 use std::path::{Path, PathBuf};
@@ -98,10 +98,10 @@ struct PluginListEntry {
 // Tauri commands
 // ---------------------------------------------------------------------------
 
-/// Execute the sync pipeline (default command) or dry-run.
+/// Execute the install pipeline (default command) or dry-run.
 #[tauri::command]
-pub fn execute_pipeline(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
-    let subcommand = if dry_run { "dry-run" } else { "execute" };
+pub fn install_pipeline(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
+    let subcommand = if dry_run { "dry-run" } else { "install" };
     let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), &[INTERNAL_BRIDGE_JSON_FLAG])
         .map_err(|e| e.to_string())?;
     parse_pipeline_result(&result.stdout, subcommand, dry_run)
@@ -148,7 +148,7 @@ pub fn clean_outputs(cwd: String, dry_run: bool) -> Result<PipelineResult, Strin
 #[tauri::command]
 pub fn get_logs(cwd: String, command: String) -> Result<Vec<LogEntry>, String> {
     let args: Vec<&str> = command.split_whitespace().collect();
-    let subcommand = args.first().copied().unwrap_or("execute");
+    let subcommand = args.first().copied().unwrap_or("install");
     let extra_args: Vec<&str> = args.iter().skip(1).copied().collect();
     let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), &extra_args)
         .map_err(|e| e.to_string())?;

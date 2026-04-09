@@ -7,7 +7,8 @@ pub fn execute() -> ExitCode {
     println!("  tnmsc [OPTIONS] [COMMAND]");
     println!();
     println!("COMMANDS:");
-    println!("  (default)    Sync AI memory and configuration files");
+    println!("  (default)    Run the default install pipeline");
+    println!("  install      Run the install pipeline explicitly");
     println!("  dry-run      Preview changes without writing files");
     println!("  clean        Remove all generated output files");
     println!("  plugins      List all registered plugins");

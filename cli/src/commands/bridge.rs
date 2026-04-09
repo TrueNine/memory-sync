@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
-pub fn execute() -> ExitCode {
-    tnmsc::bridge::node::run_node_command("execute", &[])
+pub fn install() -> ExitCode {
+    tnmsc::bridge::node::run_node_command("install", &[])
 }
 
 pub fn dry_run() -> ExitCode {

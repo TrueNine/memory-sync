@@ -31,10 +31,11 @@ export function resolveRuntimeCommandFromArgv(argv: readonly string[] = process.
   const args = argv.filter((arg): arg is string => arg != null)
   const userArgs = args.slice(2)
   const subcommand = userArgs.find(arg => !arg.startsWith('-'))
+  if (subcommand === 'install') return 'install'
   if (subcommand === 'plugins') return 'plugins'
   if (subcommand === 'clean') return 'clean'
   if (subcommand === 'dry-run' || userArgs.includes('--dry-run') || userArgs.includes('-n')) return 'dry-run'
-  return 'execute'
+  return 'install'
 }
 
 export async function createDefaultPluginConfig(

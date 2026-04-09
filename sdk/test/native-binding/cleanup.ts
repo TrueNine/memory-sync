@@ -412,7 +412,7 @@ function logCleanupPlanDiagnostics(logger: ILogger, targets: CleanupTargetCollec
 /**
  * Perform cleanup operation for output plugins.
  * This is the main reusable cleanup function that can be called from both
- * CleanCommand and ExecuteCommand (for pre-cleanup).
+ * CleanCommand and InstallCommand (for pre-cleanup).
  */
 export async function performCleanup(
   outputPlugins: readonly OutputPlugin[],

@@ -28,8 +28,8 @@ import type {
   SkillChildDoc,
   SkillPrompt,
   SkillResource,
-  SubAgentYAMLFrontMatter,
   SubAgentPrompt,
+  SubAgentYAMLFrontMatter,
   WslMirrorFileDeclaration
 } from './types'
 

@@ -2,7 +2,7 @@ export default {
   'index': '概览',
   'install': '安装与要求',
   'workspace-setup': '工作区与 aindex',
-  'first-sync': '第一次同步',
+  'first-sync': '第一次安装',
   'migration': '从旧文档迁移',
   'cli-commands': 'CLI 命令',
   'dry-run-and-clean': 'dry-run 与 clean',

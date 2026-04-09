@@ -45,6 +45,9 @@ pub enum CliCommand {
     /// Show version information
     Version,
 
+    /// Run the install pipeline
+    Install,
+
     /// Preview changes without writing files
     #[command(name = "dry-run")]
     DryRun,
@@ -140,7 +143,7 @@ pub fn resolve_log_level(cli: &Cli) -> Option<ResolvedLogLevel> {
 pub enum ResolvedCommand {
     Help,
     Version,
-    Execute,
+    Install,
     DryRun,
     Clean,
     DryRunClean,
@@ -150,9 +153,10 @@ pub enum ResolvedCommand {
 /// Resolve the command to execute from parsed CLI args.
 pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
     match &cli.command {
-        None => ResolvedCommand::Execute,
+        None => ResolvedCommand::Install,
         Some(CliCommand::Help) => ResolvedCommand::Help,
         Some(CliCommand::Version) => ResolvedCommand::Version,
+        Some(CliCommand::Install) => ResolvedCommand::Install,
         Some(CliCommand::DryRun) => ResolvedCommand::DryRun,
         Some(CliCommand::Clean(args)) => {
             if args.dry_run {
@@ -171,9 +175,15 @@ mod tests {
     use clap::Parser;
 
     #[test]
-    fn resolve_command_defaults_to_execute() {
+    fn resolve_command_defaults_to_install() {
         let cli = Cli::parse_from(["tnmsc"]);
-        assert_eq!(resolve_command(&cli), ResolvedCommand::Execute);
+        assert_eq!(resolve_command(&cli), ResolvedCommand::Install);
+    }
+
+    #[test]
+    fn resolve_command_parses_install() {
+        let cli = Cli::parse_from(["tnmsc", "install"]);
+        assert_eq!(resolve_command(&cli), ResolvedCommand::Install);
     }
 
     #[test]

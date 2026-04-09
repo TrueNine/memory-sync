@@ -68,7 +68,7 @@ export const homeEntryCards = [
   {
     href: '/docs/cli',
     title: 'CLI',
-    detail: 'Organized around installation, project setup, the first sync run, configuration fields, and the exposed command surface.'
+    detail: 'Organized around installation, project setup, the first install run, configuration fields, and the exposed command surface.'
   },
   {
     href: '/docs/sdk',
@@ -88,7 +88,7 @@ export const homeEntryCards = [
   {
     href: '/docs/technical-details',
     title: 'Technical Details',
-    detail: 'Concentrates the architecture boundaries, the sync pipeline, the source-of-truth model, and authoring conventions.'
+    detail: 'Concentrates the architecture boundaries, the install pipeline, the source-of-truth model, and authoring conventions.'
   },
   {
     href: '/docs/design-rationale',
@@ -126,7 +126,7 @@ export const readingPath = [
     step: '01',
     href: '/docs/quick-guide',
     title: 'Choose Your Entry Point',
-    description: 'Decide whether you are starting from terminal sync, the desktop workflow, or MCP integration.'
+    description: 'Decide whether you are starting from terminal install, the desktop workflow, or MCP integration.'
   },
   {
     step: '02',
@@ -149,7 +149,7 @@ export const readingPath = [
   {
     step: '05',
     href: '/docs/cli/cli-commands',
-    title: 'Run dry-run and Sync',
+    title: 'Run dry-run and Install',
     description: 'Validate the output list, scope, and cleanup behavior before writing into target tools.'
   }
 ] as const

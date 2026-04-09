@@ -427,7 +427,8 @@ export function buildUnhandledExceptionDiagnostic(context: string, error: unknow
 export type PublicLoggerDiagnosticRecord = Omit<LoggerDiagnosticRecord, 'level'>
 
 function stripDiagnosticLevel(diagnostic: LoggerDiagnosticRecord): PublicLoggerDiagnosticRecord {
-  const {level: _level, ...publicDiagnostic} = diagnostic
+  const {level, ...publicDiagnostic} = diagnostic
+  void level
   return publicDiagnostic
 }
 

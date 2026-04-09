@@ -3,8 +3,8 @@ import {FactoryPriority} from '@/commands/CommandFactory'
 import {CommandRegistry} from '@/commands/CommandRegistry'
 import {CleanCommandFactory} from '@/commands/factories/CleanCommandFactory'
 import {DryRunCommandFactory} from '@/commands/factories/DryRunCommandFactory'
-import {ExecuteCommandFactory} from '@/commands/factories/ExecuteCommandFactory'
 import {HelpCommandFactory} from '@/commands/factories/HelpCommandFactory'
+import {InstallCommandFactory} from '@/commands/factories/InstallCommandFactory'
 import {PluginsCommandFactory} from '@/commands/factories/PluginsCommandFactory'
 import {UnknownCommandFactory} from '@/commands/factories/UnknownCommandFactory'
 import {VersionCommandFactory} from '@/commands/factories/VersionCommandFactory'
@@ -12,6 +12,7 @@ import {VersionCommandFactory} from '@/commands/factories/VersionCommandFactory'
 export type Subcommand
   = | 'help'
     | 'version'
+    | 'install'
     | 'dry-run'
     | 'clean'
     | 'plugins'
@@ -31,6 +32,7 @@ export interface ParsedCliArgs {
 const VALID_SUBCOMMANDS: ReadonlySet<string> = new Set([
   'help',
   'version',
+  'install',
   'dry-run',
   'clean',
   'plugins'
@@ -206,7 +208,7 @@ function createDefaultCommandRegistry(): CommandRegistry {
     FactoryPriority.Subcommand
   )
   registry.registerWithPriority(
-    new ExecuteCommandFactory(),
+    new InstallCommandFactory(),
     FactoryPriority.Subcommand
   )
   return registry

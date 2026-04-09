@@ -1,9 +1,10 @@
+import type {LoggerDiagnosticRecord} from '@truenine/memory-sync-sdk'
 import type {Command, CommandContext, CommandResult} from './Command'
 import process from 'node:process'
 import {
   clearBufferedDiagnostics,
   drainBufferedDiagnostics,
-  type LoggerDiagnosticRecord,
+
   partitionBufferedDiagnostics
 } from '@truenine/memory-sync-sdk'
 

@@ -58,7 +58,7 @@ const DashboardPage: FC = () => {
   const { t } = useI18n()
   const { resolved } = useTheme()
   const isDark = resolved === 'dark'
-  const { status, execute, clean, dryRun, reset } = usePipeline()
+  const { status, install, clean, dryRun, reset } = usePipeline()
 
   const [stats, setStats] = useState<AindexStats | null>(null)
   const [statsLoading, setStatsLoading] = useState(false)
@@ -142,9 +142,9 @@ const DashboardPage: FC = () => {
 
       {/* Quick Actions */}
       <section className="flex flex-wrap gap-3">
-        <button type="button" onClick={() => execute(cwd)} disabled={status.kind === 'running'}
+        <button type="button" onClick={() => install(cwd)} disabled={status.kind === 'running'}
           className={cn('inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors', 'bg-primary text-primary-foreground hover:bg-primary/90', 'disabled:pointer-events-none disabled:opacity-50')}>
-          <Play className="h-4 w-4" />{t('pipeline.execute')}
+          <Play className="h-4 w-4" />{t('pipeline.install')}
         </button>
         <button type="button" onClick={() => clean(cwd)} disabled={status.kind === 'running'}
           className={cn('inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors', 'bg-destructive text-destructive-foreground hover:bg-destructive/90', 'disabled:pointer-events-none disabled:opacity-50')}>

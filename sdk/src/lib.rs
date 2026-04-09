@@ -33,7 +33,7 @@ pub enum CliError {
     SerializationError(#[from] serde_json::Error),
 }
 
-/// Captured output from a bridge command (execute, dry-run, clean, plugins).
+/// Captured output from a bridge command (install, dry-run, clean, plugins).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BridgeCommandResult {
@@ -58,7 +58,7 @@ pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliEr
         .map_err(CliError::ConfigError)
 }
 
-/// Execute a bridge command (execute, dry-run, clean, plugins) via Node.js subprocess.
+/// Execute a bridge command (install, dry-run, clean, plugins) via Node.js subprocess.
 ///
 /// The subprocess output is captured (piped) and returned as a [`BridgeCommandResult`].
 pub fn run_bridge_command(
@@ -306,7 +306,7 @@ mod property_tests_cwd {
             prop_assert!(cwd.exists(), "temp dir must exist: {:?}", cwd);
             prop_assert!(cwd.is_dir(), "temp dir must be a directory: {:?}", cwd);
 
-            // When both node and runtime are available, spawning "execute" would block
+            // When both node and runtime are available, spawning "install" would block
             // waiting for the plugin pipeline.  Instead we verify the property by
             // confirming that run_node_command_captured sets current_dir via the
             // PluginRuntimeNotFound path: we use a non-existent runtime path scenario
@@ -325,7 +325,7 @@ mod property_tests_cwd {
                 return Ok(());
             }
 
-            let result = run_bridge_command("execute", cwd, &[]);
+            let result = run_bridge_command("install", cwd, &[]);
 
             match result {
                 Ok(_) => {
@@ -388,7 +388,7 @@ mod property_tests_cwd {
             let cwd = tmp.path();
             assert!(cwd.exists(), "temp dir must exist");
 
-            let result = run_bridge_command("execute", cwd, &[]);
+            let result = run_bridge_command("install", cwd, &[]);
 
             match result {
                 Ok(_)
@@ -423,7 +423,7 @@ mod property_tests_cwd {
         let nonexistent = std::path::Path::new("/this/path/does/not/exist/tnmsc_test_8_1");
         assert!(!nonexistent.exists(), "path must not exist for this test");
 
-        let result = run_bridge_command("execute", nonexistent, &[]);
+        let result = run_bridge_command("install", nonexistent, &[]);
 
         // Must NOT be Ok — a non-existent cwd should never produce a successful result.
         assert!(

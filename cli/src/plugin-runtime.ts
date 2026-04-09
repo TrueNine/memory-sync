@@ -16,7 +16,7 @@ import {
 import {CleanCommand} from '@/commands/CleanCommand'
 import {DryRunCleanCommand} from '@/commands/DryRunCleanCommand'
 import {DryRunOutputCommand} from '@/commands/DryRunOutputCommand'
-import {ExecuteCommand} from '@/commands/ExecuteCommand'
+import {InstallCommand} from '@/commands/InstallCommand'
 import {JsonOutputCommand, toJsonCommandResult} from '@/commands/JsonOutputCommand'
 import {PluginsCommand} from '@/commands/PluginsCommand'
 import {createDefaultPluginConfig} from './plugin.config'
@@ -29,7 +29,7 @@ function parseRuntimeArgs(argv: string[]): {
   dryRun: boolean
 } {
   const args = argv.slice(2)
-  let subcommand: RuntimeCommand = 'execute'
+  let subcommand: RuntimeCommand = 'install'
   let bridgeJson = false
   let dryRun = false
   for (const arg of args) {
@@ -37,9 +37,9 @@ function parseRuntimeArgs(argv: string[]): {
     else if (arg === '--dry-run' || arg === '-n') dryRun = true
     else if (!arg.startsWith('-')) {
       subcommand
-        = arg === 'plugins' || arg === 'clean' || arg === 'dry-run'
+        = new Set(['install', 'plugins', 'clean', 'dry-run']).has(arg)
           ? arg
-          : 'execute'
+          : 'install'
     }
   }
   return {subcommand, bridgeJson, dryRun}
@@ -50,8 +50,8 @@ function resolveRuntimeCommand(
   dryRun: boolean
 ): Command {
   switch (subcommand) {
-    case 'execute':
-      return new ExecuteCommand()
+    case 'install':
+      return new InstallCommand()
     case 'dry-run':
       return new DryRunOutputCommand()
     case 'clean':

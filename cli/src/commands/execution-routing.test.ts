@@ -5,7 +5,7 @@ import {createLogger, FilePathKind, mergeConfig} from '@truenine/memory-sync-sdk
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {CleanCommand} from './CleanCommand'
 import {DryRunCleanCommand} from './DryRunCleanCommand'
-import {ExecuteCommand} from './ExecuteCommand'
+import {InstallCommand} from './InstallCommand'
 
 function createEmptyProjectsBySeries() {
   return {
@@ -108,8 +108,8 @@ afterEach(() => {
 })
 
 describe('execution-aware command routing', () => {
-  it('short-circuits execute when cwd is unsupported inside workspace', async () => {
-    const workspaceDir = path.resolve('/tmp/tnmsc-execute-unsupported')
+  it('short-circuits install when cwd is unsupported inside workspace', async () => {
+    const workspaceDir = path.resolve('/tmp/tnmsc-install-unsupported')
     const {ctx} = createBaseContext({
       scope: 'unsupported',
       cwd: path.join(workspaceDir, 'scripts'),
@@ -118,7 +118,7 @@ describe('execution-aware command routing', () => {
       managedProjects: []
     })
 
-    const result = await new ExecuteCommand().execute(ctx)
+    const result = await new InstallCommand().execute(ctx)
 
     expect(result.success).toBe(false)
     expect(result.message).toContain('not managed by tnmsc')

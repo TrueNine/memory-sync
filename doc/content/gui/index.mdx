@@ -14,18 +14,18 @@ status: stable
 >
 > 等核心功能更完整之后，我预计会回来继续维护 GUI。
 
-`gui/` 是基于 Tauri 和 React 构建的桌面调用层。它的职责不是变成系统架构的中心，而是把 `sdk/` 中 `tnmsc` crate 暴露出来的配置编辑、执行、展示和日志检查能力组织成桌面工作流。
+`gui/` 是基于 Tauri 和 React 构建的桌面调用层。它的职责不是变成系统架构的中心，而是把 `sdk/` 中 `tnmsc` crate 暴露出来的配置编辑、install、展示和日志检查能力组织成桌面工作流。
 
 ## 这一层负责什么
 
-- 触发 sync、`dry-run` 和 cleanup
+- 触发 `install`、`dry-run` 和 cleanup
 - 编辑或展示 config
 - 浏览文件、plugin 结果和日志
 - 提供基于页面的桌面工作流
 
 ## 这一层不负责什么
 
-- 它不会重新实现 sync core
+- 它不会重新实现 install core
 - 它不会在前端重新推导一套 CLI 规则
 - 它不会改变长期坚持的 Rust-first / NAPI-first 方向
 

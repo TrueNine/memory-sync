@@ -1,7 +1,7 @@
 //! Node.js process spawning for plugin runtime commands.
 //!
 //! Locates the bundled JS entry point and spawns `node` to execute
-//! plugin-dependent commands (execute, dry-run, clean, plugins).
+//! plugin-dependent commands (install, dry-run, clean, plugins).
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};

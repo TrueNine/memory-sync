@@ -1157,13 +1157,13 @@ mod tests {
     fn test_render_message_output_renders_nested_payloads() {
         let payload = serde_json::json!({
             "started": {
-                "command": "execute",
+                "command": "install",
             }
         });
 
         let rendered = render_message_output(LogLevel::Info, "PluginPipeline", &payload);
         assert!(rendered.contains("### started"));
-        assert!(rendered.contains("- command: execute"));
+        assert!(rendered.contains("- command: install"));
     }
 
     #[test]

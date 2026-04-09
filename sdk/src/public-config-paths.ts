@@ -42,7 +42,7 @@ export interface PublicDefinitionResolveOptions {
   readonly workspaceDir?: string | undefined
 }
 
-type ProxyCommand = 'execute' | 'dry-run' | 'clean' | 'plugins'
+type ProxyCommand = 'install' | 'dry-run' | 'clean' | 'plugins'
 
 interface ProxyContext {
   readonly cwd: string
@@ -75,7 +75,7 @@ function getPublicProxyPath(aindexDir: string): string {
 }
 
 function getResolveCommand(options?: PublicDefinitionResolveOptions): ProxyCommand {
-  return options?.command ?? 'execute'
+  return options?.command ?? 'install'
 }
 
 function getResolveWorkspaceDir(aindexDir: string, options?: PublicDefinitionResolveOptions): string {

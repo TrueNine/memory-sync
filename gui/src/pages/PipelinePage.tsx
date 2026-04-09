@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 
 const PipelinePage: FC = () => {
   const { t } = useI18n()
-  const { status, execute, dryRun, reset } = usePipeline()
+  const { status, install, dryRun, reset } = usePipeline()
   const [plugins, setPlugins] = useState<readonly PluginExecutionResult[]>([])
 
   const cwd = '.'
@@ -27,7 +27,7 @@ const PipelinePage: FC = () => {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => execute(cwd)}
+            onClick={() => install(cwd)}
             disabled={status.kind === 'running'}
             className={cn(
               'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
@@ -36,7 +36,7 @@ const PipelinePage: FC = () => {
             )}
           >
             <Play className="h-3.5 w-3.5" />
-            {t('pipeline.execute')}
+            {t('pipeline.install')}
           </button>
           <button
             type="button"

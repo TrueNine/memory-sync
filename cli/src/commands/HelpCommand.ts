@@ -11,9 +11,10 @@ Synchronize AI memory and configuration files across projects.
 
 ## Usage
 
-- \`${CLI_NAME}\` runs the sync pipeline.
+- \`${CLI_NAME}\` runs the default install pipeline.
 - \`${CLI_NAME} help\` shows this help message.
 - \`${CLI_NAME} version\` shows the CLI version.
+- \`${CLI_NAME} install\` runs the install pipeline explicitly.
 - \`${CLI_NAME} dry-run\` previews what would be written.
 - \`${CLI_NAME} clean\` removes generated files.
 - \`${CLI_NAME} clean --dry-run\` previews what would be cleaned.
@@ -22,6 +23,7 @@ Synchronize AI memory and configuration files across projects.
 
 - \`help\` shows this help message.
 - \`version\` shows version information.
+- \`install\` runs the install pipeline.
 - \`dry-run\` previews changes without writing files.
 - \`clean\` removes generated output files and directories.
 

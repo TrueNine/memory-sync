@@ -10,8 +10,8 @@ import { invoke } from '@tauri-apps/api/core'
 
 import {
   cleanOutputs,
-  executePipeline,
   getAindexStats,
+  installPipeline,
   listAindexFiles,
   listCategoryFiles,
   listPlugins,
@@ -28,7 +28,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('executePipeline', () => {
+describe('installPipeline', () => {
   const mockResult: PipelineResult = {
     success: true,
     totalFiles: 5,
@@ -46,13 +46,13 @@ describe('executePipeline', () => {
     errors: [],
   }
 
-  it('should invoke execute_pipeline with cwd and dryRun', async () => {
+  it('should invoke install_pipeline with cwd and dryRun', async () => {
     mockedInvoke.mockResolvedValue(mockResult)
 
-    const result = await executePipeline('/home/user/project', true)
+    const result = await installPipeline('/home/user/project', true)
 
     expect(mockedInvoke).toHaveBeenCalledOnce()
-    expect(mockedInvoke).toHaveBeenCalledWith('execute_pipeline', {
+    expect(mockedInvoke).toHaveBeenCalledWith('install_pipeline', {
       cwd: '/home/user/project',
       dryRun: true,
     })
@@ -62,9 +62,9 @@ describe('executePipeline', () => {
   it('should default dryRun to false', async () => {
     mockedInvoke.mockResolvedValue(mockResult)
 
-    await executePipeline('/workspace')
+    await installPipeline('/workspace')
 
-    expect(mockedInvoke).toHaveBeenCalledWith('execute_pipeline', {
+    expect(mockedInvoke).toHaveBeenCalledWith('install_pipeline', {
       cwd: '/workspace',
       dryRun: false,
     })
@@ -73,7 +73,7 @@ describe('executePipeline', () => {
   it('should propagate invoke rejection', async () => {
     mockedInvoke.mockRejectedValue(new Error('sidecar not found'))
 
-    await expect(executePipeline('/bad/path')).rejects.toThrow('sidecar not found')
+    await expect(installPipeline('/bad/path')).rejects.toThrow('sidecar not found')
   })
 })
 

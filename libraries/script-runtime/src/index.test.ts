@@ -16,7 +16,7 @@ function createTempDir(): string {
   return tempDir
 }
 
-function createContext(tempDir: string, command: ProxyContext['command'] = 'execute'): ProxyContext {
+function createContext(tempDir: string, command: ProxyContext['command'] = 'install'): ProxyContext {
   const workspaceDir = path.join(tempDir, 'workspace')
   const aindexDir = path.join(workspaceDir, 'aindex')
   fs.mkdirSync(path.join(aindexDir, 'public'), {recursive: true})
@@ -75,7 +75,7 @@ describe('runtime-core', () => {
     const ctx = createContext(tempDir, 'clean')
     const filePath = writeProxyFile(
       tempDir,
-      'export const config = { matcher: { commands: ["execute"] } }\nexport default (logicalPath) => "shadow/" + logicalPath\n'
+      'export const config = { matcher: { commands: ["install"] } }\nexport default (logicalPath) => "shadow/" + logicalPath\n'
     )
 
     const result = await resolvePublicPathModule(filePath, ctx, '.editorconfig')

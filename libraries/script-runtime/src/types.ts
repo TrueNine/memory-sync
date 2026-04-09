@@ -1,4 +1,4 @@
-export type ProxyCommand = 'execute' | 'dry-run' | 'clean' | 'plugins'
+export type ProxyCommand = 'install' | 'dry-run' | 'clean' | 'plugins'
 
 export interface ProxyContext {
   readonly cwd: string

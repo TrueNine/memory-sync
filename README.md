@@ -68,7 +68,7 @@ Because native targets still differ, and because conditional prompt authoring st
 
 **Is there anything in the prompt or generated output that I may not want to leave behind?**
 
-Yes. That is why `memory-sync` gives you cleanup and protection boundaries. After sync, only the managed outputs you explicitly allow should remain. Anything else should either be cleaned or protected on purpose. Prompts and derived artifacts should stay computable, auditable, and residue-free.
+Yes. That is why `memory-sync` gives you cleanup and protection boundaries. After install, only the managed outputs you explicitly allow should remain. Anything else should either be cleaned or protected on purpose. Prompts and derived artifacts should stay computable, auditable, and residue-free.
 
 ## Who is this for
 

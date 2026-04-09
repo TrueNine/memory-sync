@@ -24,8 +24,8 @@ export interface PipelineResult {
   readonly errors: readonly string[]
 }
 
-export function executePipeline(cwd: string, dryRun = false): Promise<PipelineResult> {
-  return invoke<PipelineResult>('execute_pipeline', { cwd, dryRun })
+export function installPipeline(cwd: string, dryRun = false): Promise<PipelineResult> {
+  return invoke<PipelineResult>('install_pipeline', { cwd, dryRun })
 }
 
 export function cleanOutputs(cwd: string, dryRun = false): Promise<PipelineResult> {

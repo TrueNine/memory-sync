@@ -61,14 +61,14 @@ describe('defineConfig', () => {
     const aindexDir = path.join(tempWorkspace, 'aindex')
     const publicDir = path.join(aindexDir, 'public')
 
-    fs.mkdirSync(path.join(publicDir, 'execute'), {recursive: true})
+    fs.mkdirSync(path.join(publicDir, 'install'), {recursive: true})
     fs.mkdirSync(path.join(publicDir, 'dry-run'), {recursive: true})
     fs.writeFileSync(
       path.join(publicDir, 'proxy.ts'),
-      ['export default (_logicalPath, ctx) => ctx.command === "dry-run"', '  ? "dry-run/gitignore"', '  : "execute/gitignore"', ''].join('\n'),
+      ['export default (_logicalPath, ctx) => ctx.command === "dry-run"', '  ? "dry-run/gitignore"', '  : "install/gitignore"', ''].join('\n'),
       'utf8'
     )
-    fs.writeFileSync(path.join(publicDir, 'execute', 'gitignore'), 'execute\n', 'utf8')
+    fs.writeFileSync(path.join(publicDir, 'install', 'gitignore'), 'install\n', 'utf8')
     fs.writeFileSync(path.join(publicDir, 'dry-run', 'gitignore'), 'dry-run\n', 'utf8')
 
     try {
