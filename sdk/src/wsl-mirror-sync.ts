@@ -273,7 +273,7 @@ function discoverWslInstances(
   }
 
   const discoveredInstances = parseWslInstanceList(getSpawnOutputText(listResult.stdout))
-  logger.info('discovered wsl instances', {
+  logger.debug('Discovered WSL instances', {
     instances: discoveredInstances
   })
   return discoveredInstances
@@ -425,7 +425,7 @@ export function resolveWslInstanceTargets(
       )
     }
 
-    logger.info('resolved wsl instance home', {
+    logger.debug('Resolved WSL instance home', {
       instance,
       linuxHomeDir,
       windowsHomeDir
@@ -470,7 +470,7 @@ function syncResolvedMirrorSourcesIntoCurrentWslHome(
     const targetPath = path.posix.join(nativeHomeDir, ...source.relativePathSegments)
     try {
       if (ctx.dryRun === true) {
-        ctx.logger.info('would mirror host config into wsl runtime home', {
+        ctx.logger.debug('Prepared WSL mirror preview for current runtime home', {
           sourcePath: source.sourcePath,
           targetPath,
           dryRun: true
@@ -479,7 +479,7 @@ function syncResolvedMirrorSourcesIntoCurrentWslHome(
         const content = fsImpl.readFileSync(source.sourcePath)
         fsImpl.mkdirSync(path.posix.dirname(targetPath), {recursive: true})
         fsImpl.writeFileSync(targetPath, content)
-        ctx.logger.info('mirrored host config into wsl runtime home', {
+        ctx.logger.debug('Mirrored host config into the current WSL runtime home', {
           sourcePath: source.sourcePath,
           targetPath
         })
@@ -571,7 +571,7 @@ export async function syncWindowsConfigIntoWsl(
   }
   catch (error) {
     if (error instanceof WslUnavailableError) {
-      ctx.logger.info('wsl is unavailable, skipping WSL mirror sync', {
+      ctx.logger.debug('WSL is unavailable, skipping mirror sync', {
         reason: error.message
       })
       return {
@@ -623,7 +623,7 @@ export async function syncWindowsConfigIntoWsl(
 
       try {
         if (ctx.dryRun === true) {
-          ctx.logger.info('would mirror windows config into wsl', {
+          ctx.logger.debug('Prepared WSL mirror preview', {
             instance: resolvedTarget.instance,
             sourcePath,
             targetPath,
@@ -633,7 +633,7 @@ export async function syncWindowsConfigIntoWsl(
           const content = fsImpl.readFileSync(sourcePath)
           fsImpl.mkdirSync(path.win32.dirname(targetPath), {recursive: true})
           fsImpl.writeFileSync(targetPath, content)
-          ctx.logger.info('mirrored windows config into wsl', {
+          ctx.logger.debug('Mirrored Windows config into WSL', {
             instance: resolvedTarget.instance,
             sourcePath,
             targetPath

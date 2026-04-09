@@ -10,14 +10,15 @@ export class UnknownCommand implements Command {
     ctx.logger.error(
       buildUsageDiagnostic({
         code: 'UNKNOWN_COMMAND',
-        title: `Unknown tnmsc command: ${this.unknownCmd}`,
-        rootCause: diagnosticLines(`tnmsc does not recognize the "${this.unknownCmd}" subcommand.`),
-        exactFix: diagnosticLines('Run `tnmsc help` and invoke one of the supported commands.'),
+        title: 'Command not found',
+        rootCause: diagnosticLines(
+          `tnmsc does not recognize "${this.unknownCmd}".`
+        ),
+        exactFix: diagnosticLines('Run `tnmsc help`, then retry with a supported command.'),
         possibleFixes: [diagnosticLines('Check the command spelling and remove unsupported aliases or flags.')],
         details: {command: this.unknownCmd}
       })
     )
-    ctx.logger.info('run "tnmsc help" for available commands')
     return {success: false, filesAffected: 0, dirsAffected: 0, message: `Unknown command: ${this.unknownCmd}`}
   }
 }

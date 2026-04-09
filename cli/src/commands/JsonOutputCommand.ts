@@ -1,11 +1,13 @@
-import type {LoggerDiagnosticRecord} from '@truenine/memory-sync-sdk'
 import type {Command, CommandContext, CommandResult} from './Command'
 import process from 'node:process'
 import {
   clearBufferedDiagnostics,
   drainBufferedDiagnostics,
+  type LoggerDiagnosticRecord,
   partitionBufferedDiagnostics
 } from '@truenine/memory-sync-sdk'
+
+type PublicLoggerDiagnosticRecord = Omit<LoggerDiagnosticRecord, 'level'>
 
 interface JsonCommandResult {
   readonly success: boolean
@@ -13,8 +15,8 @@ interface JsonCommandResult {
   readonly dirsAffected: number
   readonly message?: string
   readonly pluginResults: readonly []
-  readonly warnings: readonly LoggerDiagnosticRecord[]
-  readonly errors: readonly LoggerDiagnosticRecord[]
+  readonly warnings: readonly PublicLoggerDiagnosticRecord[]
+  readonly errors: readonly PublicLoggerDiagnosticRecord[]
 }
 
 export class JsonOutputCommand implements Command {

@@ -846,7 +846,7 @@ impl ConfigLoader {
         let runtime_environment = resolve_runtime_environment();
 
         if runtime_environment.is_wsl {
-            self.logger.info(
+            self.logger.debug(
                 Value::String("wsl environment detected".into()),
                 Some(serde_json::json!({
                     "effectiveHomeDir": runtime_environment
@@ -859,7 +859,7 @@ impl ConfigLoader {
 
         let config_path = get_required_global_config_path()?;
         if runtime_environment.is_wsl {
-            self.logger.info(
+            self.logger.debug(
                 Value::String("using wsl host global config".into()),
                 Some(serde_json::json!({
                     "path": config_path.to_string_lossy()

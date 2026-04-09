@@ -1,10 +1,9 @@
 import { invoke } from '@tauri-apps/api/core'
 
 export interface LogEntry {
-  readonly timestamp: string
-  readonly level: string
-  readonly logger: string
-  readonly payload: unknown
+  readonly stream: 'stdout' | 'stderr'
+  readonly source?: string
+  readonly markdown: string
 }
 
 export interface PluginExecutionResult {

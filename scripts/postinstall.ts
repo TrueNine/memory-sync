@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import {execSync} from 'node:child_process'
 import process from 'node:process'
+import {writeError, writeMarkdownBlock} from './markdown-output'
 
 const CI_ENV_VARS = ['CI', 'GITHUB_ACTIONS', 'VERCEL', 'VERCEL_ENV'] as const
 
@@ -10,7 +11,9 @@ function hasTruthyEnv(name: (typeof CI_ENV_VARS)[number]): boolean {
 }
 
 if (CI_ENV_VARS.some(hasTruthyEnv)) {
-  console.log('[postinstall] CI or Vercel detected, skipping git hooks and native bootstrap')
+  writeMarkdownBlock('Skipping local postinstall bootstrap', {
+    reason: 'CI or Vercel environment detected.',
+  })
   process.exit(0)
 }
 
@@ -26,9 +29,12 @@ for (const command of commands) {
       stdio: 'inherit',
     })
   } catch (error) {
-    console.error(`[postinstall] Command failed: ${command}`)
+    writeError('Postinstall command failed', {command})
     if (error instanceof Error && 'status' in error) {
-      console.error(`[postinstall] Exit code: ${(error as {status: number}).status}`)
+      writeError('Postinstall exit code', {
+        command,
+        exitCode: (error as {status: number}).status,
+      })
     }
     process.exit(1)
   }

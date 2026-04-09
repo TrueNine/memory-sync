@@ -17,14 +17,12 @@ function createEmptyProjectsBySeries() {
 }
 
 const {
-  collectAllPluginOutputsMock,
   collectDeletionTargetsMock,
   collectOutputDeclarationsMock,
   executeDeclarativeWriteOutputsMock,
   performCleanupMock,
   syncWindowsConfigIntoWslMock
 } = vi.hoisted(() => ({
-  collectAllPluginOutputsMock: vi.fn(),
   collectDeletionTargetsMock: vi.fn(),
   collectOutputDeclarationsMock: vi.fn(),
   executeDeclarativeWriteOutputsMock: vi.fn(),
@@ -37,7 +35,6 @@ vi.mock('@truenine/memory-sync-sdk', async importOriginal => {
 
   return {
     ...actual,
-    collectAllPluginOutputs: collectAllPluginOutputsMock,
     collectDeletionTargets: collectDeletionTargetsMock,
     collectOutputDeclarations: collectOutputDeclarationsMock,
     executeDeclarativeWriteOutputs: executeDeclarativeWriteOutputsMock,
@@ -48,12 +45,14 @@ vi.mock('@truenine/memory-sync-sdk', async importOriginal => {
 
 function createBaseContext(executionPlan: ExecutionPlan): {
   readonly ctx: CommandContext
+  readonly debugSpy: ReturnType<typeof vi.spyOn>
   readonly infoSpy: ReturnType<typeof vi.spyOn>
   readonly warnSpy: ReturnType<typeof vi.spyOn>
   readonly errorSpy: ReturnType<typeof vi.spyOn>
 } {
   const workspaceDir = executionPlan.workspaceDir
   const logger = createLogger('execution-routing-test', 'debug')
+  const debugSpy = vi.spyOn(logger, 'debug')
   const infoSpy = vi.spyOn(logger, 'info')
   const warnSpy = vi.spyOn(logger, 'warn')
   const errorSpy = vi.spyOn(logger, 'error')
@@ -97,6 +96,7 @@ function createBaseContext(executionPlan: ExecutionPlan): {
       createCleanContext,
       createWriteContext
     } as unknown as CommandContext,
+    debugSpy,
     infoSpy,
     warnSpy,
     errorSpy
@@ -160,13 +160,13 @@ describe('execution-aware command routing', () => {
     expect(result.success).toBe(true)
     expect(performCleanupMock).toHaveBeenCalledTimes(1)
     expect(infoSpy.mock.calls).toEqual(expect.arrayContaining([
-      ['execution scope resolved to project', expect.objectContaining({projectName: 'plugin-one', projectSeries: 'ext'})]
+      ['Running against one managed project', expect.objectContaining({project: 'plugin-one', series: 'ext'})]
     ]))
   })
 
   it('logs external project groups before running dry-run clean', async () => {
     const workspaceDir = path.resolve('/tmp/tnmsc-dry-run-clean-external')
-    const {ctx, infoSpy, warnSpy} = createBaseContext({
+    const {ctx, debugSpy, warnSpy} = createBaseContext({
       scope: 'external',
       cwd: path.resolve('/tmp/outside-workspace'),
       workspaceDir,
@@ -176,12 +176,6 @@ describe('execution-aware command routing', () => {
         arch: [],
         softwares: [{name: 'tool-one', rootDir: path.join(workspaceDir, 'tool-one'), series: 'softwares'}]
       }
-    })
-    collectAllPluginOutputsMock.mockResolvedValue({
-      projectDirs: [],
-      projectFiles: [],
-      globalDirs: [],
-      globalFiles: []
     })
     collectDeletionTargetsMock.mockResolvedValue({
       filesToDelete: [],
@@ -195,15 +189,14 @@ describe('execution-aware command routing', () => {
     const result = await new DryRunCleanCommand().execute(ctx)
 
     expect(result.success).toBe(true)
-    expect(collectAllPluginOutputsMock).toHaveBeenCalledTimes(1)
     expect(collectDeletionTargetsMock).toHaveBeenCalledTimes(1)
     expect(warnSpy.mock.calls).toEqual(expect.arrayContaining([
-      [expect.objectContaining({code: 'EXECUTION_SCOPE_EXTERNAL', title: 'Execution will process the full workspace and all managed projects'})]
+      [expect.objectContaining({code: 'EXECUTION_SCOPE_EXTERNAL', title: 'Running outside the workspace'})]
     ]))
-    expect(infoSpy.mock.calls).toEqual(expect.arrayContaining([
-      ['external execution project group', expect.objectContaining({series: 'app', projects: ['app-one']})],
-      ['external execution project group', expect.objectContaining({series: 'ext', projects: ['plugin-one']})],
-      ['external execution project group', expect.objectContaining({series: 'softwares', projects: ['tool-one']})]
+    expect(debugSpy.mock.calls).toEqual(expect.arrayContaining([
+      ['External execution includes project group', expect.objectContaining({series: 'app', projects: ['app-one']})],
+      ['External execution includes project group', expect.objectContaining({series: 'ext', projects: ['plugin-one']})],
+      ['External execution includes project group', expect.objectContaining({series: 'softwares', projects: ['tool-one']})]
     ]))
   })
 })

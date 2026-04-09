@@ -1,38 +1,22 @@
-export type LogLevel = 'error' | 'warn' | 'info' | 'debug'
+export type LogStream = 'stdout' | 'stderr'
 
 export interface LogEntry {
-  readonly timestamp: string
-  readonly level: LogLevel
-  readonly namespace: string
-  readonly message: string
-  readonly meta?: Record<string, unknown>
+  readonly stream: LogStream
+  readonly source?: string
+  readonly markdown: string
+}
+
+export function isMatchingStream(stream: LogStream, filter: LogStream): boolean {
+  return stream === filter
 }
 
 /**
- * Severity ranking: error (0) > warn (1) > info (2) > debug (3).
- * Lower number = higher severity.
- */
-const LOG_LEVEL_SEVERITY: Record<LogLevel, number> = {
-  error: 0,
-  warn: 1,
-  info: 2,
-  debug: 3,
-}
-
-/**
- * Check if a given level meets the minimum severity threshold.
- */
-export function isLevelAtLeast(level: LogLevel, minLevel: LogLevel): boolean {
-  return LOG_LEVEL_SEVERITY[level] <= LOG_LEVEL_SEVERITY[minLevel]
-}
-
-/**
- * Filter log entries by minimum level.
- * Returns only entries whose severity is >= the specified minimum level.
+ * Filter log entries by output stream.
+ * Returns only entries whose stream matches the selected filter.
  * Preserves the original order of entries.
  *
  * Pure function — no side effects.
  */
-export function filterLogsByLevel(entries: readonly LogEntry[], minLevel: LogLevel): readonly LogEntry[] {
-  return entries.filter((entry) => isLevelAtLeast(entry.level, minLevel))
+export function filterLogsByStream(entries: readonly LogEntry[], filter: LogStream): readonly LogEntry[] {
+  return entries.filter((entry) => isMatchingStream(entry.stream, filter))
 }

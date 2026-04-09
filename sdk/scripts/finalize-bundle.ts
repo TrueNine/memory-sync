@@ -3,6 +3,9 @@ import {copyFileSync, existsSync, mkdtempSync, readdirSync, rmSync, writeFileSyn
 import {tmpdir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath, pathToFileURL} from 'node:url'
+import markdownOutput from '../../scripts/markdown-output'
+
+const {writeMarkdownBlock} = markdownOutput
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const cliDir = resolve(scriptDir, '..')
@@ -140,4 +143,6 @@ const bundledJitiChunkPath = ensureBundledJitiRuntimeAssets()
 smokeTestBundledJitiTransform(bundledJitiChunkPath)
 smokeTestCliEntry()
 
-console.log(`Finalized bundled CLI assets for ${indexEntryPath}`)
+writeMarkdownBlock('Bundled CLI assets finalized', {
+  entry: indexEntryPath,
+})

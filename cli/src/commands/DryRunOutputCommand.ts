@@ -9,18 +9,21 @@ export class DryRunOutputCommand implements Command {
     const preflightResult = runExecutionPreflight(ctx, this.name)
     if (preflightResult != null) return preflightResult
 
-    const {logger, outputPlugins, createWriteContext} = ctx
-    logger.info('started', {command: 'dry-run-output', dryRun: true})
+    const {logger, outputPlugins, createWriteContext, collectedOutputContext} = ctx
+    logger.info('Running dry run', {
+      plugins: outputPlugins.length,
+      projects: collectedOutputContext.workspace.projects.length,
+      workspace: collectedOutputContext.workspace.directory.path
+    })
     const writeCtx = createWriteContext(true)
     const predeclaredOutputs = await collectOutputDeclarations(outputPlugins, writeCtx)
     const results = await executeDeclarativeWriteOutputs(outputPlugins, writeCtx, predeclaredOutputs)
 
     let totalFiles = 0
     let totalDirs = 0
-    for (const [pluginName, result] of results) {
+    for (const result of results.values()) {
       totalFiles += result.files.length
       totalDirs += result.dirs.length
-      logger.info('plugin result', {plugin: pluginName, files: result.files.length, dirs: result.dirs.length, dryRun: true})
     }
 
     const wslMirrorResult = await syncWindowsConfigIntoWsl(outputPlugins, writeCtx, void 0, predeclaredOutputs)
@@ -29,7 +32,16 @@ export class DryRunOutputCommand implements Command {
     }
 
     totalFiles += wslMirrorResult.mirroredFiles
-    logger.info('complete', {command: 'dry-run-output', totalFiles, totalDirs, dryRun: true})
+    if (wslMirrorResult.mirroredFiles > 0 || wslMirrorResult.warnings.length > 0) {
+      logger.info('Prepared WSL mirror preview', {
+        files: wslMirrorResult.mirroredFiles,
+        warnings: wslMirrorResult.warnings.length
+      })
+    }
+    logger.info('Dry run complete', {
+      files: totalFiles,
+      directories: totalDirs
+    })
     return {success: true, filesAffected: totalFiles, dirsAffected: totalDirs, message: 'Dry-run complete, no files were written'}
   }
 }

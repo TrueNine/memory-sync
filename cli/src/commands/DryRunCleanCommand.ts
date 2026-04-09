@@ -1,6 +1,6 @@
 import type {Command, CommandContext, CommandResult} from './Command'
 import * as path from 'node:path'
-import {collectAllPluginOutputs, collectDeletionTargets, logProtectedDeletionGuardError} from '@truenine/memory-sync-sdk'
+import {collectDeletionTargets, logProtectedDeletionGuardError} from '@truenine/memory-sync-sdk'
 import {runExecutionPreflight} from './execution-preflight'
 
 export class DryRunCleanCommand implements Command {
@@ -11,16 +11,10 @@ export class DryRunCleanCommand implements Command {
     if (preflightResult != null) return preflightResult
 
     const {logger, outputPlugins, createCleanContext} = ctx
-    logger.info('running clean pipeline', {command: 'dry-run-clean', dryRun: true})
-    const cleanCtx = createCleanContext(true)
-    const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx)
-    logger.info('collected outputs for cleanup', {
-      dryRun: true,
-      projectDirs: outputs.projectDirs.length,
-      projectFiles: outputs.projectFiles.length,
-      globalDirs: outputs.globalDirs.length,
-      globalFiles: outputs.globalFiles.length
+    logger.info('Running cleanup preview', {
+      plugins: outputPlugins.length
     })
+    const cleanCtx = createCleanContext(true)
 
     const {filesToDelete, dirsToDelete, emptyDirsToDelete, violations, excludedScanGlobs} = await collectDeletionTargets(outputPlugins, cleanCtx)
     const totalDirsToDelete = [...dirsToDelete, ...emptyDirsToDelete]
@@ -35,16 +29,14 @@ export class DryRunCleanCommand implements Command {
       }
     }
 
-    for (const file of filesToDelete) logger.info('would delete file', {path: path.isAbsolute(file) ? file : path.resolve(file), dryRun: true})
+    for (const file of filesToDelete) logger.info('Would remove file', {path: path.isAbsolute(file) ? file : path.resolve(file)})
     for (const dir of [...totalDirsToDelete].sort((a, b) => b.length - a.length))
-    { logger.info('would delete directory', {path: path.isAbsolute(dir) ? dir : path.resolve(dir), dryRun: true}) }
+    { logger.info('Would remove directory', {path: path.isAbsolute(dir) ? dir : path.resolve(dir)}) }
 
-    logger.info('clean complete', {
-      dryRun: true,
-      filesAffected: filesToDelete.length,
-      dirsAffected: totalDirsToDelete.length,
-      violations: 0,
-      excludedScanGlobs
+    logger.info('Cleanup preview complete', {
+      files: filesToDelete.length,
+      directories: totalDirsToDelete.length,
+      excludedGlobs: excludedScanGlobs.length
     })
 
     return {

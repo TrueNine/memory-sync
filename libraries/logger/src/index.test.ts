@@ -18,7 +18,7 @@ const nativeModule = vi.hoisted(() => ({
       rootCause: ['A warning was buffered.'],
       level: 'warn',
       namespace: 'logger-test',
-      copyText: ['[BUFFERED_WARN] Buffered warning']
+      copyText: ['Buffered warning']
     }
   ]))
 }))
@@ -42,7 +42,7 @@ describe('logger bindings', () => {
         rootCause: ['A warning was buffered.'],
         level: 'warn',
         namespace: 'logger-test',
-        copyText: ['[BUFFERED_WARN] Buffered warning']
+        copyText: ['Buffered warning']
       }
     ]))
   })
@@ -91,18 +91,17 @@ describe('logger bindings', () => {
     )
     const payload = JSON.parse(String(nativeLogger.log.mock.calls[0]?.[2])) as Record<string, unknown>
     expect(payload['count']).toBe(1)
-    expect(payload['loggerTiming']).toEqual(expect.any(String))
+    expect(payload['loggerTiming']).toBeUndefined()
     expect(nativeLogger.logDiagnostic).not.toHaveBeenCalled()
   })
 
-  it('adds logger timing even when no metadata is provided', async () => {
+  it('keeps metadata undefined when no extra fields are provided', async () => {
     const {createLogger} = await import('./index')
     const logger = createLogger('logger-test')
 
     logger.info('hello')
 
-    const payload = JSON.parse(String(nativeLogger.log.mock.calls[0]?.[2])) as Record<string, unknown>
-    expect(payload['loggerTiming']).toEqual(expect.any(String))
+    expect(nativeLogger.log.mock.calls[0]?.[2]).toBeUndefined()
   })
 
   it('skips serializing filtered plain logs on the JS side', async () => {

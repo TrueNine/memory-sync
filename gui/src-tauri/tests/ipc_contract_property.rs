@@ -28,14 +28,16 @@ fn arb_plugin_execution_result() -> impl Strategy<Value = PluginExecutionResult>
 }
 
 fn arb_log_entry() -> impl Strategy<Value = LogEntry> {
-    (any::<String>(), any::<String>(), any::<String>()).prop_map(|(timestamp, level, logger)| {
-        LogEntry {
-            timestamp,
-            level,
-            logger,
-            payload: serde_json::Value::Null,
-        }
-    })
+    (
+        prop::sample::select(vec!["stdout".to_string(), "stderr".to_string()]),
+        prop::option::of(any::<String>()),
+        any::<String>(),
+    )
+        .prop_map(|(stream, source, markdown)| LogEntry {
+            stream,
+            source,
+            markdown,
+        })
 }
 
 fn arb_pipeline_result() -> impl Strategy<Value = PipelineResult> {
@@ -188,16 +190,11 @@ proptest! {
             .expect("serialised JSON must be valid");
         let obj = val.as_object().expect("LogEntry JSON must be an object");
 
-        prop_assert!(obj.contains_key("timestamp"), "JSON must contain 'timestamp'");
-        prop_assert!(obj["timestamp"].is_string(), "'timestamp' must be a string");
+        prop_assert!(obj.contains_key("stream"), "JSON must contain 'stream'");
+        prop_assert!(obj["stream"].is_string(), "'stream' must be a string");
 
-        prop_assert!(obj.contains_key("level"), "JSON must contain 'level'");
-        prop_assert!(obj["level"].is_string(), "'level' must be a string");
-
-        prop_assert!(obj.contains_key("logger"), "JSON must contain 'logger'");
-        prop_assert!(obj["logger"].is_string(), "'logger' must be a string");
-
-        prop_assert!(obj.contains_key("payload"), "JSON must contain 'payload'");
+        prop_assert!(obj.contains_key("markdown"), "JSON must contain 'markdown'");
+        prop_assert!(obj["markdown"].is_string(), "'markdown' must be a string");
     }
 
     /// Round-trip: deserialise(serialise(LogEntry)) == original.
@@ -210,8 +207,8 @@ proptest! {
         let restored: LogEntry = serde_json::from_str(&json)
             .expect("LogEntry must deserialise from its own JSON");
 
-        prop_assert_eq!(entry.timestamp, restored.timestamp);
-        prop_assert_eq!(entry.level, restored.level);
-        prop_assert_eq!(entry.logger, restored.logger);
+        prop_assert_eq!(entry.stream, restored.stream);
+        prop_assert_eq!(entry.source, restored.source);
+        prop_assert_eq!(entry.markdown, restored.markdown);
     }
 }

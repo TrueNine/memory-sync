@@ -16,11 +16,9 @@ function logExternalProjectGroups(ctx: CommandContext): void {
   for (const series of SERIES_ORDER) {
     const projects = ctx.executionPlan.projectsBySeries[series]
     if (projects.length === 0) continue
-    ctx.logger.info('external execution project group', {
-      phase: 'execution-scope',
-      scope: 'external',
+    ctx.logger.debug('External execution includes project group', {
       series,
-      projectCount: projects.length,
+      count: projects.length,
       projects: projects.map(project => project.name)
     })
   }
@@ -31,19 +29,11 @@ function logProjectSummary(
   commandName: string,
   project: ExecutionPlanProjectSummary
 ): void {
-  ctx.logger.info('execution scope resolved to project', {
-    phase: 'execution-scope',
+  ctx.logger.info('Running against one managed project', {
     command: commandName,
-    scope: 'project',
-    cwd: ctx.executionPlan.cwd,
-    workspaceDir: ctx.executionPlan.workspaceDir,
-    projectName: project.name,
-    ...project.series != null ? {projectSeries: project.series} : {}
-  })
-  ctx.logger.info('project-scoped execution only targets the matched project and global outputs', {
-    phase: 'execution-scope',
-    command: commandName,
-    projectName: project.name
+    project: project.name,
+    ...project.series != null ? {series: project.series} : {},
+    workspace: ctx.executionPlan.workspaceDir
   })
 }
 
@@ -55,16 +45,15 @@ export function runExecutionPreflight(
     case 'workspace':
       ctx.logger.warn(buildDiagnostic({
         code: 'EXECUTION_SCOPE_WORKSPACE',
-        title: 'Execution is limited to workspace-level outputs',
+        title: 'Running from the workspace root',
         rootCause: diagnosticLines(
-          `tnmsc resolved the current execution directory "${ctx.executionPlan.cwd}" to the workspace root.`,
-          'This run will sync or clean only workspace-level outputs plus global outputs to improve performance.'
+          `This run will only touch workspace-level outputs and global outputs.`,
+          `Current directory: ${ctx.executionPlan.cwd}`
         ),
         exactFix: diagnosticLines(
-          'Run tnmsc from a managed project directory to target one project, or from outside the workspace to process every managed project.'
+          'Run tnmsc from a managed project directory to target one project, or from outside the workspace to include every managed project.'
         ),
         details: {
-          phase: 'execution-scope',
           command: commandName,
           scope: 'workspace',
           cwd: ctx.executionPlan.cwd,
@@ -78,16 +67,15 @@ export function runExecutionPreflight(
     case 'external':
       ctx.logger.warn(buildDiagnostic({
         code: 'EXECUTION_SCOPE_EXTERNAL',
-        title: 'Execution will process the full workspace and all managed projects',
+        title: 'Running outside the workspace',
         rootCause: diagnosticLines(
-          `tnmsc resolved the current execution directory "${ctx.executionPlan.cwd}" as external to workspace "${ctx.executionPlan.workspaceDir}".`,
-          'This run may take longer because it will process workspace-level outputs, all managed projects, and global outputs.'
+          `This run will process the workspace, every managed project, and global outputs.`,
+          `Current directory: ${ctx.executionPlan.cwd}`
         ),
         exactFix: diagnosticLines(
           `Run tnmsc from "${ctx.executionPlan.workspaceDir}" for workspace-only execution, or from a managed project directory for project-only execution.`
         ),
         details: {
-          phase: 'execution-scope',
           command: commandName,
           scope: 'external',
           cwd: ctx.executionPlan.cwd,
@@ -100,16 +88,15 @@ export function runExecutionPreflight(
       const message = buildUnsupportedMessage(ctx)
       ctx.logger.error(buildDiagnostic({
         code: 'EXECUTION_SCOPE_UNSUPPORTED',
-        title: 'Execution directory is inside the workspace but not managed by tnmsc',
+        title: 'This directory is not a managed tnmsc target',
         rootCause: diagnosticLines(
-          `tnmsc resolved "${ctx.executionPlan.cwd}" inside workspace "${ctx.executionPlan.workspaceDir}", but the directory is not the workspace root and does not belong to any managed project.`,
-          'Running from this location is unsupported because tnmsc cannot map the request to a workspace-level or project-level execution target.'
+          `tnmsc cannot map "${ctx.executionPlan.cwd}" to the workspace root or any managed project.`,
+          `Workspace: ${ctx.executionPlan.workspaceDir}`
         ),
         exactFix: diagnosticLines(
           'Run tnmsc from the workspace root, from a managed project directory, or from outside the workspace.'
         ),
         details: {
-          phase: 'execution-scope',
           command: commandName,
           scope: 'unsupported',
           cwd: ctx.executionPlan.cwd,

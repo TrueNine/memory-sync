@@ -3,6 +3,7 @@ import {execFileSync} from 'node:child_process'
 import {existsSync} from 'node:fs'
 import {homedir} from 'node:os'
 import {join} from 'node:path'
+import {writeError} from './markdown-output'
 
 const candidates: string[] = [
   process.env['CARGO'] ?? '',
@@ -20,7 +21,9 @@ for (const c of candidates) {
 }
 
 if (cargoPath == null) {
-  console.error('[cargo-test] cargo not found. Install Rust: https://rustup.rs')
+  writeError('cargo is not available on PATH', {
+    install: 'https://rustup.rs',
+  })
   process.exit(1)
 }
 
@@ -33,7 +36,10 @@ catch (err) {
     ? ((err as NodeJS.ErrnoException & {status?: number}).status ?? 1)
     : 1
   if (status === 101) {
-    console.error('[cargo-test] Rust build failed (likely missing linker/toolchain). Install Visual Studio Build Tools: https://aka.ms/vs/17/release/vs_BuildTools.exe')
+    writeError('Rust build failed before tests could run', {
+      likelyCause: 'Missing linker or toolchain.',
+      install: 'https://aka.ms/vs/17/release/vs_BuildTools.exe',
+    })
     process.exit(1)
   }
   process.exit(status)

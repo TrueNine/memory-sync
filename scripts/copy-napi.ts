@@ -4,6 +4,7 @@ import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import process from 'node:process'
 
+import {writeMarkdownBlock, writeWarning} from './markdown-output'
 import {resolveTargetDirs, writePlatformPackageShims} from './write-platform-package-shims'
 
 const NATIVE_MODULES = [
@@ -29,7 +30,9 @@ const npmPackagesDir = join(root, 'cli', 'npm')
 writePlatformPackageShims(resolveTargetDirs([]))
 
 if (suffix == null) {
-  console.warn(`[copy-napi] Unsupported platform: ${process.platform}-${process.arch}, wrote package shims only`)
+  writeWarning('Wrote platform package shims only', {
+    reason: `Unsupported platform: ${process.platform}-${process.arch}`,
+  })
   process.exit(0)
 }
 
@@ -41,28 +44,46 @@ let copied = 0
 for (const mod of NATIVE_MODULES) {
   const modDist = join(root, mod.distDir)
   if (!existsSync(modDist)) {
-    console.warn(`[copy-napi] ${mod.name}: dist/ not found, skipping (run napi build first)`)
+    writeWarning('Skipping native module copy', {
+      module: mod.name,
+      reason: 'dist/ was not found.',
+      nextStep: 'Run the NAPI build first.',
+    })
     continue
   }
   const nodeFiles = readdirSync(modDist).filter(f => f.endsWith('.node'))
   if (nodeFiles.length === 0) {
-    console.warn(`[copy-napi] ${mod.name}: no .node files in dist/, skipping (run napi build first)`)
+    writeWarning('Skipping native module copy', {
+      module: mod.name,
+      reason: 'No .node files were found in dist/.',
+      nextStep: 'Run the NAPI build first.',
+    })
     continue
   }
   for (const file of nodeFiles) {
     const src = join(modDist, file)
     const dst = join(targetDir, file)
     cpSync(src, dst)
-    console.log(`[copy-napi] ${mod.name}: ${file} → cli/npm/${suffix}/`)
+    writeMarkdownBlock('Copied NAPI artifact', {
+      module: mod.name,
+      file,
+      target: `cli/npm/${suffix}/`,
+    })
     copied++
   }
 }
 
 if (copied > 0) {
-  console.log(`[copy-napi] Done: ${copied} file(s) copied to cli/npm/${suffix}/`)
+  writeMarkdownBlock('NAPI copy complete', {
+    files: copied,
+    target: `cli/npm/${suffix}/`,
+  })
 } else {
-  console.warn('[copy-napi] No .node files found. Build napi first:')
-  console.warn('  pnpm -F @truenine/logger run build:native')
-  console.warn('  pnpm -F @truenine/md-compiler run build:native')
-  console.warn('  pnpm -F @truenine/memory-sync-sdk run build:native')
+  writeWarning('No NAPI artifacts were copied', {
+    nextSteps: [
+      'pnpm -F @truenine/logger run build:native',
+      'pnpm -F @truenine/md-compiler run build:native',
+      'pnpm -F @truenine/memory-sync-sdk run build:native',
+    ],
+  })
 }

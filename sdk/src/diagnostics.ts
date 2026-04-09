@@ -159,8 +159,8 @@ export function buildFileOperationDiagnostic(options: FileOperationDiagnosticOpt
     code,
     title,
     rootCause: diagnosticLines(
-      `tnmsc could not ${operation} the ${targetKind} at "${path}".`,
-      `Underlying error: ${errorMessage}`
+      `Could not ${operation} the ${targetKind} at "${path}".`,
+      `Error: ${errorMessage}`
     ),
     exactFix: exactFix ?? advice.exactFix,
     possibleFixes: possibleFixes ?? advice.possibleFixes,
@@ -207,11 +207,11 @@ export function buildBatchFileOperationDiagnostic(options: BatchFileOperationDia
     code,
     title,
     rootCause: diagnosticLines(
-      `tnmsc encountered ${failures.length} failed ${operation} operation(s) while handling ${targetKind}.`,
+      `${failures.length} ${operation} operation(s) failed while handling ${targetKind}.`,
       firstFailureLine
     ),
     exactFix: exactFix ?? diagnosticLines(
-      `Inspect the failing ${targetKind} path and correct the underlying ${operation} problem before retrying tnmsc.`
+      `Fix the failing ${targetKind} path, then retry tnmsc.`
     ),
     possibleFixes: possibleFixes ?? [
       diagnosticLines('Verify the target path exists, has the expected type, and is accessible to tnmsc.'),
@@ -306,7 +306,7 @@ export function buildPathStateDiagnostic(options: PathStateDiagnosticOptions): L
     code,
     title,
     rootCause: diagnosticLines(
-      `tnmsc expected a ${expectedKind} at "${path}".`,
+      `Expected a ${expectedKind} at "${path}".`,
       `Actual state: ${actualState}`
     ),
     exactFix: exactFix ?? diagnosticLines(
@@ -351,7 +351,7 @@ export function buildPromptCompilerDiagnostic(options: PromptCompilerDiagnosticO
     title,
     rootCause: summaryLines,
     exactFix: exactFix ?? diagnosticLines(
-      'Fix the referenced prompt source or compiled dist file so the compiler diagnostic no longer triggers.'
+      'Fix the referenced prompt source or compiled file, then rerun tnmsc.'
     ),
     possibleFixes: possibleFixes ?? [
       diagnosticLines('Open the file referenced in the diagnostic and correct the reported syntax or metadata issue.'),
@@ -372,9 +372,9 @@ export function buildProtectedDeletionDiagnostic(
 
   return buildDiagnostic({
     code: 'PROTECTED_DELETION_GUARD_TRIGGERED',
-    title: 'Protected deletion guard blocked a destructive operation',
+    title: 'Protected path blocked cleanup',
     rootCause: diagnosticLines(
-      `The "${operation}" operation targeted ${violations.length} protected path(s).`,
+      `"${operation}" targeted ${violations.length} protected path(s).`,
       firstViolation != null
         ? `Example protected path: ${firstViolation.protectedPath}`
         : 'No violation details were captured.'
@@ -405,13 +405,13 @@ export function buildUnhandledExceptionDiagnostic(context: string, error: unknow
 
   return buildDiagnostic({
     code: 'UNHANDLED_EXCEPTION',
-    title: `Unhandled exception in ${context}`,
+    title: `Unexpected failure in ${context}`,
     rootCause: diagnosticLines(
-      `tnmsc terminated because an unhandled exception escaped the ${context} flow.`,
-      `Underlying error: ${errorMessage}`
+      `An unhandled exception escaped the ${context} flow.`,
+      `Error: ${errorMessage}`
     ),
     exactFix: diagnosticLines(
-      'Inspect the error context and add the missing guard, validation, or recovery path before retrying the command.'
+      'Inspect the failing code path, add the missing guard or validation, then retry the command.'
     ),
     possibleFixes: [
       diagnosticLines('Re-run the command with the same inputs after fixing the referenced file or configuration.'),
@@ -424,15 +424,22 @@ export function buildUnhandledExceptionDiagnostic(context: string, error: unknow
   })
 }
 
+export type PublicLoggerDiagnosticRecord = Omit<LoggerDiagnosticRecord, 'level'>
+
+function stripDiagnosticLevel(diagnostic: LoggerDiagnosticRecord): PublicLoggerDiagnosticRecord {
+  const {level: _level, ...publicDiagnostic} = diagnostic
+  return publicDiagnostic
+}
+
 export function partitionBufferedDiagnostics(
   diagnostics: readonly LoggerDiagnosticRecord[]
-): {warnings: LoggerDiagnosticRecord[], errors: LoggerDiagnosticRecord[]} {
-  const warnings: LoggerDiagnosticRecord[] = []
-  const errors: LoggerDiagnosticRecord[] = []
+): {warnings: PublicLoggerDiagnosticRecord[], errors: PublicLoggerDiagnosticRecord[]} {
+  const warnings: PublicLoggerDiagnosticRecord[] = []
+  const errors: PublicLoggerDiagnosticRecord[] = []
 
   for (const diagnostic of diagnostics) {
-    if (diagnostic.level === 'warn') warnings.push(diagnostic)
-    else errors.push(diagnostic)
+    if (diagnostic.level === 'warn') warnings.push(stripDiagnosticLevel(diagnostic))
+    else errors.push(stripDiagnosticLevel(diagnostic))
   }
 
   return {warnings, errors}

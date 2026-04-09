@@ -285,11 +285,11 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
   const logger = createLogger('defineConfig', logLevel)
 
   if (userConfigFound) {
-    logger.info('user config loaded', {sources: userConfigSources})
+    logger.debug('User config loaded', {sources: userConfigSources})
   } else {
-    logger.info('no user config found, using defaults/programmatic options', {
-      workspaceDir: mergedOptions.workspaceDir,
-      aindexDir: mergedOptions.aindex.dir,
+    logger.debug('Using defaults and programmatic config', {
+      workspace: mergedOptions.workspaceDir,
+      aindex: mergedOptions.aindex.dir,
       logLevel: mergedOptions.logLevel
     })
   }

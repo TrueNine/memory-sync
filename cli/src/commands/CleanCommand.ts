@@ -10,33 +10,18 @@ export class CleanCommand implements Command {
     if (preflightResult != null) return preflightResult
 
     const {logger, outputPlugins, createCleanContext, collectedOutputContext} = ctx
-    logger.info('started', {
-      command: 'clean',
-      pluginCount: outputPlugins.length,
-      projectCount: collectedOutputContext.workspace.projects.length,
-      workspaceDir: collectedOutputContext.workspace.directory.path
+    logger.info('Running cleanup', {
+      plugins: outputPlugins.length,
+      projects: collectedOutputContext.workspace.projects.length,
+      workspace: collectedOutputContext.workspace.directory.path
     })
-    logger.info('clean phase started', {phase: 'cleanup'})
     const result = await performCleanup(outputPlugins, createCleanContext(false), logger)
     if (result.violations.length > 0 || result.conflicts.length > 0) {
-      logger.info('clean halted', {
-        phase: 'cleanup',
-        conflicts: result.conflicts.length,
-        violations: result.violations.length,
-        ...result.message != null ? {message: result.message} : {}
-      })
       return {success: false, filesAffected: 0, dirsAffected: 0, ...result.message != null ? {message: result.message} : {}}
     }
-    logger.info('clean phase complete', {
-      phase: 'cleanup',
-      deletedFiles: result.deletedFiles,
-      deletedDirs: result.deletedDirs,
-      errors: result.errors.length
-    })
-    logger.info('complete', {
-      command: 'clean',
-      filesAffected: result.deletedFiles,
-      dirsAffected: result.deletedDirs
+    logger.info('Cleanup complete', {
+      files: result.deletedFiles,
+      directories: result.deletedDirs
     })
     return {success: true, filesAffected: result.deletedFiles, dirsAffected: result.deletedDirs}
   }

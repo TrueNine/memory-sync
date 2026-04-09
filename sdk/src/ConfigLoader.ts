@@ -58,7 +58,7 @@ export class ConfigLoader {
 
     if (!runtimeEnvironment.isWsl) return [getRequiredGlobalConfigPath()]
 
-    this.logger.info('wsl environment detected', {
+    this.logger.debug('WSL environment detected', {
       effectiveHomeDir: runtimeEnvironment.effectiveHomeDir
     })
     if (runtimeEnvironment.selectedGlobalConfigPath == null) {
@@ -66,7 +66,7 @@ export class ConfigLoader {
         `WSL host config file not found under "${runtimeEnvironment.windowsUsersRoot}/*/${DEFAULT_GLOBAL_CONFIG_DIR}/${DEFAULT_CONFIG_FILE_NAME}".`
       )
     }
-    this.logger.info('using wsl host global config', {
+    this.logger.debug('Using WSL host global config', {
       path: runtimeEnvironment.selectedGlobalConfigPath
     })
     return [getRequiredGlobalConfigPath()]

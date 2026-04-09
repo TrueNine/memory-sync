@@ -89,7 +89,7 @@ async function main(): Promise<void> {
   if (bridgeJson) setGlobalLogLevel('silent')
   const logger = createLogger('PluginRuntime')
 
-  logger.info('runtime bootstrap started', {subcommand, bridgeJson, dryRun})
+  logger.debug('Runtime bootstrap ready', {subcommand, bridgeJson, dryRun})
 
   const userPluginConfig = await createDefaultPluginConfig(
     process.argv,
@@ -103,15 +103,15 @@ async function main(): Promise<void> {
 
   const {context, outputPlugins, userConfigOptions, executionPlan}
     = userPluginConfig
-  logger.info('runtime configuration resolved', {
+  logger.debug('Runtime configuration resolved', {
     command: command.name,
-    pluginCount: outputPlugins.length,
-    projectCount: context.workspace.projects.length,
-    workspaceDir: context.workspace.directory.path,
+    plugins: outputPlugins.length,
+    projects: context.workspace.projects.length,
+    workspace: context.workspace.directory.path,
     ...context.aindexDir != null ? {aindexDir: context.aindexDir} : {}
   })
   const runtimeTargets = discoverOutputRuntimeTargets(logger)
-  logger.info('runtime targets discovered', {
+  logger.debug('Runtime targets discovered', {
     command: command.name,
     jetbrainsCodexDirs: runtimeTargets.jetbrainsCodexDirs.length
   })
@@ -141,9 +141,9 @@ async function main(): Promise<void> {
     createCleanContext,
     createWriteContext
   }
-  logger.info('command dispatch started', {command: command.name})
+  logger.debug('Dispatching command', {command: command.name})
   const result = await command.execute(commandCtx)
-  logger.info('command dispatch complete', {
+  logger.debug('Command finished', {
     command: command.name,
     success: result.success,
     filesAffected: result.filesAffected,

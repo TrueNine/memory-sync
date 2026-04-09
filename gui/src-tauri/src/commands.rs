@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use tnmsc::core::config as core_config;
 
 const PRIMARY_SOURCE_MDX_EXTENSION: &str = ".src.mdx";
@@ -67,10 +67,10 @@ pub struct PluginExecutionResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogEntry {
-    pub timestamp: String,
-    pub level: String,
-    pub logger: String,
-    pub payload: serde_json::Value,
+    pub stream: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    pub markdown: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -144,8 +144,7 @@ pub fn clean_outputs(cwd: String, dry_run: bool) -> Result<PipelineResult, Strin
 /// Get log output from a CLI bridge command.
 ///
 /// Runs the given command via `tnmsc::run_bridge_command` in non-JSON mode and
-/// parses the stderr output as log entries. Falls back to parsing stdout if
-/// stderr yields no entries.
+/// parses both stdout and stderr into markdown log blocks.
 #[tauri::command]
 pub fn get_logs(cwd: String, command: String) -> Result<Vec<LogEntry>, String> {
     let args: Vec<&str> = command.split_whitespace().collect();
@@ -153,12 +152,9 @@ pub fn get_logs(cwd: String, command: String) -> Result<Vec<LogEntry>, String> {
     let extra_args: Vec<&str> = args.iter().skip(1).copied().collect();
     let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), &extra_args)
         .map_err(|e| e.to_string())?;
-    let logs = parse_log_lines(&result.stderr);
-    if logs.is_empty() {
-        Ok(parse_log_lines(&result.stdout))
-    } else {
-        Ok(logs)
-    }
+    let mut logs = parse_log_lines(&result.stdout, "stdout");
+    logs.extend(parse_log_lines(&result.stderr, "stderr"));
+    Ok(logs)
 }
 
 fn parse_pipeline_result(raw: &str, command: &str, dry_run: bool) -> Result<PipelineResult, String> {
@@ -219,84 +215,43 @@ fn extract_diagnostic_message(diagnostic: &Value) -> Option<String> {
     Some(format!("[{code}] {title}"))
 }
 
-/// Parse markdown-style log output into lightweight GUI log entries.
-fn parse_log_lines(raw: &str) -> Vec<LogEntry> {
+/// Parse markdown log output into lightweight GUI log entries.
+fn parse_log_lines(raw: &str, stream: &str) -> Vec<LogEntry> {
     let mut entries = Vec::new();
-    let mut current: Option<LogEntry> = None;
+    let mut current: Vec<String> = Vec::new();
+    let mut saw_markdown_record = false;
 
     for raw_line in raw.lines() {
         let line = raw_line.trim_end();
-        if let Some((level, logger, message)) = parse_log_header(line) {
-            if let Some(entry) = current.take() {
-                entries.push(entry);
+        if line.starts_with("### ") {
+            if !current.is_empty() {
+                entries.push(LogEntry {
+                    stream: stream.to_string(),
+                    source: None,
+                    markdown: current.join("\n"),
+                });
+                current.clear();
             }
-
-            let mut payload = Map::new();
-            if let Some(message) = message {
-                payload.insert("message".to_string(), Value::String(message));
-            }
-
-            current = Some(LogEntry {
-                timestamp: String::new(),
-                level,
-                logger,
-                payload: Value::Object(payload),
-            });
+            saw_markdown_record = true;
+            current.push(line.to_string());
             continue;
         }
 
-        if let Some(entry) = current.as_mut() {
-            append_log_body_line(&mut entry.payload, line);
+        if !current.is_empty() || !line.trim().is_empty() || !saw_markdown_record {
+            current.push(line.to_string());
         }
     }
 
-    if let Some(entry) = current.take() {
-        entries.push(entry);
+    if !current.is_empty() {
+        entries.push(LogEntry {
+            stream: stream.to_string(),
+            source: None,
+            markdown: current.join("\n").trim().to_string(),
+        });
     }
 
+    entries.retain(|entry| !entry.markdown.trim().is_empty());
     entries
-}
-
-fn parse_log_header(line: &str) -> Option<(String, String, Option<String>)> {
-    if !line.starts_with("**") {
-        return None;
-    }
-
-    let remainder = line.strip_prefix("**")?;
-    let level_end = remainder.find("**")?;
-    let level = remainder[..level_end].trim().to_string();
-    let after_level = remainder[level_end + 2..].trim_start();
-    let logger_start = after_level.find('`')?;
-    let after_logger_start = &after_level[logger_start + 1..];
-    let logger_end = after_logger_start.find('`')?;
-    let logger = after_logger_start[..logger_end].to_string();
-    let message = after_logger_start[logger_end + 1..].trim();
-
-    Some((
-        level,
-        logger,
-        if message.is_empty() {
-            None
-        } else {
-            Some(message.to_string())
-        },
-    ))
-}
-
-fn append_log_body_line(payload: &mut Value, line: &str) {
-    let object = match payload {
-        Value::Object(object) => object,
-        _ => return,
-    };
-
-    let entry = object
-        .entry("body".to_string())
-        .or_insert_with(|| Value::Array(Vec::new()));
-    if let Value::Array(lines) = entry
-        && !line.trim().is_empty()
-    {
-        lines.push(Value::String(line.trim().to_string()));
-    }
 }
 
 /// Resolve the canonical global config file path.
