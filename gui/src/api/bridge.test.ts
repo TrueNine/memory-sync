@@ -14,7 +14,7 @@ import {
   installPipeline,
   listAindexFiles,
   listCategoryFiles,
-  listPlugins,
+  listAdaptors,
   loadConfig,
 } from '@/api/bridge'
 
@@ -150,7 +150,7 @@ describe('loadConfig', () => {
   })
 })
 
-describe('listPlugins', () => {
+describe('listAdaptors', () => {
   const mockPlugins: PluginExecutionResult[] = [
     {
       plugin: 'GlobalMemoryInputPlugin',
@@ -169,7 +169,7 @@ describe('listPlugins', () => {
   it('should invoke list_plugins with cwd only', async () => {
     mockedInvoke.mockResolvedValue(mockPlugins)
 
-    const result = await listPlugins('/home/user/project')
+    const result = await listAdaptors('/home/user/project')
 
     expect(mockedInvoke).toHaveBeenCalledOnce()
     expect(mockedInvoke).toHaveBeenCalledWith('list_plugins', {
@@ -181,7 +181,7 @@ describe('listPlugins', () => {
   it('should return typed PluginExecutionResult array', async () => {
     mockedInvoke.mockResolvedValue(mockPlugins)
 
-    const result = await listPlugins('/workspace')
+    const result = await listAdaptors('/workspace')
 
     expect(result).toHaveLength(2)
     expect(result[0].plugin).toBe('GlobalMemoryInputPlugin')
@@ -192,7 +192,7 @@ describe('listPlugins', () => {
   it('should propagate invoke rejection', async () => {
     mockedInvoke.mockRejectedValue(new Error('timeout'))
 
-    await expect(listPlugins('/slow')).rejects.toThrow('timeout')
+    await expect(listAdaptors('/slow')).rejects.toThrow('timeout')
   })
 })
 

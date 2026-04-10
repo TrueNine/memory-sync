@@ -10,7 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as PluginsRouteImport } from './routes/plugins'
+import { Route as AdaptorsRouteImport } from './routes/adaptors'
 import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as FilesRouteImport } from './routes/files'
@@ -22,9 +22,9 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PluginsRoute = PluginsRouteImport.update({
-  id: '/plugins',
-  path: '/plugins',
+const AdaptorsRoute = AdaptorsRouteImport.update({
+  id: '/adaptors',
+  path: '/adaptors',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PipelineRoute = PipelineRouteImport.update({
@@ -59,7 +59,7 @@ export interface FileRoutesByFullPath {
   '/files': typeof FilesRoute
   '/logs': typeof LogsRoute
   '/pipeline': typeof PipelineRoute
-  '/plugins': typeof PluginsRoute
+  '/adaptors': typeof AdaptorsRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
@@ -68,7 +68,7 @@ export interface FileRoutesByTo {
   '/files': typeof FilesRoute
   '/logs': typeof LogsRoute
   '/pipeline': typeof PipelineRoute
-  '/plugins': typeof PluginsRoute
+  '/adaptors': typeof AdaptorsRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
@@ -78,7 +78,7 @@ export interface FileRoutesById {
   '/files': typeof FilesRoute
   '/logs': typeof LogsRoute
   '/pipeline': typeof PipelineRoute
-  '/plugins': typeof PluginsRoute
+  '/adaptors': typeof AdaptorsRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
@@ -89,7 +89,7 @@ export interface FileRouteTypes {
     | '/files'
     | '/logs'
     | '/pipeline'
-    | '/plugins'
+    | '/adaptors'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -98,7 +98,7 @@ export interface FileRouteTypes {
     | '/files'
     | '/logs'
     | '/pipeline'
-    | '/plugins'
+    | '/adaptors'
     | '/settings'
   id:
     | '__root__'
@@ -107,7 +107,7 @@ export interface FileRouteTypes {
     | '/files'
     | '/logs'
     | '/pipeline'
-    | '/plugins'
+    | '/adaptors'
     | '/settings'
   fileRoutesById: FileRoutesById
 }
@@ -117,7 +117,7 @@ export interface RootRouteChildren {
   FilesRoute: typeof FilesRoute
   LogsRoute: typeof LogsRoute
   PipelineRoute: typeof PipelineRoute
-  PluginsRoute: typeof PluginsRoute
+  AdaptorsRoute: typeof AdaptorsRoute
   SettingsRoute: typeof SettingsRoute
 }
 
@@ -130,11 +130,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/plugins': {
-      id: '/plugins'
-      path: '/plugins'
-      fullPath: '/plugins'
-      preLoaderRoute: typeof PluginsRouteImport
+    '/adaptors': {
+      id: '/adaptors'
+      path: '/adaptors'
+      fullPath: '/adaptors'
+      preLoaderRoute: typeof AdaptorsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pipeline': {
@@ -181,7 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   FilesRoute: FilesRoute,
   LogsRoute: LogsRoute,
   PipelineRoute: PipelineRoute,
-  PluginsRoute: PluginsRoute,
+  AdaptorsRoute: AdaptorsRoute,
   SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport

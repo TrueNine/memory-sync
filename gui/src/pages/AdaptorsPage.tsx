@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 
 import type { PluginExecutionResult } from '@/api/bridge'
-import { listPlugins } from '@/api/bridge'
+import { listAdaptors } from '@/api/bridge'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 
-const PluginsPage: FC = () => {
+const AdaptorsPage: FC = () => {
   const { t } = useI18n()
   const [plugins, setPlugins] = useState<readonly PluginExecutionResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -20,7 +20,7 @@ const PluginsPage: FC = () => {
     setLoading(true)
     setError(null)
     try {
-      const result = await listPlugins(cwd)
+      const result = await listAdaptors(cwd)
       setPlugins(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -84,4 +84,4 @@ const PluginsPage: FC = () => {
   )
 }
 
-export default PluginsPage
+export default AdaptorsPage

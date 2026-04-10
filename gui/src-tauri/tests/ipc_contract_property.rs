@@ -17,53 +17,51 @@ use serde_json::Value;
 // ---------------------------------------------------------------------------
 
 fn arb_plugin_execution_result() -> impl Strategy<Value = PluginExecutionResult> {
-    (any::<String>(), any::<i32>(), any::<i32>(), any::<bool>()).prop_map(
-        |(plugin, files, dirs, dry_run)| PluginExecutionResult {
-            plugin,
-            files,
-            dirs,
-            dry_run,
-        },
-    )
+  (any::<String>(), any::<i32>(), any::<i32>(), any::<bool>()).prop_map(
+    |(plugin, files, dirs, dry_run)| PluginExecutionResult {
+      plugin,
+      files,
+      dirs,
+      dry_run,
+    },
+  )
 }
 
 fn arb_log_entry() -> impl Strategy<Value = LogEntry> {
-    (
-        prop::sample::select(vec!["stdout".to_string(), "stderr".to_string()]),
-        prop::option::of(any::<String>()),
-        any::<String>(),
-    )
-        .prop_map(|(stream, source, markdown)| LogEntry {
-            stream,
-            source,
-            markdown,
-        })
+  (
+    prop::sample::select(vec!["stdout".to_string(), "stderr".to_string()]),
+    prop::option::of(any::<String>()),
+    any::<String>(),
+  )
+    .prop_map(|(stream, source, markdown)| LogEntry {
+      stream,
+      source,
+      markdown,
+    })
 }
 
 fn arb_pipeline_result() -> impl Strategy<Value = PipelineResult> {
-    (
-        any::<bool>(),
-        any::<i32>(),
-        any::<i32>(),
-        any::<bool>(),
-        prop::collection::vec(arb_plugin_execution_result(), 0..5),
-        prop::collection::vec(arb_log_entry(), 0..5),
-        prop::collection::vec(any::<String>(), 0..5),
+  (
+    any::<bool>(),
+    any::<i32>(),
+    any::<i32>(),
+    any::<bool>(),
+    prop::collection::vec(arb_plugin_execution_result(), 0..5),
+    prop::collection::vec(arb_log_entry(), 0..5),
+    prop::collection::vec(any::<String>(), 0..5),
+  )
+    .prop_map(
+      |(success, total_files, total_dirs, dry_run, plugin_results, logs, errors)| PipelineResult {
+        success,
+        total_files,
+        total_dirs,
+        dry_run,
+        command: None,
+        plugin_results,
+        logs,
+        errors,
+      },
     )
-        .prop_map(
-            |(success, total_files, total_dirs, dry_run, plugin_results, logs, errors)| {
-                PipelineResult {
-                    success,
-                    total_files,
-                    total_dirs,
-                    dry_run,
-                    command: None,
-                    plugin_results,
-                    logs,
-                    errors,
-                }
-            },
-        )
 }
 
 // ---------------------------------------------------------------------------

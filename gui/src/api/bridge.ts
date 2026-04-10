@@ -36,7 +36,7 @@ export function loadConfig(cwd: string): Promise<unknown> {
   return invoke('load_config', { cwd })
 }
 
-export function listPlugins(cwd: string): Promise<PluginExecutionResult[]> {
+export function listAdaptors(cwd: string): Promise<PluginExecutionResult[]> {
   return invoke<PluginExecutionResult[]>('list_plugins', { cwd })
 }
 

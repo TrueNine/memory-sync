@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Eye, Play } from 'lucide-react'
 
 import type { PluginExecutionResult } from '@/api/bridge'
-import { listPlugins } from '@/api/bridge'
+import { listAdaptors } from '@/api/bridge'
 import { usePipeline } from '@/hooks/usePipeline'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
@@ -17,7 +17,7 @@ const PipelinePage: FC = () => {
   const cwd = '.'
 
   useEffect(() => {
-    listPlugins(cwd).then(setPlugins).catch(() => {})
+    listAdaptors(cwd).then(setPlugins).catch(() => {})
   }, [])
 
   return (
