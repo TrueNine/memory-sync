@@ -407,7 +407,6 @@ export class OpencodeCLIOutputPlugin extends AbstractOutputPlugin {
 
     frontMatter['mode'] = source?.['mode'] ?? 'subagent'
 
-    if (source?.['model'] != null) frontMatter['model'] = source['model']
     if (source?.['temperature'] != null) {
       frontMatter['temperature'] = source['temperature']
     }

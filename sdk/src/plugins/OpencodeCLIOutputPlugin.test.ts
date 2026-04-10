@@ -48,7 +48,10 @@ function createCleanContext(
   } as unknown as OutputCleanContext
 }
 
-function createSubAgentPrompt(scope: 'project' | 'global'): SubAgentPrompt {
+function createSubAgentPrompt(
+  scope: 'project' | 'global',
+  frontMatterOverrides: Record<string, unknown> = {}
+): SubAgentPrompt {
   return {
     type: PromptKind.SubAgent,
     content: 'subagent body',
@@ -67,7 +70,8 @@ function createSubAgentPrompt(scope: 'project' | 'global'): SubAgentPrompt {
     yamlFrontMatter: {
       description: 'Reviewer',
       scope,
-      namingCase: 'kebab-case'
+      namingCase: 'kebab-case',
+      ...frontMatterOverrides
     },
     markdownContents: []
   } as unknown as SubAgentPrompt
@@ -106,6 +110,54 @@ describe('opencodeCLIOutputPlugin synthetic workspace project output', () => {
 
     expect(declarations.map(declaration => declaration.path)).toContain(path.join(workspaceBase, '.opencode', 'agents', 'ops-reviewer.md'))
     expect(declarations.every(declaration => declaration.scope === 'project')).toBe(true)
+  })
+
+  it('drops model from rendered subagent front matter', async () => {
+    const workspaceBase = path.resolve('tmp/opencode-workspace')
+    const plugin = new OpencodeCLIOutputPlugin()
+    const ctx = {
+      logger: createLogger('OpencodeCLIOutputPlugin', 'error'),
+      fs,
+      path,
+      glob: {} as never,
+      dryRun: true,
+      runtimeTargets: {},
+      collectedOutputContext: {
+        workspace: {
+          directory: {
+            pathKind: FilePathKind.Absolute,
+            path: workspaceBase,
+            getDirectoryName: () => path.basename(workspaceBase)
+          },
+          projects: [
+            {
+              name: '__workspace__',
+              isWorkspaceRootProject: true
+            }
+          ]
+        },
+        subAgents: [
+          createSubAgentPrompt('project', {
+            model: 'gpt-5.4',
+            temperature: 0.2
+          })
+        ]
+      }
+    } as unknown as OutputWriteContext
+
+    const declarations = await plugin.declareOutputFiles(ctx)
+    const subAgentDeclaration = declarations.find(
+      declaration => declaration.path === path.join(workspaceBase, '.opencode', 'agents', 'ops-reviewer.md')
+    )
+
+    expect(subAgentDeclaration).toBeDefined()
+    if (subAgentDeclaration == null) throw new Error('Expected opencode subagent declaration')
+
+    const rendered = await plugin.convertContent(subAgentDeclaration, ctx)
+
+    expect(String(rendered)).toContain('mode: subagent')
+    expect(String(rendered)).toContain('temperature: 0.2')
+    expect(String(rendered)).not.toContain('model:')
   })
 })
 
