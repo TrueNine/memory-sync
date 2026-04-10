@@ -14,24 +14,24 @@ use tnmsc_logger::{flush_output, set_global_log_level};
 use cli::{Cli, ResolvedCommand, resolve_command, resolve_log_level};
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+  let cli = Cli::parse();
 
-    if let Some(level) = resolve_log_level(&cli) {
-        set_global_log_level(level.to_logger_level());
-    }
+  if let Some(level) = resolve_log_level(&cli) {
+    set_global_log_level(level.to_logger_level());
+  }
 
-    let command = resolve_command(&cli);
+  let command = resolve_command(&cli);
 
-    let exit_code = match command {
-        ResolvedCommand::Help => commands::help::execute(),
-        ResolvedCommand::Version => commands::version::execute(),
-        ResolvedCommand::Install => commands::bridge::install(),
-        ResolvedCommand::DryRun => commands::bridge::dry_run(),
-        ResolvedCommand::Clean => commands::bridge::clean(),
-        ResolvedCommand::DryRunClean => commands::bridge::dry_run_clean(),
-        ResolvedCommand::Plugins => commands::bridge::plugins(),
-    };
+  let exit_code = match command {
+    ResolvedCommand::Help => commands::help::execute(),
+    ResolvedCommand::Version => commands::version::execute(),
+    ResolvedCommand::Install => commands::bridge::install(),
+    ResolvedCommand::DryRun => commands::bridge::dry_run(),
+    ResolvedCommand::Clean => commands::bridge::clean(),
+    ResolvedCommand::DryRunClean => commands::bridge::dry_run_clean(),
+    ResolvedCommand::Plugins => commands::bridge::plugins(),
+  };
 
-    flush_output();
-    exit_code
+  flush_output();
+  exit_code
 }

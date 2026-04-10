@@ -1,15 +1,10 @@
 import {afterEach, describe, expect, it, vi} from 'vitest'
 
-const {
-  cleanMock,
-  dryRunMock,
-  installMock,
-  listPluginsMock
-} = vi.hoisted(() => ({
+const {cleanMock, dryRunMock, installMock, listAdaptorsMock} = vi.hoisted(() => ({
   cleanMock: vi.fn(),
   dryRunMock: vi.fn(),
   installMock: vi.fn(),
-  listPluginsMock: vi.fn()
+  listAdaptorsMock: vi.fn()
 }))
 
 vi.mock('@truenine/memory-sync-sdk', () => ({
@@ -18,7 +13,14 @@ vi.mock('@truenine/memory-sync-sdk', () => ({
       install: installMock,
       dryRun: dryRunMock,
       clean: cleanMock,
-      listPlugins: listPluginsMock
+      listAdaptors: listAdaptorsMock
+    }
+  },
+  createTsFallbackMemorySyncBinding() {
+    return {
+      install: installMock,
+      dryRun: dryRunMock,
+      clean: cleanMock
     }
   }
 }))
@@ -31,13 +33,13 @@ afterEach(() => {
 })
 
 describe('cli runtime lightweight commands', () => {
-  it('disables native command binding without disabling native helpers', async () => {
+  it('does not force-disable native command binding', async () => {
     delete process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING']
     delete process.env['TNMSC_DISABLE_NATIVE_BINDING']
 
     await import('./cli-runtime')
 
-    expect(process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING']).toBe('1')
+    expect(process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING']).toBeUndefined()
     expect(process.env['TNMSC_DISABLE_NATIVE_BINDING']).toBeUndefined()
   })
 

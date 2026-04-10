@@ -1,17 +1,9 @@
-import type {MemorySyncCommandResult, MemorySyncPluginInfo} from '@truenine/memory-sync-sdk'
+import type {MemorySyncCommandResult, MemorySyncAdaptorInfo} from '@truenine/memory-sync-sdk'
 
 import process from 'node:process'
-import {
-  flushOutput,
-  setGlobalLogLevel
-} from '@truenine/logger'
-import {
-  getMemorySyncSdkBinding
-
-} from '@truenine/memory-sync-sdk'
+import {flushOutput, setGlobalLogLevel} from '@truenine/logger'
+import {createTsFallbackMemorySyncBinding, getMemorySyncSdkBinding} from '@truenine/memory-sync-sdk'
 import {extractUserArgs, parseArgs} from './cli-args'
-
-process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING'] = '1'
 
 const CLI_NAME = 'tnmsc'
 
@@ -65,24 +57,20 @@ function writeUnknownCommand(command: string): void {
   process.stderr.write(`Unknown command: ${command}\nRun \`${CLI_NAME} help\` for supported commands.\n`)
 }
 
-function writePluginList(plugins: readonly MemorySyncPluginInfo[]): void {
+function writePluginList(plugins: readonly MemorySyncAdaptorInfo[]): void {
   const lines = ['# Registered plugins', '']
   if (plugins.length === 0) {
     lines.push('- No plugins are currently registered.')
   } else {
     for (const plugin of plugins) {
-      const dependencySuffix = plugin.dependencies.length > 0
-        ? ` (depends on: ${plugin.dependencies.join(', ')})`
-        : ''
+      const dependencySuffix = plugin.dependencies.length > 0 ? ` (depends on: ${plugin.dependencies.join(', ')})` : ''
       lines.push(`- ${plugin.name}${dependencySuffix}`)
     }
   }
   process.stdout.write(`${lines.join('\n')}\n`)
 }
 
-export async function runCli(
-  argv: readonly string[] = process.argv
-): Promise<number> {
+export async function runCli(argv: readonly string[] = process.argv): Promise<number> {
   try {
     const parsedArgs = parseArgs(extractUserArgs(argv))
 
@@ -106,7 +94,17 @@ export async function runCli(
       return 1
     }
 
-    const binding = getMemorySyncSdkBinding()
+    const nativeBinding = getMemorySyncSdkBinding()
+    const fallbackBinding = createTsFallbackMemorySyncBinding()
+    // Pipeline commands (install / dry-run / clean) are not yet fully
+    // implemented in Rust, so use the mature TS fallback for them while
+    // keeping the native binding for prompts and listAdaptors.
+    const binding = {
+      ...nativeBinding,
+      install: fallbackBinding.install,
+      dryRun: fallbackBinding.dryRun,
+      clean: fallbackBinding.clean
+    }
     const commandOptions = {
       cwd: process.cwd(),
       ...parsedArgs.logLevel != null ? {logLevel: parsedArgs.logLevel} : {}
@@ -115,7 +113,7 @@ export async function runCli(
     let result: MemorySyncCommandResult
     switch (parsedArgs.subcommand) {
       case 'plugins': {
-        const plugins = await binding.listPlugins()
+        const plugins = await binding.listAdaptors()
         writePluginList(plugins)
         flushOutput()
         return 0

@@ -8,6 +8,7 @@ interface TsdownEntryConfig {
   readonly alias?: Record<string, string>
   readonly deps?: {
     readonly alwaysBundle?: readonly string[]
+    readonly neverBundle?: readonly string[]
   }
 }
 
@@ -18,7 +19,8 @@ function includesEntry(config: TsdownEntryConfig, targetEntry: string): boolean 
 
 describe('cli tsdown config', () => {
   it('lets TypeScript resolve the script runtime package through workspace metadata', () => {
-    expect(tsconfig.compilerOptions.paths['@truenine/script-runtime']).toBeUndefined()
+    const paths = tsconfig.compilerOptions.paths as Record<string, string[] | undefined>
+    expect(paths['@truenine/script-runtime']).toBeUndefined()
   })
 
   it('bundles the worker against the built script runtime module', () => {
@@ -29,8 +31,9 @@ describe('cli tsdown config', () => {
       resolve('../libraries/script-runtime/dist/index.mjs')
     )
     expect(workerConfig?.deps?.alwaysBundle).toEqual(expect.arrayContaining([
-      '@truenine/script-runtime',
-      'jiti'
+      '@truenine/memory-sync-sdk',
+      '@truenine/script-runtime'
     ]))
+    expect(workerConfig?.deps?.neverBundle).toEqual(expect.arrayContaining(['jiti']))
   })
 })
