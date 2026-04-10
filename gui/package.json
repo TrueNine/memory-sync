@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-gui",
-  "version": "2026.10408.12323",
+  "version": "2026.10411.10132",
   "private": true,
   "engines": {
     "node": ">= 22"
@@ -16,6 +16,8 @@
     "tauri:build": "tauri build",
     "generate:routes": "tsx scripts/generate-routes.ts",
     "check:type": "tsc --noEmit",
+    "lint": "cargo fmt --check --manifest-path src-tauri/Cargo.toml",
+    "lint:fix": "cargo fmt --manifest-path src-tauri/Cargo.toml",
     "test:ui": "vitest --run",
     "test:tauri": "cargo test --manifest-path src-tauri/Cargo.toml --lib --bins --tests",
     "test": "pnpm run test:ui && pnpm tsx ./scripts/run-tauri-tests.ts"

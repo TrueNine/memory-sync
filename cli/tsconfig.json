@@ -13,7 +13,7 @@
     "paths": {
       "@sdk": ["../sdk/src/index.ts"],
       "@sdk/*": ["../sdk/src/*"],
-      "@/*": ["./src/*"],
+      "@/*": ["./src/*", "../sdk/src/*"],
       "@truenine/desk-paths": ["./src/core/desk-paths.ts"],
       "@truenine/desk-paths/*": ["./src/core/desk-paths/*"],
       "@truenine/plugin-output-shared": ["./src/plugins/plugin-output-shared/index.ts"],
