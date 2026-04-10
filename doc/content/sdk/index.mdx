@@ -13,8 +13,8 @@ status: stable
 
 - 它包含私有 npm 包 `@truenine/memory-sync-sdk`
 - 它包含 Rust crate `tnmsc` 的实际 workspace 路径
-- 它负责 TypeScript 同步流水线、prompt service、schema 生成和 `plugin-runtime`
-- 它负责 Rust library、NAPI 构建、Node bridge runtime，以及嵌入式 runtime 逻辑
+- 它负责 Rust crate `tnmsc` 的 facade、NAPI 构建、prompt service、schema 生成，以及最小化的 TypeScript loader 入口
+- 它仍然承接少量过渡期 bridge 逻辑，但这些 bridge 路径已经退回到 `sdk/` 内部实现，不再是 `cli/` 的公共组合中心
 - 它是 `mcp/`、`gui/` 以及未来内部消费者的默认依赖入口
 
 ## 这一层不负责什么
@@ -39,7 +39,7 @@ status: stable
 | 消费者 | 依赖方式 |
 | --- | --- |
 | `cli/` | 一个对 `sdk/` 导出能力做轻量封装的 shell 和兼容层 |
-| `mcp/` | 直接从 `@truenine/memory-sync-sdk` 导入 prompt service |
+| `mcp/` | 通过 `@truenine/memory-sync-sdk` 的最小 binding 访问 prompt 管理能力 |
 | `gui/src-tauri` | 继续依赖 crate `tnmsc`，其实际路径现在位于 `sdk/` 下 |
 
 ## 边界规则
