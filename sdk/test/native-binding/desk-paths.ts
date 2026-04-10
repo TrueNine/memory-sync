@@ -13,6 +13,11 @@ function getLinuxDataDir(homeDir: string): string {
 }
 
 export function getPlatformFixedDir(): string {
+  const testBinding = (globalThis as {__TNMSC_TEST_NATIVE_BINDING__?: {getPlatformFixedDir?: () => string}}).__TNMSC_TEST_NATIVE_BINDING__
+  if (testBinding?.getPlatformFixedDir != null) {
+    return testBinding.getPlatformFixedDir()
+  }
+
   const runtimeEnvironment = resolveRuntimeEnvironment()
   const platform = (runtimeEnvironment.isWsl ? 'win32' : runtimeEnvironment.platform) as PlatformFixedDir
   const homeDir = runtimeEnvironment.effectiveHomeDir
@@ -205,5 +210,197 @@ export async function deleteTargets(targets: {readonly files?: readonly string[]
     deletedDirs: dirResult.deletedPaths,
     fileErrors: fileResult.errors,
     dirErrors: dirResult.errors
+  }
+}
+
+export interface CompactedDeletionTargets {
+  readonly files: string[]
+  readonly dirs: string[]
+}
+
+export function compactDeletionTargets(files: readonly string[], dirs: readonly string[]): CompactedDeletionTargets {
+  const filesByKey = new Map<string, string>()
+  const dirsByKey = new Map<string, string>()
+
+  for (const filePath of files) {
+    const resolvedPath = path.resolve(filePath)
+    filesByKey.set(resolvedPath, resolvedPath)
+  }
+
+  for (const dirPath of dirs) {
+    const resolvedPath = path.resolve(dirPath)
+    dirsByKey.set(resolvedPath, resolvedPath)
+  }
+
+  const compactedDirs = new Map<string, string>()
+  const sortedDirEntries = [...dirsByKey.entries()].sort((a, b) => a[0].length - b[0].length)
+
+  for (const [dirKey, dirPath] of sortedDirEntries) {
+    let coveredByParent = false
+    for (const existingParentKey of compactedDirs.keys()) {
+      if (dirKey === existingParentKey || dirKey.startsWith(`${existingParentKey}${path.sep}`)) {
+        coveredByParent = true
+        break
+      }
+    }
+
+    if (!coveredByParent) compactedDirs.set(dirKey, dirPath)
+  }
+
+  const compactedFiles: string[] = []
+  for (const [fileKey, filePath] of filesByKey) {
+    let coveredByDir = false
+    for (const dirKey of compactedDirs.keys()) {
+      if (fileKey === dirKey || fileKey.startsWith(`${dirKey}${path.sep}`)) {
+        coveredByDir = true
+        break
+      }
+    }
+
+    if (!coveredByDir) compactedFiles.push(filePath)
+  }
+
+  compactedFiles.sort((a, b) => a.localeCompare(b))
+  const compactedDirPaths = [...compactedDirs.values()].sort((a, b) => a.localeCompare(b))
+
+  return {files: compactedFiles, dirs: compactedDirPaths}
+}
+
+export interface WorkspaceEmptyDirectoryPlan {
+  readonly emptyDirsToDelete: string[]
+}
+
+const EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES = new Set([
+  '.git',
+  'node_modules',
+  'dist',
+  'target',
+  '.next',
+  '.turbo',
+  'coverage',
+  '.nyc_output',
+  '.cache',
+  '.vite',
+  '.vite-temp',
+  '.pnpm-store',
+  '.yarn',
+  '.idea',
+  '.volumes',
+  'volumes'
+])
+
+function shouldSkipEmptyDirectoryTree(workspaceDir: string, currentDir: string): boolean {
+  if (currentDir === workspaceDir) return false
+  return EMPTY_DIRECTORY_SCAN_EXCLUDED_BASENAMES.has(path.basename(currentDir))
+}
+
+export function planWorkspaceEmptyDirectoryCleanup(
+  workspaceDir: string,
+  filesToDelete: readonly string[],
+  dirsToDelete: readonly string[]
+): WorkspaceEmptyDirectoryPlan {
+  const resolvedWorkspaceDir = path.resolve(workspaceDir)
+  const filesToDeleteSet = new Set(filesToDelete.map(p => path.resolve(p)))
+  const dirsToDeleteSet = new Set(dirsToDelete.map(p => path.resolve(p)))
+  const emptyDirsToDelete = new Set<string>()
+
+  const isScheduledForDeletion = (dirPath: string): boolean => dirsToDeleteSet.has(dirPath) || emptyDirsToDelete.has(dirPath)
+
+  const collectEmptyDirectories = (currentDir: string): boolean => {
+    if (isScheduledForDeletion(currentDir)) return true
+    if (shouldSkipEmptyDirectoryTree(resolvedWorkspaceDir, currentDir)) return false
+
+    let entries: fs.Dirent[]
+    try {
+      entries = fs.readdirSync(currentDir, {withFileTypes: true})
+    } catch {
+      return false
+    }
+
+    let hasRetainedEntries = false
+
+    for (const entry of entries) {
+      const entryPath = path.resolve(currentDir, entry.name)
+
+      if (isScheduledForDeletion(entryPath)) continue
+
+      if (entry.isDirectory()) {
+        if (shouldSkipEmptyDirectoryTree(resolvedWorkspaceDir, entryPath)) {
+          hasRetainedEntries = true
+          continue
+        }
+
+        if (collectEmptyDirectories(entryPath)) {
+          emptyDirsToDelete.add(entryPath)
+          continue
+        }
+
+        hasRetainedEntries = true
+        continue
+      }
+
+      if (filesToDeleteSet.has(entryPath)) continue
+      hasRetainedEntries = true
+    }
+
+    return !hasRetainedEntries
+  }
+
+  let previousSize = -1
+  while (emptyDirsToDelete.size !== previousSize) {
+    previousSize = emptyDirsToDelete.size
+    collectEmptyDirectories(resolvedWorkspaceDir)
+  }
+
+  return {
+    emptyDirsToDelete: [...emptyDirsToDelete].sort((a, b) => a.localeCompare(b))
+  }
+}
+
+export function isDirectoryStructureMismatchError(error: string): boolean {
+  const normalized = error.toLowerCase()
+  return normalized.includes('enotdir') || normalized.includes('not a directory') || normalized.includes('eexist') || normalized.includes('file exists')
+}
+
+export function findBlockingNonDirectoryPath(expectedDirPath: string): string | undefined {
+  const resolvedDirPath = path.resolve(expectedDirPath)
+  const {root} = path.parse(resolvedDirPath)
+  const relativeSegments = resolvedDirPath
+    .slice(root.length)
+    .split(path.sep)
+    .filter(segment => segment.length > 0)
+
+  let currentPath = root
+  for (const segment of relativeSegments) {
+    currentPath = currentPath.length > 0 ? path.join(currentPath, segment) : segment
+    if (!fs.existsSync(currentPath)) continue
+
+    try {
+      if (!fs.lstatSync(currentPath).isDirectory()) return currentPath
+    } catch {
+      return void 0
+    }
+  }
+
+  return void 0
+}
+
+export function resolveBlockingFilePath(pathArg: string, targetKind: 'file' | 'directory', error: string): string | undefined {
+  if (!isDirectoryStructureMismatchError(error)) return void 0
+
+  const expectedDirPath = targetKind === 'file' ? path.dirname(pathArg) : pathArg
+
+  return findBlockingNonDirectoryPath(expectedDirPath)
+}
+
+export function removeBlockingFile(blockingPath: string): {removed: boolean, error?: unknown} {
+  if (!fs.existsSync(blockingPath)) return {removed: false}
+
+  try {
+    if (fs.lstatSync(blockingPath).isDirectory()) return {removed: false}
+    fs.rmSync(blockingPath, {force: true})
+    return {removed: true}
+  } catch (error) {
+    return {removed: false, error}
   }
 }

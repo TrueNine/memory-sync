@@ -1,36 +1,15 @@
 import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputAdaptor} from '../src/adaptors/adaptor-core'
-import type {
-  ListPromptsOptions,
-  PromptServiceOptions,
-  UpsertPromptSourceInput,
-  WritePromptArtifactsInput
-} from '../src/prompts'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
-import {
-  topologicalSort as topologicalSortLegacy
-} from '../src/internal/dependency-resolver-legacy'
-import {
-  findAllGitRepos,
-  findGitModuleInfoDirs,
-  resolveGitInfoDir
-} from '../src/internal/git-discovery-legacy'
-import {
-  getPrompt,
-  listPrompts,
-  upsertPromptSource,
-  writePromptArtifacts
-} from '../src/internal/prompts-legacy'
-import {
-  getEffectiveHomeDir,
-  getGlobalConfigPath,
-  getRequiredGlobalConfigPath,
-  isWslRuntime,
-  resolveRuntimeEnvironment
-} from '../src/internal/runtime-environment-legacy'
-import {FilePathKind, AdaptorKind} from '../src/adaptors/adaptor-core/enums.ts'
+import {FilePathKind, AdaptorKind} from '../src/adaptors/adaptor-core/enums'
 import * as deskPaths from './native-binding/desk-paths'
+// import {
+// // getPrompt,
+// // listPrompts,
+// // upsertPromptSource,
+// // writePromptArtifacts
+// } from '../src/internal/prompts-legacy'
 
 interface NativeCleanupTarget {
   readonly path: string
@@ -207,19 +186,7 @@ function resolveSubSeries(
   return merged
 }
 
-import {createRequire} from 'node:module'
-
-function tryLoadRealBinary() {
-  try {
-    const _require = createRequire(import.meta.url)
-    return _require('../../cli/npm/linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node')
-  }
-  catch {}
-}
-
-const realBinary = tryLoadRealBinary() as Record<string, unknown> | undefined
-
-const testBinding = {
+globalThis.__TNMSC_TEST_NATIVE_BINDING__ = {
   getPlatformFixedDir: deskPaths.getPlatformFixedDir,
   ensureDir: deskPaths.ensureDir,
   existsSync: deskPaths.existsSync,
@@ -240,30 +207,9 @@ const testBinding = {
   performCleanup: runCleanup,
   resolveEffectiveIncludeSeries,
   matchesSeries,
-  resolveSubSeries,
-  resolveGitInfoDir,
-  findAllGitRepos,
-  findGitModuleInfoDirs,
-  resolveRuntimeEnvironment: () => JSON.stringify(resolveRuntimeEnvironment()),
-  getEffectiveHomeDir,
-  getGlobalConfigPath,
-  getRequiredGlobalConfigPath,
-  isWslRuntime,
-  topologicalSort: (inputJson: string) => {
-    const nodes = JSON.parse(inputJson) as {name: string, dependsOn?: readonly string[]}[]
-    const sorted = topologicalSortLegacy(nodes)
-    return JSON.stringify(sorted.map(n => n.name))
-  },
-  listPrompts: async (optionsJson: string) => JSON.stringify(await listPrompts(optionsJson == null ? {} : (JSON.parse(optionsJson) as ListPromptsOptions))),
-  getPrompt: async (promptId: string, optionsJson: string) => {
-    const result = await getPrompt(promptId, optionsJson == null ? {} : (JSON.parse(optionsJson) as PromptServiceOptions))
-    return JSON.stringify(result)
-  },
-  upsertPromptSource: async (inputJson: string) => JSON.stringify(await upsertPromptSource(JSON.parse(inputJson) as UpsertPromptSourceInput)),
-  writePromptArtifacts: async (inputJson: string) => JSON.stringify(await writePromptArtifacts(JSON.parse(inputJson) as WritePromptArtifactsInput))
-}
-
-globalThis.__TNMSC_TEST_NATIVE_BINDING__ = {
-  ...(realBinary ?? {}),
-  ...testBinding
+  resolveSubSeries
+  // // listPrompts,
+  // // getPrompt,
+  // // upsertPromptSource,
+  // // writePromptArtifacts
 }
