@@ -17,10 +17,6 @@
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     },
-    "./globals": {
-      "types": "./dist/globals.d.mts",
-      "import": "./dist/globals.mjs"
-    },
     "./schema.json": "./dist/tnmsc.schema.json",
     "./package.json": "./package.json"
   },

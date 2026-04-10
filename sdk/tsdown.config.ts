@@ -81,17 +81,5 @@ export default defineConfig([
       __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
       __KIRO_GLOBAL_POWERS_REGISTRY__: kiroGlobalPowersRegistry
     }
-  },
-  {
-    entry: ['./src/globals.ts'],
-    platform: 'node',
-    sourcemap: false,
-    alias: {
-      '@': resolve('src'),
-      ...pluginAliases
-    },
-    format: ['esm'],
-    minify: false,
-    dts: {sourcemap: false}
   }
 ])
