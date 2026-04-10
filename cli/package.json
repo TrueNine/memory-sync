@@ -16,10 +16,6 @@
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     },
-    "./globals": {
-      "types": "./dist/globals.d.mts",
-      "import": "./dist/globals.mjs"
-    },
     "./schema.json": "./dist/tnmsc.schema.json",
     "./package.json": "./package.json"
   },
@@ -83,6 +79,7 @@
   },
   "devDependencies": {
     "@truenine/eslint10-config": "catalog:",
+    "@truenine/logger": "workspace:*",
     "@truenine/memory-sync-sdk": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",

@@ -1,87 +1,72 @@
 import {afterEach, describe, expect, it, vi} from 'vitest'
 
 const {
-  createDefaultPluginConfigMock,
-  pipelineRunMock,
-  pluginPipelineCtorMock
+  cleanMock,
+  dryRunMock,
+  installMock,
+  listPluginsMock
 } = vi.hoisted(() => ({
-  createDefaultPluginConfigMock: vi.fn(),
-  pipelineRunMock: vi.fn(),
-  pluginPipelineCtorMock: vi.fn()
+  cleanMock: vi.fn(),
+  dryRunMock: vi.fn(),
+  installMock: vi.fn(),
+  listPluginsMock: vi.fn()
 }))
 
-function createEmptyProjectsBySeries() {
-  return {
-    app: [],
-    ext: [],
-    arch: [],
-    softwares: []
-  }
-}
-
-vi.mock('./plugin.config', () => ({
-  createDefaultPluginConfig: createDefaultPluginConfigMock
-}))
-
-vi.mock('./PluginPipeline', () => ({
-  PluginPipeline: function MockPluginPipeline(...args: unknown[]) {
-    pluginPipelineCtorMock(...args)
-    return {run: pipelineRunMock}
+vi.mock('@truenine/memory-sync-sdk', () => ({
+  getMemorySyncSdkBinding() {
+    return {
+      install: installMock,
+      dryRun: dryRunMock,
+      clean: cleanMock,
+      listPlugins: listPluginsMock
+    }
   }
 }))
 
 afterEach(() => {
   vi.clearAllMocks()
   vi.resetModules()
+  delete process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING']
+  delete process.env['TNMSC_DISABLE_NATIVE_BINDING']
 })
 
 describe('cli runtime lightweight commands', () => {
-  it('does not load plugin config for --version', async () => {
+  it('disables native command binding without disabling native helpers', async () => {
+    delete process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING']
+    delete process.env['TNMSC_DISABLE_NATIVE_BINDING']
+
+    await import('./cli-runtime')
+
+    expect(process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING']).toBe('1')
+    expect(process.env['TNMSC_DISABLE_NATIVE_BINDING']).toBeUndefined()
+  })
+
+  it('does not touch the sdk binding for --version', async () => {
     const {runCli} = await import('./cli-runtime')
     const exitCode = await runCli(['node', 'tnmsc', '--version'])
     expect(exitCode).toBe(0)
-    expect(createDefaultPluginConfigMock).not.toHaveBeenCalled()
-    expect(pluginPipelineCtorMock).not.toHaveBeenCalled()
-    expect(pipelineRunMock).not.toHaveBeenCalled()
+    expect(installMock).not.toHaveBeenCalled()
+    expect(dryRunMock).not.toHaveBeenCalled()
+    expect(cleanMock).not.toHaveBeenCalled()
   })
 
-  it('passes the real cwd into the standard plugin config path', async () => {
+  it('passes the real cwd into the sdk install path', async () => {
     const {runCli} = await import('./cli-runtime')
-    createDefaultPluginConfigMock.mockResolvedValue({
-      context: {
-        workspace: {
-          directory: {
-            pathKind: 'absolute',
-            path: process.cwd(),
-            getDirectoryName: () => 'cwd'
-          },
-          projects: []
-        }
-      },
-      outputPlugins: [],
-      userConfigOptions: {},
-      executionPlan: {
-        scope: 'workspace',
-        cwd: process.cwd(),
-        workspaceDir: process.cwd(),
-        projectsBySeries: createEmptyProjectsBySeries()
-      }
-    })
-    pipelineRunMock.mockResolvedValue({
+    installMock.mockResolvedValue({
       success: true,
       filesAffected: 0,
-      dirsAffected: 0
+      dirsAffected: 0,
+      warnings: [],
+      errors: []
     })
 
     const exitCode = await runCli(['node', 'tnmsc'])
 
     expect(exitCode).toBe(0)
-    expect(createDefaultPluginConfigMock).toHaveBeenCalledWith(
-      ['node', 'tnmsc'],
-      void 0,
-      process.cwd()
-    )
-    expect(pluginPipelineCtorMock).toHaveBeenCalledWith('node', 'tnmsc')
-    expect(pipelineRunMock).toHaveBeenCalledTimes(1)
+    expect(installMock).toHaveBeenCalledWith({
+      cwd: process.cwd()
+    })
+    expect(dryRunMock).not.toHaveBeenCalled()
+    expect(cleanMock).not.toHaveBeenCalled()
   })
 })

@@ -1,14 +1,3 @@
-import type {Command} from '@/commands/Command'
-import {FactoryPriority} from '@/commands/CommandFactory'
-import {CommandRegistry} from '@/commands/CommandRegistry'
-import {CleanCommandFactory} from '@/commands/factories/CleanCommandFactory'
-import {DryRunCommandFactory} from '@/commands/factories/DryRunCommandFactory'
-import {HelpCommandFactory} from '@/commands/factories/HelpCommandFactory'
-import {InstallCommandFactory} from '@/commands/factories/InstallCommandFactory'
-import {PluginsCommandFactory} from '@/commands/factories/PluginsCommandFactory'
-import {UnknownCommandFactory} from '@/commands/factories/UnknownCommandFactory'
-import {VersionCommandFactory} from '@/commands/factories/VersionCommandFactory'
-
 export type Subcommand
   = | 'help'
     | 'version'
@@ -61,26 +50,22 @@ export function extractUserArgs(argv: readonly string[]): string[] {
   return args
 }
 
+const RUNTIME_REGEXES: readonly RegExp[] = [
+  'node',
+  'nodejs',
+  'bun',
+  'deno',
+  'tsx',
+  'ts-node',
+  'npx',
+  'pnpx',
+  'yarn',
+  'pnpm'
+].map(runtime => new RegExp(`(?:^|/)${runtime}(?:\\.exe|\\.cmd|\\.ps1)?$`, 'i'))
+
 function isRuntimeExecutable(arg: string): boolean {
-  const runtimes = [
-    'node',
-    'nodejs',
-    'bun',
-    'deno',
-    'tsx',
-    'ts-node',
-    'npx',
-    'pnpx',
-    'yarn',
-    'pnpm'
-  ]
   const normalized = arg.toLowerCase().replaceAll('\\', '/')
-  return runtimes.some(
-    runtime =>
-      new RegExp(`(?:^|/)${runtime}(?:\\.exe|\\.cmd|\\.ps1)?$`, 'i').test(
-        normalized
-      ) || normalized === runtime
-  )
+  return RUNTIME_REGEXES.some(regex => regex.test(normalized))
 }
 
 function isScriptOrPackage(arg: string): boolean {
@@ -186,39 +171,4 @@ export function parseArgs(args: readonly string[]): ParsedCliArgs {
   }
 
   return result
-}
-
-let commandRegistry: CommandRegistry | undefined
-
-function createDefaultCommandRegistry(): CommandRegistry {
-  const registry = new CommandRegistry()
-  registry.register(new VersionCommandFactory())
-  registry.register(new HelpCommandFactory())
-  registry.register(new UnknownCommandFactory())
-  registry.registerWithPriority(
-    new DryRunCommandFactory(),
-    FactoryPriority.Subcommand
-  )
-  registry.registerWithPriority(
-    new CleanCommandFactory(),
-    FactoryPriority.Subcommand
-  )
-  registry.registerWithPriority(
-    new PluginsCommandFactory(),
-    FactoryPriority.Subcommand
-  )
-  registry.registerWithPriority(
-    new InstallCommandFactory(),
-    FactoryPriority.Subcommand
-  )
-  return registry
-}
-
-function getCommandRegistry(): CommandRegistry {
-  commandRegistry ??= createDefaultCommandRegistry()
-  return commandRegistry
-}
-
-export function resolveCommand(args: ParsedCliArgs): Command {
-  return getCommandRegistry().resolve(args)
 }

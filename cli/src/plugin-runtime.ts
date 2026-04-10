@@ -1,63 +1,53 @@
-import type {
-  OutputCleanContext,
-  OutputWriteContext,
-  RuntimeCommand
-} from '@truenine/memory-sync-sdk'
-import type {Command, CommandContext} from '@/commands/Command'
+import type {MemorySyncCommandResult} from '@truenine/memory-sync-sdk'
+
 import process from 'node:process'
 import {
-  buildUnhandledExceptionDiagnostic,
-  createLogger,
-  discoverOutputRuntimeTargets,
-  drainBufferedDiagnostics,
   flushOutput,
   setGlobalLogLevel
+} from '@truenine/logger'
+import {
+  getMemorySyncSdkBinding
+
 } from '@truenine/memory-sync-sdk'
-import {CleanCommand} from '@/commands/CleanCommand'
-import {DryRunCleanCommand} from '@/commands/DryRunCleanCommand'
-import {DryRunOutputCommand} from '@/commands/DryRunOutputCommand'
-import {InstallCommand} from '@/commands/InstallCommand'
-import {JsonOutputCommand, toJsonCommandResult} from '@/commands/JsonOutputCommand'
-import {PluginsCommand} from '@/commands/PluginsCommand'
-import {createDefaultPluginConfig} from './plugin.config'
+import {extractUserArgs, parseArgs} from './cli-args'
+
+process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING'] = '1'
 
 const INTERNAL_BRIDGE_JSON_FLAG = '--bridge-json'
 
-function parseRuntimeArgs(argv: string[]): {
-  subcommand: RuntimeCommand
+interface RuntimeArgs {
+  subcommand: 'install' | 'dry-run' | 'clean' | 'plugins'
   bridgeJson: boolean
   dryRun: boolean
-} {
-  const args = argv.slice(2)
-  let subcommand: RuntimeCommand = 'install'
-  let bridgeJson = false
-  let dryRun = false
-  for (const arg of args) {
-    if (arg === INTERNAL_BRIDGE_JSON_FLAG) bridgeJson = true
-    else if (arg === '--dry-run' || arg === '-n') dryRun = true
-    else if (!arg.startsWith('-')) {
-      subcommand
-        = new Set(['install', 'plugins', 'clean', 'dry-run']).has(arg)
-          ? arg
-          : 'install'
-    }
-  }
-  return {subcommand, bridgeJson, dryRun}
+  logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'
 }
 
-function resolveRuntimeCommand(
-  subcommand: RuntimeCommand,
-  dryRun: boolean
-): Command {
-  switch (subcommand) {
-    case 'install':
-      return new InstallCommand()
-    case 'dry-run':
-      return new DryRunOutputCommand()
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function parseRuntimeArgs(argv: string[]): RuntimeArgs {
+  const args = argv.filter(arg => arg !== INTERNAL_BRIDGE_JSON_FLAG)
+  const parsed = parseArgs(extractUserArgs(args))
+  let subcommand: RuntimeArgs['subcommand']
+  switch (parsed.subcommand) {
     case 'clean':
-      return dryRun ? new DryRunCleanCommand() : new CleanCommand()
+      subcommand = 'clean'
+      break
+    case 'dry-run':
+      subcommand = 'dry-run'
+      break
     case 'plugins':
-      return new PluginsCommand()
+      subcommand = 'plugins'
+      break
+    default:
+      subcommand = 'install'
+  }
+  return {
+    subcommand,
+    bridgeJson: argv.includes(INTERNAL_BRIDGE_JSON_FLAG),
+    dryRun: parsed.dryRun,
+    ...parsed.logLevel != null ? {logLevel: parsed.logLevel} : {}
   }
 }
 
@@ -66,100 +56,74 @@ function flushAndExit(code: number): never {
   process.exit(code)
 }
 
-function writeBridgeJsonFailure(error: unknown): void {
-  const logger = createLogger('plugin-runtime', 'silent')
-  logger.error(buildUnhandledExceptionDiagnostic('plugin-runtime', error))
+function writeBridgeJsonFailure(error: unknown, warnings: readonly unknown[] = []): void {
   process.stdout.write(
     `${JSON.stringify(
-      toJsonCommandResult(
-        {
-          success: false,
-          filesAffected: 0,
-          dirsAffected: 0,
-          message: error instanceof Error ? error.message : String(error)
-        },
-        drainBufferedDiagnostics()
-      )
+      {
+        success: false,
+        filesAffected: 0,
+        dirsAffected: 0,
+        message: toErrorMessage(error),
+        pluginResults: [],
+        warnings,
+        errors: []
+      }
     )}\n`
   )
 }
 
-async function main(): Promise<void> {
-  const {subcommand, bridgeJson, dryRun} = parseRuntimeArgs(process.argv)
+async function main(args: RuntimeArgs): Promise<void> {
+  const {subcommand, bridgeJson, dryRun, logLevel} = args
   if (bridgeJson) setGlobalLogLevel('silent')
-  const logger = createLogger('PluginRuntime')
+  else if (logLevel != null) setGlobalLogLevel(logLevel)
 
-  logger.debug('Runtime bootstrap ready', {subcommand, bridgeJson, dryRun})
-
-  const userPluginConfig = await createDefaultPluginConfig(
-    process.argv,
-    subcommand,
-    process.cwd()
-  )
-  let command = resolveRuntimeCommand(subcommand, dryRun)
-  if (bridgeJson && command.name !== 'plugins') {
-    command = new JsonOutputCommand(command)
+  const binding = getMemorySyncSdkBinding()
+  if (subcommand === 'plugins') {
+    const plugins = await binding.listPlugins()
+    process.stdout.write(`${JSON.stringify(plugins)}\n`)
+    flushOutput()
+    return
   }
 
-  const {context, outputPlugins, userConfigOptions, executionPlan}
-    = userPluginConfig
-  logger.debug('Runtime configuration resolved', {
-    command: command.name,
-    plugins: outputPlugins.length,
-    projects: context.workspace.projects.length,
-    workspace: context.workspace.directory.path,
-    ...context.aindexDir != null ? {aindexDir: context.aindexDir} : {}
-  })
-  const runtimeTargets = discoverOutputRuntimeTargets(logger)
-  logger.debug('Runtime targets discovered', {
-    command: command.name,
-    jetbrainsCodexDirs: runtimeTargets.jetbrainsCodexDirs.length
-  })
-  const createCleanContext = (dry: boolean): OutputCleanContext => ({
-    logger,
-    collectedOutputContext: context,
-    pluginOptions: userConfigOptions,
-    runtimeTargets,
-    executionPlan,
-    dryRun: dry
-  })
-  const createWriteContext = (dry: boolean): OutputWriteContext => ({
-    logger,
-    collectedOutputContext: context,
-    pluginOptions: userConfigOptions,
-    runtimeTargets,
-    executionPlan,
-    dryRun: dry,
-    registeredPluginNames: Array.from(outputPlugins, plugin => plugin.name)
-  })
-  const commandCtx: CommandContext = {
-    logger,
-    outputPlugins: [...outputPlugins],
-    collectedOutputContext: context,
-    userConfigOptions,
-    executionPlan,
-    createCleanContext,
-    createWriteContext
+  const options = {
+    cwd: process.cwd(),
+    ...logLevel != null ? {logLevel} : {}
+  } as const
+
+  let result: MemorySyncCommandResult
+  switch (subcommand) {
+    case 'dry-run':
+      result = await binding.dryRun(options)
+      break
+    case 'clean':
+      result = await binding.clean({...options, dryRun})
+      break
+    default:
+      result = await binding.install(options)
   }
-  logger.debug('Dispatching command', {command: command.name})
-  const result = await command.execute(commandCtx)
-  logger.debug('Command finished', {
-    command: command.name,
-    success: result.success,
-    filesAffected: result.filesAffected,
-    dirsAffected: result.dirsAffected,
-    ...result.message != null ? {message: result.message} : {}
-  })
+
+  if (bridgeJson) {
+    process.stdout.write(`${JSON.stringify({
+      success: result.success,
+      filesAffected: result.filesAffected,
+      dirsAffected: result.dirsAffected,
+      ...result.message != null ? {message: result.message} : {},
+      pluginResults: [],
+      warnings: result.warnings,
+      errors: result.errors
+    })}\n`)
+  }
+
   if (!result.success) flushAndExit(1)
   flushOutput()
 }
 
-main().catch(error => {
-  if (parseRuntimeArgs(process.argv).bridgeJson) {
+const runtimeArgs = parseRuntimeArgs(process.argv)
+main(runtimeArgs).catch(error => {
+  if (runtimeArgs.bridgeJson) {
     writeBridgeJsonFailure(error)
     flushAndExit(1)
   }
-  const logger = createLogger('plugin-runtime', 'error')
-  logger.error(buildUnhandledExceptionDiagnostic('plugin-runtime', error))
+  process.stderr.write(`[plugin-runtime] ${toErrorMessage(error)}\n`)
   flushAndExit(1)
 })

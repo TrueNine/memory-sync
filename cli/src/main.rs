@@ -1,7 +1,7 @@
 //! tnmsc — Rust CLI shell entry point.
 //!
-//! Pure Rust commands: help, version
-//! Bridge commands (Node.js): install, dry-run, clean, plugins
+//! Pure Rust commands: help, version, plugins
+//! Facade commands: install, dry-run, clean
 
 mod cli;
 mod commands;
