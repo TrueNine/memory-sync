@@ -1,9 +1,7 @@
-/// Tauri commands that bridge the frontend to the `tnmsc` CLI.
+/// Tauri commands that bridge the frontend to the `tnmsc` crate facade.
 ///
-/// Commands use the `tnmsc` crate's library API for direct in-process invocation.
-/// Bridge commands (install, dry-run, clean, plugins) still spawn a Node.js subprocess
-/// internally via `tnmsc::run_bridge_command`, but the GUI no longer searches for or
-/// invokes the CLI binary as a sidecar.
+/// Core install / clean / config / plugin operations run through direct crate APIs.
+/// The log viewer still uses the legacy bridge path until command streaming moves into Rust.
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 
@@ -14,7 +12,6 @@ use tnmsc::core::config as core_config;
 const PRIMARY_SOURCE_MDX_EXTENSION: &str = ".src.mdx";
 const SOURCE_MDX_FILE_TYPE: &str = "sourceMdx";
 const PROJECT_SERIES_CATEGORIES: [&str; 3] = ["app", "ext", "arch"];
-const INTERNAL_BRIDGE_JSON_FLAG: &str = "--bridge-json";
 
 fn has_source_mdx_extension(name: &str) -> bool {
     name.ends_with(PRIMARY_SOURCE_MDX_EXTENSION)
@@ -73,27 +70,6 @@ pub struct LogEntry {
     pub markdown: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct BridgeJsonCommandResult {
-    success: bool,
-    #[serde(default)]
-    files_affected: i32,
-    #[serde(default)]
-    dirs_affected: i32,
-    #[serde(default)]
-    message: Option<String>,
-    #[serde(default)]
-    warnings: Vec<Value>,
-    #[serde(default)]
-    errors: Vec<Value>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct PluginListEntry {
-    name: String,
-}
-
 // ---------------------------------------------------------------------------
 // Tauri commands
 // ---------------------------------------------------------------------------
@@ -101,27 +77,32 @@ struct PluginListEntry {
 /// Execute the install pipeline (default command) or dry-run.
 #[tauri::command]
 pub fn install_pipeline(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
-    let subcommand = if dry_run { "dry-run" } else { "install" };
-    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), &[INTERNAL_BRIDGE_JSON_FLAG])
-        .map_err(|e| e.to_string())?;
-    parse_pipeline_result(&result.stdout, subcommand, dry_run)
+    let command_name = if dry_run { "dry-run" } else { "install" };
+    let options = tnmsc::MemorySyncCommandOptions {
+        cwd: Some(cwd),
+        ..Default::default()
+    };
+    let result = if dry_run {
+        tnmsc::dry_run(options)
+    } else {
+        tnmsc::install(options)
+    }
+    .map_err(|error| error.to_string())?;
+
+    Ok(to_pipeline_result(&result, command_name, dry_run))
 }
 
 /// Load the merged configuration via the tnmsc library API.
 #[tauri::command]
 pub fn load_config(cwd: String) -> Result<serde_json::Value, String> {
     let result = tnmsc::load_config(Path::new(&cwd)).map_err(|e| e.to_string())?;
-    serde_json::to_value(&result.config).map_err(|e| e.to_string())
+    serde_json::to_value(&result).map_err(|e| e.to_string())
 }
 
-/// List all registered plugins via the tnmsc bridge command.
+/// List all registered plugins from the crate-owned registry.
 #[tauri::command]
-pub fn list_plugins(cwd: String) -> Result<Vec<PluginExecutionResult>, String> {
-    let result = tnmsc::run_bridge_command("plugins", Path::new(&cwd), &[INTERNAL_BRIDGE_JSON_FLAG])
-        .map_err(|e| e.to_string())?;
-    let plugins = serde_json::from_str::<Vec<PluginListEntry>>(&result.stdout)
-        .map_err(|e| format!("Failed to parse plugins output: {e}"))?;
-    Ok(plugins
+pub fn list_plugins(_cwd: String) -> Result<Vec<PluginExecutionResult>, String> {
+    Ok(tnmsc::list_plugins()
         .into_iter()
         .map(|plugin| PluginExecutionResult {
             plugin: plugin.name,
@@ -135,10 +116,15 @@ pub fn list_plugins(cwd: String) -> Result<Vec<PluginExecutionResult>, String> {
 /// Clean previously generated output files.
 #[tauri::command]
 pub fn clean_outputs(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
-    let subcommand = if dry_run { "dry-run-clean" } else { "clean" };
-    let result = tnmsc::run_bridge_command(subcommand, Path::new(&cwd), &[INTERNAL_BRIDGE_JSON_FLAG])
-        .map_err(|e| e.to_string())?;
-    parse_pipeline_result(&result.stdout, subcommand, dry_run)
+    let command_name = if dry_run { "dry-run-clean" } else { "clean" };
+    let result = tnmsc::clean(tnmsc::MemorySyncCommandOptions {
+        cwd: Some(cwd),
+        dry_run: Some(dry_run),
+        ..Default::default()
+    })
+    .map_err(|error| error.to_string())?;
+
+    Ok(to_pipeline_result(&result, command_name, dry_run))
 }
 
 /// Get log output from a CLI bridge command.
@@ -157,23 +143,24 @@ pub fn get_logs(cwd: String, command: String) -> Result<Vec<LogEntry>, String> {
     Ok(logs)
 }
 
-fn parse_pipeline_result(raw: &str, command: &str, dry_run: bool) -> Result<PipelineResult, String> {
-    let parsed = serde_json::from_str::<BridgeJsonCommandResult>(raw)
-        .map_err(|e| format!("Failed to parse bridge result: {e}"))?;
-
-    Ok(PipelineResult {
-        success: parsed.success,
-        total_files: parsed.files_affected,
-        total_dirs: parsed.dirs_affected,
+fn to_pipeline_result(
+    result: &tnmsc::MemorySyncCommandResult,
+    command: &str,
+    dry_run: bool,
+) -> PipelineResult {
+    PipelineResult {
+        success: result.success,
+        total_files: result.files_affected,
+        total_dirs: result.dirs_affected,
         dry_run,
         command: Some(command.to_string()),
         plugin_results: Vec::new(),
         logs: Vec::new(),
-        errors: collect_bridge_messages(&parsed),
-    })
+        errors: collect_bridge_messages(result),
+    }
 }
 
-fn collect_bridge_messages(result: &BridgeJsonCommandResult) -> Vec<String> {
+fn collect_bridge_messages(result: &tnmsc::MemorySyncCommandResult) -> Vec<String> {
     let mut messages = Vec::new();
 
     if let Some(message) = result.message.as_ref()

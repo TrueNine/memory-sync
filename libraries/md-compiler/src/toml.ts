@@ -36,14 +36,14 @@ export function buildTomlDocument(
   value: Readonly<Record<string, unknown>>,
   options?: BuildTomlDocumentOptions
 ): string {
-  return getNapiMdCompilerBinding().buildTomlDocument!(
+  return getNapiMdCompilerBinding().buildTomlDocument(
     serializeForNative(value),
     options == null ? null : serializeForNative(options)
   )
 }
 
 export function buildPromptTomlArtifact(options: BuildPromptTomlArtifactOptions): string {
-  return getNapiMdCompilerBinding().buildPromptTomlArtifact!(
+  return getNapiMdCompilerBinding().buildPromptTomlArtifact(
     serializeForNative(options)
   )
 }

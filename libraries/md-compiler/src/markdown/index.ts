@@ -35,7 +35,7 @@ export function buildFrontMatter(
   const cleanedFrontMatter = cleanFrontMatter(frontMatter)
   if (Object.keys(cleanedFrontMatter).length === 0) return '---\n---'
 
-  if ((options?.singleQuote == null || options.singleQuote === false) && (options?.lineWidth == null || options.lineWidth === 0)) {
+  if ((options?.singleQuote == null || !options.singleQuote) && (options?.lineWidth == null || options.lineWidth === 0)) {
     return getNapiMdCompilerBinding().buildFrontMatter(JSON.stringify(cleanedFrontMatter))
   }
 
