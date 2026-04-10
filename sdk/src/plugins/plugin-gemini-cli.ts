@@ -1,3 +1,0 @@
-export {
-  GeminiCLIOutputPlugin
-} from './GeminiCLIOutputPlugin'

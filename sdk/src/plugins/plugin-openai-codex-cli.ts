@@ -1,3 +1,0 @@
-export {
-  CodexCLIOutputPlugin
-} from './CodexCLIOutputPlugin'

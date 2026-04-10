@@ -1,3 +1,0 @@
-export {
-  ReadmeMdConfigFileOutputPlugin
-} from './ReadmeMdConfigFileOutputPlugin'
