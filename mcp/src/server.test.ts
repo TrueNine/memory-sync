@@ -12,7 +12,8 @@ const tempDirs: string[] = []
 const serverMainPath = fileURLToPath(new URL('./main.ts', import.meta.url))
 const tsxPackageJsonPath = fileURLToPath(new URL('../node_modules/tsx/package.json', import.meta.url))
 const tsxCliPath = path.join(path.dirname(tsxPackageJsonPath), 'dist', 'cli.mjs')
-const cliNativeBindingSetupPath = fileURLToPath(new URL('../test/setup-native-binding.ts', import.meta.url))
+const cliNativeBindingSetupPath = fileURLToPath(new URL('../../sdk/test/setup-native-binding.ts', import.meta.url))
+const sdkTsConfigPath = fileURLToPath(new URL('../../sdk/tsconfig.json', import.meta.url))
 
 function createTempDir(prefix: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
@@ -71,7 +72,7 @@ describe('memory-sync MCP stdio server', () => {
     })
     const transport = new StdioClientTransport({
       command: process.execPath,
-      args: [tsxCliPath, '--import', cliNativeBindingSetupPath, serverMainPath],
+      args: [tsxCliPath, '--tsconfig', sdkTsConfigPath, '--import', cliNativeBindingSetupPath, serverMainPath],
       cwd: workspaceDir,
       env: createTransportEnv(homeDir),
       stderr: 'pipe'
