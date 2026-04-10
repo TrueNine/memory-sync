@@ -135,7 +135,7 @@ describe('Route tree contains all 7 route paths', () => {
     '/',
     '/pipeline',
     '/config',
-    '/plugins',
+    '/adaptors',
     '/logs',
     '/settings',
     '/files',

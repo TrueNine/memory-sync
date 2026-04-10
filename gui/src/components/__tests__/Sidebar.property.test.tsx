@@ -28,7 +28,7 @@ const NAV_ROUTE_PATHS = [
   '/',
   '/pipeline',
   '/config',
-  '/plugins',
+  '/adaptors',
   '/logs',
   '/settings',
 ] as const
