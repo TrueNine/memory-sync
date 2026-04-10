@@ -310,7 +310,7 @@ impl Default for UserConfigFile {
 // ---------------------------------------------------------------------------
 
 /// Result of loading a single config file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigLoadResult {
     pub config: UserConfigFile,
     pub source: Option<String>,
@@ -318,7 +318,7 @@ pub struct ConfigLoadResult {
 }
 
 /// Result of loading and merging all configurations.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MergedConfigResult {
     pub config: UserConfigFile,
     pub sources: Vec<String>,
@@ -326,7 +326,7 @@ pub struct MergedConfigResult {
 }
 
 /// Validation result for global config.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalConfigValidationResult {
     pub valid: bool,
     pub exists: bool,

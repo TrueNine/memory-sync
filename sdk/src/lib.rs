@@ -7,9 +7,11 @@ pub mod bridge;
 pub mod core;
 pub(crate) mod diagnostic_helpers;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Unified error type for CLI library API.
 #[derive(Debug, thiserror::Error)]
@@ -42,6 +44,70 @@ pub struct BridgeCommandResult {
     pub exit_code: i32,
 }
 
+/// Shared command options consumed by the crate facade, NAPI binding, and TS loader.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MemorySyncCommandOptions {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub load_user_config: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_level: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugin_options: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dry_run: Option<bool>,
+}
+
+/// Shared command result shape for the crate facade, CLI JSON, GUI IPC, and NAPI.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MemorySyncCommandResult {
+    pub success: bool,
+    pub files_affected: i32,
+    pub dirs_affected: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub warnings: Vec<Value>,
+    #[serde(default)]
+    pub errors: Vec<Value>,
+}
+
+/// Shared plugin descriptor shape for crate, NAPI, CLI, and GUI callers.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MemorySyncPluginInfo {
+    pub name: String,
+    pub kind: String,
+    pub description: String,
+    #[serde(default)]
+    pub dependencies: Vec<String>,
+}
+
+const DEFAULT_OUTPUT_PLUGIN_REGISTRY: &[(&str, &[&str])] = &[
+    ("AgentsOutputPlugin", &[]),
+    ("ClaudeCodeCLIOutputPlugin", &["AgentsOutputPlugin"]),
+    ("CodexCLIOutputPlugin", &["AgentsOutputPlugin"]),
+    ("JetBrainsAIAssistantCodexOutputPlugin", &["AgentsOutputPlugin"]),
+    ("DroidCLIOutputPlugin", &["AgentsOutputPlugin"]),
+    ("GeminiCLIOutputPlugin", &["AgentsOutputPlugin"]),
+    ("KiroCLIOutputPlugin", &["AgentsOutputPlugin"]),
+    ("OpencodeCLIOutputPlugin", &["AgentsOutputPlugin"]),
+    ("QoderIDEPluginOutputPlugin", &["AgentsOutputPlugin"]),
+    ("TraeIDEOutputPlugin", &["AgentsOutputPlugin"]),
+    ("TraeCNIDEOutputPlugin", &["AgentsOutputPlugin"]),
+    ("WarpIDEOutputPlugin", &["AgentsOutputPlugin"]),
+    ("WindsurfOutputPlugin", &["AgentsOutputPlugin"]),
+    ("CursorOutputPlugin", &["AgentsOutputPlugin"]),
+    ("GitExcludeOutputPlugin", &[]),
+    ("JetBrainsIDECodeStyleConfigOutputPlugin", &[]),
+    ("VisualStudioCodeIDEConfigOutputPlugin", &[]),
+    ("ZedIDEConfigOutputPlugin", &[]),
+    ("ReadmeMdConfigFileOutputPlugin", &[]),
+];
+
 // ---------------------------------------------------------------------------
 // Public API functions
 // ---------------------------------------------------------------------------
@@ -58,6 +124,34 @@ pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliEr
         .map_err(CliError::ConfigError)
 }
 
+/// Execute the install pipeline through the current crate facade.
+pub fn install(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
+    run_bridge_json_command("install", &options)
+}
+
+/// Execute the dry-run pipeline through the current crate facade.
+pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
+    run_bridge_json_command("dry-run", &options)
+}
+
+/// Execute cleanup through the current crate facade.
+pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
+    run_bridge_json_command("clean", &options)
+}
+
+/// Return the default output plugin registry without instantiating TS plugin classes.
+pub fn list_plugins() -> Vec<MemorySyncPluginInfo> {
+    DEFAULT_OUTPUT_PLUGIN_REGISTRY
+        .iter()
+        .map(|(name, dependencies)| MemorySyncPluginInfo {
+            name: (*name).to_string(),
+            kind: "Output".to_string(),
+            description: (*name).to_string(),
+            dependencies: dependencies.iter().map(|dependency| (*dependency).to_string()).collect(),
+        })
+        .collect()
+}
+
 /// Execute a bridge command (install, dry-run, clean, plugins) via Node.js subprocess.
 ///
 /// The subprocess output is captured (piped) and returned as a [`BridgeCommandResult`].
@@ -67,6 +161,121 @@ pub fn run_bridge_command(
     extra_args: &[&str],
 ) -> Result<BridgeCommandResult, CliError> {
     bridge::node::run_node_command_captured(subcommand, cwd, extra_args)
+}
+
+/// Run the install pipeline in passthrough mode for the Rust CLI shell.
+pub fn run_install_cli() -> ExitCode {
+    bridge::node::run_node_command("install", &[])
+}
+
+/// Run the dry-run pipeline in passthrough mode for the Rust CLI shell.
+pub fn run_dry_run_cli() -> ExitCode {
+    bridge::node::run_node_command("dry-run", &[])
+}
+
+/// Run cleanup in passthrough mode for the Rust CLI shell.
+pub fn run_clean_cli(dry_run: bool) -> ExitCode {
+    if dry_run {
+        bridge::node::run_node_command("clean", &["--dry-run"])
+    } else {
+        bridge::node::run_node_command("clean", &[])
+    }
+}
+
+fn resolve_command_cwd(options: &MemorySyncCommandOptions) -> Result<PathBuf, CliError> {
+    match options.cwd.as_deref() {
+        Some(cwd) => Ok(PathBuf::from(cwd)),
+        None => std::env::current_dir().map_err(CliError::IoError),
+    }
+}
+
+fn command_log_flag(log_level: Option<&str>) -> Option<&'static str> {
+    match log_level {
+        Some("trace") => Some("--trace"),
+        Some("debug") => Some("--debug"),
+        Some("info") => Some("--info"),
+        Some("warn") => Some("--warn"),
+        Some("error") => Some("--error"),
+        _ => None,
+    }
+}
+
+fn run_bridge_json_command(
+    subcommand: &str,
+    options: &MemorySyncCommandOptions,
+) -> Result<MemorySyncCommandResult, CliError> {
+    let cwd = resolve_command_cwd(options)?;
+    let mut extra_args = vec!["--bridge-json".to_string()];
+
+    if subcommand == "clean" && options.dry_run == Some(true) {
+        extra_args.push("--dry-run".to_string());
+    }
+
+    if let Some(flag) = command_log_flag(options.log_level.as_deref()) {
+        extra_args.push(flag.to_string());
+    }
+
+    let extra_arg_refs = extra_args.iter().map(String::as_str).collect::<Vec<_>>();
+    let result = run_bridge_command(subcommand, &cwd, &extra_arg_refs)?;
+    serde_json::from_str(&result.stdout).map_err(CliError::SerializationError)
+}
+
+#[cfg(feature = "napi")]
+mod napi_binding {
+    use super::{
+        CliError, MemorySyncCommandOptions, clean, dry_run, install, list_plugins, load_config,
+    };
+    use std::path::Path;
+
+    use napi_derive::napi;
+
+    fn parse_command_options(options_json: Option<String>) -> napi::Result<MemorySyncCommandOptions> {
+        match options_json {
+            Some(json) => serde_json::from_str(&json).map_err(|error| napi::Error::from_reason(error.to_string())),
+            None => Ok(MemorySyncCommandOptions::default()),
+        }
+    }
+
+    fn serialize_json<T: serde::Serialize>(value: &T) -> napi::Result<String> {
+        serde_json::to_string(value).map_err(|error| napi::Error::from_reason(error.to_string()))
+    }
+
+    fn map_cli_error(error: CliError) -> napi::Error {
+        napi::Error::from_reason(error.to_string())
+    }
+
+    #[napi(js_name = "loadConfig")]
+    pub fn load_config_binding(cwd: Option<String>) -> napi::Result<String> {
+        let cwd = cwd.unwrap_or_else(|| ".".to_string());
+        let result = load_config(Path::new(&cwd)).map_err(map_cli_error)?;
+        serialize_json(&result)
+    }
+
+    #[napi(js_name = "install")]
+    pub fn install_binding(options_json: Option<String>) -> napi::Result<String> {
+        let options = parse_command_options(options_json)?;
+        let result = install(options).map_err(map_cli_error)?;
+        serialize_json(&result)
+    }
+
+    #[napi(js_name = "dryRun")]
+    pub fn dry_run_binding(options_json: Option<String>) -> napi::Result<String> {
+        let options = parse_command_options(options_json)?;
+        let result = dry_run(options).map_err(map_cli_error)?;
+        serialize_json(&result)
+    }
+
+    #[napi(js_name = "clean")]
+    pub fn clean_binding(options_json: Option<String>) -> napi::Result<String> {
+        let options = parse_command_options(options_json)?;
+        let result = clean(options).map_err(map_cli_error)?;
+        serialize_json(&result)
+    }
+
+    #[napi(js_name = "listPlugins")]
+    pub fn list_plugins_binding() -> napi::Result<String> {
+        serialize_json(&list_plugins())
+    }
 }
 
 // ---------------------------------------------------------------------------
