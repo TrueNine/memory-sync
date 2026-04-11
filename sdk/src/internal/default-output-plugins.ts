@@ -1,57 +1,57 @@
 import type {PipelineConfig} from '../config'
-import {AgentsOutputPlugin} from '../plugins/AgentsOutputPlugin'
-import {ClaudeCodeCLIOutputPlugin} from '../plugins/ClaudeCodeCLIOutputPlugin'
-import {CodexCLIOutputPlugin} from '../plugins/CodexCLIOutputPlugin'
-import {CursorOutputPlugin} from '../plugins/CursorOutputPlugin'
-import {DroidCLIOutputPlugin} from '../plugins/DroidCLIOutputPlugin'
-import {GeminiCLIOutputPlugin} from '../plugins/GeminiCLIOutputPlugin'
-import {GitExcludeOutputPlugin} from '../plugins/GitExcludeOutputPlugin'
-import {JetBrainsAIAssistantCodexOutputPlugin} from '../plugins/JetBrainsAIAssistantCodexOutputPlugin'
-import {JetBrainsIDECodeStyleConfigOutputPlugin} from '../plugins/JetBrainsIDECodeStyleConfigOutputPlugin'
-import {KiroCLIOutputPlugin} from '../plugins/KiroCLIOutputPlugin'
-import {OpencodeCLIOutputPlugin} from '../plugins/OpencodeCLIOutputPlugin'
-import {QoderIDEPluginOutputPlugin} from '../plugins/QoderIDEPluginOutputPlugin'
-import {ReadmeMdConfigFileOutputPlugin} from '../plugins/ReadmeMdConfigFileOutputPlugin'
-import {TraeCNIDEOutputPlugin} from '../plugins/TraeCNIDEOutputPlugin'
-import {TraeIDEOutputPlugin} from '../plugins/TraeIDEOutputPlugin'
-import {VisualStudioCodeIDEConfigOutputPlugin} from '../plugins/VisualStudioCodeIDEConfigOutputPlugin'
-import {WarpIDEOutputPlugin} from '../plugins/WarpIDEOutputPlugin'
-import {WindsurfOutputPlugin} from '../plugins/WindsurfOutputPlugin'
-import {ZedIDEConfigOutputPlugin} from '../plugins/ZedIDEConfigOutputPlugin'
+import {AgentsOutputAdaptor} from '../adaptors/AgentsOutputAdaptor'
+import {ClaudeCodeCLIOutputAdaptor} from '../adaptors/ClaudeCodeCLIOutputAdaptor'
+import {CodexCLIOutputAdaptor} from '../adaptors/CodexCLIOutputAdaptor'
+import {CursorOutputAdaptor} from '../adaptors/CursorOutputAdaptor'
+import {DroidCLIOutputAdaptor} from '../adaptors/DroidCLIOutputAdaptor'
+import {GeminiCLIOutputAdaptor} from '../adaptors/GeminiCLIOutputAdaptor'
+import {GitExcludeOutputAdaptor} from '../adaptors/GitExcludeOutputAdaptor'
+import {JetBrainsAIAssistantCodexOutputAdaptor} from '../adaptors/JetBrainsAIAssistantCodexOutputAdaptor'
+import {JetBrainsIDECodeStyleConfigOutputAdaptor} from '../adaptors/JetBrainsIDECodeStyleConfigOutputAdaptor'
+import {KiroCLIOutputAdaptor} from '../adaptors/KiroCLIOutputAdaptor'
+import {OpencodeCLIOutputAdaptor} from '../adaptors/OpencodeCLIOutputAdaptor'
+import {QoderIDEPluginOutputAdaptor} from '../adaptors/QoderIDEPluginOutputAdaptor'
+import {ReadmeMdConfigFileOutputAdaptor} from '../adaptors/ReadmeMdConfigFileOutputAdaptor'
+import {TraeCNIDEOutputAdaptor} from '../adaptors/TraeCNIDEOutputAdaptor'
+import {TraeIDEOutputAdaptor} from '../adaptors/TraeIDEOutputAdaptor'
+import {VisualStudioCodeIDEConfigOutputAdaptor} from '../adaptors/VisualStudioCodeIDEConfigOutputAdaptor'
+import {WarpIDEOutputAdaptor} from '../adaptors/WarpIDEOutputAdaptor'
+import {WindsurfOutputAdaptor} from '../adaptors/WindsurfOutputAdaptor'
+import {ZedIDEConfigOutputAdaptor} from '../adaptors/ZedIDEConfigOutputAdaptor'
 
-export interface DefaultOutputPluginDescriptor {
+export interface DefaultOutputAdaptorDescriptor {
   readonly name: string
   readonly kind: 'Output'
   readonly description: string
   readonly dependencies: readonly string[]
 }
 
-export function createDefaultOutputPlugins(): PipelineConfig['outputPlugins'] {
+export function createDefaultOutputAdaptors(): PipelineConfig['outputPlugins'] {
   return [
-    new AgentsOutputPlugin(),
-    new ClaudeCodeCLIOutputPlugin(),
-    new CodexCLIOutputPlugin(),
-    new JetBrainsAIAssistantCodexOutputPlugin(),
-    new DroidCLIOutputPlugin(),
-    new GeminiCLIOutputPlugin(),
-    new KiroCLIOutputPlugin(),
-    new OpencodeCLIOutputPlugin(),
-    new QoderIDEPluginOutputPlugin(),
-    new TraeIDEOutputPlugin(),
-    new TraeCNIDEOutputPlugin(),
-    new WarpIDEOutputPlugin(),
-    new WindsurfOutputPlugin(),
-    new CursorOutputPlugin(),
-    new GitExcludeOutputPlugin(),
-    new JetBrainsIDECodeStyleConfigOutputPlugin(),
-    new VisualStudioCodeIDEConfigOutputPlugin(),
-    new ZedIDEConfigOutputPlugin(),
-    new ReadmeMdConfigFileOutputPlugin()
+    new AgentsOutputAdaptor(),
+    new ClaudeCodeCLIOutputAdaptor(),
+    new CodexCLIOutputAdaptor(),
+    new JetBrainsAIAssistantCodexOutputAdaptor(),
+    new DroidCLIOutputAdaptor(),
+    new GeminiCLIOutputAdaptor(),
+    new KiroCLIOutputAdaptor(),
+    new OpencodeCLIOutputAdaptor(),
+    new QoderIDEPluginOutputAdaptor(),
+    new TraeIDEOutputAdaptor(),
+    new TraeCNIDEOutputAdaptor(),
+    new WarpIDEOutputAdaptor(),
+    new WindsurfOutputAdaptor(),
+    new CursorOutputAdaptor(),
+    new GitExcludeOutputAdaptor(),
+    new JetBrainsIDECodeStyleConfigOutputAdaptor(),
+    new VisualStudioCodeIDEConfigOutputAdaptor(),
+    new ZedIDEConfigOutputAdaptor(),
+    new ReadmeMdConfigFileOutputAdaptor()
   ]
 }
 
-export function describeDefaultOutputPlugins(): readonly DefaultOutputPluginDescriptor[] {
-  return createDefaultOutputPlugins().map(plugin => ({
+export function describeDefaultOutputAdaptors(): readonly DefaultOutputAdaptorDescriptor[] {
+  return createDefaultOutputAdaptors().map(plugin => ({
     name: plugin.name,
     kind: 'Output',
     description: plugin.name,

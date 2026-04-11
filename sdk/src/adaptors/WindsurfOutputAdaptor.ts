@@ -3,11 +3,11 @@ import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {
   AbstractOutputAdaptor,
+  ADAPTOR_NAMES,
   applySubSeriesGlobPrefix,
   filterByProjectConfig,
   IgnoreFiles,
   OutputDeclarationScopeKind,
-  ADAPTOR_NAMES,
   PromptKind
 } from './adaptor-core'
 

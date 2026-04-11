@@ -1,7 +1,7 @@
 import type {CommandPrompt, OutputFileDeclaration, OutputWriteContext, RulePrompt, SkillPrompt, SubAgentPrompt} from './adaptor-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {AbstractOutputAdaptor, applySubSeriesGlobPrefix, filterByProjectConfig, ADAPTOR_NAMES} from './adaptor-core'
+import {AbstractOutputAdaptor, ADAPTOR_NAMES, applySubSeriesGlobPrefix, filterByProjectConfig} from './adaptor-core'
 
 const GLOBAL_MEMORY_FILE = 'AGENTS.md'
 const GLOBAL_CONFIG_DIR = '.config/opencode'

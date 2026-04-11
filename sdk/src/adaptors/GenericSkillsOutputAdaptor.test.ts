@@ -2,8 +2,8 @@ import type {OutputCleanContext, OutputWriteContext, SkillPrompt} from './adapto
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
-import {GenericSkillsOutputAdaptor} from './GenericSkillsOutputAdaptor'
 import {createLogger, FilePathKind, PromptKind} from './adaptor-core'
+import {GenericSkillsOutputAdaptor} from './GenericSkillsOutputAdaptor'
 
 class TestGenericSkillsOutputAdaptor extends GenericSkillsOutputAdaptor {
   constructor(private readonly testHomeDir: string) {

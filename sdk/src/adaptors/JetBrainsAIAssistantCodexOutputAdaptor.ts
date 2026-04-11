@@ -1,9 +1,9 @@
 import type {
   CommandPrompt,
+  OutputAdaptorContext,
   OutputCleanContext,
   OutputCleanupDeclarations,
   OutputFileDeclaration,
-  OutputAdaptorContext,
   OutputWriteContext,
   ProjectChildrenMemoryPrompt,
   SkillPrompt
@@ -11,7 +11,7 @@ import type {
 
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
-import {AbstractOutputAdaptor, filterByProjectConfig, ADAPTOR_NAMES} from './adaptor-core'
+import {AbstractOutputAdaptor, ADAPTOR_NAMES, filterByProjectConfig} from './adaptor-core'
 
 const PROJECT_MEMORY_FILE = 'AGENTS.md'
 const PROMPTS_SUBDIR = 'prompts'

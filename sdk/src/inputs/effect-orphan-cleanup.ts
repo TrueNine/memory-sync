@@ -1,24 +1,32 @@
 import type {
+  AdaptorOptions,
   AindexPromptTreeDirectoryPairKey,
   InputCapabilityContext,
   InputCollectedContext,
   InputEffectContext,
-  InputEffectResult,
-  PluginOptions
-} from '../plugins/plugin-core'
+  InputEffectResult
+} from '../adaptors/adaptor-core'
+import type {CompactedDeletionTargets, DeleteTargetsResult, NativeDeskPathsBinding} from '../core/desk-paths-types'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
-import {compactDeletionTargets} from '../cleanup/delete-targets'
-import {deleteTargets} from '../core/desk-paths'
-import {
-  AbstractInputCapability,
-  AINDEX_PROMPT_TREE_DIRECTORY_PAIR_KEYS,
-  SourcePromptFileExtensions
-} from '../plugins/plugin-core'
-import {
-  createProtectedDeletionGuard,
-  partitionDeletionTargets,
-  ProtectedDeletionGuardError
-} from '../ProtectedDeletionGuard'
+import {AbstractInputCapability, AINDEX_PROMPT_TREE_DIRECTORY_PAIR_KEYS, SourcePromptFileExtensions} from '../adaptors/adaptor-core'
+import {getNativeBinding} from '../core/native-binding'
+import {createProtectedDeletionGuard, partitionDeletionTargets, ProtectedDeletionGuardError} from '../ProtectedDeletionGuard'
+
+function compactDeletionTargets(files: readonly string[], dirs: readonly string[]): CompactedDeletionTargets {
+  const binding = getNativeBinding<NativeDeskPathsBinding>()
+  if (binding?.compactDeletionTargets == null) {
+    throw new Error('Native desk-paths binding is required. Build or install the Rust NAPI package before running tnmsc.')
+  }
+  return binding.compactDeletionTargets(files, dirs) as CompactedDeletionTargets
+}
+
+async function deleteTargets(targets: {readonly files?: readonly string[], readonly dirs?: readonly string[]}): Promise<DeleteTargetsResult> {
+  const binding = getNativeBinding<NativeDeskPathsBinding>()
+  if (binding?.deleteTargets == null) {
+    throw new Error('Native desk-paths binding is required. Build or install the Rust NAPI package before running tnmsc.')
+  }
+  return Promise.resolve(binding.deleteTargets({files: targets.files ?? [], dirs: targets.dirs ?? []}))
+}
 
 export interface OrphanCleanupEffectResult extends InputEffectResult {
   readonly deletedFiles: string[]
@@ -52,10 +60,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     })
   }
 
-  protected buildDeletionPlan(
-    ctx: InputEffectContext,
-    directoryConfigs: readonly OrphanCleanupDirectoryConfig[]
-  ): OrphanCleanupPlan {
+  protected buildDeletionPlan(ctx: InputEffectContext, directoryConfigs: readonly OrphanCleanupDirectoryConfig[]): OrphanCleanupPlan {
     const filesToDelete: string[] = []
     const dirsToDelete: string[] = []
     const errors: {path: string, error: Error}[] = []
@@ -71,7 +76,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     return {filesToDelete, dirsToDelete, errors}
   }
 
-  protected resolveDirectoryConfigs(options: Required<PluginOptions>): readonly OrphanCleanupDirectoryConfig[] {
+  protected resolveDirectoryConfigs(options: Required<AdaptorOptions>): readonly OrphanCleanupDirectoryConfig[] {
     return AINDEX_PROMPT_TREE_DIRECTORY_PAIR_KEYS.map(key => ({
       key,
       srcPath: options.aindex[key].src,
@@ -134,27 +139,31 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     for (const fileError of result.fileErrors) {
       const normalizedError = fileError.error instanceof Error ? fileError.error : new Error(String(fileError.error))
       deleteErrors.push({path: fileError.path, error: normalizedError})
-      logger.warn(buildFileOperationDiagnostic({
-        code: 'ORPHAN_CLEANUP_FILE_DELETE_FAILED',
-        title: 'Orphan cleanup could not delete a file',
-        operation: 'delete',
-        targetKind: 'orphan file',
-        path: fileError.path,
-        error: normalizedError
-      }))
+      logger.warn(
+        buildFileOperationDiagnostic({
+          code: 'ORPHAN_CLEANUP_FILE_DELETE_FAILED',
+          title: 'Orphan cleanup could not delete a file',
+          operation: 'delete',
+          targetKind: 'orphan file',
+          path: fileError.path,
+          error: normalizedError
+        })
+      )
     }
 
     for (const dirError of result.dirErrors) {
       const normalizedError = dirError.error instanceof Error ? dirError.error : new Error(String(dirError.error))
       deleteErrors.push({path: dirError.path, error: normalizedError})
-      logger.warn(buildFileOperationDiagnostic({
-        code: 'ORPHAN_CLEANUP_DIRECTORY_DELETE_FAILED',
-        title: 'Orphan cleanup could not delete a directory',
-        operation: 'delete',
-        targetKind: 'orphan directory',
-        path: dirError.path,
-        error: normalizedError
-      }))
+      logger.warn(
+        buildFileOperationDiagnostic({
+          code: 'ORPHAN_CLEANUP_DIRECTORY_DELETE_FAILED',
+          title: 'Orphan cleanup could not delete a directory',
+          operation: 'delete',
+          targetKind: 'orphan directory',
+          path: dirError.path,
+          error: normalizedError
+        })
+      )
     }
 
     logger.debug('orphan cleanup delete execution complete', {
@@ -186,17 +195,18 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     let entries: import('node:fs').Dirent[]
     try {
       entries = fs.readdirSync(distDirPath, {withFileTypes: true})
-    }
-    catch (error) {
+    } catch (error) {
       errors.push({path: distDirPath, error: error as Error})
-      logger.warn(buildFileOperationDiagnostic({
-        code: 'ORPHAN_CLEANUP_DIRECTORY_READ_FAILED',
-        title: 'Orphan cleanup could not read a directory',
-        operation: 'read',
-        targetKind: 'dist cleanup directory',
-        path: distDirPath,
-        error
-      }))
+      logger.warn(
+        buildFileOperationDiagnostic({
+          code: 'ORPHAN_CLEANUP_DIRECTORY_READ_FAILED',
+          title: 'Orphan cleanup could not read a directory',
+          operation: 'read',
+          targetKind: 'dist cleanup directory',
+          path: distDirPath,
+          error
+        })
+      )
       return false
     }
 
@@ -206,14 +216,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
       const entryPath = path.join(distDirPath, entry.name)
 
       if (entry.isDirectory()) {
-        const childWillBeEmpty = this.collectDirectoryPlan(
-          ctx,
-          entryPath,
-          directoryConfig,
-          filesToDelete,
-          dirsToDelete,
-          errors
-        )
+        const childWillBeEmpty = this.collectDirectoryPlan(ctx, entryPath, directoryConfig, filesToDelete, dirsToDelete, errors)
         if (childWillBeEmpty) dirsToDelete.push(entryPath)
         else hasRetainedEntries = true
         continue
@@ -232,12 +235,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
     return !hasRetainedEntries
   }
 
-  private isOrphanFile(
-    ctx: InputEffectContext,
-    distFilePath: string,
-    directoryConfig: OrphanCleanupDirectoryConfig,
-    aindexDir: string
-  ): boolean {
+  private isOrphanFile(ctx: InputEffectContext, distFilePath: string, directoryConfig: OrphanCleanupDirectoryConfig, aindexDir: string): boolean {
     const {fs, path} = ctx
 
     const fileName = path.basename(distFilePath)
@@ -250,14 +248,7 @@ export class OrphanFileCleanupEffectInputCapability extends AbstractInputCapabil
 
     if (!isMdxFile) return !fs.existsSync(path.join(aindexDir, directoryConfig.srcPath, relativeFromType))
 
-    const possibleSrcPaths = this.getPossibleSourcePaths(
-      path,
-      aindexDir,
-      directoryConfig.key,
-      directoryConfig.srcPath,
-      baseName,
-      relativeDir
-    )
+    const possibleSrcPaths = this.getPossibleSourcePaths(path, aindexDir, directoryConfig.key, directoryConfig.srcPath, baseName, relativeDir)
     return !possibleSrcPaths.some(candidatePath => fs.existsSync(candidatePath))
   }
 

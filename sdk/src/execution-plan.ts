@@ -1,8 +1,8 @@
-import type {AindexProjectSeriesName} from './plugins/plugin-core/AindexConfigDefaults'
+import type {AindexProjectSeriesName} from './adaptors/adaptor-core/AindexConfigDefaults'
 import type {
   OutputCollectedContext,
   Project
-} from './plugins/plugin-core/InputTypes'
+} from './adaptors/adaptor-core/InputTypes'
 import * as path from 'node:path'
 
 export type ExecutionScope

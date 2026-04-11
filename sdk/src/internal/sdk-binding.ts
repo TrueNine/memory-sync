@@ -2,14 +2,14 @@ import type {
   LoggerDiagnosticRecord,
   LogLevel
 } from '@truenine/logger'
+import type {
+  AdaptorOptions,
+  OutputCleanContext,
+  OutputWriteContext
+} from '../adaptors/adaptor-core'
 import type {DefineConfigOptions} from '../config'
 import type {MergedConfigResult} from '../ConfigLoader'
 import type {ExecutionPlanProjectSummary} from '../execution-plan'
-import type {
-  OutputCleanContext,
-  OutputWriteContext,
-  PluginOptions
-} from '../plugins/plugin-core'
 import type {
   ListPromptsOptions,
   PromptCatalogItem,
@@ -20,6 +20,7 @@ import type {
 } from '../prompts'
 import type {RuntimeCommand} from '../runtime-command'
 import {clearBufferedDiagnostics, createLogger, drainBufferedDiagnostics, setGlobalLogLevel} from '@truenine/logger'
+import {collectOutputDeclarations, executeDeclarativeWriteOutputs} from '../adaptors/adaptor-core/plugin'
 import {defineConfig} from '../config'
 import {getConfigLoader} from '../ConfigLoader'
 import {
@@ -29,7 +30,6 @@ import {
   partitionBufferedDiagnostics
 } from '../diagnostics'
 import {discoverOutputRuntimeTargets} from '../pipeline/OutputRuntimeTargets'
-import {collectOutputDeclarations, executeDeclarativeWriteOutputs} from '../plugins/plugin-core/plugin'
 import {
   getPrompt,
   listPrompts,
@@ -42,7 +42,7 @@ import {
   performCleanup
 } from '../runtime/cleanup'
 import {syncWindowsConfigIntoWsl} from '../wsl-mirror-sync'
-import {createDefaultOutputPlugins, describeDefaultOutputPlugins} from './default-output-plugins'
+import {createDefaultOutputAdaptors, describeDefaultOutputAdaptors} from './default-output-plugins'
 
 export type PublicLoggerDiagnosticRecord = Omit<LoggerDiagnosticRecord, 'level'>
 
@@ -50,7 +50,7 @@ export interface MemorySyncCommandOptions {
   readonly cwd?: string
   readonly loadUserConfig?: boolean
   readonly logLevel?: LogLevel
-  readonly pluginOptions?: Partial<PluginOptions>
+  readonly pluginOptions?: Partial<AdaptorOptions>
 }
 
 export type MemorySyncPromptServiceOptions = PromptServiceOptions
@@ -64,7 +64,7 @@ export interface MemorySyncCommandResult {
   readonly errors: readonly PublicLoggerDiagnosticRecord[]
 }
 
-export interface MemorySyncPluginInfo {
+export interface MemorySyncAdaptorInfo {
   readonly name: string
   readonly kind: 'Output'
   readonly description: string
@@ -78,7 +78,7 @@ export interface MemorySyncSdkBinding {
   readonly clean: (
     options?: MemorySyncCommandOptions & {readonly dryRun?: boolean}
   ) => Promise<MemorySyncCommandResult>
-  readonly listPlugins: () => Promise<readonly MemorySyncPluginInfo[]>
+  readonly listAdaptors: () => Promise<readonly MemorySyncAdaptorInfo[]>
   readonly listPrompts: (options?: ListPromptsOptions) => Promise<readonly PromptCatalogItem[]>
   readonly getPrompt: (promptId: string, options?: MemorySyncPromptServiceOptions) => Promise<PromptDetails>
   readonly upsertPromptSource: (input: UpsertPromptSourceInput) => Promise<PromptDetails>
@@ -87,7 +87,7 @@ export interface MemorySyncSdkBinding {
 
 interface RuntimeExecutionContext {
   readonly logger: ReturnType<typeof createLogger>
-  readonly outputPlugins: ReturnType<typeof createDefaultOutputPlugins>
+  readonly outputPlugins: ReturnType<typeof createDefaultOutputAdaptors>
   readonly userConfigOptions: Awaited<ReturnType<typeof defineConfig>>['userConfigOptions']
   readonly collectedOutputContext: Awaited<ReturnType<typeof defineConfig>>['context']
   readonly executionPlan: Awaited<ReturnType<typeof defineConfig>>['executionPlan']
@@ -222,7 +222,7 @@ async function createRuntimeExecutionContext(
   options: MemorySyncCommandOptions = {}
 ): Promise<RuntimeExecutionContext> {
   if (options.logLevel != null) setGlobalLogLevel(options.logLevel)
-  const outputPlugins = createDefaultOutputPlugins()
+  const outputPlugins = createDefaultOutputAdaptors()
   const pipelineConfig = await defineConfig({
     executionCwd: options.cwd,
     runtimeCommand,
@@ -231,10 +231,10 @@ async function createRuntimeExecutionContext(
     ...options.pluginOptions == null
       ? options.logLevel == null
         ? {}
-        : {pluginOptions: {logLevel: options.logLevel} as PluginOptions}
+        : {pluginOptions: {logLevel: options.logLevel} as AdaptorOptions}
       : options.logLevel != null
-        ? {pluginOptions: {...options.pluginOptions, logLevel: options.logLevel} as PluginOptions}
-        : {pluginOptions: options.pluginOptions as PluginOptions}
+        ? {pluginOptions: {...options.pluginOptions, logLevel: options.logLevel} as AdaptorOptions}
+        : {pluginOptions: options.pluginOptions as AdaptorOptions}
   } as DefineConfigOptions)
   const logger = createLogger('memory-sync-sdk', pipelineConfig.userConfigOptions.logLevel)
 
@@ -273,7 +273,7 @@ function createWriteContext(
     runtimeTargets: ctx.runtimeTargets,
     executionPlan: ctx.executionPlan,
     dryRun,
-    registeredPluginNames: ctx.outputPlugins.map(plugin => plugin.name)
+    registeredAdaptorNames: ctx.outputPlugins.map(plugin => plugin.name)
   }
 }
 
@@ -528,8 +528,8 @@ async function loadConfig(cwd?: string): Promise<MergedConfigResult> {
   return getConfigLoader().load(cwd)
 }
 
-async function listPlugins(): Promise<readonly MemorySyncPluginInfo[]> {
-  return describeDefaultOutputPlugins()
+async function listAdaptors(): Promise<readonly MemorySyncAdaptorInfo[]> {
+  return describeDefaultOutputAdaptors()
 }
 
 async function getPromptOrThrow(
@@ -547,7 +547,7 @@ export function createTsFallbackMemorySyncBinding(): MemorySyncSdkBinding {
     install: runInstall,
     dryRun: runDryRun,
     clean: runClean,
-    listPlugins,
+    listAdaptors,
     listPrompts,
     getPrompt: getPromptOrThrow,
     upsertPromptSource,

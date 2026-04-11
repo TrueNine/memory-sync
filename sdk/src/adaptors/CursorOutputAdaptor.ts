@@ -11,6 +11,7 @@ import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {
   AbstractOutputAdaptor,
+  ADAPTOR_NAMES,
   applySubSeriesGlobPrefix,
   collectMcpServersFromSkills,
   filterByProjectConfig,
@@ -18,7 +19,6 @@ import {
   IgnoreFiles,
   OutputFileNames,
   OutputSubdirectories,
-  ADAPTOR_NAMES,
   PreservedSkills,
   transformMcpConfigForCursor,
   transformMcpServerMap

@@ -1,11 +1,12 @@
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
-import type {InputCapability, InputCapabilityContext, InputCollectedContext, PluginOptions, UserConfigFile} from '@/plugins/plugin-core'
+import type {AdaptorOptions, InputCapability, InputCapabilityContext, InputCollectedContext, UserConfigFile} from '@/adaptors/adaptor-core'
 import type {RuntimeCommand} from '@/runtime-command'
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {createLogger} from '@truenine/logger'
 import glob from 'fast-glob'
+import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/adaptors/adaptor-core/GlobalScopeCollector'
 import {
   AIAgentIgnoreInputCapability,
   AindexInputCapability,
@@ -13,9 +14,9 @@ import {
   EditorConfigInputCapability,
   GitExcludeInputCapability,
   GitIgnoreInputCapability,
-  GlobalMemoryInputCapability,
   JetBrainsConfigInputCapability,
   MarkdownWhitespaceCleanupEffectInputCapability,
+  NativeInputCapability,
   OrphanFileCleanupEffectInputCapability,
   ProjectPromptInputCapability,
   ReadmeMdInputCapability,
@@ -24,16 +25,14 @@ import {
   SkillInputCapability,
   SubAgentInputCapability,
   VSCodeConfigInputCapability,
-  WorkspaceInputCapability,
   ZedConfigInputCapability
 } from '@/inputs'
 import {buildDependencyContext, mergeContexts} from '@/pipeline/ContextMerger'
 import {topologicalSort} from '@/pipeline/DependencyResolver'
-import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/plugins/plugin-core/GlobalScopeCollector'
 
 export interface InputRuntimeOptions {
   readonly runtimeCommand?: RuntimeCommand
-  readonly userConfigOptions: Required<PluginOptions>
+  readonly userConfigOptions: Required<AdaptorOptions>
   readonly userConfig?: UserConfigFile
   readonly capabilities?: readonly InputCapability[]
   readonly includeBuiltinEffects?: boolean
@@ -45,7 +44,7 @@ function createBuiltinInputEffectCapabilities(): InputCapability[] {
 
 function createBuiltinInputReaderCapabilities(): InputCapability[] {
   return [
-    new WorkspaceInputCapability(),
+    new NativeInputCapability('WorkspaceInputCapability', 'collectWorkspace'),
     new AindexInputCapability(),
     new VSCodeConfigInputCapability(),
     new ZedConfigInputCapability(),
@@ -55,7 +54,7 @@ function createBuiltinInputReaderCapabilities(): InputCapability[] {
     new CommandInputCapability(),
     new SubAgentInputCapability(),
     new RuleInputCapability(),
-    new GlobalMemoryInputCapability(),
+    new NativeInputCapability('GlobalMemoryInputCapability', 'collectGlobalMemory'),
     new ProjectPromptInputCapability(),
     new ReadmeMdInputCapability(),
     new GitIgnoreInputCapability(),

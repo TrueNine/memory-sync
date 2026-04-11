@@ -1,6 +1,6 @@
 import type {
-  OutputCleanContext,
   OutputAdaptor,
+  OutputCleanContext,
   ProjectChildrenMemoryPrompt,
   ProjectRootMemoryPrompt
 } from './adaptor-core'
@@ -11,12 +11,12 @@ import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {mergeConfig} from '../config'
 import {collectDeletionTargets} from '../runtime/cleanup'
+import {FilePathKind, PromptKind} from './adaptor-core'
 import {AgentsOutputAdaptor} from './AgentsOutputAdaptor'
 import {ClaudeCodeCLIOutputAdaptor} from './ClaudeCodeCLIOutputAdaptor'
 import {CursorOutputAdaptor} from './CursorOutputAdaptor'
 import {GeminiCLIOutputAdaptor} from './GeminiCLIOutputAdaptor'
 import {KiroCLIOutputAdaptor} from './KiroCLIOutputAdaptor'
-import {FilePathKind, PromptKind} from './adaptor-core'
 
 interface CleanupTestCase {
   readonly name: string

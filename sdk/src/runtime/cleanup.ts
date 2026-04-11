@@ -1,32 +1,46 @@
 import type {
   ILogger,
+  OutputAdaptor,
   OutputCleanContext,
   OutputCleanupDeclarations,
   OutputCleanupPathDeclaration,
-  OutputFileDeclaration,
-  OutputPlugin
-} from '../plugins/plugin-core'
-import type {
-  ProtectionMode,
-  ProtectionRuleMatcher
-} from '../ProtectedDeletionGuard'
+  OutputFileDeclaration
+} from '../adaptors/adaptor-core'
+import type {NativeDeskPathsBinding} from '../core/desk-paths-types'
+import type {ProtectionMode, ProtectionRuleMatcher} from '../ProtectedDeletionGuard'
 import * as path from 'node:path'
 import {loadAindexProjectConfig} from '@/aindex-config'
-import {
-  buildDiagnostic,
-  buildFileOperationDiagnostic,
-  buildUsageDiagnostic,
-  diagnosticLines
-} from '@/diagnostics'
+import {buildDiagnostic, buildFileOperationDiagnostic, buildUsageDiagnostic, diagnosticLines} from '@/diagnostics'
 import {filterPathScopedEntriesForExecutionPlan} from '@/execution-plan'
-import {removeBlockingFile, resolveBlockingFilePath} from '@/path-blocking-file'
+import {collectAllPluginOutputs, isOutputAdaptorEnabled} from '../adaptors/adaptor-core'
 import {getNativeBinding} from '../core/native-binding'
-import {collectAllPluginOutputs, isOutputPluginEnabled} from '../plugins/plugin-core'
-import {
-  collectProjectRoots,
-  collectProtectedInputSourceRules,
-  logProtectedDeletionGuardError
-} from '../ProtectedDeletionGuard'
+import {collectProjectRoots, collectProtectedInputSourceRules, logProtectedDeletionGuardError} from '../ProtectedDeletionGuard'
+
+function resolveBlockingFilePath(options: {
+  readonly path: string
+  readonly targetKind: 'file' | 'directory'
+  readonly error: unknown
+}): string | undefined {
+  const binding = getNativeBinding<NativeDeskPathsBinding>()
+  if (binding?.resolveBlockingFilePath == null) {
+    throw new Error('Native desk-paths binding is required. Build or install the Rust NAPI package before running tnmsc.')
+  }
+  return binding.resolveBlockingFilePath(options.path, options.targetKind, options.error instanceof Error ? options.error.message : String(options.error))
+}
+
+function removeBlockingFile(blockingPath: string): {removed: boolean, error?: unknown} {
+  const binding = getNativeBinding<NativeDeskPathsBinding>()
+  if (binding?.removeBlockingFile == null) {
+    throw new Error('Native desk-paths binding is required. Build or install the Rust NAPI package before running tnmsc.')
+  }
+  if (!binding.existsSync?.(blockingPath)) return {removed: false}
+  try {
+    const removed = binding.removeBlockingFile(blockingPath)
+    return {removed}
+  } catch (error) {
+    return {removed: false, error}
+  }
+}
 
 let nativeCleanupBindingCheck: boolean | null = null
 
@@ -161,17 +175,14 @@ export function hasNativeCleanupBinding(): boolean {
     return nativeCleanupBindingCheck
   }
   const nativeBinding = getNativeBinding<NativeCleanupBinding>()
-  nativeCleanupBindingCheck
-    = nativeBinding?.planCleanup != null && nativeBinding.performCleanup != null
+  nativeCleanupBindingCheck = nativeBinding?.planCleanup != null && nativeBinding.performCleanup != null
   return nativeCleanupBindingCheck
 }
 
 function requireNativeCleanupBinding(): NativeCleanupBinding {
   const nativeBinding = getNativeBinding<NativeCleanupBinding>()
   if (nativeBinding == null) {
-    throw new Error(
-      'Native cleanup binding is required. Build or install the Rust NAPI package before running tnmsc.'
-    )
+    throw new Error('Native cleanup binding is required. Build or install the Rust NAPI package before running tnmsc.')
   }
   return nativeBinding
 }
@@ -180,33 +191,22 @@ function mapProtectionMode(mode: ProtectionMode): NativeProtectionMode {
   return mode
 }
 
-function mapProtectionRuleMatcher(
-  matcher: ProtectionRuleMatcher | undefined
-): NativeProtectionRuleMatcher | undefined {
+function mapProtectionRuleMatcher(matcher: ProtectionRuleMatcher | undefined): NativeProtectionRuleMatcher | undefined {
   return matcher
 }
 
-function mapCleanupTarget(
-  target: OutputCleanupPathDeclaration
-): NativeCleanupTarget {
+function mapCleanupTarget(target: OutputCleanupPathDeclaration): NativeCleanupTarget {
   return {
     path: target.path,
     kind: target.kind,
-    ...target.excludeBasenames != null && target.excludeBasenames.length > 0
-      ? {excludeBasenames: [...target.excludeBasenames]}
-      : {},
-    ...target.protectionMode != null
-      ? {protectionMode: mapProtectionMode(target.protectionMode)}
-      : {},
+    ...target.excludeBasenames != null && target.excludeBasenames.length > 0 ? {excludeBasenames: [...target.excludeBasenames]} : {},
+    ...target.protectionMode != null ? {protectionMode: mapProtectionMode(target.protectionMode)} : {},
     ...target.scope != null ? {scope: target.scope} : {},
     ...target.label != null ? {label: target.label} : {}
   }
 }
 
-async function collectPluginCleanupDeclarations(
-  plugin: OutputPlugin,
-  cleanCtx: OutputCleanContext
-): Promise<OutputCleanupDeclarations> {
+async function collectPluginCleanupDeclarations(plugin: OutputAdaptor, cleanCtx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
   if (plugin.declareCleanupPaths == null) return {}
   const declarations = await plugin.declareCleanupPaths({
     ...cleanCtx,
@@ -215,64 +215,37 @@ async function collectPluginCleanupDeclarations(
   return {
     ...declarations.delete != null
       ? {
-          delete: filterPathScopedEntriesForExecutionPlan(
-            declarations.delete,
-            cleanCtx.executionPlan,
-            cleanCtx.collectedOutputContext
-          )
+          delete: filterPathScopedEntriesForExecutionPlan(declarations.delete, cleanCtx.executionPlan, cleanCtx.collectedOutputContext)
         }
       : {},
     ...declarations.protect != null
       ? {
-          protect: filterPathScopedEntriesForExecutionPlan(
-            declarations.protect,
-            cleanCtx.executionPlan,
-            cleanCtx.collectedOutputContext
-          )
+          protect: filterPathScopedEntriesForExecutionPlan(declarations.protect, cleanCtx.executionPlan, cleanCtx.collectedOutputContext)
         }
       : {},
-    ...declarations.excludeScanGlobs != null
-      ? {excludeScanGlobs: declarations.excludeScanGlobs}
-      : {}
+    ...declarations.excludeScanGlobs != null ? {excludeScanGlobs: declarations.excludeScanGlobs} : {}
   }
 }
 
 async function collectPluginCleanupSnapshot(
-  plugin: OutputPlugin,
+  plugin: OutputAdaptor,
   cleanCtx: OutputCleanContext,
-  predeclaredOutputs?: ReadonlyMap<
-    OutputPlugin,
-    readonly OutputFileDeclaration[]
-  >
+  predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<NativePluginCleanupSnapshot> {
   const existingOutputDeclarations = predeclaredOutputs?.get(plugin)
-  const declaredOutputs = existingOutputDeclarations
-    ?? (
-      !isOutputPluginEnabled(plugin, cleanCtx.pluginOptions)
-        ? []
-        : await plugin.declareOutputFiles({...cleanCtx, dryRun: true})
-    )
-  const outputs = filterPathScopedEntriesForExecutionPlan(
-    declaredOutputs,
-    cleanCtx.executionPlan,
-    cleanCtx.collectedOutputContext
-  )
+  const declaredOutputs
+    = existingOutputDeclarations
+      ?? (!isOutputAdaptorEnabled(plugin, cleanCtx.pluginOptions) ? [] : await plugin.declareOutputFiles({...cleanCtx, dryRun: true}))
+  const outputs = filterPathScopedEntriesForExecutionPlan(declaredOutputs, cleanCtx.executionPlan, cleanCtx.collectedOutputContext)
   const cleanup = await collectPluginCleanupDeclarations(plugin, cleanCtx)
 
   return {
     pluginName: plugin.name,
     outputs: outputs.map(output => output.path),
     cleanup: {
-      ...cleanup.delete != null && cleanup.delete.length > 0
-        ? {delete: cleanup.delete.map(mapCleanupTarget)}
-        : {},
-      ...cleanup.protect != null && cleanup.protect.length > 0
-        ? {protect: cleanup.protect.map(mapCleanupTarget)}
-        : {},
-      ...cleanup.excludeScanGlobs != null
-      && cleanup.excludeScanGlobs.length > 0
-        ? {excludeScanGlobs: [...cleanup.excludeScanGlobs]}
-        : {}
+      ...cleanup.delete != null && cleanup.delete.length > 0 ? {delete: cleanup.delete.map(mapCleanupTarget)} : {},
+      ...cleanup.protect != null && cleanup.protect.length > 0 ? {protect: cleanup.protect.map(mapCleanupTarget)} : {},
+      ...cleanup.excludeScanGlobs != null && cleanup.excludeScanGlobs.length > 0 ? {excludeScanGlobs: [...cleanup.excludeScanGlobs]} : {}
     }
   }
 }
@@ -281,17 +254,12 @@ function collectConfiguredCleanupProtectionRules(): NativeProtectedRule[] {
   return []
 }
 
-function buildCleanupProtectionConflictMessage(
-  conflicts: readonly NativeCleanupProtectionConflict[]
-): string {
+function buildCleanupProtectionConflictMessage(conflicts: readonly NativeCleanupProtectionConflict[]): string {
   const pathList = conflicts.map(conflict => conflict.outputPath).join(', ')
   return `Cleanup protection conflict: ${conflicts.length} output path(s) are also protected: ${pathList}`
 }
 
-function logCleanupProtectionConflicts(
-  logger: ILogger,
-  conflicts: readonly NativeCleanupProtectionConflict[]
-): void {
+function logCleanupProtectionConflicts(logger: ILogger, conflicts: readonly NativeCleanupProtectionConflict[]): void {
   const firstConflict = conflicts[0]
 
   logger.error(
@@ -304,16 +272,10 @@ function logCleanupProtectionConflicts(
           ? 'No conflict details were captured.'
           : `Example conflict: "${firstConflict.outputPath}" is protected by "${firstConflict.protectedPath}".`
       ),
-      exactFix: diagnosticLines(
-        'Separate generated output paths from protected source or reserved workspace paths before running cleanup again.'
-      ),
+      exactFix: diagnosticLines('Separate generated output paths from protected source or reserved workspace paths before running cleanup again.'),
       possibleFixes: [
-        diagnosticLines(
-          'Update cleanup protect declarations so they do not overlap generated outputs.'
-        ),
-        diagnosticLines(
-          'Move the conflicting output target to a generated-only directory.'
-        )
+        diagnosticLines('Update cleanup protect declarations so they do not overlap generated outputs.'),
+        diagnosticLines('Move the conflicting output target to a generated-only directory.')
       ],
       details: {
         count: conflicts.length,
@@ -327,12 +289,7 @@ function logCleanupPlanDiagnostics(
   logger: ILogger,
   plan: Pick<
     NativeCleanupPlan | NativeCleanupResult,
-    | 'filesToDelete'
-    | 'dirsToDelete'
-    | 'emptyDirsToDelete'
-    | 'violations'
-    | 'conflicts'
-    | 'excludedScanGlobs'
+    'filesToDelete' | 'dirsToDelete' | 'emptyDirsToDelete' | 'violations' | 'conflicts' | 'excludedScanGlobs'
   >
 ): void {
   logger.debug('cleanup plan built', {
@@ -345,9 +302,7 @@ function logCleanupPlanDiagnostics(
   })
 }
 
-function collectExactSafeFilePaths(
-  snapshot: NativeCleanupSnapshot
-): Set<string> {
+function collectExactSafeFilePaths(snapshot: NativeCleanupSnapshot): Set<string> {
   const exactSafeFilePaths = new Set<string>()
 
   for (const pluginSnapshot of snapshot.pluginSnapshots) {
@@ -370,12 +325,11 @@ function reconcileExactSafeFileViolations<
     violations: readonly NativeProtectedPathViolation[]
   }
 >(result: T, exactSafeFilePaths: ReadonlySet<string>): T {
-  if (exactSafeFilePaths.size === 0 || result.violations.length === 0)
-  { return result }
+  if (exactSafeFilePaths.size === 0 || result.violations.length === 0) {
+    return result
+  }
 
-  const rescuedFiles = new Set(
-    result.filesToDelete.map(filePath => path.resolve(filePath))
-  )
+  const rescuedFiles = new Set(result.filesToDelete.map(filePath => path.resolve(filePath)))
   const remainingViolations: NativeProtectedPathViolation[] = []
 
   for (const violation of result.violations) {
@@ -407,22 +361,10 @@ function summarizeCleanupSnapshot(snapshot: NativeCleanupSnapshot): {
 } {
   return {
     pluginCount: snapshot.pluginSnapshots.length,
-    outputCount: snapshot.pluginSnapshots.reduce(
-      (total, plugin) => total + plugin.outputs.length,
-      0
-    ),
-    cleanupDeleteCount: snapshot.pluginSnapshots.reduce(
-      (total, plugin) => total + (plugin.cleanup.delete?.length ?? 0),
-      0
-    ),
-    cleanupProtectCount: snapshot.pluginSnapshots.reduce(
-      (total, plugin) => total + (plugin.cleanup.protect?.length ?? 0),
-      0
-    ),
-    cleanupExcludeScanGlobs: snapshot.pluginSnapshots.reduce(
-      (total, plugin) => total + (plugin.cleanup.excludeScanGlobs?.length ?? 0),
-      0
-    ),
+    outputCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + plugin.outputs.length, 0),
+    cleanupDeleteCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + (plugin.cleanup.delete?.length ?? 0), 0),
+    cleanupProtectCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + (plugin.cleanup.protect?.length ?? 0), 0),
+    cleanupExcludeScanGlobs: snapshot.pluginSnapshots.reduce((total, plugin) => total + (plugin.cleanup.excludeScanGlobs?.length ?? 0), 0),
     protectedRuleCount: snapshot.protectedRules.length,
     projectRootCount: snapshot.projectRoots.length,
     emptyDirExcludeGlobs: snapshot.emptyDirExcludeGlobs?.length ?? 0
@@ -442,9 +384,7 @@ function logNativeCleanupErrors(
   for (const currentError of errors) {
     const type = currentError.kind === 'directory' ? 'directory' : 'file'
 
-    if (recoveredBlockingFiles.some(blockingPath =>
-      currentError.path === blockingPath
-      || currentError.path.startsWith(`${blockingPath}${path.sep}`))) {
+    if (recoveredBlockingFiles.some(blockingPath => currentError.path === blockingPath || currentError.path.startsWith(`${blockingPath}${path.sep}`))) {
       continue
     }
 
@@ -458,32 +398,26 @@ function logNativeCleanupErrors(
       const removal = removeBlockingFile(blockingPath)
       if (removal.removed) {
         recoveredBlockingFiles.push(blockingPath)
-        logger.warn(buildUsageDiagnostic({
-          code: 'BLOCKING_FILE_REMOVED_FOR_CLEANUP',
-          title: 'Removed blocking file and continued cleanup',
-          rootCause: diagnosticLines(
-            `tnmsc deleted the blocking file at "${blockingPath}" while recovering cleanup for "${currentError.path}".`
-          ),
-          details: {
-            phase: 'cleanup',
-            targetPath: currentError.path,
-            blockingPath
-          }
-        }))
+        logger.warn(
+          buildUsageDiagnostic({
+            code: 'BLOCKING_FILE_REMOVED_FOR_CLEANUP',
+            title: 'Removed blocking file and continued cleanup',
+            rootCause: diagnosticLines(`tnmsc deleted the blocking file at "${blockingPath}" while recovering cleanup for "${currentError.path}".`),
+            details: {
+              phase: 'cleanup',
+              targetPath: currentError.path,
+              blockingPath
+            }
+          })
+        )
         continue
       }
     }
 
     logger.warn(
       buildFileOperationDiagnostic({
-        code:
-          type === 'file'
-            ? 'CLEANUP_FILE_DELETE_FAILED'
-            : 'CLEANUP_DIRECTORY_DELETE_FAILED',
-        title:
-          type === 'file'
-            ? 'Cleanup could not delete a file'
-            : 'Cleanup could not delete a directory',
+        code: type === 'file' ? 'CLEANUP_FILE_DELETE_FAILED' : 'CLEANUP_DIRECTORY_DELETE_FAILED',
+        title: type === 'file' ? 'Cleanup could not delete a file' : 'Cleanup could not delete a directory',
         operation: 'delete',
         targetKind: type,
         path: currentError.path,
@@ -504,17 +438,11 @@ function logNativeCleanupErrors(
 }
 
 async function buildCleanupSnapshot(
-  outputPlugins: readonly OutputPlugin[],
+  outputPlugins: readonly OutputAdaptor[],
   cleanCtx: OutputCleanContext,
-  predeclaredOutputs?: ReadonlyMap<
-    OutputPlugin,
-    readonly OutputFileDeclaration[]
-  >
+  predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<NativeCleanupSnapshot> {
-  const pluginSnapshots = await Promise.all(
-    outputPlugins.map(async plugin =>
-      collectPluginCleanupSnapshot(plugin, cleanCtx, predeclaredOutputs))
-  )
+  const pluginSnapshots = await Promise.all(outputPlugins.map(async plugin => collectPluginCleanupSnapshot(plugin, cleanCtx, predeclaredOutputs)))
 
   // Collect all delete targets from plugin snapshots - these should bypass protection rules
   const deleteTargetPaths = new Set<string>()
@@ -527,9 +455,7 @@ async function buildCleanupSnapshot(
   }
 
   const protectedRules: NativeProtectedRule[] = []
-  for (const rule of collectProtectedInputSourceRules(
-    cleanCtx.collectedOutputContext
-  )) {
+  for (const rule of collectProtectedInputSourceRules(cleanCtx.collectedOutputContext)) {
     // Skip protection rules for paths that are explicitly marked as delete targets
     if (deleteTargetPaths.has(path.resolve(rule.path))) continue
     protectedRules.push({
@@ -537,9 +463,7 @@ async function buildCleanupSnapshot(
       protectionMode: mapProtectionMode(rule.protectionMode),
       reason: rule.reason,
       source: rule.source,
-      ...rule.matcher != null
-        ? {matcher: mapProtectionRuleMatcher(rule.matcher)}
-        : {}
+      ...rule.matcher != null ? {matcher: mapProtectionRuleMatcher(rule.matcher)} : {}
     })
   }
 
@@ -547,9 +471,7 @@ async function buildCleanupSnapshot(
 
   let emptyDirExcludeGlobs: string[] | undefined
   if (cleanCtx.collectedOutputContext.aindexDir != null) {
-    const aindexConfig = await loadAindexProjectConfig(
-      cleanCtx.collectedOutputContext.aindexDir
-    )
+    const aindexConfig = await loadAindexProjectConfig(cleanCtx.collectedOutputContext.aindexDir)
     if (aindexConfig.found) {
       const exclude = aindexConfig.config.emptyDirCleanup?.exclude
       if (exclude != null && exclude.length > 0) {
@@ -560,15 +482,11 @@ async function buildCleanupSnapshot(
 
   return {
     workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path,
-    ...cleanCtx.collectedOutputContext.aindexDir != null
-      ? {aindexDir: cleanCtx.collectedOutputContext.aindexDir}
-      : {},
+    ...cleanCtx.collectedOutputContext.aindexDir != null ? {aindexDir: cleanCtx.collectedOutputContext.aindexDir} : {},
     projectRoots: collectProjectRoots(cleanCtx.collectedOutputContext),
     protectedRules,
     pluginSnapshots,
-    ...emptyDirExcludeGlobs != null && emptyDirExcludeGlobs.length > 0
-      ? {emptyDirExcludeGlobs}
-      : {}
+    ...emptyDirExcludeGlobs != null && emptyDirExcludeGlobs.length > 0 ? {emptyDirExcludeGlobs} : {}
   }
 }
 
@@ -576,33 +494,28 @@ function parseNativeJson<T>(json: string): T {
   return JSON.parse(json) as T
 }
 
-export async function planCleanupWithNative(
-  snapshot: NativeCleanupSnapshot
-): Promise<NativeCleanupPlan> {
+export async function planCleanupWithNative(snapshot: NativeCleanupSnapshot): Promise<NativeCleanupPlan> {
   const nativeBinding = requireNativeCleanupBinding()
-  if (nativeBinding?.planCleanup == null)
-  { throw new Error('Native cleanup planning is unavailable') }
+  if (nativeBinding?.planCleanup == null) {
+    throw new Error('Native cleanup planning is unavailable')
+  }
   const result = await nativeBinding.planCleanup(JSON.stringify(snapshot))
   return parseNativeJson<NativeCleanupPlan>(result)
 }
 
-export async function performCleanupWithNative(
-  snapshot: NativeCleanupSnapshot
-): Promise<NativeCleanupResult> {
+export async function performCleanupWithNative(snapshot: NativeCleanupSnapshot): Promise<NativeCleanupResult> {
   const nativeBinding = requireNativeCleanupBinding()
-  if (nativeBinding?.performCleanup == null)
-  { throw new Error('Native cleanup execution is unavailable') }
+  if (nativeBinding?.performCleanup == null) {
+    throw new Error('Native cleanup execution is unavailable')
+  }
   const result = await nativeBinding.performCleanup(JSON.stringify(snapshot))
   return parseNativeJson<NativeCleanupResult>(result)
 }
 
 export async function collectDeletionTargets(
-  outputPlugins: readonly OutputPlugin[],
+  outputPlugins: readonly OutputAdaptor[],
   cleanCtx: OutputCleanContext,
-  predeclaredOutputs?: ReadonlyMap<
-    OutputPlugin,
-    readonly OutputFileDeclaration[]
-  >
+  predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<{
   filesToDelete: string[]
   dirsToDelete: string[]
@@ -616,18 +529,11 @@ export async function collectDeletionTargets(
     plugins: outputPlugins.length,
     workspace: cleanCtx.collectedOutputContext.workspace.directory.path
   })
-  const snapshot = await buildCleanupSnapshot(
-    outputPlugins,
-    cleanCtx,
-    predeclaredOutputs
-  )
+  const snapshot = await buildCleanupSnapshot(outputPlugins, cleanCtx, predeclaredOutputs)
   cleanCtx.logger.debug('Cleanup snapshot prepared', {
     ...summarizeCleanupSnapshot(snapshot)
   })
-  const plan = reconcileExactSafeFileViolations(
-    await planCleanupWithNative(snapshot),
-    collectExactSafeFilePaths(snapshot)
-  )
+  const plan = reconcileExactSafeFileViolations(await planCleanupWithNative(snapshot), collectExactSafeFilePaths(snapshot))
   cleanCtx.logger.debug('Cleanup planning complete', {
     filesToDelete: plan.filesToDelete.length,
     dirsToDelete: plan.dirsToDelete.length + plan.emptyDirsToDelete.length,
@@ -643,8 +549,7 @@ export async function collectDeletionTargets(
   return {
     filesToDelete: plan.filesToDelete,
     dirsToDelete: plan.dirsToDelete.sort((a, b) => a.localeCompare(b)),
-    emptyDirsToDelete: plan.emptyDirsToDelete.sort((a, b) =>
-      a.localeCompare(b)),
+    emptyDirsToDelete: plan.emptyDirsToDelete.sort((a, b) => a.localeCompare(b)),
     violations: [...plan.violations],
     conflicts: [],
     excludedScanGlobs: plan.excludedScanGlobs
@@ -652,13 +557,10 @@ export async function collectDeletionTargets(
 }
 
 export async function performCleanup(
-  outputPlugins: readonly OutputPlugin[],
+  outputPlugins: readonly OutputAdaptor[],
   cleanCtx: OutputCleanContext,
   logger: ILogger,
-  predeclaredOutputs?: ReadonlyMap<
-    OutputPlugin,
-    readonly OutputFileDeclaration[]
-  >
+  predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<CleanupResult> {
   logger.debug('Cleanup execution started', {
     dryRun: cleanCtx.dryRun === true,
@@ -666,11 +568,7 @@ export async function performCleanup(
     workspace: cleanCtx.collectedOutputContext.workspace.directory.path
   })
   if (predeclaredOutputs != null) {
-    const outputs = await collectAllPluginOutputs(
-      outputPlugins,
-      cleanCtx,
-      predeclaredOutputs
-    )
+    const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx, predeclaredOutputs)
     logger.debug('Cleanup outputs collected', {
       projectDirs: outputs.projectDirs.length,
       projectFiles: outputs.projectFiles.length,
@@ -679,25 +577,15 @@ export async function performCleanup(
     })
   }
 
-  const snapshot = await buildCleanupSnapshot(
-    outputPlugins,
-    cleanCtx,
-    predeclaredOutputs
-  )
+  const snapshot = await buildCleanupSnapshot(outputPlugins, cleanCtx, predeclaredOutputs)
   logger.debug('Cleanup snapshot prepared', {
     ...summarizeCleanupSnapshot(snapshot)
   })
   logger.debug('Cleanup native execution started', {
     pluginCount: snapshot.pluginSnapshots.length,
-    outputCount: snapshot.pluginSnapshots.reduce(
-      (total, plugin) => total + plugin.outputs.length,
-      0
-    )
+    outputCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + plugin.outputs.length, 0)
   })
-  const result = reconcileExactSafeFileViolations(
-    await performCleanupWithNative(snapshot),
-    collectExactSafeFilePaths(snapshot)
-  )
+  const result = reconcileExactSafeFileViolations(await performCleanupWithNative(snapshot), collectExactSafeFilePaths(snapshot))
   logger.debug('Cleanup native execution finished', {
     deletedFiles: result.deletedFiles,
     deletedDirs: result.deletedDirs,
@@ -748,10 +636,7 @@ export async function performCleanup(
     dirsToDelete: result.dirsToDelete.length + result.emptyDirsToDelete.length,
     emptyDirsToDelete: result.emptyDirsToDelete.length
   })
-  const {
-    errors: loggedErrors,
-    recoveredBlockingFiles
-  } = logNativeCleanupErrors(logger, result.errors)
+  const {errors: loggedErrors, recoveredBlockingFiles} = logNativeCleanupErrors(logger, result.errors)
   const deletedFiles = result.deletedFiles + recoveredBlockingFiles.length
   logger.debug('cleanup delete execution complete', {
     deletedFiles,

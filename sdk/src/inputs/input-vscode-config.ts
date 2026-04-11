@@ -1,5 +1,9 @@
-import type {InputCapabilityContext, InputCollectedContext, ProjectIDEConfigFile} from '../plugins/plugin-core'
-import {AbstractInputCapability, IDEKind} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext} from '../adaptors/adaptor-core'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import {getNativeBinding} from '@/core/native-binding'
+import {AbstractInputCapability} from '../adaptors/adaptor-core'
+import {IDEKind} from '../adaptors/adaptor-core/enums'
 import {readPublicIdeConfigDefinitionFile} from '../public-config-paths'
 
 export class VSCodeConfigInputCapability extends AbstractInputCapability {
@@ -8,20 +12,26 @@ export class VSCodeConfigInputCapability extends AbstractInputCapability {
   }
 
   collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
-    const {userConfigOptions, fs} = ctx
-    const {workspaceDir, aindexDir} = this.resolveBasePaths(userConfigOptions)
+    const aindexDirName = ctx.userConfigOptions.aindex?.dir ?? 'aindex'
+    const aindexDir = path.join(ctx.userConfigOptions.workspaceDir, aindexDirName)
+    const proxyFilePath = path.join(aindexDir, 'public', 'proxy.ts')
 
-    const files = ['.vscode/settings.json', '.vscode/extensions.json']
-    const vscodeConfigFiles: ProjectIDEConfigFile<IDEKind.VSCode>[] = []
-
-    for (const relativePath of files) {
-      const file = readPublicIdeConfigDefinitionFile(IDEKind.VSCode, relativePath, aindexDir, fs, {
-        command: ctx.runtimeCommand,
-        workspaceDir
-      })
-      if (file != null) vscodeConfigFiles.push(file)
+    if (fs.existsSync(proxyFilePath)) {
+      const files: NonNullable<ReturnType<typeof readPublicIdeConfigDefinitionFile>>[] = []
+      const paths = ['.vscode/settings.json', '.vscode/extensions.json']
+      for (const p of paths) {
+        const file = readPublicIdeConfigDefinitionFile(IDEKind.VSCode, p, aindexDir, fs, {workspaceDir: ctx.userConfigOptions.workspaceDir})
+        if (file != null) files.push(file)
+      }
+      return {vscodeConfigFiles: files.length > 0 ? files : void 0} as Partial<InputCollectedContext>
     }
 
-    return {vscodeConfigFiles}
+    const native = getNativeBinding<{collectVSCodeConfig?: (optionsJson: string) => string}>()
+    if (native?.collectVSCodeConfig != null) {
+      const result = native.collectVSCodeConfig(JSON.stringify(ctx.userConfigOptions))
+      return JSON.parse(result) as Partial<InputCollectedContext>
+    }
+
+    throw new Error('Native collectVSCodeConfig binding is not available')
   }
 }

@@ -1,5 +1,5 @@
 import {zodToJsonSchema} from 'zod-to-json-schema'
-import {ZUserConfigFile} from './plugins/plugin-core'
+import {ZUserConfigFile} from './adaptors/adaptor-core'
 
 /**
  * JSON Schema for .tnmsc.json — auto-generated from ZUserConfigFile via zod-to-json-schema.

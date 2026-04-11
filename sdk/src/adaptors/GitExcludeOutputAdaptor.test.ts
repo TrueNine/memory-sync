@@ -3,8 +3,8 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
-import {GitExcludeOutputAdaptor} from './GitExcludeOutputAdaptor'
 import {createLogger, FilePathKind} from './adaptor-core'
+import {GitExcludeOutputAdaptor} from './GitExcludeOutputAdaptor'
 
 function createWorkspaceRootProject(): Project {
   return {

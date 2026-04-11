@@ -9,8 +9,8 @@ import type {
 import {Buffer} from 'node:buffer'
 import {
   AbstractOutputAdaptor,
-  filterByProjectConfig,
   ADAPTOR_NAMES,
+  filterByProjectConfig,
   resolveSubAgentCanonicalName
 } from './adaptor-core'
 

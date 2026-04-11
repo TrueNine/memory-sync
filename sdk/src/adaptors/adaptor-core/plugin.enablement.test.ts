@@ -1,4 +1,4 @@
-import type {OutputAdaptor, AdaptorOptions} from './plugin'
+import type {AdaptorOptions, OutputAdaptor} from './plugin'
 import {describe, expect, it} from 'vitest'
 import {AdaptorKind} from './enums'
 import {isOutputAdaptorEnabled} from './plugin'

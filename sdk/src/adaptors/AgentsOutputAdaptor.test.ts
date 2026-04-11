@@ -2,8 +2,8 @@ import type {OutputWriteContext, ProjectChildrenMemoryPrompt, ProjectRootMemoryP
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
-import {AgentsOutputAdaptor} from './AgentsOutputAdaptor'
 import {createLogger, FilePathKind, PromptKind} from './adaptor-core'
+import {AgentsOutputAdaptor} from './AgentsOutputAdaptor'
 
 function createRootPrompt(content: string): ProjectRootMemoryPrompt {
   return {

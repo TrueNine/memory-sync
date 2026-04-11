@@ -7,8 +7,8 @@ import {describe, expect, it} from 'vitest'
 import {mergeConfig} from '../config'
 import {CommandInputCapability} from '../inputs/input-command'
 import {collectDeletionTargets} from '../runtime/cleanup'
-import {CodexCLIOutputAdaptor} from './CodexCLIOutputAdaptor'
 import {createLogger, FilePathKind, PromptKind} from './adaptor-core'
+import {CodexCLIOutputAdaptor} from './CodexCLIOutputAdaptor'
 
 class TestCodexCLIOutputAdaptor extends CodexCLIOutputAdaptor {
   constructor(private readonly testHomeDir: string) {

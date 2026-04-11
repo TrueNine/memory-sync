@@ -1,10 +1,10 @@
-import type {OutputPlugin} from './plugins/plugin-core'
+import type {OutputAdaptor} from './adaptors/adaptor-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, describe, expect, it, vi} from 'vitest'
+import {AdaptorKind, createLogger} from './adaptors/adaptor-core'
 import {defineConfig} from './config'
-import {createLogger, PluginKind} from './plugins/plugin-core'
 
 describe('defineConfig', () => {
   const originalHome = process.env['HOME']
@@ -150,10 +150,10 @@ describe('defineConfig', () => {
 
   it('returns programmatically assembled output plugins separately from user config options', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-output-plugin-assembly-'))
-    const outputPlugin: OutputPlugin = {
-      name: 'TestOutputPlugin',
-      type: PluginKind.Output,
-      log: createLogger('TestOutputPlugin', 'error'),
+    const outputPlugin: OutputAdaptor = {
+      name: 'TestOutputAdaptor',
+      type: AdaptorKind.Output,
+      log: createLogger('TestOutputAdaptor', 'error'),
       declarativeOutput: true,
       outputCapabilities: {},
       async declareOutputFiles() {

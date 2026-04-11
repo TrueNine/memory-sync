@@ -1,6 +1,9 @@
-import type {InputCapabilityContext, InputCollectedContext} from '../plugins/plugin-core'
-import {AbstractInputCapability} from '../plugins/plugin-core'
-import {PUBLIC_GIT_IGNORE_TARGET_RELATIVE_PATH, resolvePublicDefinitionPath} from '../public-config-paths'
+import type {InputCapabilityContext, InputCollectedContext} from '../adaptors/adaptor-core'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import {getNativeBinding} from '@/core/native-binding'
+import {AbstractInputCapability} from '../adaptors/adaptor-core'
+import {resolvePublicDefinitionPath} from '../public-config-paths'
 
 export class GitIgnoreInputCapability extends AbstractInputCapability {
   constructor() {
@@ -8,25 +11,25 @@ export class GitIgnoreInputCapability extends AbstractInputCapability {
   }
 
   collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
-    const {workspaceDir, aindexDir} = this.resolveBasePaths(ctx.userConfigOptions)
-    const filePath = resolvePublicDefinitionPath(aindexDir, PUBLIC_GIT_IGNORE_TARGET_RELATIVE_PATH, {
-      command: ctx.runtimeCommand,
-      workspaceDir
-    })
+    const aindexDirName = ctx.userConfigOptions.aindex?.dir ?? 'aindex'
+    const aindexDir = path.join(ctx.userConfigOptions.workspaceDir, aindexDirName)
+    const proxyFilePath = path.join(aindexDir, 'public', 'proxy.ts')
 
-    if (!ctx.fs.existsSync(filePath)) {
-      this.log.debug({action: 'collect', message: 'File not found', path: filePath})
-      return {}
+    if (fs.existsSync(proxyFilePath)) {
+      const resolvedPath = resolvePublicDefinitionPath(aindexDir, '.gitignore', {workspaceDir: ctx.userConfigOptions.workspaceDir})
+      if (fs.existsSync(resolvedPath)) {
+        const content = fs.readFileSync(resolvedPath, 'utf8')
+        return {globalGitIgnore: content || void 0} as Partial<InputCollectedContext>
+      }
+      return {} as Partial<InputCollectedContext>
     }
 
-    const content = ctx.fs.readFileSync(filePath, 'utf8')
-
-    if (content.length === 0) {
-      this.log.debug({action: 'collect', message: 'File is empty', path: filePath})
-      return {}
+    const native = getNativeBinding<{collectGitignore?: (optionsJson: string) => string}>()
+    if (native?.collectGitignore != null) {
+      const result = native.collectGitignore(JSON.stringify(ctx.userConfigOptions))
+      return JSON.parse(result) as Partial<InputCollectedContext>
     }
 
-    this.log.debug({action: 'collect', message: 'Loaded file content', path: filePath, length: content.length})
-    return {globalGitIgnore: content}
+    throw new Error('Native collectGitignore binding is not available')
   }
 }

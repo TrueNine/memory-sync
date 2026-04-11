@@ -1,5 +1,9 @@
-import type {InputCapabilityContext, InputCollectedContext, ProjectIDEConfigFile} from '../plugins/plugin-core'
-import {AbstractInputCapability, IDEKind} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext} from '../adaptors/adaptor-core'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import {getNativeBinding} from '@/core/native-binding'
+import {AbstractInputCapability} from '../adaptors/adaptor-core'
+import {IDEKind} from '../adaptors/adaptor-core/enums'
 import {readPublicIdeConfigDefinitionFile} from '../public-config-paths'
 
 export class JetBrainsConfigInputCapability extends AbstractInputCapability {
@@ -8,24 +12,26 @@ export class JetBrainsConfigInputCapability extends AbstractInputCapability {
   }
 
   collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
-    const {userConfigOptions, fs} = ctx
-    const {workspaceDir, aindexDir} = this.resolveBasePaths(userConfigOptions)
+    const aindexDirName = ctx.userConfigOptions.aindex?.dir ?? 'aindex'
+    const aindexDir = path.join(ctx.userConfigOptions.workspaceDir, aindexDirName)
+    const proxyFilePath = path.join(aindexDir, 'public', 'proxy.ts')
 
-    const files = [
-      '.idea/codeStyles/Project.xml',
-      '.idea/codeStyles/codeStyleConfig.xml',
-      '.idea/.gitignore'
-    ]
-    const jetbrainsConfigFiles: ProjectIDEConfigFile<IDEKind.IntellijIDEA>[] = []
-
-    for (const relativePath of files) {
-      const file = readPublicIdeConfigDefinitionFile(IDEKind.IntellijIDEA, relativePath, aindexDir, fs, {
-        command: ctx.runtimeCommand,
-        workspaceDir
-      })
-      if (file != null) jetbrainsConfigFiles.push(file)
+    if (fs.existsSync(proxyFilePath)) {
+      const files: NonNullable<ReturnType<typeof readPublicIdeConfigDefinitionFile>>[] = []
+      const paths = ['.idea/codeStyles/Project.xml', '.idea/codeStyles/codeStyleConfig.xml', '.idea/.gitignore']
+      for (const p of paths) {
+        const file = readPublicIdeConfigDefinitionFile(IDEKind.IntellijIDEA, p, aindexDir, fs, {workspaceDir: ctx.userConfigOptions.workspaceDir})
+        if (file != null) files.push(file)
+      }
+      return {jetbrainsConfigFiles: files.length > 0 ? files : void 0} as Partial<InputCollectedContext>
     }
 
-    return {jetbrainsConfigFiles}
+    const native = getNativeBinding<{collectJetBrainsConfig?: (optionsJson: string) => string}>()
+    if (native?.collectJetBrainsConfig != null) {
+      const result = native.collectJetBrainsConfig(JSON.stringify(ctx.userConfigOptions))
+      return JSON.parse(result) as Partial<InputCollectedContext>
+    }
+
+    throw new Error('Native collectJetBrainsConfig binding is not available')
   }
 }

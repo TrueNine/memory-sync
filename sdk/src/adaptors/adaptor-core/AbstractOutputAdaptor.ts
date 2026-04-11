@@ -5,15 +5,15 @@ import type {
   CommandPrompt,
   CommandSeriesPluginOverride,
   ILogger,
+  OutputAdaptor,
+  OutputAdaptorCapabilities,
+  OutputAdaptorContext,
   OutputCleanContext,
   OutputCleanupDeclarations,
   OutputCleanupPathDeclaration,
   OutputCleanupScope,
   OutputDeclarationScope,
   OutputFileDeclaration,
-  OutputAdaptor,
-  OutputAdaptorCapabilities,
-  OutputAdaptorContext,
   OutputScopeSelection,
   OutputScopeTopic,
   OutputTopicCapability,
@@ -41,7 +41,7 @@ import {buildMarkdownWithFrontMatter, buildMarkdownWithRawFrontMatter} from '@tr
 import {buildConfigDiagnostic, diagnosticLines} from '@/diagnostics'
 import {getEffectiveHomeDir} from '@/runtime-environment'
 import {AbstractAdaptor} from './AbstractAdaptor'
-import {FilePathKind, AdaptorKind} from './enums'
+import {AdaptorKind, FilePathKind} from './enums'
 import {applySubSeriesGlobPrefix, filterByProjectConfig} from './filters'
 import {GlobalScopeCollector} from './GlobalScopeCollector'
 import {compileRawPromptArtifact} from './PromptArtifactCache'

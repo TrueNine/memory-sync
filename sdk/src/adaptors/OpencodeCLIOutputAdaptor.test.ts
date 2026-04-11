@@ -4,8 +4,8 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
 import {collectDeletionTargets} from '@/runtime/cleanup'
-import {OpencodeCLIOutputAdaptor} from './OpencodeCLIOutputAdaptor'
 import {createLogger, FilePathKind, PromptKind} from './adaptor-core'
+import {OpencodeCLIOutputAdaptor} from './OpencodeCLIOutputAdaptor'
 
 class TestOpencodeCLIOutputAdaptor extends OpencodeCLIOutputAdaptor {
   constructor(private readonly testHomeDir: string) {

@@ -5,8 +5,8 @@ import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {collectDeletionTargets} from '@/runtime/cleanup'
-import {CursorOutputAdaptor} from './CursorOutputAdaptor'
 import {createLogger, FilePathKind, PromptKind} from './adaptor-core'
+import {CursorOutputAdaptor} from './CursorOutputAdaptor'
 
 class TestCursorOutputAdaptor extends CursorOutputAdaptor {
   constructor(private readonly testHomeDir: string) {

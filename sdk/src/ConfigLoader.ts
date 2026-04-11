@@ -6,10 +6,14 @@ import type {
   FrontMatterOptions,
   UserConfigFile,
   WindowsOptions
-} from './plugins/plugin-core'
+} from './adaptors/adaptor-core/ConfigTypes.schema'
 import * as fs from 'node:fs'
 import process from 'node:process'
 import {createLogger} from '@truenine/logger'
+import {
+  getSupportedPluginConfigKeysMessage,
+  ZUserConfigFile
+} from './adaptors/adaptor-core/ConfigTypes.schema'
 import {
   buildConfigDiagnostic,
   buildFileOperationDiagnostic,
@@ -17,10 +21,6 @@ import {
   splitDiagnosticText,
   toErrorMessage
 } from './diagnostics'
-import {
-  getSupportedPluginConfigKeysMessage,
-  ZUserConfigFile
-} from './plugins/plugin-core'
 import {
   getRequiredGlobalConfigPath,
   resolveRuntimeEnvironment,

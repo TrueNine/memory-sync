@@ -1,8 +1,8 @@
-import type {OutputCollectedContext, Project} from './plugins/plugin-core'
+import type {OutputCollectedContext, Project} from './adaptors/adaptor-core'
 import * as path from 'node:path'
 import {describe, expect, it} from 'vitest'
+import {FilePathKind} from './adaptors/adaptor-core'
 import {filterPathScopedEntriesForExecutionPlan, resolveExecutionPlan} from './execution-plan'
-import {FilePathKind} from './plugins/plugin-core'
 
 function createProject(workspaceDir: string, name: string, series: Project['promptSeries']): Project {
   return {

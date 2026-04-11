@@ -5,8 +5,8 @@ import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
 import {collectDeletionTargets} from '@/runtime/cleanup'
-import {KiroCLIOutputAdaptor} from './KiroCLIOutputAdaptor'
 import {createLogger, FilePathKind} from './adaptor-core'
+import {KiroCLIOutputAdaptor} from './KiroCLIOutputAdaptor'
 
 class TestKiroCLIOutputAdaptor extends KiroCLIOutputAdaptor {
   constructor(private readonly testHomeDir: string) {
