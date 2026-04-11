@@ -12,13 +12,13 @@ import type {
   ResolvedBasePaths,
   YAMLFrontMatter
 } from '@/adaptors/adaptor-core'
-
 import {spawn} from 'node:child_process'
 import * as path from 'node:path'
-import {createLogger} from '@truenine/logger'
+
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import {PathPlaceholders} from '@/adaptors/adaptor-core'
 import {buildDiagnostic, diagnosticLines} from '@/diagnostics'
+import {createLogger} from '@/libraries/logger'
 import {logProtectedDeletionGuardError, ProtectedDeletionGuardError} from '@/ProtectedDeletionGuard'
 import {resolveUserPath} from '@/runtime-environment'
 
@@ -31,9 +31,9 @@ export abstract class AbstractInputCapability implements InputCapability {
 
   readonly dependsOn?: readonly string[]
 
-  private _log?: import('@truenine/logger').ILogger
+  private _log?: import('@/libraries/logger').ILogger
 
-  get log(): import('@truenine/logger').ILogger {
+  get log(): import('@/libraries/logger').ILogger {
     this._log ??= createLogger(this.name)
     return this._log
   }
@@ -85,8 +85,7 @@ export abstract class AbstractInputCapability implements InputCapability {
             this.log.debug({action: 'inputEffect', name: effect.name, deletedFileCount: result.deletedFiles.length})
           }
         } else {
-          const error = result.error ?? new Error(`Input effect failed: ${effect.name}`)
-          throw error
+          throw result.error ?? new Error(`Input effect failed: ${effect.name}`)
         }
         results.push(result)
       }

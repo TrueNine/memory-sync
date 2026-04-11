@@ -7,6 +7,7 @@ import {
   AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS,
   resolvePublicDefinitionPath
 } from '../public-config-paths'
+import {parseNativeInputResult} from './native-result'
 
 export class AIAgentIgnoreInputCapability extends AbstractInputCapability {
   constructor() {
@@ -21,7 +22,10 @@ export class AIAgentIgnoreInputCapability extends AbstractInputCapability {
     if (fs.existsSync(proxyFilePath)) {
       const results: {fileName: string, content: string, sourcePath: string}[] = []
       for (const fileName of AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS) {
-        const resolvedPath = resolvePublicDefinitionPath(aindexDir, fileName, {workspaceDir: ctx.userConfigOptions.workspaceDir})
+        const resolvedPath = resolvePublicDefinitionPath(aindexDir, fileName, {
+          workspaceDir: ctx.userConfigOptions.workspaceDir,
+          command: ctx.runtimeCommand
+        })
         if (fs.existsSync(resolvedPath)) {
           const content = fs.readFileSync(resolvedPath, 'utf8')
           if (content.length > 0) {
@@ -35,7 +39,7 @@ export class AIAgentIgnoreInputCapability extends AbstractInputCapability {
     const native = getNativeBinding<{collectSharedIgnore?: (optionsJson: string) => string}>()
     if (native?.collectSharedIgnore != null) {
       const result = native.collectSharedIgnore(JSON.stringify(ctx.userConfigOptions))
-      return JSON.parse(result) as Partial<InputCollectedContext>
+      return parseNativeInputResult<Partial<InputCollectedContext>>(result)
     }
 
     throw new Error('Native collectSharedIgnore binding is not available')

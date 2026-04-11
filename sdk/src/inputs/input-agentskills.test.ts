@@ -96,6 +96,39 @@ describe('skill input plugin', () => {
     }
   })
 
+  it('accepts remote MCP server definitions without a local command', async () => {
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-skill-input-remote-mcp-test-'))
+    const srcSkillDir = path.join(tempWorkspace, 'aindex', 'skills', 'demo')
+    const distSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'demo')
+
+    try {
+      fs.mkdirSync(srcSkillDir, {recursive: true})
+      fs.mkdirSync(distSkillDir, {recursive: true})
+      fs.writeFileSync(path.join(srcSkillDir, 'skill.src.mdx'), '---\ndescription: src skill\n---\nSkill source', 'utf8')
+      fs.writeFileSync(path.join(srcSkillDir, 'mcp.json'), JSON.stringify({
+        mcpServers: {
+          figma: {
+            url: 'https://mcp.figma.com/mcp',
+            disabled: false,
+            disabledTools: []
+          }
+        }
+      }), 'utf8')
+      fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), '---\ndescription: dist skill\n---\nSkill dist', 'utf8')
+
+      const plugin = new SkillInputCapability()
+      const result = await plugin.collect(createContext(tempWorkspace, createMockLogger()))
+      const [skill] = result.skills ?? []
+
+      expect(skill?.mcpConfig?.mcpServers.figma?.url).toBe('https://mcp.figma.com/mcp')
+      expect(skill?.mcpConfig?.mcpServers.figma?.disabled).toBe(false)
+      expect(skill?.mcpConfig?.mcpServers.figma?.disabledTools).toEqual([])
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
   it('fails hard when child docs are missing compiled dist pairs', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-skill-input-missing-child-test-'))
     const srcSkillDir = path.join(tempWorkspace, 'aindex', 'skills', 'demo')
@@ -171,6 +204,41 @@ describe('skill input plugin', () => {
       expect(skill?.yamlFrontMatter?.name).toBe('demo')
       expect(skill?.yamlFrontMatter?.description).toBe('dist skill')
       expect(warnings).toContain('SKILL_NAME_IGNORED')
+    }
+    finally {
+      fs.rmSync(tempWorkspace, {recursive: true, force: true})
+    }
+  })
+
+  it('warns and skips MCP servers that define neither command nor url', async () => {
+    const warnings: string[] = []
+    const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-skill-input-mcp-warning-test-'))
+    const srcSkillDir = path.join(tempWorkspace, 'aindex', 'skills', 'demo')
+    const distSkillDir = path.join(tempWorkspace, 'aindex', 'dist', 'skills', 'demo')
+
+    try {
+      fs.mkdirSync(srcSkillDir, {recursive: true})
+      fs.mkdirSync(distSkillDir, {recursive: true})
+      fs.writeFileSync(path.join(srcSkillDir, 'skill.src.mdx'), '---\ndescription: src skill\n---\nSkill source', 'utf8')
+      fs.writeFileSync(path.join(srcSkillDir, 'mcp.json'), JSON.stringify({
+        mcpServers: {
+          broken: {
+            disabled: false
+          },
+          demo: {
+            command: 'demo'
+          }
+        }
+      }), 'utf8')
+      fs.writeFileSync(path.join(distSkillDir, 'skill.mdx'), '---\ndescription: dist skill\n---\nSkill dist', 'utf8')
+
+      const plugin = new SkillInputCapability()
+      const result = await plugin.collect(createContext(tempWorkspace, createMockLogger(warnings)))
+      const [skill] = result.skills ?? []
+
+      expect(skill?.mcpConfig?.mcpServers.broken).toBeUndefined()
+      expect(skill?.mcpConfig?.mcpServers.demo?.command).toBe('demo')
+      expect(warnings).toContain('SKILL_MCP_SERVER_SKIPPED')
     }
     finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

@@ -3,14 +3,15 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": true,
-    "rootDir": "./src",
+    "rootDir": "../..",
     "noEmit": false,
     "outDir": "./dist",
     "skipLibCheck": true
   },
   "include": [
     "src/**/*",
-    "env.d.ts"
+    "env.d.ts",
+    "../../sdk/src/core/native-binding-loader.ts"
   ],
   "exclude": [
     "../node_modules",

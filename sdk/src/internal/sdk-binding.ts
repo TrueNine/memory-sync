@@ -1,8 +1,4 @@
 import type {
-  LoggerDiagnosticRecord,
-  LogLevel
-} from '@truenine/logger'
-import type {
   AdaptorOptions,
   OutputCleanContext,
   OutputWriteContext
@@ -19,7 +15,11 @@ import type {
   WritePromptArtifactsInput
 } from '../prompts'
 import type {RuntimeCommand} from '../runtime-command'
-import {clearBufferedDiagnostics, createLogger, drainBufferedDiagnostics, setGlobalLogLevel} from '@truenine/logger'
+import type {
+  LoggerDiagnosticRecord,
+  LogLevel
+} from '@/libraries/logger'
+import {clearBufferedDiagnostics, createLogger, drainBufferedDiagnostics, setGlobalLogLevel} from '@/libraries/logger'
 import {collectOutputDeclarations, executeDeclarativeWriteOutputs} from '../adaptors/adaptor-core/plugin'
 import {defineConfig} from '../config'
 import {getConfigLoader} from '../ConfigLoader'
@@ -284,7 +284,7 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
   if (preflightResult != null) return preflightResult
 
   ctx.logger.info('Running sync', {
-    plugins: ctx.outputPlugins.length,
+    adaptors: ctx.outputPlugins.length,
     projects: ctx.collectedOutputContext.workspace.projects.length,
     workspace: ctx.collectedOutputContext.workspace.directory.path
   })
@@ -294,7 +294,7 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
   const declarationCount = [...predeclaredOutputs.values()]
     .reduce((total, declarations) => total + declarations.length, 0)
   ctx.logger.info('Prepared output plan', {
-    plugins: predeclaredOutputs.size,
+    adaptors: predeclaredOutputs.size,
     declarations: declarationCount
   })
 
@@ -337,7 +337,7 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
   }
 
   ctx.logger.info('Wrote output files', {
-    plugins: writeResults.size,
+    adaptors: writeResults.size,
     files: totalFiles,
     directories: totalDirs
   })
@@ -393,7 +393,7 @@ async function runDryRun(options: MemorySyncCommandOptions = {}): Promise<Memory
   if (preflightResult != null) return preflightResult
 
   ctx.logger.info('Running dry run', {
-    plugins: ctx.outputPlugins.length,
+    adaptors: ctx.outputPlugins.length,
     projects: ctx.collectedOutputContext.workspace.projects.length,
     workspace: ctx.collectedOutputContext.workspace.directory.path
   })
@@ -456,7 +456,7 @@ async function runClean(
 
   if (options.dryRun === true) {
     ctx.logger.info('Running cleanup preview', {
-      plugins: ctx.outputPlugins.length
+      adaptors: ctx.outputPlugins.length
     })
     const cleanCtx = createCleanContext(ctx, true)
     const {
@@ -493,7 +493,7 @@ async function runClean(
   }
 
   ctx.logger.info('Running cleanup', {
-    plugins: ctx.outputPlugins.length,
+    adaptors: ctx.outputPlugins.length,
     projects: ctx.collectedOutputContext.workspace.projects.length,
     workspace: ctx.collectedOutputContext.workspace.directory.path
   })

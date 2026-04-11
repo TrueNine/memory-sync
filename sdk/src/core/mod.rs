@@ -1,7 +1,11 @@
+pub mod base_output_plans;
 pub mod cleanup;
+pub mod command_bridge;
 pub mod config;
 pub mod dependency_resolver;
 pub mod desk_paths;
+pub mod droid_output_plan;
+pub mod gemini_output_plan;
 pub mod git_discovery;
 pub mod input_plugins;
 pub mod path_blocking;

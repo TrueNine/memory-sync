@@ -29,11 +29,11 @@
     "ruleset-sync"
   ],
   "scripts": {
-    "build": "turbo build",
-    "test": "turbo test",
-    "lint": "turbo lint",
-    "lint:fix": "turbo lint:fix",
-    "check:type": "turbo check:type",
+    "build": "turbo run build --ui=stream --log-order=grouped",
+    "test": "turbo run test --ui=stream --log-order=grouped",
+    "lint": "turbo run lint --ui=stream --log-order=grouped",
+    "lint:fix": "turbo run lint:fix --ui=stream --log-order=grouped",
+    "check:type": "turbo run check:type --ui=stream --log-order=grouped",
     "dev:doc": "pnpm -C doc dev",
     "build:doc": "pnpm -C doc build",
     "sync-versions": "tsx .githooks/sync-versions.ts",

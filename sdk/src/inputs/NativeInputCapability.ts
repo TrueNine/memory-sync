@@ -1,6 +1,7 @@
 import type {InputCapabilityContext, InputCollectedContext} from '../adaptors/adaptor-core'
 import {getNativeBinding} from '@/core/native-binding'
 import {AbstractInputCapability} from '../adaptors/adaptor-core'
+import {parseNativeInputResult} from './native-result'
 
 export class NativeInputCapability extends AbstractInputCapability {
   constructor(
@@ -16,7 +17,7 @@ export class NativeInputCapability extends AbstractInputCapability {
     const fn = native?.[this.nativeMethodName]
     if (fn != null) {
       const result = fn(JSON.stringify(ctx.userConfigOptions))
-      return JSON.parse(result) as Partial<InputCollectedContext>
+      return parseNativeInputResult<Partial<InputCollectedContext>>(result)
     }
     throw new Error(`Native binding ${this.nativeMethodName} is not available`)
   }

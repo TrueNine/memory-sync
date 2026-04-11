@@ -350,7 +350,7 @@ function reconcileExactSafeFileViolations<
 }
 
 function summarizeCleanupSnapshot(snapshot: NativeCleanupSnapshot): {
-  pluginCount: number
+  adaptorCount: number
   outputCount: number
   cleanupDeleteCount: number
   cleanupProtectCount: number
@@ -360,11 +360,11 @@ function summarizeCleanupSnapshot(snapshot: NativeCleanupSnapshot): {
   emptyDirExcludeGlobs: number
 } {
   return {
-    pluginCount: snapshot.pluginSnapshots.length,
-    outputCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + plugin.outputs.length, 0),
-    cleanupDeleteCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + (plugin.cleanup.delete?.length ?? 0), 0),
-    cleanupProtectCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + (plugin.cleanup.protect?.length ?? 0), 0),
-    cleanupExcludeScanGlobs: snapshot.pluginSnapshots.reduce((total, plugin) => total + (plugin.cleanup.excludeScanGlobs?.length ?? 0), 0),
+    adaptorCount: snapshot.pluginSnapshots.length,
+    outputCount: snapshot.pluginSnapshots.reduce((total, adaptor) => total + adaptor.outputs.length, 0),
+    cleanupDeleteCount: snapshot.pluginSnapshots.reduce((total, adaptor) => total + (adaptor.cleanup.delete?.length ?? 0), 0),
+    cleanupProtectCount: snapshot.pluginSnapshots.reduce((total, adaptor) => total + (adaptor.cleanup.protect?.length ?? 0), 0),
+    cleanupExcludeScanGlobs: snapshot.pluginSnapshots.reduce((total, adaptor) => total + (adaptor.cleanup.excludeScanGlobs?.length ?? 0), 0),
     protectedRuleCount: snapshot.protectedRules.length,
     projectRootCount: snapshot.projectRoots.length,
     emptyDirExcludeGlobs: snapshot.emptyDirExcludeGlobs?.length ?? 0
@@ -526,7 +526,7 @@ export async function collectDeletionTargets(
 }> {
   cleanCtx.logger.debug('Cleanup planning started', {
     dryRun: cleanCtx.dryRun === true,
-    plugins: outputPlugins.length,
+    adaptors: outputPlugins.length,
     workspace: cleanCtx.collectedOutputContext.workspace.directory.path
   })
   const snapshot = await buildCleanupSnapshot(outputPlugins, cleanCtx, predeclaredOutputs)
@@ -564,7 +564,7 @@ export async function performCleanup(
 ): Promise<CleanupResult> {
   logger.debug('Cleanup execution started', {
     dryRun: cleanCtx.dryRun === true,
-    plugins: outputPlugins.length,
+    adaptors: outputPlugins.length,
     workspace: cleanCtx.collectedOutputContext.workspace.directory.path
   })
   if (predeclaredOutputs != null) {
@@ -582,8 +582,8 @@ export async function performCleanup(
     ...summarizeCleanupSnapshot(snapshot)
   })
   logger.debug('Cleanup native execution started', {
-    pluginCount: snapshot.pluginSnapshots.length,
-    outputCount: snapshot.pluginSnapshots.reduce((total, plugin) => total + plugin.outputs.length, 0)
+    adaptorCount: snapshot.pluginSnapshots.length,
+    outputCount: snapshot.pluginSnapshots.reduce((total, adaptor) => total + adaptor.outputs.length, 0)
   })
   const result = reconcileExactSafeFileViolations(await performCleanupWithNative(snapshot), collectExactSafeFilePaths(snapshot))
   logger.debug('Cleanup native execution finished', {

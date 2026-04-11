@@ -97,7 +97,7 @@ const DashboardPage: FC = () => {
   const projectData = useMemo(() => {
     if (!stats) return []
     const sorted = [...stats.projects].sort((a, b) => {
-      let cmp = 0
+      let cmp: number
       if (sortBy === 'chars') cmp = a.totalChars - b.totalChars
       else if (sortBy === 'files') cmp = a.fileCount - b.fileCount
       else cmp = a.name.localeCompare(b.name)

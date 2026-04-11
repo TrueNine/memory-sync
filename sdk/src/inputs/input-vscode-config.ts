@@ -5,6 +5,7 @@ import {getNativeBinding} from '@/core/native-binding'
 import {AbstractInputCapability} from '../adaptors/adaptor-core'
 import {IDEKind} from '../adaptors/adaptor-core/enums'
 import {readPublicIdeConfigDefinitionFile} from '../public-config-paths'
+import {parseNativeInputResult} from './native-result'
 
 export class VSCodeConfigInputCapability extends AbstractInputCapability {
   constructor() {
@@ -20,7 +21,10 @@ export class VSCodeConfigInputCapability extends AbstractInputCapability {
       const files: NonNullable<ReturnType<typeof readPublicIdeConfigDefinitionFile>>[] = []
       const paths = ['.vscode/settings.json', '.vscode/extensions.json']
       for (const p of paths) {
-        const file = readPublicIdeConfigDefinitionFile(IDEKind.VSCode, p, aindexDir, fs, {workspaceDir: ctx.userConfigOptions.workspaceDir})
+        const file = readPublicIdeConfigDefinitionFile(IDEKind.VSCode, p, aindexDir, fs, {
+          workspaceDir: ctx.userConfigOptions.workspaceDir,
+          command: ctx.runtimeCommand
+        })
         if (file != null) files.push(file)
       }
       return {vscodeConfigFiles: files.length > 0 ? files : void 0} as Partial<InputCollectedContext>
@@ -29,7 +33,7 @@ export class VSCodeConfigInputCapability extends AbstractInputCapability {
     const native = getNativeBinding<{collectVSCodeConfig?: (optionsJson: string) => string}>()
     if (native?.collectVSCodeConfig != null) {
       const result = native.collectVSCodeConfig(JSON.stringify(ctx.userConfigOptions))
-      return JSON.parse(result) as Partial<InputCollectedContext>
+      return parseNativeInputResult<Partial<InputCollectedContext>>(result)
     }
 
     throw new Error('Native collectVSCodeConfig binding is not available')

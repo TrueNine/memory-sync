@@ -537,6 +537,12 @@ importers:
       '@napi-rs/cli':
         specifier: 'catalog:'
         version: 3.6.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.6.0)(node-addon-api@7.1.1)
+      '@truenine/eslint10-config':
+        specifier: 'catalog:'
+        version: 2026.10411.10025(4d9df9c0640d97cc4e32b4ae40243784)
+      eslint:
+        specifier: 'catalog:'
+        version: 10.2.0(jiti@2.6.1)
       npm-run-all2:
         specifier: 'catalog:'
         version: 8.0.4
@@ -555,6 +561,9 @@ importers:
       '@napi-rs/cli':
         specifier: 'catalog:'
         version: 3.6.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.6.0)(node-addon-api@7.1.1)
+      '@truenine/eslint10-config':
+        specifier: 'catalog:'
+        version: 2026.10411.10025(4d9df9c0640d97cc4e32b4ae40243784)
       '@types/estree':
         specifier: 'catalog:'
         version: 1.0.8
@@ -564,6 +573,9 @@ importers:
       '@types/mdast':
         specifier: 'catalog:'
         version: 4.0.4
+      eslint:
+        specifier: 'catalog:'
+        version: 10.2.0(jiti@2.6.1)
       mdast-util-mdx:
         specifier: 'catalog:'
         version: 3.0.0

@@ -104,7 +104,7 @@ export async function listPrompts(options: ListPromptsOptions = {}): Promise<Pro
   if (binding.listPrompts == null) {
     throw new Error('Native listPrompts binding is unavailable')
   }
-  const result = await Promise.resolve(binding.listPrompts(JSON.stringify(options)))
+  const result = await binding.listPrompts(JSON.stringify(options))
   return JSON.parse(result) as PromptCatalogItem[]
 }
 
@@ -113,7 +113,7 @@ export async function getPrompt(promptId: string, options: PromptServiceOptions 
   if (binding.getPrompt == null) {
     throw new Error('Native getPrompt binding is unavailable')
   }
-  const result = await Promise.resolve(binding.getPrompt(promptId, JSON.stringify(options)))
+  const result = await binding.getPrompt(promptId, JSON.stringify(options))
   return JSON.parse(result) as PromptDetails | null
 }
 
@@ -122,7 +122,7 @@ export async function upsertPromptSource(input: UpsertPromptSourceInput): Promis
   if (binding.upsertPromptSource == null) {
     throw new Error('Native upsertPromptSource binding is unavailable')
   }
-  const result = await Promise.resolve(binding.upsertPromptSource(JSON.stringify(input)))
+  const result = await binding.upsertPromptSource(JSON.stringify(input))
   return JSON.parse(result) as PromptDetails
 }
 
@@ -131,6 +131,6 @@ export async function writePromptArtifacts(input: WritePromptArtifactsInput): Pr
   if (binding.writePromptArtifacts == null) {
     throw new Error('Native writePromptArtifacts binding is unavailable')
   }
-  const result = await Promise.resolve(binding.writePromptArtifacts(JSON.stringify(input)))
+  const result = await binding.writePromptArtifacts(JSON.stringify(input))
   return JSON.parse(result) as PromptDetails
 }

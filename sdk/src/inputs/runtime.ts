@@ -4,7 +4,6 @@ import type {RuntimeCommand} from '@/runtime-command'
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {createLogger} from '@truenine/logger'
 import glob from 'fast-glob'
 import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/adaptors/adaptor-core/GlobalScopeCollector'
 import {
@@ -27,6 +26,7 @@ import {
   VSCodeConfigInputCapability,
   ZedConfigInputCapability
 } from '@/inputs'
+import {createLogger} from '@/libraries/logger'
 import {buildDependencyContext, mergeContexts} from '@/pipeline/ContextMerger'
 import {topologicalSort} from '@/pipeline/DependencyResolver'
 

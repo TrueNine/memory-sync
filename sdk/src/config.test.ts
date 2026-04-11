@@ -110,6 +110,32 @@ describe('defineConfig', () => {
     }
   })
 
+  it('expands tilde-prefixed workspaceDir before building runtime context', async () => {
+    const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-home-expand-workspace-'))
+    const tempWorkspace = path.join(tempHome, 'workspace-expanded')
+    fs.mkdirSync(tempWorkspace, {recursive: true})
+
+    process.env['HOME'] = tempHome
+    process.env['USERPROFILE'] = tempHome
+    delete process.env['HOMEDRIVE']
+    delete process.env['HOMEPATH']
+
+    try {
+      const result = await defineConfig({
+        loadUserConfig: false,
+        pluginOptions: {
+          workspaceDir: '~/workspace-expanded'
+        }
+      })
+
+      expect(result.userConfigOptions.workspaceDir).toBe(tempWorkspace)
+      expect(result.context.workspace.directory.path).toBe(tempWorkspace)
+      expect(result.context.aindexDir).toBe(path.join(tempWorkspace, 'aindex'))
+    } finally {
+      fs.rmSync(tempHome, {recursive: true, force: true})
+    }
+  })
+
   it('applies default codeStyles when user config omits them', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-code-styles-default-workspace-'))
 

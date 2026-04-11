@@ -230,10 +230,14 @@ export interface SkillResource {
  * MCP server configuration entry
  */
 export interface McpServerConfig {
-  readonly command: string
+  readonly command?: string
   readonly args?: readonly string[]
   readonly env?: Readonly<Record<string, string>>
+  readonly url?: string
+  readonly serverUrl?: string
+  readonly headers?: Readonly<Record<string, string>>
   readonly disabled?: boolean
+  readonly disabledTools?: readonly string[]
   readonly autoApprove?: readonly string[]
 }
 

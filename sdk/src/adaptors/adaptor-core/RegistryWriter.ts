@@ -11,12 +11,12 @@ import type {ILogger, RegistryData, RegistryOperationResult} from './types'
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {createLogger} from '@truenine/logger'
 import {
   buildDiagnostic,
   buildFileOperationDiagnostic,
   diagnosticLines
 } from '@/diagnostics'
+import {createLogger} from '@/libraries/logger'
 import {resolveUserPath} from '@/runtime-environment'
 
 /**

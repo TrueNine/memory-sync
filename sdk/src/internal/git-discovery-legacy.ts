@@ -14,8 +14,7 @@ export function resolveGitInfoDir(projectDir: string): string | null {
   const stat = fs.lstatSync(dotGitPath)
 
   if (stat.isDirectory()) {
-    const infoDir = path.join(dotGitPath, 'info')
-    return infoDir
+    return path.join(dotGitPath, 'info')
   }
 
   if (stat.isFile()) {

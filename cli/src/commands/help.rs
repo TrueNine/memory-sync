@@ -11,7 +11,7 @@ pub fn execute() -> ExitCode {
   println!("  install      Run the install pipeline explicitly");
   println!("  dry-run      Preview changes without writing files");
   println!("  clean        Remove all generated output files");
-  println!("  plugins      List all registered plugins");
+  println!("  plugins      List all registered adaptors");
   println!("  version      Show version information");
   println!("  help         Show this help message");
   println!();

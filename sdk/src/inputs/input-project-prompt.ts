@@ -1,6 +1,7 @@
 import type {InputCapabilityContext, InputCollectedContext} from '../adaptors/adaptor-core'
 import {getNativeBinding} from '@/core/native-binding'
 import {AbstractInputCapability} from '../adaptors/adaptor-core'
+import {parseNativeInputResult} from './native-result'
 
 export class ProjectPromptInputCapability extends AbstractInputCapability {
   constructor() {
@@ -16,7 +17,7 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
         workspace: ctx.dependencyContext.workspace
       }
       const result = native.collectProjectPrompt(JSON.stringify(payload))
-      return JSON.parse(result) as Partial<InputCollectedContext>
+      return parseNativeInputResult<Partial<InputCollectedContext>>(result)
     }
 
     throw new Error('Native collectProjectPrompt binding is not available')

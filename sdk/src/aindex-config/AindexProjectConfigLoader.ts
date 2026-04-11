@@ -1,8 +1,8 @@
-import type {ILogger} from '@truenine/logger'
 import type {AindexProjectConfig, AindexProjectConfigLoadResult} from './AindexProjectConfig'
+import type {ILogger} from '@/libraries/logger'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {createLogger} from '@truenine/logger'
+import {createLogger} from '@/libraries/logger'
 
 const CONFIG_FILE_NAMES = ['aindex.config.ts', 'aindex.config.mts', 'aindex.config.cts', 'aindex.config.js', 'aindex.config.mjs', 'aindex.config.cjs']
 

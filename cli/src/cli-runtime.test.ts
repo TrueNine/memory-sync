@@ -15,13 +15,6 @@ vi.mock('@truenine/memory-sync-sdk', () => ({
       clean: cleanMock,
       listAdaptors: listAdaptorsMock
     }
-  },
-  createTsFallbackMemorySyncBinding() {
-    return {
-      install: installMock,
-      dryRun: dryRunMock,
-      clean: cleanMock
-    }
   }
 }))
 

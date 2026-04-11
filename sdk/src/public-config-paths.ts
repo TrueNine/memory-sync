@@ -3,7 +3,7 @@ import type {ProjectIDEConfigFile} from './adaptors/adaptor-core/InputTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
-import {resolvePublicPath} from '@truenine/script-runtime'
+import {resolvePublicPath} from '@/libraries/script-runtime'
 import {AINDEX_FILE_NAMES} from './adaptors/adaptor-core/AindexTypes'
 import {FilePathKind} from './adaptors/adaptor-core/enums'
 
