@@ -28,9 +28,6 @@ export {
   GitIgnoreInputCapability
 } from './input-gitignore'
 export {
-  GlobalMemoryInputCapability
-} from './input-global-memory'
-export {
   JetBrainsConfigInputCapability
 } from './input-jetbrains-config'
 export {
@@ -52,8 +49,8 @@ export {
   VSCodeConfigInputCapability
 } from './input-vscode-config'
 export {
-  WorkspaceInputCapability
-} from './input-workspace' // Regular Input Plugins
-export {
   ZedConfigInputCapability
 } from './input-zed-config'
+export {
+  NativeInputCapability
+} from './NativeInputCapability'

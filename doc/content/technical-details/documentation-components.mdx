@@ -17,9 +17,9 @@ status: stable
   items={[
     {
       tool: "CLI",
-      summary: "负责 sync 与 clean 执行的用户入口。",
+      summary: "负责 install 与 clean 执行的用户入口。",
       status: "stable",
-      capabilities: ["运行默认 sync 流水线", "支持 dry-run / clean / config", "暴露 npm 与 crate 入口"],
+      capabilities: ["运行默认 install 流水线", "支持 install / dry-run / clean / plugins", "暴露 npm 与 crate 入口"],
       surfaces: ["tnmsc", "pnpm -C cli exec node dist/index.mjs --help"],
       notes: "对用户来说，真正的执行入口仍然是 CLI，而不是文档站或 GUI。",
     },

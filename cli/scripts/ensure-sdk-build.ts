@@ -10,7 +10,7 @@ const cliDir = resolve(__dirname, "..");
 const workspaceDir = resolve(cliDir, "..");
 const sdkDistDir = resolve(cliDir, "../sdk/dist");
 
-const REQUIRED_SDK_OUTPUTS = ["index.mjs", "index.d.mts", "globals.mjs", "globals.d.mts", "tnmsc.schema.json"] as const;
+const REQUIRED_SDK_OUTPUTS = ["index.mjs", "index.d.mts", "tnmsc.schema.json"] as const;
 
 function hasRequiredSdkOutputs(): boolean {
   return REQUIRED_SDK_OUTPUTS.every((fileName) => existsSync(resolve(sdkDistDir, fileName)));

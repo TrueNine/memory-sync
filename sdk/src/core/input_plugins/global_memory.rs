@@ -1,0 +1,157 @@
+use std::path::Path;
+
+use serde::Deserialize;
+
+use crate::core::input_plugins::prompt_artifact::read_prompt_artifact;
+use crate::core::plugin_shared::{FilePathKind, GlobalMemoryPrompt, PromptKind, RelativePath};
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GlobalMemoryInputOptions {
+  workspace_dir: String,
+  #[serde(default)]
+  aindex: Option<GlobalMemoryAindexInput>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GlobalMemoryAindexInput {
+  #[serde(default)]
+  dir: Option<String>,
+  #[serde(default)]
+  global_prompt: Option<GlobalMemoryPair>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GlobalMemoryPair {
+  #[allow(dead_code)]
+  #[serde(default)]
+  src: Option<String>,
+  #[serde(default)]
+  dist: Option<String>,
+}
+
+pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliError> {
+  let options: GlobalMemoryInputOptions =
+    serde_json::from_str(options_json).map_err(|e| crate::CliError::ConfigError(e.to_string()))?;
+
+  let workspace_dir = Path::new(&options.workspace_dir)
+    .canonicalize()
+    .unwrap_or_else(|_| Path::new(&options.workspace_dir).to_path_buf());
+  let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
+
+  let aindex_dir_name = options
+    .aindex
+    .as_ref()
+    .and_then(|a| a.dir.clone())
+    .unwrap_or_else(|| "aindex".to_string());
+  let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
+
+  let global_memory_file = aindex_dir.join(
+    options
+      .aindex
+      .as_ref()
+      .and_then(|a| a.global_prompt.as_ref().and_then(|p| p.dist.clone()))
+      .unwrap_or_else(|| "dist/global.mdx".to_string()),
+  );
+
+  let global_memory_file_str = global_memory_file.to_string_lossy().into_owned();
+
+  if !global_memory_file.exists() {
+    return Ok("{}".to_string());
+  }
+
+  if !global_memory_file.is_file() {
+    return Ok("{}".to_string());
+  }
+
+  let artifact = read_prompt_artifact(&global_memory_file_str, "dist", None)
+    .map_err(|e| crate::CliError::ConfigError(e))?;
+
+  let content = artifact.content.clone();
+  let length = content.len();
+
+  let runtime = crate::core::config::resolve_runtime_environment();
+  let effective_home_dir = runtime
+    .effective_home_dir
+    .or(runtime.native_home_dir)
+    .map(|p| p.to_string_lossy().into_owned())
+    .unwrap_or_else(|| ".".to_string());
+
+  let parent_directory_path = serde_json::json!({
+    "type": "userHome",
+    "directory": {
+      "pathKind": "Relative",
+      "path": "",
+      "basePath": effective_home_dir
+    }
+  });
+
+  let global_memory = GlobalMemoryPrompt {
+    prompt_type: PromptKind::GlobalMemory,
+    content,
+    length,
+    file_path_kind: FilePathKind::Relative,
+    dir: RelativePath::new(
+      global_memory_file
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("global.mdx"),
+      &global_memory_file
+        .parent()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_default(),
+    ),
+    raw_front_matter: Some(artifact.raw_mdx.clone()),
+    markdown_contents: None,
+    parent_directory_path: Some(parent_directory_path),
+  };
+
+  #[derive(Debug, Clone, serde::Serialize)]
+  #[serde(rename_all = "camelCase")]
+  struct GlobalMemoryResult {
+    global_memory: GlobalMemoryPrompt,
+  }
+
+  let result = GlobalMemoryResult { global_memory };
+  serde_json::to_string(&result).map_err(crate::CliError::SerializationError)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::fs;
+  use tempfile::TempDir;
+
+  #[test]
+  fn collect_global_memory_empty_when_missing() {
+    let tmp = TempDir::new().unwrap();
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_global_memory(&options.to_string()).unwrap();
+    assert_eq!(result, "{}");
+  }
+
+  #[test]
+  fn collect_global_memory_reads_dist_file() {
+    let tmp = TempDir::new().unwrap();
+    let dist_dir = tmp.path().join("aindex").join("dist");
+    fs::create_dir_all(&dist_dir).unwrap();
+    fs::write(
+      dist_dir.join("global.mdx"),
+      "---\ndescription: global memory\n---\nGlobal memory content",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_global_memory(&options.to_string()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(parsed["globalMemory"]["content"], "Global memory content");
+  }
+}

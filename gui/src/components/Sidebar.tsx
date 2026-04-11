@@ -17,7 +17,7 @@ import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
-  readonly to: '/' | '/pipeline' | '/config' | '/plugins' | '/files' | '/logs' | '/settings'
+  readonly to: '/' | '/pipeline' | '/config' | '/adaptors' | '/files' | '/logs' | '/settings'
   readonly labelKey: string
   readonly icon: FC<{ className?: string }>
 }
@@ -26,7 +26,7 @@ const navItems: readonly NavItem[] = [
   { to: '/' as const, labelKey: 'nav.dashboard', icon: LayoutDashboard },
   { to: '/pipeline' as const, labelKey: 'nav.pipeline', icon: Workflow },
   { to: '/config' as const, labelKey: 'nav.config', icon: FileText },
-  { to: '/plugins' as const, labelKey: 'nav.plugins', icon: Plug },
+  { to: '/adaptors' as const, labelKey: 'nav.plugins', icon: Plug },
   { to: '/files' as const, labelKey: 'nav.files', icon: FolderOpen },
   { to: '/logs' as const, labelKey: 'nav.logs', icon: ScrollText },
   { to: '/settings' as const, labelKey: 'nav.settings', icon: Cog },

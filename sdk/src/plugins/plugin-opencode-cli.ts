@@ -1,3 +1,0 @@
-export {
-  OpencodeCLIOutputPlugin
-} from './OpencodeCLIOutputPlugin'

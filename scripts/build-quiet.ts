@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import {writeError, writeMarkdownBlock} from './markdown-output'
 
 async function runBuild(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -23,19 +24,19 @@ async function runBuild(): Promise<void> {
     child.on('close', (code) => {
       // 以进程退出码为准，stderr 可能有警告信息
       if (code === 0) {
-        console.log('✓ Build successful')
+        writeMarkdownBlock('Build complete')
         resolve()
       } else {
-        console.error('✗ Build failed')
+        writeError('Build failed', {exitCode: code ?? 'unknown'})
         if (errorOutput) {
-          console.error(errorOutput)
+          writeError('Build stderr', {output: errorOutput.trim()})
         }
         reject(new Error(`Build exited with code ${code}`))
       }
     })
 
     child.on('error', (err) => {
-      console.error('✗ Build failed:', err.message)
+      writeError('Build process failed to start', {error: err.message})
       reject(err)
     })
   })

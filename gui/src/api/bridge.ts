@@ -1,10 +1,9 @@
 import { invoke } from '@tauri-apps/api/core'
 
 export interface LogEntry {
-  readonly timestamp: string
-  readonly level: string
-  readonly logger: string
-  readonly payload: unknown
+  readonly stream: 'stdout' | 'stderr'
+  readonly source?: string
+  readonly markdown: string
 }
 
 export interface PluginExecutionResult {
@@ -25,8 +24,8 @@ export interface PipelineResult {
   readonly errors: readonly string[]
 }
 
-export function executePipeline(cwd: string, dryRun = false): Promise<PipelineResult> {
-  return invoke<PipelineResult>('execute_pipeline', { cwd, dryRun })
+export function installPipeline(cwd: string, dryRun = false): Promise<PipelineResult> {
+  return invoke<PipelineResult>('install_pipeline', { cwd, dryRun })
 }
 
 export function cleanOutputs(cwd: string, dryRun = false): Promise<PipelineResult> {
@@ -37,7 +36,7 @@ export function loadConfig(cwd: string): Promise<unknown> {
   return invoke('load_config', { cwd })
 }
 
-export function listPlugins(cwd: string): Promise<PluginExecutionResult[]> {
+export function listAdaptors(cwd: string): Promise<PluginExecutionResult[]> {
   return invoke<PluginExecutionResult[]>('list_plugins', { cwd })
 }
 

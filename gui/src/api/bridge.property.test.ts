@@ -20,15 +20,10 @@ const arbPluginExecutionResult: fc.Arbitrary<PluginExecutionResult> = fc.record(
   dryRun: fc.boolean(),
 })
 
-// Use integer ms in a safe range to avoid Invalid Date during shrinking
-const MIN_TS = new Date('2000-01-01T00:00:00.000Z').getTime()
-const MAX_TS = new Date('2099-12-31T23:59:59.999Z').getTime()
-
 const arbLogEntry: fc.Arbitrary<LogEntry> = fc.record({
-  timestamp: fc.integer({ min: MIN_TS, max: MAX_TS }).map((ms) => new Date(ms).toISOString()),
-  level: fc.constantFrom('info', 'warn', 'error', 'debug', 'verbose'),
-  logger: fc.string({ minLength: 1, maxLength: 64 }),
-  payload: fc.oneof(fc.string(), fc.integer(), fc.boolean(), fc.constant(null)),
+  stream: fc.constantFrom('stdout', 'stderr'),
+  source: fc.option(fc.string({ minLength: 1, maxLength: 64 }), { nil: undefined }),
+  markdown: fc.string({ minLength: 0, maxLength: 400 }),
 })
 
 const arbPipelineResult: fc.Arbitrary<PipelineResult> = fc
@@ -122,10 +117,8 @@ describe('LogEntry interface field integrity', () => {
       fc.property(arbLogEntry, (entry) => {
         const parsed = JSON.parse(JSON.stringify(entry)) as Record<string, unknown>
 
-        expect(typeof parsed['timestamp']).toBe('string')
-        expect(typeof parsed['level']).toBe('string')
-        expect(typeof parsed['logger']).toBe('string')
-        expect('payload' in parsed).toBe(true)
+        expect(typeof parsed['stream']).toBe('string')
+        expect(typeof parsed['markdown']).toBe('string')
       }),
       { numRuns: 200 },
     )
@@ -136,10 +129,9 @@ describe('LogEntry interface field integrity', () => {
       fc.property(arbLogEntry, (entry) => {
         const roundTripped = JSON.parse(JSON.stringify(entry)) as LogEntry
 
-        expect(roundTripped.timestamp).toBe(entry.timestamp)
-        expect(roundTripped.level).toBe(entry.level)
-        expect(roundTripped.logger).toBe(entry.logger)
-        expect(roundTripped.payload).toStrictEqual(entry.payload)
+        expect(roundTripped.stream).toBe(entry.stream)
+        expect(roundTripped.source).toBe(entry.source)
+        expect(roundTripped.markdown).toStrictEqual(entry.markdown)
       }),
       { numRuns: 200 },
     )
@@ -171,10 +163,8 @@ describe('PipelineResult nested structure integrity', () => {
 
         for (const log of parsed.logs) {
           const l = log as unknown as Record<string, unknown>
-          expect(typeof l['timestamp']).toBe('string')
-          expect(typeof l['level']).toBe('string')
-          expect(typeof l['logger']).toBe('string')
-          expect('payload' in l).toBe(true)
+          expect(typeof l['stream']).toBe('string')
+          expect(typeof l['markdown']).toBe('string')
         }
       }),
       { numRuns: 200 },

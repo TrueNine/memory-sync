@@ -1,3 +1,0 @@
-export {
-  ZedIDEConfigOutputPlugin
-} from './ZedIDEConfigOutputPlugin'

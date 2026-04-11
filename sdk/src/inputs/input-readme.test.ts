@@ -1,4 +1,4 @@
-import type {InputCapabilityContext} from '../plugins/plugin-core'
+import type {InputCapabilityContext} from '../adaptors/adaptor-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'

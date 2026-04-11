@@ -33,8 +33,8 @@ flowchart LR;
 
 | 你的目标 | 去哪里 | 原因 |
 | --- | --- | --- |
-| 在终端里同步 prompts、rules、skills、commands 或 project memory | [CLI](/docs/cli) | 真实的命令界面、schema、输出范围和清理边界都在那里核实。 |
-| 在桌面应用里编辑配置、触发执行并查看日志 | [GUI](/docs/gui) | `gui/` 负责桌面工作流，但执行仍依赖 `sdk/` 中的 `tnmsc` crate。 |
+| 在终端里运行 `tnmsc install` 来分发 prompts、rules、skills、commands 或 project memory | [CLI](/docs/cli) | 真实的命令界面、schema、输出范围和清理边界都在那里核实。 |
+| 在桌面应用里编辑配置、触发 install 并查看日志 | [GUI](/docs/gui) | `gui/` 负责桌面工作流，但 install 仍依赖 `sdk/` 中的 `tnmsc` crate。 |
 | 把 `memory-sync-mcp` 连接到支持 MCP 的宿主 | [MCP](/docs/mcp) | 这一部分重点说明 stdio 服务端、工具列表和 `workspaceDir` 语义。 |
 | 在使用任何东西之前先理解仓库架构 | [SDK](/docs/sdk) 和 [技术细节](/docs/technical-details) | 前者解释混合核心边界，后者解释事实来源模型和同步流水线。 |
 
@@ -52,7 +52,7 @@ flowchart LR;
 
 1. 阅读 [安装与要求](/docs/cli/install)。
 2. 接着看 [aindex 与 `.tnmsc.json`](/docs/quick-guide/aindex-and-config)。
-3. 然后使用 [第一次同步](/docs/cli/first-sync) 实际跑通一次完整流程。
+3. 然后使用 [第一次安装流程](/docs/cli/first-sync) 实际跑通一次完整流程。
 
 ### 如果你从 GUI 开始
 

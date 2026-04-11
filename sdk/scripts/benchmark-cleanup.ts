@@ -9,7 +9,7 @@ process.env['TNMSC_FORCE_NATIVE_BINDING'] = '1'
 delete process.env['VITEST']
 delete process.env['VITEST_WORKER_ID']
 
-const cleanupModule = await import('../src/commands/CleanupUtils')
+const cleanupModule = await import('../src/runtime/cleanup')
 const pluginCore = await import('../src/plugins/plugin-core')
 
 function createMockLogger(): ILogger {

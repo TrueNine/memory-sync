@@ -1,11 +1,11 @@
-import type {InputCapabilityContext, Project, Workspace} from '../plugins/plugin-core'
+import type {InputCapabilityContext, Project, Workspace} from '../adaptors/adaptor-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
+import {createLogger, FilePathKind, WORKSPACE_ROOT_PROJECT_NAME} from '../adaptors/adaptor-core'
 import {mergeConfig} from '../config'
-import {createLogger, FilePathKind, WORKSPACE_ROOT_PROJECT_NAME} from '../plugins/plugin-core'
 import {ProjectPromptInputCapability} from './input-project-prompt'
 
 function createProject(

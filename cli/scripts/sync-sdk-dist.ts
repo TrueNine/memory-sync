@@ -116,7 +116,7 @@ function smokeTestScriptRuntimeWorker(): void {
         cwd: tempDir,
         workspaceDir: tempDir,
         aindexDir: join(tempDir, '.aindex'),
-        command: 'execute',
+        command: 'install',
         platform: process.platform
       }),
       'utf8'

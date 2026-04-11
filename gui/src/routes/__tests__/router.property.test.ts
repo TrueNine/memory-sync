@@ -195,14 +195,14 @@ import { Route as ConfigRoute } from '@/routes/config'
 import { Route as IndexRoute } from '@/routes/index'
 import { Route as LogsRoute } from '@/routes/logs'
 import { Route as PipelineRoute } from '@/routes/pipeline'
-import { Route as PluginsRoute } from '@/routes/plugins'
+import { Route as PluginsRoute } from '@/routes/adaptors'
 import { Route as SettingsRoute } from '@/routes/settings'
 
 import ConfigPage from '@/pages/ConfigPage'
 import DashboardPage from '@/pages/DashboardPage'
 import LogsPage from '@/pages/LogsPage'
 import PipelinePage from '@/pages/PipelinePage'
-import PluginsPage from '@/pages/PluginsPage'
+import AdaptorsPage from '@/pages/AdaptorsPage'
 import SettingsPage from '@/pages/SettingsPage'
 
 /**
@@ -213,7 +213,7 @@ const ROUTE_COMPONENT_MAP = [
   { path: '/' as const, route: IndexRoute, expectedComponent: DashboardPage },
   { path: '/pipeline' as const, route: PipelineRoute, expectedComponent: PipelinePage },
   { path: '/config' as const, route: ConfigRoute, expectedComponent: ConfigPage },
-  { path: '/plugins' as const, route: PluginsRoute, expectedComponent: PluginsPage },
+  { path: '/plugins' as const, route: PluginsRoute, expectedComponent: AdaptorsPage },
   { path: '/logs' as const, route: LogsRoute, expectedComponent: LogsPage },
   { path: '/settings' as const, route: SettingsRoute, expectedComponent: SettingsPage },
 ] as const

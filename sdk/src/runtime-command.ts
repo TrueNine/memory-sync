@@ -1,1 +1,1 @@
-export type RuntimeCommand = 'execute' | 'dry-run' | 'clean' | 'plugins'
+export type RuntimeCommand = 'install' | 'dry-run' | 'clean' | 'plugins'

@@ -108,7 +108,7 @@ describe('aindex descendant deletion regression', () => {
 
 describe('collectConfiguredAindexInputRules returns empty', () => {
   it('returns empty array regardless of plugin options', () => {
-    const mockPluginOptions = {
+    const mockAdaptorOptions = {
       aindex: {
         commands: {src: 'src/commands'},
         subAgents: {src: 'src/subagents'},
@@ -117,7 +117,7 @@ describe('collectConfiguredAindexInputRules returns empty', () => {
       }
     } as unknown as Required<Parameters<typeof collectConfiguredAindexInputRules>[0]>
 
-    const rules = collectConfiguredAindexInputRules(mockPluginOptions, '/tmp/aindex', {workspaceDir: '/tmp/workspace'})
+    const rules = collectConfiguredAindexInputRules(mockAdaptorOptions, '/tmp/aindex', {workspaceDir: '/tmp/workspace'})
     expect(rules).toEqual([])
   })
 

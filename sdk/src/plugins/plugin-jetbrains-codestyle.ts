@@ -1,3 +1,0 @@
-export {
-  JetBrainsIDECodeStyleConfigOutputPlugin
-} from './JetBrainsIDECodeStyleConfigOutputPlugin'

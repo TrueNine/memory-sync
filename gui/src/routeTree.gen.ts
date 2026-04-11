@@ -10,21 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as PluginsRouteImport } from './routes/plugins'
 import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as FilesRouteImport } from './routes/files'
 import { Route as ConfigRouteImport } from './routes/config'
+import { Route as AdaptorsRouteImport } from './routes/adaptors'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PluginsRoute = PluginsRouteImport.update({
-  id: '/plugins',
-  path: '/plugins',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PipelineRoute = PipelineRouteImport.update({
@@ -47,6 +42,11 @@ const ConfigRoute = ConfigRouteImport.update({
   path: '/config',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdaptorsRoute = AdaptorsRouteImport.update({
+  id: '/adaptors',
+  path: '/adaptors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -55,69 +55,69 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/adaptors': typeof AdaptorsRoute
   '/config': typeof ConfigRoute
   '/files': typeof FilesRoute
   '/logs': typeof LogsRoute
   '/pipeline': typeof PipelineRoute
-  '/plugins': typeof PluginsRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/adaptors': typeof AdaptorsRoute
   '/config': typeof ConfigRoute
   '/files': typeof FilesRoute
   '/logs': typeof LogsRoute
   '/pipeline': typeof PipelineRoute
-  '/plugins': typeof PluginsRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/adaptors': typeof AdaptorsRoute
   '/config': typeof ConfigRoute
   '/files': typeof FilesRoute
   '/logs': typeof LogsRoute
   '/pipeline': typeof PipelineRoute
-  '/plugins': typeof PluginsRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/adaptors'
     | '/config'
     | '/files'
     | '/logs'
     | '/pipeline'
-    | '/plugins'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/adaptors'
     | '/config'
     | '/files'
     | '/logs'
     | '/pipeline'
-    | '/plugins'
     | '/settings'
   id:
     | '__root__'
     | '/'
+    | '/adaptors'
     | '/config'
     | '/files'
     | '/logs'
     | '/pipeline'
-    | '/plugins'
     | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdaptorsRoute: typeof AdaptorsRoute
   ConfigRoute: typeof ConfigRoute
   FilesRoute: typeof FilesRoute
   LogsRoute: typeof LogsRoute
   PipelineRoute: typeof PipelineRoute
-  PluginsRoute: typeof PluginsRoute
   SettingsRoute: typeof SettingsRoute
 }
 
@@ -128,13 +128,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plugins': {
-      id: '/plugins'
-      path: '/plugins'
-      fullPath: '/plugins'
-      preLoaderRoute: typeof PluginsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pipeline': {
@@ -165,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/adaptors': {
+      id: '/adaptors'
+      path: '/adaptors'
+      fullPath: '/adaptors'
+      preLoaderRoute: typeof AdaptorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -177,11 +177,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdaptorsRoute: AdaptorsRoute,
   ConfigRoute: ConfigRoute,
   FilesRoute: FilesRoute,
   LogsRoute: LogsRoute,
   PipelineRoute: PipelineRoute,
-  PluginsRoute: PluginsRoute,
   SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport

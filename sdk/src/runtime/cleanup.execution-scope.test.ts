@@ -1,14 +1,21 @@
-import type {OutputCleanContext, OutputPlugin, Project} from '../plugins/plugin-core'
+import type {OutputAdaptor, OutputCleanContext, Project} from '../adaptors/adaptor-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {afterEach, describe, expect, it} from 'vitest'
 import {
+  existsSync,
+  findBlockingNonDirectoryPath,
+  isDirectoryStructureMismatchError,
+  removeBlockingFile,
+  resolveBlockingFilePath
+} from '../../test/native-binding/desk-paths'
+import {
+  AdaptorKind,
   createEmptyExecutionPlanProjectsBySeries,
   createLogger,
-  FilePathKind,
-  PluginKind
-} from '../plugins/plugin-core'
+  FilePathKind
+} from '../adaptors/adaptor-core'
 import {collectDeletionTargets, performCleanup} from './cleanup'
 
 function createProject(workspaceDir: string | undefined, name: string, series: Project['promptSeries']): Project {
@@ -25,7 +32,7 @@ function createProject(workspaceDir: string | undefined, name: string, series: P
   }
 }
 
-function createPluginOptions(workspaceDir: string, plugins: Record<string, boolean> = {}) {
+function createAdaptorOptions(workspaceDir: string, plugins: Record<string, boolean> = {}) {
   return {
     version: '0.0.0',
     workspaceDir,
@@ -82,9 +89,9 @@ describe('cleanup execution scope filtering', () => {
       }
     }
 
-    const plugin: OutputPlugin = {
+    const plugin: OutputAdaptor = {
       name: 'ExecutionScopeCleanupPlugin',
-      type: PluginKind.Output,
+      type: AdaptorKind.Output,
       log: createLogger('ExecutionScopeCleanupPlugin', 'error'),
       declarativeOutput: true,
       outputCapabilities: {},
@@ -154,7 +161,7 @@ describe('cleanup execution scope filtering', () => {
           ]
         }
       },
-      pluginOptions: createPluginOptions(workspaceDir),
+      pluginOptions: createAdaptorOptions(workspaceDir),
       runtimeTargets: {jetbrainsCodexDirs: []},
       executionPlan,
       dryRun: true
@@ -200,10 +207,10 @@ describe('cleanup execution scope filtering', () => {
       }
     }
 
-    const plugin: OutputPlugin = {
-      name: 'TraeIDEOutputPlugin',
-      type: PluginKind.Output,
-      log: createLogger('TraeIDEOutputPlugin', 'error'),
+    const plugin: OutputAdaptor = {
+      name: 'TraeIDEOutputAdaptor',
+      type: AdaptorKind.Output,
+      log: createLogger('TraeIDEOutputAdaptor', 'error'),
       declarativeOutput: true,
       outputCapabilities: {},
       async declareOutputFiles() {
@@ -239,7 +246,7 @@ describe('cleanup execution scope filtering', () => {
           projects: []
         }
       },
-      pluginOptions: createPluginOptions(workspaceDir),
+      pluginOptions: createAdaptorOptions(workspaceDir),
       runtimeTargets: {jetbrainsCodexDirs: []},
       executionPlan: {
         scope: 'workspace',
@@ -286,10 +293,10 @@ describe('cleanup execution scope filtering', () => {
     }
 
     const outputPath = path.join(workspaceDir, '.trae', 'commands', 'review.md')
-    const plugin: OutputPlugin = {
-      name: 'TraeIDEOutputPlugin',
-      type: PluginKind.Output,
-      log: createLogger('TraeIDEOutputPlugin', 'error'),
+    const plugin: OutputAdaptor = {
+      name: 'TraeIDEOutputAdaptor',
+      type: AdaptorKind.Output,
+      log: createLogger('TraeIDEOutputAdaptor', 'error'),
       declarativeOutput: true,
       outputCapabilities: {},
       async declareOutputFiles() {
@@ -325,7 +332,7 @@ describe('cleanup execution scope filtering', () => {
           projects: []
         }
       },
-      pluginOptions: createPluginOptions(workspaceDir, {trae: true}),
+      pluginOptions: createAdaptorOptions(workspaceDir, {trae: true}),
       runtimeTargets: {jetbrainsCodexDirs: []},
       executionPlan: {
         scope: 'workspace',
@@ -350,6 +357,11 @@ describe('cleanup execution scope filtering', () => {
 
     const testGlobals = globalThis as typeof globalThis & {__TNMSC_TEST_NATIVE_BINDING__?: object}
     testGlobals.__TNMSC_TEST_NATIVE_BINDING__ = {
+      existsSync,
+      isDirectoryStructureMismatchError,
+      findBlockingNonDirectoryPath,
+      resolveBlockingFilePath,
+      removeBlockingFile,
       performCleanup() {
         return JSON.stringify({
           deletedFiles: 0,
@@ -392,7 +404,7 @@ describe('cleanup execution scope filtering', () => {
             projects: []
           }
         },
-        pluginOptions: createPluginOptions(workspaceDir),
+        pluginOptions: createAdaptorOptions(workspaceDir),
         runtimeTargets: {jetbrainsCodexDirs: []},
         executionPlan: {
           scope: 'workspace',

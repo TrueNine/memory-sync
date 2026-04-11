@@ -1,11 +1,11 @@
-import type {InputCapabilityContext} from '../plugins/plugin-core'
+import type {InputCapabilityContext} from '../adaptors/adaptor-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
+import {createLogger} from '../adaptors/adaptor-core'
 import {mergeConfig} from '../config'
-import {createLogger} from '../plugins/plugin-core'
 import {
   AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS,
   PUBLIC_GIT_EXCLUDE_TARGET_RELATIVE_PATH,
@@ -162,6 +162,8 @@ describe('public config input plugins', () => {
         ),
         path.join(aindexDir, 'public', '.idea', '.gitignore')
       ])
+      console.log('DEBUG ignore actual:', JSON.stringify(ignoreFiles.aiAgentIgnoreConfigFiles?.map((f: unknown) => f.fileName)))
+      console.log('DEBUG ignore expected:', JSON.stringify([...AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS]))
       expect(
         ignoreFiles.aiAgentIgnoreConfigFiles?.map(file => file.fileName)
       ).toEqual([...AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS])

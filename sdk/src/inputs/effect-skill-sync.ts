@@ -1,8 +1,24 @@
-import type {InputCapabilityContext, InputCollectedContext, InputEffectContext, InputEffectResult} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext, InputEffectContext, InputEffectResult} from '../adaptors/adaptor-core'
+import type {CompactedDeletionTargets, DeleteTargetsResult, NativeDeskPathsBinding} from '../core/desk-paths-types'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
-import {compactDeletionTargets} from '../cleanup/delete-targets'
-import {deleteTargets} from '../core/desk-paths'
-import {AbstractInputCapability, hasSourcePromptExtension} from '../plugins/plugin-core'
+import {AbstractInputCapability, hasSourcePromptExtension} from '../adaptors/adaptor-core'
+import {getNativeBinding} from '../core/native-binding'
+
+function compactDeletionTargets(files: readonly string[], dirs: readonly string[]): CompactedDeletionTargets {
+  const binding = getNativeBinding<NativeDeskPathsBinding>()
+  if (binding?.compactDeletionTargets == null) {
+    throw new Error('Native desk-paths binding is required. Build or install the Rust NAPI package before running tnmsc.')
+  }
+  return binding.compactDeletionTargets(files, dirs) as CompactedDeletionTargets
+}
+
+async function deleteTargets(targets: {readonly files?: readonly string[], readonly dirs?: readonly string[]}): Promise<DeleteTargetsResult> {
+  const binding = getNativeBinding<NativeDeskPathsBinding>()
+  if (binding?.deleteTargets == null) {
+    throw new Error('Native desk-paths binding is required. Build or install the Rust NAPI package before running tnmsc.')
+  }
+  return Promise.resolve(binding.deleteTargets({files: targets.files ?? [], dirs: targets.dirs ?? []}))
+}
 
 export interface SkillDistCleanupEffectResult extends InputEffectResult {
   readonly deletedFiles: string[]
@@ -62,27 +78,31 @@ export class SkillDistCleanupEffectInputCapability extends AbstractInputCapabili
     for (const fileError of result.fileErrors) {
       const normalizedError = fileError.error instanceof Error ? fileError.error : new Error(String(fileError.error))
       deleteErrors.push({path: fileError.path, error: normalizedError})
-      logger.warn(buildFileOperationDiagnostic({
-        code: 'SKILL_DIST_CLEANUP_FILE_DELETE_FAILED',
-        title: 'Skill dist cleanup could not delete a file',
-        operation: 'delete',
-        targetKind: 'skill dist file',
-        path: fileError.path,
-        error: normalizedError
-      }))
+      logger.warn(
+        buildFileOperationDiagnostic({
+          code: 'SKILL_DIST_CLEANUP_FILE_DELETE_FAILED',
+          title: 'Skill dist cleanup could not delete a file',
+          operation: 'delete',
+          targetKind: 'skill dist file',
+          path: fileError.path,
+          error: normalizedError
+        })
+      )
     }
 
     for (const dirError of result.dirErrors) {
       const normalizedError = dirError.error instanceof Error ? dirError.error : new Error(String(dirError.error))
       deleteErrors.push({path: dirError.path, error: normalizedError})
-      logger.warn(buildFileOperationDiagnostic({
-        code: 'SKILL_DIST_CLEANUP_DIRECTORY_DELETE_FAILED',
-        title: 'Skill dist cleanup could not delete a directory',
-        operation: 'delete',
-        targetKind: 'skill dist directory',
-        path: dirError.path,
-        error: normalizedError
-      }))
+      logger.warn(
+        buildFileOperationDiagnostic({
+          code: 'SKILL_DIST_CLEANUP_DIRECTORY_DELETE_FAILED',
+          title: 'Skill dist cleanup could not delete a directory',
+          operation: 'delete',
+          targetKind: 'skill dist directory',
+          path: dirError.path,
+          error: normalizedError
+        })
+      )
     }
 
     logger.debug('skill dist cleanup delete execution complete', {
@@ -124,17 +144,18 @@ export class SkillDistCleanupEffectInputCapability extends AbstractInputCapabili
     let entries: import('node:fs').Dirent[]
     try {
       entries = fs.readdirSync(currentDir, {withFileTypes: true})
-    }
-    catch (error) {
+    } catch (error) {
       errors.push({path: currentDir, error: error as Error})
-      logger.warn(buildFileOperationDiagnostic({
-        code: 'SKILL_DIST_CLEANUP_DIRECTORY_READ_FAILED',
-        title: 'Skill dist cleanup could not read a directory',
-        operation: 'read',
-        targetKind: 'skill dist directory',
-        path: currentDir,
-        error
-      }))
+      logger.warn(
+        buildFileOperationDiagnostic({
+          code: 'SKILL_DIST_CLEANUP_DIRECTORY_READ_FAILED',
+          title: 'Skill dist cleanup could not read a directory',
+          operation: 'read',
+          targetKind: 'skill dist directory',
+          path: currentDir,
+          error
+        })
+      )
       return false
     }
 

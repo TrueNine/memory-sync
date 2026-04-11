@@ -1,5 +1,7 @@
 import type {ParsedMarkdown} from '@truenine/md-compiler/markdown'
 import type {
+  AdaptorOptions,
+  AdaptorScopeRegistration,
   InputCapability,
   InputCapabilityContext,
   InputCollectedContext,
@@ -7,25 +9,23 @@ import type {
   InputEffectHandler,
   InputEffectRegistration,
   InputEffectResult,
-  PluginOptions,
-  PluginScopeRegistration,
   ResolvedBasePaths,
   YAMLFrontMatter
-} from '@/plugins/plugin-core'
+} from '@/adaptors/adaptor-core'
 
 import {spawn} from 'node:child_process'
 import * as path from 'node:path'
 import {createLogger} from '@truenine/logger'
 import {parseMarkdown} from '@truenine/md-compiler/markdown'
+import {PathPlaceholders} from '@/adaptors/adaptor-core'
 import {buildDiagnostic, diagnosticLines} from '@/diagnostics'
-import {PathPlaceholders} from '@/plugins/plugin-core'
 import {logProtectedDeletionGuardError, ProtectedDeletionGuardError} from '@/ProtectedDeletionGuard'
 import {resolveUserPath} from '@/runtime-environment'
 
 export abstract class AbstractInputCapability implements InputCapability {
   private readonly inputEffects: InputEffectRegistration[] = []
 
-  private readonly registeredScopes: PluginScopeRegistration[] = []
+  private readonly registeredScopes: AdaptorScopeRegistration[] = []
 
   readonly name: string
 
@@ -141,7 +141,7 @@ export abstract class AbstractInputCapability implements InputCapability {
     this.log.debug({action: 'registerScope', namespace, keys: Object.keys(values)})
   }
 
-  getRegisteredScopes(): readonly PluginScopeRegistration[] {
+  getRegisteredScopes(): readonly AdaptorScopeRegistration[] {
     return this.registeredScopes
   }
 
@@ -152,7 +152,7 @@ export abstract class AbstractInputCapability implements InputCapability {
 
   abstract collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> | Promise<Partial<InputCollectedContext>>
 
-  protected resolveBasePaths(options: Required<PluginOptions>): ResolvedBasePaths {
+  protected resolveBasePaths(options: Required<AdaptorOptions>): ResolvedBasePaths {
     const workspaceDirRaw = options.workspaceDir
     const workspaceDir = this.resolvePath(workspaceDirRaw, '')
 

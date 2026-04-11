@@ -1,5 +1,5 @@
 import type {ILogger} from '@truenine/logger'
-import type {OutputCollectedContext, PluginOptions} from './plugins/plugin-core'
+import type {AdaptorOptions, OutputCollectedContext} from './adaptors/adaptor-core'
 import type {PublicDefinitionResolveOptions} from './public-config-paths'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -286,7 +286,7 @@ export function collectKnownAindexInputConfigPaths(
 }
 
 export function collectConfiguredAindexInputRules(
-  pluginOptions: Required<PluginOptions>,
+  pluginOptions: Required<AdaptorOptions>,
   aindexDir: string,
   resolveOptions?: PublicDefinitionResolveOptions
 ): ProtectedPathRule[] {
@@ -300,7 +300,7 @@ export function collectConfiguredAindexInputRules(
 }
 
 export function collectConfiguredAindexInputPaths(
-  pluginOptions: Required<PluginOptions>,
+  pluginOptions: Required<AdaptorOptions>,
   aindexDir: string,
   resolveOptions?: PublicDefinitionResolveOptions
 ): string[] {

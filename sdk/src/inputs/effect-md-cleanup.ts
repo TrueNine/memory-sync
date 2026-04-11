@@ -3,10 +3,10 @@ import type {
   InputCollectedContext,
   InputEffectContext,
   InputEffectResult
-} from '../plugins/plugin-core'
+} from '../adaptors/adaptor-core'
 import {resolveAindexProjectSeriesConfigs} from '@/aindex-project-series'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
-import {AbstractInputCapability} from '../plugins/plugin-core'
+import {AbstractInputCapability} from '../adaptors/adaptor-core'
 
 export interface WhitespaceCleanupEffectResult extends InputEffectResult {
   readonly modifiedFiles: string[]

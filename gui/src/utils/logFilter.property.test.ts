@@ -7,31 +7,18 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
-import type { LogEntry, LogLevel } from '@/utils/logFilter'
-import { filterLogsByLevel, isLevelAtLeast } from '@/utils/logFilter'
+import type { LogEntry, LogStream } from '@/utils/logFilter'
+import { filterLogsByStream, isMatchingStream } from '@/utils/logFilter'
 
-const LOG_LEVELS: readonly LogLevel[] = ['error', 'warn', 'info', 'debug'] as const
+const LOG_STREAMS: readonly LogStream[] = ['stdout', 'stderr'] as const
 
-const LOG_LEVEL_SEVERITY: Record<LogLevel, number> = {
-  error: 0,
-  warn: 1,
-  info: 2,
-  debug: 3,
-}
-
-/** Arbitrary for a valid LogLevel */
-const arbLogLevel: fc.Arbitrary<LogLevel> = fc.constantFrom(...LOG_LEVELS)
-
-/** Arbitrary for a LogEntry with a random level. Use integer timestamps to avoid Invalid Date issues. */
-const arbTimestamp: fc.Arbitrary<string> = fc
-  .integer({ min: 946684800000, max: 4102444799000 }) // 2000-01-01 to 2099-12-31
-  .map((ms) => new Date(ms).toISOString())
+/** Arbitrary for a valid LogStream */
+const arbLogStream: fc.Arbitrary<LogStream> = fc.constantFrom(...LOG_STREAMS)
 
 const arbLogEntry: fc.Arbitrary<LogEntry> = fc.record({
-  timestamp: arbTimestamp,
-  level: arbLogLevel,
-  namespace: fc.string({ minLength: 1, maxLength: 20 }),
-  message: fc.string({ minLength: 0, maxLength: 100 }),
+  stream: arbLogStream,
+  source: fc.option(fc.string({ minLength: 1, maxLength: 20 }), { nil: undefined }),
+  markdown: fc.string({ minLength: 0, maxLength: 200 }),
 })
 
 /** Arbitrary for a non-empty list of LogEntry */
@@ -44,14 +31,13 @@ describe('Property 6: 日志级别过滤', () => {
    * For any list of log entries and any filter level,
    * every entry in the filtered result has severity >= the filter level.
    */
-  it('filtered result only contains entries with severity >= filter level', () => {
+  it('filtered result only contains entries from the selected stream', () => {
     fc.assert(
-      fc.property(arbLogEntries, arbLogLevel, (entries, minLevel) => {
-        const filtered = filterLogsByLevel(entries, minLevel)
+      fc.property(arbLogEntries, arbLogStream, (entries, stream) => {
+        const filtered = filterLogsByStream(entries, stream)
 
         for (const entry of filtered) {
-          expect(isLevelAtLeast(entry.level, minLevel)).toBe(true)
-          expect(LOG_LEVEL_SEVERITY[entry.level]).toBeLessThanOrEqual(LOG_LEVEL_SEVERITY[minLevel])
+          expect(isMatchingStream(entry.stream, stream)).toBe(true)
         }
       }),
       { numRuns: 200 },
@@ -67,8 +53,8 @@ describe('Property 6: 日志级别过滤', () => {
    */
   it('relative order of entries is preserved after filtering', () => {
     fc.assert(
-      fc.property(arbLogEntries, arbLogLevel, (entries, minLevel) => {
-        const filtered = filterLogsByLevel(entries, minLevel)
+      fc.property(arbLogEntries, arbLogStream, (entries, stream) => {
+        const filtered = filterLogsByStream(entries, stream)
 
         // Verify filtered is a subsequence of entries
         let j = 0
@@ -92,9 +78,9 @@ describe('Property 6: 日志级别过滤', () => {
    */
   it('no qualifying entries are dropped', () => {
     fc.assert(
-      fc.property(arbLogEntries, arbLogLevel, (entries, minLevel) => {
-        const filtered = filterLogsByLevel(entries, minLevel)
-        const expectedCount = entries.filter((e) => isLevelAtLeast(e.level, minLevel)).length
+      fc.property(arbLogEntries, arbLogStream, (entries, stream) => {
+        const filtered = filterLogsByStream(entries, stream)
+        const expectedCount = entries.filter((entry) => isMatchingStream(entry.stream, stream)).length
         expect(filtered.length).toBe(expectedCount)
       }),
       { numRuns: 200 },

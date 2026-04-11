@@ -1,11 +1,11 @@
-import type {InputCapabilityContext} from '../plugins/plugin-core'
+import type {InputCapabilityContext} from '../adaptors/adaptor-core'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {describe, expect, it} from 'vitest'
+import {createLogger} from '../adaptors/adaptor-core'
 import {mergeConfig} from '../config'
-import {createLogger} from '../plugins/plugin-core'
 import {SubAgentInputCapability} from './input-subagent'
 
 function createContext(tempWorkspace: string): InputCapabilityContext {

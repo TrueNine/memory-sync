@@ -6,10 +6,14 @@ import type {
   FrontMatterOptions,
   UserConfigFile,
   WindowsOptions
-} from './plugins/plugin-core'
+} from './adaptors/adaptor-core/ConfigTypes.schema'
 import * as fs from 'node:fs'
 import process from 'node:process'
 import {createLogger} from '@truenine/logger'
+import {
+  getSupportedPluginConfigKeysMessage,
+  ZUserConfigFile
+} from './adaptors/adaptor-core/ConfigTypes.schema'
 import {
   buildConfigDiagnostic,
   buildFileOperationDiagnostic,
@@ -17,10 +21,6 @@ import {
   splitDiagnosticText,
   toErrorMessage
 } from './diagnostics'
-import {
-  getSupportedPluginConfigKeysMessage,
-  ZUserConfigFile
-} from './plugins/plugin-core'
 import {
   getRequiredGlobalConfigPath,
   resolveRuntimeEnvironment,
@@ -58,7 +58,7 @@ export class ConfigLoader {
 
     if (!runtimeEnvironment.isWsl) return [getRequiredGlobalConfigPath()]
 
-    this.logger.info('wsl environment detected', {
+    this.logger.debug('WSL environment detected', {
       effectiveHomeDir: runtimeEnvironment.effectiveHomeDir
     })
     if (runtimeEnvironment.selectedGlobalConfigPath == null) {
@@ -66,7 +66,7 @@ export class ConfigLoader {
         `WSL host config file not found under "${runtimeEnvironment.windowsUsersRoot}/*/${DEFAULT_GLOBAL_CONFIG_DIR}/${DEFAULT_CONFIG_FILE_NAME}".`
       )
     }
-    this.logger.info('using wsl host global config', {
+    this.logger.debug('Using WSL host global config', {
       path: runtimeEnvironment.selectedGlobalConfigPath
     })
     return [getRequiredGlobalConfigPath()]

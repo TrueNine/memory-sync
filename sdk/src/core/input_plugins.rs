@@ -1,4 +1,4 @@
-﻿#![deny(clippy::all)]
+#![deny(clippy::all)]
 
 //! All 17 input plugins for the tnmsc pipeline.
 //!
@@ -7,3 +7,23 @@
 //! - MDX directory scanners (fast-command, sub-agent, rule, global-memory)
 //! - Complex plugins (shadow-project, skill, project-prompt, readme)
 //! - Effect plugins (md-cleanup, orphan-cleanup, skill-dist-cleanup)
+
+pub mod aindex;
+pub mod command;
+pub mod editorconfig;
+pub mod git_exclude;
+pub mod gitignore;
+pub mod global_memory;
+pub mod jetbrains_config;
+pub mod localized_reader;
+pub mod project_prompt;
+pub mod prompt_artifact;
+pub mod public_config;
+pub mod readme;
+pub mod rule;
+pub mod shared_ignore;
+pub mod skill;
+pub mod subagent;
+pub mod vscode_config;
+pub mod workspace;
+pub mod zed_config;

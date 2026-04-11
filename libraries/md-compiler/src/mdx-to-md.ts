@@ -1,14 +1,5 @@
 import type {ExportMetadata, MdxToMdOptions, MdxToMdResult, MetadataSource} from '@/compiler'
-import {readdirSync} from 'node:fs'
-import {createRequire} from 'node:module'
-import {dirname, join} from 'node:path'
-import process from 'node:process'
-import {mdxToMd as fallbackMdxToMd} from './compiler/mdx-to-md'
-import {shouldSkipNativeBinding} from './native-binding'
-
-interface NapiMdCompilerModule {
-  compileMdxToMd: (content: string, optionsJson?: string | null) => string
-}
+import {getNapiMdCompilerBinding} from './native-binding'
 
 type NativeCompileMetadata = ExportMetadata & {
   readonly source: MetadataSource
@@ -18,98 +9,6 @@ interface NativeCompileResult {
   readonly content: string
   readonly metadata?: NativeCompileMetadata
 }
-
-const CODE_FENCE_PATTERN = /^\s*(```|~~~)/u
-const LINE_SPLIT_PATTERN = /\r?\n/u
-const RESIDUAL_MODULE_SYNTAX_PATTERNS = [
-  /^\s*export\s+default\b/u,
-  /^\s*export\s+const\b/u,
-  /^\s*import\b/u
-]
-
-let napiBinding: NapiMdCompilerModule | null = null
-
-function isNapiMdCompilerModule(value: unknown): value is NapiMdCompilerModule {
-  if (value == null || typeof value !== 'object') return false
-
-  const candidate = value as Partial<NapiMdCompilerModule>
-  return typeof candidate.compileMdxToMd === 'function'
-}
-
-function loadBindingFromCliBinaryPackage(
-  requireFn: ReturnType<typeof createRequire>,
-  suffix: string
-): NapiMdCompilerModule | null {
-  const packageName = `@truenine/memory-sync-cli-${suffix}`
-
-  try {
-    const pkg = requireFn(packageName) as Record<string, unknown>
-    const binding = pkg['mdCompiler']
-
-    if (isNapiMdCompilerModule(binding)) return binding
-  }
-  catch {
-  } // Fall through to the package-directory probe below.
-
-  try {
-    const packageJsonPath = requireFn.resolve(`${packageName}/package.json`)
-    const packageDir = dirname(packageJsonPath)
-    const bindingCandidates = readdirSync(packageDir)
-      .filter(fileName => fileName.startsWith('napi-md-compiler.') && fileName.endsWith('.node'))
-      .sort()
-
-    for (const candidateFile of bindingCandidates) {
-      const binding = requireFn(join(packageDir, candidateFile)) as unknown
-      if (isNapiMdCompilerModule(binding)) return binding
-    }
-  }
-  catch {
-    return null
-  }
-
-  return null
-}
-
-function loadLocalBinding(
-  requireFn: ReturnType<typeof createRequire>,
-  local: string
-): NapiMdCompilerModule | null {
-  const candidates = [
-    `./${local}.node`,
-    `../dist/${local}.node`
-  ]
-
-  for (const candidate of candidates) {
-    try {
-      const binding = requireFn(candidate) as unknown
-      if (isNapiMdCompilerModule(binding)) return binding
-    }
-    catch {
-    }
-  }
-
-  return null
-}
-
-try {
-  if (!shouldSkipNativeBinding()) {
-    const require = createRequire(import.meta.url)
-    const {platform, arch} = process
-    const platforms: Record<string, [local: string, suffix: string]> = {
-      'win32-x64': ['napi-md-compiler.win32-x64-msvc', 'win32-x64-msvc'],
-      'linux-x64': ['napi-md-compiler.linux-x64-gnu', 'linux-x64-gnu'],
-      'linux-arm64': ['napi-md-compiler.linux-arm64-gnu', 'linux-arm64-gnu'],
-      'darwin-arm64': ['napi-md-compiler.darwin-arm64', 'darwin-arm64'],
-      'darwin-x64': ['napi-md-compiler.darwin-x64', 'darwin-x64']
-    }
-    const entry = platforms[`${platform}-${arch}`]
-    if (entry != null) {
-      const [local, suffix] = entry
-      napiBinding = loadLocalBinding(require, local) ?? loadBindingFromCliBinaryPackage(require, suffix)
-    }
-  }
-}
-catch {}
 
 export async function mdxToMd(
   content: string,
@@ -125,56 +24,20 @@ export async function mdxToMd(
   content: string,
   options?: MdxToMdOptions
 ): Promise<string | MdxToMdResult> {
-  const metadataOptions
-    = options?.extractMetadata === true
-      ? {
-        ...options,
-        extractMetadata: true
-      } satisfies MdxToMdOptions & {extractMetadata: true}
-      : null
+  const raw = getNapiMdCompilerBinding().compileMdxToMd(content, serializeOptions(options))
+  const result = JSON.parse(raw) as NativeCompileResult
 
-  const nativeResult = tryNativeCompile(content, options)
-  if (nativeResult != null) {
-    if (metadataOptions != null) {
-      const {metadata} = nativeResult
-      if (metadata == null || hasResidualModuleSyntax(nativeResult.content)) return fallbackMdxToMd(content, metadataOptions)
-
-      return {
-        content: nativeResult.content,
-        metadata
+  if (options?.extractMetadata === true) {
+    return {
+      content: result.content,
+      metadata: result.metadata ?? {
+        fields: {},
+        source: 'yaml'
       }
     }
-
-    return nativeResult.content
   }
 
-  if (metadataOptions != null) return fallbackMdxToMd(content, metadataOptions)
-
-  if (options == null) return fallbackMdxToMd(content)
-
-  const fallbackOptions: MdxToMdOptions & {extractMetadata: false} = {
-    ...options,
-    extractMetadata: false
-  }
-
-  return fallbackMdxToMd(content, fallbackOptions)
-}
-
-function tryNativeCompile(
-  content: string,
-  options?: MdxToMdOptions
-): NativeCompileResult | null {
-  if (napiBinding == null) return null
-
-  try {
-    const raw = napiBinding.compileMdxToMd(content, serializeOptions(options))
-    const result = JSON.parse(raw) as NativeCompileResult
-    if (options?.extractMetadata === true && result.metadata == null) return null
-    return result
-  }
-  catch {
-    return null
-  }
+  return result.content
 }
 
 function serializeOptions(options?: MdxToMdOptions): string | null {
@@ -196,23 +59,4 @@ function serializeOptions(options?: MdxToMdOptions): string | null {
   }
 
   return JSON.stringify(normalized)
-}
-
-function hasResidualModuleSyntax(content: string): boolean {
-  let activeFence: string | undefined
-
-  for (const line of content.split(LINE_SPLIT_PATTERN)) {
-    const fenceMatch = CODE_FENCE_PATTERN.exec(line)
-    if (fenceMatch?.[1] != null) {
-      const marker = fenceMatch[1]
-      if (activeFence == null) activeFence = marker
-      else if (activeFence === marker) activeFence = void 0
-      continue
-    }
-
-    if (activeFence != null) continue
-    if (RESIDUAL_MODULE_SYNTAX_PATTERNS.some(pattern => pattern.test(line))) return true
-  }
-
-  return false
 }

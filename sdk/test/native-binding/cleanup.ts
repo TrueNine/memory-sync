@@ -1,20 +1,17 @@
 import type {
   ILogger,
+  OutputAdaptor,
   OutputCleanContext,
   OutputCleanupDeclarations,
   OutputCleanupPathDeclaration,
-  OutputFileDeclaration,
-  OutputPlugin
-} from '../../src/plugins/plugin-core'
+  OutputFileDeclaration
+} from '../../src/adaptors/adaptor-core'
 import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../../src/ProtectedDeletionGuard.ts'
 import type {DeletionError} from './desk-paths'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
-import {compactDeletionTargets} from '../../src/cleanup/delete-targets.ts'
-import {planWorkspaceEmptyDirectoryCleanup} from '../../src/cleanup/empty-directories.ts'
 import {buildDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '../../src/diagnostics.ts'
-import {collectAllPluginOutputs} from '../../src/plugins/plugin-core'
 import {
   buildComparisonKeys,
   collectProjectRoots,
@@ -24,7 +21,7 @@ import {
   partitionDeletionTargets,
   resolveAbsolutePath
 } from '../../src/ProtectedDeletionGuard.ts'
-import {deleteEmptyDirectories, deleteTargets as deskDeleteTargets} from './desk-paths'
+import {compactDeletionTargets, deleteEmptyDirectories, deleteTargets as deskDeleteTargets, planWorkspaceEmptyDirectoryCleanup} from './desk-paths'
 
 /**
  * Result of cleanup operation
@@ -98,18 +95,18 @@ function shouldExcludeCleanupMatch(matchedPath: string, target: OutputCleanupPat
   return target.excludeBasenames.includes(basename)
 }
 
-async function collectPluginCleanupDeclarations(plugin: OutputPlugin, cleanCtx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
+async function collectPluginCleanupDeclarations(plugin: OutputAdaptor, cleanCtx: OutputCleanContext): Promise<OutputCleanupDeclarations> {
   if (plugin.declareCleanupPaths == null) return {}
   return plugin.declareCleanupPaths({...cleanCtx, dryRun: true})
 }
 
 async function collectPluginCleanupSnapshot(
-  plugin: OutputPlugin,
+  plugin: OutputAdaptor,
   cleanCtx: OutputCleanContext,
-  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
+  predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<{
-  readonly plugin: OutputPlugin
-  readonly outputs: Awaited<ReturnType<OutputPlugin['declareOutputFiles']>>
+  readonly plugin: OutputAdaptor
+  readonly outputs: Awaited<ReturnType<OutputAdaptor['declareOutputFiles']>>
   readonly cleanup: OutputCleanupDeclarations
 }> {
   const existingOutputDeclarations = predeclaredOutputs?.get(plugin)
@@ -196,9 +193,9 @@ function logCleanupProtectionConflicts(logger: ILogger, conflicts: readonly Clea
  * Collect deletion targets from enabled output plugins.
  */
 async function collectCleanupTargets(
-  outputPlugins: readonly OutputPlugin[],
+  outputPlugins: readonly OutputAdaptor[],
   cleanCtx: OutputCleanContext,
-  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
+  predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<CleanupTargetCollections> {
   const deleteFiles = new Set<string>()
   const deleteDirs = new Set<string>()
@@ -303,13 +300,11 @@ async function collectCleanupTargets(
   const dirPartition = partitionDeletionTargets([...deleteDirs], guard)
 
   const compactedTargets = compactDeletionTargets(filePartition.safePaths, dirPartition.safePaths)
-  const emptyDirectoryPlan = planWorkspaceEmptyDirectoryCleanup({
-    fs,
-    path,
-    workspaceDir: cleanCtx.collectedOutputContext.workspace.directory.path,
-    filesToDelete: compactedTargets.files,
-    dirsToDelete: compactedTargets.dirs
-  })
+  const emptyDirectoryPlan = planWorkspaceEmptyDirectoryCleanup(
+    cleanCtx.collectedOutputContext.workspace.directory.path,
+    compactedTargets.files,
+    compactedTargets.dirs
+  )
 
   return {
     filesToDelete: compactedTargets.files,
@@ -322,9 +317,9 @@ async function collectCleanupTargets(
 }
 
 export async function collectDeletionTargets(
-  outputPlugins: readonly OutputPlugin[],
+  outputPlugins: readonly OutputAdaptor[],
   cleanCtx: OutputCleanContext,
-  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
+  predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<{
   filesToDelete: string[]
   dirsToDelete: string[]
@@ -412,24 +407,14 @@ function logCleanupPlanDiagnostics(logger: ILogger, targets: CleanupTargetCollec
 /**
  * Perform cleanup operation for output plugins.
  * This is the main reusable cleanup function that can be called from both
- * CleanCommand and ExecuteCommand (for pre-cleanup).
+ * CleanCommand and InstallCommand (for pre-cleanup).
  */
 export async function performCleanup(
-  outputPlugins: readonly OutputPlugin[],
+  outputPlugins: readonly OutputAdaptor[],
   cleanCtx: OutputCleanContext,
   logger: ILogger,
-  predeclaredOutputs?: ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]>
+  predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<CleanupResult> {
-  if (predeclaredOutputs != null) {
-    const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx, predeclaredOutputs)
-    logger.debug('Collected outputs for cleanup', {
-      projectDirs: outputs.projectDirs.length,
-      projectFiles: outputs.projectFiles.length,
-      globalDirs: outputs.globalDirs.length,
-      globalFiles: outputs.globalFiles.length
-    })
-  }
-
   let targets: CleanupTargetCollections
   try {
     targets = await collectCleanupTargets(outputPlugins, cleanCtx, predeclaredOutputs)

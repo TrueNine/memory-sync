@@ -1,3 +1,0 @@
-export {
-  ClaudeCodeCLIOutputPlugin
-} from './ClaudeCodeCLIOutputPlugin'

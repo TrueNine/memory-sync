@@ -2,53 +2,50 @@ import type {
   AindexConfig,
   CodeStylesOptions,
   ConfigLoaderOptions,
-  InputCollectedContext,
-  OutputCollectedContext,
-  OutputPlugin,
-  PluginOptions,
   PluginsConfig,
   UserConfigFile,
   WindowsOptions
-} from './plugins/plugin-core'
+} from './adaptors/adaptor-core/ConfigTypes.schema'
+import type {InputCollectedContext, OutputCollectedContext} from './adaptors/adaptor-core/InputTypes'
+import type {AdaptorOptions, OutputAdaptor} from './adaptors/adaptor-core/plugin'
 import type {RuntimeCommand} from './runtime-command'
 import * as path from 'node:path'
 import process from 'node:process'
 import {createLogger} from '@truenine/logger'
+import {buildDefaultAindexConfig, mergeAindexConfig} from './adaptors/adaptor-core/AindexConfigDefaults'
+import {
+  buildDefaultCodeStylesOptions,
+  mergeCodeStylesOptions
+} from './adaptors/adaptor-core/ConfigTypes.schema'
+import {PathPlaceholders} from './adaptors/adaptor-core/constants'
+import {FilePathKind} from './adaptors/adaptor-core/enums'
+import {toOutputCollectedContext} from './adaptors/adaptor-core/InputTypes'
 import {checkVersionControl} from './Aindex'
 import {getConfigLoader} from './ConfigLoader'
 import {resolveExecutionPlan} from './execution-plan'
 import {collectInputContext} from './inputs/runtime'
-import {
-  buildDefaultAindexConfig,
-  buildDefaultCodeStylesOptions,
-  FilePathKind,
-  mergeAindexConfig,
-  mergeCodeStylesOptions,
-  PathPlaceholders,
-  toOutputCollectedContext
-} from './plugins/plugin-core'
 import {resolveUserPath} from './runtime-environment'
 
 export interface PipelineConfig {
   readonly context: OutputCollectedContext
-  readonly outputPlugins: readonly OutputPlugin[]
-  readonly userConfigOptions: Required<PluginOptions>
+  readonly outputPlugins: readonly OutputAdaptor[]
+  readonly userConfigOptions: Required<AdaptorOptions>
   readonly executionPlan: import('./execution-plan').ExecutionPlan
 }
 
 interface ResolvedPluginSetup {
-  readonly mergedOptions: Required<PluginOptions>
-  readonly outputPlugins: readonly OutputPlugin[]
+  readonly mergedOptions: Required<AdaptorOptions>
+  readonly outputPlugins: readonly OutputAdaptor[]
   readonly userConfigFile?: UserConfigFile
 }
 
 const DEFAULT_AINDEX: Required<AindexConfig> = buildDefaultAindexConfig()
 
-type MergeablePluginOptions = Omit<Required<PluginOptions>, 'workspaceDir'> & {
+type MergeableAdaptorOptions = Omit<Required<AdaptorOptions>, 'workspaceDir'> & {
   readonly workspaceDir?: string
 }
 
-const DEFAULT_OPTIONS: Omit<Required<PluginOptions>, 'workspaceDir'> = {
+const DEFAULT_OPTIONS: Omit<Required<AdaptorOptions>, 'workspaceDir'> = {
   version: '0.0.0',
   logLevel: 'info',
   aindex: DEFAULT_AINDEX,
@@ -68,7 +65,7 @@ function resolveWorkspaceDirOption(workspaceDir: string | undefined, fallbackWor
   return path.resolve(fallbackWorkspaceDir ?? process.cwd())
 }
 
-export function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<PluginOptions> {
+export function userConfigToAdaptorOptions(userConfig: UserConfigFile): Partial<AdaptorOptions> {
   return {
     ...userConfig.version != null ? {version: userConfig.version} : {},
     ...userConfig.workspaceDir != null ? {workspaceDir: userConfig.workspaceDir} : {},
@@ -81,9 +78,9 @@ export function userConfigToPluginOptions(userConfig: UserConfigFile): Partial<P
 }
 
 export interface DefineConfigOptions {
-  readonly pluginOptions?: PluginOptions
+  readonly pluginOptions?: AdaptorOptions
 
-  readonly outputPlugins?: readonly OutputPlugin[]
+  readonly outputPlugins?: readonly OutputAdaptor[]
 
   readonly configLoaderOptions?: ConfigLoaderOptions
 
@@ -96,16 +93,16 @@ export interface DefineConfigOptions {
   readonly runtimeCommand?: RuntimeCommand
 }
 
-export function mergeConfig(...configs: Partial<PluginOptions>[]): Required<PluginOptions> {
+export function mergeConfig(...configs: Partial<AdaptorOptions>[]): Required<AdaptorOptions> {
   return mergeConfigForRuntime(process.cwd(), ...configs)
 }
 
 export function mergeConfigForRuntime(
   fallbackWorkspaceDir: string | undefined,
-  ...configs: Partial<PluginOptions>[]
-): Required<PluginOptions> {
-  const initialConfig: MergeablePluginOptions = {...DEFAULT_OPTIONS}
-  const mergedConfig = configs.reduce((acc: MergeablePluginOptions, config) => mergeTwoConfigs(acc, config), initialConfig)
+  ...configs: Partial<AdaptorOptions>[]
+): Required<AdaptorOptions> {
+  const initialConfig: MergeableAdaptorOptions = {...DEFAULT_OPTIONS}
+  const mergedConfig = configs.reduce((acc: MergeableAdaptorOptions, config) => mergeTwoConfigs(acc, config), initialConfig)
 
   return {
     ...mergedConfig,
@@ -113,7 +110,7 @@ export function mergeConfigForRuntime(
   }
 }
 
-function mergeTwoConfigs(base: MergeablePluginOptions, override: Partial<PluginOptions>): MergeablePluginOptions {
+function mergeTwoConfigs(base: MergeableAdaptorOptions, override: Partial<AdaptorOptions>): MergeableAdaptorOptions {
   const overrideCodeStyles = override.codeStyles
   const overrideFrontMatter = override.frontMatter
   const overridePlugins = override.plugins
@@ -131,16 +128,16 @@ function mergeTwoConfigs(base: MergeablePluginOptions, override: Partial<PluginO
 }
 
 function mergeResolvedCodeStylesOptions(
-  base: Required<PluginOptions>['codeStyles'],
+  base: Required<AdaptorOptions>['codeStyles'],
   override?: CodeStylesOptions
-): Required<PluginOptions>['codeStyles'] {
+): Required<AdaptorOptions>['codeStyles'] {
   return mergeCodeStylesOptions(base, override)
 }
 
 function mergeFrontMatterOptions(
-  base: Required<PluginOptions>['frontMatter'],
-  override?: PluginOptions['frontMatter']
-): Required<PluginOptions>['frontMatter'] {
+  base: Required<AdaptorOptions>['frontMatter'],
+  override?: AdaptorOptions['frontMatter']
+): Required<AdaptorOptions>['frontMatter'] {
   if (override == null) return base
   return {
     ...base,
@@ -178,7 +175,7 @@ function mergeWindowsOptions(base?: WindowsOptions, override?: WindowsOptions): 
   }
 }
 
-function isDefineConfigOptions(options: PluginOptions | DefineConfigOptions): options is DefineConfigOptions {
+function isDefineConfigOptions(options: AdaptorOptions | DefineConfigOptions): options is DefineConfigOptions {
   return 'pluginOptions' in options
     || 'configLoaderOptions' in options
     || 'loadUserConfig' in options
@@ -197,7 +194,7 @@ function resolvePathForMinimalContext(rawPath: string, workspaceDir: string): st
   return path.normalize(resolveUserPath(resolvedPath))
 }
 
-function createMinimalOutputCollectedContext(options: Required<PluginOptions>): OutputCollectedContext {
+function createMinimalOutputCollectedContext(options: Required<AdaptorOptions>): OutputCollectedContext {
   const workspaceDir = resolvePathForMinimalContext(options.workspaceDir, '')
   const aindexDir = path.join(workspaceDir, options.aindex.dir)
 
@@ -218,7 +215,7 @@ function shouldUsePluginsFastPath(runtimeCommand?: RuntimeCommand): boolean {
   return runtimeCommand === 'plugins'
 }
 
-async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions = {}): Promise<
+async function resolvePluginSetup(options: AdaptorOptions | DefineConfigOptions = {}): Promise<
   ResolvedPluginSetup & {
     readonly executionCwd: string
     readonly runtimeCommand?: RuntimeCommand
@@ -229,8 +226,8 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
   let shouldLoadUserConfig: boolean,
     cwd: string | undefined,
     executionCwd: string | undefined,
-    pluginOptions: PluginOptions,
-    outputPlugins: readonly OutputPlugin[],
+    pluginOptions: AdaptorOptions,
+    outputPlugins: readonly OutputAdaptor[],
     configLoaderOptions: ConfigLoaderOptions | undefined,
     runtimeCommand: RuntimeCommand | undefined
 
@@ -259,7 +256,7 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
     runtimeCommand = void 0
   }
 
-  let userConfigOptions: Partial<PluginOptions> = {}
+  let userConfigOptions: Partial<AdaptorOptions> = {}
   let userConfigFound = false
   let userConfigSources: readonly string[] = []
   let userConfigFile: UserConfigFile | undefined
@@ -270,7 +267,7 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
       userConfigFound = userConfigResult.found
       userConfigSources = userConfigResult.sources
       if (userConfigResult.found) {
-        userConfigOptions = userConfigToPluginOptions(userConfigResult.config)
+        userConfigOptions = userConfigToAdaptorOptions(userConfigResult.config)
         userConfigFile = userConfigResult.config
       }
     } catch (error) {
@@ -285,11 +282,11 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
   const logger = createLogger('defineConfig', logLevel)
 
   if (userConfigFound) {
-    logger.info('user config loaded', {sources: userConfigSources})
+    logger.debug('User config loaded', {sources: userConfigSources})
   } else {
-    logger.info('no user config found, using defaults/programmatic options', {
-      workspaceDir: mergedOptions.workspaceDir,
-      aindexDir: mergedOptions.aindex.dir,
+    logger.debug('Using defaults and programmatic config', {
+      workspace: mergedOptions.workspaceDir,
+      aindex: mergedOptions.aindex.dir,
       logLevel: mergedOptions.logLevel
     })
   }
@@ -305,7 +302,7 @@ async function resolvePluginSetup(options: PluginOptions | DefineConfigOptions =
   }
 }
 
-export async function defineConfig(options: PluginOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
+export async function defineConfig(options: AdaptorOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
   const {mergedOptions, outputPlugins, userConfigFile, runtimeCommand, executionCwd} = await resolvePluginSetup(options)
   const logger = createLogger('defineConfig', mergedOptions.logLevel)
 

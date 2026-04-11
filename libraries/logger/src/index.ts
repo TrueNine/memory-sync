@@ -35,11 +35,15 @@ export interface ILogger {
 
 type ActiveLogLevel = Exclude<LogLevel, 'silent'>
 type PlainLogLevel = Extract<ActiveLogLevel, 'info' | 'debug' | 'trace'>
-interface PlatformBinding {readonly local: string, readonly suffix: string}
+
+interface PlatformBinding {
+  readonly local: string
+  readonly suffix: string
+}
 
 interface NapiLoggerInstance {
-  log: (level: ActiveLogLevel, message: string, meta?: string) => void
-  logDiagnostic: (level: LoggerDiagnosticLevel, diagnosticJson: string) => void
+  emit: (level: ActiveLogLevel, message: unknown, meta?: readonly unknown[]) => void
+  emitDiagnostic: (level: LoggerDiagnosticLevel, diagnostic: LoggerDiagnosticInput) => void
 }
 
 interface NapiLoggerModule {
@@ -61,23 +65,9 @@ const PLATFORM_BINDINGS: Record<string, PlatformBinding> = {
 
 const DIAGNOSTIC_LOG_LEVELS: readonly LoggerDiagnosticLevel[] = ['error', 'warn', 'fatal']
 const PLAIN_LOG_LEVELS: readonly PlainLogLevel[] = ['info', 'debug', 'trace']
-const LOG_LEVEL_PRIORITY: Readonly<Record<LogLevel, number>> = {
-  silent: 0,
-  fatal: 1,
-  error: 2,
-  warn: 3,
-  info: 4,
-  debug: 5,
-  trace: 6
-}
 
 let napiBinding: NapiLoggerModule | undefined,
   napiBindingError: Error | undefined
-
-const LOGGER_TIMING_STATE = {
-  processStartNs: process.hrtime.bigint(),
-  lastLogNs: void 0 as bigint | undefined
-}
 
 function isNapiLoggerModule(value: unknown): value is NapiLoggerModule {
   if (value == null || typeof value !== 'object') return false
@@ -105,7 +95,7 @@ function formatBindingLoadError(localError: unknown, packageError: unknown, suff
   return new Error(
     [
       'Failed to load @truenine/logger native binding.',
-      `Tried local binary "./${PLATFORM_BINDINGS[`${process.platform}-${process.arch}`]?.local ?? 'unknown'}.node" and package "@truenine/memory-sync-cli-${suffix}".`,
+      `Tried local binaries next to the source/bundle and package "@truenine/memory-sync-cli-${suffix}".`,
       `Local error: ${localMessage}`,
       `Package error: ${packageMessage}`,
       'Run `pnpm -F @truenine/logger run build` to build the native module.'
@@ -126,7 +116,7 @@ function loadBindingFromCliBinaryPackage(
     if (isNapiLoggerModule(loggerModule)) return loggerModule
   }
   catch {
-  } // Fall through to the package-directory probe below.
+  }
 
   const packageJsonPath = runtimeRequire.resolve(`${packageName}/package.json`)
   const packageDir = dirname(packageJsonPath)
@@ -144,20 +134,25 @@ function loadBindingFromCliBinaryPackage(
 }
 
 function loadNativeBinding(): NapiLoggerModule {
-  const moduleUrl = import.meta.url
-  const runtimeRequire = createRequire(moduleUrl)
+  const runtimeRequire = createRequire(import.meta.url)
   const {local, suffix} = getPlatformBinding()
+  const localCandidates = [`./${local}.node`, `../dist/${local}.node`]
+  let localError: unknown = new Error(`No local candidate matched "${local}"`)
+
+  for (const candidate of localCandidates) {
+    try {
+      return runtimeRequire(candidate) as NapiLoggerModule
+    }
+    catch (error) {
+      localError = error
+    }
+  }
 
   try {
-    return runtimeRequire(`./${local}.node`) as NapiLoggerModule
+    return loadBindingFromCliBinaryPackage(runtimeRequire, suffix)
   }
-  catch (localError) {
-    try {
-      return loadBindingFromCliBinaryPackage(runtimeRequire, suffix)
-    }
-    catch (packageError) {
-      throw formatBindingLoadError(localError, packageError, suffix)
-    }
+  catch (packageError) {
+    throw formatBindingLoadError(localError, packageError, suffix)
   }
 }
 
@@ -176,47 +171,6 @@ function getNapiBinding(): NapiLoggerModule {
   }
 }
 
-function serializeError(error: Error): Record<string, unknown> {
-  const serializedError: Record<string, unknown> = {
-    name: error.name,
-    message: error.message,
-    stack: error.stack
-  }
-
-  for (const key of Object.getOwnPropertyNames(error)) {
-    if (key === 'name' || key === 'message' || key === 'stack') continue
-
-    serializedError[key] = (error as unknown as Record<string, unknown>)[key]
-  }
-
-  return serializedError
-}
-
-function createJsonReplacer(): (this: unknown, key: string, value: unknown) => unknown {
-  const seen = new WeakSet<object>()
-
-  return function jsonReplacer(_key: string, value: unknown): unknown {
-    if (value instanceof Error) return serializeError(value)
-
-    if (typeof value === 'bigint') return value.toString()
-
-    if (typeof value === 'function') return `[Function ${value.name || 'anonymous'}]`
-
-    if (typeof value === 'symbol') return value.toString()
-
-    if (typeof value !== 'object' || value === null) return value
-
-    if (seen.has(value)) return '[Circular]'
-
-    seen.add(value)
-    return value
-  }
-}
-
-function serializePayload(value: unknown): string {
-  return JSON.stringify(value, createJsonReplacer()) ?? 'null'
-}
-
 function parseBufferedDiagnostics(serialized: string): LoggerDiagnosticRecord[] {
   try {
     const parsed = JSON.parse(serialized) as unknown
@@ -227,119 +181,26 @@ function parseBufferedDiagnostics(serialized: string): LoggerDiagnosticRecord[] 
   }
 }
 
-function normalizeLogLevel(level: string | undefined): LogLevel | undefined {
-  if (level == null) return void 0
-
-  const normalizedLevel = level.toLowerCase() as LogLevel
-  return normalizedLevel in LOG_LEVEL_PRIORITY ? normalizedLevel : void 0
-}
-
-function resolveLoggerLevel(logLevel?: LogLevel): LogLevel {
-  if (logLevel != null) return logLevel
-
-  const globalLogLevel = normalizeLogLevel(getNapiBinding().getGlobalLogLevel())
-  if (globalLogLevel != null) return globalLogLevel
-
-  const envLogLevel = normalizeLogLevel(process.env['LOG_LEVEL'])
-  if (envLogLevel != null) return envLogLevel
-
-  return 'info'
-}
-
-function shouldEmitLog(level: LogLevel, loggerLevel: LogLevel): boolean {
-  return LOG_LEVEL_PRIORITY[level] <= LOG_LEVEL_PRIORITY[loggerLevel]
-}
-
-function shouldSendDiagnostic(level: LoggerDiagnosticLevel, loggerLevel: LogLevel): boolean {
-  return loggerLevel === 'silent' || shouldEmitLog(level, loggerLevel)
-}
-
-function normalizeLogArguments(message: string | object, meta: unknown[]): {message: string, metaJson: string | undefined} {
-  if (typeof message !== 'string') {
-    return {
-      message: '',
-      metaJson: serializePayload(message)
-    }
-  }
-
-  const metaValue = meta.length === 1 && typeof meta[0] === 'object' && meta[0] !== null
-    ? meta[0]
-    : meta.length > 0 ? {args: meta} : void 0
-
-  return {
-    message,
-    metaJson: metaValue == null ? void 0 : serializePayload(metaValue)
-  }
-}
-
-function formatElapsedMilliseconds(milliseconds: number): string {
-  if (!Number.isFinite(milliseconds) || milliseconds <= 0) return '0ms'
-  if (milliseconds >= 1000) return `${(milliseconds / 1000).toFixed(2)}s`
-  if (milliseconds >= 100) return `${Math.round(milliseconds)}ms`
-  return `${milliseconds.toFixed(1)}ms`
-}
-
-function createLoggerTimingLabel(): string {
-  const nowNs = process.hrtime.bigint()
-  const sinceStartMs = Number(nowNs - LOGGER_TIMING_STATE.processStartNs) / 1_000_000
-  const sincePreviousMs = LOGGER_TIMING_STATE.lastLogNs == null
-    ? sinceStartMs
-    : Number(nowNs - LOGGER_TIMING_STATE.lastLogNs) / 1_000_000
-
-  LOGGER_TIMING_STATE.lastLogNs = nowNs
-  return `+${formatElapsedMilliseconds(sincePreviousMs)} since previous log, ${formatElapsedMilliseconds(sinceStartMs)} since process start`
-}
-
-function injectLoggerTiming(metaJson: string | undefined): string {
-  const loggerTiming = createLoggerTimingLabel()
-  if (metaJson == null) return serializePayload({loggerTiming})
-
-  try {
-    const parsed = JSON.parse(metaJson) as unknown
-    if (parsed != null && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return serializePayload({
-        ...(parsed as Record<string, unknown>),
-        loggerTiming
-      })
-    }
-
-    return serializePayload({
-      loggerTiming,
-      meta: parsed
-    })
-  } catch {
-    return serializePayload({
-      loggerTiming,
-      meta: metaJson
-    })
-  }
-}
-
-function createLogMethod(instance: NapiLoggerInstance, loggerLevel: LogLevel, level: PlainLogLevel): LoggerMethod {
+function createLogMethod(instance: NapiLoggerInstance, level: PlainLogLevel): LoggerMethod {
   return (message: string | object, ...meta: unknown[]): void => {
-    if (!shouldEmitLog(level, loggerLevel)) return
-
-    const {message: normalizedMessage, metaJson} = normalizeLogArguments(message, meta)
-    instance.log(level, normalizedMessage, injectLoggerTiming(metaJson))
+    instance.emit(level, message, meta.length === 0 ? void 0 : meta)
   }
 }
 
-function createDiagnosticMethod(instance: NapiLoggerInstance, loggerLevel: LogLevel, level: LoggerDiagnosticLevel): LoggerDiagnosticMethod {
-  return (diagnostic: LoggerDiagnosticInput) => {
-    if (!shouldSendDiagnostic(level, loggerLevel)) return
-
-    instance.logDiagnostic(level, serializePayload(diagnostic))
+function createDiagnosticMethod(instance: NapiLoggerInstance, level: LoggerDiagnosticLevel): LoggerDiagnosticMethod {
+  return (diagnostic: LoggerDiagnosticInput): void => {
+    instance.emitDiagnostic(level, diagnostic)
   }
 }
 
-function createNapiAdapter(instance: NapiLoggerInstance, loggerLevel: LogLevel): ILogger {
+function createNapiAdapter(instance: NapiLoggerInstance): ILogger {
   const messageMethods = PLAIN_LOG_LEVELS.reduce((logger, level) => {
-    logger[level] = createLogMethod(instance, loggerLevel, level)
+    logger[level] = createLogMethod(instance, level)
     return logger
   }, {} as Record<PlainLogLevel, LoggerMethod>)
 
   const diagnosticMethods = DIAGNOSTIC_LOG_LEVELS.reduce((logger, level) => {
-    logger[level] = createDiagnosticMethod(instance, loggerLevel, level)
+    logger[level] = createDiagnosticMethod(instance, level)
     return logger
   }, {} as Record<LoggerDiagnosticLevel, LoggerDiagnosticMethod>)
 
@@ -353,16 +214,10 @@ function createNapiAdapter(instance: NapiLoggerInstance, loggerLevel: LogLevel):
   }
 }
 
-/**
- * Set the global log level for all loggers.
- */
 export function setGlobalLogLevel(level: LogLevel): void {
   getNapiBinding().setGlobalLogLevel(level)
 }
 
-/**
- * Get the current global log level.
- */
 export function getGlobalLogLevel(): LogLevel | undefined {
   return getNapiBinding().getGlobalLogLevel() as LogLevel | undefined
 }
@@ -379,11 +234,6 @@ export function flushOutput(): void {
   getNapiBinding().flushOutput?.()
 }
 
-/**
- * Create a logger backed by the Rust native binding.
- */
 export function createLogger(namespace: string, logLevel?: LogLevel): ILogger {
-  const resolvedLogLevel = resolveLoggerLevel(logLevel)
-  const instance = getNapiBinding().createLogger(namespace, resolvedLogLevel)
-  return createNapiAdapter(instance, resolvedLogLevel)
+  return createNapiAdapter(getNapiBinding().createLogger(namespace, logLevel))
 }

@@ -5,6 +5,7 @@ import {homedir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
 import process from 'node:process'
 import {fileURLToPath} from 'node:url'
+import {writeError, writeMarkdownBlock, writeWarning} from './markdown-output'
 
 const NATIVE_MODULES = [
   {name: 'logger', dir: 'libraries/logger'},
@@ -42,12 +43,14 @@ function findCargo(): string | null {
 
 const cargo = findCargo()
 if (cargo == null) {
-  console.warn('[build-native] cargo not found, skipping native build')
-  console.warn('[build-native] Install Rust: https://rustup.rs')
+  writeWarning('Skipping native build', {
+    reason: 'cargo is not available on PATH.',
+    install: 'https://rustup.rs',
+  })
   process.exit(0)
 }
 
-console.log(`[build-native] Using cargo: ${cargo}`)
+writeMarkdownBlock('Using cargo toolchain', {cargo})
 
 const cargoDir = dirname(cargo)
 const envWithCargo = {
@@ -59,13 +62,13 @@ const envWithCargo = {
 let failed = false
 for (const mod of NATIVE_MODULES) {
   const moduleDir = join(root, mod.dir)
-  console.log(`[build-native] Building ${mod.name}...`)
+  writeMarkdownBlock('Building native module', {module: mod.name})
   try {
     const packageJsonPath = join(moduleDir, 'package.json')
     if (existsSync(packageJsonPath)) {
       const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as PackageManifestWithScripts
       if (packageJson.scripts?.['build:ts'] != null) {
-        console.log(`[build-native] Building ${mod.name} TypeScript artifacts...`)
+        writeMarkdownBlock('Building TypeScript artifacts', {module: mod.name})
         execSync('pnpm run build:ts', {stdio: 'inherit', cwd: moduleDir, env: envWithCargo})
       }
     }
@@ -75,20 +78,24 @@ for (const mod of NATIVE_MODULES) {
       {stdio: 'inherit', cwd: moduleDir, env: envWithCargo},
     )
   } catch {
-    console.error(`[build-native] ${mod.name}: build failed`)
+    writeError('Native build failed', {module: mod.name})
     failed = true
   }
 }
 
 if (failed) {
-  console.warn('[build-native] Some native modules failed to build, skipping copy')
-  console.warn('[build-native] Ensure Rust toolchain + linker are available, then run: pnpm run build:native')
+  writeWarning('Skipping NAPI copy step', {
+    reason: 'One or more native modules failed to build.',
+    nextStep: 'Ensure the Rust toolchain and linker are available, then rerun `pnpm run build:native`.',
+  })
   process.exit(0)
 }
 
-console.log('[build-native] All libraries built, copying .node files...')
+writeMarkdownBlock('Copying built NAPI artifacts')
 try {
   execSync('tsx scripts/copy-napi.ts', {stdio: 'inherit', cwd: root})
 } catch {
-  console.warn('[build-native] copy-napi failed, .node files may not be in place')
+  writeWarning('NAPI copy step failed', {
+    reason: 'The built .node files may not be in place.',
+  })
 }

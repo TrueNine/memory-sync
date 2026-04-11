@@ -1,178 +1,48 @@
-import type {
-  InputCapabilityContext,
-  InputCollectedContext,
-  Locale,
-  SubAgentPrompt,
-  SubAgentYAMLFrontMatter
-} from '../plugins/plugin-core'
-import {buildConfigDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '@/diagnostics'
-import {
-  AbstractInputCapability,
-  createLocalizedPromptReader,
-  deriveSubAgentIdentity,
-  FilePathKind,
-  PromptKind,
-  SourceLocaleExtensions,
-  validateSubAgentMetadata
+import type {InputCapabilityContext, InputCollectedContext} from '../adaptors/adaptor-core'
+import {getNativeBinding} from '@/core/native-binding'
+import {AbstractInputCapability} from '../adaptors/adaptor-core'
 
-} from '../plugins/plugin-core'
+interface NativeSubAgentResult extends InputCollectedContext {
+  diagnostics?: {level: string, code: string, title: string, exactFix?: string[]}[]
+  debugLogs?: {message: string, payload?: unknown}[]
+}
 
 export class SubAgentInputCapability extends AbstractInputCapability {
   constructor() {
     super('SubAgentInputCapability')
   }
 
-  private createSubAgentPrompt(
-    content: string,
-    _locale: Locale,
-    name: string,
-    srcDir: string,
-    distDir: string,
-    ctx: InputCapabilityContext,
-    metadata?: Record<string, unknown>,
-    warnedDerivedNames?: Set<string>
-  ): SubAgentPrompt {
-    const {fs, logger, path} = ctx
-    const {agentPrefix, agentName, canonicalName} = deriveSubAgentIdentity(name)
-
-    const filePath = path.join(distDir, `${name}.mdx`)
-    const entryName = `${name}.mdx`
-    const sourceFilePath = fs.existsSync(path.join(srcDir, `${name}.src.mdx`))
-      ? path.join(srcDir, `${name}.src.mdx`)
-      : filePath
-    const yamlFrontMatter = metadata == null
-      ? void 0
-      : (() => {
-          const frontMatter = {...metadata}
-          const authoredName = frontMatter['name']
-
-          if (typeof authoredName === 'string' && authoredName.trim().length > 0 && warnedDerivedNames?.has(sourceFilePath) !== true) {
-            warnedDerivedNames?.add(sourceFilePath)
-            logger.warn(buildConfigDiagnostic({
-              code: 'SUBAGENT_NAME_IGNORED',
-              title: 'Sub-agent authored name is ignored',
-              reason: diagnosticLines(
-                `tnmsc ignores the authored sub-agent name "${authoredName}" in favor of the derived path name "${canonicalName}".`
-              ),
-              configPath: sourceFilePath,
-              exactFix: diagnosticLines(
-                'Remove the `name` field from the sub-agent front matter or exported metadata.',
-                'Rename the sub-agent directory or file if you need a different sub-agent name.'
-              ),
-              details: {
-                authoredName,
-                derivedName: canonicalName,
-                logicalName: name
-              }
-            }))
+  async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
+    const native = getNativeBinding<{collectSubAgent?: (optionsJson: string) => string}>()
+    if (native?.collectSubAgent != null) {
+      const payload = {...ctx.userConfigOptions, globalScope: ctx.globalScope}
+      const result = native.collectSubAgent(JSON.stringify(payload))
+      const parsed = JSON.parse(result) as NativeSubAgentResult
+      if (parsed.diagnostics != null) {
+        for (const diagnostic of parsed.diagnostics) {
+          const input = {
+            code: diagnostic.code,
+            title: diagnostic.title,
+            rootCause: [diagnostic.title] as const,
+            ...diagnostic.exactFix != null && diagnostic.exactFix.length > 0
+              ? {exactFix: diagnostic.exactFix as [string, ...string[]]}
+              : {}
           }
-
-          delete frontMatter['name']
-          return frontMatter as SubAgentYAMLFrontMatter
-        })()
-
-    const prompt: SubAgentPrompt = {
-      type: PromptKind.SubAgent,
-      content,
-      length: content.length,
-      filePathKind: FilePathKind.Relative,
-      dir: {
-        pathKind: FilePathKind.Relative,
-        path: entryName,
-        basePath: distDir,
-        getDirectoryName: () => entryName.replace(/\.mdx$/, ''),
-        getAbsolutePath: () => filePath
-      },
-      ...agentPrefix != null && {agentPrefix},
-      agentName,
-      canonicalName
-    } as SubAgentPrompt
-
-    if (yamlFrontMatter == null) return prompt
-
-    const validation = validateSubAgentMetadata(yamlFrontMatter as Record<string, unknown>, filePath)
-    if (!validation.valid) throw new Error(validation.errors.join('\n'))
-
-    Object.assign(prompt, {yamlFrontMatter})
-    if (yamlFrontMatter.seriName != null) Object.assign(prompt, {seriName: yamlFrontMatter.seriName})
-    return prompt
-  }
-
-  override async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
-    const {userConfigOptions: options, logger, path, fs, globalScope} = ctx
-    const resolvedPaths = this.resolveBasePaths(options)
-
-    const srcDir = this.resolveAindexPath(options.aindex.subAgents.src, resolvedPaths.aindexDir)
-    const distDir = this.resolveAindexPath(options.aindex.subAgents.dist, resolvedPaths.aindexDir)
-
-    logger.debug('SubAgentInputCapability collecting', {
-      srcDir,
-      distDir,
-      aindexDir: resolvedPaths.aindexDir
-    })
-
-    const reader = createLocalizedPromptReader(fs, path, logger, globalScope)
-    const warnedDerivedNames = new Set<string>()
-
-    const {prompts: localizedSubAgents, errors} = await reader.readFlatFiles(
-      srcDir,
-      distDir,
-      {
-        kind: PromptKind.SubAgent,
-        localeExtensions: SourceLocaleExtensions,
-        hydrateSourceContents: false,
-        isDirectoryStructure: false,
-        createPrompt: (content, locale, name, metadata) => this.createSubAgentPrompt(
-          content,
-          locale,
-          name,
-          srcDir,
-          distDir,
-          ctx,
-          metadata,
-          warnedDerivedNames
-        )
-      }
-    )
-
-    logger.debug('SubAgentInputCapability read complete', {
-      subAgentCount: localizedSubAgents.length,
-      errorCount: errors.length
-    })
-
-    for (const error of errors) {
-      logger.warn(buildFileOperationDiagnostic({
-        code: 'SUBAGENT_PROMPT_READ_FAILED',
-        title: 'Failed to read sub-agent prompt',
-        operation: error.phase === 'scan' ? 'scan' : 'read',
-        targetKind: 'sub-agent prompt',
-        path: error.path,
-        error: error.error,
-        details: {
-          phase: error.phase
+          if (diagnostic.level === 'warn') {
+            ctx.logger.warn(input)
+          } else if (diagnostic.level === 'error') {
+            ctx.logger.error(input)
+          }
         }
-      }))
+      }
+      if (parsed.debugLogs != null) {
+        for (const log of parsed.debugLogs) {
+          ctx.logger.debug(log.message, log.payload)
+        }
+      }
+      return parsed as Partial<InputCollectedContext>
     }
 
-    if (errors.length > 0) throw new Error(errors.map(error => error.error.message).join('\n'))
-
-    const flatSubAgents: SubAgentPrompt[] = []
-    for (const localized of localizedSubAgents) {
-      const distContent = localized.dist
-      if (distContent?.prompt == null) continue
-
-      const {prompt: distPrompt, rawMdx} = distContent
-      flatSubAgents.push(rawMdx == null
-        ? distPrompt
-        : {...distPrompt, rawMdxContent: rawMdx})
-    }
-
-    logger.debug('SubAgentInputCapability flattened subAgents', {
-      count: flatSubAgents.length
-    })
-
-    return {
-      subAgents: flatSubAgents
-    }
+    throw new Error('Native collectSubAgent binding is not available')
   }
 }

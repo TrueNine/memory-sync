@@ -1,13 +1,13 @@
 import type {
   ListPromptsOptions,
   ManagedPromptKind,
+  MemorySyncSdkBinding,
   PromptArtifactState,
-  PromptServiceOptions,
   PromptSourceLocale
 } from '@truenine/memory-sync-sdk'
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js'
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'
-import {getPrompt, listPrompts, upsertPromptSource, writePromptArtifacts} from '@truenine/memory-sync-sdk'
+import {getMemorySyncSdkBinding} from '@truenine/memory-sync-sdk'
 import {z} from 'zod'
 
 const promptKindSchema = z.enum([
@@ -42,7 +42,7 @@ const MCP_VERSION = typeof __MCP_VERSION__ !== 'undefined'
 
 function createPromptServiceOptions(
   workspaceDir?: string
-): PromptServiceOptions {
+): {cwd?: string, pluginOptions?: {workspaceDir: string}} {
   if (workspaceDir == null) return {}
 
   return {
@@ -51,6 +51,14 @@ function createPromptServiceOptions(
       workspaceDir
     }
   }
+}
+
+function getSdkBinding(): MemorySyncSdkBinding {
+  return getMemorySyncSdkBinding()
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function validateTranslationPayload(input: {
@@ -81,7 +89,7 @@ function buildErrorResult(error: unknown): {
   content: [{type: 'text', text: string}]
   isError: true
 } {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = toErrorMessage(error)
 
   return {
     content: [
@@ -117,7 +125,7 @@ function registerListPromptsTool(server: McpServer): void {
           ...input.enStatus != null ? {enStatus: input.enStatus} : {},
           ...input.distStatus != null ? {distStatus: input.distStatus} : {}
         }
-        const prompts = await listPrompts(promptOptions)
+        const prompts = await getSdkBinding().listPrompts(promptOptions)
 
         return buildSuccessResult({prompts})
       }
@@ -141,7 +149,7 @@ function registerGetPromptTool(server: McpServer): void {
     },
     async input => {
       try {
-        const prompt = await getPrompt(input.promptId, createPromptServiceOptions(input.workspaceDir))
+        const prompt = await getSdkBinding().getPrompt(input.promptId, createPromptServiceOptions(input.workspaceDir))
 
         return buildSuccessResult({prompt})
       }
@@ -167,7 +175,7 @@ function registerUpsertPromptSrcTool(server: McpServer): void {
     },
     async input => {
       try {
-        const prompt = await upsertPromptSource({
+        const prompt = await getSdkBinding().upsertPromptSource({
           ...createPromptServiceOptions(input.workspaceDir),
           promptId: input.promptId,
           content: input.content,
@@ -200,7 +208,7 @@ function registerApplyPromptTranslationTool(server: McpServer): void {
       try {
         validateTranslationPayload(input)
 
-        const prompt = await writePromptArtifacts({
+        const prompt = await getSdkBinding().writePromptArtifacts({
           ...createPromptServiceOptions(input.workspaceDir),
           promptId: input.promptId,
           ...input.enContent != null ? {enContent: input.enContent} : {},

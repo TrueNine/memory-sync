@@ -1,9 +1,18 @@
-import type {ILogger, OutputRuntimeTargets} from '@/plugins/plugin-core'
+import type {ILogger, OutputRuntimeTargets} from '@/adaptors/adaptor-core'
 
+import type {NativeDeskPathsBinding} from '@/core/desk-paths-types'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {getPlatformFixedDir} from '@/core/desk-paths'
+import {getNativeBinding} from '@/core/native-binding'
 import {buildFileOperationDiagnostic} from '@/diagnostics'
+
+function getPlatformFixedDir(): string {
+  const binding = getNativeBinding<NativeDeskPathsBinding>()
+  if (binding?.getPlatformFixedDir == null) {
+    throw new Error('Native desk-paths binding is required. Build or install the Rust NAPI package before running tnmsc.')
+  }
+  return binding.getPlatformFixedDir()
+}
 
 const JETBRAINS_VENDOR_DIR = 'JetBrains'
 const JETBRAINS_AIA_DIR = 'aia'

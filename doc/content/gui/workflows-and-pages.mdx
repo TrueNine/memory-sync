@@ -22,14 +22,14 @@ status: stable
 ## 这些页面分别表示什么
 
 - Dashboard：统计信息、快捷操作，以及受支持工具概览
-- Pipeline：运行 sync 和 `dry-run`，然后检查 plugin 结果与错误
+- Pipeline：运行 `install` 和 `dry-run`，然后检查 plugin 结果与错误
 - Config：查看或编辑配置
 - Plugins / Files / Logs：plugin 结果、文件视图和日志检查
 - Settings：桌面端偏好设置与配置项
 
 ## 与 CLI 的关系
 
-桌面页面并不会定义另一套独立的 sync 规则。它们主要是通过 bridge layer 调用更底层的能力，并把命令式流程转换成页面式工作流。
+桌面页面并不会定义另一套独立的 install 规则。它们主要是通过 bridge layer 调用更底层的能力，并把命令式流程转换成页面式工作流。
 
 所以当你遇到下面这些问题时，仍然应该优先回到 CLI 文档：
 

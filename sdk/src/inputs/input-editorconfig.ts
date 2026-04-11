@@ -1,5 +1,9 @@
-import type {InputCapabilityContext, InputCollectedContext, ProjectIDEConfigFile} from '../plugins/plugin-core'
-import {AbstractInputCapability, IDEKind} from '../plugins/plugin-core'
+import type {InputCapabilityContext, InputCollectedContext} from '../adaptors/adaptor-core'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import {getNativeBinding} from '@/core/native-binding'
+import {AbstractInputCapability} from '../adaptors/adaptor-core'
+import {IDEKind} from '../adaptors/adaptor-core/enums'
 import {readPublicIdeConfigDefinitionFile} from '../public-config-paths'
 
 export class EditorConfigInputCapability extends AbstractInputCapability {
@@ -8,16 +12,21 @@ export class EditorConfigInputCapability extends AbstractInputCapability {
   }
 
   collect(ctx: InputCapabilityContext): Partial<InputCollectedContext> {
-    const {userConfigOptions, fs} = ctx
-    const {workspaceDir, aindexDir} = this.resolveBasePaths(userConfigOptions)
+    const aindexDirName = ctx.userConfigOptions.aindex?.dir ?? 'aindex'
+    const aindexDir = path.join(ctx.userConfigOptions.workspaceDir, aindexDirName)
+    const proxyFilePath = path.join(aindexDir, 'public', 'proxy.ts')
 
-    const editorConfigFiles: ProjectIDEConfigFile<IDEKind.EditorConfig>[] = []
-    const file = readPublicIdeConfigDefinitionFile(IDEKind.EditorConfig, '.editorconfig', aindexDir, fs, {
-      command: ctx.runtimeCommand,
-      workspaceDir
-    })
-    if (file != null) editorConfigFiles.push(file)
+    if (fs.existsSync(proxyFilePath)) {
+      const file = readPublicIdeConfigDefinitionFile(IDEKind.EditorConfig, '.editorconfig', aindexDir, fs, {workspaceDir: ctx.userConfigOptions.workspaceDir})
+      return {editorConfigFiles: file != null ? [file] : void 0} as Partial<InputCollectedContext>
+    }
 
-    return {editorConfigFiles}
+    const native = getNativeBinding<{collectEditorconfig?: (optionsJson: string) => string}>()
+    if (native?.collectEditorconfig != null) {
+      const result = native.collectEditorconfig(JSON.stringify(ctx.userConfigOptions))
+      return JSON.parse(result) as Partial<InputCollectedContext>
+    }
+
+    throw new Error('Native collectEditorconfig binding is not available')
   }
 }

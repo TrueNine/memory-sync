@@ -1,120 +1,140 @@
-import type {
-  Command,
-  CommandContext,
-  CommandResult
-} from '@/commands/Command'
-import * as path from 'node:path'
+import type {MemorySyncAdaptorInfo, MemorySyncCommandResult} from '@truenine/memory-sync-sdk'
+
 import process from 'node:process'
-import {
-  buildUnhandledExceptionDiagnostic,
-  createLogger,
-  FilePathKind,
-  flushOutput,
-  mergeConfig,
-  setGlobalLogLevel
-} from '@truenine/memory-sync-sdk'
-import {
-  extractUserArgs,
-  parseArgs,
-  resolveCommand
-} from '@/pipeline/CliArgumentParser'
-import {PluginPipeline} from '@/PluginPipeline'
-import {createDefaultPluginConfig} from './plugin.config'
+import {flushOutput, setGlobalLogLevel} from '@truenine/logger'
+import {createTsFallbackMemorySyncBinding, getMemorySyncSdkBinding} from '@truenine/memory-sync-sdk'
+import {extractUserArgs, parseArgs} from './cli-args'
 
-const LIGHTWEIGHT_COMMAND_NAMES = new Set(['help', 'version', 'unknown'])
+const CLI_NAME = 'tnmsc'
 
-function createEmptyProjectsBySeries(): {
-  readonly app: readonly never[]
-  readonly ext: readonly never[]
-  readonly arch: readonly never[]
-  readonly softwares: readonly never[]
-} {
-  return {
-    app: [],
-    ext: [],
-    arch: [],
-    softwares: []
-  } as const
+export function getCliVersion(): string {
+  return typeof __CLI_VERSION__ !== 'undefined' ? __CLI_VERSION__ : 'dev'
 }
 
-function createUnavailableContext(kind: 'cleanup' | 'write'): never {
-  throw new Error(`${kind} context is unavailable for lightweight commands`)
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
-function createLightweightCommandContext(
-  logLevel: ReturnType<typeof parseArgs>['logLevel']
-): CommandContext {
-  const cwd = process.cwd()
-  const workspaceDir = cwd
-  const userConfigOptions = mergeConfig({
-    workspaceDir,
-    ...logLevel != null ? {logLevel} : {}
-  })
-  return {
-    logger: createLogger('PluginPipeline', logLevel),
-    outputPlugins: [],
-    collectedOutputContext: {
-      workspace: {
-        directory: {
-          pathKind: FilePathKind.Absolute,
-          path: workspaceDir,
-          getDirectoryName: () => path.basename(workspaceDir)
-        },
-        projects: []
-      }
-    },
-    userConfigOptions,
-    executionPlan: {
-      scope: 'workspace',
-      cwd,
-      workspaceDir,
-      projectsBySeries: createEmptyProjectsBySeries()
-    },
-    createCleanContext: () => createUnavailableContext('cleanup'),
-    createWriteContext: () => createUnavailableContext('write')
-  }
-}
+function writeHelp(): void {
+  process.stdout.write(
+    `${`
+# ${CLI_NAME} v${getCliVersion()}
 
-function resolveLightweightCommand(
-  argv: readonly string[]
-): {readonly command: Command, readonly context: CommandContext} | undefined {
-  const parsedArgs = parseArgs(
-    extractUserArgs(argv.filter((arg): arg is string => arg != null))
+Synchronize AI memory and configuration files across projects.
+
+## Usage
+
+- \`${CLI_NAME}\` runs the default install pipeline.
+- \`${CLI_NAME} help\` shows this help message.
+- \`${CLI_NAME} version\` shows the CLI version.
+- \`${CLI_NAME} install\` runs the install pipeline explicitly.
+- \`${CLI_NAME} dry-run\` previews what would be written.
+- \`${CLI_NAME} clean\` removes generated files.
+- \`${CLI_NAME} clean --dry-run\` previews what would be cleaned.
+- \`${CLI_NAME} plugins\` lists the built-in output plugins.
+
+## Log Controls
+
+- \`--trace\` shows the most detail.
+- \`--debug\` shows debug detail.
+- \`--info\` shows key progress and results.
+- \`--warn\` shows warnings only.
+- \`--error\` shows errors only.
+
+## Configuration
+
+- Global user config: \`~/.aindex/.tnmsc.json\`
+- Runtime core: \`@truenine/memory-sync-sdk\`
+`.trim()}\n`
   )
-  const command: Command = resolveCommand(parsedArgs)
-  if (!LIGHTWEIGHT_COMMAND_NAMES.has(command.name)) return void 0
-  if (parsedArgs.logLevel != null) setGlobalLogLevel(parsedArgs.logLevel)
-  return {
-    command,
-    context: createLightweightCommandContext(parsedArgs.logLevel)
-  }
 }
 
-export async function runCli(
-  argv: readonly string[] = process.argv
-): Promise<number> {
+function writeVersion(): void {
+  process.stdout.write(`# ${CLI_NAME} v${getCliVersion()}\n`)
+}
+
+function writeUnknownCommand(command: string): void {
+  process.stderr.write(`Unknown command: ${command}\nRun \`${CLI_NAME} help\` for supported commands.\n`)
+}
+
+function writePluginList(plugins: readonly MemorySyncAdaptorInfo[]): void {
+  const lines = ['# Registered plugins', '']
+  if (plugins.length === 0) {
+    lines.push('- No plugins are currently registered.')
+  } else {
+    for (const plugin of plugins) {
+      const dependencySuffix = plugin.dependencies.length > 0 ? ` (depends on: ${plugin.dependencies.join(', ')})` : ''
+      lines.push(`- ${plugin.name}${dependencySuffix}`)
+    }
+  }
+  process.stdout.write(`${lines.join('\n')}\n`)
+}
+
+export async function runCli(argv: readonly string[] = process.argv): Promise<number> {
   try {
-    const lightweightCommand = resolveLightweightCommand(argv)
-    if (lightweightCommand != null) {
-      const result: CommandResult = await lightweightCommand.command.execute(
-        lightweightCommand.context
-      )
+    const parsedArgs = parseArgs(extractUserArgs(argv))
+
+    if (parsedArgs.logLevel != null) setGlobalLogLevel(parsedArgs.logLevel)
+
+    if (parsedArgs.helpFlag || parsedArgs.subcommand === 'help') {
+      writeHelp()
       flushOutput()
-      return result.success ? 0 : 1
+      return 0
     }
 
-    const pipeline = new PluginPipeline(...argv)
-    const userPluginConfig = await createDefaultPluginConfig(
-      argv,
-      void 0,
-      process.cwd()
-    )
-    const result = await pipeline.run(userPluginConfig)
+    if (parsedArgs.versionFlag || parsedArgs.subcommand === 'version') {
+      writeVersion()
+      flushOutput()
+      return 0
+    }
+
+    if (parsedArgs.unknownCommand != null) {
+      writeUnknownCommand(parsedArgs.unknownCommand)
+      flushOutput()
+      return 1
+    }
+
+    const nativeBinding = getMemorySyncSdkBinding()
+    const fallbackBinding = createTsFallbackMemorySyncBinding()
+    // Pipeline commands (install / dry-run / clean) are not yet fully
+    // implemented in Rust, so use the mature TS fallback for them while
+    // keeping the native binding for prompts and listAdaptors.
+    const binding = {
+      ...nativeBinding,
+      install: fallbackBinding.install,
+      dryRun: fallbackBinding.dryRun,
+      clean: fallbackBinding.clean
+    }
+    const commandOptions = {
+      cwd: process.cwd(),
+      ...parsedArgs.logLevel != null ? {logLevel: parsedArgs.logLevel} : {}
+    } as const
+
+    let result: MemorySyncCommandResult
+    switch (parsedArgs.subcommand) {
+      case 'plugins': {
+        const plugins = await binding.listAdaptors()
+        writePluginList(plugins)
+        flushOutput()
+        return 0
+      }
+      case 'dry-run':
+        result = await binding.dryRun(commandOptions)
+        break
+      case 'clean':
+        result = await binding.clean({
+          ...commandOptions,
+          dryRun: parsedArgs.dryRun
+        })
+        break
+      default:
+        result = await binding.install(commandOptions)
+    }
+
     flushOutput()
     return result.success ? 0 : 1
   } catch (error) {
-    const logger = createLogger('main', 'error')
-    logger.error(buildUnhandledExceptionDiagnostic('main', error))
+    process.stderr.write(`[${CLI_NAME}] ${toErrorMessage(error)}\n`)
     flushOutput()
     return 1
   }

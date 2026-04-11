@@ -3,7 +3,7 @@
  * Handles merging of partial InputCollectedContext objects
  */
 
-import type {InputCollectedContext, Project, Workspace} from '../plugins/plugin-core'
+import type {InputCollectedContext, Project, Workspace} from '../adaptors/adaptor-core'
 
 /**
  * Merge strategy types for context fields

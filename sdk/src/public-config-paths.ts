@@ -1,11 +1,11 @@
-import type {IDEKind} from './plugins/plugin-core/enums'
-import type {ProjectIDEConfigFile} from './plugins/plugin-core/InputTypes'
+import type {IDEKind} from './adaptors/adaptor-core/enums'
+import type {ProjectIDEConfigFile} from './adaptors/adaptor-core/InputTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
 import {resolvePublicPath} from '@truenine/script-runtime'
-import {AINDEX_FILE_NAMES} from './plugins/plugin-core/AindexTypes'
-import {FilePathKind} from './plugins/plugin-core/enums'
+import {AINDEX_FILE_NAMES} from './adaptors/adaptor-core/AindexTypes'
+import {FilePathKind} from './adaptors/adaptor-core/enums'
 
 export const PUBLIC_CONFIG_DEFINITION_DIR = 'public'
 export const PUBLIC_PROXY_FILE_NAME = 'proxy.ts'
@@ -42,7 +42,7 @@ export interface PublicDefinitionResolveOptions {
   readonly workspaceDir?: string | undefined
 }
 
-type ProxyCommand = 'execute' | 'dry-run' | 'clean' | 'plugins'
+type ProxyCommand = 'install' | 'dry-run' | 'clean' | 'plugins'
 
 interface ProxyContext {
   readonly cwd: string
@@ -75,7 +75,7 @@ function getPublicProxyPath(aindexDir: string): string {
 }
 
 function getResolveCommand(options?: PublicDefinitionResolveOptions): ProxyCommand {
-  return options?.command ?? 'execute'
+  return options?.command ?? 'install'
 }
 
 function getResolveWorkspaceDir(aindexDir: string, options?: PublicDefinitionResolveOptions): string {

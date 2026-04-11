@@ -1,5 +1,6 @@
-import type {AindexProjectSeriesName, PluginOptions} from '@/plugins/plugin-core'
-import {AINDEX_PROJECT_SERIES_NAMES} from '@/plugins/plugin-core'
+import type {AindexProjectSeriesName} from '@/adaptors/adaptor-core/AindexConfigDefaults'
+import type {AdaptorOptions} from '@/adaptors/adaptor-core/plugin'
+import {AINDEX_PROJECT_SERIES_NAMES} from '@/adaptors/adaptor-core/AindexConfigDefaults'
 
 export interface AindexProjectSeriesConfig {
   readonly name: AindexProjectSeriesName
@@ -18,20 +19,20 @@ export interface AindexProjectSeriesProjectNameConflict {
   readonly refs: readonly AindexProjectSeriesProjectRef[]
 }
 
-type AindexProjectSeriesOptions = Required<PluginOptions>['aindex']
+type AindexProjectSeriesOptions = Required<AdaptorOptions>['aindex']
 
 export function isAindexProjectSeriesName(value: string): value is AindexProjectSeriesName {
   return AINDEX_PROJECT_SERIES_NAMES.includes(value as AindexProjectSeriesName)
 }
 
 export function resolveAindexProjectSeriesConfigs(
-  options: Required<PluginOptions>
+  options: Required<AdaptorOptions>
 ): readonly AindexProjectSeriesConfig[] {
   return AINDEX_PROJECT_SERIES_NAMES.map(name => buildAindexProjectSeriesConfig(options.aindex, name))
 }
 
 export function resolveAindexProjectSeriesConfig(
-  options: Required<PluginOptions>,
+  options: Required<AdaptorOptions>,
   seriesName: AindexProjectSeriesName
 ): AindexProjectSeriesConfig {
   return buildAindexProjectSeriesConfig(options.aindex, seriesName)

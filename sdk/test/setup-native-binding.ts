@@ -1,13 +1,37 @@
+import type {ILogger, OutputAdaptor, OutputCleanContext, OutputCleanupDeclarations} from '../src/adaptors/adaptor-core'
 import type {
-  ILogger,
-  OutputCleanContext,
-  OutputCleanupDeclarations,
-  OutputPlugin
-} from '../src/plugins/plugin-core'
+  ListPromptsOptions,
+  PromptServiceOptions,
+  UpsertPromptSourceInput,
+  WritePromptArtifactsInput
+} from '../src/prompts'
 import * as fs from 'node:fs'
+import {createRequire} from 'node:module'
 import * as path from 'node:path'
 import glob from 'fast-glob'
-import {FilePathKind, PluginKind} from '../src/plugins/plugin-core/enums.ts'
+import {AdaptorKind, FilePathKind} from '../src/adaptors/adaptor-core/enums.ts'
+import {
+  topologicalSort as topologicalSortLegacy
+} from '../src/internal/dependency-resolver-legacy'
+import {
+  findAllGitRepos,
+  findGitModuleInfoDirs,
+  resolveGitInfoDir
+} from '../src/internal/git-discovery-legacy'
+import {
+  getPrompt,
+  listPrompts,
+  upsertPromptSource,
+  writePromptArtifacts
+} from '../src/internal/prompts-legacy'
+import {
+  getEffectiveHomeDir,
+  getGlobalConfigPath,
+  getRequiredGlobalConfigPath,
+  isWslRuntime,
+  resolveRuntimeEnvironment
+} from '../src/internal/runtime-environment-legacy'
+
 import * as deskPaths from './native-binding/desk-paths'
 
 interface NativeCleanupTarget {
@@ -60,9 +84,9 @@ function createMockLogger(): ILogger {
   return logger
 }
 
-function createSyntheticOutputPlugin(snapshot: NativePluginCleanupSnapshot): OutputPlugin {
+function createSyntheticOutputAdaptor(snapshot: NativePluginCleanupSnapshot): OutputAdaptor {
   return {
-    type: PluginKind.Output,
+    type: AdaptorKind.Output,
     name: snapshot.pluginName,
     log: createMockLogger(),
     declarativeOutput: true,
@@ -121,7 +145,7 @@ async function createSyntheticCleanContext(snapshot: NativeCleanupSnapshot): Pro
 async function planCleanup(snapshotJson: string): Promise<string> {
   const {collectDeletionTargets} = await import('./native-binding/cleanup')
   const snapshot = JSON.parse(snapshotJson) as NativeCleanupSnapshot
-  const outputPlugins = snapshot.pluginSnapshots.map(createSyntheticOutputPlugin)
+  const outputPlugins = snapshot.pluginSnapshots.map(createSyntheticOutputAdaptor)
   const cleanCtx = await createSyntheticCleanContext(snapshot)
   const result = await collectDeletionTargets(outputPlugins, cleanCtx)
 
@@ -138,7 +162,7 @@ async function planCleanup(snapshotJson: string): Promise<string> {
 async function runCleanup(snapshotJson: string): Promise<string> {
   const {performCleanup} = await import('./native-binding/cleanup')
   const snapshot = JSON.parse(snapshotJson) as NativeCleanupSnapshot
-  const outputPlugins = snapshot.pluginSnapshots.map(createSyntheticOutputPlugin)
+  const outputPlugins = snapshot.pluginSnapshots.map(createSyntheticOutputAdaptor)
   const cleanCtx = await createSyntheticCleanContext(snapshot)
   const result = await performCleanup(outputPlugins, cleanCtx, createMockLogger())
 
@@ -185,7 +209,17 @@ function resolveSubSeries(
   return merged
 }
 
-globalThis.__TNMSC_TEST_NATIVE_BINDING__ = {
+function tryLoadRealBinary(): Record<string, unknown> | undefined {
+  try {
+    const _require = createRequire(import.meta.url)
+    return _require('../../cli/npm/linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node') as Record<string, unknown>
+  }
+  catch {}
+}
+
+const realBinary = tryLoadRealBinary()
+
+const testBinding = {
   getPlatformFixedDir: deskPaths.getPlatformFixedDir,
   ensureDir: deskPaths.ensureDir,
   existsSync: deskPaths.existsSync,
@@ -196,9 +230,40 @@ globalThis.__TNMSC_TEST_NATIVE_BINDING__ = {
   deleteDirectories: deskPaths.deleteDirectories,
   deleteEmptyDirectories: deskPaths.deleteEmptyDirectories,
   deleteTargets: deskPaths.deleteTargets,
+  compactDeletionTargets: deskPaths.compactDeletionTargets,
+  planWorkspaceEmptyDirectoryCleanup: deskPaths.planWorkspaceEmptyDirectoryCleanup,
+  isDirectoryStructureMismatchError: deskPaths.isDirectoryStructureMismatchError,
+  findBlockingNonDirectoryPath: deskPaths.findBlockingNonDirectoryPath,
+  resolveBlockingFilePath: deskPaths.resolveBlockingFilePath,
+  removeBlockingFile: deskPaths.removeBlockingFile,
   planCleanup,
   performCleanup: runCleanup,
   resolveEffectiveIncludeSeries,
   matchesSeries,
-  resolveSubSeries
+  resolveSubSeries,
+  resolveGitInfoDir,
+  findAllGitRepos,
+  findGitModuleInfoDirs,
+  resolveRuntimeEnvironment: () => JSON.stringify(resolveRuntimeEnvironment()),
+  getEffectiveHomeDir,
+  getGlobalConfigPath,
+  getRequiredGlobalConfigPath,
+  isWslRuntime,
+  topologicalSort: (inputJson: string) => {
+    const nodes = JSON.parse(inputJson) as {name: string, dependsOn?: readonly string[]}[]
+    const sorted = topologicalSortLegacy(nodes)
+    return JSON.stringify(sorted.map(n => n.name))
+  },
+  listPrompts: async (optionsJson: string) => JSON.stringify(await listPrompts(optionsJson == null ? {} : (JSON.parse(optionsJson) as ListPromptsOptions))),
+  getPrompt: async (promptId: string, optionsJson: string) => {
+    const result = await getPrompt(promptId, optionsJson == null ? {} : (JSON.parse(optionsJson) as PromptServiceOptions))
+    return JSON.stringify(result)
+  },
+  upsertPromptSource: async (inputJson: string) => JSON.stringify(await upsertPromptSource(JSON.parse(inputJson) as UpsertPromptSourceInput)),
+  writePromptArtifacts: async (inputJson: string) => JSON.stringify(await writePromptArtifacts(JSON.parse(inputJson) as WritePromptArtifactsInput))
+}
+
+globalThis.__TNMSC_TEST_NATIVE_BINDING__ = {
+  ...realBinary ?? {},
+  ...testBinding
 }

@@ -1,8 +1,8 @@
-import type {ILogger, OutputFileDeclaration, OutputPlugin, OutputWriteContext} from './plugins/plugin-core'
+import type {ILogger, OutputAdaptor, OutputFileDeclaration, OutputWriteContext} from './adaptors/adaptor-core'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import {describe, expect, it, vi} from 'vitest'
-import {PluginKind} from './plugins/plugin-core'
+import {AdaptorKind} from './adaptors/adaptor-core'
 import {collectDeclaredWslMirrorFiles, syncWindowsConfigIntoWsl} from './wsl-mirror-sync'
 
 class MemoryMirrorFs {
@@ -103,11 +103,11 @@ function createLogger(): RecordedLogger {
 function createMirrorPlugin(
   sourcePaths: string | readonly string[] = [],
   pluginName: string = 'MirrorPlugin'
-): OutputPlugin {
+): OutputAdaptor {
   const normalizedPaths = Array.isArray(sourcePaths) ? sourcePaths : [sourcePaths]
 
   return {
-    type: PluginKind.Output,
+    type: AdaptorKind.Output,
     name: pluginName,
     log: createLogger(),
     declarativeOutput: true,
@@ -154,9 +154,9 @@ function createWriteContext(instances?: string | string[], dryRun: boolean = fal
 }
 
 function createPredeclaredOutputs(
-  plugin: OutputPlugin,
+  plugin: OutputAdaptor,
   declarations: readonly OutputFileDeclaration[]
-): ReadonlyMap<OutputPlugin, readonly OutputFileDeclaration[]> {
+): ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]> {
   return new Map([[plugin, declarations]])
 }
 
@@ -215,7 +215,7 @@ function wasWslListCalled(
 describe('wsl mirror sync', () => {
   it('skips declared WSL mirror files for opt-in plugins that are not enabled', async () => {
     const declarations = await collectDeclaredWslMirrorFiles(
-      [createMirrorPlugin('~/.claude/settings.json', 'ClaudeCodeCLIOutputPlugin')],
+      [createMirrorPlugin('~/.claude/settings.json', 'ClaudeCodeCLIOutputAdaptor')],
       {
         ...createWriteContext('Ubuntu'),
         pluginOptions: {
@@ -234,7 +234,7 @@ describe('wsl mirror sync', () => {
 
   it('collects declared WSL mirror files after an opt-in plugin is explicitly enabled', async () => {
     const declarations = await collectDeclaredWslMirrorFiles(
-      [createMirrorPlugin('~/.claude/settings.json', 'ClaudeCodeCLIOutputPlugin')],
+      [createMirrorPlugin('~/.claude/settings.json', 'ClaudeCodeCLIOutputAdaptor')],
       {
         ...createWriteContext('Ubuntu'),
         pluginOptions: {

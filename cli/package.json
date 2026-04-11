@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10408.12323",
+  "version": "2026.10411.10132",
   "description": "TrueNine Memory Synchronization CLI shell",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -15,10 +15,6 @@
     ".": {
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
-    },
-    "./globals": {
-      "types": "./dist/globals.d.mts",
-      "import": "./dist/globals.mjs"
     },
     "./schema.json": "./dist/tnmsc.schema.json",
     "./package.json": "./package.json"
@@ -59,17 +55,21 @@
     "sync:sdk-assets": "tsx scripts/sync-sdk-dist.ts",
     "check": "run-s ensure:sdk-build check:run",
     "check:run": "run-p lint:run check:type:run",
-    "lint": "run-s ensure:sdk-build lint:run",
+    "lint": "run-s ensure:sdk-build lint:run lint:rust",
     "lint:run": "eslint --cache --cache-location .eslintcache .",
+    "lint:rust": "cargo fmt --check --manifest-path Cargo.toml",
     "prepublishOnly": "run-s build check",
     "test": "run-s ensure:sdk-build test:run",
     "test:run": "vitest run",
-    "lint:fix": "run-s ensure:sdk-build lint:fix:run",
+    "lint:fix": "run-s ensure:sdk-build lint:fix:run lint:fix:rust",
     "lint:fix:run": "eslint --fix --cache --cache-location .eslintcache .",
+    "lint:fix:rust": "cargo fmt --manifest-path Cargo.toml",
     "typecheck": "run-s ensure:sdk-build check:type:run",
     "check:type:run": "tsc --noEmit -p tsconfig.lib.json"
   },
-  "dependencies": {},
+  "dependencies": {
+    "jiti": "catalog:"
+  },
   "optionalDependencies": {
     "@truenine/memory-sync-cli-darwin-arm64": "workspace:*",
     "@truenine/memory-sync-cli-darwin-x64": "workspace:*",
@@ -83,6 +83,7 @@
   },
   "devDependencies": {
     "@truenine/eslint10-config": "catalog:",
+    "@truenine/logger": "workspace:*",
     "@truenine/memory-sync-sdk": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
