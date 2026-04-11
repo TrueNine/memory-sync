@@ -713,6 +713,9 @@ importers:
       lightningcss:
         specifier: 'catalog:'
         version: 1.32.0
+      npm-run-all2:
+        specifier: 'catalog:'
+        version: 8.0.4
       picocolors:
         specifier: 'catalog:'
         version: 1.1.1
@@ -8505,8 +8508,8 @@ snapshots:
 
   '@typescript-eslint/project-service@8.56.1(typescript@6.0.2)':
     dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.56.1(typescript@6.0.2)
-      '@typescript-eslint/types': 8.56.1
+      '@typescript-eslint/tsconfig-utils': 8.58.1(typescript@6.0.2)
+      '@typescript-eslint/types': 8.58.1
       debug: 4.4.3
       typescript: 6.0.2
     transitivePeerDependencies:
