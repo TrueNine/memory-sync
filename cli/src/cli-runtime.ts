@@ -1,4 +1,4 @@
-import type {MemorySyncCommandResult, MemorySyncAdaptorInfo} from '@truenine/memory-sync-sdk'
+import type {MemorySyncAdaptorInfo, MemorySyncCommandResult} from '@truenine/memory-sync-sdk'
 
 import process from 'node:process'
 import {flushOutput, setGlobalLogLevel} from '@truenine/logger'
