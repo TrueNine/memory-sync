@@ -1,4 +1,4 @@
-import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputAdaptor} from '../src/adaptors/adaptor-core'
+import type {ILogger, OutputAdaptor, OutputCleanContext, OutputCleanupDeclarations} from '../src/adaptors/adaptor-core'
 import type {
   ListPromptsOptions,
   PromptServiceOptions,
@@ -6,8 +6,10 @@ import type {
   WritePromptArtifactsInput
 } from '../src/prompts'
 import * as fs from 'node:fs'
+import {createRequire} from 'node:module'
 import * as path from 'node:path'
 import glob from 'fast-glob'
+import {AdaptorKind, FilePathKind} from '../src/adaptors/adaptor-core/enums.ts'
 import {
   topologicalSort as topologicalSortLegacy
 } from '../src/internal/dependency-resolver-legacy'
@@ -29,7 +31,7 @@ import {
   isWslRuntime,
   resolveRuntimeEnvironment
 } from '../src/internal/runtime-environment-legacy'
-import {FilePathKind, AdaptorKind} from '../src/adaptors/adaptor-core/enums.ts'
+
 import * as deskPaths from './native-binding/desk-paths'
 
 interface NativeCleanupTarget {
@@ -207,17 +209,15 @@ function resolveSubSeries(
   return merged
 }
 
-import {createRequire} from 'node:module'
-
-function tryLoadRealBinary() {
+function tryLoadRealBinary(): Record<string, unknown> | undefined {
   try {
     const _require = createRequire(import.meta.url)
-    return _require('../../cli/npm/linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node')
+    return _require('../../cli/npm/linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node') as Record<string, unknown>
   }
   catch {}
 }
 
-const realBinary = tryLoadRealBinary() as Record<string, unknown> | undefined
+const realBinary = tryLoadRealBinary()
 
 const testBinding = {
   getPlatformFixedDir: deskPaths.getPlatformFixedDir,
@@ -264,6 +264,6 @@ const testBinding = {
 }
 
 globalThis.__TNMSC_TEST_NATIVE_BINDING__ = {
-  ...(realBinary ?? {}),
+  ...realBinary ?? {},
   ...testBinding
 }

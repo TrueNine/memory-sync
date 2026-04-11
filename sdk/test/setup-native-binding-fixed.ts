@@ -1,8 +1,8 @@
-import type {ILogger, OutputCleanContext, OutputCleanupDeclarations, OutputAdaptor} from '../src/adaptors/adaptor-core'
+import type {ILogger, OutputAdaptor, OutputCleanContext, OutputCleanupDeclarations} from '../src/adaptors/adaptor-core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
-import {FilePathKind, AdaptorKind} from '../src/adaptors/adaptor-core/enums'
+import {AdaptorKind, FilePathKind} from '../src/adaptors/adaptor-core/enums'
 import * as deskPaths from './native-binding/desk-paths'
 // import {
 // // getPrompt,

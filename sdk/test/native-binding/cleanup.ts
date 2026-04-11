@@ -1,10 +1,10 @@
 import type {
   ILogger,
+  OutputAdaptor,
   OutputCleanContext,
   OutputCleanupDeclarations,
   OutputCleanupPathDeclaration,
-  OutputFileDeclaration,
-  OutputAdaptor
+  OutputFileDeclaration
 } from '../../src/adaptors/adaptor-core'
 import type {ProtectedPathRule, ProtectionMode, ProtectionRuleMatcher} from '../../src/ProtectedDeletionGuard.ts'
 import type {DeletionError} from './desk-paths'
@@ -12,7 +12,6 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {buildDiagnostic, buildFileOperationDiagnostic, diagnosticLines} from '../../src/diagnostics.ts'
-import {collectAllAdaptorOutputs} from '../../src/adaptors/adaptor-core'
 import {
   buildComparisonKeys,
   collectProjectRoots,
@@ -416,16 +415,6 @@ export async function performCleanup(
   logger: ILogger,
   predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<CleanupResult> {
-  if (predeclaredOutputs != null) {
-    const outputs = await collectAllAdaptorOutputs(outputPlugins, cleanCtx, predeclaredOutputs)
-    logger.debug('Collected outputs for cleanup', {
-      projectDirs: outputs.projectDirs.length,
-      projectFiles: outputs.projectFiles.length,
-      globalDirs: outputs.globalDirs.length,
-      globalFiles: outputs.globalFiles.length
-    })
-  }
-
   let targets: CleanupTargetCollections
   try {
     targets = await collectCleanupTargets(outputPlugins, cleanCtx, predeclaredOutputs)
