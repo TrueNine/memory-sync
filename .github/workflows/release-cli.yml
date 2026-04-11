@@ -336,39 +336,12 @@ jobs:
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: mcp
 
-  # 5. 只构建一次 CLI runtime，供二进制矩阵复用
-  prepare-cli-runtime:
-    needs: preflight
-    if: |
-      needs.preflight.outputs.publish_cli == 'true' ||
-      needs.preflight.outputs.gui_should_release == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-node-pnpm
-      - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: cli-runtime
-      - name: Build plugin-runtime
-        shell: bash
-        run: |
-          pnpm -F @truenine/memory-sync-cli run build
-          ls -la cli/dist/plugin-runtime.mjs
-      - name: Upload plugin-runtime
-        uses: actions/upload-artifact@v7
-        with:
-          name: cli-plugin-runtime
-          path: cli/dist/plugin-runtime.mjs
-          if-no-files-found: error
-
-  # 6. 构建 CLI 独立二进制（仅 artifact，不发 Release）
+  # 5. 构建 CLI 独立二进制（仅 artifact，不发 Release）
   build-binary:
-    needs: [preflight, publish-napi, prepare-cli-runtime]
+    needs: [preflight, publish-napi]
     if: |
       (needs.preflight.outputs.publish_cli == 'true' || needs.preflight.outputs.gui_should_release == 'true') &&
-      (needs.publish-napi.result == 'success' || needs.publish-napi.result == 'skipped') &&
-      needs.prepare-cli-runtime.result == 'success'
+      (needs.publish-napi.result == 'success' || needs.publish-napi.result == 'skipped')
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -398,11 +371,6 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v6
-      - name: Download plugin-runtime
-        uses: actions/download-artifact@v8
-        with:
-          name: cli-plugin-runtime
-          path: cli/dist
       - uses: ./.github/actions/setup-rust
         with:
           targets: ${{ matrix.target }}
@@ -410,18 +378,17 @@ jobs:
       - name: Setup cross-compile
         if: matrix.cross
         uses: ./.github/actions/setup-cross-compile
-      - name: Build tnmsc binary (release, with embedded runtime)
-        run: cargo build --release --target ${{ matrix.target }} -p tnmsc-cli-shell --features tnmsc/embedded-runtime
+      - name: Build tnmsc binary (release)
+        run: cargo build --release --target ${{ matrix.target }} -p tnmsc-cli-shell
       - name: Run tests (native only)
         if: ${{ !matrix.cross }}
-        run: cargo test --release --target ${{ matrix.target }} -p tnmsc-cli-shell --features tnmsc/embedded-runtime
+        run: cargo test --release --target ${{ matrix.target }} -p tnmsc-cli-shell
       - name: Package (unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           mkdir -p staging
           cp target/${{ matrix.target }}/release/${{ matrix.binary }} staging/
-          cp cli/dist/plugin-runtime.mjs staging/
           cd staging
           tar czf ../${{ matrix.archive }} *
       - name: Package (windows)
@@ -430,7 +397,6 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path staging
           Copy-Item "target/${{ matrix.target }}/release/${{ matrix.binary }}" staging/
-          Copy-Item "cli/dist/plugin-runtime.mjs" staging/
           Compress-Archive -Path staging/* -DestinationPath ${{ matrix.archive }}
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -439,7 +405,7 @@ jobs:
           path: ${{ matrix.archive }}
           if-no-files-found: error
 
-  # 7. 构建 GUI — 三平台并行（fail-fast: 任一失败则全部取消）
+  # 6. 构建 GUI — 三平台并行（fail-fast: 任一失败则全部取消）
   build-gui-all:
     needs: [preflight]
     if: needs.preflight.outputs.gui_should_release == 'true'
@@ -448,7 +414,7 @@ jobs:
       version: ${{ needs.preflight.outputs.gui_version }}
     secrets: inherit
 
-  # 8. 收集三平台产物，创建 GitHub Release + tag
+  # 7. 收集三平台产物，创建 GitHub Release + tag
   release-gui-collect:
     needs: [preflight, build-gui-all, build-binary]
     if: needs.preflight.outputs.gui_should_release == 'true'
