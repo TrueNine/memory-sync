@@ -6,7 +6,7 @@ import glob from 'fast-glob'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {mergeConfig} from '../config'
 
-vi.mock('@truenine/md-compiler', () => ({
+vi.mock('@/md-compiler', () => ({
   mdxToMd: async (content: string) => ({
     content: content.replace(/export default\s*\{[\s\S]*?\}\s*/u, '').trim(),
     metadata: {

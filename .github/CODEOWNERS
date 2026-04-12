@@ -4,7 +4,7 @@
 # High-risk directories
 /.github/ @TrueNine
 /cli/ @TrueNine
-/libraries/ @TrueNine
+/sdk/ @TrueNine
 /gui/ @TrueNine
 /doc/ @TrueNine
 /scripts/ @TrueNine

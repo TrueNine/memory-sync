@@ -51,11 +51,11 @@ const {mdxToMdMock, parseMarkdownMock} = vi.hoisted(() => ({
   })
 }))
 
-vi.mock('@truenine/md-compiler', () => ({
+vi.mock('@/md-compiler', () => ({
   mdxToMd: mdxToMdMock
 }))
 
-vi.mock('@truenine/md-compiler/markdown', () => ({
+vi.mock('@/md-compiler/markdown', () => ({
   parseMarkdown: parseMarkdownMock
 }))
 
@@ -160,6 +160,26 @@ describe('prompt artifact cache', () => {
         compiled: true
       })
       expect(mdxToMdMock).toHaveBeenCalledTimes(1)
+    }
+    finally {
+      fs.rmSync(tempDir, {recursive: true, force: true})
+    }
+  })
+
+  it('keeps plain dist markdown as-is when it does not contain MDX syntax', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-prompt-cache-plain-dist-'))
+    const filePath = path.join(tempDir, 'prompt.mdx')
+
+    try {
+      fs.writeFileSync(filePath, '- **Small projects (<100,000 RMB)**: Keep it simple\n', 'utf8')
+
+      const artifact = await readPromptArtifact(filePath, {
+        mode: 'dist'
+      })
+
+      expect(artifact.content).toBe('- **Small projects (<100,000 RMB)**: Keep it simple\n')
+      expect(artifact.metadata).toEqual({})
+      expect(mdxToMdMock).not.toHaveBeenCalled()
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})

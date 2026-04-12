@@ -4,9 +4,6 @@ packages:
   - cli-integration-test
   - cli/npm/*
   - mcp
-  - libraries/*
-  - libraries/logger/npm/*
-  - libraries/md-compiler/npm/*
   - gui
   - doc
 

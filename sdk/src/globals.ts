@@ -1,1 +1,1 @@
-export * from '@truenine/md-compiler/globals'
+export * from './md-compiler/globals'

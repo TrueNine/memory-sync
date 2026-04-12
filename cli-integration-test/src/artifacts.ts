@@ -6,16 +6,16 @@ import {fileURLToPath} from 'node:url'
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url))
 const CLI_DIR = path.join(REPO_ROOT, 'cli')
-const SCRIPT_RUNTIME_DIR = path.join(REPO_ROOT, 'libraries', 'script-runtime')
+const SDK_DIR = path.join(REPO_ROOT, 'sdk')
 const CLI_LINUX_PACKAGE_DIR = path.join(CLI_DIR, 'npm', 'linux-x64-gnu')
-const EXPECTED_LINUX_NODE_FILES = 4
+const REQUIRED_LINUX_NODE_FILE = 'napi-memory-sync-cli.linux-x64-gnu.node'
 const MAX_BUFFER = 16 * 1024 * 1024
 
 export interface CliIntegrationArtifacts {
   readonly tempDir: string
   readonly cliTarballPath: string
   readonly linuxTarballPath: string
-  readonly scriptRuntimeTarballPath: string
+  readonly sdkTarballPath: string
   readonly latestPnpmVersion: string
 }
 
@@ -93,20 +93,20 @@ function packWorkspacePackage(packageDir: string, targetDir: string): string {
 }
 
 function ensureLinuxPlatformPackageReady(): void {
-  const nodeFiles = existsSync(CLI_LINUX_PACKAGE_DIR)
-    ? readdirSync(CLI_LINUX_PACKAGE_DIR).filter(fileName => fileName.endsWith('.node'))
-    : []
+  const hasRequiredNodeFile = existsSync(CLI_LINUX_PACKAGE_DIR)
+    && readdirSync(CLI_LINUX_PACKAGE_DIR).includes(REQUIRED_LINUX_NODE_FILE)
 
-  if (nodeFiles.length >= EXPECTED_LINUX_NODE_FILES) return
+  if (hasRequiredNodeFile) return
 
   runCommand('pnpm', ['-C', CLI_DIR, 'run', 'build:napi:copy'])
 
-  const copiedNodeFiles = readdirSync(CLI_LINUX_PACKAGE_DIR)
-    .filter(fileName => fileName.endsWith('.node'))
+  const copiedNodeFiles = existsSync(CLI_LINUX_PACKAGE_DIR)
+    ? readdirSync(CLI_LINUX_PACKAGE_DIR).filter(fileName => fileName.endsWith('.node'))
+    : []
 
-  if (copiedNodeFiles.length < EXPECTED_LINUX_NODE_FILES) {
+  if (!copiedNodeFiles.includes(REQUIRED_LINUX_NODE_FILE)) {
     throw new Error(
-      `Expected ${EXPECTED_LINUX_NODE_FILES} Linux x64 NAPI artifacts in "${CLI_LINUX_PACKAGE_DIR}", found ${copiedNodeFiles.length}.`
+      `Expected the Linux x64 NAPI artifact "${REQUIRED_LINUX_NODE_FILE}" in "${CLI_LINUX_PACKAGE_DIR}", found ${copiedNodeFiles.length} .node file(s): ${copiedNodeFiles.join(', ') || '(none)'}.`
     )
   }
 }
@@ -133,9 +133,9 @@ export function prepareCliIntegrationArtifacts(): CliIntegrationArtifacts {
     CLI_LINUX_PACKAGE_DIR,
     path.join(tempDir, 'cli-linux-x64')
   )
-  const scriptRuntimeTarballPath = packWorkspacePackage(
-    SCRIPT_RUNTIME_DIR,
-    path.join(tempDir, 'script-runtime')
+  const sdkTarballPath = packWorkspacePackage(
+    SDK_DIR,
+    path.join(tempDir, 'sdk')
   )
   const latestPnpmVersion = resolveLatestPackageVersion('pnpm')
 
@@ -143,7 +143,7 @@ export function prepareCliIntegrationArtifacts(): CliIntegrationArtifacts {
     tempDir,
     cliTarballPath,
     linuxTarballPath,
-    scriptRuntimeTarballPath,
+    sdkTarballPath,
     latestPnpmVersion
   }
 

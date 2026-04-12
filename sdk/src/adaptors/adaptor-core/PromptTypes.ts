@@ -1,6 +1,6 @@
-import type {Root, RootContent} from '@truenine/md-compiler'
 import type {ClaudeCodeCLISubAgentColors, CodingAgentTools, FilePathKind, NamingCaseKind, PromptKind, RuleScope} from './enums'
 import type {GlobalConfigDirectory} from './OutputTypes'
+import type {Root, RootContent} from '@/md-compiler'
 
 /** Common directory representation */
 export interface Path<K extends FilePathKind = FilePathKind> {

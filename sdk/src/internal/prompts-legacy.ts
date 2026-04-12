@@ -16,13 +16,13 @@ import type {YAMLFrontMatter} from '@/adaptors/adaptor-core/PromptTypes'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'
-import {parseMarkdown} from '@truenine/md-compiler/markdown'
 import glob from 'fast-glob'
 import {
   isAindexProjectSeriesName,
   resolveAindexProjectSeriesConfig,
   resolveAindexProjectSeriesConfigs
 } from '@/aindex-project-series'
+import {parseMarkdown} from '@/md-compiler/markdown'
 import {PathPlaceholders} from '../adaptors/adaptor-core/constants'
 import {mergeConfigForRuntime, userConfigToAdaptorOptions} from '../config'
 import {getConfigLoader} from '../ConfigLoader'

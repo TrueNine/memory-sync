@@ -46,8 +46,8 @@ function isScriptRuntimeBinding(value: unknown): value is ScriptRuntimeBinding {
 }
 
 const getBinding = createNativeBindingLoader<ScriptRuntimeBinding>({
-  packageName: '@truenine/script-runtime',
-  binaryName: 'napi-script-runtime',
+  packageName: '@truenine/memory-sync-sdk',
+  binaryName: 'napi-memory-sync-cli',
   bindingValidator: isScriptRuntimeBinding,
   cliExportName: 'scriptRuntime',
   optionalMethods: {
@@ -79,7 +79,7 @@ function callResolvePublicPathBinding(filePath: string, ctxJson: string, logical
 
 function getPackageWorkerPaths(): string[] {
   try {
-    const packageJsonPath = runtimeRequire.resolve('@truenine/script-runtime/package.json')
+    const packageJsonPath = runtimeRequire.resolve('@truenine/memory-sync-sdk/package.json')
     const packageDir = dirname(packageJsonPath)
 
     return [
@@ -103,13 +103,8 @@ function getWorkerPath(): string {
     fileURLToPath(new URL('../script-runtime-worker.mjs', import.meta.url)),
     fileURLToPath(new URL('../../resolve-proxy-worker.mjs', import.meta.url)),
     fileURLToPath(new URL('../../script-runtime-worker.mjs', import.meta.url)),
-    fileURLToPath(new URL('../../libraries/script-runtime/dist/resolve-proxy-worker.mjs', import.meta.url)),
-    fileURLToPath(new URL('../../libraries/script-runtime/dist/script-runtime-worker.mjs', import.meta.url)),
     fileURLToPath(new URL('../../../cli/dist/script-runtime-worker.mjs', import.meta.url)),
-    fileURLToPath(new URL('../../../../cli/dist/script-runtime-worker.mjs', import.meta.url)),
-    fileURLToPath(new URL('../../../libraries/script-runtime/dist/resolve-proxy-worker.mjs', import.meta.url)),
-    fileURLToPath(new URL('../../../../libraries/script-runtime/dist/resolve-proxy-worker.mjs', import.meta.url)),
-    fileURLToPath(new URL('../../../../../libraries/script-runtime/dist/resolve-proxy-worker.mjs', import.meta.url))
+    fileURLToPath(new URL('../../../../cli/dist/script-runtime-worker.mjs', import.meta.url))
   ]
 
   for (const candidatePath of candidatePaths) {

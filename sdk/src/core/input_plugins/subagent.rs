@@ -3,6 +3,7 @@ use std::path::Path;
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::core::config;
 use crate::core::input_plugins::localized_reader::read_flat_files;
 use crate::core::plugin_shared::{
   PromptKind, RelativePath, SubAgentPrompt, SubAgentYAMLFrontMatter,
@@ -159,9 +160,7 @@ pub fn collect_subagent(options_json: &str) -> Result<String, crate::CliError> {
   let options: SubAgentInputOptions =
     serde_json::from_str(options_json).map_err(|e| crate::CliError::ConfigError(e.to_string()))?;
 
-  let workspace_dir = Path::new(&options.workspace_dir)
-    .canonicalize()
-    .unwrap_or_else(|_| Path::new(&options.workspace_dir).to_path_buf());
+  let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
   let aindex_dir_name = options

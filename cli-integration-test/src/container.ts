@@ -30,7 +30,7 @@ export interface InstalledCliResolution {
   readonly mainPackageDir: string
   readonly platformPackageDir: string
   readonly resolvedAddonPath: string
-  readonly scriptRuntimePackagePath: string
+  readonly sdkPackagePath: string
 }
 
 export interface CliIntegrationFixture {
@@ -190,12 +190,12 @@ export class PreparedCliIntegrationContainer {
       'const platformPackageDir = process.argv[3];',
       'const requireFromBridge = createRequire(path.join(mainPackageDir, "dist", "internal", "native-command-bridge.mjs"));',
       'const resolvedAddonPath = requireFromBridge.resolve("@truenine/memory-sync-cli-linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node");',
-      'const scriptRuntimePackagePath = requireFromBridge.resolve("@truenine/script-runtime/package.json");',
+      'const sdkPackagePath = requireFromBridge.resolve("@truenine/memory-sync-sdk/package.json");',
       'process.stdout.write(JSON.stringify({',
       '  mainPackageDir,',
       '  platformPackageDir,',
       '  resolvedAddonPath,',
-      '  scriptRuntimePackagePath',
+      '  sdkPackagePath',
       '}));'
     ].join(' ')
 
@@ -243,22 +243,22 @@ export class PreparedCliIntegrationContainer {
     this.copyPathToContainer(artifacts.cliTarballPath, containerTarballPath(artifacts.cliTarballPath))
     this.copyPathToContainer(artifacts.linuxTarballPath, containerTarballPath(artifacts.linuxTarballPath))
     this.copyPathToContainer(
-      artifacts.scriptRuntimeTarballPath,
-      containerTarballPath(artifacts.scriptRuntimeTarballPath)
+      artifacts.sdkTarballPath,
+      containerTarballPath(artifacts.sdkTarballPath)
     )
   }
 
   bootstrapLatestPnpmAndInstallCli(artifacts: CliIntegrationArtifacts): void {
     const cliTarball = containerTarballPath(artifacts.cliTarballPath)
     const linuxTarball = containerTarballPath(artifacts.linuxTarballPath)
-    const scriptRuntimeTarball = containerTarballPath(artifacts.scriptRuntimeTarballPath)
+    const sdkTarball = containerTarballPath(artifacts.sdkTarballPath)
 
     this.assertExecSuccess(
       [
         'corepack enable',
         `corepack prepare pnpm@${quoteShell(artifacts.latestPnpmVersion)} --activate`,
         'pnpm --version',
-        `pnpm add -g ${quoteShell(cliTarball)} ${quoteShell(linuxTarball)} ${quoteShell(scriptRuntimeTarball)}`,
+        `pnpm add -g ${quoteShell(cliTarball)} ${quoteShell(linuxTarball)} ${quoteShell(sdkTarball)}`,
         buildPinnedGlobalCliPlatformLinkScript(),
         'command -v tnmsc >/dev/null'
       ].join(' && ')

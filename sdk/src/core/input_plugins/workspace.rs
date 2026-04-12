@@ -31,11 +31,7 @@ pub fn collect_workspace(options_json: &str) -> Result<String, crate::CliError> 
   let options: WorkspaceInputOptions =
     serde_json::from_str(options_json).map_err(|e| crate::CliError::ConfigError(e.to_string()))?;
 
-  let workspace_dir_raw = options.workspace_dir;
-  let expanded_workspace_dir = config::resolve_tilde(&workspace_dir_raw);
-  let workspace_dir = expanded_workspace_dir
-    .canonicalize()
-    .unwrap_or(expanded_workspace_dir);
+  let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
   let aindex_dir_name = options

@@ -30,6 +30,7 @@ const DEFAULT_LOCAL_CANDIDATE_RELATIVE_PATHS = [
   '../dist/',
   '../npm/',
   '../../npm/',
+  '../../cli/npm/',
   '../../../cli/npm/',
   '../../../../cli/npm/'
 ] as const
@@ -37,6 +38,7 @@ const DEFAULT_LOCAL_CANDIDATE_RELATIVE_PATHS = [
 const DEFAULT_PACKAGE_DIR_CANDIDATE_RELATIVE_PATHS = [
   '../npm/',
   '../../npm/',
+  '../../cli/npm/',
   '../../../cli/npm/',
   '../../../../cli/npm/'
 ] as const

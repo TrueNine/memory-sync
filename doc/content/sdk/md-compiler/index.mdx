@@ -10,8 +10,8 @@ import { Callout, Cards, Steps, Tabs } from 'nextra/components'
 # MDX-Compiler 编译器
 
 <Callout type="info">
-  **包标识**: `@truenine/md-compiler` (npm) / `tnmsc-md-compiler` (Rust crate)  
-  **源码位置**: `libraries/md-compiler/`
+  **包标识**: `@truenine/memory-sync-sdk` (npm) / `tnmsc` (Rust crate)  
+  **源码位置**: `sdk/src/md-compiler/`
   **导出入口**: `src/index.ts`
 </Callout>
 
@@ -33,7 +33,7 @@ MDX-Compiler 是 memory-sync monorepo 中的 **Rust-first MDX/Markdown 编译与
 
 MDX-Compiler 当前采用 **Native-first 入口 + TypeScript 参考实现** 的结构：
 
-1. **Native Binding 层（Rust/NAPI）**：核心编译逻辑由 Rust crate `tnmsc-md-compiler` 实现，通过 NAPI-RS 暴露给 Node.js。公开包入口默认走这条路径。
+1. **Native Binding 层（Rust/NAPI）**：核心编译逻辑由 Rust crate `tnmsc` 实现，通过 NAPI-RS 暴露给 Node.js。公开包入口默认走这条路径。
 2. **TypeScript 参考实现（`src/compiler/`）**：仓库内保留完整的 TypeScript 编译流水线，用于源级测试、实现对照和调试，但公共包入口不会自动切换到它。
 
 运行时入口通过 `native-binding.ts` 中的 `getNapiMdCompilerBinding()` 接入 `sdk/src/core/native-binding-loader.ts`：
@@ -371,7 +371,7 @@ flowchart LR
 ### 内部依赖
 
 <Callout type="info">
-  MDX-Compiler 通过 workspace 依赖使用 `tnmsc-logger` 库进行编译过程中的日志输出。
+  MDX-Compiler 通过 workspace 依赖使用 `tnmsc` 库进行编译过程中的日志输出。
 </Callout>
 
 ### 外部依赖 (devDependencies)
@@ -393,7 +393,7 @@ flowchart LR
 
 | Crate | 用途 |
 | --- | --- |
-| `tnmsc-logger` | Workspace 日志库 |
+| `tnmsc` | Workspace 日志库 |
 | `serde` / `serde_json` | JSON 序列化（NAPI 参数传递） |
 | `serde_yml` | YAML 解析（frontmatter 处理） |
 | `markdown` | markdown-rs 解析器（Rust 端 MDX 解析） |
@@ -421,7 +421,7 @@ interface MdxGlobalScope {
 库提供了三组工具名称预设，适配不同的 AI 工具环境：
 
 ```typescript
-import { ToolPresets } from '@truenine/md-compiler/globals'
+import { ToolPresets } from '@truenine/memory-sync-sdk/globals'
 
 // 默认预设 (snake_case)
 ToolPresets.default
@@ -443,7 +443,7 @@ ToolPresets.kiro
 最简单的用法——传入 MDX 字符串，获取编译后的 Markdown：
 
 ```typescript
-import { mdxToMd } from '@truenine/md-compiler'
+import { mdxToMd } from '@truenine/memory-sync-sdk'
 
 const mdxSource = `
 # Hello MDX
@@ -477,7 +477,7 @@ console.log(markdown)
 使用自定义作用域、全局作用域和文件路径进行编译：
 
 ```typescript
-import { mdxToMd, MdxToMdOptions } from '@truenine/md-compiler'
+import { mdxToMd, MdxToMdOptions } from '@truenine/memory-sync-sdk'
 
 const mdxSource = `
 # Profile Page
@@ -526,7 +526,7 @@ console.log(result.metadata)
 构建用于 AI Prompt 的结构化 TOML 文档：
 
 ```typescript
-import { mdxToMd, buildPromptTomlArtifact } from '@truenine/md-compiler'
+import { mdxToMd, buildPromptTomlArtifact } from '@truenine/memory-sync-sdk'
 
 const promptContent = `
 # System Prompt
@@ -587,7 +587,7 @@ console.log(tomlOutput)
 从 MDX 的 `export` 语句中提取结构化元数据：
 
 ```typescript
-import { mdxToMd } from '@truenine/md-compiler'
+import { mdxToMd } from '@truenine/memory-sync-sdk'
 
 const mdxWithExports = `
 ---
@@ -649,7 +649,7 @@ import {
   type MdxJsxFlowElement,
   type ProcessingContext,
   type RootContent
-} from '@truenine/md-compiler'
+} from '@truenine/memory-sync-sdk'
 
 // 定义一个 <Alert> 组件
 const alertHandler: ComponentHandler = async (
@@ -852,7 +852,7 @@ import {
   ExportParseError,
   MetadataValidationError,
   formatCompilerDiagnostic
-} from '@truenine/md-compiler'
+} from '@truenine/memory-sync-sdk'
 
 try {
   const result = await mdxToMd(mdxSource, { filePath: '/path/to/file.mdx', extractMetadata: true })
@@ -878,7 +878,7 @@ try {
 
 ### 类型导出速查
 
-以下是 `@truenine/md-compiler` 的完整公共类型导出清单：
+以下是 `@truenine/memory-sync-sdk` 的完整公共类型导出清单：
 
 ```typescript
 // ===== 核心类型 (来自 types.ts) =====

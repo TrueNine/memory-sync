@@ -3,7 +3,7 @@ import type {
   OutputCleanupDeclarations,
   RulePrompt
 } from './adaptor-core'
-import {doubleQuoted} from '@truenine/md-compiler/markdown'
+import {doubleQuoted} from '@/md-compiler/markdown'
 import {AbstractOutputAdaptor} from './adaptor-core'
 
 const PROJECT_MEMORY_FILE = 'CLAUDE.md'

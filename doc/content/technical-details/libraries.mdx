@@ -1,6 +1,6 @@
 ---
 title: 基础库（概述）
-description: libraries/ 下三个 Rust-first 基础库的快速导航与重定向指引。详细文档已迁移至 SDK 文档体系。
+description: sdk/ 下三个 Rust-first 基础库的快速导航与重定向指引。详细文档已迁移至 SDK 文档体系。
 sidebarTitle: 基础库
 status: stable
 ---
@@ -18,11 +18,11 @@ import { Callout, Cards } from 'nextra/components'
 
 ## 现状说明
 
-`libraries/` 目录仍然存在且正常运作，但它不再等同于全部 TypeScript 事实来源。当前边界是：
+`sdk/` 目录仍然存在且正常运作，但它不再等同于全部 TypeScript 事实来源。当前边界是：
 
-- `libraries/logger/` 与 `libraries/script-runtime/` 继续保留 Rust crate、NAPI 制品和对外发布 wrapper
-- `sdk/src/libraries/logger.ts` 与 `sdk/src/libraries/script-runtime/` 已成为对应 TypeScript facade 的事实来源
-- `libraries/md-compiler/` 仍保留完整的 Rust + TypeScript 实现
+- `sdk/src/native_logger.rs` 与 `sdk/src/sdk/script-runtime/` 继续保留 Rust crate、NAPI 制品和对外发布 wrapper
+- `sdk/src/sdk/logger.ts` 与 `sdk/src/sdk/src/sdk/script-runtime/` 已成为对应 TypeScript facade 的事实来源
+- `sdk/src/md-compiler/` 仍保留完整的 Rust + TypeScript 实现
 
 这三个 Rust-first / NAPI-first 基础能力继续作为 memory-sync 工具链的共享基础设施，被 `sdk/` 核心层编排后统一暴露给 `cli/`、`mcp/` 和 `gui/` 消费。
 

@@ -15,6 +15,19 @@ export interface VersionControlCheckResult {
   readonly gitPath: string
 }
 
+function findGitPath(startPath: string): string | undefined {
+  let currentPath = path.resolve(startPath)
+
+  for (;;) {
+    const gitPath = path.join(currentPath, '.git')
+    if (fs.existsSync(gitPath)) return gitPath
+
+    const parentPath = path.dirname(currentPath)
+    if (parentPath === currentPath) return void 0
+    currentPath = parentPath
+  }
+}
+
 /**
  * Check if the aindex has version control (.git directory)
  * Logs info if .git exists, warns if not
@@ -27,24 +40,18 @@ export function checkVersionControl(
   rootPath: string,
   logger?: ILogger
 ): VersionControlCheckResult {
-  const gitPath = path.join(rootPath, '.git')
+  const gitPath = findGitPath(rootPath) ?? path.join(rootPath, '.git')
   const hasGit = fs.existsSync(gitPath)
 
-  if (hasGit) logger?.info('version control detected', {path: gitPath})
+  if (hasGit) logger?.debug('version control detected', {path: gitPath})
   else {
     logger?.warn(buildUsageDiagnostic({
       code: 'AINDEX_VERSION_CONTROL_MISSING',
-      title: 'Aindex root is not under version control',
-      rootCause: diagnosticLines(`tnmsc did not find a .git directory under "${rootPath}".`),
-      exactFix: diagnosticLines(
-        `Initialize git in "${rootPath}" or place the aindex inside an existing git repository.`
-      ),
-      possibleFixes: [
-        diagnosticLines('Run `git init` in the aindex root if the directory should be versioned.')
-      ],
+      title: 'Aindex is not inside a Git repository',
+      rootCause: diagnosticLines(`No Git repository was found for "${rootPath}".`),
+      exactFix: diagnosticLines(`Run \`git init "${rootPath}"\` or move the workspace under an existing Git repository.`),
       details: {
-        rootPath,
-        gitPath
+        rootPath
       }
     }))
   }

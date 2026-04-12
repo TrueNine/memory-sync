@@ -21,10 +21,10 @@ function loadBinding(prefix) {
   return file == null ? undefined : require(join(moduleDir, file))
 }
 
-export const logger = loadBinding('napi-logger.')
-export const mdCompiler = loadBinding('napi-md-compiler.')
-export const scriptRuntime = loadBinding('napi-script-runtime.')
 export const config = loadBinding('napi-memory-sync-cli.')
+export const logger = loadBinding('napi-logger.') ?? config
+export const mdCompiler = loadBinding('napi-md-compiler.') ?? config
+export const scriptRuntime = loadBinding('napi-script-runtime.') ?? config
 
 const bindings = {logger, mdCompiler, scriptRuntime, config}
 

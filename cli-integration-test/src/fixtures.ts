@@ -9,6 +9,9 @@ export const CONTAINER_EXTERNAL_CWD = '/tmp/tnmsc-external'
 export interface CodexFixtureOptions {
   readonly seedGlobalSystemSkill?: boolean
   readonly seedGlobalStaleSkill?: boolean
+  readonly logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error'
+  readonly workspaceLocation?: 'root' | 'home'
+  readonly seedWorkspaceGit?: boolean
 }
 
 interface FixturePluginFlags {
@@ -62,15 +65,19 @@ function writeTextFile(filePath: string, content: string): void {
 
 function writeGlobalConfig(
   homeDir: string,
-  plugins: FixturePluginFlags
+  plugins: FixturePluginFlags,
+  options: {
+    readonly workspaceDir: string
+    readonly logLevel: 'trace' | 'debug' | 'info' | 'warn' | 'error'
+  }
 ): void {
   const configPath = path.join(homeDir, '.aindex', '.tnmsc.json')
   writeTextFile(
     configPath,
     JSON.stringify(
       {
-        workspaceDir: CONTAINER_WORKSPACE_DIR,
-        logLevel: 'warn',
+        workspaceDir: options.workspaceDir,
+        logLevel: options.logLevel,
         plugins
       },
       null,
@@ -202,6 +209,10 @@ function writeManagedProjectFixtures(workspaceDir: string): void {
   ensureDir(path.join(workspaceDir, 'aindex', 'dist', 'app', 'project-a'))
 }
 
+function seedWorkspaceGit(workspaceDir: string): void {
+  ensureDir(path.join(workspaceDir, '.git'))
+}
+
 function writeProjectPromptFixtures(workspaceDir: string): void {
   writeTextFile(
     path.join(workspaceDir, 'aindex', 'app', 'project-a', 'agt.src.mdx'),
@@ -271,18 +282,31 @@ export function createCodexFixture(
 ): CodexFixture {
   const rootDir = mkdtempSync(path.join(tmpdir(), 'tnmsc-codex-fixture-'))
   const homeDir = path.join(rootDir, 'home')
-  const workspaceDir = path.join(rootDir, 'workspace')
+  const workspaceLocation = options.workspaceLocation ?? 'root'
+  const workspaceDir = workspaceLocation === 'home'
+    ? path.join(homeDir, 'workspace')
+    : path.join(rootDir, 'workspace')
+  const workspaceDirConfig = workspaceLocation === 'home'
+    ? '~/workspace'
+    : CONTAINER_WORKSPACE_DIR
+  const workspaceContainerDir = workspaceLocation === 'home'
+    ? path.posix.join(CONTAINER_HOME_DIR, 'workspace')
+    : CONTAINER_WORKSPACE_DIR
 
   writeGlobalConfig(homeDir, {
     codex: true,
     claudeCode: false,
     git: false,
     readme: false
+  }, {
+    workspaceDir: workspaceDirConfig,
+    logLevel: options.logLevel ?? 'warn'
   })
   writeCommandFixtures(workspaceDir)
   writeSubAgentFixtures(workspaceDir)
   writeSkillFixtures(workspaceDir)
   writeManagedProjectFixtures(workspaceDir)
+  if (options.seedWorkspaceGit === true) seedWorkspaceGit(workspaceDir)
   seedGlobalCodexSkills(homeDir, options)
 
   return {
@@ -297,20 +321,20 @@ export function createCodexFixture(
         'find-opensource.md'
       ),
       workspaceCommand: path.posix.join(
-        CONTAINER_WORKSPACE_DIR,
+        workspaceContainerDir,
         '.codex',
         'prompts',
         'find-opensource.md'
       ),
       projectAgent: path.posix.join(
-        CONTAINER_WORKSPACE_DIR,
+        workspaceContainerDir,
         'project-a',
         '.codex',
         'agents',
         'qa-reviewer.toml'
       ),
       projectSkill: path.posix.join(
-        CONTAINER_WORKSPACE_DIR,
+        workspaceContainerDir,
         'project-a',
         '.codex',
         'skills',
@@ -318,7 +342,7 @@ export function createCodexFixture(
         'SKILL.md'
       ),
       projectSkillMcp: path.posix.join(
-        CONTAINER_WORKSPACE_DIR,
+        workspaceContainerDir,
         'project-a',
         '.codex',
         'skills',
@@ -356,6 +380,9 @@ export function createClaudeCodeFixture(): ClaudeCodeFixture {
     claudeCode: true,
     git: false,
     readme: false
+  }, {
+    workspaceDir: CONTAINER_WORKSPACE_DIR,
+    logLevel: 'warn'
   })
   writeGlobalMemoryFixtures(workspaceDir)
   writeCommandFixtures(workspaceDir)

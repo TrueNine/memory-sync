@@ -1,7 +1,7 @@
-import type {MemorySyncCommandOptions, MemorySyncCommandResult} from '../../../sdk/src/internal/sdk-binding'
+import type {MemorySyncCommandOptions, MemorySyncCommandResult} from '@truenine/memory-sync-sdk'
 import {writeFile} from 'node:fs/promises'
 import process from 'node:process'
-import {createTsFallbackMemorySyncBinding} from '../../../sdk/src/internal/sdk-binding'
+import {createTsFallbackMemorySyncBinding} from '@truenine/memory-sync-sdk'
 
 type InternalBridgeCommand = 'install' | 'dry-run' | 'clean' | 'self-test'
 

@@ -10,7 +10,7 @@ import { Callout, Cards, Steps, Tabs } from 'nextra/components'
 # Script-Runtime
 
 <Callout type="info">
-**包名**: `@truenine/script-runtime` &nbsp;|&nbsp; **Rust Crate**: `tnmsc-script-runtime` &nbsp;|&nbsp; **Rust / 包位置**: `libraries/script-runtime/` &nbsp;|&nbsp; **TypeScript 事实来源**: `sdk/src/libraries/script-runtime/`
+**包名**: `@truenine/memory-sync-sdk` &nbsp;|&nbsp; **Rust Crate**: `tnmsc` &nbsp;|&nbsp; **Rust / 包位置**: `sdk/src/sdk/script-runtime/` &nbsp;|&nbsp; **TypeScript 事实来源**: `sdk/src/sdk/src/sdk/script-runtime/`
 </Callout>
 
 Script-Runtime 是一个 **Rust 支持的 TypeScript 代理模块加载器和路径验证运行时**，为 `tnmsc` 核心系统提供安全的动态模块代理与公共路径解析能力。它通过 NAPI 将 Rust 原生的高性能路径验证逻辑暴露给 Node.js 层，同时利用 Jiti 运行时实现灵活的代理模块加载与执行。
@@ -89,7 +89,7 @@ import {
   resolvePublicPath,
   resolvePublicPathUnchecked,
   getProxyModuleConfig
-} from '@truenine/script-runtime'
+} from '@truenine/memory-sync-sdk'
 ```
 
 ---
@@ -354,7 +354,7 @@ Script-Runtime 支持两种代理定义方式：
 <Tabs.Tab>
 ```typescript
 // proxy.ts - 函数式定义
-import {defineProxy} from '@truenine/script-runtime'
+import {defineProxy} from '@truenine/memory-sync-sdk'
 import {join} from 'node:path'
 
 export default defineProxy((logicalPath: string, ctx: ProxyContext) => {
@@ -365,7 +365,7 @@ export default defineProxy((logicalPath: string, ctx: ProxyContext) => {
 <Tabs.Tab>
 ```typescript
 // proxy.ts - 对象式定义
-import {defineProxy, type ProxyDefinition} from '@truenine/script-runtime'
+import {defineProxy, type ProxyDefinition} from '@truenine/memory-sync-sdk'
 import {join} from 'node:path'
 
 const proxy: ProxyDefinition = {
@@ -583,7 +583,7 @@ pub fn resolve_public_path_impl(
 
 ### 共享 Native Binding 加载
 
-Script-Runtime 现在与 Logger、MDX-Compiler 共用 `sdk/src/core/native-binding-loader.ts`。它的 TypeScript 事实来源已经迁到 `sdk/src/libraries/script-runtime/`，而 `libraries/script-runtime/src/index.ts` 只保留 wrapper 角色；真正的实现只保留 Script-Runtime 自己必须关心的部分：
+Script-Runtime 现在与 Logger、MDX-Compiler 共用 `sdk/src/core/native-binding-loader.ts`。它的 TypeScript 事实来源已经迁到 `sdk/src/sdk/src/sdk/script-runtime/`，而 `sdk/src/sdk/src/sdk/script-runtime/index.ts` 只保留 wrapper 角色；真正的实现只保留 Script-Runtime 自己必须关心的部分：
 
 - `isScriptRuntimeBinding()`：校验 native export
 - `optionalMethods` 映射：把 `validate_public_path` / `resolve_public_path` 归一成 TypeScript 侧的首选方法名
@@ -644,7 +644,7 @@ LR
 
 ```typescript
 // project/proxy.ts
-import {defineProxy, type ProxyRouteHandler} from '@truenine/script-runtime'
+import {defineProxy, type ProxyRouteHandler} from '@truenine/memory-sync-sdk'
 
 const handler: ProxyRouteHandler = (logicalPath) => {
   // 简单的前缀映射
@@ -657,7 +657,7 @@ export default defineProxy(handler)
 ### 示例 2: 加载和使用外部代理
 
 ```typescript
-import {loadProxyModule, getProxyModuleConfig} from '@truenine/script-runtime'
+import {loadProxyModule, getProxyModuleConfig} from '@truenine/memory-sync-sdk'
 
 async function useExternalProxy(proxyPath: string) {
   // 加载代理模块
@@ -686,7 +686,7 @@ useExternalProxy('./project/proxy.ts')
 ### 示例 3: 公共路径验证
 
 ```typescript
-import {validatePublicPath} from '@truenine/script-runtime'
+import {validatePublicPath} from '@truenine/memory-sync-sdk'
 
 const options = {aindexPublicDir: '/workspace/.aindex/public'}
 
@@ -719,7 +719,7 @@ try {
 ### 示例 4: 带上下文的路径解析
 
 ```typescript
-import {resolvePublicPath} from '@truenine/script-runtime'
+import {resolvePublicPath} from '@truenine/memory-sync-sdk'
 
 const ctx = {
   cwd: '/home/user/project',
@@ -757,7 +757,7 @@ import {
   type ProxyRouteHandler,
   type ProxyContext,
   type ProxyModuleConfig
-} from '@truenine/script-runtime'
+} from '@truenine/memory-sync-sdk'
 import {join, extname} from 'node:path'
 
 /**
@@ -813,7 +813,7 @@ export const config: ProxyModuleConfig = {
 **消费端使用:**
 
 ```typescript
-import {resolvePublicPath, loadProxyModule, getProxyModuleConfig} from '@truenine/script-runtime'
+import {resolvePublicPath, loadProxyModule, getProxyModuleConfig} from '@truenine/memory-sync-sdk'
 
 async function demonstrateFullProxy() {
   const ctx = {
@@ -864,7 +864,7 @@ project/
 ### 错误处理和超时配置
 
 ```typescript
-import {resolvePublicPath, loadProxyModule} from '@truenine/script-runtime'
+import {resolvePublicPath, loadProxyModule} from '@truenine/memory-sync-sdk'
 
 class ProxyResolutionError extends Error {
   constructor(
@@ -933,13 +933,13 @@ async function safeResolve(
 ```typescript
 // ❌ 错误：直接使用 unchecked 结果访问文件系统
 import {readFile} from 'node:fs/promises'
-import {resolvePublicPathUnchecked} from '@truenine/script-runtime'
+import {resolvePublicPathUnchecked} from '@truenine/memory-sync-sdk'
 
 const unsafePath = await resolvePublicPathUnchecked(proxyPath, ctx, userInput)
 const content = await readFile(unsafePath, 'utf8') // 危险！未经验证
 
 // ✅ 正确：始终经过验证
-import {resolvePublicPath} from '@truenine/script-runtime'
+import {resolvePublicPath} from '@truenine/memory-sync-sdk'
 import {readFile} from 'node:fs/promises'
 
 const safePath = resolvePublicPath(proxyPath, ctx, userInput) // 含 Rust 验证
@@ -991,7 +991,7 @@ graph TB
         ProxyTS["proxy.ts<br/>(用户编写)"]
     end
 
-    subgraph ScriptRuntimeAPI["@truenine/script-runtime"]
+    subgraph ScriptRuntimeAPI["@truenine/memory-sync-sdk"]
         direction TB
         PublicAPI["公开 API<br/>defineProxy / loadProxyModule<br/>validatePublicPath / resolvePublicPath"]
 
@@ -1002,7 +1002,7 @@ graph TB
         end
     end
 
-    subgraph NativeLayer["Rust Native Layer (tnmsc-script-runtime)"]
+    subgraph NativeLayer["Rust Native Layer (tnmsc)"]
         direction TB
         NAPIExport["NAPI Binding<br/>validate_public_path()<br/>resolve_public_path()"]
         PathValidator["路径验证引擎<br/>normalize_path()<br/>ensure_within_root()"]
@@ -1032,11 +1032,11 @@ graph TB
 
 ## 相关资源
 
-- **Rust / 包位置**: `libraries/script-runtime/`
-- **TypeScript 事实来源**: `sdk/src/libraries/script-runtime/`
-- **主入口**: `sdk/src/libraries/script-runtime/index.ts`
-- **类型定义**: `sdk/src/libraries/script-runtime/types.ts`
-- **核心运行时**: `sdk/src/libraries/script-runtime/runtime-core.ts`
-- **Worker 处理器**: `sdk/src/libraries/script-runtime/resolve-proxy-worker.ts`
-- **Rust Native**: `libraries/script-runtime/src/lib.rs`
+- **Rust / 包位置**: `sdk/src/sdk/script-runtime/`
+- **TypeScript 事实来源**: `sdk/src/sdk/src/sdk/script-runtime/`
+- **主入口**: `sdk/src/sdk/src/sdk/script-runtime/index.ts`
+- **类型定义**: `sdk/src/sdk/src/sdk/script-runtime/types.ts`
+- **核心运行时**: `sdk/src/sdk/src/sdk/script-runtime/runtime-core.ts`
+- **Worker 处理器**: `sdk/src/sdk/src/sdk/script-runtime/resolve-proxy-worker.ts`
+- **Rust Native**: `sdk/src/native_script_runtime.rs`
 - **依赖库**: `logger`（类似的 Native Binding 模式参考）

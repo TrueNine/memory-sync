@@ -4,6 +4,7 @@ use std::path::Path;
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::core::config;
 use crate::core::plugin_shared::{Project, RelativePath, RootPath, Workspace};
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -185,9 +186,7 @@ pub fn collect_aindex(options_json: &str) -> Result<String, crate::CliError> {
   let options: AindexInputOptions =
     serde_json::from_str(options_json).map_err(|e| crate::CliError::ConfigError(e.to_string()))?;
 
-  let workspace_dir = Path::new(&options.workspace_dir)
-    .canonicalize()
-    .unwrap_or_else(|_| Path::new(&options.workspace_dir).to_path_buf());
+  let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
   let aindex_dir_name = options
@@ -326,6 +325,7 @@ pub fn collect_aindex(options_json: &str) -> Result<String, crate::CliError> {
 mod tests {
   use super::*;
   use std::fs;
+  use std::path::PathBuf;
   use tempfile::TempDir;
 
   fn create_aindex_project(temp_workspace: &Path, project_name: &str, series: &str) {
@@ -492,5 +492,43 @@ mod tests {
         .to_string()
         .contains("Aindex project series name conflict")
     );
+  }
+
+  #[test]
+  fn collect_aindex_expands_tilde_workspace_dir() {
+    let home_dir = crate::core::config::resolve_tilde("~");
+    if home_dir == PathBuf::from("~") {
+      return;
+    }
+    let tmp = tempfile::Builder::new()
+      .prefix("tnmsc-aindex-tilde-")
+      .tempdir_in(&home_dir)
+      .unwrap();
+    create_aindex_project(tmp.path(), "project-a", "app");
+    let relative_workspace = tmp
+      .path()
+      .strip_prefix(&home_dir)
+      .unwrap_or(tmp.path())
+      .to_string_lossy()
+      .replace('\\', "/");
+    let tilde_workspace = format!(
+      "~{}{}",
+      std::path::MAIN_SEPARATOR,
+      relative_workspace.trim_start_matches(['/', '\\'])
+    )
+    .replace('\\', "/");
+
+    let options = serde_json::json!({
+      "workspaceDir": tilde_workspace,
+    });
+
+    let result = collect_aindex(&options.to_string()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let workspace_dir = parsed["workspace"]["directory"]["path"]
+      .as_str()
+      .map(PathBuf::from)
+      .unwrap();
+
+    assert_eq!(workspace_dir, tmp.path().canonicalize().unwrap());
   }
 }

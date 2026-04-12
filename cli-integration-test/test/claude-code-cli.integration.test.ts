@@ -53,7 +53,7 @@ describeForHost('claude code cli integration', () => {
       expect(installedResolution.mainPackageDir).toContain('@truenine+memory-sync-cli@file')
       expect(installedResolution.platformPackageDir).toContain('@truenine+memory-sync-cli-linux-x64-gnu@file')
       expect(installedResolution.resolvedAddonPath).toContain('@truenine+memory-sync-cli-linux-x64-gnu@file')
-      expect(installedResolution.scriptRuntimePackagePath).toContain('@truenine+script-runtime@file')
+      expect(installedResolution.sdkPackagePath).toContain('@truenine+memory-sync-sdk@file')
 
       const help = container.assertExecSuccess('tnmsc help')
       expect(help.stdout).toContain('install')

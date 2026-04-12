@@ -20,13 +20,13 @@ import { Callout, Cards, Steps, Tabs } from 'nextra/components'
 - 拥有 Rust crate `tnmsc` 的实际 workspace 路径和 facade 定义
 - 提供 npm 包 `@truenine/memory-sync-sdk` 作为内部消费者（`cli/`、`mcp/`、`gui/`）的统一依赖入口
 - 负责 Prompt Service 的实现（基于 MDX-Compiler）、Schema 生成以及最小化的 TypeScript loader 入口
-- 编排 Logger、MDX-Compiler、Script-Runtime 三类基础能力；其中 Logger / Script-Runtime 的 TypeScript facade 已内联到 `sdk/src/libraries/*`，`libraries/*` 保留 Rust crate 与发布壳层
+- 编排 Logger、MDX-Compiler、Script-Runtime 三类基础能力；其中 Logger / Script-Runtime 的 TypeScript facade 已内联到 `sdk/src/sdk/*`，`sdk/*` 保留 Rust crate 与发布壳层
 
-**消费者依赖方向**是单向的：`cli/`、`mcp/`、`gui/` 都依赖 `sdk/`。在 `sdk/` 下游，MDX-Compiler 仍完整保留在 `libraries/`，而 Logger / Script-Runtime 已形成“`sdk/src/libraries/*` 作为 TypeScript 事实来源 + `libraries/*` 作为 Rust crate / wrapper 发布层”的分层。这种边界确保了核心逻辑不会散落在多个入口中，也避免了 `cli/` 再次成为隐式的事实来源。
+**消费者依赖方向**是单向的：`cli/`、`mcp/`、`gui/` 都依赖 `sdk/`。在 `sdk/` 下游，MDX-Compiler 仍完整保留在 `sdk/`，而 Logger / Script-Runtime 已形成“`sdk/src/sdk/*` 作为 TypeScript 事实来源 + `sdk/*` 作为 Rust crate / wrapper 发布层”的分层。这种边界确保了核心逻辑不会散落在多个入口中，也避免了 `cli/` 再次成为隐式的事实来源。
 
 ## 为什么还保留 Libraries 层
 
-`libraries/` 仍然有存在价值，但它现在主要承载 **Rust-first** 的 crate、本地 NAPI 制品和对外发布 wrapper，而不再默认承担全部 TypeScript 事实来源。它们覆盖了 `tnmsc` 工具链中性能最关键的路径：
+`sdk/` 仍然有存在价值，但它现在主要承载 **Rust-first** 的 crate、本地 NAPI 制品和对外发布 wrapper，而不再默认承担全部 TypeScript 事实来源。它们覆盖了 `tnmsc` 工具链中性能最关键的路径：
 
 | 性能关键路径 | 对应 Library | Rust 提供的优势 |
 | --- | --- | --- |
@@ -34,7 +34,7 @@ import { Callout, Cards, Steps, Tabs } from 'nextra/components'
 | MDX 解析与转换 | MDX-Compiler | 原生 AST 遍历、零成本抽象的编译器流水线 |
 | 路径规范化与安全验证 | Script-Runtime | OS 级路径遍历防护、进程隔离的超时控制 |
 
-将这些能力下沉到独立的 Rust crate 中，使得 `gui/`（Tauri 应用）可以直接调用 crate 而无需 NAPI 开销，同时也让每个库可以独立演进和测试。当前只有 Logger / Script-Runtime 的 TypeScript facade 回收到了 `sdk/src/libraries/*`；`md-compiler` 仍完整保留在 `libraries/`。
+将这些能力下沉到独立的 Rust crate 中，使得 `gui/`（Tauri 应用）可以直接调用 crate 而无需 NAPI 开销，同时也让每个库可以独立演进和测试。当前只有 Logger / Script-Runtime 的 TypeScript facade 回收到了 `sdk/src/sdk/*`；`md-compiler` 仍完整保留在 `sdk/`。
 
 ---
 
@@ -50,25 +50,25 @@ graph TB
 
     subgraph SDK["@truenine/memory-sync-sdk<br/>私有混合核心"]
         SDKCore["SDK Core<br/>Prompt Service / Schema / Bridge"]
-        LOG_TS["sdk/src/libraries/logger.ts<br/>(Logger TS facade)"]
-        MDC_TS["libraries/md-compiler/src/index.ts<br/>(MDX-Compiler TS API)"]
-        SR_TS["sdk/src/libraries/script-runtime<br/>(Script-Runtime TS facade)"]
+        LOG_TS["sdk/src/sdk/logger.ts<br/>(Logger TS facade)"]
+        MDC_TS["sdk/src/md-compiler/src/index.ts<br/>(MDX-Compiler TS API)"]
+        SR_TS["sdk/src/sdk/script-runtime<br/>(Script-Runtime TS facade)"]
     end
 
     subgraph Libraries["Workspace Libraries (Rust-first)"]
         direction LR
         subgraph L1["Logger<br/>基础设施层"]
-            LOG_R["tnmsc-logger<br/>(Rust crate)"]
-            LOG_PKG["@truenine/logger<br/>(wrapper package)"]
+            LOG_R["tnmsc<br/>(Rust crate)"]
+            LOG_PKG["@truenine/memory-sync-sdk<br/>(wrapper package)"]
         end
 
         subgraph L2["MDX-Compiler<br/>编译层"]
-            MDC_R["tnmsc-md-compiler<br/>(Rust crate)"]
+            MDC_R["tnmsc<br/>(Rust crate)"]
         end
 
         subgraph L3["Script-Runtime<br/>运行时层"]
-            SR_R["tnmsc-script-runtime<br/>(Rust crate)"]
-            SR_PKG["@truenine/script-runtime<br/>(wrapper package)"]
+            SR_R["tnmsc<br/>(Rust crate)"]
+            SR_PKG["@truenine/memory-sync-sdk<br/>(wrapper package)"]
         end
     end
 
@@ -113,18 +113,18 @@ graph TB
 
 ### Logger — 基础设施层
 
-Logger 是整个依赖树的 **叶子节点之一**（另一个是 Script-Runtime），不依赖任何其他 workspace library。当前 `sdk/src/libraries/logger.ts` 是 TypeScript 事实来源，而 `libraries/logger/src/index.ts` 只保留对外发布 wrapper。
+Logger 是整个依赖树的 **叶子节点之一**（另一个是 Script-Runtime），不依赖任何其他 workspace library。当前 `sdk/src/sdk/logger.ts` 是 TypeScript 事实来源，而 `sdk/src/sdk/logger.ts` 只保留对外发布 wrapper。
 
 ```mermaid
 graph LR
     SDK["@truenine/memory-sync-sdk"] --> LOGGER["Logger facade"]
-    MDC["@truenine/md-compiler"] --> LOGGER
+    MDC["@truenine/memory-sync-sdk"] --> LOGGER
 
-    subgraph Logger["tnmsc-logger / Logger"]
+    subgraph Logger["tnmsc / Logger"]
         L_CORE["Rust 核心<br/>lib.rs"]
         L_NAPI["NAPI Binding<br/>条件编译"]
-        L_TS["TS facade<br/>sdk/src/libraries/logger.ts"]
-        L_WRAPPER["wrapper<br/>libraries/logger/src/index.ts"]
+        L_TS["TS facade<br/>sdk/src/sdk/logger.ts"]
+        L_WRAPPER["wrapper<br/>sdk/src/sdk/logger.ts"]
         L_WORKER["Output Worker<br/>异步线程"]
     end
 
@@ -156,10 +156,10 @@ MDX-Compiler 位于依赖树的中层，**仅依赖 Logger**，被 SDK 的 Promp
 
 ```mermaid
 graph LR
-    SDK["@truenine/memory-sync-sdk"] --> MDC["@truenine/md-compiler"]
-    MDC --> LOGGER["@truenine/logger"]
+    SDK["@truenine/memory-sync-sdk"] --> MDC["@truenine/memory-sync-sdk"]
+    MDC --> LOGGER["@truenine/memory-sync-sdk"]
 
-    subgraph MDXCompiler["tnmsc-md-compiler / @truenine/md-compiler"]
+    subgraph MDXCompiler["tnmsc / @truenine/memory-sync-sdk"]
         direction TB
         MC_PARSER["Parser<br/>unified + remark 插件链"]
         MC_EXPR["Expression Eval<br/>简单引用 / Function 构造器"]
@@ -201,9 +201,9 @@ Script-Runtime 是依赖树中的 **另一个叶子节点**，与其他两个 li
 
 ```mermaid
 graph LR
-    SDK["@truenine/memory-sync-sdk"] --> SR["@truenine/script-runtime"]
+    SDK["@truenine/memory-sync-sdk"] --> SR["@truenine/memory-sync-sdk"]
 
-    subgraph ScriptRuntime["tnmsc-script-runtime / @truenine/script-runtime"]
+    subgraph ScriptRuntime["tnmsc / @truenine/memory-sync-sdk"]
         direction TB
         SR_LOADER["Module Loader<br/>Jiti Runtime"]
         SR_PATH["Path Validator<br/>Rust 原生绑定"]
@@ -318,17 +318,17 @@ SDK 的构建是一个多阶段的有序流水线，从 Rust 源码到最终的 
 
   ```bash
   # TypeScript 编译（并行）
-  pnpm -F @truenine/logger -F @truenine/md-compiler -F @truenine/script-runtime run build:ts
+  pnpm -F @truenine/memory-sync-sdk -F @truenine/memory-sync-sdk -F @truenine/memory-sync-sdk run build:ts
 
   # Native binding 构建（按依赖顺序）
-  pnpm -F @truenine/logger -F @truenine/script-runtime run build      # 无相互依赖，可并行
-  pnpm -F @truenine/md-compiler run build:native                      # 依赖 logger 的 .node 文件
+  pnpm -F @truenine/memory-sync-sdk -F @truenine/memory-sync-sdk run build      # 无相互依赖，可并行
+  pnpm -F @truenine/memory-sync-sdk run build:native                      # 依赖 logger 的 .node 文件
   ```
 
   此阶段产出：
-  - `libraries/logger/dist/index.js` + `napi-logger.*.node`
-  - `libraries/md-compiler/dist/index.js` + `napi-md-compiler.*.node`
-  - `libraries/script-runtime/dist/index.js` + `napi-script-runtime.*.node`
+  - `sdk/src/native_logger.rsdist/index.js` + `napi-logger.*.node`
+  - `sdk/src/md-compiler/dist/index.js` + `napi-md-compiler.*.node`
+  - `sdk/src/sdk/script-runtime/dist/index.js` + `napi-script-runtime.*.node`
 
   ### Step 2: SDK Native Binding 编译
 
@@ -389,7 +389,7 @@ memory-sync/
 │   │   ├── index.ts                       # 公共 API 入口
 │   │   ├── core/
 │   │   │   └── native-binding-loader.ts   # 统一绑定加载器
-│   │   ├── libraries/
+│   │   ├── sdk/
 │   │   │   ├── logger.ts                  # Logger TS facade (事实来源)
 │   │   │   └── script-runtime/            # Script-Runtime TS facade (事实来源)
 │   │   ├── adaptors/                      # 输出适配器
@@ -402,13 +402,13 @@ memory-sync/
 │       ├── generate-schema.ts             # Schema 生成
 │       └── finalize-bundle.ts             # Bundle 后处理
 │
-├── libraries/                             # Rust-first workspace 库
+├── sdk/                             # Rust-first workspace 库
 │   ├── logger/                            # 日志库
 │   │   ├── src/
 │   │   │   ├── lib.rs                    # Rust 核心 (LogLevel, Logger, OutputWorker, NAPI)
-│   │   │   └── index.ts                  # 发布 wrapper (re-export sdk/src/libraries/logger.ts)
-│   │   ├── Cargo.toml                    # tnmsc-logger crate
-│   │   └── package.json                  # @truenine/logger
+│   │   │   └── index.ts                  # 发布 wrapper (re-export sdk/src/sdk/logger.ts)
+│   │   ├── Cargo.toml                    # tnmsc crate
+│   │   └── package.json                  # @truenine/memory-sync-sdk
 │   │
 │   ├── md-compiler/                       # 编译器
 │   │   ├── src/
@@ -431,15 +431,15 @@ memory-sync/
 │   │   │   ├── globals/                  # 全局作用域定义
 │   │   │   ├── toml.ts                   # TOML 构建
 │   │   │   └── errors/                   # 错误类型体系
-│   │   ├── Cargo.toml                    # tnmsc-md-compiler crate
-│   │   └── package.json                  # @truenine/md-compiler
+│   │   ├── Cargo.toml                    # tnmsc crate
+│   │   └── package.json                  # @truenine/memory-sync-sdk
 │   │
 │   └── script-runtime/                    # 运行时
 │       ├── src/
 │       │   ├── lib.rs                    # Rust 核心 (validate/resolve_public_path)
-│       │   └── index.ts                  # 发布 wrapper (re-export sdk/src/libraries/script-runtime)
-│       ├── Cargo.toml                    # tnmsc-script-runtime crate
-│       └── package.json                  # @truenine/script-runtime
+│       │   └── index.ts                  # 发布 wrapper (re-export sdk/src/sdk/script-runtime)
+│       ├── Cargo.toml                    # tnmsc crate
+│       └── package.json                  # @truenine/memory-sync-sdk
 ```
 
 ### 关键文件职责映射
@@ -451,15 +451,15 @@ memory-sync/
 | `sdk/src/ConfigLoader.ts` | SDK | 配置文件加载与验证 | Logger, Zod |
 | `sdk/src/runtime-environment.ts` | SDK | 运行时环境初始化 | Logger |
 | `sdk/src/core/native-binding-loader.ts` | SDK | 统一的 NAPI binding 加载（消除重复） | — |
-| `sdk/src/libraries/logger.ts` | SDK | Logger TypeScript facade、`ILogger` 适配器、共享加载器接入 | Logger Rust crate |
-| `sdk/src/libraries/script-runtime/index.ts` | SDK | Script-Runtime TypeScript facade、Worker 路径发现、共享加载器接入 | Script-Runtime Rust crate |
-| `sdk/src/libraries/script-runtime/runtime-core.ts` | SDK | Jiti 加载、代理路由分发 | — |
-| `libraries/logger/src/lib.rs` | Logger | Rust 核心：日志级别、格式化、诊断、OutputWorker | — |
-| `libraries/logger/src/index.ts` | Logger | 发布 wrapper：re-export `sdk/src/libraries/logger.ts` | — |
-| `libraries/md-compiler/src/compiler/` | MDX-Compiler | 编译器流水线全组件 | Logger (workspace) |
-| `libraries/md-compiler/src/native-binding.ts` | MDX-Compiler | 共享加载器接入、env flag gate、binding validator | — |
-| `libraries/script-runtime/src/lib.rs` | Script-Runtime | Rust 核心：路径验证、Worker 管理 | — |
-| `libraries/script-runtime/src/index.ts` | Script-Runtime | 发布 wrapper：re-export `sdk/src/libraries/script-runtime` | — |
+| `sdk/src/sdk/logger.ts` | SDK | Logger TypeScript facade、`ILogger` 适配器、共享加载器接入 | Logger Rust crate |
+| `sdk/src/sdk/src/sdk/script-runtime/index.ts` | SDK | Script-Runtime TypeScript facade、Worker 路径发现、共享加载器接入 | Script-Runtime Rust crate |
+| `sdk/src/sdk/src/sdk/script-runtime/runtime-core.ts` | SDK | Jiti 加载、代理路由分发 | — |
+| `sdk/src/native_logger.rs` | Logger | Rust 核心：日志级别、格式化、诊断、OutputWorker | — |
+| `sdk/src/sdk/logger.ts` | Logger | 发布 wrapper：re-export `sdk/src/sdk/logger.ts` | — |
+| `sdk/src/md-compiler/compiler/` | MDX-Compiler | 编译器流水线全组件 | Logger (workspace) |
+| `sdk/src/md-compiler/native-binding.ts` | MDX-Compiler | 共享加载器接入、env flag gate、binding validator | — |
+| `sdk/src/native_script_runtime.rs` | Script-Runtime | Rust 核心：路径验证、Worker 管理 | — |
+| `sdk/src/sdk/src/sdk/script-runtime/index.ts` | Script-Runtime | 发布 wrapper：re-export `sdk/src/sdk/script-runtime` | — |
 
 ---
 
@@ -585,13 +585,13 @@ TypeScript 层的价值，不只是“把 Rust 包起来”。
 
 ### 新库扩展指南
 
-当需要在 `libraries/` 下添加新的 workspace library 时，遵循以下约定：
+当需要在 `sdk/` 下添加新的 workspace library 时，遵循以下约定：
 
 <Steps>
   ### 1. 创建目录结构
 
   ```
-  libraries/new-lib/
+  sdk/new-lib/
   ├── src/
   │   ├── lib.rs          # Rust 核心（如有 native 需求）
   │   └── index.ts        # TypeScript 入口 / 绑定层

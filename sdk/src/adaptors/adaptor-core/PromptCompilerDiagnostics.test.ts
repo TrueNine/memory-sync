@@ -1,6 +1,6 @@
 import * as path from 'node:path'
-import {UndefinedNamespaceError} from '@truenine/md-compiler/errors'
 import {describe, expect, it} from 'vitest'
+import {UndefinedNamespaceError} from '@/md-compiler/errors'
 import {
   formatPromptCompilerDiagnostic,
   resolveSourcePathForDistFile

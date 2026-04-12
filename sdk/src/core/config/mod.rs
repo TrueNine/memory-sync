@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::diagnostic_helpers::{diagnostic, line, optional_details};
-use tnmsc_logger::{Logger, create_logger};
+use crate::logger::{Logger, create_logger};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -686,6 +686,11 @@ pub fn resolve_tilde(p: &str) -> PathBuf {
   PathBuf::from(p)
 }
 
+pub fn resolve_workspace_dir(p: &str) -> PathBuf {
+  let resolved = resolve_tilde(p);
+  resolved.canonicalize().unwrap_or(resolved)
+}
+
 /// Get the global config file path: `~/.aindex/.tnmsc.json`
 pub fn get_global_config_path() -> PathBuf {
   let runtime_environment = resolve_runtime_environment();
@@ -1241,6 +1246,13 @@ mod tests {
   fn test_resolve_tilde_no_tilde() {
     let resolved = resolve_tilde("/absolute/path");
     assert_eq!(resolved, PathBuf::from("/absolute/path"));
+  }
+
+  #[test]
+  fn test_resolve_workspace_dir_canonicalizes_existing_paths() {
+    let temp_dir = TempDir::new().unwrap();
+    let resolved = resolve_workspace_dir(&temp_dir.path().to_string_lossy());
+    assert_eq!(resolved, temp_dir.path().canonicalize().unwrap());
   }
 
   #[test]

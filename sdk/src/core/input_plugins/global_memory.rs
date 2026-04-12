@@ -2,6 +2,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+use crate::core::config;
 use crate::core::input_plugins::prompt_artifact::read_prompt_artifact;
 use crate::core::plugin_shared::{FilePathKind, GlobalMemoryPrompt, PromptKind, RelativePath};
 
@@ -36,9 +37,7 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
   let options: GlobalMemoryInputOptions =
     serde_json::from_str(options_json).map_err(|e| crate::CliError::ConfigError(e.to_string()))?;
 
-  let workspace_dir = Path::new(&options.workspace_dir)
-    .canonicalize()
-    .unwrap_or_else(|_| Path::new(&options.workspace_dir).to_path_buf());
+  let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
   let aindex_dir_name = options
