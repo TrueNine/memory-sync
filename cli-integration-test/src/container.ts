@@ -243,22 +243,22 @@ export class PreparedCliIntegrationContainer {
     this.copyPathToContainer(artifacts.cliTarballPath, containerTarballPath(artifacts.cliTarballPath))
     this.copyPathToContainer(artifacts.linuxTarballPath, containerTarballPath(artifacts.linuxTarballPath))
     this.copyPathToContainer(
-      artifacts.scriptRuntimeTarballPath,
-      containerTarballPath(artifacts.scriptRuntimeTarballPath)
+      artifacts.sdkTarballPath,
+      containerTarballPath(artifacts.sdkTarballPath)
     )
   }
 
   bootstrapLatestPnpmAndInstallCli(artifacts: CliIntegrationArtifacts): void {
     const cliTarball = containerTarballPath(artifacts.cliTarballPath)
     const linuxTarball = containerTarballPath(artifacts.linuxTarballPath)
-    const scriptRuntimeTarball = containerTarballPath(artifacts.scriptRuntimeTarballPath)
+    const sdkTarball = containerTarballPath(artifacts.sdkTarballPath)
 
     this.assertExecSuccess(
       [
         'corepack enable',
         `corepack prepare pnpm@${quoteShell(artifacts.latestPnpmVersion)} --activate`,
         'pnpm --version',
-        `pnpm add -g ${quoteShell(cliTarball)} ${quoteShell(linuxTarball)} ${quoteShell(scriptRuntimeTarball)}`,
+        `pnpm add -g ${quoteShell(cliTarball)} ${quoteShell(linuxTarball)} ${quoteShell(sdkTarball)}`,
         buildPinnedGlobalCliPlatformLinkScript(),
         'command -v tnmsc >/dev/null'
       ].join(' && ')

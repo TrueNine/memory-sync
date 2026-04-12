@@ -1,5 +1,5 @@
-use serde_json::Value;
 use crate::md_compiler::{MdxGlobalScope, MdxToMdOptions, mdx_to_md_with_metadata};
+use serde_json::Value;
 
 #[derive(Debug, Clone)]
 pub struct PromptArtifact {

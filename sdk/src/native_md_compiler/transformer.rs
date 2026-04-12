@@ -1139,9 +1139,9 @@ fn get_children(node: &Node) -> Option<&Vec<Node>> {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use super::super::parser::parse_mdx;
   use super::super::serializer::serialize;
+  use super::*;
   use serde_json::json;
 
   fn make_scope() -> EvaluationScope {

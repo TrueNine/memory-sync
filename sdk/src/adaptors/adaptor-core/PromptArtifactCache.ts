@@ -2,9 +2,9 @@ import type {MdxGlobalScope} from '@/md-compiler/globals'
 import type {ParsedMarkdown} from '@/md-compiler/markdown'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import JSON5 from 'json5'
 import {mdxToMd} from '@/md-compiler'
 import {parseMarkdown} from '@/md-compiler/markdown'
-import JSON5 from 'json5'
 
 export interface PromptArtifact {
   readonly rawMdx: string

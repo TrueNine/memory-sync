@@ -182,70 +182,6 @@ export type {
   LogLevel
 } from './libraries/logger'
 export {
-  buildPromptTomlArtifact,
-  buildTomlDocument,
-  mdxToMd
-} from './md-compiler'
-export {
-  buildFrontMatter,
-  buildMarkdownWithFrontMatter,
-  buildMarkdownWithRawFrontMatter,
-  buildRawFrontMatter,
-  doubleQuoted,
-  parseMarkdown,
-  transformMdxReferencesToMd,
-  wrapRawFrontMatter
-} from './md-compiler/markdown'
-export {
-  CompilerDiagnosticError,
-  ExportParseError,
-  ScopeError,
-  UndefinedNamespaceError,
-  UndefinedVariableError,
-  createCompilerDiagnostic,
-  formatCompilerDiagnostic
-} from './md-compiler/errors'
-export {
-  OsKind,
-  ShellKind,
-  ToolPresets
-} from './md-compiler/globals'
-export type {
-  BuildPromptTomlArtifactOptions,
-  BuildTomlDocumentOptions,
-  EvaluationScope,
-  ExportMetadata,
-  MdxFlowExpression,
-  MdxGlobalScope,
-  MdxJsxFlowElement,
-  MdxJsxTextElement,
-  MdxTextExpression,
-  MdxToMdOptions,
-  MdxToMdResult,
-  MdxjsEsm,
-  Root,
-  RootContent
-} from './md-compiler'
-export type {
-  CodeStylePreferences,
-  EnvironmentContext,
-  MdComponent,
-  OsInfo,
-  ToolReferences,
-  UserProfile
-} from './md-compiler/globals'
-export type {
-  CompilerDiagnostic,
-  CompilerDiagnosticContext,
-  CompilerDiagnosticPoint,
-  CompilerDiagnosticPosition,
-  FormatCompilerDiagnosticOptions
-} from './md-compiler/errors'
-export type {
-  BuildMarkdownOptions,
-  ParsedMarkdown
-} from './md-compiler/markdown'
-export {
   defineProxy,
   getProxyModuleConfig,
   loadProxyModule,
@@ -263,6 +199,70 @@ export type {
   ProxyRouteHandler,
   ValidatePublicPathOptions
 } from './libraries/script-runtime'
+export {
+  buildPromptTomlArtifact,
+  buildTomlDocument,
+  mdxToMd
+} from './md-compiler'
+export type {
+  BuildPromptTomlArtifactOptions,
+  BuildTomlDocumentOptions,
+  EvaluationScope,
+  ExportMetadata,
+  MdxFlowExpression,
+  MdxGlobalScope,
+  MdxjsEsm,
+  MdxJsxFlowElement,
+  MdxJsxTextElement,
+  MdxTextExpression,
+  MdxToMdOptions,
+  MdxToMdResult,
+  Root,
+  RootContent
+} from './md-compiler'
+export {
+  CompilerDiagnosticError,
+  createCompilerDiagnostic,
+  ExportParseError,
+  formatCompilerDiagnostic,
+  ScopeError,
+  UndefinedNamespaceError,
+  UndefinedVariableError
+} from './md-compiler/errors'
+export type {
+  CompilerDiagnostic,
+  CompilerDiagnosticContext,
+  CompilerDiagnosticPoint,
+  CompilerDiagnosticPosition,
+  FormatCompilerDiagnosticOptions
+} from './md-compiler/errors'
+export {
+  OsKind,
+  ShellKind,
+  ToolPresets
+} from './md-compiler/globals'
+export type {
+  CodeStylePreferences,
+  EnvironmentContext,
+  MdComponent,
+  OsInfo,
+  ToolReferences,
+  UserProfile
+} from './md-compiler/globals'
+export {
+  buildFrontMatter,
+  buildMarkdownWithFrontMatter,
+  buildMarkdownWithRawFrontMatter,
+  buildRawFrontMatter,
+  doubleQuoted,
+  parseMarkdown,
+  transformMdxReferencesToMd,
+  wrapRawFrontMatter
+} from './md-compiler/markdown'
+export type {
+  BuildMarkdownOptions,
+  ParsedMarkdown
+} from './md-compiler/markdown'
 export type {
   ListPromptsOptions,
   ManagedPromptKind,

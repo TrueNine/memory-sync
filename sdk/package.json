@@ -67,9 +67,9 @@
   },
   "devDependencies": {
     "@clack/prompts": "catalog:",
-    "@types/fs-extra": "catalog:",
     "@types/estree": "catalog:",
     "@types/estree-jsx": "catalog:",
+    "@types/fs-extra": "catalog:",
     "@types/mdast": "catalog:",
     "@types/picomatch": "catalog:",
     "@vitest/coverage-v8": "catalog:",

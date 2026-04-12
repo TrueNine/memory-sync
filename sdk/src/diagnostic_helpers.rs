@@ -1,5 +1,5 @@
-use serde_json::{Map, Value};
 use crate::logger::LoggerDiagnosticInput;
+use serde_json::{Map, Value};
 
 pub(crate) fn line(value: impl Into<String>) -> Vec<String> {
   vec![value.into()]

@@ -1,4 +1,3 @@
-import type {ParsedMarkdown} from '@/md-compiler/markdown'
 import type {
   AdaptorOptions,
   AdaptorScopeRegistration,
@@ -12,13 +11,14 @@ import type {
   ResolvedBasePaths,
   YAMLFrontMatter
 } from '@/adaptors/adaptor-core'
+import type {ParsedMarkdown} from '@/md-compiler/markdown'
 import {spawn} from 'node:child_process'
 import * as path from 'node:path'
 
-import {parseMarkdown} from '@/md-compiler/markdown'
 import {PathPlaceholders} from '@/adaptors/adaptor-core'
 import {buildDiagnostic, diagnosticLines} from '@/diagnostics'
 import {createLogger} from '@/libraries/logger'
+import {parseMarkdown} from '@/md-compiler/markdown'
 import {logProtectedDeletionGuardError, ProtectedDeletionGuardError} from '@/ProtectedDeletionGuard'
 import {resolveUserPath} from '@/runtime-environment'
 

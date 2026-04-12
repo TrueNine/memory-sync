@@ -421,8 +421,8 @@ fn collect_node_plain_text(node: &Node, out: &mut String) {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use super::super::parser::parse_mdx;
+  use super::*;
 
   fn roundtrip(input: &str) -> String {
     let ast = parse_mdx(input).unwrap();

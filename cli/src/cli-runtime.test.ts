@@ -1,13 +1,23 @@
 import {afterEach, describe, expect, it, vi} from 'vitest'
 
-const {cleanMock, dryRunMock, installMock, listAdaptorsMock} = vi.hoisted(() => ({
+const {
+  cleanMock,
+  dryRunMock,
+  flushOutputMock,
+  installMock,
+  listAdaptorsMock,
+  setGlobalLogLevelMock
+} = vi.hoisted(() => ({
   cleanMock: vi.fn(),
   dryRunMock: vi.fn(),
+  flushOutputMock: vi.fn(),
   installMock: vi.fn(),
-  listAdaptorsMock: vi.fn()
+  listAdaptorsMock: vi.fn(),
+  setGlobalLogLevelMock: vi.fn()
 }))
 
 vi.mock('@truenine/memory-sync-sdk', () => ({
+  flushOutput: flushOutputMock,
   getMemorySyncSdkBinding() {
     return {
       install: installMock,
@@ -15,7 +25,8 @@ vi.mock('@truenine/memory-sync-sdk', () => ({
       clean: cleanMock,
       listAdaptors: listAdaptorsMock
     }
-  }
+  },
+  setGlobalLogLevel: setGlobalLogLevelMock
 }))
 
 afterEach(() => {

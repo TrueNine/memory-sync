@@ -14,6 +14,15 @@ export type {
   Root,
   RootContent
 } from './compiler/types'
+export type {
+  CodeStylePreferences,
+  EnvironmentContext,
+  MdComponent,
+  MdxGlobalScope,
+  OsInfo,
+  ToolReferences,
+  UserProfile
+} from './globals'
 export {
   mdxToMd
 } from './mdx-to-md'
@@ -25,12 +34,3 @@ export type {
   BuildPromptTomlArtifactOptions,
   BuildTomlDocumentOptions
 } from './toml'
-export type {
-  CodeStylePreferences,
-  EnvironmentContext,
-  MdComponent,
-  MdxGlobalScope,
-  OsInfo,
-  ToolReferences,
-  UserProfile
-} from './globals'

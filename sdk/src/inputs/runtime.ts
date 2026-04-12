@@ -1,5 +1,5 @@
-import type {MdxGlobalScope} from '@/md-compiler/globals'
 import type {AdaptorOptions, InputCapability, InputCapabilityContext, InputCollectedContext, UserConfigFile} from '@/adaptors/adaptor-core'
+import type {MdxGlobalScope} from '@/md-compiler/globals'
 import type {RuntimeCommand} from '@/runtime-command'
 
 import * as fs from 'node:fs'

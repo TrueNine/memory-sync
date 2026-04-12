@@ -1,4 +1,3 @@
-import type {BuildPromptTomlArtifactOptions} from '@/md-compiler'
 import type {ToolPresetName} from './GlobalScopeCollector'
 import type {RegistryWriter} from './RegistryWriter'
 import type {
@@ -32,13 +31,14 @@ import type {
   SubAgentYAMLFrontMatter,
   WslMirrorFileDeclaration
 } from './types'
+import type {BuildPromptTomlArtifactOptions} from '@/md-compiler'
 import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import process from 'node:process'
 
+import {buildConfigDiagnostic, diagnosticLines} from '@/diagnostics'
 import {buildPromptTomlArtifact} from '@/md-compiler'
 import {buildMarkdownWithFrontMatter, buildMarkdownWithRawFrontMatter} from '@/md-compiler/markdown'
-import {buildConfigDiagnostic, diagnosticLines} from '@/diagnostics'
 import {getEffectiveHomeDir} from '@/runtime-environment'
 import {AbstractAdaptor} from './AbstractAdaptor'
 import {AdaptorKind, FilePathKind} from './enums'
