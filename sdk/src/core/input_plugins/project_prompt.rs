@@ -15,7 +15,7 @@ use crate::core::plugin_shared::{
 struct ProjectPromptInputOptions {
   workspace_dir: String,
   #[serde(default)]
-  aindex: Option<ProjectPromptAindexInput>,
+  aindex_resolvers: Option<ProjectPromptAindexResolversInput>,
   #[serde(default)]
   global_scope: Option<Value>,
   #[serde(default)]
@@ -24,7 +24,7 @@ struct ProjectPromptInputOptions {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ProjectPromptAindexInput {
+struct ProjectPromptAindexResolversInput {
   #[serde(default)]
   dir: Option<String>,
   #[serde(default)]
@@ -53,21 +53,21 @@ const SERIES_NAMES: &[&str] = &["app", "ext", "arch", "softwares"];
 const PROJECT_MEMORY_FILE: &str = "agt.mdx";
 const SCAN_SKIP_DIRECTORIES: &[&str] = &["node_modules", ".git"];
 
-fn get_series_dist(series_name: &str, aindex: &Option<ProjectPromptAindexInput>) -> String {
+fn get_series_dist(series_name: &str, aindex_resolvers: &Option<ProjectPromptAindexResolversInput>) -> String {
   match series_name {
-    "app" => aindex
+    "app" => aindex_resolvers
       .as_ref()
       .and_then(|a| a.app.as_ref().and_then(|p| p.dist.clone()))
       .unwrap_or_else(|| "dist/app".to_string()),
-    "ext" => aindex
+    "ext" => aindex_resolvers
       .as_ref()
       .and_then(|a| a.ext.as_ref().and_then(|p| p.dist.clone()))
       .unwrap_or_else(|| "dist/ext".to_string()),
-    "arch" => aindex
+    "arch" => aindex_resolvers
       .as_ref()
       .and_then(|a| a.arch.as_ref().and_then(|p| p.dist.clone()))
       .unwrap_or_else(|| "dist/arch".to_string()),
-    "softwares" => aindex
+    "softwares" => aindex_resolvers
       .as_ref()
       .and_then(|a| a.softwares.as_ref().and_then(|p| p.dist.clone()))
       .unwrap_or_else(|| "dist/softwares".to_string()),
@@ -327,7 +327,7 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
   let aindex_dir_name = options
-    .aindex
+    .aindex_resolvers
     .as_ref()
     .and_then(|a| a.dir.clone())
     .unwrap_or_else(|| "aindex".to_string());
@@ -356,15 +356,15 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
       continue;
     }
 
-    let series_configs: Vec<String> = if project.prompt_series.is_some() {
-      vec![project.prompt_series.clone().unwrap()]
+    let series_configs: Vec<String> = if project.project_type.is_some() {
+      vec![project.project_type.clone().unwrap()]
     } else {
       SERIES_NAMES.iter().map(|&s| s.to_string()).collect()
     };
 
     let matching_series = series_configs.iter().find(|series_name| {
       let shadow_path = aindex_dir
-        .join(get_series_dist(series_name, &options.aindex))
+        .join(get_series_dist(series_name, &options.aindex_resolvers))
         .join(project_name);
       shadow_path.is_dir()
     });
@@ -376,7 +376,7 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
 
     let series_name = matching_series.unwrap();
     let shadow_project_path = aindex_dir
-      .join(get_series_dist(series_name, &options.aindex))
+      .join(get_series_dist(series_name, &options.aindex_resolvers))
       .join(project_name);
 
     let target_project_path = project
@@ -393,8 +393,8 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
     };
 
     let mut enhanced_project = project;
-    if enhanced_project.prompt_series.is_none() {
-      enhanced_project.prompt_series = Some(series_name.clone());
+    if enhanced_project.project_type.is_none() {
+      enhanced_project.project_type = Some(series_name.clone());
     }
     if root_memory_prompt.is_some() {
       enhanced_project.root_memory_prompt = root_memory_prompt;
@@ -407,7 +407,7 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
 
   let workspace_prompt_file = aindex_dir.join(
     options
-      .aindex
+      .aindex_resolvers
       .as_ref()
       .and_then(|a| a.workspace_prompt.as_ref().and_then(|p| p.dist.clone()))
       .unwrap_or_else(|| "dist/workspace.mdx".to_string()),
@@ -602,19 +602,19 @@ mod tests {
       vec![
         Project {
           name: Some("plugin-a".to_string()),
-          prompt_series: Some("ext".to_string()),
+          project_type: Some("ext".to_string()),
           dir_from_workspace_path: Some(RelativePath::new("plugin-a", &base)),
           ..Default::default()
         },
         Project {
           name: Some("system-a".to_string()),
-          prompt_series: Some("arch".to_string()),
+          project_type: Some("arch".to_string()),
           dir_from_workspace_path: Some(RelativePath::new("system-a", &base)),
           ..Default::default()
         },
         Project {
           name: Some("tool-a".to_string()),
-          prompt_series: Some("softwares".to_string()),
+          project_type: Some("softwares".to_string()),
           dir_from_workspace_path: Some(RelativePath::new("tool-a", &base)),
           ..Default::default()
         },

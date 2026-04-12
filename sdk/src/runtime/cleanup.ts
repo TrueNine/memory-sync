@@ -61,7 +61,7 @@ export interface CleanupError {
 
 export interface CleanupProtectionConflict {
   readonly outputPath: string
-  readonly outputPlugin: string
+  readonly outputAdaptor: string
   readonly protectedPath: string
   readonly protectionMode: ProtectionMode
   readonly protectedBy: string
@@ -136,7 +136,7 @@ interface NativeProtectedPathViolation {
 
 interface NativeCleanupProtectionConflict {
   readonly outputPath: string
-  readonly outputPlugin: string
+  readonly outputAdaptor: string
   readonly protectedPath: string
   readonly protectionMode: NativeProtectionMode
   readonly protectedBy: string
@@ -438,11 +438,11 @@ function logNativeCleanupErrors(
 }
 
 async function buildCleanupSnapshot(
-  outputPlugins: readonly OutputAdaptor[],
+  outputAdaptors: readonly OutputAdaptor[],
   cleanCtx: OutputCleanContext,
   predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<NativeCleanupSnapshot> {
-  const pluginSnapshots = await Promise.all(outputPlugins.map(async plugin => collectPluginCleanupSnapshot(plugin, cleanCtx, predeclaredOutputs)))
+  const pluginSnapshots = await Promise.all(outputAdaptors.map(async plugin => collectPluginCleanupSnapshot(plugin, cleanCtx, predeclaredOutputs)))
 
   // Collect all delete targets from plugin snapshots - these should bypass protection rules
   const deleteTargetPaths = new Set<string>()
@@ -513,7 +513,7 @@ export async function performCleanupWithNative(snapshot: NativeCleanupSnapshot):
 }
 
 export async function collectDeletionTargets(
-  outputPlugins: readonly OutputAdaptor[],
+  outputAdaptors: readonly OutputAdaptor[],
   cleanCtx: OutputCleanContext,
   predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<{
@@ -526,10 +526,10 @@ export async function collectDeletionTargets(
 }> {
   cleanCtx.logger.debug('Cleanup planning started', {
     dryRun: cleanCtx.dryRun === true,
-    adaptors: outputPlugins.length,
+    adaptors: outputAdaptors.length,
     workspace: cleanCtx.collectedOutputContext.workspace.directory.path
   })
-  const snapshot = await buildCleanupSnapshot(outputPlugins, cleanCtx, predeclaredOutputs)
+  const snapshot = await buildCleanupSnapshot(outputAdaptors, cleanCtx, predeclaredOutputs)
   cleanCtx.logger.debug('Cleanup snapshot prepared', {
     ...summarizeCleanupSnapshot(snapshot)
   })
@@ -557,18 +557,18 @@ export async function collectDeletionTargets(
 }
 
 export async function performCleanup(
-  outputPlugins: readonly OutputAdaptor[],
+  outputAdaptors: readonly OutputAdaptor[],
   cleanCtx: OutputCleanContext,
   logger: ILogger,
   predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
 ): Promise<CleanupResult> {
   logger.debug('Cleanup execution started', {
     dryRun: cleanCtx.dryRun === true,
-    adaptors: outputPlugins.length,
+    adaptors: outputAdaptors.length,
     workspace: cleanCtx.collectedOutputContext.workspace.directory.path
   })
   if (predeclaredOutputs != null) {
-    const outputs = await collectAllPluginOutputs(outputPlugins, cleanCtx, predeclaredOutputs)
+    const outputs = await collectAllPluginOutputs(outputAdaptors, cleanCtx, predeclaredOutputs)
     logger.debug('Cleanup outputs collected', {
       projectDirs: outputs.projectDirs.length,
       projectFiles: outputs.projectFiles.length,
@@ -577,7 +577,7 @@ export async function performCleanup(
     })
   }
 
-  const snapshot = await buildCleanupSnapshot(outputPlugins, cleanCtx, predeclaredOutputs)
+  const snapshot = await buildCleanupSnapshot(outputAdaptors, cleanCtx, predeclaredOutputs)
   logger.debug('Cleanup snapshot prepared', {
     ...summarizeCleanupSnapshot(snapshot)
   })

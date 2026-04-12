@@ -16,7 +16,7 @@ function getErrorMessage(err: unknown): string {
 
 export class ReadmeMdInputCapability extends AbstractInputCapability {
   constructor() {
-    super('ReadmeMdInputCapability', ['AindexInputCapability'])
+    super('ReadmeMdInputCapability', ['AindexResolversInputCapability'])
   }
 
   async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {

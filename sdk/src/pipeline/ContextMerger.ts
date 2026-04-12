@@ -103,8 +103,8 @@ function mergeArrays<T>(
 function buildProjectMergeKey(project: Project): string {
   if (project.isWorkspaceRootProject === true) return `workspace-root:${project.name ?? ''}`
 
-  const promptSeries = project.promptSeries ?? 'workspace'
-  return `${promptSeries}:${project.name ?? ''}`
+  const projectType = project.projectType ?? 'workspace'
+  return `${projectType}:${project.name ?? ''}`
 }
 
 function mergeWorkspaceProjects(

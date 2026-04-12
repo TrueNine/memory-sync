@@ -176,7 +176,7 @@ describe('defineConfig', () => {
 
   it('returns programmatically assembled output plugins separately from user config options', async () => {
     const tempWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'tnmsc-output-plugin-assembly-'))
-    const outputPlugin: OutputAdaptor = {
+    const outputAdaptor: OutputAdaptor = {
       name: 'TestOutputAdaptor',
       type: AdaptorKind.Output,
       log: createLogger('TestOutputAdaptor', 'error'),
@@ -193,13 +193,13 @@ describe('defineConfig', () => {
     try {
       const result = await defineConfig({
         loadUserConfig: false,
-        outputPlugins: [outputPlugin],
+        outputAdaptors: [outputAdaptor],
         pluginOptions: {
           workspaceDir: tempWorkspace
         }
       })
 
-      expect(result.outputPlugins).toEqual([outputPlugin])
+      expect(result.outputAdaptors).toEqual([outputAdaptor])
       expect(result.userConfigOptions.plugins).toEqual({})
     } finally {
       fs.rmSync(tempWorkspace, {recursive: true, force: true})

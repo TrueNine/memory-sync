@@ -37,12 +37,13 @@ import {
   writePromptArtifacts
 } from '../prompts'
 import {logProtectedDeletionGuardError} from '../ProtectedDeletionGuard'
+import {getEffectiveHomeDir, getGlobalConfigPath} from '../runtime-environment'
 import {
   collectDeletionTargets,
   performCleanup
 } from '../runtime/cleanup'
 import {syncWindowsConfigIntoWsl} from '../wsl-mirror-sync'
-import {createDefaultOutputAdaptors, describeDefaultOutputAdaptors} from './default-output-plugins'
+import {createDefaultOutputAdaptors, describeDefaultOutputAdaptors} from './default-output-adaptors'
 
 export type PublicLoggerDiagnosticRecord = Omit<LoggerDiagnosticRecord, 'level'>
 
@@ -87,14 +88,23 @@ export interface MemorySyncSdkBinding {
 
 interface RuntimeExecutionContext {
   readonly logger: ReturnType<typeof createLogger>
-  readonly outputPlugins: ReturnType<typeof createDefaultOutputAdaptors>
+  readonly outputAdaptors: ReturnType<typeof createDefaultOutputAdaptors>
   readonly userConfigOptions: Awaited<ReturnType<typeof defineConfig>>['userConfigOptions']
   readonly collectedOutputContext: Awaited<ReturnType<typeof defineConfig>>['context']
   readonly executionPlan: Awaited<ReturnType<typeof defineConfig>>['executionPlan']
   readonly runtimeTargets: ReturnType<typeof discoverOutputRuntimeTargets>
 }
 
-const SERIES_ORDER = ['app', 'ext', 'arch', 'softwares'] as const
+const PROJECT_TYPE_ORDER = ['app', 'ext', 'arch', 'softwares'] as const
+
+function getDisplayConfigPath(): string {
+  const configPath = getGlobalConfigPath()
+  const homeDir = getEffectiveHomeDir()
+  if (configPath.startsWith(`${homeDir}/`) || configPath.startsWith(`${homeDir}\\`)) {
+    return `~${configPath.slice(homeDir.length)}`
+  }
+  return configPath
+}
 
 function buildCommandResult(
   input: Omit<MemorySyncCommandResult, 'warnings' | 'errors'>
@@ -116,11 +126,11 @@ function buildUnsupportedMessage(ctx: RuntimeExecutionContext): string {
 }
 
 function logExternalProjectGroups(ctx: RuntimeExecutionContext): void {
-  for (const series of SERIES_ORDER) {
-    const projects = ctx.executionPlan.projectsBySeries[series]
+  for (const projectType of PROJECT_TYPE_ORDER) {
+    const projects = ctx.executionPlan.projectsByType[projectType]
     if (projects.length === 0) continue
     ctx.logger.debug('External execution includes project group', {
-      series,
+      projectType,
       count: projects.length,
       projects: projects.map(project => project.name)
     })
@@ -135,8 +145,9 @@ function logProjectSummary(
   ctx.logger.info('Running against one managed project', {
     command: commandName,
     project: project.name,
-    ...project.series != null ? {series: project.series} : {},
-    workspace: ctx.executionPlan.workspaceDir
+    ...project.projectType != null ? {projectType: project.projectType} : {},
+    workspaceDir: ctx.executionPlan.workspaceDir,
+    configFilePath: getDisplayConfigPath()
   })
 }
 
@@ -255,11 +266,11 @@ async function createRuntimeExecutionContext(
   options: MemorySyncCommandOptions = {}
 ): Promise<RuntimeExecutionContext> {
   if (options.logLevel != null) setGlobalLogLevel(options.logLevel)
-  const outputPlugins = createDefaultOutputAdaptors()
+  const outputAdaptors = createDefaultOutputAdaptors()
   const pipelineConfig = await defineConfig({
     executionCwd: options.cwd,
     runtimeCommand,
-    outputPlugins,
+    outputAdaptors,
     loadUserConfig: options.loadUserConfig,
     ...options.pluginOptions == null
       ? options.logLevel == null
@@ -273,7 +284,7 @@ async function createRuntimeExecutionContext(
 
   return {
     logger,
-    outputPlugins,
+    outputAdaptors,
     userConfigOptions: pipelineConfig.userConfigOptions,
     collectedOutputContext: pipelineConfig.context,
     executionPlan: pipelineConfig.executionPlan,
@@ -306,7 +317,7 @@ function createWriteContext(
     runtimeTargets: ctx.runtimeTargets,
     executionPlan: ctx.executionPlan,
     dryRun,
-    registeredAdaptorNames: ctx.outputPlugins.map(plugin => plugin.name)
+    registeredAdaptorNames: ctx.outputAdaptors.map(plugin => plugin.name)
   }
 }
 
@@ -317,7 +328,7 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
   if (preflightResult != null) return preflightResult
 
   const writeCtx = createWriteContext(ctx, false)
-  const predeclaredOutputs = await collectOutputDeclarations(ctx.outputPlugins, writeCtx)
+  const predeclaredOutputs = await collectOutputDeclarations(ctx.outputAdaptors, writeCtx)
   const declarationCount = [...predeclaredOutputs.values()].reduce((total, declarations) => total + declarations.length, 0)
   ctx.logger.debug('Prepared output plan', {
     adaptors: predeclaredOutputs.size,
@@ -325,7 +336,7 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
   })
 
   const cleanupResult = await performCleanup(
-    ctx.outputPlugins,
+    ctx.outputAdaptors,
     createCleanContext(ctx, false),
     ctx.logger,
     predeclaredOutputs
@@ -348,7 +359,7 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
   }
 
   const writeResults = await executeDeclarativeWriteOutputs(
-    ctx.outputPlugins,
+    ctx.outputAdaptors,
     writeCtx,
     predeclaredOutputs
   )
@@ -381,7 +392,7 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
   }
 
   const wslMirrorResult = await syncWindowsConfigIntoWsl(
-    ctx.outputPlugins,
+    ctx.outputAdaptors,
     writeCtx,
     void 0,
     predeclaredOutputs
@@ -424,8 +435,8 @@ async function runDryRun(options: MemorySyncCommandOptions = {}): Promise<Memory
   if (preflightResult != null) return preflightResult
 
   const writeCtx = createWriteContext(ctx, true)
-  const predeclaredOutputs = await collectOutputDeclarations(ctx.outputPlugins, writeCtx)
-  const results = await executeDeclarativeWriteOutputs(ctx.outputPlugins, writeCtx, predeclaredOutputs)
+  const predeclaredOutputs = await collectOutputDeclarations(ctx.outputAdaptors, writeCtx)
+  const results = await executeDeclarativeWriteOutputs(ctx.outputAdaptors, writeCtx, predeclaredOutputs)
 
   let totalFiles = 0
   let totalDirs = 0
@@ -435,7 +446,7 @@ async function runDryRun(options: MemorySyncCommandOptions = {}): Promise<Memory
   }
 
   const wslMirrorResult = await syncWindowsConfigIntoWsl(
-    ctx.outputPlugins,
+    ctx.outputAdaptors,
     writeCtx,
     void 0,
     predeclaredOutputs
@@ -484,7 +495,7 @@ async function runClean(
       emptyDirsToDelete,
       violations,
       excludedScanGlobs
-    } = await collectDeletionTargets(ctx.outputPlugins, cleanCtx)
+    } = await collectDeletionTargets(ctx.outputAdaptors, cleanCtx)
     const totalDirsToDelete = [...dirsToDelete, ...emptyDirsToDelete]
 
     if (violations.length > 0) {
@@ -513,7 +524,7 @@ async function runClean(
   }
 
   const result = await performCleanup(
-    ctx.outputPlugins,
+    ctx.outputAdaptors,
     createCleanContext(ctx, false),
     ctx.logger
   )

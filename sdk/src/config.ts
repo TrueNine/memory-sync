@@ -28,14 +28,14 @@ import {resolveUserPath} from './runtime-environment'
 
 export interface PipelineConfig {
   readonly context: OutputCollectedContext
-  readonly outputPlugins: readonly OutputAdaptor[]
+  readonly outputAdaptors: readonly OutputAdaptor[]
   readonly userConfigOptions: Required<AdaptorOptions>
   readonly executionPlan: import('./execution-plan').ExecutionPlan
 }
 
 interface ResolvedPluginSetup {
   readonly mergedOptions: Required<AdaptorOptions>
-  readonly outputPlugins: readonly OutputAdaptor[]
+  readonly outputAdaptors: readonly OutputAdaptor[]
   readonly userConfigFile?: UserConfigFile
 }
 
@@ -80,7 +80,7 @@ export function userConfigToAdaptorOptions(userConfig: UserConfigFile): Partial<
 export interface DefineConfigOptions {
   readonly pluginOptions?: AdaptorOptions
 
-  readonly outputPlugins?: readonly OutputAdaptor[]
+  readonly outputAdaptors?: readonly OutputAdaptor[]
 
   readonly configLoaderOptions?: ConfigLoaderOptions
 
@@ -227,21 +227,21 @@ async function resolvePluginSetup(options: AdaptorOptions | DefineConfigOptions 
     cwd: string | undefined,
     executionCwd: string | undefined,
     pluginOptions: AdaptorOptions,
-    outputPlugins: readonly OutputAdaptor[],
+    outputAdaptors: readonly OutputAdaptor[],
     configLoaderOptions: ConfigLoaderOptions | undefined,
     runtimeCommand: RuntimeCommand | undefined
 
   if (isDefineConfigOptions(options)) {
     ({
       pluginOptions = {},
-      outputPlugins = [],
+      outputAdaptors = [],
       cwd,
       executionCwd,
       configLoaderOptions,
       runtimeCommand
     } = {
       pluginOptions: options.pluginOptions,
-      outputPlugins: options.outputPlugins,
+      outputAdaptors: options.outputAdaptors,
       cwd: options.cwd,
       executionCwd: options.executionCwd,
       configLoaderOptions: options.configLoaderOptions,
@@ -250,7 +250,7 @@ async function resolvePluginSetup(options: AdaptorOptions | DefineConfigOptions 
     shouldLoadUserConfig = options.loadUserConfig ?? true
   } else {
     pluginOptions = options
-    outputPlugins = []
+    outputAdaptors = []
     shouldLoadUserConfig = true
     configLoaderOptions = void 0
     runtimeCommand = void 0
@@ -293,7 +293,7 @@ async function resolvePluginSetup(options: AdaptorOptions | DefineConfigOptions 
 
   return {
     mergedOptions,
-    outputPlugins,
+    outputAdaptors,
     executionCwd: resolvedExecutionCwd,
     ...userConfigFile != null && {userConfigFile},
     ...runtimeCommand != null && {runtimeCommand},
@@ -303,14 +303,14 @@ async function resolvePluginSetup(options: AdaptorOptions | DefineConfigOptions 
 }
 
 export async function defineConfig(options: AdaptorOptions | DefineConfigOptions = {}): Promise<PipelineConfig> {
-  const {mergedOptions, outputPlugins, userConfigFile, runtimeCommand, executionCwd} = await resolvePluginSetup(options)
+  const {mergedOptions, outputAdaptors, userConfigFile, runtimeCommand, executionCwd} = await resolvePluginSetup(options)
   const logger = createLogger('defineConfig', mergedOptions.logLevel)
 
   if (shouldUsePluginsFastPath(runtimeCommand)) {
     const context = createMinimalOutputCollectedContext(mergedOptions)
     return {
       context,
-      outputPlugins,
+      outputAdaptors,
       userConfigOptions: mergedOptions,
       executionPlan: resolveExecutionPlan(context, executionCwd)
     }
@@ -351,7 +351,7 @@ export async function defineConfig(options: AdaptorOptions | DefineConfigOptions
 
   return {
     context,
-    outputPlugins,
+    outputAdaptors,
     userConfigOptions: mergedOptions,
     executionPlan: resolveExecutionPlan(context, executionCwd)
   }

@@ -14,10 +14,10 @@ export type ExecutionScope
 export interface ExecutionPlanProjectSummary {
   readonly name: string
   readonly rootDir: string
-  readonly series?: AindexProjectSeriesName
+  readonly projectType?: AindexProjectSeriesName
 }
 
-export interface ExecutionPlanProjectsBySeries {
+export interface ExecutionPlanProjectsByType {
   readonly app: readonly ExecutionPlanProjectSummary[]
   readonly ext: readonly ExecutionPlanProjectSummary[]
   readonly arch: readonly ExecutionPlanProjectSummary[]
@@ -27,7 +27,7 @@ export interface ExecutionPlanProjectsBySeries {
 interface ExecutionPlanBase {
   readonly cwd: string
   readonly workspaceDir: string
-  readonly projectsBySeries: ExecutionPlanProjectsBySeries
+  readonly projectsByType: ExecutionPlanProjectsByType
 }
 
 export interface WorkspaceExecutionPlan extends ExecutionPlanBase {
@@ -61,7 +61,7 @@ interface PathScopedEntry {
 
 type ScopedTargetOwnership = 'global' | 'workspace' | 'project' | 'external'
 
-const EMPTY_PROJECTS_BY_SERIES: ExecutionPlanProjectsBySeries = Object.freeze({
+const EMPTY_PROJECTS_BY_SERIES: ExecutionPlanProjectsByType = Object.freeze({
   app: Object.freeze([]),
   ext: Object.freeze([]),
   arch: Object.freeze([]),
@@ -96,7 +96,7 @@ function toManagedProjectSummary(
   return {
     name: projectName,
     rootDir: normalizeAbsolutePath(projectRootDir),
-    ...project.promptSeries != null ? {series: project.promptSeries} : {}
+    ...project.projectType != null ? {projectType: project.projectType} : {}
   }
 }
 
@@ -104,10 +104,10 @@ function sortProjects(
   projects: readonly ExecutionPlanProjectSummary[]
 ): readonly ExecutionPlanProjectSummary[] {
   return [...projects].sort((left, right) => {
-    const leftSeries = left.series ?? ''
-    const rightSeries = right.series ?? ''
-    if (leftSeries !== rightSeries)
-    { return leftSeries.localeCompare(rightSeries) }
+    const leftType = left.projectType ?? ''
+    const rightType = right.projectType ?? ''
+    if (leftType !== rightType)
+    { return leftType.localeCompare(rightType) }
     return left.name.localeCompare(right.name)
   })
 }
@@ -124,9 +124,9 @@ function collectManagedProjects(
   )
 }
 
-function groupProjectsBySeries(
+function groupProjectsByType(
   projects: readonly ExecutionPlanProjectSummary[]
-): ExecutionPlanProjectsBySeries {
+): ExecutionPlanProjectsByType {
   const grouped: Record<
     AindexProjectSeriesName,
     ExecutionPlanProjectSummary[]
@@ -138,8 +138,8 @@ function groupProjectsBySeries(
   }
 
   for (const project of projects) {
-    if (project.series == null) continue
-    grouped[project.series].push(project)
+    if (project.projectType == null) continue
+    grouped[project.projectType].push(project)
   }
 
   return {
@@ -163,7 +163,7 @@ function findMatchedProject(
   )[0]
 }
 
-export function createEmptyExecutionPlanProjectsBySeries(): ExecutionPlanProjectsBySeries {
+export function createEmptyExecutionPlanProjectsByType(): ExecutionPlanProjectsByType {
   return EMPTY_PROJECTS_BY_SERIES
 }
 
@@ -174,17 +174,17 @@ export function resolveExecutionPlan(
   const cwd = normalizeAbsolutePath(executionCwd)
   const workspaceDir = normalizeAbsolutePath(context.workspace.directory.path)
   const managedProjects = collectManagedProjects(context)
-  const projectsBySeries
+  const projectsByType
     = managedProjects.length === 0
-      ? createEmptyExecutionPlanProjectsBySeries()
-      : groupProjectsBySeries(managedProjects)
+      ? createEmptyExecutionPlanProjectsByType()
+      : groupProjectsByType(managedProjects)
 
   if (cwd === workspaceDir) {
     return {
       scope: 'workspace',
       cwd,
       workspaceDir,
-      projectsBySeries
+      projectsByType
     }
   }
 
@@ -194,7 +194,7 @@ export function resolveExecutionPlan(
       scope: 'project',
       cwd,
       workspaceDir,
-      projectsBySeries,
+      projectsByType,
       matchedProject
     }
   }
@@ -204,7 +204,7 @@ export function resolveExecutionPlan(
       scope: 'unsupported',
       cwd,
       workspaceDir,
-      projectsBySeries,
+      projectsByType,
       managedProjects
     }
   }
@@ -213,7 +213,7 @@ export function resolveExecutionPlan(
     scope: 'external',
     cwd,
     workspaceDir,
-    projectsBySeries
+    projectsByType
   }
 }
 

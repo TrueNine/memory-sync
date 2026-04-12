@@ -4,10 +4,10 @@ import {describe, expect, it} from 'vitest'
 import {FilePathKind} from './adaptors/adaptor-core'
 import {filterPathScopedEntriesForExecutionPlan, resolveExecutionPlan} from './execution-plan'
 
-function createProject(workspaceDir: string, name: string, series: Project['promptSeries']): Project {
+function createProject(workspaceDir: string, name: string, series: Project['projectType']): Project {
   return {
     name,
-    promptSeries: series,
+    projectType: series,
     dirFromWorkspacePath: {
       pathKind: FilePathKind.Relative,
       path: name,
@@ -55,7 +55,7 @@ describe('execution plan resolution', () => {
 
     expect(result.scope).toBe('project')
     expect(result.scope === 'project' ? result.matchedProject.name : void 0).toBe('plugin-one')
-    expect(result.scope === 'project' ? result.matchedProject.series : void 0).toBe('ext')
+    expect(result.scope === 'project' ? result.matchedProject.projectType : void 0).toBe('ext')
   })
 
   it('resolves unsupported scope for a workspace subdirectory outside managed projects', () => {
@@ -74,8 +74,8 @@ describe('execution plan resolution', () => {
     const result = resolveExecutionPlan(context, path.resolve('/tmp/another-location'))
 
     expect(result.scope).toBe('external')
-    expect(result.projectsBySeries.app.map(project => project.name)).toEqual(['app-one'])
-    expect(result.projectsBySeries.softwares.map(project => project.name)).toEqual(['tool-one'])
+    expect(result.projectsByType.app.map(project => project.name)).toEqual(['app-one'])
+    expect(result.projectsByType.softwares.map(project => project.name)).toEqual(['tool-one'])
   })
 })
 

@@ -5,7 +5,7 @@ import {parseNativeInputResult} from './native-result'
 
 export class ProjectPromptInputCapability extends AbstractInputCapability {
   constructor() {
-    super('ProjectPromptInputCapability', ['AindexInputCapability'])
+    super('ProjectPromptInputCapability', ['AindexResolversInputCapability'])
   }
 
   async collect(ctx: InputCapabilityContext): Promise<Partial<InputCollectedContext>> {
@@ -13,6 +13,7 @@ export class ProjectPromptInputCapability extends AbstractInputCapability {
     if (native?.collectProjectPrompt != null) {
       const payload = {
         ...ctx.userConfigOptions,
+        aindexResolvers: ctx.userConfigOptions.aindex,
         globalScope: ctx.globalScope,
         workspace: ctx.dependencyContext.workspace
       }

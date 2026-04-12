@@ -8,7 +8,7 @@
 //! - Complex plugins (shadow-project, skill, project-prompt, readme)
 //! - Effect plugins (md-cleanup, orphan-cleanup, skill-dist-cleanup)
 
-pub mod aindex;
+pub mod aindex_resolvers;
 pub mod command;
 pub mod editorconfig;
 pub mod git_exclude;

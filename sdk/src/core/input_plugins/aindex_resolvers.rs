@@ -12,12 +12,12 @@ use crate::core::plugin_shared::{Project, RelativePath, RootPath, Workspace};
 struct AindexInputOptions {
   workspace_dir: String,
   #[serde(default)]
-  aindex: Option<AindexAindexInput>,
+  aindex_resolvers: Option<AindexResolversInput>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct AindexAindexInput {
+struct AindexResolversInput {
   #[serde(default)]
   dir: Option<String>,
   #[serde(default)]
@@ -47,47 +47,47 @@ struct SeriesConfig {
 
 const SERIES_NAMES: &[&str] = &["app", "ext", "arch", "softwares"];
 
-fn get_series_configs(aindex: &Option<AindexAindexInput>) -> Vec<SeriesConfig> {
+fn get_series_configs(aindex_resolvers: &Option<AindexResolversInput>) -> Vec<SeriesConfig> {
   SERIES_NAMES
     .iter()
     .map(|name| {
       let (src, dist) = match *name {
         "app" => (
-          aindex
+          aindex_resolvers
             .as_ref()
             .and_then(|a| a.app.as_ref().and_then(|p| p.src.clone()))
             .unwrap_or_else(|| "app".to_string()),
-          aindex
+          aindex_resolvers
             .as_ref()
             .and_then(|a| a.app.as_ref().and_then(|p| p.dist.clone()))
             .unwrap_or_else(|| "dist/app".to_string()),
         ),
         "ext" => (
-          aindex
+          aindex_resolvers
             .as_ref()
             .and_then(|a| a.ext.as_ref().and_then(|p| p.src.clone()))
             .unwrap_or_else(|| "ext".to_string()),
-          aindex
+          aindex_resolvers
             .as_ref()
             .and_then(|a| a.ext.as_ref().and_then(|p| p.dist.clone()))
             .unwrap_or_else(|| "dist/ext".to_string()),
         ),
         "arch" => (
-          aindex
+          aindex_resolvers
             .as_ref()
             .and_then(|a| a.arch.as_ref().and_then(|p| p.src.clone()))
             .unwrap_or_else(|| "arch".to_string()),
-          aindex
+          aindex_resolvers
             .as_ref()
             .and_then(|a| a.arch.as_ref().and_then(|p| p.dist.clone()))
             .unwrap_or_else(|| "dist/arch".to_string()),
         ),
         "softwares" => (
-          aindex
+          aindex_resolvers
             .as_ref()
             .and_then(|a| a.softwares.as_ref().and_then(|p| p.src.clone()))
             .unwrap_or_else(|| "softwares".to_string()),
-          aindex
+          aindex_resolvers
             .as_ref()
             .and_then(|a| a.softwares.as_ref().and_then(|p| p.dist.clone()))
             .unwrap_or_else(|| "dist/softwares".to_string()),
@@ -182,7 +182,7 @@ fn load_fallback_project_config(
   None
 }
 
-pub fn collect_aindex(options_json: &str) -> Result<String, crate::CliError> {
+pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::CliError> {
   let options: AindexInputOptions =
     serde_json::from_str(options_json).map_err(|e| crate::CliError::ConfigError(e.to_string()))?;
 
@@ -190,7 +190,7 @@ pub fn collect_aindex(options_json: &str) -> Result<String, crate::CliError> {
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
   let aindex_dir_name = options
-    .aindex
+    .aindex_resolvers
     .as_ref()
     .and_then(|a| a.dir.clone())
     .unwrap_or_else(|| "aindex".to_string());
@@ -201,7 +201,7 @@ pub fn collect_aindex(options_json: &str) -> Result<String, crate::CliError> {
     .unwrap_or("aindex")
     .to_string();
 
-  let series_configs = get_series_configs(&options.aindex);
+  let series_configs = get_series_configs(&options.aindex_resolvers);
 
   detect_project_name_conflicts(&aindex_dir, &series_configs)
     .map_err(crate::CliError::ConfigError)?;
@@ -251,7 +251,7 @@ pub fn collect_aindex(options_json: &str) -> Result<String, crate::CliError> {
 
       projects.push(Project {
         name: Some(project_name.clone()),
-        prompt_series: Some(series.name.to_string()),
+        project_type: Some(series.name.to_string()),
         dir_from_workspace_path: Some(RelativePath::new(&project_name, &workspace_dir_str)),
         is_prompt_source_project: if is_prompt_source_project {
           Some(true)
@@ -364,7 +364,7 @@ mod tests {
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
     });
 
-    let result = collect_aindex(&options.to_string()).unwrap();
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
     let project = &parsed["workspace"]["projects"][0];
     assert_eq!(project["name"], "project-a");
@@ -396,7 +396,7 @@ mod tests {
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
     });
 
-    let result = collect_aindex(&options.to_string()).unwrap();
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
     let project = &parsed["workspace"]["projects"][0];
     assert_eq!(project["name"], "project-b");
@@ -425,7 +425,7 @@ mod tests {
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
     });
 
-    let result = collect_aindex(&options.to_string()).unwrap();
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
     let project = &parsed["workspace"]["projects"][0];
     assert_eq!(project["name"], "project-c");
@@ -450,7 +450,7 @@ mod tests {
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
     });
 
-    let result = collect_aindex(&options.to_string()).unwrap();
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
     let projects = parsed["workspace"]["projects"].as_array().unwrap();
     let ids: Vec<String> = projects
@@ -458,7 +458,7 @@ mod tests {
       .map(|p| {
         format!(
           "{}:{}",
-          p["promptSeries"].as_str().unwrap(),
+          p["projectType"].as_str().unwrap(),
           p["name"].as_str().unwrap()
         )
       })
@@ -484,7 +484,7 @@ mod tests {
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
     });
 
-    let result = collect_aindex(&options.to_string());
+    let result = collect_aindex_resolvers(&options.to_string());
     assert!(result.is_err());
     assert!(
       result
@@ -522,7 +522,7 @@ mod tests {
       "workspaceDir": tilde_workspace,
     });
 
-    let result = collect_aindex(&options.to_string()).unwrap();
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
     let workspace_dir = parsed["workspace"]["directory"]["path"]
       .as_str()

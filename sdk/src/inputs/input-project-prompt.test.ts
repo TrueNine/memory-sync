@@ -150,9 +150,9 @@ describe('project prompt input plugin workspace prompt support', () => {
       fs.writeFileSync(path.join(softwareRoot, 'manual', 'agt.mdx'), 'Software child prompt', 'utf8')
 
       const workspace = createWorkspace(tempWorkspace, [
-        createProject(tempWorkspace, 'plugin-a', {promptSeries: 'ext'}),
-        createProject(tempWorkspace, 'system-a', {promptSeries: 'arch'}),
-        createProject(tempWorkspace, 'tool-a', {promptSeries: 'softwares'})
+        createProject(tempWorkspace, 'plugin-a', {projectType: 'ext'}),
+        createProject(tempWorkspace, 'system-a', {projectType: 'arch'}),
+        createProject(tempWorkspace, 'tool-a', {projectType: 'softwares'})
       ])
 
       const plugin = new ProjectPromptInputCapability()

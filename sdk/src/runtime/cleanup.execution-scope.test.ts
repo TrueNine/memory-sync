@@ -12,16 +12,16 @@ import {
 } from '../../test/native-binding/desk-paths'
 import {
   AdaptorKind,
-  createEmptyExecutionPlanProjectsBySeries,
+  createEmptyExecutionPlanProjectsByType,
   createLogger,
   FilePathKind
 } from '../adaptors/adaptor-core'
 import {collectDeletionTargets, performCleanup} from './cleanup'
 
-function createProject(workspaceDir: string | undefined, name: string, series: Project['promptSeries']): Project {
+function createProject(workspaceDir: string | undefined, name: string, series: Project['projectType']): Project {
   return {
     name,
-    promptSeries: series,
+    projectType: series,
     dirFromWorkspacePath: {
       pathKind: FilePathKind.Relative,
       path: name,
@@ -126,8 +126,8 @@ describe('cleanup execution scope filtering', () => {
       scope: 'project' as const,
       cwd: path.join(workspaceDir, 'plugin-one', 'nested'),
       workspaceDir,
-      projectsBySeries: {
-        ...createEmptyExecutionPlanProjectsBySeries(),
+      projectsByType: {
+        ...createEmptyExecutionPlanProjectsByType(),
         ext: [{
           name: 'plugin-one',
           rootDir: path.join(workspaceDir, 'plugin-one'),
@@ -252,7 +252,7 @@ describe('cleanup execution scope filtering', () => {
         scope: 'workspace',
         cwd: workspaceDir,
         workspaceDir,
-        projectsBySeries: createEmptyExecutionPlanProjectsBySeries()
+        projectsByType: createEmptyExecutionPlanProjectsByType()
       },
       dryRun: true
     }
@@ -338,7 +338,7 @@ describe('cleanup execution scope filtering', () => {
         scope: 'workspace',
         cwd: workspaceDir,
         workspaceDir,
-        projectsBySeries: createEmptyExecutionPlanProjectsBySeries()
+        projectsByType: createEmptyExecutionPlanProjectsByType()
       },
       dryRun: true
     }
@@ -410,7 +410,7 @@ describe('cleanup execution scope filtering', () => {
           scope: 'workspace',
           cwd: workspaceDir,
           workspaceDir,
-          projectsBySeries: createEmptyExecutionPlanProjectsBySeries()
+          projectsByType: createEmptyExecutionPlanProjectsByType()
         },
         dryRun: false
       }

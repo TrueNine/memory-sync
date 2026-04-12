@@ -8,7 +8,7 @@ import glob from 'fast-glob'
 import {GlobalScopeCollector, ScopePriority, ScopeRegistry} from '@/adaptors/adaptor-core/GlobalScopeCollector'
 import {
   AIAgentIgnoreInputCapability,
-  AindexInputCapability,
+  AindexResolversInputCapability,
   CommandInputCapability,
   EditorConfigInputCapability,
   GitExcludeInputCapability,
@@ -45,7 +45,7 @@ function createBuiltinInputEffectCapabilities(): InputCapability[] {
 function createBuiltinInputReaderCapabilities(): InputCapability[] {
   return [
     new NativeInputCapability('WorkspaceInputCapability', 'collectWorkspace'),
-    new AindexInputCapability(),
+    new AindexResolversInputCapability(),
     new VSCodeConfigInputCapability(),
     new ZedConfigInputCapability(),
     new JetBrainsConfigInputCapability(),

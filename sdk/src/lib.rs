@@ -397,9 +397,9 @@ mod napi_binding {
       .map_err(|e| napi::Error::from_reason(e.to_string()))
   }
 
-  #[napi(js_name = "collectAindex")]
-  pub fn collect_aindex_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::aindex::collect_aindex(&options_json)
+  #[napi(js_name = "collectAindexResolvers")]
+  pub fn collect_aindex_resolvers_binding(options_json: String) -> napi::Result<String> {
+    crate::core::input_plugins::aindex_resolvers::collect_aindex_resolvers(&options_json)
       .map_err(|e| napi::Error::from_reason(e.to_string()))
   }
 

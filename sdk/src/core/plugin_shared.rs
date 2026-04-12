@@ -581,7 +581,7 @@ pub struct Project {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub is_workspace_root_project: Option<bool>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub prompt_series: Option<String>,
+  pub project_type: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub project_config: Option<Value>,
 }

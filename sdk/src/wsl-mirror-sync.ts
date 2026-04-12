@@ -187,10 +187,10 @@ function getWslUnavailableReason(result: SpawnSyncResult): string | undefined {
 }
 
 export async function collectDeclaredWslMirrorFiles(
-  outputPlugins: readonly OutputAdaptor[],
+  outputAdaptors: readonly OutputAdaptor[],
   ctx: OutputWriteContext
 ): Promise<readonly WslMirrorFileDeclaration[]> {
-  const declarations = await Promise.all(outputPlugins.map(async plugin => {
+  const declarations = await Promise.all(outputAdaptors.map(async plugin => {
     if (!isOutputAdaptorEnabled(plugin, ctx.pluginOptions)) return []
     if (plugin.declareWslMirrorFiles == null) return []
     return plugin.declareWslMirrorFiles(ctx)
@@ -502,7 +502,7 @@ function syncResolvedMirrorSourcesIntoCurrentWslHome(
 }
 
 export async function syncWindowsConfigIntoWsl(
-  outputPlugins: readonly OutputAdaptor[],
+  outputAdaptors: readonly OutputAdaptor[],
   ctx: OutputWriteContext,
   dependencies?: WslMirrorRuntimeDependencies,
   predeclaredOutputs?: ReadonlyMap<OutputAdaptor, readonly OutputFileDeclaration[]>
@@ -520,7 +520,7 @@ export async function syncWindowsConfigIntoWsl(
   const hostHomeDir = wslRuntime
     ? path.posix.normalize(getHostHomeDir(dependencies))
     : path.win32.normalize(getHostHomeDir(dependencies))
-  const mirrorDeclarations = await collectDeclaredWslMirrorFiles(outputPlugins, ctx)
+  const mirrorDeclarations = await collectDeclaredWslMirrorFiles(outputAdaptors, ctx)
   const generatedMirrorSources = collectGeneratedWslMirrorSources(predeclaredOutputs, hostHomeDir, platform)
   if (mirrorDeclarations.length === 0 && generatedMirrorSources.length === 0) {
     return {

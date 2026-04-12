@@ -13,8 +13,8 @@ export {
   SkillInputCapability
 } from './input-agentskills'
 export {
-  AindexInputCapability
-} from './input-aindex'
+  AindexResolversInputCapability
+} from './input-aindex-resolvers'
 export {
   CommandInputCapability
 } from './input-command'

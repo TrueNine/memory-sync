@@ -61,7 +61,7 @@ function createWriteContext(workspaceDir: string): OutputWriteContext {
       scope: 'workspace',
       cwd: workspaceDir,
       workspaceDir,
-      projectsBySeries: {
+      projectsByType: {
         app: [],
         ext: [],
         arch: [],

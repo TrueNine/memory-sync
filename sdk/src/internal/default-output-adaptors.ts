@@ -28,7 +28,7 @@ export interface DefaultOutputAdaptorDescriptor {
   readonly dependencies: readonly string[]
 }
 
-export function createDefaultOutputAdaptors(): PipelineConfig['outputPlugins'] {
+export function createDefaultOutputAdaptors(): PipelineConfig['outputAdaptors'] {
   return [
     new NativeAgentsOutputAdaptor(),
     new ClaudeCodeCLIOutputAdaptor(),

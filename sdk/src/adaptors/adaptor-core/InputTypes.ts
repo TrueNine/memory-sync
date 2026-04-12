@@ -24,7 +24,7 @@ export interface Project {
   readonly isPromptSourceProject?: boolean
   readonly isWorkspaceRootProject?: boolean
   readonly projectConfig?: ProjectConfig
-  readonly promptSeries?: AindexProjectSeriesName
+  readonly projectType?: AindexProjectSeriesName
 }
 
 export interface Workspace {
