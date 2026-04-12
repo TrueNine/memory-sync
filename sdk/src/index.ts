@@ -163,6 +163,9 @@ export type {
   PublicLoggerDiagnosticRecord
 } from './internal/sdk-binding'
 export {
+  createTsFallbackMemorySyncBinding
+} from './internal/sdk-binding'
+export {
   clearBufferedDiagnostics,
   createLogger,
   drainBufferedDiagnostics,

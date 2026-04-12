@@ -91,7 +91,7 @@ runs:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          target
+          gui/src-tauri/target
         key: ${{ runner.os }}-cargo-${{ inputs.rust-version }}-${{ steps.cargo-deps-hash.outputs.hash }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ inputs.rust-version }}-
@@ -113,6 +113,6 @@ runs:
     - name: Clean old bundle artifacts
       shell: bash
       run: |
-        if [ -d "target" ]; then
-          find target -type d -name bundle -prune -exec rm -rf {} +
+        if [ -d "gui/src-tauri/target" ]; then
+          find gui/src-tauri/target -type d -name bundle -prune -exec rm -rf {} +
         fi
