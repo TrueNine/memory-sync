@@ -2,7 +2,7 @@
   "name": "@truenine/memory-sync-cli-integration-test",
   "private": true,
   "type": "module",
-  "version": "2026.10412.11942",
+  "version": "2026.10413.10237",
   "description": "Container-backed CLI integration tests for tnmsc",
   "scripts": {
     "test": "vitest run",

@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-cli",
   "type": "module",
-  "version": "2026.10412.11942",
+  "version": "2026.10413.10237",
   "description": "TrueNine Memory Synchronization CLI shell",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
