@@ -14,7 +14,8 @@
     "validate:content": "tsx scripts/validate-content.ts",
     "check:type": "tsx scripts/run-next.ts typegen && tsc --project tsconfig.typecheck.json --noEmit --incremental false",
     "start": "tsx scripts/run-next.ts start",
-    "lint": "tsx scripts/validate-content.ts && eslint --cache --cache-location .eslintcache ."
+    "lint": "tsx scripts/validate-content.ts && eslint --cache --cache-location .eslintcache .",
+    "lint:fix": "tsx scripts/validate-content.ts && eslint --fix --cache --cache-location .eslintcache ."
   },
   "dependencies": {
     "@theguild/remark-mermaid": "catalog:",
