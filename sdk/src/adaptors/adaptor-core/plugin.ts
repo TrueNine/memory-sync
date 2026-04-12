@@ -1,4 +1,3 @@
-import type {ILogger} from '@truenine/logger'
 import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
 import type {
   AindexConfig,
@@ -13,6 +12,7 @@ import type {AdaptorKind} from './enums'
 import type {InputCollectedContext, OutputCollectedContext} from './InputTypes'
 import type {NativeDeskPathsBinding} from '@/core/desk-paths-types'
 import type {ExecutionPlan} from '@/execution-plan'
+import type {ILogger} from '@/libraries/logger'
 import type {RuntimeCommand} from '@/runtime-command'
 import {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'

@@ -3,6 +3,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {AdaptorKind, FilePathKind} from '../src/adaptors/adaptor-core/enums'
+import {collectBaseOutputPlans, collectDroidOutputPlan, collectGeminiOutputPlan} from './native-binding/base-output-plans'
 import * as deskPaths from './native-binding/desk-paths'
 // import {
 // // getPrompt,
@@ -49,16 +50,20 @@ interface NativeCleanupSnapshot {
 }
 
 function createMockLogger(): ILogger {
-  const logger = {
-    trace: () => {},
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    fatal: () => {}
+  return {
+    trace: () => {
+    },
+    debug: () => {
+    },
+    info: () => {
+    },
+    warn: () => {
+    },
+    error: () => {
+    },
+    fatal: () => {
+    }
   } satisfies ILogger
-
-  return logger
 }
 
 function createSyntheticOutputAdaptor(snapshot: NativePluginCleanupSnapshot): OutputAdaptor {
@@ -205,6 +210,9 @@ globalThis.__TNMSC_TEST_NATIVE_BINDING__ = {
   removeBlockingFile: deskPaths.removeBlockingFile,
   planCleanup,
   performCleanup: runCleanup,
+  collectBaseOutputPlans,
+  collectDroidOutputPlan,
+  collectGeminiOutputPlan,
   resolveEffectiveIncludeSeries,
   matchesSeries,
   resolveSubSeries

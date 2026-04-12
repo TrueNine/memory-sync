@@ -7,7 +7,7 @@ pub mod core;
 pub(crate) mod diagnostic_helpers;
 pub mod prompts;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::ExitCode;
 
 use serde::{Deserialize, Serialize};
@@ -31,6 +31,9 @@ pub enum CliError {
 
   #[error("Serialization error: {0}")]
   SerializationError(#[from] serde_json::Error),
+
+  #[error("Execution error: {0}")]
+  ExecutionError(String),
 
   #[error("Execution not yet fully implemented in Rust: {0}")]
   NotImplemented(String),
@@ -128,54 +131,19 @@ pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliEr
     .map_err(CliError::ConfigError)
 }
 
-/// Execute the install pipeline directly in Rust.
+/// Execute the install pipeline through the crate-owned internal command bridge.
 pub fn install(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  let cwd = resolve_command_cwd(&options)?;
-  let _config = load_config(&cwd)?;
-  // TODO: full Rust plugin execution pipeline (output generation + cleanup + WSL mirror)
-  Ok(MemorySyncCommandResult {
-    success: true,
-    files_affected: 0,
-    dirs_affected: 0,
-    ..Default::default()
-  })
+  core::command_bridge::execute_internal_command("install", &options)
 }
 
-/// Execute the dry-run pipeline directly in Rust.
+/// Execute the dry-run pipeline through the crate-owned internal command bridge.
 pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  let cwd = resolve_command_cwd(&options)?;
-  let _config = load_config(&cwd)?;
-  // TODO: full Rust plugin execution pipeline in dry-run mode
-  Ok(MemorySyncCommandResult {
-    success: true,
-    files_affected: 0,
-    dirs_affected: 0,
-    message: Some("Dry-run complete, no files were written".to_string()),
-    ..Default::default()
-  })
+  core::command_bridge::execute_internal_command("dry-run", &options)
 }
 
-/// Execute cleanup directly in Rust.
+/// Execute cleanup through the crate-owned internal command bridge.
 pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  let cwd = resolve_command_cwd(&options)?;
-  let _config = load_config(&cwd)?;
-  // TODO: build real cleanup snapshot from plugin registry and execute cleanup
-  if options.dry_run == Some(true) {
-    Ok(MemorySyncCommandResult {
-      success: true,
-      files_affected: 0,
-      dirs_affected: 0,
-      message: Some("Dry-run complete, no files were deleted".to_string()),
-      ..Default::default()
-    })
-  } else {
-    Ok(MemorySyncCommandResult {
-      success: true,
-      files_affected: 0,
-      dirs_affected: 0,
-      ..Default::default()
-    })
-  }
+  core::command_bridge::execute_internal_command("clean", &options)
 }
 
 /// Return the default output plugin registry without instantiating TS plugin classes.
@@ -189,13 +157,6 @@ pub fn list_plugins() -> Vec<MemorySyncPluginInfo> {
       dependencies: dependencies.iter().map(|d| (*d).to_string()).collect(),
     })
     .collect()
-}
-
-fn resolve_command_cwd(options: &MemorySyncCommandOptions) -> Result<PathBuf, CliError> {
-  match options.cwd.as_deref() {
-    Some(cwd) => Ok(PathBuf::from(cwd)),
-    None => std::env::current_dir().map_err(CliError::IoError),
-  }
 }
 
 /// Run the install pipeline in passthrough mode for the Rust CLI shell.
@@ -435,6 +396,24 @@ mod napi_binding {
     crate::core::input_plugins::skill::collect_skill(&options_json)
       .map_err(|e| napi::Error::from_reason(e.to_string()))
   }
+
+  #[napi(js_name = "collectBaseOutputPlans")]
+  pub fn collect_base_output_plans_binding(context_json: String) -> napi::Result<String> {
+    crate::core::base_output_plans::collect_base_output_plans(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectGeminiOutputPlan")]
+  pub fn collect_gemini_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::gemini_output_plan::collect_gemini_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectDroidOutputPlan")]
+  pub fn collect_droid_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::droid_output_plan::collect_droid_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -506,6 +485,7 @@ mod property_tests {
       CliError::ConfigError("bad config".into()),
       CliError::IoError(std::io::Error::new(std::io::ErrorKind::NotFound, "test")),
       CliError::SerializationError(serde_json::from_str::<String>("invalid").unwrap_err()),
+      CliError::ExecutionError("bridge failed".into()),
       CliError::NotImplemented("test".into()),
     ];
 
@@ -514,6 +494,7 @@ mod property_tests {
         CliError::ConfigError(msg) => assert!(!msg.is_empty()),
         CliError::IoError(e) => assert!(!e.to_string().is_empty()),
         CliError::SerializationError(e) => assert!(!e.to_string().is_empty()),
+        CliError::ExecutionError(msg) => assert!(!msg.is_empty()),
         CliError::NotImplemented(msg) => assert!(!msg.is_empty()),
       }
     }

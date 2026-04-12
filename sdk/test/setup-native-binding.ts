@@ -1,29 +1,13 @@
 import type {ILogger, OutputAdaptor, OutputCleanContext, OutputCleanupDeclarations} from '../src/adaptors/adaptor-core'
-import type {
-  ListPromptsOptions,
-  PromptServiceOptions,
-  UpsertPromptSourceInput,
-  WritePromptArtifactsInput
-} from '../src/prompts'
+import type {ListPromptsOptions, PromptServiceOptions, UpsertPromptSourceInput, WritePromptArtifactsInput} from '../src/prompts'
 import * as fs from 'node:fs'
 import {createRequire} from 'node:module'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {AdaptorKind, FilePathKind} from '../src/adaptors/adaptor-core/enums.ts'
-import {
-  topologicalSort as topologicalSortLegacy
-} from '../src/internal/dependency-resolver-legacy'
-import {
-  findAllGitRepos,
-  findGitModuleInfoDirs,
-  resolveGitInfoDir
-} from '../src/internal/git-discovery-legacy'
-import {
-  getPrompt,
-  listPrompts,
-  upsertPromptSource,
-  writePromptArtifacts
-} from '../src/internal/prompts-legacy'
+import {topologicalSort as topologicalSortLegacy} from '../src/internal/dependency-resolver-legacy'
+import {findAllGitRepos, findGitModuleInfoDirs, resolveGitInfoDir} from '../src/internal/git-discovery-legacy'
+import {getPrompt, listPrompts, upsertPromptSource, writePromptArtifacts} from '../src/internal/prompts-legacy'
 import {
   getEffectiveHomeDir,
   getGlobalConfigPath,
@@ -32,6 +16,7 @@ import {
   resolveRuntimeEnvironment
 } from '../src/internal/runtime-environment-legacy'
 
+import {collectBaseOutputPlans, collectDroidOutputPlan, collectGeminiOutputPlan} from './native-binding/base-output-plans'
 import * as deskPaths from './native-binding/desk-paths'
 
 interface NativeCleanupTarget {
@@ -72,16 +57,20 @@ interface NativeCleanupSnapshot {
 }
 
 function createMockLogger(): ILogger {
-  const logger = {
-    trace: () => {},
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    fatal: () => {}
+  return {
+    trace: () => {
+    },
+    debug: () => {
+    },
+    info: () => {
+    },
+    warn: () => {
+    },
+    error: () => {
+    },
+    fatal: () => {
+    }
   } satisfies ILogger
-
-  return logger
 }
 
 function createSyntheticOutputAdaptor(snapshot: NativePluginCleanupSnapshot): OutputAdaptor {
@@ -238,6 +227,9 @@ const testBinding = {
   removeBlockingFile: deskPaths.removeBlockingFile,
   planCleanup,
   performCleanup: runCleanup,
+  collectBaseOutputPlans,
+  collectDroidOutputPlan,
+  collectGeminiOutputPlan,
   resolveEffectiveIncludeSeries,
   matchesSeries,
   resolveSubSeries,

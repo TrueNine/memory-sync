@@ -2,6 +2,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::core::config;
 use crate::core::plugin_shared::{RootPath, Workspace};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -31,9 +32,10 @@ pub fn collect_workspace(options_json: &str) -> Result<String, crate::CliError> 
     serde_json::from_str(options_json).map_err(|e| crate::CliError::ConfigError(e.to_string()))?;
 
   let workspace_dir_raw = options.workspace_dir;
-  let workspace_dir = Path::new(&workspace_dir_raw)
+  let expanded_workspace_dir = config::resolve_tilde(&workspace_dir_raw);
+  let workspace_dir = expanded_workspace_dir
     .canonicalize()
-    .unwrap_or_else(|_| Path::new(&workspace_dir_raw).to_path_buf());
+    .unwrap_or(expanded_workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
   let aindex_dir_name = options

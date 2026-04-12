@@ -34,11 +34,11 @@ pub fn dry_run_clean() -> ExitCode {
 pub fn plugins() -> ExitCode {
   let plugins = tnmsc::list_plugins();
 
-  println!("# Registered plugins");
+  println!("# Registered adaptors");
   println!();
 
   if plugins.is_empty() {
-    println!("- No plugins are currently registered.");
+    println!("- No adaptors are currently registered.");
   } else {
     for plugin in plugins {
       if plugin.dependencies.is_empty() {

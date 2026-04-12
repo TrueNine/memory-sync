@@ -16,18 +16,17 @@ describe('library entrypoint', () => {
   })
 
   it('uses the native binding when all methods are present', async () => {
-    const nativeBinding = {
+    globalThis.__TNMSC_TEST_NATIVE_BINDING__ = {
       loadConfig: vi.fn(),
       install: vi.fn(),
       dryRun: vi.fn(),
       clean: vi.fn(),
-      listAdaptors: vi.fn(),
+      listPlugins: vi.fn(),
       listPrompts: vi.fn(),
       getPrompt: vi.fn(),
       upsertPromptSource: vi.fn(),
       writePromptArtifacts: vi.fn()
     }
-    globalThis.__TNMSC_TEST_NATIVE_BINDING__ = nativeBinding
 
     const mod = await import('./index')
     const binding = mod.getMemorySyncSdkBinding()

@@ -1,6 +1,6 @@
-import type {ILogger} from '@truenine/logger'
 import type {AdaptorOptions, OutputCollectedContext} from './adaptors/adaptor-core'
 import type {PublicDefinitionResolveOptions} from './public-config-paths'
+import type {ILogger} from '@/libraries/logger'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import process from 'node:process'

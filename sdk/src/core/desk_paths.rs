@@ -240,9 +240,17 @@ fn delete_path(path: impl AsRef<Path>) -> io::Result<bool> {
   }
 
   if metadata.is_dir() {
-    fs::remove_dir_all(path).map(|_| true)
+    match fs::remove_dir_all(path) {
+      Ok(()) => Ok(true),
+      Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
+      Err(err) => Err(err),
+    }
   } else {
-    fs::remove_file(path).map(|_| true)
+    match fs::remove_file(path) {
+      Ok(()) => Ok(true),
+      Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
+      Err(err) => Err(err),
+    }
   }
 }
 

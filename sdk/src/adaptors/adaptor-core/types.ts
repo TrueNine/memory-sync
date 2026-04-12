@@ -14,7 +14,7 @@ export type {
   LoggerDiagnosticInput,
   LoggerDiagnosticRecord,
   LogLevel
-} from '@truenine/logger'
+} from '@/libraries/logger'
 
 export class MissingDependencyError extends Error {
   readonly nodeName: string

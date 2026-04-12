@@ -2,6 +2,7 @@ import type {InputCapabilityContext, InputCollectedContext} from '../adaptors/ad
 
 import {getNativeBinding} from '@/core/native-binding'
 import {AbstractInputCapability} from '../adaptors/adaptor-core'
+import {parseLoggedNativeInputResult} from './native-result'
 
 interface NativeSkillResult extends InputCollectedContext {
   diagnostics?: {level: string, code: string, title: string, exactFix?: string[]}[]
@@ -21,29 +22,7 @@ export class SkillInputCapability extends AbstractInputCapability {
         globalScope: ctx.globalScope
       }
       const result = native.collectSkill(JSON.stringify(payload))
-      const parsed = JSON.parse(result) as NativeSkillResult
-      if (parsed.diagnostics != null) {
-        for (const diagnostic of parsed.diagnostics) {
-          const input = {
-            code: diagnostic.code,
-            title: diagnostic.title,
-            rootCause: [diagnostic.title] as const,
-            ...diagnostic.exactFix != null && diagnostic.exactFix.length > 0
-              ? {exactFix: diagnostic.exactFix as [string, ...string[]]}
-              : {}
-          }
-          if (diagnostic.level === 'warn') {
-            ctx.logger.warn(input)
-          } else if (diagnostic.level === 'error') {
-            ctx.logger.error(input)
-          }
-        }
-      }
-      if (parsed.debugLogs != null) {
-        for (const log of parsed.debugLogs) {
-          ctx.logger.debug(log.message, log.payload)
-        }
-      }
+      const parsed = parseLoggedNativeInputResult<NativeSkillResult>(ctx.logger, result)
       return parsed as Partial<InputCollectedContext>
     }
 

@@ -1,4 +1,3 @@
-import type {ILogger} from '@truenine/logger'
 import type {
   CodeStylesOptions,
   ConfigLoaderOptions,
@@ -7,9 +6,10 @@ import type {
   UserConfigFile,
   WindowsOptions
 } from './adaptors/adaptor-core/ConfigTypes.schema'
+import type {ILogger} from '@/libraries/logger'
 import * as fs from 'node:fs'
 import process from 'node:process'
-import {createLogger} from '@truenine/logger'
+import {createLogger} from '@/libraries/logger'
 import {
   getSupportedPluginConfigKeysMessage,
   ZUserConfigFile

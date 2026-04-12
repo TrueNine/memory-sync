@@ -1,10 +1,11 @@
 #!/usr/bin/env tsx
 
 import {spawnSync} from 'node:child_process'
-import {copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync} from 'node:fs'
+import {copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync} from 'node:fs'
 import {createRequire} from 'node:module'
 import {tmpdir} from 'node:os'
 import {dirname, join, resolve} from 'node:path'
+import process from 'node:process'
 import {fileURLToPath} from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -12,6 +13,8 @@ const cliDir = resolve(__dirname, '..')
 const sdkDistDir = resolve(cliDir, '../sdk/dist')
 const cliDistDir = resolve(cliDir, 'dist')
 const scriptRuntimeWorkerPath = resolve(cliDistDir, 'script-runtime-worker.mjs')
+const builtInternalCommandBridgePath = resolve(cliDistDir, 'native-command-bridge.mjs')
+const internalCommandBridgePath = resolve(cliDistDir, 'internal', 'native-command-bridge.mjs')
 
 const EXACT_FILES = new Set(['tnmsc.schema.json'])
 const runtimeRequire = createRequire(import.meta.url)
@@ -95,6 +98,46 @@ function ensureBundledJitiRuntimeAssets(): void {
   copyFileSync(bundledJitiBabelRuntimeSourcePath, bundledJitiBabelRuntimeTargetPath)
 }
 
+function ensureInternalCommandBridgeBundle(): void {
+  if (!existsSync(internalCommandBridgePath) && existsSync(builtInternalCommandBridgePath)) {
+    mkdirSync(dirname(internalCommandBridgePath), {recursive: true})
+    rmSync(internalCommandBridgePath, {force: true})
+    renameSync(builtInternalCommandBridgePath, internalCommandBridgePath)
+  }
+
+  if (existsSync(internalCommandBridgePath)) return
+
+  throw new Error(
+    `Expected bundled internal command bridge at "${internalCommandBridgePath}".`
+  )
+}
+
+function smokeTestInternalCommandBridge(): void {
+  const smokeTest = spawnSync(
+    process.execPath,
+    [internalCommandBridgePath, 'self-test'],
+    {
+      cwd: cliDir,
+      encoding: 'utf8'
+    }
+  )
+
+  assertProcessSucceeded(smokeTest, [
+    `Bundled internal command bridge "${internalCommandBridgePath}" failed the runtime smoke test.`
+  ])
+
+  const stdout = smokeTest.stdout.trim()
+  if (stdout !== '{"ok":true,"command":"self-test"}') {
+    throw new Error(
+      [
+        `Bundled internal command bridge "${internalCommandBridgePath}" returned an unexpected result.`,
+        'Expected: {"ok":true,"command":"self-test"}',
+        `Actual: ${stdout || '(empty)'}`
+      ].join('\n')
+    )
+  }
+}
+
 function smokeTestScriptRuntimeWorker(): void {
   if (!existsSync(scriptRuntimeWorkerPath)) {
     throw new Error(`Expected bundled script runtime worker at "${scriptRuntimeWorkerPath}".`)
@@ -149,4 +192,6 @@ function smokeTestScriptRuntimeWorker(): void {
 
 syncSdkAssets()
 ensureBundledJitiRuntimeAssets()
+ensureInternalCommandBridgeBundle()
+smokeTestInternalCommandBridge()
 smokeTestScriptRuntimeWorker()

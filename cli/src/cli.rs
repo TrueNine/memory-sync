@@ -55,7 +55,7 @@ pub enum CliCommand {
   /// Remove all generated output files and directories
   Clean(CleanArgs),
 
-  /// List all registered plugins
+  /// List all registered adaptors
   Plugins,
 }
 

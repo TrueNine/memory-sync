@@ -2,7 +2,7 @@ import type {
   ILogger,
   LoggerDiagnosticRecord,
   LogLevel
-} from '@truenine/logger'
+} from '@/libraries/logger'
 import {
   clearBufferedDiagnostics as clearBufferedDiagnosticsNative,
   createLogger as createLoggerNative,
@@ -10,7 +10,7 @@ import {
   flushOutput as flushOutputNative,
   getGlobalLogLevel as getGlobalLogLevelNative,
   setGlobalLogLevel as setGlobalLogLevelNative
-} from '@truenine/logger'
+} from '@/libraries/logger'
 
 export {
   AbstractInputCapability
@@ -153,7 +153,7 @@ export type {
   LoggerDiagnosticInput,
   LoggerDiagnosticRecord,
   LogLevel
-} from '@truenine/logger'
+} from '@/libraries/logger'
 
 export function clearBufferedDiagnostics(): void {
   clearBufferedDiagnosticsNative()

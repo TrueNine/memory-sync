@@ -1,26 +1,61 @@
 ---
-title: 基础库
-description: 总结当前 `libraries/` 下这些 Rust-first / NAPI-first 基础库的职责和暴露面。
+title: 基础库（概述）
+description: libraries/ 下三个 Rust-first 基础库的快速导航与重定向指引。详细文档已迁移至 SDK 文档体系。
 sidebarTitle: 基础库
 status: stable
 ---
 
+import { Callout, Cards } from 'nextra/components'
+
 # 基础库
 
-`libraries/` 是 Rust-first / NAPI-first 基础库所在的目录。目前最主要的几个库是：
+<Callout type="info">
+  **ℹ️ 文档已迁移**
 
-- `logger`
-- `md-compiler`
-- `script-runtime`
+  libraries 下各库的详细技术文档现已整合到 [SDK 文档体系](/docs/sdk) 中。
+  本页面仅保留简要概述，完整的 API 参考、架构说明和使用示例请访问各库的专属文档页面。
+</Callout>
 
-## 各自的大致职责
+## 现状说明
 
-| 库 | 角色 |
-| --- | --- |
-| `logger` | 以 Rust 实现日志能力，同时暴露 TypeScript API 和 NAPI 制品 |
-| `md-compiler` | 提供 MDX / Markdown 编译与转换能力 |
-| `script-runtime` | 被更高层装配消费的基础 script-runtime 能力 |
+`libraries/` 目录仍然存在且正常运作，但它不再等同于全部 TypeScript 事实来源。当前边界是：
 
-## 为什么它们值得单独成节
+- `libraries/logger/` 与 `libraries/script-runtime/` 继续保留 Rust crate、NAPI 制品和对外发布 wrapper
+- `sdk/src/libraries/logger.ts` 与 `sdk/src/libraries/script-runtime/` 已成为对应 TypeScript facade 的事实来源
+- `libraries/md-compiler/` 仍保留完整的 Rust + TypeScript 实现
 
-这些库不是“额外的文档材料”，而是仓库持续把核心能力下沉进共享基础设施的证据。CLI、MCP 和 GUI 都应该复用它们，而不是各自复制一份相同逻辑。
+这三个 Rust-first / NAPI-first 基础能力继续作为 memory-sync 工具链的共享基础设施，被 `sdk/` 核心层编排后统一暴露给 `cli/`、`mcp/` 和 `gui/` 消费。
+
+最近的优化工作包括：统一 NAPI 加载器实现、将 Logger / Script-Runtime 的 TypeScript facade 内联回 `sdk/`、标准化配置接口，以及将分散的技术文档收敛到 [SDK 文档体系](/docs/sdk) 以提升可维护性。
+
+## 快速导航
+
+<Cards>
+  <Cards.Card title="Logger" href="/docs/sdk/logger" icon="📝">
+    AI 友好的结构化日志库，以 Rust 实现核心能力并暴露 TypeScript API 和 NAPI 制品
+  </Cards.Card>
+  <Cards.Card title="MDX-Compiler" href="/docs/sdk/md-compiler" icon="⚙️">
+    MDX → Markdown 编译引擎，为 Prompt Service 提供内容转换能力
+  </Cards.Card>
+  <Cards.Card title="Script-Runtime" href="/docs/sdk/script-runtime" icon="🔧">
+    代理模块加载与路径验证运行时，确保脚本执行的安全性和可控性
+  </Cards.Card>
+</Cards>
+
+<Callout type="tip">
+  **💡 为什么整合到 SDK 文档？**
+
+  - 开发者可以在一个地方看到所有核心库的完整技术文档
+  - 更清晰地展示各库与 SDK 整体架构的关系和数据流
+  - 减少文档分散导致的维护困难和信息不一致风险
+</Callout>
+
+## 架构总览
+
+如需了解三个库之间的依赖关系、数据流以及它们在整体架构中的定位，请访问：
+
+👉 **[SDK 架构总览](/docs/sdk/architecture)** — 包含完整的依赖关系图和分层架构说明
+
+## 历史背景
+
+这些库不是"额外的文档材料"，而是仓库持续把核心能力下沉进共享基础设施的证据。CLI、MCP 和 GUI 都应该复用它们，而不是各自复制一份相同逻辑。这一设计决策在当前仓库中得到了延续和强化——通过将它们纳入 SDK 文档体系，我们希望让更多开发者理解这些基础库的价值和使用方式。

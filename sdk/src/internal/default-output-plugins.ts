@@ -1,23 +1,25 @@
 import type {PipelineConfig} from '../config'
-import {AgentsOutputAdaptor} from '../adaptors/AgentsOutputAdaptor'
 import {ClaudeCodeCLIOutputAdaptor} from '../adaptors/ClaudeCodeCLIOutputAdaptor'
 import {CodexCLIOutputAdaptor} from '../adaptors/CodexCLIOutputAdaptor'
 import {CursorOutputAdaptor} from '../adaptors/CursorOutputAdaptor'
-import {DroidCLIOutputAdaptor} from '../adaptors/DroidCLIOutputAdaptor'
-import {GeminiCLIOutputAdaptor} from '../adaptors/GeminiCLIOutputAdaptor'
-import {GitExcludeOutputAdaptor} from '../adaptors/GitExcludeOutputAdaptor'
 import {JetBrainsAIAssistantCodexOutputAdaptor} from '../adaptors/JetBrainsAIAssistantCodexOutputAdaptor'
-import {JetBrainsIDECodeStyleConfigOutputAdaptor} from '../adaptors/JetBrainsIDECodeStyleConfigOutputAdaptor'
 import {KiroCLIOutputAdaptor} from '../adaptors/KiroCLIOutputAdaptor'
+import {
+  NativeAgentsOutputAdaptor,
+  NativeGitExcludeOutputAdaptor,
+  NativeJetBrainsIDECodeStyleConfigOutputAdaptor,
+  NativeReadmeMdConfigFileOutputAdaptor,
+  NativeVisualStudioCodeIDEConfigOutputAdaptor,
+  NativeZedIDEConfigOutputAdaptor
+} from '../adaptors/NativeBaseOutputAdaptor'
+import {NativeDroidCLIOutputAdaptor} from '../adaptors/NativeDroidCLIOutputAdaptor'
+import {NativeGeminiCLIOutputAdaptor} from '../adaptors/NativeGeminiCLIOutputAdaptor'
 import {OpencodeCLIOutputAdaptor} from '../adaptors/OpencodeCLIOutputAdaptor'
 import {QoderIDEPluginOutputAdaptor} from '../adaptors/QoderIDEPluginOutputAdaptor'
-import {ReadmeMdConfigFileOutputAdaptor} from '../adaptors/ReadmeMdConfigFileOutputAdaptor'
 import {TraeCNIDEOutputAdaptor} from '../adaptors/TraeCNIDEOutputAdaptor'
 import {TraeIDEOutputAdaptor} from '../adaptors/TraeIDEOutputAdaptor'
-import {VisualStudioCodeIDEConfigOutputAdaptor} from '../adaptors/VisualStudioCodeIDEConfigOutputAdaptor'
 import {WarpIDEOutputAdaptor} from '../adaptors/WarpIDEOutputAdaptor'
 import {WindsurfOutputAdaptor} from '../adaptors/WindsurfOutputAdaptor'
-import {ZedIDEConfigOutputAdaptor} from '../adaptors/ZedIDEConfigOutputAdaptor'
 
 export interface DefaultOutputAdaptorDescriptor {
   readonly name: string
@@ -28,12 +30,12 @@ export interface DefaultOutputAdaptorDescriptor {
 
 export function createDefaultOutputAdaptors(): PipelineConfig['outputPlugins'] {
   return [
-    new AgentsOutputAdaptor(),
+    new NativeAgentsOutputAdaptor(),
     new ClaudeCodeCLIOutputAdaptor(),
     new CodexCLIOutputAdaptor(),
     new JetBrainsAIAssistantCodexOutputAdaptor(),
-    new DroidCLIOutputAdaptor(),
-    new GeminiCLIOutputAdaptor(),
+    new NativeDroidCLIOutputAdaptor(),
+    new NativeGeminiCLIOutputAdaptor(),
     new KiroCLIOutputAdaptor(),
     new OpencodeCLIOutputAdaptor(),
     new QoderIDEPluginOutputAdaptor(),
@@ -42,11 +44,11 @@ export function createDefaultOutputAdaptors(): PipelineConfig['outputPlugins'] {
     new WarpIDEOutputAdaptor(),
     new WindsurfOutputAdaptor(),
     new CursorOutputAdaptor(),
-    new GitExcludeOutputAdaptor(),
-    new JetBrainsIDECodeStyleConfigOutputAdaptor(),
-    new VisualStudioCodeIDEConfigOutputAdaptor(),
-    new ZedIDEConfigOutputAdaptor(),
-    new ReadmeMdConfigFileOutputAdaptor()
+    new NativeGitExcludeOutputAdaptor(),
+    new NativeJetBrainsIDECodeStyleConfigOutputAdaptor(),
+    new NativeVisualStudioCodeIDEConfigOutputAdaptor(),
+    new NativeZedIDEConfigOutputAdaptor(),
+    new NativeReadmeMdConfigFileOutputAdaptor()
   ]
 }
 

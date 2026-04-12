@@ -30,7 +30,7 @@ const AdaptorsPage: FC = () => {
   }
 
   useEffect(() => {
-    fetchPlugins()
+    fetchPlugins().then(r => r)
   }, [])
 
   return (

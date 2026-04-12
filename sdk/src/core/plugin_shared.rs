@@ -20,16 +20,27 @@ pub enum PluginKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PromptKind {
+  #[serde(alias = "globalMemory")]
   GlobalMemory,
+  #[serde(alias = "projectRootMemory")]
   ProjectRootMemory,
+  #[serde(alias = "projectChildrenMemory")]
   ProjectChildrenMemory,
+  #[serde(alias = "command")]
   FastCommand,
+  #[serde(alias = "subAgent")]
   SubAgent,
+  #[serde(alias = "skill")]
   Skill,
+  #[serde(alias = "skillChildDoc")]
   SkillChildDoc,
+  #[serde(alias = "skillResource")]
   SkillResource,
+  #[serde(alias = "skillMcpConfig")]
   SkillMcpConfig,
+  #[serde(alias = "readme")]
   Readme,
+  #[serde(alias = "rule")]
   Rule,
 }
 
@@ -50,22 +61,35 @@ pub enum FilePathKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum IDEKind {
+  #[serde(alias = "vscode")]
   VSCode,
+  #[serde(alias = "intellijIdea")]
   IntellijIDEA,
+  #[serde(alias = "zed")]
   Zed,
+  #[serde(alias = "git")]
   Git,
+  #[serde(alias = "editorconfig")]
   EditorConfig,
+  #[serde(alias = "original")]
   Original,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum NamingCaseKind {
+  #[serde(alias = "camelCase")]
   CamelCase,
+  #[serde(alias = "pascalCase")]
   PascalCase,
+  #[serde(alias = "snakeCase")]
   SnakeCase,
+  #[serde(alias = "kebabCase")]
   KebabCase,
+  #[serde(alias = "upperCase")]
   UpperCase,
+  #[serde(alias = "lowerCase")]
   LowerCase,
+  #[serde(alias = "original")]
   Original,
 }
 
@@ -108,12 +132,13 @@ pub struct DebugLog {
 pub struct RelativePath {
   pub path_kind: FilePathKind,
   pub path: String,
+  #[serde(default)]
   pub base_path: String,
   /// Pre-computed absolute path for serialization to Node.js
-  #[serde(skip_serializing_if = "Option::is_none")]
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub absolute_path: Option<String>,
   /// Pre-computed directory name for serialization to Node.js
-  #[serde(skip_serializing_if = "Option::is_none")]
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub directory_name: Option<String>,
 }
 
@@ -135,6 +160,9 @@ impl RelativePath {
 
   pub fn get_absolute_path(&self) -> String {
     self.absolute_path.clone().unwrap_or_else(|| {
+      if self.base_path.is_empty() {
+        return self.path.clone();
+      }
       PathBuf::from(&self.base_path)
         .join(&self.path)
         .to_string_lossy()
@@ -388,13 +416,22 @@ pub struct SkillResource {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpServerConfig {
-  pub command: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub command: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub args: Option<Vec<String>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub env: Option<HashMap<String, String>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub url: Option<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub server_url: Option<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub headers: Option<HashMap<String, String>>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub disabled: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub disabled_tools: Option<Vec<String>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub auto_approve: Option<Vec<String>>,
 }
@@ -571,10 +608,12 @@ pub struct CollectedInputContext {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub vscode_config_files: Option<Vec<ProjectIDEConfigFile>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub zed_config_files: Option<Vec<ProjectIDEConfigFile>>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub jetbrains_config_files: Option<Vec<ProjectIDEConfigFile>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub editor_config_files: Option<Vec<ProjectIDEConfigFile>>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
+  #[serde(default, alias = "commands", skip_serializing_if = "Option::is_none")]
   pub fast_commands: Option<Vec<FastCommandPrompt>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub sub_agents: Option<Vec<SubAgentPrompt>>,
@@ -609,6 +648,22 @@ mod tests {
     assert_eq!(rp.base_path, "/home/user/workspace/aindex");
     assert!(rp.get_absolute_path().contains("src/skills/test.mdx"));
     assert_eq!(rp.get_directory_name(), "src/skills");
+  }
+
+  #[test]
+  fn test_relative_path_accepts_missing_base_path_for_absolute_shapes() {
+    let parsed: RelativePath = serde_json::from_str(
+      r#"{
+        "pathKind": "absolute",
+        "path": "/workspace/.vscode/settings.json"
+      }"#,
+    )
+    .unwrap();
+    assert_eq!(parsed.base_path, "");
+    assert_eq!(
+      parsed.get_absolute_path(),
+      "/workspace/.vscode/settings.json"
+    );
   }
 
   #[test]
@@ -671,6 +726,90 @@ mod tests {
     assert_eq!(
       parsed.fast_commands.as_ref().unwrap()[0].command_name,
       "test"
+    );
+  }
+
+  #[test]
+  fn test_collected_input_context_accepts_ts_output_shape_aliases() {
+    let parsed: CollectedInputContext = serde_json::from_str(
+      r#"{
+        "workspace": {
+          "directory": {
+            "pathKind": "root",
+            "path": "/workspace"
+          },
+          "projects": [
+            {
+              "name": "project-a",
+              "dirFromWorkspacePath": {
+                "pathKind": "relative",
+                "path": "project-a",
+                "basePath": "/workspace"
+              },
+              "rootMemoryPrompt": {
+                "type": "projectRootMemory",
+                "content": "project root",
+                "length": 12,
+                "filePathKind": "relative",
+                "dir": {
+                  "pathKind": "root",
+                  "path": ""
+                }
+              }
+            }
+          ]
+        },
+        "commands": [
+          {
+            "type": "command",
+            "content": "run",
+            "length": 3,
+            "dir": {
+              "pathKind": "relative",
+              "path": "commands/run.mdx",
+              "basePath": "/workspace/aindex/dist"
+            },
+            "commandName": "run",
+            "series": "default",
+            "yamlFrontMatter": {
+              "description": "Run command",
+              "scope": "global",
+              "namingCase": "kebabCase"
+            }
+          }
+        ]
+      }"#,
+    )
+    .unwrap();
+
+    assert_eq!(parsed.fast_commands.as_ref().unwrap().len(), 1);
+    assert_eq!(
+      parsed.fast_commands.as_ref().unwrap()[0].prompt_type,
+      PromptKind::FastCommand
+    );
+    assert_eq!(
+      parsed.workspace.as_ref().unwrap().projects[0]
+        .root_memory_prompt
+        .as_ref()
+        .unwrap()
+        .prompt_type,
+      PromptKind::ProjectRootMemory
+    );
+    assert_eq!(
+      parsed.fast_commands.as_ref().unwrap()[0]
+        .yaml_front_matter
+        .as_ref()
+        .unwrap()
+        .scope,
+      Some(RuleScope::Global)
+    );
+    assert_eq!(
+      parsed.fast_commands.as_ref().unwrap()[0]
+        .yaml_front_matter
+        .as_ref()
+        .unwrap()
+        .naming_case,
+      Some(NamingCaseKind::KebabCase)
     );
   }
 

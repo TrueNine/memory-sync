@@ -11,7 +11,7 @@ import type {AdaptorOptions, OutputAdaptor} from './adaptors/adaptor-core/plugin
 import type {RuntimeCommand} from './runtime-command'
 import * as path from 'node:path'
 import process from 'node:process'
-import {createLogger} from '@truenine/logger'
+import {createLogger} from '@/libraries/logger'
 import {buildDefaultAindexConfig, mergeAindexConfig} from './adaptors/adaptor-core/AindexConfigDefaults'
 import {
   buildDefaultCodeStylesOptions,
@@ -59,7 +59,7 @@ const DEFAULT_OPTIONS: Omit<Required<AdaptorOptions>, 'workspaceDir'> = {
 
 function resolveWorkspaceDirOption(workspaceDir: string | undefined, fallbackWorkspaceDir?: string): string {
   if (typeof workspaceDir === 'string' && workspaceDir.trim().length > 0) {
-    return workspaceDir
+    return path.resolve(resolveUserPath(workspaceDir))
   }
 
   return path.resolve(fallbackWorkspaceDir ?? process.cwd())

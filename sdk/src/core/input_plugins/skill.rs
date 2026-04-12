@@ -259,6 +259,16 @@ fn get_mime_type(ext: &str) -> Option<&'static str> {
     .map(|(_, m)| *m)
 }
 
+fn normalize_resource_extension(ext: &str) -> String {
+  if ext.is_empty() {
+    return String::new();
+  }
+  if ext.starts_with('.') {
+    return ext.to_string();
+  }
+  format!(".{}", ext)
+}
+
 fn read_file_content(
   file_path: &Path,
   ext: &str,
@@ -367,14 +377,15 @@ fn scan_resources(
     }
 
     let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+    let normalized_ext = normalize_resource_extension(ext);
     let relative_path = path
       .strip_prefix(root_src_dir)
       .unwrap_or(&path)
       .to_string_lossy()
       .replace('\\', "/");
 
-    let (content, encoding, length) = read_file_content(&path, ext)?;
-    let mime_type = get_mime_type(ext).map(|m| m.to_string());
+    let (content, encoding, length) = read_file_content(&path, &normalized_ext)?;
+    let mime_type = get_mime_type(&normalized_ext).map(|m| m.to_string());
 
     resources.push(SkillResource {
       prompt_type: PromptKind::SkillResource,
@@ -452,7 +463,15 @@ fn assert_compiled_child_docs_exist(
   Ok(())
 }
 
-fn read_mcp_config(skill_src_dir: &Path) -> Result<Option<SkillMcpConfig>, crate::CliError> {
+fn is_supported_mcp_server_config(config: &McpServerConfig) -> bool {
+  config.command.is_some() || config.url.is_some() || config.server_url.is_some()
+}
+
+fn read_mcp_config(
+  skill_name: &str,
+  skill_src_dir: &Path,
+  diagnostics: &mut Vec<crate::core::plugin_shared::Diagnostic>,
+) -> Result<Option<SkillMcpConfig>, crate::CliError> {
   let mcp_json_path = skill_src_dir.join("mcp.json");
   if !mcp_json_path.is_file() {
     return Ok(None);
@@ -467,7 +486,25 @@ fn read_mcp_config(skill_src_dir: &Path) -> Result<Option<SkillMcpConfig>, crate
       let config: McpServerConfig = serde_json::from_value(value.clone()).map_err(|e| {
         crate::CliError::ConfigError(format!("Invalid McpServerConfig for {}: {}", key, e))
       })?;
+      if !is_supported_mcp_server_config(&config) {
+        diagnostics.push(crate::core::plugin_shared::Diagnostic {
+          level: "warn".to_string(),
+          code: "SKILL_MCP_SERVER_SKIPPED".to_string(),
+          title: format!(
+            "Skipped unsupported MCP server \"{}\" in skill \"{}\" because it defines neither \"command\" nor \"url\"",
+            key, skill_name
+          ),
+          exact_fix: Some(vec![format!(
+            "Add \"command\" for a local MCP server or \"url\" / \"serverUrl\" for a remote MCP server in {}",
+            mcp_json_path.to_string_lossy()
+          )]),
+        });
+        continue;
+      }
       mcp_servers.insert(key.clone(), config);
+    }
+    if mcp_servers.is_empty() {
+      return Ok(None);
     }
     return Ok(Some(SkillMcpConfig {
       prompt_type: PromptKind::SkillMcpConfig,
@@ -601,7 +638,7 @@ fn create_skill_prompt(
   } else {
     vec![]
   };
-  let mcp_config = read_mcp_config(skill_src_dir)?;
+  let mcp_config = read_mcp_config(name, skill_src_dir, diagnostics)?;
 
   assert_compiled_child_docs_exist(name, skill_src_dir, skill_dist_dir)?;
 
@@ -867,6 +904,144 @@ mod tests {
         .unwrap()["content"],
       "Source notes"
     );
+  }
+
+  #[test]
+  fn collect_skill_accepts_remote_mcp_servers() {
+    let tmp = TempDir::new().unwrap();
+    let src = tmp.path().join("aindex").join("skills").join("demo");
+    let dist = tmp
+      .path()
+      .join("aindex")
+      .join("dist")
+      .join("skills")
+      .join("demo");
+    fs::create_dir_all(&src).unwrap();
+    fs::create_dir_all(&dist).unwrap();
+
+    fs::write(
+      src.join("skill.src.mdx"),
+      "---\ndescription: src skill\n---\nSkill source",
+    )
+    .unwrap();
+    fs::write(
+      src.join("mcp.json"),
+      r#"{"mcpServers":{"figma":{"url":"https://mcp.figma.com/mcp","disabled":false,"disabledTools":[]}}}"#,
+    )
+    .unwrap();
+    fs::write(
+      dist.join("skill.mdx"),
+      "---\ndescription: dist skill\n---\nSkill dist",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_skill(&options.to_string()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let skill = &parsed["skills"][0];
+    assert_eq!(
+      skill["mcpConfig"]["mcpServers"]["figma"]["url"],
+      "https://mcp.figma.com/mcp"
+    );
+    assert_eq!(skill["mcpConfig"]["mcpServers"]["figma"]["disabled"], false);
+    assert_eq!(
+      skill["mcpConfig"]["mcpServers"]["figma"]["disabledTools"],
+      serde_json::json!([])
+    );
+  }
+
+  #[test]
+  fn collect_skill_skips_invalid_mcp_servers_with_warning() {
+    let tmp = TempDir::new().unwrap();
+    let src = tmp.path().join("aindex").join("skills").join("demo");
+    let dist = tmp
+      .path()
+      .join("aindex")
+      .join("dist")
+      .join("skills")
+      .join("demo");
+    fs::create_dir_all(&src).unwrap();
+    fs::create_dir_all(&dist).unwrap();
+
+    fs::write(
+      src.join("skill.src.mdx"),
+      "---\ndescription: src skill\n---\nSkill source",
+    )
+    .unwrap();
+    fs::write(
+      src.join("mcp.json"),
+      r#"{"mcpServers":{"broken":{"disabled":false},"demo":{"command":"demo"}}}"#,
+    )
+    .unwrap();
+    fs::write(
+      dist.join("skill.mdx"),
+      "---\ndescription: dist skill\n---\nSkill dist",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_skill(&options.to_string()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let skill = &parsed["skills"][0];
+    assert!(skill["mcpConfig"]["mcpServers"]["broken"].is_null());
+    assert_eq!(skill["mcpConfig"]["mcpServers"]["demo"]["command"], "demo");
+    let diagnostics = parsed["diagnostics"].as_array().unwrap();
+    assert!(
+      diagnostics
+        .iter()
+        .any(|d| d["code"] == "SKILL_MCP_SERVER_SKIPPED")
+    );
+  }
+
+  #[test]
+  fn collect_skill_reads_binary_resources_as_base64() {
+    let tmp = TempDir::new().unwrap();
+    let src = tmp.path().join("aindex").join("skills").join("demo");
+    let dist = tmp
+      .path()
+      .join("aindex")
+      .join("dist")
+      .join("skills")
+      .join("demo");
+    fs::create_dir_all(src.join("assets")).unwrap();
+    fs::create_dir_all(&dist).unwrap();
+
+    fs::write(
+      src.join("skill.src.mdx"),
+      "---\ndescription: src skill\n---\nSkill source",
+    )
+    .unwrap();
+    fs::write(
+      src.join("assets").join("logo.png"),
+      [0x89_u8, 0x50, 0x4E, 0x47, 0x00, 0xFF],
+    )
+    .unwrap();
+    fs::write(
+      dist.join("skill.mdx"),
+      "---\ndescription: dist skill\n---\nSkill dist",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_skill(&options.to_string()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let skill = &parsed["skills"][0];
+    let resources = skill["resources"].as_array().unwrap();
+    let logo = resources
+      .iter()
+      .find(|resource| resource["relativePath"] == "assets/logo.png")
+      .unwrap();
+    assert_eq!(logo["encoding"], "base64");
+    assert_eq!(logo["mimeType"], "image/png");
   }
 
   #[test]

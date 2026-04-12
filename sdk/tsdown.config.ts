@@ -20,7 +20,7 @@ const alwaysBundleDeps = [
 
 export default defineConfig([
   {
-    entry: ['./src/index.ts', '!**/*.{spec,test}.*'],
+    entry: ['./src/index.ts', './src/internal/native-command-bridge.ts', '!**/*.{spec,test}.*'],
     platform: 'node',
     sourcemap: false,
     unbundle: false,

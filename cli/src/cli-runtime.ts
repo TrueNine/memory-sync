@@ -2,7 +2,7 @@ import type {MemorySyncAdaptorInfo, MemorySyncCommandResult} from '@truenine/mem
 
 import process from 'node:process'
 import {flushOutput, setGlobalLogLevel} from '@truenine/logger'
-import {createTsFallbackMemorySyncBinding, getMemorySyncSdkBinding} from '@truenine/memory-sync-sdk'
+import {getMemorySyncSdkBinding} from '@truenine/memory-sync-sdk'
 import {extractUserArgs, parseArgs} from './cli-args'
 
 const CLI_NAME = 'tnmsc'
@@ -31,7 +31,7 @@ Synchronize AI memory and configuration files across projects.
 - \`${CLI_NAME} dry-run\` previews what would be written.
 - \`${CLI_NAME} clean\` removes generated files.
 - \`${CLI_NAME} clean --dry-run\` previews what would be cleaned.
-- \`${CLI_NAME} plugins\` lists the built-in output plugins.
+- \`${CLI_NAME} plugins\` lists the built-in output adaptors.
 
 ## Log Controls
 
@@ -58,9 +58,9 @@ function writeUnknownCommand(command: string): void {
 }
 
 function writePluginList(plugins: readonly MemorySyncAdaptorInfo[]): void {
-  const lines = ['# Registered plugins', '']
+  const lines = ['# Registered adaptors', '']
   if (plugins.length === 0) {
-    lines.push('- No plugins are currently registered.')
+    lines.push('- No adaptors are currently registered.')
   } else {
     for (const plugin of plugins) {
       const dependencySuffix = plugin.dependencies.length > 0 ? ` (depends on: ${plugin.dependencies.join(', ')})` : ''
@@ -94,17 +94,7 @@ export async function runCli(argv: readonly string[] = process.argv): Promise<nu
       return 1
     }
 
-    const nativeBinding = getMemorySyncSdkBinding()
-    const fallbackBinding = createTsFallbackMemorySyncBinding()
-    // Pipeline commands (install / dry-run / clean) are not yet fully
-    // implemented in Rust, so use the mature TS fallback for them while
-    // keeping the native binding for prompts and listAdaptors.
-    const binding = {
-      ...nativeBinding,
-      install: fallbackBinding.install,
-      dryRun: fallbackBinding.dryRun,
-      clean: fallbackBinding.clean
-    }
+    const binding = getMemorySyncSdkBinding()
     const commandOptions = {
       cwd: process.cwd(),
       ...parsedArgs.logLevel != null ? {logLevel: parsedArgs.logLevel} : {}

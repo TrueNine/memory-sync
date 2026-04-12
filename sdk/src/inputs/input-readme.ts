@@ -1,6 +1,7 @@
 import type {InputCapabilityContext, InputCollectedContext} from '../adaptors/adaptor-core'
 import {getNativeBinding} from '@/core/native-binding'
 import {AbstractInputCapability} from '../adaptors/adaptor-core'
+import {parseNativeInputResult} from './native-result'
 
 function deriveErrorCode(message: string): string | void {
   if (message.includes('Readme project series name conflict')) {
@@ -23,7 +24,7 @@ export class ReadmeMdInputCapability extends AbstractInputCapability {
     if (native?.collectReadme != null) {
       try {
         const result = native.collectReadme(JSON.stringify(ctx.userConfigOptions))
-        return JSON.parse(result) as Partial<InputCollectedContext>
+        return parseNativeInputResult<Partial<InputCollectedContext>>(result)
       } catch (err: unknown) {
         const message = getErrorMessage(err)
         const code = deriveErrorCode(message)

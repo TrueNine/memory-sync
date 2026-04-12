@@ -1,6 +1,7 @@
 packages:
   - sdk
   - cli
+  - cli-integration-test
   - cli/npm/*
   - mcp
   - libraries/*
@@ -77,6 +78,7 @@ catalog:
   remark-stringify: ^11.0.0
   tailwind-merge: ^3.5.0
   tailwindcss: ^4.2.2
+  testcontainers: ^11.14.0
   tsdown: ^0.21.7
   tsx: ^4.21.0
   turbo: ^2.9.6

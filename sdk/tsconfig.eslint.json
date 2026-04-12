@@ -7,7 +7,7 @@
       "@/*": ["./src/*"],
       "@truenine/desk-paths": ["./src/core/desk-paths.ts"],
       "@truenine/desk-paths/*": ["./src/core/desk-paths/*"],
-      "@truenine/logger": ["../libraries/logger/src/index.ts"],
+      "@truenine/logger": ["./src/libraries/logger.ts"],
       "@truenine/md-compiler": ["../libraries/md-compiler/src/index.ts"],
       "@truenine/md-compiler/errors": ["../libraries/md-compiler/src/errors/index.ts"],
       "@truenine/md-compiler/globals": ["../libraries/md-compiler/src/globals/index.ts"],
@@ -35,7 +35,7 @@
       "@truenine/plugin-warp-ide": ["./src/plugins/WarpIDEOutputPlugin.ts"],
       "@truenine/plugin-windsurf": ["./src/plugins/plugin-windsurf.ts"],
       "@truenine/plugin-zed": ["./src/plugins/plugin-zed.ts"],
-      "@truenine/script-runtime": ["../libraries/script-runtime/src/index.ts"]
+      "@truenine/script-runtime": ["./src/libraries/script-runtime/index.ts"]
     },
     "noEmit": true,
     "skipLibCheck": true

@@ -538,7 +538,7 @@ impl BatchedGlobPlanner {
       .count();
     let glob_pattern_count = self.normalized_patterns.len() - literal_pattern_count;
 
-    tnmsc_logger::log_info!(
+    tnmsc_logger::log_debug!(
       logger,
       "cleanup native glob execute started",
       json!({
@@ -599,7 +599,7 @@ impl BatchedGlobPlanner {
       literal_match_count += 1;
     }
 
-    tnmsc_logger::log_info!(
+    tnmsc_logger::log_debug!(
       logger,
       "cleanup native glob literal processing complete",
       json!({
@@ -685,7 +685,7 @@ impl BatchedGlobPlanner {
       }
     }
 
-    tnmsc_logger::log_info!(
+    tnmsc_logger::log_debug!(
       logger,
       "cleanup native glob group walks complete",
       json!({
@@ -697,7 +697,7 @@ impl BatchedGlobPlanner {
     );
 
     // Convert HashMaps to sorted Vecs and deduplicate
-    tnmsc_logger::log_info!(
+    tnmsc_logger::log_debug!(
       logger,
       "cleanup native glob result compaction started",
       json!({})
@@ -722,7 +722,7 @@ impl BatchedGlobPlanner {
       .collect();
     delete_vec.sort_by_key(|(idx, _)| *idx);
 
-    tnmsc_logger::log_info!(
+    tnmsc_logger::log_debug!(
       logger,
       "cleanup native glob result compaction complete",
       json!({
@@ -1485,11 +1485,11 @@ fn default_protection_mode_for_target(target: &CleanupTargetDto) -> ProtectionMo
 
 pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
   let logger = create_logger("CleanupNative", None);
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native plan started",
     json!({
-        "pluginCount": snapshot.plugin_snapshots.len(),
+        "adaptorCount": snapshot.plugin_snapshots.len(),
         "projectRootCount": snapshot.project_roots.len(),
         "protectedRuleCount": snapshot.protected_rules.len(),
         "emptyDirExcludeGlobs": snapshot.empty_dir_exclude_globs.len(),
@@ -1534,9 +1534,9 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
           reason: target
             .label
             .as_ref()
-            .map(|label| format!("plugin cleanup protect declaration ({label})"))
-            .unwrap_or_else(|| "plugin cleanup protect declaration".to_string()),
-          source: format!("plugin-cleanup-protect:{}", plugin_snapshot.plugin_name),
+            .map(|label| format!("adaptor cleanup protect declaration ({label})"))
+            .unwrap_or_else(|| "adaptor cleanup protect declaration".to_string()),
+          source: format!("adaptor-cleanup-protect:{}", plugin_snapshot.plugin_name),
         });
         continue;
       }
@@ -1544,13 +1544,13 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
       let reason = target
         .label
         .as_ref()
-        .map(|label| format!("plugin cleanup protect declaration ({label})"))
-        .unwrap_or_else(|| "plugin cleanup protect declaration".to_string());
+        .map(|label| format!("adaptor cleanup protect declaration ({label})"))
+        .unwrap_or_else(|| "adaptor cleanup protect declaration".to_string());
       protected_rules.push(create_protected_rule(
         &target.path,
         default_protection_mode_for_target(target),
         reason,
-        format!("plugin-cleanup-protect:{}", plugin_snapshot.plugin_name),
+        format!("adaptor-cleanup-protect:{}", plugin_snapshot.plugin_name),
         None,
       ));
     }
@@ -1577,7 +1577,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
     }
   }
 
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native plan inventory collected",
     json!({
@@ -1614,7 +1614,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
   }
 
   // Execute the batched glob expansion
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native glob expansion started",
     json!({
@@ -1632,7 +1632,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
     .iter()
     .map(|(_, paths)| paths.len())
     .sum::<usize>();
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native glob expansion complete",
     json!({
@@ -1672,7 +1672,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
   let guard = create_guard(&snapshot, &protected_rules)?;
   let conflicts = detect_cleanup_protection_conflicts(&output_path_owners, &guard);
   if !conflicts.is_empty() {
-    tnmsc_logger::log_info!(
+    tnmsc_logger::log_debug!(
       logger,
       "cleanup native plan blocked",
       json!({
@@ -1692,7 +1692,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
 
   let file_candidates = delete_files.into_iter().collect::<Vec<_>>();
   let dir_candidates = delete_dirs.into_iter().collect::<Vec<_>>();
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native file partition started",
     json!({
@@ -1702,7 +1702,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
   );
   let file_partition =
     partition_deletion_targets(&file_candidates, &guard, Some(&exact_safe_file_paths));
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native file partition complete",
     json!({
@@ -1711,7 +1711,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
         "violationCount": file_partition.violations.len(),
     })
   );
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native directory partition started",
     json!({
@@ -1720,7 +1720,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
     })
   );
   let dir_partition = partition_deletion_targets(&dir_candidates, &guard, None);
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native directory partition complete",
     json!({
@@ -1729,14 +1729,14 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
         "violationCount": dir_partition.violations.len(),
     })
   );
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native target compaction started",
     json!({})
   );
   let (files_to_delete, dirs_to_delete) =
     compact_deletion_targets(&file_partition.safe_paths, &dir_partition.safe_paths);
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native target compaction complete",
     json!({
@@ -1744,7 +1744,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
         "compactedDirs": dirs_to_delete.len(),
     })
   );
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native target partition complete",
     json!({
@@ -1777,7 +1777,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
       .map(|pattern| normalize_relative_glob_pattern(pattern))
       .collect::<Vec<_>>(),
   )?;
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native empty directory planning started",
     json!({
@@ -1805,7 +1805,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
     .into_iter()
     .filter(|violation| !target_matches_project_root(&violation.target_path, &project_root_keys))
     .collect::<Vec<_>>();
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native empty directory planning complete",
     json!({
@@ -1819,7 +1819,7 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
   violations.extend(empty_dir_violations);
   violations.sort_by(|a, b| a.target_path.cmp(&b.target_path));
 
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native plan complete",
     json!({
@@ -1843,10 +1843,10 @@ pub fn plan_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupPlan, String> {
 
 pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResultDto, String> {
   let logger = create_logger("CleanupNative", None);
-  tnmsc_logger::log_info!(logger, "cleanup native perform started", json!({}));
+  tnmsc_logger::log_debug!(logger, "cleanup native perform started", json!({}));
   let plan = plan_cleanup(snapshot)?;
   if !plan.conflicts.is_empty() || !plan.violations.is_empty() {
-    tnmsc_logger::log_info!(
+    tnmsc_logger::log_debug!(
       logger,
       "cleanup native perform blocked",
       json!({
@@ -1867,7 +1867,7 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
     });
   }
 
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native file deletion started",
     json!({
@@ -1875,7 +1875,7 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
     })
   );
   let file_result = desk_paths::delete_files(&plan.files_to_delete);
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native file deletion complete",
     json!({
@@ -1883,7 +1883,7 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
         "fileErrors": file_result.errors.len(),
     })
   );
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native directory deletion started",
     json!({
@@ -1891,7 +1891,7 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
     })
   );
   let dir_result = desk_paths::delete_directories(&plan.dirs_to_delete);
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native directory deletion complete",
     json!({
@@ -1899,7 +1899,7 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
         "dirErrors": dir_result.errors.len(),
     })
   );
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native empty directory deletion started",
     json!({
@@ -1907,7 +1907,7 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
     })
   );
   let empty_dir_result = desk_paths::delete_empty_directories(&plan.empty_dirs_to_delete);
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native empty directory deletion complete",
     json!({
@@ -1951,7 +1951,7 @@ pub fn perform_cleanup(snapshot: CleanupSnapshot) -> Result<CleanupExecutionResu
     empty_dirs_to_delete: plan.empty_dirs_to_delete,
     excluded_scan_globs: plan.excluded_scan_globs,
   };
-  tnmsc_logger::log_info!(
+  tnmsc_logger::log_debug!(
     logger,
     "cleanup native perform complete",
     json!({

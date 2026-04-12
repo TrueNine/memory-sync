@@ -11,6 +11,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url))
 const cliDir = resolve(scriptDir, '..')
 const distDir = resolve(cliDir, 'dist')
 const indexEntryPath = resolve(distDir, 'index.mjs')
+const internalBridgeEntryPath = resolve(distDir, 'internal', 'native-command-bridge.mjs')
 const bundledJitiBabelRuntimeSourcePath = resolve(cliDir, 'node_modules', 'jiti', 'dist', 'babel.cjs')
 const bundledJitiBabelRuntimeTargetPath = resolve(distDir, 'babel.cjs')
 
@@ -64,6 +65,11 @@ function withTempDir<T>(prefix: string, callback: (tempDir: string) => T): T {
 function ensureIndexBundleExists(): void {
   if (existsSync(indexEntryPath)) return
   throw new Error(`Expected bundled CLI entry at "${indexEntryPath}" before finalizing bundle assets.`)
+}
+
+function ensureInternalBridgeBundleExists(): void {
+  if (existsSync(internalBridgeEntryPath)) return
+  throw new Error(`Expected bundled internal command bridge at "${internalBridgeEntryPath}" before finalizing bundle assets.`)
 }
 
 function findBundledJitiChunkPath(): string | undefined {
@@ -138,10 +144,34 @@ function smokeTestCliEntry(): void {
   })
 }
 
+function smokeTestInternalBridgeEntry(): void {
+  const smokeTest = runNodeProcess([internalBridgeEntryPath, 'self-test'])
+  assertProcessSucceeded(smokeTest, [
+    `Bundled internal command bridge "${internalBridgeEntryPath}" failed the runtime smoke test.`
+  ])
+
+  const stdout = smokeTest.stdout.trim()
+  if (stdout.length === 0) {
+    throw new Error(`Bundled internal command bridge "${internalBridgeEntryPath}" returned empty stdout.`)
+  }
+
+  const result = JSON.parse(stdout) as {ok?: boolean, command?: string}
+  if (result.ok !== true || result.command !== 'self-test') {
+    throw new Error(
+      [
+        `Bundled internal command bridge "${internalBridgeEntryPath}" returned an unexpected payload.`,
+        `Actual: ${stdout}`
+      ].join('\n')
+    )
+  }
+}
+
 ensureIndexBundleExists()
+ensureInternalBridgeBundleExists()
 const bundledJitiChunkPath = ensureBundledJitiRuntimeAssets()
 smokeTestBundledJitiTransform(bundledJitiChunkPath)
 smokeTestCliEntry()
+smokeTestInternalBridgeEntry()
 
 writeMarkdownBlock('Bundled CLI assets finalized', {
   entry: indexEntryPath,
