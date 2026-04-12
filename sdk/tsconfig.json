@@ -12,6 +12,8 @@
     "moduleResolution": "Bundler",
     "paths": {
       "@/*": ["./src/*"],
+      "@truenine/memory-sync-sdk": ["./src/index.ts"],
+      "@truenine/memory-sync-sdk/*": ["./src/*"],
       "@truenine/desk-paths": ["./src/core/desk-paths.ts"],
       "@truenine/desk-paths/*": ["./src/core/desk-paths/*"],
       "@truenine/plugin-output-shared": ["./src/plugins/plugin-output-shared/index.ts"],
