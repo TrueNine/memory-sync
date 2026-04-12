@@ -138,8 +138,27 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Run all tests
-        run: pnpm run test
+      - name: Run workspace tests except container-backed CLI integration
+        run: pnpm exec turbo run test --ui=stream --log-order=grouped --filter='!@truenine/memory-sync-cli-integration-test'
+
+  test-cli-integration:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: pr
+
+      - name: Verify Docker is available
+        run: docker version
+
+      - name: Run CLI integration tests
+        run: pnpm -C cli-integration-test run test
 
   test-gui:
     if: github.event.pull_request.draft == false

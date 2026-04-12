@@ -1,8 +1,12 @@
 import type {MergedConfigResult} from './ConfigLoader'
 import type {MemorySyncAdaptorInfo, MemorySyncCommandResult, MemorySyncSdkBinding} from './internal/sdk-binding'
+import {existsSync} from 'node:fs'
+import process from 'node:process'
+import {fileURLToPath} from 'node:url'
 import {getNativeBinding} from './core/native-binding'
 
 type JsonResult<T> = T | Promise<T>
+const INTERNAL_COMMAND_BRIDGE_ENV = 'TNMSC_INTERNAL_COMMAND_BRIDGE'
 
 interface NativeJsonCommandBinding {
   readonly loadConfig?: (cwd?: string) => JsonResult<string>
@@ -78,13 +82,42 @@ async function parseJsonResult<T>(value: JsonResult<string>): Promise<T> {
   return JSON.parse(raw) as T
 }
 
+function ensureInternalCommandBridgeEnv(): void {
+  if ((process.env[INTERNAL_COMMAND_BRIDGE_ENV] ?? '').length > 0) return
+
+  const bridgeCandidates = [
+    fileURLToPath(new URL('./internal/native-command-bridge.mjs', import.meta.url)),
+    fileURLToPath(new URL('./native-command-bridge.mjs', import.meta.url))
+  ]
+
+  const bridgePath = bridgeCandidates.find(candidate => existsSync(candidate))
+  if (bridgePath == null) return
+
+  process.env[INTERNAL_COMMAND_BRIDGE_ENV] = bridgePath
+}
+
 function createHybridBinding(nativeBinding: Required<NativeJsonCommandBinding>): MemorySyncSdkBinding {
   const listAdaptors = getNativeListAdaptors(nativeBinding)
   return {
     loadConfig: async cwd => parseJsonResult<MergedConfigResult>(nativeBinding.loadConfig(cwd)),
-    install: async options => parseJsonResult<MemorySyncCommandResult>(nativeBinding.install(options == null ? void 0 : JSON.stringify(options))),
-    dryRun: async options => parseJsonResult<MemorySyncCommandResult>(nativeBinding.dryRun(options == null ? void 0 : JSON.stringify(options))),
-    clean: async options => parseJsonResult<MemorySyncCommandResult>(nativeBinding.clean(options == null ? void 0 : JSON.stringify(options))),
+    install: async options => {
+      ensureInternalCommandBridgeEnv()
+      return parseJsonResult<MemorySyncCommandResult>(
+        nativeBinding.install(options == null ? void 0 : JSON.stringify(options))
+      )
+    },
+    dryRun: async options => {
+      ensureInternalCommandBridgeEnv()
+      return parseJsonResult<MemorySyncCommandResult>(
+        nativeBinding.dryRun(options == null ? void 0 : JSON.stringify(options))
+      )
+    },
+    clean: async options => {
+      ensureInternalCommandBridgeEnv()
+      return parseJsonResult<MemorySyncCommandResult>(
+        nativeBinding.clean(options == null ? void 0 : JSON.stringify(options))
+      )
+    },
     listAdaptors: async () => parseJsonResult<readonly MemorySyncAdaptorInfo[]>(listAdaptors()),
     listPrompts: async options => parseJsonResult<readonly unknown[]>(nativeBinding.listPrompts(options == null ? void 0 : JSON.stringify(options))),
     getPrompt: async (promptId, options) => parseJsonResult<unknown>(nativeBinding.getPrompt(promptId, options == null ? void 0 : JSON.stringify(options))),
