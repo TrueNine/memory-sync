@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to rebuild for debugging (without v prefix, e.g. 2026.10213.0)'
+        description: "Version to rebuild for debugging (without v prefix, e.g. 2026.10213.0)"
         required: true
         type: string
 
@@ -23,10 +23,10 @@ jobs:
           tauri-command: pnpm tauri build
           artifact-name: debug-gui-windows-latest
           artifact-path: |
-            gui/src-tauri/target/*/release/bundle/**/*.exe
-            gui/src-tauri/target/*/release/bundle/**/*.sig
-            gui/src-tauri/target/release/bundle/**/*.exe
-            gui/src-tauri/target/release/bundle/**/*.sig
+            target/*/release/bundle/**/*.exe
+            target/*/release/bundle/**/*.sig
+            target/release/bundle/**/*.exe
+            target/release/bundle/**/*.sig
           signing-private-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           signing-private-key-password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           version: ${{ inputs.version }}
