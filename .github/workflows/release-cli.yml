@@ -3,14 +3,8 @@ name: Release Packages
 env:
   NPM_REGISTRY_URL: https://registry.npmjs.org/
   CLI_NATIVE_MODULE_DIRS: |
-    libraries/logger
-    libraries/md-compiler
-    libraries/script-runtime
     sdk
   CLI_NATIVE_BINDING_PREFIXES: |
-    napi-logger.
-    napi-md-compiler.
-    napi-script-runtime.
     napi-memory-sync-cli.
 
 concurrency:
@@ -29,7 +23,7 @@ on:
       - cli/**
       - mcp/**
       - gui/**
-      - libraries/**
+      - sdk/**
       - scripts/**
       - Cargo.toml
       - Cargo.lock

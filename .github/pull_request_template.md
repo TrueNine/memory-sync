@@ -5,7 +5,7 @@
 ## Scope
 
 - [ ] CLI (`cli/`)
-- [ ] Shared Rust / N-API libraries (`libraries/`)
+- [ ] SDK core (`sdk/`)
 - [ ] GUI (`gui/`)
 - [ ] Docs (`doc/`)
 - [ ] GitHub automation / release chain (`.github/`)

@@ -1,4 +1,3 @@
-import {resolve} from 'node:path'
 import {describe, expect, it} from 'vitest'
 import tsconfig from '../tsconfig.json'
 import tsdownConfig from '../tsdown.config'
@@ -18,21 +17,15 @@ function includesEntry(config: TsdownEntryConfig, targetEntry: string): boolean 
 }
 
 describe('cli tsdown config', () => {
-  it('lets TypeScript resolve the script runtime package through workspace metadata', () => {
+  it('keeps worker bundling anchored on the sdk package only', () => {
     const paths = tsconfig.compilerOptions.paths as Record<string, string[] | undefined>
-    expect(paths['@truenine/script-runtime']).toBeUndefined()
-  })
-
-  it('bundles the worker against the built script runtime module', () => {
     const workerConfig = (tsdownConfig as readonly TsdownEntryConfig[]).find(config =>
       includesEntry(config, './src/script-runtime-worker.ts'))
 
-    expect(workerConfig?.alias?.['@truenine/script-runtime']).toBe(
-      resolve('../libraries/script-runtime/dist/index.mjs')
-    )
+    expect(paths['@truenine/script-runtime']).toBeUndefined()
+    expect(workerConfig?.alias).toBeUndefined()
     expect(workerConfig?.deps?.alwaysBundle).toEqual(expect.arrayContaining([
-      '@truenine/memory-sync-sdk',
-      '@truenine/script-runtime'
+      '@truenine/memory-sync-sdk'
     ]))
     expect(workerConfig?.deps?.neverBundle).toEqual(expect.arrayContaining(['jiti']))
   })

@@ -62,8 +62,8 @@ function isNapiLoggerModule(value: unknown): value is NapiLoggerModule {
 }
 
 const getNapiBinding = createNativeBindingLoader<NapiLoggerModule>({
-  packageName: '@truenine/logger',
-  binaryName: 'napi-logger',
+  packageName: '@truenine/memory-sync-sdk',
+  binaryName: 'napi-memory-sync-cli',
   bindingValidator: isNapiLoggerModule,
   cliExportName: 'logger'
 })

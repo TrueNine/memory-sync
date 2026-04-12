@@ -437,8 +437,9 @@ describe('integration scenarios', () => {
     }
 
     const loggerOptions: NativeBindingLoaderOptions<LoggerBinding> = {
-      packageName: '@truenine/logger',
-      binaryName: 'napi-logger',
+      packageName: '@truenine/memory-sync-sdk',
+      binaryName: 'napi-memory-sync-cli',
+      cliExportName: 'logger',
       bindingValidator: (value): value is LoggerBinding =>
         value != null
         && typeof value === 'object'
@@ -469,8 +470,8 @@ describe('integration scenarios', () => {
     }
 
     const scriptRuntimeOptions: NativeBindingLoaderOptions<ScriptRuntimeBinding> = {
-      packageName: '@truenine/script-runtime',
-      binaryName: 'napi-script-runtime',
+      packageName: '@truenine/memory-sync-sdk',
+      binaryName: 'napi-memory-sync-cli',
       cliExportName: 'scriptRuntime',
       optionalMethods: {
         validatePublicPath: ['validate_public_path'],

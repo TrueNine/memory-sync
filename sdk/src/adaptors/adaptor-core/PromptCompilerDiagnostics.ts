@@ -1,4 +1,4 @@
-import {CompilerDiagnosticError, formatCompilerDiagnostic} from '@truenine/md-compiler/errors'
+import {CompilerDiagnosticError, formatCompilerDiagnostic} from '@/md-compiler/errors'
 
 export interface PromptCompilerDiagnosticContext {
   readonly promptKind: string

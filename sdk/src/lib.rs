@@ -5,6 +5,10 @@
 
 pub mod core;
 pub(crate) mod diagnostic_helpers;
+#[path = "native_md_compiler/lib.rs"]
+pub mod md_compiler;
+pub mod native_logger;
+pub mod native_script_runtime;
 pub mod prompts;
 
 use std::path::Path;
@@ -13,6 +17,20 @@ use std::process::ExitCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub mod logger {
+  pub use crate::native_logger::*;
+}
+
+pub mod script_runtime {
+  pub use crate::native_script_runtime::*;
+}
+
+pub use md_compiler::{
+  BuildPromptTomlArtifactOptions, BuildTomlDocumentOptions, EvaluationScope, ExportMetadata,
+  MdxGlobalScope, MdxToMdOptions, MdxToMdResult, MetadataSource, ProcessingContext,
+  build_prompt_toml_artifact, build_toml_document, mdx_to_md, mdx_to_md_with_metadata,
+  parse_mdx, serialize,
+};
 pub use prompts::{
   ListPromptsOptions, ManagedPromptKind, PromptArtifactRecord, PromptArtifactState,
   PromptCatalogItem, PromptCatalogPaths, PromptCatalogPresence, PromptDetails,

@@ -1,4 +1,4 @@
-import type {BuildPromptTomlArtifactOptions} from '@truenine/md-compiler'
+import type {BuildPromptTomlArtifactOptions} from '@/md-compiler'
 import type {ToolPresetName} from './GlobalScopeCollector'
 import type {RegistryWriter} from './RegistryWriter'
 import type {
@@ -36,8 +36,8 @@ import {Buffer} from 'node:buffer'
 import * as path from 'node:path'
 import process from 'node:process'
 
-import {buildPromptTomlArtifact} from '@truenine/md-compiler'
-import {buildMarkdownWithFrontMatter, buildMarkdownWithRawFrontMatter} from '@truenine/md-compiler/markdown'
+import {buildPromptTomlArtifact} from '@/md-compiler'
+import {buildMarkdownWithFrontMatter, buildMarkdownWithRawFrontMatter} from '@/md-compiler/markdown'
 import {buildConfigDiagnostic, diagnosticLines} from '@/diagnostics'
 import {getEffectiveHomeDir} from '@/runtime-environment'
 import {AbstractAdaptor} from './AbstractAdaptor'

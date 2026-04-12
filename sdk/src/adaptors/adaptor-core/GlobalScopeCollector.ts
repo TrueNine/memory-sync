@@ -1,9 +1,9 @@
-import type {EvaluationScope} from '@truenine/md-compiler'
-import type {CodeStylePreferences, EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@truenine/md-compiler/globals' // Collects and manages global scope variables for MDX expression evaluation.
+import type {EvaluationScope} from '@/md-compiler'
+import type {CodeStylePreferences, EnvironmentContext, MdComponent, MdxGlobalScope, OsInfo, ToolReferences, UserProfile} from '@/md-compiler/globals' // Collects and manages global scope variables for MDX expression evaluation.
 import type {AdaptorOptions, UserConfigFile} from './types'
 import * as os from 'node:os'
 import process from 'node:process'
-import {OsKind, ShellKind, ToolPresets} from '@truenine/md-compiler/globals'
+import {OsKind, ShellKind, ToolPresets} from '@/md-compiler/globals'
 import {getEffectiveHomeDir} from '@/runtime-environment'
 import {buildDefaultCodeStylesOptions, mergeCodeStylesOptions} from './ConfigTypes.schema'
 

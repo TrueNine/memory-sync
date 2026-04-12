@@ -1,4 +1,4 @@
-import type {Root, RootContent} from '@truenine/md-compiler'
+import type {Root, RootContent} from '@/md-compiler'
 import type {ClaudeCodeCLISubAgentColors, CodingAgentTools, FilePathKind, NamingCaseKind, PromptKind, RuleScope} from './enums'
 import type {GlobalConfigDirectory} from './OutputTypes'
 

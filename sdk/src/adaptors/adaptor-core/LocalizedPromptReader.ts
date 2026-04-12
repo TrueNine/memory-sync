@@ -1,4 +1,4 @@
-import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
+import type {MdxGlobalScope} from '@/md-compiler/globals'
 import type {PromptCompilerDiagnosticContext} from './PromptCompilerDiagnostics'
 import type {
   DirectoryReadResult,

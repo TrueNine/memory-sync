@@ -1,8 +1,6 @@
-import {resolve} from 'node:path'
 import {defineConfig} from 'tsdown'
 
 const alwaysBundleDeps = ['@truenine/memory-sync-sdk']
-const scriptRuntimeWorkerBundleDeps = [...alwaysBundleDeps, '@truenine/script-runtime']
 const neverBundleDeps = ['jiti']
 
 export default defineConfig([
@@ -41,11 +39,8 @@ export default defineConfig([
     platform: 'node',
     sourcemap: false,
     deps: {
-      alwaysBundle: scriptRuntimeWorkerBundleDeps,
+      alwaysBundle: alwaysBundleDeps,
       neverBundle: neverBundleDeps
-    },
-    alias: {
-      '@truenine/script-runtime': resolve('../libraries/script-runtime/dist/index.mjs')
     },
     format: ['esm'],
     minify: true,

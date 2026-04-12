@@ -140,6 +140,61 @@ function logProjectSummary(
   })
 }
 
+function logInstallCompletion(
+  logger: RuntimeExecutionContext['logger'],
+  summary: {
+    readonly deletedFiles: number
+    readonly deletedDirs: number
+    readonly writtenFiles: number
+    readonly writtenDirs: number
+  }
+): void {
+  const totalFiles = summary.deletedFiles + summary.writtenFiles
+  const totalDirs = summary.deletedDirs + summary.writtenDirs
+
+  if (totalFiles === 0 && totalDirs === 0) {
+    logger.info('Sync complete\n\nNo changes were needed.')
+    return
+  }
+
+  logger.info('Sync complete', {
+    files: totalFiles,
+    directories: totalDirs
+  })
+}
+
+function logDryRunCompletion(
+  logger: RuntimeExecutionContext['logger'],
+  filesAffected: number,
+  dirsAffected: number
+): void {
+  if (filesAffected === 0 && dirsAffected === 0) {
+    logger.info('Dry run complete\n\nNo changes would be made.')
+    return
+  }
+
+  logger.info('Dry run complete', {
+    files: filesAffected,
+    directories: dirsAffected
+  })
+}
+
+function logCleanCompletion(
+  logger: RuntimeExecutionContext['logger'],
+  filesAffected: number,
+  dirsAffected: number
+): void {
+  if (filesAffected === 0 && dirsAffected === 0) {
+    logger.info('Cleanup complete\n\nNothing needed to be removed.')
+    return
+  }
+
+  logger.info('Cleanup complete', {
+    files: filesAffected,
+    directories: dirsAffected
+  })
+}
+
 function runExecutionPreflight(
   ctx: RuntimeExecutionContext,
   commandName: string
@@ -149,19 +204,8 @@ function runExecutionPreflight(
       ctx.logger.warn(buildDiagnostic({
         code: 'EXECUTION_SCOPE_WORKSPACE',
         title: 'Running from the workspace root',
-        rootCause: diagnosticLines(
-          'This run will only touch workspace-level outputs and global outputs.',
-          `Current directory: ${ctx.executionPlan.cwd}`
-        ),
-        exactFix: diagnosticLines(
-          'Run tnmsc from a managed project directory to target one project, or from outside the workspace to include every managed project.'
-        ),
-        details: {
-          command: commandName,
-          scope: 'workspace',
-          cwd: ctx.executionPlan.cwd,
-          workspaceDir: ctx.executionPlan.workspaceDir
-        }
+        rootCause: diagnosticLines(`tnmsc will only sync workspace-level outputs in "${ctx.executionPlan.workspaceDir}".`),
+        exactFix: diagnosticLines('Run tnmsc inside a managed project to sync one project, or outside the workspace to sync everything.')
       }))
       return void 0
     case 'project':
@@ -171,19 +215,8 @@ function runExecutionPreflight(
       ctx.logger.warn(buildDiagnostic({
         code: 'EXECUTION_SCOPE_EXTERNAL',
         title: 'Running outside the workspace',
-        rootCause: diagnosticLines(
-          'This run will process the workspace, every managed project, and global outputs.',
-          `Current directory: ${ctx.executionPlan.cwd}`
-        ),
-        exactFix: diagnosticLines(
-          `Run tnmsc from "${ctx.executionPlan.workspaceDir}" for workspace-only execution, or from a managed project directory for project-only execution.`
-        ),
-        details: {
-          command: commandName,
-          scope: 'external',
-          cwd: ctx.executionPlan.cwd,
-          workspaceDir: ctx.executionPlan.workspaceDir
-        }
+        rootCause: diagnosticLines(`tnmsc will sync "${ctx.executionPlan.workspaceDir}" and every managed project from the current directory.`),
+        exactFix: diagnosticLines(`Run tnmsc in "${ctx.executionPlan.workspaceDir}" for workspace-only sync, or inside a managed project for project-only sync.`)
       }))
       logExternalProjectGroups(ctx)
       return void 0
@@ -283,17 +316,10 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
   const preflightResult = runExecutionPreflight(ctx, 'install')
   if (preflightResult != null) return preflightResult
 
-  ctx.logger.info('Running sync', {
-    adaptors: ctx.outputPlugins.length,
-    projects: ctx.collectedOutputContext.workspace.projects.length,
-    workspace: ctx.collectedOutputContext.workspace.directory.path
-  })
-
   const writeCtx = createWriteContext(ctx, false)
   const predeclaredOutputs = await collectOutputDeclarations(ctx.outputPlugins, writeCtx)
-  const declarationCount = [...predeclaredOutputs.values()]
-    .reduce((total, declarations) => total + declarations.length, 0)
-  ctx.logger.info('Prepared output plan', {
+  const declarationCount = [...predeclaredOutputs.values()].reduce((total, declarations) => total + declarations.length, 0)
+  ctx.logger.debug('Prepared output plan', {
     adaptors: predeclaredOutputs.size,
     declarations: declarationCount
   })
@@ -314,10 +340,12 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
     })
   }
 
-  ctx.logger.info('Removed stale generated files', {
-    files: cleanupResult.deletedFiles,
-    directories: cleanupResult.deletedDirs
-  })
+  if (cleanupResult.deletedFiles > 0 || cleanupResult.deletedDirs > 0) {
+    ctx.logger.info('Removed stale outputs', {
+      files: cleanupResult.deletedFiles,
+      directories: cleanupResult.deletedDirs
+    })
+  }
 
   const writeResults = await executeDeclarativeWriteOutputs(
     ctx.outputPlugins,
@@ -336,11 +364,12 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
     }
   }
 
-  ctx.logger.info('Wrote output files', {
-    adaptors: writeResults.size,
-    files: totalFiles,
-    directories: totalDirs
-  })
+  if (totalFiles > 0 || totalDirs > 0) {
+    ctx.logger.info('Wrote outputs', {
+      files: totalFiles,
+      directories: totalDirs
+    })
+  }
 
   if (writeErrors.length > 0) {
     return buildCommandResult({
@@ -374,9 +403,11 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
     })
   }
 
-  ctx.logger.info('Sync complete', {
-    files: totalFiles,
-    directories: totalDirs
+  logInstallCompletion(ctx.logger, {
+    deletedFiles: cleanupResult.deletedFiles,
+    deletedDirs: cleanupResult.deletedDirs,
+    writtenFiles: totalFiles,
+    writtenDirs: totalDirs
   })
 
   return buildCommandResult({
@@ -391,12 +422,6 @@ async function runDryRun(options: MemorySyncCommandOptions = {}): Promise<Memory
   const ctx = await createRuntimeExecutionContext('dry-run', options)
   const preflightResult = runExecutionPreflight(ctx, 'dry-run')
   if (preflightResult != null) return preflightResult
-
-  ctx.logger.info('Running dry run', {
-    adaptors: ctx.outputPlugins.length,
-    projects: ctx.collectedOutputContext.workspace.projects.length,
-    workspace: ctx.collectedOutputContext.workspace.directory.path
-  })
 
   const writeCtx = createWriteContext(ctx, true)
   const predeclaredOutputs = await collectOutputDeclarations(ctx.outputPlugins, writeCtx)
@@ -432,10 +457,7 @@ async function runDryRun(options: MemorySyncCommandOptions = {}): Promise<Memory
     })
   }
 
-  ctx.logger.info('Dry run complete', {
-    files: totalFiles,
-    directories: totalDirs
-  })
+  logDryRunCompletion(ctx.logger, totalFiles, totalDirs)
 
   return buildCommandResult({
     success: true,
@@ -455,9 +477,6 @@ async function runClean(
   if (preflightResult != null) return preflightResult
 
   if (options.dryRun === true) {
-    ctx.logger.info('Running cleanup preview', {
-      adaptors: ctx.outputPlugins.length
-    })
     const cleanCtx = createCleanContext(ctx, true)
     const {
       filesToDelete,
@@ -478,11 +497,12 @@ async function runClean(
       })
     }
 
-    ctx.logger.info('Cleanup preview complete', {
+    ctx.logger.debug('Cleanup preview prepared', {
       files: filesToDelete.length,
       directories: totalDirsToDelete.length,
       excludedGlobs: excludedScanGlobs.length
     })
+    logDryRunCompletion(ctx.logger, filesToDelete.length, totalDirsToDelete.length)
 
     return buildCommandResult({
       success: true,
@@ -491,12 +511,6 @@ async function runClean(
       message: 'Dry-run complete, no files were deleted'
     })
   }
-
-  ctx.logger.info('Running cleanup', {
-    adaptors: ctx.outputPlugins.length,
-    projects: ctx.collectedOutputContext.workspace.projects.length,
-    workspace: ctx.collectedOutputContext.workspace.directory.path
-  })
 
   const result = await performCleanup(
     ctx.outputPlugins,
@@ -512,10 +526,7 @@ async function runClean(
     })
   }
 
-  ctx.logger.info('Cleanup complete', {
-    files: result.deletedFiles,
-    directories: result.deletedDirs
-  })
+  logCleanCompletion(ctx.logger, result.deletedFiles, result.deletedDirs)
 
   return buildCommandResult({
     success: true,

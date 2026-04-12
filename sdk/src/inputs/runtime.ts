@@ -1,4 +1,4 @@
-import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
+import type {MdxGlobalScope} from '@/md-compiler/globals'
 import type {AdaptorOptions, InputCapability, InputCapabilityContext, InputCollectedContext, UserConfigFile} from '@/adaptors/adaptor-core'
 import type {RuntimeCommand} from '@/runtime-command'
 

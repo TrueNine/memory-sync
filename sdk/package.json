@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-sdk",
   "type": "module",
-  "version": "2026.10412.11551",
+  "version": "2026.10412.11942",
   "private": true,
   "description": "TrueNine Memory Synchronization SDK",
   "author": "TrueNine",
@@ -38,16 +38,10 @@
     ]
   },
   "scripts": {
-    "build": "run-s build:deps build:napi bundle finalize:bundle generate:schema",
+    "build": "run-s build:napi bundle finalize:bundle generate:schema",
     "build:napi": "run-s build:native build:napi:copy",
     "build:napi:copy": "tsx ../scripts/copy-napi.ts",
     "build:native": "napi build --platform --release --output-dir dist -- --features napi",
-    "build:deps": "run-s build:deps:runtime build:deps:md-compiler",
-    "build:deps:runtime": "pnpm -F @truenine/logger -F @truenine/script-runtime run build",
-    "build:deps:md-compiler": "run-s build:deps:md-compiler:ts build:deps:md-compiler:native",
-    "build:deps:md-compiler:ts": "pnpm -F @truenine/md-compiler run build:ts",
-    "build:deps:md-compiler:native": "pnpm -F @truenine/md-compiler run build:native",
-    "build:deps:ts": "pnpm -F @truenine/logger -F @truenine/md-compiler -F @truenine/script-runtime run build:ts",
     "bundle": "tsx ../scripts/build-quiet.ts",
     "check": "run-p lint check:type",
     "finalize:bundle": "tsx scripts/finalize-bundle.ts",
@@ -59,7 +53,7 @@
     "lint:fix:ts": "eslint --fix --cache --cache-location .eslintcache .",
     "lint:fix:rust": "cargo fmt --manifest-path Cargo.toml",
     "prepublishOnly": "run-s build check",
-    "test": "run-s build:deps test:run",
+    "test": "run-s build test:run",
     "test:native-cleanup-smoke": "tsx scripts/cleanup-native-smoke.ts",
     "test:run": "vitest run",
     "benchmark:cleanup": "tsx scripts/benchmark-cleanup.ts",
@@ -67,9 +61,6 @@
     "check:type:run": "tsc --noEmit -p tsconfig.lib.json"
   },
   "dependencies": {
-    "@truenine/logger": "workspace:*",
-    "@truenine/md-compiler": "workspace:*",
-    "@truenine/script-runtime": "workspace:*",
     "json5": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
@@ -77,17 +68,28 @@
   "devDependencies": {
     "@clack/prompts": "catalog:",
     "@types/fs-extra": "catalog:",
+    "@types/estree": "catalog:",
+    "@types/estree-jsx": "catalog:",
+    "@types/mdast": "catalog:",
     "@types/picomatch": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "fast-glob": "catalog:",
     "fs-extra": "catalog:",
     "jiti": "catalog:",
     "lightningcss": "catalog:",
+    "mdast-util-mdx": "catalog:",
     "npm-run-all2": "catalog:",
     "picocolors": "catalog:",
     "picomatch": "catalog:",
+    "remark-frontmatter": "catalog:",
+    "remark-gfm": "catalog:",
+    "remark-mdx": "catalog:",
+    "remark-parse": "catalog:",
+    "remark-stringify": "catalog:",
     "tsx": "catalog:",
+    "unified": "catalog:",
     "vitest": "catalog:",
+    "yaml": "catalog:",
     "zod-to-json-schema": "catalog:"
   }
 }

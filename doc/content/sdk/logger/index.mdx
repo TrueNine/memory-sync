@@ -11,12 +11,12 @@ import { Callout, Cards, Tabs } from 'nextra/components'
 
 <Callout type="info">
 **包信息**
-- **npm 包名**: `@truenine/logger`
-- **Rust crate**: `tnmsc-logger`
-- **Rust 源码位置**: `libraries/logger/`
-- **TypeScript 事实来源**: `sdk/src/libraries/logger.ts`
-- **发布壳层**: `libraries/logger/src/index.ts`
-- **核心文件**: `libraries/logger/src/lib.rs` (Rust 核心) · `sdk/src/libraries/logger.ts` (TypeScript facade)
+- **npm 包名**: `@truenine/memory-sync-sdk`
+- **Rust crate**: `tnmsc`
+- **Rust 源码位置**: `sdk/src/native_logger.rs`
+- **TypeScript 事实来源**: `sdk/src/sdk/logger.ts`
+- **发布壳层**: `sdk/src/sdk/logger.ts`
+- **核心文件**: `sdk/src/native_logger.rs` (Rust 核心) · `sdk/src/sdk/logger.ts` (TypeScript facade)
 </Callout>
 
 Logger 是一个 **Rust 驱动的 AI 友好型 Markdown 日志库**，专为 `tnmsc` 工具链设计。它将日志输出格式化为结构化 Markdown（`###` 标题 + 列表），使终端输出对人类可读的同时也能被 AI 工具高效解析。
@@ -92,7 +92,7 @@ graph TB
 <Tabs items={['TypeScript', '说明']}>
   <Tabs.Tab>
 ```ts
-import { createLogger } from '@truenine/logger'
+import { createLogger } from '@truenine/memory-sync-sdk'
 
 const logger = createLogger('my-namespace')
 const debugLogger = createLogger('my-namespace', 'debug')
@@ -322,7 +322,7 @@ enum OutputCommand {
 
 ### 共享 Native Binding 加载
 
-Logger 的 TypeScript facade 已迁到 `sdk/src/libraries/logger.ts`，`libraries/logger/src/index.ts` 现在只是一个薄 re-export wrapper。SDK 内联实现不再复制平台检测、本地候选路径和 CLI 平台包扫描逻辑，只保留三件 Logger 特有的事情：
+Logger 的 TypeScript facade 已迁到 `sdk/src/sdk/logger.ts`，`sdk/src/sdk/logger.ts` 现在只是一个薄 re-export wrapper。SDK 内联实现不再复制平台检测、本地候选路径和 CLI 平台包扫描逻辑，只保留三件 Logger 特有的事情：
 
 - `isNapiLoggerModule()`：校验 native export 的形状
 - `createNativeBindingLoader(...)`：声明 `packageName`、`binaryName` 和 `cliExportName`
@@ -348,7 +348,7 @@ Logger 的 TypeScript facade 已迁到 `sdk/src/libraries/logger.ts`，`librarie
 演示 info、debug、trace 三种普通日志的使用方式：
 
 ```ts
-import { createLogger } from '@truenine/logger'
+import { createLogger } from '@truenine/memory-sync-sdk'
 
 const logger = createLogger('example-app')
 
@@ -377,7 +377,7 @@ logger.trace('进入函数', { fn: 'processRequest', args: ['req', 'res'] })
 演示 error、warn、fatal 三种结构化诊断日志：
 
 ```ts
-import { createLogger } from '@truenine/logger'
+import { createLogger } from '@truenine/memory-sync-sdk'
 
 const logger = createLogger('config-loader')
 
@@ -453,7 +453,7 @@ import {
   clearBufferedDiagnostics,
   drainBufferedDiagnostics,
   flushOutput
-} from '@truenine/logger'
+} from '@truenine/memory-sync-sdk'
 
 // 1. 设置全局级别为 warn — 只显示 error/warn/fatal
 setGlobalLogLevel('warn')

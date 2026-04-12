@@ -9,7 +9,7 @@ mod commands;
 use std::process::ExitCode;
 
 use clap::Parser;
-use tnmsc_logger::{flush_output, set_global_log_level};
+use tnmsc::logger::{flush_output, set_global_log_level};
 
 use cli::{Cli, ResolvedCommand, resolve_command, resolve_log_level};
 

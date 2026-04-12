@@ -1,6 +1,7 @@
 import type {CliIntegrationArtifacts} from '../src/artifacts'
 import type {CodexFixture} from '../src/fixtures'
 import {beforeAll, describe, expect, it} from 'vitest'
+import path from 'node:path'
 import {prepareCliIntegrationArtifacts} from '../src/artifacts'
 import {
   PreparedCliIntegrationContainer,
@@ -16,6 +17,16 @@ const describeForHost = supportedHost ? describe : describe.skip
 
 function expectSuccess(exitCode: number): void {
   expect(exitCode).toBe(0)
+}
+
+function expectNoLegacyNoise(output: string): void {
+  expect(output).not.toContain('Aindex is not inside a Git repository')
+  expect(output).not.toContain('Prepared output plan')
+  expect(output).not.toContain('Removed stale generated files')
+  expect(output).not.toContain('Wrote output files')
+  expect(output).not.toContain('cleanup native')
+  expect(output).not.toContain('Current directory:')
+  expect(output).not.toContain('**Context**')
 }
 
 async function withCodexEnvironment(
@@ -53,7 +64,7 @@ describeForHost('codex cli integration', () => {
       expect(installedResolution.mainPackageDir).toContain('@truenine+memory-sync-cli@file')
       expect(installedResolution.platformPackageDir).toContain('@truenine+memory-sync-cli-linux-x64-gnu@file')
       expect(installedResolution.resolvedAddonPath).toContain('@truenine+memory-sync-cli-linux-x64-gnu@file')
-      expect(installedResolution.scriptRuntimePackagePath).toContain('@truenine+script-runtime@file')
+      expect(installedResolution.sdkPackagePath).toContain('@truenine+memory-sync-sdk@file')
 
       const help = container.assertExecSuccess('tnmsc help')
       expect(help.stdout).toContain('install')
@@ -154,6 +165,39 @@ describeForHost('codex cli integration', () => {
       expect(container.pathExists(fixture.outputPaths.projectSkill)).toBe(false)
       expect(container.pathExists(fixture.outputPaths.projectSkillMcp)).toBe(false)
       expect(container.pathExists(fixture.outputPaths.globalSystemSkill)).toBe(true)
+    })
+  })
+
+  it('runs the packed dist entry with tilde workspace config, resolves parent git, and keeps output concise', async () => {
+    const fixture = createCodexFixture({
+      logLevel: 'info',
+      workspaceLocation: 'home',
+      seedWorkspaceGit: true
+    })
+
+    await withCodexEnvironment(artifacts, fixture, async container => {
+      const installedResolution = container.inspectInstalledCliResolution()
+      const cliDistEntry = path.posix.join(installedResolution.mainPackageDir, 'dist', 'index.mjs')
+
+      const result = container.exec(`node "${cliDistEntry}"`, CONTAINER_EXTERNAL_CWD)
+      expectSuccess(result.exitCode)
+
+      expect(result.stderr).toContain('### Running outside the workspace')
+      expect(result.stderr).toContain('tnmsc will sync "/root/workspace" and every managed project from the current directory.')
+      expect(result.stderr).toContain('Run tnmsc in "/root/workspace" for workspace-only sync, or inside a managed project for project-only sync.')
+      expect(result.stderr).not.toContain('/tmp/~/workspace')
+
+      expect(result.stdout).toContain('### Wrote outputs')
+      expect(result.stdout).toContain('### Sync complete')
+      expect(result.stdout).not.toContain('### version control detected')
+
+      expectNoLegacyNoise(result.stdout)
+      expectNoLegacyNoise(result.stderr)
+
+      expect(container.pathExists(fixture.outputPaths.globalCommand)).toBe(true)
+      expect(container.pathExists(fixture.outputPaths.projectAgent)).toBe(true)
+      expect(container.pathExists(fixture.outputPaths.projectSkill)).toBe(true)
+      expect(container.pathExists(fixture.outputPaths.projectSkillMcp)).toBe(true)
     })
   })
 })

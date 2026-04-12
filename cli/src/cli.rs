@@ -99,13 +99,13 @@ impl ResolvedLogLevel {
     }
   }
 
-  pub fn to_logger_level(self) -> tnmsc_logger::LogLevel {
+  pub fn to_logger_level(self) -> tnmsc::logger::LogLevel {
     match self {
-      Self::Trace => tnmsc_logger::LogLevel::Trace,
-      Self::Debug => tnmsc_logger::LogLevel::Debug,
-      Self::Info => tnmsc_logger::LogLevel::Info,
-      Self::Warn => tnmsc_logger::LogLevel::Warn,
-      Self::Error => tnmsc_logger::LogLevel::Error,
+      Self::Trace => tnmsc::logger::LogLevel::Trace,
+      Self::Debug => tnmsc::logger::LogLevel::Debug,
+      Self::Info => tnmsc::logger::LogLevel::Info,
+      Self::Warn => tnmsc::logger::LogLevel::Warn,
+      Self::Error => tnmsc::logger::LogLevel::Error,
     }
   }
 }

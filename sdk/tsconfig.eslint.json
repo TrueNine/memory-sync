@@ -7,11 +7,6 @@
       "@/*": ["./src/*"],
       "@truenine/desk-paths": ["./src/core/desk-paths.ts"],
       "@truenine/desk-paths/*": ["./src/core/desk-paths/*"],
-      "@truenine/logger": ["./src/libraries/logger.ts"],
-      "@truenine/md-compiler": ["../libraries/md-compiler/src/index.ts"],
-      "@truenine/md-compiler/errors": ["../libraries/md-compiler/src/errors/index.ts"],
-      "@truenine/md-compiler/globals": ["../libraries/md-compiler/src/globals/index.ts"],
-      "@truenine/md-compiler/markdown": ["../libraries/md-compiler/src/markdown/index.ts"],
       "@truenine/plugin-output-shared": ["./src/plugins/plugin-output-shared/index.ts"],
       "@truenine/plugin-output-shared/*": ["./src/plugins/plugin-output-shared/*"],
       "@truenine/plugin-input-shared": ["./src/plugins/plugin-input-shared/index.ts"],
@@ -34,8 +29,7 @@
       "@truenine/plugin-vscode": ["./src/plugins/plugin-vscode.ts"],
       "@truenine/plugin-warp-ide": ["./src/plugins/WarpIDEOutputPlugin.ts"],
       "@truenine/plugin-windsurf": ["./src/plugins/plugin-windsurf.ts"],
-      "@truenine/plugin-zed": ["./src/plugins/plugin-zed.ts"],
-      "@truenine/script-runtime": ["./src/libraries/script-runtime/index.ts"]
+      "@truenine/plugin-zed": ["./src/plugins/plugin-zed.ts"]
     },
     "noEmit": true,
     "skipLibCheck": true

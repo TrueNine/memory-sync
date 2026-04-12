@@ -10,11 +10,8 @@ const pluginAliases: Record<string, string> = {
 }
 
 const alwaysBundleDeps = [
-  '@truenine/logger',
-  '@truenine/script-runtime',
   'fast-glob',
   'jiti',
-  '@truenine/md-compiler',
   ...Object.keys(pluginAliases)
 ]
 
@@ -41,5 +38,22 @@ export default defineConfig([
       __CLI_PACKAGE_NAME__: JSON.stringify(pkg.name),
       __KIRO_GLOBAL_POWERS_REGISTRY__: kiroGlobalPowersRegistry
     }
+  },
+  {
+    entry: ['./src/libraries/script-runtime/resolve-proxy-worker.ts'],
+    platform: 'node',
+    sourcemap: false,
+    unbundle: false,
+    deps: {
+      neverBundle: ['jiti'],
+      onlyBundle: false
+    },
+    alias: {
+      '@': resolve('src'),
+      ...pluginAliases
+    },
+    format: ['esm'],
+    minify: true,
+    dts: false
   }
 ])

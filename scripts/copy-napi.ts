@@ -8,9 +8,6 @@ import {writeMarkdownBlock, writeWarning} from './markdown-output'
 import {resolveTargetDirs, writePlatformPackageShims} from './write-platform-package-shims'
 
 const NATIVE_MODULES = [
-  {name: 'logger', distDir: 'libraries/logger/dist'},
-  {name: 'md-compiler', distDir: 'libraries/md-compiler/dist'},
-  {name: 'script-runtime', distDir: 'libraries/script-runtime/dist'},
   {name: 'sdk', distDir: 'sdk/dist'},
 ] as const
 
@@ -63,7 +60,7 @@ for (const mod of NATIVE_MODULES) {
   for (const file of nodeFiles) {
     const src = join(modDist, file)
     const dst = join(targetDir, file)
-    cpSync(src, dst)
+    cpSync(src, dst, {force: true})
     writeMarkdownBlock('Copied NAPI artifact', {
       module: mod.name,
       file,
@@ -81,8 +78,6 @@ if (copied > 0) {
 } else {
   writeWarning('No NAPI artifacts were copied', {
     nextSteps: [
-      'pnpm -F @truenine/logger run build:native',
-      'pnpm -F @truenine/md-compiler run build:native',
       'pnpm -F @truenine/memory-sync-sdk run build:native',
     ],
   })

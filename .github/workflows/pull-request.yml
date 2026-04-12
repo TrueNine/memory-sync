@@ -245,7 +245,7 @@ jobs:
       - name: MCP tests
         run: pnpm turbo test --filter=@truenine/memory-sync-mcp
 
-  test-libraries:
+  test-sdk-core:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -261,8 +261,8 @@ jobs:
       - name: Build native modules
         run: pnpm run build:native
 
-      - name: Library tests
-        run: pnpm turbo test --filter=@truenine/logger --filter=@truenine/md-compiler --filter=@truenine/script-runtime
+      - name: SDK core tests
+        run: pnpm turbo test --filter=@truenine/memory-sync-sdk
 
   test-rust:
     if: github.event.pull_request.draft == false

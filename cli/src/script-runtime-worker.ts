@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import process from 'node:process'
-import {resolvePublicPathUnchecked} from '@truenine/script-runtime'
+import {resolvePublicPathUnchecked} from '@truenine/memory-sync-sdk'
 
 async function main(): Promise<void> {
   const [, , filePath, ctxJsonPath, logicalPath] = process.argv

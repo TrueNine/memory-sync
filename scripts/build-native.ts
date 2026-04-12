@@ -8,9 +8,6 @@ import {fileURLToPath} from 'node:url'
 import {writeError, writeMarkdownBlock, writeWarning} from './markdown-output'
 
 const NATIVE_MODULES = [
-  {name: 'logger', dir: 'libraries/logger'},
-  {name: 'md-compiler', dir: 'libraries/md-compiler'},
-  {name: 'script-runtime', dir: 'libraries/script-runtime'},
   {name: 'sdk', dir: 'sdk'},
 ] as const
 

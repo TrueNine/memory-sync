@@ -30,7 +30,7 @@ export interface InstalledCliResolution {
   readonly mainPackageDir: string
   readonly platformPackageDir: string
   readonly resolvedAddonPath: string
-  readonly scriptRuntimePackagePath: string
+  readonly sdkPackagePath: string
 }
 
 export interface CliIntegrationFixture {
@@ -190,12 +190,12 @@ export class PreparedCliIntegrationContainer {
       'const platformPackageDir = process.argv[3];',
       'const requireFromBridge = createRequire(path.join(mainPackageDir, "dist", "internal", "native-command-bridge.mjs"));',
       'const resolvedAddonPath = requireFromBridge.resolve("@truenine/memory-sync-cli-linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node");',
-      'const scriptRuntimePackagePath = requireFromBridge.resolve("@truenine/script-runtime/package.json");',
+      'const sdkPackagePath = requireFromBridge.resolve("@truenine/memory-sync-sdk/package.json");',
       'process.stdout.write(JSON.stringify({',
       '  mainPackageDir,',
       '  platformPackageDir,',
       '  resolvedAddonPath,',
-      '  scriptRuntimePackagePath',
+      '  sdkPackagePath',
       '}));'
     ].join(' ')
 

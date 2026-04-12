@@ -1,8 +1,7 @@
 import type {MemorySyncAdaptorInfo, MemorySyncCommandResult} from '@truenine/memory-sync-sdk'
 
 import process from 'node:process'
-import {flushOutput, setGlobalLogLevel} from '@truenine/logger'
-import {getMemorySyncSdkBinding} from '@truenine/memory-sync-sdk'
+import {flushOutput, getMemorySyncSdkBinding, setGlobalLogLevel} from '@truenine/memory-sync-sdk'
 import {extractUserArgs, parseArgs} from './cli-args'
 
 const CLI_NAME = 'tnmsc'

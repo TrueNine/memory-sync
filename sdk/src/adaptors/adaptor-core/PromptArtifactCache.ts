@@ -1,9 +1,9 @@
-import type {MdxGlobalScope} from '@truenine/md-compiler/globals'
-import type {ParsedMarkdown} from '@truenine/md-compiler/markdown'
+import type {MdxGlobalScope} from '@/md-compiler/globals'
+import type {ParsedMarkdown} from '@/md-compiler/markdown'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import {mdxToMd} from '@truenine/md-compiler'
-import {parseMarkdown} from '@truenine/md-compiler/markdown'
+import {mdxToMd} from '@/md-compiler'
+import {parseMarkdown} from '@/md-compiler/markdown'
 import JSON5 from 'json5'
 
 export interface PromptArtifact {
@@ -215,6 +215,23 @@ function tryReadFastDistArtifact(
   }
 }
 
+function hasTagLikeMdx(content: string): boolean {
+  return /<[A-Za-z/_$]/u.test(content)
+}
+
+function hasExpressionLikeMdx(content: string): boolean {
+  return /\{[A-Za-z_$]/u.test(content)
+}
+
+function shouldCompileDistArtifact(rawMdx: string): boolean {
+  const trimmed = rawMdx.trimStart()
+  return trimmed.startsWith('---')
+    || trimmed.startsWith('export default')
+    || rawMdx.split('\n').some(line => line.trimStart().startsWith('export const '))
+    || hasTagLikeMdx(rawMdx)
+    || hasExpressionLikeMdx(rawMdx)
+}
+
 async function buildPromptArtifact(
   filePath: string,
   options: ReadPromptArtifactOptions
@@ -231,6 +248,16 @@ async function buildPromptArtifact(
         parsed,
         content: fastDistArtifact.content,
         metadata: fastDistArtifact.metadata,
+        lastModified
+      }
+    }
+
+    if (!shouldCompileDistArtifact(rawMdx)) {
+      return {
+        rawMdx,
+        parsed,
+        content: rawMdx,
+        metadata: {},
         lastModified
       }
     }
