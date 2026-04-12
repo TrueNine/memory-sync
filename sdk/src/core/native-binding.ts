@@ -31,6 +31,7 @@ export function tryLoadNativeBinding<T extends object>(): T | undefined {
     const candidates = [
       `./${binaryFile}`,
       `../${binaryFile}`,
+      `../../dist/${binaryFile}`,
       `../npm/${suffix}/${binaryFile}`,
       `../../npm/${suffix}/${binaryFile}`,
       `../../cli/npm/${suffix}/${binaryFile}`,

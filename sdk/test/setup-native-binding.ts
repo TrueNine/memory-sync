@@ -255,7 +255,38 @@ const testBinding = {
   writePromptArtifacts: async (inputJson: string) => JSON.stringify(await writePromptArtifacts(JSON.parse(inputJson) as WritePromptArtifactsInput))
 }
 
+const rustPreferredMethods = [
+  'planCleanup',
+  'performCleanup',
+  'compactDeletionTargets',
+  'deleteFiles',
+  'deleteDirectories',
+  'deleteEmptyDirectories',
+  'deleteTargets',
+  'planWorkspaceEmptyDirectoryCleanup',
+  'existsSync',
+  'ensureDir',
+  'deletePathSync',
+  'writeFileSync',
+  'readFileSync',
+  'getPlatformFixedDir',
+  'isDirectoryStructureMismatchError',
+  'findBlockingNonDirectoryPath',
+  'resolveBlockingFilePath',
+  'removeBlockingFile'
+]
+
+const realBinaryOverrides: Record<string, unknown> = {}
+if (realBinary != null) {
+  for (const method of rustPreferredMethods) {
+    if (method in realBinary) {
+      realBinaryOverrides[method] = realBinary[method]
+    }
+  }
+}
+
 globalThis.__TNMSC_TEST_NATIVE_BINDING__ = {
   ...realBinary ?? {},
-  ...testBinding
+  ...testBinding,
+  ...realBinaryOverrides
 }
