@@ -1,7 +1,6 @@
 import type {MergedConfigResult} from './ConfigLoader'
 import type {MemorySyncAdaptorInfo, MemorySyncCommandResult, MemorySyncSdkBinding} from './internal/sdk-binding'
 import {getNativeBinding} from './core/native-binding'
-import {createTsFallbackMemorySyncBinding} from './internal/sdk-binding'
 
 type JsonResult<T> = T | Promise<T>
 
@@ -76,7 +75,9 @@ export function getMemorySyncSdkBinding(): MemorySyncSdkBinding {
   if (memorySyncSdkBinding != null) return memorySyncSdkBinding
 
   const nativeBinding = getNativeBinding<NativeMemorySyncSdkBinding>()
-  const fallbackBinding = createTsFallbackMemorySyncBinding()
+  if (nativeBinding == null) {
+    throw new Error('Native memory-sync-sdk binding is required. Build or install the Rust NAPI package before running tnmsc.')
+  }
 
   if (hasNativeCommandBinding(nativeBinding)) {
     memorySyncSdkBinding = createHybridBinding(nativeBinding)
@@ -88,8 +89,7 @@ export function getMemorySyncSdkBinding(): MemorySyncSdkBinding {
     return memorySyncSdkBinding
   }
 
-  memorySyncSdkBinding = fallbackBinding
-  return memorySyncSdkBinding
+  throw new Error('Native memory-sync-sdk binding is missing required methods.')
 }
 
 export type {

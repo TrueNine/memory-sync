@@ -59,7 +59,7 @@
     "lint:fix:ts": "eslint --fix --cache --cache-location .eslintcache .",
     "lint:fix:rust": "cargo fmt --manifest-path Cargo.toml",
     "prepublishOnly": "run-s build check",
-    "test": "run-s build:deps test:run",
+    "test": "run-s build:deps build:napi test:run",
     "test:native-cleanup-smoke": "tsx scripts/cleanup-native-smoke.ts",
     "test:run": "vitest run",
     "benchmark:cleanup": "tsx scripts/benchmark-cleanup.ts",

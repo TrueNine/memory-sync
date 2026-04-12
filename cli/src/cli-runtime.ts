@@ -2,7 +2,7 @@ import type {MemorySyncAdaptorInfo, MemorySyncCommandResult} from '@truenine/mem
 
 import process from 'node:process'
 import {flushOutput, setGlobalLogLevel} from '@truenine/logger'
-import {createTsFallbackMemorySyncBinding, getMemorySyncSdkBinding} from '@truenine/memory-sync-sdk'
+import {getMemorySyncSdkBinding} from '@truenine/memory-sync-sdk'
 import {extractUserArgs, parseArgs} from './cli-args'
 
 const CLI_NAME = 'tnmsc'
@@ -94,17 +94,7 @@ export async function runCli(argv: readonly string[] = process.argv): Promise<nu
       return 1
     }
 
-    const nativeBinding = getMemorySyncSdkBinding()
-    const fallbackBinding = createTsFallbackMemorySyncBinding()
-    // Pipeline commands (install / dry-run / clean) are not yet fully
-    // implemented in Rust, so use the mature TS fallback for them while
-    // keeping the native binding for prompts and listAdaptors.
-    const binding = {
-      ...nativeBinding,
-      install: fallbackBinding.install,
-      dryRun: fallbackBinding.dryRun,
-      clean: fallbackBinding.clean
-    }
+    const binding = getMemorySyncSdkBinding()
     const commandOptions = {
       cwd: process.cwd(),
       ...parsedArgs.logLevel != null ? {logLevel: parsedArgs.logLevel} : {}
