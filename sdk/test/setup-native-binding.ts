@@ -5,16 +5,22 @@ import {createRequire} from 'node:module'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {AdaptorKind, FilePathKind} from '../src/adaptors/adaptor-core/enums.ts'
-import {topologicalSort as topologicalSortLegacy} from '../src/internal/dependency-resolver-legacy'
-import {findAllGitRepos, findGitModuleInfoDirs, resolveGitInfoDir} from '../src/internal/git-discovery-legacy'
+import {
+  findAllGitReposFallback,
+  findGitModuleInfoDirsFallback,
+  resolveGitInfoDirFallback
+} from '../src/adaptors/adaptor-core/git-discovery'
 import {getPrompt, listPrompts, upsertPromptSource, writePromptArtifacts} from '../src/internal/prompts-legacy'
 import {
-  getEffectiveHomeDir,
-  getGlobalConfigPath,
-  getRequiredGlobalConfigPath,
-  isWslRuntime,
-  resolveRuntimeEnvironment
-} from '../src/internal/runtime-environment-legacy'
+  getEffectiveHomeDirFallback,
+  getGlobalConfigPathFallback,
+  getRequiredGlobalConfigPathFallback,
+  isWslRuntimeFallback,
+  resolveRuntimeEnvironmentFallback
+} from '../src/runtime-environment'
+import {topologicalSortFallback} from '../src/pipeline/DependencyResolver'
+
+import * as wslMirrorSyncLegacy from '../src/wsl-mirror-sync-legacy'
 
 import {collectBaseOutputPlans, collectDroidOutputPlan, collectGeminiOutputPlan} from './native-binding/base-output-plans'
 import * as deskPaths from './native-binding/desk-paths'
@@ -198,6 +204,86 @@ function resolveSubSeries(
   return merged
 }
 
+async function performSkillDistCleanup(distSkillsDir: string, dryRun: boolean): Promise<string> {
+  if (!fs.existsSync(distSkillsDir)) {
+    return JSON.stringify({
+      success: true,
+      description: 'dist skills directory does not exist, nothing to clean',
+      deletedFiles: [],
+      deletedDirs: []
+    })
+  }
+
+  const filesToDelete: string[] = []
+  const dirsToDelete: string[] = []
+
+  function hasSourcePromptExtension(fileName: string): boolean {
+    return fileName.endsWith('.src.mdx')
+  }
+
+  function shouldRetainCompiledSkillFile(fileName: string): boolean {
+    return fileName.endsWith('.mdx') && !hasSourcePromptExtension(fileName)
+  }
+
+  function collectCleanupPlan(currentDir: string): boolean {
+    let entries: fs.Dirent[]
+    try {
+      entries = fs.readdirSync(currentDir, {withFileTypes: true})
+    } catch {
+      return false
+    }
+
+    let hasRetainedEntries = false
+    for (const entry of entries) {
+      const entryPath = path.join(currentDir, entry.name)
+      if (entry.isDirectory()) {
+        const childWillBeEmpty = collectCleanupPlan(entryPath)
+        if (childWillBeEmpty) {
+          dirsToDelete.push(entryPath)
+        } else {
+          hasRetainedEntries = true
+        }
+        continue
+      }
+      if (!entry.isFile()) {
+        hasRetainedEntries = true
+        continue
+      }
+      if (shouldRetainCompiledSkillFile(entry.name)) {
+        hasRetainedEntries = true
+        continue
+      }
+      filesToDelete.push(entryPath)
+    }
+    return !hasRetainedEntries
+  }
+
+  const rootWillBeEmpty = collectCleanupPlan(distSkillsDir)
+  if (rootWillBeEmpty) dirsToDelete.push(distSkillsDir)
+
+  const compacted = deskPaths.compactDeletionTargets(filesToDelete, dirsToDelete)
+
+  if (dryRun) {
+    return JSON.stringify({
+      success: true,
+      description: `Would delete ${compacted.files.length} files and ${compacted.dirs.length} directories`,
+      deletedFiles: compacted.files,
+      deletedDirs: compacted.dirs
+    })
+  }
+
+  const result = await deskPaths.deleteTargets({files: compacted.files, dirs: compacted.dirs})
+  const hasErrors = result.fileErrors.length > 0 || result.dirErrors.length > 0
+
+  return JSON.stringify({
+    success: !hasErrors,
+    description: `Deleted ${result.deletedFiles.length} files and ${result.deletedDirs.length} directories`,
+    deletedFiles: result.deletedFiles,
+    deletedDirs: result.deletedDirs,
+    ...(hasErrors ? {error: `${result.fileErrors.length + result.dirErrors.length} errors occurred during cleanup`} : {})
+  })
+}
+
 function tryLoadRealBinary(): Record<string, unknown> | undefined {
   try {
     const _require = createRequire(import.meta.url)
@@ -227,23 +313,55 @@ const testBinding = {
   removeBlockingFile: deskPaths.removeBlockingFile,
   planCleanup,
   performCleanup: runCleanup,
+  performSkillDistCleanup,
   collectBaseOutputPlans,
   collectDroidOutputPlan,
   collectGeminiOutputPlan,
   resolveEffectiveIncludeSeries,
   matchesSeries,
   resolveSubSeries,
-  resolveGitInfoDir,
-  findAllGitRepos,
-  findGitModuleInfoDirs,
-  resolveRuntimeEnvironment: () => JSON.stringify(resolveRuntimeEnvironment()),
-  getEffectiveHomeDir,
-  getGlobalConfigPath,
-  getRequiredGlobalConfigPath,
-  isWslRuntime,
+  resolveGitInfoDir: resolveGitInfoDirFallback,
+  findAllGitRepos: findAllGitReposFallback,
+  findGitModuleInfoDirs: findGitModuleInfoDirsFallback,
+  resolveRuntimeEnvironment: () => JSON.stringify(resolveRuntimeEnvironmentFallback()),
+  getEffectiveHomeDir: getEffectiveHomeDirFallback,
+  getGlobalConfigPath: getGlobalConfigPathFallback,
+  getRequiredGlobalConfigPath: getRequiredGlobalConfigPathFallback,
+  isWslRuntime: isWslRuntimeFallback,
+  syncWindowsConfigIntoWsl: async (contextJson: string, declarationsJson: string, dryRun: boolean) => {
+    const context = JSON.parse(contextJson)
+    const declarations = JSON.parse(declarationsJson)
+    
+    // Create a mock plugin that returns the declarations passed to the native binding
+    const mockPlugin: any = {
+      name: 'MockMirrorPlugin',
+      declareWslMirrorFiles: async () => declarations
+    }
+    
+    // We also need to simulate generated global outputs if they are in the context
+    // but the current wsl-mirror-sync-legacy implementation collects them itself
+    // if we pass it predeclared outputs.
+    
+    const result = await wslMirrorSyncLegacy.syncWindowsConfigIntoWsl([mockPlugin], {
+      collectedOutputContext: context,
+      dryRun,
+      pluginOptions: {
+        windows: context.windows // ensure windows options are passed
+      },
+      logger: {
+        trace: () => {},
+        debug: () => {},
+        info: () => {},
+        warn: () => {},
+        error: () => {},
+        fatal: () => {}
+      }
+    } as any)
+    return JSON.stringify(result)
+  },
   topologicalSort: (inputJson: string) => {
     const nodes = JSON.parse(inputJson) as {name: string, dependsOn?: readonly string[]}[]
-    const sorted = topologicalSortLegacy(nodes)
+    const sorted = topologicalSortFallback(nodes)
     return JSON.stringify(sorted.map(n => n.name))
   },
   listPrompts: async (optionsJson: string) => JSON.stringify(await listPrompts(optionsJson == null ? {} : (JSON.parse(optionsJson) as ListPromptsOptions))),
@@ -276,10 +394,15 @@ const rustPreferredMethods = [
   'removeBlockingFile'
 ]
 
+const legacyTsMethods = [
+  'syncWindowsConfigIntoWsl',
+  'loadConfig'
+]
+
 const realBinaryOverrides: Record<string, unknown> = {}
 if (realBinary != null) {
   for (const method of rustPreferredMethods) {
-    if (method in realBinary) {
+    if (method in realBinary && !legacyTsMethods.includes(method)) {
       realBinaryOverrides[method] = realBinary[method]
     }
   }
