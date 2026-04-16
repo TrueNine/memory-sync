@@ -205,10 +205,7 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
 
     for sub_dir in &["rules", "commands", "agents", "skills"] {
       delete.push(CleanupTargetDto {
-        path: settings_dir
-          .join(sub_dir)
-          .to_string_lossy()
-          .into_owned(),
+        path: settings_dir.join(sub_dir).to_string_lossy().into_owned(),
         kind: CleanupTargetKindDto::Directory,
         exclude_basenames: Vec::new(),
         protection_mode: None,

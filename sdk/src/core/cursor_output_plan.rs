@@ -16,9 +16,13 @@ pub fn collect_cursor_output_plan(context_json: &str) -> Result<String, CliError
   serde_json::to_string(&plan).map_err(CliError::from)
 }
 
-pub fn build_cursor_output_plan(context: &CollectedInputContext) -> Result<BaseOutputPluginPlanDto, CliError> {
+pub fn build_cursor_output_plan(
+  context: &CollectedInputContext,
+) -> Result<BaseOutputPluginPlanDto, CliError> {
   let workspace = context.workspace.as_ref().ok_or_else(|| {
-    CliError::ExecutionError("collectCursorOutputPlan requires collectedOutputContext.workspace".to_string())
+    CliError::ExecutionError(
+      "collectCursorOutputPlan requires collectedOutputContext.workspace".to_string(),
+    )
   })?;
   Ok(BaseOutputPluginPlanDto {
     plugin_name: CURSOR_PLUGIN_NAME.to_string(),
@@ -27,18 +31,29 @@ pub fn build_cursor_output_plan(context: &CollectedInputContext) -> Result<BaseO
   })
 }
 
-fn build_output_files(workspace: &Workspace, context: &CollectedInputContext) -> Vec<BaseOutputFileDeclarationDto> {
+fn build_output_files(
+  workspace: &Workspace,
+  context: &CollectedInputContext,
+) -> Vec<BaseOutputFileDeclarationDto> {
   let mut output_files = Vec::new();
   let prompt_projects = get_project_prompt_output_projects(workspace);
-  let agents_registered = context.registered_output_plugins.as_ref()
-    .map(|plugins| plugins.iter().any(|name| name == AGENTS_OUTPUT_ADAPTOR)).unwrap_or(false);
+  let agents_registered = context
+    .registered_output_plugins
+    .as_ref()
+    .map(|plugins| plugins.iter().any(|name| name == AGENTS_OUTPUT_ADAPTOR))
+    .unwrap_or(false);
 
   if agents_registered {
     if let Some(global_memory) = context.global_memory.as_ref() {
       for project in &prompt_projects {
-        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else { continue };
+        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+          continue;
+        };
         output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir.join(CURSOR_MEMORY_FILE).to_string_lossy().into_owned(),
+          path: project_root_dir
+            .join(CURSOR_MEMORY_FILE)
+            .to_string_lossy()
+            .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
           content: global_memory.content.clone(),
         });
@@ -47,11 +62,17 @@ fn build_output_files(workspace: &Workspace, context: &CollectedInputContext) ->
   } else {
     let global_memory_content = context.global_memory.as_ref().map(|m| m.content.as_str());
     for project in &prompt_projects {
-      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else { continue };
+      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+        continue;
+      };
       if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
-        let combined_content = combine_global_with_content(global_memory_content, &root_prompt.content);
+        let combined_content =
+          combine_global_with_content(global_memory_content, &root_prompt.content);
         output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir.join(CURSOR_MEMORY_FILE).to_string_lossy().into_owned(),
+          path: project_root_dir
+            .join(CURSOR_MEMORY_FILE)
+            .to_string_lossy()
+            .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
           content: combined_content,
         });
@@ -63,7 +84,9 @@ fn build_output_files(workspace: &Workspace, context: &CollectedInputContext) ->
 
 fn combine_global_with_content(global_content: Option<&str>, project_content: &str) -> String {
   match global_content {
-    Some(global) if !global.trim().is_empty() => format!("{}\n\n{}", global.trim(), project_content.trim()),
+    Some(global) if !global.trim().is_empty() => {
+      format!("{}\n\n{}", global.trim(), project_content.trim())
+    }
     _ => project_content.to_string(),
   }
 }
@@ -71,9 +94,14 @@ fn combine_global_with_content(global_content: Option<&str>, project_content: &s
 fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
   let mut delete = Vec::new();
   for project in get_project_output_projects(workspace) {
-    let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else { continue };
+    let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+      continue;
+    };
     delete.push(CleanupTargetDto {
-      path: project_root_dir.join(CURSOR_MEMORY_FILE).to_string_lossy().into_owned(),
+      path: project_root_dir
+        .join(CURSOR_MEMORY_FILE)
+        .to_string_lossy()
+        .into_owned(),
       kind: CleanupTargetKindDto::File,
       exclude_basenames: Vec::new(),
       protection_mode: None,
@@ -81,31 +109,55 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
       label: Some("delete.project".to_string()),
     });
   }
-  CleanupDeclarationsDto { delete, ..CleanupDeclarationsDto::default() }
+  CleanupDeclarationsDto {
+    delete,
+    ..CleanupDeclarationsDto::default()
+  }
 }
 
 fn get_concrete_projects(workspace: &Workspace) -> impl Iterator<Item = &Project> {
-  workspace.projects.iter().filter(|p| p.is_workspace_root_project != Some(true))
+  workspace
+    .projects
+    .iter()
+    .filter(|p| p.is_workspace_root_project != Some(true))
 }
 
 fn get_project_output_projects(workspace: &Workspace) -> Vec<&Project> {
   let mut projects: Vec<&Project> = get_concrete_projects(workspace).collect();
-  if let Some(root) = workspace.projects.iter().find(|p| p.is_workspace_root_project == Some(true)) { projects.push(root); }
+  if let Some(root) = workspace
+    .projects
+    .iter()
+    .find(|p| p.is_workspace_root_project == Some(true))
+  {
+    projects.push(root);
+  }
   projects
 }
 
 fn get_project_prompt_output_projects(workspace: &Workspace) -> Vec<&Project> {
-  get_project_output_projects(workspace).into_iter().filter(|p| p.is_prompt_source_project != Some(true)).collect()
+  get_project_output_projects(workspace)
+    .into_iter()
+    .filter(|p| p.is_prompt_source_project != Some(true))
+    .collect()
 }
 
 fn resolve_project_root_dir(workspace: &Workspace, project: &Project) -> Option<PathBuf> {
-  if project.is_workspace_root_project == Some(true) { return Some(PathBuf::from(&workspace.directory.path)); }
-  project.dir_from_workspace_path.as_ref().map(resolve_relative_path)
+  if project.is_workspace_root_project == Some(true) {
+    return Some(PathBuf::from(&workspace.directory.path));
+  }
+  project
+    .dir_from_workspace_path
+    .as_ref()
+    .map(resolve_relative_path)
 }
 
 fn resolve_relative_path(rp: &RelativePath) -> PathBuf {
   let raw = std::path::Path::new(&rp.path);
-  if raw.is_absolute() { return raw.to_path_buf(); }
-  if rp.base_path.is_empty() { return raw.to_path_buf(); }
+  if raw.is_absolute() {
+    return raw.to_path_buf();
+  }
+  if rp.base_path.is_empty() {
+    return raw.to_path_buf();
+  }
   PathBuf::from(&rp.base_path).join(raw)
 }

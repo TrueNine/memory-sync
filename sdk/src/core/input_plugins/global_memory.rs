@@ -69,8 +69,12 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
 
   let global_scope_json = options.global_scope.as_ref().map(|v| v.to_string());
 
-  let artifact = read_prompt_artifact(&global_memory_file_str, "dist", global_scope_json.as_deref())
-    .map_err(|e| crate::CliError::ConfigError(e))?;
+  let artifact = read_prompt_artifact(
+    &global_memory_file_str,
+    "dist",
+    global_scope_json.as_deref(),
+  )
+  .map_err(|e| crate::CliError::ConfigError(e))?;
 
   let content = artifact.content.clone();
   let length = content.len();
