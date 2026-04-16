@@ -545,6 +545,60 @@ mod napi_binding {
       .map_err(|e| napi::Error::from_reason(e.to_string()))
   }
 
+  #[napi(js_name = "collectClaudeCodeOutputPlan")]
+  pub fn collect_claude_code_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::claude_code_output_plan::collect_claude_code_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectCodexOutputPlan")]
+  pub fn collect_codex_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::codex_output_plan::collect_codex_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectOpencodeOutputPlan")]
+  pub fn collect_opencode_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::opencode_output_plan::collect_opencode_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectTraeOutputPlan")]
+  pub fn collect_trae_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::trae_output_plan::collect_trae_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectCursorOutputPlan")]
+  pub fn collect_cursor_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::cursor_output_plan::collect_cursor_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectWindsurfOutputPlan")]
+  pub fn collect_windsurf_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::windsurf_output_plan::collect_windsurf_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectJetBrainsAIAssistantCodexOutputPlan")]
+  pub fn collect_jetbrains_ai_assistant_codex_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::jetbrains_ai_assistant_codex_output_plan::collect_jetbrains_ai_assistant_codex_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectQoderOutputPlan")]
+  pub fn collect_qoder_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::qoder_output_plan::collect_qoder_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectGenericSkillsOutputPlan")]
+  pub fn collect_generic_skills_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::generic_skills_output_plan::collect_generic_skills_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
   #[napi(js_name = "performSkillDistCleanup")]
   pub fn perform_skill_dist_cleanup_binding(
     dist_skills_dir: String,

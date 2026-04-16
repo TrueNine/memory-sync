@@ -12,6 +12,8 @@ struct GlobalMemoryInputOptions {
   workspace_dir: String,
   #[serde(default)]
   aindex: Option<GlobalMemoryAindexInput>,
+  #[serde(default)]
+  global_scope: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -65,7 +67,9 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
     return Ok("{}".to_string());
   }
 
-  let artifact = read_prompt_artifact(&global_memory_file_str, "dist", None)
+  let global_scope_json = options.global_scope.as_ref().map(|v| v.to_string());
+
+  let artifact = read_prompt_artifact(&global_memory_file_str, "dist", global_scope_json.as_deref())
     .map_err(|e| crate::CliError::ConfigError(e))?;
 
   let content = artifact.content.clone();
