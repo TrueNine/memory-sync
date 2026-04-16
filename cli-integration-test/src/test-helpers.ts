@@ -1,6 +1,6 @@
 import type {CliIntegrationArtifacts} from './artifacts'
 import type {PreparedCliIntegrationContainer} from './container'
-import {describe} from 'vitest'
+import {describe, expect} from 'vitest'
 import {createPreparedCliIntegrationContainer} from './container'
 
 export interface FixtureWithCleanup {
@@ -10,7 +10,14 @@ export interface FixtureWithCleanup {
 }
 
 export const supportedHost = process.platform === 'linux' && process.arch === 'x64'
-export const describeForHost = supportedHost ? describe : describe.skip
+
+export function describeForHost(name: string, fn: () => void): void {
+  if (supportedHost) {
+    describe(name, fn)
+  } else {
+    describe.skip(name, fn)
+  }
+}
 
 export function expectSuccess(exitCode: number): void {
   expect(exitCode).toBe(0)

@@ -1,5 +1,4 @@
 import type {CliIntegrationArtifacts} from '../src/artifacts'
-import type {PreparedCliIntegrationContainer} from '../src/container'
 import {beforeAll, describe, expect, it} from 'vitest'
 import {prepareCliIntegrationArtifacts} from '../src/artifacts'
 import {CONTAINER_EXTERNAL_CWD} from '../src/fixtures'
@@ -10,7 +9,6 @@ import {
   createTraeInterpolationFixture,
 } from '../src/fixtures'
 import {
-  assertDistContent,
   describeForHost,
   expectSuccess,
   withPluginEnvironment,
