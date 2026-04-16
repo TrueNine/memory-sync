@@ -445,12 +445,8 @@ const OUTPUT_PLUGIN_ENABLEMENT_RULES: Readonly<Record<string, OutputAdaptorEnabl
     configKey: 'readme',
     defaultEnabled: true
   },
-  TraeIDEOutputAdaptor: {
+  TraeOutputAdaptor: {
     configKey: 'trae',
-    defaultEnabled: false
-  },
-  TraeCNIDEOutputAdaptor: {
-    configKey: 'traeCn',
     defaultEnabled: false
   },
   VisualStudioCodeIDEConfigOutputAdaptor: {
