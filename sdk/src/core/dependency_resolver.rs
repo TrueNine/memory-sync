@@ -12,12 +12,12 @@ pub enum DependencyResolverError {
   },
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct DependencyNodeInput {
-  name: String,
+pub struct DependencyNodeInput {
+  pub name: String,
   #[serde(default)]
-  depends_on: Vec<String>,
+  pub depends_on: Vec<String>,
 }
 
 fn find_cycle_path(
@@ -85,17 +85,13 @@ fn dfs_find_cycle(
   false
 }
 
-pub fn topological_sort(input_json: &str) -> Result<String, DependencyResolverError> {
-  let nodes: Vec<DependencyNodeInput> =
-    serde_json::from_str(input_json).map_err(|e| DependencyResolverError::MissingDependency {
-      node_name: format!("invalid input: {}", e),
-      missing_dependency: String::new(),
-    })?;
-
+pub fn topological_sort_nodes(
+  nodes: &[DependencyNodeInput],
+) -> Result<Vec<String>, DependencyResolverError> {
   let node_names: std::collections::HashSet<String> =
     nodes.iter().map(|n| n.name.clone()).collect();
 
-  for node in &nodes {
+  for node in nodes {
     for dep in &node.depends_on {
       if !node_names.contains(dep) {
         return Err(DependencyResolverError::MissingDependency {
@@ -108,12 +104,12 @@ pub fn topological_sort(input_json: &str) -> Result<String, DependencyResolverEr
 
   let mut in_degree: HashMap<String, usize> = HashMap::new();
   let mut dependents: HashMap<String, Vec<String>> = HashMap::new();
-  for node in &nodes {
+  for node in nodes {
     in_degree.insert(node.name.clone(), 0);
     dependents.insert(node.name.clone(), Vec::new());
   }
 
-  for node in &nodes {
+  for node in nodes {
     for dep in &node.depends_on {
       *in_degree.get_mut(&node.name).unwrap() += 1;
       dependents.get_mut(dep).unwrap().push(node.name.clone());
@@ -121,7 +117,7 @@ pub fn topological_sort(input_json: &str) -> Result<String, DependencyResolverEr
   }
 
   let mut queue: VecDeque<String> = VecDeque::new();
-  for node in &nodes {
+  for node in nodes {
     if in_degree.get(&node.name).copied().unwrap_or(0) == 0 {
       queue.push_back(node.name.clone());
     }
@@ -154,16 +150,42 @@ pub fn topological_sort(input_json: &str) -> Result<String, DependencyResolverEr
   }
 
   if result.len() == nodes.len() {
-    Ok(serde_json::to_string(&result).unwrap())
+    Ok(result)
   } else {
-    let cycle_path = find_cycle_path(&nodes, &in_degree);
+    let cycle_path = find_cycle_path(nodes, &in_degree);
     Err(DependencyResolverError::CircularDependency { cycle_path })
   }
 }
 
+pub fn topological_sort(input_json: &str) -> Result<String, DependencyResolverError> {
+  let nodes: Vec<DependencyNodeInput> =
+    serde_json::from_str(input_json).map_err(|e| DependencyResolverError::MissingDependency {
+      node_name: format!("invalid input: {}", e),
+      missing_dependency: String::new(),
+    })?;
+
+  topological_sort_nodes(&nodes).map(|sorted| serde_json::to_string(&sorted).unwrap())
+}
+
 #[cfg(feature = "napi")]
-mod napi_binding {
+pub mod napi_binding {
   use napi_derive::napi;
+
+  #[napi(object)]
+  pub struct DependencyNodeInput {
+    pub name: String,
+    #[napi(js_name = "dependsOn")]
+    pub depends_on: Vec<String>,
+  }
+
+  impl From<DependencyNodeInput> for super::DependencyNodeInput {
+    fn from(value: DependencyNodeInput) -> Self {
+      Self {
+        name: value.name,
+        depends_on: value.depends_on,
+      }
+    }
+  }
 
   #[napi(js_name = "topologicalSort")]
   pub fn topological_sort_binding(input_json: String) -> napi::Result<String> {
@@ -172,6 +194,29 @@ mod napi_binding {
         serde_json::to_string(&e).unwrap_or_else(|_| "dependency resolver error".to_string());
       napi::Error::from_reason(msg)
     })
+  }
+
+  #[napi(js_name = "topologicalSortNodes")]
+  pub fn topological_sort_nodes_binding(
+    nodes: Vec<DependencyNodeInput>,
+  ) -> napi::Result<Vec<String>> {
+    let nodes: Vec<super::DependencyNodeInput> = nodes.into_iter().map(Into::into).collect();
+    super::topological_sort_nodes(&nodes).map_err(|e| {
+      let msg =
+        serde_json::to_string(&e).unwrap_or_else(|_| "dependency resolver error".to_string());
+      napi::Error::from_reason(msg)
+    })
+  }
+
+  #[napi(js_name = "findCyclePath")]
+  pub fn find_cycle_path_binding(
+    nodes: Vec<DependencyNodeInput>,
+    in_degree_json: String,
+  ) -> napi::Result<Vec<String>> {
+    let nodes: Vec<super::DependencyNodeInput> = nodes.into_iter().map(Into::into).collect();
+    let in_degree: std::collections::HashMap<String, usize> =
+      serde_json::from_str(&in_degree_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
+    Ok(super::find_cycle_path(&nodes, &in_degree))
   }
 }
 
@@ -193,24 +238,21 @@ mod tests {
   #[test]
   fn sorts_nodes_with_no_dependencies() {
     let nodes = nodes_from(&["a", "b", "c"], &[vec![], vec![], vec![]]);
-    let result = topological_sort(&serde_json::to_string(&nodes).unwrap()).unwrap();
-    let sorted: Vec<String> = serde_json::from_str(&result).unwrap();
+    let sorted = topological_sort_nodes(&nodes).unwrap();
     assert_eq!(sorted, vec!["a", "b", "c"]);
   }
 
   #[test]
   fn respects_dependency_order() {
     let nodes = nodes_from(&["a", "b", "c"], &[vec![], vec!["a"], vec!["b"]]);
-    let result = topological_sort(&serde_json::to_string(&nodes).unwrap()).unwrap();
-    let sorted: Vec<String> = serde_json::from_str(&result).unwrap();
+    let sorted = topological_sort_nodes(&nodes).unwrap();
     assert_eq!(sorted, vec!["a", "b", "c"]);
   }
 
   #[test]
   fn preserves_registration_order_for_same_level() {
     let nodes = nodes_from(&["x", "y", "z"], &[vec![], vec![], vec![]]);
-    let result = topological_sort(&serde_json::to_string(&nodes).unwrap()).unwrap();
-    let sorted: Vec<String> = serde_json::from_str(&result).unwrap();
+    let sorted = topological_sort_nodes(&nodes).unwrap();
     assert_eq!(sorted, vec!["x", "y", "z"]);
   }
 
@@ -220,15 +262,14 @@ mod tests {
       &["a", "b", "c", "d"],
       &[vec![], vec![], vec!["a"], vec!["a"]],
     );
-    let result = topological_sort(&serde_json::to_string(&nodes).unwrap()).unwrap();
-    let sorted: Vec<String> = serde_json::from_str(&result).unwrap();
+    let sorted = topological_sort_nodes(&nodes).unwrap();
     assert_eq!(sorted, vec!["a", "b", "c", "d"]);
   }
 
   #[test]
   fn detects_missing_dependency() {
     let nodes = nodes_from(&["a"], &[vec!["missing"]]);
-    let err = topological_sort(&serde_json::to_string(&nodes).unwrap()).unwrap_err();
+    let err = topological_sort_nodes(&nodes).unwrap_err();
     match err {
       DependencyResolverError::MissingDependency {
         node_name,
@@ -244,7 +285,7 @@ mod tests {
   #[test]
   fn detects_simple_cycle() {
     let nodes = nodes_from(&["a", "b"], &[vec!["b"], vec!["a"]]);
-    let err = topological_sort(&serde_json::to_string(&nodes).unwrap()).unwrap_err();
+    let err = topological_sort_nodes(&nodes).unwrap_err();
     match err {
       DependencyResolverError::CircularDependency { cycle_path } => {
         assert!(cycle_path.contains(&"a".to_string()));
@@ -257,7 +298,7 @@ mod tests {
   #[test]
   fn detects_self_cycle() {
     let nodes = nodes_from(&["a"], &[vec!["a"]]);
-    let err = topological_sort(&serde_json::to_string(&nodes).unwrap()).unwrap_err();
+    let err = topological_sort_nodes(&nodes).unwrap_err();
     match err {
       DependencyResolverError::CircularDependency { cycle_path } => {
         assert!(cycle_path.contains(&"a".to_string()));
@@ -272,7 +313,7 @@ mod tests {
       &["a", "b", "c", "d"],
       &[vec![], vec!["c"], vec!["d"], vec!["b"]],
     );
-    let result = topological_sort(&serde_json::to_string(&nodes).unwrap());
+    let result = topological_sort_nodes(&nodes);
     assert!(result.is_err());
   }
 
@@ -282,8 +323,7 @@ mod tests {
       &["a", "b", "c", "d", "e"],
       &[vec![], vec!["a"], vec!["a"], vec!["b", "c"], vec![]],
     );
-    let result = topological_sort(&serde_json::to_string(&nodes).unwrap()).unwrap();
-    let sorted: Vec<String> = serde_json::from_str(&result).unwrap();
+    let sorted = topological_sort_nodes(&nodes).unwrap();
     assert_eq!(sorted[0], "a");
     assert_eq!(sorted[1], "e");
     let b_idx = sorted.iter().position(|s| s == "b").unwrap();
@@ -292,6 +332,14 @@ mod tests {
     let d_idx = sorted.iter().position(|s| s == "d").unwrap();
     assert!(d_idx > b_idx);
     assert!(d_idx > c_idx);
+  }
+
+  #[test]
+  fn topological_sort_json_still_works() {
+    let nodes = nodes_from(&["a", "b"], &[vec![], vec!["a"]]);
+    let result = topological_sort(&serde_json::to_string(&nodes).unwrap()).unwrap();
+    let sorted: Vec<String> = serde_json::from_str(&result).unwrap();
+    assert_eq!(sorted, vec!["a", "b"]);
   }
 
   #[test]
