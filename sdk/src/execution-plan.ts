@@ -1,9 +1,9 @@
 import type {AindexProjectSeriesName} from './adaptors/adaptor-core/AindexConfigDefaults'
 import type {
-  OutputCollectedContext,
-  Project
+  OutputCollectedContext
 } from './adaptors/adaptor-core/InputTypes'
-import * as path from 'node:path'
+import {getNativeBinding} from './core/native-binding'
+import * as executionPlanLegacy from './execution-plan-legacy'
 
 export type ExecutionScope
   = | 'workspace'
@@ -59,196 +59,27 @@ interface PathScopedEntry {
   readonly scope?: string
 }
 
-type ScopedTargetOwnership = 'global' | 'workspace' | 'project' | 'external'
-
-const EMPTY_PROJECTS_BY_SERIES: ExecutionPlanProjectsByType = Object.freeze({
-  app: Object.freeze([]),
-  ext: Object.freeze([]),
-  arch: Object.freeze([]),
-  softwares: Object.freeze([])
-})
-
-function normalizeAbsolutePath(rawPath: string): string {
-  return path.resolve(rawPath)
-}
-
-function isSameOrChildPath(candidatePath: string, parentPath: string): boolean {
-  const normalizedCandidate = normalizeAbsolutePath(candidatePath)
-  const normalizedParent = normalizeAbsolutePath(parentPath)
-  if (normalizedCandidate === normalizedParent) return true
-  const relativePath = path.relative(normalizedParent, normalizedCandidate)
-  return (
-    relativePath.length > 0
-    && relativePath !== '..'
-    && !relativePath.startsWith(`..${path.sep}`)
-    && !path.isAbsolute(relativePath)
-  )
-}
-
-function toManagedProjectSummary(
-  project: Project
-): ExecutionPlanProjectSummary | undefined {
-  if (project.isWorkspaceRootProject === true) return void 0
-  const projectName = project.name
-  const projectRootDir = project.dirFromWorkspacePath?.getAbsolutePath()
-  if (projectName == null || projectRootDir == null) return void 0
-
-  return {
-    name: projectName,
-    rootDir: normalizeAbsolutePath(projectRootDir),
-    ...project.projectType != null ? {projectType: project.projectType} : {}
-  }
-}
-
-function sortProjects(
-  projects: readonly ExecutionPlanProjectSummary[]
-): readonly ExecutionPlanProjectSummary[] {
-  return [...projects].sort((left, right) => {
-    const leftType = left.projectType ?? ''
-    const rightType = right.projectType ?? ''
-    if (leftType !== rightType)
-    { return leftType.localeCompare(rightType) }
-    return left.name.localeCompare(right.name)
-  })
-}
-
-function collectManagedProjects(
-  context: OutputCollectedContext
-): readonly ExecutionPlanProjectSummary[] {
-  return sortProjects(
-    context.workspace.projects
-      .map(toManagedProjectSummary)
-      .filter(
-        (project): project is ExecutionPlanProjectSummary => project != null
-      )
-  )
-}
-
-function groupProjectsByType(
-  projects: readonly ExecutionPlanProjectSummary[]
-): ExecutionPlanProjectsByType {
-  const grouped: Record<
-    AindexProjectSeriesName,
-    ExecutionPlanProjectSummary[]
-  > = {
-    app: [],
-    ext: [],
-    arch: [],
-    softwares: []
-  }
-
-  for (const project of projects) {
-    if (project.projectType == null) continue
-    grouped[project.projectType].push(project)
-  }
-
-  return {
-    app: Object.freeze([...grouped.app]),
-    ext: Object.freeze([...grouped.ext]),
-    arch: Object.freeze([...grouped.arch]),
-    softwares: Object.freeze([...grouped.softwares])
-  }
-}
-
-function findMatchedProject(
-  cwd: string,
-  managedProjects: readonly ExecutionPlanProjectSummary[]
-): ExecutionPlanProjectSummary | undefined {
-  const matches = managedProjects.filter(project =>
-    isSameOrChildPath(cwd, project.rootDir))
-  if (matches.length === 0) return void 0
-
-  return [...matches].sort(
-    (left, right) => right.rootDir.length - left.rootDir.length
-  )[0]
-}
-
 export function createEmptyExecutionPlanProjectsByType(): ExecutionPlanProjectsByType {
-  return EMPTY_PROJECTS_BY_SERIES
+  return {
+    app: Object.freeze([]),
+    ext: Object.freeze([]),
+    arch: Object.freeze([]),
+    softwares: Object.freeze([])
+  } as unknown as ExecutionPlanProjectsByType
 }
 
 export function resolveExecutionPlan(
   context: OutputCollectedContext,
   executionCwd: string
 ): ExecutionPlan {
-  const cwd = normalizeAbsolutePath(executionCwd)
-  const workspaceDir = normalizeAbsolutePath(context.workspace.directory.path)
-  const managedProjects = collectManagedProjects(context)
-  const projectsByType
-    = managedProjects.length === 0
-      ? createEmptyExecutionPlanProjectsByType()
-      : groupProjectsByType(managedProjects)
+  const native = getNativeBinding<{
+    resolveExecutionPlan?: (contextJson: string, executionCwd: string) => string
+  }>()
 
-  if (cwd === workspaceDir) {
-    return {
-      scope: 'workspace',
-      cwd,
-      workspaceDir,
-      projectsByType
-    }
-  }
+  if (native?.resolveExecutionPlan == null) return executionPlanLegacy.resolveExecutionPlan(context, executionCwd)
 
-  const matchedProject = findMatchedProject(cwd, managedProjects)
-  if (matchedProject != null) {
-    return {
-      scope: 'project',
-      cwd,
-      workspaceDir,
-      projectsByType,
-      matchedProject
-    }
-  }
-
-  if (isSameOrChildPath(cwd, workspaceDir)) {
-    return {
-      scope: 'unsupported',
-      cwd,
-      workspaceDir,
-      projectsByType,
-      managedProjects
-    }
-  }
-
-  return {
-    scope: 'external',
-    cwd,
-    workspaceDir,
-    projectsByType
-  }
-}
-
-function isGlobalScopedEntry(scope: string | undefined): boolean {
-  return scope === 'global' || scope === 'xdgConfig'
-}
-
-function classifyPathScopedEntry(
-  entry: PathScopedEntry,
-  workspaceDir: string,
-  managedProjects: readonly ExecutionPlanProjectSummary[]
-): ScopedTargetOwnership {
-  if (isGlobalScopedEntry(entry.scope)) return 'global'
-
-  const entryPath = normalizeAbsolutePath(entry.path)
-  const ownerProject = findMatchedProject(entryPath, managedProjects)
-  if (ownerProject != null) return 'project'
-  if (isSameOrChildPath(entryPath, workspaceDir)) return 'workspace'
-  return 'external'
-}
-
-function shouldIncludeTargetOwnership(
-  plan: ExecutionPlan,
-  ownership: ScopedTargetOwnership,
-  entryPath: string,
-  managedProjects: readonly ExecutionPlanProjectSummary[]
-): boolean {
-  if (plan.scope === 'unsupported') return false
-  if (ownership === 'global') return true
-  if (plan.scope === 'external') return true
-  if (plan.scope === 'workspace') return ownership === 'workspace'
-  if (ownership !== 'project') return false
-
-  const matchedProject = findMatchedProject(entryPath, managedProjects)
-  return matchedProject?.rootDir === plan.matchedProject.rootDir
+  const result = native.resolveExecutionPlan(JSON.stringify(context), executionCwd)
+  return JSON.parse(result) as ExecutionPlan
 }
 
 export function filterPathScopedEntriesForExecutionPlan<
@@ -260,14 +91,22 @@ export function filterPathScopedEntriesForExecutionPlan<
 ): T[] {
   if (plan == null) return [...entries]
 
-  const workspaceDir = normalizeAbsolutePath(context.workspace.directory.path)
-  const managedProjects = collectManagedProjects(context)
+  const native = getNativeBinding<{
+    filterPathScopedEntriesForExecutionPlan?: (
+      entries: readonly T[],
+      planJson: string,
+      contextJson: string
+    ) => readonly T[]
+  }>()
 
-  return entries.filter(entry =>
-    shouldIncludeTargetOwnership(
-      plan,
-      classifyPathScopedEntry(entry, workspaceDir, managedProjects),
-      entry.path,
-      managedProjects
-    ))
+  if (native?.filterPathScopedEntriesForExecutionPlan == null) return executionPlanLegacy.filterPathScopedEntriesForExecutionPlan(entries, plan, context)
+
+  const filteredPaths = new Set(
+    native.filterPathScopedEntriesForExecutionPlan(
+      entries,
+      JSON.stringify(plan),
+      JSON.stringify(context)
+    ).map(r => r.path)
+  )
+  return entries.filter(entry => filteredPaths.has(entry.path))
 }
