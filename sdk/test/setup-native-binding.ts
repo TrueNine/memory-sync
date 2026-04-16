@@ -5,12 +5,9 @@ import {createRequire} from 'node:module'
 import * as path from 'node:path'
 import glob from 'fast-glob'
 import {AdaptorKind, FilePathKind} from '../src/adaptors/adaptor-core/enums.ts'
-import {
-  findAllGitReposFallback,
-  findGitModuleInfoDirsFallback,
-  resolveGitInfoDirFallback
-} from '../src/adaptors/adaptor-core/git-discovery'
+import {findAllGitReposFallback, findGitModuleInfoDirsFallback, resolveGitInfoDirFallback} from '../src/adaptors/adaptor-core/git-discovery'
 import {getPrompt, listPrompts, upsertPromptSource, writePromptArtifacts} from '../src/internal/prompts-legacy'
+import {topologicalSortFallback} from '../src/pipeline/DependencyResolver'
 import {
   getEffectiveHomeDirFallback,
   getGlobalConfigPathFallback,
@@ -18,7 +15,6 @@ import {
   isWslRuntimeFallback,
   resolveRuntimeEnvironmentFallback
 } from '../src/runtime-environment'
-import {topologicalSortFallback} from '../src/pipeline/DependencyResolver'
 
 import * as wslMirrorSyncLegacy from '../src/wsl-mirror-sync-legacy'
 
@@ -64,18 +60,12 @@ interface NativeCleanupSnapshot {
 
 function createMockLogger(): ILogger {
   return {
-    trace: () => {
-    },
-    debug: () => {
-    },
-    info: () => {
-    },
-    warn: () => {
-    },
-    error: () => {
-    },
-    fatal: () => {
-    }
+    trace: () => {},
+    debug: () => {},
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+    fatal: () => {}
   } satisfies ILogger
 }
 
@@ -280,7 +270,88 @@ async function performSkillDistCleanup(distSkillsDir: string, dryRun: boolean): 
     description: `Deleted ${result.deletedFiles.length} files and ${result.deletedDirs.length} directories`,
     deletedFiles: result.deletedFiles,
     deletedDirs: result.deletedDirs,
-    ...(hasErrors ? {error: `${result.fileErrors.length + result.dirErrors.length} errors occurred during cleanup`} : {})
+    ...hasErrors ? {error: `${result.fileErrors.length + result.dirErrors.length} errors occurred during cleanup`} : {}
+  })
+}
+
+function performMdCleanup(dirs: string[], dryRun: boolean): string {
+  const modifiedFiles: string[] = []
+  const skippedFiles: string[] = []
+  const errors: {path: string, error: Error}[] = []
+
+  function cleanMarkdownContent(content: string): string {
+    const lineEnding = content.includes('\r\n') ? '\r\n' : '\n'
+    const lines = content.split(/\r?\n/)
+    const trimmedLines = lines.map(line => line.replace(/[ \t]+$/, ''))
+
+    const result: string[] = []
+    let consecutiveBlankCount = 0
+
+    for (const line of trimmedLines) {
+      if (line === '') {
+        consecutiveBlankCount++
+        if (consecutiveBlankCount <= 2) result.push(line)
+      } else {
+        consecutiveBlankCount = 0
+        result.push(line)
+      }
+    }
+
+    return result.join(lineEnding)
+  }
+
+  function processMarkdownFile(filePath: string): void {
+    try {
+      const originalContent = fs.readFileSync(filePath, 'utf8')
+      const cleanedContent = cleanMarkdownContent(originalContent)
+
+      if (originalContent === cleanedContent) {
+        skippedFiles.push(filePath)
+        return
+      }
+
+      if (!dryRun) {
+        fs.writeFileSync(filePath, cleanedContent, 'utf8')
+      }
+      modifiedFiles.push(filePath)
+    } catch (err) {
+      errors.push({path: filePath, error: err as Error})
+    }
+  }
+
+  function processDirectory(dir: string): void {
+    let entries: fs.Dirent[]
+    try {
+      entries = fs.readdirSync(dir, {withFileTypes: true})
+    } catch (err) {
+      errors.push({path: dir, error: err as Error})
+      return
+    }
+
+    for (const entry of entries) {
+      const entryPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        processDirectory(entryPath)
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        processMarkdownFile(entryPath)
+      }
+    }
+  }
+
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) continue
+    processDirectory(dir)
+  }
+
+  const hasErrors = errors.length > 0
+  return JSON.stringify({
+    success: !hasErrors,
+    description: dryRun
+      ? `Would modify ${modifiedFiles.length} files, skip ${skippedFiles.length} files`
+      : `Modified ${modifiedFiles.length} files, skipped ${skippedFiles.length} files`,
+    modifiedFiles,
+    skippedFiles,
+    ...hasErrors ? {error: `${errors.length} errors occurred during cleanup`} : {}
   })
 }
 
@@ -288,8 +359,7 @@ function tryLoadRealBinary(): Record<string, unknown> | undefined {
   try {
     const _require = createRequire(import.meta.url)
     return _require('../../cli/npm/linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node') as Record<string, unknown>
-  }
-  catch {}
+  } catch {}
 }
 
 const realBinary = tryLoadRealBinary()
@@ -314,6 +384,7 @@ const testBinding = {
   planCleanup,
   performCleanup: runCleanup,
   performSkillDistCleanup,
+  performMdCleanup,
   collectBaseOutputPlans,
   collectDroidOutputPlan,
   collectGeminiOutputPlan,
@@ -329,24 +400,24 @@ const testBinding = {
   getRequiredGlobalConfigPath: getRequiredGlobalConfigPathFallback,
   isWslRuntime: isWslRuntimeFallback,
   syncWindowsConfigIntoWsl: async (contextJson: string, declarationsJson: string, dryRun: boolean) => {
-    const context = JSON.parse(contextJson)
-    const declarations = JSON.parse(declarationsJson)
-    
+    const context = JSON.parse(contextJson) as Record<string, unknown>
+    const declarations = JSON.parse(declarationsJson) as unknown
+
     // Create a mock plugin that returns the declarations passed to the native binding
-    const mockPlugin: any = {
+    const mockPlugin = {
       name: 'MockMirrorPlugin',
       declareWslMirrorFiles: async () => declarations
-    }
-    
+    } as unknown as OutputAdaptor
+
     // We also need to simulate generated global outputs if they are in the context
     // but the current wsl-mirror-sync-legacy implementation collects them itself
     // if we pass it predeclared outputs.
-    
+
     const result = await wslMirrorSyncLegacy.syncWindowsConfigIntoWsl([mockPlugin], {
       collectedOutputContext: context,
       dryRun,
       pluginOptions: {
-        windows: context.windows // ensure windows options are passed
+        windows: context['windows'] // ensure windows options are passed
       },
       logger: {
         trace: () => {},
@@ -356,7 +427,7 @@ const testBinding = {
         error: () => {},
         fatal: () => {}
       }
-    } as any)
+    } as unknown)
     return JSON.stringify(result)
   },
   topologicalSort: (inputJson: string) => {
@@ -394,10 +465,7 @@ const rustPreferredMethods = [
   'removeBlockingFile'
 ]
 
-const legacyTsMethods = [
-  'syncWindowsConfigIntoWsl',
-  'loadConfig'
-]
+const legacyTsMethods = ['syncWindowsConfigIntoWsl', 'loadConfig']
 
 const realBinaryOverrides: Record<string, unknown> = {}
 if (realBinary != null) {
