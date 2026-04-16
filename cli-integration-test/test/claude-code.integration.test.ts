@@ -69,6 +69,7 @@ describeForHost('claude code cli integration', () => {
 
       await withPluginEnvironment(artifacts, fixture, async container => {
         const result = container.exec('tnmsc', CONTAINER_EXTERNAL_CWD)
+        if (result.exitCode !== 0) throw new Error(`exit ${result.exitCode}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`)
         expectSuccess(result.exitCode)
 
         assertPathStates(container, [

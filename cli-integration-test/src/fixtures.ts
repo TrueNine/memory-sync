@@ -374,6 +374,7 @@ export function createClaudeCodeFixture(): ClaudeCodeFixture {
   writeManagedProjectFixtures(workspaceDir);
   writeProjectPromptFixtures(workspaceDir);
   writeRuleFixtures(workspaceDir);
+  seedWorkspaceGit(workspaceDir);
 
   return {
     rootDir,
@@ -433,6 +434,7 @@ export function createTraeFixture(): TraeFixture {
   writeManagedProjectFixtures(workspaceDir);
   writeProjectPromptFixtures(workspaceDir);
   writeRuleFixtures(workspaceDir);
+  seedWorkspaceGit(workspaceDir);
 
   return {
     rootDir,
@@ -493,6 +495,7 @@ export function createOpencodeFixture(): OpencodeFixture {
   writeManagedProjectFixtures(workspaceDir);
   writeProjectPromptFixtures(workspaceDir);
   writeRuleFixtures(workspaceDir);
+  seedWorkspaceGit(workspaceDir);
 
   return {
     rootDir,
@@ -540,6 +543,7 @@ export function createCodexInterpolationFixture(): CodexInterpolationFixture {
   writeInterpolationSubAgentFixtures(workspaceDir);
   writeInterpolationSkillFixtures(workspaceDir);
   writeManagedProjectFixtures(workspaceDir);
+  seedWorkspaceGit(workspaceDir);
 
   return {
     rootDir,
@@ -589,6 +593,7 @@ export function createClaudeCodeInterpolationFixture(): ClaudeCodeInterpolationF
   writeManagedProjectFixtures(workspaceDir);
   writeInterpolationProjectPromptFixtures(workspaceDir);
   writeInterpolationRuleFixtures(workspaceDir);
+  seedWorkspaceGit(workspaceDir);
 
   return {
     rootDir,
@@ -636,6 +641,7 @@ export function createTraeInterpolationFixture(): TraeInterpolationFixture {
   writeManagedProjectFixtures(workspaceDir);
   writeInterpolationProjectPromptFixtures(workspaceDir);
   writeInterpolationRuleFixtures(workspaceDir);
+  seedWorkspaceGit(workspaceDir);
 
   return {
     rootDir,
@@ -686,6 +692,7 @@ export function createOpencodeInterpolationFixture(): OpencodeInterpolationFixtu
   writeManagedProjectFixtures(workspaceDir);
   writeInterpolationProjectPromptFixtures(workspaceDir);
   writeInterpolationRuleFixtures(workspaceDir);
+  seedWorkspaceGit(workspaceDir);
 
   return {
     rootDir,
