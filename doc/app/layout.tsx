@@ -1,21 +1,8 @@
 import type {Metadata} from 'next'
-import {Inter, JetBrains_Mono} from 'next/font/google'
 import React from 'react'
 import {getSiteUrl, siteConfig, withBasePath} from '@/lib/site'
 import 'nextra-theme-docs/style.css'
 import './globals.scss'
-
-const sans = Inter({
-  variable: '--font-sans',
-  preload: true,
-  subsets: ['latin']
-})
-
-const mono = JetBrains_Mono({
-  variable: '--font-mono',
-  subsets: ['latin'],
-  preload: true
-})
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl('/'),
@@ -54,7 +41,7 @@ export default function RootLayout({children}: {readonly children: React.ReactNo
       style={{colorScheme: 'dark', backgroundColor: '#0b0c10'}}
       suppressHydrationWarning
     >
-      <body className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         {children}
       </body>
     </html>
