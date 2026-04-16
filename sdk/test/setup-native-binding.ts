@@ -430,10 +430,9 @@ const testBinding = {
     } as unknown)
     return JSON.stringify(result)
   },
-  topologicalSort: (inputJson: string) => {
-    const nodes = JSON.parse(inputJson) as {name: string, dependsOn?: readonly string[]}[]
-    const sorted = topologicalSortFallback(nodes)
-    return JSON.stringify(sorted.map(n => n.name))
+  topologicalSortNodes: (nodes: {name: string, dependsOn?: readonly string[], log?: unknown}[]) => {
+    const sorted = topologicalSortFallback(nodes as Parameters<typeof topologicalSortFallback>[0])
+    return sorted.map(n => n.name)
   },
   listPrompts: async (optionsJson: string) => JSON.stringify(await listPrompts(optionsJson == null ? {} : (JSON.parse(optionsJson) as ListPromptsOptions))),
   getPrompt: async (promptId: string, optionsJson: string) => {
