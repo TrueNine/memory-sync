@@ -4,11 +4,11 @@ import * as fs from 'node:fs'
 import {createRequire} from 'node:module'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import * as process from 'node:process'
 import glob from 'fast-glob'
 import {AdaptorKind, FilePathKind} from '../src/adaptors/adaptor-core/enums.ts'
 import {getPrompt, listPrompts, upsertPromptSource, writePromptArtifacts} from '../src/internal/prompts-legacy'
 
-import {collectBaseOutputPlans, collectDroidOutputPlan, collectGeminiOutputPlan} from './native-binding/base-output-plans'
 import * as deskPaths from './native-binding/desk-paths'
 
 interface NativeCleanupTarget {
@@ -350,7 +350,7 @@ function tryLoadRealBinary(): Record<string, unknown> | undefined {
     const _require = createRequire(import.meta.url)
     return _require('../../cli/npm/linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node') as Record<string, unknown>
   } catch {
-    return undefined
+    return void 0
   }
 }
 
@@ -454,7 +454,8 @@ function topologicalSortNodes(nodes: DependencyNodeInput[]): string[] {
   for (const node of nodes) {
     for (const dep of node.dependsOn ?? []) {
       inDegree.set(node.name, (inDegree.get(node.name) ?? 0) + 1)
-      dependents.get(dep)!.push(node.name)
+      const depList = dependents.get(dep)
+      if (depList != null) depList.push(node.name)
     }
   }
 
@@ -465,10 +466,14 @@ function topologicalSortNodes(nodes: DependencyNodeInput[]): string[] {
 
   const result: string[] = []
   const nodeIndexMap = new Map<string, number>()
-  for (let i = 0; i < nodes.length; i++) nodeIndexMap.set(nodes[i]!.name, i)
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i]
+    if (node != null) nodeIndexMap.set(node.name, i)
+  }
 
   while (queue.length > 0) {
-    const current = queue.shift()!
+    const current = queue.shift()
+    if (current == null) continue
     result.push(current)
     const currentDependents = dependents.get(current) ?? []
     currentDependents.sort((a, b) => (nodeIndexMap.get(a) ?? -1) - (nodeIndexMap.get(b) ?? -1))
@@ -539,9 +544,6 @@ const testBinding = {
   performCleanup: runCleanup,
   performSkillDistCleanup,
   performMdCleanup,
-  collectBaseOutputPlans,
-  collectDroidOutputPlan,
-  collectGeminiOutputPlan,
   resolveEffectiveIncludeSeries,
   matchesSeries,
   resolveSubSeries,
@@ -565,6 +567,11 @@ const testBinding = {
 }
 
 const rustPreferredMethods = [
+  'collectBaseOutputPlans',
+  'collectWarpOutputPlan',
+  'collectKiroOutputPlan',
+  'collectDroidOutputPlan',
+  'collectGeminiOutputPlan',
   'planCleanup',
   'performCleanup',
   'compactDeletionTargets',
