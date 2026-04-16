@@ -121,8 +121,7 @@ const DEFAULT_OUTPUT_PLUGIN_REGISTRY: &[(&str, &[&str])] = &[
   ("KiroCLIOutputAdaptor", &["AgentsOutputAdaptor"]),
   ("OpencodeCLIOutputAdaptor", &["AgentsOutputAdaptor"]),
   ("QoderIDEPluginOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("TraeIDEOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("TraeCNIDEOutputAdaptor", &["AgentsOutputAdaptor"]),
+  ("TraeOutputAdaptor", &["AgentsOutputAdaptor"]),
   ("WarpIDEOutputAdaptor", &["AgentsOutputAdaptor"]),
   ("WindsurfOutputAdaptor", &["AgentsOutputAdaptor"]),
   ("CursorOutputAdaptor", &["AgentsOutputAdaptor"]),
@@ -415,6 +414,75 @@ mod napi_binding {
       .map_err(|e| napi::Error::from_reason(e.to_string()))
   }
 
+  #[napi(js_name = "resolveExecutionPlan")]
+  pub fn resolve_execution_plan_binding(
+    context_json: String,
+    execution_cwd: String,
+  ) -> napi::Result<String> {
+    let context: crate::core::plugin_shared::CollectedInputContext =
+      serde_json::from_str(&context_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
+    let workspace = context
+      .workspace
+      .as_ref()
+      .ok_or_else(|| napi::Error::from_reason("context.workspace is missing"))?;
+    let plan = crate::core::execution_plan::resolve_execution_plan(workspace, &execution_cwd);
+    serialize_json(&plan)
+  }
+
+  #[napi(object)]
+  pub struct NapiPathScopedEntry {
+    pub path: String,
+    pub scope: Option<String>,
+  }
+
+  #[napi(js_name = "filterPathScopedEntriesForExecutionPlan")]
+  pub fn filter_path_scoped_entries_binding(
+    entries: Vec<NapiPathScopedEntry>,
+    plan_json: String,
+    context_json: String,
+  ) -> napi::Result<Vec<NapiPathScopedEntry>> {
+    let plan: crate::core::execution_plan::ExecutionPlan =
+      serde_json::from_str(&plan_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
+    let context: crate::core::plugin_shared::CollectedInputContext =
+      serde_json::from_str(&context_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
+
+    let workspace = context
+      .workspace
+      .as_ref()
+      .ok_or_else(|| napi::Error::from_reason("context.workspace is missing"))?;
+
+    let workspace_dir = &workspace.directory.path;
+    let managed_projects = crate::core::execution_plan::collect_managed_projects(workspace);
+
+    let filtered = crate::core::execution_plan::filter_path_scoped_entries(
+      entries,
+      &plan,
+      workspace_dir,
+      &managed_projects,
+      |e| &e.path,
+      |e| e.scope.as_deref(),
+    );
+
+    Ok(filtered)
+  }
+
+  #[napi(js_name = "syncWindowsConfigIntoWsl")]
+  pub fn sync_windows_config_into_wsl_binding(
+    context_json: String,
+    declarations_json: String,
+    dry_run: bool,
+  ) -> napi::Result<String> {
+    let context: crate::core::plugin_shared::CollectedInputContext =
+      serde_json::from_str(&context_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
+    let declarations: Vec<crate::core::wsl_mirror_sync::WslMirrorFileDeclaration> =
+      serde_json::from_str(&declarations_json)
+        .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+
+    let result =
+      crate::core::wsl_mirror_sync::sync_windows_config_into_wsl(&context, &declarations, dry_run);
+    serialize_json(&result)
+  }
+
   #[napi(js_name = "collectBaseOutputPlans")]
   pub fn collect_base_output_plans_binding(context_json: String) -> napi::Result<String> {
     crate::core::base_output_plans::collect_base_output_plans(&context_json)
@@ -431,6 +499,22 @@ mod napi_binding {
   pub fn collect_droid_output_plan_binding(context_json: String) -> napi::Result<String> {
     crate::core::droid_output_plan::collect_droid_output_plan(&context_json)
       .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "performSkillDistCleanup")]
+  pub fn perform_skill_dist_cleanup_binding(
+    dist_skills_dir: String,
+    dry_run: bool,
+  ) -> napi::Result<String> {
+    let result =
+      crate::core::skill_dist_cleanup::perform_skill_dist_cleanup(&dist_skills_dir, dry_run);
+    serde_json::to_string(&result).map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "performMdCleanup")]
+  pub fn perform_md_cleanup_binding(dirs: Vec<String>, dry_run: bool) -> napi::Result<String> {
+    let result = crate::core::md_cleanup::perform_md_cleanup(&dirs, dry_run);
+    serde_json::to_string(&result).map_err(|e| napi::Error::from_reason(e.to_string()))
   }
 }
 
