@@ -1,30 +1,19 @@
 import type {
-  CodeStylesOptions,
   ConfigLoaderOptions,
   ConfigLoadResult,
-  FrontMatterOptions,
-  UserConfigFile,
-  WindowsOptions
+  UserConfigFile
 } from './adaptors/adaptor-core/ConfigTypes.schema'
-import type {ILogger} from '@/libraries/logger'
 import * as fs from 'node:fs'
 import process from 'node:process'
 import {createLogger} from '@/libraries/logger'
-import {
-  getSupportedPluginConfigKeysMessage,
-  ZUserConfigFile
-} from './adaptors/adaptor-core/ConfigTypes.schema'
+import {getNativeBinding} from './core/native-binding'
 import {
   buildConfigDiagnostic,
-  buildFileOperationDiagnostic,
   diagnosticLines,
-  splitDiagnosticText,
   toErrorMessage
 } from './diagnostics'
 import {
   getRequiredGlobalConfigPath,
-  resolveRuntimeEnvironment,
-  resolveUserPath,
   DEFAULT_GLOBAL_CONFIG_FILE_NAME as RUNTIME_DEFAULT_CONFIG_FILE_NAME,
   DEFAULT_GLOBAL_CONFIG_DIR as RUNTIME_DEFAULT_GLOBAL_CONFIG_DIR
 } from './runtime-environment'
@@ -45,184 +34,34 @@ export interface GlobalConfigValidationResult {
 }
 
 export class ConfigLoader {
-  private readonly logger: ILogger
-
-  constructor(options: ConfigLoaderOptions = {}) {
-    void options
-    this.logger = createLogger('ConfigLoader')
+  constructor(_options: ConfigLoaderOptions = {}) {
+    void _options
   }
 
   getSearchPaths(cwd: string = process.cwd()): string[] {
     void cwd
-    const runtimeEnvironment = resolveRuntimeEnvironment()
-
-    if (!runtimeEnvironment.isWsl) return [getRequiredGlobalConfigPath()]
-
-    this.logger.debug('WSL environment detected', {
-      effectiveHomeDir: runtimeEnvironment.effectiveHomeDir
-    })
-    if (runtimeEnvironment.selectedGlobalConfigPath == null) {
-      throw new Error(
-        `WSL host config file not found under "${runtimeEnvironment.windowsUsersRoot}/*/${DEFAULT_GLOBAL_CONFIG_DIR}/${DEFAULT_CONFIG_FILE_NAME}".`
-      )
-    }
-    this.logger.debug('Using WSL host global config', {
-      path: runtimeEnvironment.selectedGlobalConfigPath
-    })
     return [getRequiredGlobalConfigPath()]
   }
 
   loadFromFile(filePath: string): ConfigLoadResult {
-    const resolvedPath = this.resolveTilde(filePath)
-
-    if (!fs.existsSync(resolvedPath)) return {config: {}, source: null, found: false}
-
-    try {
-      const content = fs.readFileSync(resolvedPath, 'utf8')
-      const config = this.parseConfig(content, resolvedPath)
-
-      this.logger.debug('loaded', {source: resolvedPath})
-      return {config, source: resolvedPath, found: true}
+    const native = getNativeBinding<{loadConfigFromFile?: (filePath: string) => string | null}>()
+    if (native?.loadConfigFromFile != null) {
+      const result = native.loadConfigFromFile(filePath)
+      if (result == null) return {config: {}, source: null, found: false}
+      return {config: JSON.parse(result) as UserConfigFile, source: filePath, found: true}
     }
-    catch (error) {
-      const errorMessage = toErrorMessage(error)
 
-      if (errorMessage.startsWith('Invalid JSON in ') || errorMessage.startsWith('Config validation failed in ')) {
-        this.logger.error(buildConfigDiagnostic({
-          code: 'CONFIG_FILE_VALIDATION_FAILED',
-          title: 'Config file validation failed',
-          reason: splitDiagnosticText(errorMessage),
-          configPath: resolvedPath,
-          exactFix: diagnosticLines(
-            'Fix the invalid config entries so the file matches the tnmsc schema.'
-          ),
-          possibleFixes: [
-            diagnosticLines(
-              `If the error is under "plugins", only use supported keys: ${getSupportedPluginConfigKeysMessage()}`
-            )
-          ],
-          details: {
-            errorMessage
-          }
-        }))
-      } else {
-        this.logger.error(buildFileOperationDiagnostic({
-          code: 'CONFIG_FILE_LOAD_FAILED',
-          title: 'Failed to load config file',
-          operation: 'read',
-          targetKind: 'config file',
-          path: resolvedPath,
-          error
-        }))
-      }
-
-      throw error instanceof Error ? error : new Error(errorMessage)
-    }
+    throw new Error('Native loadConfigFromFile binding is unavailable')
   }
 
   load(cwd: string = process.cwd()): MergedConfigResult {
-    const searchPaths = this.getSearchPaths(cwd)
-    const loadedConfigs: ConfigLoadResult[] = []
-
-    for (const searchPath of searchPaths) {
-      const result = this.loadFromFile(searchPath)
-      if (result.found) loadedConfigs.push(result)
+    const native = getNativeBinding<{loadConfig?: (cwd?: string) => string}>()
+    if (native?.loadConfig != null) {
+      const result = native.loadConfig(cwd)
+      return JSON.parse(result) as MergedConfigResult
     }
 
-    const merged = this.mergeConfigs(loadedConfigs.map(r => r.config))
-    const sources = loadedConfigs.map(r => r.source).filter((s): s is string => s !== null)
-
-    return {
-      config: merged,
-      sources,
-      found: loadedConfigs.length > 0
-    }
-  }
-
-  private parseConfig(content: string, filePath: string): UserConfigFile {
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(content)
-    }
-    catch (error) {
-      if (error instanceof SyntaxError) throw new Error(`Invalid JSON in ${filePath}: ${error.message}`)
-      throw error
-    }
-
-    const result = ZUserConfigFile.safeParse(parsed)
-    if (result.success) return result.data
-
-    const errors = result.error.issues.map((i: {path: (string | number)[], message: string}) => `${i.path.join('.')}: ${i.message}`)
-    throw new Error(`Config validation failed in ${filePath}:\n${errors.join('\n')}`)
-  }
-
-  private mergeConfigs(configs: UserConfigFile[]): UserConfigFile {
-    if (configs.length === 0) return {}
-
-    const firstConfig = configs[0]
-    if (configs.length === 1 && firstConfig != null) return firstConfig
-
-    const reversed = [...configs].reverse()
-
-    return reversed.reduce<UserConfigFile>((acc, config) => {
-      const mergedCodeStyles = this.mergeCodeStylesOptions(acc.codeStyles, config.codeStyles)
-      const mergedFrontMatter = this.mergeFrontMatterOptions(acc.frontMatter, config.frontMatter)
-      const mergedWindows = this.mergeWindowsOptions(acc.windows, config.windows)
-
-      return {
-        ...acc,
-        ...config,
-        ...mergedCodeStyles != null ? {codeStyles: mergedCodeStyles} : {},
-        ...mergedFrontMatter != null ? {frontMatter: mergedFrontMatter} : {},
-        ...mergedWindows != null ? {windows: mergedWindows} : {}
-      }
-    }, {})
-  }
-
-  private mergeFrontMatterOptions(
-    a?: FrontMatterOptions,
-    b?: FrontMatterOptions
-  ): FrontMatterOptions | undefined {
-    if (a == null && b == null) return void 0
-    if (a == null) return b
-    if (b == null) return a
-    return {...a, ...b}
-  }
-
-  private mergeCodeStylesOptions(
-    a?: CodeStylesOptions,
-    b?: CodeStylesOptions
-  ): CodeStylesOptions | undefined {
-    if (a == null && b == null) return void 0
-    if (a == null) return b
-    if (b == null) return a
-    return {...a, ...b}
-  }
-
-  private mergeWindowsOptions(
-    a?: WindowsOptions,
-    b?: WindowsOptions
-  ): WindowsOptions | undefined {
-    if (a == null && b == null) return void 0
-    if (a == null) return b
-    if (b == null) return a
-
-    return {
-      ...a,
-      ...b,
-      ...a.wsl2 != null || b.wsl2 != null
-        ? {
-            wsl2: {
-              ...a.wsl2,
-              ...b.wsl2
-            }
-          }
-        : {}
-    }
-  }
-
-  private resolveTilde(p: string): string {
-    return p.startsWith('~') ? resolveUserPath(p) : p
+    throw new Error('Native loadConfig binding is unavailable')
   }
 }
 
@@ -293,109 +132,32 @@ export function validateGlobalConfig(): GlobalConfigValidationResult {
     }
   }
 
-  let content: string
+  // Simplified validation using native loadFromFile if possible
   try {
-    content = fs.readFileSync(configPath, 'utf8')
+    const loader = getConfigLoader()
+    const result = loader.loadFromFile(configPath)
+    if (result.found) {
+      return {
+        valid: true,
+        exists: true,
+        errors: [],
+        shouldExit: false
+      }
+    }
+    return {
+      valid: false,
+      exists: true,
+      errors: ['Failed to load config'],
+      shouldExit: true
+    }
   }
   catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    logger.error(buildFileOperationDiagnostic({
-      code: 'GLOBAL_CONFIG_READ_FAILED',
-      title: 'Failed to read global config file',
-      operation: 'read',
-      targetKind: 'global config file',
-      path: configPath,
-      error: errorMessage
-    }))
+    const errorMessage = toErrorMessage(error)
     return {
       valid: false,
       exists: true,
-      errors: [`Failed to read config: ${errorMessage}`],
+      errors: [errorMessage],
       shouldExit: true
     }
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(content)
-  }
-  catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    logger.error(buildConfigDiagnostic({
-      code: 'GLOBAL_CONFIG_JSON_INVALID',
-      title: 'Global config contains invalid JSON',
-      reason: diagnosticLines(
-        `tnmsc could not parse the JSON in "${configPath}".`,
-        `Parser error: ${errorMessage}`
-      ),
-      configPath,
-      exactFix: diagnosticLines(
-        'Fix the JSON syntax in the global config file so it parses as a single JSON object.'
-      ),
-      possibleFixes: [
-        diagnosticLines('Validate the file with a JSON parser and remove trailing commas or invalid tokens.')
-      ]
-    }))
-    return {
-      valid: false,
-      exists: true,
-      errors: [`Invalid JSON: ${errorMessage}`],
-      shouldExit: true
-    }
-  }
-
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    logger.error(buildConfigDiagnostic({
-      code: 'GLOBAL_CONFIG_NOT_OBJECT',
-      title: 'Global config must be a JSON object',
-      reason: diagnosticLines(
-        `tnmsc parsed "${configPath}" successfully, but the top-level value is not a JSON object.`
-      ),
-      configPath,
-      exactFix: diagnosticLines(
-        'Replace the top-level JSON value with an object like `{}` or a valid config object.'
-      )
-    }))
-    return {
-      valid: false,
-      exists: true,
-      errors: ['Config must be a JSON object'],
-      shouldExit: true
-    }
-  }
-
-  const zodResult = ZUserConfigFile.safeParse(parsed)
-  if (!zodResult.success) {
-    const errors = zodResult.error.issues.map((i: {path: (string | number)[], message: string}) => `${i.path.join('.')}: ${i.message}`)
-    for (const err of errors) {
-      logger.error(buildConfigDiagnostic({
-        code: 'GLOBAL_CONFIG_VALIDATION_FAILED',
-        title: 'Global config validation failed',
-        reason: splitDiagnosticText(err),
-        configPath,
-        exactFix: diagnosticLines(
-          'Update the invalid config field so it matches the tnmsc schema.'
-        ),
-        possibleFixes: [
-          diagnosticLines('Compare the field name and value against the current config schema or examples.')
-        ],
-        details: {
-          validationError: err
-        }
-      }))
-    }
-    return {
-      valid: false,
-      exists: true,
-      errors,
-      shouldExit: true
-    }
-  }
-
-  return {
-    valid: true,
-    exists: true,
-    errors: [],
-    shouldExit: false
   }
 }
