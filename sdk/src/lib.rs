@@ -582,8 +582,12 @@ mod napi_binding {
   }
 
   #[napi(js_name = "collectJetBrainsAIAssistantCodexOutputPlan")]
-  pub fn collect_jetbrains_ai_assistant_codex_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::jetbrains_ai_assistant_codex_output_plan::collect_jetbrains_ai_assistant_codex_output_plan(&context_json)
+  pub fn collect_jetbrains_ai_assistant_codex_output_plan_binding(
+    context_json: String,
+  ) -> napi::Result<String> {
+    crate::core::jetbrains_ai_assistant_codex_output_plan::collect_jetbrains_ai_assistant_codex_output_plan(
+      &context_json,
+    )
       .map_err(|e| napi::Error::from_reason(e.to_string()))
   }
 
