@@ -25,7 +25,6 @@ import {defineConfig} from '../config'
 import {getConfigLoader} from '../ConfigLoader'
 import {
   buildDiagnostic,
-  buildUnhandledExceptionDiagnostic,
   diagnosticLines,
   partitionBufferedDiagnostics
 } from '../diagnostics'
@@ -575,15 +574,3 @@ export function createTsFallbackMemorySyncBinding(): MemorySyncSdkBinding {
   }
 }
 
-export async function callWithUnhandledDiagnostic<T>(
-  context: string,
-  operation: () => Promise<T>
-): Promise<T> {
-  try {
-    return await operation()
-  } catch (error) {
-    const logger = createLogger(context, 'error')
-    logger.error(buildUnhandledExceptionDiagnostic(context, error))
-    throw error
-  }
-}
