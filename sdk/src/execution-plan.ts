@@ -1,15 +1,8 @@
 import type {AindexProjectSeriesName} from './adaptors/adaptor-core/AindexConfigDefaults'
-import type {
-  OutputCollectedContext
-} from './adaptors/adaptor-core/InputTypes'
+import type {OutputCollectedContext} from './adaptors/adaptor-core/InputTypes'
 import {getNativeBinding} from './core/native-binding'
-import * as executionPlanLegacy from './execution-plan-legacy'
 
-export type ExecutionScope
-  = | 'workspace'
-    | 'project'
-    | 'external'
-    | 'unsupported'
+export type ExecutionScope = 'workspace' | 'project' | 'external' | 'unsupported'
 
 export interface ExecutionPlanProjectSummary {
   readonly name: string
@@ -76,7 +69,9 @@ export function resolveExecutionPlan(
     resolveExecutionPlan?: (contextJson: string, executionCwd: string) => string
   }>()
 
-  if (native?.resolveExecutionPlan == null) return executionPlanLegacy.resolveExecutionPlan(context, executionCwd)
+  if (native?.resolveExecutionPlan == null) {
+    throw new Error('Native resolveExecutionPlan binding is unavailable')
+  }
 
   const result = native.resolveExecutionPlan(JSON.stringify(context), executionCwd)
   return JSON.parse(result) as ExecutionPlan
@@ -99,7 +94,9 @@ export function filterPathScopedEntriesForExecutionPlan<
     ) => readonly T[]
   }>()
 
-  if (native?.filterPathScopedEntriesForExecutionPlan == null) return executionPlanLegacy.filterPathScopedEntriesForExecutionPlan(entries, plan, context)
+  if (native?.filterPathScopedEntriesForExecutionPlan == null) {
+    throw new Error('Native filterPathScopedEntriesForExecutionPlan binding is unavailable')
+  }
 
   const filteredPaths = new Set(
     native.filterPathScopedEntriesForExecutionPlan(
