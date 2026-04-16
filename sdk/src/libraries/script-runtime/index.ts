@@ -48,12 +48,7 @@ function isScriptRuntimeBinding(value: unknown): value is ScriptRuntimeBinding {
 const getBinding = createNativeBindingLoader<ScriptRuntimeBinding>({
   packageName: '@truenine/memory-sync-sdk',
   binaryName: 'napi-memory-sync-cli',
-  bindingValidator: isScriptRuntimeBinding,
-  cliExportName: 'scriptRuntime',
-  optionalMethods: {
-    validatePublicPath: ['validate_public_path'],
-    resolvePublicPath: ['resolve_public_path']
-  }
+  bindingValidator: isScriptRuntimeBinding
 })
 
 let workerPathCache: string | undefined
