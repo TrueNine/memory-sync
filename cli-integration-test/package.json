@@ -8,6 +8,7 @@
     "test": "vitest run",
     "test:codex": "vitest run test/codex.integration.test.ts",
     "test:claude-code": "vitest run test/claude-code-cli.integration.test.ts",
+    "test:trae": "vitest run test/trae.integration.test.ts",
     "test:integration": "pnpm run test",
     "check:type": "tsc --noEmit -p tsconfig.test.json"
   },
