@@ -16,8 +16,7 @@ import {NativeDroidCLIOutputAdaptor} from '../adaptors/NativeDroidCLIOutputAdapt
 import {NativeGeminiCLIOutputAdaptor} from '../adaptors/NativeGeminiCLIOutputAdaptor'
 import {OpencodeCLIOutputAdaptor} from '../adaptors/OpencodeCLIOutputAdaptor'
 import {QoderIDEPluginOutputAdaptor} from '../adaptors/QoderIDEPluginOutputAdaptor'
-import {TraeCNIDEOutputAdaptor} from '../adaptors/TraeCNIDEOutputAdaptor'
-import {TraeIDEOutputAdaptor} from '../adaptors/TraeIDEOutputAdaptor'
+import {TraeOutputAdaptor} from '../adaptors/TraeOutputAdaptor'
 import {WarpIDEOutputAdaptor} from '../adaptors/WarpIDEOutputAdaptor'
 import {WindsurfOutputAdaptor} from '../adaptors/WindsurfOutputAdaptor'
 
@@ -39,8 +38,7 @@ export function createDefaultOutputAdaptors(): PipelineConfig['outputAdaptors'] 
     new KiroCLIOutputAdaptor(),
     new OpencodeCLIOutputAdaptor(),
     new QoderIDEPluginOutputAdaptor(),
-    new TraeIDEOutputAdaptor(),
-    new TraeCNIDEOutputAdaptor(),
+    new TraeOutputAdaptor(),
     new WarpIDEOutputAdaptor(),
     new WindsurfOutputAdaptor(),
     new CursorOutputAdaptor(),
