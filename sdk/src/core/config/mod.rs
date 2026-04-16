@@ -1943,6 +1943,11 @@ mod napi_binding {
   pub fn find_wsl_host_global_config_paths_binding() -> napi::Result<Vec<String>> {
     let users_root = std::path::PathBuf::from(super::DEFAULT_WSL_WINDOWS_USERS_ROOT);
     let paths = super::find_wsl_host_global_config_paths_with_root(&users_root);
-    Ok(paths.into_iter().map(|p| p.to_string_lossy().into_owned()).collect())
+    Ok(
+      paths
+        .into_iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect(),
+    )
   }
 }

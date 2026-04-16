@@ -342,7 +342,11 @@ pub struct FastCommandPrompt {
   pub length: usize,
   pub dir: RelativePath,
   pub command_name: String,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
+  #[serde(
+    default,
+    rename = "commandPrefix",
+    skip_serializing_if = "Option::is_none"
+  )]
   pub series: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub seri_name: Option<String>,
@@ -545,6 +549,20 @@ pub struct ReadmePrompt {
 }
 
 // ---------------------------------------------------------------------------
+// AI Agent ignore config file
+// ---------------------------------------------------------------------------
+
+/// AI Agent ignore configuration file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AIAgentIgnoreConfigFile {
+  pub file_name: String,
+  pub content: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub source_path: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
 // IDE config types
 // ---------------------------------------------------------------------------
 
@@ -631,6 +649,10 @@ pub struct CollectedInputContext {
   pub shadow_source_project_dir: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub readme_prompts: Option<Vec<ReadmePrompt>>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub ai_agent_ignore_config_files: Option<Vec<AIAgentIgnoreConfigFile>>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub registered_output_plugins: Option<Vec<String>>,
 }
 
 // ---------------------------------------------------------------------------

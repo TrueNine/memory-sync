@@ -10,11 +10,13 @@ pub mod execution_plan;
 pub mod gemini_output_plan;
 pub mod git_discovery;
 pub mod input_plugins;
+pub mod kiro_output_plan;
 pub mod md_cleanup;
 pub mod output_runtime_targets;
 pub mod path_blocking;
 pub mod plugin_shared;
 pub mod skill_dist_cleanup;
+pub mod warp_output_plan;
 pub mod wsl_mirror_sync;
 
 /// Shared mutex for tests that mutate process-global environment variables (e.g. HOME).

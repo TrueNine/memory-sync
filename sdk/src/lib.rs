@@ -533,6 +533,18 @@ mod napi_binding {
       .map_err(|e| napi::Error::from_reason(e.to_string()))
   }
 
+  #[napi(js_name = "collectWarpOutputPlan")]
+  pub fn collect_warp_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::warp_output_plan::collect_warp_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
+  #[napi(js_name = "collectKiroOutputPlan")]
+  pub fn collect_kiro_output_plan_binding(context_json: String) -> napi::Result<String> {
+    crate::core::kiro_output_plan::collect_kiro_output_plan(&context_json)
+      .map_err(|e| napi::Error::from_reason(e.to_string()))
+  }
+
   #[napi(js_name = "performSkillDistCleanup")]
   pub fn perform_skill_dist_cleanup_binding(
     dist_skills_dir: String,
