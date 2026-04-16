@@ -18,6 +18,7 @@ interface FixturePluginFlags {
   readonly codex: boolean;
   readonly claudeCode: boolean;
   readonly trae: boolean;
+  readonly opencode: boolean;
   readonly git?: boolean;
   readonly readme?: boolean;
 }
@@ -211,6 +212,7 @@ export function createCodexFixture(options: CodexFixtureOptions = {}): CodexFixt
       codex: true,
       claudeCode: false,
       trae: false,
+      opencode: false,
       git: false,
       readme: false,
     },
@@ -256,6 +258,7 @@ export function createClaudeCodeFixture(): ClaudeCodeFixture {
       codex: false,
       claudeCode: true,
       trae: false,
+      opencode: false,
       git: false,
       readme: false,
     },
@@ -316,6 +319,7 @@ export function createTraeFixture(): TraeFixture {
       codex: false,
       claudeCode: false,
       trae: true,
+      opencode: false,
       git: false,
       readme: false,
     },
@@ -339,6 +343,69 @@ export function createTraeFixture(): TraeFixture {
       globalMemoryCn: path.posix.join(CONTAINER_HOME_DIR, ".trae-cn", "user_rules", "GLOBAL.md"),
       projectSkill: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".trae", "skills", "ship-it", "SKILL.md"),
       projectRule: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".trae", "rules", "rule-qa-safe.md"),
+    },
+    cleanup() {
+      rmSync(rootDir, { recursive: true, force: true });
+    },
+  };
+}
+
+export interface OpencodeFixture {
+  readonly rootDir: string;
+  readonly homeDir: string;
+  readonly workspaceDir: string;
+  readonly outputPaths: {
+    readonly globalMemory: string;
+    readonly projectMemory: string;
+    readonly projectCommand: string;
+    readonly projectAgent: string;
+    readonly projectSkill: string;
+    readonly projectSkillMcp: string;
+    readonly projectRule: string;
+  };
+  cleanup: () => void;
+}
+
+export function createOpencodeFixture(): OpencodeFixture {
+  const rootDir = mkdtempSync(path.join(tmpdir(), "tnmsc-opencode-fixture-"));
+  const homeDir = path.join(rootDir, "home");
+  const workspaceDir = path.join(rootDir, "workspace");
+
+  writeGlobalConfig(
+    homeDir,
+    {
+      codex: false,
+      claudeCode: false,
+      trae: false,
+      opencode: true,
+      git: false,
+      readme: false,
+    },
+    {
+      workspaceDir: CONTAINER_WORKSPACE_DIR,
+      logLevel: "warn",
+    },
+  );
+  writeGlobalMemoryFixtures(workspaceDir);
+  writeCommandFixtures(workspaceDir);
+  writeSubAgentFixtures(workspaceDir);
+  writeSkillFixtures(workspaceDir);
+  writeManagedProjectFixtures(workspaceDir);
+  writeProjectPromptFixtures(workspaceDir);
+  writeRuleFixtures(workspaceDir);
+
+  return {
+    rootDir,
+    homeDir,
+    workspaceDir,
+    outputPaths: {
+      globalMemory: path.posix.join(CONTAINER_HOME_DIR, ".config", "opencode", "AGENTS.md"),
+      projectMemory: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", "AGENTS.md"),
+      projectCommand: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".opencode", "commands", "find-opensource.md"),
+      projectAgent: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".opencode", "agents", "qa-reviewer.md"),
+      projectSkill: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".opencode", "skills", "ship-it", "SKILL.md"),
+      projectSkillMcp: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".opencode", "opencode.json"),
+      projectRule: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".opencode", "rules", "rule-qa-safe.md"),
     },
     cleanup() {
       rmSync(rootDir, { recursive: true, force: true });
