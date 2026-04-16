@@ -104,7 +104,7 @@ describe('formatBindingLoadError', () => {
 
 describe('loadBindingFromDirectory', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   it('finds and validates matching .node file', () => {
@@ -185,7 +185,7 @@ describe('loadBindingFromDirectory', () => {
 
 describe('loadBindingFromCliBinaryPackage', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   it('loads binding directly from CLI package when it validates', () => {
@@ -252,7 +252,7 @@ describe('loadBindingFromCliBinaryPackage', () => {
 
 describe('createNativeBindingLoader', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   afterEach(() => {
@@ -329,7 +329,7 @@ describe('createNativeBindingLoader', () => {
 
 describe('integration scenarios', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   afterEach(() => {
