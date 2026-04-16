@@ -394,7 +394,6 @@ async function runInstall(options: MemorySyncCommandOptions = {}): Promise<Memor
   const wslMirrorResult = await syncWindowsConfigIntoWsl(
     ctx.outputAdaptors,
     writeCtx,
-    void 0,
     predeclaredOutputs
   )
   if (wslMirrorResult.errors.length > 0) {
@@ -448,7 +447,6 @@ async function runDryRun(options: MemorySyncCommandOptions = {}): Promise<Memory
   const wslMirrorResult = await syncWindowsConfigIntoWsl(
     ctx.outputAdaptors,
     writeCtx,
-    void 0,
     predeclaredOutputs
   )
   if (wslMirrorResult.errors.length > 0) {
