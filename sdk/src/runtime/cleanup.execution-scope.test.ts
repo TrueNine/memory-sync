@@ -10,12 +10,7 @@ import {
   removeBlockingFile,
   resolveBlockingFilePath
 } from '../../test/native-binding/desk-paths'
-import {
-  AdaptorKind,
-  createEmptyExecutionPlanProjectsByType,
-  createLogger,
-  FilePathKind
-} from '../adaptors/adaptor-core'
+import {AdaptorKind, createEmptyExecutionPlanProjectsByType, createLogger, FilePathKind} from '../adaptors/adaptor-core'
 import {collectDeletionTargets, performCleanup} from './cleanup'
 
 function createProject(workspaceDir: string | undefined, name: string, series: Project['projectType']): Project {
@@ -128,16 +123,20 @@ describe('cleanup execution scope filtering', () => {
       workspaceDir,
       projectsByType: {
         ...createEmptyExecutionPlanProjectsByType(),
-        ext: [{
-          name: 'plugin-one',
-          rootDir: path.join(workspaceDir, 'plugin-one'),
-          series: 'ext' as const
-        }],
-        app: [{
-          name: 'app-one',
-          rootDir: path.join(workspaceDir, 'app-one'),
-          series: 'app' as const
-        }]
+        ext: [
+          {
+            name: 'plugin-one',
+            rootDir: path.join(workspaceDir, 'plugin-one'),
+            series: 'ext' as const
+          }
+        ],
+        app: [
+          {
+            name: 'app-one',
+            rootDir: path.join(workspaceDir, 'app-one'),
+            series: 'app' as const
+          }
+        ]
       },
       matchedProject: {
         name: 'plugin-one',
@@ -155,10 +154,7 @@ describe('cleanup execution scope filtering', () => {
             path: workspaceDir,
             getDirectoryName: () => path.basename(workspaceDir)
           },
-          projects: [
-            createProject(workspaceDir, 'app-one', 'app'),
-            createProject(workspaceDir, 'plugin-one', 'ext')
-          ]
+          projects: [createProject(workspaceDir, 'app-one', 'app'), createProject(workspaceDir, 'plugin-one', 'ext')]
         }
       },
       pluginOptions: createAdaptorOptions(workspaceDir),
@@ -170,18 +166,13 @@ describe('cleanup execution scope filtering', () => {
     await collectDeletionTargets([plugin], cleanCtx)
 
     const pluginSnapshot = (capturedSnapshot?.['pluginSnapshots'] as Record<string, unknown>[] | undefined)?.[0]
-    expect(pluginSnapshot?.['outputs']).toEqual([
-      path.join(workspaceDir, 'plugin-one', 'WARP.md'),
-      globalConfigPath
-    ])
+    expect(pluginSnapshot?.['outputs']).toEqual([path.join(workspaceDir, 'plugin-one', 'WARP.md'), globalConfigPath])
     expect(pluginSnapshot?.['cleanup']).toEqual({
       delete: [
         {path: path.join(workspaceDir, 'plugin-one', 'WARP.md'), kind: 'file', scope: 'project'},
         {path: globalConfigPath, kind: 'file', scope: 'global'}
       ],
-      protect: [
-        {path: path.join(workspaceDir, 'plugin-one', 'docs'), kind: 'directory', scope: 'project'}
-      ]
+      protect: [{path: path.join(workspaceDir, 'plugin-one', 'docs'), kind: 'directory', scope: 'project'}]
     })
   })
 
@@ -208,28 +199,32 @@ describe('cleanup execution scope filtering', () => {
     }
 
     const plugin: OutputAdaptor = {
-      name: 'TraeIDEOutputAdaptor',
+      name: 'TraeOutputAdaptor',
       type: AdaptorKind.Output,
-      log: createLogger('TraeIDEOutputAdaptor', 'error'),
+      log: createLogger('TraeOutputAdaptor', 'error'),
       declarativeOutput: true,
       outputCapabilities: {},
       async declareOutputFiles() {
-        return [{
-          path: path.join(workspaceDir, '.trae', 'commands', 'review.md'),
-          scope: 'project',
-          source: {}
-        }]
+        return [
+          {
+            path: path.join(workspaceDir, '.trae', 'commands', 'review.md'),
+            scope: 'project',
+            source: {}
+          }
+        ]
       },
       async convertContent() {
         return ''
       },
       async declareCleanupPaths() {
         return {
-          delete: [{
-            path: path.join(workspaceDir, '.trae', 'commands'),
-            kind: 'directory',
-            scope: 'project'
-          }]
+          delete: [
+            {
+              path: path.join(workspaceDir, '.trae', 'commands'),
+              kind: 'directory',
+              scope: 'project'
+            }
+          ]
         }
       }
     }
@@ -262,11 +257,13 @@ describe('cleanup execution scope filtering', () => {
     const pluginSnapshot = (capturedSnapshot?.['pluginSnapshots'] as Record<string, unknown>[] | undefined)?.[0]
     expect(pluginSnapshot?.['outputs']).toEqual([])
     expect(pluginSnapshot?.['cleanup']).toEqual({
-      delete: [{
-        path: path.join(workspaceDir, '.trae', 'commands'),
-        kind: 'directory',
-        scope: 'project'
-      }]
+      delete: [
+        {
+          path: path.join(workspaceDir, '.trae', 'commands'),
+          kind: 'directory',
+          scope: 'project'
+        }
+      ]
     })
   })
 
@@ -294,28 +291,32 @@ describe('cleanup execution scope filtering', () => {
 
     const outputPath = path.join(workspaceDir, '.trae', 'commands', 'review.md')
     const plugin: OutputAdaptor = {
-      name: 'TraeIDEOutputAdaptor',
+      name: 'TraeOutputAdaptor',
       type: AdaptorKind.Output,
-      log: createLogger('TraeIDEOutputAdaptor', 'error'),
+      log: createLogger('TraeOutputAdaptor', 'error'),
       declarativeOutput: true,
       outputCapabilities: {},
       async declareOutputFiles() {
-        return [{
-          path: outputPath,
-          scope: 'project',
-          source: {}
-        }]
+        return [
+          {
+            path: outputPath,
+            scope: 'project',
+            source: {}
+          }
+        ]
       },
       async convertContent() {
         return ''
       },
       async declareCleanupPaths() {
         return {
-          delete: [{
-            path: path.join(workspaceDir, '.trae', 'commands'),
-            kind: 'directory',
-            scope: 'project'
-          }]
+          delete: [
+            {
+              path: path.join(workspaceDir, '.trae', 'commands'),
+              kind: 'directory',
+              scope: 'project'
+            }
+          ]
         }
       }
     }
@@ -366,11 +367,13 @@ describe('cleanup execution scope filtering', () => {
         return JSON.stringify({
           deletedFiles: 0,
           deletedDirs: 0,
-          errors: [{
-            path: path.join(workspaceDir, '.codex', 'skills'),
-            kind: 'directory',
-            error: 'Not a directory (os error 20)'
-          }],
+          errors: [
+            {
+              path: path.join(workspaceDir, '.codex', 'skills'),
+              kind: 'directory',
+              error: 'Not a directory (os error 20)'
+            }
+          ],
           violations: [],
           conflicts: [],
           filesToDelete: [],
@@ -420,8 +423,7 @@ describe('cleanup execution scope filtering', () => {
       expect(result.errors).toHaveLength(0)
       expect(result.deletedFiles).toBe(1)
       expect(fs.existsSync(blockingFilePath)).toBe(false)
-    }
-    finally {
+    } finally {
       fs.rmSync(workspaceDir, {recursive: true, force: true})
     }
   })

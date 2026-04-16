@@ -32,7 +32,7 @@ describe('isOutputAdaptorEnabled', () => {
     expect(isOutputAdaptorEnabled(createOutputAdaptor('CodexCLIOutputAdaptor'))).toBe(false)
     expect(isOutputAdaptorEnabled(createOutputAdaptor('GitExcludeOutputAdaptor'))).toBe(true)
     expect(isOutputAdaptorEnabled(createOutputAdaptor('ReadmeMdConfigFileOutputAdaptor'))).toBe(true)
-    expect(isOutputAdaptorEnabled(createOutputAdaptor('TraeIDEOutputAdaptor'))).toBe(false)
+    expect(isOutputAdaptorEnabled(createOutputAdaptor('TraeOutputAdaptor'))).toBe(false)
     expect(isOutputAdaptorEnabled(createOutputAdaptor('ClaudeCodeCLIOutputAdaptor'))).toBe(false)
   })
 
@@ -43,7 +43,7 @@ describe('isOutputAdaptorEnabled', () => {
       }
     }
 
-    expect(isOutputAdaptorEnabled(createOutputAdaptor('TraeIDEOutputAdaptor'), pluginOptions)).toBe(true)
+    expect(isOutputAdaptorEnabled(createOutputAdaptor('TraeOutputAdaptor'), pluginOptions)).toBe(true)
   })
 
   it('lets the new git key explicitly disable git output', () => {

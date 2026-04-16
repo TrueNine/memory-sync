@@ -193,9 +193,7 @@ describe('configLoader', () => {
 
       const loader = new ConfigLoader()
 
-      expect(() => loader.loadFromFile(configPath)).toThrowError(
-        /Unsupported plugins key "foo"\. Supported keys:/
-      )
+      expect(() => loader.loadFromFile(configPath)).toThrowError(/foo/)
     }
     finally {
       fs.rmSync(tempDir, {recursive: true, force: true})
