@@ -32,31 +32,15 @@ export function tryLoadNativeBinding<T extends object>(): T | undefined {
       `./${binaryFile}`,
       `../${binaryFile}`,
       `../../dist/${binaryFile}`,
-      `../npm/${suffix}/${binaryFile}`,
-      `../../npm/${suffix}/${binaryFile}`,
-      `../../cli/npm/${suffix}/${binaryFile}`,
       `../../../cli/npm/${suffix}/${binaryFile}`,
       `${packageName}/${binaryFile}`,
-      packageName,
-      `../npm/${suffix}`,
-      `../../npm/${suffix}`,
-      `../../cli/npm/${suffix}`,
-      `../../../cli/npm/${suffix}`
+      packageName
     ]
 
     for (const specifier of candidates) {
       try {
         const loaded = _require(specifier) as unknown
-        const possibleBindings = [
-          (loaded as {config?: unknown})?.config,
-          (loaded as {default?: {config?: unknown}})?.default?.config,
-          (loaded as {default?: unknown})?.default,
-          loaded
-        ]
-
-        for (const candidate of possibleBindings) {
-          if (candidate != null && typeof candidate === 'object') return candidate as T
-        }
+        if (loaded != null && typeof loaded === 'object') return loaded as T
       } catch {}
     }
   } catch {}
