@@ -53,7 +53,10 @@ const SERIES_NAMES: &[&str] = &["app", "ext", "arch", "softwares"];
 const PROJECT_MEMORY_FILE: &str = "agt.mdx";
 const SCAN_SKIP_DIRECTORIES: &[&str] = &["node_modules", ".git"];
 
-fn get_series_dist(series_name: &str, aindex_resolvers: &Option<ProjectPromptAindexResolversInput>) -> String {
+fn get_series_dist(
+  series_name: &str,
+  aindex_resolvers: &Option<ProjectPromptAindexResolversInput>,
+) -> String {
   match series_name {
     "app" => aindex_resolvers
       .as_ref()

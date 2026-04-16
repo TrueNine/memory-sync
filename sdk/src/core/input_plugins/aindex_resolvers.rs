@@ -496,9 +496,15 @@ mod tests {
 
   #[test]
   fn collect_aindex_expands_tilde_workspace_dir() {
+    let _guard = crate::core::TEST_ENV_LOCK
+      .lock()
+      .unwrap_or_else(|poisoned| poisoned.into_inner());
     let home_dir = crate::core::config::resolve_tilde("~");
     if home_dir == PathBuf::from("~") {
       return;
+    }
+    if !home_dir.exists() {
+      let _ = std::fs::create_dir_all(&home_dir);
     }
     let tmp = tempfile::Builder::new()
       .prefix("tnmsc-aindex-tilde-")

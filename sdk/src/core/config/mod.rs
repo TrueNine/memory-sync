@@ -244,7 +244,9 @@ fn normalize_code_styles(code_styles: &Option<CodeStyles>) -> CodeStyles {
 }
 
 fn normalize_user_config(mut config: UserConfigFile) -> UserConfigFile {
-  config.code_styles = Some(normalize_code_styles(&config.code_styles));
+  if config.code_styles.is_some() {
+    config.code_styles = Some(normalize_code_styles(&config.code_styles));
+  }
   config
 }
 
@@ -267,6 +269,49 @@ pub struct WindowsWsl2Options {
 pub struct WindowsOptions {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub wsl2: Option<WindowsWsl2Options>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PluginsConfig {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub agents_md: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub claude_code: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub codex: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub cursor: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub droid: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub gemini: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub git: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub jetbrains: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub jetbrains_code_style: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub kiro: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub opencode: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub qoder: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub readme: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub trae: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub trae_cn: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub vscode: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub warp: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub windsurf: Option<bool>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub zed: Option<bool>,
 }
 
 /// User configuration file (.tnmsc.json).
@@ -294,6 +339,8 @@ pub struct UserConfigFile {
   pub code_styles: Option<CodeStyles>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub windows: Option<WindowsOptions>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub plugins: Option<PluginsConfig>,
 }
 
 impl Default for UserConfigFile {
@@ -307,6 +354,7 @@ impl Default for UserConfigFile {
       profile: None,
       code_styles: None,
       windows: None,
+      plugins: None,
     }
   }
 }
@@ -781,11 +829,41 @@ fn merge_code_styles(a: &Option<CodeStyles>, b: &Option<CodeStyles>) -> Option<C
   }
 }
 
+fn merge_plugins(a: &Option<PluginsConfig>, b: &Option<PluginsConfig>) -> Option<PluginsConfig> {
+  match (a, b) {
+    (None, None) => None,
+    (Some(v), None) => Some(v.clone()),
+    (None, Some(v)) => Some(v.clone()),
+    (Some(base), Some(over)) => Some(PluginsConfig {
+      agents_md: over.agents_md.or(base.agents_md),
+      claude_code: over.claude_code.or(base.claude_code),
+      codex: over.codex.or(base.codex),
+      cursor: over.cursor.or(base.cursor),
+      droid: over.droid.or(base.droid),
+      gemini: over.gemini.or(base.gemini),
+      git: over.git.or(base.git),
+      jetbrains: over.jetbrains.or(base.jetbrains),
+      jetbrains_code_style: over.jetbrains_code_style.or(base.jetbrains_code_style),
+      kiro: over.kiro.or(base.kiro),
+      opencode: over.opencode.or(base.opencode),
+      qoder: over.qoder.or(base.qoder),
+      readme: over.readme.or(base.readme),
+      trae: over.trae.or(base.trae),
+      trae_cn: over.trae_cn.or(base.trae_cn),
+      vscode: over.vscode.or(base.vscode),
+      warp: over.warp.or(base.warp),
+      windsurf: over.windsurf.or(base.windsurf),
+      zed: over.zed.or(base.zed),
+    }),
+  }
+}
+
 /// Merge two configs. `over` fields take priority over `base`.
 pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserConfigFile {
   let merged_aindex = merge_aindex(&base.aindex, &over.aindex);
   let merged_code_styles = merge_code_styles(&base.code_styles, &over.code_styles);
   let merged_windows = merge_windows(&base.windows, &over.windows);
+  let merged_plugins = merge_plugins(&base.plugins, &over.plugins);
 
   UserConfigFile {
     version: over.version.clone().or_else(|| base.version.clone()),
@@ -802,6 +880,7 @@ pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserC
     profile: over.profile.clone().or_else(|| base.profile.clone()),
     code_styles: merged_code_styles,
     windows: merged_windows,
+    plugins: merged_plugins,
   }
 }
 
@@ -882,7 +961,7 @@ impl ConfigLoader {
   }
 
   /// Load a single config file.
-  pub fn load_from_file(&self, file_path: &Path) -> ConfigLoadResult {
+  pub fn load_from_file(&self, file_path: &Path) -> Result<ConfigLoadResult, String> {
     let resolved = if file_path.starts_with("~") {
       resolve_tilde(&file_path.to_string_lossy())
     } else {
@@ -890,11 +969,11 @@ impl ConfigLoader {
     };
 
     if !resolved.exists() {
-      return ConfigLoadResult {
+      return Ok(ConfigLoadResult {
         config: UserConfigFile::default(),
         source: None,
         found: false,
-      };
+      });
     }
 
     match fs::read_to_string(&resolved) {
@@ -904,19 +983,20 @@ impl ConfigLoader {
             Value::String("loaded".into()),
             Some(serde_json::json!({"source": resolved.to_string_lossy()})),
           );
-          ConfigLoadResult {
-            config,
+          Ok(ConfigLoadResult {
+            config: normalize_user_config(config),
             source: Some(resolved.to_string_lossy().into_owned()),
             found: true,
-          }
+          })
         }
-        Err(_) => ConfigLoadResult {
-          config: UserConfigFile::default(),
-          source: None,
-          found: false,
-        },
+        Err(e) => Err(e),
       },
       Err(e) => {
+        let message = format!(
+          "Config file could not be read at {}: {}",
+          resolved.display(),
+          e
+        );
         self.logger.warn(diagnostic(
           "CONFIG_FILE_LOAD_FAILED",
           "Config file could not be loaded",
@@ -927,11 +1007,7 @@ impl ConfigLoader {
           None,
           path_error_details(&resolved, &e.to_string()),
         ));
-        ConfigLoadResult {
-          config: UserConfigFile::default(),
-          source: None,
-          found: false,
-        }
+        Err(message)
       }
     }
   }
@@ -941,7 +1017,7 @@ impl ConfigLoader {
     let mut loaded: Vec<ConfigLoadResult> = Vec::new();
 
     for path in &search_paths {
-      let result = self.load_from_file(path);
+      let result = self.load_from_file(path)?;
       if result.found {
         loaded.push(result);
       }
@@ -991,25 +1067,15 @@ impl ConfigLoader {
       ));
     }
 
-    // Deserialize with serde — invalid fields are silently ignored (like Zod's safeParse)
-    match serde_json::from_value::<UserConfigFile>(parsed.clone()) {
-      Ok(config) => Ok(config),
-      Err(e) => {
-        self.logger.warn(diagnostic(
-          "CONFIG_FILE_VALIDATION_WARNING",
-          "Config contains invalid fields",
-          line("One or more config fields could not be deserialized, so defaults were used."),
-          Some(line("Fix the field types in the config file and retry.")),
-          None,
-          path_error_details(file_path, &e.to_string()),
-        ));
-        // Fallback: try to extract what we can
-        Ok(
-          serde_json::from_value::<UserConfigFile>(Value::Object(Default::default()))
-            .unwrap_or_default(),
-        )
-      }
-    }
+    // Deserialize with serde — invalid fields at the root level are silently ignored,
+    // but invalid nested fields (e.g. unknown plugin keys) are treated as errors.
+    serde_json::from_value::<UserConfigFile>(parsed.clone()).map_err(|e| {
+      format!(
+        "Config validation failed for {}: {}",
+        file_path.display(),
+        e
+      )
+    })
   }
 }
 
@@ -1514,12 +1580,9 @@ mod tests {
   }
 
   #[test]
-  fn test_normalize_user_config_applies_default_code_styles() {
+  fn test_normalize_user_config_leaves_code_styles_none_when_absent() {
     let config = normalize_user_config(UserConfigFile::default());
-    let code_styles = config.code_styles.expect("expected normalized code styles");
-
-    assert_eq!(code_styles.indent, Some(CodeStyleIndent::Space));
-    assert_eq!(code_styles.tab_size, Some(DEFAULT_CODE_STYLE_TAB_SIZE));
+    assert!(config.code_styles.is_none());
   }
 
   #[test]
@@ -1642,7 +1705,9 @@ mod tests {
   #[test]
   fn test_config_loader_load_nonexistent() {
     let loader = ConfigLoader::with_defaults();
-    let result = loader.load_from_file(Path::new("/nonexistent/.tnmsc.json"));
+    let result = loader
+      .load_from_file(Path::new("/nonexistent/.tnmsc.json"))
+      .unwrap();
     assert!(!result.found);
     assert!(result.source.is_none());
   }
@@ -1733,7 +1798,9 @@ mod napi_binding {
   #[napi]
   pub fn load_config_from_file(file_path: String) -> napi::Result<Option<String>> {
     let loader = ConfigLoader::with_defaults();
-    let result = loader.load_from_file(std::path::Path::new(&file_path));
+    let result = loader
+      .load_from_file(std::path::Path::new(&file_path))
+      .map_err(|e| napi::Error::from_reason(e))?;
     if !result.found {
       return Ok(None);
     }

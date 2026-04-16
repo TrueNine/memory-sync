@@ -252,14 +252,8 @@ fn format_process_failure(status: ExitStatus, stdout: &[u8], stderr: &[u8]) -> S
 mod tests {
   use super::*;
   use std::fs;
-  use std::sync::{Mutex, OnceLock};
 
   use tempfile::TempDir;
-
-  fn env_lock() -> &'static Mutex<()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-  }
 
   fn write_bridge_script(temp_dir: &TempDir, name: &str, body: &str) -> PathBuf {
     let path = temp_dir.path().join(name);
@@ -286,7 +280,10 @@ function emitResult(payload) {{
   }
 
   fn with_bridge_env<T>(bridge_path: &PathBuf, callback: impl FnOnce() -> T) -> T {
-    let _guard = env_lock().lock().expect("env lock should be available");
+    let _guard = match crate::core::TEST_ENV_LOCK.lock() {
+      Ok(g) => g,
+      Err(e) => e.into_inner(),
+    };
     let previous_bridge = env::var_os(INTERNAL_COMMAND_BRIDGE_ENV);
     let previous_node = env::var_os(NODE_EXECUTABLE_ENV);
 

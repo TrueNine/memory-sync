@@ -667,7 +667,6 @@ fn build_markdown_with_front_matter(
 #[cfg(test)]
 mod tests {
   use std::collections::HashMap;
-  use std::sync::{Mutex, OnceLock};
 
   use tempfile::TempDir;
 
@@ -830,13 +829,11 @@ mod tests {
     }
   }
 
-  fn env_lock() -> &'static Mutex<()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-  }
-
   fn with_home_dir<T>(home_dir: &std::path::Path, callback: impl FnOnce() -> T) -> T {
-    let _guard = env_lock().lock().expect("env lock should be available");
+    let _guard = match crate::core::TEST_ENV_LOCK.lock() {
+      Ok(g) => g,
+      Err(e) => e.into_inner(),
+    };
     let previous_home = std::env::var_os("HOME");
 
     unsafe {
