@@ -13,8 +13,6 @@ export interface NativeBindingLoaderOptions<T> {
   readonly binaryName: string
   readonly bindingValidator: (value: unknown) => value is T
   readonly packageSuffix?: string
-  readonly optionalMethods?: Record<string, string[]>
-  readonly cliExportName?: string
   readonly _requireFactory?: () => ReturnType<typeof createRequire>
   readonly _readdirSync?: (packageDir: string) => readonly string[]
 }
@@ -28,19 +26,14 @@ const DEFAULT_LOCAL_CANDIDATE_RELATIVE_PATHS = [
   './',
   '../',
   '../dist/',
-  '../npm/',
-  '../../npm/',
-  '../../cli/npm/',
-  '../../../cli/npm/',
-  '../../../../cli/npm/'
+  '../../../cli/npm/'
 ] as const
 
 const DEFAULT_PACKAGE_DIR_CANDIDATE_RELATIVE_PATHS = [
   '../npm/',
   '../../npm/',
   '../../cli/npm/',
-  '../../../cli/npm/',
-  '../../../../cli/npm/'
+  '../../../cli/npm/'
 ] as const
 
 function resolvePlatformBindings(binaryName: string): Record<string, PlatformBinding> {
@@ -139,21 +132,13 @@ export function loadBindingFromCliBinaryPackage<T>(
   options: NativeBindingLoaderOptions<T>,
   suffix: string
 ): T {
-  const {
-    packageName,
-    binaryName,
-    bindingValidator,
-    cliExportName,
-    optionalMethods
-  } = options
+  const {packageName, binaryName, bindingValidator} = options
   const cliPackageName = `@truenine/memory-sync-cli-${suffix}`
 
   try {
-    const cliBinaryPackage = runtimeRequire(cliPackageName) as Record<string, unknown>
-    const exportKey = cliExportName ?? binaryName.replace('napi-', '')
-    const runtimeBinding = cliBinaryPackage[exportKey]
+    const cliBinaryPackage = runtimeRequire(cliPackageName) as unknown
 
-    if (bindingValidator(runtimeBinding)) return applyOptionalMethods(runtimeBinding, optionalMethods)
+    if (bindingValidator(cliBinaryPackage)) return cliBinaryPackage
   }
   catch {
   }
@@ -174,7 +159,7 @@ export function loadBindingFromCliBinaryPackage<T>(
         bindingValidator,
         options._readdirSync
       )
-      if (loaded != null) return applyOptionalMethods(loaded, optionalMethods)
+      if (loaded != null) return loaded
     }
     catch (error) {
       lastError = error
@@ -183,30 +168,6 @@ export function loadBindingFromCliBinaryPackage<T>(
 
   if (lastError instanceof Error) throw lastError
   throw new Error(`Package "${cliPackageName}" does not export a ${binaryName} binding or contain a compatible native module`)
-}
-
-function applyOptionalMethods<T>(binding: T, optionalMethods?: Record<string, string[]>): T {
-  if (optionalMethods == null || typeof binding !== 'object' || binding == null) return binding
-
-  const bindingRecord = binding as Record<string, unknown>
-
-  for (const [preferredMethod, aliases] of Object.entries(optionalMethods)) {
-    if (bindingRecord[preferredMethod] == null) {
-      for (const alias of aliases) {
-        if (typeof bindingRecord[alias] === 'function') {
-          Object.defineProperty(bindingRecord, preferredMethod, {
-            value: bindingRecord[alias],
-            writable: false,
-            enumerable: true,
-            configurable: true
-          })
-          break
-        }
-      }
-    }
-  }
-
-  return binding
 }
 
 function buildLocalCandidatePaths(local: string, suffix: string): string[] {
@@ -241,7 +202,7 @@ export function loadNativeBinding<T>(
     try {
       const bindingModule = runtimeRequire(candidate) as unknown
       if (bindingValidator(bindingModule)) {
-        return applyOptionalMethods(bindingModule, options.optionalMethods)
+        return bindingModule
       }
     }
     catch (error) {
