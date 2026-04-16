@@ -385,7 +385,7 @@ export function createClaudeCodeFixture(): ClaudeCodeFixture {
       projectCommand: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "commands", "find-opensource.md"),
       projectAgent: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "agents", "qa-reviewer.md"),
       projectSkill: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "skills", "ship-it", "SKILL.md"),
-      projectRule: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "rules", "rule-qa-safe.md"),
+      projectRule: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "rules", "safe.md"),
       projectSettings: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "settings.json"),
       projectSettingsLocal: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "settings.local.json"),
     },
@@ -600,7 +600,7 @@ export function createClaudeCodeInterpolationFixture(): ClaudeCodeInterpolationF
       projectCommand: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "commands", "find-opensource.md"),
       projectAgent: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "agents", "qa-reviewer.md"),
       projectSkill: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "skills", "ship-it", "SKILL.md"),
-      projectRule: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "rules", "rule-qa-safe.md"),
+      projectRule: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "rules", "safe.md"),
     },
     cleanup() {
       rmSync(rootDir, { recursive: true, force: true });
