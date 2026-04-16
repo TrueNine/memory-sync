@@ -22,7 +22,7 @@ export class SkillDistCleanupEffectInputCapability extends AbstractInputCapabili
       throw new Error('Native performSkillDistCleanup binding is unavailable')
     }
 
-    const resultJson = await Promise.resolve(binding.performSkillDistCleanup(distSkillsDir, dryRun))
+    const resultJson = await Promise.resolve(binding.performSkillDistCleanup(distSkillsDir, dryRun === true))
     return JSON.parse(resultJson) as SkillDistCleanupEffectResult
   }
 
