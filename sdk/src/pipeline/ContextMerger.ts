@@ -1,206 +1,127 @@
-/**
- * Context Merger Module
- * Handles merging of partial InputCollectedContext objects
- */
+import type {InputCollectedContext} from '../adaptors/adaptor-core'
+import {getNativeBinding} from '@/core/native-binding'
 
-import type {InputCollectedContext, Project, Workspace} from '../adaptors/adaptor-core'
-
-/**
- * Merge strategy types for context fields
- */
-type MergeStrategy = 'concat' | 'override' | 'mergeProjects'
-
-/**
- * Field merge configuration
- */
-interface FieldConfig<T> {
-  readonly strategy: MergeStrategy
-  readonly getter: (ctx: Partial<InputCollectedContext>) => T | undefined
+interface NativeContextMergerBinding {
+  mergeContexts?: (base: InputCollectedContext, addition: InputCollectedContext) => InputCollectedContext
+  buildDependencyContext?: (deps: string[], outputsByPluginJson: string) => InputCollectedContext
 }
 
-/**
- * Merge configuration for all InputCollectedContext fields
- */
-const FIELD_CONFIGS: Record<string, FieldConfig<unknown>> = {
-  workspace: {
-    strategy: 'mergeProjects',
-    getter: ctx => ctx.workspace
-  },
-  vscodeConfigFiles: {
-    strategy: 'concat',
-    getter: ctx => ctx.vscodeConfigFiles
-  },
-  zedConfigFiles: {
-    strategy: 'concat',
-    getter: ctx => ctx.zedConfigFiles
-  },
-  jetbrainsConfigFiles: {
-    strategy: 'concat',
-    getter: ctx => ctx.jetbrainsConfigFiles
-  },
-  editorConfigFiles: {
-    strategy: 'concat',
-    getter: ctx => ctx.editorConfigFiles
-  },
-  commands: {
-    strategy: 'concat',
-    getter: ctx => ctx.commands
-  },
-  subAgents: {
-    strategy: 'concat',
-    getter: ctx => ctx.subAgents
-  },
-  skills: {
-    strategy: 'concat',
-    getter: ctx => ctx.skills
-  },
-  rules: {
-    strategy: 'concat',
-    getter: ctx => ctx.rules
-  },
-  aiAgentIgnoreConfigFiles: {
-    strategy: 'concat',
-    getter: ctx => ctx.aiAgentIgnoreConfigFiles
-  },
-  readmePrompts: {
-    strategy: 'concat',
-    getter: ctx => ctx.readmePrompts
-  },
-  globalMemory: {
-    // Override fields (last one wins)
-    strategy: 'override',
-    getter: ctx => ctx.globalMemory
-  },
-  aindexDir: {
-    strategy: 'override',
-    getter: ctx => ctx.aindexDir
-  },
-  globalGitIgnore: {
-    strategy: 'override',
-    getter: ctx => ctx.globalGitIgnore
-  },
-  shadowGitExclude: {
-    strategy: 'override',
-    getter: ctx => ctx.shadowGitExclude
+export function mergeContexts(base: Partial<InputCollectedContext>, addition: Partial<InputCollectedContext>): Partial<InputCollectedContext> {
+  const binding = getNativeBinding<NativeContextMergerBinding>()
+  if (binding?.mergeContexts != null) {
+    try {
+      return binding.mergeContexts(base as InputCollectedContext, addition as InputCollectedContext) as Partial<InputCollectedContext>
+    } catch {
+      // fall through
+    }
   }
-} as const
+  return mergeContextsFallback(base, addition)
+}
 
-/**
- * Merge two arrays by concatenating them
- */
-function mergeArrays<T>(
-  base: readonly T[] | undefined,
-  addition: readonly T[] | undefined
-): readonly T[] {
+function mergeArrays<T>(base: readonly T[] | undefined, addition: readonly T[] | undefined): readonly T[] {
   if (addition == null) return base ?? []
   if (base == null) return addition
   return [...base, ...addition]
 }
 
-/**
- * Merge workspace projects. Later projects with the same name replace earlier ones.
- */
-function buildProjectMergeKey(project: Project): string {
+function buildProjectMergeKey(project: {name?: string, projectType?: string, isWorkspaceRootProject?: boolean}): string {
   if (project.isWorkspaceRootProject === true) return `workspace-root:${project.name ?? ''}`
-
   const projectType = project.projectType ?? 'workspace'
   return `${projectType}:${project.name ?? ''}`
 }
 
 function mergeWorkspaceProjects(
-  base: Workspace,
-  addition: Workspace
-): Workspace {
-  const projectMap = new Map<string | undefined, (typeof base.projects)[0]>()
+  base: {directory: string, projects: {name?: string, projectType?: string, isWorkspaceRootProject?: boolean}[]},
+  addition: {directory: string, projects: {name?: string, projectType?: string, isWorkspaceRootProject?: boolean}[]}
+): {directory: string, projects: {name?: string, projectType?: string, isWorkspaceRootProject?: boolean}[]} {
+  const projectMap = new Map<string, (typeof base.projects)[0]>()
   for (const project of base.projects) projectMap.set(buildProjectMergeKey(project), project)
-  for (const project of addition.projects)
-  { projectMap.set(buildProjectMergeKey(project), project) }
+  for (const project of addition.projects) {
+    projectMap.set(buildProjectMergeKey(project), project)
+  }
   return {
     directory: addition.directory ?? base.directory,
     projects: [...projectMap.values()]
   }
 }
 
-/**
- * Merge workspace fields
- */
-function mergeWorkspace(
-  base: Workspace | undefined,
-  addition: Workspace | undefined
-): Workspace | undefined {
-  if (addition == null) return base
-  if (base == null) return addition
-  return mergeWorkspaceProjects(base, addition)
-}
+function mergeContextsFallback(base: Partial<InputCollectedContext>, addition: Partial<InputCollectedContext>): Partial<InputCollectedContext> {
+  const result: Partial<InputCollectedContext> = {}
 
-/**
- * Merge a single field based on its strategy
- */
-function mergeField<T>(
-  base: T | undefined,
-  addition: T | undefined,
-  strategy: MergeStrategy
-): T | undefined {
-  switch (strategy) {
-    case 'concat':
-      return mergeArrays(
-        base as unknown[],
-        addition as unknown[]
-      ) as unknown as T
-    case 'override':
-      return addition ?? base
-    case 'mergeProjects':
-      return mergeWorkspace(
-        base as unknown as Workspace,
-        addition as unknown as Workspace
-      ) as unknown as T
-    default:
-      return addition ?? base
-  }
-}
-
-/**
- * Merge two partial InputCollectedContext objects
- * Uses configuration-driven approach to reduce code duplication
- */
-export function mergeContexts(
-  base: Partial<InputCollectedContext>,
-  addition: Partial<InputCollectedContext>
-): Partial<InputCollectedContext> {
-  const result: Record<string, unknown> = {}
-
-  for (const [fieldName, config] of Object.entries(FIELD_CONFIGS)) {
-    // Process each configured field
-    const baseValue = config.getter(base)
-    const additionValue = config.getter(addition)
-    const mergedValue = mergeField(baseValue, additionValue, config.strategy)
-    if (mergedValue != null) result[fieldName] = mergedValue
+  if (addition.workspace != null || base.workspace != null) {
+    if (addition.workspace == null) {
+      (result as Record<string, unknown>)['workspace'] = base.workspace
+    } else if (base.workspace == null) {
+      (result as Record<string, unknown>)['workspace'] = addition.workspace
+    } else {
+      (result as Record<string, unknown>)['workspace'] = mergeWorkspaceProjects(
+        base.workspace as unknown as {directory: string, projects: {name?: string, projectType?: string, isWorkspaceRootProject?: boolean}[]},
+        addition.workspace as unknown as {directory: string, projects: {name?: string, projectType?: string, isWorkspaceRootProject?: boolean}[]}
+      )
+    }
   }
 
-  return result as Partial<InputCollectedContext>
+  const concatFields: (keyof InputCollectedContext)[] = [
+    'vscodeConfigFiles',
+    'zedConfigFiles',
+    'jetbrainsConfigFiles',
+    'editorConfigFiles',
+    'commands',
+    'subAgents',
+    'skills',
+    'rules',
+    'readmePrompts',
+    'aiAgentIgnoreConfigFiles'
+  ]
+
+  for (const field of concatFields) {
+    const merged = mergeArrays(base[field] as unknown as readonly unknown[] | undefined, addition[field] as unknown as readonly unknown[] | undefined)
+    if (merged.length > 0) {
+      (result as Record<string, unknown>)[field] = merged
+    }
+  }
+
+  const overrideFields: (keyof InputCollectedContext)[] = ['globalMemory', 'aindexDir', 'globalGitIgnore', 'shadowGitExclude']
+
+  for (const field of overrideFields) {
+    const merged = (addition[field] ?? base[field]) as unknown
+    if (merged != null) {
+      (result as Record<string, unknown>)[field] = merged
+    }
+  }
+
+  return result
 }
 
-/**
- * Build dependency context from plugin outputs
- */
 export function buildDependencyContext(
   plugin: {dependsOn?: readonly string[]},
   outputsByPlugin: Map<string, Partial<InputCollectedContext>>,
-  mergeFn: (
-    base: Partial<InputCollectedContext>,
-    addition: Partial<InputCollectedContext>
-  ) => Partial<InputCollectedContext>
+  mergeFn?: (base: Partial<InputCollectedContext>, addition: Partial<InputCollectedContext>) => Partial<InputCollectedContext>
 ): Partial<InputCollectedContext> {
+  const binding = getNativeBinding<NativeContextMergerBinding>()
+  if (binding?.buildDependencyContext != null) {
+    try {
+      const outputs: Record<string, InputCollectedContext> = {}
+      for (const [key, value] of outputsByPlugin) {
+        outputs[key] = value as InputCollectedContext
+      }
+      return binding.buildDependencyContext([...plugin.dependsOn ?? []], JSON.stringify(outputs)) as Partial<InputCollectedContext>
+    } catch {
+      // fall through
+    }
+  }
+
   const deps = plugin.dependsOn ?? []
   if (deps.length === 0) return {}
 
   const visited = new Set<string>()
   let merged: Partial<InputCollectedContext> = {}
+  const merger = mergeFn ?? mergeContextsFallback
   for (const depName of deps) {
     if (visited.has(depName)) continue
     visited.add(depName)
     const depOutput = outputsByPlugin.get(depName)
-    if (depOutput != null) merged = mergeFn(merged, depOutput)
+    if (depOutput != null) merged = merger(merged, depOutput)
   }
 
   return merged
