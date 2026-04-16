@@ -60,6 +60,18 @@ afterEach(() => {
   delete testGlobals.__TNMSC_TEST_NATIVE_BINDING__
 })
 
+function mockFilterPathScopedEntriesForExecutionPlan<
+  T extends {readonly path: string, readonly scope?: string}
+>(entries: readonly T[], planJson: string): readonly T[] {
+  const plan = JSON.parse(planJson) as {scope: string, matchedProject?: {rootDir: string}} | undefined
+  if (plan?.scope !== 'project') return entries
+  const matchedRoot = plan.matchedProject?.rootDir
+  if (matchedRoot == null) return entries
+  return entries.filter(
+    entry => entry.scope === 'global' || entry.path === matchedRoot || entry.path.startsWith(`${matchedRoot}${path.sep}`)
+  )
+}
+
 describe('cleanup execution scope filtering', () => {
   it('filters outputs and cleanup targets down to the matched project plus global entries', async () => {
     const workspaceDir = path.resolve('/tmp/tnmsc-cleanup-execution-scope')
@@ -68,6 +80,7 @@ describe('cleanup execution scope filtering', () => {
 
     const testGlobals = globalThis as typeof globalThis & {__TNMSC_TEST_NATIVE_BINDING__?: object}
     testGlobals.__TNMSC_TEST_NATIVE_BINDING__ = {
+      filterPathScopedEntriesForExecutionPlan: mockFilterPathScopedEntriesForExecutionPlan,
       planCleanup(snapshotJson: string) {
         capturedSnapshot = JSON.parse(snapshotJson) as Record<string, unknown>
         return JSON.stringify({
@@ -182,6 +195,7 @@ describe('cleanup execution scope filtering', () => {
 
     const testGlobals = globalThis as typeof globalThis & {__TNMSC_TEST_NATIVE_BINDING__?: object}
     testGlobals.__TNMSC_TEST_NATIVE_BINDING__ = {
+      filterPathScopedEntriesForExecutionPlan: mockFilterPathScopedEntriesForExecutionPlan,
       planCleanup(snapshotJson: string) {
         capturedSnapshot = JSON.parse(snapshotJson) as Record<string, unknown>
         return JSON.stringify({
@@ -273,6 +287,7 @@ describe('cleanup execution scope filtering', () => {
 
     const testGlobals = globalThis as typeof globalThis & {__TNMSC_TEST_NATIVE_BINDING__?: object}
     testGlobals.__TNMSC_TEST_NATIVE_BINDING__ = {
+      filterPathScopedEntriesForExecutionPlan: mockFilterPathScopedEntriesForExecutionPlan,
       planCleanup(snapshotJson: string) {
         capturedSnapshot = JSON.parse(snapshotJson) as Record<string, unknown>
         return JSON.stringify({
