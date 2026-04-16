@@ -1,8 +1,9 @@
 import type {Buffer} from 'node:buffer'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
-import {resolveRuntimeEnvironment, resolveUserPath} from '../../src/runtime-environment.ts'
+import {resolveUserPath} from '../../src/runtime-environment.ts'
 
 type PlatformFixedDir = 'win32' | 'darwin' | 'linux'
 
@@ -18,9 +19,8 @@ export function getPlatformFixedDir(): string {
     return testBinding.getPlatformFixedDir()
   }
 
-  const runtimeEnvironment = resolveRuntimeEnvironment()
-  const platform = (runtimeEnvironment.isWsl ? 'win32' : runtimeEnvironment.platform) as PlatformFixedDir
-  const homeDir = runtimeEnvironment.effectiveHomeDir
+  const platform = process.platform as PlatformFixedDir
+  const homeDir = os.homedir()
 
   if (platform === 'win32') return resolveUserPath(process.env['LOCALAPPDATA'] ?? path.join(homeDir, 'AppData', 'Local'))
   if (platform === 'darwin') return path.join(homeDir, 'Library', 'Application Support')
