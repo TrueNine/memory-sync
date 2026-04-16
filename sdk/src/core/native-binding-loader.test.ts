@@ -10,7 +10,6 @@ import {
 
 interface MockBinding {
   readonly testMethod: () => string
-  readonly optionalSnakeCase?: () => string
 }
 
 const {mockRequire, mockReaddirSync} = vi.hoisted(() => ({
@@ -189,63 +188,25 @@ describe('loadBindingFromCliBinaryPackage', () => {
     vi.clearAllMocks()
   })
 
-  it.skip('loads binding from CLI package export with matching validator', () => {
-    interface TestCliExport {
-      readonly testMethod: () => string
-    }
-
-    const validBinding: TestCliExport = {
-      testMethod: () => 'cli-binding-result'
-    }
-
-    const cliOptions: NativeBindingLoaderOptions<TestCliExport> = {
-      packageName: '@truenine/test-cli',
-      binaryName: 'napi-test',
-      cliExportName: 'test',
-      bindingValidator: (value): value is TestCliExport =>
-        value != null
-        && typeof value === 'object'
-        && typeof (value as TestCliExport).testMethod === 'function'
-    }
-
-    mockRequire.mockImplementation((specifier: string) => {
-      if (specifier === '@truenine/memory-sync-cli-linux-x64-gnu') {
-        return {test: validBinding}
-      }
-
-      throw new Error(`Not found: ${specifier}`)
-    })
-
-    const result = loadBindingFromCliBinaryPackage(
-      mockRequire as never,
-      cliOptions,
-      'linux-x64-gnu'
-    )
-
-    expect(result).toBe(validBinding)
-    expect(result.testMethod()).toBe('cli-binding-result')
-  })
-
-  it.skip('uses binaryName as default export key when cliExportName not provided', () => {
+  it('loads binding directly from CLI package when it validates', () => {
     const validBinding = createValidBinding()
     mockRequire.mockImplementation((specifier: string) => {
       if (specifier === '@truenine/memory-sync-cli-linux-x64-gnu') {
-        return {test: validBinding}
+        return validBinding
       }
-
       throw new Error(`Not found: ${specifier}`)
     })
 
     const result = loadBindingFromCliBinaryPackage(
       mockRequire as never,
-      {...defaultOptions, binaryName: 'napi-test'},
+      defaultOptions,
       'linux-x64-gnu'
     )
 
     expect(result).toBe(validBinding)
   })
 
-  it('falls back to directory scanning when direct export fails', () => {
+  it('falls back to directory scanning when direct package fails validation', () => {
     const validBinding = createValidBinding()
     mockRequire.mockImplementation((specifier: string) => {
       if (specifier === '@truenine/memory-sync-cli-linux-x64-gnu') {
@@ -349,61 +310,6 @@ describe('createNativeBindingLoader', () => {
     expect(() => secondLoader()).toThrow('Permanent failure')
   })
 
-  it('applies optional method aliases', () => {
-    const bindingWithSnakeCase: MockBinding = {
-      testMethod: () => 'original',
-      optionalSnakeCase: () => 'snake-case-result'
-    }
-
-    mockRequire.mockReturnValue(bindingWithSnakeCase)
-
-    const loader = createNativeBindingLoader({
-      ...defaultOptions,
-      optionalMethods: {
-        testMethod: ['optionalSnakeCase']
-      },
-      _requireFactory: () => mockRequire as never
-    })
-
-    const binding = loader()
-    expect(binding.testMethod()).toBe('original')
-  })
-
-  it('supports multiple alias fallbacks when preferred method is missing', () => {
-    interface BindingWithAliases {
-      readonly testMethod?: () => string
-      readonly firstAlias?: () => string
-      readonly secondAlias?: () => string
-      readonly thirdAlias: () => string
-    }
-
-    const optionsWithAliases: NativeBindingLoaderOptions<BindingWithAliases> = {
-      ...defaultOptions,
-      bindingValidator: (value): value is BindingWithAliases =>
-        value != null
-        && typeof value === 'object'
-        && typeof (value as BindingWithAliases).thirdAlias === 'function',
-      optionalMethods: {
-        testMethod: ['firstAlias', 'secondAlias', 'thirdAlias']
-      }
-    }
-
-    const bindingWithAliasOnly: BindingWithAliases = {
-      thirdAlias: () => 'third-alias-result'
-    }
-
-    mockRequire.mockReturnValue(bindingWithAliasOnly)
-
-    const loader = createNativeBindingLoader({
-      ...optionsWithAliases,
-      _requireFactory: () => mockRequire as never
-    })
-
-    const binding = loader()
-    expect(typeof binding.testMethod).toBe('function')
-    expect((binding.testMethod as () => string)()).toBe('third-alias-result')
-  })
-
   it('respects custom packageSuffix option', () => {
     const validBinding = createValidBinding()
     mockRequire.mockReturnValue(validBinding)
@@ -439,7 +345,6 @@ describe('integration scenarios', () => {
     const loggerOptions: NativeBindingLoaderOptions<LoggerBinding> = {
       packageName: '@truenine/memory-sync-sdk',
       binaryName: 'napi-memory-sync-cli',
-      cliExportName: 'logger',
       bindingValidator: (value): value is LoggerBinding =>
         value != null
         && typeof value === 'object'
@@ -459,46 +364,5 @@ describe('integration scenarios', () => {
 
     expect(typeof binding.createLogger).toBe('function')
     expect(typeof binding.setGlobalLogLevel).toBe('function')
-  })
-
-  it('simulates script-runtime-like binding with snake_case support', () => {
-    interface ScriptRuntimeBinding {
-      validatePublicPath?: () => string
-      resolvePublicPath?: () => string
-      validate_public_path?: () => string
-      resolve_public_path?: () => string
-    }
-
-    const scriptRuntimeOptions: NativeBindingLoaderOptions<ScriptRuntimeBinding> = {
-      packageName: '@truenine/memory-sync-sdk',
-      binaryName: 'napi-memory-sync-cli',
-      cliExportName: 'scriptRuntime',
-      optionalMethods: {
-        validatePublicPath: ['validate_public_path'],
-        resolvePublicPath: ['resolve_public_path']
-      },
-      bindingValidator: (value): value is ScriptRuntimeBinding =>
-        value != null
-        && typeof value === 'object'
-        && (
-          typeof (value as ScriptRuntimeBinding).validate_public_path === 'function'
-          || typeof (value as ScriptRuntimeBinding).validatePublicPath === 'function'
-          || typeof (value as ScriptRuntimeBinding).resolve_public_path === 'function'
-          || typeof (value as ScriptRuntimeBinding).resolvePublicPath === 'function'
-        )
-    }
-
-    const mockScriptRuntime: ScriptRuntimeBinding = {
-      validate_public_path: () => '/valid/path',
-      resolve_public_path: () => '/resolved/path'
-    }
-
-    mockRequire.mockReturnValue(mockScriptRuntime)
-
-    const loader = createNativeBindingLoader(scriptRuntimeOptions)
-    const binding = loader()
-
-    expect(typeof binding.validatePublicPath).toBe('function')
-    expect(typeof binding.resolvePublicPath).toBe('function')
   })
 })
