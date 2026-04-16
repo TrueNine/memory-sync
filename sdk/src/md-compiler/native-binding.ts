@@ -36,8 +36,7 @@ function isNapiMdCompilerModule(value: unknown): value is NapiMdCompilerModule {
 const loadNativeBinding = createNativeBindingLoader<NapiMdCompilerModule>({
   packageName: '@truenine/memory-sync-sdk',
   binaryName: 'napi-memory-sync-cli',
-  bindingValidator: isNapiMdCompilerModule,
-  cliExportName: 'mdCompiler'
+  bindingValidator: isNapiMdCompilerModule
 })
 
 let cachedBindingError: Error | undefined
