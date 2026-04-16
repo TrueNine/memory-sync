@@ -10,7 +10,7 @@ import { Callout, Cards, Steps, Tabs } from 'nextra/components'
 # Script-Runtime
 
 <Callout type="info">
-**包名**: `@truenine/memory-sync-sdk` &nbsp;|&nbsp; **Rust Crate**: `tnmsc` &nbsp;|&nbsp; **Rust / 包位置**: `sdk/src/sdk/script-runtime/` &nbsp;|&nbsp; **TypeScript 事实来源**: `sdk/src/sdk/src/sdk/script-runtime/`
+**包名**: `@truenine/memory-sync-sdk` &nbsp;|&nbsp; **Rust Crate**: `tnmsc` &nbsp;|&nbsp; **Rust 源码位置**: `sdk/src/native_script_runtime.rs` &nbsp;|&nbsp; **TypeScript facade**: `sdk/src/libraries/script-runtime/`
 </Callout>
 
 Script-Runtime 是一个 **Rust 支持的 TypeScript 代理模块加载器和路径验证运行时**，为 `tnmsc` 核心系统提供安全的动态模块代理与公共路径解析能力。它通过 NAPI 将 Rust 原生的高性能路径验证逻辑暴露给 Node.js 层，同时利用 Jiti 运行时实现灵活的代理模块加载与执行。
@@ -583,7 +583,7 @@ pub fn resolve_public_path_impl(
 
 ### 共享 Native Binding 加载
 
-Script-Runtime 现在与 Logger、MDX-Compiler 共用 `sdk/src/core/native-binding-loader.ts`。它的 TypeScript 事实来源已经迁到 `sdk/src/sdk/src/sdk/script-runtime/`，而 `sdk/src/sdk/src/sdk/script-runtime/index.ts` 只保留 wrapper 角色；真正的实现只保留 Script-Runtime 自己必须关心的部分：
+Script-Runtime 现在与 Logger、MDX-Compiler 共用 `sdk/src/core/native-binding-loader.ts`。它的 TypeScript facade 位于 `sdk/src/libraries/script-runtime/`，而 `sdk/src/libraries/script-runtime/index.ts` 保留 wrapper 角色；真正的实现只保留 Script-Runtime 自己必须关心的部分：
 
 - `isScriptRuntimeBinding()`：校验 native export
 - `optionalMethods` 映射：把 `validate_public_path` / `resolve_public_path` 归一成 TypeScript 侧的首选方法名
@@ -1032,11 +1032,11 @@ graph TB
 
 ## 相关资源
 
-- **Rust / 包位置**: `sdk/src/sdk/script-runtime/`
-- **TypeScript 事实来源**: `sdk/src/sdk/src/sdk/script-runtime/`
-- **主入口**: `sdk/src/sdk/src/sdk/script-runtime/index.ts`
-- **类型定义**: `sdk/src/sdk/src/sdk/script-runtime/types.ts`
-- **核心运行时**: `sdk/src/sdk/src/sdk/script-runtime/runtime-core.ts`
-- **Worker 处理器**: `sdk/src/sdk/src/sdk/script-runtime/resolve-proxy-worker.ts`
+- **Rust 源码位置**: `sdk/src/native_script_runtime.rs`
+- **TypeScript facade**: `sdk/src/libraries/script-runtime/`
+- **主入口**: `sdk/src/libraries/script-runtime/index.ts`
+- **类型定义**: `sdk/src/libraries/script-runtime/types.ts`
+- **核心运行时**: `sdk/src/libraries/script-runtime/runtime-core.ts`
+- **Worker 处理器**: `sdk/src/libraries/script-runtime/resolve-proxy-worker.ts`
 - **Rust Native**: `sdk/src/native_script_runtime.rs`
 - **依赖库**: `logger`（类似的 Native Binding 模式参考）
