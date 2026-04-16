@@ -14,13 +14,13 @@ import {
 } from '../adaptors/NativeBaseOutputAdaptor'
 import {NativeDroidCLIOutputAdaptor} from '../adaptors/NativeDroidCLIOutputAdaptor'
 import {NativeGeminiCLIOutputAdaptor} from '../adaptors/NativeGeminiCLIOutputAdaptor'
+import {NativeWarpIDEOutputAdaptor} from '../adaptors/NativeWarpIDEOutputAdaptor'
 import {OpencodeCLIOutputAdaptor} from '../adaptors/OpencodeCLIOutputAdaptor'
 import {QoderIDEPluginOutputAdaptor} from '../adaptors/QoderIDEPluginOutputAdaptor'
 import {TraeOutputAdaptor} from '../adaptors/TraeOutputAdaptor'
-import {WarpIDEOutputAdaptor} from '../adaptors/WarpIDEOutputAdaptor'
 import {WindsurfOutputAdaptor} from '../adaptors/WindsurfOutputAdaptor'
 
-export interface DefaultOutputAdaptorDescriptor {
+interface DefaultOutputAdaptorDescriptor {
   readonly name: string
   readonly kind: 'Output'
   readonly description: string
@@ -39,7 +39,7 @@ export function createDefaultOutputAdaptors(): PipelineConfig['outputAdaptors'] 
     new OpencodeCLIOutputAdaptor(),
     new QoderIDEPluginOutputAdaptor(),
     new TraeOutputAdaptor(),
-    new WarpIDEOutputAdaptor(),
+    new NativeWarpIDEOutputAdaptor(),
     new WindsurfOutputAdaptor(),
     new CursorOutputAdaptor(),
     new NativeGitExcludeOutputAdaptor(),
