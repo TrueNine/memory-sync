@@ -68,6 +68,14 @@ describeForHost('claude code cli integration', () => {
       const fixture = createClaudeCodeFixture()
 
       await withPluginEnvironment(artifacts, fixture, async container => {
+        const debugResult = container.exec('tnmsc --trace', CONTAINER_EXTERNAL_CWD)
+        console.log('TRACE EXIT:', debugResult.exitCode)
+        console.log('TRACE LAST 5000:', debugResult.stdout.slice(-5000))
+        console.log('TRACE STDERR:', debugResult.stderr)
+
+        const nodeDebug = container.exec('node -e "import(\'@truenine/memory-sync-sdk\').then(m => { const b = m.getMemorySyncSdkBinding(); console.log(\'BINDING TYPE:\', typeof b); console.log(\'HAS syncWindowsConfigIntoWsl:\', typeof b?.syncWindowsConfigIntoWsl); console.log(\'KEYS:\', Object.keys(b).slice(0, 20).join(\', \')); }).catch(e => console.error(\'ERR:\', e.message))"', CONTAINER_EXTERNAL_CWD)
+        console.log('NATIVE BINDING DEBUG:', nodeDebug.stdout, nodeDebug.stderr, nodeDebug.exitCode)
+
         const result = container.exec('tnmsc', CONTAINER_EXTERNAL_CWD)
         if (result.exitCode !== 0) throw new Error(`exit ${result.exitCode}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`)
         expectSuccess(result.exitCode)
