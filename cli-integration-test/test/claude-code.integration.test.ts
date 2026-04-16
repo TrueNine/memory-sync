@@ -1,7 +1,7 @@
 import type {CliIntegrationArtifacts} from '../src/artifacts'
 import {beforeAll, describe, expect, it} from 'vitest'
 import {prepareCliIntegrationArtifacts} from '../src/artifacts'
-import {CONTAINER_EXTERNAL_CWD, createTraeFixture} from '../src/fixtures'
+import {CONTAINER_EXTERNAL_CWD, createClaudeCodeFixture} from '../src/fixtures'
 import {
   assertDistContent,
   assertPathStates,
@@ -10,7 +10,7 @@ import {
   withPluginEnvironment,
 } from '../src/test-helpers'
 
-describeForHost('trae cli integration', () => {
+describeForHost('claude code cli integration', () => {
   let artifacts: CliIntegrationArtifacts
 
   beforeAll(() => {
@@ -18,8 +18,8 @@ describeForHost('trae cli integration', () => {
   })
 
   describe('bootstrap', () => {
-    it('bootstraps the latest pnpm and exposes the installed cli help surface', async () => {
-      const fixture = createTraeFixture()
+    it('bootstraps the latest pnpm, resolves local tarballs, and exposes the claude plugin surface', async () => {
+      const fixture = createClaudeCodeFixture()
 
       await withPluginEnvironment(artifacts, fixture, async container => {
         const pnpmVersion = container.assertExecSuccess('pnpm --version').stdout.trim()
@@ -38,14 +38,14 @@ describeForHost('trae cli integration', () => {
         expect(help.stdout).toContain('plugins')
 
         const plugins = container.assertExecSuccess('tnmsc plugins')
-        expect(plugins.stdout).toContain('TraeOutputAdaptor')
+        expect(plugins.stdout).toContain('ClaudeCodeCLIOutputAdaptor')
       })
     })
   })
 
   describe('dry-run', () => {
-    it('keeps dry-run side effect free for trae outputs', async () => {
-      const fixture = createTraeFixture()
+    it('keeps dry-run side effect free for claude outputs', async () => {
+      const fixture = createClaudeCodeFixture()
 
       await withPluginEnvironment(artifacts, fixture, async container => {
         const result = container.exec('tnmsc dry-run', CONTAINER_EXTERNAL_CWD)
@@ -53,7 +53,9 @@ describeForHost('trae cli integration', () => {
 
         assertPathStates(container, [
           fixture.outputPaths.globalMemory,
-          fixture.outputPaths.globalMemoryCn,
+          fixture.outputPaths.projectMemory,
+          fixture.outputPaths.projectCommand,
+          fixture.outputPaths.projectAgent,
           fixture.outputPaths.projectSkill,
           fixture.outputPaths.projectRule,
         ], false)
@@ -62,8 +64,8 @@ describeForHost('trae cli integration', () => {
   })
 
   describe('install', () => {
-    it('installs trae outputs from dist content including trae-cn mirrors', async () => {
-      const fixture = createTraeFixture()
+    it('installs claude outputs from dist content', async () => {
+      const fixture = createClaudeCodeFixture()
 
       await withPluginEnvironment(artifacts, fixture, async container => {
         const result = container.exec('tnmsc', CONTAINER_EXTERNAL_CWD)
@@ -71,7 +73,9 @@ describeForHost('trae cli integration', () => {
 
         assertPathStates(container, [
           fixture.outputPaths.globalMemory,
-          fixture.outputPaths.globalMemoryCn,
+          fixture.outputPaths.projectMemory,
+          fixture.outputPaths.projectCommand,
+          fixture.outputPaths.projectAgent,
           fixture.outputPaths.projectSkill,
           fixture.outputPaths.projectRule,
         ], true)
@@ -82,10 +86,22 @@ describeForHost('trae cli integration', () => {
           ['中文全局记忆内容'],
         )
 
-        const globalMemoryCn = container.readFile(fixture.outputPaths.globalMemoryCn)
-        assertDistContent(globalMemoryCn,
-          ['English global memory body'],
-          ['中文全局记忆内容'],
+        const projectMemory = container.readFile(fixture.outputPaths.projectMemory)
+        assertDistContent(projectMemory,
+          ['English project memory body'],
+          ['中文项目记忆内容'],
+        )
+
+        const command = container.readFile(fixture.outputPaths.projectCommand)
+        assertDistContent(command,
+          ['description: English dist description', 'English dist command body'],
+          ['中文源描述', '中文源命令内容'],
+        )
+
+        const agent = container.readFile(fixture.outputPaths.projectAgent)
+        assertDistContent(agent,
+          ['name: qa-reviewer', 'description: Review pull requests', 'memory: project', 'Review changes carefully.', 'Focus on concrete regressions.'],
+          [],
         )
 
         const skill = container.readFile(fixture.outputPaths.projectSkill)
@@ -96,7 +112,7 @@ describeForHost('trae cli integration', () => {
 
         const rule = container.readFile(fixture.outputPaths.projectRule)
         assertDistContent(rule,
-          ["globs: '**/*.ts'", 'English rule body'],
+          ['paths:', '**/*.ts', 'English rule body'],
           ['中文规则内容'],
         )
       })
@@ -104,29 +120,46 @@ describeForHost('trae cli integration', () => {
   })
 
   describe('clean', () => {
-    it('supports clean dry-run and clean for trae outputs', async () => {
-      const fixture = createTraeFixture()
+    it('supports clean dry-run and clean for claude outputs', async () => {
+      const fixture = createClaudeCodeFixture()
 
       await withPluginEnvironment(artifacts, fixture, async container => {
         const installResult = container.exec('tnmsc', CONTAINER_EXTERNAL_CWD)
         expectSuccess(installResult.exitCode)
 
+        container.assertExecSuccess(
+          [
+            `mkdir -p "$(dirname '${fixture.outputPaths.projectSettings}')"`,
+            `printf '{"theme":"dark"}\n' > '${fixture.outputPaths.projectSettings}'`,
+            `printf '{"sandbox":"workspace"}\n' > '${fixture.outputPaths.projectSettingsLocal}'`,
+          ].join(' && '),
+          '/',
+        )
+
         const cleanDryRunResult = container.exec('tnmsc clean --dry-run', CONTAINER_EXTERNAL_CWD)
         expectSuccess(cleanDryRunResult.exitCode)
         assertPathStates(container, [
           fixture.outputPaths.globalMemory,
-          fixture.outputPaths.globalMemoryCn,
+          fixture.outputPaths.projectMemory,
+          fixture.outputPaths.projectCommand,
+          fixture.outputPaths.projectAgent,
           fixture.outputPaths.projectSkill,
           fixture.outputPaths.projectRule,
+          fixture.outputPaths.projectSettings,
+          fixture.outputPaths.projectSettingsLocal,
         ], true)
 
         const cleanResult = container.exec('tnmsc clean', CONTAINER_EXTERNAL_CWD)
         expectSuccess(cleanResult.exitCode)
         assertPathStates(container, [
           fixture.outputPaths.globalMemory,
-          fixture.outputPaths.globalMemoryCn,
+          fixture.outputPaths.projectMemory,
+          fixture.outputPaths.projectCommand,
+          fixture.outputPaths.projectAgent,
           fixture.outputPaths.projectSkill,
           fixture.outputPaths.projectRule,
+          fixture.outputPaths.projectSettings,
+          fixture.outputPaths.projectSettingsLocal,
         ], false)
       })
     })

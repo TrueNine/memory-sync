@@ -14,6 +14,19 @@ export interface CodexFixtureOptions {
   readonly seedWorkspaceGit?: boolean;
 }
 
+export interface UserProfile {
+  readonly name?: string;
+  readonly username?: string;
+  readonly gender?: string;
+  readonly birthday?: string;
+  readonly [key: string]: unknown;
+}
+
+export const DEFAULT_INTERPOLATION_PROFILE: UserProfile = Object.freeze({
+  name: "TestUser",
+  username: "testuser",
+});
+
 interface FixturePluginFlags {
   readonly codex: boolean;
   readonly claudeCode: boolean;
@@ -71,21 +84,19 @@ function writeGlobalConfig(
   options: {
     readonly workspaceDir: string;
     readonly logLevel: "trace" | "debug" | "info" | "warn" | "error";
+    readonly profile?: UserProfile;
   },
 ): void {
   const configPath = path.join(homeDir, ".aindex", ".tnmsc.json");
-  writeTextFile(
-    configPath,
-    JSON.stringify(
-      {
-        workspaceDir: options.workspaceDir,
-        logLevel: options.logLevel,
-        plugins,
-      },
-      null,
-      2,
-    ),
-  );
+  const config: Record<string, unknown> = {
+    workspaceDir: options.workspaceDir,
+    logLevel: options.logLevel,
+    plugins,
+  };
+  if (options.profile != null) {
+    config["profile"] = options.profile;
+  }
+  writeTextFile(configPath, JSON.stringify(config, null, 2));
 }
 
 function writeGlobalMemoryFixtures(workspaceDir: string): void {
@@ -196,6 +207,95 @@ function seedGlobalCodexSkills(homeDir: string, options: CodexFixtureOptions): v
   if (options.seedGlobalStaleSkill === true) {
     writeTextFile(path.join(homeDir, ".codex", "skills", "stale-skill", "SKILL.md"), "# stale skill\n");
   }
+}
+
+function writeInterpolationGlobalMemoryFixtures(workspaceDir: string): void {
+  writeTextFile(path.join(workspaceDir, "aindex", "global.src.mdx"), ["---", "description: 中文全局记忆描述", "---", "中文全局记忆内容"].join("\n"));
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "dist", "global.mdx"),
+    ["---", "description: Global memory with interpolation", "---", "Hello, {profile.username}! Your platform is {os.platform}."].join("\n"),
+  );
+}
+
+function writeInterpolationCommandFixtures(workspaceDir: string): void {
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "commands", "find", "opensource.src.mdx"),
+    ["---", "description: 中文源描述", "scope: project", "---", "中文源命令内容"].join("\n"),
+  );
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "dist", "commands", "find", "opensource.mdx"),
+    ["---", "description: Command with interpolation", "scope: project", "---", "Run {tool.websearch} to find open-source projects by {profile.username}."].join("\n"),
+  );
+}
+
+function writeInterpolationSubAgentFixtures(workspaceDir: string): void {
+  writeTextFile(path.join(workspaceDir, "aindex", "subagents", "qa", "reviewer.src.mdx"), ["---", "description: 审查变更", "scope: project", "---", "请仔细审查改动。"].join("\n"));
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "dist", "subagents", "qa", "reviewer.mdx"),
+    [
+      "---",
+      "description: Review pull requests",
+      "scope: project",
+      "nickname_candidates:",
+      "  - guard",
+      "sandbox_mode: workspace-write",
+      "mcp_servers:",
+      "  docs:",
+      "    command: node",
+      "    args:",
+      "      - mcp.js",
+      "---",
+      "Review changes by {profile.username}. Focus on {codeStyles.indent} indent style.",
+    ].join("\n"),
+  );
+}
+
+function writeInterpolationSkillFixtures(workspaceDir: string): void {
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "skills", "ship-it", "skill.src.mdx"),
+    ["---", "description: 中文技能描述", "scope: project", "---", "中文技能内容"].join("\n"),
+  );
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "skills", "ship-it", "mcp.json"),
+    JSON.stringify(
+      {
+        mcpServers: {
+          inspector: {
+            command: "npx",
+            args: ["inspector"],
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "dist", "skills", "ship-it", "skill.mdx"),
+    ["---", "description: Ship-it skill with interpolation", "scope: project", "---", "Deploy workflow for {profile.username}. Use {tool.readFile} to verify."].join("\n"),
+  );
+}
+
+function writeInterpolationRuleFixtures(workspaceDir: string): void {
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "rules", "qa", "safe.src.mdx"),
+    ["---", "scope: project", "description: 中文规则描述", "globs:", '  - "**/*.ts"', "---", "中文规则内容"].join("\n"),
+  );
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "dist", "rules", "qa", "safe.mdx"),
+    ["---", "scope: project", "description: Rule with interpolation", "globs:", '  - "**/*.ts"', "---", "Safety rules for {profile.username}. Environment: {env.NODE_ENV}."].join("\n"),
+  );
+}
+
+function writeInterpolationProjectPromptFixtures(workspaceDir: string): void {
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "app", "project-a", "agt.src.mdx"),
+    ["---", "description: 中文项目记忆描述", "---", "中文项目记忆内容"].join("\n"),
+  );
+  writeTextFile(
+    path.join(workspaceDir, "aindex", "dist", "app", "project-a", "agt.mdx"),
+    ["---", "description: Project memory with interpolation", "---", "Project owned by {profile.username}. Running on {os.kind}."].join("\n"),
+  );
 }
 
 export function createCodexFixture(options: CodexFixtureOptions = {}): CodexFixture {
@@ -393,6 +493,199 @@ export function createOpencodeFixture(): OpencodeFixture {
   writeManagedProjectFixtures(workspaceDir);
   writeProjectPromptFixtures(workspaceDir);
   writeRuleFixtures(workspaceDir);
+
+  return {
+    rootDir,
+    homeDir,
+    workspaceDir,
+    outputPaths: {
+      globalMemory: path.posix.join(CONTAINER_HOME_DIR, ".config", "opencode", "AGENTS.md"),
+      projectMemory: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", "AGENTS.md"),
+      projectCommand: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".opencode", "commands", "find-opensource.md"),
+      projectAgent: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".opencode", "agents", "qa-reviewer.md"),
+      projectSkill: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".opencode", "skills", "ship-it", "SKILL.md"),
+      projectSkillMcp: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".opencode", "opencode.json"),
+      projectRule: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".opencode", "rules", "rule-qa-safe.md"),
+    },
+    cleanup() {
+      rmSync(rootDir, { recursive: true, force: true });
+    },
+  };
+}
+
+export interface CodexInterpolationFixture {
+  readonly rootDir: string;
+  readonly homeDir: string;
+  readonly workspaceDir: string;
+  readonly outputPaths: {
+    readonly globalCommand: string;
+    readonly projectAgent: string;
+    readonly projectSkill: string;
+    readonly projectSkillMcp: string;
+  };
+  cleanup: () => void;
+}
+
+export function createCodexInterpolationFixture(): CodexInterpolationFixture {
+  const rootDir = mkdtempSync(path.join(tmpdir(), "tnmsc-codex-interp-fixture-"));
+  const homeDir = path.join(rootDir, "home");
+  const workspaceDir = path.join(rootDir, "workspace");
+
+  writeGlobalConfig(
+    homeDir,
+    { codex: true, claudeCode: false, trae: false, opencode: false, git: false, readme: false },
+    { workspaceDir: CONTAINER_WORKSPACE_DIR, logLevel: "warn", profile: DEFAULT_INTERPOLATION_PROFILE },
+  );
+  writeInterpolationCommandFixtures(workspaceDir);
+  writeInterpolationSubAgentFixtures(workspaceDir);
+  writeInterpolationSkillFixtures(workspaceDir);
+  writeManagedProjectFixtures(workspaceDir);
+
+  return {
+    rootDir,
+    homeDir,
+    workspaceDir,
+    outputPaths: {
+      globalCommand: path.posix.join(CONTAINER_HOME_DIR, ".codex", "prompts", "find-opensource.md"),
+      projectAgent: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".codex", "agents", "qa-reviewer.toml"),
+      projectSkill: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".codex", "skills", "ship-it", "SKILL.md"),
+      projectSkillMcp: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".codex", "skills", "ship-it", "mcp.json"),
+    },
+    cleanup() {
+      rmSync(rootDir, { recursive: true, force: true });
+    },
+  };
+}
+
+export interface ClaudeCodeInterpolationFixture {
+  readonly rootDir: string;
+  readonly homeDir: string;
+  readonly workspaceDir: string;
+  readonly outputPaths: {
+    readonly globalMemory: string;
+    readonly projectMemory: string;
+    readonly projectCommand: string;
+    readonly projectAgent: string;
+    readonly projectSkill: string;
+    readonly projectRule: string;
+  };
+  cleanup: () => void;
+}
+
+export function createClaudeCodeInterpolationFixture(): ClaudeCodeInterpolationFixture {
+  const rootDir = mkdtempSync(path.join(tmpdir(), "tnmsc-claude-code-interp-fixture-"));
+  const homeDir = path.join(rootDir, "home");
+  const workspaceDir = path.join(rootDir, "workspace");
+
+  writeGlobalConfig(
+    homeDir,
+    { codex: false, claudeCode: true, trae: false, opencode: false, git: false, readme: false },
+    { workspaceDir: CONTAINER_WORKSPACE_DIR, logLevel: "warn", profile: DEFAULT_INTERPOLATION_PROFILE },
+  );
+  writeInterpolationGlobalMemoryFixtures(workspaceDir);
+  writeInterpolationCommandFixtures(workspaceDir);
+  writeInterpolationSubAgentFixtures(workspaceDir);
+  writeInterpolationSkillFixtures(workspaceDir);
+  writeManagedProjectFixtures(workspaceDir);
+  writeInterpolationProjectPromptFixtures(workspaceDir);
+  writeInterpolationRuleFixtures(workspaceDir);
+
+  return {
+    rootDir,
+    homeDir,
+    workspaceDir,
+    outputPaths: {
+      globalMemory: path.posix.join(CONTAINER_HOME_DIR, ".claude", "CLAUDE.md"),
+      projectMemory: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", "CLAUDE.md"),
+      projectCommand: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "commands", "find-opensource.md"),
+      projectAgent: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "agents", "qa-reviewer.md"),
+      projectSkill: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "skills", "ship-it", "SKILL.md"),
+      projectRule: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".claude", "rules", "rule-qa-safe.md"),
+    },
+    cleanup() {
+      rmSync(rootDir, { recursive: true, force: true });
+    },
+  };
+}
+
+export interface TraeInterpolationFixture {
+  readonly rootDir: string;
+  readonly homeDir: string;
+  readonly workspaceDir: string;
+  readonly outputPaths: {
+    readonly globalMemory: string;
+    readonly globalMemoryCn: string;
+    readonly projectSkill: string;
+    readonly projectRule: string;
+  };
+  cleanup: () => void;
+}
+
+export function createTraeInterpolationFixture(): TraeInterpolationFixture {
+  const rootDir = mkdtempSync(path.join(tmpdir(), "tnmsc-trae-interp-fixture-"));
+  const homeDir = path.join(rootDir, "home");
+  const workspaceDir = path.join(rootDir, "workspace");
+
+  writeGlobalConfig(
+    homeDir,
+    { codex: false, claudeCode: false, trae: true, opencode: false, git: false, readme: false },
+    { workspaceDir: CONTAINER_WORKSPACE_DIR, logLevel: "warn", profile: DEFAULT_INTERPOLATION_PROFILE },
+  );
+  writeInterpolationGlobalMemoryFixtures(workspaceDir);
+  writeInterpolationSkillFixtures(workspaceDir);
+  writeManagedProjectFixtures(workspaceDir);
+  writeInterpolationProjectPromptFixtures(workspaceDir);
+  writeInterpolationRuleFixtures(workspaceDir);
+
+  return {
+    rootDir,
+    homeDir,
+    workspaceDir,
+    outputPaths: {
+      globalMemory: path.posix.join(CONTAINER_HOME_DIR, ".trae", "steering", "GLOBAL.md"),
+      globalMemoryCn: path.posix.join(CONTAINER_HOME_DIR, ".trae-cn", "user_rules", "GLOBAL.md"),
+      projectSkill: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".trae", "skills", "ship-it", "SKILL.md"),
+      projectRule: path.posix.join(CONTAINER_WORKSPACE_DIR, "project-a", ".trae", "rules", "rule-qa-safe.md"),
+    },
+    cleanup() {
+      rmSync(rootDir, { recursive: true, force: true });
+    },
+  };
+}
+
+export interface OpencodeInterpolationFixture {
+  readonly rootDir: string;
+  readonly homeDir: string;
+  readonly workspaceDir: string;
+  readonly outputPaths: {
+    readonly globalMemory: string;
+    readonly projectMemory: string;
+    readonly projectCommand: string;
+    readonly projectAgent: string;
+    readonly projectSkill: string;
+    readonly projectSkillMcp: string;
+    readonly projectRule: string;
+  };
+  cleanup: () => void;
+}
+
+export function createOpencodeInterpolationFixture(): OpencodeInterpolationFixture {
+  const rootDir = mkdtempSync(path.join(tmpdir(), "tnmsc-opencode-interp-fixture-"));
+  const homeDir = path.join(rootDir, "home");
+  const workspaceDir = path.join(rootDir, "workspace");
+
+  writeGlobalConfig(
+    homeDir,
+    { codex: false, claudeCode: false, trae: false, opencode: true, git: false, readme: false },
+    { workspaceDir: CONTAINER_WORKSPACE_DIR, logLevel: "warn", profile: DEFAULT_INTERPOLATION_PROFILE },
+  );
+  writeInterpolationGlobalMemoryFixtures(workspaceDir);
+  writeInterpolationCommandFixtures(workspaceDir);
+  writeInterpolationSubAgentFixtures(workspaceDir);
+  writeInterpolationSkillFixtures(workspaceDir);
+  writeManagedProjectFixtures(workspaceDir);
+  writeInterpolationProjectPromptFixtures(workspaceDir);
+  writeInterpolationRuleFixtures(workspaceDir);
 
   return {
     rootDir,
