@@ -227,6 +227,38 @@ mod napi_binding {
 
   use napi_derive::napi;
 
+  // Re-export NAPI functions from submodules so the napi-rs build picks them up.
+  pub use crate::core::context_merger::napi_binding::{
+    build_dependency_context_binding, merge_contexts_binding,
+  };
+  pub use crate::core::dependency_resolver::napi_binding::{
+    find_cycle_path_binding, topological_sort_binding, topological_sort_nodes_binding,
+  };
+  pub use crate::core::output_runtime_targets::napi_binding::discover_output_runtime_targets_binding;
+
+  // Prevent unused-import warnings; these are registered by napi-rs via the proc-macro.
+  #[allow(dead_code)]
+  const _NAPI_RE_EXPORTS: [fn() -> (); 6] = [
+    || {
+      let _ = merge_contexts_binding as fn(_, _) -> _;
+    },
+    || {
+      let _ = build_dependency_context_binding as fn(_, _) -> _;
+    },
+    || {
+      let _ = topological_sort_binding as fn(_) -> _;
+    },
+    || {
+      let _ = topological_sort_nodes_binding as fn(_) -> _;
+    },
+    || {
+      let _ = find_cycle_path_binding as fn(_, _) -> _;
+    },
+    || {
+      let _ = discover_output_runtime_targets_binding as fn() -> _;
+    },
+  ];
+
   fn parse_command_options(options_json: Option<String>) -> napi::Result<MemorySyncCommandOptions> {
     match options_json {
       Some(json) => {
