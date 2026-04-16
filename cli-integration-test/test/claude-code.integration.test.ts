@@ -80,14 +80,19 @@ describeForHost('claude code cli integration', () => {
         if (result.exitCode !== 0) throw new Error(`exit ${result.exitCode}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`)
         expectSuccess(result.exitCode)
 
-        assertPathStates(container, [
+        const expectedPaths = [
           fixture.outputPaths.globalMemory,
           fixture.outputPaths.projectMemory,
           fixture.outputPaths.projectCommand,
           fixture.outputPaths.projectAgent,
           fixture.outputPaths.projectSkill,
           fixture.outputPaths.projectRule,
-        ], true)
+        ]
+        for (const p of expectedPaths) {
+          console.log('PATH EXISTS?', p, container.pathExists(p))
+        }
+
+        assertPathStates(container, expectedPaths, true)
 
         const globalMemory = container.readFile(fixture.outputPaths.globalMemory)
         assertDistContent(globalMemory,
