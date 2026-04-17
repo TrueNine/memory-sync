@@ -14,6 +14,6 @@ export default defineConfig({
       enabled: true,
       tsconfig: './tsconfig.test.json'
     },
-    onConsoleLog: (output) => { console.log('[VITEST CONSOLE]', output); return false; }
+    onConsoleLog: () => false
   }
 })
