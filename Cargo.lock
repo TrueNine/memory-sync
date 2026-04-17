@@ -4927,8 +4927,10 @@ dependencies = [
 name = "tnmsm"
 version = "2026.10413.10237"
 dependencies = [
+ "clap",
  "serde",
  "serde_json",
+ "testcontainers",
  "tnmsd",
 ]
 
