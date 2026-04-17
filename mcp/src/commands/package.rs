@@ -14,27 +14,27 @@ const PACKAGE_TARGETS: &[PackageTarget] = &[
   PackageTarget {
     suffix: "linux-x64-gnu",
     package_dir: "linux-x64-gnu",
-    binary_name: "memory-sync-mcp",
+    binary_name: "tnmsm",
   },
   PackageTarget {
     suffix: "linux-arm64-gnu",
     package_dir: "linux-arm64-gnu",
-    binary_name: "memory-sync-mcp",
+    binary_name: "tnmsm",
   },
   PackageTarget {
     suffix: "darwin-arm64",
     package_dir: "darwin-arm64",
-    binary_name: "memory-sync-mcp",
+    binary_name: "tnmsm",
   },
   PackageTarget {
     suffix: "darwin-x64",
     package_dir: "darwin-x64",
-    binary_name: "memory-sync-mcp",
+    binary_name: "tnmsm",
   },
   PackageTarget {
     suffix: "win32-x64-msvc",
     package_dir: "win32-x64-msvc",
-    binary_name: "memory-sync-mcp.exe",
+    binary_name: "tnmsm.exe",
   },
 ];
 

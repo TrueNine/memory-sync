@@ -4,7 +4,7 @@ use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(
-  name = "memory-sync-mcp",
+  name = "tnmsm",
   version = env!("CARGO_PKG_VERSION"),
   about = "Memory Sync MCP stdio server",
   disable_help_subcommand = true,
@@ -52,13 +52,13 @@ mod tests {
 
   #[test]
   fn resolve_command_defaults_to_stdio_server() {
-    let cli = Cli::parse_from(["memory-sync-mcp"]);
+    let cli = Cli::parse_from(["tnmsm"]);
     assert_eq!(resolve_command(&cli), ResolvedCommand::Serve);
   }
 
   #[test]
   fn resolve_command_parses_assemble_npm() {
-    let cli = Cli::parse_from(["memory-sync-mcp", "assemble-npm", "--profile", "release"]);
+    let cli = Cli::parse_from(["tnmsm", "assemble-npm", "--profile", "release"]);
     assert_eq!(
       resolve_command(&cli),
       ResolvedCommand::AssembleNpm(AssembleNpmArgs {
