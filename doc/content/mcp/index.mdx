@@ -7,7 +7,7 @@ status: stable
 
 # MCP
 
-`mcp/` 是当前仓库中的独立包。它以 `@truenine/memory-sync-mcp` 的形式发布，可执行入口为 `memory-sync-mcp`。它不是文档里的抽象概念，而是一个真实的 stdio server。
+`mcp/` 是当前仓库中的独立包。它以 `@truenine/memory-sync-mcp` 的形式发布，实际可执行入口由 `@truenine/memory-sync-mcp-<platform>` 平台子包提供，命令名仍然是 `memory-sync-mcp`。它不是文档里的抽象概念，而是一个真实的 stdio server。
 
 ## 它负责什么
 
