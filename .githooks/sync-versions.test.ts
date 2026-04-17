@@ -63,19 +63,19 @@ function createFixtureRepo(): string {
   ].join('\n'))
   writeText(join(rootDir, 'sdk', 'Cargo.toml'), [
     '[package]',
-    'name = "tnmsc"',
+    'name = "tnmsd"',
     'version.workspace = true',
     ''
   ].join('\n'))
   writeText(join(rootDir, 'cli', 'Cargo.toml'), [
     '[package]',
-    'name = "tnmsc-cli-shell"',
+    'name = "tnmsc"',
     'version.workspace = true',
     ''
   ].join('\n'))
   writeText(join(rootDir, 'mcp', 'Cargo.toml'), [
     '[package]',
-    'name = "tnmsc-mcp"',
+    'name = "tnmsm"',
     'version.workspace = true',
     ''
   ].join('\n'))
@@ -93,15 +93,15 @@ function createFixtureRepo(): string {
     'version = 4',
     '',
     '[[package]]',
+    'name = "tnmsd"',
+    `version = "${initialVersion}"`,
+    '',
+    '[[package]]',
     'name = "tnmsc"',
     `version = "${initialVersion}"`,
     '',
     '[[package]]',
-    'name = "tnmsc-cli-shell"',
-    `version = "${initialVersion}"`,
-    '',
-    '[[package]]',
-    'name = "tnmsc-mcp"',
+    'name = "tnmsm"',
     `version = "${initialVersion}"`,
     '',
     '[[package]]',
