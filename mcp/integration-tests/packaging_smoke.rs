@@ -28,7 +28,7 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
       ("TNMSM_WORKSPACE_ROOT", workspace_root.as_str()),
     ],
   );
-  assemble.assert_success("memory-sync-mcp assemble-npm --profile release");
+  assemble.assert_success("tnmsm assemble-npm --profile release");
 
   assert!(
     staged.linux_binary.is_file(),
@@ -52,10 +52,9 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
 
   let container = install_packaged_mcp_container();
 
-  let initialize = container.exec(
-    r#"printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | memory-sync-mcp"#,
-  );
-  initialize.assert_success("global memory-sync-mcp initialize");
+  let initialize = container
+    .exec(r#"printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | tnmsm"#);
+  initialize.assert_success("global tnmsm initialize");
   for expected in [
     "\"jsonrpc\":\"2.0\"",
     "\"protocolVersion\":\"2024-11-05\"",
@@ -74,8 +73,8 @@ MAIN_PACKAGE_JSON="$(find -L /pnpm/global -path '*/@truenine/memory-sync-mcp/pac
 PLATFORM_PACKAGE_JSON="$(find -L /pnpm/global -path '*/@truenine/memory-sync-mcp-linux-x64-gnu/package.json' -print -quit)"
 test -n "$MAIN_PACKAGE_JSON"
 test -n "$PLATFORM_PACKAGE_JSON"
-test -x "$(dirname "$PLATFORM_PACKAGE_JSON")/bin/memory-sync-mcp"
-test -x "$(command -v memory-sync-mcp)"
+test -x "$(dirname "$PLATFORM_PACKAGE_JSON")/bin/tnmsm"
+test -x "$(command -v tnmsm)"
 "#,
   );
 }

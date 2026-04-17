@@ -1,7 +1,7 @@
 {
   "name": "@truenine/memory-sync-mcp-linux-arm64-gnu",
   "version": "2026.10413.10237",
-  "description": "memory-sync-mcp native binary for Linux arm64 (glibc)",
+  "description": "tnmsm native binary for Linux arm64 (glibc)",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
   "os": [
@@ -14,7 +14,7 @@
     "glibc"
   ],
   "bin": {
-    "memory-sync-mcp": "./bin/memory-sync-mcp"
+    "tnmsm": "./bin/tnmsm"
   },
   "files": [
     "bin"

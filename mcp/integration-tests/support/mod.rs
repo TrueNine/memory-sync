@@ -165,7 +165,7 @@ pub fn integration_tmp_root() -> PathBuf {
 }
 
 pub fn mcp_binary() -> PathBuf {
-  PathBuf::from(env!("CARGO_BIN_EXE_memory-sync-mcp"))
+  PathBuf::from(env!("CARGO_BIN_EXE_tnmsm"))
 }
 
 pub fn run_mcp_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> CommandResult {
@@ -175,7 +175,7 @@ pub fn run_mcp_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> Com
     command.env(key, value);
   }
 
-  command_output(&mut command, "memory-sync-mcp")
+  command_output(&mut command, "tnmsm")
 }
 
 pub fn run_program(program: &str, args: &[&str], cwd: &Path) -> CommandResult {
@@ -221,7 +221,7 @@ pub fn ensure_release_binary() {
       &["build", "--release", "--manifest-path", &manifest_path],
       &workspace_root(),
     );
-    result.assert_success("cargo build --release for memory-sync-mcp");
+    result.assert_success("cargo build --release for tnmsm");
   });
 
   let binary = release_binary_path();
@@ -233,11 +233,7 @@ pub fn ensure_release_binary() {
 }
 
 pub fn release_binary_path() -> PathBuf {
-  let binary_name = if cfg!(windows) {
-    "memory-sync-mcp.exe"
-  } else {
-    "memory-sync-mcp"
-  };
+  let binary_name = if cfg!(windows) { "tnmsm.exe" } else { "tnmsm" };
   workspace_root()
     .join("target")
     .join("release")
@@ -269,7 +265,7 @@ pub fn create_staged_package_root() -> StagedPackageRoot {
     .join("npm")
     .join("linux-x64-gnu")
     .join("bin")
-    .join("memory-sync-mcp");
+    .join("tnmsm");
 
   StagedPackageRoot {
     _temp_dir: temp_dir,
@@ -294,7 +290,7 @@ pub fn pack_mcp_artifacts() -> PackedArtifacts {
       ("TNMSM_WORKSPACE_ROOT", workspace_root.as_str()),
     ],
   );
-  assemble.assert_success("memory-sync-mcp assemble-npm for staged package root");
+  assemble.assert_success("tnmsm assemble-npm for staged package root");
 
   let mcp_tarball = pack_package(&staged.package_root, temp_dir.path(), "mcp");
   let linux_tarball = pack_package(
