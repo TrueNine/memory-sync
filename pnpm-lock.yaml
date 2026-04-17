@@ -99,9 +99,6 @@ catalogs:
     jiti:
       specifier: ^2.6.1
       version: 2.6.1
-    json5:
-      specifier: ^2.2.3
-      version: 2.2.3
     lucide-react:
       specifier: ^1.8.0
       version: 1.8.0
@@ -177,9 +174,6 @@ catalogs:
     yaml:
       specifier: ^2.8.3
       version: 2.8.3
-    zod:
-      specifier: ^4.3.6
-      version: 4.3.6
 
 importers:
 
@@ -289,15 +283,21 @@ importers:
         specifier: 'catalog:'
         version: 4.1.4(@types/node@25.6.0)(@vitest/coverage-v8@4.1.4)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.99.0)(tsx@4.21.0)(yaml@2.8.3))
     optionalDependencies:
-      json5:
-        specifier: 'catalog:'
-        version: 2.2.3
-      yaml:
-        specifier: 'catalog:'
-        version: 2.8.3
-      zod:
-        specifier: 'catalog:'
-        version: 4.3.6
+      '@truenine/memory-sync-cli-darwin-arm64':
+        specifier: workspace:*
+        version: link:npm/darwin-arm64
+      '@truenine/memory-sync-cli-darwin-x64':
+        specifier: workspace:*
+        version: link:npm/darwin-x64
+      '@truenine/memory-sync-cli-linux-arm64-gnu':
+        specifier: workspace:*
+        version: link:npm/linux-arm64-gnu
+      '@truenine/memory-sync-cli-linux-x64-gnu':
+        specifier: workspace:*
+        version: link:npm/linux-x64-gnu
+      '@truenine/memory-sync-cli-win32-x64-msvc':
+        specifier: workspace:*
+        version: link:npm/win32-x64-msvc
 
   cli-integration-test:
     devDependencies:
@@ -313,6 +313,16 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.1.4(@types/node@25.6.0)(@vitest/coverage-v8@4.1.4)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.99.0)(tsx@4.21.0)(yaml@2.8.3))
+
+  cli/npm/darwin-arm64: {}
+
+  cli/npm/darwin-x64: {}
+
+  cli/npm/linux-arm64-gnu: {}
+
+  cli/npm/linux-x64-gnu: {}
+
+  cli/npm/win32-x64-msvc: {}
 
   doc:
     dependencies:
