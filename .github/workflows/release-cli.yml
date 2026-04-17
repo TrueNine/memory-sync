@@ -145,6 +145,9 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: cli-publish-platform-packages
       - uses: ./.github/actions/setup-node-pnpm
         with:
           install: "true"
@@ -154,19 +157,17 @@ jobs:
         with:
           path: artifacts
           pattern: cli-binary-*
-      - name: Aggregate CLI OS package contents
-        run: pnpm tsx cli/scripts/build-native.ts --artifacts-dir artifacts --targets all --skip-build
+      - name: Assemble CLI npm package contents
+        run: cargo run --manifest-path cli/Cargo.toml --bin tnmsc -- assemble-npm --artifacts-dir artifacts
       - name: Validate platform packages
         shell: bash
         run: |
-          for target_dir in cli/npm/darwin/ cli/npm/linux/ cli/npm/win32/; do
+          for target_dir in cli/npm/*/; do
             if [ ! -f "${target_dir}package.json" ]; then
               echo "ERROR: missing ${target_dir}package.json"
               exit 1
             fi
-            has_binary=false
-            find "${target_dir}bin" -type f \( -name 'tnmsc' -o -name 'tnmsc.exe' \) | grep -q . && has_binary=true
-            if [ "$has_binary" = false ]; then
+            if ! find "${target_dir}bin" -type f \( -name 'tnmsc' -o -name 'tnmsc.exe' \) | grep -q .; then
               echo "ERROR: missing binary in ${target_dir}"
               exit 1
             fi
@@ -187,6 +188,9 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: cli-publish-main-package
       - uses: ./.github/actions/setup-node-pnpm
         with:
           registry-url: https://registry.npmjs.org/
@@ -207,9 +211,9 @@ jobs:
           path: artifacts
           pattern: cli-binary-*
 
-      - name: Aggregate CLI OS package contents
+      - name: Assemble CLI npm package contents
         if: needs.preflight.outputs.publish_cli == 'true'
-        run: pnpm tsx cli/scripts/build-native.ts --artifacts-dir artifacts --targets all --skip-build
+        run: cargo run --manifest-path cli/Cargo.toml --bin tnmsc -- assemble-npm --artifacts-dir artifacts
 
       - name: Build CLI
         if: needs.preflight.outputs.publish_cli == 'true'
