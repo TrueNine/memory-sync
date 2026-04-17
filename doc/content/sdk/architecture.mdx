@@ -13,11 +13,11 @@ import { Callout, Cards, Steps, Tabs } from 'nextra/components'
 
 ## SDK 整体定位
 
-`sdk/` 是整个 memory-sync monorepo 的 **私有混合核心（Private Mixed Core）**，也是共享内部能力的唯一事实来源。它不是一个供外部直接安装的独立 npm 包——它的存在是为了将 `tnmsc` 工具链的核心逻辑从 `cli/` 命令入口层中抽离出来，形成清晰的分层架构。
+`sdk/` 是整个 memory-sync monorepo 的 **私有混合核心（Private Mixed Core）**，也是共享内部能力的唯一事实来源。它不是一个供外部直接安装的独立 npm 包——它的存在是为了将 memory-sync 工具链的核心逻辑从 `cli/` 命令入口层中抽离出来，形成清晰的分层架构。
 
 在当前仓库结构中，`sdk/` 承担以下核心职责：
 
-- 拥有 Rust crate `tnmsc` 的实际 workspace 路径和 facade 定义
+- 拥有 Rust crate `tnmsd` 的实际 workspace 路径和 facade 定义
 - 提供 npm 包 `@truenine/memory-sync-sdk` 作为内部消费者（`cli/`、`mcp/`、`gui/`）的统一依赖入口
 - 负责 Prompt Service 的实现（基于 MDX-Compiler）、Schema 生成以及最小化的 TypeScript loader 入口
 - 编排 Logger、MDX-Compiler、Script-Runtime 三类基础能力；其中 Logger / Script-Runtime 的 TypeScript facade 已内联到 `sdk/src/libraries/*`，`sdk/*` 保留 Rust crate 与发布壳层
@@ -26,7 +26,7 @@ import { Callout, Cards, Steps, Tabs } from 'nextra/components'
 
 ## 为什么还保留 Libraries 层
 
-`sdk/` 仍然有存在价值，但它现在主要承载 **Rust-first** 的 crate、本地 NAPI 制品和对外发布 wrapper，而不再默认承担全部 TypeScript 事实来源。它们覆盖了 `tnmsc` 工具链中性能最关键的路径：
+`sdk/` 仍然有存在价值，但它现在主要承载 **Rust-first** 的 crate、本地 NAPI 制品和对外发布 wrapper，而不再默认承担全部 TypeScript 事实来源。它们覆盖了 memory-sync 工具链中性能最关键的路径：
 
 | 性能关键路径 | 对应 Library | Rust 提供的优势 |
 | --- | --- | --- |
@@ -58,16 +58,16 @@ graph TB
     subgraph Libraries["Workspace Libraries (Rust-first)"]
         direction LR
         subgraph L1["Logger<br/>基础设施层"]
-            LOG_R["tnmsc / logger<br/>(Rust crate)"]
+            LOG_R["tnmsd / logger<br/>(Rust crate)"]
             LOG_PKG["@truenine/memory-sync-sdk<br/>(Logger wrapper)"]
         end
 
         subgraph L2["MDX-Compiler<br/>编译层"]
-            MDC_R["tnmsc / md-compiler<br/>(Rust crate)"]
+            MDC_R["tnmsd / md-compiler<br/>(Rust crate)"]
         end
 
         subgraph L3["Script-Runtime<br/>运行时层"]
-            SR_R["tnmsc / script-runtime<br/>(Rust crate)"]
+            SR_R["tnmsd / script-runtime<br/>(Rust crate)"]
             SR_PKG["@truenine/memory-sync-sdk<br/>(SR wrapper)"]
         end
     end
@@ -120,7 +120,7 @@ graph LR
     SDK["@truenine/memory-sync-sdk"] --> LOGGER["Logger facade"]
     MDC["@truenine/memory-sync-sdk"] --> LOGGER
 
-    subgraph Logger["tnmsc / Logger"]
+    subgraph Logger["tnmsd / Logger"]
         L_CORE["Rust 核心<br/>lib.rs"]
         L_NAPI["NAPI Binding<br/>条件编译"]
         L_TS["TS facade<br/>sdk/src/libraries/logger.ts"]
@@ -159,7 +159,7 @@ graph LR
     SDK["@truenine/memory-sync-sdk"] --> MDC["@truenine/memory-sync-sdk"]
     MDC --> LOGGER["@truenine/memory-sync-sdk"]
 
-    subgraph MDXCompiler["tnmsc / @truenine/memory-sync-sdk"]
+    subgraph MDXCompiler["tnmsd / @truenine/memory-sync-sdk"]
         direction TB
         MC_PARSER["Parser<br/>unified + remark 插件链"]
         MC_EXPR["Expression Eval<br/>简单引用 / Function 构造器"]
@@ -203,7 +203,7 @@ Script-Runtime 是依赖树中的 **另一个叶子节点**，与其他两个 li
 graph LR
     SDK["@truenine/memory-sync-sdk"] --> SR["@truenine/memory-sync-sdk"]
 
-    subgraph ScriptRuntime["tnmsc / @truenine/memory-sync-sdk"]
+    subgraph ScriptRuntime["tnmsd / @truenine/memory-sync-sdk"]
         direction TB
         SR_LOADER["Module Loader<br/>Jiti Runtime"]
         SR_PATH["Path Validator<br/>Rust 原生绑定"]
@@ -334,7 +334,7 @@ SDK 的构建是一个多阶段的有序流水线，从 Rust 源码到最终的 
 
   ### Step 2: Rust Workspace 编译
 
-  编译 `tnmsc`、CLI shell、MCP server 与 GUI shell 对应的 Rust crate：
+  编译 `tnmsd`、CLI、MCP server 与 GUI 对应的 Rust crate：
 
   ```bash
   cargo build --workspace --exclude memory-sync-gui --release
@@ -388,7 +388,7 @@ memory-sync/
 │   │   ├── prompts.ts                     # Prompt 服务 (使用 md-compiler)
 │   │   ├── ConfigLoader.ts                # 配置加载 (使用 logger)
 │   │   └── runtime-environment.ts         # 运行时环境 (使用 logger)
-│   ├── Cargo.toml                         # Rust crate 定义 (tnmsc)
+│   ├── Cargo.toml                         # Rust crate 定义 (tnmsd)
 │   └── Cargo.lock                         # Rust 依赖锁文件
 │
 ├── sdk/src/ 内部库结构                   # Rust-first 内部库

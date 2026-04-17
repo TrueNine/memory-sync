@@ -1,6 +1,6 @@
 ---
 title: 架构边界
-description: 说明 tnmsc、crate、npm 包、MCP 与 GUI 之间的职责边界。
+description: 说明 tnmsc、tnmsd、npm 包、MCP 与 GUI 之间的职责边界。
 sidebarTitle: 架构边界
 status: stable
 ---
@@ -18,7 +18,7 @@ status: stable
 
 | 组件 | 职责 |
 | --- | --- |
-| `sdk/` | `tnmsc` crate、Node bridge runtime、prompt service、schema 与 NAPI 的事实来源 |
+| `sdk/` | `tnmsd` crate、Node bridge runtime、prompt service、schema 与 NAPI 的事实来源 |
 | `cli/` | `tnmsc` 命令入口、公开 npm CLI 包，以及兼容发布外壳 |
 | `mcp/` | 复用 sdk prompt service 的 MCP stdio server |
 | `gui/` | Tauri 桌面调用与呈现层 |
