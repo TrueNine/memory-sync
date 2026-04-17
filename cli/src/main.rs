@@ -1,4 +1,4 @@
-//! tnmsc — Rust CLI shell entry point.
+//! tnmsc — Rust CLI entry point.
 //!
 //! Pure Rust commands: help, version, plugins
 //! Facade commands: install, dry-run, clean
@@ -9,7 +9,7 @@ mod commands;
 use std::process::ExitCode;
 
 use clap::Parser;
-use tnmsc::logger::{flush_output, set_global_log_level};
+use tnmsd::logger::{flush_output, set_global_log_level};
 
 use cli::{Cli, ResolvedCommand, resolve_command, resolve_log_level};
 

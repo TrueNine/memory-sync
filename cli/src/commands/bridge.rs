@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-fn map_result(result: Result<tnmsc::MemorySyncCommandResult, tnmsc::CliError>) -> ExitCode {
+fn map_result(result: Result<tnmsd::MemorySyncCommandResult, tnmsd::CliError>) -> ExitCode {
   match result {
     Ok(r) if r.success => ExitCode::SUCCESS,
     Ok(_) => ExitCode::FAILURE,
@@ -12,27 +12,27 @@ fn map_result(result: Result<tnmsc::MemorySyncCommandResult, tnmsc::CliError>) -
 }
 
 pub fn install() -> ExitCode {
-  map_result(tnmsc::install(tnmsc::MemorySyncCommandOptions::default()))
+  map_result(tnmsd::install(tnmsd::MemorySyncCommandOptions::default()))
 }
 
 pub fn dry_run() -> ExitCode {
-  map_result(tnmsc::dry_run(tnmsc::MemorySyncCommandOptions::default()))
+  map_result(tnmsd::dry_run(tnmsd::MemorySyncCommandOptions::default()))
 }
 
 pub fn clean() -> ExitCode {
-  map_result(tnmsc::clean(tnmsc::MemorySyncCommandOptions::default()))
+  map_result(tnmsd::clean(tnmsd::MemorySyncCommandOptions::default()))
 }
 
 pub fn dry_run_clean() -> ExitCode {
-  let options = tnmsc::MemorySyncCommandOptions {
+  let options = tnmsd::MemorySyncCommandOptions {
     dry_run: Some(true),
     ..Default::default()
   };
-  map_result(tnmsc::clean(options))
+  map_result(tnmsd::clean(options))
 }
 
 pub fn plugins() -> ExitCode {
-  let plugins = tnmsc::list_plugins();
+  let plugins = tnmsd::list_plugins();
 
   println!("# Registered adaptors");
   println!();

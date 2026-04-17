@@ -1,6 +1,6 @@
 [package]
-name = "tnmsc-cli-shell"
-description = "Cross-AI-tool prompt synchronisation CLI shell"
+name = "tnmsc"
+description = "Cross-AI-tool prompt synchronisation CLI"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -21,7 +21,7 @@ name = "packaging_smoke"
 path = "integration-tests/packaging_smoke.rs"
 
 [dependencies]
-tnmsc = { workspace = true }
+tnmsd = { workspace = true }
 clap = { workspace = true }
 serde_json = { workspace = true }
 

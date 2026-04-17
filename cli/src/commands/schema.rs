@@ -5,7 +5,7 @@ use std::process::ExitCode;
 use crate::cli::SchemaArgs;
 
 pub fn execute(args: &SchemaArgs) -> ExitCode {
-  match tnmsc::generate_schema() {
+  match tnmsd::generate_schema() {
     Ok(schema) => match write_schema(args.output.as_deref(), &schema) {
       Ok(()) => ExitCode::SUCCESS,
       Err(error) => {

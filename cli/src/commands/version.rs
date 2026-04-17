@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
 pub fn execute() -> ExitCode {
-  println!("{}", tnmsc::version());
+  println!("{}", tnmsd::version());
   ExitCode::SUCCESS
 }

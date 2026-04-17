@@ -5,15 +5,15 @@ use std::process::ExitCode;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
-use tnmsc::core::config::ConfigLoader;
-use tnmsc::core::dependency_resolver::{
+use tnmsd::core::config::ConfigLoader;
+use tnmsd::core::dependency_resolver::{
   DependencyNodeInput, DependencyResolverError, topological_sort, topological_sort_nodes,
 };
-use tnmsc::core::execution_plan::{
+use tnmsd::core::execution_plan::{
   ExecutionPlan, collect_managed_projects, filter_path_scoped_entries, resolve_execution_plan,
 };
-use tnmsc::core::plugin_shared::{CollectedInputContext, Workspace};
-use tnmsc::core::wsl_mirror_sync::WslMirrorFileDeclaration;
+use tnmsd::core::plugin_shared::{CollectedInputContext, Workspace};
+use tnmsd::core::wsl_mirror_sync::WslMirrorFileDeclaration;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -205,7 +205,7 @@ fn handle_load_config_from_file(input: &str) -> Result<String, String> {
 fn handle_load_config(input: &str) -> Result<String, String> {
   let payload: CwdPayload = parse_input(input)?;
   let cwd = payload.cwd.unwrap_or_else(|| current_dir_fallback().to_string_lossy().into_owned());
-  let result = tnmsc::load_config(Path::new(&cwd)).map_err(|error| error.to_string())?;
+  let result = tnmsd::load_config(Path::new(&cwd)).map_err(|error| error.to_string())?;
   ok_json(result)
 }
 
@@ -237,88 +237,88 @@ fn handle_filter_path_scoped_entries(input: &str) -> Result<String, String> {
 
 fn handle_collect_workspace(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::workspace::collect_workspace(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::workspace::collect_workspace(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_global_memory(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::global_memory::collect_global_memory(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::global_memory::collect_global_memory(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_aindex_resolvers(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::aindex_resolvers::collect_aindex_resolvers(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::aindex_resolvers::collect_aindex_resolvers(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_vscode_config(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::vscode_config::collect_vscode_config(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::vscode_config::collect_vscode_config(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_zed_config(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::zed_config::collect_zed_config(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::zed_config::collect_zed_config(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_jetbrains_config(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::jetbrains_config::collect_jetbrains_config(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::jetbrains_config::collect_jetbrains_config(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_editorconfig(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::editorconfig::collect_editorconfig(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::editorconfig::collect_editorconfig(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_skill(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::skill::collect_skill(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::skill::collect_skill(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_command(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::command::collect_command(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::command::collect_command(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_subagent(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::subagent::collect_subagent(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::subagent::collect_subagent(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_rule(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::rule::collect_rule(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::rule::collect_rule(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_project_prompt(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::project_prompt::collect_project_prompt(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::project_prompt::collect_project_prompt(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_readme(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::readme::collect_readme(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::readme::collect_readme(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_gitignore(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::gitignore::collect_gitignore(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::gitignore::collect_gitignore(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_git_exclude(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::git_exclude::collect_git_exclude(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::git_exclude::collect_git_exclude(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_shared_ignore(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::input_plugins::shared_ignore::collect_shared_ignore(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::input_plugins::shared_ignore::collect_shared_ignore(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_validate_public_path(input: &str) -> Result<String, String> {
   let payload: ValidatePublicPathPayload = parse_input(input)?;
   ok_json(
-    tnmsc::script_runtime::validate_public_path_impl(
+    tnmsd::script_runtime::validate_public_path_impl(
       &payload.resolved_path,
       &payload.aindex_public_dir,
     )
@@ -329,7 +329,7 @@ fn handle_validate_public_path(input: &str) -> Result<String, String> {
 fn handle_resolve_public_path(input: &str) -> Result<String, String> {
   let payload: ResolvePublicPathPayload = parse_input(input)?;
   ok_json(
-    tnmsc::script_runtime::resolve_public_path_impl(
+    tnmsd::script_runtime::resolve_public_path_impl(
       &payload.file_path,
       &payload.ctx_json,
       &payload.logical_path,
@@ -342,14 +342,14 @@ fn handle_compile_mdx_to_md(input: &str) -> Result<String, String> {
   let payload: CompileMdxToMdPayload = parse_input(input)?;
   let options = match payload.options_json {
     Some(options_json) => Some(
-      serde_json::from_str::<tnmsc::MdxToMdOptions>(&options_json)
+      serde_json::from_str::<tnmsd::MdxToMdOptions>(&options_json)
         .map_err(|error| format!("Invalid mdxToMd options JSON: {error}"))?,
     ),
     None => None,
   };
 
   let response = if options.as_ref().is_some_and(|options| options.extract_metadata) {
-    let result = tnmsc::mdx_to_md_with_metadata(&payload.content, options)
+    let result = tnmsd::mdx_to_md_with_metadata(&payload.content, options)
       .map_err(|error| error.to_string())?;
     let mut fields = result
       .metadata
@@ -364,7 +364,7 @@ fn handle_compile_mdx_to_md(input: &str) -> Result<String, String> {
       }
     })
   } else {
-    let content = tnmsc::mdx_to_md(&payload.content, options).map_err(|error| error.to_string())?;
+    let content = tnmsd::mdx_to_md(&payload.content, options).map_err(|error| error.to_string())?;
     json!({
       "content": content
     })
@@ -379,39 +379,39 @@ fn handle_build_toml_document(input: &str) -> Result<String, String> {
     .map_err(|error| format!("Invalid TOML document JSON: {error}"))?;
   let options = match payload.options_json {
     Some(options_json) => Some(
-      serde_json::from_str::<tnmsc::BuildTomlDocumentOptions>(&options_json)
+      serde_json::from_str::<tnmsd::BuildTomlDocumentOptions>(&options_json)
         .map_err(|error| format!("Invalid TOML options JSON: {error}"))?,
     ),
     None => None,
   };
-  ok_json(tnmsc::build_toml_document(document, options).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::build_toml_document(document, options).map_err(|error| error.to_string())?)
 }
 
 fn handle_build_prompt_toml_artifact(input: &str) -> Result<String, String> {
   let payload: BuildPromptTomlArtifactPayload = parse_input(input)?;
-  let options = serde_json::from_str::<tnmsc::BuildPromptTomlArtifactOptions>(&payload.options_json)
+  let options = serde_json::from_str::<tnmsd::BuildPromptTomlArtifactOptions>(&payload.options_json)
     .map_err(|error| format!("Invalid prompt TOML options JSON: {error}"))?;
-  ok_json(tnmsc::build_prompt_toml_artifact(options).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::build_prompt_toml_artifact(options).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_base_output_plans(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::base_output_plans::collect_base_output_plans(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::base_output_plans::collect_base_output_plans(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_gemini_output_plan(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::gemini_output_plan::collect_gemini_output_plan(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::gemini_output_plan::collect_gemini_output_plan(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_collect_droid_output_plan(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
-  ok_json(tnmsc::core::droid_output_plan::collect_droid_output_plan(&string_or_default(payload)).map_err(|error| error.to_string())?)
+  ok_json(tnmsd::core::droid_output_plan::collect_droid_output_plan(&string_or_default(payload)).map_err(|error| error.to_string())?)
 }
 
 fn handle_perform_skill_dist_cleanup(input: &str) -> Result<String, String> {
   let payload: SkillDistCleanupPayload = parse_input(input)?;
-  let result = tnmsc::core::skill_dist_cleanup::perform_skill_dist_cleanup(
+  let result = tnmsd::core::skill_dist_cleanup::perform_skill_dist_cleanup(
     &payload.dist_skills_dir,
     payload.dry_run,
   );
@@ -420,25 +420,25 @@ fn handle_perform_skill_dist_cleanup(input: &str) -> Result<String, String> {
 
 fn handle_perform_md_cleanup(input: &str) -> Result<String, String> {
   let payload: MdCleanupPayload = parse_input(input)?;
-  let result = tnmsc::core::md_cleanup::perform_md_cleanup(&payload.dirs, payload.dry_run);
+  let result = tnmsd::core::md_cleanup::perform_md_cleanup(&payload.dirs, payload.dry_run);
   ok_json(serde_json::to_string(&result).map_err(|error| error.to_string())?)
 }
 
 fn handle_plan_cleanup(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
   let snapshot_json = string_or_default(payload);
-  let snapshot = serde_json::from_str::<tnmsc::core::cleanup::CleanupSnapshot>(&snapshot_json)
+  let snapshot = serde_json::from_str::<tnmsd::core::cleanup::CleanupSnapshot>(&snapshot_json)
     .map_err(|error| format!("Invalid cleanup snapshot JSON: {error}"))?;
-  let result = tnmsc::core::cleanup::plan_cleanup(snapshot).map_err(|error| error.to_string())?;
+  let result = tnmsd::core::cleanup::plan_cleanup(snapshot).map_err(|error| error.to_string())?;
   ok_json(serde_json::to_string(&result).map_err(|error| error.to_string())?)
 }
 
 fn handle_perform_cleanup(input: &str) -> Result<String, String> {
   let payload: Option<String> = parse_input(input)?;
   let snapshot_json = string_or_default(payload);
-  let snapshot = serde_json::from_str::<tnmsc::core::cleanup::CleanupSnapshot>(&snapshot_json)
+  let snapshot = serde_json::from_str::<tnmsd::core::cleanup::CleanupSnapshot>(&snapshot_json)
     .map_err(|error| format!("Invalid cleanup snapshot JSON: {error}"))?;
-  let result = tnmsc::core::cleanup::perform_cleanup(snapshot).map_err(|error| error.to_string())?;
+  let result = tnmsd::core::cleanup::perform_cleanup(snapshot).map_err(|error| error.to_string())?;
   ok_json(serde_json::to_string(&result).map_err(|error| error.to_string())?)
 }
 
@@ -448,7 +448,7 @@ fn handle_sync_windows_config_into_wsl(input: &str) -> Result<String, String> {
     .map_err(|error| format!("Invalid collected output context JSON: {error}"))?;
   let declarations = serde_json::from_str::<Vec<WslMirrorFileDeclaration>>(&payload.declarations_json)
     .map_err(|error| format!("Invalid WSL mirror declarations JSON: {error}"))?;
-  let result = tnmsc::core::wsl_mirror_sync::sync_windows_config_into_wsl(
+  let result = tnmsd::core::wsl_mirror_sync::sync_windows_config_into_wsl(
     &context,
     &declarations,
     payload.dry_run,
@@ -458,7 +458,7 @@ fn handle_sync_windows_config_into_wsl(input: &str) -> Result<String, String> {
 
 fn handle_resolve_effective_include_series(input: &str) -> Result<String, String> {
   let payload: JsonArrayStringPayload = parse_input(input)?;
-  let result = tnmsc::core::config::series_filter::resolve_effective_include_series_core(
+  let result = tnmsd::core::config::series_filter::resolve_effective_include_series_core(
     payload.top_level.as_deref(),
     payload.type_specific.as_deref(),
   );
@@ -469,7 +469,7 @@ fn handle_matches_series(input: &str) -> Result<String, String> {
   let payload: MatchesSeriesPayload = parse_input(input)?;
   let seri_name = match payload.seri_name {
     None | Some(Value::Null) => None,
-    Some(Value::String(value)) => Some(tnmsc::core::config::series_filter::SeriName::Single(value)),
+    Some(Value::String(value)) => Some(tnmsd::core::config::series_filter::SeriName::Single(value)),
     Some(Value::Array(values)) => {
       let items = values
         .into_iter()
@@ -478,12 +478,12 @@ fn handle_matches_series(input: &str) -> Result<String, String> {
           other => Err(format!("Invalid seriName array value: {other}")),
         })
         .collect::<Result<Vec<_>, _>>()?;
-      Some(tnmsc::core::config::series_filter::SeriName::Multiple(items))
+      Some(tnmsd::core::config::series_filter::SeriName::Multiple(items))
     }
     Some(other) => return Err(format!("Invalid seriName payload: {other}")),
   };
 
-  let result = tnmsc::core::config::series_filter::matches_series_core(
+  let result = tnmsd::core::config::series_filter::matches_series_core(
     seri_name.as_ref(),
     &payload.effective_include_series,
   );
@@ -492,7 +492,7 @@ fn handle_matches_series(input: &str) -> Result<String, String> {
 
 fn handle_resolve_sub_series(input: &str) -> Result<String, String> {
   let payload: ResolveSubSeriesPayload = parse_input(input)?;
-  let result = tnmsc::core::config::series_filter::resolve_sub_series_core(
+  let result = tnmsd::core::config::series_filter::resolve_sub_series_core(
     payload.top_level.as_ref(),
     payload.type_specific.as_ref(),
   );
