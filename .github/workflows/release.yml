@@ -104,11 +104,11 @@ jobs:
         uses: ./.github/actions/setup-cross-compile
 
       - name: Build tnmsc binary
-        run: cargo build --release --target ${{ matrix.rust_target }} -p tnmsc-cli-shell
+        run: cargo build --release --target ${{ matrix.rust_target }} -p tnmsc
 
       - name: Run native tests
         if: ${{ !matrix.cross }}
-        run: cargo test --release --target ${{ matrix.rust_target }} -p tnmsc-cli-shell
+        run: cargo test --release --target ${{ matrix.rust_target }} -p tnmsc
 
       - name: Package binaries (unix)
         if: runner.os != 'Windows'
