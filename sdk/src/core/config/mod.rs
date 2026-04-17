@@ -168,26 +168,6 @@ fn is_default_aindex_config(config: &AindexConfig) -> bool {
   config == &build_default_aindex_config()
 }
 
-/// Per-plugin fast command series override options.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct FastCommandSeriesPluginOverride {
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub include_series_prefix: Option<bool>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub series_separator: Option<String>,
-}
-
-/// Fast command series configuration options.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct FastCommandSeriesOptions {
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub include_series_prefix: Option<bool>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub plugin_overrides: Option<HashMap<String, FastCommandSeriesPluginOverride>>,
-}
-
 /// User profile information. Supports arbitrary key-value pairs.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct UserProfile {
@@ -334,8 +314,6 @@ pub struct UserConfigFile {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub log_level: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub fast_command_series_options: Option<FastCommandSeriesOptions>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub profile: Option<UserProfile>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub code_styles: Option<CodeStyles>,
@@ -352,7 +330,6 @@ impl Default for UserConfigFile {
       workspace_dir: None,
       aindex: build_default_aindex_config(),
       log_level: None,
-      fast_command_series_options: None,
       profile: None,
       code_styles: None,
       windows: None,
@@ -875,10 +852,6 @@ pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserC
       .or_else(|| base.workspace_dir.clone()),
     aindex: merged_aindex,
     log_level: over.log_level.clone().or_else(|| base.log_level.clone()),
-    fast_command_series_options: over
-      .fast_command_series_options
-      .clone()
-      .or_else(|| base.fast_command_series_options.clone()),
     profile: over.profile.clone().or_else(|| base.profile.clone()),
     code_styles: merged_code_styles,
     windows: merged_windows,

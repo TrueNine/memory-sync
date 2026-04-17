@@ -22,16 +22,6 @@
         "null"
       ]
     },
-    "fastCommandSeriesOptions": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/FastCommandSeriesOptions"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "profile": {
       "anyOf": [
         {
@@ -74,45 +64,6 @@
     }
   },
   "$defs": {
-    "FastCommandSeriesOptions": {
-      "description": "Fast command series configuration options.",
-      "type": "object",
-      "properties": {
-        "includeSeriesPrefix": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "pluginOverrides": {
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/FastCommandSeriesPluginOverride"
-          }
-        }
-      }
-    },
-    "FastCommandSeriesPluginOverride": {
-      "description": "Per-plugin fast command series override options.",
-      "type": "object",
-      "properties": {
-        "includeSeriesPrefix": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "seriesSeparator": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      }
-    },
     "UserProfile": {
       "description": "User profile information. Supports arbitrary key-value pairs.",
       "type": "object",
