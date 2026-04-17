@@ -8,7 +8,7 @@ const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const CLI_DIR = path.join(REPO_ROOT, "cli");
 const CLI_LINUX_PACKAGE_DIR = path.join(CLI_DIR, "npm", "linux-x64-gnu");
 const RUST_BINARY_PATH = path.join(REPO_ROOT, "target", "release", "tnmsc");
-const LINUX_PACKAGE_BINARY = "tnmsc";
+const LINUX_PACKAGE_BINARY = path.join("bin", "tnmsc");
 const MAX_BUFFER = 16 * 1024 * 1024;
 
 export interface CliIntegrationArtifacts {
@@ -88,6 +88,7 @@ function ensureLinuxBinaryInPlatformPackage(): void {
   }
 
   ensureDirectory(CLI_LINUX_PACKAGE_DIR);
+  ensureDirectory(path.dirname(targetBinary));
 
   copyFileSync(RUST_BINARY_PATH, targetBinary);
 }
@@ -108,7 +109,7 @@ export function prepareCliIntegrationArtifacts(): CliIntegrationArtifacts {
 
   const tempDir = mkdtempSync(path.join(tmpdir(), "tnmsc-cli-integration-artifacts-"));
   const cliTarballPath = packWorkspacePackage(CLI_DIR, path.join(tempDir, "cli"));
-  const linuxTarballPath = packWorkspacePackage(CLI_LINUX_PACKAGE_DIR, path.join(tempDir, "cli-linux-x64"));
+  const linuxTarballPath = packWorkspacePackage(CLI_LINUX_PACKAGE_DIR, path.join(tempDir, "cli-linux-x64-gnu"));
   const latestPnpmVersion = resolveLatestPackageVersion("pnpm");
 
   cachedArtifacts = {

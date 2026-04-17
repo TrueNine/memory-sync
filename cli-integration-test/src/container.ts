@@ -112,14 +112,10 @@ function shellScript(command: string, cwd: string): string {
 
 function buildPinnedGlobalCliPlatformLinkScript(): string {
   return [
-    'GLOBAL_ROOT="$(pnpm root -g)"',
-    'MAIN_PACKAGE_DIR="$GLOBAL_ROOT/@truenine/memory-sync-cli"',
-    'PLATFORM_PACKAGE_DIR="$GLOBAL_ROOT/@truenine/memory-sync-cli-linux-x64-gnu"',
-    'test -d "$MAIN_PACKAGE_DIR"',
-    'test -d "$PLATFORM_PACKAGE_DIR"',
-    'mkdir -p "$MAIN_PACKAGE_DIR/node_modules/@truenine"',
-    'rm -rf "$MAIN_PACKAGE_DIR/node_modules/@truenine/memory-sync-cli-linux-x64-gnu"',
-    'ln -s "$PLATFORM_PACKAGE_DIR" "$MAIN_PACKAGE_DIR/node_modules/@truenine/memory-sync-cli-linux-x64-gnu"',
+    'MAIN_PACKAGE_JSON="$(find -L /pnpm/global -path \'*/@truenine/memory-sync-cli/package.json\' -print -quit)"',
+    'PLATFORM_PACKAGE_JSON="$(find -L /pnpm/global -path \'*/@truenine/memory-sync-cli-linux-x64-gnu/package.json\' -print -quit)"',
+    'test -n "$MAIN_PACKAGE_JSON"',
+    'test -n "$PLATFORM_PACKAGE_JSON"',
   ].join("\n");
 }
 
@@ -160,14 +156,13 @@ export class PreparedCliIntegrationContainer {
 
   inspectInstalledCliResolution(): InstalledCliResolution {
     const script = [
-      'const { createRequire } = require("node:module");',
       'const fs = require("node:fs");',
       'const path = require("node:path");',
-      "const mainDir = process.argv[1];",
-      'const requireFromMain = createRequire(path.join(mainDir, "dist", "index.mjs"));',
-      'const resolvedPackageJson = requireFromMain.resolve("@truenine/memory-sync-cli-linux-x64-gnu/package.json");',
-      "const platformDir = path.dirname(resolvedPackageJson);",
-      'const binaryPath = path.join(platformDir, "tnmsc");',
+      "const mainPackageJson = process.argv[1];",
+      "const platformPackageJson = process.argv[2];",
+      "const mainDir = path.dirname(mainPackageJson);",
+      "const platformDir = path.dirname(platformPackageJson);",
+      'const binaryPath = path.join(platformDir, "bin", "tnmsc");',
       "const binaryExists = fs.existsSync(binaryPath);",
       "process.stdout.write(JSON.stringify({",
       "  mainPackageDir: mainDir,",
@@ -177,15 +172,19 @@ export class PreparedCliIntegrationContainer {
     ].join(" ");
 
     const result = this.assertExecSuccess(
-      ['GLOBAL_ROOT="$(pnpm root -g)"', 'MAIN_PACKAGE_DIR="$GLOBAL_ROOT/@truenine/memory-sync-cli"', `node -e ${quoteShell(script)} "$MAIN_PACKAGE_DIR"`].join(
-        " && ",
-      ),
+      [
+        'MAIN_PACKAGE_JSON="$(find -L /pnpm/global -path \'*/@truenine/memory-sync-cli/package.json\' -print -quit)"',
+        'PLATFORM_PACKAGE_JSON="$(find -L /pnpm/global -path \'*/@truenine/memory-sync-cli-linux-x64-gnu/package.json\' -print -quit)"',
+        'test -n "$MAIN_PACKAGE_JSON"',
+        'test -n "$PLATFORM_PACKAGE_JSON"',
+        `node -e ${quoteShell(script)} "$MAIN_PACKAGE_JSON" "$PLATFORM_PACKAGE_JSON"`,
+      ].join(" && "),
     );
 
     const parsed = JSON.parse(result.stdout);
 
     if (!parsed.binaryExists) {
-      throw new Error(`Expected tnmsc binary at "${parsed.platformPackageDir}/tnmsc" but it does not exist.`);
+      throw new Error(`Expected tnmsc binary at "${parsed.platformPackageDir}/bin/tnmsc" but it does not exist.`);
     }
 
     return {
