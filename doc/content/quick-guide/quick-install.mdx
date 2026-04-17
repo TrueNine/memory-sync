@@ -14,13 +14,13 @@ keywords:
 
 如果你只是想先把 CLI 装上，直接使用你偏好的包管理器：
 
-<PackageManagerTabs
-  commands={{
-    npm: 'npm install -g @truenine/memory-sync-cli',
-    pnpm: 'pnpm add -g @truenine/memory-sync-cli',
-    yarn: 'yarn global add @truenine/memory-sync-cli'
-  }}
-/>
+请直接安装与你平台匹配的 native CLI 包：
+
+- Linux x64 (glibc): `@truenine/memory-sync-cli-linux-x64-gnu`
+- Linux arm64 (glibc): `@truenine/memory-sync-cli-linux-arm64-gnu`
+- macOS arm64: `@truenine/memory-sync-cli-darwin-arm64`
+- macOS x64: `@truenine/memory-sync-cli-darwin-x64`
+- Windows x64: `@truenine/memory-sync-cli-win32-x64-msvc`
 
 然后确认命令可以正常工作：
 
@@ -36,7 +36,8 @@ tnmsc help
 
 ```sh
 pnpm install
-pnpm -C cli exec node dist/index.mjs --help
+pnpm -C cli run build
+./target/release/tnmsc --help
 ```
 
 > [!warning]
