@@ -1,10 +1,17 @@
-use std::io::{BufRead, Write};
+mod cli;
+mod commands;
 
+use std::io::{BufRead, Write};
+use std::process::ExitCode;
+
+use clap::Parser;
 use serde_json::{Value, json};
 use tnmsd::{
   ListPromptsOptions, PromptServiceOptions, UpsertPromptSourceInput, WritePromptArtifactsInput,
   get_prompt, list_prompts, upsert_prompt_source, write_prompt_artifacts,
 };
+
+use cli::{Cli, ResolvedCommand, resolve_command};
 
 const SERVER_NAME: &str = "@truenine/memory-sync-mcp";
 const PROTOCOL_VERSION: &str = "2024-11-05";
@@ -253,7 +260,7 @@ fn handle_apply_prompt_translation(args: &Value) -> Value {
   }
 }
 
-fn main() {
+fn run_stdio_server() {
   let stdin = std::io::stdin();
   let stdout = std::io::stdout();
   let reader = stdin.lock();
@@ -317,5 +324,17 @@ fn main() {
 
     let _ = writeln!(writer, "{}", response);
     let _ = writer.flush();
+  }
+}
+
+fn main() -> ExitCode {
+  let cli = Cli::parse();
+
+  match resolve_command(&cli) {
+    ResolvedCommand::Serve => {
+      run_stdio_server();
+      ExitCode::SUCCESS
+    }
+    ResolvedCommand::AssembleNpm(args) => commands::package::execute(&args),
   }
 }

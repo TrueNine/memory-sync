@@ -1,0 +1,19 @@
+{
+  "name": "@truenine/memory-sync-mcp-win32-x64-msvc",
+  "version": "2026.10413.10237",
+  "description": "memory-sync-mcp native binary for Windows x64",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "bin": {
+    "memory-sync-mcp": "./bin/memory-sync-mcp.exe"
+  },
+  "files": [
+    "bin"
+  ]
+}

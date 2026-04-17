@@ -1,0 +1,36 @@
+{
+  "name": "@truenine/memory-sync-mcp",
+  "version": "2026.10413.10237",
+  "description": "TrueNine Memory Sync MCP metadata package",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://github.com/TrueNine/memory-sync",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TrueNine/memory-sync.git",
+    "directory": "mcp"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "files": [],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "cargo build --release --manifest-path Cargo.toml && cargo run --manifest-path Cargo.toml --bin memory-sync-mcp -- assemble-npm --profile release",
+    "check": "cargo check --manifest-path Cargo.toml --all-targets",
+    "lint": "cargo fmt --check --manifest-path Cargo.toml && cargo clippy --manifest-path Cargo.toml --all-targets -- -D warnings",
+    "lint:fix": "cargo fmt --manifest-path Cargo.toml",
+    "prepublishOnly": "pnpm run build && pnpm run check",
+    "test": "cargo test --manifest-path Cargo.toml"
+  },
+  "optionalDependencies": {
+    "@truenine/memory-sync-mcp-darwin-arm64": "workspace:*",
+    "@truenine/memory-sync-mcp-darwin-x64": "workspace:*",
+    "@truenine/memory-sync-mcp-linux-arm64-gnu": "workspace:*",
+    "@truenine/memory-sync-mcp-linux-x64-gnu": "workspace:*",
+    "@truenine/memory-sync-mcp-win32-x64-msvc": "workspace:*"
+  }
+}
