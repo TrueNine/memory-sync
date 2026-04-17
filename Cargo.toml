@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "sdk",
   "cli",
+  "mcp",
   "gui/src-tauri",
 ]
 
@@ -39,11 +40,6 @@ reqwest = { version = "0.13.2", features = ["blocking", "json"] }
 
 # Markdown / MDX
 markdown = "1.0.0"
-
-# NAPI-RS (Node.js native addon bindings)
-napi = { version = "3.8.4", features = ["napi4", "serde-json"] }
-napi-derive = "3.5.3"
-napi-build = "2.3.1"
 
 # Tauri
 tauri = { version = "2.10.3", features = ["tray-icon"] }

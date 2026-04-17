@@ -41,7 +41,6 @@
     "sync-versions": "tsx .githooks/sync-versions.ts",
     "install:rust-deps": "tsx scripts/install-rust-deps.ts",
     "build:native": "tsx scripts/build-native.ts",
-    "build:native:copy": "tsx scripts/copy-napi.ts",
     "postinstall": "tsx scripts/postinstall.ts"
   },
   "author": {
@@ -63,7 +62,6 @@
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",
     "@eslint/js": "catalog:",
-    "@napi-rs/cli": "catalog:",
     "@next/eslint-plugin-next": "catalog:",
     "@truenine/eslint10-config": "catalog:",
     "@unocss/eslint-config": "catalog:",

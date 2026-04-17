@@ -1,27 +1,19 @@
 {
   "name": "@truenine/memory-sync-cli-linux-arm64-gnu",
   "version": "2026.10413.10237",
+  "description": "tnmsc binary for Linux ARM64 (glibc)",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
   "os": [
     "linux"
   ],
-  "arch": [
+  "cpu": [
     "arm64"
   ],
-  "license": "AGPL-3.0-only",
-  "exports": {
-    ".": {
-      "types": "./noop.d.mts",
-      "import": "./noop.mjs"
-    },
-    "./*.node": "./*.node",
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "*.node",
-    "noop.d.mts",
-    "noop.mjs"
+  "libc": [
+    "glibc"
   ],
-  "scripts": {
-    "prepack": "pnpm exec tsx ../../../scripts/write-platform-package-shims.ts ."
-  }
+  "files": [
+    "tnmsc"
+  ]
 }

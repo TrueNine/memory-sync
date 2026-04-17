@@ -4366,6 +4366,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tnmsc-mcp"
+version = "2026.10413.10237"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tnmsc",
+]
+
+[[package]]
 name = "tokio"
 version = "1.49.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

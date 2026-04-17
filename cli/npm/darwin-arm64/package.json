@@ -1,27 +1,16 @@
 {
   "name": "@truenine/memory-sync-cli-darwin-arm64",
   "version": "2026.10413.10237",
+  "description": "tnmsc binary for macOS ARM64",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
   "os": [
     "darwin"
   ],
-  "arch": [
+  "cpu": [
     "arm64"
   ],
-  "license": "AGPL-3.0-only",
-  "exports": {
-    ".": {
-      "types": "./noop.d.mts",
-      "import": "./noop.mjs"
-    },
-    "./*.node": "./*.node",
-    "./package.json": "./package.json"
-  },
   "files": [
-    "*.node",
-    "noop.d.mts",
-    "noop.mjs"
-  ],
-  "scripts": {
-    "prepack": "pnpm exec tsx ../../../scripts/write-platform-package-shims.ts ."
-  }
+    "tnmsc"
+  ]
 }
