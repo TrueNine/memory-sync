@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::env;
 use std::ffi::OsString;
 use std::fs;
@@ -223,7 +225,7 @@ fn resolve_internal_command_bridge_path() -> Result<PathBuf, CliError> {
   }
 
   Err(CliError::ExecutionError(format!(
-    "Internal command bridge bundle is missing at \"{}\". Run `pnpm -C sdk run build` before using native install/dry-run/clean commands.",
+    "Internal command bridge bundle is missing at \"{}\". Run `pnpm -C cli run build` before using native install/dry-run/clean commands.",
     bridge_path.display(),
   )))
 }

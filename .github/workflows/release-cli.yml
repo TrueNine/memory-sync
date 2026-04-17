@@ -2,10 +2,6 @@ name: Release Packages
 
 env:
   NPM_REGISTRY_URL: https://registry.npmjs.org/
-  CLI_NATIVE_MODULE_DIRS: |
-    sdk
-  CLI_NATIVE_BINDING_PREFIXES: |
-    napi-memory-sync-cli.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -37,13 +33,11 @@ permissions:
   contents: read
 
 jobs:
-  # 1. 发布前检查（快速，决定是否继续）
   preflight:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       publish_cli: ${{ steps.npm-check.outputs.publish_cli }}
-      publish_mcp: ${{ steps.npm-check.outputs.publish_mcp }}
       publish_npm: ${{ steps.npm-check.outputs.publish_npm }}
       version: ${{ steps.npm-check.outputs.version }}
       gui_should_release: ${{ steps.gui-check.outputs.should_release }}
@@ -68,101 +62,84 @@ jobs:
         with:
           github-token: ${{ github.token }}
 
-  # 2. 构建 NAPI 二进制（5 平台矩阵）
-  build-napi:
+  build-binaries:
     needs: preflight
     if: needs.preflight.outputs.publish_cli == 'true'
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        target:
+        include:
           - os: ubuntu-24.04
-            rust: x86_64-unknown-linux-gnu
+            rust_target: x86_64-unknown-linux-gnu
             suffix: linux-x64-gnu
+            binary: tnmsc
           - os: ubuntu-24.04
-            rust: aarch64-unknown-linux-gnu
+            rust_target: aarch64-unknown-linux-gnu
             suffix: linux-arm64-gnu
+            binary: tnmsc
             cross: true
           - os: macos-14
-            rust: aarch64-apple-darwin
+            rust_target: aarch64-apple-darwin
             suffix: darwin-arm64
+            binary: tnmsc
           - os: macos-14
-            rust: x86_64-apple-darwin
+            rust_target: x86_64-apple-darwin
             suffix: darwin-x64
+            binary: tnmsc
           - os: windows-latest
-            rust: x86_64-pc-windows-msvc
+            rust_target: x86_64-pc-windows-msvc
             suffix: win32-x64-msvc
-    runs-on: ${{ matrix.target.os }}
+            binary: tnmsc.exe
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-node-pnpm
       - uses: ./.github/actions/setup-rust
         with:
-          targets: ${{ matrix.target.rust }}
-          cache-key: napi-${{ matrix.target.rust }}
+          targets: ${{ matrix.rust_target }}
+          cache-key: cli-${{ matrix.rust_target }}
       - name: Setup cross-compile
-        if: matrix.target.cross
+        if: matrix.cross
         uses: ./.github/actions/setup-cross-compile
-      - name: Build all napi native modules
+      - name: Build tnmsc binary (release)
+        run: cargo build --release --target ${{ matrix.rust_target }} -p tnmsc-cli-shell
+      - name: Run tests (native only)
+        if: ${{ !matrix.cross }}
+        run: cargo test --release --target ${{ matrix.rust_target }} -p tnmsc-cli-shell
+      - name: Copy binary into platform package
         shell: bash
         run: |
-          while IFS= read -r module_dir; do
-            if [ -z "$module_dir" ]; then
-              continue
-            fi
-            echo "Building napi in ${module_dir}..."
-            (
-              cd "${module_dir}" && \
-              pnpm exec napi build --platform --release --target ${{ matrix.target.rust }} --output-dir dist -- --features napi
-            )
-          done <<< "$CLI_NATIVE_MODULE_DIRS"
-      - name: Collect .node files into CLI platform package
-        shell: bash
-        run: |
-          target_dir="cli/npm/${{ matrix.target.suffix }}"
+          target_dir="cli/.artifacts/${{ matrix.suffix }}"
           mkdir -p "$target_dir"
-          shopt -s nullglob
-          while IFS= read -r module_dir; do
-            if [ -z "$module_dir" ]; then
-              continue
-            fi
-            node_files=("${module_dir}"/dist/*.node)
-            if [ "${#node_files[@]}" -eq 0 ]; then
-              echo "ERROR: no .node files found in ${module_dir}/dist"
-              exit 1
-            fi
-            cp "${node_files[@]}" "$target_dir/"
-          done <<< "$CLI_NATIVE_MODULE_DIRS"
-          expected_count=0
-          while IFS= read -r binding_prefix; do
-            if [ -z "$binding_prefix" ]; then
-              continue
-            fi
-            expected_count=$((expected_count + 1))
-            matches=("$target_dir"/${binding_prefix}*.node)
-            if [ "${#matches[@]}" -eq 0 ]; then
-              echo "ERROR: missing binding with prefix ${binding_prefix} in ${target_dir}"
-              exit 1
-            fi
-          done <<< "$CLI_NATIVE_BINDING_PREFIXES"
-          actual_count=$(find "$target_dir" -maxdepth 1 -type f -name '*.node' | wc -l | tr -d ' ')
-          if [ "$actual_count" -ne "$expected_count" ]; then
-            echo "ERROR: expected ${expected_count} .node files in ${target_dir}, found ${actual_count}"
+          cp "target/${{ matrix.rust_target }}/release/${{ matrix.binary }}" "$target_dir/"
+          ls -la "$target_dir/"
+      - name: Validate binary size and format
+        shell: bash
+        run: |
+          target_dir="cli/.artifacts/${{ matrix.suffix }}"
+          binary_path="${target_dir}/${{ matrix.binary }}"
+          min_size=$((128 * 1024))
+          size=$(stat -c%s "$binary_path" 2>/dev/null || stat -f%z "$binary_path" 2>/dev/null || echo 0)
+          if [ "$size" -lt "$min_size" ]; then
+            echo "ERROR: ${binary_path} is too small (${size} bytes), expected at least ${min_size} bytes"
             exit 1
           fi
-          echo "Contents of $target_dir:"
-          ls -la "$target_dir/"
-      - name: Upload CLI platform package
+          file_output=$(file "$binary_path")
+          echo "File info for ${binary_path}: ${file_output}"
+          if [[ "$file_output" == *"ELF"* ]] || [[ "$file_output" == *"Mach-O"* ]] || [[ "$file_output" == *"PE"* ]]; then
+            echo "OK: valid native binary"
+          else
+            echo "WARNING: format could not be verified as ELF/Mach-O/PE"
+          fi
+      - name: Upload platform package artifact
         uses: actions/upload-artifact@v7
         with:
-          name: cli-napi-${{ matrix.target.suffix }}
-          path: cli/npm/${{ matrix.target.suffix }}/
+          name: cli-binary-${{ matrix.suffix }}
+          path: cli/.artifacts/${{ matrix.suffix }}/
           if-no-files-found: error
 
-  # 3. 收集并发布 NAPI 平台子包到 npm
-  publish-napi:
-    needs: [preflight, build-napi]
+  publish-platform-packages:
+    needs: [preflight, build-binaries]
     if: needs.preflight.outputs.publish_cli == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -176,96 +153,23 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: artifacts
-          pattern: cli-napi-*
-      - name: Distribute artifacts to cli/npm/ directories
+          pattern: cli-binary-*
+      - name: Aggregate CLI OS package contents
+        run: pnpm tsx cli/scripts/build-native.ts --artifacts-dir artifacts --targets all --skip-build
+      - name: Validate platform packages
         shell: bash
         run: |
-          shopt -s nullglob
-          for artifact_dir in artifacts/cli-napi-*/; do
-            suffix=$(basename "$artifact_dir" | sed 's/cli-napi-//')
-            target_dir="cli/npm/${suffix}"
-            mkdir -p "$target_dir"
-            echo "Copying from ${artifact_dir} to ${target_dir}"
-            cp "${artifact_dir}"*.node "$target_dir/" || { echo "ERROR: no .node files found in ${artifact_dir}"; exit 1; }
-          done
-      - name: Generate CLI platform package shims
-        shell: bash
-        run: |
-          shopt -s nullglob
-          dirs=(cli/npm/*/)
-          if [ "${#dirs[@]}" -eq 0 ]; then
-            echo "No CLI platform package directories found"
-            exit 0
-          fi
-          pnpm exec tsx scripts/write-platform-package-shims.ts "${dirs[@]}"
-      - name: Validate CLI platform packages
-        shell: bash
-        run: |
-          shopt -s nullglob
-          expected_count=0
-          while IFS= read -r binding_prefix; do
-            if [ -z "$binding_prefix" ]; then
-              continue
-            fi
-            expected_count=$((expected_count + 1))
-          done <<< "$CLI_NATIVE_BINDING_PREFIXES"
-          for target_dir in cli/npm/*/; do
+          for target_dir in cli/npm/darwin/ cli/npm/linux/ cli/npm/win32/; do
             if [ ! -f "${target_dir}package.json" ]; then
-              continue
-            fi
-            if [ ! -f "${target_dir}noop.mjs" ]; then
-              echo "ERROR: missing ${target_dir}noop.mjs"
+              echo "ERROR: missing ${target_dir}package.json"
               exit 1
             fi
-            if [ ! -f "${target_dir}noop.d.mts" ]; then
-              echo "ERROR: missing ${target_dir}noop.d.mts"
+            has_binary=false
+            find "${target_dir}bin" -type f \( -name 'tnmsc' -o -name 'tnmsc.exe' \) | grep -q . && has_binary=true
+            if [ "$has_binary" = false ]; then
+              echo "ERROR: missing binary in ${target_dir}"
               exit 1
             fi
-            actual_count=$(find "${target_dir}" -maxdepth 1 -type f -name '*.node' | wc -l | tr -d ' ')
-            if [ "$actual_count" -ne "$expected_count" ]; then
-              echo "ERROR: expected ${expected_count} .node files in ${target_dir}, found ${actual_count}"
-              exit 1
-            fi
-            while IFS= read -r binding_prefix; do
-              if [ -z "$binding_prefix" ]; then
-                continue
-              fi
-              matches=("${target_dir}"${binding_prefix}*.node)
-              if [ "${#matches[@]}" -eq 0 ]; then
-                echo "ERROR: missing binding with prefix ${binding_prefix} in ${target_dir}"
-                exit 1
-              fi
-            done <<< "$CLI_NATIVE_BINDING_PREFIXES"
-          done
-      - name: Validate NAPI binary format and size
-        shell: bash
-        run: |
-          shopt -s nullglob
-          # Keep a small floor to catch obviously broken artifacts, but avoid
-          # binding-specific thresholds that can flap on harmless linker output
-          # changes across toolchains.
-          min_size=$((128 * 1024))
-          for target_dir in cli/npm/*/; do
-            if [ ! -f "${target_dir}package.json" ]; then
-              continue
-            fi
-            for node_file in "${target_dir}"*.node; do
-              if [ ! -f "$node_file" ]; then
-                continue
-              fi
-              size=$(stat -c%s "$node_file" 2>/dev/null || stat -f%z "$node_file" 2>/dev/null || echo 0)
-              if [ "$size" -lt "$min_size" ]; then
-                echo "ERROR: ${node_file} is too small (${size} bytes), expected at least ${min_size} bytes"
-                exit 1
-              fi
-              file_output=$(file "$node_file")
-              echo "File info for ${node_file}: ${file_output}"
-              if [[ "$file_output" == *"ELF"* ]] || [[ "$file_output" == *"Mach-O"* ]] || [[ "$file_output" == *"PE"* ]]; then
-                echo "OK: ${node_file} is a valid native binary"
-              else
-                echo "WARNING: ${node_file} format could not be verified as ELF/Mach-O/PE"
-              fi
-            done
           done
       - name: Publish CLI platform sub-packages
         uses: ./.github/actions/npm-publish-package
@@ -274,12 +178,11 @@ jobs:
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: cli/npm
 
-  # 4. 架构包就绪后，顺序发布 npm 包
   publish-npm-packages:
-    needs: [preflight, publish-napi]
+    needs: [preflight, publish-platform-packages]
     if: |
       needs.preflight.outputs.publish_npm == 'true' &&
-      (needs.publish-napi.result == 'success' || needs.publish-napi.result == 'skipped')
+      (needs.publish-platform-packages.result == 'success' || needs.publish-platform-packages.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -297,6 +200,17 @@ jobs:
           package-dir: cli
           package-name: "@truenine/memory-sync-cli"
 
+      - name: Download all platform artifacts
+        if: needs.preflight.outputs.publish_cli == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: cli-binary-*
+
+      - name: Aggregate CLI OS package contents
+        if: needs.preflight.outputs.publish_cli == 'true'
+        run: pnpm tsx cli/scripts/build-native.ts --artifacts-dir artifacts --targets all --skip-build
+
       - name: Build CLI
         if: needs.preflight.outputs.publish_cli == 'true'
         run: pnpm -F @truenine/memory-sync-cli run build
@@ -309,33 +223,11 @@ jobs:
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: cli
 
-      - name: Preflight MCP publish
-        if: needs.preflight.outputs.publish_mcp == 'true'
-        uses: ./.github/actions/npm-auth-preflight
-        with:
-          npm-token: ${{ secrets.NPM_TOKEN }}
-          registry-url: ${{ env.NPM_REGISTRY_URL }}
-          package-dir: mcp
-          package-name: "@truenine/memory-sync-mcp"
-
-      - name: Build MCP
-        if: needs.preflight.outputs.publish_mcp == 'true'
-        run: pnpm exec turbo run build --filter=@truenine/memory-sync-mcp
-
-      - name: Publish MCP
-        if: needs.preflight.outputs.publish_mcp == 'true'
-        uses: ./.github/actions/npm-publish-package
-        with:
-          npm-token: ${{ secrets.NPM_TOKEN }}
-          registry-url: ${{ env.NPM_REGISTRY_URL }}
-          package-dir: mcp
-
-  # 5. 构建 CLI 独立二进制（仅 artifact，不发 Release）
-  build-binary:
-    needs: [preflight, publish-napi]
+  build-binary-archives:
+    needs: [preflight, publish-platform-packages]
     if: |
       (needs.preflight.outputs.publish_cli == 'true' || needs.preflight.outputs.gui_should_release == 'true') &&
-      (needs.publish-napi.result == 'success' || needs.publish-napi.result == 'skipped')
+      (needs.publish-platform-packages.result == 'success' || needs.publish-platform-packages.result == 'skipped')
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -399,7 +291,6 @@ jobs:
           path: ${{ matrix.archive }}
           if-no-files-found: error
 
-  # 6. 构建 GUI — 三平台并行（fail-fast: 任一失败则全部取消）
   build-gui-all:
     needs: [preflight]
     if: needs.preflight.outputs.gui_should_release == 'true'
@@ -408,9 +299,8 @@ jobs:
       version: ${{ needs.preflight.outputs.gui_version }}
     secrets: inherit
 
-  # 7. 收集三平台产物，创建 GitHub Release + tag
   release-gui-collect:
-    needs: [preflight, build-gui-all, build-binary]
+    needs: [preflight, build-gui-all, build-binary-archives]
     if: needs.preflight.outputs.gui_should_release == 'true'
     permissions:
       contents: write

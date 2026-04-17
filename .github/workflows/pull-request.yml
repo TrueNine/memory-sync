@@ -69,7 +69,7 @@ jobs:
         with:
           cache-key: pr
 
-      - name: Build native modules
+      - name: Build Rust workspace
         run: pnpm run build:native
 
       - name: Build
@@ -88,7 +88,7 @@ jobs:
         with:
           cache-key: pr
 
-      - name: Build native modules
+      - name: Build Rust workspace
         run: pnpm run build:native
 
       - name: Lint
@@ -107,7 +107,7 @@ jobs:
         with:
           cache-key: pr
 
-      - name: Build native modules
+      - name: Build Rust workspace
         run: pnpm run build:native
 
       - name: Typecheck
@@ -132,7 +132,7 @@ jobs:
         with:
           version: ${{ steps.gui-version.outputs.version }}
 
-      - name: Build native modules
+      - name: Build Rust workspace
         run: pnpm run build:native
 
       - name: Build
@@ -179,7 +179,7 @@ jobs:
         with:
           version: ${{ steps.gui-version.outputs.version }}
 
-      - name: Build native modules
+      - name: Build Rust workspace
         run: pnpm run build:native
 
       - name: Build
@@ -187,25 +187,6 @@ jobs:
 
       - name: Run GUI tests
         run: pnpm turbo test --filter=@truenine/memory-sync-gui
-
-  test-sdk:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-node-pnpm
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: pr
-
-      - name: Build native modules
-        run: pnpm run build:native
-
-      - name: SDK tests
-        run: pnpm turbo test --filter=@truenine/memory-sync-sdk
 
   test-cli:
     if: github.event.pull_request.draft == false
@@ -220,49 +201,11 @@ jobs:
         with:
           cache-key: pr
 
-      - name: Build native modules
+      - name: Build Rust workspace
         run: pnpm run build:native
 
       - name: CLI tests
         run: pnpm turbo test --filter=@truenine/memory-sync-cli
-
-  test-mcp:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-node-pnpm
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: pr
-
-      - name: Build native modules
-        run: pnpm run build:native
-
-      - name: MCP tests
-        run: pnpm turbo test --filter=@truenine/memory-sync-mcp
-
-  test-sdk-core:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-node-pnpm
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: pr
-
-      - name: Build native modules
-        run: pnpm run build:native
-
-      - name: SDK core tests
-        run: pnpm turbo test --filter=@truenine/memory-sync-sdk
 
   test-rust:
     if: github.event.pull_request.draft == false

@@ -45,6 +45,10 @@ pub enum CliCommand {
   /// Show version information
   Version,
 
+  /// Print the generated .tnmsc.json schema
+  #[command(hide = true)]
+  Schema,
+
   /// Run the install pipeline
   Install,
 
@@ -143,6 +147,7 @@ pub fn resolve_log_level(cli: &Cli) -> Option<ResolvedLogLevel> {
 pub enum ResolvedCommand {
   Help,
   Version,
+  Schema,
   Install,
   DryRun,
   Clean,
@@ -156,6 +161,7 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
     None => ResolvedCommand::Install,
     Some(CliCommand::Help) => ResolvedCommand::Help,
     Some(CliCommand::Version) => ResolvedCommand::Version,
+    Some(CliCommand::Schema) => ResolvedCommand::Schema,
     Some(CliCommand::Install) => ResolvedCommand::Install,
     Some(CliCommand::DryRun) => ResolvedCommand::DryRun,
     Some(CliCommand::Clean(args)) => {

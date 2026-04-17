@@ -140,19 +140,28 @@ pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliEr
     .map_err(CliError::ConfigError)
 }
 
-/// Execute the install pipeline through the crate-owned internal command bridge.
+fn pure_rust_cli_pipeline_not_implemented(command: &str) -> CliError {
+  CliError::NotImplemented(format!(
+    "Pure Rust `{command}` is not implemented yet. The CLI npm package no longer ships the legacy TypeScript fallback bridge."
+  ))
+}
+
+/// Execute the install pipeline through the native crate facade.
 pub fn install(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  core::command_bridge::execute_internal_command("install", &options)
+  let _ = options;
+  Err(pure_rust_cli_pipeline_not_implemented("install"))
 }
 
-/// Execute the dry-run pipeline through the crate-owned internal command bridge.
+/// Execute the dry-run pipeline through the native crate facade.
 pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  core::command_bridge::execute_internal_command("dry-run", &options)
+  let _ = options;
+  Err(pure_rust_cli_pipeline_not_implemented("dry-run"))
 }
 
-/// Execute cleanup through the crate-owned internal command bridge.
+/// Execute cleanup through the native crate facade.
 pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  core::command_bridge::execute_internal_command("clean", &options)
+  let _ = options;
+  Err(pure_rust_cli_pipeline_not_implemented("clean"))
 }
 
 /// Return the default output plugin registry without instantiating TS plugin classes.

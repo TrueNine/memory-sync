@@ -1,7 +1,10 @@
+import {readFileSync} from 'node:fs'
 import {defineConfig} from 'tsdown'
 
-const alwaysBundleDeps = ['@truenine/memory-sync-sdk']
 const neverBundleDeps = ['jiti']
+const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  readonly version: string
+}
 
 export default defineConfig([
   {
@@ -11,39 +14,14 @@ export default defineConfig([
     unbundle: false,
     format: ['esm'],
     minify: true,
-    dts: {sourcemap: false},
-    deps: {
-      alwaysBundle: alwaysBundleDeps,
-      onlyBundle: false,
-      neverBundle: neverBundleDeps
-    },
-    outputOptions: {exports: 'named'}
-  },
-  {
-    entry: ['./src/internal/native-command-bridge.ts'],
-    platform: 'node',
-    sourcemap: false,
-    unbundle: false,
-    format: ['esm'],
-    minify: true,
     dts: false,
     deps: {
-      alwaysBundle: alwaysBundleDeps,
       onlyBundle: false,
       neverBundle: neverBundleDeps
     },
-    outputOptions: {exports: 'named'}
-  },
-  {
-    entry: ['./src/script-runtime-worker.ts'],
-    platform: 'node',
-    sourcemap: false,
-    deps: {
-      alwaysBundle: alwaysBundleDeps,
-      neverBundle: neverBundleDeps
+    define: {
+      __CLI_VERSION__: JSON.stringify(packageJson.version)
     },
-    format: ['esm'],
-    minify: true,
-    dts: false
+    outputOptions: {exports: 'named'}
   }
 ])

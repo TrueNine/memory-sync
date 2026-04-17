@@ -5,8 +5,6 @@ import process from 'node:process'
 import {fileURLToPath} from 'node:url'
 import {runCli} from './cli-runtime'
 
-export * from './cli-runtime'
-
 function isCliEntrypoint(argv: readonly string[] = process.argv): boolean {
   const entryPath = argv[1]
   if (entryPath == null || entryPath.length === 0) return false

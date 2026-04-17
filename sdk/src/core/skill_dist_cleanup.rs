@@ -175,21 +175,27 @@ mod tests {
     assert!(!dist_skill_dir.join("mcp.json").exists());
     assert!(!nested_legacy_dir.join("diagram.svg").exists());
     assert!(!nested_legacy_dir.exists());
-    assert!(result.deleted_files.contains(
-      &dist_skill_dir
-        .join("guide.src.mdx")
-        .to_string_lossy()
-        .into_owned()
-    ));
-    assert!(result.deleted_files.contains(
-      &dist_skill_dir
-        .join("notes.md")
-        .to_string_lossy()
-        .into_owned()
-    ));
-    assert!(result
-      .deleted_dirs
-      .contains(&nested_legacy_dir.to_string_lossy().into_owned()));
+    assert!(
+      result.deleted_files.contains(
+        &dist_skill_dir
+          .join("guide.src.mdx")
+          .to_string_lossy()
+          .into_owned()
+      )
+    );
+    assert!(
+      result.deleted_files.contains(
+        &dist_skill_dir
+          .join("notes.md")
+          .to_string_lossy()
+          .into_owned()
+      )
+    );
+    assert!(
+      result
+        .deleted_dirs
+        .contains(&nested_legacy_dir.to_string_lossy().into_owned())
+    );
   }
 
   #[test]
@@ -211,12 +217,14 @@ mod tests {
     assert!(result.success);
     assert!(dist_skill_dir.join("skill.mdx").exists());
     assert!(!dist_skill_dir.join("legacy.txt").exists());
-    assert!(result.deleted_files.contains(
-      &dist_skill_dir
-        .join("legacy.txt")
-        .to_string_lossy()
-        .into_owned()
-    ));
+    assert!(
+      result.deleted_files.contains(
+        &dist_skill_dir
+          .join("legacy.txt")
+          .to_string_lossy()
+          .into_owned()
+      )
+    );
   }
 
   #[test]
@@ -233,9 +241,11 @@ mod tests {
 
     assert!(result.success);
     assert!(result.deleted_files.is_empty());
-    assert!(result
-      .deleted_dirs
-      .contains(&dist_skills_dir.to_string_lossy().into_owned()));
+    assert!(
+      result
+        .deleted_dirs
+        .contains(&dist_skills_dir.to_string_lossy().into_owned())
+    );
     assert!(!dist_skills_dir.exists());
   }
 }

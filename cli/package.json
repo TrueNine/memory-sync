@@ -12,16 +12,12 @@
     "directory": "cli"
   },
   "exports": {
-    ".": {
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs"
-    },
+    ".": "./dist/index.mjs",
     "./schema.json": "./dist/tnmsc.schema.json",
     "./package.json": "./package.json"
   },
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
   "bin": {
     "tnmsc": "./dist/index.mjs"
   },
@@ -32,57 +28,52 @@
   "engines": {
     "node": ">= 22"
   },
-  "napi": {
-    "binaryName": "napi-memory-sync-cli",
-    "targets": [
-      "x86_64-pc-windows-msvc",
-      "x86_64-unknown-linux-gnu",
-      "aarch64-unknown-linux-gnu",
-      "aarch64-apple-darwin",
-      "x86_64-apple-darwin"
-    ]
-  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "run-s build:sdk build:shell sync:sdk-assets",
-    "build:sdk": "pnpm -F @truenine/memory-sync-sdk run build",
-    "build:napi:copy": "tsx ../scripts/copy-napi.ts",
+    "build": "run-s build:shell build:native sync:sdk-assets",
+    "build:native": "tsx scripts/build-native.ts",
     "build:shell": "tsdown",
-    "ensure:sdk-build": "tsx scripts/ensure-sdk-build.ts",
-    "sync:sdk-assets": "tsx scripts/sync-sdk-dist.ts",
-    "check": "run-s ensure:sdk-build check:run",
+    "check": "run-s check:run",
     "check:run": "run-p lint:run check:type:run",
-    "lint": "run-s ensure:sdk-build lint:run lint:rust",
+    "lint": "run-s lint:run lint:rust",
     "lint:run": "eslint --cache --cache-location .eslintcache .",
     "lint:rust": "cargo fmt --check --manifest-path Cargo.toml",
     "prepublishOnly": "run-s build check",
-    "test": "run-s ensure:sdk-build test:run",
-    "test:run": "vitest run",
-    "lint:fix": "run-s ensure:sdk-build lint:fix:run lint:fix:rust",
+    "test": "vitest run",
+    "lint:fix": "run-s lint:fix:run lint:fix:rust",
     "lint:fix:run": "eslint --fix --cache --cache-location .eslintcache .",
     "lint:fix:rust": "cargo fmt --manifest-path Cargo.toml",
-    "typecheck": "run-s ensure:sdk-build check:type:run",
-    "check:type:run": "tsc --noEmit -p tsconfig.lib.json"
+    "sync:sdk-assets": "tsx scripts/sync-sdk-dist.ts",
+    "typecheck": "run-s check:type:run",
+    "check:type:run": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "jiti": "catalog:"
-  },
-  "optionalDependencies": {
-    "@truenine/memory-sync-cli-darwin-arm64": "workspace:*",
-    "@truenine/memory-sync-cli-darwin-x64": "workspace:*",
-    "@truenine/memory-sync-cli-linux-arm64-gnu": "workspace:*",
-    "@truenine/memory-sync-cli-linux-x64-gnu": "workspace:*",
-    "@truenine/memory-sync-cli-win32-x64-msvc": "workspace:*",
+    "fast-glob": "catalog:",
+    "jiti": "catalog:",
     "json5": "catalog:",
+    "mdast-util-mdx": "catalog:",
+    "remark-frontmatter": "catalog:",
+    "remark-gfm": "catalog:",
+    "remark-mdx": "catalog:",
+    "remark-parse": "catalog:",
+    "remark-stringify": "catalog:",
+    "unified": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
   },
+  "optionalDependencies": {
+    "@truenine/memory-sync-cli-darwin": "workspace:*",
+    "@truenine/memory-sync-cli-linux": "workspace:*",
+    "@truenine/memory-sync-cli-win32": "workspace:*"
+  },
   "devDependencies": {
     "@truenine/eslint10-config": "catalog:",
-    "@truenine/memory-sync-sdk": "workspace:*",
+    "@types/estree": "catalog:",
+    "@types/estree-jsx": "catalog:",
+    "@types/mdast": "catalog:",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "eslint": "catalog:",
@@ -90,6 +81,7 @@
     "tsdown": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod-to-json-schema": "catalog:"
   }
 }

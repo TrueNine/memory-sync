@@ -1,328 +1,286 @@
-import {spawnSync} from 'node:child_process'
-import {statSync} from 'node:fs'
-import path from 'node:path'
-import type {StartedTestContainer} from 'testcontainers'
-import {GenericContainer} from 'testcontainers'
+import { spawnSync } from "node:child_process";
+import { statSync } from "node:fs";
+import path from "node:path";
+import { GenericContainer } from "testcontainers";
 
-import type {CliIntegrationArtifacts} from './artifacts'
-import {
-  CONTAINER_EXTERNAL_CWD,
-  CONTAINER_HOME_DIR,
-  CONTAINER_WORKSPACE_DIR
-} from './fixtures'
+import type { CliIntegrationArtifacts } from "./artifacts";
+import { CONTAINER_EXTERNAL_CWD, CONTAINER_HOME_DIR, CONTAINER_WORKSPACE_DIR } from "./fixtures";
 
-const NODE_IMAGE = 'node:22-trixie'
-const BASE_IMAGE_REPOSITORY = 'tnmsc-cli-integration'
-const MAX_BUFFER = 16 * 1024 * 1024
+const NODE_IMAGE = "node:22-trixie";
+const BASE_IMAGE_REPOSITORY = "tnmsc-cli-integration";
+const MAX_BUFFER = 16 * 1024 * 1024;
 
-let cachedPreparedBaseImage: string | undefined
-let baseImageCleanupRegistered = false
+let cachedPreparedBaseImage: string | undefined;
+let baseImageCleanupRegistered = false;
 
 export interface ContainerExecResult {
-  readonly command: string
-  readonly cwd: string
-  readonly stdout: string
-  readonly stderr: string
-  readonly exitCode: number
+  readonly command: string;
+  readonly cwd: string;
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number;
 }
 
 export interface InstalledCliResolution {
-  readonly mainPackageDir: string
-  readonly platformPackageDir: string
-  readonly resolvedAddonPath: string
-  readonly sdkPackagePath: string
+  readonly mainPackageDir: string;
+  readonly platformPackageDir: string;
 }
 
 export interface CliIntegrationFixture {
-  readonly homeDir: string
-  readonly workspaceDir: string
+  readonly homeDir: string;
+  readonly workspaceDir: string;
 }
 
 function quoteShell(value: string): string {
-  return `'${value.replaceAll(`'`, `'\"'\"'`)}'`
+  return `'${value.replaceAll(`'`, `'\"'\"'`)}'`;
 }
 
 function runDockerCommand(args: readonly string[]): {
-  readonly stdout: string
-  readonly stderr: string
-  readonly exitCode: number
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number;
 } {
-  const result = spawnSync('docker', args, {
-    encoding: 'utf8',
-    maxBuffer: MAX_BUFFER
-  })
+  const result = spawnSync("docker", args, {
+    encoding: "utf8",
+    maxBuffer: MAX_BUFFER,
+  });
 
-  if (result.error != null) throw result.error
+  if (result.error != null) throw result.error;
 
   return {
-    stdout: result.stdout ?? '',
-    stderr: result.stderr ?? '',
-    exitCode: result.status ?? 1
-  }
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+    exitCode: result.status ?? 1,
+  };
 }
 
 function assertDockerCommandSucceeded(
   args: readonly string[],
   result: {
-    readonly stdout: string
-    readonly stderr: string
-    readonly exitCode: number
-  }
+    readonly stdout: string;
+    readonly stderr: string;
+    readonly exitCode: number;
+  },
 ): void {
-  if (result.exitCode === 0) return
+  if (result.exitCode === 0) return;
 
-  throw new Error([
-    `Docker command failed: docker ${args.join(' ')}`,
-    `${result.stdout}${result.stderr}`.trim() || 'No output captured.'
-  ].join('\n'))
+  throw new Error([`Docker command failed: docker ${args.join(" ")}`, `${result.stdout}${result.stderr}`.trim() || "No output captured."].join("\n"));
 }
 
 function registerBaseImageCleanup(): void {
-  if (baseImageCleanupRegistered) return
+  if (baseImageCleanupRegistered) return;
 
-  baseImageCleanupRegistered = true
-  process.once('exit', () => {
-    cleanupPreparedCliIntegrationBaseImage()
-  })
+  baseImageCleanupRegistered = true;
+  process.once("exit", () => {
+    cleanupPreparedCliIntegrationBaseImage();
+  });
 }
 
 function cleanupPreparedCliIntegrationBaseImage(): void {
-  if (cachedPreparedBaseImage == null) return
+  if (cachedPreparedBaseImage == null) return;
 
-  runDockerCommand(['rmi', '-f', cachedPreparedBaseImage])
-  cachedPreparedBaseImage = void 0
+  runDockerCommand(["rmi", "-f", cachedPreparedBaseImage]);
+  cachedPreparedBaseImage = void 0;
+}
+
+function removeDockerContainer(containerId: string): void {
+  const args = ["rm", "-f", "-v", containerId];
+  const result = runDockerCommand(args);
+
+  if (result.exitCode === 0) return;
+  if (result.stderr.includes("No such container")) return;
+
+  assertDockerCommandSucceeded(args, result);
+}
+
+async function startBackgroundContainer(image: string): Promise<string> {
+  const startedContainer = await new GenericContainer(image).withCommand(["sh", "-lc", "while true; do sleep 3600; done"]).start();
+  return startedContainer.getId();
 }
 
 function shellScript(command: string, cwd: string): string {
   return [
-    'set -eu',
+    "set -eu",
     `export HOME=${quoteShell(CONTAINER_HOME_DIR)}`,
-    'export PNPM_HOME=/pnpm',
+    "export PNPM_HOME=/pnpm",
     'export PATH="$PNPM_HOME:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"',
     `mkdir -p "$PNPM_HOME" /artifacts ${quoteShell(CONTAINER_WORKSPACE_DIR)} ${quoteShell(CONTAINER_EXTERNAL_CWD)}`,
     `cd ${quoteShell(cwd)}`,
-    command
-  ].join('\n')
+    command,
+  ].join("\n");
 }
 
 function buildPinnedGlobalCliPlatformLinkScript(): string {
   return [
     'GLOBAL_ROOT="$(pnpm root -g)"',
-    'PNPM_STORE_DIR="$(dirname "$GLOBAL_ROOT")/.pnpm"',
-    'MAIN_STORE_DIR="$(find "$PNPM_STORE_DIR" -maxdepth 1 -type d -name \'@truenine+memory-sync-cli@file*\' | head -n 1)"',
-    'PLATFORM_STORE_DIR="$(find "$PNPM_STORE_DIR" -maxdepth 1 -type d -name \'@truenine+memory-sync-cli-linux-x64-gnu@file*\' | head -n 1)"',
-    'test -n "$MAIN_STORE_DIR"',
-    'test -n "$PLATFORM_STORE_DIR"',
-    'MAIN_PACKAGE_DIR="$MAIN_STORE_DIR/node_modules/@truenine/memory-sync-cli"',
-    'PLATFORM_PACKAGE_DIR="$PLATFORM_STORE_DIR/node_modules/@truenine/memory-sync-cli-linux-x64-gnu"',
+    'MAIN_PACKAGE_DIR="$GLOBAL_ROOT/@truenine/memory-sync-cli"',
+    'PLATFORM_PACKAGE_DIR="$GLOBAL_ROOT/@truenine/memory-sync-cli-linux-x64-gnu"',
+    'test -d "$MAIN_PACKAGE_DIR"',
+    'test -d "$PLATFORM_PACKAGE_DIR"',
     'mkdir -p "$MAIN_PACKAGE_DIR/node_modules/@truenine"',
     'rm -rf "$MAIN_PACKAGE_DIR/node_modules/@truenine/memory-sync-cli-linux-x64-gnu"',
     'ln -s "$PLATFORM_PACKAGE_DIR" "$MAIN_PACKAGE_DIR/node_modules/@truenine/memory-sync-cli-linux-x64-gnu"',
-    'node -e \'',
-    'const {createRequire} = require("node:module");',
-    'const path = require("node:path");',
-    'const mainPackageDir = process.argv[1];',
-    'const requireFromBridge = createRequire(path.join(mainPackageDir, "dist", "internal", "native-command-bridge.mjs"));',
-    'const addon = requireFromBridge("@truenine/memory-sync-cli-linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node");',
-    'const resolvedAddonPath = requireFromBridge.resolve("@truenine/memory-sync-cli-linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node");',
-    'if (typeof addon.collectDroidOutputPlan !== "function") {',
-    '  console.error("Pinned CLI platform package is missing collectDroidOutputPlan.");',
-    '  process.exit(1);',
-    '}',
-    'if (!resolvedAddonPath.includes("@file+")) {',
-    '  console.error(`Pinned CLI platform package resolved to a non-local path: ${resolvedAddonPath}`);',
-    '  process.exit(1);',
-    '}',
-    '\' "$MAIN_PACKAGE_DIR"'
-  ].join('\n')
+  ].join("\n");
 }
 
 function containerTarballPath(hostTarballPath: string): string {
-  return path.posix.join('/artifacts', path.basename(hostTarballPath))
+  return path.posix.join("/artifacts", path.basename(hostTarballPath));
 }
 
 export class PreparedCliIntegrationContainer {
-  constructor(
-    private readonly startedContainer: StartedTestContainer,
-    private readonly containerId: string
-  ) {}
+  constructor(private readonly containerId: string) {}
 
   exec(command: string, cwd: string = CONTAINER_EXTERNAL_CWD): ContainerExecResult {
-    const args = ['exec', this.containerId, 'sh', '-lc', shellScript(command, cwd)]
-    const result = runDockerCommand(args)
+    const args = ["exec", this.containerId, "sh", "-lc", shellScript(command, cwd)];
+    const result = runDockerCommand(args);
 
     return {
       command,
       cwd,
       stdout: result.stdout,
       stderr: result.stderr,
-      exitCode: result.exitCode
-    }
+      exitCode: result.exitCode,
+    };
   }
 
-  assertExecSuccess(
-    command: string,
-    cwd: string = CONTAINER_EXTERNAL_CWD
-  ): ContainerExecResult {
-    const result = this.exec(command, cwd)
-    if (result.exitCode === 0) return result
+  assertExecSuccess(command: string, cwd: string = CONTAINER_EXTERNAL_CWD): ContainerExecResult {
+    const result = this.exec(command, cwd);
+    if (result.exitCode === 0) return result;
 
-    throw new Error([
-      `Container command failed in "${cwd}": ${command}`,
-      `${result.stdout}${result.stderr}`.trim() || 'No output captured.'
-    ].join('\n'))
+    throw new Error([`Container command failed in "${cwd}": ${command}`, `${result.stdout}${result.stderr}`.trim() || "No output captured."].join("\n"));
   }
 
   pathExists(targetPath: string): boolean {
-    return this.exec(`test -e ${quoteShell(targetPath)}`, '/').exitCode === 0
+    return this.exec(`test -e ${quoteShell(targetPath)}`, "/").exitCode === 0;
   }
 
   readFile(targetPath: string): string {
-    return this.assertExecSuccess(`cat ${quoteShell(targetPath)}`, '/').stdout
+    return this.assertExecSuccess(`cat ${quoteShell(targetPath)}`, "/").stdout;
   }
 
   inspectInstalledCliResolution(): InstalledCliResolution {
     const script = [
-      'const {createRequire} = require("node:module");',
+      'const { createRequire } = require("node:module");',
+      'const fs = require("node:fs");',
       'const path = require("node:path");',
-      'const globalRoot = process.argv[1];',
-      'const mainPackageDir = process.argv[2];',
-      'const platformPackageDir = process.argv[3];',
-      'const requireFromBridge = createRequire(path.join(mainPackageDir, "dist", "internal", "native-command-bridge.mjs"));',
-      'const resolvedAddonPath = requireFromBridge.resolve("@truenine/memory-sync-cli-linux-x64-gnu/napi-memory-sync-cli.linux-x64-gnu.node");',
-      'const sdkPackagePath = requireFromBridge.resolve("@truenine/memory-sync-sdk/package.json");',
-      'process.stdout.write(JSON.stringify({',
-      '  mainPackageDir,',
-      '  platformPackageDir,',
-      '  resolvedAddonPath,',
-      '  sdkPackagePath',
-      '}));'
-    ].join(' ')
+      "const mainDir = process.argv[1];",
+      'const requireFromMain = createRequire(path.join(mainDir, "dist", "index.mjs"));',
+      'const resolvedPackageJson = requireFromMain.resolve("@truenine/memory-sync-cli-linux-x64-gnu/package.json");',
+      "const platformDir = path.dirname(resolvedPackageJson);",
+      'const binaryPath = path.join(platformDir, "tnmsc");',
+      "const binaryExists = fs.existsSync(binaryPath);",
+      "process.stdout.write(JSON.stringify({",
+      "  mainPackageDir: mainDir,",
+      "  platformPackageDir: platformDir,",
+      "  binaryExists",
+      "}));",
+    ].join(" ");
 
-    const result = this.assertExecSuccess([
-      'GLOBAL_ROOT="$(pnpm root -g)"',
-      'PNPM_STORE_DIR="$(dirname "$GLOBAL_ROOT")/.pnpm"',
-      'MAIN_STORE_DIR="$(find "$PNPM_STORE_DIR" -maxdepth 1 -type d -name \'@truenine+memory-sync-cli@file*\' | head -n 1)"',
-      'PLATFORM_STORE_DIR="$(find "$PNPM_STORE_DIR" -maxdepth 1 -type d -name \'@truenine+memory-sync-cli-linux-x64-gnu@file*\' | head -n 1)"',
-      'test -n "$MAIN_STORE_DIR"',
-      'test -n "$PLATFORM_STORE_DIR"',
-      'MAIN_PACKAGE_DIR="$MAIN_STORE_DIR/node_modules/@truenine/memory-sync-cli"',
-      'PLATFORM_PACKAGE_DIR="$PLATFORM_STORE_DIR/node_modules/@truenine/memory-sync-cli-linux-x64-gnu"',
-      `node -e ${quoteShell(script)} "$GLOBAL_ROOT" "$MAIN_PACKAGE_DIR" "$PLATFORM_PACKAGE_DIR"`
-    ].join(' && '))
+    const result = this.assertExecSuccess(
+      ['GLOBAL_ROOT="$(pnpm root -g)"', 'MAIN_PACKAGE_DIR="$GLOBAL_ROOT/@truenine/memory-sync-cli"', `node -e ${quoteShell(script)} "$MAIN_PACKAGE_DIR"`].join(
+        " && ",
+      ),
+    );
 
-    return JSON.parse(result.stdout) as InstalledCliResolution
+    const parsed = JSON.parse(result.stdout);
+
+    if (!parsed.binaryExists) {
+      throw new Error(`Expected tnmsc binary at "${parsed.platformPackageDir}/tnmsc" but it does not exist.`);
+    }
+
+    return {
+      mainPackageDir: parsed.mainPackageDir,
+      platformPackageDir: parsed.platformPackageDir,
+    };
   }
 
   async stop(): Promise<void> {
-    await this.startedContainer.stop()
+    removeDockerContainer(this.containerId);
   }
 
   private copyPathToContainer(sourcePath: string, targetPath: string): void {
-    const sourceStat = statSync(sourcePath)
-    const prepareTargetCommand = sourceStat.isDirectory()
-      ? `mkdir -p ${quoteShell(targetPath)}`
-      : `mkdir -p ${quoteShell(path.posix.dirname(targetPath))}`
-    this.assertExecSuccess(prepareTargetCommand, '/')
+    const sourceStat = statSync(sourcePath);
+    const prepareTargetCommand = sourceStat.isDirectory() ? `mkdir -p ${quoteShell(targetPath)}` : `mkdir -p ${quoteShell(path.posix.dirname(targetPath))}`;
+    this.assertExecSuccess(prepareTargetCommand, "/");
 
-    const copySource = sourceStat.isDirectory()
-      ? `${sourcePath}${path.sep}.`
-      : sourcePath
+    const copySource = sourceStat.isDirectory() ? `${sourcePath}${path.sep}.` : sourcePath;
 
-    const args = ['cp', copySource, `${this.containerId}:${targetPath}`]
-    const result = runDockerCommand(args)
-    assertDockerCommandSucceeded(args, result)
+    const args = ["cp", copySource, `${this.containerId}:${targetPath}`];
+    const result = runDockerCommand(args);
+    assertDockerCommandSucceeded(args, result);
   }
 
   copyFixture(fixture: CliIntegrationFixture): void {
-    this.copyPathToContainer(fixture.homeDir, CONTAINER_HOME_DIR)
-    this.copyPathToContainer(fixture.workspaceDir, CONTAINER_WORKSPACE_DIR)
+    this.copyPathToContainer(fixture.homeDir, CONTAINER_HOME_DIR);
+    this.copyPathToContainer(fixture.workspaceDir, CONTAINER_WORKSPACE_DIR);
   }
 
   copyArtifacts(artifacts: CliIntegrationArtifacts): void {
-    this.copyPathToContainer(artifacts.cliTarballPath, containerTarballPath(artifacts.cliTarballPath))
-    this.copyPathToContainer(artifacts.linuxTarballPath, containerTarballPath(artifacts.linuxTarballPath))
-    this.copyPathToContainer(
-      artifacts.sdkTarballPath,
-      containerTarballPath(artifacts.sdkTarballPath)
-    )
+    this.copyPathToContainer(artifacts.cliTarballPath, containerTarballPath(artifacts.cliTarballPath));
+    this.copyPathToContainer(artifacts.linuxTarballPath, containerTarballPath(artifacts.linuxTarballPath));
   }
 
   bootstrapLatestPnpmAndInstallCli(artifacts: CliIntegrationArtifacts): void {
-    const cliTarball = containerTarballPath(artifacts.cliTarballPath)
-    const linuxTarball = containerTarballPath(artifacts.linuxTarballPath)
-    const sdkTarball = containerTarballPath(artifacts.sdkTarballPath)
+    const cliTarball = containerTarballPath(artifacts.cliTarballPath);
+    const linuxTarball = containerTarballPath(artifacts.linuxTarballPath);
 
     this.assertExecSuccess(
       [
-        'corepack enable',
+        "corepack enable",
         `corepack prepare pnpm@${quoteShell(artifacts.latestPnpmVersion)} --activate`,
-        'pnpm --version',
-        `pnpm add -g ${quoteShell(cliTarball)} ${quoteShell(linuxTarball)} ${quoteShell(sdkTarball)}`,
+        "pnpm --version",
+        "mkdir -p /a /b",
+        `tar xzf ${quoteShell(cliTarball)} -C /a --strip-components=1`,
+        `tar xzf ${quoteShell(linuxTarball)} -C /b --strip-components=1`,
+        "pnpm add -g /a /b",
         buildPinnedGlobalCliPlatformLinkScript(),
-        'command -v tnmsc >/dev/null'
-      ].join(' && ')
-    )
+        "tnmsc help",
+      ].join(" && "),
+    );
   }
 }
 
-async function createPreparedCliIntegrationBaseImage(
-  artifacts: CliIntegrationArtifacts
-): Promise<string> {
-  if (cachedPreparedBaseImage != null) return cachedPreparedBaseImage
+async function createPreparedCliIntegrationBaseImage(artifacts: CliIntegrationArtifacts): Promise<string> {
+  if (cachedPreparedBaseImage != null) return cachedPreparedBaseImage;
 
-  registerBaseImageCleanup()
+  registerBaseImageCleanup();
 
-  const startedContainer = await new GenericContainer(NODE_IMAGE)
-    .withCommand(['sh', '-lc', 'while true; do sleep 3600; done'])
-    .start()
+  const containerId = await startBackgroundContainer(NODE_IMAGE);
+  const container = new PreparedCliIntegrationContainer(containerId);
 
-  const container = new PreparedCliIntegrationContainer(
-    startedContainer,
-    startedContainer.getId()
-  )
-
-  const imageTag = `${BASE_IMAGE_REPOSITORY}:${process.pid}-${Date.now()}`
+  const imageTag = `${BASE_IMAGE_REPOSITORY}:${process.pid}-${Date.now()}`;
 
   try {
-    container.copyArtifacts(artifacts)
-    container.bootstrapLatestPnpmAndInstallCli(artifacts)
+    container.copyArtifacts(artifacts);
+    container.bootstrapLatestPnpmAndInstallCli(artifacts);
 
-    const commitArgs = ['commit', startedContainer.getId(), imageTag]
-    const commitResult = runDockerCommand(commitArgs)
-    assertDockerCommandSucceeded(commitArgs, commitResult)
+    const commitArgs = ["commit", containerId, imageTag];
+    const commitResult = runDockerCommand(commitArgs);
+    assertDockerCommandSucceeded(commitArgs, commitResult);
 
-    cachedPreparedBaseImage = imageTag
-    return imageTag
-  }
-  catch (error) {
-    runDockerCommand(['rmi', '-f', imageTag])
-    throw error
-  }
-  finally {
-    await startedContainer.stop()
+    cachedPreparedBaseImage = imageTag;
+    return imageTag;
+  } catch (error) {
+    runDockerCommand(["rmi", "-f", imageTag]);
+    throw error;
+  } finally {
+    removeDockerContainer(containerId);
   }
 }
 
 export async function createPreparedCliIntegrationContainer(
   artifacts: CliIntegrationArtifacts,
-  fixture: CliIntegrationFixture
+  fixture: CliIntegrationFixture,
 ): Promise<PreparedCliIntegrationContainer> {
-  const baseImage = await createPreparedCliIntegrationBaseImage(artifacts)
-  const startedContainer = await new GenericContainer(baseImage)
-    .withCommand(['sh', '-lc', 'while true; do sleep 3600; done'])
-    .start()
-
-  const container = new PreparedCliIntegrationContainer(
-    startedContainer,
-    startedContainer.getId()
-  )
+  const baseImage = await createPreparedCliIntegrationBaseImage(artifacts);
+  const containerId = await startBackgroundContainer(baseImage);
+  const container = new PreparedCliIntegrationContainer(containerId);
 
   try {
-    container.copyFixture(fixture)
-    return container
+    container.copyFixture(fixture);
+    return container;
   } catch (error) {
-    await startedContainer.stop()
-    throw error
+    removeDockerContainer(containerId);
+    throw error;
   }
 }

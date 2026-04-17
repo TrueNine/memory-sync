@@ -1,158 +1,129 @@
-import {spawnSync} from 'node:child_process'
-import {existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync} from 'node:fs'
-import {tmpdir} from 'node:os'
-import path from 'node:path'
-import {fileURLToPath} from 'node:url'
+import { spawnSync } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url))
-const CLI_DIR = path.join(REPO_ROOT, 'cli')
-const SDK_DIR = path.join(REPO_ROOT, 'sdk')
-const CLI_LINUX_PACKAGE_DIR = path.join(CLI_DIR, 'npm', 'linux-x64-gnu')
-const REQUIRED_LINUX_NODE_FILE = 'napi-memory-sync-cli.linux-x64-gnu.node'
-const MAX_BUFFER = 16 * 1024 * 1024
+const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const CLI_DIR = path.join(REPO_ROOT, "cli");
+const CLI_LINUX_PACKAGE_DIR = path.join(CLI_DIR, "npm", "linux-x64-gnu");
+const RUST_BINARY_PATH = path.join(REPO_ROOT, "target", "release", "tnmsc");
+const LINUX_PACKAGE_BINARY = "tnmsc";
+const MAX_BUFFER = 16 * 1024 * 1024;
 
 export interface CliIntegrationArtifacts {
-  readonly tempDir: string
-  readonly cliTarballPath: string
-  readonly linuxTarballPath: string
-  readonly sdkTarballPath: string
-  readonly latestPnpmVersion: string
+  readonly tempDir: string;
+  readonly cliTarballPath: string;
+  readonly linuxTarballPath: string;
+  readonly latestPnpmVersion: string;
 }
 
-let cachedArtifacts: CliIntegrationArtifacts | undefined
-let cleanupRegistered = false
+let cachedArtifacts: CliIntegrationArtifacts | undefined;
+let cleanupRegistered = false;
 
 function registerArtifactCleanup(): void {
-  if (cleanupRegistered) return
+  if (cleanupRegistered) return;
 
-  cleanupRegistered = true
-  process.once('exit', () => {
-    cleanupCliIntegrationArtifacts()
-  })
+  cleanupRegistered = true;
+  process.once("exit", () => {
+    cleanupCliIntegrationArtifacts();
+  });
 }
 
-function runCommand(
-  command: string,
-  args: readonly string[],
-  cwd: string = REPO_ROOT
-): string {
+function runCommand(command: string, args: readonly string[], cwd: string = REPO_ROOT): string {
   const result = spawnSync(command, args, {
     cwd,
-    encoding: 'utf8',
-    maxBuffer: MAX_BUFFER
-  })
+    encoding: "utf8",
+    maxBuffer: MAX_BUFFER,
+  });
 
-  if (result.error != null) throw result.error
-  if (result.status === 0) return `${result.stdout ?? ''}${result.stderr ?? ''}`
+  if (result.error != null) throw result.error;
+  if (result.status === 0) return `${result.stdout ?? ""}${result.stderr ?? ""}`;
 
-  throw new Error([
-    `Command failed: ${command} ${args.join(' ')}`,
-    `cwd: ${cwd}`,
-    `${result.stdout ?? ''}${result.stderr ?? ''}`.trim() || 'No output captured.'
-  ].join('\n'))
+  throw new Error(
+    [`Command failed: ${command} ${args.join(" ")}`, `cwd: ${cwd}`, `${result.stdout ?? ""}${result.stderr ?? ""}`.trim() || "No output captured."].join("\n"),
+  );
 }
 
 function resolveLatestPackageVersion(packageName: string): string {
-  const raw = runCommand(
-    'npm',
-    ['view', packageName, 'version'],
-    tmpdir()
-  ).trim()
+  const raw = runCommand("npm", ["view", packageName, "version"], tmpdir()).trim();
   const firstLine = raw
     .split(/\r?\n/u)
-    .map(line => line.trim())
-    .find(line => line.length > 0)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
 
-  if (firstLine != null) return firstLine
+  if (firstLine != null) return firstLine;
 
-  throw new Error(`Failed to resolve the latest version for "${packageName}".`)
+  throw new Error(`Failed to resolve the latest version for "${packageName}".`);
 }
 
 function ensureDirectory(dirPath: string): void {
-  mkdirSync(dirPath, {recursive: true})
+  mkdirSync(dirPath, { recursive: true });
 }
 
 function findSingleTarball(dirPath: string): string {
   const tarballs = readdirSync(dirPath)
-    .filter(fileName => fileName.endsWith('.tgz'))
-    .sort()
+    .filter((fileName) => fileName.endsWith(".tgz"))
+    .sort();
 
   if (tarballs.length !== 1) {
-    throw new Error(
-      `Expected exactly one tarball in "${dirPath}", found ${tarballs.length}.`
-    )
+    throw new Error(`Expected exactly one tarball in "${dirPath}", found ${tarballs.length}.`);
   }
 
-  return path.join(dirPath, tarballs[0] ?? '')
+  return path.join(dirPath, tarballs[0] ?? "");
 }
 
 function packWorkspacePackage(packageDir: string, targetDir: string): string {
-  ensureDirectory(targetDir)
-  runCommand('pnpm', ['-C', packageDir, 'pack', '--pack-destination', targetDir])
-  return findSingleTarball(targetDir)
+  ensureDirectory(targetDir);
+  runCommand("pnpm", ["-C", packageDir, "pack", "--pack-destination", targetDir]);
+  return findSingleTarball(targetDir);
 }
 
-function ensureLinuxPlatformPackageReady(): void {
-  const hasRequiredNodeFile = existsSync(CLI_LINUX_PACKAGE_DIR)
-    && readdirSync(CLI_LINUX_PACKAGE_DIR).includes(REQUIRED_LINUX_NODE_FILE)
+function ensureLinuxBinaryInPlatformPackage(): void {
+  const targetBinary = path.join(CLI_LINUX_PACKAGE_DIR, LINUX_PACKAGE_BINARY);
+  const hasBinary = existsSync(RUST_BINARY_PATH);
 
-  if (hasRequiredNodeFile) return
-
-  runCommand('pnpm', ['-C', CLI_DIR, 'run', 'build:napi:copy'])
-
-  const copiedNodeFiles = existsSync(CLI_LINUX_PACKAGE_DIR)
-    ? readdirSync(CLI_LINUX_PACKAGE_DIR).filter(fileName => fileName.endsWith('.node'))
-    : []
-
-  if (!copiedNodeFiles.includes(REQUIRED_LINUX_NODE_FILE)) {
-    throw new Error(
-      `Expected the Linux x64 NAPI artifact "${REQUIRED_LINUX_NODE_FILE}" in "${CLI_LINUX_PACKAGE_DIR}", found ${copiedNodeFiles.length} .node file(s): ${copiedNodeFiles.join(', ') || '(none)'}.`
-    )
+  if (!hasBinary) {
+    throw new Error(`Expected the Rust binary at "${RUST_BINARY_PATH}". Run "cargo build --release -p tnmsc-cli-shell" first.`);
   }
+
+  ensureDirectory(CLI_LINUX_PACKAGE_DIR);
+
+  copyFileSync(RUST_BINARY_PATH, targetBinary);
 }
 
 function assertSupportedHost(): void {
-  if (process.platform === 'linux' && process.arch === 'x64') return
+  if (process.platform === "linux" && process.arch === "x64") return;
 
-  throw new Error(
-    `cli-integration-test currently supports only linux-x64 hosts. Current host: ${process.platform}-${process.arch}.`
-  )
+  throw new Error(`cli-integration-test currently supports only linux-x64 hosts. Current host: ${process.platform}-${process.arch}.`);
 }
 
 export function prepareCliIntegrationArtifacts(): CliIntegrationArtifacts {
-  if (cachedArtifacts != null) return cachedArtifacts
+  if (cachedArtifacts != null) return cachedArtifacts;
 
-  assertSupportedHost()
-  registerArtifactCleanup()
-  runCommand('pnpm', ['-C', CLI_DIR, 'run', 'build'])
-  ensureLinuxPlatformPackageReady()
+  assertSupportedHost();
+  registerArtifactCleanup();
+  runCommand("pnpm", ["-C", CLI_DIR, "run", "build"]);
+  ensureLinuxBinaryInPlatformPackage();
 
-  const tempDir = mkdtempSync(path.join(tmpdir(), 'tnmsc-cli-integration-artifacts-'))
-  const cliTarballPath = packWorkspacePackage(CLI_DIR, path.join(tempDir, 'cli'))
-  const linuxTarballPath = packWorkspacePackage(
-    CLI_LINUX_PACKAGE_DIR,
-    path.join(tempDir, 'cli-linux-x64')
-  )
-  const sdkTarballPath = packWorkspacePackage(
-    SDK_DIR,
-    path.join(tempDir, 'sdk')
-  )
-  const latestPnpmVersion = resolveLatestPackageVersion('pnpm')
+  const tempDir = mkdtempSync(path.join(tmpdir(), "tnmsc-cli-integration-artifacts-"));
+  const cliTarballPath = packWorkspacePackage(CLI_DIR, path.join(tempDir, "cli"));
+  const linuxTarballPath = packWorkspacePackage(CLI_LINUX_PACKAGE_DIR, path.join(tempDir, "cli-linux-x64"));
+  const latestPnpmVersion = resolveLatestPackageVersion("pnpm");
 
   cachedArtifacts = {
     tempDir,
     cliTarballPath,
     linuxTarballPath,
-    sdkTarballPath,
-    latestPnpmVersion
-  }
+    latestPnpmVersion,
+  };
 
-  return cachedArtifacts
+  return cachedArtifacts;
 }
 
 export function cleanupCliIntegrationArtifacts(): void {
-  if (cachedArtifacts == null) return
+  if (cachedArtifacts == null) return;
 
-  rmSync(cachedArtifacts.tempDir, {recursive: true, force: true})
-  cachedArtifacts = void 0
+  rmSync(cachedArtifacts.tempDir, { recursive: true, force: true });
+  cachedArtifacts = void 0;
 }

@@ -36,6 +36,7 @@ export default defineConfig({
         if (local != null) return local
         const sdk = tryResolve(path.resolve(__dirname, '../sdk/src'), rel)
         if (sdk != null) return sdk
+        return void 0
       }
     }
   ]

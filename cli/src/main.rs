@@ -25,6 +25,7 @@ fn main() -> ExitCode {
   let exit_code = match command {
     ResolvedCommand::Help => commands::help::execute(),
     ResolvedCommand::Version => commands::version::execute(),
+    ResolvedCommand::Schema => commands::schema::execute(),
     ResolvedCommand::Install => commands::bridge::install(),
     ResolvedCommand::DryRun => commands::bridge::dry_run(),
     ResolvedCommand::Clean => commands::bridge::clean(),

@@ -1,10 +1,10 @@
 import {describe, expect, it} from 'vitest'
-import tsconfig from '../tsconfig.json'
 import tsdownConfig from '../tsdown.config'
 
 interface TsdownEntryConfig {
   readonly entry?: string | readonly string[]
-  readonly alias?: Record<string, string>
+  readonly define?: Record<string, string>
+  readonly dts?: boolean | {readonly sourcemap?: boolean}
   readonly deps?: {
     readonly alwaysBundle?: readonly string[]
     readonly neverBundle?: readonly string[]
@@ -17,16 +17,27 @@ function includesEntry(config: TsdownEntryConfig, targetEntry: string): boolean 
 }
 
 describe('cli tsdown config', () => {
-  it('keeps worker bundling anchored on the sdk package only', () => {
-    const paths = tsconfig.compilerOptions.paths as Record<string, string[] | undefined>
-    const workerConfig = (tsdownConfig as readonly TsdownEntryConfig[]).find(config =>
-      includesEntry(config, './src/script-runtime-worker.ts'))
+  it('includes only the shell entry point', () => {
+    const configs = tsdownConfig as readonly TsdownEntryConfig[]
+    const firstConfig = configs[0]
+    expect(configs.length).toBe(1)
+    expect(firstConfig).toBeDefined()
+    if (firstConfig == null) throw new Error('Expected a tsdown config')
+    expect(includesEntry(firstConfig, './src/index.ts')).toBe(true)
+  })
 
-    expect(paths['@truenine/script-runtime']).toBeUndefined()
-    expect(workerConfig?.alias).toBeUndefined()
-    expect(workerConfig?.deps?.alwaysBundle).toEqual(expect.arrayContaining([
-      '@truenine/memory-sync-sdk'
-    ]))
-    expect(workerConfig?.deps?.neverBundle).toEqual(expect.arrayContaining(['jiti']))
+  it('injects the published cli version into the bundle', () => {
+    const configs = tsdownConfig as readonly TsdownEntryConfig[]
+    expect(configs[0]?.define?.['__CLI_VERSION__']).toBeDefined()
+  })
+
+  it('does not emit declaration files into dist', () => {
+    const configs = tsdownConfig as readonly TsdownEntryConfig[]
+    expect(configs[0]?.dts).toBe(false)
+  })
+
+  it('keeps jiti in the never-bundle list', () => {
+    const configs = tsdownConfig as readonly TsdownEntryConfig[]
+    expect(configs[0]?.deps?.neverBundle).toEqual(expect.arrayContaining(['jiti']))
   })
 })

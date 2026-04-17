@@ -1,16 +1,17 @@
 {
-  "name": "@truenine/memory-sync-cli-win32-x64-msvc",
+  "name": "@truenine/memory-sync-cli-darwin",
   "version": "2026.10413.10237",
-  "description": "tnmsc binary for Windows x64",
+  "description": "tnmsc binaries for macOS",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
   "os": [
-    "win32"
+    "darwin"
   ],
   "cpu": [
+    "arm64",
     "x64"
   ],
   "files": [
-    "tnmsc.exe"
+    "bin"
   ]
 }

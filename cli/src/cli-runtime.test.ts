@@ -1,78 +1,87 @@
+import {EventEmitter} from 'node:events'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 
-const {
-  cleanMock,
-  dryRunMock,
-  flushOutputMock,
-  installMock,
-  listAdaptorsMock,
-  setGlobalLogLevelMock
-} = vi.hoisted(() => ({
-  cleanMock: vi.fn(),
-  dryRunMock: vi.fn(),
-  flushOutputMock: vi.fn(),
-  installMock: vi.fn(),
-  listAdaptorsMock: vi.fn(),
-  setGlobalLogLevelMock: vi.fn()
+const {resolveTnmscBinaryMock, spawnMock} = vi.hoisted(() => ({
+  resolveTnmscBinaryMock: vi.fn(() => '/native/tnmsc'),
+  spawnMock: vi.fn()
 }))
 
-vi.mock('@truenine/memory-sync-sdk', () => ({
-  flushOutput: flushOutputMock,
-  getMemorySyncSdkBinding() {
-    return {
-      install: installMock,
-      dryRun: dryRunMock,
-      clean: cleanMock,
-      listAdaptors: listAdaptorsMock
-    }
-  },
-  setGlobalLogLevel: setGlobalLogLevelMock
+vi.mock('./resolve-binary', () => ({
+  resolveTnmscBinary: resolveTnmscBinaryMock
 }))
+
+vi.mock('node:child_process', () => ({
+  spawn: spawnMock
+}))
+
+class MockChildProcess extends EventEmitter {}
 
 afterEach(() => {
   vi.clearAllMocks()
-  vi.resetModules()
-  delete process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING']
-  delete process.env['TNMSC_DISABLE_NATIVE_BINDING']
+  resolveTnmscBinaryMock.mockReturnValue('/native/tnmsc')
 })
 
-describe('cli runtime lightweight commands', () => {
-  it('does not force-disable native command binding', async () => {
-    delete process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING']
-    delete process.env['TNMSC_DISABLE_NATIVE_BINDING']
+describe('cli runtime native launcher', () => {
+  it('forwards argv to the native tnmsc binary', async () => {
+    const child = new MockChildProcess()
+    spawnMock.mockReturnValue(child)
 
-    await import('./cli-runtime')
-
-    expect(process.env['TNMSC_DISABLE_NATIVE_COMMAND_BINDING']).toBeUndefined()
-    expect(process.env['TNMSC_DISABLE_NATIVE_BINDING']).toBeUndefined()
-  })
-
-  it('does not touch the sdk binding for --version', async () => {
     const {runCli} = await import('./cli-runtime')
-    const exitCode = await runCli(['node', 'tnmsc', '--version'])
-    expect(exitCode).toBe(0)
-    expect(installMock).not.toHaveBeenCalled()
-    expect(dryRunMock).not.toHaveBeenCalled()
-    expect(cleanMock).not.toHaveBeenCalled()
-  })
-
-  it('passes the real cwd into the sdk install path', async () => {
-    const {runCli} = await import('./cli-runtime')
-    installMock.mockResolvedValue({
-      success: true,
-      filesAffected: 0,
-      dirsAffected: 0,
-      warnings: [],
-      errors: []
-    })
-
-    const exitCode = await runCli(['node', 'tnmsc'])
+    const promise = runCli(['node', 'tnmsc', 'dry-run', '--debug'])
+    child.emit('exit', 0, null)
+    const exitCode = await promise
 
     expect(exitCode).toBe(0)
-    expect(installMock).toHaveBeenCalledWith({
-      cwd: process.cwd()
+    expect(spawnMock).toHaveBeenCalledTimes(1)
+    const [binaryPath, args, options] = spawnMock.mock.calls[0] as [string, string[], {stdio?: string}]
+    expect(binaryPath).toBe('/native/tnmsc')
+    expect(args).toEqual(['dry-run', '--debug'])
+    expect(options.stdio).toBe('inherit')
+  })
+
+  it('returns the native process exit code', async () => {
+    const child = new MockChildProcess()
+    spawnMock.mockReturnValue(child)
+
+    const {runCli} = await import('./cli-runtime')
+    const promise = runCli(['node', 'tnmsc', 'install'])
+    child.emit('exit', 7, null)
+    const exitCode = await promise
+
+    expect(exitCode).toBe(7)
+  })
+
+  it('fails fast when the native binary cannot be resolved', async () => {
+    resolveTnmscBinaryMock.mockImplementation(() => {
+      throw new Error('missing native binary')
     })
-    expect(dryRunMock).not.toHaveBeenCalled()
-    expect(cleanMock).not.toHaveBeenCalled()
+
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+
+    const {runCli} = await import('./cli-runtime')
+    const exitCode = await runCli(['node', 'tnmsc', 'dry-run'])
+
+    expect(exitCode).toBe(1)
+    expect(spawnMock).not.toHaveBeenCalled()
+    expect(stderrSpy).toHaveBeenCalledWith('[tnmsc] missing native binary\n')
+
+    stderrSpy.mockRestore()
+  })
+
+  it('reports native process spawn failures', async () => {
+    const child = new MockChildProcess()
+    spawnMock.mockReturnValue(child)
+
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+
+    const {runCli} = await import('./cli-runtime')
+    const promise = runCli(['node', 'tnmsc', 'install'])
+    child.emit('error', new Error('spawn failed'))
+    const exitCode = await promise
+
+    expect(exitCode).toBe(1)
+    expect(stderrSpy).toHaveBeenCalledWith('[tnmsc] spawn failed\n')
+
+    stderrSpy.mockRestore()
   })
 })

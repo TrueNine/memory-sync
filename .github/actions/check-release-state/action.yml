@@ -1,5 +1,5 @@
 name: Check Release State
-description: Check whether CLI and MCP package versions are already published to npm
+description: Check whether CLI package version is already published to npm
 
 inputs:
   registry-url:
@@ -14,9 +14,6 @@ outputs:
   publish_cli:
     description: Whether the CLI package should be published
     value: ${{ steps.check.outputs.publish_cli }}
-  publish_mcp:
-    description: Whether the MCP package should be published
-    value: ${{ steps.check.outputs.publish_mcp }}
   publish_npm:
     description: Whether any npm package should be published
     value: ${{ steps.check.outputs.publish_npm }}
@@ -56,17 +53,12 @@ runs:
         echo "version=$version" >> "$GITHUB_OUTPUT"
 
         cli_needs_publish=false
-        mcp_needs_publish=false
 
         if check_publish_state cli/package.json publish_cli; then
           cli_needs_publish=true
         fi
 
-        if check_publish_state mcp/package.json publish_mcp; then
-          mcp_needs_publish=true
-        fi
-
-        if [[ "$cli_needs_publish" == "true" || "$mcp_needs_publish" == "true" ]]; then
+        if [[ "$cli_needs_publish" == "true" ]]; then
           echo "publish_npm=true" >> "$GITHUB_OUTPUT"
         else
           echo "publish_npm=false" >> "$GITHUB_OUTPUT"
