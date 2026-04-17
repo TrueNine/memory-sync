@@ -17,6 +17,7 @@ const EXIT_MARKER: &str = "__TNMSM_EXIT_CODE__=";
 
 static PNPM_VERSION: OnceLock<String> = OnceLock::new();
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
+static REAL_ENV_SKIP_REASON: OnceLock<Option<String>> = OnceLock::new();
 
 pub struct CommandResult {
   pub status: i32,
@@ -145,8 +146,15 @@ impl TestContainer {
   }
 }
 
-pub fn mcp_manifest_dir() -> PathBuf {
+pub fn integration_tests_dir() -> PathBuf {
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
+
+pub fn mcp_manifest_dir() -> PathBuf {
+  integration_tests_dir()
+    .parent()
+    .expect("integration test crate should live under mcp/")
+    .to_path_buf()
 }
 
 pub fn workspace_root() -> PathBuf {
@@ -156,26 +164,21 @@ pub fn workspace_root() -> PathBuf {
     .to_path_buf()
 }
 
-pub fn integration_tests_dir() -> PathBuf {
-  mcp_manifest_dir().join("integration-tests")
-}
-
 pub fn integration_tmp_root() -> PathBuf {
   integration_tests_dir().join(".tmp")
 }
 
-pub fn mcp_binary() -> PathBuf {
-  PathBuf::from(env!("CARGO_BIN_EXE_tnmsm"))
-}
-
 pub fn run_mcp_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> CommandResult {
-  let mut command = Command::new(mcp_binary());
-  command.args(args).current_dir(cwd);
+  let mut command = Command::new("cargo");
+  command
+    .args(["run", "-p", "tnmsm", "--bin", "tnmsm", "--"])
+    .args(args)
+    .current_dir(cwd);
   for (key, value) in envs {
     command.env(key, value);
   }
 
-  command_output(&mut command, "tnmsm")
+  command_output(&mut command, "cargo run -p tnmsm --bin tnmsm")
 }
 
 pub fn run_program(program: &str, args: &[&str], cwd: &Path) -> CommandResult {
@@ -191,6 +194,12 @@ pub fn current_package_version() -> &'static str {
 
 pub fn is_linux_x64_host() -> bool {
   std::env::consts::OS == "linux" && std::env::consts::ARCH == "x86_64"
+}
+
+pub fn real_env_test_skip_reason() -> Option<String> {
+  REAL_ENV_SKIP_REASON
+    .get_or_init(compute_real_env_skip_reason)
+    .clone()
 }
 
 pub fn pnpm_version() -> &'static str {
@@ -214,14 +223,12 @@ pub fn pnpm_version() -> &'static str {
 
 pub fn ensure_release_binary() {
   RELEASE_BINARY_BUILT.get_or_init(|| {
-    let manifest_path = mcp_manifest_dir().join("Cargo.toml");
-    let manifest_path = manifest_path.to_string_lossy().into_owned();
     let result = run_program(
       "cargo",
-      &["build", "--release", "--manifest-path", &manifest_path],
+      &["build", "--release", "-p", "tnmsm"],
       &workspace_root(),
     );
-    result.assert_success("cargo build --release for tnmsm");
+    result.assert_success("cargo build --release -p tnmsm");
   });
 
   let binary = release_binary_path();
@@ -280,14 +287,14 @@ pub fn pack_mcp_artifacts() -> PackedArtifacts {
   let temp_dir = TestDir::new("tnmsm-packed-artifacts");
   let staged = create_staged_package_root();
   let package_root = staged.package_root.to_string_lossy().into_owned();
-  let workspace_root = workspace_root().to_string_lossy().into_owned();
+  let workspace_root_dir = workspace_root().to_string_lossy().into_owned();
 
   let assemble = run_mcp_with_env(
     &["assemble-npm", "--profile", "release"],
-    &mcp_manifest_dir(),
+    &workspace_root(),
     &[
       ("TNMSM_NPM_PACKAGE_ROOT", package_root.as_str()),
-      ("TNMSM_WORKSPACE_ROOT", workspace_root.as_str()),
+      ("TNMSM_WORKSPACE_ROOT", workspace_root_dir.as_str()),
     ],
   );
   assemble.assert_success("tnmsm assemble-npm for staged package root");
@@ -321,6 +328,26 @@ pub fn install_packaged_mcp_container() -> TestContainer {
 
 pub fn quote_shell(value: &str) -> String {
   format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+fn compute_real_env_skip_reason() -> Option<String> {
+  if !is_linux_x64_host() {
+    return Some("unsupported host platform; real-env tests only run on linux x86_64".to_string());
+  }
+
+  let result = run_program(
+    "docker",
+    &["info", "--format", "{{.ServerVersion}}"],
+    &workspace_root(),
+  );
+  if result.status == 0 {
+    return None;
+  }
+
+  let detail = trim_output(&result.stderr)
+    .or_else(|| trim_output(&result.stdout))
+    .unwrap_or_else(|| "docker daemon is unavailable".to_string());
+  Some(format!("docker unavailable: {detail}"))
 }
 
 fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
@@ -454,4 +481,9 @@ fn extract_exit_code(stderr: &str) -> Option<(i32, String)> {
   };
 
   Some((exit_code, cleaned))
+}
+
+fn trim_output(output: &str) -> Option<String> {
+  let trimmed = output.trim();
+  (!trimmed.is_empty()).then(|| trimmed.to_string())
 }

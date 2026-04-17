@@ -157,28 +157,28 @@ jobs:
           - os: ubuntu-24.04
             rust_target: x86_64-unknown-linux-gnu
             suffix: linux-x64-gnu
-            binary: memory-sync-mcp
+            binary: tnmsm
             archive: memory-sync-mcp-linux-x86_64.tar.gz
           - os: ubuntu-24.04
             rust_target: aarch64-unknown-linux-gnu
             suffix: linux-arm64-gnu
-            binary: memory-sync-mcp
+            binary: tnmsm
             archive: memory-sync-mcp-linux-aarch64.tar.gz
             cross: true
           - os: macos-14
             rust_target: aarch64-apple-darwin
             suffix: darwin-arm64
-            binary: memory-sync-mcp
+            binary: tnmsm
             archive: memory-sync-mcp-darwin-aarch64.tar.gz
           - os: macos-14
             rust_target: x86_64-apple-darwin
             suffix: darwin-x64
-            binary: memory-sync-mcp
+            binary: tnmsm
             archive: memory-sync-mcp-darwin-x86_64.tar.gz
           - os: windows-latest
             rust_target: x86_64-pc-windows-msvc
             suffix: win32-x64-msvc
-            binary: memory-sync-mcp.exe
+            binary: tnmsm.exe
             archive: memory-sync-mcp-windows-x86_64.zip
     runs-on: ${{ matrix.os }}
     steps:
@@ -193,7 +193,7 @@ jobs:
         if: matrix.cross
         uses: ./.github/actions/setup-cross-compile
 
-      - name: Build memory-sync-mcp binary
+      - name: Build tnmsm binary
         run: cargo build --release --target ${{ matrix.rust_target }} -p tnmsm
 
       - name: Run native tests
@@ -237,8 +237,40 @@ jobs:
           path: ${{ matrix.archive }}
           if-no-files-found: error
 
+  cli-real-env-integration:
+    needs: validate-version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: release-cli-real-env
+
+      - name: Run CLI real-env integration tests
+        run: cargo test -p tnmsc-integration-tests -- --nocapture
+
+  mcp-real-env-integration:
+    needs: validate-version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: release-mcp-real-env
+
+      - name: Run MCP real-env integration tests
+        run: cargo test -p tnmsm-integration-tests -- --nocapture
+
   publish-cli-npm:
-    needs: [validate-version, build-cli-binaries]
+    needs: [validate-version, build-cli-binaries, cli-real-env-integration]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -274,7 +306,7 @@ jobs:
           pattern: cli-binary-*
 
       - name: Assemble CLI npm package contents
-        run: cargo run --manifest-path cli/Cargo.toml --bin tnmsc -- assemble-npm --artifacts-dir artifacts
+        run: cargo run -p tnmsc --bin tnmsc -- assemble-npm --artifacts-dir artifacts
 
       - name: Validate platform packages
         shell: bash
@@ -309,7 +341,7 @@ jobs:
           package-dir: cli
 
   publish-mcp-npm:
-    needs: [validate-version, build-mcp-binaries]
+    needs: [validate-version, build-mcp-binaries, mcp-real-env-integration]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -345,7 +377,7 @@ jobs:
           pattern: mcp-binary-*
 
       - name: Assemble MCP npm package contents
-        run: cargo run --manifest-path mcp/Cargo.toml --bin memory-sync-mcp -- assemble-npm --artifacts-dir artifacts
+        run: cargo run -p tnmsm --bin tnmsm -- assemble-npm --artifacts-dir artifacts
 
       - name: Validate platform packages
         shell: bash
@@ -356,7 +388,7 @@ jobs:
               echo "::error::Missing ${target_dir}package.json"
               exit 1
             fi
-            if ! find "${target_dir}bin" -type f \( -name 'memory-sync-mcp' -o -name 'memory-sync-mcp.exe' \) | grep -q .; then
+            if ! find "${target_dir}bin" -type f \( -name 'tnmsm' -o -name 'tnmsm.exe' \) | grep -q .; then
               echo "::error::Missing binary in ${target_dir}"
               exit 1
             fi

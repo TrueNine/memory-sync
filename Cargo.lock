@@ -4894,8 +4894,15 @@ version = "2026.10413.10237"
 dependencies = [
  "clap",
  "serde_json",
- "testcontainers",
  "tnmsd",
+]
+
+[[package]]
+name = "tnmsc-integration-tests"
+version = "2026.10413.10237"
+dependencies = [
+ "serde_json",
+ "testcontainers",
 ]
 
 [[package]]
@@ -4930,8 +4937,15 @@ dependencies = [
  "clap",
  "serde",
  "serde_json",
- "testcontainers",
  "tnmsd",
+]
+
+[[package]]
+name = "tnmsm-integration-tests"
+version = "2026.10413.10237"
+dependencies = [
+ "serde_json",
+ "testcontainers",
 ]
 
 [[package]]

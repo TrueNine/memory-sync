@@ -1,31 +1,30 @@
-mod support;
-
 use std::fs;
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-use support::install_packaged_mcp_container;
+use tnmsm_integration_tests::{
+  create_staged_package_root, install_packaged_mcp_container, real_env_test_skip_reason,
+  run_mcp_with_env, workspace_root,
+};
 
 #[test]
 fn packaging_smoke_covers_release_binary_and_global_install() {
-  if !support::is_linux_x64_host() {
-    eprintln!("skipping packaging smoke on unsupported host");
+  if let Some(reason) = real_env_test_skip_reason() {
+    eprintln!("skipping packaging smoke: {reason}");
     return;
   }
 
-  support::ensure_release_binary();
-
-  let staged = support::create_staged_package_root();
+  let staged = create_staged_package_root();
   let package_root = staged.package_root.to_string_lossy().into_owned();
-  let workspace_root = support::workspace_root().to_string_lossy().into_owned();
+  let workspace_root_dir = workspace_root().to_string_lossy().into_owned();
 
-  let assemble = support::run_mcp_with_env(
+  let assemble = run_mcp_with_env(
     &["assemble-npm", "--profile", "release"],
-    &support::mcp_manifest_dir(),
+    &workspace_root(),
     &[
       ("TNMSM_NPM_PACKAGE_ROOT", package_root.as_str()),
-      ("TNMSM_WORKSPACE_ROOT", workspace_root.as_str()),
+      ("TNMSM_WORKSPACE_ROOT", workspace_root_dir.as_str()),
     ],
   );
   assemble.assert_success("tnmsm assemble-npm --profile release");
