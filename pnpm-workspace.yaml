@@ -1,6 +1,8 @@
 packages:
   - cli
   - cli/npm/*
+  - mcp
+  - mcp/npm/*
   - gui
   - doc
 
