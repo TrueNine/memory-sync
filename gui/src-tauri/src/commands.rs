@@ -1,4 +1,4 @@
-/// Tauri commands that bridge the frontend to the `tnmsc` crate facade.
+/// Tauri commands that bridge the frontend to the `tnmsd` crate facade.
 ///
 /// Core install / clean / config / plugin operations run through direct crate APIs.
 /// The log viewer still uses the legacy bridge path until command streaming moves into Rust.
@@ -7,7 +7,7 @@ use std::process::Command as StdCommand;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tnmsc::core::config as core_config;
+use tnmsd::core::config as core_config;
 
 const PRIMARY_SOURCE_MDX_EXTENSION: &str = ".src.mdx";
 const SOURCE_MDX_FILE_TYPE: &str = "sourceMdx";
@@ -79,24 +79,24 @@ pub struct LogEntry {
 #[tauri::command]
 pub fn install_pipeline(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
   let command_name = if dry_run { "dry-run" } else { "install" };
-  let options = tnmsc::MemorySyncCommandOptions {
+  let options = tnmsd::MemorySyncCommandOptions {
     cwd: Some(cwd),
     ..Default::default()
   };
   let result = if dry_run {
-    tnmsc::dry_run(options)
+    tnmsd::dry_run(options)
   } else {
-    tnmsc::install(options)
+    tnmsd::install(options)
   }
   .map_err(|error| error.to_string())?;
 
   Ok(to_pipeline_result(&result, command_name, dry_run))
 }
 
-/// Load the merged configuration via the tnmsc library API.
+/// Load the merged configuration via the tnmsd library API.
 #[tauri::command]
 pub fn load_config(cwd: String) -> Result<serde_json::Value, String> {
-  let result = tnmsc::load_config(Path::new(&cwd)).map_err(|e| e.to_string())?;
+  let result = tnmsd::load_config(Path::new(&cwd)).map_err(|e| e.to_string())?;
   serde_json::to_value(&result).map_err(|e| e.to_string())
 }
 
@@ -104,7 +104,7 @@ pub fn load_config(cwd: String) -> Result<serde_json::Value, String> {
 #[tauri::command]
 pub fn list_plugins(_cwd: String) -> Result<Vec<PluginExecutionResult>, String> {
   Ok(
-    tnmsc::list_plugins()
+    tnmsd::list_plugins()
       .into_iter()
       .map(|plugin| PluginExecutionResult {
         plugin: plugin.name,
@@ -120,7 +120,7 @@ pub fn list_plugins(_cwd: String) -> Result<Vec<PluginExecutionResult>, String> 
 #[tauri::command]
 pub fn clean_outputs(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
   let command_name = if dry_run { "dry-run-clean" } else { "clean" };
-  let result = tnmsc::clean(tnmsc::MemorySyncCommandOptions {
+  let result = tnmsd::clean(tnmsd::MemorySyncCommandOptions {
     cwd: Some(cwd),
     dry_run: Some(dry_run),
     ..Default::default()
@@ -140,7 +140,7 @@ pub fn get_logs(_cwd: String, _command: String) -> Result<Vec<LogEntry>, String>
 }
 
 fn to_pipeline_result(
-  result: &tnmsc::MemorySyncCommandResult,
+  result: &tnmsd::MemorySyncCommandResult,
   command: &str,
   dry_run: bool,
 ) -> PipelineResult {
@@ -156,7 +156,7 @@ fn to_pipeline_result(
   }
 }
 
-fn collect_bridge_messages(result: &tnmsc::MemorySyncCommandResult) -> Vec<String> {
+fn collect_bridge_messages(result: &tnmsd::MemorySyncCommandResult) -> Vec<String> {
   let mut messages = Vec::new();
 
   if let Some(message) = result.message.as_ref()
@@ -271,7 +271,7 @@ pub struct AindexFileEntry {
 /// Parsed global config with resolved paths.
 struct ResolvedConfig {
   aindex_root: PathBuf,
-  config: tnmsc::core::config::UserConfigFile,
+  config: tnmsd::core::config::UserConfigFile,
 }
 
 struct CategoryPaths {
@@ -280,12 +280,12 @@ struct CategoryPaths {
 }
 
 fn resolve_category_paths(
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::core::config::UserConfigFile,
   category: &str,
 ) -> Result<CategoryPaths, String> {
   let aindex = &config.aindex;
 
-  let resolve_pair = |pair: Option<&tnmsc::core::config::DirPair>,
+  let resolve_pair = |pair: Option<&tnmsd::core::config::DirPair>,
                       default_source: &str,
                       default_translated: &str|
    -> CategoryPaths {
@@ -368,7 +368,7 @@ fn collect_project_series_category_files(
 
 fn collect_root_memory_prompt_files(
   base: &std::path::Path,
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::core::config::UserConfigFile,
   out: &mut Vec<AindexFileEntry>,
 ) {
   for (source_rel, translated_rel) in collect_root_memory_prompt_pairs(config) {
@@ -387,7 +387,7 @@ fn collect_root_memory_prompt_files(
 }
 
 fn collect_root_memory_prompt_pairs(
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::core::config::UserConfigFile,
 ) -> Vec<(String, String)> {
   let aindex = &config.aindex;
   [
@@ -419,7 +419,7 @@ fn collect_root_memory_prompt_pairs(
 
 fn collect_category_file_entries(
   base: &std::path::Path,
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::core::config::UserConfigFile,
   category: &str,
 ) -> Result<Vec<AindexFileEntry>, String> {
   let paths = resolve_category_paths(config, category)?;
@@ -448,10 +448,10 @@ fn collect_category_file_entries(
 /// Read and resolve the merged tnmsc config for the current working directory.
 fn load_resolved_config(cwd: &str) -> Result<ResolvedConfig, String> {
   let result =
-    tnmsc::load_config(Path::new(cwd)).map_err(|e| format!("Failed to load config: {e}"))?;
+    tnmsd::load_config(Path::new(cwd)).map_err(|e| format!("Failed to load config: {e}"))?;
   let config = result.config;
   let workspace_dir = config.workspace_dir.as_deref().unwrap_or(".");
-  let workspace_dir = tnmsc::core::config::resolve_tilde(workspace_dir);
+  let workspace_dir = tnmsd::core::config::resolve_tilde(workspace_dir);
   let aindex_dir = config
     .aindex
     .dir
@@ -712,7 +712,7 @@ fn derive_english_source_rel(source_rel: &str) -> Option<String> {
 
 fn collect_root_memory_prompt_stats(
   base: &std::path::Path,
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::core::config::UserConfigFile,
 ) -> StatAccumulator {
   let mut stats = StatAccumulator::default();
   let mut seen_paths = std::collections::HashSet::new();
@@ -752,7 +752,7 @@ fn accumulate_overall_stats(
 
 fn collect_project_series_stats(
   base: &std::path::Path,
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::core::config::UserConfigFile,
   stats: &mut AindexStats,
   all_ext: &mut std::collections::HashMap<String, u32>,
 ) -> Result<(), String> {
@@ -795,7 +795,7 @@ fn collect_project_series_stats(
 
 fn build_aindex_stats(
   base: &std::path::Path,
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::core::config::UserConfigFile,
 ) -> Result<AindexStats, String> {
   let mut stats = AindexStats::default();
   let mut all_ext: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
@@ -877,8 +877,8 @@ mod tests {
     dir
   }
 
-  fn create_test_config() -> tnmsc::core::config::UserConfigFile {
-    tnmsc::core::config::UserConfigFile::default()
+  fn create_test_config() -> tnmsd::core::config::UserConfigFile {
+    tnmsd::core::config::UserConfigFile::default()
   }
 
   #[test]
