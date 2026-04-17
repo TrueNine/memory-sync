@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UserConfigFile",
+  "description": "User configuration file (.tnmsc.json).\nAll fields are optional — missing fields use default values.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "workspaceDir": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "logLevel": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "fastCommandSeriesOptions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FastCommandSeriesOptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "profile": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/UserProfile"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "codeStyles": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CodeStyles"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "windows": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WindowsOptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "plugins": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PluginsConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "FastCommandSeriesOptions": {
+      "description": "Fast command series configuration options.",
+      "type": "object",
+      "properties": {
+        "includeSeriesPrefix": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "pluginOverrides": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/FastCommandSeriesPluginOverride"
+          }
+        }
+      }
+    },
+    "FastCommandSeriesPluginOverride": {
+      "description": "Per-plugin fast command series override options.",
+      "type": "object",
+      "properties": {
+        "includeSeriesPrefix": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "seriesSeparator": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "UserProfile": {
+      "description": "User profile information. Supports arbitrary key-value pairs.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "username": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "gender": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "birthday": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "CodeStyles": {
+      "type": "object",
+      "properties": {
+        "indent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CodeStyleIndent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tabSize": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      },
+      "additionalProperties": true
+    },
+    "CodeStyleIndent": {
+      "type": "string",
+      "enum": [
+        "tab",
+        "space"
+      ]
+    },
+    "WindowsOptions": {
+      "type": "object",
+      "properties": {
+        "wsl2": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowsWsl2Options"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "WindowsWsl2Options": {
+      "type": "object",
+      "properties": {
+        "instances": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StringOrStrings"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "StringOrStrings": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "PluginsConfig": {
+      "type": "object",
+      "properties": {
+        "agentsMd": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "claudeCode": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "codex": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cursor": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "droid": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "gemini": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "git": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "jetbrains": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "jetbrainsCodeStyle": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "kiro": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "opencode": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "qoder": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "readme": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "trae": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "traeCn": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "vscode": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "warp": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "windsurf": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "zed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

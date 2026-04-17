@@ -2,6 +2,8 @@
 //!
 //! Mirrors the TS `PluginPipeline.parseArgs()` + `resolveCommand()`.
 
+use std::path::PathBuf;
+
 use clap::{Args, Parser, Subcommand};
 
 /// Cross-AI-tool prompt synchronisation CLI
@@ -47,7 +49,11 @@ pub enum CliCommand {
 
   /// Print the generated .tnmsc.json schema
   #[command(hide = true)]
-  Schema,
+  Schema(SchemaArgs),
+
+  /// Hydrate npm package contents from local or downloaded binaries
+  #[command(hide = true, name = "assemble-npm")]
+  AssembleNpm(AssembleNpmArgs),
 
   /// Run the install pipeline
   Install,
@@ -68,6 +74,24 @@ pub struct CleanArgs {
   /// Preview cleanup without removing files
   #[arg(short = 'n', long = "dry-run")]
   pub dry_run: bool,
+}
+
+#[derive(Args, Debug, Clone, PartialEq, Eq)]
+pub struct SchemaArgs {
+  /// Write the generated schema to a file instead of stdout
+  #[arg(long = "output")]
+  pub output: Option<PathBuf>,
+}
+
+#[derive(Args, Debug, Clone, PartialEq, Eq)]
+pub struct AssembleNpmArgs {
+  /// Directory containing downloaded cli-binary-* artifacts
+  #[arg(long = "artifacts-dir")]
+  pub artifacts_dir: Option<PathBuf>,
+
+  /// Cargo profile name used for local host builds
+  #[arg(long = "profile", default_value = "release")]
+  pub profile: String,
 }
 
 /// Resolved log level from CLI flags.
@@ -147,7 +171,8 @@ pub fn resolve_log_level(cli: &Cli) -> Option<ResolvedLogLevel> {
 pub enum ResolvedCommand {
   Help,
   Version,
-  Schema,
+  Schema(SchemaArgs),
+  AssembleNpm(AssembleNpmArgs),
   Install,
   DryRun,
   Clean,
@@ -161,7 +186,8 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
     None => ResolvedCommand::Install,
     Some(CliCommand::Help) => ResolvedCommand::Help,
     Some(CliCommand::Version) => ResolvedCommand::Version,
-    Some(CliCommand::Schema) => ResolvedCommand::Schema,
+    Some(CliCommand::Schema(args)) => ResolvedCommand::Schema(args.clone()),
+    Some(CliCommand::AssembleNpm(args)) => ResolvedCommand::AssembleNpm(args.clone()),
     Some(CliCommand::Install) => ResolvedCommand::Install,
     Some(CliCommand::DryRun) => ResolvedCommand::DryRun,
     Some(CliCommand::Clean(args)) => {

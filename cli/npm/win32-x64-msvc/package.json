@@ -1,7 +1,7 @@
 {
-  "name": "@truenine/memory-sync-cli-win32",
+  "name": "@truenine/memory-sync-cli-win32-x64-msvc",
   "version": "2026.10413.10237",
-  "description": "tnmsc binaries for Windows",
+  "description": "tnmsc native binary for Windows x64",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
   "os": [
@@ -10,6 +10,9 @@
   "cpu": [
     "x64"
   ],
+  "bin": {
+    "tnmsc": "./bin/tnmsc.exe"
+  },
   "files": [
     "bin"
   ]

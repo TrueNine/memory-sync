@@ -1,0 +1,19 @@
+{
+  "name": "@truenine/memory-sync-cli-darwin-arm64",
+  "version": "2026.10413.10237",
+  "description": "tnmsc native binary for macOS arm64",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "bin": {
+    "tnmsc": "./bin/tnmsc"
+  },
+  "files": [
+    "bin"
+  ]
+}
