@@ -1,5 +1,5 @@
 [package]
-name = "tnmsc"
+name = "tnmsd"
 description = "Cross-AI-tool prompt synchronisation CLI"
 version.workspace = true
 edition.workspace = true
@@ -9,7 +9,7 @@ authors.workspace = true
 repository.workspace = true
 
 [lib]
-name = "tnmsc"
+name = "tnmsd"
 path = "src/lib.rs"
 
 [features]

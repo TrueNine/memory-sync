@@ -1,4 +1,4 @@
-//! tnmsc library — Rust-only runtime core for memory-sync.
+//! tnmsd library — Rust-only runtime core for memory-sync.
 //!
 //! Public API: version, load_config, install, dry_run, clean, list_plugins,
 //! list_prompts, get_prompt, upsert_prompt_source, write_prompt_artifacts,
@@ -177,7 +177,7 @@ pub fn list_plugins() -> Vec<MemorySyncPluginInfo> {
     .collect()
 }
 
-/// Run the install pipeline in passthrough mode for the Rust CLI shell.
+/// Run the install pipeline in passthrough mode for the Rust CLI.
 pub fn run_install_cli() -> ExitCode {
   match install(MemorySyncCommandOptions::default()) {
     Ok(r) if r.success => ExitCode::SUCCESS,
@@ -189,7 +189,7 @@ pub fn run_install_cli() -> ExitCode {
   }
 }
 
-/// Run the dry-run pipeline in passthrough mode for the Rust CLI shell.
+/// Run the dry-run pipeline in passthrough mode for the Rust CLI.
 pub fn run_dry_run_cli() -> ExitCode {
   match dry_run(MemorySyncCommandOptions::default()) {
     Ok(r) if r.success => ExitCode::SUCCESS,
@@ -201,7 +201,7 @@ pub fn run_dry_run_cli() -> ExitCode {
   }
 }
 
-/// Run cleanup in passthrough mode for the Rust CLI shell.
+/// Run cleanup in passthrough mode for the Rust CLI.
 pub fn run_clean_cli(dry_run: bool) -> ExitCode {
   let options = MemorySyncCommandOptions {
     dry_run: Some(dry_run),
@@ -306,22 +306,22 @@ mod cargo_config_tests {
   }
 
   #[test]
-  fn sdk_cargo_toml_lib_crate_name_is_tnmsc() {
+  fn sdk_cargo_toml_lib_crate_name_is_tnmsd() {
     let sdk_toml = workspace_root().join("sdk").join("Cargo.toml");
     let content = fs::read_to_string(&sdk_toml).expect("sdk/Cargo.toml should be readable");
     assert!(
-      content.contains("[package]\nname = \"tnmsc\"")
-        || content.contains("[package]\r\nname = \"tnmsc\""),
-      "sdk/Cargo.toml should keep package name = \"tnmsc\""
+      content.contains("[package]\nname = \"tnmsd\"")
+        || content.contains("[package]\r\nname = \"tnmsd\""),
+      "sdk/Cargo.toml should keep package name = \"tnmsd\""
     );
     assert!(
-      content.contains("[lib]\nname = \"tnmsc\"") || content.contains("[lib]\r\nname = \"tnmsc\""),
-      "sdk/Cargo.toml should keep lib name = \"tnmsc\""
+      content.contains("[lib]\nname = \"tnmsd\"") || content.contains("[lib]\r\nname = \"tnmsd\""),
+      "sdk/Cargo.toml should keep lib name = \"tnmsd\""
     );
   }
 
   #[test]
-  fn gui_cargo_toml_has_tnmsc_workspace_dependency() {
+  fn gui_cargo_toml_has_tnmsd_workspace_dependency() {
     let gui_toml = workspace_root()
       .join("gui")
       .join("src-tauri")
@@ -329,18 +329,18 @@ mod cargo_config_tests {
     let content =
       fs::read_to_string(&gui_toml).expect("gui/src-tauri/Cargo.toml should be readable");
     assert!(
-      content.contains("tnmsc = { workspace = true }"),
-      "gui/src-tauri/Cargo.toml should contain `tnmsc = {{ workspace = true }}`"
+      content.contains("tnmsd = { workspace = true }"),
+      "gui/src-tauri/Cargo.toml should contain `tnmsd = {{ workspace = true }}`"
     );
   }
 
   #[test]
-  fn root_cargo_toml_has_tnmsc_workspace_path_dependency() {
+  fn root_cargo_toml_has_tnmsd_workspace_path_dependency() {
     let root_toml = workspace_root().join("Cargo.toml");
     let content = fs::read_to_string(&root_toml).expect("root Cargo.toml should be readable");
     assert!(
-      content.contains(r#"tnmsc = { path = "sdk" }"#),
-      "root Cargo.toml [workspace.dependencies] should contain `tnmsc = {{ path = \"sdk\" }}`"
+      content.contains(r#"tnmsd = { path = "sdk" }"#),
+      "root Cargo.toml [workspace.dependencies] should contain `tnmsd = {{ path = \"sdk\" }}`"
     );
   }
 }

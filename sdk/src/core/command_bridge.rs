@@ -100,7 +100,7 @@ fn create_bridge_result_path() -> io::Result<PathBuf> {
 
   for attempt in 0..32 {
     let candidate = temp_dir.join(format!(
-      "tnmsc-internal-command-bridge-{process_id}-{now}-{attempt}.json"
+      "tnmsd-internal-command-bridge-{process_id}-{now}-{attempt}.json"
     ));
     if !candidate.exists() {
       return Ok(candidate);

@@ -700,9 +700,9 @@ fn writes_to_stderr(level: LogLevel) -> bool {
 fn spawn_output_sink() -> Sender<OutputCommand> {
   let (tx, rx) = mpsc::channel();
   thread::Builder::new()
-    .name("tnmsc-logger-output".to_string())
+    .name("tnmsd-logger-output".to_string())
     .spawn(move || output_worker(rx))
-    .expect("failed to spawn tnmsc logger output worker");
+    .expect("failed to spawn tnmsd logger output worker");
   tx
 }
 

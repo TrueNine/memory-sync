@@ -507,7 +507,7 @@ mod tests {
       let _ = std::fs::create_dir_all(&home_dir);
     }
     let tmp = tempfile::Builder::new()
-      .prefix("tnmsc-aindex-tilde-")
+      .prefix("tnmsd-aindex-tilde-")
       .tempdir_in(&home_dir)
       .unwrap();
     create_aindex_project(tmp.path(), "project-a", "app");
