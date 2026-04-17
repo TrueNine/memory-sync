@@ -17,7 +17,7 @@ repository = "https://github.com/TrueNine/memory-sync"
 
 [workspace.dependencies]
 # Internal crates
-tnmsc = { path = "sdk" }
+tnmsd = { path = "sdk" }
 
 # Serialization
 serde = { version = "1.0.228", features = ["derive"] }

@@ -113,9 +113,9 @@ try {
   checkCargoPackageVersion('mcp/Cargo.toml')
   checkCargoPackageVersion('gui/src-tauri/Cargo.toml')
   checkCargoLockVersions('Cargo.lock', [
+    'tnmsd',
     'tnmsc',
-    'tnmsc-cli-shell',
-    'tnmsc-mcp',
+    'tnmsm',
     'memory-sync-gui',
   ])
 

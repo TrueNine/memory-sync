@@ -1,5 +1,5 @@
 [package]
-name = "tnmsc-mcp"
+name = "tnmsm"
 description = "MCP stdio server for managing memory-sync prompt sources and translation artifacts"
 version.workspace = true
 edition.workspace = true
@@ -13,6 +13,6 @@ name = "memory-sync-mcp"
 path = "src/main.rs"
 
 [dependencies]
-tnmsc = { workspace = true }
+tnmsd = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

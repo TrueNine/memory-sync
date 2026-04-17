@@ -2429,7 +2429,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-shell",
  "tauri-plugin-updater",
- "tnmsc",
+ "tnmsd",
 ]
 
 [[package]]
@@ -4892,6 +4892,16 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 name = "tnmsc"
 version = "2026.10413.10237"
 dependencies = [
+ "clap",
+ "serde_json",
+ "testcontainers",
+ "tnmsd",
+]
+
+[[package]]
+name = "tnmsd"
+version = "2026.10413.10237"
+dependencies = [
  "base64 0.22.1",
  "chrono",
  "clap",
@@ -4914,22 +4924,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "tnmsc-cli-shell"
-version = "2026.10413.10237"
-dependencies = [
- "clap",
- "serde_json",
- "testcontainers",
- "tnmsc",
-]
-
-[[package]]
-name = "tnmsc-mcp"
+name = "tnmsm"
 version = "2026.10413.10237"
 dependencies = [
  "serde",
  "serde_json",
- "tnmsc",
+ "tnmsd",
 ]
 
 [[package]]

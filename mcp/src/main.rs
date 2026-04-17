@@ -1,7 +1,7 @@
 use std::io::{BufRead, Write};
 
 use serde_json::{Value, json};
-use tnmsc::{
+use tnmsd::{
   ListPromptsOptions, PromptServiceOptions, UpsertPromptSourceInput, WritePromptArtifactsInput,
   get_prompt, list_prompts, upsert_prompt_source, write_prompt_artifacts,
 };
@@ -155,14 +155,14 @@ fn handle_tools_call(params: &Value) -> Value {
 
 fn handle_list_prompts(args: &Value) -> Value {
   let base = build_service_options(args);
-  let kinds: Option<Vec<tnmsc::ManagedPromptKind>> = args
+  let kinds: Option<Vec<tnmsd::ManagedPromptKind>> = args
     .get("kinds")
     .and_then(|v| serde_json::from_value(v.clone()).ok());
   let query = args.get("query").and_then(|v| v.as_str()).map(String::from);
-  let en_status: Option<Vec<tnmsc::PromptArtifactState>> = args
+  let en_status: Option<Vec<tnmsd::PromptArtifactState>> = args
     .get("enStatus")
     .and_then(|v| serde_json::from_value(v.clone()).ok());
-  let dist_status: Option<Vec<tnmsc::PromptArtifactState>> = args
+  let dist_status: Option<Vec<tnmsd::PromptArtifactState>> = args
     .get("distStatus")
     .and_then(|v| serde_json::from_value(v.clone()).ok());
 
@@ -204,7 +204,7 @@ fn handle_upsert_prompt_src(args: &Value) -> Value {
     Some(c) => c.to_string(),
     None => return error_result("content is required"),
   };
-  let locale: Option<tnmsc::PromptSourceLocale> = args
+  let locale: Option<tnmsd::PromptSourceLocale> = args
     .get("locale")
     .and_then(|v| serde_json::from_value(v.clone()).ok());
 
