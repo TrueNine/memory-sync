@@ -170,17 +170,6 @@ pub fn perform_md_cleanup(dirs: &[String], dry_run: bool) -> MdCleanupResult {
   }
 }
 
-#[cfg(feature = "napi")]
-mod napi_binding {
-  use napi_derive::napi;
-
-  #[napi(js_name = "performMdCleanup")]
-  pub fn perform_md_cleanup_binding(dirs: Vec<String>, dry_run: bool) -> napi::Result<String> {
-    let result = super::perform_md_cleanup(&dirs, dry_run);
-    serde_json::to_string(&result).map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;

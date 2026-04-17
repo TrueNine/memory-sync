@@ -138,20 +138,6 @@ pub fn perform_skill_dist_cleanup(dist_skills_dir: &str, dry_run: bool) -> Skill
   }
 }
 
-#[cfg(feature = "napi")]
-mod napi_binding {
-  use napi_derive::napi;
-
-  #[napi(js_name = "performSkillDistCleanup")]
-  pub fn perform_skill_dist_cleanup_binding(
-    dist_skills_dir: String,
-    dry_run: bool,
-  ) -> napi::Result<String> {
-    let result = super::perform_skill_dist_cleanup(&dist_skills_dir, dry_run);
-    serde_json::to_string(&result).map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -189,27 +175,21 @@ mod tests {
     assert!(!dist_skill_dir.join("mcp.json").exists());
     assert!(!nested_legacy_dir.join("diagram.svg").exists());
     assert!(!nested_legacy_dir.exists());
-    assert!(
-      result.deleted_files.contains(
-        &dist_skill_dir
-          .join("guide.src.mdx")
-          .to_string_lossy()
-          .into_owned()
-      )
-    );
-    assert!(
-      result.deleted_files.contains(
-        &dist_skill_dir
-          .join("notes.md")
-          .to_string_lossy()
-          .into_owned()
-      )
-    );
-    assert!(
-      result
-        .deleted_dirs
-        .contains(&nested_legacy_dir.to_string_lossy().into_owned())
-    );
+    assert!(result.deleted_files.contains(
+      &dist_skill_dir
+        .join("guide.src.mdx")
+        .to_string_lossy()
+        .into_owned()
+    ));
+    assert!(result.deleted_files.contains(
+      &dist_skill_dir
+        .join("notes.md")
+        .to_string_lossy()
+        .into_owned()
+    ));
+    assert!(result
+      .deleted_dirs
+      .contains(&nested_legacy_dir.to_string_lossy().into_owned()));
   }
 
   #[test]
@@ -231,14 +211,12 @@ mod tests {
     assert!(result.success);
     assert!(dist_skill_dir.join("skill.mdx").exists());
     assert!(!dist_skill_dir.join("legacy.txt").exists());
-    assert!(
-      result.deleted_files.contains(
-        &dist_skill_dir
-          .join("legacy.txt")
-          .to_string_lossy()
-          .into_owned()
-      )
-    );
+    assert!(result.deleted_files.contains(
+      &dist_skill_dir
+        .join("legacy.txt")
+        .to_string_lossy()
+        .into_owned()
+    ));
   }
 
   #[test]
@@ -255,11 +233,9 @@ mod tests {
 
     assert!(result.success);
     assert!(result.deleted_files.is_empty());
-    assert!(
-      result
-        .deleted_dirs
-        .contains(&dist_skills_dir.to_string_lossy().into_owned())
-    );
+    assert!(result
+      .deleted_dirs
+      .contains(&dist_skills_dir.to_string_lossy().into_owned()));
     assert!(!dist_skills_dir.exists());
   }
 }

@@ -100,53 +100,6 @@ pub enum SeriName {
 }
 
 // ---------------------------------------------------------------------------
-// NAPI binding layer
-// ---------------------------------------------------------------------------
-
-#[cfg(feature = "napi")]
-mod napi_binding {
-  use std::collections::HashMap;
-
-  use napi::Either;
-  use napi_derive::napi;
-
-  use super::*;
-
-  /// Determine whether a prompt item should be included based on its
-  /// `seriName` and the effective `includeSeries` list.
-  #[napi]
-  pub fn matches_series(
-    seri_name: Option<Either<String, Vec<String>>>,
-    effective_include_series: Vec<String>,
-  ) -> bool {
-    let seri = seri_name.map(|e| match e {
-      Either::A(s) => SeriName::Single(s),
-      Either::B(arr) => SeriName::Multiple(arr),
-    });
-    matches_series_core(seri.as_ref(), &effective_include_series)
-  }
-
-  /// Compute the effective includeSeries as the set union of top-level and
-  /// type-specific arrays.
-  #[napi]
-  pub fn resolve_effective_include_series(
-    top_level: Option<Vec<String>>,
-    type_specific: Option<Vec<String>>,
-  ) -> Vec<String> {
-    resolve_effective_include_series_core(top_level.as_deref(), type_specific.as_deref())
-  }
-
-  /// Deep-merge two optional subSeries records.
-  #[napi]
-  pub fn resolve_sub_series(
-    top_level: Option<HashMap<String, Vec<String>>>,
-    type_specific: Option<HashMap<String, Vec<String>>>,
-  ) -> HashMap<String, Vec<String>> {
-    resolve_sub_series_core(top_level.as_ref(), type_specific.as_ref())
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 

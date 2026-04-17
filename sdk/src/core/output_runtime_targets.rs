@@ -66,16 +66,6 @@ pub fn discover_jetbrains_codex_dirs() -> Vec<String> {
   result
 }
 
-#[cfg(feature = "napi")]
-pub mod napi_binding {
-  use napi_derive::napi;
-
-  #[napi(js_name = "discoverOutputRuntimeTargets")]
-  pub fn discover_output_runtime_targets_binding() -> napi::Result<Vec<String>> {
-    Ok(super::discover_jetbrains_codex_dirs())
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;

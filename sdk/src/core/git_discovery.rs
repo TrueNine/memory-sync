@@ -160,38 +160,6 @@ pub fn find_git_module_info_dirs(dot_git_dir: &Path) -> Vec<PathBuf> {
 }
 
 // ---------------------------------------------------------------------------
-// NAPI binding layer
-// ---------------------------------------------------------------------------
-
-#[cfg(feature = "napi")]
-mod napi_binding {
-  use napi_derive::napi;
-  use std::path::Path;
-
-  #[napi]
-  pub fn resolve_git_info_dir(project_dir: String) -> Option<String> {
-    super::resolve_git_info_dir(Path::new(&project_dir)).map(|p| p.to_string_lossy().into_owned())
-  }
-
-  #[napi]
-  pub fn find_all_git_repos(root_dir: String, max_depth: Option<i32>) -> Vec<String> {
-    let depth = max_depth.map(|d| d.max(0) as usize).unwrap_or(5);
-    super::find_all_git_repos(Path::new(&root_dir), depth)
-      .into_iter()
-      .map(|p| p.to_string_lossy().into_owned())
-      .collect()
-  }
-
-  #[napi]
-  pub fn find_git_module_info_dirs(dot_git_dir: String) -> Vec<String> {
-    super::find_git_module_info_dirs(Path::new(&dot_git_dir))
-      .into_iter()
-      .map(|p| p.to_string_lossy().into_owned())
-      .collect()
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 

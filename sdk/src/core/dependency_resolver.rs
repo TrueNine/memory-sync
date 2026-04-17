@@ -167,59 +167,6 @@ pub fn topological_sort(input_json: &str) -> Result<String, DependencyResolverEr
   topological_sort_nodes(&nodes).map(|sorted| serde_json::to_string(&sorted).unwrap())
 }
 
-#[cfg(feature = "napi")]
-pub mod napi_binding {
-  use napi_derive::napi;
-
-  #[napi(object)]
-  pub struct DependencyNodeInput {
-    pub name: String,
-    #[napi(js_name = "dependsOn")]
-    pub depends_on: Vec<String>,
-  }
-
-  impl From<DependencyNodeInput> for super::DependencyNodeInput {
-    fn from(value: DependencyNodeInput) -> Self {
-      Self {
-        name: value.name,
-        depends_on: value.depends_on,
-      }
-    }
-  }
-
-  #[napi(js_name = "topologicalSort")]
-  pub fn topological_sort_binding(input_json: String) -> napi::Result<String> {
-    super::topological_sort(&input_json).map_err(|e| {
-      let msg =
-        serde_json::to_string(&e).unwrap_or_else(|_| "dependency resolver error".to_string());
-      napi::Error::from_reason(msg)
-    })
-  }
-
-  #[napi(js_name = "topologicalSortNodes")]
-  pub fn topological_sort_nodes_binding(
-    nodes: Vec<DependencyNodeInput>,
-  ) -> napi::Result<Vec<String>> {
-    let nodes: Vec<super::DependencyNodeInput> = nodes.into_iter().map(Into::into).collect();
-    super::topological_sort_nodes(&nodes).map_err(|e| {
-      let msg =
-        serde_json::to_string(&e).unwrap_or_else(|_| "dependency resolver error".to_string());
-      napi::Error::from_reason(msg)
-    })
-  }
-
-  #[napi(js_name = "findCyclePath")]
-  pub fn find_cycle_path_binding(
-    nodes: Vec<DependencyNodeInput>,
-    in_degree_json: String,
-  ) -> napi::Result<Vec<String>> {
-    let nodes: Vec<super::DependencyNodeInput> = nodes.into_iter().map(Into::into).collect();
-    let in_degree: std::collections::HashMap<String, usize> =
-      serde_json::from_str(&in_degree_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
-    Ok(super::find_cycle_path(&nodes, &in_degree))
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;

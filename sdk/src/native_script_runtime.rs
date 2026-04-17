@@ -269,30 +269,6 @@ pub fn resolve_public_path_impl(
   validate_public_path_impl(stdout.trim(), &aindex_public_dir.to_string_lossy())
 }
 
-#[cfg(feature = "napi")]
-mod napi_binding {
-  use super::{resolve_public_path_impl, validate_public_path_impl};
-  use napi::bindgen_prelude::Error;
-  use napi_derive::napi;
-
-  #[napi]
-  pub fn validate_public_path(
-    resolved_path: String,
-    aindex_public_dir: String,
-  ) -> napi::Result<String> {
-    validate_public_path_impl(&resolved_path, &aindex_public_dir).map_err(Error::from_reason)
-  }
-
-  #[napi]
-  pub fn resolve_public_path(
-    file_path: String,
-    ctx_json: String,
-    logical_path: String,
-  ) -> napi::Result<String> {
-    resolve_public_path_impl(&file_path, &ctx_json, &logical_path).map_err(Error::from_reason)
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::{detect_with_cached_success_result, validate_public_path_impl};

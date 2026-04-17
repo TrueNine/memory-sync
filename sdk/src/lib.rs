@@ -1,7 +1,8 @@
-//! tnmsc library — Rust-owned runtime core for memory-sync.
+//! tnmsc library — Rust-only runtime core for memory-sync.
 //!
 //! Public API: version, load_config, install, dry_run, clean, list_plugins,
-//! list_prompts, get_prompt, upsert_prompt_source, write_prompt_artifacts.
+//! list_prompts, get_prompt, upsert_prompt_source, write_prompt_artifacts,
+//! generate_schema.
 
 pub mod core;
 pub(crate) mod diagnostic_helpers;
@@ -57,16 +58,7 @@ pub enum CliError {
   NotImplemented(String),
 }
 
-/// Captured output from a legacy bridge command (retained temporarily for API compatibility).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BridgeCommandResult {
-  pub stdout: String,
-  pub stderr: String,
-  pub exit_code: i32,
-}
-
-/// Shared command options consumed by the crate facade, NAPI binding, and TS loader.
+/// Shared command options consumed by the crate facade, CLI, and GUI callers.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MemorySyncCommandOptions {
@@ -82,7 +74,7 @@ pub struct MemorySyncCommandOptions {
   pub dry_run: Option<bool>,
 }
 
-/// Shared command result shape for the crate facade, CLI JSON, GUI IPC, and NAPI.
+/// Shared command result shape for the crate facade, CLI JSON, and GUI IPC.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MemorySyncCommandResult {
@@ -97,7 +89,7 @@ pub struct MemorySyncCommandResult {
   pub errors: Vec<Value>,
 }
 
-/// Shared plugin descriptor shape for crate, NAPI, CLI, and GUI callers.
+/// Shared plugin descriptor shape for crate, CLI, and GUI callers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MemorySyncPluginInfo {
@@ -216,408 +208,10 @@ pub fn run_clean_cli(dry_run: bool) -> ExitCode {
   }
 }
 
-#[cfg(feature = "napi")]
-mod napi_binding {
-  use super::{
-    CliError, ListPromptsOptions, MemorySyncCommandOptions, PromptServiceOptions,
-    UpsertPromptSourceInput, WritePromptArtifactsInput, clean, dry_run, get_prompt, install,
-    list_plugins, list_prompts, load_config, upsert_prompt_source, write_prompt_artifacts,
-  };
-  use std::path::Path;
-
-  use napi_derive::napi;
-
-  // Re-export NAPI functions from submodules so the napi-rs build picks them up.
-  pub use crate::core::context_merger::napi_binding::{
-    build_dependency_context_binding, merge_contexts_binding,
-  };
-  pub use crate::core::dependency_resolver::napi_binding::{
-    find_cycle_path_binding, topological_sort_binding, topological_sort_nodes_binding,
-  };
-  pub use crate::core::output_runtime_targets::napi_binding::discover_output_runtime_targets_binding;
-
-  // Prevent unused-import warnings; these are registered by napi-rs via the proc-macro.
-  #[allow(dead_code)]
-  const _NAPI_RE_EXPORTS: [fn() -> (); 6] = [
-    || {
-      let _ = merge_contexts_binding as fn(_, _) -> _;
-    },
-    || {
-      let _ = build_dependency_context_binding as fn(_, _) -> _;
-    },
-    || {
-      let _ = topological_sort_binding as fn(_) -> _;
-    },
-    || {
-      let _ = topological_sort_nodes_binding as fn(_) -> _;
-    },
-    || {
-      let _ = find_cycle_path_binding as fn(_, _) -> _;
-    },
-    || {
-      let _ = discover_output_runtime_targets_binding as fn() -> _;
-    },
-  ];
-
-  fn parse_command_options(options_json: Option<String>) -> napi::Result<MemorySyncCommandOptions> {
-    match options_json {
-      Some(json) => {
-        serde_json::from_str(&json).map_err(|error| napi::Error::from_reason(error.to_string()))
-      }
-      None => Ok(MemorySyncCommandOptions::default()),
-    }
-  }
-
-  fn serialize_json<T: serde::Serialize>(value: &T) -> napi::Result<String> {
-    serde_json::to_string(value).map_err(|error| napi::Error::from_reason(error.to_string()))
-  }
-
-  fn map_cli_error(error: CliError) -> napi::Error {
-    napi::Error::from_reason(error.to_string())
-  }
-
-  #[napi(js_name = "loadConfig")]
-  pub fn load_config_binding(cwd: Option<String>) -> napi::Result<String> {
-    let cwd = cwd.unwrap_or_else(|| ".".to_string());
-    let result = load_config(Path::new(&cwd)).map_err(map_cli_error)?;
-    serialize_json(&result)
-  }
-
-  #[napi(js_name = "install")]
-  pub fn install_binding(options_json: Option<String>) -> napi::Result<String> {
-    let options = parse_command_options(options_json)?;
-    let result = install(options).map_err(map_cli_error)?;
-    serialize_json(&result)
-  }
-
-  #[napi(js_name = "dryRun")]
-  pub fn dry_run_binding(options_json: Option<String>) -> napi::Result<String> {
-    let options = parse_command_options(options_json)?;
-    let result = dry_run(options).map_err(map_cli_error)?;
-    serialize_json(&result)
-  }
-
-  #[napi(js_name = "clean")]
-  pub fn clean_binding(options_json: Option<String>) -> napi::Result<String> {
-    let options = parse_command_options(options_json)?;
-    let result = clean(options).map_err(map_cli_error)?;
-    serialize_json(&result)
-  }
-
-  #[napi(js_name = "listPlugins")]
-  pub fn list_plugins_binding() -> napi::Result<String> {
-    serialize_json(&list_plugins())
-  }
-
-  #[napi(js_name = "listPrompts")]
-  pub fn list_prompts_binding(options_json: Option<String>) -> napi::Result<String> {
-    let options = match options_json {
-      Some(json) => serde_json::from_str::<ListPromptsOptions>(&json)
-        .map_err(|e| napi::Error::from_reason(e.to_string()))?,
-      None => ListPromptsOptions::default(),
-    };
-    let result = list_prompts(&options).map_err(|e| napi::Error::from_reason(e))?;
-    serialize_json(&result)
-  }
-
-  #[napi(js_name = "getPrompt")]
-  pub fn get_prompt_binding(
-    prompt_id: String,
-    options_json: Option<String>,
-  ) -> napi::Result<String> {
-    let options = match options_json {
-      Some(json) => serde_json::from_str::<PromptServiceOptions>(&json)
-        .map_err(|e| napi::Error::from_reason(e.to_string()))?,
-      None => PromptServiceOptions::default(),
-    };
-    let result = get_prompt(&prompt_id, &options).map_err(|e| napi::Error::from_reason(e))?;
-    serialize_json(&result)
-  }
-
-  #[napi(js_name = "upsertPromptSource")]
-  pub fn upsert_prompt_source_binding(input_json: String) -> napi::Result<String> {
-    let input = serde_json::from_str::<UpsertPromptSourceInput>(&input_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-    let result = upsert_prompt_source(&input).map_err(|e| napi::Error::from_reason(e))?;
-    serialize_json(&result)
-  }
-
-  #[napi(js_name = "writePromptArtifacts")]
-  pub fn write_prompt_artifacts_binding(input_json: String) -> napi::Result<String> {
-    let input = serde_json::from_str::<WritePromptArtifactsInput>(&input_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-    let result = write_prompt_artifacts(&input).map_err(|e| napi::Error::from_reason(e))?;
-    serialize_json(&result)
-  }
-
-  #[napi(js_name = "collectWorkspace")]
-  pub fn collect_workspace_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::workspace::collect_workspace(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectGitignore")]
-  pub fn collect_gitignore_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::gitignore::collect_gitignore(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectGitExclude")]
-  pub fn collect_git_exclude_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::git_exclude::collect_git_exclude(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectSharedIgnore")]
-  pub fn collect_shared_ignore_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::shared_ignore::collect_shared_ignore(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectEditorconfig")]
-  pub fn collect_editorconfig_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::editorconfig::collect_editorconfig(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectVSCodeConfig")]
-  pub fn collect_vscode_config_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::vscode_config::collect_vscode_config(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectZedConfig")]
-  pub fn collect_zed_config_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::zed_config::collect_zed_config(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectJetBrainsConfig")]
-  pub fn collect_jetbrains_config_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::jetbrains_config::collect_jetbrains_config(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectRule")]
-  pub fn collect_rule_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::rule::collect_rule(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectCommand")]
-  pub fn collect_command_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::command::collect_command(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectSubAgent")]
-  pub fn collect_subagent_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::subagent::collect_subagent(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectGlobalMemory")]
-  pub fn collect_global_memory_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::global_memory::collect_global_memory(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectReadme")]
-  pub fn collect_readme_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::readme::collect_readme(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectAindexResolvers")]
-  pub fn collect_aindex_resolvers_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::aindex_resolvers::collect_aindex_resolvers(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectProjectPrompt")]
-  pub fn collect_project_prompt_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::project_prompt::collect_project_prompt(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectSkill")]
-  pub fn collect_skill_binding(options_json: String) -> napi::Result<String> {
-    crate::core::input_plugins::skill::collect_skill(&options_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "resolveExecutionPlan")]
-  pub fn resolve_execution_plan_binding(
-    context_json: String,
-    execution_cwd: String,
-  ) -> napi::Result<String> {
-    let context: crate::core::plugin_shared::CollectedInputContext =
-      serde_json::from_str(&context_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
-    let workspace = context
-      .workspace
-      .as_ref()
-      .ok_or_else(|| napi::Error::from_reason("context.workspace is missing"))?;
-    let plan = crate::core::execution_plan::resolve_execution_plan(workspace, &execution_cwd);
-    serialize_json(&plan)
-  }
-
-  #[napi(object)]
-  pub struct NapiPathScopedEntry {
-    pub path: String,
-    pub scope: Option<String>,
-  }
-
-  #[napi(js_name = "filterPathScopedEntriesForExecutionPlan")]
-  pub fn filter_path_scoped_entries_binding(
-    entries: Vec<NapiPathScopedEntry>,
-    plan_json: String,
-    context_json: String,
-  ) -> napi::Result<Vec<NapiPathScopedEntry>> {
-    let plan: crate::core::execution_plan::ExecutionPlan =
-      serde_json::from_str(&plan_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
-    let context: crate::core::plugin_shared::CollectedInputContext =
-      serde_json::from_str(&context_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
-
-    let workspace = context
-      .workspace
-      .as_ref()
-      .ok_or_else(|| napi::Error::from_reason("context.workspace is missing"))?;
-
-    let workspace_dir = &workspace.directory.path;
-    let managed_projects = crate::core::execution_plan::collect_managed_projects(workspace);
-
-    let filtered = crate::core::execution_plan::filter_path_scoped_entries(
-      entries,
-      &plan,
-      workspace_dir,
-      &managed_projects,
-      |e| &e.path,
-      |e| e.scope.as_deref(),
-    );
-
-    Ok(filtered)
-  }
-
-  #[napi(js_name = "syncWindowsConfigIntoWsl")]
-  pub fn sync_windows_config_into_wsl_binding(
-    context_json: String,
-    declarations_json: String,
-    dry_run: bool,
-  ) -> napi::Result<String> {
-    let context: crate::core::plugin_shared::CollectedInputContext =
-      serde_json::from_str(&context_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
-    let declarations: Vec<crate::core::wsl_mirror_sync::WslMirrorFileDeclaration> =
-      serde_json::from_str(&declarations_json)
-        .map_err(|e| napi::Error::from_reason(e.to_string()))?;
-
-    let result =
-      crate::core::wsl_mirror_sync::sync_windows_config_into_wsl(&context, &declarations, dry_run);
-    serialize_json(&result)
-  }
-
-  #[napi(js_name = "collectBaseOutputPlans")]
-  pub fn collect_base_output_plans_binding(context_json: String) -> napi::Result<String> {
-    crate::core::base_output_plans::collect_base_output_plans(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectGeminiOutputPlan")]
-  pub fn collect_gemini_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::gemini_output_plan::collect_gemini_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectDroidOutputPlan")]
-  pub fn collect_droid_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::droid_output_plan::collect_droid_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectWarpOutputPlan")]
-  pub fn collect_warp_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::warp_output_plan::collect_warp_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectKiroOutputPlan")]
-  pub fn collect_kiro_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::kiro_output_plan::collect_kiro_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectClaudeCodeOutputPlan")]
-  pub fn collect_claude_code_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::claude_code_output_plan::collect_claude_code_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectCodexOutputPlan")]
-  pub fn collect_codex_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::codex_output_plan::collect_codex_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectOpencodeOutputPlan")]
-  pub fn collect_opencode_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::opencode_output_plan::collect_opencode_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectTraeOutputPlan")]
-  pub fn collect_trae_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::trae_output_plan::collect_trae_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectCursorOutputPlan")]
-  pub fn collect_cursor_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::cursor_output_plan::collect_cursor_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectWindsurfOutputPlan")]
-  pub fn collect_windsurf_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::windsurf_output_plan::collect_windsurf_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectJetBrainsAIAssistantCodexOutputPlan")]
-  pub fn collect_jetbrains_ai_assistant_codex_output_plan_binding(
-    context_json: String,
-  ) -> napi::Result<String> {
-    crate::core::jetbrains_ai_assistant_codex_output_plan::collect_jetbrains_ai_assistant_codex_output_plan(
-      &context_json,
-    )
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectQoderOutputPlan")]
-  pub fn collect_qoder_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::qoder_output_plan::collect_qoder_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "collectGenericSkillsOutputPlan")]
-  pub fn collect_generic_skills_output_plan_binding(context_json: String) -> napi::Result<String> {
-    crate::core::generic_skills_output_plan::collect_generic_skills_output_plan(&context_json)
-      .map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "performSkillDistCleanup")]
-  pub fn perform_skill_dist_cleanup_binding(
-    dist_skills_dir: String,
-    dry_run: bool,
-  ) -> napi::Result<String> {
-    let result =
-      crate::core::skill_dist_cleanup::perform_skill_dist_cleanup(&dist_skills_dir, dry_run);
-    serde_json::to_string(&result).map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "performMdCleanup")]
-  pub fn perform_md_cleanup_binding(dirs: Vec<String>, dry_run: bool) -> napi::Result<String> {
-    let result = crate::core::md_cleanup::perform_md_cleanup(&dirs, dry_run);
-    serde_json::to_string(&result).map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
+/// Generate the JSON Schema for the `.tnmsc.json` config file.
+pub fn generate_schema() -> Result<String, CliError> {
+  let schema = schemars::schema_for!(core::config::UserConfigFile);
+  serde_json::to_string_pretty(&schema).map_err(CliError::SerializationError)
 }
 
 // ---------------------------------------------------------------------------
@@ -652,34 +246,6 @@ mod property_tests {
           let merged = result.unwrap();
           prop_assert!(merged.sources.is_empty() || !merged.sources.is_empty(),
               "sources should be a valid Vec");
-      }
-
-      #[test]
-      fn prop_bridge_command_result_fields_are_typed(
-          stdout in ".*",
-          stderr in ".*",
-          exit_code in proptest::num::i32::ANY,
-      ) {
-          let bcr = BridgeCommandResult {
-              stdout: stdout.clone(),
-              stderr: stderr.clone(),
-              exit_code,
-          };
-          let s: &str = &bcr.stdout;
-          let e: &str = &bcr.stderr;
-          let c: i32 = bcr.exit_code;
-          prop_assert_eq!(s, stdout.as_str());
-          prop_assert_eq!(e, stderr.as_str());
-          prop_assert_eq!(c, exit_code);
-          let json = serde_json::to_string(&bcr).expect("BridgeCommandResult must serialize");
-          prop_assert!(json.contains("\"stdout\""), "JSON must contain stdout field");
-          prop_assert!(json.contains("\"stderr\""), "JSON must contain stderr field");
-          prop_assert!(json.contains("\"exitCode\""), "JSON must contain exitCode field (camelCase)");
-          let bcr2: BridgeCommandResult =
-              serde_json::from_str(&json).expect("BridgeCommandResult must deserialize");
-          prop_assert_eq!(bcr2.stdout.as_str(), stdout.as_str());
-          prop_assert_eq!(bcr2.stderr.as_str(), stderr.as_str());
-          prop_assert_eq!(bcr2.exit_code, exit_code);
       }
   }
 

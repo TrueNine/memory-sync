@@ -73,35 +73,6 @@ pub fn remove_blocking_file(blocking_path: &str) -> Result<bool, String> {
   }
 }
 
-#[cfg(feature = "napi")]
-mod napi_binding {
-  use napi_derive::napi;
-
-  #[napi(js_name = "isDirectoryStructureMismatchError")]
-  pub fn is_directory_structure_mismatch_error_binding(error: String) -> bool {
-    super::is_directory_structure_mismatch_error(&error)
-  }
-
-  #[napi(js_name = "findBlockingNonDirectoryPath")]
-  pub fn find_blocking_non_directory_path_binding(expected_dir_path: String) -> Option<String> {
-    super::find_blocking_non_directory_path(&expected_dir_path)
-  }
-
-  #[napi(js_name = "resolveBlockingFilePath")]
-  pub fn resolve_blocking_file_path_binding(
-    path: String,
-    target_kind: String,
-    error: String,
-  ) -> Option<String> {
-    super::resolve_blocking_file_path(&path, &target_kind, &error)
-  }
-
-  #[napi(js_name = "removeBlockingFile")]
-  pub fn remove_blocking_file_binding(blocking_path: String) -> napi::Result<bool> {
-    super::remove_blocking_file(&blocking_path).map_err(|e| napi::Error::from_reason(e))
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
