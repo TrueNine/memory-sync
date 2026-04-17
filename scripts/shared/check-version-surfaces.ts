@@ -98,6 +98,7 @@ function checkCargoLockVersions(relativePath: string, packageNames: readonly str
 try {
   checkJsonVersion('package.json')
   checkJsonVersion('cli/package.json')
+  checkJsonVersion('mcp/package.json')
   checkJsonVersion('gui/package.json')
   checkJsonVersion('doc/package.json')
   checkJsonVersion('gui/src-tauri/tauri.conf.json')
@@ -105,6 +106,11 @@ try {
   for (const entry of readdirSync(path.join(rootDir, 'cli', 'npm'), {withFileTypes: true})) {
     if (!entry.isDirectory()) continue
     checkJsonVersion(path.join('cli', 'npm', entry.name, 'package.json'))
+  }
+
+  for (const entry of readdirSync(path.join(rootDir, 'mcp', 'npm'), {withFileTypes: true})) {
+    if (!entry.isDirectory()) continue
+    checkJsonVersion(path.join('mcp', 'npm', entry.name, 'package.json'))
   }
 
   checkWorkspaceCargoVersion('Cargo.toml', 'workspace.package')
