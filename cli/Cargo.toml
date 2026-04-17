@@ -12,7 +12,18 @@ repository.workspace = true
 name = "tnmsc"
 path = "src/main.rs"
 
+[[test]]
+name = "command_contract"
+path = "integration-tests/command_contract.rs"
+
+[[test]]
+name = "packaging_smoke"
+path = "integration-tests/packaging_smoke.rs"
+
 [dependencies]
 tnmsc = { workspace = true }
 clap = { workspace = true }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+testcontainers = { version = "0.27.3", features = ["blocking"] }

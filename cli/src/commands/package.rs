@@ -151,11 +151,17 @@ fn find_target(suffix: &str) -> &'static PackageTarget {
 }
 
 fn package_root() -> PathBuf {
-  PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+  std::env::var_os("TNMSC_NPM_PACKAGE_ROOT")
+    .map(PathBuf::from)
+    .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
 }
 
 fn workspace_root() -> PathBuf {
-  package_root()
+  if let Some(path) = std::env::var_os("TNMSC_WORKSPACE_ROOT") {
+    return PathBuf::from(path);
+  }
+
+  PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     .parent()
     .expect("cli crate should always live under the workspace root")
     .to_path_buf()
