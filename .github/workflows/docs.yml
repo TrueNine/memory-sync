@@ -1,14 +1,28 @@
-name: Deploy Docs
+name: Docs
 
 on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - doc/**
+      - .github/actions/setup-node-pnpm/action.yml
+      - .github/workflows/ci.yml
+      - .github/workflows/docs.yml
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
   push:
     branches:
       - main
     paths:
       - doc/**
       - .github/actions/setup-node-pnpm/action.yml
-      - .github/workflows/deploy-doc.yml
-      - .github/workflows/pull-request-doc.yml
+      - .github/workflows/ci.yml
+      - .github/workflows/docs.yml
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
@@ -18,19 +32,43 @@ on:
 permissions:
   contents: read
 
-env:
-  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
 concurrency:
-  group: deploy-doc-${{ github.ref }}
+  group: docs-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy-doc:
+  docs-site-check:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-filter: "@truenine/memory-sync-docs..."
+
+      - name: Validate docs content
+        run: pnpm -C doc run validate:content
+
+      - name: Lint docs
+        run: pnpm -C doc run lint
+
+      - name: Typecheck docs
+        run: pnpm -C doc run check:type
+
+      - name: Build docs
+        run: pnpm -C doc run build
+
+  deploy-docs:
+    needs: docs-site-check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v6
 
@@ -57,12 +95,6 @@ jobs:
             echo "::error::VERCEL_PROJECT_ID is missing."
             exit 1
           fi
-
-      - name: Lint docs
-        run: pnpm -C doc run lint
-
-      - name: Typecheck docs
-        run: pnpm -C doc run check:type
 
       - name: Pull Vercel production settings
         run: pnpm dlx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"

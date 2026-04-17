@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import markdownOutput from '../../scripts/markdown-output'
+import markdownOutput from '../../scripts/shared/markdown-output'
 
 const {writeError, writeMarkdownBlock} = markdownOutput
 

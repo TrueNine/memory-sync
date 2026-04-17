@@ -29,8 +29,12 @@
     "ruleset-sync"
   ],
   "scripts": {
+    "bootstrap": "tsx scripts/bootstrap/bootstrap.ts",
     "build": "turbo run build --ui=stream --log-order=grouped",
     "test": "turbo run test --ui=stream --log-order=grouped",
+    "test:rust": "cargo test --workspace --exclude memory-sync-gui --lib --bins --tests",
+    "test:gui": "pnpm -C gui test",
+    "test:docs": "pnpm -C doc run validate:content && pnpm -C doc run build",
     "test:cli:integration": "cargo test -p tnmsc-cli-shell",
     "test:cli:contracts": "cargo test -p tnmsc-cli-shell --test command_contract",
     "test:cli:packaging-smoke": "cargo test -p tnmsc-cli-shell --test packaging_smoke -- --nocapture",
@@ -39,10 +43,7 @@
     "check:type": "turbo run check:type --ui=stream --log-order=grouped",
     "dev:doc": "pnpm -C doc dev",
     "build:doc": "pnpm -C doc build",
-    "sync-versions": "tsx .githooks/sync-versions.ts",
-    "install:rust-deps": "tsx scripts/install-rust-deps.ts",
-    "build:native": "tsx scripts/build-native.ts",
-    "postinstall": "tsx scripts/postinstall.ts"
+    "sync-versions": "tsx .githooks/sync-versions.ts"
   },
   "author": {
     "email": "truenine304520@gmail.com",
@@ -83,6 +84,7 @@
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vite": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zx": "catalog:"
   }
 }

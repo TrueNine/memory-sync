@@ -317,11 +317,14 @@ SDK 的构建是一个多阶段的有序流水线，从 Rust 源码到最终的 
   首先并行构建三个 workspace libraries 的 TypeScript 和 Native binding：
 
   ```bash
-  # TypeScript 编译（并行）
-  pnpm -F @truenine/memory-sync-sdk run build:ts
+  # 显式初始化本地开发环境
+  pnpm run bootstrap
 
-  # Native binding 构建（按依赖顺序）
-  pnpm -F @truenine/memory-sync-sdk run build:native
+  # Rust workspace 构建
+  cargo build --workspace --exclude memory-sync-gui --release
+
+  # CLI schema 与 npm 包装层
+  pnpm -F @truenine/memory-sync-cli run build
   ```
 
   此阶段产出：
@@ -329,50 +332,40 @@ SDK 的构建是一个多阶段的有序流水线，从 Rust 源码到最终的 
   - `sdk/src/md-compiler/dist/index.js` + `napi-memory-sync-cli.*.node`
   - `sdk/src/libraries/script-runtime/dist/index.js` + `napi-memory-sync-cli.*.node`
 
-  ### Step 2: SDK Native Binding 编译
+  ### Step 2: Rust Workspace 编译
 
-  编译 SDK 自身的 Rust crate (`tnmsc`) 并生成 NAPI 制品：
+  编译 `tnmsc`、CLI shell、MCP server 与 GUI shell 对应的 Rust crate：
 
   ```bash
-  napi build --platform --release --output-dir dist -- --features napi
+  cargo build --workspace --exclude memory-sync-gui --release
   ```
 
   此步骤会：
-  - 执行 `cargo build --release` 编译 Rust 源码（链接三个 libraries 的 crate）
-  - 生成平台特定的 `.node` 二进制文件到 `sdk/dist/`
+  - 执行统一的 workspace Rust 构建
+  - 生成 CLI、MCP 与 GUI 所需的原生产物
 
-  ### Step 3: NAPI 制品复制
+  ### Step 3: CLI 包装层装配
 
-  将各 library 和 SDK 的 NAPI 二进制文件集中复制到目标位置：
-
-  ```bash
-  tsx ../scripts/copy-napi.ts
-  ```
-
-  ### Step 4: TypeScript 打包与 Bundle
-
-  使用 tsdown/esbuild 将 SDK 的 TypeScript 源码打包为 ESM 输出：
+  由 CLI crate 负责 schema 导出与 npm 子包装配：
 
   ```bash
-  tsx ../scripts/build-quiet.ts   # bundle
-  tsx scripts/finalize-bundle.ts  # finalize:bundle
+  pnpm -F @truenine/memory-sync-cli run build
   ```
 
-  此阶段产出 `sdk/dist/index.mjs` 和 `sdk/dist/index.d.mts`。
+  ### Step 4: GUI / Docs 前端构建
 
-  ### Step 5: Schema 生成
-
-  从 Zod schema 定义生成 JSON Schema：
+  GUI 和 docs 各自在包内维持私有脚本，根目录只负责 monorepo 编排：
 
   ```bash
-  tsx scripts/generate-schema.ts
+  pnpm -C gui build
+  pnpm -C doc run build
   ```
 
-  产出 `sdk/dist/tnmsc.schema.json`，可通过 `@truenine/memory-sync-sdk/schema.json` 导出。
+  此阶段分别产出 GUI 前端 bundle 与 docs 站点产物。
 </Steps>
 
 <Callout type="info">
-**构建脚本速查**：所有构建步骤已封装在 `sdk/package.json` 的 `scripts.build` 中，顶层命令 `pnpm -F @truenine/memory-sync-sdk run build` 会按正确顺序执行全部 5 个阶段。
+**构建脚本速查**：当前仓库的权威入口已经收敛到根级 `pnpm run bootstrap`、`pnpm run build`、`pnpm run test` 与各包自己的 `package.json`/`Cargo.toml`。
 </Callout>
 
 ---
@@ -396,10 +389,7 @@ memory-sync/
 │   │   ├── ConfigLoader.ts                # 配置加载 (使用 logger)
 │   │   └── runtime-environment.ts         # 运行时环境 (使用 logger)
 │   ├── Cargo.toml                         # Rust crate 定义 (tnmsc)
-│   ├── package.json                       # npm 包定义 (@truenine/memory-sync-sdk)
-│   └── scripts/
-│       ├── generate-schema.ts             # Schema 生成
-│       └── finalize-bundle.ts             # Bundle 后处理
+│   └── Cargo.lock                         # Rust 依赖锁文件
 │
 ├── sdk/src/ 内部库结构                   # Rust-first 内部库
 │   ├── libraries/                            # TypeScript facade
@@ -605,9 +595,9 @@ TypeScript 层的价值，不只是“把 Rust 包起来”。
 
   ### 4. 集成到 SDK
 
-  - 在 `sdk/package.json` 的 `dependencies` 中添加 workspace 依赖
+  - 在对应 crate 或 package 的 manifest 中声明依赖
   - 在 `sdk/src/` 中创建对应的适配/编排模块
-  - 更新 `sdk/scripts/build` 中的依赖构建步骤
+  - 如需新增自动化入口，优先放进包内脚本或 `scripts/`
 
   ### 5. 编写文档
 

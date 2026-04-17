@@ -5,7 +5,7 @@ pull_request_rules:
       - base = dev
       - -draft
       - files ~= ^doc/
-      - check-success = check-doc
+      - check-success = docs-check
     actions:
       review:
         type: APPROVE
@@ -18,18 +18,7 @@ pull_request_rules:
       - author = dependabot[bot]
       - base = dev
       - -draft
-      - check-success = release-preflight
-      - check-success = gui-release-preflight
-      - check-success = build
-      - check-success = lint
-      - check-success = check-type
-      - check-success = test
-      - check-success = test-gui
-      - check-success = test-sdk
-      - check-success = test-cli
-      - check-success = test-mcp
-      - check-success = test-libraries
-      - check-success = test-rust
+      - check-success = validate-monorepo
     actions:
       review:
         type: APPROVE

@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation and setup guide
-    url: https://github.com/TrueNine/memory-sync/tree/main/doc
+    url: https://memory-sync-docs.vercel.app/docs
     about: Read the docs and setup references before opening a support issue.
   - name: Security policy
     url: https://github.com/TrueNine/memory-sync/security/policy

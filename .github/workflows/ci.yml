@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+      gui: ${{ steps.filter.outputs.gui }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docs:
+              - 'doc/**'
+              - '.github/actions/setup-node-pnpm/action.yml'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/docs.yml'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+            gui:
+              - 'gui/**'
+              - '.github/actions/build-gui-platform/action.yml'
+              - '.github/actions/setup-tauri/action.yml'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/release.yml'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+
+  validate-monorepo:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: ci
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run check:type
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Rust tests
+        run: cargo test --workspace --exclude memory-sync-gui --lib --bins --tests
+
+  gui-smoke:
+    needs: changes
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
+      needs.changes.outputs.gui == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Read GUI version
+        id: gui-version
+        run: |
+          version="$(node -p 'require("./gui/package.json").version')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/setup-tauri
+        with:
+          version: ${{ steps.gui-version.outputs.version }}
+
+      - name: Build GUI
+        run: pnpm -C gui build
+
+      - name: Test GUI
+        run: pnpm -C gui test
+
+  docs-check:
+    needs: changes
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
+      needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-filter: "@truenine/memory-sync-docs..."
+
+      - name: Validate docs content
+        run: pnpm -C doc run validate:content
+
+      - name: Lint docs
+        run: pnpm -C doc run lint
+
+      - name: Typecheck docs
+        run: pnpm -C doc run check:type
+
+      - name: Build docs
+        run: pnpm -C doc run build

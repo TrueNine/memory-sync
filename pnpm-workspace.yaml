@@ -84,3 +84,4 @@ catalog:
   yaml: ^2.8.3
   zod: ^4.3.6
   zod-to-json-schema: ^3.25.2
+  zx: ^8.8.4

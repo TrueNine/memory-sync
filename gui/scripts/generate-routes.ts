@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 import { Generator, getConfig } from '@tanstack/router-generator'
 import { resolve } from 'node:path'
-import markdownOutput from '../../scripts/markdown-output'
+import markdownOutput from '../../scripts/shared/markdown-output'
 
 const {writeMarkdownBlock} = markdownOutput
 
