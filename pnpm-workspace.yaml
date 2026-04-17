@@ -1,7 +1,6 @@
 packages:
   - cli
   - cli/npm/*
-  - cli-integration-test
   - gui
   - doc
 
