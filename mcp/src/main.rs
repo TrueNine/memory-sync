@@ -1,9 +1,9 @@
 use std::io::{BufRead, Write};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tnmsc::{
-  get_prompt, list_prompts, upsert_prompt_source, write_prompt_artifacts, ListPromptsOptions,
-  PromptServiceOptions, UpsertPromptSourceInput, WritePromptArtifactsInput,
+  ListPromptsOptions, PromptServiceOptions, UpsertPromptSourceInput, WritePromptArtifactsInput,
+  get_prompt, list_prompts, upsert_prompt_source, write_prompt_artifacts,
 };
 
 const SERVER_NAME: &str = "@truenine/memory-sync-mcp";

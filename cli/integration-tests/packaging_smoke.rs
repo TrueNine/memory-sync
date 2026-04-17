@@ -5,7 +5,7 @@ use std::fs;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-use support::{pack_cli_artifacts, quote_shell, TestContainer};
+use support::install_packaged_cli_container;
 
 #[test]
 fn packaging_smoke_covers_release_binary_and_global_install() {
@@ -48,16 +48,7 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
     );
   }
 
-  let artifacts = pack_cli_artifacts();
-  let container = TestContainer::start(&artifacts);
-
-  let install_command = format!(
-    "corepack enable && corepack prepare pnpm@{} --activate && pnpm add -g {} {}",
-    quote_shell(support::pnpm_version()),
-    quote_shell("/artifacts/cli.tgz"),
-    quote_shell("/artifacts/linux-x64-gnu.tgz")
-  );
-  container.exec_success(&install_command);
+  let container = install_packaged_cli_container();
 
   let help = container.exec("tnmsc help");
   help.assert_success("global tnmsc help");

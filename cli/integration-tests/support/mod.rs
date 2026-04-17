@@ -329,6 +329,28 @@ pub fn pack_cli_artifacts() -> PackedArtifacts {
   }
 }
 
+pub fn install_packaged_cli_container() -> TestContainer {
+  let artifacts = pack_cli_artifacts();
+  let container = TestContainer::start(&artifacts);
+  let install_command = format!(
+    "corepack enable && corepack prepare pnpm@{} --activate && pnpm add -g {} {}",
+    quote_shell(pnpm_version()),
+    quote_shell("/artifacts/cli.tgz"),
+    quote_shell("/artifacts/linux-x64-gnu.tgz")
+  );
+  container.exec_success(&install_command);
+  container
+}
+
+pub fn tnmsc_command(args: &[&str]) -> String {
+  let mut command = String::from("tnmsc");
+  for arg in args {
+    command.push(' ');
+    command.push_str(&quote_shell(arg));
+  }
+  command
+}
+
 pub fn quote_shell(value: &str) -> String {
   format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
