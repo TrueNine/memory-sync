@@ -147,6 +147,96 @@ jobs:
           path: ${{ matrix.archive }}
           if-no-files-found: error
 
+  build-mcp-binaries:
+    needs: validate-version
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rust_target: x86_64-unknown-linux-gnu
+            suffix: linux-x64-gnu
+            binary: memory-sync-mcp
+            archive: memory-sync-mcp-linux-x86_64.tar.gz
+          - os: ubuntu-24.04
+            rust_target: aarch64-unknown-linux-gnu
+            suffix: linux-arm64-gnu
+            binary: memory-sync-mcp
+            archive: memory-sync-mcp-linux-aarch64.tar.gz
+            cross: true
+          - os: macos-14
+            rust_target: aarch64-apple-darwin
+            suffix: darwin-arm64
+            binary: memory-sync-mcp
+            archive: memory-sync-mcp-darwin-aarch64.tar.gz
+          - os: macos-14
+            rust_target: x86_64-apple-darwin
+            suffix: darwin-x64
+            binary: memory-sync-mcp
+            archive: memory-sync-mcp-darwin-x86_64.tar.gz
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            suffix: win32-x64-msvc
+            binary: memory-sync-mcp.exe
+            archive: memory-sync-mcp-windows-x86_64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.rust_target }}
+          cache-key: release-mcp-${{ matrix.rust_target }}
+
+      - name: Setup cross-compile
+        if: matrix.cross
+        uses: ./.github/actions/setup-cross-compile
+
+      - name: Build memory-sync-mcp binary
+        run: cargo build --release --target ${{ matrix.rust_target }} -p tnmsm
+
+      - name: Run native tests
+        if: ${{ !matrix.cross }}
+        run: cargo test --release --target ${{ matrix.rust_target }} -p tnmsm
+
+      - name: Package binaries (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw_dir="mcp-artifacts/${{ matrix.suffix }}"
+          binary_path="target/${{ matrix.rust_target }}/release/${{ matrix.binary }}"
+          mkdir -p "$raw_dir"
+          cp "$binary_path" "$raw_dir/"
+          node -e 'const fs=require("node:fs"); const size=fs.statSync(process.argv[1]).size; if (size < 131072) { throw new Error(`Binary too small: ${size}`) }' "$raw_dir/${{ matrix.binary }}"
+          tar czf "${{ matrix.archive }}" -C "$raw_dir" "${{ matrix.binary }}"
+
+      - name: Package binaries (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $rawDir = "mcp-artifacts/${{ matrix.suffix }}"
+          $binaryPath = "target/${{ matrix.rust_target }}/release/${{ matrix.binary }}"
+          New-Item -ItemType Directory -Force -Path $rawDir | Out-Null
+          Copy-Item $binaryPath "$rawDir/${{ matrix.binary }}"
+          node -e "const fs=require('node:fs'); const size=fs.statSync(process.argv[1]).size; if (size < 131072) { throw new Error('Binary too small: ' + size) }" "$rawDir/${{ matrix.binary }}"
+          Compress-Archive -Path "$rawDir/*" -DestinationPath "${{ matrix.archive }}"
+
+      - name: Upload raw binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-binary-${{ matrix.suffix }}
+          path: mcp-artifacts/${{ matrix.suffix }}/
+          if-no-files-found: error
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-archive-${{ matrix.suffix }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
   publish-cli-npm:
     needs: [validate-version, build-cli-binaries]
     runs-on: ubuntu-24.04
@@ -218,6 +308,77 @@ jobs:
           registry-url: ${{ env.NPM_REGISTRY_URL }}
           package-dir: cli
 
+  publish-mcp-npm:
+    needs: [validate-version, build-mcp-binaries]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: release-mcp-publish
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
+
+      - name: Preflight npm auth
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
+            echo "::error::NPM_TOKEN is missing."
+            exit 1
+          fi
+
+          npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
+          npm whoami --registry "${NPM_REGISTRY_URL}"
+
+      - name: Download raw MCP binaries
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: mcp-binary-*
+
+      - name: Assemble MCP npm package contents
+        run: cargo run --manifest-path mcp/Cargo.toml --bin memory-sync-mcp -- assemble-npm --artifacts-dir artifacts
+
+      - name: Validate platform packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          for target_dir in mcp/npm/*/; do
+            if [[ ! -f "${target_dir}package.json" ]]; then
+              echo "::error::Missing ${target_dir}package.json"
+              exit 1
+            fi
+            if ! find "${target_dir}bin" -type f \( -name 'memory-sync-mcp' -o -name 'memory-sync-mcp.exe' \) | grep -q .; then
+              echo "::error::Missing binary in ${target_dir}"
+              exit 1
+            fi
+          done
+
+      - name: Publish MCP platform packages
+        uses: ./.github/actions/npm-publish-package
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
+          package-dir: mcp/npm
+
+      - name: Build MCP package
+        run: pnpm -F @truenine/memory-sync-mcp run build
+
+      - name: Publish MCP package
+        uses: ./.github/actions/npm-publish-package
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
+          package-dir: mcp
+
   build-gui:
     needs: validate-version
     strategy:
@@ -272,7 +433,7 @@ jobs:
           version: ${{ needs.validate-version.outputs.version }}
 
   create-github-release:
-    needs: [validate-version, build-cli-binaries, publish-cli-npm, build-gui]
+    needs: [validate-version, build-cli-binaries, build-mcp-binaries, publish-cli-npm, publish-mcp-npm, build-gui]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -290,6 +451,13 @@ jobs:
           pattern: cli-archive-*
           merge-multiple: true
 
+      - name: Download MCP archive artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts/mcp
+          pattern: mcp-archive-*
+          merge-multiple: true
+
       - name: Clean up unnecessary macOS artifacts
         shell: bash
         run: |
@@ -304,6 +472,7 @@ jobs:
           installer_count=$(find artifacts/gui -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) | wc -l | tr -d ' ')
           updater_count=$(find artifacts/gui -type f \( -name '*.sig' -o -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
           cli_archive_count=$(find artifacts/cli -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
+          mcp_archive_count=$(find artifacts/mcp -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
 
           if [[ "$installer_count" -eq 0 ]]; then
             echo "::error::No GUI installer artifacts were downloaded."
@@ -317,6 +486,11 @@ jobs:
 
           if [[ "$cli_archive_count" -ne 5 ]]; then
             echo "::error::Expected 5 CLI archives, found ${cli_archive_count}."
+            exit 1
+          fi
+
+          if [[ "$mcp_archive_count" -ne 5 ]]; then
+            echo "::error::Expected 5 MCP archives, found ${mcp_archive_count}."
             exit 1
           fi
 
@@ -337,5 +511,7 @@ jobs:
             artifacts/gui/**/*.zip
             artifacts/cli/**/*.tar.gz
             artifacts/cli/**/*.zip
+            artifacts/mcp/**/*.tar.gz
+            artifacts/mcp/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
