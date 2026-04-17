@@ -6,6 +6,7 @@
 
 pub mod core;
 pub(crate) mod diagnostic_helpers;
+mod install_runtime;
 #[path = "native_md_compiler/lib.rs"]
 pub mod md_compiler;
 pub mod native_logger;
@@ -148,8 +149,7 @@ fn pure_rust_cli_pipeline_not_implemented(command: &str) -> CliError {
 
 /// Execute the install pipeline through the native crate facade.
 pub fn install(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  let _ = options;
-  Err(pure_rust_cli_pipeline_not_implemented("install"))
+  install_runtime::install(options)
 }
 
 /// Execute the dry-run pipeline through the native crate facade.
