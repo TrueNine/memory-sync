@@ -1,8 +1,6 @@
-//! Series-based filtering helpers (NAPI-exported).
+//! Series-based filtering helpers.
 //!
 //! Mirrors the pure-TS implementations in `seriesFilter.ts`.
-//! Each function is gated behind the `napi` feature so the crate
-//! still compiles as a plain Rust library without Node bindings.
 
 use std::collections::{HashMap, HashSet};
 

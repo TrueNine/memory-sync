@@ -25,5 +25,3 @@ pub use toml_artifact::{
   build_toml_document,
 };
 pub use transformer::ProcessingContext;
-
-#[cfg(test)] // mod napi_binding

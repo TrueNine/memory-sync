@@ -12,6 +12,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -65,7 +66,7 @@ fn path_error_details(path: &Path, error: &str) -> Option<serde_json::Map<String
 // ---------------------------------------------------------------------------
 
 /// A source/dist path pair. Both paths are relative to the aindex project root.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct DirPair {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub src: Option<String>,
@@ -96,7 +97,7 @@ fn default_dir_pair(src: &str, dist: &str) -> DirPair {
 
 /// Internal fixed aindex directory layout.
 /// All paths are relative to `<workspaceDir>/aindex`.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AindexConfig {
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -168,7 +169,7 @@ fn is_default_aindex_config(config: &AindexConfig) -> bool {
 }
 
 /// Per-plugin fast command series override options.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FastCommandSeriesPluginOverride {
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -178,7 +179,7 @@ pub struct FastCommandSeriesPluginOverride {
 }
 
 /// Fast command series configuration options.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FastCommandSeriesOptions {
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -188,7 +189,7 @@ pub struct FastCommandSeriesOptions {
 }
 
 /// User profile information. Supports arbitrary key-value pairs.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct UserProfile {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub name: Option<String>,
@@ -202,14 +203,14 @@ pub struct UserProfile {
   pub extra: HashMap<String, Value>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum CodeStyleIndent {
   Tab,
   Space,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeStyles {
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -250,28 +251,29 @@ fn normalize_user_config(mut config: UserConfigFile) -> UserConfigFile {
   config
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(untagged)]
+#[schemars(untagged)]
 pub enum StringOrStrings {
   Single(String),
   Multiple(Vec<String>),
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowsWsl2Options {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub instances: Option<StringOrStrings>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowsOptions {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub wsl2: Option<WindowsWsl2Options>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PluginsConfig {
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -316,7 +318,7 @@ pub struct PluginsConfig {
 
 /// User configuration file (.tnmsc.json).
 /// All fields are optional — missing fields use default values.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserConfigFile {
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1762,192 +1764,5 @@ mod tests {
       Err(error) => panic!("failed to read retained config: {error}"),
     };
     assert_eq!(retained, invalid_content);
-  }
-}
-
-// ===========================================================================
-// NAPI binding layer (only compiled with --features napi)
-// ===========================================================================
-
-#[cfg(feature = "napi")]
-mod napi_binding {
-  use super::*;
-  use napi_derive::napi;
-
-  /// Load and merge user configuration from the given cwd directory.
-  /// Returns the merged config as a JSON string.
-  #[napi]
-  pub fn load_user_config(cwd: String) -> napi::Result<String> {
-    let path = std::path::Path::new(&cwd);
-    let result = super::load_user_config(path).map_err(napi::Error::from_reason)?;
-    serde_json::to_string(&result.config).map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  /// Merge two config JSON strings. `over` fields take priority over `base`.
-  #[napi]
-  pub fn merge_configs(base_json: String, over_json: String) -> napi::Result<String> {
-    let base: UserConfigFile = serde_json::from_str(&base_json)
-      .map_err(|e| napi::Error::from_reason(format!("base: {e}")))?;
-    let over: UserConfigFile = serde_json::from_str(&over_json)
-      .map_err(|e| napi::Error::from_reason(format!("over: {e}")))?;
-    let merged = merge_configs_pair(&base, &over);
-    serde_json::to_string(&merged).map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  /// Load config from a specific file path. Returns JSON string or null if not found.
-  #[napi]
-  pub fn load_config_from_file(file_path: String) -> napi::Result<Option<String>> {
-    let loader = ConfigLoader::with_defaults();
-    let result = loader
-      .load_from_file(std::path::Path::new(&file_path))
-      .map_err(|e| napi::Error::from_reason(e))?;
-    if !result.found {
-      return Ok(None);
-    }
-    let json =
-      serde_json::to_string(&result.config).map_err(|e| napi::Error::from_reason(e.to_string()))?;
-    Ok(Some(json))
-  }
-
-  fn node_platform() -> &'static str {
-    match std::env::consts::OS {
-      "windows" => "win32",
-      "macos" => "darwin",
-      other => other,
-    }
-  }
-
-  #[napi(js_name = "resolveRuntimeEnvironment")]
-  pub fn resolve_runtime_environment_binding() -> napi::Result<String> {
-    let ctx = super::resolve_runtime_environment();
-    let platform = node_platform().to_string();
-    let is_wsl = ctx.is_wsl;
-    let native_home_dir = ctx
-      .native_home_dir
-      .as_ref()
-      .map(|p| p.to_string_lossy().into_owned())
-      .unwrap_or_else(|| ".".to_string());
-    let effective_home_dir = ctx
-      .effective_home_dir
-      .as_ref()
-      .map(|p| p.to_string_lossy().into_owned())
-      .unwrap_or_else(|| native_home_dir.clone());
-
-    let global_config_candidates: Vec<String> = if is_wsl {
-      super::find_wsl_host_global_config_paths_with_root(&ctx.windows_users_root)
-        .into_iter()
-        .map(|p| p.to_string_lossy().into_owned())
-        .collect()
-    } else {
-      Vec::new()
-    };
-
-    let selected_global_config_path: Option<String> = ctx
-      .selected_global_config_path
-      .as_ref()
-      .map(|p| p.to_string_lossy().into_owned());
-
-    let wsl_host_home_dir: Option<String> = if is_wsl {
-      Some(effective_home_dir.clone())
-    } else {
-      None
-    };
-
-    let windows_users_root = ctx.windows_users_root.to_string_lossy().into_owned();
-
-    let mut expanded_env: HashMap<String, String> = std::env::vars().collect();
-    if effective_home_dir != native_home_dir {
-      expanded_env.insert("HOME".to_string(), effective_home_dir.clone());
-      expanded_env.insert("USERPROFILE".to_string(), effective_home_dir.clone());
-      if effective_home_dir.starts_with("/mnt/") {
-        let rest = &effective_home_dir[5..];
-        if let Some((drive, path)) = rest.split_once('/') {
-          if drive.len() == 1 {
-            expanded_env.insert(
-              "HOMEDRIVE".to_string(),
-              format!("{}:", drive.to_uppercase()),
-            );
-            expanded_env.insert(
-              "HOMEPATH".to_string(),
-              format!("\\{}", path.replace('/', "\\")),
-            );
-          }
-        }
-      }
-    }
-
-    #[derive(Serialize)]
-    #[allow(non_snake_case)]
-    struct RuntimeEnvironmentJson {
-      platform: String,
-      isWsl: bool,
-      nativeHomeDir: String,
-      effectiveHomeDir: String,
-      globalConfigCandidates: Vec<String>,
-      #[serde(skip_serializing_if = "Option::is_none")]
-      selectedGlobalConfigPath: Option<String>,
-      #[serde(skip_serializing_if = "Option::is_none")]
-      wslHostHomeDir: Option<String>,
-      windowsUsersRoot: String,
-      expandedEnv: HashMap<String, String>,
-    }
-
-    let json = RuntimeEnvironmentJson {
-      platform,
-      isWsl: is_wsl,
-      nativeHomeDir: native_home_dir,
-      effectiveHomeDir: effective_home_dir,
-      globalConfigCandidates: global_config_candidates,
-      selectedGlobalConfigPath: selected_global_config_path,
-      wslHostHomeDir: wsl_host_home_dir,
-      windowsUsersRoot: windows_users_root,
-      expandedEnv: expanded_env,
-    };
-
-    serde_json::to_string(&json).map_err(|e| napi::Error::from_reason(e.to_string()))
-  }
-
-  #[napi(js_name = "getEffectiveHomeDir")]
-  pub fn get_effective_home_dir_binding() -> napi::Result<String> {
-    let ctx = super::resolve_runtime_environment();
-    let home = ctx
-      .effective_home_dir
-      .or(ctx.native_home_dir)
-      .map(|p| p.to_string_lossy().into_owned())
-      .unwrap_or_else(|| ".".to_string());
-    Ok(home)
-  }
-
-  #[napi(js_name = "getGlobalConfigPath")]
-  pub fn get_global_config_path_binding() -> napi::Result<String> {
-    Ok(
-      super::get_global_config_path()
-        .to_string_lossy()
-        .into_owned(),
-    )
-  }
-
-  #[napi(js_name = "getRequiredGlobalConfigPath")]
-  pub fn get_required_global_config_path_binding() -> napi::Result<String> {
-    super::get_required_global_config_path()
-      .map(|p| p.to_string_lossy().into_owned())
-      .map_err(napi::Error::from_reason)
-  }
-
-  #[napi(js_name = "isWslRuntime")]
-  pub fn is_wsl_runtime_binding() -> bool {
-    super::is_wsl_runtime()
-  }
-
-  #[napi(js_name = "findWslHostGlobalConfigPaths")]
-  pub fn find_wsl_host_global_config_paths_binding() -> napi::Result<Vec<String>> {
-    let users_root = std::path::PathBuf::from(super::DEFAULT_WSL_WINDOWS_USERS_ROOT);
-    let paths = super::find_wsl_host_global_config_paths_with_root(&users_root);
-    Ok(
-      paths
-        .into_iter()
-        .map(|p| p.to_string_lossy().into_owned())
-        .collect(),
-    )
   }
 }
