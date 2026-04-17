@@ -250,7 +250,7 @@ pub(crate) fn install(
 ) -> Result<MemorySyncCommandResult, CliError> {
   let cwd = resolve_cwd(options.cwd.as_deref())?;
   let config_result = load_config(&cwd, options.load_user_config)?;
-  let workspace_dir = resolve_workspace_dir(&cwd, &config_result.config);
+  let workspace_dir = resolve_workspace_dir(&cwd, &config_result.config)?;
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
   let global_scope = build_global_scope(&config_result.config);
   let enabled_plugins = EnabledPlugins::from_config(config_result.config.plugins.as_ref());
@@ -288,17 +288,29 @@ fn load_config(
     });
   }
 
-  ConfigLoader::with_defaults()
+  let result = ConfigLoader::with_defaults()
     .try_load(cwd)
-    .map_err(CliError::ConfigError)
+    .map_err(CliError::ConfigError)?;
+
+  if !result.found {
+    let config_path = config::get_required_global_config_path()
+      .unwrap_or_else(|_| config::get_global_config_path());
+    return Err(CliError::ConfigError(format!(
+      "Required config file not found at {}. Please create it before running tnmsc.",
+      config_path.display()
+    )));
+  }
+
+  Ok(result)
 }
 
-fn resolve_workspace_dir(cwd: &Path, config: &UserConfigFile) -> PathBuf {
-  let configured = config
-    .workspace_dir
-    .as_deref()
-    .map(config::resolve_workspace_dir);
-  configured.unwrap_or_else(|| config::resolve_workspace_dir(&cwd.to_string_lossy()))
+fn resolve_workspace_dir(_cwd: &Path, config: &UserConfigFile) -> Result<PathBuf, CliError> {
+  match config.workspace_dir.as_deref() {
+    Some(dir) => Ok(config::resolve_workspace_dir(dir)),
+    None => Err(CliError::ConfigError(
+      "workspaceDir is required but was not configured. Please set workspaceDir in your .tnmsc.json config file.".to_string(),
+    )),
+  }
 }
 
 fn build_global_scope(config: &UserConfigFile) -> Option<Value> {
@@ -725,4 +737,77 @@ fn count_missing_directories(dir: &Path) -> usize {
   }
 
   missing.len()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::path::PathBuf;
+
+  #[test]
+  fn test_resolve_workspace_dir_returns_configured_path() {
+    let cwd = PathBuf::from("/some/cwd");
+    let config = crate::core::config::UserConfigFile {
+      workspace_dir: Some("/configured/workspace".to_string()),
+      ..Default::default()
+    };
+    let result = resolve_workspace_dir(&cwd, &config);
+    assert!(result.is_ok(), "should succeed when workspace_dir is configured");
+    assert!(
+      result.unwrap().to_string_lossy().contains("workspace"),
+      "resolved path should contain the configured workspace dir"
+    );
+  }
+
+  #[test]
+  fn test_resolve_workspace_dir_errors_when_not_configured() {
+    let cwd = PathBuf::from("/some/cwd");
+    let config = crate::core::config::UserConfigFile::default();
+    let result = resolve_workspace_dir(&cwd, &config);
+    assert!(result.is_err(), "should error when workspace_dir is not configured");
+    let error = result.unwrap_err();
+    let message = error.to_string();
+    assert!(
+      message.contains("workspaceDir"),
+      "error message should mention workspaceDir, got: {message}"
+    );
+  }
+
+  #[test]
+  fn test_load_config_requires_config_file_to_be_found() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let cwd = temp_dir.path();
+    let result = load_config(cwd, None);
+    match &result {
+      Err(error) => {
+        let message = error.to_string();
+        assert!(
+          message.contains("not found"),
+          "error message should mention config not found, got: {message}"
+        );
+        assert!(
+          message.contains(".tnmsc.json"),
+          "error message should mention .tnmsc.json, got: {message}"
+        );
+      }
+      Ok(merged) if !merged.found => {
+        let ws_result = resolve_workspace_dir(cwd, &merged.config);
+        assert!(
+          ws_result.is_err(),
+          "when config file is not found, workspaceDir should be required"
+        );
+      }
+      Ok(_) => {}
+    }
+  }
+
+  #[test]
+  fn test_load_config_allows_explicit_skip() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let cwd = temp_dir.path();
+    let result = load_config(cwd, Some(false));
+    assert!(result.is_ok(), "should succeed when load_user_config is false");
+    let merged = result.unwrap();
+    assert!(!merged.found, "found should be false when skipping user config");
+  }
 }
