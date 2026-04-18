@@ -51,7 +51,6 @@ pub const NOT_IMPLEMENTED_CASES: &[CommandTestCase] = &[
 
 static PNPM_VERSION: OnceLock<String> = OnceLock::new();
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
-static DOCKER_IMAGE_READY: OnceLock<()> = OnceLock::new();
 
 pub struct CommandResult {
   pub status: i32,
@@ -153,20 +152,6 @@ impl TestContainer {
       "Linux tarball does not exist: {}",
       artifacts.linux_tarball.display()
     );
-
-    DOCKER_IMAGE_READY.get_or_init(|| {
-      let result = run_program(
-        "docker",
-        &["pull", &format!("{DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG}")],
-        &workspace_root(),
-      );
-      assert!(
-        result.status == 0,
-        "failed to pull docker image {DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG}\nstderr: {}\nstdout: {}",
-        result.stderr,
-        result.stdout
-      );
-    });
 
     let image = GenericImage::new(DOCKER_IMAGE_NAME, DOCKER_IMAGE_TAG)
       .with_wait_for(WaitFor::seconds(1))
