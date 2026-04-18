@@ -3,7 +3,7 @@ use std::fs;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-use tnmsm_integration_tests::{
+use tnmsm_integrate_tests::{
   create_staged_package_root, install_packaged_mcp_container, real_env_test_skip_reason,
   run_mcp_with_env, workspace_root,
 };

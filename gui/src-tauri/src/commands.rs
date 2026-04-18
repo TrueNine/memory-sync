@@ -272,7 +272,7 @@ fn resolve_category_paths(
     let dir_name = dir.map(|s| s.as_str()).unwrap_or(default_dir);
     CategoryPaths {
       source_rel: dir_name.to_string(),
-      translated_rel: dir_name.to_string(),
+      translated_rel: format!("dist/{}", dir_name),
     }
   };
 
@@ -378,7 +378,8 @@ fn collect_root_memory_prompt_pairs(
       .map(|s| s.as_str())
       .unwrap_or(default_dir)
       .replace('\\', "/");
-    (source_rel.clone(), source_rel)
+    let translated_rel = format!("dist/{}", source_rel.replace(".src.", "."));
+    (source_rel, translated_rel)
   })
   .collect()
 }

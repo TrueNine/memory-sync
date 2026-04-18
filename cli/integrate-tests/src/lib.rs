@@ -15,7 +15,7 @@ pub const DOCKER_IMAGE_TAG: &str = "22-trixie";
 const EXIT_MARKER: &str = "__TNMSC_EXIT_CODE__=";
 
 pub const EXPECTED_SUBCOMMANDS: &[&str] =
-  &["install", "dry-run", "clean", "plugins", "version", "help"];
+  &["install", "dry-run", "clean", "version", "help"];
 
 pub const PACKAGED_PLUGINS: &[&str] = &[
   "CodexCLIOutputAdaptor",
