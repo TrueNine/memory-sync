@@ -3,9 +3,9 @@ resolver = "2"
 members = [
   "sdk",
   "cli",
-  "cli/integration-tests",
+    "cli/integrate-tests",
   "mcp",
-  "mcp/integration-tests",
+  "mcp/integrate-tests",
   "gui/src-tauri",
 ]
 

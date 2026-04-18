@@ -23,7 +23,7 @@ cli/npm/**/*.node
 cli/npm/**/bin/
 cli/npm/**/tnmsc
 cli/npm/**/tnmsc.exe
-cli/integration-tests/.tmp/
+cli/integrate-tests/.tmp/
 libraries/**/dist/*.node
 **/target/
 !**/Cargo.lock

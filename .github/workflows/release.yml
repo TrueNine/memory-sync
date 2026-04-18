@@ -251,7 +251,7 @@ jobs:
           cache-key: release-cli-real-env
 
       - name: Run CLI real-env integration tests
-        run: cargo test -p tnmsc-integration-tests -- --nocapture
+        run: cargo test -p tnmsc-integrate-tests -- --nocapture
 
   mcp-real-env-integration:
     needs: validate-version
@@ -267,7 +267,7 @@ jobs:
           cache-key: release-mcp-real-env
 
       - name: Run MCP real-env integration tests
-        run: cargo test -p tnmsm-integration-tests -- --nocapture
+        run: cargo test -p tnmsm-integrate-tests -- --nocapture
 
   publish-cli-npm:
     needs: [validate-version, build-cli-binaries, cli-real-env-integration]

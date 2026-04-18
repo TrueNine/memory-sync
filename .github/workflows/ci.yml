@@ -74,7 +74,7 @@ jobs:
         run: pnpm run build
 
       - name: Rust tests
-        run: cargo test --workspace --exclude memory-sync-gui --exclude tnmsc-integration-tests --exclude tnmsm-integration-tests --lib --bins --tests
+        run: cargo test --workspace --exclude memory-sync-gui --exclude tnmsc-integrate-tests --exclude tnmsm-integrate-tests --lib --bins --tests
 
   rust-real-env-integration:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
@@ -90,10 +90,10 @@ jobs:
           cache-key: ci-real-env-integration
 
       - name: Run CLI real-env integration tests
-        run: cargo test -p tnmsc-integration-tests -- --nocapture
+        run: cargo test -p tnmsc-integrate-tests -- --nocapture
 
       - name: Run MCP real-env integration tests
-        run: cargo test -p tnmsm-integration-tests -- --nocapture
+        run: cargo test -p tnmsm-integrate-tests -- --nocapture
 
   gui-smoke:
     needs: changes

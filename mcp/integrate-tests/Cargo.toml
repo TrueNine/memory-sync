@@ -1,5 +1,5 @@
 [package]
-name = "tnmsm-integration-tests"
+name = "tnmsm-integrate-tests"
 publish = false
 version.workspace = true
 edition.workspace = true

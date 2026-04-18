@@ -4898,7 +4898,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tnmsc-integration-tests"
+name = "tnmsc-integrate-tests"
 version = "2026.10413.10237"
 dependencies = [
  "flate2",
@@ -4936,13 +4936,12 @@ name = "tnmsm"
 version = "2026.10413.10237"
 dependencies = [
  "clap",
- "serde",
  "serde_json",
  "tnmsd",
 ]
 
 [[package]]
-name = "tnmsm-integration-tests"
+name = "tnmsm-integrate-tests"
 version = "2026.10413.10237"
 dependencies = [
  "serde_json",
