@@ -4,10 +4,10 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::core::config;
-use crate::core::input_plugins::localized_reader::read_flat_files;
 use crate::core::plugin_shared::{
   FastCommandPrompt, FastCommandYAMLFrontMatter, PromptKind, RelativePath,
 };
+use crate::repositories::localized_reader::read_flat_files;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -67,7 +67,7 @@ fn validate_command_metadata(
 }
 
 fn build_command_prompt(
-  entry: &crate::core::input_plugins::localized_reader::FlatFileEntry,
+  entry: &crate::repositories::localized_reader::FlatFileEntry,
   dist_dir: &str,
 ) -> Result<FastCommandPrompt, crate::CliError> {
   let dist = entry

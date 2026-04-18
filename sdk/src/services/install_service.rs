@@ -380,14 +380,14 @@ fn collect_context(
   enabled_plugins: EnabledPlugins,
 ) -> Result<CollectedInputContext, CliError> {
   let aindex = collect_json::<WorkspaceEnvelope>(
-    crate::core::input_plugins::aindex_resolvers::collect_aindex_resolvers,
+    crate::repositories::aindex_resolvers::collect_aindex_resolvers,
     json!({
       "workspaceDir": workspace_dir,
     }),
   )?;
 
   let project_prompts = collect_json::<WorkspaceEnvelope>(
-    crate::core::input_plugins::project_prompt::collect_project_prompt,
+    crate::repositories::project_prompt::collect_project_prompt,
     json!({
       "workspaceDir": workspace_dir,
       "workspace": aindex.workspace,
@@ -396,7 +396,7 @@ fn collect_context(
   )?;
 
   let global_memory = collect_json::<GlobalMemoryEnvelope>(
-    crate::core::input_plugins::global_memory::collect_global_memory,
+    crate::repositories::global_memory::collect_global_memory,
     json!({
       "workspaceDir": workspace_dir,
       "globalScope": global_scope,
@@ -404,78 +404,78 @@ fn collect_context(
   )?;
 
   let commands = collect_json::<CommandsEnvelope>(
-    crate::core::input_plugins::command::collect_command,
+    crate::repositories::command::collect_command,
     json!({
       "workspaceDir": workspace_dir,
       "globalScope": global_scope,
     }),
   )?;
   let sub_agents = collect_json::<SubAgentsEnvelope>(
-    crate::core::input_plugins::subagent::collect_subagent,
+    crate::repositories::subagent::collect_subagent,
     json!({
       "workspaceDir": workspace_dir,
       "globalScope": global_scope,
     }),
   )?;
   let skills = collect_json::<SkillsEnvelope>(
-    crate::core::input_plugins::skill::collect_skill,
+    crate::repositories::skill::collect_skill,
     json!({
       "workspaceDir": workspace_dir,
       "globalScope": global_scope,
     }),
   )?;
   let rules = collect_json::<RulesEnvelope>(
-    crate::core::input_plugins::rule::collect_rule,
+    crate::repositories::rule::collect_rule,
     json!({
       "workspaceDir": workspace_dir,
       "globalScope": global_scope,
     }),
   )?;
   let readme = collect_json::<ReadmeEnvelope>(
-    crate::core::input_plugins::readme::collect_readme,
+    crate::repositories::readme::collect_readme,
     json!({
       "workspaceDir": workspace_dir,
       "globalScope": global_scope,
     }),
   )?;
   let gitignore = collect_json::<GitIgnoreEnvelope>(
-    crate::core::input_plugins::gitignore::collect_gitignore,
+    crate::repositories::gitignore::collect_gitignore,
     json!({
       "workspaceDir": workspace_dir,
     }),
   )?;
   let git_exclude = collect_json::<GitExcludeEnvelope>(
-    crate::core::input_plugins::git_exclude::collect_git_exclude,
+    crate::repositories::git_exclude::collect_git_exclude,
     json!({
       "workspaceDir": workspace_dir,
     }),
   )?;
   let shared_ignore = collect_json::<SharedIgnoreEnvelope>(
-    crate::core::input_plugins::shared_ignore::collect_shared_ignore,
+    crate::repositories::shared_ignore::collect_shared_ignore,
     json!({
       "workspaceDir": workspace_dir,
     }),
   )?;
   let vscode = collect_json::<VSCodeEnvelope>(
-    crate::core::input_plugins::vscode_config::collect_vscode_config,
+    crate::repositories::vscode_config::collect_vscode_config,
     json!({
       "workspaceDir": workspace_dir,
     }),
   )?;
   let zed = collect_json::<ZedEnvelope>(
-    crate::core::input_plugins::zed_config::collect_zed_config,
+    crate::repositories::zed_config::collect_zed_config,
     json!({
       "workspaceDir": workspace_dir,
     }),
   )?;
   let jetbrains = collect_json::<JetBrainsEnvelope>(
-    crate::core::input_plugins::jetbrains_config::collect_jetbrains_config,
+    crate::repositories::jetbrains_config::collect_jetbrains_config,
     json!({
       "workspaceDir": workspace_dir,
     }),
   )?;
   let editor_config = collect_json::<EditorConfigEnvelope>(
-    crate::core::input_plugins::editorconfig::collect_editorconfig,
+    crate::repositories::editorconfig::collect_editorconfig,
     json!({
       "workspaceDir": workspace_dir,
     }),
@@ -752,7 +752,10 @@ mod tests {
       ..Default::default()
     };
     let result = resolve_workspace_dir(&cwd, &config);
-    assert!(result.is_ok(), "should succeed when workspace_dir is configured");
+    assert!(
+      result.is_ok(),
+      "should succeed when workspace_dir is configured"
+    );
     assert!(
       result.unwrap().to_string_lossy().contains("workspace"),
       "resolved path should contain the configured workspace dir"
@@ -764,7 +767,10 @@ mod tests {
     let cwd = PathBuf::from("/some/cwd");
     let config = crate::core::config::UserConfigFile::default();
     let result = resolve_workspace_dir(&cwd, &config);
-    assert!(result.is_err(), "should error when workspace_dir is not configured");
+    assert!(
+      result.is_err(),
+      "should error when workspace_dir is not configured"
+    );
     let error = result.unwrap_err();
     let message = error.to_string();
     assert!(
@@ -806,8 +812,14 @@ mod tests {
     let temp_dir = tempfile::TempDir::new().unwrap();
     let cwd = temp_dir.path();
     let result = load_config(cwd, Some(false));
-    assert!(result.is_ok(), "should succeed when load_user_config is false");
+    assert!(
+      result.is_ok(),
+      "should succeed when load_user_config is false"
+    );
     let merged = result.unwrap();
-    assert!(!merged.found, "found should be false when skipping user config");
+    assert!(
+      !merged.found,
+      "found should be false when skipping user config"
+    );
   }
 }

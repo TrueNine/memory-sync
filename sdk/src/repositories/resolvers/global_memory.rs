@@ -3,8 +3,8 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::core::config;
-use crate::core::input_plugins::prompt_artifact::read_prompt_artifact;
 use crate::core::plugin_shared::{FilePathKind, GlobalMemoryPrompt, PromptKind, RelativePath};
+use crate::repositories::prompt_artifact::read_prompt_artifact;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -4,11 +4,11 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::core::config;
-use crate::core::input_plugins::prompt_artifact::read_prompt_artifact;
 use crate::core::plugin_shared::{
   FilePathKind, Project, ProjectChildrenMemoryPrompt, ProjectRootMemoryPrompt, PromptKind,
   RelativePath, RootPath, Workspace,
 };
+use crate::repositories::prompt_artifact::read_prompt_artifact;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]

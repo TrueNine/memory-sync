@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::input_plugins::public_config::read_public_file;
 use crate::native_script_runtime::proxy_public_path;
+use crate::repositories::public_config::read_public_file;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

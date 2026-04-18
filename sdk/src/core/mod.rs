@@ -13,7 +13,6 @@ pub mod execution_plan;
 pub mod gemini_output_plan;
 pub mod generic_skills_output_plan;
 pub mod git_discovery;
-pub mod input_plugins;
 pub mod jetbrains_ai_assistant_codex_output_plan;
 pub mod kiro_output_plan;
 pub mod md_cleanup;

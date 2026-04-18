@@ -6,20 +6,19 @@
 
 pub mod core;
 pub(crate) mod diagnostic_helpers;
-mod install_runtime;
 #[path = "native_md_compiler/lib.rs"]
 pub mod md_compiler;
 pub mod native_logger;
 pub mod native_script_runtime;
 pub mod prompts;
+pub mod repositories;
+pub mod services;
 
-use std::collections::HashSet;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::ExitCode;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 
 pub mod logger {
   pub use crate::native_logger::*;
@@ -143,167 +142,19 @@ pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliEr
     .map_err(CliError::ConfigError)
 }
 
-fn pure_rust_cli_pipeline_not_implemented(command: &str) -> CliError {
-  CliError::NotImplemented(format!(
-    "Pure Rust `{command}` is not implemented yet. The CLI npm package no longer ships the legacy TypeScript fallback bridge."
-  ))
-}
-
 /// Execute the install pipeline through the native crate facade.
 pub fn install(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  install_runtime::install(options)
+  services::install_service::install(options)
 }
 
 /// Execute the dry-run pipeline through the native crate facade.
 pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  let _ = options;
-  Err(pure_rust_cli_pipeline_not_implemented("dry-run"))
+  services::dry_run_service::dry_run(options)
 }
 
 /// Execute cleanup through the native crate facade.
 pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  let cwd = options.cwd.as_ref().map(Path::new).unwrap_or_else(|| Path::new("."));
-  let config = load_config(cwd)?;
-
-  let workspace_dir_str = config.config.workspace_dir.clone().unwrap_or_else(|| ".".to_string());
-  let workspace_dir = Path::new(&workspace_dir_str);
-
-  let mut result = MemorySyncCommandResult {
-    success: true,
-    files_affected: 0,
-    dirs_affected: 0,
-    ..Default::default()
-  };
-
-  // First, clean empty project directories recursively
-  let empty_dirs = find_empty_project_dirs(workspace_dir)?;
-  for dir_path in &empty_dirs {
-    if !options.dry_run.unwrap_or(false) {
-      if let Err(e) = fs::remove_dir_all(dir_path) {
-        result.errors.push(json!({
-          "path": dir_path.to_string_lossy(),
-          "error": format!("Failed to remove directory: {}", e)
-        }));
-        result.success = false;
-      } else {
-        result.dirs_affected += 1;
-      }
-    }
-  }
-
-  // Then, clean stale AGENTS.md and CLAUDE.md files
-  let stale_files = find_stale_memory_files(workspace_dir)?;
-  for file_path in &stale_files {
-    if !options.dry_run.unwrap_or(false) {
-      if let Err(e) = fs::remove_file(file_path) {
-        result.errors.push(json!({
-          "path": file_path.to_string_lossy(),
-          "error": format!("Failed to remove file: {}", e)
-        }));
-        result.success = false;
-      } else {
-        result.files_affected += 1;
-      }
-    }
-  }
-
-  if options.dry_run.unwrap_or(false) {
-    result.message = Some(format!(
-      "Dry run: Would remove {} stale files and {} empty directories",
-      stale_files.len(),
-      empty_dirs.len()
-    ));
-  } else {
-    result.message = Some(format!(
-      "Removed {} stale files and {} empty directories",
-      result.files_affected,
-      result.dirs_affected
-    ));
-  }
-
-  Ok(result)
-}
-
-fn find_stale_memory_files(workspace_dir: &Path) -> Result<Vec<PathBuf>, CliError> {
-  let mut stale_files = Vec::new();
-  let aindex_dist_dir = workspace_dir.join("aindex").join("dist");
-
-  // Collect all agt.mdx files
-  let mut agt_files = HashSet::new();
-  if aindex_dist_dir.exists() {
-    for entry in walkdir::WalkDir::new(&aindex_dist_dir)
-      .into_iter()
-      .filter_map(|e| e.ok())
-      .filter(|e| e.file_type().is_file())
-    {
-      if entry.path().extension().and_then(|s| s.to_str()) == Some("mdx") {
-        if let Some(file_stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
-          agt_files.insert(file_stem.to_string());
-        }
-      }
-    }
-  }
-
-  // Find AGENTS.md and CLAUDE.md files in project directories
-  for entry in walkdir::WalkDir::new(workspace_dir)
-    .max_depth(3) // Limit depth to avoid scanning too deep
-    .into_iter()
-    .filter_map(|e| e.ok())
-    .filter(|e| e.file_type().is_file())
-  {
-    let path = entry.path();
-    if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
-      if file_name == "AGENTS.md" || file_name == "CLAUDE.md" {
-        // Check if there's a corresponding agt.mdx file
-        let project_name = path.parent()
-          .and_then(|p| p.file_name())
-          .and_then(|s| s.to_str())
-          .unwrap_or("");
-
-        if !agt_files.contains(project_name) {
-          stale_files.push(path.to_path_buf());
-        }
-      }
-    }
-  }
-
-  Ok(stale_files)
-}
-
-fn find_empty_project_dirs(workspace_dir: &Path) -> Result<Vec<PathBuf>, CliError> {
-  let mut empty_dirs = Vec::new();
-
-  for entry in walkdir::WalkDir::new(workspace_dir)
-    .min_depth(1)
-    .max_depth(2) // Project directories are typically at depth 1-2
-    .into_iter()
-    .filter_map(|e| e.ok())
-    .filter(|e| e.file_type().is_dir())
-  {
-    let path = entry.path();
-    let relative_path = path.strip_prefix(workspace_dir).unwrap_or(path);
-
-    // Skip certain directories
-    let components: Vec<_> = relative_path.components().collect();
-    if components.len() >= 1 {
-      let first_component = components[0].as_os_str().to_string_lossy();
-      if first_component == "aindex" || first_component.starts_with('.') {
-        continue;
-      }
-    }
-
-    // Check if directory is empty
-    if is_empty_dir(path)? {
-      empty_dirs.push(path.to_path_buf());
-    }
-  }
-
-  Ok(empty_dirs)
-}
-
-fn is_empty_dir(path: &Path) -> Result<bool, CliError> {
-  let mut entries = fs::read_dir(path)?;
-  Ok(entries.next().is_none())
+  services::clean_service::clean(options)
 }
 
 /// Return the default output plugin registry without instantiating TS plugin classes.

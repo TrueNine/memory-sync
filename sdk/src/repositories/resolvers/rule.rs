@@ -4,10 +4,10 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::core::config;
-use crate::core::input_plugins::localized_reader::read_flat_files;
 use crate::core::plugin_shared::{
   PromptKind, RelativePath, RulePrompt, RuleScope, RuleYAMLFrontMatter,
 };
+use crate::repositories::localized_reader::read_flat_files;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -109,7 +109,7 @@ fn validate_rule_metadata(
 }
 
 fn build_rule_prompt(
-  entry: &crate::core::input_plugins::localized_reader::FlatFileEntry,
+  entry: &crate::repositories::localized_reader::FlatFileEntry,
   dist_dir: &str,
 ) -> Result<RulePrompt, crate::CliError> {
   let dist = entry

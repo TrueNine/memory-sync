@@ -204,14 +204,23 @@ mod tests {
 
   #[test]
   fn proxy_git_prefix_maps_to_underscore_git() {
-    assert_eq!(proxy_public_path(".git/info/exclude"), "____.git/info/exclude");
+    assert_eq!(
+      proxy_public_path(".git/info/exclude"),
+      "____.git/info/exclude"
+    );
     assert_eq!(proxy_public_path(".git/HEAD"), "____.git/HEAD");
-    assert_eq!(proxy_public_path(".git/refs/heads/main"), "____.git/refs/heads/main");
+    assert_eq!(
+      proxy_public_path(".git/refs/heads/main"),
+      "____.git/refs/heads/main"
+    );
   }
 
   #[test]
   fn proxy_zed_prefix_maps_to_underscore_zed() {
-    assert_eq!(proxy_public_path(".zed/settings.json"), "____.zed/settings.json");
+    assert_eq!(
+      proxy_public_path(".zed/settings.json"),
+      "____.zed/settings.json"
+    );
   }
 
   #[test]
@@ -225,7 +234,10 @@ mod tests {
 
   #[test]
   fn proxy_vscode_prefix_maps_to_underscore_vscode() {
-    assert_eq!(proxy_public_path(".vscode/settings.json"), "____vscode/settings.json");
+    assert_eq!(
+      proxy_public_path(".vscode/settings.json"),
+      "____vscode/settings.json"
+    );
     assert_eq!(
       proxy_public_path(".vscode/extensions.json"),
       "____vscode/extensions.json"
@@ -279,7 +291,10 @@ mod tests {
 
   #[test]
   fn proxy_backslashes_normalized_to_forward_slashes() {
-    assert_eq!(proxy_public_path(".git\\info/exclude"), "____.git/info/exclude");
+    assert_eq!(
+      proxy_public_path(".git\\info/exclude"),
+      "____.git/info/exclude"
+    );
     assert_eq!(
       proxy_public_path("path\\to\\.git\\HEAD"),
       "path/to/.git/HEAD"
