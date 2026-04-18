@@ -1,4 +1,4 @@
-use tnmsc_integration_tests::{
+use tnmsc_integrate_tests::{
   TestContainer, install_packaged_cli_container,
 };
 

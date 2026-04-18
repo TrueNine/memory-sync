@@ -1,4 +1,4 @@
-use tnmsc_integration_tests::{install_packaged_cli_container};
+use tnmsc_integrate_tests::{install_packaged_cli_container};
 
 #[test]
 fn clean_removes_empty_project_directories_recursively() {

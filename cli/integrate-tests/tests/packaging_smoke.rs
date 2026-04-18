@@ -3,7 +3,7 @@ use std::fs;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-use tnmsc_integration_tests::{
+use tnmsc_integrate_tests::{
   EXPECTED_SUBCOMMANDS, PACKAGED_PLUGINS, create_staged_package_root,
   install_packaged_cli_container, run_tnmsc_with_env, workspace_root,
 };

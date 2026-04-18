@@ -1,4 +1,4 @@
-use tnmsc_integration_tests::{install_packaged_cli_container};
+use tnmsc_integrate_tests::{install_packaged_cli_container};
 
 #[test]
 fn packaged_cli_proxy_mapping_reads_public_files_via_transformed_paths() {

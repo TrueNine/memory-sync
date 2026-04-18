@@ -1,4 +1,4 @@
-use tnmsc_integration_tests::{install_packaged_cli_container};
+use tnmsc_integrate_tests::{install_packaged_cli_container};
 
 #[test]
 fn packaged_cli_install_writes_claude_memory_from_aindex() {
