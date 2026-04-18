@@ -135,6 +135,17 @@ pub struct TestContainer {
 
 impl TestContainer {
   pub fn start(artifacts: &PackedArtifacts) -> Self {
+    assert!(
+      artifacts.cli_tarball.is_file(),
+      "CLI tarball does not exist: {}",
+      artifacts.cli_tarball.display()
+    );
+    assert!(
+      artifacts.linux_tarball.is_file(),
+      "Linux tarball does not exist: {}",
+      artifacts.linux_tarball.display()
+    );
+
     let image = GenericImage::new(DOCKER_IMAGE_NAME, DOCKER_IMAGE_TAG)
       .with_wait_for(WaitFor::seconds(1))
       .with_cmd(vec![
@@ -153,6 +164,21 @@ impl TestContainer {
       .unwrap_or_else(|error| panic!("failed to start testcontainer: {error}"));
 
     Self { container }
+  }
+
+  pub fn exec_with_retries(&self, command: &str, max_attempts: u32, delay_ms: u64) -> CommandResult {
+    let mut last_result: Option<CommandResult> = None;
+    for attempt in 1..=max_attempts {
+      let result = self.exec(command);
+      if result.status == 0 {
+        return result;
+      }
+      last_result = Some(result);
+      if attempt < max_attempts {
+        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+      }
+    }
+    last_result.expect("should have at least one attempt")
   }
 
   pub fn exec(&self, command: &str) -> CommandResult {
@@ -343,6 +369,10 @@ pub fn pnpm_version() -> &'static str {
 
 pub fn ensure_release_binary() {
   RELEASE_BINARY_BUILT.get_or_init(|| {
+    if release_binary_path().is_file() {
+      return;
+    }
+
     let result = run_program(
       "cargo",
       &["build", "--release", "-p", "tnmsc"],
@@ -368,6 +398,18 @@ pub fn release_binary_path() -> PathBuf {
 }
 
 pub fn create_staged_package_root() -> StagedPackageRoot {
+  let cli_dir = cli_manifest_dir();
+  assert!(
+    cli_dir.exists(),
+    "CLI manifest directory does not exist: {}",
+    cli_dir.display()
+  );
+  assert!(
+    cli_dir.join("package.json").is_file(),
+    "CLI package.json not found at {}",
+    cli_dir.join("package.json").display()
+  );
+
   let temp_dir = TestDir::new("tnmsc-packaging");
   let package_root = temp_dir.path().join("cli");
 
@@ -446,7 +488,8 @@ pub fn install_packaged_cli_container() -> TestContainer {
     quote_shell("/artifacts/cli.tgz"),
     quote_shell("/artifacts/linux-x64-gnu.tgz")
   );
-  container.exec_success(&install_command);
+  let result = container.exec_with_retries(&install_command, 3, 2000);
+  result.assert_success(&format!("install tnmsc globally (attempted up to 3 times): {}", install_command));
   container
 }
 
@@ -468,6 +511,22 @@ fn compute_real_env_skip_reason() -> Option<String> {
     return Some("unsupported host platform; real-env tests only run on linux x86_64".to_string());
   }
 
+  let pnpm_result = run_program("pnpm", &["--version"], &workspace_root());
+  if pnpm_result.status != 0 {
+    let detail = trim_output(&pnpm_result.stderr)
+      .or_else(|| trim_output(&pnpm_result.stdout))
+      .unwrap_or_else(|| "pnpm is not installed".to_string());
+    return Some(format!("pnpm unavailable: {detail}"));
+  }
+
+  let cargo_result = run_program("cargo", &["--version"], &workspace_root());
+  if cargo_result.status != 0 {
+    let detail = trim_output(&cargo_result.stderr)
+      .or_else(|| trim_output(&cargo_result.stdout))
+      .unwrap_or_else(|| "cargo is not installed".to_string());
+    return Some(format!("cargo unavailable: {detail}"));
+  }
+
   let result = run_program(
     "docker",
     &["info", "--format", "{{.ServerVersion}}"],
@@ -484,6 +543,12 @@ fn compute_real_env_skip_reason() -> Option<String> {
 }
 
 fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
+  assert!(
+    package_dir.exists(),
+    "package directory does not exist: {}",
+    package_dir.display()
+  );
+
   let pack_destination = target_root.join(name);
   fs::create_dir_all(&pack_destination).unwrap_or_else(|error| {
     panic!(
@@ -505,7 +570,10 @@ fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
     ],
     &workspace_root(),
   );
-  result.assert_success(&format!("pnpm pack for {}", package_dir));
+  result.assert_success(&format!(
+    "pnpm pack for {}\nstderr: {}\nstdout: {}",
+    package_dir, result.stderr, result.stdout
+  ));
 
   let mut tarballs = fs::read_dir(&pack_destination)
     .unwrap_or_else(|error| panic!("failed to read {}: {error}", pack_destination))
@@ -517,9 +585,10 @@ fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
   tarballs.sort();
   assert!(
     tarballs.len() == 1,
-    "expected exactly one tarball in {}, found {}",
+    "expected exactly one tarball in {}, found {}\ncontents: {:?}",
     pack_destination,
-    tarballs.len()
+    tarballs.len(),
+    tarballs
   );
 
   tarballs.remove(0)
