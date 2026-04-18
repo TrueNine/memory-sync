@@ -25,16 +25,7 @@ struct SubAgentAindexInput {
   #[serde(default)]
   dir: Option<String>,
   #[serde(default)]
-  sub_agents: Option<SubAgentPair>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SubAgentPair {
-  #[serde(default)]
-  src: Option<String>,
-  #[serde(default)]
-  dist: Option<String>,
+  sub_agents: Option<String>,
 }
 
 fn derive_subagent_identity(name: &str) -> (Option<String>, String, String) {
@@ -100,21 +91,20 @@ fn validate_subagent_metadata(
 
 fn build_subagent_prompt(
   entry: &crate::repositories::localized_reader::FlatFileEntry,
-  dist_dir: &str,
+  dir: &str,
   diagnostics: &mut Vec<crate::domain::plugin_shared::Diagnostic>,
 ) -> Result<SubAgentPrompt, crate::CliError> {
-  let dist = entry
-    .dist
+  let compiled = entry
+    .compiled
     .as_ref()
-    .ok_or_else(|| crate::CliError::ConfigError("Missing compiled dist prompt".to_string()))?;
+    .ok_or_else(|| crate::CliError::ConfigError("Missing compiled prompt".to_string()))?;
 
-  let file_path = format!("{}/{}.mdx", dist_dir, entry.name);
-  validate_subagent_metadata(&dist.metadata, &file_path).map_err(crate::CliError::ConfigError)?;
+  let file_path = format!("{}/{}.mdx", dir, entry.name);
+  validate_subagent_metadata(&compiled.metadata, &file_path).map_err(crate::CliError::ConfigError)?;
 
   let (agent_prefix, agent_name, canonical_name) = derive_subagent_identity(&entry.name);
 
-  // Remove authored `name` field so it is ignored in favor of the derived identity.
-  let mut metadata = dist.metadata.clone();
+  let mut metadata = compiled.metadata.clone();
   let had_authored_name = metadata.contains_key("name");
   metadata.remove("name");
 
@@ -139,19 +129,19 @@ fn build_subagent_prompt(
     )
   };
 
-  let content = dist.content.clone();
+  let content = compiled.content.clone();
   let length = content.len();
 
   Ok(SubAgentPrompt {
     prompt_type: PromptKind::SubAgent,
     content,
     length,
-    dir: RelativePath::new(&format!("{}.mdx", entry.name), dist_dir),
+    dir: RelativePath::new(&format!("{}.mdx", entry.name), dir),
     agent_name,
     agent_prefix,
     canonical_name,
     yaml_front_matter,
-    raw_mdx_content: Some(dist.raw_mdx.clone()),
+    raw_mdx_content: Some(compiled.raw_mdx.clone()),
     markdown_contents: None,
   })
 }
@@ -170,40 +160,32 @@ pub fn collect_subagent(options_json: &str) -> Result<String, crate::CliError> {
     .unwrap_or_else(|| "aindex".to_string());
   let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
 
-  let src_dir = aindex_dir.join(
+  let dir = aindex_dir.join(
     options
       .aindex
       .as_ref()
-      .and_then(|a| a.sub_agents.as_ref().and_then(|r| r.src.clone()))
-      .unwrap_or_else(|| "subagents".to_string()),
-  );
-  let dist_dir = aindex_dir.join(
-    options
-      .aindex
-      .as_ref()
-      .and_then(|a| a.sub_agents.as_ref().and_then(|r| r.dist.clone()))
-      .unwrap_or_else(|| "dist/subagents".to_string()),
+      .and_then(|a| a.sub_agents.as_deref())
+      .unwrap_or("subagents"),
   );
 
-  let src_dir_str = src_dir.to_string_lossy().into_owned();
-  let dist_dir_str = dist_dir.to_string_lossy().into_owned();
+  let dir_str = dir.to_string_lossy().into_owned();
 
   let global_scope_json = options.global_scope.as_ref().map(|v| v.to_string());
 
-  let entries = read_flat_files(&src_dir_str, &dist_dir_str, global_scope_json.as_deref())?;
+  let entries = read_flat_files(&dir_str, global_scope_json.as_deref())?;
 
   let mut prompts: Vec<SubAgentPrompt> = Vec::new();
   let mut diagnostics: Vec<crate::domain::plugin_shared::Diagnostic> = Vec::new();
   for entry in &entries {
-    if entry.dist.is_none() && (entry.src_zh.is_some() || entry.src_en.is_some()) {
+    if entry.compiled.is_none() && (entry.src_zh.is_some() || entry.src_en.is_some()) {
       return Err(crate::CliError::ConfigError(
-        "Missing compiled dist prompt".to_string(),
+        "Missing compiled prompt".to_string(),
       ));
     }
-    if entry.dist.is_some() {
+    if entry.compiled.is_some() {
       prompts.push(build_subagent_prompt(
         entry,
-        &dist_dir_str,
+        &dir_str,
         &mut diagnostics,
       )?);
     }
@@ -242,20 +224,18 @@ mod tests {
   use tempfile::TempDir;
 
   #[test]
-  fn collect_subagent_prefers_dist_and_compiles_mdx() {
+  fn collect_subagent_prefers_compiled_and_strips_mdx_exports() {
     let tmp = TempDir::new().unwrap();
-    let src_dir = tmp.path().join("aindex").join("subagents");
-    let dist_dir = tmp.path().join("aindex").join("dist").join("subagents");
-    fs::create_dir_all(&src_dir).unwrap();
-    fs::create_dir_all(&dist_dir).unwrap();
+    let dir = tmp.path().join("aindex").join("subagents");
+    fs::create_dir_all(&dir).unwrap();
     fs::write(
-      src_dir.join("demo.src.mdx"),
+      dir.join("demo.src.mdx"),
       "---\ndescription: src\n---\nSubAgent source",
     )
     .unwrap();
     fs::write(
-      dist_dir.join("demo.mdx"),
-      "---\ndescription: dist\n---\nexport const x = 1\n\nSubAgent dist",
+      dir.join("demo.mdx"),
+      "---\ndescription: compiled\n---\nexport const x = 1\n\nSubAgent compiled",
     )
     .unwrap();
 
@@ -273,7 +253,7 @@ mod tests {
       sub_agents[0]["content"]
         .as_str()
         .unwrap()
-        .contains("SubAgent dist")
+        .contains("SubAgent compiled")
     );
     assert!(
       !sub_agents[0]["content"]
@@ -287,7 +267,7 @@ mod tests {
         .unwrap()
         .contains("export const x = 1")
     );
-    assert_eq!(sub_agents[0]["yamlFrontMatter"]["description"], "dist");
+    assert_eq!(sub_agents[0]["yamlFrontMatter"]["description"], "compiled");
     assert!(
       sub_agents[0]["rawMdxContent"]
         .as_str()
@@ -299,23 +279,16 @@ mod tests {
   #[test]
   fn collect_subagent_extracts_directory_prefix() {
     let tmp = TempDir::new().unwrap();
-    let src_dir = tmp.path().join("aindex").join("subagents").join("qa");
-    let dist_dir = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("subagents")
-      .join("qa");
-    fs::create_dir_all(&src_dir).unwrap();
-    fs::create_dir_all(&dist_dir).unwrap();
+    let dir = tmp.path().join("aindex").join("subagents").join("qa");
+    fs::create_dir_all(&dir).unwrap();
     fs::write(
-      src_dir.join("boot.src.mdx"),
+      dir.join("boot.src.mdx"),
       "---\ndescription: qa boot src\n---\nSubAgent source",
     )
     .unwrap();
     fs::write(
-      dist_dir.join("boot.mdx"),
-      "---\ndescription: qa boot dist\n---\nSubAgent dist",
+      dir.join("boot.mdx"),
+      "---\ndescription: qa boot compiled\n---\nSubAgent compiled",
     )
     .unwrap();
 
@@ -333,13 +306,13 @@ mod tests {
   }
 
   #[test]
-  fn collect_subagent_dist_only() {
+  fn collect_subagent_compiled_only() {
     let tmp = TempDir::new().unwrap();
-    let dist_dir = tmp.path().join("aindex").join("dist").join("subagents");
-    fs::create_dir_all(&dist_dir).unwrap();
+    let dir = tmp.path().join("aindex").join("subagents");
+    fs::create_dir_all(&dir).unwrap();
     fs::write(
-      dist_dir.join("demo.mdx"),
-      "---\ndescription: dist only\n---\nDist only subagent",
+      dir.join("demo.mdx"),
+      "---\ndescription: compiled only\n---\nCompiled only subagent",
     )
     .unwrap();
 
@@ -357,17 +330,17 @@ mod tests {
       sub_agents[0]["content"]
         .as_str()
         .unwrap()
-        .contains("Dist only subagent")
+        .contains("Compiled only subagent")
     );
   }
 
   #[test]
   fn collect_subagent_fails_on_source_only() {
     let tmp = TempDir::new().unwrap();
-    let src_dir = tmp.path().join("aindex").join("subagents");
-    fs::create_dir_all(&src_dir).unwrap();
+    let dir = tmp.path().join("aindex").join("subagents");
+    fs::create_dir_all(&dir).unwrap();
     fs::write(
-      src_dir.join("demo.src.mdx"),
+      dir.join("demo.src.mdx"),
       "---\ndescription: source only\n---\nSource only subagent",
     )
     .unwrap();
@@ -382,18 +355,18 @@ mod tests {
       result
         .unwrap_err()
         .to_string()
-        .contains("Missing compiled dist prompt")
+        .contains("Missing compiled prompt")
     );
   }
 
   #[test]
   fn collect_subagent_rejects_workspace_scope() {
     let tmp = TempDir::new().unwrap();
-    let dist_dir = tmp.path().join("aindex").join("dist").join("subagents");
-    fs::create_dir_all(&dist_dir).unwrap();
+    let dir = tmp.path().join("aindex").join("subagents");
+    fs::create_dir_all(&dir).unwrap();
     fs::write(
-      dist_dir.join("demo.mdx"),
-      "---\ndescription: dist only\nscope: workspace\n---\nDist only subagent",
+      dir.join("demo.mdx"),
+      "---\ndescription: compiled only\nscope: workspace\n---\nCompiled only subagent",
     )
     .unwrap();
 
@@ -414,23 +387,16 @@ mod tests {
   #[test]
   fn collect_subagent_ignores_authored_name() {
     let tmp = TempDir::new().unwrap();
-    let src_dir = tmp.path().join("aindex").join("subagents").join("qa");
-    let dist_dir = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("subagents")
-      .join("qa");
-    fs::create_dir_all(&src_dir).unwrap();
-    fs::create_dir_all(&dist_dir).unwrap();
+    let dir = tmp.path().join("aindex").join("subagents").join("qa");
+    fs::create_dir_all(&dir).unwrap();
     fs::write(
-      src_dir.join("boot.src.mdx"),
+      dir.join("boot.src.mdx"),
       "---\nname: review-helper\ndescription: src\n---\nSubAgent source",
     )
     .unwrap();
     fs::write(
-      dist_dir.join("boot.mdx"),
-      "---\nname: review-helper\ndescription: dist\n---\nSubAgent dist",
+      dir.join("boot.mdx"),
+      "---\nname: review-helper\ndescription: compiled\n---\nSubAgent compiled",
     )
     .unwrap();
 

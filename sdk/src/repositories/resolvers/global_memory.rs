@@ -22,17 +22,7 @@ struct GlobalMemoryAindexInput {
   #[serde(default)]
   dir: Option<String>,
   #[serde(default)]
-  global_prompt: Option<GlobalMemoryPair>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GlobalMemoryPair {
-  #[allow(dead_code)]
-  #[serde(default)]
-  src: Option<String>,
-  #[serde(default)]
-  dist: Option<String>,
+  global_prompt: Option<String>,
 }
 
 pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliError> {
@@ -49,29 +39,29 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
     .unwrap_or_else(|| "aindex".to_string());
   let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
 
-  let global_memory_file = aindex_dir.join(
+  let global_prompt_file = aindex_dir.join(
     options
       .aindex
       .as_ref()
-      .and_then(|a| a.global_prompt.as_ref().and_then(|p| p.dist.clone()))
-      .unwrap_or_else(|| "dist/global.mdx".to_string()),
+      .and_then(|a| a.global_prompt.as_deref())
+      .unwrap_or("global.mdx"),
   );
 
-  let global_memory_file_str = global_memory_file.to_string_lossy().into_owned();
+  let global_prompt_file_str = global_prompt_file.to_string_lossy().into_owned();
 
-  if !global_memory_file.exists() {
+  if !global_prompt_file.exists() {
     return Ok("{}".to_string());
   }
 
-  if !global_memory_file.is_file() {
+  if !global_prompt_file.is_file() {
     return Ok("{}".to_string());
   }
 
   let global_scope_json = options.global_scope.as_ref().map(|v| v.to_string());
 
   let artifact = read_prompt_artifact(
-    &global_memory_file_str,
-    "dist",
+    &global_prompt_file_str,
+    "compiled",
     global_scope_json.as_deref(),
   )
   .map_err(|e| crate::CliError::ConfigError(e))?;
@@ -100,16 +90,16 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
     content,
     length,
     file_path_kind: FilePathKind::Relative,
-    dir: RelativePath::new(
-      global_memory_file
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("global.mdx"),
-      &global_memory_file
-        .parent()
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_default(),
-    ),
+dir: RelativePath::new(
+        global_prompt_file
+          .file_name()
+          .and_then(|s| s.to_str())
+          .unwrap_or("global.mdx"),
+        &global_prompt_file
+          .parent()
+          .map(|p| p.to_string_lossy().to_string())
+          .unwrap_or_default(),
+      ),
     raw_front_matter: Some(artifact.raw_mdx.clone()),
     markdown_contents: None,
     parent_directory_path: Some(parent_directory_path),
@@ -143,12 +133,17 @@ mod tests {
   }
 
   #[test]
-  fn collect_global_memory_reads_dist_file() {
+  fn collect_global_memory_reads_compiled_file() {
     let tmp = TempDir::new().unwrap();
-    let dist_dir = tmp.path().join("aindex").join("dist");
-    fs::create_dir_all(&dist_dir).unwrap();
+    let dir = tmp.path().join("aindex");
+    fs::create_dir_all(&dir).unwrap();
     fs::write(
-      dist_dir.join("global.mdx"),
+      dir.join("global.src.mdx"),
+      "---\ndescription: src\n---\nGlobal source",
+    )
+    .unwrap();
+    fs::write(
+      dir.join("global.mdx"),
       "---\ndescription: global memory\n---\nGlobal memory content",
     )
     .unwrap();

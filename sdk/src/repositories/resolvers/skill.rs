@@ -27,16 +27,7 @@ struct SkillAindexInput {
   #[serde(default)]
   dir: Option<String>,
   #[serde(default)]
-  skills: Option<SkillPair>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-struct SkillPair {
-  #[allow(dead_code)]
-  #[serde(default)]
-  src: Option<String>,
-  #[serde(default)]
-  dist: Option<String>,
+  skills: Option<String>,
 }
 
 fn transform_mdx_references_to_md(content: &str) -> String {
@@ -679,19 +670,13 @@ pub fn collect_skill(options_json: &str) -> Result<String, crate::CliError> {
     .unwrap_or_else(|| "aindex".to_string());
   let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
 
-  let src_skill_dir_name = options
+  let skills_dir_name = options
     .aindex
     .as_ref()
-    .and_then(|a| a.skills.as_ref().and_then(|p| p.src.clone()))
-    .unwrap_or_else(|| "skills".to_string());
-  let dist_skill_dir_name = options
-    .aindex
-    .as_ref()
-    .and_then(|a| a.skills.as_ref().and_then(|p| p.dist.clone()))
-    .unwrap_or_else(|| "dist/skills".to_string());
+    .and_then(|a| a.skills.as_deref())
+    .unwrap_or("skills");
 
-  let src_skill_dir = aindex_dir.join(&src_skill_dir_name);
-  let dist_skill_dir = aindex_dir.join(&dist_skill_dir_name);
+  let skills_dir = aindex_dir.join(skills_dir_name);
 
   let global_scope_json = options.global_scope.as_ref().map(|v| v.to_string());
 
@@ -699,18 +684,8 @@ pub fn collect_skill(options_json: &str) -> Result<String, crate::CliError> {
 
   let mut skill_names: Vec<String> = Vec::new();
 
-  if src_skill_dir.is_dir() {
-    if let Ok(entries) = std::fs::read_dir(&src_skill_dir) {
-      for entry in entries.flatten() {
-        if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
-          skill_names.push(entry.file_name().to_string_lossy().into_owned());
-        }
-      }
-    }
-  }
-
-  if dist_skill_dir.is_dir() {
-    if let Ok(entries) = std::fs::read_dir(&dist_skill_dir) {
+  if skills_dir.is_dir() {
+    if let Ok(entries) = std::fs::read_dir(&skills_dir) {
       for entry in entries.flatten() {
         if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
           skill_names.push(entry.file_name().to_string_lossy().into_owned());
@@ -729,12 +704,11 @@ pub fn collect_skill(options_json: &str) -> Result<String, crate::CliError> {
   let mut diagnostics: Vec<crate::domain::plugin_shared::Diagnostic> = Vec::new();
 
   for skill_name in skill_names {
-    let skill_dist = dist_skill_dir.join(&skill_name);
-    let skill_src = src_skill_dir.join(&skill_name);
+    let skill_dir = skills_dir.join(&skill_name);
     let prompt = create_skill_prompt(
       &skill_name,
-      &skill_dist,
-      &skill_src,
+      &skill_dir,
+      &skill_dir,
       global_scope_json.as_deref(),
       &mut diagnostics,
     )?;
@@ -766,43 +740,36 @@ mod tests {
   use tempfile::TempDir;
 
   #[test]
-  fn collect_skill_reads_dist_and_resources() {
+  fn collect_skill_reads_compiled_and_resources() {
     let tmp = TempDir::new().unwrap();
-    let src = tmp.path().join("aindex").join("skills").join("demo");
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("skills")
-      .join("demo");
-    fs::create_dir_all(&src).unwrap();
-    fs::create_dir_all(&dist).unwrap();
+    let dir = tmp.path().join("aindex").join("skills").join("demo");
+    fs::create_dir_all(&dir).unwrap();
 
     fs::write(
-      src.join("skill.src.mdx"),
+      dir.join("skill.src.mdx"),
       "---\ndescription: src skill\n---\nSkill source",
     )
     .unwrap();
     fs::write(
-      src.join("guide.src.mdx"),
+      dir.join("guide.src.mdx"),
       "---\ndescription: src guide\n---\nGuide source",
     )
     .unwrap();
-    fs::write(src.join("notes.md"), "Source notes").unwrap();
-    fs::write(src.join("demo.kts"), "println(\"source\")").unwrap();
+    fs::write(dir.join("notes.md"), "Source notes").unwrap();
+    fs::write(dir.join("demo.kts"), "println(\"source\")").unwrap();
     fs::write(
-      src.join("mcp.json"),
+      dir.join("mcp.json"),
       r#"{"mcpServers":{"demo":{"command":"demo"}}}"#,
     )
     .unwrap();
     fs::write(
-      dist.join("skill.mdx"),
-      "---\ndescription: dist skill\n---\nexport const x = 1\n\nSkill dist",
+      dir.join("skill.mdx"),
+      "---\ndescription: compiled skill\n---\nexport const x = 1\n\nSkill compiled",
     )
     .unwrap();
     fs::write(
-      dist.join("guide.mdx"),
-      "---\ndescription: dist guide\n---\nGuide dist",
+      dir.join("guide.mdx"),
+      "---\ndescription: compiled guide\n---\nGuide compiled",
     )
     .unwrap();
 
@@ -817,9 +784,9 @@ mod tests {
 
     let skill = &skills[0];
     assert_eq!(skill["skillName"], "demo");
-    assert_eq!(skill["content"], "Skill dist");
+    assert_eq!(skill["content"], "Skill compiled");
     assert_eq!(skill["yamlFrontMatter"]["name"], "demo");
-    assert_eq!(skill["yamlFrontMatter"]["description"], "dist skill");
+    assert_eq!(skill["yamlFrontMatter"]["description"], "compiled skill");
 
     let child_paths: Vec<String> = skill["childDocs"]
       .as_array()
@@ -828,7 +795,7 @@ mod tests {
       .map(|d| d["relativePath"].as_str().unwrap().to_string())
       .collect();
     assert_eq!(child_paths, vec!["guide.mdx"]);
-    assert_eq!(skill["childDocs"][0]["content"], "Guide dist");
+    assert_eq!(skill["childDocs"][0]["content"], "Guide compiled");
 
     let resource_paths: std::collections::HashSet<String> = skill["resources"]
       .as_array()

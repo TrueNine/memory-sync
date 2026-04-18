@@ -284,59 +284,48 @@ fn resolve_category_paths(
 ) -> Result<CategoryPaths, String> {
   let aindex = &config.aindex;
 
-  let resolve_pair = |pair: Option<&tnmsd::domain::config::DirPair>,
-                      default_source: &str,
-                      default_translated: &str|
-   -> CategoryPaths {
+  let resolve_dir = |dir: Option<&String>, default_dir: &str| -> CategoryPaths {
+    let dir_name = dir.map(|s| s.as_str()).unwrap_or(default_dir);
     CategoryPaths {
-      source_rel: pair
-        .and_then(|value| value.src.as_deref())
-        .unwrap_or(default_source)
-        .to_string(),
-      translated_rel: pair
-        .and_then(|value| value.dist.as_deref())
-        .unwrap_or(default_translated)
-        .to_string(),
+      source_rel: dir_name.to_string(),
+      translated_rel: dir_name.to_string(),
     }
   };
 
   match category {
-    "skills" => Ok(resolve_pair(
+    "skills" => Ok(resolve_dir(
       aindex.skills.as_ref(),
-      core_config::DEFAULT_SKILLS_SRC_DIR,
-      core_config::DEFAULT_SKILLS_DIST_DIR,
+      core_config::DEFAULT_SKILLS_DIR,
     )),
-    "commands" => Ok(resolve_pair(
+    "commands" => Ok(resolve_dir(
       aindex.commands.as_ref(),
-      core_config::DEFAULT_COMMANDS_SRC_DIR,
-      core_config::DEFAULT_COMMANDS_DIST_DIR,
+      core_config::DEFAULT_COMMANDS_DIR,
     )),
-    "agents" => Ok(resolve_pair(
+    "agents" => Ok(resolve_dir(
       aindex.sub_agents.as_ref(),
-      core_config::DEFAULT_SUB_AGENTS_SRC_DIR,
-      core_config::DEFAULT_SUB_AGENTS_DIST_DIR,
+      core_config::DEFAULT_SUB_AGENTS_DIR,
     )),
-    "rules" => Ok(resolve_pair(
+    "rules" => Ok(resolve_dir(
       aindex.rules.as_ref(),
-      core_config::DEFAULT_RULES_SRC_DIR,
-      core_config::DEFAULT_RULES_DIST_DIR,
+      core_config::DEFAULT_RULES_DIR,
     )),
-    "app" => Ok(resolve_pair(
+    "app" => Ok(resolve_dir(
       aindex.app.as_ref(),
-      core_config::DEFAULT_APP_SRC_DIR,
-      core_config::DEFAULT_APP_DIST_DIR,
+      core_config::DEFAULT_APP_DIR,
     )),
-    "ext" => Ok(resolve_pair(
+    "ext" => Ok(resolve_dir(
       aindex.ext.as_ref(),
-      core_config::DEFAULT_EXT_SRC_DIR,
-      core_config::DEFAULT_EXT_DIST_DIR,
+      core_config::DEFAULT_EXT_DIR,
     )),
-    "arch" => Ok(resolve_pair(
+    "arch" => Ok(resolve_dir(
       aindex.arch.as_ref(),
-      core_config::DEFAULT_ARCH_SRC_DIR,
-      core_config::DEFAULT_ARCH_DIST_DIR,
+      core_config::DEFAULT_ARCH_DIR,
     )),
-    _ => Err(format!("Unknown category: {category}")),
+    "softwares" => Ok(resolve_dir(
+      aindex.softwares.as_ref(),
+      core_config::DEFAULT_SOFTWARES_DIR,
+    )),
+    _ => Err("Unsupported category".to_string()),
   }
 }
 
@@ -392,26 +381,20 @@ fn collect_root_memory_prompt_pairs(
   [
     (
       aindex.global_prompt.as_ref(),
-      core_config::DEFAULT_GLOBAL_PROMPT_SRC,
-      core_config::DEFAULT_GLOBAL_PROMPT_DIST,
+      core_config::DEFAULT_GLOBAL_PROMPT,
     ),
     (
       aindex.workspace_prompt.as_ref(),
-      core_config::DEFAULT_WORKSPACE_PROMPT_SRC,
-      core_config::DEFAULT_WORKSPACE_PROMPT_DIST,
+      core_config::DEFAULT_WORKSPACE_PROMPT,
     ),
   ]
   .into_iter()
-  .map(|(pair, default_source, default_dist)| {
-    let source_rel = pair
-      .and_then(|value| value.src.as_deref())
-      .unwrap_or(default_source)
+  .map(|(dir, default_dir)| {
+    let source_rel = dir
+      .map(|s| s.as_str())
+      .unwrap_or(default_dir)
       .replace('\\', "/");
-    let translated_rel = pair
-      .and_then(|value| value.dist.as_deref())
-      .unwrap_or(default_dist)
-      .replace('\\', "/");
-    (source_rel, translated_rel)
+    (source_rel.clone(), source_rel)
   })
   .collect()
 }

@@ -169,16 +169,12 @@ fn handle_list_prompts(args: &Value) -> Value {
   let en_status: Option<Vec<tnmsd::PromptArtifactState>> = args
     .get("enStatus")
     .and_then(|v| serde_json::from_value(v.clone()).ok());
-  let dist_status: Option<Vec<tnmsd::PromptArtifactState>> = args
-    .get("distStatus")
-    .and_then(|v| serde_json::from_value(v.clone()).ok());
 
   let options = ListPromptsOptions {
     base,
     kinds,
     query,
     en_status,
-    dist_status,
   };
 
   match list_prompts(&options) {
@@ -238,20 +234,15 @@ fn handle_apply_prompt_translation(args: &Value) -> Value {
     .get("enContent")
     .and_then(|v| v.as_str())
     .map(String::from);
-  let dist_content = args
-    .get("distContent")
-    .and_then(|v| v.as_str())
-    .map(String::from);
 
-  if en_content.is_none() && dist_content.is_none() {
-    return error_result("apply_prompt_translation requires enContent or distContent");
+  if en_content.is_none() {
+    return error_result("apply_prompt_translation requires enContent");
   }
 
   let input = WritePromptArtifactsInput {
     base,
     prompt_id,
     en_content,
-    dist_content,
   };
 
   match write_prompt_artifacts(&input) {

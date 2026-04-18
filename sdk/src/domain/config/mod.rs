@@ -27,26 +27,16 @@ pub const DEFAULT_CONFIG_FILE_NAME: &str = ".tnmsc.json";
 pub const DEFAULT_GLOBAL_CONFIG_DIR: &str = ".aindex";
 pub const DEFAULT_WSL_WINDOWS_USERS_ROOT: &str = "/mnt/c/Users";
 pub const DEFAULT_AINDEX_DIR_NAME: &str = "aindex";
-pub const DEFAULT_SKILLS_SRC_DIR: &str = "skills";
-pub const DEFAULT_SKILLS_DIST_DIR: &str = "dist/skills";
-pub const DEFAULT_COMMANDS_SRC_DIR: &str = "commands";
-pub const DEFAULT_COMMANDS_DIST_DIR: &str = "dist/commands";
-pub const DEFAULT_SUB_AGENTS_SRC_DIR: &str = "subagents";
-pub const DEFAULT_SUB_AGENTS_DIST_DIR: &str = "dist/subagents";
-pub const DEFAULT_RULES_SRC_DIR: &str = "rules";
-pub const DEFAULT_RULES_DIST_DIR: &str = "dist/rules";
-pub const DEFAULT_GLOBAL_PROMPT_SRC: &str = "global.src.mdx";
-pub const DEFAULT_GLOBAL_PROMPT_DIST: &str = "dist/global.mdx";
-pub const DEFAULT_WORKSPACE_PROMPT_SRC: &str = "workspace.src.mdx";
-pub const DEFAULT_WORKSPACE_PROMPT_DIST: &str = "dist/workspace.mdx";
-pub const DEFAULT_APP_SRC_DIR: &str = "app";
-pub const DEFAULT_APP_DIST_DIR: &str = "dist/app";
-pub const DEFAULT_EXT_SRC_DIR: &str = "ext";
-pub const DEFAULT_EXT_DIST_DIR: &str = "dist/ext";
-pub const DEFAULT_ARCH_SRC_DIR: &str = "arch";
-pub const DEFAULT_ARCH_DIST_DIR: &str = "dist/arch";
-pub const DEFAULT_SOFTWARES_SRC_DIR: &str = "softwares";
-pub const DEFAULT_SOFTWARES_DIST_DIR: &str = "dist/softwares";
+pub const DEFAULT_SKILLS_DIR: &str = "skills";
+pub const DEFAULT_COMMANDS_DIR: &str = "commands";
+pub const DEFAULT_SUB_AGENTS_DIR: &str = "subagents";
+pub const DEFAULT_RULES_DIR: &str = "rules";
+pub const DEFAULT_GLOBAL_PROMPT: &str = "global.src.mdx";
+pub const DEFAULT_WORKSPACE_PROMPT: &str = "workspace.src.mdx";
+pub const DEFAULT_APP_DIR: &str = "app";
+pub const DEFAULT_EXT_DIR: &str = "ext";
+pub const DEFAULT_ARCH_DIR: &str = "arch";
+pub const DEFAULT_SOFTWARES_DIR: &str = "softwares";
 
 fn path_details(path: &Path) -> Option<serde_json::Map<String, Value>> {
   optional_details(serde_json::json!({
@@ -65,34 +55,8 @@ fn path_error_details(path: &Path, error: &str) -> Option<serde_json::Map<String
 // Types — mirrors TS ConfigTypes.schema.ts
 // ---------------------------------------------------------------------------
 
-/// A source/dist path pair. Both paths are relative to the aindex project root.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
-pub struct DirPair {
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub src: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub dist: Option<String>,
-}
-
-impl DirPair {
-  fn merge(a: &Option<DirPair>, b: &Option<DirPair>) -> Option<DirPair> {
-    match (a, b) {
-      (None, None) => None,
-      (Some(v), None) => Some(v.clone()),
-      (None, Some(v)) => Some(v.clone()),
-      (Some(base), Some(over)) => Some(DirPair {
-        src: over.src.clone().or_else(|| base.src.clone()),
-        dist: over.dist.clone().or_else(|| base.dist.clone()),
-      }),
-    }
-  }
-}
-
-fn default_dir_pair(src: &str, dist: &str) -> DirPair {
-  DirPair {
-    src: Some(src.to_string()),
-    dist: Some(dist.to_string()),
-  }
+fn merge_opt_string(a: &Option<String>, b: &Option<String>) -> Option<String> {
+  b.clone().or_else(|| a.clone())
 }
 
 /// Internal fixed aindex directory layout.
@@ -103,64 +67,40 @@ pub struct AindexConfig {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub dir: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub skills: Option<DirPair>,
+  pub skills: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub commands: Option<DirPair>,
+  pub commands: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub sub_agents: Option<DirPair>,
+  pub sub_agents: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub rules: Option<DirPair>,
+  pub rules: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub global_prompt: Option<DirPair>,
+  pub global_prompt: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub workspace_prompt: Option<DirPair>,
+  pub workspace_prompt: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub app: Option<DirPair>,
+  pub app: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub ext: Option<DirPair>,
+  pub ext: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub arch: Option<DirPair>,
+  pub arch: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub softwares: Option<DirPair>,
+  pub softwares: Option<String>,
 }
 
 pub fn build_default_aindex_config() -> AindexConfig {
   AindexConfig {
     dir: Some(DEFAULT_AINDEX_DIR_NAME.to_string()),
-    skills: Some(default_dir_pair(
-      DEFAULT_SKILLS_SRC_DIR,
-      DEFAULT_SKILLS_DIST_DIR,
-    )),
-    commands: Some(default_dir_pair(
-      DEFAULT_COMMANDS_SRC_DIR,
-      DEFAULT_COMMANDS_DIST_DIR,
-    )),
-    sub_agents: Some(default_dir_pair(
-      DEFAULT_SUB_AGENTS_SRC_DIR,
-      DEFAULT_SUB_AGENTS_DIST_DIR,
-    )),
-    rules: Some(default_dir_pair(
-      DEFAULT_RULES_SRC_DIR,
-      DEFAULT_RULES_DIST_DIR,
-    )),
-    global_prompt: Some(default_dir_pair(
-      DEFAULT_GLOBAL_PROMPT_SRC,
-      DEFAULT_GLOBAL_PROMPT_DIST,
-    )),
-    workspace_prompt: Some(default_dir_pair(
-      DEFAULT_WORKSPACE_PROMPT_SRC,
-      DEFAULT_WORKSPACE_PROMPT_DIST,
-    )),
-    app: Some(default_dir_pair(DEFAULT_APP_SRC_DIR, DEFAULT_APP_DIST_DIR)),
-    ext: Some(default_dir_pair(DEFAULT_EXT_SRC_DIR, DEFAULT_EXT_DIST_DIR)),
-    arch: Some(default_dir_pair(
-      DEFAULT_ARCH_SRC_DIR,
-      DEFAULT_ARCH_DIST_DIR,
-    )),
-    softwares: Some(default_dir_pair(
-      DEFAULT_SOFTWARES_SRC_DIR,
-      DEFAULT_SOFTWARES_DIST_DIR,
-    )),
+    skills: Some(DEFAULT_SKILLS_DIR.to_string()),
+    commands: Some(DEFAULT_COMMANDS_DIR.to_string()),
+    sub_agents: Some(DEFAULT_SUB_AGENTS_DIR.to_string()),
+    rules: Some(DEFAULT_RULES_DIR.to_string()),
+    global_prompt: Some(DEFAULT_GLOBAL_PROMPT.to_string()),
+    workspace_prompt: Some(DEFAULT_WORKSPACE_PROMPT.to_string()),
+    app: Some(DEFAULT_APP_DIR.to_string()),
+    ext: Some(DEFAULT_EXT_DIR.to_string()),
+    arch: Some(DEFAULT_ARCH_DIR.to_string()),
+    softwares: Some(DEFAULT_SOFTWARES_DIR.to_string()),
   }
 }
 
@@ -755,17 +695,17 @@ pub fn get_required_global_config_path() -> Result<PathBuf, String> {
 
 fn merge_aindex(base: &AindexConfig, over: &AindexConfig) -> AindexConfig {
   AindexConfig {
-    dir: over.dir.clone().or_else(|| base.dir.clone()),
-    skills: DirPair::merge(&base.skills, &over.skills),
-    commands: DirPair::merge(&base.commands, &over.commands),
-    sub_agents: DirPair::merge(&base.sub_agents, &over.sub_agents),
-    rules: DirPair::merge(&base.rules, &over.rules),
-    global_prompt: DirPair::merge(&base.global_prompt, &over.global_prompt),
-    workspace_prompt: DirPair::merge(&base.workspace_prompt, &over.workspace_prompt),
-    app: DirPair::merge(&base.app, &over.app),
-    ext: DirPair::merge(&base.ext, &over.ext),
-    arch: DirPair::merge(&base.arch, &over.arch),
-    softwares: DirPair::merge(&base.softwares, &over.softwares),
+    dir: merge_opt_string(&base.dir, &over.dir),
+    skills: merge_opt_string(&base.skills, &over.skills),
+    commands: merge_opt_string(&base.commands, &over.commands),
+    sub_agents: merge_opt_string(&base.sub_agents, &over.sub_agents),
+    rules: merge_opt_string(&base.rules, &over.rules),
+    global_prompt: merge_opt_string(&base.global_prompt, &over.global_prompt),
+    workspace_prompt: merge_opt_string(&base.workspace_prompt, &over.workspace_prompt),
+    app: merge_opt_string(&base.app, &over.app),
+    ext: merge_opt_string(&base.ext, &over.ext),
+    arch: merge_opt_string(&base.arch, &over.arch),
+    softwares: merge_opt_string(&base.softwares, &over.softwares),
   }
 }
 
@@ -1320,45 +1260,27 @@ mod tests {
   #[test]
   fn test_user_config_file_ignores_removed_flat_aindex_fields() {
     let json = r#"{
-            "skills": {"src": "src/skills", "dist": "dist/skills"},
-            "commands": {"src": "src/commands", "dist": "dist/commands"},
-            "subAgents": {"src": "src/agents", "dist": "dist/agents"},
-            "rules": {"src": "src/rules", "dist": "dist/rules"},
-            "globalPrompt": {"src": "global.src.mdx", "dist": "dist/global.mdx"},
-            "workspacePrompt": {"src": "workspace.src.mdx", "dist": "dist/workspace.mdx"},
-            "app": {"src": "app", "dist": "dist/app"},
-            "ext": {"src": "ext", "dist": "dist/ext"},
-            "arch": {"src": "arch", "dist": "dist/arch"},
-            "softwares": {"src": "softwares", "dist": "dist/softwares"}
+            "skills": "skills-dir",
+            "commands": "commands-dir",
+            "subAgents": "subagents-dir",
+            "rules": "rules-dir"
         }"#;
     let config: UserConfigFile = serde_json::from_str(json).unwrap();
-    assert_eq!(
-      config.aindex.skills.as_ref().unwrap().src.as_deref(),
-      Some(DEFAULT_SKILLS_SRC_DIR)
-    );
-    assert_eq!(
-      config.aindex.commands.as_ref().unwrap().src.as_deref(),
-      Some(DEFAULT_COMMANDS_SRC_DIR)
-    );
+    assert_eq!(config.aindex.skills.as_deref(), Some(DEFAULT_SKILLS_DIR));
+    assert_eq!(config.aindex.commands.as_deref(), Some(DEFAULT_COMMANDS_DIR));
   }
 
   #[test]
   fn test_user_config_file_ignores_removed_legacy_aindex_wrapper() {
     let json = r#"{
             "aindex": {
-                "skills": {"src": "src/skills", "dist": "dist/skills"},
-                "commands": {"src": "src/commands", "dist": "dist/commands"}
+                "skills": "my-skills",
+                "commands": "my-commands"
             }
         }"#;
     let config: UserConfigFile = serde_json::from_str(json).unwrap();
-    assert_eq!(
-      config.aindex.skills.as_ref().unwrap().src.as_deref(),
-      Some(DEFAULT_SKILLS_SRC_DIR)
-    );
-    assert_eq!(
-      config.aindex.commands.as_ref().unwrap().src.as_deref(),
-      Some(DEFAULT_COMMANDS_SRC_DIR)
-    );
+    assert_eq!(config.aindex.skills.as_deref(), Some(DEFAULT_SKILLS_DIR));
+    assert_eq!(config.aindex.commands.as_deref(), Some(DEFAULT_COMMANDS_DIR));
   }
 
   #[test]
@@ -1475,8 +1397,8 @@ mod tests {
     assert_eq!(result.workspace_dir.as_deref(), Some("~/cwd-workspace"));
     assert_eq!(result.log_level.as_deref(), Some("debug"));
     assert_eq!(
-      result.aindex.skills.as_ref().and_then(|p| p.src.as_deref()),
-      Some(DEFAULT_SKILLS_SRC_DIR)
+      result.aindex.skills.as_deref(),
+      Some(DEFAULT_SKILLS_DIR)
     );
   }
 
@@ -1687,20 +1609,7 @@ mod tests {
     assert!(result.source.is_none());
   }
 
-  #[test]
-  fn test_dir_pair_merge() {
-    let a = Some(DirPair {
-      src: Some("a-src".into()),
-      dist: Some("a-dist".into()),
-    });
-    let b = Some(DirPair {
-      src: Some("b-src".into()),
-      dist: None,
-    });
-    let merged = DirPair::merge(&a, &b).unwrap();
-    assert_eq!(merged.src.as_deref(), Some("b-src"));
-    assert_eq!(merged.dist.as_deref(), Some("a-dist"));
-  }
+  
 
   #[test]
   fn test_global_config_path() {

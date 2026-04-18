@@ -1,9 +1,8 @@
 use crate::domain::config::{
-  self, AindexConfig, ConfigLoader, DirPair, UserConfigFile,
-  DEFAULT_AINDEX_DIR_NAME, DEFAULT_COMMANDS_DIST_DIR, DEFAULT_COMMANDS_SRC_DIR,
-  DEFAULT_GLOBAL_PROMPT_DIST, DEFAULT_GLOBAL_PROMPT_SRC, DEFAULT_RULES_DIST_DIR, DEFAULT_RULES_SRC_DIR,
-  DEFAULT_SKILLS_DIST_DIR, DEFAULT_SKILLS_SRC_DIR, DEFAULT_SUB_AGENTS_DIST_DIR,
-  DEFAULT_SUB_AGENTS_SRC_DIR, DEFAULT_WORKSPACE_PROMPT_DIST, DEFAULT_WORKSPACE_PROMPT_SRC,
+  self, AindexConfig, ConfigLoader, UserConfigFile,
+  DEFAULT_AINDEX_DIR_NAME, DEFAULT_COMMANDS_DIR, DEFAULT_GLOBAL_PROMPT,
+  DEFAULT_RULES_DIR, DEFAULT_SKILLS_DIR, DEFAULT_SUB_AGENTS_DIR,
+  DEFAULT_WORKSPACE_PROMPT,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -75,8 +74,6 @@ pub struct ListPromptsOptions {
   pub query: Option<String>,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub en_status: Option<Vec<PromptArtifactState>>,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub dist_status: Option<Vec<PromptArtifactState>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,7 +100,6 @@ pub struct PromptArtifactRecord {
 pub struct PromptCatalogPaths {
   pub zh: String,
   pub en: String,
-  pub dist: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,7 +107,6 @@ pub struct PromptCatalogPaths {
 pub struct PromptCatalogPresence {
   pub zh: bool,
   pub en: bool,
-  pub dist: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,7 +118,6 @@ pub struct PromptCatalogItem {
   pub paths: PromptCatalogPaths,
   pub exists: PromptCatalogPresence,
   pub en_status: PromptArtifactState,
-  pub dist_status: PromptArtifactState,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub updated_at: Option<String>,
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -145,8 +139,6 @@ pub struct PromptDetails {
   #[serde(flatten)]
   pub catalog: PromptCatalogItem,
   pub src: PromptSourceArtifacts,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub dist: Option<PromptArtifactRecord>,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub front_matter: Option<Value>,
 }
@@ -170,8 +162,6 @@ pub struct WritePromptArtifactsInput {
   pub prompt_id: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub en_content: Option<String>,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub dist_content: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -340,7 +330,7 @@ fn list_files(cwd: &Path, suffixes: &[&str]) -> Vec<String> {
   results
 }
 
-fn get_aindex_pair<'a>(config: &'a AindexConfig, kind: &str) -> Option<&'a DirPair> {
+fn get_aindex_dir<'a>(config: &'a AindexConfig, kind: &str) -> Option<&'a String> {
   match kind {
     "skills" => config.skills.as_ref(),
     "commands" => config.commands.as_ref(),
@@ -358,10 +348,13 @@ fn get_aindex_pair<'a>(config: &'a AindexConfig, kind: &str) -> Option<&'a DirPa
 // ---------------------------------------------------------------------------
 
 fn build_global_memory_definition(env: &ResolvedPromptEnvironment) -> PromptDefinition {
-  let pair = env.options.aindex.global_prompt.clone().unwrap_or_default();
-  let zh_path = env
-    .aindex_dir
-    .join(pair.src.as_deref().unwrap_or(DEFAULT_GLOBAL_PROMPT_SRC));
+  let global_prompt = env
+    .options
+    .aindex
+    .global_prompt
+    .as_deref()
+    .unwrap_or(DEFAULT_GLOBAL_PROMPT);
+  let zh_path = env.aindex_dir.join(global_prompt);
   PromptDefinition {
     prompt_id: "global-memory".to_string(),
     kind: ManagedPromptKind::GlobalMemory,
@@ -369,26 +362,19 @@ fn build_global_memory_definition(env: &ResolvedPromptEnvironment) -> PromptDefi
     paths: PromptCatalogPaths {
       zh: zh_path.to_string_lossy().to_string(),
       en: derive_english_source_path(&zh_path.to_string_lossy()),
-      dist: env
-        .aindex_dir
-        .join(pair.dist.as_deref().unwrap_or(DEFAULT_GLOBAL_PROMPT_DIST))
-        .to_string_lossy()
-        .to_string(),
     },
     legacy_zh_path: None,
   }
 }
 
 fn build_workspace_memory_definition(env: &ResolvedPromptEnvironment) -> PromptDefinition {
-  let pair = env
+  let workspace_prompt = env
     .options
     .aindex
     .workspace_prompt
-    .clone()
-    .unwrap_or_default();
-  let zh_path = env
-    .aindex_dir
-    .join(pair.src.as_deref().unwrap_or(DEFAULT_WORKSPACE_PROMPT_SRC));
+    .as_deref()
+    .unwrap_or(DEFAULT_WORKSPACE_PROMPT);
+  let zh_path = env.aindex_dir.join(workspace_prompt);
   PromptDefinition {
     prompt_id: "workspace-memory".to_string(),
     kind: ManagedPromptKind::WorkspaceMemory,
@@ -396,16 +382,6 @@ fn build_workspace_memory_definition(env: &ResolvedPromptEnvironment) -> PromptD
     paths: PromptCatalogPaths {
       zh: zh_path.to_string_lossy().to_string(),
       en: derive_english_source_path(&zh_path.to_string_lossy()),
-      dist: env
-        .aindex_dir
-        .join(
-          pair
-            .dist
-            .as_deref()
-            .unwrap_or(DEFAULT_WORKSPACE_PROMPT_DIST),
-        )
-        .to_string_lossy()
-        .to_string(),
     },
     legacy_zh_path: None,
   }
@@ -425,36 +401,18 @@ fn build_project_memory_definition(
     Some(r) => normalize_relative_identifier(r, "relativeName")?,
     None => "".to_string(),
   };
-  let pair = get_aindex_pair(&env.options.aindex, series_name);
+  let dir_name = get_aindex_dir(&env.options.aindex, series_name)
+    .map(|s| s.as_str())
+    .unwrap_or(series_name);
   let source_dir = if normalized_relative_name.is_empty() {
     env
       .aindex_dir
-      .join(pair.and_then(|p| p.src.as_deref()).unwrap_or(series_name))
+      .join(dir_name)
       .join(&normalized_project_name)
   } else {
     env
       .aindex_dir
-      .join(pair.and_then(|p| p.src.as_deref()).unwrap_or(series_name))
-      .join(&normalized_project_name)
-      .join(&normalized_relative_name)
-  };
-  let dist_dir = if normalized_relative_name.is_empty() {
-    env
-      .aindex_dir
-      .join(
-        pair
-          .and_then(|p| p.dist.as_deref())
-          .unwrap_or(&format!("dist/{}", series_name)),
-      )
-      .join(&normalized_project_name)
-  } else {
-    env
-      .aindex_dir
-      .join(
-        pair
-          .and_then(|p| p.dist.as_deref())
-          .unwrap_or(&format!("dist/{}", series_name)),
-      )
+      .join(dir_name)
       .join(&normalized_project_name)
       .join(&normalized_relative_name)
   };
@@ -489,10 +447,6 @@ fn build_project_memory_definition(
         .to_string_lossy()
         .to_string(),
       en: legacy_path.to_string_lossy().to_string(),
-      dist: dist_dir
-        .join(format!("{}{}", PROJECT_MEMORY_FILE_NAME, MDX_EXTENSION))
-        .to_string_lossy()
-        .to_string(),
     },
     legacy_zh_path: Some(legacy_path.to_string_lossy().to_string()),
   })
@@ -506,22 +460,15 @@ fn build_skill_definition(
   if !is_single_segment_identifier(&normalized) {
     return Err("skillName must be a single path segment".to_string());
   }
-  let pair = env.options.aindex.skills.as_ref();
+  let dir_name = env
+    .options
+    .aindex
+    .skills
+    .as_deref()
+    .unwrap_or(DEFAULT_SKILLS_DIR);
   let source_dir = env
     .aindex_dir
-    .join(
-      pair
-        .and_then(|p| p.src.as_deref())
-        .unwrap_or(DEFAULT_SKILLS_SRC_DIR),
-    )
-    .join(&normalized);
-  let dist_dir = env
-    .aindex_dir
-    .join(
-      pair
-        .and_then(|p| p.dist.as_deref())
-        .unwrap_or(DEFAULT_SKILLS_DIST_DIR),
-    )
+    .join(dir_name)
     .join(&normalized);
   Ok(PromptDefinition {
     prompt_id: format!("skill:{}", normalized),
@@ -536,10 +483,6 @@ fn build_skill_definition(
         .to_string_lossy()
         .to_string(),
       en: source_dir
-        .join(format!("{}{}", SKILL_ENTRY_FILE_NAME, MDX_EXTENSION))
-        .to_string_lossy()
-        .to_string(),
-      dist: dist_dir
         .join(format!("{}{}", SKILL_ENTRY_FILE_NAME, MDX_EXTENSION))
         .to_string_lossy()
         .to_string(),
@@ -558,22 +501,15 @@ fn build_skill_child_doc_definition(
   if !is_single_segment_identifier(&normalized_skill) {
     return Err("skillName must be a single path segment".to_string());
   }
-  let pair = env.options.aindex.skills.as_ref();
+  let dir_name = env
+    .options
+    .aindex
+    .skills
+    .as_deref()
+    .unwrap_or(DEFAULT_SKILLS_DIR);
   let source_dir = env
     .aindex_dir
-    .join(
-      pair
-        .and_then(|p| p.src.as_deref())
-        .unwrap_or(DEFAULT_SKILLS_SRC_DIR),
-    )
-    .join(&normalized_skill);
-  let dist_dir = env
-    .aindex_dir
-    .join(
-      pair
-        .and_then(|p| p.dist.as_deref())
-        .unwrap_or(DEFAULT_SKILLS_DIST_DIR),
-    )
+    .join(dir_name)
     .join(&normalized_skill);
   Ok(PromptDefinition {
     prompt_id: format!(
@@ -594,10 +530,6 @@ fn build_skill_child_doc_definition(
         .join(format!("{}{}", normalized_relative, MDX_EXTENSION))
         .to_string_lossy()
         .to_string(),
-      dist: dist_dir
-        .join(format!("{}{}", normalized_relative, MDX_EXTENSION))
-        .to_string_lossy()
-        .to_string(),
     },
     legacy_zh_path: None,
   })
@@ -609,10 +541,10 @@ fn build_flat_prompt_definition(
   relative_name: &str,
 ) -> Result<PromptDefinition, String> {
   let normalized = normalize_relative_identifier(relative_name, "relativeName")?;
-  let (src_default, dist_default) = match kind {
-    ManagedPromptKind::Command => (DEFAULT_COMMANDS_SRC_DIR, DEFAULT_COMMANDS_DIST_DIR),
-    ManagedPromptKind::Subagent => (DEFAULT_SUB_AGENTS_SRC_DIR, DEFAULT_SUB_AGENTS_DIST_DIR),
-    ManagedPromptKind::Rule => (DEFAULT_RULES_SRC_DIR, DEFAULT_RULES_DIST_DIR),
+  let dir_default = match kind {
+    ManagedPromptKind::Command => DEFAULT_COMMANDS_DIR,
+    ManagedPromptKind::Subagent => DEFAULT_SUB_AGENTS_DIR,
+    ManagedPromptKind::Rule => DEFAULT_RULES_DIR,
     _ => {
       return Err(format!(
         "Unsupported flat prompt kind: {}",
@@ -620,18 +552,15 @@ fn build_flat_prompt_definition(
       ));
     }
   };
-  let pair = match kind {
-    ManagedPromptKind::Command => env.options.aindex.commands.as_ref(),
-    ManagedPromptKind::Subagent => env.options.aindex.sub_agents.as_ref(),
-    ManagedPromptKind::Rule => env.options.aindex.rules.as_ref(),
+  let dir_name = match kind {
+    ManagedPromptKind::Command => env.options.aindex.commands.as_deref(),
+    ManagedPromptKind::Subagent => env.options.aindex.sub_agents.as_deref(),
+    ManagedPromptKind::Rule => env.options.aindex.rules.as_deref(),
     _ => None,
   };
   let source_dir = env
     .aindex_dir
-    .join(pair.and_then(|p| p.src.as_deref()).unwrap_or(src_default));
-  let dist_dir = env
-    .aindex_dir
-    .join(pair.and_then(|p| p.dist.as_deref()).unwrap_or(dist_default));
+    .join(dir_name.unwrap_or(dir_default));
   let prompt_id = format!("{}:{}", kind_to_string(kind), normalized);
   Ok(PromptDefinition {
     prompt_id,
@@ -643,10 +572,6 @@ fn build_flat_prompt_definition(
         .to_string_lossy()
         .to_string(),
       en: source_dir
-        .join(format!("{}{}", normalized, MDX_EXTENSION))
-        .to_string_lossy()
-        .to_string(),
-      dist: dist_dir
         .join(format!("{}{}", normalized, MDX_EXTENSION))
         .to_string_lossy()
         .to_string(),
@@ -799,29 +724,23 @@ fn collect_flat_prompt_ids(
   env: &ResolvedPromptEnvironment,
   kind: ManagedPromptKind,
 ) -> Vec<String> {
-  let (src_default, dist_default) = match kind {
-    ManagedPromptKind::Command => (DEFAULT_COMMANDS_SRC_DIR, DEFAULT_COMMANDS_DIST_DIR),
-    ManagedPromptKind::Subagent => (DEFAULT_SUB_AGENTS_SRC_DIR, DEFAULT_SUB_AGENTS_DIST_DIR),
-    ManagedPromptKind::Rule => (DEFAULT_RULES_SRC_DIR, DEFAULT_RULES_DIST_DIR),
+  let dir_default = match kind {
+    ManagedPromptKind::Command => DEFAULT_COMMANDS_DIR,
+    ManagedPromptKind::Subagent => DEFAULT_SUB_AGENTS_DIR,
+    ManagedPromptKind::Rule => DEFAULT_RULES_DIR,
     _ => return vec![],
   };
-  let pair = match kind {
-    ManagedPromptKind::Command => env.options.aindex.commands.as_ref(),
-    ManagedPromptKind::Subagent => env.options.aindex.sub_agents.as_ref(),
-    ManagedPromptKind::Rule => env.options.aindex.rules.as_ref(),
+  let dir_name = match kind {
+    ManagedPromptKind::Command => env.options.aindex.commands.as_deref(),
+    ManagedPromptKind::Subagent => env.options.aindex.sub_agents.as_deref(),
+    ManagedPromptKind::Rule => env.options.aindex.rules.as_deref(),
     _ => None,
   };
-  let source_dir = env
+  let dir = env
     .aindex_dir
-    .join(pair.and_then(|p| p.src.as_deref()).unwrap_or(src_default));
-  let dist_dir = env
-    .aindex_dir
-    .join(pair.and_then(|p| p.dist.as_deref()).unwrap_or(dist_default));
+    .join(dir_name.unwrap_or(dir_default));
   let mut names = BTreeSet::new();
-  for file in list_files(&source_dir, &[SOURCE_PROMPT_EXTENSION, MDX_EXTENSION]) {
-    names.insert(strip_prompt_extension(&file));
-  }
-  for file in list_files(&dist_dir, &[MDX_EXTENSION]) {
+  for file in list_files(&dir, &[SOURCE_PROMPT_EXTENSION, MDX_EXTENSION]) {
     names.insert(strip_prompt_extension(&file));
   }
   names
@@ -831,27 +750,16 @@ fn collect_flat_prompt_ids(
 }
 
 fn collect_skill_prompt_ids(env: &ResolvedPromptEnvironment) -> Vec<String> {
-  let pair = env.options.aindex.skills.as_ref();
-  let source_root = env.aindex_dir.join(
-    pair
-      .and_then(|p| p.src.as_deref())
-      .unwrap_or(DEFAULT_SKILLS_SRC_DIR),
-  );
-  let dist_root = env.aindex_dir.join(
-    pair
-      .and_then(|p| p.dist.as_deref())
-      .unwrap_or(DEFAULT_SKILLS_DIST_DIR),
-  );
+  let dir_name = env
+    .options
+    .aindex
+    .skills
+    .as_deref()
+    .unwrap_or(DEFAULT_SKILLS_DIR);
+  let root = env.aindex_dir.join(dir_name);
   let mut skill_names = BTreeSet::new();
-  if source_root.is_dir() {
-    for e in fs::read_dir(&source_root).into_iter().flatten().flatten() {
-      if e.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-        skill_names.insert(e.file_name().to_string_lossy().to_string());
-      }
-    }
-  }
-  if dist_root.is_dir() {
-    for e in fs::read_dir(&dist_root).into_iter().flatten().flatten() {
+  if root.is_dir() {
+    for e in fs::read_dir(&root).into_iter().flatten().flatten() {
       if e.file_type().map(|t| t.is_dir()).unwrap_or(false) {
         skill_names.insert(e.file_name().to_string_lossy().to_string());
       }
@@ -860,17 +768,9 @@ fn collect_skill_prompt_ids(env: &ResolvedPromptEnvironment) -> Vec<String> {
   let mut prompt_ids = Vec::new();
   for skill_name in skill_names {
     prompt_ids.push(format!("skill:{}", skill_name));
-    let source_dir = source_root.join(&skill_name);
-    let dist_dir = dist_root.join(&skill_name);
+    let skill_dir = root.join(&skill_name);
     let mut child_names = BTreeSet::new();
-    for file in list_files(&source_dir, &[SOURCE_PROMPT_EXTENSION, MDX_EXTENSION]) {
-      let stripped = strip_prompt_extension(&file);
-      if stripped == SKILL_ENTRY_FILE_NAME {
-        continue;
-      }
-      child_names.insert(stripped);
-    }
-    for file in list_files(&dist_dir, &[MDX_EXTENSION]) {
+    for file in list_files(&skill_dir, &[SOURCE_PROMPT_EXTENSION, MDX_EXTENSION]) {
       let stripped = strip_prompt_extension(&file);
       if stripped == SKILL_ENTRY_FILE_NAME {
         continue;
@@ -888,45 +788,26 @@ fn collect_project_prompt_ids(env: &ResolvedPromptEnvironment) -> Vec<String> {
   let mut prompt_ids = Vec::new();
   let series_list = vec!["app", "ext", "arch", "softwares"];
   for series_name in series_list {
-    let pair = get_aindex_pair(&env.options.aindex, series_name);
-    let src_dir = env
-      .aindex_dir
-      .join(pair.and_then(|p| p.src.as_deref()).unwrap_or(series_name));
-    let dist_dir = env.aindex_dir.join(
-      pair
-        .and_then(|p| p.dist.as_deref())
-        .unwrap_or(&format!("dist/{}", series_name)),
-    );
+    let dir_name = get_aindex_dir(&env.options.aindex, series_name)
+      .map(|s| s.as_str())
+      .unwrap_or(series_name);
+    let dir = env.aindex_dir.join(dir_name);
     let mut relative_dirs = BTreeSet::new();
-    let src_patterns = [
+    let patterns = [
       format!("{}{}", PROJECT_MEMORY_FILE_NAME, SOURCE_PROMPT_EXTENSION),
       format!("{}{}", PROJECT_MEMORY_FILE_NAME, MDX_EXTENSION),
     ];
-    let dist_patterns = [format!("{}{}", PROJECT_MEMORY_FILE_NAME, MDX_EXTENSION)];
     for file in list_files(
-      &src_dir,
-      &src_patterns.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+      &dir,
+      &patterns.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
     ) {
-      let dir = Path::new(&file)
+      let dir_part = Path::new(&file)
         .parent()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| ".".to_string());
-      let dir = normalize_slash_path(&dir);
-      if dir != "." {
-        relative_dirs.insert(dir);
-      }
-    }
-    for file in list_files(
-      &dist_dir,
-      &dist_patterns.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-    ) {
-      let dir = Path::new(&file)
-        .parent()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|| ".".to_string());
-      let dir = normalize_slash_path(&dir);
-      if dir != "." {
-        relative_dirs.insert(dir);
+      let dir_part = normalize_slash_path(&dir_part);
+      if dir_part != "." {
+        relative_dirs.insert(dir_part);
       }
     }
     for relative_dir in relative_dirs {
@@ -953,16 +834,10 @@ fn collect_discovered_prompt_ids(env: &ResolvedPromptEnvironment) -> Vec<String>
   let mut prompt_ids = HashSet::new();
   let global = build_global_memory_definition(env);
   let workspace = build_workspace_memory_definition(env);
-  if Path::new(&global.paths.zh).exists()
-    || Path::new(&global.paths.en).exists()
-    || Path::new(&global.paths.dist).exists()
-  {
+  if Path::new(&global.paths.zh).exists() || Path::new(&global.paths.en).exists() {
     prompt_ids.insert(global.prompt_id.clone());
   }
-  if Path::new(&workspace.paths.zh).exists()
-    || Path::new(&workspace.paths.en).exists()
-    || Path::new(&workspace.paths.dist).exists()
-  {
+  if Path::new(&workspace.paths.zh).exists() || Path::new(&workspace.paths.en).exists() {
     prompt_ids.insert(workspace.prompt_id.clone());
   }
   for id in collect_project_prompt_ids(env) {
@@ -1078,20 +953,18 @@ fn hydrate_prompt(definition: &PromptDefinition, include_content: bool) -> Optio
   } else {
     None
   };
-  let dist_artifact = read_artifact(&definition.paths.dist, include_content, false);
 
-  if zh_artifact.is_none() && en_artifact.is_none() && dist_artifact.is_none() {
+  if zh_artifact.is_none() && en_artifact.is_none() {
     return None;
   }
 
-  let updated_at = [&zh_artifact, &en_artifact, &dist_artifact]
+  let updated_at = [&zh_artifact, &en_artifact]
     .iter()
     .filter_map(|a| a.as_ref())
     .max_by_key(|a| a.mtime_ms.unwrap_or(0))
     .and_then(|a| a.mtime.clone());
 
   let en_status = resolve_artifact_status(zh_artifact.as_ref(), en_artifact.as_ref());
-  let dist_status = resolve_artifact_status(zh_artifact.as_ref(), dist_artifact.as_ref());
 
   let mut src = PromptSourceArtifacts::default();
   if let Some(a) = zh_artifact {
@@ -1105,8 +978,7 @@ fn hydrate_prompt(definition: &PromptDefinition, include_content: bool) -> Optio
     .zh
     .as_ref()
     .and_then(|a| a.front_matter.clone())
-    .or_else(|| src.en.as_ref().and_then(|a| a.front_matter.clone()))
-    .or_else(|| dist_artifact.as_ref().and_then(|a| a.front_matter.clone()));
+    .or_else(|| src.en.as_ref().and_then(|a| a.front_matter.clone()));
 
   let catalog = PromptCatalogItem {
     prompt_id: definition.prompt_id.clone(),
@@ -1115,15 +987,12 @@ fn hydrate_prompt(definition: &PromptDefinition, include_content: bool) -> Optio
     paths: PromptCatalogPaths {
       zh: definition.paths.zh.clone(),
       en: definition.paths.en.clone(),
-      dist: definition.paths.dist.clone(),
     },
     exists: PromptCatalogPresence {
       zh: src.zh.is_some(),
       en: src.en.is_some(),
-      dist: dist_artifact.is_some(),
     },
     en_status,
-    dist_status,
     updated_at,
     legacy_zh_source: if has_legacy_zh { Some(true) } else { None },
   };
@@ -1131,7 +1000,6 @@ fn hydrate_prompt(definition: &PromptDefinition, include_content: bool) -> Optio
   Some(PromptDetails {
     catalog,
     src,
-    dist: dist_artifact,
     front_matter,
   })
 }
@@ -1279,7 +1147,6 @@ pub fn list_prompts(options: &ListPromptsOptions) -> Result<Vec<PromptCatalogIte
     })
     .filter(|item| matches_filter(item.kind, options.kinds.as_ref()))
     .filter(|item| matches_filter(item.en_status, options.en_status.as_ref()))
-    .filter(|item| matches_filter(item.dist_status, options.dist_status.as_ref()))
     .filter(|item| matches_query(item, options.query.as_deref()))
     .collect();
   Ok(items)
@@ -1311,17 +1178,14 @@ pub fn upsert_prompt_source(input: &UpsertPromptSourceInput) -> Result<PromptDet
 }
 
 pub fn write_prompt_artifacts(input: &WritePromptArtifactsInput) -> Result<PromptDetails, String> {
-  if input.en_content.is_none() && input.dist_content.is_none() {
-    return Err("writePromptArtifacts requires enContent or distContent".to_string());
+  if input.en_content.is_none() {
+    return Err("writePromptArtifacts requires enContent".to_string());
   }
   let env = resolve_prompt_environment(&input.base)?;
   let definition = build_prompt_definition_from_id(&input.prompt_id, &env)?;
   if let Some(ref content) = input.en_content {
     prepare_project_memory_for_english_write(&definition);
     write_text_file(&definition.paths.en, content)?;
-  }
-  if let Some(ref content) = input.dist_content {
-    write_text_file(&definition.paths.dist, content)?;
   }
   let result = hydrate_prompt(&definition, true)
     .ok_or_else(|| format!("Failed to load prompt after write: {}", input.prompt_id))?;

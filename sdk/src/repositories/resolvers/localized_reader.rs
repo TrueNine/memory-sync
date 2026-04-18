@@ -6,35 +6,23 @@ use crate::repositories::prompt_artifact::{read_prompt_artifact, PromptArtifact}
 #[derive(Debug, Clone)]
 pub struct FlatFileEntry {
   pub name: String,
-  pub dist: Option<PromptArtifact>,
+  pub compiled: Option<PromptArtifact>,
   pub src_zh: Option<PromptArtifact>,
   pub src_en: Option<PromptArtifact>,
 }
 
 pub fn read_flat_files(
-  src_dir: &str,
-  dist_dir: &str,
+  dir: &str,
   global_scope_json: Option<&str>,
 ) -> Result<Vec<FlatFileEntry>, crate::CliError> {
   let mut entries: Vec<FlatFileEntry> = Vec::new();
   let mut seen: HashSet<String> = HashSet::new();
 
-  let src_path = Path::new(src_dir);
-  if src_path.is_dir() {
-    scan_source(
-      src_path,
-      src_path,
-      &mut seen,
-      &mut entries,
-      global_scope_json,
-    )?;
-  }
-
-  let dist_path = Path::new(dist_dir);
-  if dist_path.is_dir() {
-    scan_dist(
-      dist_path,
-      dist_path,
+  let dir_path = Path::new(dir);
+  if dir_path.is_dir() {
+    scan_directory(
+      dir_path,
+      dir_path,
       &mut seen,
       &mut entries,
       global_scope_json,
@@ -44,7 +32,7 @@ pub fn read_flat_files(
   Ok(entries)
 }
 
-fn scan_source(
+fn scan_directory(
   root: &Path,
   current: &Path,
   seen: &mut HashSet<String>,
@@ -55,7 +43,7 @@ fn scan_source(
     let entry = entry.map_err(crate::CliError::IoError)?;
     let path = entry.path();
     if path.is_dir() {
-      scan_source(root, &path, seen, entries, global_scope_json)?;
+      scan_directory(root, &path, seen, entries, global_scope_json)?;
       continue;
     }
     let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
@@ -73,12 +61,16 @@ fn scan_source(
       relative_parent.to_str().unwrap_or("")
     };
 
-    let base_name = if file_name.ends_with(".zh.src.mdx") {
-      &file_name[..file_name.len() - ".zh.src.mdx".len()]
+    let (base_name, is_zh_source, is_en_source) = if file_name.ends_with(".zh.src.mdx") {
+      (&file_name[..file_name.len() - ".zh.src.mdx".len()], true, false)
     } else if file_name.ends_with(".en.src.mdx") {
-      &file_name[..file_name.len() - ".en.src.mdx".len()]
+      (&file_name[..file_name.len() - ".en.src.mdx".len()], false, true)
     } else if file_name.ends_with(".src.mdx") {
-      &file_name[..file_name.len() - ".src.mdx".len()]
+      (&file_name[..file_name.len() - ".src.mdx".len()], true, false)
+    } else if file_name.ends_with(".cn.mdx") {
+      continue;
+    } else if file_name.ends_with(".mdx") {
+      (&file_name[..file_name.len() - ".mdx".len()], false, false)
     } else {
       continue;
     };
@@ -89,86 +81,33 @@ fn scan_source(
       format!("{}/{}", relative_parent_str, base_name)
     };
 
-    let artifact = read_prompt_artifact(path.to_str().unwrap_or(""), "source", global_scope_json)
+    let artifact = read_prompt_artifact(path.to_str().unwrap_or(""), if is_zh_source || is_en_source { "source" } else { "dist" }, global_scope_json)
       .map_err(|e| crate::CliError::ConfigError(e))?;
 
     if let Some(existing) = entries.iter_mut().find(|e| e.name == full_name) {
-      if file_name.ends_with(".en.src.mdx") {
+      if is_zh_source {
+        existing.src_zh = Some(artifact);
+      } else if is_en_source {
         existing.src_en = Some(artifact);
       } else {
-        existing.src_zh = Some(artifact);
+        existing.compiled = Some(artifact);
       }
     } else {
       seen.insert(full_name.clone());
       let mut e = FlatFileEntry {
         name: full_name,
-        dist: None,
+        compiled: None,
         src_zh: None,
         src_en: None,
       };
-      if file_name.ends_with(".en.src.mdx") {
+      if is_zh_source {
+        e.src_zh = Some(artifact);
+      } else if is_en_source {
         e.src_en = Some(artifact);
       } else {
-        e.src_zh = Some(artifact);
+        e.compiled = Some(artifact);
       }
       entries.push(e);
-    }
-  }
-  Ok(())
-}
-
-fn scan_dist(
-  root: &Path,
-  current: &Path,
-  seen: &mut HashSet<String>,
-  entries: &mut Vec<FlatFileEntry>,
-  global_scope_json: Option<&str>,
-) -> Result<(), crate::CliError> {
-  for entry in std::fs::read_dir(current).map_err(crate::CliError::IoError)? {
-    let entry = entry.map_err(crate::CliError::IoError)?;
-    let path = entry.path();
-    if path.is_dir() {
-      scan_dist(root, &path, seen, entries, global_scope_json)?;
-      continue;
-    }
-    let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
-      continue;
-    };
-    if !file_name.ends_with(".mdx") {
-      continue;
-    }
-    let base_name = &file_name[..file_name.len() - ".mdx".len()];
-
-    let relative_parent = path
-      .parent()
-      .unwrap_or(root)
-      .strip_prefix(root)
-      .unwrap_or(Path::new(""));
-    let relative_parent_str = if relative_parent.as_os_str().is_empty() {
-      ""
-    } else {
-      relative_parent.to_str().unwrap_or("")
-    };
-
-    let full_name = if relative_parent_str.is_empty() {
-      base_name.to_string()
-    } else {
-      format!("{}/{}", relative_parent_str, base_name)
-    };
-
-    let artifact = read_prompt_artifact(path.to_str().unwrap_or(""), "dist", global_scope_json)
-      .map_err(|e| crate::CliError::ConfigError(e))?;
-
-    if let Some(existing) = entries.iter_mut().find(|e| e.name == full_name) {
-      existing.dist = Some(artifact);
-    } else {
-      seen.insert(full_name.clone());
-      entries.push(FlatFileEntry {
-        name: full_name,
-        dist: Some(artifact),
-        src_zh: None,
-        src_en: None,
-      });
     }
   }
   Ok(())
