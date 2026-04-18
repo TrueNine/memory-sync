@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
-use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupSnapshot, PluginCleanupSnapshotDto};
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
 use crate::domain::plugin_shared::CollectedInputContext;
+use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupSnapshot, PluginCleanupSnapshotDto};
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {

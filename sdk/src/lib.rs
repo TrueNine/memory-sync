@@ -4,7 +4,6 @@
 //! list_prompts, get_prompt, upsert_prompt_source, write_prompt_artifacts,
 //! generate_schema.
 
-pub mod context;
 pub mod domain;
 pub mod endpoint;
 pub mod infra;
@@ -13,26 +12,25 @@ pub mod repositories;
 pub mod services;
 
 use std::path::Path;
-use std::process::ExitCode;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub use domain::config;
 pub use infra::logger;
 pub use infra::md_compiler;
-pub use infra::script_runtime;
-pub use domain::config;
 pub use infra::md_compiler::{
-  BuildPromptTomlArtifactOptions, BuildTomlDocumentOptions, EvaluationScope, ExportMetadata,
-  MdxGlobalScope, MdxToMdOptions, MdxToMdResult, MetadataSource, ProcessingContext,
-  build_prompt_toml_artifact, build_toml_document, mdx_to_md, mdx_to_md_with_metadata, parse_mdx,
-  serialize,
+  build_prompt_toml_artifact, build_toml_document, mdx_to_md, mdx_to_md_with_metadata,
+  parse_mdx, serialize, BuildPromptTomlArtifactOptions, BuildTomlDocumentOptions, EvaluationScope,
+  ExportMetadata, MdxGlobalScope, MdxToMdOptions, MdxToMdResult, MetadataSource,
+  ProcessingContext,
 };
+pub use infra::script_runtime;
 pub use services::prompts::{
+  get_prompt, list_prompts, upsert_prompt_source, write_prompt_artifacts,
   ListPromptsOptions, ManagedPromptKind, PromptArtifactRecord, PromptArtifactState,
   PromptCatalogItem, PromptCatalogPaths, PromptCatalogPresence, PromptDetails,
   PromptServiceOptions, PromptSourceLocale, UpsertPromptSourceInput, WritePromptArtifactsInput,
-  get_prompt, list_prompts, upsert_prompt_source, write_prompt_artifacts,
 };
 
 /// Unified error type for CLI library API.
@@ -49,9 +47,6 @@ pub enum CliError {
 
   #[error("Execution error: {0}")]
   ExecutionError(String),
-
-  #[error("Execution not yet fully implemented in Rust: {0}")]
-  NotImplemented(String),
 }
 
 /// Shared command options consumed by the crate facade, CLI, and GUI callers.
@@ -136,7 +131,7 @@ pub fn load_config(cwd: &Path) -> Result<domain::config::MergedConfigResult, Cli
     .map_err(CliError::ConfigError)
 }
 
-pub use endpoint::{install, dry_run, clean};
+pub use endpoint::{clean, dry_run, install};
 
 /// Return the default output plugin registry without instantiating TS plugin classes.
 pub fn list_plugins() -> Vec<MemorySyncPluginInfo> {
@@ -149,46 +144,6 @@ pub fn list_plugins() -> Vec<MemorySyncPluginInfo> {
       dependencies: dependencies.iter().map(|d| (*d).to_string()).collect(),
     })
     .collect()
-}
-
-/// Run the install pipeline in passthrough mode for the Rust CLI.
-pub fn run_install_cli() -> ExitCode {
-  match install(MemorySyncCommandOptions::default()) {
-    Ok(r) if r.success => ExitCode::SUCCESS,
-    Ok(_) => ExitCode::FAILURE,
-    Err(e) => {
-      eprintln!("Error: {}", e);
-      ExitCode::FAILURE
-    }
-  }
-}
-
-/// Run the dry-run pipeline in passthrough mode for the Rust CLI.
-pub fn run_dry_run_cli() -> ExitCode {
-  match dry_run(MemorySyncCommandOptions::default()) {
-    Ok(r) if r.success => ExitCode::SUCCESS,
-    Ok(_) => ExitCode::FAILURE,
-    Err(e) => {
-      eprintln!("Error: {}", e);
-      ExitCode::FAILURE
-    }
-  }
-}
-
-/// Run cleanup in passthrough mode for the Rust CLI.
-pub fn run_clean_cli(dry_run: bool) -> ExitCode {
-  let options = MemorySyncCommandOptions {
-    dry_run: Some(dry_run),
-    ..Default::default()
-  };
-  match clean(options) {
-    Ok(r) if r.success => ExitCode::SUCCESS,
-    Ok(_) => ExitCode::FAILURE,
-    Err(e) => {
-      eprintln!("Error: {}", e);
-      ExitCode::FAILURE
-    }
-  }
 }
 
 /// Generate the JSON Schema for the `.tnmsc.json` config file.
@@ -238,8 +193,7 @@ mod property_tests {
       CliError::ConfigError("bad config".into()),
       CliError::IoError(std::io::Error::new(std::io::ErrorKind::NotFound, "test")),
       CliError::SerializationError(serde_json::from_str::<String>("invalid").unwrap_err()),
-      CliError::ExecutionError("bridge failed".into()),
-      CliError::NotImplemented("test".into()),
+      CliError::ExecutionError("execution failed".into()),
     ];
 
     for err in &errors {
@@ -248,7 +202,6 @@ mod property_tests {
         CliError::IoError(e) => assert!(!e.to_string().is_empty()),
         CliError::SerializationError(e) => assert!(!e.to_string().is_empty()),
         CliError::ExecutionError(msg) => assert!(!msg.is_empty()),
-        CliError::NotImplemented(msg) => assert!(!msg.is_empty()),
       }
     }
   }

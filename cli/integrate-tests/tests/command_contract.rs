@@ -1,7 +1,7 @@
 use serde_json::Value;
 use tnmsc_integration_tests::{
-  EXPECTED_SUBCOMMANDS, NOT_IMPLEMENTED_CASES, PACKAGED_PLUGINS, current_package_version,
-  install_packaged_cli_container, not_implemented_message,
+  EXPECTED_SUBCOMMANDS, PACKAGED_PLUGINS, current_package_version,
+  install_packaged_cli_container,
 };
 
 #[test]
@@ -44,17 +44,4 @@ fn packaged_cli_contract_runs_inside_testcontainer() {
     .expect("schema output should be a top-level JSON object");
   assert!(object.contains_key("$schema"));
   assert!(object.contains_key("properties"));
-
-  for case in NOT_IMPLEMENTED_CASES {
-    let result = container.exec_tnmsc(case.args);
-    result.assert_failure(case.display);
-
-    let expected = not_implemented_message(case.command_name);
-    assert!(
-      result.stderr.contains(&expected),
-      "{} stderr should contain the not-implemented contract.\nexpected:\n{expected}\nactual:\n{}",
-      case.display,
-      result.stderr,
-    );
-  }
 }

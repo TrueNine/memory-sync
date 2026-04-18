@@ -1,7 +1,6 @@
 /// Tauri commands that bridge the frontend to the `tnmsd` crate facade.
 ///
 /// Core install / clean / config / plugin operations run through direct crate APIs.
-/// The log viewer still uses the legacy bridge path until command streaming moves into Rust.
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 
@@ -152,11 +151,11 @@ fn to_pipeline_result(
     command: Some(command.to_string()),
     plugin_results: Vec::new(),
     logs: Vec::new(),
-    errors: collect_bridge_messages(result),
+    errors: collect_result_errors(result),
   }
 }
 
-fn collect_bridge_messages(result: &tnmsd::MemorySyncCommandResult) -> Vec<String> {
+fn collect_result_errors(result: &tnmsd::MemorySyncCommandResult) -> Vec<String> {
   let mut messages = Vec::new();
 
   if let Some(message) = result.message.as_ref()

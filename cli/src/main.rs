@@ -27,11 +27,11 @@ fn main() -> ExitCode {
     ResolvedCommand::Version => commands::version::execute(),
     ResolvedCommand::Schema(args) => commands::schema::execute(&args),
     ResolvedCommand::AssembleNpm(args) => commands::package::execute(&args),
-    ResolvedCommand::Install => commands::bridge::install(),
-    ResolvedCommand::DryRun => commands::bridge::dry_run(),
-    ResolvedCommand::Clean => commands::bridge::clean(),
-    ResolvedCommand::DryRunClean => commands::bridge::dry_run_clean(),
-    ResolvedCommand::Plugins => commands::bridge::plugins(),
+    ResolvedCommand::Install => commands::pipeline::install(),
+    ResolvedCommand::DryRun => commands::pipeline::dry_run(),
+    ResolvedCommand::Clean => commands::pipeline::clean(),
+    ResolvedCommand::DryRunClean => commands::pipeline::dry_run_clean(),
+    ResolvedCommand::Plugins => commands::pipeline::plugins(),
   };
 
   flush_output();

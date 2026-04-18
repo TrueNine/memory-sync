@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::infra::diagnostic_helpers::{diagnostic, line, optional_details};
-use crate::infra::logger::{Logger, create_logger};
+use crate::infra::logger::{create_logger, Logger};
 
 // ---------------------------------------------------------------------------
 // Constants

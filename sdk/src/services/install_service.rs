@@ -3,19 +3,19 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
-use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use serde_json::{Value, json};
+use serde::Deserialize;
+use serde_json::{json, Value};
 
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
-use crate::infra::desk_paths;
 use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
-use crate::policy::path_blocking;
 use crate::domain::plugin_shared::{
   AIAgentIgnoreConfigFile, CollectedInputContext, FastCommandPrompt, GlobalMemoryPrompt,
   ProjectIDEConfigFile, ReadmePrompt, RulePrompt, SkillPrompt, SubAgentPrompt, Workspace,
 };
+use crate::infra::desk_paths;
+use crate::policy::path_blocking;
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 const PLUGIN_AGENTS: &str = "AgentsOutputAdaptor";

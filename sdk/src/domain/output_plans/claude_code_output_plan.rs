@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use crate::CliError;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
-use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 use crate::domain::plugin_shared::{CollectedInputContext, Project, RelativePath, Workspace};
+use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::CliError;
 
 const CLAUDE_CODE_PLUGIN_NAME: &str = "ClaudeCodeCLIOutputAdaptor";
 const CLAUDE_CODE_MEMORY_FILE: &str = "CLAUDE.md";

@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use crate::CliError;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
-use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 use crate::domain::config;
 use crate::domain::plugin_shared::{CollectedInputContext, Project, RelativePath, Workspace};
+use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::CliError;
 
 const GEMINI_PLUGIN_NAME: &str = "GeminiCLIOutputAdaptor";
 const GEMINI_MEMORY_FILE: &str = "GEMINI.md";
@@ -215,7 +215,6 @@ fn push_unique_cleanup_file(
 
 #[cfg(test)]
 mod tests {
-
   use tempfile::TempDir;
 
   use super::*;

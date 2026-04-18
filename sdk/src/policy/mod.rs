@@ -1,9 +1,6 @@
 pub mod cleanup;
-pub mod context_merger;
 pub mod dependency_resolver;
 pub mod path_blocking;
 pub mod skill_dist_cleanup;
 pub mod md_cleanup;
 pub mod git_discovery;
-pub mod wsl_mirror_sync;
-pub mod command_bridge;

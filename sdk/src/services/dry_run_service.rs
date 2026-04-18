@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};

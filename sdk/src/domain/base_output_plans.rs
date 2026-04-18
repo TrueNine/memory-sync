@@ -2,12 +2,12 @@ use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::CliError;
-use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
-use crate::policy::git_discovery::{find_all_git_repos, resolve_git_info_dir};
 use crate::domain::plugin_shared::{
   CollectedInputContext, IDEKind, Project, ProjectIDEConfigFile, RelativePath, Workspace,
 };
+use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::policy::git_discovery::{find_all_git_repos, resolve_git_info_dir};
+use crate::CliError;
 
 const AGENTS_PLUGIN_NAME: &str = "AgentsOutputAdaptor";
 const GIT_EXCLUDE_PLUGIN_NAME: &str = "GitExcludeOutputAdaptor";

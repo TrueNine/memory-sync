@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use crate::repositories::prompt_artifact::{PromptArtifact, read_prompt_artifact};
+use crate::repositories::prompt_artifact::{read_prompt_artifact, PromptArtifact};
 
 #[derive(Debug, Clone)]
 pub struct FlatFileEntry {

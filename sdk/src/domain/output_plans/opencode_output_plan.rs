@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use crate::CliError;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
-use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 use crate::domain::plugin_shared::{CollectedInputContext, Project, RelativePath, Workspace};
+use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::CliError;
 
 const OPENCODE_PLUGIN_NAME: &str = "OpencodeCLIOutputAdaptor";
 const OPENCODE_MEMORY_FILE: &str = "AGENTS.md";

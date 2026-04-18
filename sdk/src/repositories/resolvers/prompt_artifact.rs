@@ -1,4 +1,4 @@
-use crate::md_compiler::{MdxGlobalScope, MdxToMdOptions, mdx_to_md_with_metadata};
+use crate::md_compiler::{mdx_to_md_with_metadata, MdxGlobalScope, MdxToMdOptions};
 use serde_json::Value;
 
 #[derive(Debug, Clone)]

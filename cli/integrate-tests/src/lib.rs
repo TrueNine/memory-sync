@@ -24,21 +24,6 @@ pub const PACKAGED_PLUGINS: &[&str] = &[
   "OpencodeCLIOutputAdaptor",
 ];
 
-pub struct CommandTestCase<'a> {
-  pub args: &'a [&'a str],
-  pub command_name: &'a str,
-  pub display: &'a str,
-}
-
-pub const NOT_IMPLEMENTED_CASES: &[CommandTestCase] = &[
-  CommandTestCase {
-    args: &["dry-run"],
-    command_name: "dry-run",
-    display: "tnmsc dry-run",
-  },
-  // Removed clean cases as tests are now implemented
-];
-
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
 
 pub struct CommandResult {
@@ -379,12 +364,6 @@ pub fn run_program(program: &str, args: &[&str], cwd: &Path) -> CommandResult {
 
 pub fn current_package_version() -> &'static str {
   env!("CARGO_PKG_VERSION")
-}
-
-pub fn not_implemented_message(command: &str) -> String {
-  format!(
-    "Error: Execution not yet fully implemented in Rust: Pure Rust `{command}` is not implemented yet. The CLI npm package no longer ships the legacy TypeScript fallback bridge."
-  )
 }
 
 pub fn ensure_release_binary() {
