@@ -15,6 +15,40 @@ pub const DOCKER_IMAGE_NAME: &str = "node";
 pub const DOCKER_IMAGE_TAG: &str = "22-trixie";
 const EXIT_MARKER: &str = "__TNMSC_EXIT_CODE__=";
 
+pub const EXPECTED_SUBCOMMANDS: &[&str] =
+  &["install", "dry-run", "clean", "plugins", "version", "help"];
+
+pub const PACKAGED_PLUGINS: &[&str] = &[
+  "CodexCLIOutputAdaptor",
+  "ClaudeCodeCLIOutputAdaptor",
+  "TraeOutputAdaptor",
+  "OpencodeCLIOutputAdaptor",
+];
+
+pub struct CommandTestCase<'a> {
+  pub args: &'a [&'a str],
+  pub command_name: &'a str,
+  pub display: &'a str,
+}
+
+pub const NOT_IMPLEMENTED_CASES: &[CommandTestCase] = &[
+  CommandTestCase {
+    args: &["dry-run"],
+    command_name: "dry-run",
+    display: "tnmsc dry-run",
+  },
+  CommandTestCase {
+    args: &["clean"],
+    command_name: "clean",
+    display: "tnmsc clean",
+  },
+  CommandTestCase {
+    args: &["clean", "--dry-run"],
+    command_name: "clean",
+    display: "tnmsc clean --dry-run",
+  },
+];
+
 static PNPM_VERSION: OnceLock<String> = OnceLock::new();
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
 static REAL_ENV_SKIP_REASON: OnceLock<Option<String>> = OnceLock::new();
@@ -151,6 +185,73 @@ impl TestContainer {
   pub fn exec_success(&self, command: &str) -> CommandResult {
     let result = self.exec(command);
     result.assert_success(&format!("testcontainer exec `{command}`"));
+    result
+  }
+
+  pub fn exec_tnmsc(&self, args: &[&str]) -> CommandResult {
+    self.exec(&tnmsc_command(args))
+  }
+
+  pub fn exec_tnmsc_success(&self, args: &[&str]) -> CommandResult {
+    let command = tnmsc_command(args);
+    let result = self.exec(&command);
+    result.assert_success(&command);
+    result
+  }
+
+  pub fn cat(&self, path: &str) -> CommandResult {
+    self.exec(&format!("cat {}", quote_shell(path)))
+  }
+
+  pub fn cat_success(&self, path: &str) -> CommandResult {
+    let result = self.cat(path);
+    result.assert_success(&format!("read {path}"));
+    result
+  }
+
+  pub fn setup(&self) -> ContainerSetup<'_> {
+    ContainerSetup::new(self)
+  }
+}
+
+pub struct ContainerSetup<'a> {
+  container: &'a TestContainer,
+  lines: Vec<String>,
+  heredoc_index: usize,
+}
+
+impl<'a> ContainerSetup<'a> {
+  fn new(container: &'a TestContainer) -> Self {
+    Self {
+      container,
+      lines: Vec::new(),
+      heredoc_index: 0,
+    }
+  }
+
+  pub fn mkdir_p(mut self, path: &str) -> Self {
+    self.lines.push(format!("mkdir -p {}", quote_shell(path)));
+    self
+  }
+
+  pub fn write_file(mut self, path: &str, content: &str) -> Self {
+    let delimiter = format!("__TNMSC_{}__", self.heredoc_index);
+    self.heredoc_index += 1;
+    self.lines.push(format!(
+      "cat <<'{delimiter}' > {path}\n{content}\n{delimiter}"
+    ));
+    self
+  }
+
+  pub fn rm_rf(mut self, path: &str) -> Self {
+    self.lines.push(format!("rm -rf {}", quote_shell(path)));
+    self
+  }
+
+  pub fn exec(self, context: &str) -> CommandResult {
+    let script = self.lines.join("\n");
+    let result = self.container.exec(&script);
+    result.assert_success(context);
     result
   }
 }

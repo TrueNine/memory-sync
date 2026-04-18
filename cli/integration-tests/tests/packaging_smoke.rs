@@ -4,8 +4,8 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 
 use tnmsc_integration_tests::{
-  create_staged_package_root, install_packaged_cli_container, real_env_test_skip_reason,
-  run_tnmsc_with_env, workspace_root,
+  EXPECTED_SUBCOMMANDS, PACKAGED_PLUGINS, create_staged_package_root,
+  install_packaged_cli_container, real_env_test_skip_reason, run_tnmsc_with_env, workspace_root,
 };
 
 #[test]
@@ -51,9 +51,9 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
 
   let container = install_packaged_cli_container();
 
-  let help = container.exec("tnmsc help");
+  let help = container.exec_tnmsc(&["help"]);
   help.assert_success("global tnmsc help");
-  for expected in ["install", "dry-run", "clean", "plugins"] {
+  for expected in EXPECTED_SUBCOMMANDS {
     assert!(
       help.stdout.contains(expected),
       "global help output should include `{expected}`.\nstdout:\n{}",
@@ -61,14 +61,9 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
     );
   }
 
-  let plugins = container.exec("tnmsc plugins");
+  let plugins = container.exec_tnmsc(&["plugins"]);
   plugins.assert_success("global tnmsc plugins");
-  for expected in [
-    "CodexCLIOutputAdaptor",
-    "ClaudeCodeCLIOutputAdaptor",
-    "TraeOutputAdaptor",
-    "OpencodeCLIOutputAdaptor",
-  ] {
+  for expected in PACKAGED_PLUGINS {
     assert!(
       plugins.stdout.contains(expected),
       "global plugins output should include `{expected}`.\nstdout:\n{}",

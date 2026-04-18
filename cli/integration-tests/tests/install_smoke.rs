@@ -9,35 +9,33 @@ fn packaged_cli_install_writes_claude_memory_from_aindex() {
 
   let container = install_packaged_cli_container();
 
-  container.exec_success(
-    r#"
-mkdir -p /workspace/demo/aindex/dist
-mkdir -p /root/.aindex
-
-cat <<'EOF' > /root/.aindex/.tnmsc.json
-{
+  container
+    .setup()
+    .mkdir_p("/workspace/demo/aindex/dist")
+    .mkdir_p("/root/.aindex")
+    .write_file(
+      "/root/.aindex/.tnmsc.json",
+      r#"{
   "workspaceDir": "/workspace/demo",
   "plugins": {
     "claudeCode": true
   }
-}
-EOF
-
-cat <<'EOF' > /workspace/demo/aindex/dist/global.mdx
-Global memory from aindex
-EOF
-
-cat <<'EOF' > /workspace/demo/aindex/dist/workspace.mdx
-Workspace root prompt from aindex
-EOF
-"#,
-  );
+}"#,
+    )
+    .write_file(
+      "/workspace/demo/aindex/dist/global.mdx",
+      "Global memory from aindex",
+    )
+    .write_file(
+      "/workspace/demo/aindex/dist/workspace.mdx",
+      "Workspace root prompt from aindex",
+    )
+    .exec("setup install smoke workspace");
 
   let install = container.exec("cd /workspace/demo && tnmsc install");
   install.assert_success("global tnmsc install");
 
-  let claude = container.exec("cat /workspace/demo/CLAUDE.md");
-  claude.assert_success("read generated CLAUDE.md");
+  let claude = container.cat_success("/workspace/demo/CLAUDE.md");
   assert!(
     claude.stdout.contains("Global memory from aindex"),
     "generated CLAUDE.md should include the global memory.\nstdout:\n{}",
@@ -59,20 +57,19 @@ fn packaged_cli_install_errors_when_workspace_dir_not_configured() {
 
   let container = install_packaged_cli_container();
 
-  container.exec_success(
-    r#"
-mkdir -p /workspace/demo/aindex/dist
-mkdir -p /root/.aindex
-
-cat <<'EOF' > /root/.aindex/.tnmsc.json
-{
+  container
+    .setup()
+    .mkdir_p("/workspace/demo/aindex/dist")
+    .mkdir_p("/root/.aindex")
+    .write_file(
+      "/root/.aindex/.tnmsc.json",
+      r#"{
   "plugins": {
     "claudeCode": true
   }
-}
-EOF
-"#,
-  );
+}"#,
+    )
+    .exec("setup missing workspaceDir workspace");
 
   let install = container.exec("cd /workspace/demo && tnmsc install");
   install.assert_failure("tnmsc install without workspaceDir");
@@ -93,12 +90,11 @@ fn packaged_cli_install_errors_when_config_file_missing() {
 
   let container = install_packaged_cli_container();
 
-  container.exec_success(
-    r#"
-mkdir -p /workspace/demo/aindex/dist
-rm -rf /root/.aindex
-"#,
-  );
+  container
+    .setup()
+    .mkdir_p("/workspace/demo/aindex/dist")
+    .rm_rf("/root/.aindex")
+    .exec("setup missing config workspace");
 
   let install = container.exec("cd /workspace/demo && tnmsc install");
   install.assert_failure("tnmsc install without config file");
