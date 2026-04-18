@@ -7,7 +7,7 @@ use std::process::Command as StdCommand;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tnmsd::core::config as core_config;
+use tnmsd::domain::config as core_config;
 
 const PRIMARY_SOURCE_MDX_EXTENSION: &str = ".src.mdx";
 const SOURCE_MDX_FILE_TYPE: &str = "sourceMdx";
@@ -271,7 +271,7 @@ pub struct AindexFileEntry {
 /// Parsed global config with resolved paths.
 struct ResolvedConfig {
   aindex_root: PathBuf,
-  config: tnmsd::core::config::UserConfigFile,
+  config: tnmsd::domain::config::UserConfigFile,
 }
 
 struct CategoryPaths {
@@ -280,12 +280,12 @@ struct CategoryPaths {
 }
 
 fn resolve_category_paths(
-  config: &tnmsd::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
   category: &str,
 ) -> Result<CategoryPaths, String> {
   let aindex = &config.aindex;
 
-  let resolve_pair = |pair: Option<&tnmsd::core::config::DirPair>,
+  let resolve_pair = |pair: Option<&tnmsd::domain::config::DirPair>,
                       default_source: &str,
                       default_translated: &str|
    -> CategoryPaths {
@@ -368,7 +368,7 @@ fn collect_project_series_category_files(
 
 fn collect_root_memory_prompt_files(
   base: &std::path::Path,
-  config: &tnmsd::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
   out: &mut Vec<AindexFileEntry>,
 ) {
   for (source_rel, translated_rel) in collect_root_memory_prompt_pairs(config) {
@@ -387,7 +387,7 @@ fn collect_root_memory_prompt_files(
 }
 
 fn collect_root_memory_prompt_pairs(
-  config: &tnmsd::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
 ) -> Vec<(String, String)> {
   let aindex = &config.aindex;
   [
@@ -419,7 +419,7 @@ fn collect_root_memory_prompt_pairs(
 
 fn collect_category_file_entries(
   base: &std::path::Path,
-  config: &tnmsd::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
   category: &str,
 ) -> Result<Vec<AindexFileEntry>, String> {
   let paths = resolve_category_paths(config, category)?;
@@ -451,7 +451,7 @@ fn load_resolved_config(cwd: &str) -> Result<ResolvedConfig, String> {
     tnmsd::load_config(Path::new(cwd)).map_err(|e| format!("Failed to load config: {e}"))?;
   let config = result.config;
   let workspace_dir = config.workspace_dir.as_deref().unwrap_or(".");
-  let workspace_dir = tnmsd::core::config::resolve_tilde(workspace_dir);
+  let workspace_dir = tnmsd::domain::config::resolve_tilde(workspace_dir);
   let aindex_dir = config
     .aindex
     .dir
@@ -712,7 +712,7 @@ fn derive_english_source_rel(source_rel: &str) -> Option<String> {
 
 fn collect_root_memory_prompt_stats(
   base: &std::path::Path,
-  config: &tnmsd::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
 ) -> StatAccumulator {
   let mut stats = StatAccumulator::default();
   let mut seen_paths = std::collections::HashSet::new();
@@ -752,7 +752,7 @@ fn accumulate_overall_stats(
 
 fn collect_project_series_stats(
   base: &std::path::Path,
-  config: &tnmsd::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
   stats: &mut AindexStats,
   all_ext: &mut std::collections::HashMap<String, u32>,
 ) -> Result<(), String> {
@@ -795,7 +795,7 @@ fn collect_project_series_stats(
 
 fn build_aindex_stats(
   base: &std::path::Path,
-  config: &tnmsd::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
 ) -> Result<AindexStats, String> {
   let mut stats = AindexStats::default();
   let mut all_ext: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
@@ -877,8 +877,8 @@ mod tests {
     dir
   }
 
-  fn create_test_config() -> tnmsd::core::config::UserConfigFile {
-    tnmsd::core::config::UserConfigFile::default()
+  fn create_test_config() -> tnmsd::domain::config::UserConfigFile {
+    tnmsd::domain::config::UserConfigFile::default()
   }
 
   #[test]
