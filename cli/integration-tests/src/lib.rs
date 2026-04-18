@@ -58,22 +58,11 @@ pub struct CommandResult {
 
 impl CommandResult {
   pub fn assert_success(&self, context: &str) {
-    assert!(
-      self.status == 0,
-      "{context} should succeed.\nexit: {}\nstdout:\n{}\nstderr:\n{}",
-      self.status,
-      self.stdout,
-      self.stderr
-    );
+    assert_eq!(self.status, 0, "{context} should succeed.\nexit: {}\nstdout:\n{}\nstderr:\n{}", self.status, self.stdout, self.stderr);
   }
 
   pub fn assert_failure(&self, context: &str) {
-    assert!(
-      self.status != 0,
-      "{context} should fail.\nstdout:\n{}\nstderr:\n{}",
-      self.stdout,
-      self.stderr
-    );
+    assert_ne!(self.status, 0, "{context} should fail.\nstdout:\n{}\nstderr:\n{}", self.stdout, self.stderr);
   }
 }
 

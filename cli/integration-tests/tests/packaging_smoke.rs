@@ -36,12 +36,7 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
       .unwrap_or_else(|error| panic!("failed to stat {}: {error}", staged.linux_binary.display()))
       .permissions()
       .mode();
-    assert!(
-      mode & 0o111 != 0,
-      "expected {} to be executable, mode was {:o}",
-      staged.linux_binary.display(),
-      mode
-    );
+    assert_ne!(mode & 0o111, 0, "expected {} to be executable, mode was {:o}", staged.linux_binary.display(), mode);
   }
 
   let container = install_packaged_cli_container();
