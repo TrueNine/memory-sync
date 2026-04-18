@@ -52,6 +52,7 @@ pub const NOT_IMPLEMENTED_CASES: &[CommandTestCase] = &[
 static PNPM_VERSION: OnceLock<String> = OnceLock::new();
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
 static REAL_ENV_SKIP_REASON: OnceLock<Option<String>> = OnceLock::new();
+static DOCKER_IMAGE_READY: OnceLock<()> = OnceLock::new();
 
 pub struct CommandResult {
   pub status: i32,
@@ -133,6 +134,14 @@ pub struct TestContainer {
   container: Container<GenericImage>,
 }
 
+impl Drop for TestContainer {
+  fn drop(&mut self) {
+    let id = self.container.id();
+    eprintln!("stopping and removing testcontainer: {id}");
+    let _ = self.container.stop();
+  }
+}
+
 impl TestContainer {
   pub fn start(artifacts: &PackedArtifacts) -> Self {
     assert!(
@@ -145,6 +154,20 @@ impl TestContainer {
       "Linux tarball does not exist: {}",
       artifacts.linux_tarball.display()
     );
+
+    DOCKER_IMAGE_READY.get_or_init(|| {
+      let result = run_program(
+        "docker",
+        &["pull", &format!("{DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG}")],
+        &workspace_root(),
+      );
+      assert!(
+        result.status == 0,
+        "failed to pull docker image {DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG}\nstderr: {}\nstdout: {}",
+        result.stderr,
+        result.stdout
+      );
+    });
 
     let image = GenericImage::new(DOCKER_IMAGE_NAME, DOCKER_IMAGE_TAG)
       .with_wait_for(WaitFor::seconds(1))
@@ -164,6 +187,62 @@ impl TestContainer {
       .unwrap_or_else(|error| panic!("failed to start testcontainer: {error}"));
 
     Self { container }
+  }
+
+  pub fn exec_with_retries_and_timeout(&self, command: &str, max_attempts: u32, delay_ms: u64, timeout_secs: u64) -> CommandResult {
+    let mut last_result: Option<CommandResult> = None;
+    for attempt in 1..=max_attempts {
+      let result = self.exec_with_timeout(command, timeout_secs);
+      if result.status == 0 {
+        return result;
+      }
+      last_result = Some(result);
+      if attempt < max_attempts {
+        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+      }
+    }
+    last_result.expect("should have at least one attempt")
+  }
+
+  pub fn exec_with_timeout(&self, command: &str, timeout_secs: u64) -> CommandResult {
+    let script = shell_script(command);
+    let mut exec_result = self
+      .container
+      .exec(ExecCommand::new(vec!["sh", "-lc", &script]))
+      .unwrap_or_else(|error| panic!("failed to exec in testcontainer: {error}"));
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
+    loop {
+      if std::time::Instant::now() > deadline {
+        panic!("command timed out after {timeout_secs}s: {command}");
+      }
+
+      if let Ok(Some(_code)) = exec_result.exit_code() {
+        break;
+      }
+
+      std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    let fallback_status = exec_result
+      .exit_code()
+      .ok()
+      .flatten()
+      .unwrap_or(0) as i32;
+    let stdout = exec_result
+      .stdout_to_vec()
+      .unwrap_or_else(|error| panic!("failed to read exec stdout: {error}"));
+    let stderr = exec_result
+      .stderr_to_vec()
+      .unwrap_or_else(|error| panic!("failed to read exec stderr: {error}"));
+    let stderr = String::from_utf8_lossy(&stderr).into_owned();
+    let (status, stderr) = extract_exit_code(&stderr).unwrap_or((fallback_status, stderr));
+
+    CommandResult {
+      status,
+      stdout: String::from_utf8_lossy(&stdout).into_owned(),
+      stderr,
+    }
   }
 
   pub fn exec_with_retries(&self, command: &str, max_attempts: u32, delay_ms: u64) -> CommandResult {
@@ -488,7 +567,7 @@ pub fn install_packaged_cli_container() -> TestContainer {
     quote_shell("/artifacts/cli.tgz"),
     quote_shell("/artifacts/linux-x64-gnu.tgz")
   );
-  let result = container.exec_with_retries(&install_command, 3, 2000);
+  let result = container.exec_with_retries_and_timeout(&install_command, 3, 2000, 120);
   result.assert_success(&format!("install tnmsc globally (attempted up to 3 times): {}", install_command));
   container
 }
@@ -527,19 +606,30 @@ fn compute_real_env_skip_reason() -> Option<String> {
     return Some(format!("cargo unavailable: {detail}"));
   }
 
-  let result = run_program(
+  let docker_check = run_program(
     "docker",
     &["info", "--format", "{{.ServerVersion}}"],
     &workspace_root(),
   );
-  if result.status == 0 {
-    return None;
+  if docker_check.status != 0 {
+    let detail = trim_output(&docker_check.stderr)
+      .or_else(|| trim_output(&docker_check.stdout))
+      .unwrap_or_else(|| "docker daemon is unavailable".to_string());
+    return Some(format!("docker unavailable: {detail}"));
   }
 
-  let detail = trim_output(&result.stderr)
-    .or_else(|| trim_output(&result.stdout))
-    .unwrap_or_else(|| "docker daemon is unavailable".to_string());
-  Some(format!("docker unavailable: {detail}"))
+  let image_check = run_program(
+    "docker",
+    &["image", "inspect", &format!("{DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG}")],
+    &workspace_root(),
+  );
+  if image_check.status != 0 {
+    return Some(format!(
+      "docker image {DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG} not found; run: docker pull {DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG}"
+    ));
+  }
+
+  None
 }
 
 fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
