@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::domain::config;
+use crate::context::OutputContext;
 use crate::domain::plugin_shared::{
-  CollectedInputContext, FastCommandPrompt, Project, RelativePath, RuleScope, SkillPrompt,
+  FastCommandPrompt, Project, RelativePath, RuleScope, SkillPrompt,
   SkillResourceEncoding, Workspace,
 };
 use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
@@ -48,13 +49,13 @@ enum OutputSelectionScope {
 }
 
 pub fn collect_droid_output_plan(context_json: &str) -> Result<String, CliError> {
-  let context = serde_json::from_str::<CollectedInputContext>(context_json)?;
+  let context = serde_json::from_str::<OutputContext>(context_json)?;
   let plan = build_droid_output_plan(&context)?;
   serde_json::to_string(&plan).map_err(CliError::from)
 }
 
 pub fn build_droid_output_plan(
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Result<DroidOutputPlanDto, CliError> {
   let workspace = context.workspace.as_ref().ok_or_else(|| {
     CliError::ExecutionError(
@@ -71,7 +72,7 @@ pub fn build_droid_output_plan(
 
 fn build_output_files(
   workspace: &Workspace,
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Result<Vec<DroidOutputFileDeclarationDto>, CliError> {
   let mut output_files = Vec::new();
 
@@ -118,7 +119,7 @@ fn build_output_files(
 fn append_command_output_files(
   output_files: &mut Vec<DroidOutputFileDeclarationDto>,
   workspace: &Workspace,
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Result<(), CliError> {
   let commands = context.fast_commands.as_deref().unwrap_or(&[]);
   let Some(selected_scope) = select_single_scope(commands.iter().map(resolve_command_scope)) else {
@@ -169,7 +170,7 @@ fn append_command_output_files(
 fn append_skill_output_files(
   output_files: &mut Vec<DroidOutputFileDeclarationDto>,
   workspace: &Workspace,
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Result<(), CliError> {
   let skills = context.skills.as_deref().unwrap_or(&[]);
   let Some(selected_scope) = select_single_scope(skills.iter().map(resolve_skill_scope)) else {
@@ -863,7 +864,7 @@ mod tests {
     let prompt_source_root = workspace_dir.join("aindex");
 
     with_home_dir(&home_dir, || {
-      let context = CollectedInputContext {
+      let context = OutputContext {
         workspace: Some(Workspace {
           directory: RootPath::new(&workspace_dir.to_string_lossy()),
           projects: vec![
@@ -924,7 +925,7 @@ mod tests {
           "global memory",
           &home_dir.to_string_lossy(),
         )),
-        ..CollectedInputContext::default()
+        ..OutputContext::default()
       };
 
       let plan = build_droid_output_plan(&context).unwrap();
@@ -1029,7 +1030,7 @@ mod tests {
     let prompt_source_root = workspace_dir.join("aindex");
 
     with_home_dir(&home_dir, || {
-      let context = CollectedInputContext {
+      let context = OutputContext {
         workspace: Some(Workspace {
           directory: RootPath::new(&workspace_dir.to_string_lossy()),
           projects: vec![
@@ -1055,7 +1056,7 @@ mod tests {
           "global",
           Some("global-only"),
         )]),
-        ..CollectedInputContext::default()
+        ..OutputContext::default()
       };
 
       let plan = build_droid_output_plan(&context).unwrap();

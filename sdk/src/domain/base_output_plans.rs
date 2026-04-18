@@ -2,9 +2,8 @@ use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::plugin_shared::{
-  CollectedInputContext, IDEKind, Project, ProjectIDEConfigFile, RelativePath, Workspace,
-};
+use crate::context::OutputContext;
+use crate::domain::plugin_shared::{IDEKind, Project, ProjectIDEConfigFile, RelativePath, Workspace};
 use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 use crate::policy::git_discovery::{find_all_git_repos, resolve_git_info_dir};
 use crate::CliError;
@@ -51,13 +50,13 @@ pub struct BaseOutputPlansDto {
 }
 
 pub fn collect_base_output_plans(context_json: &str) -> Result<String, CliError> {
-  let context = serde_json::from_str::<CollectedInputContext>(context_json)?;
+  let context = OutputContext::from_json(context_json)?;
   let plans = build_base_output_plans(&context)?;
   serde_json::to_string(&plans).map_err(CliError::from)
 }
 
 pub fn build_base_output_plans(
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Result<BaseOutputPlansDto, CliError> {
   let workspace = context.workspace.as_ref().ok_or_else(|| {
     CliError::ExecutionError(
@@ -151,7 +150,7 @@ fn build_agents_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
 
 fn build_git_exclude_plugin_plan(
   workspace: &Workspace,
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> BaseOutputPluginPlanDto {
   let exclude_paths = collect_managed_exclude_paths(workspace);
   let managed_content = build_managed_git_exclude_content(
@@ -191,7 +190,7 @@ fn build_git_exclude_plugin_plan(
 
 fn build_jetbrains_plugin_plan(
   workspace: &Workspace,
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> BaseOutputPluginPlanDto {
   let mut configs = context.jetbrains_config_files.clone().unwrap_or_default();
   configs.extend(context.editor_config_files.clone().unwrap_or_default());
@@ -212,7 +211,7 @@ fn build_jetbrains_plugin_plan(
 
 fn build_vscode_plugin_plan(
   workspace: &Workspace,
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> BaseOutputPluginPlanDto {
   let configs = context.vscode_config_files.as_deref().unwrap_or(&[]);
 
@@ -227,7 +226,7 @@ fn build_vscode_plugin_plan(
 
 fn build_zed_plugin_plan(
   workspace: &Workspace,
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> BaseOutputPluginPlanDto {
   let configs = context.zed_config_files.as_deref().unwrap_or(&[]);
 
@@ -242,7 +241,7 @@ fn build_zed_plugin_plan(
 
 fn build_readme_plugin_plan(
   workspace: &Workspace,
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> BaseOutputPluginPlanDto {
   let mut output_files = Vec::new();
 
@@ -765,7 +764,7 @@ mod tests {
     let prompt_source_root = Path::new(&workspace_dir).join("aindex");
     let project_root = Path::new(&workspace_dir).join("project-a");
 
-    let context = CollectedInputContext {
+    let context = OutputContext {
       workspace: Some(Workspace {
         directory: RootPath::new(&workspace_dir),
         projects: vec![
@@ -796,7 +795,7 @@ mod tests {
           },
         ],
       }),
-      ..CollectedInputContext::default()
+      ..OutputContext::default()
     };
 
     let plans = match build_base_output_plans(&context) {
@@ -886,7 +885,7 @@ mod tests {
       panic!("project git dir should be created: {error}");
     }
 
-    let context = CollectedInputContext {
+    let context = OutputContext {
       workspace: Some(Workspace {
         directory: RootPath::new(&workspace_dir.to_string_lossy()),
         projects: vec![create_project(
@@ -896,7 +895,7 @@ mod tests {
       }),
       global_git_ignore: Some("dist/\n# comment\n\\#literal\n".to_string()),
       shadow_git_exclude: Some(".idea/\n".to_string()),
-      ..CollectedInputContext::default()
+      ..OutputContext::default()
     };
 
     let plans = match build_base_output_plans(&context) {
@@ -955,7 +954,7 @@ mod tests {
     let aindex_public = Path::new(&workspace_dir).join("aindex").join("public");
     let memory_sync_root = Path::new(&workspace_dir).join("memory-sync");
 
-    let context = CollectedInputContext {
+    let context = OutputContext {
       workspace: Some(Workspace {
         directory: RootPath::new(&workspace_dir),
         projects: vec![
@@ -1030,7 +1029,7 @@ mod tests {
           "# COC\n",
         ),
       ]),
-      ..CollectedInputContext::default()
+      ..OutputContext::default()
     };
 
     let plans = match build_base_output_plans(&context) {

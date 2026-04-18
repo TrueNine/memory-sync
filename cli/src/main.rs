@@ -1,17 +1,18 @@
 //! tnmsc — Rust CLI entry point.
 //!
-//! Pure Rust commands: help, version, plugins
+//! Pure Rust commands: help, version
 //! Facade commands: install, dry-run, clean
 
 mod cli;
 mod commands;
+pub mod logger;
 
 use std::process::ExitCode;
 
 use clap::Parser;
-use tnmsd::logger::{flush_output, set_global_log_level};
 
 use cli::{Cli, ResolvedCommand, resolve_command, resolve_log_level};
+use logger::{flush_output, set_global_log_level};
 
 fn main() -> ExitCode {
   let cli = Cli::parse();
@@ -25,13 +26,11 @@ fn main() -> ExitCode {
   let exit_code = match command {
     ResolvedCommand::Help => commands::help::execute(),
     ResolvedCommand::Version => commands::version::execute(),
-    ResolvedCommand::Schema(args) => commands::schema::execute(&args),
     ResolvedCommand::AssembleNpm(args) => commands::package::execute(&args),
     ResolvedCommand::Install => commands::pipeline::install(),
     ResolvedCommand::DryRun => commands::pipeline::dry_run(),
     ResolvedCommand::Clean => commands::pipeline::clean(),
     ResolvedCommand::DryRunClean => commands::pipeline::dry_run_clean(),
-    ResolvedCommand::Plugins => commands::pipeline::plugins(),
   };
 
   flush_output();

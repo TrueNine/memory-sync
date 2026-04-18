@@ -3,7 +3,8 @@ use std::path::PathBuf;
 
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
 use crate::domain::config;
-use crate::domain::plugin_shared::{CollectedInputContext, Project, RelativePath, Workspace};
+use crate::context::OutputContext;
+use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 use crate::CliError;
 
@@ -12,13 +13,13 @@ const GEMINI_MEMORY_FILE: &str = "GEMINI.md";
 const GEMINI_GLOBAL_CONFIG_DIR: &str = ".gemini";
 
 pub fn collect_gemini_output_plan(context_json: &str) -> Result<String, CliError> {
-  let context = serde_json::from_str::<CollectedInputContext>(context_json)?;
+  let context = serde_json::from_str::<OutputContext>(context_json)?;
   let plan = build_gemini_output_plan(&context)?;
   serde_json::to_string(&plan).map_err(CliError::from)
 }
 
 pub fn build_gemini_output_plan(
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Result<BaseOutputPluginPlanDto, CliError> {
   let workspace = context.workspace.as_ref().ok_or_else(|| {
     CliError::ExecutionError(
@@ -35,7 +36,7 @@ pub fn build_gemini_output_plan(
 
 fn build_output_files(
   workspace: &Workspace,
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Vec<BaseOutputFileDeclarationDto> {
   let mut output_files = Vec::new();
 
@@ -318,7 +319,7 @@ mod tests {
     let project_root = workspace_dir.join("project-a");
 
     with_home_dir(&home_dir, || {
-      let context = CollectedInputContext {
+      let context = OutputContext {
         workspace: Some(Workspace {
           directory: RootPath::new(&workspace_dir.to_string_lossy()),
           projects: vec![
@@ -348,7 +349,7 @@ mod tests {
           "global memory",
           &home_dir.to_string_lossy(),
         )),
-        ..CollectedInputContext::default()
+        ..OutputContext::default()
       };
 
       let plan = match build_gemini_output_plan(&context) {
@@ -404,7 +405,7 @@ mod tests {
     let prompt_source_root = workspace_dir.join("aindex");
 
     with_home_dir(&home_dir, || {
-      let context = CollectedInputContext {
+      let context = OutputContext {
         workspace: Some(Workspace {
           directory: RootPath::new(&workspace_dir.to_string_lossy()),
           projects: vec![
@@ -425,7 +426,7 @@ mod tests {
             },
           ],
         }),
-        ..CollectedInputContext::default()
+        ..OutputContext::default()
       };
 
       let plan = match build_gemini_output_plan(&context) {

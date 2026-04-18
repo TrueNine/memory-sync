@@ -1,9 +1,8 @@
 use crate::services::clean_service::clean as svc_clean;
-use crate::MemorySyncCommandOptions;
-use crate::MemorySyncCommandResult;
+use super::{SdkError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn clean(
   options: MemorySyncCommandOptions,
-) -> Result<MemorySyncCommandResult, crate::CliError> {
+) -> Result<MemorySyncCommandResult, SdkError> {
   svc_clean(options)
 }

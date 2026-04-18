@@ -1,5 +1,6 @@
 use crate::domain::base_output_plans::BaseOutputPluginPlanDto;
-use crate::domain::plugin_shared::{CollectedInputContext, Workspace};
+use crate::context::OutputContext;
+use crate::domain::plugin_shared::Workspace;
 use crate::policy::cleanup::CleanupDeclarationsDto;
 use crate::CliError;
 
@@ -8,13 +9,13 @@ const JB_PLUGIN_NAME: &str = "JetBrainsAIAssistantCodexOutputAdaptor";
 pub fn collect_jetbrains_ai_assistant_codex_output_plan(
   context_json: &str,
 ) -> Result<String, CliError> {
-  let context = serde_json::from_str::<CollectedInputContext>(context_json)?;
+  let context = serde_json::from_str::<OutputContext>(context_json)?;
   let plan = build_jetbrains_ai_assistant_codex_output_plan(&context)?;
   serde_json::to_string(&plan).map_err(CliError::from)
 }
 
 pub fn build_jetbrains_ai_assistant_codex_output_plan(
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Result<BaseOutputPluginPlanDto, CliError> {
   let workspace = context.workspace.as_ref().ok_or_else(|| {
     CliError::ExecutionError(

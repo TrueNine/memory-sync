@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
-use crate::domain::plugin_shared::CollectedInputContext;
+use crate::context::OutputContext;
 use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupSnapshot, PluginCleanupSnapshotDto};
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
@@ -270,7 +270,7 @@ impl EnabledPlugins {
 fn collect_context(
   workspace_dir: &str,
   _global_scope: Option<&Value>,
-) -> Result<CollectedInputContext, CliError> {
+) -> Result<OutputContext, CliError> {
   #[derive(Debug, serde::Deserialize)]
   #[serde(rename_all = "camelCase")]
   struct WorkspaceEnvelope {
@@ -448,7 +448,7 @@ fn collect_context(
     json!({ "workspaceDir": workspace_dir }),
   )?;
 
-  Ok(CollectedInputContext {
+  Ok(OutputContext {
     workspace: Some(project_prompts.workspace),
     vscode_config_files: vscode.vscode_config_files,
     zed_config_files: zed.zed_config_files,
@@ -469,7 +469,7 @@ fn collect_context(
 }
 
 fn build_output_map(
-  context: &CollectedInputContext,
+  context: &OutputContext,
   enabled_plugins: EnabledPlugins,
 ) -> Result<HashMap<String, Vec<String>>, CliError> {
   let mut output_map: HashMap<String, Vec<String>> = HashMap::new();

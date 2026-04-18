@@ -10,8 +10,9 @@ use serde_json::{json, Value};
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
 use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
+use crate::context::OutputContext;
 use crate::domain::plugin_shared::{
-  AIAgentIgnoreConfigFile, CollectedInputContext, FastCommandPrompt, GlobalMemoryPrompt,
+  AIAgentIgnoreConfigFile, FastCommandPrompt, GlobalMemoryPrompt,
   ProjectIDEConfigFile, ReadmePrompt, RulePrompt, SkillPrompt, SubAgentPrompt, Workspace,
 };
 use crate::infra::desk_paths;
@@ -378,7 +379,7 @@ fn collect_context(
   workspace_dir: &str,
   global_scope: Option<&Value>,
   enabled_plugins: EnabledPlugins,
-) -> Result<CollectedInputContext, CliError> {
+) -> Result<OutputContext, CliError> {
   let aindex = collect_json::<WorkspaceEnvelope>(
     crate::repositories::aindex_resolvers::collect_aindex_resolvers,
     json!({
@@ -481,7 +482,7 @@ fn collect_context(
     }),
   )?;
 
-  Ok(CollectedInputContext {
+  Ok(OutputContext {
     workspace: Some(project_prompts.workspace),
     vscode_config_files: vscode.vscode_config_files,
     zed_config_files: zed.zed_config_files,
@@ -513,7 +514,7 @@ where
 }
 
 fn build_output_files(
-  context: &CollectedInputContext,
+  context: &OutputContext,
   enabled_plugins: EnabledPlugins,
 ) -> Result<BTreeMap<String, PlannedOutputFile>, CliError> {
   let mut outputs = BTreeMap::new();

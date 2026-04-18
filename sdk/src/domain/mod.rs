@@ -6,7 +6,7 @@ pub mod plugin_shared;
 pub use base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
 pub use config::{ConfigLoader, MergedConfigResult, PluginsConfig, UserConfigFile};
 pub use plugin_shared::{
-  AIAgentIgnoreConfigFile, CollectedInputContext, FastCommandPrompt, GlobalMemoryPrompt, IDEKind,
+  AIAgentIgnoreConfigFile, FastCommandPrompt, GlobalMemoryPrompt, IDEKind,
   NamingCaseKind, PluginKind, Project, ProjectIDEConfigFile, PromptKind, ReadmePrompt,
   RelativePath, RulePrompt, RuleScope, SkillPrompt, SubAgentPrompt, Workspace,
 };

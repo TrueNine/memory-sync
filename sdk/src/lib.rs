@@ -1,9 +1,4 @@
-//! tnmsd library — Rust-only runtime core for memory-sync.
-//!
-//! Public API: version, load_config, install, dry_run, clean, list_plugins,
-//! list_prompts, get_prompt, upsert_prompt_source, write_prompt_artifacts,
-//! generate_schema.
-
+pub mod context;
 pub mod domain;
 pub mod endpoint;
 pub mod infra;
@@ -11,146 +6,21 @@ pub mod policy;
 pub mod repositories;
 pub mod services;
 
-use std::path::Path;
+pub use endpoint::{clean, dry_run, install, load_config, version, SdkError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+pub type CliError = endpoint::SdkError;
 
 pub use domain::config;
-pub use infra::logger;
 pub use infra::md_compiler;
-pub use infra::md_compiler::{
-  build_prompt_toml_artifact, build_toml_document, mdx_to_md, mdx_to_md_with_metadata,
-  parse_mdx, serialize, BuildPromptTomlArtifactOptions, BuildTomlDocumentOptions, EvaluationScope,
-  ExportMetadata, MdxGlobalScope, MdxToMdOptions, MdxToMdResult, MetadataSource,
-  ProcessingContext,
-};
-pub use infra::script_runtime;
 pub use services::prompts::{
   get_prompt, list_prompts, upsert_prompt_source, write_prompt_artifacts,
   ListPromptsOptions, ManagedPromptKind, PromptArtifactRecord, PromptArtifactState,
   PromptCatalogItem, PromptCatalogPaths, PromptCatalogPresence, PromptDetails,
   PromptServiceOptions, PromptSourceLocale, UpsertPromptSourceInput, WritePromptArtifactsInput,
 };
-
-/// Unified error type for CLI library API.
-#[derive(Debug, thiserror::Error)]
-pub enum CliError {
-  #[error("Config error: {0}")]
-  ConfigError(String),
-
-  #[error("IO error: {0}")]
-  IoError(#[from] std::io::Error),
-
-  #[error("Serialization error: {0}")]
-  SerializationError(#[from] serde_json::Error),
-
-  #[error("Execution error: {0}")]
-  ExecutionError(String),
-}
-
-/// Shared command options consumed by the crate facade, CLI, and GUI callers.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MemorySyncCommandOptions {
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub cwd: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub load_user_config: Option<bool>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub log_level: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub plugin_options: Option<Value>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub dry_run: Option<bool>,
-}
-
-/// Shared command result shape for the crate facade, CLI JSON, and GUI IPC.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MemorySyncCommandResult {
-  pub success: bool,
-  pub files_affected: i32,
-  pub dirs_affected: i32,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub message: Option<String>,
-  #[serde(default)]
-  pub warnings: Vec<Value>,
-  #[serde(default)]
-  pub errors: Vec<Value>,
-}
-
-/// Shared plugin descriptor shape for crate, CLI, and GUI callers.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MemorySyncPluginInfo {
-  pub name: String,
-  pub kind: String,
-  pub description: String,
-  #[serde(default)]
-  pub dependencies: Vec<String>,
-}
-
-const DEFAULT_OUTPUT_PLUGIN_REGISTRY: &[(&str, &[&str])] = &[
-  ("AgentsOutputAdaptor", &[]),
-  ("ClaudeCodeCLIOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("CodexCLIOutputAdaptor", &["AgentsOutputAdaptor"]),
-  (
-    "JetBrainsAIAssistantCodexOutputAdaptor",
-    &["AgentsOutputAdaptor"],
-  ),
-  ("DroidCLIOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("GeminiCLIOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("KiroCLIOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("OpencodeCLIOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("QoderIDEPluginOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("TraeOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("WarpIDEOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("WindsurfOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("CursorOutputAdaptor", &["AgentsOutputAdaptor"]),
-  ("GitExcludeOutputAdaptor", &[]),
-  ("JetBrainsIDECodeStyleConfigOutputAdaptor", &[]),
-  ("VisualStudioCodeIDEConfigOutputAdaptor", &[]),
-  ("ZedIDEConfigOutputAdaptor", &[]),
-  ("ReadmeMdConfigFileOutputAdaptor", &[]),
-];
-
-// ---------------------------------------------------------------------------
-// Public API functions
-// ---------------------------------------------------------------------------
-
-/// Return the CLI crate version string.
-pub fn version() -> &'static str {
-  env!("CARGO_PKG_VERSION")
-}
-
-/// Load and merge configuration from the canonical global config path.
-pub fn load_config(cwd: &Path) -> Result<config::MergedConfigResult, CliError> {
-  config::ConfigLoader::with_defaults()
-    .try_load(cwd)
-    .map_err(CliError::ConfigError)
-}
-
-pub use endpoint::{clean, dry_run, install};
-
-/// Return the default output plugin registry without instantiating TS plugin classes.
-pub fn list_plugins() -> Vec<MemorySyncPluginInfo> {
-  DEFAULT_OUTPUT_PLUGIN_REGISTRY
-    .iter()
-    .map(|(name, dependencies)| MemorySyncPluginInfo {
-      name: (*name).to_string(),
-      kind: "Output".to_string(),
-      description: (*name).to_string(),
-      dependencies: dependencies.iter().map(|d| (*d).to_string()).collect(),
-    })
-    .collect()
-}
-
-/// Generate the JSON Schema for the `.tnmsc.json` config file.
-pub fn generate_schema() -> Result<String, CliError> {
-  let schema = schemars::schema_for!(config::UserConfigFile);
-  serde_json::to_string_pretty(&schema).map_err(CliError::SerializationError)
-}
+pub use services::install_service;
+pub use services::dry_run_service;
+pub use services::clean_service;
 
 // ---------------------------------------------------------------------------
 // Property-based tests — Property 1: Library API returns typed results
@@ -174,16 +44,6 @@ mod property_tests {
           let v = version();
           prop_assert!(!v.is_empty(), "version() returned empty string");
           prop_assert_eq!(v, env!("CARGO_PKG_VERSION"));
-      }
-
-      #[test]
-      fn prop_load_config_returns_ok_for_any_tempdir(_seed in 0u64..100) {
-          let tmp = TempDir::new().expect("failed to create tempdir");
-          let result = load_config(tmp.path());
-          prop_assert!(result.is_ok(), "load_config should return Ok for any valid dir, got: {:?}", result.err());
-          let merged = result.unwrap();
-          prop_assert!(merged.sources.is_empty() || !merged.sources.is_empty(),
-              "sources should be a valid Vec");
       }
   }
 

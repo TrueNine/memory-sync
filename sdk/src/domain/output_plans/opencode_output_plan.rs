@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
-use crate::domain::plugin_shared::{CollectedInputContext, Project, RelativePath, Workspace};
+use crate::context::OutputContext;
+use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 use crate::CliError;
 
@@ -11,13 +12,13 @@ const AGENTS_OUTPUT_ADAPTOR: &str = "AgentsOutputAdaptor";
 const PROJECT_SCOPE: &str = "project";
 
 pub fn collect_opencode_output_plan(context_json: &str) -> Result<String, CliError> {
-  let context = serde_json::from_str::<CollectedInputContext>(context_json)?;
+  let context = serde_json::from_str::<OutputContext>(context_json)?;
   let plan = build_opencode_output_plan(&context)?;
   serde_json::to_string(&plan).map_err(CliError::from)
 }
 
 pub fn build_opencode_output_plan(
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Result<BaseOutputPluginPlanDto, CliError> {
   let workspace = context.workspace.as_ref().ok_or_else(|| {
     CliError::ExecutionError(
@@ -34,7 +35,7 @@ pub fn build_opencode_output_plan(
 
 fn build_output_files(
   workspace: &Workspace,
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Vec<BaseOutputFileDeclarationDto> {
   let mut output_files = Vec::new();
   let prompt_projects = get_project_prompt_output_projects(workspace);

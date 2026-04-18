@@ -6,6 +6,8 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 
+use crate::logger::LogLevel;
+
 /// Cross-AI-tool prompt synchronisation CLI
 #[derive(Parser, Debug)]
 #[command(
@@ -47,10 +49,6 @@ pub enum CliCommand {
   /// Show version information
   Version,
 
-  /// Print the generated .tnmsc.json schema
-  #[command(hide = true)]
-  Schema(SchemaArgs),
-
   /// Hydrate npm package contents from local or downloaded binaries
   #[command(hide = true, name = "assemble-npm")]
   AssembleNpm(AssembleNpmArgs),
@@ -64,9 +62,6 @@ pub enum CliCommand {
 
   /// Remove all generated output files and directories
   Clean(CleanArgs),
-
-  /// List all registered adaptors
-  Plugins,
 }
 
 #[derive(Args, Debug)]
@@ -74,13 +69,6 @@ pub struct CleanArgs {
   /// Preview cleanup without removing files
   #[arg(short = 'n', long = "dry-run")]
   pub dry_run: bool,
-}
-
-#[derive(Args, Debug, Clone, PartialEq, Eq)]
-pub struct SchemaArgs {
-  /// Write the generated schema to a file instead of stdout
-  #[arg(long = "output")]
-  pub output: Option<PathBuf>,
 }
 
 #[derive(Args, Debug, Clone, PartialEq, Eq)]
@@ -127,13 +115,13 @@ impl ResolvedLogLevel {
     }
   }
 
-  pub fn to_logger_level(self) -> tnmsd::logger::LogLevel {
+  pub fn to_logger_level(self) -> LogLevel {
     match self {
-      Self::Trace => tnmsd::logger::LogLevel::Trace,
-      Self::Debug => tnmsd::logger::LogLevel::Debug,
-      Self::Info => tnmsd::logger::LogLevel::Info,
-      Self::Warn => tnmsd::logger::LogLevel::Warn,
-      Self::Error => tnmsd::logger::LogLevel::Error,
+      Self::Trace => LogLevel::Trace,
+      Self::Debug => LogLevel::Debug,
+      Self::Info => LogLevel::Info,
+      Self::Warn => LogLevel::Warn,
+      Self::Error => LogLevel::Error,
     }
   }
 }
@@ -171,13 +159,11 @@ pub fn resolve_log_level(cli: &Cli) -> Option<ResolvedLogLevel> {
 pub enum ResolvedCommand {
   Help,
   Version,
-  Schema(SchemaArgs),
   AssembleNpm(AssembleNpmArgs),
   Install,
   DryRun,
   Clean,
   DryRunClean,
-  Plugins,
 }
 
 /// Resolve the command to execute from parsed CLI args.
@@ -186,7 +172,6 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
     None => ResolvedCommand::Install,
     Some(CliCommand::Help) => ResolvedCommand::Help,
     Some(CliCommand::Version) => ResolvedCommand::Version,
-    Some(CliCommand::Schema(args)) => ResolvedCommand::Schema(args.clone()),
     Some(CliCommand::AssembleNpm(args)) => ResolvedCommand::AssembleNpm(args.clone()),
     Some(CliCommand::Install) => ResolvedCommand::Install,
     Some(CliCommand::DryRun) => ResolvedCommand::DryRun,
@@ -197,7 +182,6 @@ pub fn resolve_command(cli: &Cli) -> ResolvedCommand {
         ResolvedCommand::Clean
       }
     }
-    Some(CliCommand::Plugins) => ResolvedCommand::Plugins,
   }
 }
 

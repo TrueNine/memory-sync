@@ -1,9 +1,8 @@
 use crate::services::install_service::install as svc_install;
-use crate::MemorySyncCommandOptions;
-use crate::MemorySyncCommandResult;
+use super::{SdkError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn install(
   options: MemorySyncCommandOptions,
-) -> Result<MemorySyncCommandResult, crate::CliError> {
+) -> Result<MemorySyncCommandResult, SdkError> {
   svc_install(options)
 }

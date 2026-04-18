@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
 use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
-use crate::domain::plugin_shared::CollectedInputContext;
+use crate::context::OutputContext;
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
@@ -343,7 +343,7 @@ struct PlannedOutputFile {
 fn collect_context(
   workspace_dir: &str,
   _global_scope: Option<&Value>,
-) -> Result<CollectedInputContext, CliError> {
+) -> Result<OutputContext, CliError> {
   fn collect_json<T>(
     collector: impl Fn(&str) -> Result<String, CliError>,
     input: Value,
@@ -423,7 +423,7 @@ fn collect_context(
     json!({ "workspaceDir": workspace_dir }),
   )?;
 
-  Ok(CollectedInputContext {
+  Ok(OutputContext {
     workspace: Some(project_prompts.workspace),
     vscode_config_files: vscode.vscode_config_files,
     zed_config_files: zed.zed_config_files,
@@ -444,7 +444,7 @@ fn collect_context(
 }
 
 fn build_output_files(
-  context: &CollectedInputContext,
+  context: &OutputContext,
   enabled_plugins: EnabledPlugins,
 ) -> Result<BTreeMap<String, PlannedOutputFile>, CliError> {
   let mut outputs = BTreeMap::new();

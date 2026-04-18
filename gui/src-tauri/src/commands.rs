@@ -99,22 +99,6 @@ pub fn load_config(cwd: String) -> Result<serde_json::Value, String> {
   serde_json::to_value(&result).map_err(|e| e.to_string())
 }
 
-/// List all registered plugins from the crate-owned registry.
-#[tauri::command]
-pub fn list_plugins(_cwd: String) -> Result<Vec<PluginExecutionResult>, String> {
-  Ok(
-    tnmsd::list_plugins()
-      .into_iter()
-      .map(|plugin| PluginExecutionResult {
-        plugin: plugin.name,
-        files: 0,
-        dirs: 0,
-        dry_run: false,
-      })
-      .collect(),
-  )
-}
-
 /// Clean previously generated output files.
 #[tauri::command]
 pub fn clean_outputs(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {

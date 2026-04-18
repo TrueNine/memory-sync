@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use crate::domain::base_output_plans::BaseOutputPluginPlanDto;
-use crate::domain::plugin_shared::{CollectedInputContext, Project, RelativePath, Workspace};
+use crate::context::OutputContext;
+use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 use crate::CliError;
 
@@ -10,13 +11,13 @@ const PROJECT_SCOPE: &str = "project";
 const GLOBAL_SCOPE: &str = "global";
 
 pub fn collect_kiro_output_plan(context_json: &str) -> Result<String, CliError> {
-  let context = serde_json::from_str::<CollectedInputContext>(context_json)?;
+  let context = serde_json::from_str::<OutputContext>(context_json)?;
   let plan = build_kiro_output_plan(&context)?;
   serde_json::to_string(&plan).map_err(CliError::from)
 }
 
 pub fn build_kiro_output_plan(
-  context: &CollectedInputContext,
+  context: &OutputContext,
 ) -> Result<BaseOutputPluginPlanDto, CliError> {
   let workspace = context.workspace.as_ref().ok_or_else(|| {
     CliError::ExecutionError(
@@ -160,9 +161,9 @@ mod tests {
   #[test]
   fn kiro_plan_has_no_output_files() {
     let workspace = create_workspace("/tmp/workspace");
-    let plan = build_kiro_output_plan(&CollectedInputContext {
+    let plan = build_kiro_output_plan(&OutputContext {
       workspace: Some(workspace),
-      ..CollectedInputContext::default()
+      ..OutputContext::default()
     })
     .unwrap();
     assert!(plan.output_files.is_empty());
@@ -173,9 +174,9 @@ mod tests {
   fn kiro_cleanup_contains_expected_globs() {
     let workspace_dir = "/tmp/workspace";
     let workspace = create_workspace(workspace_dir);
-    let plan = build_kiro_output_plan(&CollectedInputContext {
+    let plan = build_kiro_output_plan(&OutputContext {
       workspace: Some(workspace),
-      ..CollectedInputContext::default()
+      ..OutputContext::default()
     })
     .unwrap();
 
