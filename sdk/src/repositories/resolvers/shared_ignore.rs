@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::native_script_runtime::proxy_public_path;
+use crate::infra::script_runtime::proxy_public_path;
 use crate::repositories::public_config::read_public_file;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

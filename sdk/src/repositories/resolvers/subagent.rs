@@ -3,8 +3,8 @@ use std::path::Path;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::core::config;
-use crate::core::plugin_shared::{
+use crate::domain::config;
+use crate::domain::plugin_shared::{
   PromptKind, RelativePath, SubAgentPrompt, SubAgentYAMLFrontMatter,
 };
 use crate::repositories::localized_reader::read_flat_files;
@@ -101,7 +101,7 @@ fn validate_subagent_metadata(
 fn build_subagent_prompt(
   entry: &crate::repositories::localized_reader::FlatFileEntry,
   dist_dir: &str,
-  diagnostics: &mut Vec<crate::core::plugin_shared::Diagnostic>,
+  diagnostics: &mut Vec<crate::domain::plugin_shared::Diagnostic>,
 ) -> Result<SubAgentPrompt, crate::CliError> {
   let dist = entry
     .dist
@@ -119,7 +119,7 @@ fn build_subagent_prompt(
   metadata.remove("name");
 
   if had_authored_name {
-    diagnostics.push(crate::core::plugin_shared::Diagnostic {
+    diagnostics.push(crate::domain::plugin_shared::Diagnostic {
       level: "warn".to_string(),
       code: "SUBAGENT_NAME_IGNORED".to_string(),
       title: format!(
@@ -193,7 +193,7 @@ pub fn collect_subagent(options_json: &str) -> Result<String, crate::CliError> {
   let entries = read_flat_files(&src_dir_str, &dist_dir_str, global_scope_json.as_deref())?;
 
   let mut prompts: Vec<SubAgentPrompt> = Vec::new();
-  let mut diagnostics: Vec<crate::core::plugin_shared::Diagnostic> = Vec::new();
+  let mut diagnostics: Vec<crate::domain::plugin_shared::Diagnostic> = Vec::new();
   for entry in &entries {
     if entry.dist.is_none() && (entry.src_zh.is_some() || entry.src_en.is_some()) {
       return Err(crate::CliError::ConfigError(
@@ -209,9 +209,9 @@ pub fn collect_subagent(options_json: &str) -> Result<String, crate::CliError> {
     }
   }
 
-  let mut debug_logs: Vec<crate::core::plugin_shared::DebugLog> = Vec::new();
+  let mut debug_logs: Vec<crate::domain::plugin_shared::DebugLog> = Vec::new();
   if !prompts.is_empty() {
-    debug_logs.push(crate::core::plugin_shared::DebugLog {
+    debug_logs.push(crate::domain::plugin_shared::DebugLog {
       message: "Subagents collected".to_string(),
       payload: Some(serde_json::json!({ "count": prompts.len() })),
     });
@@ -222,9 +222,9 @@ pub fn collect_subagent(options_json: &str) -> Result<String, crate::CliError> {
   struct SubAgentResult {
     sub_agents: Vec<SubAgentPrompt>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    diagnostics: Vec<crate::core::plugin_shared::Diagnostic>,
+    diagnostics: Vec<crate::domain::plugin_shared::Diagnostic>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    debug_logs: Vec<crate::core::plugin_shared::DebugLog>,
+    debug_logs: Vec<crate::domain::plugin_shared::DebugLog>,
   }
 
   let result = SubAgentResult {

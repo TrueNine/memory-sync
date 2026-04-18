@@ -4,8 +4,8 @@ use std::path::Path;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::core::config;
-use crate::core::plugin_shared::{Project, RelativePath, RootPath, Workspace};
+use crate::domain::config;
+use crate::domain::plugin_shared::{Project, RelativePath, RootPath, Workspace};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -207,7 +207,7 @@ pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::Cli
     .map_err(crate::CliError::ConfigError)?;
 
   let mut projects: Vec<Project> = Vec::new();
-  let mut diagnostics: Vec<crate::core::plugin_shared::Diagnostic> = Vec::new();
+  let mut diagnostics: Vec<crate::domain::plugin_shared::Diagnostic> = Vec::new();
 
   for series in &series_configs {
     let dist_dir = aindex_dir.join(&series.dist);
@@ -236,7 +236,7 @@ pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::Cli
         Ok(c) => c,
         Err(e) => {
           if e.starts_with("AINDEX_PROJECT_JSON5_INVALID:") {
-            diagnostics.push(crate::core::plugin_shared::Diagnostic {
+            diagnostics.push(crate::domain::plugin_shared::Diagnostic {
               level: "warn".to_string(),
               code: "AINDEX_PROJECT_JSON5_INVALID".to_string(),
               title: format!("Failed to parse project.json5 for {}", project_name),
@@ -308,9 +308,9 @@ pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::Cli
   struct AindexResult {
     workspace: Workspace,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    diagnostics: Vec<crate::core::plugin_shared::Diagnostic>,
+    diagnostics: Vec<crate::domain::plugin_shared::Diagnostic>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    debug_logs: Vec<crate::core::plugin_shared::DebugLog>,
+    debug_logs: Vec<crate::domain::plugin_shared::DebugLog>,
   }
 
   let result = AindexResult {
@@ -496,10 +496,10 @@ mod tests {
 
   #[test]
   fn collect_aindex_expands_tilde_workspace_dir() {
-    let _guard = crate::core::TEST_ENV_LOCK
+    let _guard = crate::domain::TEST_ENV_LOCK
       .lock()
       .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let home_dir = crate::core::config::resolve_tilde("~");
+    let home_dir = crate::domain::config::resolve_tilde("~");
     if home_dir == PathBuf::from("~") {
       return;
     }

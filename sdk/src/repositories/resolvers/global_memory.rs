@@ -2,8 +2,8 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use crate::core::config;
-use crate::core::plugin_shared::{FilePathKind, GlobalMemoryPrompt, PromptKind, RelativePath};
+use crate::domain::config;
+use crate::domain::plugin_shared::{FilePathKind, GlobalMemoryPrompt, PromptKind, RelativePath};
 use crate::repositories::prompt_artifact::read_prompt_artifact;
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -79,7 +79,7 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
   let content = artifact.content.clone();
   let length = content.len();
 
-  let runtime = crate::core::config::resolve_runtime_environment();
+  let runtime = crate::domain::config::resolve_runtime_environment();
   let effective_home_dir = runtime
     .effective_home_dir
     .or(runtime.native_home_dir)

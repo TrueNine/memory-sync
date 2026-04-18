@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::Path;
 
-use crate::core::plugin_shared::{FilePathKind, IDEKind, ProjectIDEConfigFile, RelativePath};
-use crate::native_script_runtime::proxy_public_path;
+use crate::domain::plugin_shared::{FilePathKind, IDEKind, ProjectIDEConfigFile, RelativePath};
+use crate::infra::script_runtime::proxy_public_path;
 
 pub fn read_public_file(aindex_dir: &str, relative_path: &str) -> Option<String> {
   let proxied = proxy_public_path(relative_path);

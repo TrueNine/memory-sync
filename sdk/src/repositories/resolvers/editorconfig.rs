@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::plugin_shared::IDEKind;
+use crate::domain::plugin_shared::IDEKind;
 use crate::repositories::public_config::read_public_ide_config_file;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -15,7 +15,7 @@ pub struct EditorConfigInputOptions {
 #[serde(rename_all = "camelCase")]
 pub struct EditorConfigInputResult {
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub editor_config_files: Option<Vec<crate::core::plugin_shared::ProjectIDEConfigFile>>,
+  pub editor_config_files: Option<Vec<crate::domain::plugin_shared::ProjectIDEConfigFile>>,
 }
 
 pub fn collect_editorconfig(options_json: &str) -> Result<String, crate::CliError> {

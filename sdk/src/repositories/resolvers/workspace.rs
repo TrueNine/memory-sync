@@ -2,8 +2,8 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::config;
-use crate::core::plugin_shared::{RootPath, Workspace};
+use crate::domain::config;
+use crate::domain::plugin_shared::{RootPath, Workspace};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

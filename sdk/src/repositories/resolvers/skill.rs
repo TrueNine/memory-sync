@@ -4,8 +4,8 @@ use std::path::Path;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::core::config;
-use crate::core::plugin_shared::{
+use crate::domain::config;
+use crate::domain::plugin_shared::{
   FilePathKind, McpServerConfig, PromptKind, RelativePath, SkillChildDoc, SkillMcpConfig,
   SkillPrompt, SkillResource, SkillResourceEncoding, SkillYAMLFrontMatter,
 };
@@ -471,7 +471,7 @@ fn is_supported_mcp_server_config(config: &McpServerConfig) -> bool {
 fn read_mcp_config(
   skill_name: &str,
   skill_src_dir: &Path,
-  diagnostics: &mut Vec<crate::core::plugin_shared::Diagnostic>,
+  diagnostics: &mut Vec<crate::domain::plugin_shared::Diagnostic>,
 ) -> Result<Option<SkillMcpConfig>, crate::CliError> {
   let mcp_json_path = skill_src_dir.join("mcp.json");
   if !mcp_json_path.is_file() {
@@ -488,7 +488,7 @@ fn read_mcp_config(
         crate::CliError::ConfigError(format!("Invalid McpServerConfig for {}: {}", key, e))
       })?;
       if !is_supported_mcp_server_config(&config) {
-        diagnostics.push(crate::core::plugin_shared::Diagnostic {
+        diagnostics.push(crate::domain::plugin_shared::Diagnostic {
           level: "warn".to_string(),
           code: "SKILL_MCP_SERVER_SKIPPED".to_string(),
           title: format!(
@@ -558,7 +558,7 @@ fn create_skill_prompt(
   skill_dist_dir: &Path,
   skill_src_dir: &Path,
   global_scope_json: Option<&str>,
-  diagnostics: &mut Vec<crate::core::plugin_shared::Diagnostic>,
+  diagnostics: &mut Vec<crate::domain::plugin_shared::Diagnostic>,
 ) -> Result<SkillPrompt, crate::CliError> {
   let dist_file_path = skill_dist_dir.join("skill.mdx");
   if !dist_file_path.is_file() {
@@ -609,7 +609,7 @@ fn create_skill_prompt(
   }
 
   if had_authored_name {
-    diagnostics.push(crate::core::plugin_shared::Diagnostic {
+    diagnostics.push(crate::domain::plugin_shared::Diagnostic {
       level: "warn".to_string(),
       code: "SKILL_NAME_IGNORED".to_string(),
       title: format!(
@@ -726,7 +726,7 @@ pub fn collect_skill(options_json: &str) -> Result<String, crate::CliError> {
   skill_names.sort();
   skill_names.dedup();
 
-  let mut diagnostics: Vec<crate::core::plugin_shared::Diagnostic> = Vec::new();
+  let mut diagnostics: Vec<crate::domain::plugin_shared::Diagnostic> = Vec::new();
 
   for skill_name in skill_names {
     let skill_dist = dist_skill_dir.join(&skill_name);
@@ -746,9 +746,9 @@ pub fn collect_skill(options_json: &str) -> Result<String, crate::CliError> {
   struct SkillResult {
     skills: Vec<SkillPrompt>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    diagnostics: Vec<crate::core::plugin_shared::Diagnostic>,
+    diagnostics: Vec<crate::domain::plugin_shared::Diagnostic>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    debug_logs: Vec<crate::core::plugin_shared::DebugLog>,
+    debug_logs: Vec<crate::domain::plugin_shared::DebugLog>,
   }
 
   let result = SkillResult {

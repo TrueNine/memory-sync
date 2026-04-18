@@ -3,8 +3,8 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use crate::core::config;
-use crate::core::plugin_shared::{PromptKind, ReadmePrompt, RelativePath};
+use crate::domain::config;
+use crate::domain::plugin_shared::{PromptKind, ReadmePrompt, RelativePath};
 use crate::repositories::prompt_artifact::read_prompt_artifact;
 
 #[derive(Debug, Clone, Default, Deserialize)]

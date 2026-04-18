@@ -5,18 +5,10 @@
 //! generate_schema.
 
 pub mod context;
-pub mod core;
 pub mod domain;
 pub mod endpoint;
 pub mod infra;
-pub(crate) mod diagnostic_helpers;
-#[path = "native_md_compiler/lib.rs"]
-pub mod md_compiler;
-pub mod native_logger;
-pub mod native_script_runtime;
-pub mod output_plans;
 pub mod policy;
-pub mod prompts;
 pub mod repositories;
 pub mod services;
 
@@ -26,21 +18,17 @@ use std::process::ExitCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub mod logger {
-  pub use crate::native_logger::*;
-}
-
-pub mod script_runtime {
-  pub use crate::native_script_runtime::*;
-}
-
-pub use md_compiler::{
+pub use infra::logger;
+pub use infra::md_compiler;
+pub use infra::script_runtime;
+pub use domain::config;
+pub use infra::md_compiler::{
   BuildPromptTomlArtifactOptions, BuildTomlDocumentOptions, EvaluationScope, ExportMetadata,
   MdxGlobalScope, MdxToMdOptions, MdxToMdResult, MetadataSource, ProcessingContext,
   build_prompt_toml_artifact, build_toml_document, mdx_to_md, mdx_to_md_with_metadata, parse_mdx,
   serialize,
 };
-pub use prompts::{
+pub use services::prompts::{
   ListPromptsOptions, ManagedPromptKind, PromptArtifactRecord, PromptArtifactState,
   PromptCatalogItem, PromptCatalogPaths, PromptCatalogPresence, PromptDetails,
   PromptServiceOptions, PromptSourceLocale, UpsertPromptSourceInput, WritePromptArtifactsInput,
@@ -142,8 +130,8 @@ pub fn version() -> &'static str {
 }
 
 /// Load and merge configuration from the canonical global config path.
-pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliError> {
-  core::config::ConfigLoader::with_defaults()
+pub fn load_config(cwd: &Path) -> Result<domain::config::MergedConfigResult, CliError> {
+  domain::config::ConfigLoader::with_defaults()
     .try_load(cwd)
     .map_err(CliError::ConfigError)
 }
@@ -205,7 +193,7 @@ pub fn run_clean_cli(dry_run: bool) -> ExitCode {
 
 /// Generate the JSON Schema for the `.tnmsc.json` config file.
 pub fn generate_schema() -> Result<String, CliError> {
-  let schema = schemars::schema_for!(core::config::UserConfigFile);
+  let schema = schemars::schema_for!(domain::config::UserConfigFile);
   serde_json::to_string_pretty(&schema).map_err(CliError::SerializationError)
 }
 

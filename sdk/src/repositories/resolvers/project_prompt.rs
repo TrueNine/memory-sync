@@ -3,8 +3,8 @@ use std::path::Path;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::core::config;
-use crate::core::plugin_shared::{
+use crate::domain::config;
+use crate::domain::plugin_shared::{
   FilePathKind, Project, ProjectChildrenMemoryPrompt, ProjectRootMemoryPrompt, PromptKind,
   RelativePath, RootPath, Workspace,
 };
