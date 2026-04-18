@@ -79,7 +79,7 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
   let content = artifact.content.clone();
   let length = content.len();
 
-  let runtime = crate::domain::config::resolve_runtime_environment();
+  let runtime = config::resolve_runtime_environment();
   let effective_home_dir = runtime
     .effective_home_dir
     .or(runtime.native_home_dir)

@@ -365,7 +365,7 @@ mod tests {
     });
 
     let result = collect_aindex_resolvers(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let project = &parsed["workspace"]["projects"][0];
     assert_eq!(project["name"], "project-a");
     assert_eq!(
@@ -397,7 +397,7 @@ mod tests {
     });
 
     let result = collect_aindex_resolvers(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let project = &parsed["workspace"]["projects"][0];
     assert_eq!(project["name"], "project-b");
     assert!(project["projectConfig"].is_null());
@@ -426,7 +426,7 @@ mod tests {
     });
 
     let result = collect_aindex_resolvers(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let project = &parsed["workspace"]["projects"][0];
     assert_eq!(project["name"], "project-c");
     assert!(project["projectConfig"].is_null());
@@ -451,7 +451,7 @@ mod tests {
     });
 
     let result = collect_aindex_resolvers(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let projects = parsed["workspace"]["projects"].as_array().unwrap();
     let ids: Vec<String> = projects
       .iter()
@@ -499,12 +499,12 @@ mod tests {
     let _guard = crate::domain::TEST_ENV_LOCK
       .lock()
       .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let home_dir = crate::domain::config::resolve_tilde("~");
+    let home_dir = config::resolve_tilde("~");
     if home_dir == PathBuf::from("~") {
       return;
     }
     if !home_dir.exists() {
-      let _ = std::fs::create_dir_all(&home_dir);
+      let _ = fs::create_dir_all(&home_dir);
     }
     let tmp = tempfile::Builder::new()
       .prefix("tnmsd-aindex-tilde-")
@@ -529,7 +529,7 @@ mod tests {
     });
 
     let result = collect_aindex_resolvers(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let workspace_dir = parsed["workspace"]["directory"]["path"]
       .as_str()
       .map(PathBuf::from)

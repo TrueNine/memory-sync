@@ -125,8 +125,8 @@ pub fn version() -> &'static str {
 }
 
 /// Load and merge configuration from the canonical global config path.
-pub fn load_config(cwd: &Path) -> Result<domain::config::MergedConfigResult, CliError> {
-  domain::config::ConfigLoader::with_defaults()
+pub fn load_config(cwd: &Path) -> Result<config::MergedConfigResult, CliError> {
+  config::ConfigLoader::with_defaults()
     .try_load(cwd)
     .map_err(CliError::ConfigError)
 }
@@ -148,7 +148,7 @@ pub fn list_plugins() -> Vec<MemorySyncPluginInfo> {
 
 /// Generate the JSON Schema for the `.tnmsc.json` config file.
 pub fn generate_schema() -> Result<String, CliError> {
-  let schema = schemars::schema_for!(domain::config::UserConfigFile);
+  let schema = schemars::schema_for!(config::UserConfigFile);
   serde_json::to_string_pretty(&schema).map_err(CliError::SerializationError)
 }
 

@@ -486,7 +486,7 @@ mod tests {
     });
 
     let result = collect_project_prompt(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let projects = parsed["workspace"]["projects"].as_array().unwrap();
     let workspace_project = projects
       .iter()
@@ -513,7 +513,7 @@ mod tests {
     });
 
     let result = collect_project_prompt(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let projects = parsed["workspace"]["projects"].as_array().unwrap();
     assert!(!projects.iter().any(|p| p["isWorkspaceRootProject"] == true));
   }
@@ -546,7 +546,7 @@ mod tests {
     });
 
     let result = collect_project_prompt(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let projects = parsed["workspace"]["projects"].as_array().unwrap();
     let workspace_project = projects
       .iter()
@@ -630,7 +630,7 @@ mod tests {
     });
 
     let result = collect_project_prompt(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let projects = parsed["workspace"]["projects"].as_array().unwrap();
 
     let ext_project = projects.iter().find(|p| p["name"] == "plugin-a").unwrap();

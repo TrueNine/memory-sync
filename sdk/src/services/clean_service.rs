@@ -337,7 +337,8 @@ fn collect_context(
   #[serde(rename_all = "camelCase")]
   struct SharedIgnoreEnvelope {
     #[serde(default)]
-    ai_agent_ignore_config_files: Option<Vec<crate::domain::plugin_shared::AIAgentIgnoreConfigFile>>,
+    ai_agent_ignore_config_files:
+      Option<Vec<crate::domain::plugin_shared::AIAgentIgnoreConfigFile>>,
   }
 
   #[derive(Debug, Default, serde::Deserialize)]
@@ -486,7 +487,9 @@ fn build_output_map(
   }
 
   if enabled_plugins.claude_code {
-    if let Ok(plan) = crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context) {
+    if let Ok(plan) =
+      crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("ClaudeCodeCLIOutputAdaptor".to_string())
@@ -496,7 +499,9 @@ fn build_output_map(
     }
   }
   if enabled_plugins.codex {
-    if let Ok(plan) = crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context) {
+    if let Ok(plan) =
+      crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("CodexCLIOutputAdaptor".to_string())
@@ -506,7 +511,9 @@ fn build_output_map(
     }
   }
   if enabled_plugins.cursor {
-    if let Ok(plan) = crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context) {
+    if let Ok(plan) =
+      crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("CursorOutputAdaptor".to_string())
@@ -516,7 +523,9 @@ fn build_output_map(
     }
   }
   if enabled_plugins.droid {
-    if let Ok(plan) = crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context) {
+    if let Ok(plan) =
+      crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("DroidCLIOutputAdaptor".to_string())
@@ -526,7 +535,9 @@ fn build_output_map(
     }
   }
   if enabled_plugins.gemini {
-    if let Ok(plan) = crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context) {
+    if let Ok(plan) =
+      crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("GeminiCLIOutputAdaptor".to_string())
@@ -546,7 +557,8 @@ fn build_output_map(
     }
   }
   if enabled_plugins.kiro {
-    if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("KiroCLIOutputAdaptor".to_string())
@@ -556,7 +568,9 @@ fn build_output_map(
     }
   }
   if enabled_plugins.opencode {
-    if let Ok(plan) = crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context) {
+    if let Ok(plan) =
+      crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("OpencodeCLIOutputAdaptor".to_string())
@@ -566,7 +580,9 @@ fn build_output_map(
     }
   }
   if enabled_plugins.qoder {
-    if let Ok(plan) = crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context) {
+    if let Ok(plan) =
+      crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("QoderIDEPluginOutputAdaptor".to_string())
@@ -576,7 +592,8 @@ fn build_output_map(
     }
   }
   if enabled_plugins.trae || enabled_plugins.trae_cn {
-    if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("TraeOutputAdaptor".to_string())
@@ -586,7 +603,8 @@ fn build_output_map(
     }
   }
   if enabled_plugins.warp {
-    if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("WarpIDEOutputAdaptor".to_string())
@@ -596,7 +614,9 @@ fn build_output_map(
     }
   }
   if enabled_plugins.windsurf {
-    if let Ok(plan) = crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context) {
+    if let Ok(plan) =
+      crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)
+    {
       for file in &plan.output_files {
         output_map
           .entry("WindsurfOutputAdaptor".to_string())
@@ -643,7 +663,7 @@ mod tests {
   use tempfile::TempDir;
 
   fn create_test_config(workspace_dir: &Path) -> std::io::Result<()> {
-    let config_content = serde_json::json!({
+    let config_content = json!({
       "workspaceDir": workspace_dir.to_string_lossy()
     });
     let config_path = workspace_dir.join(".tnmsc.json");

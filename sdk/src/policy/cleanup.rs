@@ -2794,7 +2794,7 @@ mod tests {
       .map(|d| path_to_string(&outputs_dir.join(d)))
       .collect::<Vec<_>>()
       .into_iter()
-      .collect::<std::collections::BTreeSet<_>>()
+      .collect::<BTreeSet<_>>()
       .into_iter()
       .collect();
 

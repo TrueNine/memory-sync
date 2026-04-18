@@ -225,7 +225,7 @@ mod tests {
     });
 
     let result = collect_command(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let commands = parsed["commands"].as_array().unwrap();
     assert_eq!(commands.len(), 1);
     assert_eq!(commands[0]["commandName"], "demo");
@@ -266,7 +266,7 @@ mod tests {
     });
 
     let result = collect_command(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let commands = parsed["commands"].as_array().unwrap();
     assert_eq!(commands.len(), 1);
     assert_eq!(commands[0]["commandName"], "demo");
@@ -344,7 +344,7 @@ mod tests {
     });
 
     let result = collect_command(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let commands = parsed["commands"].as_array().unwrap();
     assert!(commands.is_empty());
   }

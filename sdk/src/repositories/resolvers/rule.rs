@@ -285,7 +285,7 @@ mod tests {
     });
 
     let result = collect_rule(&options.to_string()).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
     let rules = parsed["rules"].as_array().unwrap();
     assert_eq!(rules.len(), 1);
     assert_eq!(rules[0]["ruleName"], "boot");

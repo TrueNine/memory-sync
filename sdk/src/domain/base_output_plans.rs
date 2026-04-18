@@ -767,7 +767,7 @@ mod tests {
 
     let context = CollectedInputContext {
       workspace: Some(Workspace {
-        directory: crate::domain::plugin_shared::RootPath::new(&workspace_dir),
+        directory: RootPath::new(&workspace_dir),
         projects: vec![
           Project {
             name: Some("__workspace__".to_string()),
@@ -888,7 +888,7 @@ mod tests {
 
     let context = CollectedInputContext {
       workspace: Some(Workspace {
-        directory: crate::domain::plugin_shared::RootPath::new(&workspace_dir.to_string_lossy()),
+        directory: RootPath::new(&workspace_dir.to_string_lossy()),
         projects: vec![create_project(
           &workspace_dir.to_string_lossy(),
           "packages/app",
@@ -957,7 +957,7 @@ mod tests {
 
     let context = CollectedInputContext {
       workspace: Some(Workspace {
-        directory: crate::domain::plugin_shared::RootPath::new(&workspace_dir),
+        directory: RootPath::new(&workspace_dir),
         projects: vec![
           Project {
             is_prompt_source_project: Some(true),

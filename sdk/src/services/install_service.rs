@@ -522,7 +522,8 @@ fn build_output_files(
   push_base_plans(&mut outputs, &base_plans, enabled_plugins);
 
   if enabled_plugins.claude_code {
-    let plan = crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)?;
+    let plan =
+      crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.codex {
@@ -551,7 +552,8 @@ fn build_output_files(
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.opencode {
-    let plan = crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)?;
+    let plan =
+      crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.qoder {
@@ -567,7 +569,8 @@ fn build_output_files(
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.windsurf {
-    let plan = crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)?;
+    let plan =
+      crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
 
@@ -747,7 +750,7 @@ mod tests {
   #[test]
   fn test_resolve_workspace_dir_returns_configured_path() {
     let cwd = PathBuf::from("/some/cwd");
-    let config = crate::domain::config::UserConfigFile {
+    let config = UserConfigFile {
       workspace_dir: Some("/configured/workspace".to_string()),
       ..Default::default()
     };
@@ -765,7 +768,7 @@ mod tests {
   #[test]
   fn test_resolve_workspace_dir_errors_when_not_configured() {
     let cwd = PathBuf::from("/some/cwd");
-    let config = crate::domain::config::UserConfigFile::default();
+    let config = UserConfigFile::default();
     let result = resolve_workspace_dir(&cwd, &config);
     assert!(
       result.is_err(),

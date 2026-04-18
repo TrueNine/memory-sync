@@ -413,7 +413,7 @@ fn path_starts_with(child: &str, parent: &str) -> bool {
 }
 
 pub fn compact_deletion_targets(files: &[String], dirs: &[String]) -> CompactedDeletionTargets {
-  let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
+  let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
 
   let resolve = |p: &str| -> String {
     match std::path::absolute(Path::new(p)) {
@@ -521,7 +521,7 @@ fn collect_empty_directories(
     return false;
   }
 
-  let entries = match std::fs::read_dir(current_dir) {
+  let entries = match fs::read_dir(current_dir) {
     Ok(read_dir) => read_dir,
     Err(_) => return false,
   };
