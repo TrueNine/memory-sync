@@ -11,7 +11,7 @@ pub use endpoint::{clean, dry_run, install, load_config, version, SdkError, Memo
 pub type CliError = endpoint::SdkError;
 
 pub use domain::config;
-pub use infra::md_compiler;
+  pub use infra::md_compiler;
 pub use services::prompts::{
   get_prompt, list_prompts, upsert_prompt_source, write_prompt_artifacts,
   ListPromptsOptions, ManagedPromptKind, PromptArtifactRecord, PromptArtifactState,
@@ -29,7 +29,6 @@ pub use services::clean_service;
 mod property_tests {
   use super::*;
   use proptest::prelude::*;
-  use tempfile::TempDir;
 
   #[test]
   fn version_returns_cargo_pkg_version() {
