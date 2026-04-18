@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::core::input_plugins::public_config::read_public_file;
+use crate::native_script_runtime::proxy_public_path;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,9 +55,10 @@ pub fn collect_shared_ignore(options_json: &str) -> Result<String, crate::CliErr
   for file_name in AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS {
     if let Some(content) = read_public_file(&aindex_dir_str, file_name) {
       if !content.is_empty() {
+        let proxied_name = proxy_public_path(file_name);
         let source_path = std::path::Path::new(&aindex_dir_str)
           .join("public")
-          .join(file_name)
+          .join(&proxied_name)
           .to_string_lossy()
           .into_owned();
         results.push(AIAgentIgnoreConfigFile {

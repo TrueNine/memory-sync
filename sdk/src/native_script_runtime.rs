@@ -1,58 +1,77 @@
 #![deny(clippy::all)]
 
-use std::ffi::OsString;
-use std::fs;
-use std::io::Read;
 use std::path::{Component, Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::sync::{Mutex, OnceLock};
-use std::time::Duration;
 
-use serde::Deserialize;
-use wait_timeout::ChildExt;
+// ---------------------------------------------------------------------------
+// Public path proxy — pure Rust reimplementation of aindex/public/proxy.ts
+//
+// The original proxy.ts is a 34-line TypeScript module that remaps "hidden"
+// dot-prefixed paths so they can be stored on disk without actually creating
+// dot-files or dot-directories (which many tools and VCS systems treat
+// specially).
+//
+// Mapping rules (applied to forward-slash-normalized input):
+//
+//   1. `.git/`  prefix → `____.git/`
+//   2. `.zed/`  prefix → `____.zed/`
+//   3. `.idea/` prefix → `____idea/`    (note: no dot after ____)
+//   4. `.vscode/` prefix → `____vscode/`  (note: no dot after ____)
+//   5. Any other `.<segment>/` or `.<segment>` at the start → `____<segment>/` or `____<segment>`
+//   6. Paths that don't start with `.` pass through unchanged
+//
+// ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ResolvePublicPathContext {
-  aindex_dir: String,
-  worker_path: Option<String>,
-  timeout_ms: Option<u64>,
+struct PrefixRule {
+  match_prefix: &'static str,
+  replacement: &'static str,
 }
 
-static NODE_COMMAND_CACHE: OnceLock<Mutex<Option<OsString>>> = OnceLock::new();
+const PREFIX_RULES: [PrefixRule; 4] = [
+  PrefixRule {
+    match_prefix: ".git/",
+    replacement: "____.git/",
+  },
+  PrefixRule {
+    match_prefix: ".zed/",
+    replacement: "____.zed/",
+  },
+  PrefixRule {
+    match_prefix: ".idea/",
+    replacement: "____idea/",
+  },
+  PrefixRule {
+    match_prefix: ".vscode/",
+    replacement: "____vscode/",
+  },
+];
 
-fn read_cached_success<T: Clone>(cache: &Mutex<Option<T>>) -> Option<T> {
-  match cache.lock() {
-    Ok(guard) => guard.clone(),
-    Err(poisoned) => poisoned.into_inner().clone(),
-  }
-}
+pub fn proxy_public_path(logical_path: &str) -> String {
+  let normalized = logical_path.replace('\\', "/");
 
-fn store_cached_success<T: Clone>(cache: &Mutex<Option<T>>, value: &T) {
-  match cache.lock() {
-    Ok(mut guard) => {
-      *guard = Some(value.clone());
+  for rule in &PREFIX_RULES {
+    if normalized.starts_with(rule.match_prefix) {
+      return normalized.replacen(rule.match_prefix, rule.replacement, 1);
     }
-    Err(poisoned) => {
-      *poisoned.into_inner() = Some(value.clone());
+  }
+
+  if !normalized.starts_with('.') {
+    return normalized;
+  }
+
+  if let Some(rest) = normalized.strip_prefix('.') {
+    if rest.is_empty() {
+      return normalized;
     }
+    if let Some(slash_pos) = rest.find('/') {
+      let name = &rest[..slash_pos];
+      let suffix = &rest[slash_pos..];
+      return format!("____{name}{suffix}");
+    }
+    let name = rest;
+    format!("____{name}")
+  } else {
+    normalized
   }
-}
-
-fn detect_with_cached_success_result<T: Clone, E, F>(
-  cache: &Mutex<Option<T>>,
-  detect: F,
-) -> Result<T, E>
-where
-  F: FnOnce() -> Result<T, E>,
-{
-  if let Some(cached) = read_cached_success(cache) {
-    return Ok(cached);
-  }
-
-  let detected = detect()?;
-  store_cached_success(cache, &detected);
-  Ok(detected)
 }
 
 fn normalize_path(path: &Path) -> Result<PathBuf, String> {
@@ -141,141 +160,157 @@ pub fn validate_public_path_impl(
   Ok(normalized_relative_path.to_string_lossy().to_string())
 }
 
-fn candidate_node_commands() -> Vec<OsString> {
-  let mut candidates: Vec<OsString> = Vec::new();
-
-  if let Some(exec_path) = std::env::var_os("npm_node_execpath") {
-    candidates.push(exec_path);
-  }
-  if let Some(exec_path) = std::env::var_os("NODE") {
-    candidates.push(exec_path);
-  }
-  if let Ok(current_exe) = std::env::current_exe() {
-    let file_name = current_exe
-      .file_name()
-      .and_then(|value| value.to_str())
-      .unwrap_or_default()
-      .to_ascii_lowercase();
-    if file_name.contains("node") {
-      candidates.push(current_exe.into_os_string());
-    }
-  }
-  candidates.push(OsString::from("node"));
-
-  candidates
-}
-
-fn find_node_command() -> Result<OsString, String> {
-  let cache = NODE_COMMAND_CACHE.get_or_init(|| Mutex::new(None));
-  detect_with_cached_success_result(cache, detect_node_command)
-}
-
-fn detect_node_command() -> Result<OsString, String> {
-  for candidate in candidate_node_commands() {
-    let status = Command::new(&candidate)
-      .arg("--version")
-      .stdout(Stdio::null())
-      .stderr(Stdio::null())
-      .status();
-
-    if status.is_ok_and(|value| value.success()) {
-      return Ok(candidate);
-    }
-  }
-
-  Err("Node.js executable was not found for resolve_public_path".into())
-}
-
 fn build_aindex_public_dir(aindex_dir: &str) -> Result<PathBuf, String> {
   let normalized = absolute_base_path(aindex_dir)?;
   normalize_path(&normalized.join("public"))
 }
 
-fn read_pipe_to_string<R: Read>(pipe: &mut Option<R>, label: &str) -> Result<String, String> {
-  let mut buffer: Vec<u8> = Vec::new();
-
-  if let Some(reader) = pipe {
-    reader
-      .read_to_end(&mut buffer)
-      .map_err(|error| format!("Failed to read {label}: {error}"))?;
-  }
-
-  String::from_utf8(buffer).map_err(|error| format!("Invalid UTF-8 from {label}: {error}"))
-}
-
 pub fn resolve_public_path_impl(
-  file_path: &str,
+  _file_path: &str,
   ctx_json: &str,
   logical_path: &str,
 ) -> Result<String, String> {
   let ctx: ResolvePublicPathContext = serde_json::from_str(ctx_json)
     .map_err(|error| format!("Invalid resolve_public_path context JSON: {error}"))?;
 
-  let worker_path = match ctx.worker_path {
-    Some(worker_path) if !worker_path.trim().is_empty() => worker_path,
-    _ => {
-      return Err("resolve_public_path requires ctxJson.workerPath".into());
-    }
-  };
-
-  let timeout = Duration::from_millis(ctx.timeout_ms.unwrap_or(5_000));
-  let node_command = find_node_command()?;
-
-  let temp_dir = tempfile::tempdir()
-    .map_err(|error| format!("Failed to create resolve_public_path temp directory: {error}"))?;
-  let ctx_path = temp_dir.path().join("proxy-context.json");
-  fs::write(&ctx_path, ctx_json)
-    .map_err(|error| format!("Failed to write resolve_public_path context file: {error}"))?;
-
-  let mut child = Command::new(node_command)
-    .arg(worker_path)
-    .arg(file_path)
-    .arg(&ctx_path)
-    .arg(logical_path)
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .spawn()
-    .map_err(|error| format!("Failed to spawn proxy worker: {error}"))?;
-
-  match child
-    .wait_timeout(timeout)
-    .map_err(|error| format!("Failed while waiting for proxy worker: {error}"))?
-  {
-    Some(_) => {}
-    None => {
-      child
-        .kill()
-        .map_err(|error| format!("Failed to terminate timed out proxy worker: {error}"))?;
-      let _ = child.wait();
-      return Err(format!(
-        "proxy.ts execution timed out after {}ms",
-        timeout.as_millis()
-      ));
-    }
-  }
-
-  let stdout = read_pipe_to_string(&mut child.stdout, "proxy worker stdout")?;
-  let stderr = read_pipe_to_string(&mut child.stderr, "proxy worker stderr")?;
-  let _ = child.wait();
-
-  if !stderr.trim().is_empty() {
-    return Err(stderr.trim().to_string());
-  }
-  if stdout.trim().is_empty() {
-    return Err("proxy worker produced no output".into());
-  }
+  let proxied = proxy_public_path(logical_path);
 
   let aindex_public_dir = build_aindex_public_dir(&ctx.aindex_dir)?;
-  validate_public_path_impl(stdout.trim(), &aindex_public_dir.to_string_lossy())
+  validate_public_path_impl(&proxied, &aindex_public_dir.to_string_lossy())
 }
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ResolvePublicPathContext {
+  aindex_dir: String,
+  #[allow(dead_code)]
+  worker_path: Option<String>,
+  #[allow(dead_code)]
+  timeout_ms: Option<u64>,
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
-  use super::{detect_with_cached_success_result, validate_public_path_impl};
-  use std::cell::Cell;
-  use std::ffi::OsString;
+  use super::{proxy_public_path, validate_public_path_impl};
   use std::path::PathBuf;
-  use std::sync::Mutex;
+
+  // -------------------------------------------------------------------------
+  // proxy_public_path — prefix rules
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn proxy_git_prefix_maps_to_underscore_git() {
+    assert_eq!(proxy_public_path(".git/info/exclude"), "____.git/info/exclude");
+    assert_eq!(proxy_public_path(".git/HEAD"), "____.git/HEAD");
+    assert_eq!(proxy_public_path(".git/refs/heads/main"), "____.git/refs/heads/main");
+  }
+
+  #[test]
+  fn proxy_zed_prefix_maps_to_underscore_zed() {
+    assert_eq!(proxy_public_path(".zed/settings.json"), "____.zed/settings.json");
+  }
+
+  #[test]
+  fn proxy_idea_prefix_maps_to_underscore_idea() {
+    assert_eq!(proxy_public_path(".idea/.gitignore"), "____idea/.gitignore");
+    assert_eq!(
+      proxy_public_path(".idea/codeStyles/Project.xml"),
+      "____idea/codeStyles/Project.xml"
+    );
+  }
+
+  #[test]
+  fn proxy_vscode_prefix_maps_to_underscore_vscode() {
+    assert_eq!(proxy_public_path(".vscode/settings.json"), "____vscode/settings.json");
+    assert_eq!(
+      proxy_public_path(".vscode/extensions.json"),
+      "____vscode/extensions.json"
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // proxy_public_path — generic dot-prefix rule
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn proxy_generic_dot_file_maps_to_underscore_prefix() {
+    assert_eq!(proxy_public_path(".editorconfig"), "____editorconfig");
+    assert_eq!(proxy_public_path(".gitignore"), "____gitignore");
+    assert_eq!(proxy_public_path(".aiignore"), "____aiignore");
+    assert_eq!(proxy_public_path(".codeiumignore"), "____codeiumignore");
+    assert_eq!(proxy_public_path(".cursorignore"), "____cursorignore");
+    assert_eq!(proxy_public_path(".kiroignore"), "____kiroignore");
+    assert_eq!(proxy_public_path(".qoderignore"), "____qoderignore");
+    assert_eq!(proxy_public_path(".traeignore"), "____traeignore");
+    assert_eq!(proxy_public_path(".warpindexignore"), "____warpindexignore");
+  }
+
+  #[test]
+  fn proxy_generic_dot_directory_maps_to_underscore_prefix() {
+    assert_eq!(
+      proxy_public_path(".something/nested/path"),
+      "____something/nested/path"
+    );
+  }
+
+  #[test]
+  fn proxy_dot_without_slash_maps_to_underscore_prefix() {
+    assert_eq!(proxy_public_path(".git"), "____git");
+  }
+
+  // -------------------------------------------------------------------------
+  // proxy_public_path — pass-through (no dot prefix)
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn proxy_plain_paths_pass_through_unchanged() {
+    assert_eq!(proxy_public_path("plain/path.txt"), "plain/path.txt");
+    assert_eq!(proxy_public_path("src/app.ts"), "src/app.ts");
+    assert_eq!(proxy_public_path("README.md"), "README.md");
+  }
+
+  // -------------------------------------------------------------------------
+  // proxy_public_path — backslash normalization
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn proxy_backslashes_normalized_to_forward_slashes() {
+    assert_eq!(proxy_public_path(".git\\info/exclude"), "____.git/info/exclude");
+    assert_eq!(
+      proxy_public_path("path\\to\\.git\\HEAD"),
+      "path/to/.git/HEAD"
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // proxy_public_path — edge cases
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn proxy_single_dot_stays_as_dot() {
+    assert_eq!(proxy_public_path("."), ".");
+  }
+
+  #[test]
+  fn proxy_empty_string_stays_empty() {
+    assert_eq!(proxy_public_path(""), "");
+  }
+
+  #[test]
+  fn proxy_dot_embedded_in_path_is_not_transformed() {
+    assert_eq!(
+      proxy_public_path("path/to/.gitignore"),
+      "path/to/.gitignore"
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // validate_public_path_impl
+  // -------------------------------------------------------------------------
 
   #[test]
   fn validate_public_path_rejects_absolute_paths() {
@@ -313,30 +348,47 @@ mod tests {
     Ok(())
   }
 
+  // -------------------------------------------------------------------------
+  // proxy + validate round-trip: real aindex/public file paths
+  // -------------------------------------------------------------------------
+
   #[test]
-  fn detect_with_cached_success_result_retries_until_success() -> Result<(), String> {
-    let cache = Mutex::new(None);
-    let attempts = Cell::new(0);
+  fn proxy_and_validate_git_exclude_round_trip() -> Result<(), String> {
+    let proxied = proxy_public_path(".git/info/exclude");
+    assert_eq!(proxied, "____.git/info/exclude");
 
-    let first = detect_with_cached_success_result(&cache, || {
-      attempts.set(attempts.get() + 1);
-      Err(String::from("missing"))
-    });
-    assert!(first.is_err());
+    let validated = validate_public_path_impl(&proxied, "/tmp/ws/aindex/public")?;
+    assert_eq!(validated, "____.git/info/exclude");
+    Ok(())
+  }
 
-    let second = detect_with_cached_success_result(&cache, || {
-      attempts.set(attempts.get() + 1);
-      Ok::<OsString, String>(OsString::from("node"))
-    })?;
-    assert_eq!(second, OsString::from("node"));
+  #[test]
+  fn proxy_and_validate_vscode_settings_round_trip() -> Result<(), String> {
+    let proxied = proxy_public_path(".vscode/settings.json");
+    assert_eq!(proxied, "____vscode/settings.json");
 
-    let third = detect_with_cached_success_result(&cache, || {
-      attempts.set(attempts.get() + 1);
-      Ok::<OsString, String>(OsString::from("other"))
-    })?;
-    assert_eq!(third, OsString::from("node"));
-    assert_eq!(attempts.get(), 2);
+    let validated = validate_public_path_impl(&proxied, "/tmp/ws/aindex/public")?;
+    assert_eq!(validated, "____vscode/settings.json");
+    Ok(())
+  }
 
+  #[test]
+  fn proxy_and_validate_editorconfig_round_trip() -> Result<(), String> {
+    let proxied = proxy_public_path(".editorconfig");
+    assert_eq!(proxied, "____editorconfig");
+
+    let validated = validate_public_path_impl(&proxied, "/tmp/ws/aindex/public")?;
+    assert_eq!(validated, "____editorconfig");
+    Ok(())
+  }
+
+  #[test]
+  fn proxy_and_validate_idea_gitignore_round_trip() -> Result<(), String> {
+    let proxied = proxy_public_path(".idea/.gitignore");
+    assert_eq!(proxied, "____idea/.gitignore");
+
+    let validated = validate_public_path_impl(&proxied, "/tmp/ws/aindex/public")?;
+    assert_eq!(validated, "____idea/.gitignore");
     Ok(())
   }
 }
