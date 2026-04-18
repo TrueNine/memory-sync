@@ -1,5 +1,5 @@
 use tnmsc_integration_tests::{
-  TestContainer, install_packaged_cli_container, real_env_test_skip_reason,
+  TestContainer, install_packaged_cli_container,
 };
 
 fn setup_workspace_with_public_files(container: &TestContainer) {
@@ -99,11 +99,6 @@ fn setup_workspace_with_public_files(container: &TestContainer) {
 
 #[test]
 fn vscode_settings_written_to_project_from_public_dir() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping vscode settings test: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
@@ -125,11 +120,6 @@ fn vscode_settings_written_to_project_from_public_dir() {
 
 #[test]
 fn vscode_extensions_written_to_project_from_public_dir() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping vscode extensions test: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
@@ -146,11 +136,6 @@ fn vscode_extensions_written_to_project_from_public_dir() {
 
 #[test]
 fn zed_settings_written_to_project_from_public_dir() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping zed settings test: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
@@ -167,11 +152,6 @@ fn zed_settings_written_to_project_from_public_dir() {
 
 #[test]
 fn git_exclude_written_to_project_from_public_dir() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping git exclude test: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
@@ -190,11 +170,6 @@ fn git_exclude_written_to_project_from_public_dir() {
 
 #[test]
 fn editorconfig_written_to_project_from_public_dir() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping editorconfig test: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
@@ -216,11 +191,6 @@ fn editorconfig_written_to_project_from_public_dir() {
 
 #[test]
 fn gitignore_content_read_from_public_dir() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping gitignore read test: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 

@@ -1,12 +1,7 @@
-use tnmsc_integration_tests::{install_packaged_cli_container, real_env_test_skip_reason};
+use tnmsc_integration_tests::{install_packaged_cli_container};
 
 #[test]
 fn packaged_cli_install_writes_claude_memory_from_aindex() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping install smoke: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
 
   container
@@ -50,11 +45,6 @@ fn packaged_cli_install_writes_claude_memory_from_aindex() {
 
 #[test]
 fn packaged_cli_install_errors_when_workspace_dir_not_configured() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping missing workspaceDir test: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
 
   container
@@ -83,11 +73,6 @@ fn packaged_cli_install_errors_when_workspace_dir_not_configured() {
 
 #[test]
 fn packaged_cli_install_errors_when_config_file_missing() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping missing config file test: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
 
   container

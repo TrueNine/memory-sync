@@ -5,16 +5,11 @@ use std::os::unix::fs::PermissionsExt;
 
 use tnmsc_integration_tests::{
   EXPECTED_SUBCOMMANDS, PACKAGED_PLUGINS, create_staged_package_root,
-  install_packaged_cli_container, real_env_test_skip_reason, run_tnmsc_with_env, workspace_root,
+  install_packaged_cli_container, run_tnmsc_with_env, workspace_root,
 };
 
 #[test]
 fn packaging_smoke_covers_release_binary_and_global_install() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping packaging smoke: {reason}");
-    return;
-  }
-
   let staged = create_staged_package_root();
   let package_root = staged.package_root.to_string_lossy().into_owned();
   let workspace_root_dir = workspace_root().to_string_lossy().into_owned();

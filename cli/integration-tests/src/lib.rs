@@ -51,7 +51,6 @@ pub const NOT_IMPLEMENTED_CASES: &[CommandTestCase] = &[
 
 static PNPM_VERSION: OnceLock<String> = OnceLock::new();
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
-static REAL_ENV_SKIP_REASON: OnceLock<Option<String>> = OnceLock::new();
 static DOCKER_IMAGE_READY: OnceLock<()> = OnceLock::new();
 
 pub struct CommandResult {
@@ -417,16 +416,6 @@ pub fn not_implemented_message(command: &str) -> String {
   )
 }
 
-pub fn is_linux_x64_host() -> bool {
-  std::env::consts::OS == "linux" && std::env::consts::ARCH == "x86_64"
-}
-
-pub fn real_env_test_skip_reason() -> Option<String> {
-  REAL_ENV_SKIP_REASON
-    .get_or_init(compute_real_env_skip_reason)
-    .clone()
-}
-
 pub fn pnpm_version() -> &'static str {
   PNPM_VERSION.get_or_init(|| {
     let package_json_path = workspace_root().join("package.json");
@@ -585,53 +574,6 @@ pub fn quote_shell(value: &str) -> String {
   format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
-fn compute_real_env_skip_reason() -> Option<String> {
-  if !is_linux_x64_host() {
-    return Some("unsupported host platform; real-env tests only run on linux x86_64".to_string());
-  }
-
-  let pnpm_result = run_program("pnpm", &["--version"], &workspace_root());
-  if pnpm_result.status != 0 {
-    let detail = trim_output(&pnpm_result.stderr)
-      .or_else(|| trim_output(&pnpm_result.stdout))
-      .unwrap_or_else(|| "pnpm is not installed".to_string());
-    return Some(format!("pnpm unavailable: {detail}"));
-  }
-
-  let cargo_result = run_program("cargo", &["--version"], &workspace_root());
-  if cargo_result.status != 0 {
-    let detail = trim_output(&cargo_result.stderr)
-      .or_else(|| trim_output(&cargo_result.stdout))
-      .unwrap_or_else(|| "cargo is not installed".to_string());
-    return Some(format!("cargo unavailable: {detail}"));
-  }
-
-  let docker_check = run_program(
-    "docker",
-    &["info", "--format", "{{.ServerVersion}}"],
-    &workspace_root(),
-  );
-  if docker_check.status != 0 {
-    let detail = trim_output(&docker_check.stderr)
-      .or_else(|| trim_output(&docker_check.stdout))
-      .unwrap_or_else(|| "docker daemon is unavailable".to_string());
-    return Some(format!("docker unavailable: {detail}"));
-  }
-
-  let image_check = run_program(
-    "docker",
-    &["image", "inspect", &format!("{DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG}")],
-    &workspace_root(),
-  );
-  if image_check.status != 0 {
-    return Some(format!(
-      "docker image {DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG} not found; run: docker pull {DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG}"
-    ));
-  }
-
-  None
-}
-
 fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
   assert!(
     package_dir.exists(),
@@ -752,10 +694,14 @@ fn copy_file(source: &Path, destination: &Path) {
 }
 
 fn command_output(command: &mut Command, label: &str) -> CommandResult {
-  let output = command
-    .output()
-    .unwrap_or_else(|error| panic!("failed to run {label}: {error}"));
-  decode_output(output)
+  match command.output() {
+    Ok(output) => decode_output(output),
+    Err(error) => CommandResult {
+      status: 1,
+      stdout: String::new(),
+      stderr: format!("failed to run {label}: {error}"),
+    },
+  }
 }
 
 fn decode_output(output: Output) -> CommandResult {
@@ -798,9 +744,4 @@ fn extract_exit_code(stderr: &str) -> Option<(i32, String)> {
   };
 
   Some((exit_code, cleaned))
-}
-
-fn trim_output(output: &str) -> Option<String> {
-  let trimmed = output.trim();
-  (!trimmed.is_empty()).then(|| trimmed.to_string())
 }

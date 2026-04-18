@@ -1,16 +1,11 @@
 use serde_json::Value;
 use tnmsc_integration_tests::{
   EXPECTED_SUBCOMMANDS, NOT_IMPLEMENTED_CASES, PACKAGED_PLUGINS, current_package_version,
-  install_packaged_cli_container, not_implemented_message, real_env_test_skip_reason,
+  install_packaged_cli_container, not_implemented_message,
 };
 
 #[test]
 fn packaged_cli_contract_runs_inside_testcontainer() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping packaged contract smoke: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
 
   let help = container.exec_tnmsc(&["help"]);

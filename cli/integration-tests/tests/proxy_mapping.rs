@@ -1,12 +1,7 @@
-use tnmsc_integration_tests::{install_packaged_cli_container, real_env_test_skip_reason};
+use tnmsc_integration_tests::{install_packaged_cli_container};
 
 #[test]
 fn packaged_cli_proxy_mapping_reads_public_files_via_transformed_paths() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping proxy mapping test: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
 
   container
@@ -80,11 +75,6 @@ fn packaged_cli_proxy_mapping_reads_public_files_via_transformed_paths() {
 
 #[test]
 fn packaged_cli_proxy_mapping_prefix_rules_are_correct() {
-  if let Some(reason) = real_env_test_skip_reason() {
-    eprintln!("skipping proxy prefix rule test: {reason}");
-    return;
-  }
-
   let container = install_packaged_cli_container();
 
   let proxy_script = r#"
