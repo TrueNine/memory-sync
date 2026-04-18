@@ -1,5 +1,7 @@
 # memory-sync
 
+![rat](/.attachments/rat.svg)
+
 A rat is like this. Even its own brain, even its memory, has to be carried around in this rotten world!!!
 
 I am a rat. No resource is going to walk up and offer itself to me.
@@ -12,8 +14,6 @@ So as a rat, I eat whatever I can reach: maggots in the sewer, leftovers in a sl
 
 In this ecosystem, the giants hoard the resources while developers get thrown into a corner like rats.
 `memory-sync` accepts this cruel reality, does not fantasize about fairness, and focuses on one thing only: **to chew through every fragment of resource you already have and turn it into portable "memory" that can flow between AI tools.**
-
-![rat](/.attachments/rat.svg)
 
 What can it do for you?
 
