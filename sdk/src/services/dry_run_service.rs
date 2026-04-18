@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
 
-use crate::core::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
-use crate::core::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
-use crate::core::droid_output_plan::DroidOutputPlanDto;
-use crate::core::plugin_shared::CollectedInputContext;
+use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
+use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
+use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
+use crate::domain::plugin_shared::CollectedInputContext;
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
@@ -238,49 +238,49 @@ impl EnabledPlugins {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct WorkspaceEnvelope {
-  workspace: crate::core::plugin_shared::Workspace,
+  workspace: crate::domain::plugin_shared::Workspace,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GlobalMemoryEnvelope {
   #[serde(default)]
-  global_memory: Option<crate::core::plugin_shared::GlobalMemoryPrompt>,
+  global_memory: Option<crate::domain::plugin_shared::GlobalMemoryPrompt>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CommandsEnvelope {
   #[serde(default)]
-  commands: Vec<crate::core::plugin_shared::FastCommandPrompt>,
+  commands: Vec<crate::domain::plugin_shared::FastCommandPrompt>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SubAgentsEnvelope {
   #[serde(default)]
-  sub_agents: Vec<crate::core::plugin_shared::SubAgentPrompt>,
+  sub_agents: Vec<crate::domain::plugin_shared::SubAgentPrompt>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SkillsEnvelope {
   #[serde(default)]
-  skills: Vec<crate::core::plugin_shared::SkillPrompt>,
+  skills: Vec<crate::domain::plugin_shared::SkillPrompt>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RulesEnvelope {
   #[serde(default)]
-  rules: Vec<crate::core::plugin_shared::RulePrompt>,
+  rules: Vec<crate::domain::plugin_shared::RulePrompt>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ReadmeEnvelope {
   #[serde(default)]
-  readme_prompts: Vec<crate::core::plugin_shared::ReadmePrompt>,
+  readme_prompts: Vec<crate::domain::plugin_shared::ReadmePrompt>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -301,35 +301,35 @@ struct GitExcludeEnvelope {
 #[serde(rename_all = "camelCase")]
 struct SharedIgnoreEnvelope {
   #[serde(default)]
-  ai_agent_ignore_config_files: Option<Vec<crate::core::plugin_shared::AIAgentIgnoreConfigFile>>,
+  ai_agent_ignore_config_files: Option<Vec<crate::domain::plugin_shared::AIAgentIgnoreConfigFile>>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct VSCodeEnvelope {
   #[serde(default)]
-  vscode_config_files: Option<Vec<crate::core::plugin_shared::ProjectIDEConfigFile>>,
+  vscode_config_files: Option<Vec<crate::domain::plugin_shared::ProjectIDEConfigFile>>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ZedEnvelope {
   #[serde(default)]
-  zed_config_files: Option<Vec<crate::core::plugin_shared::ProjectIDEConfigFile>>,
+  zed_config_files: Option<Vec<crate::domain::plugin_shared::ProjectIDEConfigFile>>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct JetBrainsEnvelope {
   #[serde(default)]
-  jetbrains_config_files: Option<Vec<crate::core::plugin_shared::ProjectIDEConfigFile>>,
+  jetbrains_config_files: Option<Vec<crate::domain::plugin_shared::ProjectIDEConfigFile>>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct EditorConfigEnvelope {
   #[serde(default)]
-  editor_config_files: Option<Vec<crate::core::plugin_shared::ProjectIDEConfigFile>>,
+  editor_config_files: Option<Vec<crate::domain::plugin_shared::ProjectIDEConfigFile>>,
 }
 
 #[derive(Debug, Clone)]
@@ -449,66 +449,66 @@ fn build_output_files(
 ) -> Result<BTreeMap<String, PlannedOutputFile>, CliError> {
   let mut outputs = BTreeMap::new();
 
-  let base_plans = crate::core::base_output_plans::build_base_output_plans(context)?;
+  let base_plans = crate::domain::base_output_plans::build_base_output_plans(context)?;
   push_base_plans(&mut outputs, &base_plans, enabled_plugins);
 
   if enabled_plugins.claude_code {
-    if let Ok(plan) = crate::core::claude_code_output_plan::build_claude_code_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }
   if enabled_plugins.codex {
-    if let Ok(plan) = crate::core::codex_output_plan::build_codex_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }
   if enabled_plugins.cursor {
-    if let Ok(plan) = crate::core::cursor_output_plan::build_cursor_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }
   if enabled_plugins.droid {
-    if let Ok(plan) = crate::core::droid_output_plan::build_droid_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context) {
       push_droid_output_files(&mut outputs, &plan);
     }
   }
   if enabled_plugins.gemini {
-    if let Ok(plan) = crate::core::gemini_output_plan::build_gemini_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }
   if enabled_plugins.jetbrains {
-    if let Ok(plan) = crate::core::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }
   if enabled_plugins.kiro {
-    if let Ok(plan) = crate::core::kiro_output_plan::build_kiro_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }
   if enabled_plugins.opencode {
-    if let Ok(plan) = crate::core::opencode_output_plan::build_opencode_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }
   if enabled_plugins.qoder {
-    if let Ok(plan) = crate::core::qoder_output_plan::build_qoder_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }
   if enabled_plugins.trae || enabled_plugins.trae_cn {
-    if let Ok(plan) = crate::core::trae_output_plan::build_trae_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }
   if enabled_plugins.warp {
-    if let Ok(plan) = crate::core::warp_output_plan::build_warp_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }
   if enabled_plugins.windsurf {
-    if let Ok(plan) = crate::core::windsurf_output_plan::build_windsurf_output_plan(context) {
+    if let Ok(plan) = crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context) {
       push_base_output_files(&mut outputs, &plan.output_files);
     }
   }

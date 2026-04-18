@@ -7,12 +7,12 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
-use crate::core::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
-use crate::core::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
-use crate::core::desk_paths;
-use crate::core::droid_output_plan::DroidOutputPlanDto;
-use crate::core::path_blocking;
-use crate::core::plugin_shared::{
+use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
+use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
+use crate::infra::desk_paths;
+use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
+use crate::policy::path_blocking;
+use crate::domain::plugin_shared::{
   AIAgentIgnoreConfigFile, CollectedInputContext, FastCommandPrompt, GlobalMemoryPrompt,
   ProjectIDEConfigFile, ReadmePrompt, RulePrompt, SkillPrompt, SubAgentPrompt, Workspace,
 };
@@ -518,56 +518,56 @@ fn build_output_files(
 ) -> Result<BTreeMap<String, PlannedOutputFile>, CliError> {
   let mut outputs = BTreeMap::new();
 
-  let base_plans = crate::core::base_output_plans::build_base_output_plans(context)?;
+  let base_plans = crate::domain::base_output_plans::build_base_output_plans(context)?;
   push_base_plans(&mut outputs, &base_plans, enabled_plugins);
 
   if enabled_plugins.claude_code {
-    let plan = crate::core::claude_code_output_plan::build_claude_code_output_plan(context)?;
+    let plan = crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.codex {
-    let plan = crate::core::codex_output_plan::build_codex_output_plan(context)?;
+    let plan = crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.cursor {
-    let plan = crate::core::cursor_output_plan::build_cursor_output_plan(context)?;
+    let plan = crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.droid {
-    let plan = crate::core::droid_output_plan::build_droid_output_plan(context)?;
+    let plan = crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context)?;
     push_droid_output_files(&mut outputs, &plan);
   }
   if enabled_plugins.gemini {
-    let plan = crate::core::gemini_output_plan::build_gemini_output_plan(context)?;
+    let plan = crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.jetbrains {
     let plan =
-      crate::core::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context)?;
+      crate::domain::output_plans::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.kiro {
-    let plan = crate::core::kiro_output_plan::build_kiro_output_plan(context)?;
+    let plan = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.opencode {
-    let plan = crate::core::opencode_output_plan::build_opencode_output_plan(context)?;
+    let plan = crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.qoder {
-    let plan = crate::core::qoder_output_plan::build_qoder_output_plan(context)?;
+    let plan = crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.trae || enabled_plugins.trae_cn {
-    let plan = crate::core::trae_output_plan::build_trae_output_plan(context)?;
+    let plan = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.warp {
-    let plan = crate::core::warp_output_plan::build_warp_output_plan(context)?;
+    let plan = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.windsurf {
-    let plan = crate::core::windsurf_output_plan::build_windsurf_output_plan(context)?;
+    let plan = crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
 
@@ -747,7 +747,7 @@ mod tests {
   #[test]
   fn test_resolve_workspace_dir_returns_configured_path() {
     let cwd = PathBuf::from("/some/cwd");
-    let config = crate::core::config::UserConfigFile {
+    let config = crate::domain::config::UserConfigFile {
       workspace_dir: Some("/configured/workspace".to_string()),
       ..Default::default()
     };
@@ -765,7 +765,7 @@ mod tests {
   #[test]
   fn test_resolve_workspace_dir_errors_when_not_configured() {
     let cwd = PathBuf::from("/some/cwd");
-    let config = crate::core::config::UserConfigFile::default();
+    let config = crate::domain::config::UserConfigFile::default();
     let result = resolve_workspace_dir(&cwd, &config);
     assert!(
       result.is_err(),
