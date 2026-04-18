@@ -4901,7 +4901,9 @@ dependencies = [
 name = "tnmsc-integration-tests"
 version = "2026.10413.10237"
 dependencies = [
+ "flate2",
  "serde_json",
+ "tar",
  "testcontainers",
 ]
 

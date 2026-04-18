@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -49,7 +48,6 @@ pub const NOT_IMPLEMENTED_CASES: &[CommandTestCase] = &[
   },
 ];
 
-static PNPM_VERSION: OnceLock<String> = OnceLock::new();
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
 
 pub struct CommandResult {
@@ -385,8 +383,16 @@ pub fn run_tnmsc_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> C
 }
 
 pub fn run_program(program: &str, args: &[&str], cwd: &Path) -> CommandResult {
-  let mut command = Command::new(program);
-  command.args(args).current_dir(cwd);
+  let mut command = Command::new("sh");
+  command.args(["-c", &format!("{} {}", program, args.join(" "))]);
+  command.current_dir(cwd);
+  command.env_clear();
+  if let Ok(path) = std::env::var("PATH") {
+    command.env("PATH", path);
+  }
+  if let Ok(home) = std::env::var("HOME") {
+    command.env("HOME", home);
+  }
 
   command_output(&mut command, program)
 }
@@ -399,25 +405,6 @@ pub fn not_implemented_message(command: &str) -> String {
   format!(
     "Error: Execution not yet fully implemented in Rust: Pure Rust `{command}` is not implemented yet. The CLI npm package no longer ships the legacy TypeScript fallback bridge."
   )
-}
-
-pub fn pnpm_version() -> &'static str {
-  PNPM_VERSION.get_or_init(|| {
-    let package_json_path = workspace_root().join("package.json");
-    let raw = fs::read_to_string(&package_json_path)
-      .unwrap_or_else(|error| panic!("failed to read {}: {error}", package_json_path.display()));
-    let parsed: serde_json::Value = serde_json::from_str(&raw)
-      .unwrap_or_else(|error| panic!("failed to parse {}: {error}", package_json_path.display()));
-    let package_manager = parsed
-      .get("packageManager")
-      .and_then(|value| value.as_str())
-      .unwrap_or("pnpm@latest");
-
-    package_manager
-      .rsplit_once('@')
-      .map(|(_, version)| version.to_string())
-      .unwrap_or_else(|| "latest".to_string())
-  })
 }
 
 pub fn ensure_release_binary() {
@@ -536,8 +523,7 @@ pub fn install_packaged_cli_container() -> TestContainer {
   let artifacts = pack_cli_artifacts();
   let container = TestContainer::start(&artifacts);
   let install_command = format!(
-    "corepack enable && corepack prepare pnpm@{} --activate && pnpm add -g {} {}",
-    quote_shell(pnpm_version()),
+    "npm install -g {} {}",
     quote_shell("/artifacts/cli.tgz"),
     quote_shell("/artifacts/linux-x64-gnu.tgz")
   );
@@ -559,6 +545,10 @@ pub fn quote_shell(value: &str) -> String {
   format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
+fn npm_tarball_name(pkg_name: &str) -> String {
+  pkg_name.strip_prefix('@').unwrap_or(pkg_name).replace('/', "-")
+}
+
 fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
   assert!(
     package_dir.exists(),
@@ -574,41 +564,50 @@ fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
     )
   });
 
-  let package_dir = package_dir.to_string_lossy().into_owned();
-  let pack_destination = pack_destination.to_string_lossy().into_owned();
-  let result = run_program(
-    "pnpm",
-    &[
-      "-C",
-      &package_dir,
-      "pack",
-      "--pack-destination",
-      &pack_destination,
-    ],
-    &workspace_root(),
-  );
-  result.assert_success(&format!(
-    "pnpm pack for {}\nstderr: {}\nstdout: {}",
-    package_dir, result.stderr, result.stdout
-  ));
+  let package_json_path = package_dir.join("package.json");
+  let raw = fs::read_to_string(&package_json_path)
+    .unwrap_or_else(|error| panic!("failed to read {}: {error}", package_json_path.display()));
+  let parsed: serde_json::Value = serde_json::from_str(&raw)
+    .unwrap_or_else(|error| panic!("failed to parse {}: {error}", package_json_path.display()));
+  let pkg_name = parsed
+    .get("name")
+    .and_then(|v| v.as_str())
+    .unwrap_or(name);
+  let pkg_version = parsed
+    .get("version")
+    .and_then(|v| v.as_str())
+    .unwrap_or("0.0.0");
+  let tarball_name = format!("{}-{}.tgz", npm_tarball_name(pkg_name), pkg_version);
+  let tarball_path = pack_destination.join(&tarball_name);
 
-  let mut tarballs = fs::read_dir(&pack_destination)
-    .unwrap_or_else(|error| panic!("failed to read {}: {error}", pack_destination))
-    .filter_map(|entry| entry.ok())
-    .map(|entry| entry.path())
-    .filter(|path| path.extension().and_then(OsStr::to_str) == Some("tgz"))
-    .collect::<Vec<_>>();
+  let gz_file = fs::File::create(&tarball_path)
+    .unwrap_or_else(|error| panic!("failed to create {}: {error}", tarball_path.display()));
+  let gz_encoder = flate2::GzBuilder::new().write(gz_file, flate2::Compression::default());
+  let mut tar_builder = tar::Builder::new(gz_encoder);
 
-  tarballs.sort();
+  tar_builder
+    .append_dir_all("package", package_dir)
+    .unwrap_or_else(|error| {
+      panic!(
+        "failed to append {} to tarball: {error}",
+        package_dir.display()
+      )
+    });
+
+  let gz_encoder = tar_builder
+    .into_inner()
+    .unwrap_or_else(|error| panic!("failed to finalize tarball: {error}"));
+  gz_encoder
+    .finish()
+    .unwrap_or_else(|error| panic!("failed to finalize gzip: {error}"));
+
   assert!(
-    tarballs.len() == 1,
-    "expected exactly one tarball in {}, found {}\ncontents: {:?}",
-    pack_destination,
-    tarballs.len(),
-    tarballs
+    tarball_path.is_file(),
+    "expected tarball at {}",
+    tarball_path.display()
   );
 
-  tarballs.remove(0)
+  tarball_path
 }
 
 fn rewrite_main_package_json(path: &Path) {
@@ -700,10 +699,9 @@ fn decode_output(output: Output) -> CommandResult {
 fn shell_script(command: &str) -> String {
   [
     "set +e",
-    &format!("export HOME={}", quote_shell("/root")),
-    "export PNPM_HOME=/pnpm",
-    "export PATH=\"$PNPM_HOME:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"",
-    "mkdir -p \"$PNPM_HOME\" /artifacts",
+    "export HOME=/root",
+    "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "mkdir -p /artifacts",
     "cd /",
     command,
     "status=$?",

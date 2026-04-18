@@ -68,8 +68,8 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
 
   container.exec_success(
     r#"
-MAIN_PACKAGE_JSON="$(find -L /pnpm/global -path '*/@truenine/memory-sync-cli/package.json' -print -quit)"
-PLATFORM_PACKAGE_JSON="$(find -L /pnpm/global -path '*/@truenine/memory-sync-cli-linux-x64-gnu/package.json' -print -quit)"
+MAIN_PACKAGE_JSON="$(find -L /usr/local/lib/node_modules -path '*/@truenine/memory-sync-cli/package.json' -print -quit)"
+PLATFORM_PACKAGE_JSON="$(find -L /usr/local/lib/node_modules -path '*/@truenine/memory-sync-cli-linux-x64-gnu/package.json' -print -quit)"
 test -n "$MAIN_PACKAGE_JSON"
 test -n "$PLATFORM_PACKAGE_JSON"
 test -x "$(dirname "$PLATFORM_PACKAGE_JSON")/bin/tnmsc"
