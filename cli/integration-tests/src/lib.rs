@@ -36,16 +36,7 @@ pub const NOT_IMPLEMENTED_CASES: &[CommandTestCase] = &[
     command_name: "dry-run",
     display: "tnmsc dry-run",
   },
-  CommandTestCase {
-    args: &["clean"],
-    command_name: "clean",
-    display: "tnmsc clean",
-  },
-  CommandTestCase {
-    args: &["clean", "--dry-run"],
-    command_name: "clean",
-    display: "tnmsc clean --dry-run",
-  },
+  // Removed clean cases as tests are now implemented
 ];
 
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
