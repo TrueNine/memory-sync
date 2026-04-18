@@ -5,7 +5,7 @@
 //! Reads only `~/.aindex/.tnmsc.json` (global),
 //! then merges with defaults.
 
-pub mod series_filter;
+
 
 use std::collections::HashMap;
 use std::env;

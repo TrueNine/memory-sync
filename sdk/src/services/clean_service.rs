@@ -5,7 +5,10 @@ use serde_json::{json, Value};
 
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
 use crate::context::OutputContext;
-use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupSnapshot, PluginCleanupSnapshotDto};
+use crate::policy::cleanup::{
+  CleanupDeclarationsDto, CleanupSnapshot, CleanupTargetDto, CleanupTargetKindDto,
+  PluginCleanupSnapshotDto,
+};
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
@@ -647,14 +650,82 @@ fn build_cleanup_snapshot(
     });
   }
 
+  let project_roots = discover_project_roots(workspace_dir);
+
+  let mut delete_targets = Vec::new();
+  for root_path in &project_roots {
+    let root = std::path::Path::new(root_path);
+    let agents_path = root.join("AGENTS.md");
+    let claude_path = root.join("CLAUDE.md");
+    let agt_path = root.join("agt.mdx");
+
+    let agents_exists = agents_path.exists();
+    let claude_exists = claude_path.exists();
+    let agt_exists = agt_path.exists();
+
+    if agents_exists && !agt_exists {
+      delete_targets.push(CleanupTargetDto {
+        path: agents_path.to_string_lossy().into_owned(),
+        kind: CleanupTargetKindDto::File,
+        exclude_basenames: Vec::new(),
+        protection_mode: None,
+        scope: None,
+        label: Some("orphaned-agents".to_string()),
+      });
+    }
+    if claude_exists && !agt_exists {
+      delete_targets.push(CleanupTargetDto {
+        path: claude_path.to_string_lossy().into_owned(),
+        kind: CleanupTargetKindDto::File,
+        exclude_basenames: Vec::new(),
+        protection_mode: None,
+        scope: None,
+        label: Some("orphaned-claude".to_string()),
+      });
+    }
+  }
+
+  plugin_snapshots.push(PluginCleanupSnapshotDto {
+    plugin_name: "base-cleanup".to_string(),
+    outputs: Vec::new(),
+    cleanup: CleanupDeclarationsDto {
+      delete: delete_targets,
+      protect: Vec::new(),
+      exclude_scan_globs: Vec::new(),
+    },
+  });
+
   Ok(CleanupSnapshot {
     workspace_dir: workspace_dir.to_string(),
     aindex_dir: Some(format!("{}/aindex", workspace_dir)),
-    project_roots: Vec::new(),
+    project_roots,
     protected_rules: Vec::new(),
     plugin_snapshots,
     empty_dir_exclude_globs: Vec::new(),
   })
+}
+
+fn discover_project_roots(workspace_dir: &str) -> Vec<String> {
+  let ws_path = std::path::Path::new(workspace_dir);
+  let mut roots = Vec::new();
+
+  if let Ok(entries) = std::fs::read_dir(ws_path) {
+    for entry in entries.flatten() {
+      let path = entry.path();
+      if path.is_dir() {
+        let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if !dir_name.starts_with('.')
+          && dir_name != "aindex"
+          && dir_name != "node_modules"
+          && dir_name != "target"
+        {
+          roots.push(path.to_string_lossy().into_owned());
+        }
+      }
+    }
+  }
+
+  roots
 }
 
 #[cfg(test)]
@@ -791,7 +862,7 @@ mod tests {
     let snapshot = build_cleanup_snapshot(&workspace_dir, &output_map);
     assert!(snapshot.is_ok());
     let snapshot = snapshot.unwrap();
-    assert_eq!(snapshot.plugin_snapshots.len(), 1);
+    assert_eq!(snapshot.plugin_snapshots.len(), 2);
     assert_eq!(snapshot.plugin_snapshots[0].plugin_name, "TestPlugin");
     assert_eq!(snapshot.plugin_snapshots[0].outputs.len(), 1);
   }
