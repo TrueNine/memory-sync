@@ -4,12 +4,18 @@
 //! list_prompts, get_prompt, upsert_prompt_source, write_prompt_artifacts,
 //! generate_schema.
 
+pub mod context;
 pub mod core;
+pub mod domain;
+pub mod endpoint;
+pub mod infra;
 pub(crate) mod diagnostic_helpers;
 #[path = "native_md_compiler/lib.rs"]
 pub mod md_compiler;
 pub mod native_logger;
 pub mod native_script_runtime;
+pub mod output_plans;
+pub mod policy;
 pub mod prompts;
 pub mod repositories;
 pub mod services;
@@ -142,20 +148,7 @@ pub fn load_config(cwd: &Path) -> Result<core::config::MergedConfigResult, CliEr
     .map_err(CliError::ConfigError)
 }
 
-/// Execute the install pipeline through the native crate facade.
-pub fn install(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  services::install_service::install(options)
-}
-
-/// Execute the dry-run pipeline through the native crate facade.
-pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  services::dry_run_service::dry_run(options)
-}
-
-/// Execute cleanup through the native crate facade.
-pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  services::clean_service::clean(options)
-}
+pub use endpoint::{install, dry_run, clean};
 
 /// Return the default output plugin registry without instantiating TS plugin classes.
 pub fn list_plugins() -> Vec<MemorySyncPluginInfo> {
