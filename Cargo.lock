@@ -3061,21 +3061,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "memory-sync-gui"
-version = "2026.10413.10237"
-dependencies = [
- "dirs",
- "proptest",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-shell",
- "tauri-plugin-updater",
- "tnmsd",
-]
-
-[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6274,6 +6259,21 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "walkdir",
+]
+
+[[package]]
+name = "tnmsg"
+version = "2026.10413.10237"
+dependencies = [
+ "dirs",
+ "proptest",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-shell",
+ "tauri-plugin-updater",
+ "tnmsd",
 ]
 
 [[package]]

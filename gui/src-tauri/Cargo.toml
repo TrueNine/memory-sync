@@ -1,5 +1,5 @@
 [package]
-name = "memory-sync-gui"
+name = "tnmsg"
 version = "2026.10413.10237"
 description = "Memory Sync desktop GUI application"
 authors.workspace = true
