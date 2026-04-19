@@ -508,6 +508,13 @@ pub fn release_test_api_binary_path() -> PathBuf {
     .join(binary_name)
 }
 
+fn cached_linux_binary_path() -> PathBuf {
+  workspace_root()
+    .join("target")
+    .join("debug")
+    .join("tnmsc-linux-x64-gnu")
+}
+
 pub fn create_staged_package_root() -> StagedPackageRoot {
   let cli_dir = cli_manifest_dir();
   assert!(
@@ -584,44 +591,67 @@ pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
   assemble.assert_success("tnmsc assemble-npm for staged package root");
 
   if !staged.linux_binary.is_file() {
-    eprintln!(
-      "[tnmsc-integrate-tests] linux-x64-gnu binary not found at {} — attempting cross-compilation with cargo-zigbuild...",
-      staged.linux_binary.display(),
-    );
-    let cross_start = std::time::Instant::now();
-
-    let cross_ok = run_program_inherit(
-      "cargo",
-      &["zigbuild", "--release", "--target", "x86_64-unknown-linux-gnu", "-p", "tnmsc"],
-      &workspace_root(),
-    );
-
-    if !cross_ok {
-      panic!(
-        "cross-compilation to x86_64-unknown-linux-gnu failed. \
-         ensure zig is installed (e.g., scoop install zig) and cargo-zigbuild is installed (cargo install cargo-zigbuild)."
+    let cached = cached_linux_binary_path();
+    if cached.is_file() {
+      eprintln!(
+        "[tnmsc-integrate-tests] using cached linux-x64-gnu binary from {}",
+        cached.display(),
       );
+      fs::copy(&cached, &staged.linux_binary).unwrap_or_else(|error| {
+        panic!(
+          "failed to copy cached linux binary from {} to {}: {error}",
+          cached.display(),
+          staged.linux_binary.display()
+        )
+      });
+    } else {
+      eprintln!(
+        "[tnmsc-integrate-tests] linux-x64-gnu binary not found at {} — attempting cross-compilation with cargo-zigbuild...",
+        staged.linux_binary.display(),
+      );
+      let cross_start = std::time::Instant::now();
+
+      let cross_ok = run_program_inherit(
+        "cargo",
+        &["zigbuild", "--target", "x86_64-unknown-linux-gnu", "-p", "tnmsc"],
+        &workspace_root(),
+      );
+
+      if !cross_ok {
+        panic!(
+          "cross-compilation to x86_64-unknown-linux-gnu failed. \
+           ensure zig is installed (e.g., scoop install zig) and cargo-zigbuild is installed (cargo install cargo-zigbuild)."
+        );
+      }
+      eprintln!(
+        "[tnmsc-integrate-tests] cross-compilation finished in {:.2}s",
+        cross_start.elapsed().as_secs_f64()
+      );
+
+      let assemble_cross = run_tnmsc_with_env(
+        &["assemble-npm"],
+        &workspace_root(),
+        &[
+          ("TNMSC_NPM_PACKAGE_ROOT", package_root.as_str()),
+          ("TNMSC_WORKSPACE_ROOT", workspace_root_dir.as_str()),
+        ],
+      );
+      assemble_cross.assert_success("tnmsc assemble-npm after cross-compilation");
+
+      assert!(
+        staged.linux_binary.is_file(),
+        "linux-x64-gnu binary still missing after cross-compilation at {}",
+        staged.linux_binary.display()
+      );
+
+      // Persist cross-compiled binary for future test runs
+      if let Err(error) = fs::copy(&staged.linux_binary, &cached) {
+        eprintln!(
+          "[tnmsc-integrate-tests] warning: failed to cache linux binary to {}: {error}",
+          cached.display()
+        );
+      }
     }
-    eprintln!(
-      "[tnmsc-integrate-tests] cross-compilation finished in {:.2}s",
-      cross_start.elapsed().as_secs_f64()
-    );
-
-    let assemble_cross = run_tnmsc_with_env(
-      &["assemble-npm"],
-      &workspace_root(),
-      &[
-        ("TNMSC_NPM_PACKAGE_ROOT", package_root.as_str()),
-        ("TNMSC_WORKSPACE_ROOT", workspace_root_dir.as_str()),
-      ],
-    );
-    assemble_cross.assert_success("tnmsc assemble-npm after cross-compilation");
-
-    assert!(
-      staged.linux_binary.is_file(),
-      "linux-x64-gnu binary still missing after cross-compilation at {}",
-      staged.linux_binary.display()
-    );
   }
 
   let cli_tarball = pack_package(&staged.package_root, temp_dir.path(), "cli");
