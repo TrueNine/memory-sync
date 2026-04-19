@@ -3061,6 +3061,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "memory-sync"
+version = "2026.10413.10237"
+dependencies = [
+ "tnmsc",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -8,6 +8,10 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[lib]
+name = "tnmsc"
+path = "src/lib.rs"
+
 [[bin]]
 name = "tnmsc"
 path = "src/main.rs"
