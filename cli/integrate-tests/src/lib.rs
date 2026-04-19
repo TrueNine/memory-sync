@@ -142,9 +142,15 @@ impl TestContainer {
         artifacts.test_api_binary.as_path(),
       );
 
+    eprintln!("[tnmsc-integrate-tests] starting testcontainer ({DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG})...");
+    let start = std::time::Instant::now();
     let container = image
       .start()
       .unwrap_or_else(|error| panic!("failed to start testcontainer: {error}"));
+    eprintln!(
+      "[tnmsc-integrate-tests] testcontainer started in {:.2}s",
+      start.elapsed().as_secs_f64()
+    );
 
     Self { container }
   }
@@ -367,6 +373,39 @@ pub fn run_tnmsc_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> C
   command_output(&mut command, "cargo run -p tnmsc --bin tnmsc")
 }
 
+pub fn run_program_inherit(program: &str, args: &[&str], cwd: &Path) -> bool {
+  let mut command;
+  #[cfg(unix)]
+  {
+    command = Command::new("sh");
+    command.args(["-c", &format!("{} {}", program, args.join(" "))]);
+    command.env_clear();
+    if let Ok(path) = std::env::var("PATH") {
+      command.env("PATH", path);
+    }
+    if let Ok(home) = std::env::var("HOME") {
+      command.env("HOME", home);
+    }
+  }
+  #[cfg(windows)]
+  {
+    command = Command::new("cmd");
+    command.args(["/C", &format!("{} {}", program, args.join(" "))]);
+  }
+  command.current_dir(cwd);
+  command.stdin(std::process::Stdio::null());
+  command.stdout(std::process::Stdio::inherit());
+  command.stderr(std::process::Stdio::inherit());
+
+  match command.status() {
+    Ok(status) => status.success(),
+    Err(error) => {
+      eprintln!("failed to run {program}: {error}");
+      false
+    }
+  }
+}
+
 pub fn run_program(program: &str, args: &[&str], cwd: &Path) -> CommandResult {
   let mut command;
   #[cfg(unix)]
@@ -397,29 +436,36 @@ pub fn current_package_version() -> &'static str {
 
 pub fn ensure_release_binary() {
   RELEASE_BINARY_BUILT.get_or_init(|| {
-    let result = run_program(
+    eprintln!("[tnmsc-integrate-tests] compiling debug binary (cargo build -p tnmsc)...");
+    let start = std::time::Instant::now();
+    let status = run_program_inherit(
       "cargo",
-      &["build", "--release", "-p", "tnmsc"],
+      &["build", "-p", "tnmsc"],
       &workspace_root(),
     );
-    result.assert_success("cargo build --release -p tnmsc");
+    eprintln!(
+      "[tnmsc-integrate-tests] debug binary compilation finished in {:.2}s",
+      start.elapsed().as_secs_f64()
+    );
+    assert!(status, "cargo build -p tnmsc failed");
   });
 
   let binary = release_binary_path();
   assert!(
     binary.is_file(),
-    "missing release binary at {}",
+    "missing binary at {}",
     binary.display()
   );
 }
 
 pub fn ensure_release_test_api_binary() {
   RELEASE_TEST_API_BINARY_BUILT.get_or_init(|| {
-    let result = run_program(
+    eprintln!("[tnmsc-integrate-tests] compiling test-api debug binary (cargo build -p tnmsc --bin tnmsc-test-api)...");
+    let start = std::time::Instant::now();
+    let status = run_program_inherit(
       "cargo",
       &[
         "build",
-        "--release",
         "-p",
         "tnmsc",
         "--bin",
@@ -427,13 +473,17 @@ pub fn ensure_release_test_api_binary() {
       ],
       &workspace_root(),
     );
-    result.assert_success("cargo build --release -p tnmsc --bin tnmsc-test-api");
+    eprintln!(
+      "[tnmsc-integrate-tests] test-api debug binary compilation finished in {:.2}s",
+      start.elapsed().as_secs_f64()
+    );
+    assert!(status, "cargo build -p tnmsc --bin tnmsc-test-api failed");
   });
 
   let binary = release_test_api_binary_path();
   assert!(
     binary.is_file(),
-    "missing release test API binary at {}",
+    "missing test API binary at {}",
     binary.display()
   );
 }
@@ -442,7 +492,7 @@ pub fn release_binary_path() -> PathBuf {
   let binary_name = if cfg!(windows) { "tnmsc.exe" } else { "tnmsc" };
   workspace_root()
     .join("target")
-    .join("release")
+    .join("debug")
     .join(binary_name)
 }
 
@@ -454,7 +504,7 @@ pub fn release_test_api_binary_path() -> PathBuf {
   };
   workspace_root()
     .join("target")
-    .join("release")
+    .join("debug")
     .join(binary_name)
 }
 
@@ -511,6 +561,9 @@ pub fn create_staged_package_root() -> StagedPackageRoot {
 }
 
 pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
+  eprintln!("[tnmsc-integrate-tests] packing CLI artifacts...");
+  let total_start = std::time::Instant::now();
+
   ensure_release_binary();
   ensure_release_test_api_binary();
 
@@ -519,8 +572,9 @@ pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
   let package_root = staged.package_root.to_string_lossy().into_owned();
   let workspace_root_dir = workspace_root().to_string_lossy().into_owned();
 
+  eprintln!("[tnmsc-integrate-tests] running assemble-npm...");
   let assemble = run_tnmsc_with_env(
-    &["assemble-npm", "--profile", "release"],
+    &["assemble-npm"],
     &workspace_root(),
     &[
       ("TNMSC_NPM_PACKAGE_ROOT", package_root.as_str()),
@@ -531,28 +585,30 @@ pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
 
   if !staged.linux_binary.is_file() {
     eprintln!(
-      "linux-x64-gnu binary not found at {} — attempting cross-compilation with cargo-zigbuild",
+      "[tnmsc-integrate-tests] linux-x64-gnu binary not found at {} — attempting cross-compilation with cargo-zigbuild...",
       staged.linux_binary.display(),
     );
+    let cross_start = std::time::Instant::now();
 
-    let cross_build = run_program(
+    let cross_ok = run_program_inherit(
       "cargo",
       &["zigbuild", "--release", "--target", "x86_64-unknown-linux-gnu", "-p", "tnmsc"],
       &workspace_root(),
     );
 
-    if cross_build.status != 0 {
+    if !cross_ok {
       panic!(
         "cross-compilation to x86_64-unknown-linux-gnu failed. \
-         ensure zig is installed (e.g., scoop install zig) and cargo-zigbuild is installed (cargo install cargo-zigbuild). \
-         stdout: {} \
-         stderr: {}",
-        cross_build.stdout, cross_build.stderr
+         ensure zig is installed (e.g., scoop install zig) and cargo-zigbuild is installed (cargo install cargo-zigbuild)."
       );
     }
+    eprintln!(
+      "[tnmsc-integrate-tests] cross-compilation finished in {:.2}s",
+      cross_start.elapsed().as_secs_f64()
+    );
 
     let assemble_cross = run_tnmsc_with_env(
-      &["assemble-npm", "--profile", "release"],
+      &["assemble-npm"],
       &workspace_root(),
       &[
         ("TNMSC_NPM_PACKAGE_ROOT", package_root.as_str()),
@@ -573,6 +629,11 @@ pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
     &staged.package_root.join("npm").join("linux-x64-gnu"),
     temp_dir.path(),
     "linux-x64-gnu",
+  );
+
+  eprintln!(
+    "[tnmsc-integrate-tests] artifact packing finished in {:.2}s",
+    total_start.elapsed().as_secs_f64()
   );
 
   Some(PackedArtifacts {

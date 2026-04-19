@@ -54,7 +54,7 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
     );
   }
 
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   let help = container.exec_tnmsc(&["help"]);
   help.assert_success("global tnmsc help");

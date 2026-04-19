@@ -10,7 +10,7 @@ use tnmsc_integrate_tests::{
 
 #[test]
 fn packaged_cli_contract_runs_inside_testcontainer() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   let help = container.exec_tnmsc(&["help"]);
   help.assert_success("global tnmsc help");

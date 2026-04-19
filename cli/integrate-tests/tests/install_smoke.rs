@@ -9,7 +9,7 @@ use tnmsc_integrate_tests::install_packaged_cli_container;
 
 #[test]
 fn packaged_cli_install_writes_claude_memory_from_aindex() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   container
     .setup()
@@ -52,7 +52,7 @@ fn packaged_cli_install_writes_claude_memory_from_aindex() {
 
 #[test]
 fn packaged_cli_install_errors_when_workspace_dir_not_configured() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   container
     .setup()
@@ -80,7 +80,7 @@ fn packaged_cli_install_errors_when_workspace_dir_not_configured() {
 
 #[test]
 fn packaged_cli_install_errors_when_config_file_missing() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   container
     .setup()

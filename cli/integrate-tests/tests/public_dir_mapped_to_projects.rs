@@ -110,7 +110,7 @@ fn setup_workspace_with_public_files(container: &TestContainer) {
 
 #[test]
 fn vscode_settings_written_to_project_from_public_dir() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
   setup_workspace_with_public_files(&container);
 
   let install = container.exec("cd /workspace-demo && tnmsc install");
@@ -131,7 +131,7 @@ fn vscode_settings_written_to_project_from_public_dir() {
 
 #[test]
 fn vscode_extensions_written_to_project_from_public_dir() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
   setup_workspace_with_public_files(&container);
 
   let install = container.exec("cd /workspace-demo && tnmsc install");
@@ -147,7 +147,7 @@ fn vscode_extensions_written_to_project_from_public_dir() {
 
 #[test]
 fn zed_settings_written_to_project_from_public_dir() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
   setup_workspace_with_public_files(&container);
 
   let install = container.exec("cd /workspace-demo && tnmsc install");
@@ -163,7 +163,7 @@ fn zed_settings_written_to_project_from_public_dir() {
 
 #[test]
 fn git_exclude_written_to_project_from_public_dir() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
   setup_workspace_with_public_files(&container);
 
   container.exec_success("git init /workspace-demo >/dev/null 2>&1");
@@ -181,7 +181,7 @@ fn git_exclude_written_to_project_from_public_dir() {
 
 #[test]
 fn editorconfig_written_to_project_from_public_dir() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
   setup_workspace_with_public_files(&container);
 
   let install = container.exec("cd /workspace-demo && tnmsc install");
@@ -202,7 +202,7 @@ fn editorconfig_written_to_project_from_public_dir() {
 
 #[test]
 fn gitignore_content_read_from_public_dir() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
   setup_workspace_with_public_files(&container);
 
   container.exec_success("git init /workspace-demo >/dev/null 2>&1");

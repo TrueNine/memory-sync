@@ -8,7 +8,7 @@ use tnmsc_integrate_tests::install_packaged_cli_container;
 
 #[test]
 fn packaged_cli_proxy_mapping_reads_public_files_via_transformed_paths() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   container
     .setup()
@@ -81,7 +81,7 @@ fn packaged_cli_proxy_mapping_reads_public_files_via_transformed_paths() {
 
 #[test]
 fn packaged_cli_proxy_mapping_prefix_rules_are_correct() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   let proxy_script = r#"
 const prefixRules = [

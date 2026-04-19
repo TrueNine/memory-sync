@@ -8,7 +8,7 @@ use tnmsc_integrate_tests::install_packaged_cli_container;
 
 #[test]
 fn clean_keeps_empty_project_directories_without_generated_outputs() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   container
     .setup()
@@ -55,7 +55,7 @@ fn clean_keeps_empty_project_directories_without_generated_outputs() {
 
 #[test]
 fn clean_removes_stale_agents_and_claude_files() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   container
     .setup()

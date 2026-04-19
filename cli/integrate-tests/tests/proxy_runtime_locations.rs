@@ -12,7 +12,7 @@ console.log('{prefix}/' + logicalPath);
 
 #[test]
 fn packaged_cli_resolves_proxy_ts_from_all_supported_aindex_locations() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   container
     .setup()
@@ -110,7 +110,7 @@ fn packaged_cli_resolves_proxy_ts_from_all_supported_aindex_locations() {
 
 #[test]
 fn packaged_tnmsc_does_not_expose_proxy_test_subcommand() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
   let result = container.exec_tnmsc(&[
     "resolve-proxy-path",
     "--proxy-path",

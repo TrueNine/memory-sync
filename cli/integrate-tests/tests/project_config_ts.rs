@@ -11,7 +11,7 @@ fn read_aindex_resolvers(container: &tnmsc_integrate_tests::TestContainer) -> Va
 #[test]
 fn packaged_cli_collects_project_config_ts_for_supported_series_and_ignores_workspace_root_mirrors()
 {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   container
     .setup()
@@ -118,7 +118,7 @@ console.log(JSON.stringify({
 
 #[test]
 fn packaged_cli_reports_invalid_project_config_ts_without_failing_collection() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
 
   container
     .setup()
@@ -171,7 +171,7 @@ console.log(JSON.stringify({
 
 #[test]
 fn packaged_tnmsc_does_not_expose_aindex_resolver_test_subcommand() {
-  let container = install_packaged_cli_container();
+  let container = install_packaged_cli_container().unwrap();
   let result = container.exec_tnmsc(&[
     "collect-aindex-resolvers",
     "--workspace-dir",
