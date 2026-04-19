@@ -167,6 +167,17 @@ fn build_aindex_public_dir(aindex_dir: &str) -> Result<PathBuf, String> {
   normalize_path(&normalized.join("public"))
 }
 
+pub fn resolve_path_via_proxy_impl(
+  proxy_path: &Path,
+  root_dir: &Path,
+  logical_path: &str,
+  extra_context: serde_json::Value,
+) -> Result<String, String> {
+  let runtime = DenoRuntime::new()?;
+  let result = runtime.execute_proxy(proxy_path, logical_path, extra_context)?;
+  validate_public_path_impl(&result, &root_dir.to_string_lossy())
+}
+
 pub fn resolve_public_path_impl(
   _file_path: &str,
   ctx_json: &str,
@@ -179,12 +190,17 @@ pub fn resolve_public_path_impl(
   let deno = DenoRuntime::new().ok();
   if let Some(runtime) = deno {
     if runtime.is_available() {
-      if let Ok(result) =
-        runtime.resolve_public_path(std::path::Path::new(&ctx.aindex_dir), logical_path)
-      {
-        // Validate the result from Deno
-        let aindex_public_dir = build_aindex_public_dir(&ctx.aindex_dir)?;
-        return validate_public_path_impl(&result, &aindex_public_dir.to_string_lossy());
+      let proxy_path = std::path::Path::new(&ctx.aindex_dir)
+        .join("public")
+        .join("proxy.ts");
+      let aindex_public_dir = build_aindex_public_dir(&ctx.aindex_dir)?;
+      if let Ok(result) = resolve_path_via_proxy_impl(
+        &proxy_path,
+        &aindex_public_dir,
+        logical_path,
+        serde_json::json!({}),
+      ) {
+        return Ok(result);
       }
       // Fall through to Rust implementation if Deno fails
     }
@@ -215,6 +231,7 @@ struct ResolvePublicPathContext {
 mod tests {
   use super::{proxy_public_path, validate_public_path_impl};
   use std::path::PathBuf;
+  use tempfile::TempDir;
 
   // -------------------------------------------------------------------------
   // proxy_public_path — prefix rules
@@ -422,6 +439,35 @@ mod tests {
 
     let validated = validate_public_path_impl(&proxied, "/tmp/ws/aindex/public")?;
     assert_eq!(validated, "____idea/.gitignore");
+    Ok(())
+  }
+
+  #[test]
+  fn resolve_arbitrary_proxy_path_round_trip() -> Result<(), String> {
+    let tmp = TempDir::new().unwrap();
+    let proxy_dir = tmp.path().join("skills").join("writer");
+    let proxy_path = proxy_dir.join("proxy.ts");
+    let root_dir = tmp.path().join("skills").join("writer-output");
+
+    std::fs::create_dir_all(&proxy_dir).unwrap();
+    std::fs::create_dir_all(&root_dir).unwrap();
+    std::fs::write(
+      &proxy_path,
+      r#"
+const ctx = globalThis.__tnmsContext ?? {}
+console.log(`generated/${ctx.logicalPath}`)
+"#,
+    )
+    .unwrap();
+
+    let resolved = super::resolve_path_via_proxy_impl(
+      &proxy_path,
+      &root_dir,
+      "daily/note.md",
+      serde_json::json!({ "scope": "skill" }),
+    )?;
+
+    assert_eq!(resolved, "generated/daily/note.md");
     Ok(())
   }
 }

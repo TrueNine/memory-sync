@@ -158,6 +158,27 @@ globalThis.Deno = {{
     true
   }
 
+  /// Execute an arbitrary `proxy.ts` file with the shared proxy context shape.
+  pub fn execute_proxy(
+    &self,
+    proxy_path: &Path,
+    logical_path: &str,
+    extra_context: serde_json::Value,
+  ) -> Result<String, String> {
+    let mut context = match extra_context {
+      serde_json::Value::Object(map) => map,
+      _ => {
+        return Err("Proxy context must be a JSON object".to_string());
+      }
+    };
+    context.insert(
+      "logicalPath".to_string(),
+      serde_json::Value::String(logical_path.to_string()),
+    );
+
+    self.execute_ts(proxy_path, &serde_json::Value::Object(context).to_string())
+  }
+
   /// Resolve a public path using aindex/public/proxy.ts.
   pub fn resolve_public_path(
     &self,
@@ -170,11 +191,7 @@ globalThis.Deno = {{
       return Err(format!("proxy.ts not found at {}", proxy_path.display()));
     }
 
-    let context = serde_json::json!({
-      "logicalPath": logical_path
-    });
-
-    let result = self.execute_ts(&proxy_path, &context.to_string())?;
+    let result = self.execute_proxy(&proxy_path, logical_path, serde_json::json!({}))?;
 
     Ok(result.trim().to_string())
   }
@@ -392,5 +409,30 @@ mod tests {
     let result = runtime.load_project_config(tmp.path(), "myproject", "app", tmp.path());
     assert!(result.is_ok(), "expected JSON project config, got: {result:?}");
     assert_eq!(result.unwrap()["name"], "myproject");
+  }
+
+  #[test]
+  fn test_execute_proxy_from_arbitrary_directory() {
+    let runtime = DenoRuntime::new().unwrap();
+    let tmp = TempDir::new().unwrap();
+    let proxy_dir = tmp.path().join("skills").join("writer");
+    std::fs::create_dir_all(&proxy_dir).unwrap();
+    std::fs::write(
+      proxy_dir.join("proxy.ts"),
+      r#"
+const ctx = globalThis.__tnmsContext ?? {}
+console.log(`proxied/${ctx.logicalPath}`)
+"#,
+    )
+    .unwrap();
+
+    let result = runtime.execute_proxy(
+      &proxy_dir.join("proxy.ts"),
+      "notes/today.md",
+      serde_json::json!({ "kind": "skill" }),
+    );
+
+    assert!(result.is_ok(), "expected arbitrary proxy execution, got: {result:?}");
+    assert_eq!(result.unwrap().trim(), "proxied/notes/today.md");
   }
 }
