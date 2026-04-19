@@ -7,8 +7,6 @@ use crate::repositories::public_config::read_public_file;
 #[serde(rename_all = "camelCase")]
 pub struct SharedIgnoreInputOptions {
   pub workspace_dir: String,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub aindex: Option<super::gitignore::AindexInputOptions>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -41,13 +39,7 @@ pub fn collect_shared_ignore(options_json: &str) -> Result<String, crate::CliErr
   let options: SharedIgnoreInputOptions =
     serde_json::from_str(options_json).map_err(|e| crate::CliError::ConfigError(e.to_string()))?;
 
-  let workspace_dir = options.workspace_dir;
-  let aindex_dir_name = options
-    .aindex
-    .as_ref()
-    .and_then(|a| a.dir.clone())
-    .unwrap_or_else(|| "aindex".to_string());
-  let aindex_dir = std::path::Path::new(&workspace_dir).join(&aindex_dir_name);
+  let aindex_dir = crate::domain::config::resolve_workspace_aindex_dir(&options.workspace_dir);
   let aindex_dir_str = aindex_dir.to_string_lossy().into_owned();
 
   let mut results: Vec<AIAgentIgnoreConfigFile> = Vec::new();

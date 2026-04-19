@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -14,18 +12,7 @@ use crate::repositories::localized_reader::read_flat_files;
 struct SubAgentInputOptions {
   workspace_dir: String,
   #[serde(default)]
-  aindex: Option<SubAgentAindexInput>,
-  #[serde(default)]
   global_scope: Option<Value>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SubAgentAindexInput {
-  #[serde(default)]
-  dir: Option<String>,
-  #[serde(default)]
-  sub_agents: Option<String>,
 }
 
 fn derive_subagent_identity(name: &str) -> (Option<String>, String, String) {
@@ -100,7 +87,8 @@ fn build_subagent_prompt(
     .ok_or_else(|| crate::CliError::ConfigError("Missing compiled prompt".to_string()))?;
 
   let file_path = format!("{}/{}.mdx", dir, entry.name);
-  validate_subagent_metadata(&compiled.metadata, &file_path).map_err(crate::CliError::ConfigError)?;
+  validate_subagent_metadata(&compiled.metadata, &file_path)
+    .map_err(crate::CliError::ConfigError)?;
 
   let (agent_prefix, agent_name, canonical_name) = derive_subagent_identity(&entry.name);
 
@@ -152,21 +140,7 @@ pub fn collect_subagent(options_json: &str) -> Result<String, crate::CliError> {
 
   let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
-
-  let aindex_dir_name = options
-    .aindex
-    .as_ref()
-    .and_then(|a| a.dir.clone())
-    .unwrap_or_else(|| "aindex".to_string());
-  let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
-
-  let dir = aindex_dir.join(
-    options
-      .aindex
-      .as_ref()
-      .and_then(|a| a.sub_agents.as_deref())
-      .unwrap_or("subagents"),
-  );
+  let dir = config::resolve_workspace_aindex_subagents_dir(&workspace_dir_str);
 
   let dir_str = dir.to_string_lossy().into_owned();
 
@@ -183,11 +157,7 @@ pub fn collect_subagent(options_json: &str) -> Result<String, crate::CliError> {
       ));
     }
     if entry.compiled.is_some() {
-      prompts.push(build_subagent_prompt(
-        entry,
-        &dir_str,
-        &mut diagnostics,
-      )?);
+      prompts.push(build_subagent_prompt(entry, &dir_str, &mut diagnostics)?);
     }
   }
 

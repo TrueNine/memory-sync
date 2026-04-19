@@ -5,8 +5,6 @@
 //! Reads only `~/.aindex/.tnmsc.json` (global),
 //! then merges with defaults.
 
-
-
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -17,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::infra::diagnostic_helpers::{diagnostic, line, optional_details};
-use crate::infra::logger::{create_logger, Logger};
+use crate::infra::logger::{Logger, create_logger};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -27,16 +25,26 @@ pub const DEFAULT_CONFIG_FILE_NAME: &str = ".tnmsc.json";
 pub const DEFAULT_GLOBAL_CONFIG_DIR: &str = ".aindex";
 pub const DEFAULT_WSL_WINDOWS_USERS_ROOT: &str = "/mnt/c/Users";
 pub const DEFAULT_AINDEX_DIR_NAME: &str = "aindex";
+pub const DEFAULT_KNOWLADGE_DIR_NAME: &str = "knowladge";
+pub const DEFAULT_AINDEX_DIST_DIR_NAME: &str = "dist";
 pub const DEFAULT_SKILLS_DIR: &str = "skills";
 pub const DEFAULT_COMMANDS_DIR: &str = "commands";
 pub const DEFAULT_SUB_AGENTS_DIR: &str = "subagents";
 pub const DEFAULT_RULES_DIR: &str = "rules";
 pub const DEFAULT_GLOBAL_PROMPT: &str = "global.src.mdx";
+pub const DEFAULT_GLOBAL_PROMPT_DIST: &str = "global.mdx";
 pub const DEFAULT_WORKSPACE_PROMPT: &str = "workspace.src.mdx";
+pub const DEFAULT_WORKSPACE_PROMPT_DIST: &str = "dist/workspace.mdx";
 pub const DEFAULT_APP_DIR: &str = "app";
 pub const DEFAULT_EXT_DIR: &str = "ext";
 pub const DEFAULT_ARCH_DIR: &str = "arch";
 pub const DEFAULT_SOFTWARES_DIR: &str = "softwares";
+pub const DEFAULT_PROJECT_SERIES: &[&str] = &[
+  DEFAULT_APP_DIR,
+  DEFAULT_EXT_DIR,
+  DEFAULT_ARCH_DIR,
+  DEFAULT_SOFTWARES_DIR,
+];
 
 fn path_details(path: &Path) -> Option<serde_json::Map<String, Value>> {
   optional_details(serde_json::json!({
@@ -54,59 +62,6 @@ fn path_error_details(path: &Path, error: &str) -> Option<serde_json::Map<String
 // ---------------------------------------------------------------------------
 // Types — mirrors TS ConfigTypes.schema.ts
 // ---------------------------------------------------------------------------
-
-fn merge_opt_string(a: &Option<String>, b: &Option<String>) -> Option<String> {
-  b.clone().or_else(|| a.clone())
-}
-
-/// Internal fixed aindex directory layout.
-/// All paths are relative to `<workspaceDir>/aindex`.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct AindexConfig {
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub dir: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub skills: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub commands: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub sub_agents: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub rules: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub global_prompt: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub workspace_prompt: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub app: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub ext: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub arch: Option<String>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub softwares: Option<String>,
-}
-
-pub fn build_default_aindex_config() -> AindexConfig {
-  AindexConfig {
-    dir: Some(DEFAULT_AINDEX_DIR_NAME.to_string()),
-    skills: Some(DEFAULT_SKILLS_DIR.to_string()),
-    commands: Some(DEFAULT_COMMANDS_DIR.to_string()),
-    sub_agents: Some(DEFAULT_SUB_AGENTS_DIR.to_string()),
-    rules: Some(DEFAULT_RULES_DIR.to_string()),
-    global_prompt: Some(DEFAULT_GLOBAL_PROMPT.to_string()),
-    workspace_prompt: Some(DEFAULT_WORKSPACE_PROMPT.to_string()),
-    app: Some(DEFAULT_APP_DIR.to_string()),
-    ext: Some(DEFAULT_EXT_DIR.to_string()),
-    arch: Some(DEFAULT_ARCH_DIR.to_string()),
-    softwares: Some(DEFAULT_SOFTWARES_DIR.to_string()),
-  }
-}
-
-fn is_default_aindex_config(config: &AindexConfig) -> bool {
-  config == &build_default_aindex_config()
-}
 
 /// User profile information. Supports arbitrary key-value pairs.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
@@ -245,12 +200,6 @@ pub struct UserConfigFile {
   pub version: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub workspace_dir: Option<String>,
-  #[serde(
-    default = "build_default_aindex_config",
-    skip_deserializing,
-    skip_serializing_if = "is_default_aindex_config"
-  )]
-  pub aindex: AindexConfig,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub log_level: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -268,7 +217,6 @@ impl Default for UserConfigFile {
     Self {
       version: None,
       workspace_dir: None,
-      aindex: build_default_aindex_config(),
       log_level: None,
       profile: None,
       code_styles: None,
@@ -658,6 +606,63 @@ pub fn resolve_workspace_dir(p: &str) -> PathBuf {
   resolved.canonicalize().unwrap_or(resolved)
 }
 
+pub fn resolve_workspace_aindex_dir(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_dir(workspace_dir).join(DEFAULT_AINDEX_DIR_NAME)
+}
+
+pub fn resolve_workspace_knowladge_dir(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_dir(workspace_dir).join(DEFAULT_KNOWLADGE_DIR_NAME)
+}
+
+pub fn resolve_workspace_aindex_public_dir(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join("public")
+}
+
+pub fn resolve_workspace_aindex_global_prompt_file(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_GLOBAL_PROMPT)
+}
+
+pub fn resolve_workspace_aindex_global_prompt_dist_file(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_GLOBAL_PROMPT_DIST)
+}
+
+pub fn resolve_workspace_aindex_workspace_prompt_file(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_WORKSPACE_PROMPT)
+}
+
+pub fn resolve_workspace_aindex_workspace_prompt_dist_file(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_WORKSPACE_PROMPT_DIST)
+}
+
+pub fn resolve_workspace_aindex_commands_dir(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_COMMANDS_DIR)
+}
+
+pub fn resolve_workspace_aindex_subagents_dir(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_SUB_AGENTS_DIR)
+}
+
+pub fn resolve_workspace_aindex_skills_dir(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_SKILLS_DIR)
+}
+
+pub fn resolve_workspace_aindex_rules_dir(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_RULES_DIR)
+}
+
+pub fn resolve_workspace_aindex_source_series_dir(
+  workspace_dir: &str,
+  series_name: &str,
+) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(series_name)
+}
+
+pub fn resolve_workspace_aindex_dist_series_dir(workspace_dir: &str, series_name: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir)
+    .join(DEFAULT_AINDEX_DIST_DIR_NAME)
+    .join(series_name)
+}
+
 /// Get the global config file path: `~/.aindex/.tnmsc.json`
 pub fn get_global_config_path() -> PathBuf {
   let runtime_environment = resolve_runtime_environment();
@@ -692,22 +697,6 @@ pub fn get_required_global_config_path() -> Result<PathBuf, String> {
 // ---------------------------------------------------------------------------
 // Merge logic
 // ---------------------------------------------------------------------------
-
-fn merge_aindex(base: &AindexConfig, over: &AindexConfig) -> AindexConfig {
-  AindexConfig {
-    dir: merge_opt_string(&base.dir, &over.dir),
-    skills: merge_opt_string(&base.skills, &over.skills),
-    commands: merge_opt_string(&base.commands, &over.commands),
-    sub_agents: merge_opt_string(&base.sub_agents, &over.sub_agents),
-    rules: merge_opt_string(&base.rules, &over.rules),
-    global_prompt: merge_opt_string(&base.global_prompt, &over.global_prompt),
-    workspace_prompt: merge_opt_string(&base.workspace_prompt, &over.workspace_prompt),
-    app: merge_opt_string(&base.app, &over.app),
-    ext: merge_opt_string(&base.ext, &over.ext),
-    arch: merge_opt_string(&base.arch, &over.arch),
-    softwares: merge_opt_string(&base.softwares, &over.softwares),
-  }
-}
 
 fn merge_windows(a: &Option<WindowsOptions>, b: &Option<WindowsOptions>) -> Option<WindowsOptions> {
   match (a, b) {
@@ -779,7 +768,6 @@ fn merge_plugins(a: &Option<PluginsConfig>, b: &Option<PluginsConfig>) -> Option
 
 /// Merge two configs. `over` fields take priority over `base`.
 pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserConfigFile {
-  let merged_aindex = merge_aindex(&base.aindex, &over.aindex);
   let merged_code_styles = merge_code_styles(&base.code_styles, &over.code_styles);
   let merged_windows = merge_windows(&base.windows, &over.windows);
   let merged_plugins = merge_plugins(&base.plugins, &over.plugins);
@@ -790,7 +778,6 @@ pub fn merge_configs_pair(base: &UserConfigFile, over: &UserConfigFile) -> UserC
       .workspace_dir
       .clone()
       .or_else(|| base.workspace_dir.clone()),
-    aindex: merged_aindex,
     log_level: over.log_level.clone().or_else(|| base.log_level.clone()),
     profile: over.profile.clone().or_else(|| base.profile.clone()),
     code_styles: merged_code_styles,
@@ -1241,7 +1228,6 @@ mod tests {
     let config = UserConfigFile::default();
     assert!(config.version.is_none());
     assert!(config.workspace_dir.is_none());
-    assert_eq!(config.aindex, build_default_aindex_config());
     assert!(config.log_level.is_none());
     assert!(config.code_styles.is_none());
   }
@@ -1255,32 +1241,6 @@ mod tests {
     let config: UserConfigFile = serde_json::from_str(json).unwrap();
     assert_eq!(config.workspace_dir.as_deref(), Some("~/myworkspace"));
     assert_eq!(config.log_level.as_deref(), Some("debug"));
-  }
-
-  #[test]
-  fn test_user_config_file_ignores_removed_flat_aindex_fields() {
-    let json = r#"{
-            "skills": "skills-dir",
-            "commands": "commands-dir",
-            "subAgents": "subagents-dir",
-            "rules": "rules-dir"
-        }"#;
-    let config: UserConfigFile = serde_json::from_str(json).unwrap();
-    assert_eq!(config.aindex.skills.as_deref(), Some(DEFAULT_SKILLS_DIR));
-    assert_eq!(config.aindex.commands.as_deref(), Some(DEFAULT_COMMANDS_DIR));
-  }
-
-  #[test]
-  fn test_user_config_file_ignores_removed_legacy_aindex_wrapper() {
-    let json = r#"{
-            "aindex": {
-                "skills": "my-skills",
-                "commands": "my-commands"
-            }
-        }"#;
-    let config: UserConfigFile = serde_json::from_str(json).unwrap();
-    assert_eq!(config.aindex.skills.as_deref(), Some(DEFAULT_SKILLS_DIR));
-    assert_eq!(config.aindex.commands.as_deref(), Some(DEFAULT_COMMANDS_DIR));
   }
 
   #[test]
@@ -1396,10 +1356,6 @@ mod tests {
     let result = merge_configs(&[cwd_config, global_config]);
     assert_eq!(result.workspace_dir.as_deref(), Some("~/cwd-workspace"));
     assert_eq!(result.log_level.as_deref(), Some("debug"));
-    assert_eq!(
-      result.aindex.skills.as_deref(),
-      Some(DEFAULT_SKILLS_DIR)
-    );
   }
 
   #[test]
@@ -1499,21 +1455,6 @@ mod tests {
   }
 
   #[test]
-  fn test_merge_configs_keeps_fixed_aindex_defaults() {
-    let higher_priority = UserConfigFile {
-      workspace_dir: Some("~/workspace".into()),
-      ..Default::default()
-    };
-    let lower_priority = UserConfigFile {
-      log_level: Some("info".into()),
-      ..Default::default()
-    };
-
-    let result = merge_configs(&[higher_priority, lower_priority]);
-    assert_eq!(result.aindex, build_default_aindex_config());
-  }
-
-  #[test]
   fn test_config_loader_search_paths() {
     let loader = ConfigLoader::with_defaults();
     let cwd = PathBuf::from("/workspace/project");
@@ -1608,8 +1549,6 @@ mod tests {
     assert!(!result.found);
     assert!(result.source.is_none());
   }
-
-  
 
   #[test]
   fn test_global_config_path() {

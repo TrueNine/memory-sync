@@ -1,3 +1,13 @@
+//! 验证 `public` 目录映射功能: aindex/public 中的文件在 `install` 时被传播到各个项目目录。
+//!
+//! **断言**:
+//! - VSCode settings.json 被写入项目的 .vscode/ (插件配置传播)
+//! - VSCode extensions.json 被写入项目的 .vscode/ (扩展推荐)
+//! - Zed settings.json 被写入项目的 .zed/ (编辑器配置映射)
+//! - Git info/exclude 包含 aindex/public 中的模式 (git 忽略集成)
+//! - EditorConfig 文件被写入项目根目录 (代码风格标准化)
+//! - Gitignore 内容包含 public dir 中的模式 (忽略文件聚合)
+
 use tnmsc_integrate_tests::{
   TestContainer, install_packaged_cli_container,
 };
@@ -5,18 +15,18 @@ use tnmsc_integrate_tests::{
 fn setup_workspace_with_public_files(container: &TestContainer) {
   container
     .setup()
-    .mkdir_p("/workspace/demo/project-a/aindex/dist")
-    .mkdir_p("/workspace/demo/aindex/dist/app/project-a")
-    .mkdir_p("/workspace/demo/aindex/public/____.git/info")
-    .mkdir_p("/workspace/demo/aindex/public/____.zed")
-    .mkdir_p("/workspace/demo/aindex/public/____vscode")
-    .mkdir_p("/workspace/demo/aindex/public/____idea/codeStyles")
-    .mkdir_p("/workspace/demo/aindex/public/____idea")
+    .mkdir_p("/workspace-demo/project-a/aindex")
+    .mkdir_p("/workspace-demo/aindex/app/project-a")
+    .mkdir_p("/workspace-demo/aindex/public/____.git/info")
+    .mkdir_p("/workspace-demo/aindex/public/____.zed")
+    .mkdir_p("/workspace-demo/aindex/public/____vscode")
+    .mkdir_p("/workspace-demo/aindex/public/____idea/codeStyles")
+    .mkdir_p("/workspace-demo/aindex/public/____idea")
     .mkdir_p("/root/.aindex")
     .write_file(
       "/root/.aindex/.tnmsc.json",
       r#"{
-  "workspaceDir": "/workspace/demo",
+  "workspaceDir": "/workspace-demo",
   "plugins": {
     "claudeCode": true,
     "vscode": true,
@@ -28,28 +38,28 @@ fn setup_workspace_with_public_files(container: &TestContainer) {
   }
 }"#,
     )
-    .write_file("/workspace/demo/aindex/dist/global.mdx", "Global memory from aindex")
+    .write_file("/workspace-demo/aindex/global.src.mdx", "Global memory from aindex")
     .write_file(
-      "/workspace/demo/aindex/dist/workspace.mdx",
+      "/workspace-demo/aindex/workspace.src.mdx",
       "Workspace root prompt from aindex",
     )
     .write_file(
-      "/workspace/demo/aindex/dist/app/project-a/AGENTS.md",
+      "/workspace-demo/aindex/app/project-a/AGENTS.md",
       "Project A memory",
     )
     .write_file(
-      "/workspace/demo/aindex/public/____.git/info/exclude",
+      "/workspace-demo/aindex/public/____.git/info/exclude",
       "# aindex managed git exclude\nCLAUDE.md\n.tmp/\nnode_modules/",
     )
     .write_file(
-      "/workspace/demo/aindex/public/____.zed/settings.json",
+      "/workspace-demo/aindex/public/____.zed/settings.json",
       r#"{
   "tab_size": 2,
   "format_on_save": false
 }"#,
     )
     .write_file(
-      "/workspace/demo/aindex/public/____vscode/settings.json",
+      "/workspace-demo/aindex/public/____vscode/settings.json",
       r#"{
   "editor.formatOnSave": false,
   "editor.tabSize": 2,
@@ -57,41 +67,41 @@ fn setup_workspace_with_public_files(container: &TestContainer) {
 }"#,
     )
     .write_file(
-      "/workspace/demo/aindex/public/____vscode/extensions.json",
+      "/workspace-demo/aindex/public/____vscode/extensions.json",
       r#"{
   "recommendations": []
 }"#,
     )
     .write_file(
-      "/workspace/demo/aindex/public/____idea/.gitignore",
+      "/workspace-demo/aindex/public/____idea/.gitignore",
       "*\n!.gitignore\n!codeStyles/\n!codeStyles/codeStyleConfig.xml\n!codeStyles/Project.xml",
     )
     .write_file(
-      "/workspace/demo/aindex/public/____idea/codeStyles/Project.xml",
+      "/workspace-demo/aindex/public/____idea/codeStyles/Project.xml",
       r#"<component name="ProjectCodeStyleConfiguration">
   <code_scheme name="Project" version="173" />
 </component>"#,
     )
     .write_file(
-      "/workspace/demo/aindex/public/____idea/codeStyles/codeStyleConfig.xml",
+      "/workspace-demo/aindex/public/____idea/codeStyles/codeStyleConfig.xml",
       r#"<component name="CodeStyleSchemes">
   <option name="CURRENT_SCHEME_NAME" value="Project" />
 </component>"#,
     )
     .write_file(
-      "/workspace/demo/aindex/public/____editorconfig",
+      "/workspace-demo/aindex/public/____editorconfig",
       "root = true\n\n[*]\nindent_style = space\nindent_size = 2\nend_of_line = lf\ninsert_final_newline = true",
     )
     .write_file(
-      "/workspace/demo/aindex/public/____gitignore",
+      "/workspace-demo/aindex/public/____gitignore",
       "node_modules/\ndist/\n.tmp/\n*.log",
     )
     .write_file(
-      "/workspace/demo/aindex/public/____aiignore",
+      "/workspace-demo/aindex/public/____aiignore",
       ".claude/\n.cursor/\n.kiro/\n.skills/",
     )
     .write_file(
-      "/workspace/demo/aindex/public/____warpindexignore",
+      "/workspace-demo/aindex/public/____warpindexignore",
       "CLAUDE.md\nAGENTS.md",
     )
     .exec("setup public-dir-mapped workspace");
@@ -102,10 +112,10 @@ fn vscode_settings_written_to_project_from_public_dir() {
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
-  let install = container.exec("cd /workspace/demo && tnmsc install");
+  let install = container.exec("cd /workspace-demo && tnmsc install");
   install.assert_success("tnmsc install with vscode plugin");
 
-  let vscode_settings = container.cat_success("/workspace/demo/project-a/.vscode/settings.json");
+  let vscode_settings = container.cat_success("/workspace-demo/project-a/.vscode/settings.json");
   assert!(
     vscode_settings.stdout.contains("editor.tabSize"),
     "project-a/.vscode/settings.json should contain editor.tabSize.\nstdout:\n{}",
@@ -123,10 +133,10 @@ fn vscode_extensions_written_to_project_from_public_dir() {
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
-  let install = container.exec("cd /workspace/demo && tnmsc install");
+  let install = container.exec("cd /workspace-demo && tnmsc install");
   install.assert_success("tnmsc install with vscode plugin");
 
-  let vscode_ext = container.cat_success("/workspace/demo/project-a/.vscode/extensions.json");
+  let vscode_ext = container.cat_success("/workspace-demo/project-a/.vscode/extensions.json");
   assert!(
     vscode_ext.stdout.contains("recommendations"),
     "project-a/.vscode/extensions.json should contain recommendations.\nstdout:\n{}",
@@ -139,10 +149,10 @@ fn zed_settings_written_to_project_from_public_dir() {
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
-  let install = container.exec("cd /workspace/demo && tnmsc install");
+  let install = container.exec("cd /workspace-demo && tnmsc install");
   install.assert_success("tnmsc install with zed plugin");
 
-  let zed_settings = container.cat_success("/workspace/demo/project-a/.zed/settings.json");
+  let zed_settings = container.cat_success("/workspace-demo/project-a/.zed/settings.json");
   assert!(
     zed_settings.stdout.contains("tab_size"),
     "project-a/.zed/settings.json should contain tab_size.\nstdout:\n{}",
@@ -155,12 +165,12 @@ fn git_exclude_written_to_project_from_public_dir() {
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
-  container.exec_success("git init /workspace/demo >/dev/null 2>&1");
+  container.exec_success("git init /workspace-demo >/dev/null 2>&1");
 
-  let install = container.exec("cd /workspace/demo && tnmsc install");
+  let install = container.exec("cd /workspace-demo && tnmsc install");
   install.assert_success("tnmsc install with git plugin");
 
-  let git_exclude = container.cat_success("/workspace/demo/.git/info/exclude");
+  let git_exclude = container.cat_success("/workspace-demo/.git/info/exclude");
   assert!(
     git_exclude.stdout.contains("CLAUDE.md"),
     ".git/info/exclude should contain CLAUDE.md from aindex/public.\nstdout:\n{}",
@@ -173,10 +183,10 @@ fn editorconfig_written_to_project_from_public_dir() {
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
-  let install = container.exec("cd /workspace/demo && tnmsc install");
+  let install = container.exec("cd /workspace-demo && tnmsc install");
   install.assert_success("tnmsc install with editorconfig");
 
-  let editorconfig = container.cat_success("/workspace/demo/project-a/.editorconfig");
+  let editorconfig = container.cat_success("/workspace-demo/project-a/.editorconfig");
   assert!(
     editorconfig.stdout.contains("indent_size"),
     "project-a/.editorconfig should contain indent_size.\nstdout:\n{}",
@@ -194,12 +204,12 @@ fn gitignore_content_read_from_public_dir() {
   let container = install_packaged_cli_container();
   setup_workspace_with_public_files(&container);
 
-  container.exec_success("git init /workspace/demo >/dev/null 2>&1");
+  container.exec_success("git init /workspace-demo >/dev/null 2>&1");
 
-  let install = container.exec("cd /workspace/demo && tnmsc install");
+  let install = container.exec("cd /workspace-demo && tnmsc install");
   install.assert_success("tnmsc install with git plugin");
 
-  let git_exclude = container.cat_success("/workspace/demo/.git/info/exclude");
+  let git_exclude = container.cat_success("/workspace-demo/.git/info/exclude");
   assert!(
     git_exclude.stdout.contains("node_modules/"),
     "git exclude should contain gitignore content from aindex/public.\nstdout:\n{}",

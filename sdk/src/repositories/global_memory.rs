@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use serde::Deserialize;
 
 use crate::domain::config;
@@ -11,18 +9,7 @@ use crate::repositories::prompt_artifact::read_prompt_artifact;
 struct GlobalMemoryInputOptions {
   workspace_dir: String,
   #[serde(default)]
-  aindex: Option<GlobalMemoryAindexInput>,
-  #[serde(default)]
   global_scope: Option<serde_json::Value>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GlobalMemoryAindexInput {
-  #[serde(default)]
-  dir: Option<String>,
-  #[serde(default)]
-  global_prompt: Option<String>,
 }
 
 pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliError> {
@@ -31,21 +18,8 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
 
   let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
-
-  let aindex_dir_name = options
-    .aindex
-    .as_ref()
-    .and_then(|a| a.dir.clone())
-    .unwrap_or_else(|| "aindex".to_string());
-  let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
-
-  let global_prompt_file = aindex_dir.join(
-    options
-      .aindex
-      .as_ref()
-      .and_then(|a| a.global_prompt.as_deref())
-      .unwrap_or("global.mdx"),
-  );
+  let global_prompt_file =
+    config::resolve_workspace_aindex_global_prompt_dist_file(&workspace_dir_str);
 
   let global_prompt_file_str = global_prompt_file.to_string_lossy().into_owned();
 
@@ -61,7 +35,7 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
 
   let artifact = read_prompt_artifact(
     &global_prompt_file_str,
-    "compiled",
+    "dist",
     global_scope_json.as_deref(),
   )
   .map_err(|e| crate::CliError::ConfigError(e))?;
@@ -90,16 +64,16 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
     content,
     length,
     file_path_kind: FilePathKind::Relative,
-dir: RelativePath::new(
-        global_prompt_file
-          .file_name()
-          .and_then(|s| s.to_str())
-          .unwrap_or("global.mdx"),
-        &global_prompt_file
-          .parent()
-          .map(|p| p.to_string_lossy().to_string())
-          .unwrap_or_default(),
-      ),
+    dir: RelativePath::new(
+      global_prompt_file
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("global.mdx"),
+      &global_prompt_file
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default(),
+    ),
     raw_front_matter: Some(artifact.raw_mdx.clone()),
     markdown_contents: None,
     parent_directory_path: Some(parent_directory_path),

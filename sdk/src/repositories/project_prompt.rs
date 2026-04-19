@@ -15,68 +15,14 @@ use crate::repositories::prompt_artifact::read_prompt_artifact;
 struct ProjectPromptInputOptions {
   workspace_dir: String,
   #[serde(default)]
-  aindex_resolvers: Option<ProjectPromptAindexResolversInput>,
-  #[serde(default)]
   global_scope: Option<Value>,
   #[serde(default)]
   workspace: Option<Workspace>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ProjectPromptAindexResolversInput {
-  #[serde(default)]
-  dir: Option<String>,
-  #[serde(default)]
-  workspace_prompt: Option<ProjectPromptPair>,
-  #[serde(default)]
-  app: Option<ProjectPromptPair>,
-  #[serde(default)]
-  ext: Option<ProjectPromptPair>,
-  #[serde(default)]
-  arch: Option<ProjectPromptPair>,
-  #[serde(default)]
-  softwares: Option<ProjectPromptPair>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ProjectPromptPair {
-  #[allow(dead_code)]
-  #[serde(default)]
-  src: Option<String>,
-  #[serde(default)]
-  dist: Option<String>,
-}
-
-const SERIES_NAMES: &[&str] = &["app", "ext", "arch", "softwares"];
+const SERIES_NAMES: &[&str] = config::DEFAULT_PROJECT_SERIES;
 const PROJECT_MEMORY_FILE: &str = "agt.mdx";
 const SCAN_SKIP_DIRECTORIES: &[&str] = &["node_modules", ".git"];
-
-fn get_series_dist(
-  series_name: &str,
-  aindex_resolvers: &Option<ProjectPromptAindexResolversInput>,
-) -> String {
-  match series_name {
-    "app" => aindex_resolvers
-      .as_ref()
-      .and_then(|a| a.app.as_ref().and_then(|p| p.dist.clone()))
-      .unwrap_or_else(|| "dist/app".to_string()),
-    "ext" => aindex_resolvers
-      .as_ref()
-      .and_then(|a| a.ext.as_ref().and_then(|p| p.dist.clone()))
-      .unwrap_or_else(|| "dist/ext".to_string()),
-    "arch" => aindex_resolvers
-      .as_ref()
-      .and_then(|a| a.arch.as_ref().and_then(|p| p.dist.clone()))
-      .unwrap_or_else(|| "dist/arch".to_string()),
-    "softwares" => aindex_resolvers
-      .as_ref()
-      .and_then(|a| a.softwares.as_ref().and_then(|p| p.dist.clone()))
-      .unwrap_or_else(|| "dist/softwares".to_string()),
-    _ => unreachable!(),
-  }
-}
 
 fn assert_no_residual_module_syntax(content: &str, file_path: &str) -> Result<(), String> {
   let code_fence_pattern = regex_lite::Regex::new(r"^\s*(```|~~~)").unwrap();
@@ -329,13 +275,6 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
   let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
-  let aindex_dir_name = options
-    .aindex_resolvers
-    .as_ref()
-    .and_then(|a| a.dir.clone())
-    .unwrap_or_else(|| "aindex".to_string());
-  let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
-
   let global_scope_json = options.global_scope.as_ref().map(|v| v.to_string());
 
   let dependency_workspace = options.workspace.unwrap_or_else(|| Workspace {
@@ -366,9 +305,9 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
     };
 
     let matching_series = series_configs.iter().find(|series_name| {
-      let shadow_path = aindex_dir
-        .join(get_series_dist(series_name, &options.aindex_resolvers))
-        .join(project_name);
+      let shadow_path =
+        config::resolve_workspace_aindex_dist_series_dir(&workspace_dir_str, series_name)
+          .join(project_name);
       shadow_path.is_dir()
     });
 
@@ -378,9 +317,9 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
     }
 
     let series_name = matching_series.unwrap();
-    let shadow_project_path = aindex_dir
-      .join(get_series_dist(series_name, &options.aindex_resolvers))
-      .join(project_name);
+    let shadow_project_path =
+      config::resolve_workspace_aindex_dist_series_dir(&workspace_dir_str, series_name)
+        .join(project_name);
 
     let target_project_path = project
       .dir_from_workspace_path
@@ -408,13 +347,8 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
     enhanced_projects.push(enhanced_project);
   }
 
-  let workspace_prompt_file = aindex_dir.join(
-    options
-      .aindex_resolvers
-      .as_ref()
-      .and_then(|a| a.workspace_prompt.as_ref().and_then(|p| p.dist.clone()))
-      .unwrap_or_else(|| "dist/workspace.mdx".to_string()),
-  );
+  let workspace_prompt_file =
+    config::resolve_workspace_aindex_workspace_prompt_dist_file(&workspace_dir_str);
 
   let workspace_root_project = read_workspace_root_project_prompt(
     &workspace_prompt_file,

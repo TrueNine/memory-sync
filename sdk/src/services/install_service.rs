@@ -3,17 +3,17 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde::de::DeserializeOwned;
+use serde_json::{Value, json};
 
+use crate::context::OutputContext;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
 use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
-use crate::context::OutputContext;
 use crate::domain::plugin_shared::{
-  AIAgentIgnoreConfigFile, FastCommandPrompt, GlobalMemoryPrompt,
-  ProjectIDEConfigFile, ReadmePrompt, RulePrompt, SkillPrompt, SubAgentPrompt, Workspace,
+  AIAgentIgnoreConfigFile, FastCommandPrompt, GlobalMemoryPrompt, ProjectIDEConfigFile,
+  ReadmePrompt, RulePrompt, SkillPrompt, SubAgentPrompt, Workspace,
 };
 use crate::infra::desk_paths;
 use crate::policy::path_blocking;
@@ -411,6 +411,7 @@ fn collect_context(
       "globalScope": global_scope,
     }),
   )?;
+
   let sub_agents = collect_json::<SubAgentsEnvelope>(
     crate::repositories::subagent::collect_subagent,
     json!({
@@ -418,6 +419,7 @@ fn collect_context(
       "globalScope": global_scope,
     }),
   )?;
+
   let skills = collect_json::<SkillsEnvelope>(
     crate::repositories::skill::collect_skill,
     json!({
@@ -425,6 +427,7 @@ fn collect_context(
       "globalScope": global_scope,
     }),
   )?;
+
   let rules = collect_json::<RulesEnvelope>(
     crate::repositories::rule::collect_rule,
     json!({

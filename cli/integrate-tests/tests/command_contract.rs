@@ -1,3 +1,9 @@
+//! 验证 CLI 合约: 打包后的 `tnmsc` 二进制在全局安装后暴露预期的命令界面 (子命令和版本)。
+//!
+//! **断言**:
+//! - `help` 输出列出所有预期的子命令 (完整性)
+//! - `version` 输出与当前包版本一致 (正确性)
+
 use tnmsc_integrate_tests::{
   EXPECTED_SUBCOMMANDS, current_package_version,
   install_packaged_cli_container,

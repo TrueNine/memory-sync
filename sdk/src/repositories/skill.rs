@@ -16,18 +16,7 @@ use crate::repositories::prompt_artifact::read_prompt_artifact;
 struct SkillInputOptions {
   workspace_dir: String,
   #[serde(default)]
-  aindex: Option<SkillAindexInput>,
-  #[serde(default)]
   global_scope: Option<Value>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SkillAindexInput {
-  #[serde(default)]
-  dir: Option<String>,
-  #[serde(default)]
-  skills: Option<String>,
 }
 
 fn transform_mdx_references_to_md(content: &str) -> String {
@@ -662,21 +651,7 @@ pub fn collect_skill(options_json: &str) -> Result<String, crate::CliError> {
 
   let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
-
-  let aindex_dir_name = options
-    .aindex
-    .as_ref()
-    .and_then(|a| a.dir.clone())
-    .unwrap_or_else(|| "aindex".to_string());
-  let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
-
-  let skills_dir_name = options
-    .aindex
-    .as_ref()
-    .and_then(|a| a.skills.as_deref())
-    .unwrap_or("skills");
-
-  let skills_dir = aindex_dir.join(skills_dir_name);
+  let skills_dir = config::resolve_workspace_aindex_skills_dir(&workspace_dir_str);
 
   let global_scope_json = options.global_scope.as_ref().map(|v| v.to_string());
 

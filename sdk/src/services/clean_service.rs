@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
 use crate::context::OutputContext;
+use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
 use crate::policy::cleanup::{
   CleanupDeclarationsDto, CleanupSnapshot, CleanupTargetDto, CleanupTargetKindDto,
   PluginCleanupSnapshotDto,
@@ -697,7 +697,11 @@ fn build_cleanup_snapshot(
 
   Ok(CleanupSnapshot {
     workspace_dir: workspace_dir.to_string(),
-    aindex_dir: Some(format!("{}/aindex", workspace_dir)),
+    aindex_dir: Some(
+      crate::domain::config::resolve_workspace_aindex_dir(workspace_dir)
+        .to_string_lossy()
+        .into_owned(),
+    ),
     project_roots,
     protected_rules: Vec::new(),
     plugin_snapshots,
@@ -715,7 +719,7 @@ fn discover_project_roots(workspace_dir: &str) -> Vec<String> {
       if path.is_dir() {
         let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
         if !dir_name.starts_with('.')
-          && dir_name != "aindex"
+          && dir_name != crate::domain::config::DEFAULT_AINDEX_DIR_NAME
           && dir_name != "node_modules"
           && dir_name != "target"
         {

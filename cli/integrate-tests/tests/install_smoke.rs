@@ -1,4 +1,11 @@
-use tnmsc_integrate_tests::{install_packaged_cli_container};
+//! 验证 `tnmsc install` 命令: 从 aindex memory 生成 CLAUDE.md 并验证必需的配置。
+//!
+//! **断言**:
+//! - 生成的 CLAUDE.md 包含 aindex 中的全局和工作区提示词 (memory 聚合)
+//! - 缺少 workspaceDir 时 `tnmsc install` 失败并给出清晰错误 (验证)
+//! - 缺少 .tnmsc.json 时 `tnmsc install` 失败并给出清晰错误 (配置文件要求)
+
+use tnmsc_integrate_tests::install_packaged_cli_container;
 
 #[test]
 fn packaged_cli_install_writes_claude_memory_from_aindex() {
@@ -18,7 +25,11 @@ fn packaged_cli_install_writes_claude_memory_from_aindex() {
 }"#,
     )
     .write_file(
-      "/workspace/demo/aindex/dist/global.mdx",
+      "/workspace/demo/aindex/global.src.mdx",
+      "Global memory from aindex",
+    )
+    .write_file(
+      "/workspace/demo/aindex/global.mdx",
       "Global memory from aindex",
     )
     .write_file(

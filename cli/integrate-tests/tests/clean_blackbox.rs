@@ -1,3 +1,9 @@
+//! 验证 `tnmsc clean` 命令: 递归删除空项目目录和孤立的 Agent 文件 (无对应 agt.mdx 的 AGENTS.md/CLAUDE.md)。
+//!
+//! **断言**:
+//! - 工作区下的空项目目录被移除 (递归清理)
+//! - 无对应 agt.mdx 时,孤立的 AGENTS.md 和 CLAUDE.md 被删除 (孤立文件清理)
+
 use tnmsc_integrate_tests::{install_packaged_cli_container};
 
 #[test]
@@ -80,7 +86,7 @@ fn clean_removes_stale_agents_and_claude_files() {
     let clean = container.exec("cd /workspace/demo && tnmsc clean");
     clean.assert_success("tnmsc clean");
 
-    // Verify stale files are removed
+    // Ver  ify stale files are removed
     // Check that AGENTS.md and CLAUDE.md are gone
     let ls_project_a = container.exec("ls -la /workspace/demo/project-a");
     ls_project_a.assert_success("list project-a after clean");

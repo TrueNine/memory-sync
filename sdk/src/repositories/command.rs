@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -14,18 +12,7 @@ use crate::repositories::localized_reader::read_flat_files;
 struct CommandInputOptions {
   workspace_dir: String,
   #[serde(default)]
-  aindex: Option<CommandAindexInput>,
-  #[serde(default)]
   global_scope: Option<Value>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CommandAindexInput {
-  #[serde(default)]
-  dir: Option<String>,
-  #[serde(default)]
-  commands: Option<String>,
 }
 
 fn validate_command_metadata(
@@ -67,7 +54,8 @@ fn build_command_prompt(
     .ok_or_else(|| crate::CliError::ConfigError("Missing compiled prompt".to_string()))?;
 
   let file_path = format!("{}/{}.mdx", dir, entry.name);
-  validate_command_metadata(&compiled.metadata, &file_path).map_err(crate::CliError::ConfigError)?;
+  validate_command_metadata(&compiled.metadata, &file_path)
+    .map_err(crate::CliError::ConfigError)?;
 
   let normalized_name = entry.name.replace('\\', "/");
   let slash_index = normalized_name.find('/');
@@ -105,8 +93,10 @@ fn build_command_prompt(
     None
   } else {
     Some(
-      serde_json::from_value::<FastCommandYAMLFrontMatter>(Value::Object(compiled.metadata.clone()))
-        .map_err(|e| crate::CliError::ConfigError(e.to_string()))?,
+      serde_json::from_value::<FastCommandYAMLFrontMatter>(Value::Object(
+        compiled.metadata.clone(),
+      ))
+      .map_err(|e| crate::CliError::ConfigError(e.to_string()))?,
     )
   };
 
@@ -134,21 +124,7 @@ pub fn collect_command(options_json: &str) -> Result<String, crate::CliError> {
 
   let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
-
-  let aindex_dir_name = options
-    .aindex
-    .as_ref()
-    .and_then(|a| a.dir.clone())
-    .unwrap_or_else(|| "aindex".to_string());
-  let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
-
-  let dir = aindex_dir.join(
-    options
-      .aindex
-      .as_ref()
-      .and_then(|a| a.commands.as_deref())
-      .unwrap_or("commands"),
-  );
+  let dir = config::resolve_workspace_aindex_commands_dir(&workspace_dir_str);
 
   let dir_str = dir.to_string_lossy().into_owned();
 

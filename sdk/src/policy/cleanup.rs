@@ -906,6 +906,8 @@ fn collect_workspace_reserved_rules(
   _include_reserved_workspace_content_roots: bool,
 ) -> Vec<ProtectedRuleDto> {
   let workspace_dir = path_to_string(&resolve_absolute_path(workspace_dir));
+  let aindex_dir = path_to_string(&config::resolve_workspace_aindex_dir(&workspace_dir));
+  let knowladge_dir = path_to_string(&config::resolve_workspace_knowladge_dir(&workspace_dir));
   let mut rules = vec![
     create_protected_rule(
       &workspace_dir,
@@ -915,16 +917,14 @@ fn collect_workspace_reserved_rules(
       None,
     ),
     create_protected_rule(
-      &path_to_string(&resolve_absolute_path(&format!("{workspace_dir}/aindex"))),
+      &aindex_dir,
       ProtectionModeDto::Direct,
       "reserved workspace aindex root",
       "workspace-reserved",
       None,
     ),
     create_protected_rule(
-      &path_to_string(&resolve_absolute_path(&format!(
-        "{workspace_dir}/knowladge"
-      ))),
+      &knowladge_dir,
       ProtectionModeDto::Direct,
       "reserved workspace knowladge root",
       "workspace-reserved",

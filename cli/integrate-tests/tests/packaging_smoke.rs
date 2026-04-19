@@ -1,3 +1,12 @@
+//! 验证 npm 打包流程: `assemble-npm` 生成的 release 二进制在全局安装后暴露正确的命令界面和插件。
+//!
+//! **断言**:
+//! - `assemble-npm --profile release` 生成可执行的 Linux 二进制 (构建产物)
+//! - 二进制具有可执行权限 (Unix 权限正确性)
+//! - 全局安装的 `tnmsc help` 列出所有预期的子命令 (命令界面)
+//! - 全局安装的 `tnmsc plugins` 列出所有打包的插件 (插件可用性)
+//! - 平台包结构正确 (npm 包布局)
+
 use std::fs;
 
 #[cfg(unix)]

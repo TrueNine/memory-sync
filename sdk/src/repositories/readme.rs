@@ -11,32 +11,6 @@ use crate::repositories::prompt_artifact::read_prompt_artifact;
 #[serde(rename_all = "camelCase")]
 struct ReadmeInputOptions {
   workspace_dir: String,
-  #[serde(default)]
-  aindex: Option<ReadmeAindexInput>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ReadmeAindexInput {
-  #[serde(default)]
-  dir: Option<String>,
-  #[serde(default)]
-  app: Option<SeriesPair>,
-  #[serde(default)]
-  ext: Option<SeriesPair>,
-  #[serde(default)]
-  arch: Option<SeriesPair>,
-  #[serde(default)]
-  softwares: Option<SeriesPair>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SeriesPair {
-  #[serde(default)]
-  src: Option<String>,
-  #[serde(default)]
-  dist: Option<String>,
 }
 
 struct SeriesConfig {
@@ -45,58 +19,32 @@ struct SeriesConfig {
   dist: String,
 }
 
-const SERIES_NAMES: &[&str] = &["app", "ext", "arch", "softwares"];
-
 const README_FILE_KINDS: &[(&str, &str)] = &[
   ("Readme", "rdm.mdx"),
   ("CodeOfConduct", "coc.mdx"),
   ("Security", "security.mdx"),
 ];
 
-fn get_series_configs(aindex: &Option<ReadmeAindexInput>) -> Vec<SeriesConfig> {
-  SERIES_NAMES
+fn get_series_configs() -> Vec<SeriesConfig> {
+  config::DEFAULT_PROJECT_SERIES
     .iter()
-    .map(|name| {
-      let (src, dist) = match *name {
-        "app" => (
-          aindex
-            .as_ref()
-            .and_then(|a| a.app.as_ref().and_then(|p| p.src.clone()))
-            .unwrap_or_else(|| "app".to_string()),
-          aindex
-            .as_ref()
-            .and_then(|a| a.app.as_ref().and_then(|p| p.dist.clone()))
-            .unwrap_or_else(|| "dist/app".to_string()),
+    .map(|&name| {
+      let (src, dist) = match name {
+        config::DEFAULT_APP_DIR => (
+          config::DEFAULT_APP_DIR.to_string(),
+          format!("dist/{}", config::DEFAULT_APP_DIR),
         ),
-        "ext" => (
-          aindex
-            .as_ref()
-            .and_then(|a| a.ext.as_ref().and_then(|p| p.src.clone()))
-            .unwrap_or_else(|| "ext".to_string()),
-          aindex
-            .as_ref()
-            .and_then(|a| a.ext.as_ref().and_then(|p| p.dist.clone()))
-            .unwrap_or_else(|| "dist/ext".to_string()),
+        config::DEFAULT_EXT_DIR => (
+          config::DEFAULT_EXT_DIR.to_string(),
+          format!("dist/{}", config::DEFAULT_EXT_DIR),
         ),
-        "arch" => (
-          aindex
-            .as_ref()
-            .and_then(|a| a.arch.as_ref().and_then(|p| p.src.clone()))
-            .unwrap_or_else(|| "arch".to_string()),
-          aindex
-            .as_ref()
-            .and_then(|a| a.arch.as_ref().and_then(|p| p.dist.clone()))
-            .unwrap_or_else(|| "dist/arch".to_string()),
+        config::DEFAULT_ARCH_DIR => (
+          config::DEFAULT_ARCH_DIR.to_string(),
+          format!("dist/{}", config::DEFAULT_ARCH_DIR),
         ),
-        "softwares" => (
-          aindex
-            .as_ref()
-            .and_then(|a| a.softwares.as_ref().and_then(|p| p.src.clone()))
-            .unwrap_or_else(|| "softwares".to_string()),
-          aindex
-            .as_ref()
-            .and_then(|a| a.softwares.as_ref().and_then(|p| p.dist.clone()))
-            .unwrap_or_else(|| "dist/softwares".to_string()),
+        config::DEFAULT_SOFTWARES_DIR => (
+          config::DEFAULT_SOFTWARES_DIR.to_string(),
+          format!("dist/{}", config::DEFAULT_SOFTWARES_DIR),
         ),
         _ => unreachable!(),
       };
@@ -243,15 +191,8 @@ pub fn collect_readme(options_json: &str) -> Result<String, crate::CliError> {
 
   let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
-
-  let aindex_dir_name = options
-    .aindex
-    .as_ref()
-    .and_then(|a| a.dir.clone())
-    .unwrap_or_else(|| "aindex".to_string());
-  let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
-
-  let series_configs = get_series_configs(&options.aindex);
+  let aindex_dir = config::resolve_workspace_aindex_dir(&workspace_dir_str);
+  let series_configs = get_series_configs();
 
   if let Err(e) = detect_project_name_conflicts(&aindex_dir, &series_configs) {
     return Err(crate::CliError::ConfigError(e));

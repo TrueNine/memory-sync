@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -14,18 +12,7 @@ use crate::repositories::localized_reader::read_flat_files;
 struct RuleInputOptions {
   workspace_dir: String,
   #[serde(default)]
-  aindex: Option<RuleAindexInput>,
-  #[serde(default)]
   global_scope: Option<Value>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RuleAindexInput {
-  #[serde(default)]
-  dir: Option<String>,
-  #[serde(default)]
-  rules: Option<String>,
 }
 
 fn validate_rule_metadata(
@@ -171,21 +158,7 @@ pub fn collect_rule(options_json: &str) -> Result<String, crate::CliError> {
 
   let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
-
-  let aindex_dir_name = options
-    .aindex
-    .as_ref()
-    .and_then(|a| a.dir.clone())
-    .unwrap_or_else(|| "aindex".to_string());
-  let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
-
-  let dir = aindex_dir.join(
-    options
-      .aindex
-      .as_ref()
-      .and_then(|a| a.rules.as_deref())
-      .unwrap_or("rules"),
-  );
+  let dir = config::resolve_workspace_aindex_rules_dir(&workspace_dir_str);
 
   let dir_str = dir.to_string_lossy().into_owned();
 
@@ -249,11 +222,7 @@ mod tests {
   #[test]
   fn collect_rule_loads_compiled_only() {
     let tmp = TempDir::new().unwrap();
-    let dir = tmp
-      .path()
-      .join("aindex")
-      .join("rules")
-      .join("qa");
+    let dir = tmp.path().join("aindex").join("rules").join("qa");
     fs::create_dir_all(&dir).unwrap();
     fs::write(
       dir.join("boot.mdx"),
@@ -285,11 +254,7 @@ mod tests {
   #[test]
   fn collect_rule_rejects_workspace_scope() {
     let tmp = TempDir::new().unwrap();
-    let dir = tmp
-      .path()
-      .join("aindex")
-      .join("rules")
-      .join("qa");
+    let dir = tmp.path().join("aindex").join("rules").join("qa");
     fs::create_dir_all(&dir).unwrap();
     fs::write(
       dir.join("boot.mdx"),

@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use serde::{Deserialize, Serialize};
 
 use crate::domain::config;
@@ -9,15 +7,6 @@ use crate::domain::plugin_shared::{RootPath, Workspace};
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceInputOptions {
   pub workspace_dir: String,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub aindex: Option<AindexInputOptions>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AindexInputOptions {
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,13 +22,7 @@ pub fn collect_workspace(options_json: &str) -> Result<String, crate::CliError> 
 
   let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
-
-  let aindex_dir_name = options
-    .aindex
-    .as_ref()
-    .and_then(|a| a.dir.clone())
-    .unwrap_or_else(|| "aindex".to_string());
-  let aindex_dir = Path::new(&workspace_dir_str).join(&aindex_dir_name);
+  let aindex_dir = config::resolve_workspace_aindex_dir(&workspace_dir_str);
   let aindex_dir_str = aindex_dir.to_string_lossy().into_owned();
 
   let workspace = Workspace {

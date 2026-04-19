@@ -1,3 +1,9 @@
+//! 验证代理映射逻辑: aindex/public 下的路径通过前缀转换规则映射到原始的 dotfile 名称。
+//!
+//! **断言**:
+//! - `install` 使用转换后的路径读取 aindex/public 中的文件 (文件解析)
+//! - 代理前缀规则正确转换 dotfile 路径 (.git/ -> ____.git/ 等) (路径映射正确性)
+
 use tnmsc_integrate_tests::{install_packaged_cli_container};
 
 #[test]
@@ -6,7 +12,7 @@ fn packaged_cli_proxy_mapping_reads_public_files_via_transformed_paths() {
 
   container
     .setup()
-    .mkdir_p("/workspace/demo/aindex/dist")
+    .mkdir_p("/workspace/demo/aindex")
     .mkdir_p("/workspace/demo/aindex/public/____.git/info")
     .mkdir_p("/workspace/demo/aindex/public/____.zed")
     .mkdir_p("/workspace/demo/aindex/public/____vscode")
@@ -22,11 +28,11 @@ fn packaged_cli_proxy_mapping_reads_public_files_via_transformed_paths() {
 }"#,
     )
     .write_file(
-      "/workspace/demo/aindex/dist/global.mdx",
+      "/workspace/demo/aindex/global.src.mdx",
       "Global memory from aindex",
     )
     .write_file(
-      "/workspace/demo/aindex/dist/workspace.mdx",
+      "/workspace/demo/aindex/workspace.src.mdx",
       "Workspace root prompt from aindex",
     )
     .write_file(

@@ -11,32 +11,6 @@ use crate::domain::plugin_shared::{Project, RelativePath, RootPath, Workspace};
 #[serde(rename_all = "camelCase")]
 struct AindexInputOptions {
   workspace_dir: String,
-  #[serde(default)]
-  aindex_resolvers: Option<AindexResolversInput>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AindexResolversInput {
-  #[serde(default)]
-  dir: Option<String>,
-  #[serde(default)]
-  app: Option<SeriesPair>,
-  #[serde(default)]
-  ext: Option<SeriesPair>,
-  #[serde(default)]
-  arch: Option<SeriesPair>,
-  #[serde(default)]
-  softwares: Option<SeriesPair>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SeriesPair {
-  #[serde(default)]
-  src: Option<String>,
-  #[serde(default)]
-  dist: Option<String>,
 }
 
 struct SeriesConfig {
@@ -45,52 +19,26 @@ struct SeriesConfig {
   dist: String,
 }
 
-const SERIES_NAMES: &[&str] = &["app", "ext", "arch", "softwares"];
-
-fn get_series_configs(aindex_resolvers: &Option<AindexResolversInput>) -> Vec<SeriesConfig> {
-  SERIES_NAMES
+fn get_series_configs() -> Vec<SeriesConfig> {
+  config::DEFAULT_PROJECT_SERIES
     .iter()
-    .map(|name| {
-      let (src, dist) = match *name {
-        "app" => (
-          aindex_resolvers
-            .as_ref()
-            .and_then(|a| a.app.as_ref().and_then(|p| p.src.clone()))
-            .unwrap_or_else(|| "app".to_string()),
-          aindex_resolvers
-            .as_ref()
-            .and_then(|a| a.app.as_ref().and_then(|p| p.dist.clone()))
-            .unwrap_or_else(|| "dist/app".to_string()),
+    .map(|&name| {
+      let (src, dist) = match name {
+        config::DEFAULT_APP_DIR => (
+          config::DEFAULT_APP_DIR.to_string(),
+          format!("dist/{}", config::DEFAULT_APP_DIR),
         ),
-        "ext" => (
-          aindex_resolvers
-            .as_ref()
-            .and_then(|a| a.ext.as_ref().and_then(|p| p.src.clone()))
-            .unwrap_or_else(|| "ext".to_string()),
-          aindex_resolvers
-            .as_ref()
-            .and_then(|a| a.ext.as_ref().and_then(|p| p.dist.clone()))
-            .unwrap_or_else(|| "dist/ext".to_string()),
+        config::DEFAULT_EXT_DIR => (
+          config::DEFAULT_EXT_DIR.to_string(),
+          format!("dist/{}", config::DEFAULT_EXT_DIR),
         ),
-        "arch" => (
-          aindex_resolvers
-            .as_ref()
-            .and_then(|a| a.arch.as_ref().and_then(|p| p.src.clone()))
-            .unwrap_or_else(|| "arch".to_string()),
-          aindex_resolvers
-            .as_ref()
-            .and_then(|a| a.arch.as_ref().and_then(|p| p.dist.clone()))
-            .unwrap_or_else(|| "dist/arch".to_string()),
+        config::DEFAULT_ARCH_DIR => (
+          config::DEFAULT_ARCH_DIR.to_string(),
+          format!("dist/{}", config::DEFAULT_ARCH_DIR),
         ),
-        "softwares" => (
-          aindex_resolvers
-            .as_ref()
-            .and_then(|a| a.softwares.as_ref().and_then(|p| p.src.clone()))
-            .unwrap_or_else(|| "softwares".to_string()),
-          aindex_resolvers
-            .as_ref()
-            .and_then(|a| a.softwares.as_ref().and_then(|p| p.dist.clone()))
-            .unwrap_or_else(|| "dist/softwares".to_string()),
+        config::DEFAULT_SOFTWARES_DIR => (
+          config::DEFAULT_SOFTWARES_DIR.to_string(),
+          format!("dist/{}", config::DEFAULT_SOFTWARES_DIR),
         ),
         _ => unreachable!(),
       };
@@ -188,20 +136,13 @@ pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::Cli
 
   let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
-
-  let aindex_dir_name = options
-    .aindex_resolvers
-    .as_ref()
-    .and_then(|a| a.dir.clone())
-    .unwrap_or_else(|| "aindex".to_string());
-  let aindex_dir = Path::new(&workspace_dir_str).join(aindex_dir_name);
+  let aindex_dir = config::resolve_workspace_aindex_dir(&workspace_dir_str);
   let aindex_name = aindex_dir
     .file_name()
     .and_then(|s| s.to_str())
-    .unwrap_or("aindex")
+    .unwrap_or(config::DEFAULT_AINDEX_DIR_NAME)
     .to_string();
-
-  let series_configs = get_series_configs(&options.aindex_resolvers);
+  let series_configs = get_series_configs();
 
   detect_project_name_conflicts(&aindex_dir, &series_configs)
     .map_err(crate::CliError::ConfigError)?;
