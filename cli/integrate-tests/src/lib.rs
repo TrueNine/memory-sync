@@ -18,6 +18,7 @@ pub const EXPECTED_SUBCOMMANDS: &[&str] = &["install", "dry-run", "clean", "vers
 pub const PACKAGED_PLATFORM_PACKAGE: &str = "@truenine/memory-sync-cli-linux-x64-gnu";
 
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
+static RELEASE_TEST_API_BINARY_BUILT: OnceLock<()> = OnceLock::new();
 
 pub struct CommandResult {
   pub status: i32,
@@ -84,12 +85,14 @@ pub struct StagedPackageRoot {
   _temp_dir: TestDir,
   pub package_root: PathBuf,
   pub linux_binary: PathBuf,
+  pub test_api_binary: PathBuf,
 }
 
 pub struct PackedArtifacts {
   _temp_dir: TestDir,
   pub cli_tarball: PathBuf,
   pub linux_tarball: PathBuf,
+  pub test_api_binary: PathBuf,
 }
 
 pub struct TestContainer {
@@ -116,6 +119,11 @@ impl TestContainer {
       "Linux tarball does not exist: {}",
       artifacts.linux_tarball.display()
     );
+    assert!(
+      artifacts.test_api_binary.is_file(),
+      "Test API binary does not exist: {}",
+      artifacts.test_api_binary.display()
+    );
 
     let image = GenericImage::new(DOCKER_IMAGE_NAME, DOCKER_IMAGE_TAG)
       .with_wait_for(WaitFor::seconds(1))
@@ -128,6 +136,10 @@ impl TestContainer {
       .with_copy_to(
         "/artifacts/linux-x64-gnu.tgz",
         artifacts.linux_tarball.as_path(),
+      )
+      .with_copy_to(
+        "/test-bin/tnmsc-test-api",
+        artifacts.test_api_binary.as_path(),
       );
 
     let container = image
@@ -392,8 +404,45 @@ pub fn ensure_release_binary() {
   );
 }
 
+pub fn ensure_release_test_api_binary() {
+  RELEASE_TEST_API_BINARY_BUILT.get_or_init(|| {
+    let result = run_program(
+      "cargo",
+      &[
+        "build",
+        "--release",
+        "-p",
+        "tnmsc",
+        "--bin",
+        "tnmsc-test-api",
+      ],
+      &workspace_root(),
+    );
+    result.assert_success("cargo build --release -p tnmsc --bin tnmsc-test-api");
+  });
+
+  let binary = release_test_api_binary_path();
+  assert!(
+    binary.is_file(),
+    "missing release test API binary at {}",
+    binary.display()
+  );
+}
+
 pub fn release_binary_path() -> PathBuf {
   let binary_name = if cfg!(windows) { "tnmsc.exe" } else { "tnmsc" };
+  workspace_root()
+    .join("target")
+    .join("release")
+    .join(binary_name)
+}
+
+pub fn release_test_api_binary_path() -> PathBuf {
+  let binary_name = if cfg!(windows) {
+    "tnmsc-test-api.exe"
+  } else {
+    "tnmsc-test-api"
+  };
   workspace_root()
     .join("target")
     .join("release")
@@ -442,16 +491,19 @@ pub fn create_staged_package_root() -> StagedPackageRoot {
     .join("linux-x64-gnu")
     .join("bin")
     .join("tnmsc");
+  let test_api_binary = release_test_api_binary_path();
 
   StagedPackageRoot {
     _temp_dir: temp_dir,
     package_root,
     linux_binary,
+    test_api_binary,
   }
 }
 
 pub fn pack_cli_artifacts() -> PackedArtifacts {
   ensure_release_binary();
+  ensure_release_test_api_binary();
 
   let temp_dir = TestDir::new("tnmsc-packed-artifacts");
   let staged = create_staged_package_root();
@@ -479,6 +531,7 @@ pub fn pack_cli_artifacts() -> PackedArtifacts {
     _temp_dir: temp_dir,
     cli_tarball,
     linux_tarball,
+    test_api_binary: staged.test_api_binary,
   }
 }
 

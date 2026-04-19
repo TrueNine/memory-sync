@@ -147,7 +147,10 @@ globalThis.Deno = {{
       .map_err(|error| format!("Failed to parse embedded script output: {error}"))?;
 
     if !captured.stderr.trim().is_empty() {
-      return Err(format!("Script execution failed: {}", captured.stderr.trim()));
+      return Err(format!(
+        "Script execution failed: {}",
+        captured.stderr.trim()
+      ));
     }
 
     Ok(captured.stdout)
@@ -280,9 +283,7 @@ impl TypescriptModuleLoader {
 
     let media_type = MediaType::from_path(&path);
     let (module_type, should_transpile) = match media_type {
-      MediaType::JavaScript | MediaType::Mjs | MediaType::Cjs => {
-        (ModuleType::JavaScript, false)
-      }
+      MediaType::JavaScript | MediaType::Mjs | MediaType::Cjs => (ModuleType::JavaScript, false),
       MediaType::Jsx => (ModuleType::JavaScript, true),
       MediaType::TypeScript
       | MediaType::Mts
@@ -407,7 +408,10 @@ mod tests {
     .unwrap();
 
     let result = runtime.load_project_config(tmp.path(), "myproject", "app", tmp.path());
-    assert!(result.is_ok(), "expected JSON project config, got: {result:?}");
+    assert!(
+      result.is_ok(),
+      "expected JSON project config, got: {result:?}"
+    );
     assert_eq!(result.unwrap()["name"], "myproject");
   }
 
@@ -432,7 +436,10 @@ console.log(`proxied/${ctx.logicalPath}`)
       serde_json::json!({ "kind": "skill" }),
     );
 
-    assert!(result.is_ok(), "expected arbitrary proxy execution, got: {result:?}");
+    assert!(
+      result.is_ok(),
+      "expected arbitrary proxy execution, got: {result:?}"
+    );
     assert_eq!(result.unwrap().trim(), "proxied/notes/today.md");
   }
 }

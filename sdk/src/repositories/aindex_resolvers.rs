@@ -5,7 +5,9 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::domain::config;
+use crate::domain::plugin_shared::Diagnostic;
 use crate::domain::plugin_shared::{Project, RelativePath, RootPath, Workspace};
+use crate::infra::deno_runtime::DenoRuntime;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -90,17 +92,111 @@ fn load_project_config(project_name: &str, config_path: &Path) -> Result<Option<
   }
 }
 
+fn push_project_config_diagnostic(diagnostics: &mut Vec<Diagnostic>, code: &str, title: String) {
+  diagnostics.push(Diagnostic {
+    level: "warn".to_string(),
+    code: code.to_string(),
+    title,
+    exact_fix: Some(vec![
+      "Fix the project config script or JSON5 file and rerun tnmsc.".to_string(),
+    ]),
+  });
+}
+
+fn load_project_runtime_config(
+  runtime: &DenoRuntime,
+  workspace_dir: &Path,
+  aindex_dir: &Path,
+  project_name: &str,
+  series_name: &str,
+) -> Result<Option<Value>, String> {
+  let config_path = aindex_dir
+    .join(series_name)
+    .join(project_name)
+    .join("project.config.ts");
+  if !config_path.is_file() {
+    return Ok(None);
+  }
+
+  runtime
+    .load_project_config(aindex_dir, project_name, series_name, workspace_dir)
+    .map(Some)
+    .map_err(|error| {
+      format!(
+        "AINDEX_PROJECT_CONFIG_TS_INVALID: Failed to load project.config.ts for {project_name}: {error}"
+      )
+    })
+}
+
+fn resolve_project_config(
+  runtime: Option<&DenoRuntime>,
+  workspace_dir: &Path,
+  aindex_dir: &Path,
+  project_name: &str,
+  series_name: &str,
+  diagnostics: &mut Vec<Diagnostic>,
+) -> Option<Value> {
+  if let Some(runtime) = runtime {
+    match load_project_runtime_config(
+      runtime,
+      workspace_dir,
+      aindex_dir,
+      project_name,
+      series_name,
+    ) {
+      Ok(Some(config)) => {
+        return Some(config);
+      }
+      Ok(None) => {}
+      Err(error) => {
+        if error.starts_with("AINDEX_PROJECT_CONFIG_TS_INVALID:") {
+          push_project_config_diagnostic(
+            diagnostics,
+            "AINDEX_PROJECT_CONFIG_TS_INVALID",
+            format!("Failed to parse project.config.ts for {project_name}"),
+          );
+          return None;
+        }
+      }
+    }
+  }
+
+  let config_path = aindex_dir
+    .join(series_name)
+    .join(project_name)
+    .join("project.json5");
+  match load_project_config(project_name, &config_path) {
+    Ok(config) => config,
+    Err(error) => {
+      if error.starts_with("AINDEX_PROJECT_JSON5_INVALID:") {
+        push_project_config_diagnostic(
+          diagnostics,
+          "AINDEX_PROJECT_JSON5_INVALID",
+          format!("Failed to parse project.json5 for {project_name}"),
+        );
+      }
+      None
+    }
+  }
+}
+
 fn load_fallback_project_config(
   project_name: &str,
+  runtime: Option<&DenoRuntime>,
+  workspace_dir: &Path,
   aindex_dir: &Path,
   series_configs: &[SeriesConfig],
+  diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<Value> {
   for series in series_configs {
-    let config_path = aindex_dir
-      .join(series.name)
-      .join(project_name)
-      .join("project.json5");
-    if let Ok(Some(config)) = load_project_config(project_name, &config_path) {
+    if let Some(config) = resolve_project_config(
+      runtime,
+      workspace_dir,
+      aindex_dir,
+      project_name,
+      series.name,
+      diagnostics,
+    ) {
       return Some(config);
     }
   }
@@ -120,12 +216,13 @@ pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::Cli
     .unwrap_or(config::DEFAULT_AINDEX_DIR_NAME)
     .to_string();
   let series_configs = get_series_configs();
+  let runtime = DenoRuntime::new().ok();
 
   detect_project_name_conflicts(&aindex_dir, &series_configs)
     .map_err(crate::CliError::ConfigError)?;
 
   let mut projects: Vec<Project> = Vec::new();
-  let mut diagnostics: Vec<crate::domain::plugin_shared::Diagnostic> = Vec::new();
+  let mut diagnostics: Vec<Diagnostic> = Vec::new();
 
   for series in &series_configs {
     let series_dir = aindex_dir.join(series.name);
@@ -146,26 +243,14 @@ pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::Cli
 
     for project_name in entries {
       let is_prompt_source_project = project_name == aindex_name;
-      let config_path = aindex_dir
-        .join(series.name)
-        .join(&project_name)
-        .join("project.json5");
-      let project_config = match load_project_config(&project_name, &config_path) {
-        Ok(c) => c,
-        Err(e) => {
-          if e.starts_with("AINDEX_PROJECT_JSON5_INVALID:") {
-            diagnostics.push(crate::domain::plugin_shared::Diagnostic {
-              level: "warn".to_string(),
-              code: "AINDEX_PROJECT_JSON5_INVALID".to_string(),
-              title: format!("Failed to parse project.json5 for {}", project_name),
-              exact_fix: Some(vec![
-                "Fix the JSON5 syntax in project.json5 and rerun tnmsc.".to_string(),
-              ]),
-            });
-          }
-          None
-        }
-      };
+      let project_config = resolve_project_config(
+        runtime.as_ref(),
+        &workspace_dir,
+        &aindex_dir,
+        &project_name,
+        series.name,
+        &mut diagnostics,
+      );
 
       projects.push(Project {
         name: Some(project_name.clone()),
@@ -199,8 +284,14 @@ pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::Cli
 
     for project_name in sorted {
       let is_prompt_source_project = project_name == aindex_name;
-      let project_config =
-        load_fallback_project_config(&project_name, &aindex_dir, &series_configs);
+      let project_config = load_fallback_project_config(
+        &project_name,
+        runtime.as_ref(),
+        &workspace_dir,
+        &aindex_dir,
+        &series_configs,
+        &mut diagnostics,
+      );
 
       projects.push(Project {
         name: Some(project_name.clone()),
@@ -280,6 +371,36 @@ mod tests {
   }
 
   #[test]
+  fn collect_aindex_prefers_project_config_ts_over_project_json5() {
+    let tmp = TempDir::new().unwrap();
+    let src = tmp.path().join("aindex").join("app").join("project-a");
+    fs::create_dir_all(&src).unwrap();
+    fs::write(
+      src.join("project.config.ts"),
+      r#"
+const ctx = globalThis.__tnmsContext ?? {};
+console.log(JSON.stringify({
+  source: 'ts',
+  projectName: ctx.projectName,
+  seriesName: ctx.seriesName
+}));
+"#,
+    )
+    .unwrap();
+    fs::write(src.join("project.json5"), "{ source: 'json5' }").unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
+    let project = &parsed["workspace"]["projects"][0];
+    assert_eq!(project["projectConfig"]["source"], "ts");
+    assert_eq!(project["projectConfig"]["projectName"], "project-a");
+  }
+
+  #[test]
   fn collect_aindex_ignores_project_jsonc() {
     let tmp = TempDir::new().unwrap();
     let src = tmp.path().join("aindex").join("app").join("project-b");
@@ -326,6 +447,34 @@ mod tests {
       diagnostics
         .iter()
         .any(|d| d["code"] == "AINDEX_PROJECT_JSON5_INVALID")
+    );
+  }
+
+  #[test]
+  fn collect_aindex_emits_error_for_invalid_project_config_ts() {
+    let tmp = TempDir::new().unwrap();
+    let src = tmp.path().join("aindex").join("app").join("project-ts");
+    fs::create_dir_all(&src).unwrap();
+    fs::write(
+      src.join("project.config.ts"),
+      "console.log('{ invalid json');",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_aindex_resolvers(&options.to_string()).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
+    let project = &parsed["workspace"]["projects"][0];
+    assert_eq!(project["name"], "project-ts");
+    assert!(project["projectConfig"].is_null());
+    let diagnostics = parsed["diagnostics"].as_array().unwrap();
+    assert!(
+      diagnostics
+        .iter()
+        .any(|d| d["code"] == "AINDEX_PROJECT_CONFIG_TS_INVALID")
     );
   }
 
