@@ -41,6 +41,11 @@ aindex 内容树位于：
 - `global.src.mdx`
 - `workspace.src.mdx`
 
+这里也包含两类和 TypeScript 运行时直接相关的约定文件：
+
+- 分布在各个内容目录中的 `proxy.ts`
+- `<series>/<project>/project.config.ts`
+
 ### 用户配置
 
 当前 `tnmsc` 唯一会自动加载的用户配置文件是：
@@ -50,6 +55,167 @@ aindex 内容树位于：
 ```
 
 当前加载器不会从当前项目目录自动发现 `./.tnmsc.json`。
+
+## `proxy.ts` 与 `project.config.ts`
+
+这两个文件都属于工作区 `aindex` 内容树的一部分，不属于 `~/.aindex/.tnmsc.json`。
+
+### `proxy.ts` 的作用
+
+`proxy.ts` 不是只能放在 `aindex/public` 下。
+
+它可以位于 `aindex` 内容树中的很多位置，例如：
+
+```text
+<workspaceDir>/aindex/app/.../proxy.ts
+<workspaceDir>/aindex/softwares/.../proxy.ts
+<workspaceDir>/aindex/arch/.../proxy.ts
+<workspaceDir>/aindex/ext/.../proxy.ts
+<workspaceDir>/aindex/commands/.../proxy.ts
+<workspaceDir>/aindex/skills/.../proxy.ts
+<workspaceDir>/aindex/subagents/.../proxy.ts
+```
+
+它的通用作用是：
+
+- 为当前内容单元定义路径转换规则
+- 把逻辑引用路径转换成实际应当读取、写入或解析的目标路径
+- 让路径规则跟随具体内容单元本身，而不是全部硬编码在 Rust 中
+
+也就是说，`proxy.ts` 更像是“局部路径解析器”或“路径转换钩子”。
+
+#### `aindex/public/proxy.ts` 这个特例
+
+其中一个常见特例是：
+
+```text
+<workspaceDir>/aindex/public/proxy.ts
+```
+
+这个文件负责公共内容树下的路径转换，尤其是 dotfile 映射。
+
+典型场景：
+
+- 把 `.git/info/exclude`、`.vscode/settings.json` 这类 dotfile 路径映射到 `____.git/info/exclude`、`____vscode/settings.json`
+- `tnmsc install`、`dry-run` 等流程会通过 SDK 运行时调用它
+
+当前 Rust 侧入口是：
+
+- `DenoRuntime::resolve_public_path(...)`
+- 更上层的 `resolve_public_path_impl(...)`
+
+调用时，运行时会把上下文挂到 `globalThis.__tnmsContext`，其中至少包含：
+
+```json
+{
+  "logicalPath": ".git/info/exclude"
+}
+```
+
+从用法上说，`proxy.ts` 一般应当做的事很简单：
+
+- 读取 `globalThis.__tnmsContext.logicalPath`
+- 计算出目标相对路径
+- 用 `console.log(...)` 输出最终结果
+
+最小示例：
+
+```ts
+const ctx = (globalThis as typeof globalThis & {
+  __tnmsContext?: { logicalPath?: string }
+}).__tnmsContext
+
+const logicalPath = ctx?.logicalPath ?? ''
+const normalized = logicalPath.replaceAll('\\', '/')
+
+if (normalized.startsWith('.git/')) {
+  console.log(normalized.replace('.git/', '____.git/'))
+} else if (normalized.startsWith('.vscode/')) {
+  console.log(normalized.replace('.vscode/', '____vscode/'))
+} else {
+  console.log(normalized)
+}
+```
+
+返回约定：
+
+- 输出必须是一个相对路径字符串
+- Rust 侧会继续做安全校验，拒绝绝对路径和 `..` 逃逸路径
+
+如果你的内容单元本身也有局部路径解析需求，那么它自己的 `proxy.ts` 可以放在对应目录下，而不必复用 `aindex/public/proxy.ts`。
+
+### `aindex/<series>/<project>/project.config.ts` 的作用
+
+位置：
+
+```text
+<workspaceDir>/aindex/<series>/<project>/project.config.ts
+```
+
+例如：
+
+```text
+<workspaceDir>/aindex/app/myproject/project.config.ts
+```
+
+作用：
+
+- 为某个项目提供程序化配置
+- 允许脚本根据工作区路径、项目名、系列名等上下文生成最终配置
+- SDK 通过 `DenoRuntime::load_project_config(...)` 加载它
+
+调用时，运行时会把上下文挂到 `globalThis.__tnmsContext`，其中包含：
+
+```json
+{
+  "workspaceDir": "/repo/demo",
+  "aindexDir": "/repo/demo/aindex",
+  "projectName": "myproject",
+  "seriesName": "app"
+}
+```
+
+当前实现下，这个脚本的最直接写法是：
+
+- 从 `globalThis.__tnmsContext` 读取上下文
+- 组装一个普通 JSON 对象
+- 用 `console.log(JSON.stringify(...))` 输出
+
+最小示例：
+
+```ts
+const ctx = (globalThis as typeof globalThis & {
+  __tnmsContext?: {
+    workspaceDir?: string
+    aindexDir?: string
+    projectName?: string
+    seriesName?: string
+  }
+}).__tnmsContext
+
+console.log(
+  JSON.stringify({
+    name: ctx?.projectName,
+    series: ctx?.seriesName,
+    workspaceDir: ctx?.workspaceDir,
+    aindexDir: ctx?.aindexDir,
+    enabled: true
+  })
+)
+```
+
+返回约定：
+
+- 标准输出必须是可解析的 JSON 文本
+- Rust 侧会把这段输出再解析成 `serde_json::Value`
+
+### 什么时候该用它们
+
+- 需要给某个内容单元定义局部路径转换规则时，用它附近的 `proxy.ts`
+- 需要把逻辑上的 dotfile 路径映射到 `aindex/public` 中的真实存储路径时，用 `aindex/public/proxy.ts`
+- 需要给某个项目生成动态配置，而不是写死在静态 JSON 里时，用 `project.config.ts`
+
+如果你只是配置用户偏好、日志级别、插件启停或 `workspaceDir`，不要写进这两个脚本，而应当放在 `~/.aindex/.tnmsc.json` 或项目级 [plugin.config.ts](/docs/cli/plugin-config) 中。
 
 ## 最小准备
 
