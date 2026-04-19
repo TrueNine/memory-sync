@@ -28,25 +28,6 @@
     "prompt-management",
     "ruleset-sync"
   ],
-  "scripts": {
-    "bootstrap": "tsx scripts/bootstrap/bootstrap.ts",
-    "build": "turbo run build --ui=stream --log-order=grouped",
-    "test": "turbo run test --ui=stream --log-order=grouped",
-    "test:rust": "cargo test --workspace --exclude memory-sync-gui --exclude tnmsc-integration-tests --exclude tnmsm-integration-tests --lib --bins --tests",
-    "test:gui": "pnpm -C gui test",
-    "test:docs": "pnpm -C doc run validate:content && pnpm -C doc run build",
-    "test:cli:integration": "cargo test -p tnmsc-integration-tests",
-    "test:cli:contracts": "cargo test -p tnmsc-integration-tests --test command_contract",
-    "test:cli:packaging-smoke": "cargo test -p tnmsc-integration-tests --test packaging_smoke -- --nocapture",
-    "test:mcp:integration": "cargo test -p tnmsm-integration-tests",
-    "test:mcp:packaging-smoke": "cargo test -p tnmsm-integration-tests --test packaging_smoke -- --nocapture",
-    "lint": "turbo run lint --ui=stream --log-order=grouped",
-    "lint:fix": "turbo run lint:fix --ui=stream --log-order=grouped",
-    "check:type": "turbo run check:type --ui=stream --log-order=grouped",
-    "dev:doc": "pnpm -C doc dev",
-    "build:doc": "pnpm -C doc build",
-    "sync-versions": "tsx .githooks/sync-versions.ts"
-  },
   "author": {
     "email": "truenine304520@gmail.com",
     "name": "TrueNine",
@@ -64,29 +45,7 @@
   },
   "packageManager": "pnpm@10.33.0",
   "devDependencies": {
-    "@antfu/eslint-config": "catalog:",
-    "@eslint/js": "catalog:",
-    "@next/eslint-plugin-next": "catalog:",
-    "@truenine/eslint10-config": "catalog:",
-    "@unocss/eslint-config": "catalog:",
-    "@vue/eslint-config-prettier": "catalog:",
-    "@vue/eslint-config-typescript": "catalog:",
-    "@types/node": "catalog:",
-    "eslint": "catalog:",
-    "eslint-plugin-format": "catalog:",
-    "eslint-plugin-prettier": "catalog:",
-    "eslint-plugin-vue": "catalog:",
-    "fast-check": "catalog:",
-    "npm-run-all2": "catalog:",
-    "prettier": "catalog:",
-    "simple-git-hooks": "^2.13.1",
-    "tsdown": "catalog:",
     "tsx": "catalog:",
-    "turbo": "catalog:",
-    "typescript": "catalog:",
-    "typescript-eslint": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:",
-    "zx": "catalog:"
+    "typescript": "catalog:"
   }
 }

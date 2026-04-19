@@ -1,11 +1,3 @@
-packages:
-  - cli
-  - cli/npm/*
-  - mcp
-  - mcp/npm/*
-  - gui
-  - doc
-
 catalog:
   "@antfu/eslint-config": ^8.2.0
   "@clack/prompts": ^1.2.0

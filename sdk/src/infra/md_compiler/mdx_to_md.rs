@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use super::expression_eval::EvaluationScope;
 use super::parser::parse_mdx;
 use super::serializer::serialize;
-use super::transformer::{transform_ast, ProcessingContext};
+use super::transformer::{ProcessingContext, transform_ast};
 
 /// Global scope for MDX compilation (os, env, profile, code style, tool info).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

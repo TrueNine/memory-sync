@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::plugin_shared::{
-  AIAgentIgnoreConfigFile, FastCommandPrompt, GlobalMemoryPrompt,
-  ProjectIDEConfigFile, ReadmePrompt, RulePrompt,
-  SkillPrompt, SubAgentPrompt, Workspace,
+  AIAgentIgnoreConfigFile, FastCommandPrompt, GlobalMemoryPrompt, ProjectIDEConfigFile,
+  ReadmePrompt, RulePrompt, SkillPrompt, SubAgentPrompt, Workspace,
 };
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

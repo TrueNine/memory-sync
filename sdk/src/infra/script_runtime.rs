@@ -2,6 +2,8 @@
 
 use std::path::{Component, Path, PathBuf};
 
+use crate::infra::deno_runtime::DenoRuntime;
+
 // ---------------------------------------------------------------------------
 // Public path proxy — pure Rust reimplementation of aindex/public/proxy.ts
 //
@@ -173,6 +175,22 @@ pub fn resolve_public_path_impl(
   let ctx: ResolvePublicPathContext = serde_json::from_str(ctx_json)
     .map_err(|error| format!("Invalid resolve_public_path context JSON: {error}"))?;
 
+  // Try Deno runtime first (if available)
+  let deno = DenoRuntime::new().ok();
+  if let Some(runtime) = deno {
+    if runtime.is_available() {
+      if let Ok(result) =
+        runtime.resolve_public_path(std::path::Path::new(&ctx.aindex_dir), logical_path)
+      {
+        // Validate the result from Deno
+        let aindex_public_dir = build_aindex_public_dir(&ctx.aindex_dir)?;
+        return validate_public_path_impl(&result, &aindex_public_dir.to_string_lossy());
+      }
+      // Fall through to Rust implementation if Deno fails
+    }
+  }
+
+  // Fall back to built-in Rust implementation
   let proxied = proxy_public_path(logical_path);
 
   let aindex_public_dir = build_aindex_public_dir(&ctx.aindex_dir)?;

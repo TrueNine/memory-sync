@@ -3,7 +3,7 @@
 //! Walks the mdast AST, evaluating expressions, expanding components,
 //! and converting JSX elements to Markdown equivalents.
 
-use super::expression_eval::{evaluate_expression, EvaluationScope};
+use super::expression_eval::{EvaluationScope, evaluate_expression};
 use super::serializer::serialize;
 use markdown::mdast::*;
 use serde_json::{Number, Value};

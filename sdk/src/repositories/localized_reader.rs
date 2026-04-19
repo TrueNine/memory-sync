@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use crate::repositories::prompt_artifact::{read_prompt_artifact, PromptArtifact};
+use crate::repositories::prompt_artifact::{PromptArtifact, read_prompt_artifact};
 
 #[derive(Debug, Clone)]
 pub struct FlatFileEntry {
@@ -62,11 +62,23 @@ fn scan_directory(
     };
 
     let (base_name, is_zh_source, is_en_source) = if file_name.ends_with(".zh.src.mdx") {
-      (&file_name[..file_name.len() - ".zh.src.mdx".len()], true, false)
+      (
+        &file_name[..file_name.len() - ".zh.src.mdx".len()],
+        true,
+        false,
+      )
     } else if file_name.ends_with(".en.src.mdx") {
-      (&file_name[..file_name.len() - ".en.src.mdx".len()], false, true)
+      (
+        &file_name[..file_name.len() - ".en.src.mdx".len()],
+        false,
+        true,
+      )
     } else if file_name.ends_with(".src.mdx") {
-      (&file_name[..file_name.len() - ".src.mdx".len()], true, false)
+      (
+        &file_name[..file_name.len() - ".src.mdx".len()],
+        true,
+        false,
+      )
     } else if file_name.ends_with(".cn.mdx") {
       continue;
     } else if file_name.ends_with(".mdx") {
@@ -81,8 +93,16 @@ fn scan_directory(
       format!("{}/{}", relative_parent_str, base_name)
     };
 
-    let artifact = read_prompt_artifact(path.to_str().unwrap_or(""), if is_zh_source || is_en_source { "source" } else { "dist" }, global_scope_json)
-      .map_err(|e| crate::CliError::ConfigError(e))?;
+    let artifact = read_prompt_artifact(
+      path.to_str().unwrap_or(""),
+      if is_zh_source || is_en_source {
+        "source"
+      } else {
+        "dist"
+      },
+      global_scope_json,
+    )
+    .map_err(|e| crate::CliError::ConfigError(e))?;
 
     if let Some(existing) = entries.iter_mut().find(|e| e.name == full_name) {
       if is_zh_source {

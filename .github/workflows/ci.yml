@@ -39,7 +39,7 @@ jobs:
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
-              - 'turbo.json'
+              - 'xtask/**'
             gui:
               - 'gui/**'
               - '.github/actions/build-gui-platform/action.yml'
@@ -49,7 +49,7 @@ jobs:
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
-              - 'turbo.json'
+              - 'xtask/**'
 
   validate-monorepo:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
@@ -65,13 +65,13 @@ jobs:
           cache-key: ci
 
       - name: Lint
-        run: pnpm run lint
+        run: cargo run -p memory-sync-xtask -- lint
 
       - name: Typecheck
-        run: pnpm run check:type
+        run: cargo run -p memory-sync-xtask -- check-type
 
       - name: Build
-        run: pnpm run build
+        run: cargo run -p memory-sync-xtask -- build
 
       - name: Rust tests
         run: cargo test --workspace --exclude memory-sync-gui --exclude tnmsc-integrate-tests --exclude tnmsm-integrate-tests --lib --bins --tests
@@ -118,7 +118,7 @@ jobs:
           version: ${{ steps.gui-version.outputs.version }}
 
       - name: Build GUI
-        run: pnpm -C gui build
+        run: cargo run -p memory-sync-xtask -- gui-build
 
       - name: Test GUI
         run: pnpm -C gui test

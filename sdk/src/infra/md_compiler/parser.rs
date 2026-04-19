@@ -2,7 +2,7 @@
 //!
 //! Parses MDX source into an mdast AST with MDX extensions, GFM, and frontmatter.
 
-use markdown::{mdast::Node, to_mdast, ParseOptions};
+use markdown::{ParseOptions, mdast::Node, to_mdast};
 
 /// Parse an MDX string into an mdast AST.
 ///

@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
+use crate::CliError;
 use crate::context::OutputContext;
+use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
 use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
-use crate::CliError;
 
 const TRAE_PLUGIN_NAME: &str = "TraeOutputAdaptor";
 const TRAE_STEERING_FILE: &str = "GLOBAL.md";

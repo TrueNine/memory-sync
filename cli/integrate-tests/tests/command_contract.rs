@@ -5,8 +5,7 @@
 //! - `version` 输出与当前包版本一致 (正确性)
 
 use tnmsc_integrate_tests::{
-  EXPECTED_SUBCOMMANDS, current_package_version,
-  install_packaged_cli_container,
+  EXPECTED_SUBCOMMANDS, current_package_version, install_packaged_cli_container,
 };
 
 #[test]

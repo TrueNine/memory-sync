@@ -4,14 +4,14 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::domain::config;
+use crate::CliError;
 use crate::context::OutputContext;
+use crate::domain::config;
 use crate::domain::plugin_shared::{
-  FastCommandPrompt, Project, RelativePath, RuleScope, SkillPrompt,
-  SkillResourceEncoding, Workspace,
+  FastCommandPrompt, Project, RelativePath, RuleScope, SkillPrompt, SkillResourceEncoding,
+  Workspace,
 };
 use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
-use crate::CliError;
 
 const DROID_PLUGIN_NAME: &str = "DroidCLIOutputAdaptor";
 const DROID_MEMORY_FILE: &str = "AGENTS.md";
@@ -54,9 +54,7 @@ pub fn collect_droid_output_plan(context_json: &str) -> Result<String, CliError>
   serde_json::to_string(&plan).map_err(CliError::from)
 }
 
-pub fn build_droid_output_plan(
-  context: &OutputContext,
-) -> Result<DroidOutputPlanDto, CliError> {
+pub fn build_droid_output_plan(context: &OutputContext) -> Result<DroidOutputPlanDto, CliError> {
   let workspace = context.workspace.as_ref().ok_or_else(|| {
     CliError::ExecutionError(
       "collectDroidOutputPlan requires collectedOutputContext.workspace".to_string(),

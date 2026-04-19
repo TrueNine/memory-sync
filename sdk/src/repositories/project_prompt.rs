@@ -438,11 +438,7 @@ mod tests {
     let tmp = TempDir::new().unwrap();
     let external_dir = tmp.path().join("external");
     fs::create_dir_all(&external_dir).unwrap();
-    fs::write(
-      external_dir.join("workspace.mdx"),
-      "Wrong workspace prompt",
-    )
-    .unwrap();
+    fs::write(external_dir.join("workspace.mdx"), "Wrong workspace prompt").unwrap();
 
     let workspace = create_workspace(&tmp.path().to_string_lossy().to_string(), vec![]);
     let options = serde_json::json!({

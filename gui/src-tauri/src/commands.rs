@@ -263,52 +263,25 @@ struct CategoryPaths {
 }
 
 fn resolve_category_paths(
-  config: &tnmsd::domain::config::UserConfigFile,
+  _config: &tnmsd::domain::config::UserConfigFile,
   category: &str,
 ) -> Result<CategoryPaths, String> {
-  let aindex = &config.aindex;
-
-  let resolve_dir = |dir: Option<&String>, default_dir: &str| -> CategoryPaths {
-    let dir_name = dir.map(|s| s.as_str()).unwrap_or(default_dir);
+  let resolve_dir = |default_dir: &str| -> CategoryPaths {
     CategoryPaths {
-      source_rel: dir_name.to_string(),
-      translated_rel: format!("dist/{}", dir_name),
+      source_rel: default_dir.to_string(),
+      translated_rel: format!("dist/{}", default_dir),
     }
   };
 
   match category {
-    "skills" => Ok(resolve_dir(
-      aindex.skills.as_ref(),
-      core_config::DEFAULT_SKILLS_DIR,
-    )),
-    "commands" => Ok(resolve_dir(
-      aindex.commands.as_ref(),
-      core_config::DEFAULT_COMMANDS_DIR,
-    )),
-    "agents" => Ok(resolve_dir(
-      aindex.sub_agents.as_ref(),
-      core_config::DEFAULT_SUB_AGENTS_DIR,
-    )),
-    "rules" => Ok(resolve_dir(
-      aindex.rules.as_ref(),
-      core_config::DEFAULT_RULES_DIR,
-    )),
-    "app" => Ok(resolve_dir(
-      aindex.app.as_ref(),
-      core_config::DEFAULT_APP_DIR,
-    )),
-    "ext" => Ok(resolve_dir(
-      aindex.ext.as_ref(),
-      core_config::DEFAULT_EXT_DIR,
-    )),
-    "arch" => Ok(resolve_dir(
-      aindex.arch.as_ref(),
-      core_config::DEFAULT_ARCH_DIR,
-    )),
-    "softwares" => Ok(resolve_dir(
-      aindex.softwares.as_ref(),
-      core_config::DEFAULT_SOFTWARES_DIR,
-    )),
+    "skills" => Ok(resolve_dir(core_config::DEFAULT_SKILLS_DIR)),
+    "commands" => Ok(resolve_dir(core_config::DEFAULT_COMMANDS_DIR)),
+    "agents" => Ok(resolve_dir(core_config::DEFAULT_SUB_AGENTS_DIR)),
+    "rules" => Ok(resolve_dir(core_config::DEFAULT_RULES_DIR)),
+    "app" => Ok(resolve_dir(core_config::DEFAULT_APP_DIR)),
+    "ext" => Ok(resolve_dir(core_config::DEFAULT_EXT_DIR)),
+    "arch" => Ok(resolve_dir(core_config::DEFAULT_ARCH_DIR)),
+    "softwares" => Ok(resolve_dir(core_config::DEFAULT_SOFTWARES_DIR)),
     _ => Err("Unsupported category".to_string()),
   }
 }
@@ -359,26 +332,22 @@ fn collect_root_memory_prompt_files(
 }
 
 fn collect_root_memory_prompt_pairs(
-  config: &tnmsd::domain::config::UserConfigFile,
+  _config: &tnmsd::domain::config::UserConfigFile,
 ) -> Vec<(String, String)> {
-  let aindex = &config.aindex;
   [
     (
-      aindex.global_prompt.as_ref(),
       core_config::DEFAULT_GLOBAL_PROMPT,
+      core_config::DEFAULT_GLOBAL_PROMPT_COMPILED,
     ),
     (
-      aindex.workspace_prompt.as_ref(),
       core_config::DEFAULT_WORKSPACE_PROMPT,
+      core_config::DEFAULT_WORKSPACE_PROMPT_COMPILED,
     ),
   ]
   .into_iter()
-  .map(|(dir, default_dir)| {
-    let source_rel = dir
-      .map(|s| s.as_str())
-      .unwrap_or(default_dir)
-      .replace('\\', "/");
-    let translated_rel = format!("dist/{}", source_rel.replace(".src.", "."));
+  .map(|(source, compiled)| {
+    let source_rel = source.replace('\\', "/");
+    let translated_rel = format!("dist/{}", compiled);
     (source_rel, translated_rel)
   })
   .collect()
@@ -419,11 +388,7 @@ fn load_resolved_config(cwd: &str) -> Result<ResolvedConfig, String> {
   let config = result.config;
   let workspace_dir = config.workspace_dir.as_deref().unwrap_or(".");
   let workspace_dir = tnmsd::domain::config::resolve_tilde(workspace_dir);
-  let aindex_dir = config
-    .aindex
-    .dir
-    .as_deref()
-    .unwrap_or(core_config::DEFAULT_AINDEX_DIR_NAME);
+  let aindex_dir = tnmsd::domain::config::DEFAULT_AINDEX_DIR_NAME;
 
   Ok(ResolvedConfig {
     aindex_root: workspace_dir.join(aindex_dir),

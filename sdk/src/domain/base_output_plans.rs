@@ -2,11 +2,13 @@ use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::CliError;
 use crate::context::OutputContext;
-use crate::domain::plugin_shared::{IDEKind, Project, ProjectIDEConfigFile, RelativePath, Workspace};
+use crate::domain::plugin_shared::{
+  IDEKind, Project, ProjectIDEConfigFile, RelativePath, Workspace,
+};
 use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 use crate::policy::git_discovery::{find_all_git_repos, resolve_git_info_dir};
-use crate::CliError;
 
 const AGENTS_PLUGIN_NAME: &str = "AgentsOutputAdaptor";
 const GIT_EXCLUDE_PLUGIN_NAME: &str = "GitExcludeOutputAdaptor";
@@ -55,9 +57,7 @@ pub fn collect_base_output_plans(context_json: &str) -> Result<String, CliError>
   serde_json::to_string(&plans).map_err(CliError::from)
 }
 
-pub fn build_base_output_plans(
-  context: &OutputContext,
-) -> Result<BaseOutputPlansDto, CliError> {
+pub fn build_base_output_plans(context: &OutputContext) -> Result<BaseOutputPlansDto, CliError> {
   let workspace = context.workspace.as_ref().ok_or_else(|| {
     CliError::ExecutionError(
       "collectBaseOutputPlans requires collectedOutputContext.workspace".to_string(),
