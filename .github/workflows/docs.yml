@@ -58,7 +58,7 @@ jobs:
         run: pnpm -C doc run check:type
 
       - name: Build docs
-        run: pnpm -C doc run build
+        run: cargo run -p xtask -- doc-build
 
   deploy-docs:
     needs: docs-site-check
