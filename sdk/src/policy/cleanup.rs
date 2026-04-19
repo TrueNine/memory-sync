@@ -2255,6 +2255,7 @@ mod tests {
     assert!(plan.dirs_to_delete.contains(&path_to_string(&deep_dir)));
   }
 
+  #[cfg(unix)]
   #[test]
   fn matches_symlink_realpaths_against_protected_paths() {
     use std::os::unix::fs::symlink;

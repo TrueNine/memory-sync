@@ -368,16 +368,25 @@ pub fn run_tnmsc_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> C
 }
 
 pub fn run_program(program: &str, args: &[&str], cwd: &Path) -> CommandResult {
-  let mut command = Command::new("sh");
-  command.args(["-c", &format!("{} {}", program, args.join(" "))]);
+  let mut command;
+  #[cfg(unix)]
+  {
+    command = Command::new("sh");
+    command.args(["-c", &format!("{} {}", program, args.join(" "))]);
+    command.env_clear();
+    if let Ok(path) = std::env::var("PATH") {
+      command.env("PATH", path);
+    }
+    if let Ok(home) = std::env::var("HOME") {
+      command.env("HOME", home);
+    }
+  }
+  #[cfg(windows)]
+  {
+    command = Command::new("cmd");
+    command.args(["/C", &format!("{} {}", program, args.join(" "))]);
+  }
   command.current_dir(cwd);
-  command.env_clear();
-  if let Ok(path) = std::env::var("PATH") {
-    command.env("PATH", path);
-  }
-  if let Ok(home) = std::env::var("HOME") {
-    command.env("HOME", home);
-  }
 
   command_output(&mut command, program)
 }
@@ -501,7 +510,7 @@ pub fn create_staged_package_root() -> StagedPackageRoot {
   }
 }
 
-pub fn pack_cli_artifacts() -> PackedArtifacts {
+pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
   ensure_release_binary();
   ensure_release_test_api_binary();
 
@@ -520,6 +529,45 @@ pub fn pack_cli_artifacts() -> PackedArtifacts {
   );
   assemble.assert_success("tnmsc assemble-npm for staged package root");
 
+  if !staged.linux_binary.is_file() {
+    eprintln!(
+      "linux-x64-gnu binary not found at {} — attempting cross-compilation with cargo-zigbuild",
+      staged.linux_binary.display(),
+    );
+
+    let cross_build = run_program(
+      "cargo",
+      &["zigbuild", "--release", "--target", "x86_64-unknown-linux-gnu", "-p", "tnmsc"],
+      &workspace_root(),
+    );
+
+    if cross_build.status != 0 {
+      panic!(
+        "cross-compilation to x86_64-unknown-linux-gnu failed. \
+         ensure zig is installed (e.g., scoop install zig) and cargo-zigbuild is installed (cargo install cargo-zigbuild). \
+         stdout: {} \
+         stderr: {}",
+        cross_build.stdout, cross_build.stderr
+      );
+    }
+
+    let assemble_cross = run_tnmsc_with_env(
+      &["assemble-npm", "--profile", "release"],
+      &workspace_root(),
+      &[
+        ("TNMSC_NPM_PACKAGE_ROOT", package_root.as_str()),
+        ("TNMSC_WORKSPACE_ROOT", workspace_root_dir.as_str()),
+      ],
+    );
+    assemble_cross.assert_success("tnmsc assemble-npm after cross-compilation");
+
+    assert!(
+      staged.linux_binary.is_file(),
+      "linux-x64-gnu binary still missing after cross-compilation at {}",
+      staged.linux_binary.display()
+    );
+  }
+
   let cli_tarball = pack_package(&staged.package_root, temp_dir.path(), "cli");
   let linux_tarball = pack_package(
     &staged.package_root.join("npm").join("linux-x64-gnu"),
@@ -527,16 +575,16 @@ pub fn pack_cli_artifacts() -> PackedArtifacts {
     "linux-x64-gnu",
   );
 
-  PackedArtifacts {
+  Some(PackedArtifacts {
     _temp_dir: temp_dir,
     cli_tarball,
     linux_tarball,
     test_api_binary: staged.test_api_binary,
-  }
+  })
 }
 
-pub fn install_packaged_cli_container() -> TestContainer {
-  let artifacts = pack_cli_artifacts();
+pub fn install_packaged_cli_container() -> Option<TestContainer> {
+  let artifacts = pack_cli_artifacts()?;
   let container = TestContainer::start(&artifacts);
   let install_command = format!(
     "npm install -g {} {}",
@@ -548,7 +596,7 @@ pub fn install_packaged_cli_container() -> TestContainer {
     "install tnmsc globally (attempted up to 3 times): {}",
     install_command
   ));
-  container
+  Some(container)
 }
 
 pub fn tnmsc_command(args: &[&str]) -> String {

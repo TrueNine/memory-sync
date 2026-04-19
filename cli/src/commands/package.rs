@@ -61,8 +61,20 @@ fn assemble_packages(args: &AssembleNpmArgs) -> Result<Vec<PathBuf>, String> {
       .collect();
   }
 
-  let host_target = detect_host_target()?;
-  copy_target_from_local_build(host_target, &args.profile).map(|path| vec![path])
+  // 尝试复制所有目标，优先使用交叉编译产物，回退到本地主机构建
+  let mut copied = Vec::new();
+  for target in PACKAGE_TARGETS {
+    if let Ok(path) = copy_target_from_local_build(target, &args.profile) {
+      copied.push(path);
+    }
+  }
+
+  if copied.is_empty() {
+    let host_target = detect_host_target()?;
+    copy_target_from_local_build(host_target, &args.profile).map(|path| vec![path])
+  } else {
+    Ok(copied)
+  }
 }
 
 fn copy_target_from_artifacts(
@@ -85,6 +97,19 @@ fn copy_target_from_artifacts(
 }
 
 fn copy_target_from_local_build(target: &PackageTarget, profile: &str) -> Result<PathBuf, String> {
+  // 首先尝试从交叉编译目标目录查找
+  let target_triple = target_to_triple(target.suffix);
+  let cross_source = workspace_root()
+    .join("target")
+    .join(target_triple)
+    .join(profile)
+    .join(target.binary_name);
+
+  if cross_source.is_file() {
+    return copy_into_package(target, &cross_source);
+  }
+
+  // 回退到本地主机构建目录
   let source = workspace_root()
     .join("target")
     .join(profile)
@@ -92,13 +117,27 @@ fn copy_target_from_local_build(target: &PackageTarget, profile: &str) -> Result
 
   if !source.is_file() {
     return Err(format!(
-      "Missing local host binary at {}. Run cargo build --{} --manifest-path cli/Cargo.toml first.",
+      "Missing binary for {}. Tried:\n  - {}\n  - {}\n\nRun cargo build --{} --target {} -p tnmsc first.",
+      target.suffix,
+      cross_source.display(),
       source.display(),
-      profile
+      profile,
+      target_triple
     ));
   }
 
   copy_into_package(target, &source)
+}
+
+fn target_to_triple(suffix: &str) -> &str {
+  match suffix {
+    "linux-x64-gnu" => "x86_64-unknown-linux-gnu",
+    "linux-arm64-gnu" => "aarch64-unknown-linux-gnu",
+    "darwin-arm64" => "aarch64-apple-darwin",
+    "darwin-x64" => "x86_64-apple-darwin",
+    "win32-x64-msvc" => "x86_64-pc-windows-msvc",
+    _ => suffix,
+  }
 }
 
 fn copy_into_package(target: &PackageTarget, source: &Path) -> Result<PathBuf, String> {

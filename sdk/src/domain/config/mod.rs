@@ -517,12 +517,21 @@ pub fn is_wsl_runtime() -> bool {
   let wsl_distro_name = env::var("WSL_DISTRO_NAME").ok();
   let wsl_interop = env::var("WSL_INTEROP").ok();
 
-  is_wsl_runtime_for(
+  let looks_like_wsl = is_wsl_runtime_for(
     env::consts::OS,
     wsl_distro_name.as_deref(),
     wsl_interop.as_deref(),
     &release,
-  )
+  );
+
+  if !looks_like_wsl {
+    return false;
+  }
+
+  // Defensive: running under the WSL2 kernel (e.g. Docker Desktop with WSL2
+  // backend) does not mean we have access to the Windows host filesystem.
+  // Only treat this as WSL when the expected host mount point exists.
+  PathBuf::from(DEFAULT_WSL_WINDOWS_USERS_ROOT).is_dir()
 }
 
 pub fn find_wsl_host_global_config_paths_with_root(users_root: &Path) -> Vec<PathBuf> {
