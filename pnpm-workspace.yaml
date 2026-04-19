@@ -1,4 +1,5 @@
 catalog:
+  sass: ^1.99.0
   "@antfu/eslint-config": ^8.2.0
   "@clack/prompts": ^1.2.0
   "@eslint/js": ^10.0.1
