@@ -136,11 +136,17 @@ fn build_rule_prompt(
   let content = compiled.content.clone();
   let length = content.len();
 
+  let entry_path = std::path::Path::new(&entry.name);
+  let dir_relative = entry_path
+    .parent()
+    .map(|p| p.to_string_lossy().into_owned())
+    .unwrap_or_default();
+
   Ok(RulePrompt {
     prompt_type: PromptKind::Rule,
     content,
     length,
-    dir: RelativePath::new(&format!("{}.mdx", entry.name), dir),
+    dir: RelativePath::new(&dir_relative, dir),
     series: prefix,
     rule_name,
     globs,

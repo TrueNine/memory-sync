@@ -6241,6 +6241,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tnmsc-local-tests"
+version = "2026.10413.10237"
+dependencies = [
+ "dirs",
+ "serde_json",
+]
+
+[[package]]
 name = "tnmsd"
 version = "2026.10413.10237"
 dependencies = [

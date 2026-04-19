@@ -120,11 +120,17 @@ fn build_subagent_prompt(
   let content = compiled.content.clone();
   let length = content.len();
 
+  let entry_path = std::path::Path::new(&entry.name);
+  let dir_relative = entry_path
+    .parent()
+    .map(|p| p.to_string_lossy().into_owned())
+    .unwrap_or_default();
+
   Ok(SubAgentPrompt {
     prompt_type: PromptKind::SubAgent,
     content,
     length,
-    dir: RelativePath::new(&format!("{}.mdx", entry.name), dir),
+    dir: RelativePath::new(&dir_relative, dir),
     agent_name,
     agent_prefix,
     canonical_name,

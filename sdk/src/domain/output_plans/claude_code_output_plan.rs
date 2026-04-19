@@ -99,51 +99,92 @@ fn build_output_files(
     }
   }
 
+  let project_output_projects = get_project_output_projects(workspace);
+
   if let Some(rules) = context.rules.as_ref() {
-    for rule in rules {
-      if rule.scope != crate::domain::plugin_shared::RuleScope::Project {
+    for project in &project_output_projects {
+      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
         continue;
+      };
+      let claude_rules_dir = project_root_dir.join(".claude").join("rules");
+      for rule in rules {
+        if rule.scope != crate::domain::plugin_shared::RuleScope::Project {
+          continue;
+        }
+        let rule_file_name = format!("{}.md", rule.rule_name);
+        output_files.push(BaseOutputFileDeclarationDto {
+          path: claude_rules_dir
+            .join(&rule_file_name)
+            .to_string_lossy()
+            .into_owned(),
+          scope: Some(PROJECT_SCOPE.to_string()),
+          content: rule.content.clone(),
+        });
       }
-      let rule_dir = resolve_relative_path(&rule.dir);
-      let rule_file_name = format!("{}.md", rule.rule_name);
-      output_files.push(BaseOutputFileDeclarationDto {
-        path: rule_dir
-          .join(&rule_file_name)
-          .to_string_lossy()
-          .into_owned(),
-        scope: Some(PROJECT_SCOPE.to_string()),
-        content: rule.content.clone(),
-      });
     }
   }
 
   if let Some(sub_agents) = context.sub_agents.as_ref() {
-    for sub_agent in sub_agents {
-      let agent_dir = resolve_relative_path(&sub_agent.dir);
-      let agent_file_name = format!("{}.md", sub_agent.canonical_name);
-      output_files.push(BaseOutputFileDeclarationDto {
-        path: agent_dir
-          .join(&agent_file_name)
-          .to_string_lossy()
-          .into_owned(),
-        scope: Some(PROJECT_SCOPE.to_string()),
-        content: sub_agent.content.clone(),
-      });
+    for project in &project_output_projects {
+      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+        continue;
+      };
+      let claude_agents_dir = project_root_dir.join(".claude").join("agents");
+      for sub_agent in sub_agents {
+        let agent_file_name = format!("{}.md", sub_agent.canonical_name);
+        output_files.push(BaseOutputFileDeclarationDto {
+          path: claude_agents_dir
+            .join(&agent_file_name)
+            .to_string_lossy()
+            .into_owned(),
+          scope: Some(PROJECT_SCOPE.to_string()),
+          content: sub_agent.content.clone(),
+        });
+      }
     }
   }
 
   if let Some(skills) = context.skills.as_ref() {
-    for skill in skills {
-      let skill_dir = resolve_relative_path(&skill.dir);
-      let skill_file_name = format!("{}.md", skill.skill_name);
-      output_files.push(BaseOutputFileDeclarationDto {
-        path: skill_dir
-          .join(&skill_file_name)
-          .to_string_lossy()
-          .into_owned(),
-        scope: Some(PROJECT_SCOPE.to_string()),
-        content: skill.content.clone(),
-      });
+    for project in &project_output_projects {
+      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+        continue;
+      };
+      let claude_skills_dir = project_root_dir.join(".claude").join("skills");
+      for skill in skills {
+        let skill_file_name = format!("{}.md", skill.skill_name);
+        output_files.push(BaseOutputFileDeclarationDto {
+          path: claude_skills_dir
+            .join(&skill_file_name)
+            .to_string_lossy()
+            .into_owned(),
+          scope: Some(PROJECT_SCOPE.to_string()),
+          content: skill.content.clone(),
+        });
+      }
+    }
+  }
+
+  if let Some(commands) = context.fast_commands.as_ref() {
+    for project in &project_output_projects {
+      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+        continue;
+      };
+      let claude_commands_dir = project_root_dir.join(".claude").join("commands");
+      for command in commands {
+        let command_file_name = if let Some(prefix) = command.series.as_ref() {
+          format!("{}-{}.md", prefix, command.command_name)
+        } else {
+          format!("{}.md", command.command_name)
+        };
+        output_files.push(BaseOutputFileDeclarationDto {
+          path: claude_commands_dir
+            .join(&command_file_name)
+            .to_string_lossy()
+            .into_owned(),
+          scope: Some(PROJECT_SCOPE.to_string()),
+          content: command.content.clone(),
+        });
+      }
     }
   }
 
