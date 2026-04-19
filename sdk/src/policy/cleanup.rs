@@ -2061,9 +2061,9 @@ mod tests {
     let temp_dir = tempdir().unwrap();
     let workspace_dir = temp_dir.path().join("workspace");
     let direct_dir = workspace_dir.join("project-a");
-    let recursive_dir = workspace_dir.join("aindex/dist");
+    let recursive_dir = workspace_dir.join("aindex/commands");
     let direct_file = direct_dir.join("AGENTS.md");
-    let recursive_file = recursive_dir.join("commands/demo.mdx");
+    let recursive_file = recursive_dir.join("demo.mdx");
 
     let snapshot = single_plugin_snapshot(
       &workspace_dir,
@@ -2164,11 +2164,11 @@ mod tests {
   #[test]
   fn allows_deleting_all_aindex_series_descendants() {
     let series_paths = [
-      "dist/commands/demo.mdx",
-      "dist/ext/plugin-a/agt.mdx",
-      "dist/arch/system-a/agt.mdx",
-      "dist/softwares/tool-a/agt.mdx",
-      "dist/subagents/qa/boot.mdx",
+      "commands/demo.mdx",
+      "ext/plugin-a/agt.mdx",
+      "arch/system-a/agt.mdx",
+      "softwares/tool-a/agt.mdx",
+      "subagents/qa/boot.mdx",
       "app/demo/backend/sql/migration.sql",
       "ext/plugin-a/agt.src.mdx",
       "arch/system-a/agt.src.mdx",
@@ -2231,7 +2231,7 @@ mod tests {
     let temp_dir = tempdir().unwrap();
     let workspace_dir = temp_dir.path().join("workspace");
     let aindex_dir = workspace_dir.join("aindex");
-    let deep_dir = aindex_dir.join("dist/commands/legacy/deep");
+    let deep_dir = aindex_dir.join("commands/legacy/deep");
     fs::create_dir_all(&deep_dir).unwrap();
 
     let plan = plan_cleanup(single_plugin_snapshot(

@@ -19,7 +19,7 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
   let workspace_dir = config::resolve_workspace_dir(&options.workspace_dir);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
   let global_prompt_file =
-    config::resolve_workspace_aindex_global_prompt_dist_file(&workspace_dir_str);
+    config::resolve_workspace_aindex_global_prompt_compiled_file(&workspace_dir_str);
 
   let global_prompt_file_str = global_prompt_file.to_string_lossy().into_owned();
 

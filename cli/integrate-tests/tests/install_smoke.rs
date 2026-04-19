@@ -13,7 +13,7 @@ fn packaged_cli_install_writes_claude_memory_from_aindex() {
 
   container
     .setup()
-    .mkdir_p("/workspace/demo/aindex/dist")
+    .mkdir_p("/workspace/demo/aindex")
     .mkdir_p("/root/.aindex")
     .write_file(
       "/root/.aindex/.tnmsc.json",
@@ -25,15 +25,11 @@ fn packaged_cli_install_writes_claude_memory_from_aindex() {
 }"#,
     )
     .write_file(
-      "/workspace/demo/aindex/global.src.mdx",
-      "Global memory from aindex",
-    )
-    .write_file(
       "/workspace/demo/aindex/global.mdx",
       "Global memory from aindex",
     )
     .write_file(
-      "/workspace/demo/aindex/dist/workspace.mdx",
+      "/workspace/demo/aindex/workspace.mdx",
       "Workspace root prompt from aindex",
     )
     .exec("setup install smoke workspace");
@@ -60,7 +56,7 @@ fn packaged_cli_install_errors_when_workspace_dir_not_configured() {
 
   container
     .setup()
-    .mkdir_p("/workspace/demo/aindex/dist")
+    .mkdir_p("/workspace/demo/aindex")
     .mkdir_p("/root/.aindex")
     .write_file(
       "/root/.aindex/.tnmsc.json",
@@ -88,7 +84,7 @@ fn packaged_cli_install_errors_when_config_file_missing() {
 
   container
     .setup()
-    .mkdir_p("/workspace/demo/aindex/dist")
+    .mkdir_p("/workspace/demo/aindex")
     .rm_rf("/root/.aindex")
     .exec("setup missing config workspace");
 

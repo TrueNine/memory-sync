@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
+use crate::context::OutputContext;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
 use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
-use crate::context::OutputContext;
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
@@ -599,11 +599,37 @@ mod tests {
   use super::*;
   use tempfile::TempDir;
 
-  fn create_test_config(workspace_dir: &Path) -> std::io::Result<()> {
+  fn with_home_dir<T>(home_dir: &Path, callback: impl FnOnce() -> T) -> T {
+    let _guard = match crate::domain::TEST_ENV_LOCK.lock() {
+      Ok(g) => g,
+      Err(error) => error.into_inner(),
+    };
+    let previous_home = std::env::var_os("HOME");
+
+    unsafe {
+      std::env::set_var("HOME", home_dir);
+    }
+
+    let result = callback();
+
+    match previous_home {
+      Some(value) => unsafe {
+        std::env::set_var("HOME", value);
+      },
+      None => unsafe {
+        std::env::remove_var("HOME");
+      },
+    }
+
+    result
+  }
+
+  fn create_test_config(home_dir: &Path, workspace_dir: &Path) -> std::io::Result<()> {
     let config_content = json!({
       "workspaceDir": workspace_dir.to_string_lossy()
     });
-    let config_path = workspace_dir.join(".tnmsc.json");
+    let config_path = home_dir.join(".aindex").join(".tnmsc.json");
+    std::fs::create_dir_all(config_path.parent().unwrap())?;
     std::fs::write(
       config_path,
       serde_json::to_string_pretty(&config_content).unwrap(),
@@ -616,50 +642,56 @@ mod tests {
     let temp_dir = TempDir::new().unwrap();
     let aindex_dir = temp_dir.path().join("aindex");
     std::fs::create_dir_all(&aindex_dir).unwrap();
-    std::fs::create_dir_all(aindex_dir.join("dist")).unwrap();
-    create_test_config(temp_dir.path()).unwrap();
+    std::fs::write(aindex_dir.join("global.mdx"), "Global memory").unwrap();
+    std::fs::write(aindex_dir.join("workspace.mdx"), "Workspace memory").unwrap();
 
-    let options = MemorySyncCommandOptions {
-      cwd: Some(temp_dir.path().to_string_lossy().to_string()),
-      load_user_config: Some(true),
-      dry_run: Some(true),
-      ..Default::default()
-    };
+    with_home_dir(temp_dir.path(), || {
+      create_test_config(temp_dir.path(), temp_dir.path()).unwrap();
 
-    let result = dry_run(options);
-    assert!(
-      result.is_ok(),
-      "dry_run should succeed, got: {:?}",
-      result.err()
-    );
-    let result = result.unwrap();
-    assert!(result.success, "dry_run should report success");
-    assert!(result.message.is_some(), "dry_run should return a message");
+      let options = MemorySyncCommandOptions {
+        cwd: Some(temp_dir.path().to_string_lossy().to_string()),
+        load_user_config: Some(true),
+        dry_run: Some(true),
+        ..Default::default()
+      };
+
+      let result = dry_run(options);
+      assert!(
+        result.is_ok(),
+        "dry_run should succeed, got: {:?}",
+        result.err()
+      );
+      let result = result.unwrap();
+      assert!(result.success, "dry_run should report success");
+      assert!(result.message.is_some(), "dry_run should return a message");
+    });
   }
 
   #[test]
   fn dry_run_with_no_workspace_returns_plan() {
     let temp_dir = TempDir::new().unwrap();
-    create_test_config(temp_dir.path()).unwrap();
+    with_home_dir(temp_dir.path(), || {
+      create_test_config(temp_dir.path(), temp_dir.path()).unwrap();
 
-    let options = MemorySyncCommandOptions {
-      cwd: Some(temp_dir.path().to_string_lossy().to_string()),
-      load_user_config: Some(true),
-      dry_run: Some(true),
-      ..Default::default()
-    };
+      let options = MemorySyncCommandOptions {
+        cwd: Some(temp_dir.path().to_string_lossy().to_string()),
+        load_user_config: Some(true),
+        dry_run: Some(true),
+        ..Default::default()
+      };
 
-    let result = dry_run(options);
-    assert!(
-      result.is_ok(),
-      "dry_run should succeed, got: {:?}",
-      result.err()
-    );
-    let result = result.unwrap();
-    assert!(
-      result.message.is_some(),
-      "dry_run should return a message about the plan"
-    );
+      let result = dry_run(options);
+      assert!(
+        result.is_ok(),
+        "dry_run should succeed, got: {:?}",
+        result.err()
+      );
+      let result = result.unwrap();
+      assert!(
+        result.message.is_some(),
+        "dry_run should return a message about the plan"
+      );
+    });
   }
 
   #[test]

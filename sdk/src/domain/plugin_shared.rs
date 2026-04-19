@@ -550,7 +550,7 @@ mod tests {
       prompt_type: PromptKind::Rule,
       content: "# Rule\n\nDo this.".into(),
       length: 17,
-      dir: RelativePath::new("rules/default/test.mdx", "/workspace/aindex/dist"),
+      dir: RelativePath::new("rules/default/test.mdx", "/workspace/aindex"),
       series: "default".into(),
       rule_name: "test".into(),
       globs: vec!["**/*.ts".into(), "**/*.tsx".into()],

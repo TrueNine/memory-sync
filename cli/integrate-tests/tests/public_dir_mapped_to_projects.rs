@@ -8,14 +8,12 @@
 //! - EditorConfig 文件被写入项目根目录 (代码风格标准化)
 //! - Gitignore 内容包含 public dir 中的模式 (忽略文件聚合)
 
-use tnmsc_integrate_tests::{
-  TestContainer, install_packaged_cli_container,
-};
+use tnmsc_integrate_tests::{TestContainer, install_packaged_cli_container};
 
 fn setup_workspace_with_public_files(container: &TestContainer) {
   container
     .setup()
-    .mkdir_p("/workspace-demo/project-a/aindex")
+    .mkdir_p("/workspace-demo/project-a")
     .mkdir_p("/workspace-demo/aindex/app/project-a")
     .mkdir_p("/workspace-demo/aindex/public/____.git/info")
     .mkdir_p("/workspace-demo/aindex/public/____.zed")
@@ -38,13 +36,16 @@ fn setup_workspace_with_public_files(container: &TestContainer) {
   }
 }"#,
     )
-    .write_file("/workspace-demo/aindex/global.src.mdx", "Global memory from aindex")
     .write_file(
-      "/workspace-demo/aindex/workspace.src.mdx",
+      "/workspace-demo/aindex/global.mdx",
+      "Global memory from aindex",
+    )
+    .write_file(
+      "/workspace-demo/aindex/workspace.mdx",
       "Workspace root prompt from aindex",
     )
     .write_file(
-      "/workspace-demo/aindex/app/project-a/AGENTS.md",
+      "/workspace-demo/aindex/app/project-a/agt.mdx",
       "Project A memory",
     )
     .write_file(

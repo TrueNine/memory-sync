@@ -4,7 +4,7 @@
 //! - `assemble-npm --profile release` 生成可执行的 Linux 二进制 (构建产物)
 //! - 二进制具有可执行权限 (Unix 权限正确性)
 //! - 全局安装的 `tnmsc help` 列出所有预期的子命令 (命令界面)
-//! - 全局安装的 `tnmsc plugins` 列出所有打包的插件 (插件可用性)
+//! - 主 npm 包声明正确的平台 optional dependency (包依赖布局)
 //! - 平台包结构正确 (npm 包布局)
 
 use std::fs;
@@ -13,7 +13,7 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 
 use tnmsc_integrate_tests::{
-  EXPECTED_SUBCOMMANDS, PACKAGED_PLUGINS, create_staged_package_root,
+  EXPECTED_SUBCOMMANDS, PACKAGED_PLATFORM_PACKAGE, create_staged_package_root,
   install_packaged_cli_container, run_tnmsc_with_env, workspace_root,
 };
 
@@ -45,7 +45,13 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
       .unwrap_or_else(|error| panic!("failed to stat {}: {error}", staged.linux_binary.display()))
       .permissions()
       .mode();
-    assert_ne!(mode & 0o111, 0, "expected {} to be executable, mode was {:o}", staged.linux_binary.display(), mode);
+    assert_ne!(
+      mode & 0o111,
+      0,
+      "expected {} to be executable, mode was {:o}",
+      staged.linux_binary.display(),
+      mode
+    );
   }
 
   let container = install_packaged_cli_container();
@@ -60,15 +66,13 @@ fn packaging_smoke_covers_release_binary_and_global_install() {
     );
   }
 
-  let plugins = container.exec_tnmsc(&["plugins"]);
-  plugins.assert_success("global tnmsc plugins");
-  for expected in PACKAGED_PLUGINS {
-    assert!(
-      plugins.stdout.contains(expected),
-      "global plugins output should include `{expected}`.\nstdout:\n{}",
-      plugins.stdout
-    );
-  }
+  let main_package_json = fs::read_to_string(staged.package_root.join("package.json"))
+    .unwrap_or_else(|error| panic!("failed to read staged main package.json: {error}"));
+  assert!(
+    main_package_json.contains(PACKAGED_PLATFORM_PACKAGE),
+    "staged main package.json should declare the packaged platform dependency.\ncontent:\n{}",
+    main_package_json
+  );
 
   container.exec_success(
     r#"
@@ -78,6 +82,7 @@ test -n "$MAIN_PACKAGE_JSON"
 test -n "$PLATFORM_PACKAGE_JSON"
 test -x "$(dirname "$PLATFORM_PACKAGE_JSON")/bin/tnmsc"
 test -x "$(command -v tnmsc)"
+grep -q '"@truenine/memory-sync-cli-linux-x64-gnu"' "$MAIN_PACKAGE_JSON"
 test ! -e "$(dirname "$MAIN_PACKAGE_JSON")/dist/index.mjs"
 "#,
   );

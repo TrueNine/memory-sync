@@ -268,7 +268,7 @@ fn read_file_content(
 
 fn scan_child_docs(
   current_dir: &Path,
-  root_dist_dir: &Path,
+  root_skill_dir: &Path,
   skill_dir: &str,
   global_scope_json: Option<&str>,
 ) -> Result<Vec<SkillChildDoc>, crate::CliError> {
@@ -283,7 +283,7 @@ fn scan_child_docs(
     if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
       docs.extend(scan_child_docs(
         &path,
-        root_dist_dir,
+        root_skill_dir,
         skill_dir,
         global_scope_json,
       )?);
@@ -304,7 +304,7 @@ fn scan_child_docs(
       .map_err(crate::CliError::ConfigError)?;
 
     let relative_path = path
-      .strip_prefix(root_dist_dir)
+      .strip_prefix(root_skill_dir)
       .unwrap_or(&path)
       .to_string_lossy()
       .replace('\\', "/");
@@ -423,22 +423,22 @@ fn collect_expected_child_doc_paths(
 fn assert_compiled_child_docs_exist(
   skill_name: &str,
   skill_src_dir: &Path,
-  skill_dist_dir: &Path,
+  skill_dir: &Path,
 ) -> Result<(), crate::CliError> {
   if !skill_src_dir.is_dir() {
     return Ok(());
   }
   for relative_path in collect_expected_child_doc_paths(skill_src_dir, skill_src_dir)? {
-    let dist_path = skill_dist_dir.join(&relative_path);
-    if dist_path.exists() {
+    let compiled_path = skill_dir.join(&relative_path);
+    if compiled_path.exists() {
       continue;
     }
     let src_path = skill_src_dir.join(relative_path.replace(".mdx", ".src.mdx"));
     return Err(crate::CliError::ConfigError(format!(
-      "Missing compiled dist prompt for skill child doc \"{}\". source: {} expected dist: {}",
+      "Missing compiled prompt for skill child doc \"{}\". source: {} expected compiled: {}",
       format!("{}/{}", skill_name, relative_path),
       src_path.to_string_lossy(),
-      dist_path.to_string_lossy()
+      compiled_path.to_string_lossy()
     )));
   }
   Ok(())
@@ -535,29 +535,28 @@ fn validate_skill_metadata(metadata: &Value, file_path: &str) -> Result<(), crat
 
 fn create_skill_prompt(
   name: &str,
-  skill_dist_dir: &Path,
-  skill_src_dir: &Path,
+  skill_dir: &Path,
   global_scope_json: Option<&str>,
   diagnostics: &mut Vec<crate::domain::plugin_shared::Diagnostic>,
 ) -> Result<SkillPrompt, crate::CliError> {
-  let dist_file_path = skill_dist_dir.join("skill.mdx");
-  if !dist_file_path.is_file() {
-    let src_file_path = skill_src_dir.join("skill.src.mdx");
+  let compiled_file_path = skill_dir.join("skill.mdx");
+  if !compiled_file_path.is_file() {
+    let src_file_path = skill_dir.join("skill.src.mdx");
     return Err(crate::CliError::ConfigError(format!(
-      "Missing compiled dist prompt for skill \"{}\". source: {} expected dist: {}",
+      "Missing compiled prompt for skill \"{}\". source: {} expected compiled: {}",
       name,
       src_file_path.to_string_lossy(),
-      dist_file_path.to_string_lossy()
+      compiled_file_path.to_string_lossy()
     )));
   }
 
-  let dist_file_path_str = dist_file_path.to_string_lossy().into_owned();
-  let artifact = read_prompt_artifact(&dist_file_path_str, "dist", global_scope_json)
+  let compiled_file_path_str = compiled_file_path.to_string_lossy().into_owned();
+  let artifact = read_prompt_artifact(&compiled_file_path_str, "dist", global_scope_json)
     .map_err(|e| crate::CliError::ConfigError(e))?;
 
   let raw_content = artifact.raw_mdx.clone();
   let content = transform_mdx_references_to_md(&artifact.content);
-  assert_no_residual_module_syntax(&content, &dist_file_path_str)
+  assert_no_residual_module_syntax(&content, &compiled_file_path_str)
     .map_err(crate::CliError::ConfigError)?;
 
   let export_metadata = extract_skill_metadata_from_export(&raw_content);
@@ -600,28 +599,23 @@ fn create_skill_prompt(
     });
   }
 
-  validate_skill_metadata(&final_front_matter, &dist_file_path_str)?;
+  validate_skill_metadata(&final_front_matter, &compiled_file_path_str)?;
 
   let length = content.len();
-  let skill_dir_str = skill_dist_dir.to_string_lossy().into_owned();
+  let skill_dir_str = skill_dir.to_string_lossy().into_owned();
 
   let yaml_front_matter_typed: Option<SkillYAMLFrontMatter> =
     serde_json::from_value(final_front_matter.clone()).ok();
 
-  let child_docs = scan_child_docs(
-    skill_dist_dir,
-    skill_dist_dir,
-    &skill_dir_str,
-    global_scope_json,
-  )?;
-  let resources = if skill_src_dir.is_dir() {
-    scan_resources(skill_src_dir, skill_src_dir, &skill_dir_str)?
+  let child_docs = scan_child_docs(skill_dir, skill_dir, &skill_dir_str, global_scope_json)?;
+  let resources = if skill_dir.is_dir() {
+    scan_resources(skill_dir, skill_dir, &skill_dir_str)?
   } else {
     vec![]
   };
-  let mcp_config = read_mcp_config(name, skill_src_dir, diagnostics)?;
+  let mcp_config = read_mcp_config(name, skill_dir, diagnostics)?;
 
-  assert_compiled_child_docs_exist(name, skill_src_dir, skill_dist_dir)?;
+  assert_compiled_child_docs_exist(name, skill_dir, skill_dir)?;
 
   Ok(SkillPrompt {
     prompt_type: PromptKind::Skill,
@@ -682,7 +676,6 @@ pub fn collect_skill(options_json: &str) -> Result<String, crate::CliError> {
     let skill_dir = skills_dir.join(&skill_name);
     let prompt = create_skill_prompt(
       &skill_name,
-      &skill_dir,
       &skill_dir,
       global_scope_json.as_deref(),
       &mut diagnostics,
@@ -806,28 +799,20 @@ mod tests {
   #[test]
   fn collect_skill_prefers_src_resources() {
     let tmp = TempDir::new().unwrap();
-    let src = tmp.path().join("aindex").join("skills").join("demo");
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("skills")
-      .join("demo");
-    fs::create_dir_all(&src).unwrap();
-    fs::create_dir_all(&dist).unwrap();
+    let skill_dir = tmp.path().join("aindex").join("skills").join("demo");
+    fs::create_dir_all(&skill_dir).unwrap();
 
     fs::write(
-      src.join("skill.src.mdx"),
+      skill_dir.join("skill.src.mdx"),
       "---\ndescription: src skill\n---\nSkill source",
     )
     .unwrap();
-    fs::write(src.join("notes.md"), "Source notes").unwrap();
+    fs::write(skill_dir.join("notes.md"), "Source notes").unwrap();
     fs::write(
-      dist.join("skill.mdx"),
-      "---\ndescription: dist skill\n---\nSkill dist",
+      skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled skill\n---\nSkill compiled",
     )
     .unwrap();
-    fs::write(dist.join("notes.md"), "Legacy dist notes").unwrap();
 
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
@@ -850,29 +835,22 @@ mod tests {
   #[test]
   fn collect_skill_accepts_remote_mcp_servers() {
     let tmp = TempDir::new().unwrap();
-    let src = tmp.path().join("aindex").join("skills").join("demo");
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("skills")
-      .join("demo");
-    fs::create_dir_all(&src).unwrap();
-    fs::create_dir_all(&dist).unwrap();
+    let skill_dir = tmp.path().join("aindex").join("skills").join("demo");
+    fs::create_dir_all(&skill_dir).unwrap();
 
     fs::write(
-      src.join("skill.src.mdx"),
+      skill_dir.join("skill.src.mdx"),
       "---\ndescription: src skill\n---\nSkill source",
     )
     .unwrap();
     fs::write(
-      src.join("mcp.json"),
+      skill_dir.join("mcp.json"),
       r#"{"mcpServers":{"figma":{"url":"https://mcp.figma.com/mcp","disabled":false,"disabledTools":[]}}}"#,
     )
     .unwrap();
     fs::write(
-      dist.join("skill.mdx"),
-      "---\ndescription: dist skill\n---\nSkill dist",
+      skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled skill\n---\nSkill compiled",
     )
     .unwrap();
 
@@ -897,29 +875,22 @@ mod tests {
   #[test]
   fn collect_skill_skips_invalid_mcp_servers_with_warning() {
     let tmp = TempDir::new().unwrap();
-    let src = tmp.path().join("aindex").join("skills").join("demo");
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("skills")
-      .join("demo");
-    fs::create_dir_all(&src).unwrap();
-    fs::create_dir_all(&dist).unwrap();
+    let skill_dir = tmp.path().join("aindex").join("skills").join("demo");
+    fs::create_dir_all(&skill_dir).unwrap();
 
     fs::write(
-      src.join("skill.src.mdx"),
+      skill_dir.join("skill.src.mdx"),
       "---\ndescription: src skill\n---\nSkill source",
     )
     .unwrap();
     fs::write(
-      src.join("mcp.json"),
+      skill_dir.join("mcp.json"),
       r#"{"mcpServers":{"broken":{"disabled":false},"demo":{"command":"demo"}}}"#,
     )
     .unwrap();
     fs::write(
-      dist.join("skill.mdx"),
-      "---\ndescription: dist skill\n---\nSkill dist",
+      skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled skill\n---\nSkill compiled",
     )
     .unwrap();
 
@@ -943,29 +914,22 @@ mod tests {
   #[test]
   fn collect_skill_reads_binary_resources_as_base64() {
     let tmp = TempDir::new().unwrap();
-    let src = tmp.path().join("aindex").join("skills").join("demo");
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("skills")
-      .join("demo");
-    fs::create_dir_all(src.join("assets")).unwrap();
-    fs::create_dir_all(&dist).unwrap();
+    let skill_dir = tmp.path().join("aindex").join("skills").join("demo");
+    fs::create_dir_all(skill_dir.join("assets")).unwrap();
 
     fs::write(
-      src.join("skill.src.mdx"),
+      skill_dir.join("skill.src.mdx"),
       "---\ndescription: src skill\n---\nSkill source",
     )
     .unwrap();
     fs::write(
-      src.join("assets").join("logo.png"),
+      skill_dir.join("assets").join("logo.png"),
       [0x89_u8, 0x50, 0x4E, 0x47, 0x00, 0xFF],
     )
     .unwrap();
     fs::write(
-      dist.join("skill.mdx"),
-      "---\ndescription: dist skill\n---\nSkill dist",
+      skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled skill\n---\nSkill compiled",
     )
     .unwrap();
 
@@ -988,29 +952,22 @@ mod tests {
   #[test]
   fn collect_skill_fails_missing_child_doc() {
     let tmp = TempDir::new().unwrap();
-    let src = tmp.path().join("aindex").join("skills").join("demo");
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("skills")
-      .join("demo");
-    fs::create_dir_all(&src).unwrap();
-    fs::create_dir_all(&dist).unwrap();
+    let skill_dir = tmp.path().join("aindex").join("skills").join("demo");
+    fs::create_dir_all(&skill_dir).unwrap();
 
     fs::write(
-      src.join("skill.src.mdx"),
+      skill_dir.join("skill.src.mdx"),
       "---\ndescription: src skill\n---\nSkill source",
     )
     .unwrap();
     fs::write(
-      src.join("guide.src.mdx"),
+      skill_dir.join("guide.src.mdx"),
       "---\ndescription: src guide\n---\nGuide source",
     )
     .unwrap();
     fs::write(
-      dist.join("skill.mdx"),
-      "---\ndescription: dist skill\n---\nSkill dist",
+      skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled skill\n---\nSkill compiled",
     )
     .unwrap();
 
@@ -1024,7 +981,7 @@ mod tests {
       result
         .unwrap_err()
         .to_string()
-        .contains("Missing compiled dist prompt")
+        .contains("Missing compiled prompt")
     );
   }
 
@@ -1050,31 +1007,24 @@ mod tests {
       result
         .unwrap_err()
         .to_string()
-        .contains("Missing compiled dist prompt")
+        .contains("Missing compiled prompt")
     );
   }
 
   #[test]
   fn collect_skill_rejects_workspace_scope() {
     let tmp = TempDir::new().unwrap();
-    let src = tmp.path().join("aindex").join("skills").join("demo");
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("skills")
-      .join("demo");
-    fs::create_dir_all(&src).unwrap();
-    fs::create_dir_all(&dist).unwrap();
+    let skill_dir = tmp.path().join("aindex").join("skills").join("demo");
+    fs::create_dir_all(&skill_dir).unwrap();
 
     fs::write(
-      src.join("skill.src.mdx"),
+      skill_dir.join("skill.src.mdx"),
       "---\ndescription: src skill\n---\nSkill source",
     )
     .unwrap();
     fs::write(
-      dist.join("skill.mdx"),
-      "---\ndescription: dist skill\nscope: workspace\n---\nSkill dist",
+      skill_dir.join("skill.mdx"),
+      "---\ndescription: compiled skill\nscope: workspace\n---\nSkill compiled",
     )
     .unwrap();
 
@@ -1095,24 +1045,17 @@ mod tests {
   #[test]
   fn collect_skill_ignores_authored_name() {
     let tmp = TempDir::new().unwrap();
-    let src = tmp.path().join("aindex").join("skills").join("demo");
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("skills")
-      .join("demo");
-    fs::create_dir_all(&src).unwrap();
-    fs::create_dir_all(&dist).unwrap();
+    let skill_dir = tmp.path().join("aindex").join("skills").join("demo");
+    fs::create_dir_all(&skill_dir).unwrap();
 
     fs::write(
-      src.join("skill.src.mdx"),
+      skill_dir.join("skill.src.mdx"),
       "---\nname: custom-demo\ndescription: src skill\n---\nSkill source",
     )
     .unwrap();
     fs::write(
-      dist.join("skill.mdx"),
-      "---\nname: custom-demo\ndescription: dist skill\n---\nSkill dist",
+      skill_dir.join("skill.mdx"),
+      "---\nname: custom-demo\ndescription: compiled skill\n---\nSkill compiled",
     )
     .unwrap();
 
@@ -1125,7 +1068,7 @@ mod tests {
     let skill = &parsed["skills"][0];
     assert_eq!(skill["skillName"], "demo");
     assert_eq!(skill["yamlFrontMatter"]["name"], "demo");
-    assert_eq!(skill["yamlFrontMatter"]["description"], "dist skill");
+    assert_eq!(skill["yamlFrontMatter"]["description"], "compiled skill");
     let diagnostics = parsed["diagnostics"].as_array().unwrap();
     assert!(
       diagnostics

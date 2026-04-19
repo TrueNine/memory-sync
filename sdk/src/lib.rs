@@ -6,21 +6,24 @@ pub mod policy;
 pub mod repositories;
 pub mod services;
 
-pub use endpoint::{clean, dry_run, install, load_config, version, SdkError, MemorySyncCommandOptions, MemorySyncCommandResult};
+pub use endpoint::{
+  MemorySyncCommandOptions, MemorySyncCommandResult, SdkError, clean, dry_run, install,
+  load_config, version,
+};
 
 pub type CliError = endpoint::SdkError;
 
 pub use domain::config;
-  pub use infra::md_compiler;
+pub use infra::md_compiler;
+pub use services::clean_service;
+pub use services::dry_run_service;
+pub use services::install_service;
 pub use services::prompts::{
-  get_prompt, list_prompts, upsert_prompt_source, write_prompt_artifacts,
   ListPromptsOptions, ManagedPromptKind, PromptArtifactRecord, PromptArtifactState,
   PromptCatalogItem, PromptCatalogPaths, PromptCatalogPresence, PromptDetails,
   PromptServiceOptions, PromptSourceLocale, UpsertPromptSourceInput, WritePromptArtifactsInput,
+  get_prompt, list_prompts, upsert_prompt_source, write_prompt_artifacts,
 };
-pub use services::install_service;
-pub use services::dry_run_service;
-pub use services::clean_service;
 
 // ---------------------------------------------------------------------------
 // Property-based tests — Property 1: Library API returns typed results
@@ -172,7 +175,6 @@ mod prompt_tests {
     let tmp = TempDir::new().unwrap();
     let aindex = tmp.path().join("aindex");
     fs::create_dir_all(&aindex).unwrap();
-    fs::create_dir_all(aindex.join("dist")).unwrap();
 
     let options = PromptServiceOptions {
       cwd: Some(tmp.path().to_string_lossy().to_string()),

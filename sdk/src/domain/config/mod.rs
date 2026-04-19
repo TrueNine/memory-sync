@@ -26,15 +26,14 @@ pub const DEFAULT_GLOBAL_CONFIG_DIR: &str = ".aindex";
 pub const DEFAULT_WSL_WINDOWS_USERS_ROOT: &str = "/mnt/c/Users";
 pub const DEFAULT_AINDEX_DIR_NAME: &str = "aindex";
 pub const DEFAULT_KNOWLADGE_DIR_NAME: &str = "knowladge";
-pub const DEFAULT_AINDEX_DIST_DIR_NAME: &str = "dist";
 pub const DEFAULT_SKILLS_DIR: &str = "skills";
 pub const DEFAULT_COMMANDS_DIR: &str = "commands";
 pub const DEFAULT_SUB_AGENTS_DIR: &str = "subagents";
 pub const DEFAULT_RULES_DIR: &str = "rules";
 pub const DEFAULT_GLOBAL_PROMPT: &str = "global.src.mdx";
-pub const DEFAULT_GLOBAL_PROMPT_DIST: &str = "global.mdx";
+pub const DEFAULT_GLOBAL_PROMPT_COMPILED: &str = "global.mdx";
 pub const DEFAULT_WORKSPACE_PROMPT: &str = "workspace.src.mdx";
-pub const DEFAULT_WORKSPACE_PROMPT_DIST: &str = "dist/workspace.mdx";
+pub const DEFAULT_WORKSPACE_PROMPT_COMPILED: &str = "workspace.mdx";
 pub const DEFAULT_APP_DIR: &str = "app";
 pub const DEFAULT_EXT_DIR: &str = "ext";
 pub const DEFAULT_ARCH_DIR: &str = "arch";
@@ -622,16 +621,16 @@ pub fn resolve_workspace_aindex_global_prompt_file(workspace_dir: &str) -> PathB
   resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_GLOBAL_PROMPT)
 }
 
-pub fn resolve_workspace_aindex_global_prompt_dist_file(workspace_dir: &str) -> PathBuf {
-  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_GLOBAL_PROMPT_DIST)
+pub fn resolve_workspace_aindex_global_prompt_compiled_file(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_GLOBAL_PROMPT_COMPILED)
 }
 
 pub fn resolve_workspace_aindex_workspace_prompt_file(workspace_dir: &str) -> PathBuf {
   resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_WORKSPACE_PROMPT)
 }
 
-pub fn resolve_workspace_aindex_workspace_prompt_dist_file(workspace_dir: &str) -> PathBuf {
-  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_WORKSPACE_PROMPT_DIST)
+pub fn resolve_workspace_aindex_workspace_prompt_compiled_file(workspace_dir: &str) -> PathBuf {
+  resolve_workspace_aindex_dir(workspace_dir).join(DEFAULT_WORKSPACE_PROMPT_COMPILED)
 }
 
 pub fn resolve_workspace_aindex_commands_dir(workspace_dir: &str) -> PathBuf {
@@ -655,12 +654,6 @@ pub fn resolve_workspace_aindex_source_series_dir(
   series_name: &str,
 ) -> PathBuf {
   resolve_workspace_aindex_dir(workspace_dir).join(series_name)
-}
-
-pub fn resolve_workspace_aindex_dist_series_dir(workspace_dir: &str, series_name: &str) -> PathBuf {
-  resolve_workspace_aindex_dir(workspace_dir)
-    .join(DEFAULT_AINDEX_DIST_DIR_NAME)
-    .join(series_name)
 }
 
 /// Get the global config file path: `~/.aindex/.tnmsc.json`

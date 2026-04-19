@@ -15,8 +15,6 @@ struct ReadmeInputOptions {
 
 struct SeriesConfig {
   name: &'static str,
-  src: String,
-  dist: String,
 }
 
 const README_FILE_KINDS: &[(&str, &str)] = &[
@@ -28,28 +26,7 @@ const README_FILE_KINDS: &[(&str, &str)] = &[
 fn get_series_configs() -> Vec<SeriesConfig> {
   config::DEFAULT_PROJECT_SERIES
     .iter()
-    .map(|&name| {
-      let (src, dist) = match name {
-        config::DEFAULT_APP_DIR => (
-          config::DEFAULT_APP_DIR.to_string(),
-          format!("dist/{}", config::DEFAULT_APP_DIR),
-        ),
-        config::DEFAULT_EXT_DIR => (
-          config::DEFAULT_EXT_DIR.to_string(),
-          format!("dist/{}", config::DEFAULT_EXT_DIR),
-        ),
-        config::DEFAULT_ARCH_DIR => (
-          config::DEFAULT_ARCH_DIR.to_string(),
-          format!("dist/{}", config::DEFAULT_ARCH_DIR),
-        ),
-        config::DEFAULT_SOFTWARES_DIR => (
-          config::DEFAULT_SOFTWARES_DIR.to_string(),
-          format!("dist/{}", config::DEFAULT_SOFTWARES_DIR),
-        ),
-        _ => unreachable!(),
-      };
-      SeriesConfig { name, src, dist }
-    })
+    .map(|&name| SeriesConfig { name })
     .collect()
 }
 
@@ -60,7 +37,7 @@ fn detect_project_name_conflicts(
   let mut refs_by_project: HashMap<String, Vec<String>> = HashMap::new();
 
   for series in series_configs {
-    let series_src_dir = aindex_dir.join(&series.src);
+    let series_src_dir = aindex_dir.join(series.name);
     if !series_src_dir.is_dir() {
       continue;
     }
@@ -206,12 +183,12 @@ pub fn collect_readme(options_json: &str) -> Result<String, crate::CliError> {
     .and_then(|v| v.get("globalScope").map(|g| g.to_string()));
 
   for series in &series_configs {
-    let dist_dir = aindex_dir.join(&series.dist);
-    if !dist_dir.is_dir() {
+    let series_dir = aindex_dir.join(series.name);
+    if !series_dir.is_dir() {
       continue;
     }
 
-    let mut project_entries: Vec<String> = match std::fs::read_dir(&dist_dir) {
+    let mut project_entries: Vec<String> = match std::fs::read_dir(&series_dir) {
       Ok(entries) => entries
         .flatten()
         .filter(|e| e.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
@@ -223,7 +200,7 @@ pub fn collect_readme(options_json: &str) -> Result<String, crate::CliError> {
     project_entries.sort();
 
     for project_name in project_entries {
-      let project_dir = dist_dir.join(&project_name);
+      let project_dir = series_dir.join(&project_name);
       collect_readme_files_recursive(
         &project_dir,
         &project_name,
@@ -259,7 +236,7 @@ mod tests {
   use tempfile::TempDir;
 
   #[test]
-  fn collect_readme_empty_when_no_dist() {
+  fn collect_readme_empty_when_no_projects() {
     let tmp = TempDir::new().unwrap();
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
@@ -295,15 +272,10 @@ mod tests {
   #[test]
   fn collect_readme_reads_project_files() {
     let tmp = TempDir::new().unwrap();
-    let dist_app = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("app")
-      .join("demo");
-    fs::create_dir_all(&dist_app).unwrap();
-    fs::write(dist_app.join("rdm.mdx"), "# Demo README").unwrap();
-    fs::write(dist_app.join("coc.mdx"), "# CoC").unwrap();
+    let project_dir = tmp.path().join("aindex").join("app").join("demo");
+    fs::create_dir_all(&project_dir).unwrap();
+    fs::write(project_dir.join("rdm.mdx"), "# Demo README").unwrap();
+    fs::write(project_dir.join("coc.mdx"), "# CoC").unwrap();
 
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
@@ -329,15 +301,14 @@ mod tests {
   #[test]
   fn collect_readme_reads_nested_project_files() {
     let tmp = TempDir::new().unwrap();
-    let dist_app = tmp
+    let project_dir = tmp
       .path()
       .join("aindex")
-      .join("dist")
       .join("app")
       .join("demo")
       .join("docs");
-    fs::create_dir_all(&dist_app).unwrap();
-    fs::write(dist_app.join("security.mdx"), "# Security").unwrap();
+    fs::create_dir_all(&project_dir).unwrap();
+    fs::write(project_dir.join("security.mdx"), "# Security").unwrap();
 
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),

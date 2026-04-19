@@ -305,10 +305,10 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
     };
 
     let matching_series = series_configs.iter().find(|series_name| {
-      let shadow_path =
-        config::resolve_workspace_aindex_dist_series_dir(&workspace_dir_str, series_name)
+      let project_path =
+        config::resolve_workspace_aindex_source_series_dir(&workspace_dir_str, series_name)
           .join(project_name);
-      shadow_path.is_dir()
+      project_path.is_dir()
     });
 
     if matching_series.is_none() {
@@ -318,7 +318,7 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
 
     let series_name = matching_series.unwrap();
     let shadow_project_path =
-      config::resolve_workspace_aindex_dist_series_dir(&workspace_dir_str, series_name)
+      config::resolve_workspace_aindex_source_series_dir(&workspace_dir_str, series_name)
         .join(project_name);
 
     let target_project_path = project
@@ -348,7 +348,7 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
   }
 
   let workspace_prompt_file =
-    config::resolve_workspace_aindex_workspace_prompt_dist_file(&workspace_dir_str);
+    config::resolve_workspace_aindex_workspace_prompt_compiled_file(&workspace_dir_str);
 
   let workspace_root_project = read_workspace_root_project_prompt(
     &workspace_prompt_file,
@@ -405,10 +405,10 @@ mod tests {
   #[test]
   fn collect_project_prompt_injects_workspace_root_project() {
     let tmp = TempDir::new().unwrap();
-    let dist_dir = tmp.path().join("aindex").join("dist");
-    fs::create_dir_all(&dist_dir).unwrap();
+    let aindex_dir = tmp.path().join("aindex");
+    fs::create_dir_all(&aindex_dir).unwrap();
     fs::write(
-      dist_dir.join("workspace.mdx"),
+      aindex_dir.join("workspace.mdx"),
       "---\ndescription: workspace\n---\nWorkspace prompt body",
     )
     .unwrap();
@@ -436,9 +436,13 @@ mod tests {
   #[test]
   fn collect_project_prompt_does_not_fall_back_outside_aindex() {
     let tmp = TempDir::new().unwrap();
-    let wrong_dist = tmp.path().join("dist");
-    fs::create_dir_all(&wrong_dist).unwrap();
-    fs::write(wrong_dist.join("workspace.mdx"), "Wrong workspace prompt").unwrap();
+    let external_dir = tmp.path().join("external");
+    fs::create_dir_all(&external_dir).unwrap();
+    fs::write(
+      external_dir.join("workspace.mdx"),
+      "Wrong workspace prompt",
+    )
+    .unwrap();
 
     let workspace = create_workspace(&tmp.path().to_string_lossy().to_string(), vec![]);
     let options = serde_json::json!({
@@ -455,9 +459,9 @@ mod tests {
   #[test]
   fn collect_project_prompt_inherits_prompt_source_config() {
     let tmp = TempDir::new().unwrap();
-    let dist_dir = tmp.path().join("aindex").join("dist");
-    fs::create_dir_all(&dist_dir).unwrap();
-    fs::write(dist_dir.join("workspace.mdx"), "Workspace prompt body").unwrap();
+    let aindex_dir = tmp.path().join("aindex");
+    fs::create_dir_all(&aindex_dir).unwrap();
+    fs::write(aindex_dir.join("workspace.mdx"), "Workspace prompt body").unwrap();
 
     let base = tmp.path().to_string_lossy().to_string();
     let workspace = create_workspace(
@@ -495,24 +499,9 @@ mod tests {
   #[test]
   fn collect_project_prompt_loads_series_project_prompts() {
     let tmp = TempDir::new().unwrap();
-    let ext_root = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("ext")
-      .join("plugin-a");
-    let arch_root = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("arch")
-      .join("system-a");
-    let software_root = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("softwares")
-      .join("tool-a");
+    let ext_root = tmp.path().join("aindex").join("ext").join("plugin-a");
+    let arch_root = tmp.path().join("aindex").join("arch").join("system-a");
+    let software_root = tmp.path().join("aindex").join("softwares").join("tool-a");
 
     fs::create_dir_all(ext_root.join("docs")).unwrap();
     fs::create_dir_all(arch_root.join("design")).unwrap();

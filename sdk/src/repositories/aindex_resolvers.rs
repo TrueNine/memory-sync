@@ -15,35 +15,12 @@ struct AindexInputOptions {
 
 struct SeriesConfig {
   name: &'static str,
-  src: String,
-  dist: String,
 }
 
 fn get_series_configs() -> Vec<SeriesConfig> {
   config::DEFAULT_PROJECT_SERIES
     .iter()
-    .map(|&name| {
-      let (src, dist) = match name {
-        config::DEFAULT_APP_DIR => (
-          config::DEFAULT_APP_DIR.to_string(),
-          format!("dist/{}", config::DEFAULT_APP_DIR),
-        ),
-        config::DEFAULT_EXT_DIR => (
-          config::DEFAULT_EXT_DIR.to_string(),
-          format!("dist/{}", config::DEFAULT_EXT_DIR),
-        ),
-        config::DEFAULT_ARCH_DIR => (
-          config::DEFAULT_ARCH_DIR.to_string(),
-          format!("dist/{}", config::DEFAULT_ARCH_DIR),
-        ),
-        config::DEFAULT_SOFTWARES_DIR => (
-          config::DEFAULT_SOFTWARES_DIR.to_string(),
-          format!("dist/{}", config::DEFAULT_SOFTWARES_DIR),
-        ),
-        _ => unreachable!(),
-      };
-      SeriesConfig { name, src, dist }
-    })
+    .map(|&name| SeriesConfig { name })
     .collect()
 }
 
@@ -54,7 +31,7 @@ fn detect_project_name_conflicts(
   let mut refs_by_project: HashMap<String, Vec<String>> = HashMap::new();
 
   for series in series_configs {
-    let series_src_dir = aindex_dir.join(&series.src);
+    let series_src_dir = aindex_dir.join(series.name);
     if !series_src_dir.is_dir() {
       continue;
     }
@@ -120,7 +97,7 @@ fn load_fallback_project_config(
 ) -> Option<Value> {
   for series in series_configs {
     let config_path = aindex_dir
-      .join(&series.src)
+      .join(series.name)
       .join(project_name)
       .join("project.json5");
     if let Ok(Some(config)) = load_project_config(project_name, &config_path) {
@@ -151,12 +128,12 @@ pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::Cli
   let mut diagnostics: Vec<crate::domain::plugin_shared::Diagnostic> = Vec::new();
 
   for series in &series_configs {
-    let dist_dir = aindex_dir.join(&series.dist);
-    if !dist_dir.is_dir() {
+    let series_dir = aindex_dir.join(series.name);
+    if !series_dir.is_dir() {
       continue;
     }
 
-    let mut entries: Vec<String> = match std::fs::read_dir(&dist_dir) {
+    let mut entries: Vec<String> = match std::fs::read_dir(&series_dir) {
       Ok(e) => e
         .flatten()
         .filter(|entry| entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
@@ -170,7 +147,7 @@ pub fn collect_aindex_resolvers(options_json: &str) -> Result<String, crate::Cli
     for project_name in entries {
       let is_prompt_source_project = project_name == aindex_name;
       let config_path = aindex_dir
-        .join(&series.src)
+        .join(series.name)
         .join(&project_name)
         .join("project.json5");
       let project_config = match load_project_config(&project_name, &config_path) {
@@ -270,16 +247,10 @@ mod tests {
   use tempfile::TempDir;
 
   fn create_aindex_project(temp_workspace: &Path, project_name: &str, series: &str) {
-    let dist = temp_workspace
-      .join("aindex")
-      .join("dist")
-      .join(series)
-      .join(project_name);
     let src = temp_workspace
       .join("aindex")
       .join(series)
       .join(project_name);
-    fs::create_dir_all(&dist).unwrap();
     fs::create_dir_all(&src).unwrap();
   }
 
@@ -288,13 +259,6 @@ mod tests {
     let tmp = TempDir::new().unwrap();
     let src = tmp.path().join("aindex").join("app").join("project-a");
     fs::create_dir_all(&src).unwrap();
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("app")
-      .join("project-a");
-    fs::create_dir_all(&dist).unwrap();
     fs::write(
       src.join("project.json5"),
       "{\n  // comment\n  includeSeries: ['alpha'],\n  subSeries: { skills: ['ship-*'] }\n}\n",
@@ -320,13 +284,6 @@ mod tests {
     let tmp = TempDir::new().unwrap();
     let src = tmp.path().join("aindex").join("app").join("project-b");
     fs::create_dir_all(&src).unwrap();
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("app")
-      .join("project-b");
-    fs::create_dir_all(&dist).unwrap();
     fs::write(
       src.join("project.jsonc"),
       "{\"includeSeries\":[\"legacy\"]}\n",
@@ -349,13 +306,6 @@ mod tests {
     let tmp = TempDir::new().unwrap();
     let src = tmp.path().join("aindex").join("app").join("project-c");
     fs::create_dir_all(&src).unwrap();
-    let dist = tmp
-      .path()
-      .join("aindex")
-      .join("dist")
-      .join("app")
-      .join("project-c");
-    fs::create_dir_all(&dist).unwrap();
     fs::write(
       src.join("project.json5"),
       "{includeSeries: ['broken',]} trailing",

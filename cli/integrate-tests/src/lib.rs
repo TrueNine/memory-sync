@@ -14,15 +14,8 @@ pub const DOCKER_IMAGE_NAME: &str = "node";
 pub const DOCKER_IMAGE_TAG: &str = "22-trixie";
 const EXIT_MARKER: &str = "__TNMSC_EXIT_CODE__=";
 
-pub const EXPECTED_SUBCOMMANDS: &[&str] =
-  &["install", "dry-run", "clean", "version", "help"];
-
-pub const PACKAGED_PLUGINS: &[&str] = &[
-  "CodexCLIOutputAdaptor",
-  "ClaudeCodeCLIOutputAdaptor",
-  "TraeOutputAdaptor",
-  "OpencodeCLIOutputAdaptor",
-];
+pub const EXPECTED_SUBCOMMANDS: &[&str] = &["install", "dry-run", "clean", "version", "help"];
+pub const PACKAGED_PLATFORM_PACKAGE: &str = "@truenine/memory-sync-cli-linux-x64-gnu";
 
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
 
@@ -34,11 +27,19 @@ pub struct CommandResult {
 
 impl CommandResult {
   pub fn assert_success(&self, context: &str) {
-    assert_eq!(self.status, 0, "{context} should succeed.\nexit: {}\nstdout:\n{}\nstderr:\n{}", self.status, self.stdout, self.stderr);
+    assert_eq!(
+      self.status, 0,
+      "{context} should succeed.\nexit: {}\nstdout:\n{}\nstderr:\n{}",
+      self.status, self.stdout, self.stderr
+    );
   }
 
   pub fn assert_failure(&self, context: &str) {
-    assert_ne!(self.status, 0, "{context} should fail.\nstdout:\n{}\nstderr:\n{}", self.stdout, self.stderr);
+    assert_ne!(
+      self.status, 0,
+      "{context} should fail.\nstdout:\n{}\nstderr:\n{}",
+      self.stdout, self.stderr
+    );
   }
 }
 
@@ -136,7 +137,13 @@ impl TestContainer {
     Self { container }
   }
 
-  pub fn exec_with_retries_and_timeout(&self, command: &str, max_attempts: u32, delay_ms: u64, timeout_secs: u64) -> CommandResult {
+  pub fn exec_with_retries_and_timeout(
+    &self,
+    command: &str,
+    max_attempts: u32,
+    delay_ms: u64,
+    timeout_secs: u64,
+  ) -> CommandResult {
     let mut last_result: Option<CommandResult> = None;
     for attempt in 1..=max_attempts {
       let result = self.exec_with_timeout(command, timeout_secs);
@@ -171,11 +178,7 @@ impl TestContainer {
       std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
-    let fallback_status = exec_result
-      .exit_code()
-      .ok()
-      .flatten()
-      .unwrap_or(0) as i32;
+    let fallback_status = exec_result.exit_code().ok().flatten().unwrap_or(0) as i32;
     let stdout = exec_result
       .stdout_to_vec()
       .unwrap_or_else(|error| panic!("failed to read exec stdout: {error}"));
@@ -192,7 +195,12 @@ impl TestContainer {
     }
   }
 
-  pub fn exec_with_retries(&self, command: &str, max_attempts: u32, delay_ms: u64) -> CommandResult {
+  pub fn exec_with_retries(
+    &self,
+    command: &str,
+    max_attempts: u32,
+    delay_ms: u64,
+  ) -> CommandResult {
     let mut last_result: Option<CommandResult> = None;
     for attempt in 1..=max_attempts {
       let result = self.exec(command);
@@ -368,10 +376,6 @@ pub fn current_package_version() -> &'static str {
 
 pub fn ensure_release_binary() {
   RELEASE_BINARY_BUILT.get_or_init(|| {
-    if release_binary_path().is_file() {
-      return;
-    }
-
     let result = run_program(
       "cargo",
       &["build", "--release", "-p", "tnmsc"],
@@ -487,7 +491,10 @@ pub fn install_packaged_cli_container() -> TestContainer {
     quote_shell("/artifacts/linux-x64-gnu.tgz")
   );
   let result = container.exec_with_retries_and_timeout(&install_command, 3, 2000, 120);
-  result.assert_success(&format!("install tnmsc globally (attempted up to 3 times): {}", install_command));
+  result.assert_success(&format!(
+    "install tnmsc globally (attempted up to 3 times): {}",
+    install_command
+  ));
   container
 }
 
@@ -505,7 +512,10 @@ pub fn quote_shell(value: &str) -> String {
 }
 
 fn npm_tarball_name(pkg_name: &str) -> String {
-  pkg_name.strip_prefix('@').unwrap_or(pkg_name).replace('/', "-")
+  pkg_name
+    .strip_prefix('@')
+    .unwrap_or(pkg_name)
+    .replace('/', "-")
 }
 
 fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
@@ -528,10 +538,7 @@ fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
     .unwrap_or_else(|error| panic!("failed to read {}: {error}", package_json_path.display()));
   let parsed: serde_json::Value = serde_json::from_str(&raw)
     .unwrap_or_else(|error| panic!("failed to parse {}: {error}", package_json_path.display()));
-  let pkg_name = parsed
-    .get("name")
-    .and_then(|v| v.as_str())
-    .unwrap_or(name);
+  let pkg_name = parsed.get("name").and_then(|v| v.as_str()).unwrap_or(name);
   let pkg_version = parsed
     .get("version")
     .and_then(|v| v.as_str())
@@ -583,9 +590,14 @@ fn rewrite_main_package_json(path: &Path) {
   });
   object.insert(
     "optionalDependencies".to_string(),
-    serde_json::json!({
-      "@truenine/memory-sync-cli-linux-x64-gnu": current_package_version()
-    }),
+    serde_json::Value::Object(
+      [(
+        PACKAGED_PLATFORM_PACKAGE.to_string(),
+        serde_json::Value::String(current_package_version().to_string()),
+      )]
+      .into_iter()
+      .collect(),
+    ),
   );
 
   fs::write(
