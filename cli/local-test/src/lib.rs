@@ -117,6 +117,13 @@ impl LocalTestRunner {
     command_output(&mut cmd, &format!("tnmsc {}", args.join(" ")))
   }
 
+  /// 在指定目录下运行 tnmsc 命令，不创建新的 runner（保持锁不释放）。
+  pub fn run_at(&self, cwd: impl AsRef<Path>, args: &[&str]) -> CommandResult {
+    let mut cmd = Command::new(&self.binary);
+    cmd.args(args).current_dir(cwd.as_ref());
+    command_output(&mut cmd, &format!("tnmsc {}", args.join(" ")))
+  }
+
   pub fn run_success(&self, args: &[&str]) -> CommandResult {
     let result = self.run(args);
     result.assert_success(&format!("tnmsc {}", args.join(" ")));
@@ -246,6 +253,16 @@ impl LocalTestRunner {
   /// 读取子目录 AGENTS.md 内容。
   pub fn read_agents_md_child_file(&self, relative: impl AsRef<Path>) -> Option<String> {
     fs::read_to_string(self.cwd.join(relative).join("AGENTS.md")).ok()
+  }
+
+  /// 检查绝对路径下的文件是否存在。
+  pub fn file_exists_at(&self, path: impl AsRef<Path>) -> bool {
+    path.as_ref().is_file()
+  }
+
+  /// 返回当前配置的 workspace 目录。
+  pub fn workspace_dir(&self) -> PathBuf {
+    self.effective_workspace()
   }
 
   /// 推断 aindex 目录路径。
