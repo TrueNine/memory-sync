@@ -188,6 +188,26 @@ impl LocalTestRunner {
     fs::read_to_string(home_dir().join(".claude").join("CLAUDE.md")).ok()
   }
 
+  /// 检查全局 ~/.config/opencode/AGENTS.md 是否存在。
+  pub fn opencode_global_file_exists(&self) -> bool {
+    home_dir().join(".config").join("opencode").join("AGENTS.md").is_file()
+  }
+
+  /// 读取全局 ~/.config/opencode/AGENTS.md 内容。
+  pub fn read_opencode_global_file(&self) -> Option<String> {
+    fs::read_to_string(home_dir().join(".config").join("opencode").join("AGENTS.md")).ok()
+  }
+
+  /// 检查项目级 .opencode/ 目录是否存在。
+  pub fn opencode_project_dir_exists(&self) -> bool {
+    self.cwd.join(".opencode").is_dir()
+  }
+
+  /// 检查项目级 .opencode/AGENTS.md 是否存在。
+  pub fn opencode_project_file_exists(&self) -> bool {
+    self.cwd.join(".opencode").join("AGENTS.md").is_file()
+  }
+
   pub fn clean(&self) -> CommandResult {
     self.run(&["clean"])
   }

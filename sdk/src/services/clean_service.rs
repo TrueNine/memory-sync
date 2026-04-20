@@ -233,7 +233,7 @@ impl EnabledPlugins {
         .and_then(|value| value.jetbrains_code_style)
         .unwrap_or(false),
       kiro: config.and_then(|value| value.kiro).unwrap_or(false),
-      opencode: config.and_then(|value| value.opencode).unwrap_or(false),
+      opencode: config.and_then(|value| value.opencode).unwrap_or(true),
       qoder: config.and_then(|value| value.qoder).unwrap_or(false),
       readme: config.and_then(|value| value.readme).unwrap_or(true),
       trae: config.and_then(|value| value.trae).unwrap_or(false),

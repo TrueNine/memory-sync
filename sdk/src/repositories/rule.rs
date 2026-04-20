@@ -25,17 +25,17 @@ fn validate_rule_metadata(
     format!(" in {file_path}")
   };
 
-  match metadata.get("globs") {
+  match metadata.get("paths") {
     Some(Value::Array(arr)) if !arr.is_empty() => {
       if !arr.iter().all(|v| v.is_string()) {
         return Err(format!(
-          r#"Field "globs" must be an array of strings{prefix}"#
+          r#"Field "paths" must be an array of strings{prefix}"#
         ));
       }
     }
     _ => {
       return Err(format!(
-        r#"Missing or empty required field "globs"{prefix}"#
+        r#"Missing or empty required field "paths"{prefix}"#
       ));
     }
   }
@@ -106,7 +106,7 @@ fn build_rule_prompt(
     .unwrap_or(&normalized_name)
     .to_string();
 
-  let globs: Vec<String> = match compiled.metadata.get("globs") {
+  let paths: Vec<String> = match compiled.metadata.get("paths") {
     Some(Value::Array(arr)) => arr
       .iter()
       .filter_map(|v| v.as_str().map(String::from))
@@ -149,7 +149,7 @@ fn build_rule_prompt(
     dir: RelativePath::new(&dir_relative, dir),
     series: prefix,
     rule_name,
-    globs,
+    paths,
     scope,
     seri_name,
     yaml_front_matter,
@@ -207,7 +207,7 @@ mod tests {
     fs::create_dir_all(&dir).unwrap();
     fs::write(
       dir.join("boot.src.mdx"),
-      "---\ndescription: source only\nglobs:\n  - '**/*.ts'\n---\nSource only rule",
+      "---\ndescription: source only\npaths:\n  - '**/*.ts'\n---\nSource only rule",
     )
     .unwrap();
 
@@ -232,7 +232,7 @@ mod tests {
     fs::create_dir_all(&dir).unwrap();
     fs::write(
       dir.join("boot.mdx"),
-      "---\nscope: global\ndescription: Compiled only rule\nglobs:\n  - '**/*.ts'\n---\nCompiled only rule",
+      "---\nscope: global\ndescription: Compiled only rule\npaths:\n  - '**/*.ts'\n---\nCompiled only rule",
     )
     .unwrap();
 
@@ -247,7 +247,7 @@ mod tests {
     assert_eq!(rules[0]["ruleName"], "boot");
     assert_eq!(rules[0]["scope"], "global");
     assert_eq!(
-      rules[0]["globs"]
+      rules[0]["paths"]
         .as_array()
         .unwrap()
         .iter()
@@ -264,7 +264,7 @@ mod tests {
     fs::create_dir_all(&dir).unwrap();
     fs::write(
       dir.join("boot.mdx"),
-      "---\nscope: workspace\ndescription: Compiled only rule\nglobs:\n  - '**/*.ts'\n---\nCompiled only rule",
+      "---\nscope: workspace\ndescription: Compiled only rule\npaths:\n  - '**/*.ts'\n---\nCompiled only rule",
     )
     .unwrap();
 

@@ -125,7 +125,7 @@ pub struct RuleYAMLFrontMatter {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub description: Option<String>,
   #[serde(default)]
-  pub globs: Vec<String>,
+  pub paths: Vec<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub scope: Option<RuleScope>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -218,7 +218,7 @@ pub struct RulePrompt {
   pub dir: RelativePath,
   pub series: String,
   pub rule_name: String,
-  pub globs: Vec<String>,
+  pub paths: Vec<String>,
   pub scope: RuleScope,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub seri_name: Option<String>,
