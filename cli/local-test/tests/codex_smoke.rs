@@ -2,7 +2,6 @@
 //!
 //! **前提**：项目已配置，codex 插件已启用（plugins.codex = true）。
 
-use std::path::Path;
 use tnmsc_local_tests::LocalTestRunner;
 
 fn assert_codex_plugin_enabled() {
@@ -127,7 +126,7 @@ fn local_codex_prompts_match_aindex_commands() {
     "~/.codex/prompts/ should contain at least one file"
   );
 
-  // Verify all files are .md
+  // Verify all files are .md with correct codex prompts format
   for file in &prompt_files {
     let name = file.file_name();
     let name_str = name.to_string_lossy();
@@ -147,6 +146,14 @@ fn local_codex_prompts_match_aindex_commands() {
       "prompt file {} should contain 'command:' source identifier",
       name_str
     );
+    // Codex prompts use kebab-case for field names (e.g., argument-hint, not argumentHint)
+    if content.contains("argument") {
+      assert!(
+        !content.contains("argumentHint:"),
+        "prompt file {} should use 'argument-hint' (kebab-case), not 'argumentHint' (camelCase)",
+        name_str
+      );
+    }
   }
 }
 

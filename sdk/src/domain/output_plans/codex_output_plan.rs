@@ -239,10 +239,18 @@ fn build_command_content(command: &crate::domain::plugin_shared::FastCommandProm
   };
   metadata.insert("command".to_string(), serde_json::Value::String(command_source));
 
+  // Convert camelCase keys to kebab-case for codex prompts
+  // e.g., argumentHint -> argument-hint, allowTools -> allow-tools
+  let metadata: serde_json::Map<String, serde_json::Value> = metadata
+    .into_iter()
+    .map(|(key, value)| (camel_to_kebab(&key), value))
+    .collect();
+
   // Filter out empty arrays and null values
-  metadata.retain(|_, v| {
-    !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
-  });
+  let mut metadata: serde_json::Map<String, serde_json::Value> = metadata
+    .into_iter()
+    .filter(|(_, v)| !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false)))
+    .collect();
 
   if metadata.is_empty() {
     return command.content.clone();
@@ -310,6 +318,28 @@ fn indent_yaml_list_items(yaml: &str) -> String {
     })
     .collect::<Vec<_>>()
     .join("\n")
+}
+
+/// Convert camelCase string to kebab-case.
+/// e.g., "argumentHint" -> "argument-hint", "allowTools" -> "allow-tools"
+fn camel_to_kebab(s: &str) -> String {
+  let mut result = String::new();
+  let mut prev_was_upper = false;
+  
+  for (i, c) in s.chars().enumerate() {
+    if c.is_uppercase() {
+      if i > 0 && !prev_was_upper {
+        result.push('-');
+      }
+      result.push(c.to_lowercase().next().unwrap_or(c));
+      prev_was_upper = true;
+    } else {
+      result.push(c);
+      prev_was_upper = false;
+    }
+  }
+  
+  result
 }
 
 fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
