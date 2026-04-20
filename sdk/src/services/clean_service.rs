@@ -16,12 +16,19 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
   let config_result = load_config(&cwd, options.load_user_config)?;
   let workspace_dir = resolve_workspace_dir(&cwd, &config_result.config)?;
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
+
   let global_scope = build_global_scope(&config_result.config);
   let enabled_plugins = EnabledPlugins::from_config(config_result.config.plugins.as_ref());
 
   let context = collect_context(&workspace_dir_str, global_scope.as_ref())?;
   let (output_map, cleanup_map) = build_output_map(&context, enabled_plugins)?;
-  let snapshot = build_cleanup_snapshot(&workspace_dir_str, &output_map, &cleanup_map)?;
+  let mut snapshot = build_cleanup_snapshot(&workspace_dir_str, &output_map, &cleanup_map)?;
+
+  // 根据 cwd 限制清理作用域：当 cwd 位于 workspace 的某个子项目下时，
+  // 只清理该项目的文件，不触碰其他项目。
+  if let Some(scope) = resolve_project_scope(&cwd, &workspace_dir) {
+    snapshot = filter_snapshot_by_scope(snapshot, &scope, &workspace_dir);
+  }
 
   if options.dry_run.unwrap_or(false) {
     let plan = crate::policy::cleanup::plan_cleanup(snapshot.clone())
@@ -132,6 +139,91 @@ fn resolve_workspace_dir(_cwd: &Path, config: &UserConfigFile) -> Result<PathBuf
       "workspaceDir is required but was not configured. Please set workspaceDir in your .tnmsc.json config file.".to_string(),
     )),
   }
+}
+
+/// 检查路径是否在某个目录下（包含目录本身）。
+fn is_path_under_directory(path: &str, directory: &Path) -> bool {
+  let path_buf = Path::new(path);
+  let path_normalized = if path_buf.is_absolute() {
+    path_buf.to_path_buf()
+  } else {
+    directory.join(path_buf)
+  };
+
+  let path_norm = strip_unc_prefix(&path_normalized);
+  let dir_norm = strip_unc_prefix(directory);
+
+  let path_str = path_norm.to_string_lossy().replace('\\', "/");
+  let dir_str = dir_norm.to_string_lossy().replace('\\', "/");
+
+  path_str == dir_str || path_str.starts_with(&format!("{}/", dir_str))
+}
+
+/// 根据 cwd 和 workspace_dir 解析项目作用域。
+///
+/// 如果 cwd 位于 workspace_dir 的某个直接子目录下，返回该子目录作为作用域。
+/// 如果 cwd 等于 workspace_dir 或位于 workspace_dir 之外，返回 None（清理全部）。
+/// 移除 Windows UNC 前缀 \\?\，使路径可以与其他非 canonicalize 路径比较。
+fn strip_unc_prefix(path: &Path) -> PathBuf {
+  let s = path.to_string_lossy();
+  if let Some(stripped) = s.strip_prefix(r"\\?\") {
+    PathBuf::from(stripped)
+  } else {
+    path.to_path_buf()
+  }
+}
+
+fn resolve_project_scope(cwd: &Path, workspace_dir: &Path) -> Option<PathBuf> {
+  // workspace_dir 可能经过 canonicalize 带有 Windows UNC 前缀，需要统一格式
+  let cwd_norm = strip_unc_prefix(cwd);
+  let ws_norm = strip_unc_prefix(workspace_dir);
+
+  let relative = cwd_norm.strip_prefix(&ws_norm).ok()?;
+
+  // 如果 cwd 等于 workspace_dir，不限制作用域
+  if relative.as_os_str().is_empty() {
+    return None;
+  }
+
+  // 取 workspace_dir 的直接子目录作为作用域
+  let first_component = relative.components().next()?;
+  Some(ws_norm.join(first_component.as_os_str()))
+}
+
+/// 根据作用域过滤 CleanupSnapshot。
+///
+/// 保留规则：
+/// - 位于作用域目录下的路径（项目内文件）
+/// - 位于 workspace 之外的路径（全局文件）
+/// 过滤掉：
+/// - 位于 workspace 内但不在作用域下的路径（其他项目文件）
+fn filter_snapshot_by_scope(
+  mut snapshot: CleanupSnapshot,
+  scope: &Path,
+  workspace_dir: &Path,
+) -> CleanupSnapshot {
+  for plugin_snapshot in &mut snapshot.plugin_snapshots {
+    plugin_snapshot.outputs.retain(|output| {
+      if is_path_under_directory(output, workspace_dir) {
+        is_path_under_directory(output, scope)
+      } else {
+        true
+      }
+    });
+    plugin_snapshot.cleanup.delete.retain(|target| {
+      if is_path_under_directory(&target.path, workspace_dir) {
+        is_path_under_directory(&target.path, scope)
+      } else {
+        true
+      }
+    });
+  }
+
+  snapshot
+    .project_roots
+    .retain(|root| is_path_under_directory(root, scope));
+
+  snapshot
 }
 
 fn build_global_scope(config: &UserConfigFile) -> Option<Value> {
@@ -1087,6 +1179,129 @@ mod tests {
     assert!(
       names.contains(&"DisabledPlugin"),
       "snapshot should include plugin from cleanup_map"
+    );
+  }
+
+  #[test]
+  fn clean_is_path_under_directory_matches_direct_child() {
+    assert!(is_path_under_directory("/workspace/project/file.md", Path::new("/workspace/project")));
+  }
+
+  #[test]
+  fn clean_is_path_under_directory_matches_exact() {
+    assert!(is_path_under_directory("/workspace/project", Path::new("/workspace/project")));
+  }
+
+  #[test]
+  fn clean_is_path_under_directory_rejects_sibling() {
+    assert!(!is_path_under_directory("/workspace/other/file.md", Path::new("/workspace/project")));
+  }
+
+  #[test]
+  fn clean_is_path_under_directory_rejects_parent() {
+    assert!(!is_path_under_directory("/workspace/file.md", Path::new("/workspace/project")));
+  }
+
+  #[test]
+  fn clean_resolve_project_scope_when_cwd_in_project() {
+    let ws = PathBuf::from("/workspace");
+    let cwd = PathBuf::from("/workspace/memory-sync/src");
+    let scope = resolve_project_scope(&cwd, &ws);
+    assert_eq!(scope, Some(PathBuf::from("/workspace/memory-sync")));
+  }
+
+  #[test]
+  fn clean_resolve_project_scope_when_cwd_is_workspace_root() {
+    let ws = PathBuf::from("/workspace");
+    let cwd = PathBuf::from("/workspace");
+    let scope = resolve_project_scope(&cwd, &ws);
+    assert_eq!(scope, None);
+  }
+
+  #[test]
+  fn clean_resolve_project_scope_when_cwd_outside_workspace() {
+    let ws = PathBuf::from("/workspace");
+    let cwd = PathBuf::from("/home/user");
+    let scope = resolve_project_scope(&cwd, &ws);
+    assert_eq!(scope, None);
+  }
+
+  #[test]
+  fn clean_filter_snapshot_by_scope_keeps_paths_in_scope() {
+    let workspace_dir = "/tmp/test-workspace";
+    let scope = PathBuf::from("/tmp/test-workspace/project-a");
+    let mut output_map: HashMap<String, Vec<String>> = HashMap::new();
+    output_map.insert(
+      "TestPlugin".to_string(),
+      vec![
+        "/tmp/test-workspace/project-a/AGENTS.md".to_string(),
+        "/tmp/test-workspace/project-b/AGENTS.md".to_string(),
+      ],
+    );
+
+    let snapshot = build_cleanup_snapshot(workspace_dir, &output_map, &HashMap::new()).unwrap();
+    let filtered = filter_snapshot_by_scope(snapshot, &scope, Path::new(workspace_dir));
+
+    let test_plugin = filtered
+      .plugin_snapshots
+      .iter()
+      .find(|p| p.plugin_name == "TestPlugin")
+      .expect("TestPlugin should exist");
+    assert_eq!(test_plugin.outputs.len(), 1);
+    assert_eq!(
+      test_plugin.outputs[0],
+      "/tmp/test-workspace/project-a/AGENTS.md"
+    );
+  }
+
+  #[test]
+  fn clean_filter_snapshot_by_scope_keeps_global_paths() {
+    let workspace_dir = "/tmp/test-workspace";
+    let scope = PathBuf::from("/tmp/test-workspace/project-a");
+    let mut output_map: HashMap<String, Vec<String>> = HashMap::new();
+    output_map.insert(
+      "TestPlugin".to_string(),
+      vec![
+        "/tmp/test-workspace/project-a/AGENTS.md".to_string(),
+        "/home/user/.claude/CLAUDE.md".to_string(),
+      ],
+    );
+
+    let snapshot = build_cleanup_snapshot(workspace_dir, &output_map, &HashMap::new()).unwrap();
+    let filtered = filter_snapshot_by_scope(snapshot, &scope, Path::new(workspace_dir));
+
+    let test_plugin = filtered
+      .plugin_snapshots
+      .iter()
+      .find(|p| p.plugin_name == "TestPlugin")
+      .expect("TestPlugin should exist");
+    assert_eq!(test_plugin.outputs.len(), 2);
+    assert!(test_plugin.outputs.contains(&"/tmp/test-workspace/project-a/AGENTS.md".to_string()));
+    assert!(test_plugin.outputs.contains(&"/home/user/.claude/CLAUDE.md".to_string()));
+  }
+
+  #[test]
+  fn clean_filter_snapshot_by_scope_filters_project_roots() {
+    let temp_dir = TempDir::new().unwrap();
+    let ws = temp_dir.path();
+    // 创建真实的项目目录，discover_project_roots 需要读取实际文件系统
+    std::fs::create_dir_all(ws.join("project-a")).unwrap();
+    std::fs::create_dir_all(ws.join("project-b")).unwrap();
+
+    let scope = ws.join("project-a");
+    let snapshot = build_cleanup_snapshot(
+      &ws.to_string_lossy(),
+      &HashMap::new(),
+      &HashMap::new(),
+    )
+    .unwrap();
+
+    let filtered = filter_snapshot_by_scope(snapshot, &scope, ws);
+
+    assert_eq!(filtered.project_roots.len(), 1);
+    assert_eq!(
+      Path::new(&filtered.project_roots[0]),
+      ws.join("project-a")
     );
   }
 }
