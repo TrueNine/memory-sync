@@ -137,17 +137,99 @@ fn extract_yaml_frontmatter(ast: &markdown::mdast::Node) -> Option<HashMap<Strin
   None
 }
 
+/// Quote unquoted identifiers inside arrays within an object literal.
+/// Converts e.g. `[tool.readFile, tool.writeFile]` to `["tool.readFile", "tool.writeFile"]`.
+/// This handles invalid JSON5 that uses JS-like identifier references in arrays.
+fn quote_array_identifiers(literal: &str) -> String {
+  let mut result = String::new();
+  let mut chars = literal.chars().peekable();
+  let mut in_array = false;
+  let mut in_string = false;
+  let mut string_delim = '"';
+  let mut escaped = false;
+
+  while let Some(c) = chars.next() {
+    if in_string {
+      result.push(c);
+      if escaped {
+        escaped = false;
+      } else if c == '\\' {
+        escaped = true;
+      } else if c == string_delim {
+        in_string = false;
+      }
+      continue;
+    }
+
+    match c {
+      '"' | '\'' => {
+        in_string = true;
+        string_delim = c;
+        result.push(c);
+      }
+      '[' => {
+        in_array = true;
+        result.push(c);
+      }
+      ']' => {
+        in_array = false;
+        result.push(c);
+      }
+      'a'..='z' | 'A'..='Z' | '_' if in_array => {
+        // Potentially an unquoted identifier in an array
+        let mut ident = String::new();
+        ident.push(c);
+        while let Some(&next) = chars.peek() {
+          if next.is_alphanumeric() || next == '_' || next == '.' {
+            ident.push(next);
+            chars.next();
+          } else {
+            break;
+          }
+        }
+        // Don't quote JSON5 literals
+        let is_literal = matches!(
+          ident.as_str(),
+          "true" | "false" | "null" | "Infinity" | "NaN" | "undefined"
+        );
+        if is_literal {
+          result.push_str(&ident);
+        } else {
+          result.push('"');
+          result.push_str(&ident);
+          result.push('"');
+        }
+      }
+      _ => {
+        result.push(c);
+      }
+    }
+  }
+
+  result
+}
+
 /// Extract export metadata from lines starting with "export ".
 /// Since markdown-rs doesn't always parse ESM as MdxjsEsm nodes,
 /// we also do a pre-pass on the source text.
 fn extract_exports_from_source(source: &str) -> HashMap<String, Value> {
   let mut exports = HashMap::new();
 
-  if let Some((_, _, object_literal)) = find_export_default_object(source)
-    && let Ok(Value::Object(map)) = json5::from_str::<Value>(&object_literal)
-  {
-    for (key, value) in map {
-      exports.insert(key, value);
+  if let Some((_, _, object_literal)) = find_export_default_object(source) {
+    // Try strict json5 first
+    if let Ok(Value::Object(map)) = json5::from_str::<Value>(&object_literal) {
+      for (key, value) in map {
+        exports.insert(key, value);
+      }
+    } else {
+      // Fallback: quote unquoted identifiers in arrays and try again
+      // This handles cases like: allowedTools: [tool.readFile, tool.writeFile]
+      let fixed = quote_array_identifiers(&object_literal);
+      if let Ok(Value::Object(map)) = json5::from_str::<Value>(&fixed) {
+        for (key, value) in map {
+          exports.insert(key, value);
+        }
+      }
     }
   }
 
@@ -686,5 +768,54 @@ mod tests {
     )
     .unwrap();
     assert_eq!(result, "[guide](https://example.com/guide)");
+  }
+
+  #[test]
+  fn test_quote_array_identifiers_quotes_tool_references() {
+    let input = r#"{ allowedTools: [tool.readFile, tool.writeFile, tool.executeCommand] }"#;
+    let result = quote_array_identifiers(input);
+    assert_eq!(
+      result,
+      r#"{ allowedTools: ["tool.readFile", "tool.writeFile", "tool.executeCommand"] }"#
+    );
+  }
+
+  #[test]
+  fn test_quote_array_identifiers_preserves_quoted_strings() {
+    let input = r#"{ allowedTools: ['Shell', "Read", 'Write'] }"#;
+    let result = quote_array_identifiers(input);
+    assert_eq!(result, r#"{ allowedTools: ['Shell', "Read", 'Write'] }"#);
+  }
+
+  #[test]
+  fn test_quote_array_identifiers_preserves_json5_literals() {
+    let input = r#"{ flags: [true, false, null] }"#;
+    let result = quote_array_identifiers(input);
+    assert_eq!(result, r#"{ flags: [true, false, null] }"#);
+  }
+
+  #[test]
+  fn test_extract_exports_with_invalid_json5_arrays() {
+    let source = r#"export default {
+  argumentHint: '[question]',
+  allowedTools: [tool.readFile, tool.writeFile],
+  description: 'Test command',
+}
+
+# Content"#;
+    let result = mdx_to_md_with_metadata(source, None).unwrap();
+    assert_eq!(result.content.trim(), "# Content");
+    assert_eq!(
+      result.metadata.exports.get("description").and_then(|v| v.as_str()),
+      Some("Test command")
+    );
+    assert_eq!(
+      result.metadata.exports.get("argumentHint").and_then(|v| v.as_str()),
+      Some("[question]")
+    );
+    assert!(
+      result.metadata.exports.get("allowedTools").is_some(),
+      "allowedTools should be extracted"
+    );
   }
 }

@@ -136,23 +136,99 @@ fn local_codex_prompts_match_aindex_commands() {
       name_str
     );
     let content = std::fs::read_to_string(file.path()).unwrap();
+    
+    // If file has front matter, validate it
+    if content.starts_with("---\n") {
+      // Codex prompts use kebab-case for field names (e.g., argument-hint, not argumentHint)
+      if content.contains("argument") {
+        assert!(
+          !content.contains("argumentHint:"),
+          "prompt file {} should use 'argument-hint' (kebab-case), not 'argumentHint' (camelCase)",
+          name_str
+        );
+      }
+    }
+  }
+}
+
+#[test]
+fn local_codex_prompts_no_command_field_and_quoted_values() {
+  assert_codex_plugin_enabled();
+
+  let runner = LocalTestRunner::new();
+  runner.assert_project_ready();
+
+  let clean = runner.clean();
+  clean.assert_success("tnmsc clean before install");
+
+  let install = runner.install();
+  install.assert_success("tnmsc install");
+
+  assert!(
+    runner.codex_global_prompts_dir_exists(),
+    "~/.codex/prompts/ should exist after install"
+  );
+
+  let prompts_dir = dirs::home_dir()
+    .expect("should have home directory")
+    .join(".codex")
+    .join("prompts");
+  let prompt_files: Vec<_> = std::fs::read_dir(&prompts_dir)
+    .unwrap()
+    .flatten()
+    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .collect();
+
+  assert!(
+    !prompt_files.is_empty(),
+    "~/.codex/prompts/ should contain at least one file"
+  );
+
+  for file in &prompt_files {
+    let name = file.file_name();
+    let name_str = name.to_string_lossy();
+    let content = std::fs::read_to_string(file.path()).unwrap();
+
+    // Extract front matter between --- markers
+    let fm_end = content.find("\n---\n").unwrap_or(content.len());
+    let front_matter = &content[..fm_end];
+
+    // 1. Codex prompts must NOT contain "command" field (compatibility issue)
     assert!(
-      content.starts_with("---\n"),
-      "prompt file {} should start with YAML front matter '---'",
-      name_str
+      !front_matter.contains("command:"),
+      "prompt file {} must NOT contain 'command:' field (codex compatibility issue), got:\n{}",
+      name_str,
+      front_matter
     );
-    assert!(
-      content.contains("command:"),
-      "prompt file {} should contain 'command:' source identifier",
-      name_str
-    );
-    // Codex prompts use kebab-case for field names (e.g., argument-hint, not argumentHint)
-    if content.contains("argument") {
-      assert!(
-        !content.contains("argumentHint:"),
-        "prompt file {} should use 'argument-hint' (kebab-case), not 'argumentHint' (camelCase)",
-        name_str
-      );
+
+    // 2. All YAML field values must be enclosed in double quotes
+    // In codex prompts, only "description" and "argument-hint" fields are valid
+    for line in front_matter.lines() {
+      if let Some(pos) = line.find(": ") {
+        let key = &line[..pos];
+        let value = &line[pos + 2..];
+
+        // Only check known codex prompt fields
+        let key_trimmed = key.trim();
+        if key_trimmed != "description" && key_trimmed != "argument-hint" {
+          continue;
+        }
+
+        // Skip empty values
+        if value.trim().is_empty() {
+          continue;
+        }
+
+        // Check that value is enclosed in double quotes
+        let trimmed = value.trim();
+        assert!(
+          trimmed.starts_with('"') && trimmed.ends_with('"'),
+          "prompt file {} has unquoted value '{}' in line '{}' (all codex prompt values must be quoted)",
+          name_str,
+          value,
+          line
+        );
+      }
     }
   }
 }

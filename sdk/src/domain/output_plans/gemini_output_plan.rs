@@ -255,6 +255,7 @@ mod tests {
       raw_front_matter: None,
       markdown_contents: None,
       parent_directory_path: None,
+      raw_content: None,
     }
   }
 

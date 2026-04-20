@@ -1,3 +1,20 @@
+//! Codex CLI output plan.
+//!
+//! Generates files for OpenAI Codex CLI.
+//!
+//! **Note**: The official custom prompts documentation
+//! (<https://developers.openai.com/codex/custom-prompts>) is **outdated**.
+//! The Codex CLI has since moved to a TOML-based agent configuration format.
+//! This module retains the legacy `.md` prompts output for backward compatibility
+//! while also emitting the newer `.toml` agents.
+//!
+//! Output structure:
+//! - `~/.codex/AGENTS.md` — global instructions
+//! - `~/.codex/prompts/*.md` — legacy custom prompts
+//! - `~/.codex/agents/*.toml` — sub-agent definitions (current format)
+//! - `{project}/.codex/skills/**` — project-level skills
+//! - `{project}/.codex/agents/*.toml` — project-level agents
+
 use std::path::PathBuf;
 
 use crate::CliError;
@@ -231,13 +248,8 @@ fn build_command_content(command: &crate::domain::plugin_shared::FastCommandProm
     serde_json::Map::new()
   };
 
-  // Add command source identifier
-  let command_source = if let Some(ref series) = command.series {
-    format!("aindex/commands/{}/{}", series, command.command_name)
-  } else {
-    format!("aindex/commands/{}", command.command_name)
-  };
-  metadata.insert("command".to_string(), serde_json::Value::String(command_source));
+  // NOTE: Do NOT add "command" field for codex prompts - it causes compatibility issues
+  // Codex prompts should only have description and argument-hint (optional)
 
   // Convert camelCase keys to kebab-case for codex prompts
   // e.g., argumentHint -> argument-hint, allowTools -> allow-tools
@@ -246,17 +258,22 @@ fn build_command_content(command: &crate::domain::plugin_shared::FastCommandProm
     .map(|(key, value)| (camel_to_kebab(&key), value))
     .collect();
 
-  // Filter out empty arrays and null values
-  let mut metadata: serde_json::Map<String, serde_json::Value> = metadata
+  // Filter out empty arrays, null values, and unsupported fields for codex prompts
+  let metadata: serde_json::Map<String, serde_json::Value> = metadata
     .into_iter()
-    .filter(|(_, v)| !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false)))
+    .filter(|(k, v)| {
+      // Codex only supports description and argument-hint
+      !v.is_null() 
+        && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+        && (k == "description" || k == "argument-hint")
+    })
     .collect();
 
   if metadata.is_empty() {
     return command.content.clone();
   }
 
-  wrap_yaml_front_matter(&metadata, &command.content)
+  wrap_yaml_front_matter_quoted(&metadata, &command.content)
 }
 
 fn build_skill_content(skill: &crate::domain::plugin_shared::SkillPrompt) -> String {
@@ -302,6 +319,73 @@ fn wrap_yaml_front_matter(metadata: &serde_json::Map<String, serde_json::Value>,
   let indented = indent_yaml_list_items(&yaml);
 
   format!("---\n{}\n---\n\n{}", indented, content)
+}
+
+/// Wrap metadata with YAML front matter, forcing all values to be quoted.
+/// This ensures codex compatibility where field values must be enclosed in "".
+fn wrap_yaml_front_matter_quoted(
+  metadata: &serde_json::Map<String, serde_json::Value>,
+  content: &str,
+) -> String {
+  if metadata.is_empty() {
+    return content.to_string();
+  }
+
+  let yaml = match serde_yml::to_string(&serde_json::Value::Object(metadata.clone())) {
+    Ok(y) => y,
+    Err(_) => return content.to_string(),
+  };
+
+  let indented = indent_yaml_list_items(&yaml);
+  let quoted = force_yaml_values_quoted(&indented);
+
+  format!("---\n{}\n---\n\n{}", quoted, content)
+}
+
+/// Force all YAML scalar values to be quoted strings.
+/// Parses each "key: value" line and wraps the value in double quotes.
+fn force_yaml_values_quoted(yaml: &str) -> String {
+  yaml
+    .lines()
+    .map(|line| {
+      // Only process lines that look like "key: value"
+      if let Some(pos) = line.find(": ") {
+        let key = &line[..pos];
+        let value = &line[pos + 2..];
+
+        // Skip if it's a list item
+        if key.trim_start().starts_with("-") {
+          return line.to_string();
+        }
+
+        let trimmed = value.trim();
+
+        // Handle empty values
+        if trimmed.is_empty() {
+          return format!("{}: \"\"", key);
+        }
+
+        // If already double-quoted, keep as-is
+        if trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() > 1 {
+          return line.to_string();
+        }
+
+        // If single-quoted, convert to double-quoted
+        if trimmed.starts_with('\'') && trimmed.ends_with('\'') && trimmed.len() > 1 {
+          let inner = &trimmed[1..trimmed.len()-1];
+          let escaped = inner.replace('\\', "\\\\").replace('"', "\\\"");
+          return format!("{}: \"{}\"", key, escaped);
+        }
+
+        // Force quote the value with double quotes
+        let escaped = trimmed.replace('\\', "\\\\").replace('"', "\\\"");
+        format!("{}: \"{}\"", key, escaped)
+      } else {
+        line.to_string()
+      }
+    })
+    .collect::<Vec<_>>()
+    .join("\n")
 }
 
 /// Indent every line that starts with a YAML list item marker ("- ")
