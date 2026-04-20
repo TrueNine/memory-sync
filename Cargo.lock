@@ -6245,6 +6245,7 @@ name = "tnmsc-local-tests"
 version = "2026.10413.10237"
 dependencies = [
  "dirs",
+ "json5",
  "serde_json",
 ]
 

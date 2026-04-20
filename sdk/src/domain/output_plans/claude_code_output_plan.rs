@@ -14,7 +14,6 @@ const CLAUDE_CODE_MEMORY_FILE: &str = "CLAUDE.md";
 const CLAUDE_CODE_SETTINGS_FILE: &str = "settings.json";
 const CLAUDE_CODE_SETTINGS_LOCAL_FILE: &str = "settings.local.json";
 const CLAUDE_CODE_GLOBAL_CONFIG_DIR: &str = ".claude";
-const AGENTS_OUTPUT_ADAPTOR: &str = "AgentsOutputAdaptor";
 const PROJECT_SCOPE: &str = "project";
 
 pub fn collect_claude_code_output_plan(context_json: &str) -> Result<String, CliError> {
@@ -45,63 +44,37 @@ fn build_output_files(
 ) -> Vec<BaseOutputFileDeclarationDto> {
   let mut output_files = Vec::new();
   let prompt_projects = get_project_prompt_output_projects(workspace);
-  let agents_registered = context
-    .registered_output_plugins
-    .as_ref()
-    .map(|plugins| plugins.iter().any(|name| name == AGENTS_OUTPUT_ADAPTOR))
-    .unwrap_or(false);
 
-  if agents_registered {
-    if let Some(global_memory) = context.global_memory.as_ref() {
-      for project in &prompt_projects {
-        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-          continue;
-        };
-        output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir
-            .join(CLAUDE_CODE_MEMORY_FILE)
-            .to_string_lossy()
-            .into_owned(),
-          scope: Some(PROJECT_SCOPE.to_string()),
-          content: global_memory.content.clone(),
-          encoding: None,
-        });
-      }
+  // 项目级 CLAUDE.md（根目录 + 子目录）
+  // 始终如同 AGENTS.md 一样输出项目内存内容，不与全局内存混合。
+  for project in &prompt_projects {
+    let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+      continue;
+    };
+
+    if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
+      output_files.push(BaseOutputFileDeclarationDto {
+        path: project_root_dir
+          .join(CLAUDE_CODE_MEMORY_FILE)
+          .to_string_lossy()
+          .into_owned(),
+        scope: Some(PROJECT_SCOPE.to_string()),
+        content: root_prompt.content.clone(),
+        encoding: None,
+      });
     }
-  } else {
-    let global_memory_content = context.global_memory.as_ref().map(|m| m.content.as_str());
 
-    for project in &prompt_projects {
-      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-        continue;
-      };
-
-      if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
-        let combined_content =
-          combine_global_with_content(global_memory_content, &root_prompt.content);
+    if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
+      for child_prompt in child_prompts {
         output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir
+          path: resolve_relative_path(&child_prompt.dir)
             .join(CLAUDE_CODE_MEMORY_FILE)
             .to_string_lossy()
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
-          content: combined_content,
+          content: child_prompt.content.clone(),
           encoding: None,
         });
-      }
-
-      if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
-        for child_prompt in child_prompts {
-          output_files.push(BaseOutputFileDeclarationDto {
-            path: resolve_relative_path(&child_prompt.dir)
-              .join(CLAUDE_CODE_MEMORY_FILE)
-              .to_string_lossy()
-              .into_owned(),
-            scope: Some(PROJECT_SCOPE.to_string()),
-            content: child_prompt.content.clone(),
-            encoding: None,
-          });
-        }
       }
     }
   }
@@ -469,15 +442,6 @@ mod tests {
     let empty = serde_json::Map::new();
     let result = wrap_yaml_front_matter(&empty, "Just content.");
     assert_eq!(result, "Just content.");
-  }
-}
-
-fn combine_global_with_content(global_content: Option<&str>, project_content: &str) -> String {
-  match global_content {
-    Some(global) if !global.trim().is_empty() => {
-      format!("{}\n\n{}", global.trim(), project_content.trim())
-    }
-    _ => project_content.to_string(),
   }
 }
 

@@ -25,19 +25,21 @@ fn validate_rule_metadata(
     format!(" in {file_path}")
   };
 
-  match metadata.get("paths") {
-    Some(Value::Array(arr)) if !arr.is_empty() => {
-      if !arr.iter().all(|v| v.is_string()) {
-        return Err(format!(
-          r#"Field "paths" must be an array of strings{prefix}"#
-        ));
-      }
-    }
-    _ => {
-      return Err(format!(
-        r#"Missing or empty required field "paths"{prefix}"#
-      ));
-    }
+  // 源文件使用 `globs`，SDK 在输出时转换为 `paths`。
+  // 因此 metadata 中必须存在 `paths` 或 `globs` 之一。
+  let has_valid_paths = metadata.get("paths").is_some_and(|v| {
+    v.as_array()
+      .is_some_and(|a| !a.is_empty() && a.iter().all(|v| v.is_string()))
+  });
+  let has_valid_globs = metadata.get("globs").is_some_and(|v| {
+    v.as_array()
+      .is_some_and(|a| !a.is_empty() && a.iter().all(|v| v.is_string()))
+  });
+
+  if !has_valid_paths && !has_valid_globs {
+    return Err(format!(
+      r#"Missing or empty required field "paths" or "globs"{prefix}"#
+    ));
   }
 
   match metadata.get("description") {
@@ -106,12 +108,20 @@ fn build_rule_prompt(
     .unwrap_or(&normalized_name)
     .to_string();
 
+  // 源文件使用 `globs`，SDK 在输出时转换为 `paths`。
+  // 优先读取 `paths`，若不存在则回退到 `globs`。
   let paths: Vec<String> = match compiled.metadata.get("paths") {
     Some(Value::Array(arr)) => arr
       .iter()
       .filter_map(|v| v.as_str().map(String::from))
       .collect(),
-    _ => vec![],
+    _ => match compiled.metadata.get("globs") {
+      Some(Value::Array(arr)) => arr
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect(),
+      _ => vec![],
+    },
   };
 
   let scope: RuleScope = match compiled.metadata.get("scope") {
@@ -124,11 +134,22 @@ fn build_rule_prompt(
     _ => None,
   });
 
-  let yaml_front_matter = if compiled.metadata.is_empty() {
+  // 将解析后的 paths 注入 metadata，确保 RuleYAMLFrontMatter 反序列化时能获取到。
+  // 同时移除 `globs`，避免其通过 #[serde(flatten)] extra 泄漏到输出中。
+  let mut metadata_for_yaml = compiled.metadata.clone();
+  metadata_for_yaml.remove("globs");
+  if !paths.is_empty() && !metadata_for_yaml.contains_key("paths") {
+    metadata_for_yaml.insert(
+      "paths".to_string(),
+      Value::Array(paths.iter().map(|p| Value::String(p.clone())).collect()),
+    );
+  }
+
+  let yaml_front_matter = if metadata_for_yaml.is_empty() {
     None
   } else {
     Some(
-      serde_json::from_value::<RuleYAMLFrontMatter>(Value::Object(compiled.metadata.clone()))
+      serde_json::from_value::<RuleYAMLFrontMatter>(Value::Object(metadata_for_yaml))
         .map_err(|e| crate::CliError::ConfigError(e.to_string()))?,
     )
   };
@@ -279,6 +300,81 @@ mod tests {
         .unwrap_err()
         .to_string()
         .contains(r#"Field "scope" must be "project" or "global""#)
+    );
+  }
+
+  #[test]
+  fn collect_rule_loads_globs_field() {
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path().join("aindex").join("rules").join("qa");
+    fs::create_dir_all(&dir).unwrap();
+    // 源文件使用 `globs` 而非 `paths`，SDK 内部将其映射为 `paths`
+    fs::write(
+      dir.join("boot.mdx"),
+      "export default {\n  description: 'Globs rule',\n  globs: ['**/*.rs', '**/*.toml'],\n  scope: 'project',\n}\n\n# Globs rule\n",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_rule(&options.to_string()).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
+    let rules = parsed["rules"].as_array().unwrap();
+    assert_eq!(rules.len(), 1);
+    assert_eq!(rules[0]["ruleName"], "boot");
+    assert_eq!(rules[0]["scope"], "project");
+    assert_eq!(
+      rules[0]["paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>(),
+      vec!["**/*.rs", "**/*.toml"]
+    );
+    // yaml_front_matter 中也应该包含 paths（由 globs 映射而来）
+    let yaml_fm = rules[0]["yamlFrontMatter"].as_object().unwrap();
+    assert_eq!(
+      yaml_fm["paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>(),
+      vec!["**/*.rs", "**/*.toml"]
+    );
+  }
+
+  #[test]
+  fn collect_rule_prefers_paths_over_globs() {
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path().join("aindex").join("rules").join("qa");
+    fs::create_dir_all(&dir).unwrap();
+    // 同时提供 paths 和 globs 时，优先使用 paths
+    fs::write(
+      dir.join("boot.mdx"),
+      "export default {\n  description: 'Both rule',\n  paths: ['**/*.ts'],\n  globs: ['**/*.rs'],\n  scope: 'project',\n}\n\n# Both rule\n",
+    )
+    .unwrap();
+
+    let options = serde_json::json!({
+      "workspaceDir": tmp.path().to_string_lossy().to_string(),
+    });
+
+    let result = collect_rule(&options.to_string()).unwrap();
+    let parsed: Value = serde_json::from_str(&result).unwrap();
+    let rules = parsed["rules"].as_array().unwrap();
+    assert_eq!(rules.len(), 1);
+    assert_eq!(
+      rules[0]["paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect::<Vec<_>>(),
+      vec!["**/*.ts"]
     );
   }
 }

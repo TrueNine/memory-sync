@@ -188,6 +188,26 @@ impl LocalTestRunner {
     fs::read_to_string(home_dir().join(".claude").join("CLAUDE.md")).ok()
   }
 
+  /// 检查项目级 CLAUDE.md 是否存在。
+  pub fn claude_project_file_exists(&self) -> bool {
+    self.cwd.join("CLAUDE.md").is_file()
+  }
+
+  /// 读取项目级 CLAUDE.md 内容。
+  pub fn read_claude_project_file(&self) -> Option<String> {
+    fs::read_to_string(self.cwd.join("CLAUDE.md")).ok()
+  }
+
+  /// 检查子目录 CLAUDE.md 是否存在。
+  pub fn claude_child_file_exists(&self, relative: impl AsRef<Path>) -> bool {
+    self.cwd.join(relative).join("CLAUDE.md").is_file()
+  }
+
+  /// 读取子目录 CLAUDE.md 内容。
+  pub fn read_claude_child_file(&self, relative: impl AsRef<Path>) -> Option<String> {
+    fs::read_to_string(self.cwd.join(relative).join("CLAUDE.md")).ok()
+  }
+
   /// 检查全局 ~/.config/opencode/AGENTS.md 是否存在。
   pub fn opencode_global_file_exists(&self) -> bool {
     home_dir().join(".config").join("opencode").join("AGENTS.md").is_file()

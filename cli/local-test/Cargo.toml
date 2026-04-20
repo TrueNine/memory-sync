@@ -10,4 +10,5 @@ repository.workspace = true
 
 [dependencies]
 serde_json = { workspace = true }
+json5 = { workspace = true }
 dirs = { workspace = true }
