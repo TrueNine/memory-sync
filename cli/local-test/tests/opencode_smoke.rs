@@ -404,3 +404,69 @@ fn local_opencode_agent_md_should_not_contain_model_field() {
     );
   }
 }
+
+/// 回归测试：opencode 不应在任何子目录下生成嵌套的 .opencode/AGENTS.md。
+///
+/// opencode 只支持两个位置的 AGENTS.md：
+///   1. 全局 ~/.config/opencode/AGENTS.md
+///   2. 项目根目录 <project>/.opencode/AGENTS.md
+///
+/// 子目录（如 cli/.opencode/AGENTS.md）属于严重错误，会导致 opencode 行为异常。
+#[test]
+fn local_opencode_no_nested_agents_md() {
+  let runner = LocalTestRunner::new();
+  runner.assert_project_ready();
+
+  let clean = runner.clean();
+  clean.assert_success("tnmsc clean before install");
+
+  let install = runner.install();
+  install.assert_success("tnmsc install");
+
+  // 收集 cwd 下所有 .opencode/AGENTS.md 文件路径
+  let mut nested_agents = Vec::new();
+  fn collect_opencode_agents(dir: &std::path::Path, nested: &mut Vec<std::path::PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+      let path = entry.path();
+      let Ok(ft) = entry.file_type() else { continue };
+      if ft.is_dir() {
+        // 跳过 .git、node_modules、target 等
+        if let Some(name) = path.file_name() {
+          let name = name.to_string_lossy();
+          if name.starts_with('.')
+            && name != ".opencode"
+            || name == "node_modules"
+            || name == "target"
+            || name == "dist"
+            || name == "out"
+          {
+            continue;
+          }
+        }
+        if path.join(".opencode").join("AGENTS.md").is_file() {
+          nested.push(path.join(".opencode").join("AGENTS.md"));
+        }
+        collect_opencode_agents(&path, nested);
+      }
+    }
+  }
+
+  collect_opencode_agents(runner.cwd(), &mut nested_agents);
+
+  let root_agents = runner.cwd().join(".opencode").join("AGENTS.md");
+  let unexpected: Vec<_> = nested_agents
+    .into_iter()
+    .filter(|p| *p != root_agents)
+    .collect();
+
+  assert!(
+    unexpected.is_empty(),
+    "opencode must NOT generate nested .opencode/AGENTS.md files.\nunexpected paths:\n{}",
+    unexpected
+      .iter()
+      .map(|p| format!("  - {}", p.display()))
+      .collect::<Vec<_>>()
+      .join("\n")
+  );
+}

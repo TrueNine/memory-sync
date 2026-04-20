@@ -221,7 +221,7 @@ struct EnabledPlugins {
 impl EnabledPlugins {
   fn from_config(config: Option<&PluginsConfig>) -> Self {
     Self {
-      agents_md: config.and_then(|value| value.agents_md).unwrap_or(false),
+      agents_md: config.and_then(|value| value.agents_md).unwrap_or(true),
       claude_code: config.and_then(|value| value.claude_code).unwrap_or(true),
       codex: config.and_then(|value| value.codex).unwrap_or(false),
       cursor: config.and_then(|value| value.cursor).unwrap_or(false),
@@ -480,6 +480,14 @@ fn build_output_map(
 
   let base_plans = crate::domain::base_output_plans::build_base_output_plans(context)?;
   for plan in &base_plans.plugins {
+    // Cleanup targets are always collected regardless of plugin enablement.
+    // This ensures `tnmsc clean` removes stale files even when a plugin
+    // has been disabled after previously being enabled.
+    cleanup_map
+      .entry(plan.plugin_name.clone())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.is_enabled(plan.plugin_name.as_str()) {
       for file in &plan.output_files {
         output_map
@@ -487,211 +495,206 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry(plan.plugin_name.clone())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
 
-  if enabled_plugins.claude_code {
-    if let Ok(plan) =
-      crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)
-    {
+  if let Ok(plan) =
+    crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)
+  {
+    cleanup_map
+      .entry("ClaudeCodeCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.claude_code {
       for file in &plan.output_files {
         output_map
           .entry("ClaudeCodeCLIOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("ClaudeCodeCLIOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.codex {
-    if let Ok(plan) =
-      crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context)
-    {
+  if let Ok(plan) =
+    crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context)
+  {
+    cleanup_map
+      .entry("CodexCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.codex {
       for file in &plan.output_files {
         output_map
           .entry("CodexCLIOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("CodexCLIOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.cursor {
-    if let Ok(plan) =
-      crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context)
-    {
+  if let Ok(plan) =
+    crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context)
+  {
+    cleanup_map
+      .entry("CursorOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.cursor {
       for file in &plan.output_files {
         output_map
           .entry("CursorOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("CursorOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.droid {
-    if let Ok(plan) =
-      crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context)
-    {
+  if let Ok(plan) =
+    crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context)
+  {
+    cleanup_map
+      .entry("DroidCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.droid {
       for file in &plan.output_files {
         output_map
           .entry("DroidCLIOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("DroidCLIOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.gemini {
-    if let Ok(plan) =
-      crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context)
-    {
+  if let Ok(plan) =
+    crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context)
+  {
+    cleanup_map
+      .entry("GeminiCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.gemini {
       for file in &plan.output_files {
         output_map
           .entry("GeminiCLIOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("GeminiCLIOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.jetbrains {
-    if let Ok(plan) = crate::domain::output_plans::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context) {
+  if let Ok(plan) = crate::domain::output_plans::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context) {
+    cleanup_map
+      .entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.jetbrains {
       for file in &plan.output_files {
         output_map
           .entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.kiro {
-    if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context)
-    {
+  if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context)
+  {
+    cleanup_map
+      .entry("KiroCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.kiro {
       for file in &plan.output_files {
         output_map
           .entry("KiroCLIOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("KiroCLIOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.opencode {
-    if let Ok(plan) =
-      crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)
-    {
+  if let Ok(plan) =
+    crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)
+  {
+    cleanup_map
+      .entry("OpencodeCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.opencode {
       for file in &plan.output_files {
         output_map
           .entry("OpencodeCLIOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("OpencodeCLIOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.qoder {
-    if let Ok(plan) =
-      crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context)
-    {
+  if let Ok(plan) =
+    crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context)
+  {
+    cleanup_map
+      .entry("QoderIDEPluginOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.qoder {
       for file in &plan.output_files {
         output_map
           .entry("QoderIDEPluginOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("QoderIDEPluginOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.trae || enabled_plugins.trae_cn {
-    if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context)
-    {
+  if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context)
+  {
+    cleanup_map
+      .entry("TraeOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.trae || enabled_plugins.trae_cn {
       for file in &plan.output_files {
         output_map
           .entry("TraeOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("TraeOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.warp {
-    if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context)
-    {
+  if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context)
+  {
+    cleanup_map
+      .entry("WarpIDEOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.warp {
       for file in &plan.output_files {
         output_map
           .entry("WarpIDEOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("WarpIDEOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
-  if enabled_plugins.windsurf {
-    if let Ok(plan) =
-      crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)
-    {
+  if let Ok(plan) =
+    crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)
+  {
+    cleanup_map
+      .entry("WindsurfOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
+    if enabled_plugins.windsurf {
       for file in &plan.output_files {
         output_map
           .entry("WindsurfOutputAdaptor".to_string())
           .or_default()
           .push(file.path.clone());
       }
-      cleanup_map
-        .entry("WindsurfOutputAdaptor".to_string())
-        .or_insert_with(CleanupDeclarationsDto::default)
-        .delete
-        .extend(plan.cleanup.delete.clone());
     }
   }
 
@@ -705,7 +708,17 @@ fn build_cleanup_snapshot(
 ) -> Result<CleanupSnapshot, CliError> {
   let mut plugin_snapshots = Vec::new();
 
-  for (plugin_name, output_paths) in output_map {
+  // Include all plugins that have either outputs or cleanup targets.
+  // This ensures disabled plugins still contribute their cleanup declarations.
+  let mut all_plugin_names: Vec<&String> = output_map.keys().collect();
+  for name in cleanup_map.keys() {
+    if !all_plugin_names.contains(&name) {
+      all_plugin_names.push(name);
+    }
+  }
+
+  for plugin_name in all_plugin_names {
+    let output_paths = output_map.get(plugin_name).cloned().unwrap_or_default();
     let cleanup = cleanup_map.get(plugin_name).cloned().unwrap_or_else(|| CleanupDeclarationsDto {
       delete: Vec::new(),
       protect: Vec::new(),
@@ -713,7 +726,7 @@ fn build_cleanup_snapshot(
     });
     plugin_snapshots.push(PluginCleanupSnapshotDto {
       plugin_name: plugin_name.clone(),
-      outputs: output_paths.clone(),
+      outputs: output_paths,
       cleanup,
     });
   }
@@ -925,8 +938,8 @@ mod tests {
   #[test]
   fn clean_enabled_plugins_from_empty_config() {
     let plugins = EnabledPlugins::from_config(None);
-    assert!(!plugins.agents_md);
-    assert!(!plugins.claude_code);
+    assert!(plugins.agents_md);
+    assert!(plugins.claude_code);
     assert!(plugins.git);
     assert!(plugins.readme);
   }
@@ -950,7 +963,7 @@ mod tests {
     let plugins = EnabledPlugins::from_config(None);
     assert!(plugins.is_enabled("GitExcludeOutputAdaptor"));
     assert!(plugins.is_enabled("ReadmeMdConfigFileOutputAdaptor"));
-    assert!(!plugins.is_enabled("ClaudeCodeCLIOutputAdaptor"));
+    assert!(plugins.is_enabled("ClaudeCodeCLIOutputAdaptor"));
   }
 
   #[test]
@@ -982,5 +995,98 @@ mod tests {
     let snapshot = build_cleanup_snapshot(&workspace_dir, &output_map, &cleanup_map).unwrap();
     assert!(snapshot.aindex_dir.is_some());
     assert!(snapshot.aindex_dir.unwrap().contains("aindex"));
+  }
+
+  /// 回归测试：clean 必须始终收集所有插件的 cleanup targets，无论插件是否启用。
+  ///
+  /// 设计原因：用户可能在禁用某个插件之前已经运行过 install，导致该插件生成的文件
+  /// 仍然残留在项目或全局目录中。如果 clean 也跟随插件开关，则这些残留文件将永远
+  /// 无法被自动清理，造成"清爽的编程上下文环境"被破坏。
+  ///
+  /// 因此，install 行为受插件开关控制（只生成启用插件的文件），而 clean 行为
+  /// 不受插件开关控制（总是清理所有已知插件的输出文件）。
+  #[test]
+  fn clean_snapshot_includes_disabled_plugin_cleanup_targets() {
+    let workspace_dir = "/tmp/test-workspace";
+    let output_map: HashMap<String, Vec<String>> = HashMap::new();
+    // 模拟 agents_md 被禁用：没有 outputs，但有 cleanup targets
+    let mut cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
+    cleanup_map.insert(
+      "AgentsOutputAdaptor".to_string(),
+      CleanupDeclarationsDto {
+        delete: vec![CleanupTargetDto {
+          path: "/tmp/test-workspace/AGENTS.md".to_string(),
+          kind: CleanupTargetKindDto::File,
+          exclude_basenames: Vec::new(),
+          protection_mode: None,
+          scope: None,
+          label: Some("delete.project".to_string()),
+        }],
+        protect: Vec::new(),
+        exclude_scan_globs: Vec::new(),
+      },
+    );
+
+    let snapshot = build_cleanup_snapshot(workspace_dir, &output_map, &cleanup_map).unwrap();
+
+    let agents_snapshot = snapshot
+      .plugin_snapshots
+      .iter()
+      .find(|p| p.plugin_name == "AgentsOutputAdaptor");
+    assert!(
+      agents_snapshot.is_some(),
+      "cleanup snapshot should include disabled plugin (AgentsOutputAdaptor)"
+    );
+    let agents_snapshot = agents_snapshot.unwrap();
+    assert!(
+      agents_snapshot.outputs.is_empty(),
+      "disabled plugin should have no outputs"
+    );
+    assert_eq!(
+      agents_snapshot.cleanup.delete.len(),
+      1,
+      "disabled plugin should still contribute cleanup targets"
+    );
+  }
+
+  /// 回归测试：build_cleanup_snapshot 应同时包含 output_map 和 cleanup_map 中的插件。
+  #[test]
+  fn clean_snapshot_collects_from_both_maps() {
+    let workspace_dir = "/tmp/test-workspace";
+    let mut output_map: HashMap<String, Vec<String>> = HashMap::new();
+    output_map.insert("EnabledPlugin".to_string(), vec!["file.md".to_string()]);
+
+    let mut cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
+    cleanup_map.insert(
+      "DisabledPlugin".to_string(),
+      CleanupDeclarationsDto {
+        delete: vec![CleanupTargetDto {
+          path: "stale.md".to_string(),
+          kind: CleanupTargetKindDto::File,
+          exclude_basenames: Vec::new(),
+          protection_mode: None,
+          scope: None,
+          label: None,
+        }],
+        protect: Vec::new(),
+        exclude_scan_globs: Vec::new(),
+      },
+    );
+
+    let snapshot = build_cleanup_snapshot(workspace_dir, &output_map, &cleanup_map).unwrap();
+
+    let names: Vec<_> = snapshot
+      .plugin_snapshots
+      .iter()
+      .map(|p| p.plugin_name.as_str())
+      .collect();
+    assert!(
+      names.contains(&"EnabledPlugin"),
+      "snapshot should include plugin from output_map"
+    );
+    assert!(
+      names.contains(&"DisabledPlugin"),
+      "snapshot should include plugin from cleanup_map"
+    );
   }
 }

@@ -553,7 +553,7 @@ mod tests {
       dir: RelativePath::new("rules/default/test.mdx", "/workspace/aindex"),
       series: "default".into(),
       rule_name: "test".into(),
-      globs: vec!["**/*.ts".into(), "**/*.tsx".into()],
+      paths: vec!["**/*.ts".into(), "**/*.tsx".into()],
       scope: RuleScope::Project,
       seri_name: None,
       yaml_front_matter: None,
@@ -562,7 +562,7 @@ mod tests {
     };
     let json = serde_json::to_string(&rule).unwrap();
     assert!(json.contains("\"type\":\"Rule\""));
-    assert!(json.contains("\"globs\""));
+    assert!(json.contains("\"paths\""));
   }
 
   #[test]

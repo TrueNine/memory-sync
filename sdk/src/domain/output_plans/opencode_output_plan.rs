@@ -65,21 +65,6 @@ fn build_output_files(
         encoding: None,
       });
     }
-
-    if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
-      for child_prompt in child_prompts {
-        output_files.push(BaseOutputFileDeclarationDto {
-          path: resolve_relative_path(&child_prompt.dir)
-            .join(OPENCODE_PROJECT_CONFIG_DIR)
-            .join(OPENCODE_MEMORY_FILE)
-            .to_string_lossy()
-            .into_owned(),
-          scope: Some(PROJECT_SCOPE.to_string()),
-          content: child_prompt.content.clone(),
-          encoding: None,
-        });
-      }
-    }
   }
 
   let project_output_projects = get_project_output_projects(workspace);
@@ -408,6 +393,21 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
       protection_mode: None,
       scope: Some(PROJECT_SCOPE.to_string()),
       label: Some("delete.project".to_string()),
+    });
+
+    // 清理旧版本错误生成的嵌套 .opencode/AGENTS.md（回归保护）
+    delete.push(CleanupTargetDto {
+      path: project_root_dir
+        .join("**")
+        .join(OPENCODE_PROJECT_CONFIG_DIR)
+        .join(OPENCODE_MEMORY_FILE)
+        .to_string_lossy()
+        .into_owned(),
+      kind: CleanupTargetKindDto::Glob,
+      exclude_basenames: Vec::new(),
+      protection_mode: None,
+      scope: Some(PROJECT_SCOPE.to_string()),
+      label: Some("delete.project.nested.glob".to_string()),
     });
 
     let config_dir = project_root_dir.join(OPENCODE_PROJECT_CONFIG_DIR);

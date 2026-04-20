@@ -168,7 +168,7 @@ struct EnabledPlugins {
 impl EnabledPlugins {
   fn from_config(config: Option<&PluginsConfig>) -> Self {
     Self {
-      agents_md: config.and_then(|value| value.agents_md).unwrap_or(false),
+      agents_md: config.and_then(|value| value.agents_md).unwrap_or(true),
       claude_code: config.and_then(|value| value.claude_code).unwrap_or(true),
       codex: config.and_then(|value| value.codex).unwrap_or(false),
       cursor: config.and_then(|value| value.cursor).unwrap_or(false),

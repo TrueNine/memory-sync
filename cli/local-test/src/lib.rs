@@ -208,6 +208,45 @@ impl LocalTestRunner {
     self.cwd.join(".opencode").join("AGENTS.md").is_file()
   }
 
+  /// 检查项目级 AGENTS.md 是否存在。
+  pub fn agents_md_project_file_exists(&self) -> bool {
+    self.cwd.join("AGENTS.md").is_file()
+  }
+
+  /// 读取项目级 AGENTS.md 内容。
+  pub fn read_agents_md_project_file(&self) -> Option<String> {
+    fs::read_to_string(self.cwd.join("AGENTS.md")).ok()
+  }
+
+  /// 检查子目录 AGENTS.md 是否存在。
+  pub fn agents_md_child_file_exists(&self, relative: impl AsRef<Path>) -> bool {
+    self.cwd.join(relative).join("AGENTS.md").is_file()
+  }
+
+  /// 读取子目录 AGENTS.md 内容。
+  pub fn read_agents_md_child_file(&self, relative: impl AsRef<Path>) -> Option<String> {
+    fs::read_to_string(self.cwd.join(relative).join("AGENTS.md")).ok()
+  }
+
+  /// 推断 aindex 目录路径。
+  /// 优先从 ~/.aindex/.tnmsc.json 的 workspaceDir 推导 workspaceDir/aindex，
+  /// 回退到 cwd/../aindex。
+  pub fn resolve_aindex_dir(&self) -> Option<PathBuf> {
+    let workspace_dir = self.resolve_workspace_dir()?;
+    let aindex_from_config = workspace_dir.join("aindex");
+    if aindex_from_config.is_dir() {
+      return Some(aindex_from_config);
+    }
+    let fallback = self.cwd.parent().map(|p| p.join("aindex"));
+    fallback.filter(|p| p.is_dir())
+  }
+
+  /// 读取 aindex 源文件内容（基于 resolve_aindex_dir）。
+  pub fn read_aindex_file(&self, relative: impl AsRef<Path>) -> Option<String> {
+    let aindex_dir = self.resolve_aindex_dir()?;
+    fs::read_to_string(aindex_dir.join(relative)).ok()
+  }
+
   pub fn clean(&self) -> CommandResult {
     self.run(&["clean"])
   }
