@@ -405,6 +405,68 @@ fn local_opencode_agent_md_should_not_contain_model_field() {
   }
 }
 
+/// 回归测试：opencode agent 的 `color` 字段必须匹配 hex 格式 `^#[0-9a-fA-F]{6}$`。
+///
+/// opencode 配置 schema 要求 color 为 6 位 hex 值（如 `#FF5733`），
+/// 不接受 CSS 命名颜色（如 `blue`、`red`）。
+/// 参见: https://github.com/opencode-ai/opencode 配置 schema 中 color 字段的 pattern 约束。
+#[test]
+fn local_opencode_agent_md_color_must_be_hex_format() {
+  fn is_valid_hex_color(s: &str) -> bool {
+    if s.len() != 7 {
+      return false;
+    }
+    let bytes = s.as_bytes();
+    if bytes[0] != b'#' {
+      return false;
+    }
+    bytes[1..].iter().all(|&b| b.is_ascii_hexdigit())
+  }
+
+  let runner = LocalTestRunner::new();
+  runner.assert_project_ready();
+
+  let clean = runner.clean();
+  clean.assert_success("tnmsc clean before install");
+
+  let install = runner.install();
+  install.assert_success("tnmsc install");
+
+  let agents_dir = runner.cwd().join(".opencode").join("agents");
+  let agent_files: Vec<_> = std::fs::read_dir(&agents_dir)
+    .unwrap()
+    .flatten()
+    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .collect();
+
+  assert!(
+    !agent_files.is_empty(),
+    ".opencode/agents should contain at least one file"
+  );
+
+  for file in &agent_files {
+    let content = std::fs::read_to_string(file.path()).unwrap();
+    let file_name = file.file_name().to_string_lossy().to_string();
+
+    for line in content.lines() {
+      let trimmed = line.trim();
+      if let Some(color_value) = trimmed.strip_prefix("color:") {
+        if !color_value.is_empty() && !color_value.starts_with(' ') && !color_value.starts_with('\t') {
+          continue;
+        }
+        let color_value = color_value.trim().trim_matches('"').trim_matches('\'');
+        assert!(
+          is_valid_hex_color(color_value),
+          "agent file {} has invalid color '{}': must match hex pattern #RRGGBB (e.g. #0000FF), \
+           CSS named colors (e.g. blue, red) are not accepted by opencode schema",
+          file_name,
+          color_value
+        );
+      }
+    }
+  }
+}
+
 /// 回归测试：opencode 不应在任何子目录下生成嵌套的 .opencode/AGENTS.md。
 ///
 /// opencode 只支持两个位置的 AGENTS.md：

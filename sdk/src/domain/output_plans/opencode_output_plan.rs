@@ -338,11 +338,14 @@ fn build_skill_content(skill: &crate::domain::plugin_shared::SkillPrompt) -> Str
 }
 
 fn wrap_yaml_front_matter(metadata: &serde_json::Map<String, Value>, content: &str) -> String {
+  let mut metadata = metadata.clone();
+  normalize_color(&mut metadata);
+
   if metadata.is_empty() {
     return content.to_string();
   }
 
-  let yaml = match serde_yml::to_string(&Value::Object(metadata.clone())) {
+  let yaml = match serde_yml::to_string(&Value::Object(metadata)) {
     Ok(y) => y,
     Err(_) => return content.to_string(),
   };
@@ -350,6 +353,73 @@ fn wrap_yaml_front_matter(metadata: &serde_json::Map<String, Value>, content: &s
   let indented = indent_yaml_list_items(&yaml);
 
   format!("---\n{}\n---\n\n{}", indented, content)
+}
+
+/// Normalize the `color` field in metadata to 6-digit hex format (`#RRGGBB`).
+///
+/// - If the color is already a valid hex, leave it as-is.
+/// - If it is a recognized CSS named color, convert it to hex.
+/// - Otherwise, remove the `color` key to avoid opencode schema validation errors.
+fn normalize_color(metadata: &mut serde_json::Map<String, Value>) {
+  let Some(Value::String(color)) = metadata.get("color").cloned() else {
+    return;
+  };
+
+  if is_valid_hex_color(&color) {
+    return;
+  }
+
+  if let Some(hex) = css_color_name_to_hex(&color) {
+    metadata.insert("color".to_string(), Value::String(hex.to_string()));
+  } else {
+    metadata.remove("color");
+  }
+}
+
+/// Convert a CSS named color (case-insensitive) to its 6-digit hex equivalent.
+fn css_color_name_to_hex(name: &str) -> Option<&'static str> {
+  let lowered = name.trim().to_ascii_lowercase();
+  let hex = match lowered.as_str() {
+    "black" => "#000000",
+    "white" => "#FFFFFF",
+    "red" => "#FF0000",
+    "green" => "#008000",
+    "blue" => "#0000FF",
+    "yellow" => "#FFFF00",
+    "cyan" => "#00FFFF",
+    "magenta" => "#FF00FF",
+    "orange" => "#FFA500",
+    "purple" => "#800080",
+    "pink" => "#FFC0CB",
+    "brown" => "#A52A2A",
+    "gray" | "grey" => "#808080",
+    "lightgray" | "lightgrey" => "#D3D3D3",
+    "darkgray" | "darkgrey" => "#A9A9A9",
+    "lime" => "#00FF00",
+    "navy" => "#000080",
+    "teal" => "#008080",
+    "olive" => "#808000",
+    "maroon" => "#800000",
+    "silver" => "#C0C0C0",
+    "gold" => "#FFD700",
+    "indigo" => "#4B0082",
+    "violet" => "#EE82EE",
+    "coral" => "#FF7F50",
+    "salmon" => "#FA8072",
+    "tomato" => "#FF6347",
+    "khaki" => "#F0E68C",
+    "plum" => "#DDA0DD",
+    "orchid" => "#DA70D6",
+    "crimson" => "#DC143C",
+    "azure" => "#F0FFFF",
+    "beige" => "#F5F5DC",
+    "ivory" => "#FFFFF0",
+    "linen" => "#FAF0E6",
+    "snow" => "#FFFAFA",
+    "wheat" => "#F5DEB3",
+    _ => return None,
+  };
+  Some(hex)
 }
 
 fn indent_yaml_list_items(yaml: &str) -> String {
@@ -443,6 +513,17 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
   }
 }
 
+fn is_valid_hex_color(s: &str) -> bool {
+  if s.len() != 7 {
+    return false;
+  }
+  let bytes = s.as_bytes();
+  if bytes[0] != b'#' {
+    return false;
+  }
+  bytes[1..].iter().all(|&b| b.is_ascii_hexdigit())
+}
+
 fn resolve_effective_home_dir() -> PathBuf {
   let runtime_environment = config::resolve_runtime_environment();
   runtime_environment
@@ -496,4 +577,118 @@ fn resolve_relative_path(rp: &RelativePath) -> PathBuf {
     return raw.to_path_buf();
   }
   PathBuf::from(&rp.base_path).join(raw)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn hex_color_valid_cases() {
+    assert!(is_valid_hex_color("#000000"));
+    assert!(is_valid_hex_color("#FFFFFF"));
+    assert!(is_valid_hex_color("#ff5733"));
+    assert!(is_valid_hex_color("#A1B2C3"));
+    assert!(is_valid_hex_color("#0000FF"));
+  }
+
+  #[test]
+  fn hex_color_invalid_cases() {
+    assert!(!is_valid_hex_color("blue"), "CSS named color must be rejected");
+    assert!(!is_valid_hex_color("red"), "CSS named color must be rejected");
+    assert!(!is_valid_hex_color("#FFF"), "3-digit hex must be rejected");
+    assert!(!is_valid_hex_color("#FFFFFFAA"), "8-digit hex must be rejected");
+    assert!(!is_valid_hex_color("FFFFFF"), "missing # prefix must be rejected");
+    assert!(!is_valid_hex_color("#GGGGGG"), "non-hex digits must be rejected");
+    assert!(!is_valid_hex_color(""), "empty string must be rejected");
+    assert!(!is_valid_hex_color("#12345"), "5-digit hex must be rejected");
+  }
+
+  fn make_test_agent(color: Option<String>) -> crate::domain::plugin_shared::SubAgentPrompt {
+    crate::domain::plugin_shared::SubAgentPrompt {
+      prompt_type: crate::domain::plugin_shared::PromptKind::SubAgent,
+      content: "body".to_string(),
+      length: 4,
+      dir: crate::domain::plugin_shared::RelativePath::new("pe/compile.mdx", "/workspace/aindex"),
+      agent_name: "compile".to_string(),
+      agent_prefix: Some("pe".to_string()),
+      canonical_name: "pe-compile".to_string(),
+      yaml_front_matter: Some(crate::domain::plugin_shared::SubAgentYAMLFrontMatter {
+        color,
+        description: Some("test".to_string()),
+        ..Default::default()
+      }),
+      raw_mdx_content: None,
+      markdown_contents: None,
+    }
+  }
+
+  #[test]
+  fn build_agent_content_converts_named_color_to_hex() {
+    let agent = make_test_agent(Some("blue".to_string()));
+    let result = build_agent_content(&agent);
+    assert!(
+      result.contains("color: '#0000FF'"),
+      "named color 'blue' should be converted to hex, got:\n{result}"
+    );
+    assert!(
+      result.contains("description:"),
+      "other front matter fields must be preserved"
+    );
+  }
+
+  #[test]
+  fn build_agent_content_strips_unknown_color() {
+    let agent = make_test_agent(Some("notacolor".to_string()));
+    let result = build_agent_content(&agent);
+    assert!(
+      !result.contains("color:"),
+      "unknown color must be stripped from output, got:\n{result}"
+    );
+  }
+
+  #[test]
+  fn build_agent_content_preserves_hex_color() {
+    let agent = make_test_agent(Some("#0000FF".to_string()));
+    let result = build_agent_content(&agent);
+    assert!(
+      result.contains("color: '#0000FF'"),
+      "valid hex color must be preserved in output, got:\n{result}"
+    );
+  }
+
+  #[test]
+  fn css_color_name_to_hex_basic_colors() {
+    assert_eq!(css_color_name_to_hex("red"), Some("#FF0000"));
+    assert_eq!(css_color_name_to_hex("green"), Some("#008000"));
+    assert_eq!(css_color_name_to_hex("blue"), Some("#0000FF"));
+    assert_eq!(css_color_name_to_hex("yellow"), Some("#FFFF00"));
+    assert_eq!(css_color_name_to_hex("black"), Some("#000000"));
+    assert_eq!(css_color_name_to_hex("white"), Some("#FFFFFF"));
+  }
+
+  #[test]
+  fn css_color_name_to_hex_case_insensitive() {
+    assert_eq!(css_color_name_to_hex("RED"), Some("#FF0000"));
+    assert_eq!(css_color_name_to_hex("Red"), Some("#FF0000"));
+    assert_eq!(css_color_name_to_hex("Blue"), Some("#0000FF"));
+    assert_eq!(css_color_name_to_hex("BLUE"), Some("#0000FF"));
+  }
+
+  #[test]
+  fn css_color_name_to_hex_unknown_returns_none() {
+    assert_eq!(css_color_name_to_hex("notacolor"), None);
+    assert_eq!(css_color_name_to_hex(""), None);
+    assert_eq!(css_color_name_to_hex("#FF0000"), None);
+  }
+
+  #[test]
+  fn css_color_name_to_hex_grey_variants() {
+    assert_eq!(css_color_name_to_hex("gray"), Some("#808080"));
+    assert_eq!(css_color_name_to_hex("grey"), Some("#808080"));
+    assert_eq!(css_color_name_to_hex("lightgray"), Some("#D3D3D3"));
+    assert_eq!(css_color_name_to_hex("lightgrey"), Some("#D3D3D3"));
+    assert_eq!(css_color_name_to_hex("darkgray"), Some("#A9A9A9"));
+    assert_eq!(css_color_name_to_hex("darkgrey"), Some("#A9A9A9"));
+  }
 }
