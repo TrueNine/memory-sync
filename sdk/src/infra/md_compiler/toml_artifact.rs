@@ -261,6 +261,37 @@ pub fn build_toml_document(
   Ok(lines.join("\n"))
 }
 
+/// Build a codex agent `.toml` artifact from a subagent prompt.
+///
+/// Codex agent format:
+/// ```toml
+/// name = "canonical-name"
+/// description = "..."
+/// developer_instructions = """
+/// ## Content
+/// ...
+/// """
+/// ```
+pub fn build_codex_agent_toml(
+  canonical_name: &str,
+  description: Option<&str>,
+  content: &str,
+) -> Result<String, String> {
+  let mut fields = Map::new();
+  fields.insert("name".to_string(), Value::String(canonical_name.to_string()));
+  if let Some(desc) = description {
+    fields.insert("description".to_string(), Value::String(desc.to_string()));
+  }
+  fields.insert("developer_instructions".to_string(), Value::String(content.to_string()));
+
+  build_toml_document(
+    Value::Object(fields),
+    Some(BuildTomlDocumentOptions {
+      field_order: Some(vec!["name".to_string(), "description".to_string(), "developer_instructions".to_string()]),
+    }),
+  )
+}
+
 pub fn build_prompt_toml_artifact(
   options: BuildPromptTomlArtifactOptions,
 ) -> Result<String, String> {

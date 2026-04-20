@@ -386,6 +386,9 @@ pub struct GlobalMemoryPrompt {
   pub markdown_contents: Option<Vec<Value>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub parent_directory_path: Option<Value>,
+  /// Raw uncompiled content (original file content without interpolation).
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub raw_content: Option<String>,
 }
 
 /// Project root memory prompt.

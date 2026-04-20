@@ -61,7 +61,7 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
 
   let global_memory = GlobalMemoryPrompt {
     prompt_type: PromptKind::GlobalMemory,
-    content,
+    content: content.clone(),
     length,
     file_path_kind: FilePathKind::Relative,
     dir: RelativePath::new(
@@ -77,6 +77,7 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
     raw_front_matter: Some(artifact.raw_mdx.clone()),
     markdown_contents: None,
     parent_directory_path: Some(parent_directory_path),
+    raw_content: Some(artifact.raw_mdx),
   };
 
   #[derive(Debug, Clone, serde::Serialize)]

@@ -255,6 +255,41 @@ impl LocalTestRunner {
     fs::read_to_string(self.cwd.join(relative).join("AGENTS.md")).ok()
   }
 
+  /// 检查全局 ~/.codex/AGENTS.md 是否存在。
+  pub fn codex_global_file_exists(&self) -> bool {
+    home_dir().join(".codex").join("AGENTS.md").is_file()
+  }
+
+  /// 读取全局 ~/.codex/AGENTS.md 内容。
+  pub fn read_codex_global_file(&self) -> Option<String> {
+    fs::read_to_string(home_dir().join(".codex").join("AGENTS.md")).ok()
+  }
+
+  /// 检查全局 ~/.codex/prompts/ 目录是否存在。
+  pub fn codex_global_prompts_dir_exists(&self) -> bool {
+    home_dir().join(".codex").join("prompts").is_dir()
+  }
+
+  /// 检查全局 ~/.codex/agents/ 目录是否存在。
+  pub fn codex_global_agents_dir_exists(&self) -> bool {
+    home_dir().join(".codex").join("agents").is_dir()
+  }
+
+  /// 检查项目级 .codex/ 目录是否存在。
+  pub fn codex_project_dir_exists(&self) -> bool {
+    self.cwd.join(".codex").is_dir()
+  }
+
+  /// 检查项目级 .codex/agents/ 目录是否存在。
+  pub fn codex_project_agents_dir_exists(&self) -> bool {
+    self.cwd.join(".codex").join("agents").is_dir()
+  }
+
+  /// 检查项目级 .codex/skills/ 目录是否存在。
+  pub fn codex_project_skills_dir_exists(&self) -> bool {
+    self.cwd.join(".codex").join("skills").is_dir()
+  }
+
   /// 检查绝对路径下的文件是否存在。
   pub fn file_exists_at(&self, path: impl AsRef<Path>) -> bool {
     path.as_ref().is_file()

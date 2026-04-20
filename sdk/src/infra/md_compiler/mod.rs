@@ -21,7 +21,7 @@ pub use mdx_to_md::{
 pub use parser::parse_mdx;
 pub use serializer::serialize;
 pub use toml_artifact::{
-  BuildPromptTomlArtifactOptions, BuildTomlDocumentOptions, build_prompt_toml_artifact,
-  build_toml_document,
+  BuildPromptTomlArtifactOptions, BuildTomlDocumentOptions, build_codex_agent_toml,
+  build_prompt_toml_artifact, build_toml_document,
 };
 pub use transformer::ProcessingContext;
