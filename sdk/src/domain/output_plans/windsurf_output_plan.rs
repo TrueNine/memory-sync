@@ -56,6 +56,7 @@ fn build_output_files(
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
           content: gm.content.clone(),
+            encoding: None,
         });
       }
     }
@@ -73,6 +74,7 @@ fn build_output_files(
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
           content: combine_global_with_content(gmc, &rp.content),
+            encoding: None,
         });
       }
     }

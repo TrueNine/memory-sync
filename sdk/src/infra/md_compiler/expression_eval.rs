@@ -125,9 +125,11 @@ fn evaluate_simple_reference(reference: &str, scope: &EvaluationScope) -> Result
   Ok(convert_to_string(&value))
 }
 
-/// Try to parse a string literal ("..." or '...').
+/// Try to parse a string literal ("...", '...', or `...`).
 fn try_parse_string_literal(s: &str) -> Option<String> {
-  if ((s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')))
+  if ((s.starts_with('"') && s.ends_with('"'))
+    || (s.starts_with('\'') && s.ends_with('\''))
+    || (s.starts_with('`') && s.ends_with('`')))
     && s.len() >= 2
   {
     return Some(s[1..s.len() - 1].to_string());
@@ -254,6 +256,92 @@ pub fn convert_to_string(value: &Value) -> String {
   }
 }
 
+/// Evaluate all `{expression}` interpolations within a string.
+///
+/// Scans `text` for brace-delimited expressions and replaces each with the
+/// result of [`evaluate_expression`].  Brace matching respects nested braces
+/// and skips braces inside string literals (`"…"`, `'…'`, `` `…` ``).
+///
+/// On evaluation error the original `{expr}` is preserved so that the URL
+/// remains valid even when a variable is missing from scope.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::HashMap;
+/// use serde_json::json;
+/// use tnmsd::infra::md_compiler::expression_eval::{EvaluationScope, evaluate_interpolations};
+///
+/// let mut scope = EvaluationScope::new();
+/// scope.insert("profile".into(), json!({"name": "TrueNine"}));
+/// assert_eq!(
+///     evaluate_interpolations("https://{profile.name}.com", &scope),
+///     "https://TrueNine.com"
+/// );
+/// ```
+pub fn evaluate_interpolations(text: &str, scope: &EvaluationScope) -> String {
+  let mut result = String::with_capacity(text.len());
+  let mut i = 0;
+
+  while i < text.len() {
+    // Locate the next opening brace.
+    let Some(start) = text[i..].find('{') else {
+      // No more braces — append remainder and finish.
+      result.push_str(&text[i..]);
+      break;
+    };
+    let start = i + start;
+
+    // Append everything before the brace.
+    result.push_str(&text[i..start]);
+
+    // Search for the matching closing brace starting right after `{`.
+    let mut depth = 1i32;
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut in_backtick = false;
+    let mut j = start + 1;
+    let mut matched = false;
+
+    while j < text.len() {
+      let c = text[j..].chars().next().unwrap();
+      match c {
+        '\'' if !in_double_quote && !in_backtick => in_single_quote = !in_single_quote,
+        '"' if !in_single_quote && !in_backtick => in_double_quote = !in_double_quote,
+        '`' if !in_single_quote && !in_double_quote => in_backtick = !in_backtick,
+        '{' if !in_single_quote && !in_double_quote && !in_backtick => depth += 1,
+        '}' if !in_single_quote && !in_double_quote && !in_backtick => {
+          depth -= 1;
+          if depth == 0 {
+            matched = true;
+            break;
+          }
+        }
+        _ => {}
+      }
+      j += c.len_utf8();
+    }
+
+    if matched {
+      let expr = &text[start + 1..j];
+      match evaluate_expression(expr, scope) {
+        Ok(val) => result.push_str(&val),
+        Err(_) => {
+          // Preserve the original `{expr}` on error.
+          result.push_str(&text[start..=j]);
+        }
+      }
+      i = j + 1; // advance past the closing `}`
+    } else {
+      // Unmatched `{` — treat it as a literal character and continue scanning.
+      result.push('{');
+      i = start + 1;
+    }
+  }
+
+  result
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -376,5 +464,188 @@ mod tests {
     assert_eq!(convert_to_string(&Value::Bool(true)), "true");
     assert_eq!(convert_to_string(&json!(42)), "42");
     assert_eq!(convert_to_string(&json!("hello")), "hello");
+  }
+
+  // -------------------------------------------------------------------------
+  // evaluate_interpolations unit tests
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn test_interpolation_simple() {
+    let scope = make_scope();
+    assert_eq!(
+      evaluate_interpolations("https://{profile.name}.com", &scope),
+      "https://TrueNine.com"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_multiple() {
+    let mut scope = make_scope();
+    scope.insert("host".into(), json!("example.org"));
+    scope.insert("path".into(), json!("docs/start"));
+    assert_eq!(
+      evaluate_interpolations("https://{host}/{path}", &scope),
+      "https://example.org/docs/start"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_nested_quotes() {
+    let scope = make_scope();
+    // String literal contains braces that must NOT terminate the expression.
+    assert_eq!(
+      evaluate_interpolations("{\"he{ll}o\"}", &scope),
+      "he{ll}o"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_no_match() {
+    let scope = make_scope();
+    assert_eq!(
+      evaluate_interpolations("https://example.com", &scope),
+      "https://example.com"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_undefined_preserved() {
+    let scope = make_scope();
+    // Unknown variable → error → preserve original `{unknown}`.
+    assert_eq!(
+      evaluate_interpolations("https://{unknown}", &scope),
+      "https://{unknown}"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_empty_braces() {
+    let scope = make_scope();
+    assert_eq!(
+      evaluate_interpolations("https://{}", &scope),
+      "https://"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_url_with_query() {
+    let scope = make_scope();
+    assert_eq!(
+      evaluate_interpolations("https://x.com?u={profile.name}", &scope),
+      "https://x.com?u=TrueNine"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_fragment() {
+    let mut scope = make_scope();
+    scope.insert("section".into(), json!("intro"));
+    assert_eq!(
+      evaluate_interpolations("https://x.com#{section}", &scope),
+      "https://x.com#intro"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_single_quotes() {
+    let scope = make_scope();
+    assert_eq!(
+      evaluate_interpolations("{'a{b}c'}", &scope),
+      "a{b}c"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_backtick_quotes() {
+    let scope = make_scope();
+    assert_eq!(
+      evaluate_interpolations("{`a{b}c`}", &scope),
+      "a{b}c"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_unmatched_brace() {
+    let scope = make_scope();
+    // Unmatched `{` is kept as a literal character.
+    assert_eq!(
+      evaluate_interpolations("https://x.com/{abc", &scope),
+      "https://x.com/{abc"
+    );
+  }
+
+  #[test]
+  fn test_interpolation_ternary_in_url() {
+    let scope = make_scope();
+    assert_eq!(
+      evaluate_interpolations(
+        "https://{os.platform === \"win32\" ? \"windows\" : \"other\"}.com",
+        &scope
+      ),
+      "https://windows.com"
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Property-based tests
+  // -------------------------------------------------------------------------
+
+  use proptest::prelude::*;
+
+  proptest! {
+    /// Any arbitrary string must not panic when processed.
+    #[test]
+    fn prop_interpolation_no_panic(input in "\\PC*") {
+      let scope = make_scope();
+      let _ = evaluate_interpolations(&input, &scope);
+    }
+
+    /// Strings without braces are returned unchanged.
+    #[test]
+    fn prop_interpolation_idempotent_when_no_braces(
+      input in "[a-zA-Z0-9:/._?=&-]+"
+    ) {
+      let scope = make_scope();
+      let result = evaluate_interpolations(&input, &scope);
+      prop_assert_eq!(result, input);
+    }
+
+    /// A single valid interpolation is replaced and the original `{expr}`
+    /// no longer appears in the output.
+    #[test]
+    fn prop_interpolation_well_formed_url(
+      base in "https?://[a-z]{3,10}\\.[a-z]{2,6}",
+      key in "os|profile|tool",
+      prop in "platform|name|arch|username",
+    ) {
+      let scope = make_scope();
+      let expr = format!("{}.{}", key, prop);
+      let input = format!("{}/{{{}}}", base, expr);
+      let result = evaluate_interpolations(&input, &scope);
+
+      let could_eval = evaluate_expression(&expr, &scope).is_ok();
+      if could_eval {
+        prop_assert!(
+          !result.contains(&format!("{{{}}}", expr)),
+          "output still contains unevaluated expression: {}",
+          result
+        );
+      }
+    }
+
+    /// Multiple interpolations are all replaced.
+    #[test]
+    fn prop_interpolation_multiple(
+      a in "[a-z]{1,10}",
+      b in "[a-z]{1,10}",
+    ) {
+      let mut scope = EvaluationScope::new();
+      scope.insert("a".into(), json!(&a));
+      scope.insert("b".into(), json!(&b));
+      let input = format!("https://{{a}}.com/{{b}}");
+      let result = evaluate_interpolations(&input, &scope);
+      prop_assert_eq!(result, format!("https://{}.com/{}", a, b));
+    }
   }
 }

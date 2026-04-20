@@ -202,8 +202,20 @@ impl LocalTestRunner {
 }
 
 pub fn ensure_binary() {
+  let binary = binary_path();
+
+  if binary.is_file() {
+    eprintln!(
+      "[tnmsc-local-tests] using existing binary: {}",
+      binary.display()
+    );
+    return;
+  }
+
   BINARY_BUILT.get_or_init(|| {
-    eprintln!("[tnmsc-local-tests] compiling debug binary (cargo build -p tnmsc)...");
+    eprintln!("[tnmsc-local-tests] binary not found at {}", binary.display());
+    eprintln!("[tnmsc-local-tests] compiling debug binary: cargo build -p tnmsc");
+    eprintln!("[tnmsc-local-tests] hint: run `cargo build -p tnmsc` beforehand to skip compilation");
     let start = std::time::Instant::now();
     let status = run_program_inherit(
       "cargo",
@@ -217,7 +229,6 @@ pub fn ensure_binary() {
     assert!(status, "cargo build -p tnmsc failed");
   });
 
-  let binary = binary_path();
   assert!(binary.is_file(), "missing binary at {}", binary.display());
 }
 

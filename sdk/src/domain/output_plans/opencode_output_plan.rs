@@ -58,6 +58,7 @@ fn build_output_files(
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
           content: global_memory.content.clone(),
+            encoding: None,
         });
       }
     }
@@ -77,6 +78,7 @@ fn build_output_files(
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
           content: combined_content,
+            encoding: None,
         });
       }
       if let Some(child_prompts) = project.child_memory_prompts.as_ref() {
@@ -88,6 +90,7 @@ fn build_output_files(
               .into_owned(),
             scope: Some(PROJECT_SCOPE.to_string()),
             content: child_prompt.content.clone(),
+              encoding: None,
           });
         }
       }

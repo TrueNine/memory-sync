@@ -603,7 +603,7 @@ fn push_base_output_files(
       PlannedOutputFile {
         path: file.path.clone(),
         content: file.content.clone(),
-        encoding: None,
+        encoding: file.encoding.clone(),
       },
     );
   }

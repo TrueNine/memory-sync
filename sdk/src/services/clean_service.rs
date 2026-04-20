@@ -20,8 +20,8 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
   let enabled_plugins = EnabledPlugins::from_config(config_result.config.plugins.as_ref());
 
   let context = collect_context(&workspace_dir_str, global_scope.as_ref())?;
-  let output_map = build_output_map(&context, enabled_plugins)?;
-  let snapshot = build_cleanup_snapshot(&workspace_dir_str, &output_map)?;
+  let (output_map, cleanup_map) = build_output_map(&context, enabled_plugins)?;
+  let snapshot = build_cleanup_snapshot(&workspace_dir_str, &output_map, &cleanup_map)?;
 
   if options.dry_run.unwrap_or(false) {
     let plan = crate::policy::cleanup::plan_cleanup(snapshot.clone())
@@ -474,8 +474,9 @@ fn collect_context(
 fn build_output_map(
   context: &OutputContext,
   enabled_plugins: EnabledPlugins,
-) -> Result<HashMap<String, Vec<String>>, CliError> {
+) -> Result<(HashMap<String, Vec<String>>, HashMap<String, CleanupDeclarationsDto>), CliError> {
   let mut output_map: HashMap<String, Vec<String>> = HashMap::new();
+  let mut cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
 
   let base_plans = crate::domain::base_output_plans::build_base_output_plans(context)?;
   for plan in &base_plans.plugins {
@@ -486,6 +487,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry(plan.plugin_name.clone())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
 
@@ -499,6 +505,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("ClaudeCodeCLIOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.codex {
@@ -511,6 +522,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("CodexCLIOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.cursor {
@@ -523,6 +539,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("CursorOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.droid {
@@ -535,6 +556,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("DroidCLIOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.gemini {
@@ -547,6 +573,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("GeminiCLIOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.jetbrains {
@@ -557,6 +588,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.kiro {
@@ -568,6 +604,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("KiroCLIOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.opencode {
@@ -580,6 +621,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("OpencodeCLIOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.qoder {
@@ -592,6 +638,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("QoderIDEPluginOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.trae || enabled_plugins.trae_cn {
@@ -603,6 +654,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("TraeOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.warp {
@@ -614,6 +670,11 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("WarpIDEOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
   if enabled_plugins.windsurf {
@@ -626,27 +687,34 @@ fn build_output_map(
           .or_default()
           .push(file.path.clone());
       }
+      cleanup_map
+        .entry("WindsurfOutputAdaptor".to_string())
+        .or_insert_with(CleanupDeclarationsDto::default)
+        .delete
+        .extend(plan.cleanup.delete.clone());
     }
   }
 
-  Ok(output_map)
+  Ok((output_map, cleanup_map))
 }
 
 fn build_cleanup_snapshot(
   workspace_dir: &str,
   output_map: &HashMap<String, Vec<String>>,
+  cleanup_map: &HashMap<String, CleanupDeclarationsDto>,
 ) -> Result<CleanupSnapshot, CliError> {
   let mut plugin_snapshots = Vec::new();
 
   for (plugin_name, output_paths) in output_map {
+    let cleanup = cleanup_map.get(plugin_name).cloned().unwrap_or_else(|| CleanupDeclarationsDto {
+      delete: Vec::new(),
+      protect: Vec::new(),
+      exclude_scan_globs: Vec::new(),
+    });
     plugin_snapshots.push(PluginCleanupSnapshotDto {
       plugin_name: plugin_name.clone(),
       outputs: output_paths.clone(),
-      cleanup: CleanupDeclarationsDto {
-        delete: Vec::new(),
-        protect: Vec::new(),
-        exclude_scan_globs: Vec::new(),
-      },
+      cleanup,
     });
   }
 
@@ -895,7 +963,8 @@ mod tests {
       vec!["/path/to/output.md".to_string()],
     );
 
-    let snapshot = build_cleanup_snapshot(&workspace_dir, &output_map);
+    let cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
+    let snapshot = build_cleanup_snapshot(&workspace_dir, &output_map, &cleanup_map);
     assert!(snapshot.is_ok());
     let snapshot = snapshot.unwrap();
     assert_eq!(snapshot.plugin_snapshots.len(), 2);
@@ -908,8 +977,9 @@ mod tests {
     let temp_dir = TempDir::new().unwrap();
     let workspace_dir = temp_dir.path().to_string_lossy();
     let output_map = HashMap::new();
+    let cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
 
-    let snapshot = build_cleanup_snapshot(&workspace_dir, &output_map).unwrap();
+    let snapshot = build_cleanup_snapshot(&workspace_dir, &output_map, &cleanup_map).unwrap();
     assert!(snapshot.aindex_dir.is_some());
     assert!(snapshot.aindex_dir.unwrap().contains("aindex"));
   }

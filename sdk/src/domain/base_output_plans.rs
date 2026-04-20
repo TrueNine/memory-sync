@@ -25,13 +25,15 @@ const VSCODE_DIR: &str = ".vscode";
 const ZED_DIR: &str = ".zed";
 const EDITOR_CONFIG_FILE: &str = ".editorconfig";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BaseOutputFileDeclarationDto {
   pub path: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub scope: Option<String>,
   pub content: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub encoding: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -543,6 +545,7 @@ fn create_output_file(path: PathBuf, content: String) -> BaseOutputFileDeclarati
     path: path.to_string_lossy().into_owned(),
     scope: Some(PROJECT_SCOPE.to_string()),
     content,
+    encoding: None,
   }
 }
 

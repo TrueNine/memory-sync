@@ -3,7 +3,7 @@
 //! Walks the mdast AST, evaluating expressions, expanding components,
 //! and converting JSX elements to Markdown equivalents.
 
-use super::expression_eval::{EvaluationScope, evaluate_expression};
+use super::expression_eval::{EvaluationScope, evaluate_expression, evaluate_interpolations};
 use super::serializer::serialize;
 use markdown::mdast::*;
 use serde_json::{Number, Value};
@@ -670,7 +670,7 @@ fn convert_link_element(element: &MdxJsxFlowElement, ctx: &ProcessingContext) ->
   let title = get_attribute_value(&element.attributes, "title", &ctx.scope);
   Some(vec![Node::Paragraph(Paragraph {
     children: vec![Node::Link(Link {
-      url: href,
+      url: evaluate_interpolations(&href, &ctx.scope),
       title,
       children: vec![Node::Text(Text {
         value: text,
@@ -693,7 +693,7 @@ fn convert_link_text_element(
   let text = extract_text_content(&element.children, &ctx.scope);
   let title = get_attribute_value(&element.attributes, "title", &ctx.scope);
   Some(vec![Node::Link(Link {
-    url: href,
+    url: evaluate_interpolations(&href, &ctx.scope),
     title,
     children: vec![Node::Text(Text {
       value: text,
@@ -777,7 +777,7 @@ fn convert_image_element(
   let title = get_attribute_value(&element.attributes, "title", &ctx.scope);
   Some(vec![Node::Paragraph(Paragraph {
     children: vec![Node::Image(Image {
-      url: src,
+      url: evaluate_interpolations(&src, &ctx.scope),
       alt,
       title,
       position: None,
@@ -939,11 +939,21 @@ fn transform_children(children: &[Node], ctx: &ProcessingContext) -> Vec<Node> {
             c
           })
           .collect();
+        let evaluated_url = evaluate_interpolations(&link.url, &ctx.scope);
         result.push(Node::Link(Link {
           children: simplified,
           position: link.position.clone(),
-          url: link.url.clone(),
+          url: evaluated_url,
           title: link.title.clone(),
+        }));
+      }
+      Node::Image(img) => {
+        let evaluated_url = evaluate_interpolations(&img.url, &ctx.scope);
+        result.push(Node::Image(Image {
+          url: evaluated_url,
+          alt: img.alt.clone(),
+          title: img.title.clone(),
+          position: img.position.clone(),
         }));
       }
       Node::Strong(s) => {
@@ -1089,11 +1099,21 @@ fn transform_inline_children(children: &[Node], ctx: &ProcessingContext) -> Vec<
       }
       Node::Link(link) => {
         let new_children = transform_inline_children(&link.children, ctx);
+        let evaluated_url = evaluate_interpolations(&link.url, &ctx.scope);
         result.push(Node::Link(Link {
           children: new_children,
           position: link.position.clone(),
-          url: link.url.clone(),
+          url: evaluated_url,
           title: link.title.clone(),
+        }));
+      }
+      Node::Image(img) => {
+        let evaluated_url = evaluate_interpolations(&img.url, &ctx.scope);
+        result.push(Node::Image(Image {
+          url: evaluated_url,
+          alt: img.alt.clone(),
+          title: img.title.clone(),
+          position: img.position.clone(),
         }));
       }
       Node::Delete(d) => {
@@ -1221,5 +1241,48 @@ mod tests {
     let result = compile("```js\nconsole.log(\"hi\")\n```\n", make_scope());
     assert!(result.contains("```js"), "Got: {}", result);
     assert!(result.contains("console.log"), "Got: {}", result);
+  }
+
+  #[test]
+  fn test_link_url_interpolation() {
+    let result = compile("[docs](https://{tool.name}.com)\n", make_scope());
+    assert!(
+      result.contains("[docs](https://cursor.com)"),
+      "Got: {}",
+      result
+    );
+  }
+
+  #[test]
+  fn test_image_url_interpolation() {
+    let result = compile("![logo](https://{tool.name}.com/logo.png)\n", make_scope());
+    assert!(
+      result.contains("![logo](https://cursor.com/logo.png)"),
+      "Got: {}",
+      result
+    );
+  }
+
+  #[test]
+  fn test_link_url_multiple_interpolations() {
+    let mut scope = make_scope();
+    scope.insert("host".into(), json!("cursor"));
+    scope.insert("path".into(), json!("docs"));
+    let result = compile("[x](https://{host}/{path})\n", scope);
+    assert!(
+      result.contains("[x](https://cursor/docs)"),
+      "Got: {}",
+      result
+    );
+  }
+
+  #[test]
+  fn test_link_url_interpolation_undefined_preserved() {
+    let result = compile("[x](https://{unknown}.com)\n", make_scope());
+    assert!(
+      result.contains("[x](https://{unknown}.com)"),
+      "Got: {}",
+      result
+    );
   }
 }

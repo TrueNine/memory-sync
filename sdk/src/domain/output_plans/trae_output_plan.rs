@@ -76,6 +76,7 @@ fn build_output_files(
           .into_owned(),
         scope: Some(PROJECT_SCOPE.to_string()),
         content: content.clone(),
+          encoding: None,
       });
 
       let trae_cn_dir = project_root_dir.join(".trae-cn").join("user_rules");
@@ -86,6 +87,7 @@ fn build_output_files(
           .into_owned(),
         scope: Some(PROJECT_SCOPE.to_string()),
         content,
+          encoding: None,
       });
     }
   }

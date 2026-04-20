@@ -654,4 +654,37 @@ mod tests {
     );
     assert!(result.contains("<p align=\"right\">"), "Got: {}", result);
   }
+
+  #[test]
+  fn test_link_url_interpolation_end_to_end() {
+    let result = mdx_to_md(
+      "[docs](https://{profile.name}.com)\n",
+      Some(make_options()),
+    )
+    .unwrap();
+    assert_eq!(result, "[docs](https://TrueNine.com)");
+  }
+
+  #[test]
+  fn test_image_url_interpolation_end_to_end() {
+    let result = mdx_to_md(
+      "![x](https://{os.platform}.com/x.png)\n",
+      Some(make_options()),
+    )
+    .unwrap();
+    assert_eq!(result, "![x](https://win32.com/x.png)");
+  }
+
+  #[test]
+  fn test_link_url_multiple_interpolations_end_to_end() {
+    let mut opts = make_options();
+    opts.scope.as_mut().unwrap().insert("host".into(), json!("example"));
+    opts.scope.as_mut().unwrap().insert("path".into(), json!("guide"));
+    let result = mdx_to_md(
+      "[guide](https://{host}.com/{path})\n",
+      Some(opts),
+    )
+    .unwrap();
+    assert_eq!(result, "[guide](https://example.com/guide)");
+  }
 }
