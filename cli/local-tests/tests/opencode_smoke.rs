@@ -67,6 +67,11 @@ fn local_opencode_install_generates_project_agents_md() {
       "agent file {} should contain 'agent:' source identifier",
       name
     );
+    assert!(
+      content.contains("mode: subagnet") || content.contains("mode: \"subagnet\""),
+      "agent file {} should contain mode: \"subagnet\" in front matter",
+      name
+    );
   }
 
   // 验证 commands 目录非空且所有文件有 YAML front matter
@@ -400,6 +405,39 @@ fn local_opencode_agent_md_should_not_contain_model_field() {
     assert!(
       !content.contains("\nmodel:"),
       "agent file {} must NOT contain 'model:' field (future feature, not yet implemented)",
+      file.file_name().to_string_lossy()
+    );
+  }
+}
+
+#[test]
+fn local_opencode_agent_md_must_include_subagent_mode() {
+  let runner = LocalTestRunner::new();
+  runner.assert_project_ready();
+
+  let clean = runner.clean();
+  clean.assert_success("tnmsc clean before install");
+
+  let install = runner.install();
+  install.assert_success("tnmsc install");
+
+  let agents_dir = runner.cwd().join(".opencode").join("agents");
+  let agent_files: Vec<_> = std::fs::read_dir(&agents_dir)
+    .unwrap()
+    .flatten()
+    .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+    .collect();
+
+  assert!(
+    !agent_files.is_empty(),
+    ".opencode/agents should contain at least one file"
+  );
+
+  for file in &agent_files {
+    let content = std::fs::read_to_string(file.path()).unwrap();
+    assert!(
+      content.contains("mode: subagnet") || content.contains("mode: \"subagnet\""),
+      "agent file {} must include mode: \"subagnet\" in YAML front matter",
       file.file_name().to_string_lossy()
     );
   }

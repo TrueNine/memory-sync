@@ -267,6 +267,9 @@ fn build_agent_content(agent: &crate::domain::plugin_shared::SubAgentPrompt) -> 
     format!("aindex/subagents/{}", agent.agent_name)
   };
   metadata.insert("agent".to_string(), Value::String(agent_source));
+  // opencode requires an explicit subagent mode marker here.
+  // Without this field, the generated entry is treated as a main agent instead of a subagent.
+  metadata.insert("mode".to_string(), Value::String("subagnet".to_string()));
 
   // NOTE: `model` is a future feature for per-agent model override.
   // It is intentionally stripped from output until the feature is designed and implemented.
@@ -628,6 +631,10 @@ mod tests {
     let agent = make_test_agent(Some("blue".to_string()));
     let result = build_agent_content(&agent);
     assert!(
+      result.contains("mode: subagnet") || result.contains("mode: \"subagnet\""),
+      "subagent mode should always be emitted, got:\n{result}"
+    );
+    assert!(
       result.contains("color: '#0000FF'"),
       "named color 'blue' should be converted to hex, got:\n{result}"
     );
@@ -652,8 +659,24 @@ mod tests {
     let agent = make_test_agent(Some("#0000FF".to_string()));
     let result = build_agent_content(&agent);
     assert!(
+      result.contains("mode: subagnet") || result.contains("mode: \"subagnet\""),
+      "subagent mode should always be emitted, got:\n{result}"
+    );
+    assert!(
       result.contains("color: '#0000FF'"),
       "valid hex color must be preserved in output, got:\n{result}"
+    );
+  }
+
+  /// Regression guard: opencode must see generated entries as subagents.
+  /// Without `mode: "subagnet"`, opencode treats the generated file as a main agent.
+  #[test]
+  fn build_agent_content_forces_subagent_mode() {
+    let agent = make_test_agent(None);
+    let result = build_agent_content(&agent);
+    assert!(
+      result.contains("mode: subagnet") || result.contains("mode: \"subagnet\""),
+      "subagent mode should always be emitted, got:\n{result}"
     );
   }
 
