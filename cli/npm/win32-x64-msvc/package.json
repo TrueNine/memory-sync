@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-cli-win32-x64-msvc",
-  "version": "2026.10413.10237",
+  "version": "2026.10420.122",
   "description": "tnmsc native binary for Windows x64",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",

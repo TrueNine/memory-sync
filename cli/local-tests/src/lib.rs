@@ -374,7 +374,7 @@ pub fn binary_path() -> PathBuf {
 pub fn workspace_root() -> PathBuf {
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     .parent()
-    .expect("local-test crate should live under cli/")
+    .expect("local-tests crate should live under cli/")
     .parent()
     .expect("cli crate should live under workspace root")
     .to_path_buf()
