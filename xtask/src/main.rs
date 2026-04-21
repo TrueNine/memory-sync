@@ -3,7 +3,7 @@ use std::process::{Command as ProcCommand, Stdio};
 
 #[derive(Parser)]
 #[command(name = "memory-sync-xtask")]
-#[command(version = "2026.10413.10237")]
+#[command(version = "2026.10420.122")]
 #[command(about = "Unified build entry for memory-sync workspace")]
 struct Cli {
   #[command(subcommand)]
@@ -32,6 +32,8 @@ enum Command {
   Check,
   /// Build GUI frontend only (routes + icons + vite)
   GuiFrontendBuild,
+  /// Install git hooks for version sync
+  InstallHooks,
 }
 
 fn run_cargo(args: &[&str]) -> Result<(), String> {
@@ -97,6 +99,41 @@ fn run_tauri(subcommand: &str) -> Result<(), String> {
       status.code()
     ))
   }
+}
+
+fn run_hook_creation() -> Result<(), String> {
+  let git_dir = ProcCommand::new("git")
+    .args(["rev-parse", "--git-dir"])
+    .output()
+    .map_err(|e| format!("Failed to get git dir: {}", e))?;
+
+  let git_dir_path = String::from_utf8(git_dir.stdout)
+    .map_err(|e| format!("Invalid git dir: {}", e))?
+    .trim()
+    .to_string();
+
+  let hooks_dir = format!("{}/hooks", git_dir_path);
+  let hook_content = r#"#!/bin/sh
+# Version sync hook - auto-installed by memory-sync-xtask
+exec tsx "$PWD/.githooks/sync-versions.ts" "$1"
+"#;
+
+  std::fs::create_dir_all(&hooks_dir)
+    .map_err(|e| format!("Failed to create hooks dir: {}", e))?;
+
+  let hook_path = format!("{}/pre-commit", hooks_dir);
+  std::fs::write(&hook_path, hook_content)
+    .map_err(|e| format!("Failed to write hook: {}", e))?;
+
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&hook_path, std::fs::Permissions::from_mode(0o755))
+      .map_err(|e| format!("Failed to set permissions: {}", e))?;
+  }
+
+  println!("[xtask] Created pre-commit hook at {}", hook_path);
+  Ok(())
 }
 
 fn main() -> Result<(), String> {
@@ -182,6 +219,11 @@ fn main() -> Result<(), String> {
         "--tests",
       ])?;
       println!("[xtask] Full check completed.");
+    }
+    Command::InstallHooks => {
+      println!("[xtask] Installing git hooks...");
+      run_hook_creation()?;
+      println!("[xtask] Git hooks installed successfully.");
     }
   }
 

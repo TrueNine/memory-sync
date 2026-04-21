@@ -22,14 +22,14 @@ members = [
   "sdk",
   "cli",
   "cli/integrate-tests",
-  "cli/local-test",
+  "cli/local-tests",
   "mcp",
   "mcp/integrate-tests",
   "gui/src-tauri",
 ]
 
 [workspace.package]
-version = "2026.10413.10237"
+version = "2026.10420.122"
 edition = "2024"
 rust-version = "1.88"
 license = "AGPL-3.0-only"
