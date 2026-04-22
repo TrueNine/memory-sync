@@ -46,20 +46,33 @@ fn build_output_files(
   let prompt_projects = get_project_prompt_output_projects(workspace);
 
   // 项目级 CLAUDE.md（根目录 + 子目录）
-  // 始终如同 AGENTS.md 一样输出项目内存内容，不与全局内存混合。
+  // 工作区根 CLAUDE.md 需要同时携带全局 memory 和工作区 prompt，
+  // 这样打包 CLI 在裸容器里安装后也能直接看到完整的 Claude 上下文。
   for project in &prompt_projects {
     let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
       continue;
     };
 
     if let Some(root_prompt) = project.root_memory_prompt.as_ref() {
+      let content = if project.is_workspace_root_project == Some(true) {
+        merge_workspace_root_memory(
+          context
+            .global_memory
+            .as_ref()
+            .map(|prompt| prompt.content.as_str()),
+          &root_prompt.content,
+        )
+      } else {
+        root_prompt.content.clone()
+      };
+
       output_files.push(BaseOutputFileDeclarationDto {
         path: project_root_dir
           .join(CLAUDE_CODE_MEMORY_FILE)
           .to_string_lossy()
           .into_owned(),
         scope: Some(PROJECT_SCOPE.to_string()),
-        content: root_prompt.content.clone(),
+        content,
         encoding: None,
       });
     }
@@ -246,6 +259,18 @@ fn build_output_files(
   }
 
   output_files
+}
+
+fn merge_workspace_root_memory(global_memory: Option<&str>, workspace_prompt: &str) -> String {
+  let global_memory = global_memory.unwrap_or("").trim();
+  let workspace_prompt = workspace_prompt.trim();
+
+  match (global_memory.is_empty(), workspace_prompt.is_empty()) {
+    (true, true) => String::new(),
+    (false, true) => global_memory.to_string(),
+    (true, false) => workspace_prompt.to_string(),
+    (false, false) => format!("{global_memory}\n\n{workspace_prompt}"),
+  }
 }
 
 fn build_rule_content(rule: &crate::domain::plugin_shared::RulePrompt) -> String {
@@ -445,6 +470,19 @@ mod tests {
     let empty = serde_json::Map::new();
     let result = wrap_yaml_front_matter(&empty, "Just content.");
     assert_eq!(result, "Just content.");
+  }
+
+  #[test]
+  fn merge_workspace_root_memory_includes_global_and_workspace_content() {
+    let merged = merge_workspace_root_memory(
+      Some("Global memory from aindex"),
+      "Workspace root prompt from aindex",
+    );
+
+    assert_eq!(
+      merged,
+      "Global memory from aindex\n\nWorkspace root prompt from aindex"
+    );
   }
 }
 
