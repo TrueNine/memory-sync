@@ -86,6 +86,12 @@ runs:
 
         key_path="${RUNNER_TEMP}/tauri-ci.key"
         pnpm -C gui tauri signer generate --ci --force -w "$key_path"
+
+        {
+          echo "TAURI_SIGNING_PRIVATE_KEY<<EOF"
+          cat "$key_path"
+          echo "EOF"
+        } >> "$GITHUB_ENV"
         echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
 
     - name: Get Cargo deps hash (exclude root package version for stable cache key)
