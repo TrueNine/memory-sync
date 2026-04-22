@@ -1,13 +1,35 @@
+[package]
+name = "memory-sync"
+description = "Cross-AI-tool prompt synchronisation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "memory-sync"
+path = "src/main.rs"
+
+[dependencies]
+tnmsc = { path = "cli" }
+
 [workspace]
 resolver = "2"
 members = [
+  "xtask",
   "sdk",
   "cli",
+  "cli/integrate-tests",
+  "cli/local-tests",
+  "mcp",
+  "mcp/integrate-tests",
   "gui/src-tauri",
 ]
 
 [workspace.package]
-version = "2026.10412.11942"
+version = "2026.10422.10749"
 edition = "2024"
 rust-version = "1.88"
 license = "AGPL-3.0-only"
@@ -16,7 +38,7 @@ repository = "https://github.com/TrueNine/memory-sync"
 
 [workspace.dependencies]
 # Internal crates
-tnmsc = { path = "sdk" }
+tnmsd = { path = "sdk" }
 
 # Serialization
 serde = { version = "1.0.228", features = ["derive"] }
@@ -39,11 +61,6 @@ reqwest = { version = "0.13.2", features = ["blocking", "json"] }
 
 # Markdown / MDX
 markdown = "1.0.0"
-
-# NAPI-RS (Node.js native addon bindings)
-napi = { version = "3.8.4", features = ["napi4", "serde-json"] }
-napi-derive = "3.5.3"
-napi-build = "2.3.1"
 
 # Tauri
 tauri = { version = "2.10.3", features = ["tray-icon"] }

@@ -1,0 +1,72 @@
+name: Debug GUI Rebuild
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to rebuild without the v prefix
+        required: true
+        type: string
+      platform:
+        description: Platform to rebuild
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - linux
+          - macos
+          - windows
+
+permissions:
+  contents: read
+
+jobs:
+  select-platforms:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - id: matrix
+        shell: bash
+        run: |
+          case "${{ inputs.platform }}" in
+            all)
+              value='{"include":[{"platform_key":"linux","os":"ubuntu-24.04","tauri-command":"pnpm tauri build","artifact-name":"debug-gui-linux","artifact-path":"target/*/release/bundle/**/*.AppImage\ntarget/*/release/bundle/**/*.deb\ntarget/*/release/bundle/**/*.rpm\ntarget/*/release/bundle/**/*.sig\ntarget/release/bundle/**/*.AppImage\ntarget/release/bundle/**/*.deb\ntarget/release/bundle/**/*.rpm\ntarget/release/bundle/**/*.sig"},{"platform_key":"macos","os":"macos-14","rust_targets":"aarch64-apple-darwin,x86_64-apple-darwin","tauri-command":"pnpm tauri build --target universal-apple-darwin","artifact-name":"debug-gui-macos","artifact-path":"target/*/release/bundle/**/*.dmg\ntarget/*/release/bundle/**/*.tar.gz\ntarget/*/release/bundle/**/*.sig\ntarget/release/bundle/**/*.dmg\ntarget/release/bundle/**/*.tar.gz\ntarget/release/bundle/**/*.sig"},{"platform_key":"windows","os":"windows-latest","tauri-command":"pnpm tauri build","artifact-name":"debug-gui-windows","artifact-path":"target/*/release/bundle/**/*.exe\ntarget/*/release/bundle/**/*.msi\ntarget/*/release/bundle/**/*.sig\ntarget/*/release/bundle/**/*.zip\ntarget/release/bundle/**/*.exe\ntarget/release/bundle/**/*.msi\ntarget/release/bundle/**/*.sig\ntarget/release/bundle/**/*.zip"}]}'
+              ;;
+            linux)
+              value='{"include":[{"platform_key":"linux","os":"ubuntu-24.04","tauri-command":"pnpm tauri build","artifact-name":"debug-gui-linux","artifact-path":"target/*/release/bundle/**/*.AppImage\ntarget/*/release/bundle/**/*.deb\ntarget/*/release/bundle/**/*.rpm\ntarget/*/release/bundle/**/*.sig\ntarget/release/bundle/**/*.AppImage\ntarget/release/bundle/**/*.deb\ntarget/release/bundle/**/*.rpm\ntarget/release/bundle/**/*.sig"}]}'
+              ;;
+            macos)
+              value='{"include":[{"platform_key":"macos","os":"macos-14","rust_targets":"aarch64-apple-darwin,x86_64-apple-darwin","tauri-command":"pnpm tauri build --target universal-apple-darwin","artifact-name":"debug-gui-macos","artifact-path":"target/*/release/bundle/**/*.dmg\ntarget/*/release/bundle/**/*.tar.gz\ntarget/*/release/bundle/**/*.sig\ntarget/release/bundle/**/*.dmg\ntarget/release/bundle/**/*.tar.gz\ntarget/release/bundle/**/*.sig"}]}'
+              ;;
+            windows)
+              value='{"include":[{"platform_key":"windows","os":"windows-latest","tauri-command":"pnpm tauri build","artifact-name":"debug-gui-windows","artifact-path":"target/*/release/bundle/**/*.exe\ntarget/*/release/bundle/**/*.msi\ntarget/*/release/bundle/**/*.sig\ntarget/*/release/bundle/**/*.zip\ntarget/release/bundle/**/*.exe\ntarget/release/bundle/**/*.msi\ntarget/release/bundle/**/*.sig\ntarget/release/bundle/**/*.zip"}]}'
+              ;;
+            *)
+              echo "::error::Unsupported platform '${{ inputs.platform }}'"
+              exit 1
+              ;;
+          esac
+
+          echo "value=${value}" >> "$GITHUB_OUTPUT"
+
+  rebuild-gui:
+    needs: select-platforms
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-platforms.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/build-gui-platform
+        with:
+          tauri-command: ${{ matrix.tauri-command }}
+          artifact-name: ${{ matrix.artifact-name }}
+          artifact-path: ${{ matrix.artifact-path }}
+          rust-targets: ${{ matrix.rust_targets || '' }}
+          signing-private-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          signing-private-key-password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          version: ${{ inputs.version }}

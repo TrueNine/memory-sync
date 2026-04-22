@@ -35,8 +35,18 @@ runs:
       with:
         version: ${{ inputs.pnpm-version }}
 
+    - name: Detect pnpm lockfile
+      id: lockfile
+      shell: bash
+      run: |
+        if [[ -f pnpm-lock.yaml ]]; then
+          echo "has_lockfile=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "has_lockfile=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Setup Node with pnpm cache
-      if: inputs.cache == 'true'
+      if: inputs.cache == 'true' && steps.lockfile.outputs.has_lockfile == 'true'
       uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
@@ -45,21 +55,33 @@ runs:
         registry-url: ${{ inputs.registry-url }}
 
     - name: Setup Node without pnpm cache
-      if: inputs.cache != 'true'
+      if: inputs.cache != 'true' || steps.lockfile.outputs.has_lockfile != 'true'
       uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
         package-manager-cache: false
         registry-url: ${{ inputs.registry-url }}
 
-    - name: Install workspace dependencies
-      if: inputs.install == 'true' && inputs['install-filter'] == ''
+    - name: Install workspace dependencies with lockfile
+      if: inputs.install == 'true' && inputs['install-filter'] == '' && steps.lockfile.outputs.has_lockfile == 'true'
       shell: bash
       run: pnpm install --frozen-lockfile --ignore-scripts
 
-    - name: Install filtered workspace dependencies
-      if: inputs.install == 'true' && inputs['install-filter'] != ''
+    - name: Install workspace dependencies without lockfile
+      if: inputs.install == 'true' && inputs['install-filter'] == '' && steps.lockfile.outputs.has_lockfile != 'true'
+      shell: bash
+      run: pnpm install --lockfile=false --ignore-scripts
+
+    - name: Install filtered workspace dependencies with lockfile
+      if: inputs.install == 'true' && inputs['install-filter'] != '' && steps.lockfile.outputs.has_lockfile == 'true'
       shell: bash
       run: pnpm install --frozen-lockfile --ignore-scripts --filter "$INSTALL_FILTER"
+      env:
+        INSTALL_FILTER: ${{ inputs['install-filter'] }}
+
+    - name: Install filtered workspace dependencies without lockfile
+      if: inputs.install == 'true' && inputs['install-filter'] != '' && steps.lockfile.outputs.has_lockfile != 'true'
+      shell: bash
+      run: pnpm install --lockfile=false --ignore-scripts --filter "$INSTALL_FILTER"
       env:
         INSTALL_FILTER: ${{ inputs['install-filter'] }}

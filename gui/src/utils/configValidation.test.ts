@@ -264,11 +264,6 @@ describe('validateConfig — unknown fields', () => {
     expect(warningFields(errors)).toContain('shadowSourceProject')
   })
 
-  it('warns on removed fastCommandSeriesOptions field', () => {
-    const errors = validateConfig({ fastCommandSeriesOptions: { includeSeriesPrefix: true } })
-    expect(warningFields(errors)).toContain('fastCommandSeriesOptions')
-  })
-
   it('warns on removed skills path override field', () => {
     const errors = validateConfig({ skills: { src: 'skills', dist: 'dist/skills' } })
     expect(warningFields(errors)).toContain('skills')

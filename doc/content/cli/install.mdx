@@ -25,21 +25,20 @@ keywords:
 
 ## 安装 CLI
 
-README 当前按你使用的包管理器推荐以下安装命令：
+`@truenine/memory-sync-cli` 现在是 metadata-only 主包，不再直接暴露 `tnmsc`。全局安装时请直接选择与你宿主机匹配的 native 子包：
 
-<PackageManagerTabs
-  commands={{
-    npm: 'npm install -g @truenine/memory-sync-cli',
-    pnpm: 'pnpm add -g @truenine/memory-sync-cli',
-    yarn: 'yarn global add @truenine/memory-sync-cli'
-  }}
-/>
+- Linux x64 (glibc): `npm install -g @truenine/memory-sync-cli-linux-x64-gnu`
+- Linux arm64 (glibc): `npm install -g @truenine/memory-sync-cli-linux-arm64-gnu`
+- macOS arm64: `npm install -g @truenine/memory-sync-cli-darwin-arm64`
+- macOS x64: `npm install -g @truenine/memory-sync-cli-darwin-x64`
+- Windows x64: `npm install -g @truenine/memory-sync-cli-win32-x64-msvc`
 
 如果你是在 monorepo 内部开发，通常会改为在仓库根目录运行：
 
 ```sh
 pnpm install
-pnpm -C cli exec node dist/index.mjs --help
+pnpm -C cli run build
+./target/release/tnmsc --help
 ```
 
 ## 确认你安装的是当前命令集

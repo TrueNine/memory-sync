@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync",
-  "version": "2026.10412.11942",
+  "version": "2026.10422.10749",
   "description": "Cross-AI-tool prompt synchronisation toolkit (CLI + Tauri desktop GUI) — one ruleset, multi-target adaptation. Monorepo powered by pnpm + Turbo.",
   "license": "AGPL-3.0-only",
   "keywords": [
@@ -28,22 +28,6 @@
     "prompt-management",
     "ruleset-sync"
   ],
-  "scripts": {
-    "build": "turbo run build --ui=stream --log-order=grouped",
-    "test": "turbo run test --ui=stream --log-order=grouped",
-    "test:cli-integration:claude-code": "pnpm -C cli-integration-test run test:claude-code",
-    "test:cli-integration:codex": "pnpm -C cli-integration-test run test:codex",
-    "lint": "turbo run lint --ui=stream --log-order=grouped",
-    "lint:fix": "turbo run lint:fix --ui=stream --log-order=grouped",
-    "check:type": "turbo run check:type --ui=stream --log-order=grouped",
-    "dev:doc": "pnpm -C doc dev",
-    "build:doc": "pnpm -C doc build",
-    "sync-versions": "tsx .githooks/sync-versions.ts",
-    "install:rust-deps": "tsx scripts/install-rust-deps.ts",
-    "build:native": "tsx scripts/build-native.ts",
-    "build:native:copy": "tsx scripts/copy-napi.ts",
-    "postinstall": "tsx scripts/postinstall.ts"
-  },
   "author": {
     "email": "truenine304520@gmail.com",
     "name": "TrueNine",
@@ -61,29 +45,7 @@
   },
   "packageManager": "pnpm@10.33.0",
   "devDependencies": {
-    "@antfu/eslint-config": "catalog:",
-    "@eslint/js": "catalog:",
-    "@napi-rs/cli": "catalog:",
-    "@next/eslint-plugin-next": "catalog:",
-    "@truenine/eslint10-config": "catalog:",
-    "@unocss/eslint-config": "catalog:",
-    "@vue/eslint-config-prettier": "catalog:",
-    "@vue/eslint-config-typescript": "catalog:",
-    "@types/node": "catalog:",
-    "eslint": "catalog:",
-    "eslint-plugin-format": "catalog:",
-    "eslint-plugin-prettier": "catalog:",
-    "eslint-plugin-vue": "catalog:",
-    "fast-check": "catalog:",
-    "npm-run-all2": "catalog:",
-    "prettier": "catalog:",
-    "simple-git-hooks": "^2.13.1",
-    "tsdown": "catalog:",
     "tsx": "catalog:",
-    "turbo": "catalog:",
-    "typescript": "catalog:",
-    "typescript-eslint": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

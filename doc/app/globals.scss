@@ -1,6 +1,8 @@
 :root,
 html.dark {
   color-scheme: dark;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --nextra-content-width: min(1760px, calc(100vw - 16px));
   --page-bg: #000000;
   --page-fg: #ffffff;

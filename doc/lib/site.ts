@@ -73,7 +73,7 @@ export const homeEntryCards = [
   {
     href: '/docs/sdk',
     title: 'SDK',
-    detail: 'Explains the private mixed core, its ownership boundaries, its consumers, and how it relates to the tnmsc crate and CLI shell.'
+    detail: 'Explains the private mixed core, its ownership boundaries, its consumers, and how it relates to the tnmsd crate and CLI.'
   },
   {
     href: '/docs/mcp',
@@ -83,7 +83,7 @@ export const homeEntryCards = [
   {
     href: '/docs/gui',
     title: 'GUI',
-    detail: 'Focuses on the desktop layer, its page structure, and how it works with sdk, the tnmsc crate, and the CLI.'
+    detail: 'Focuses on the desktop layer, its page structure, and how it works with sdk, the tnmsd crate, and the CLI.'
   },
   {
     href: '/docs/technical-details',

@@ -12,7 +12,6 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       commands::install_pipeline,
       commands::load_config,
-      commands::list_plugins,
       commands::clean_outputs,
       commands::get_logs,
       commands::read_config_file,

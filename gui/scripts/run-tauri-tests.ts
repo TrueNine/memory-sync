@@ -1,5 +1,5 @@
 import {spawnSync} from 'node:child_process'
-import markdownOutput from '../../scripts/markdown-output'
+import markdownOutput from '../../scripts/shared/markdown-output'
 
 const {writeError, writeWarning} = markdownOutput
 

@@ -1,0 +1,19 @@
+{
+  "name": "@truenine/memory-sync-mcp-darwin-x64",
+  "version": "2026.10422.10749",
+  "description": "tnmsm native binary for macOS x64",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "bin": {
+    "tnmsm": "./bin/tnmsm"
+  },
+  "files": [
+    "bin"
+  ]
+}

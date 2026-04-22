@@ -1,0 +1,549 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version without v prefix
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  NPM_REGISTRY_URL: https://registry.npmjs.org/
+
+concurrency:
+  group: release-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate-version:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.release-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          cache: "false"
+          install: "true"
+
+      - name: Resolve release version
+        id: release-version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="${{ inputs.version }}"
+          fi
+
+          if [[ -z "$version" ]]; then
+            echo "::error::Release version is empty."
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate version surfaces
+        run: pnpm exec tsx scripts/shared/check-version-surfaces.ts "${{ steps.release-version.outputs.version }}"
+
+  build-cli-binaries:
+    needs: validate-version
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rust_target: x86_64-unknown-linux-gnu
+            suffix: linux-x64-gnu
+            binary: tnmsc
+            archive: tnmsc-linux-x86_64.tar.gz
+          - os: ubuntu-24.04
+            rust_target: aarch64-unknown-linux-gnu
+            suffix: linux-arm64-gnu
+            binary: tnmsc
+            archive: tnmsc-linux-aarch64.tar.gz
+            cross: true
+          - os: macos-14
+            rust_target: aarch64-apple-darwin
+            suffix: darwin-arm64
+            binary: tnmsc
+            archive: tnmsc-darwin-aarch64.tar.gz
+          - os: macos-14
+            rust_target: x86_64-apple-darwin
+            suffix: darwin-x64
+            binary: tnmsc
+            archive: tnmsc-darwin-x86_64.tar.gz
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            suffix: win32-x64-msvc
+            binary: tnmsc.exe
+            archive: tnmsc-windows-x86_64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.rust_target }}
+          cache-key: release-cli-${{ matrix.rust_target }}
+
+      - name: Setup cross-compile
+        if: matrix.cross
+        uses: ./.github/actions/setup-cross-compile
+
+      - name: Build tnmsc binary
+        run: cargo build --release --target ${{ matrix.rust_target }} -p tnmsc
+
+      - name: Run native tests
+        if: ${{ !matrix.cross }}
+        run: cargo test --release --target ${{ matrix.rust_target }} -p tnmsc
+
+      - name: Package binaries (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw_dir="cli-artifacts/${{ matrix.suffix }}"
+          binary_path="target/${{ matrix.rust_target }}/release/${{ matrix.binary }}"
+          mkdir -p "$raw_dir"
+          cp "$binary_path" "$raw_dir/"
+          node -e 'const fs=require("node:fs"); const size=fs.statSync(process.argv[1]).size; if (size < 131072) { throw new Error(`Binary too small: ${size}`) }' "$raw_dir/${{ matrix.binary }}"
+          tar czf "${{ matrix.archive }}" -C "$raw_dir" "${{ matrix.binary }}"
+
+      - name: Package binaries (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $rawDir = "cli-artifacts/${{ matrix.suffix }}"
+          $binaryPath = "target/${{ matrix.rust_target }}/release/${{ matrix.binary }}"
+          New-Item -ItemType Directory -Force -Path $rawDir | Out-Null
+          Copy-Item $binaryPath "$rawDir/${{ matrix.binary }}"
+          node -e "const fs=require('node:fs'); const size=fs.statSync(process.argv[1]).size; if (size < 131072) { throw new Error('Binary too small: ' + size) }" "$rawDir/${{ matrix.binary }}"
+          Compress-Archive -Path "$rawDir/*" -DestinationPath "${{ matrix.archive }}"
+
+      - name: Upload raw binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-binary-${{ matrix.suffix }}
+          path: cli-artifacts/${{ matrix.suffix }}/
+          if-no-files-found: error
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-archive-${{ matrix.suffix }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  build-mcp-binaries:
+    needs: validate-version
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rust_target: x86_64-unknown-linux-gnu
+            suffix: linux-x64-gnu
+            binary: tnmsm
+            archive: memory-sync-mcp-linux-x86_64.tar.gz
+          - os: ubuntu-24.04
+            rust_target: aarch64-unknown-linux-gnu
+            suffix: linux-arm64-gnu
+            binary: tnmsm
+            archive: memory-sync-mcp-linux-aarch64.tar.gz
+            cross: true
+          - os: macos-14
+            rust_target: aarch64-apple-darwin
+            suffix: darwin-arm64
+            binary: tnmsm
+            archive: memory-sync-mcp-darwin-aarch64.tar.gz
+          - os: macos-14
+            rust_target: x86_64-apple-darwin
+            suffix: darwin-x64
+            binary: tnmsm
+            archive: memory-sync-mcp-darwin-x86_64.tar.gz
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            suffix: win32-x64-msvc
+            binary: tnmsm.exe
+            archive: memory-sync-mcp-windows-x86_64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.rust_target }}
+          cache-key: release-mcp-${{ matrix.rust_target }}
+
+      - name: Setup cross-compile
+        if: matrix.cross
+        uses: ./.github/actions/setup-cross-compile
+
+      - name: Build tnmsm binary
+        run: cargo build --release --target ${{ matrix.rust_target }} -p tnmsm
+
+      - name: Run native tests
+        if: ${{ !matrix.cross }}
+        run: cargo test --release --target ${{ matrix.rust_target }} -p tnmsm
+
+      - name: Package binaries (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw_dir="mcp-artifacts/${{ matrix.suffix }}"
+          binary_path="target/${{ matrix.rust_target }}/release/${{ matrix.binary }}"
+          mkdir -p "$raw_dir"
+          cp "$binary_path" "$raw_dir/"
+          node -e 'const fs=require("node:fs"); const size=fs.statSync(process.argv[1]).size; if (size < 131072) { throw new Error(`Binary too small: ${size}`) }' "$raw_dir/${{ matrix.binary }}"
+          tar czf "${{ matrix.archive }}" -C "$raw_dir" "${{ matrix.binary }}"
+
+      - name: Package binaries (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $rawDir = "mcp-artifacts/${{ matrix.suffix }}"
+          $binaryPath = "target/${{ matrix.rust_target }}/release/${{ matrix.binary }}"
+          New-Item -ItemType Directory -Force -Path $rawDir | Out-Null
+          Copy-Item $binaryPath "$rawDir/${{ matrix.binary }}"
+          node -e "const fs=require('node:fs'); const size=fs.statSync(process.argv[1]).size; if (size < 131072) { throw new Error('Binary too small: ' + size) }" "$rawDir/${{ matrix.binary }}"
+          Compress-Archive -Path "$rawDir/*" -DestinationPath "${{ matrix.archive }}"
+
+      - name: Upload raw binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-binary-${{ matrix.suffix }}
+          path: mcp-artifacts/${{ matrix.suffix }}/
+          if-no-files-found: error
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-archive-${{ matrix.suffix }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  cli-real-env-integration:
+    needs: validate-version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: release-cli-real-env
+
+      - name: Run CLI real-env integration tests
+        run: cargo test -p tnmsc-integrate-tests -- --nocapture
+
+  mcp-real-env-integration:
+    needs: validate-version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: release-mcp-real-env
+
+      - name: Run MCP real-env integration tests
+        run: cargo test -p tnmsm-integrate-tests -- --nocapture
+
+  publish-cli-npm:
+    needs: [validate-version, build-cli-binaries, cli-real-env-integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: release-cli-publish
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
+
+      - name: Preflight npm auth
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
+            echo "::error::NPM_TOKEN is missing."
+            exit 1
+          fi
+
+          npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
+          npm whoami --registry "${NPM_REGISTRY_URL}"
+
+      - name: Download raw CLI binaries
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: cli-binary-*
+
+      - name: Assemble CLI npm package contents
+        run: cargo run -p tnmsc --bin tnmsc -- assemble-npm --artifacts-dir artifacts
+
+      - name: Validate platform packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          for target_dir in cli/npm/*/; do
+            if [[ ! -f "${target_dir}package.json" ]]; then
+              echo "::error::Missing ${target_dir}package.json"
+              exit 1
+            fi
+            if ! find "${target_dir}bin" -type f \( -name 'tnmsc' -o -name 'tnmsc.exe' \) | grep -q .; then
+              echo "::error::Missing binary in ${target_dir}"
+              exit 1
+            fi
+          done
+
+      - name: Publish CLI platform packages
+        uses: ./.github/actions/npm-publish-package
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
+          package-dir: cli/npm
+
+      - name: Build CLI package
+        run: cargo build --release -p tnmsc
+
+      - name: Publish CLI package
+        uses: ./.github/actions/npm-publish-package
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
+          package-dir: cli
+
+  publish-mcp-npm:
+    needs: [validate-version, build-mcp-binaries, mcp-real-env-integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: release-mcp-publish
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
+
+      - name: Preflight npm auth
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
+            echo "::error::NPM_TOKEN is missing."
+            exit 1
+          fi
+
+          npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
+          npm whoami --registry "${NPM_REGISTRY_URL}"
+
+      - name: Download raw MCP binaries
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: mcp-binary-*
+
+      - name: Assemble MCP npm package contents
+        run: cargo run -p tnmsm --bin tnmsm -- assemble-npm --artifacts-dir artifacts
+
+      - name: Validate platform packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          for target_dir in mcp/npm/*/; do
+            if [[ ! -f "${target_dir}package.json" ]]; then
+              echo "::error::Missing ${target_dir}package.json"
+              exit 1
+            fi
+            if ! find "${target_dir}bin" -type f \( -name 'tnmsm' -o -name 'tnmsm.exe' \) | grep -q .; then
+              echo "::error::Missing binary in ${target_dir}"
+              exit 1
+            fi
+          done
+
+      - name: Publish MCP platform packages
+        uses: ./.github/actions/npm-publish-package
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
+          package-dir: mcp/npm
+
+      - name: Build MCP package
+        run: cargo build --release -p tnmsm
+
+      - name: Publish MCP package
+        uses: ./.github/actions/npm-publish-package
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
+          package-dir: mcp
+
+  build-gui:
+    needs: validate-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            tauri-command: pnpm tauri build
+            artifact-path: |
+              target/*/release/bundle/**/*.exe
+              target/*/release/bundle/**/*.msi
+              target/*/release/bundle/**/*.sig
+              target/*/release/bundle/**/*.zip
+              target/release/bundle/**/*.exe
+              target/release/bundle/**/*.msi
+              target/release/bundle/**/*.sig
+              target/release/bundle/**/*.zip
+          - os: ubuntu-24.04
+            tauri-command: pnpm tauri build
+            artifact-path: |
+              target/*/release/bundle/**/*.AppImage
+              target/*/release/bundle/**/*.deb
+              target/*/release/bundle/**/*.rpm
+              target/*/release/bundle/**/*.sig
+              target/release/bundle/**/*.AppImage
+              target/release/bundle/**/*.deb
+              target/release/bundle/**/*.rpm
+              target/release/bundle/**/*.sig
+          - os: macos-14
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+            tauri-command: pnpm tauri build --target universal-apple-darwin
+            artifact-path: |
+              target/*/release/bundle/**/*.dmg
+              target/*/release/bundle/**/*.tar.gz
+              target/*/release/bundle/**/*.sig
+              target/release/bundle/**/*.dmg
+              target/release/bundle/**/*.tar.gz
+              target/release/bundle/**/*.sig
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/build-gui-platform
+        with:
+          tauri-command: ${{ matrix.tauri-command }}
+          artifact-name: gui-${{ matrix.os }}
+          artifact-path: ${{ matrix.artifact-path }}
+          rust-targets: ${{ matrix.rust_targets || '' }}
+          signing-private-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          signing-private-key-password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          version: ${{ needs.validate-version.outputs.version }}
+
+  create-github-release:
+    needs: [validate-version, build-cli-binaries, publish-cli-npm, build-mcp-binaries, publish-mcp-npm, build-gui]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Download GUI artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts/gui
+          pattern: gui-*
+          merge-multiple: true
+
+      - name: Download CLI archive artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts/cli
+          pattern: cli-archive-*
+          merge-multiple: true
+
+      - name: Download MCP archive artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts/mcp
+          pattern: mcp-archive-*
+          merge-multiple: true
+
+      - name: Clean up unnecessary macOS artifacts
+        shell: bash
+        run: |
+          find artifacts/gui -name '*.icns' -delete
+          find artifacts/gui -name 'Info.plist' -delete
+
+      - name: Verify release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          installer_count=$(find artifacts/gui -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) | wc -l | tr -d ' ')
+          updater_count=$(find artifacts/gui -type f \( -name '*.sig' -o -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
+          cli_archive_count=$(find artifacts/cli -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
+          mcp_archive_count=$(find artifacts/mcp -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l | tr -d ' ')
+
+          if [[ "$installer_count" -eq 0 ]]; then
+            echo "::error::No GUI installer artifacts were downloaded."
+            exit 1
+          fi
+
+          if [[ "$updater_count" -eq 0 ]]; then
+            echo "::error::No GUI updater artifacts were downloaded."
+            exit 1
+          fi
+
+          if [[ "$cli_archive_count" -ne 5 ]]; then
+            echo "::error::Expected 5 CLI archives, found ${cli_archive_count}."
+            exit 1
+          fi
+
+          if [[ "$mcp_archive_count" -ne 5 ]]; then
+            echo "::error::Expected 5 MCP archives, found ${mcp_archive_count}."
+            exit 1
+          fi
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2.6.1
+        with:
+          tag_name: v${{ needs.validate-version.outputs.version }}
+          name: v${{ needs.validate-version.outputs.version }}
+          files: |
+            artifacts/gui/**/*.dmg
+            artifacts/gui/**/*.exe
+            artifacts/gui/**/*.msi
+            artifacts/gui/**/*.AppImage
+            artifacts/gui/**/*.deb
+            artifacts/gui/**/*.rpm
+            artifacts/gui/**/*.sig
+            artifacts/gui/**/*.tar.gz
+            artifacts/gui/**/*.zip
+            artifacts/cli/**/*.tar.gz
+            artifacts/cli/**/*.zip
+            artifacts/mcp/**/*.tar.gz
+            artifacts/mcp/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

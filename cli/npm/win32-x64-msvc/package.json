@@ -1,27 +1,19 @@
 {
   "name": "@truenine/memory-sync-cli-win32-x64-msvc",
-  "version": "2026.10412.11942",
+  "version": "2026.10422.10749",
+  "description": "tnmsc native binary for Windows x64",
+  "author": "TrueNine",
+  "license": "AGPL-3.0-only",
   "os": [
     "win32"
   ],
-  "arch": [
+  "cpu": [
     "x64"
   ],
-  "license": "AGPL-3.0-only",
-  "exports": {
-    ".": {
-      "types": "./noop.d.mts",
-      "import": "./noop.mjs"
-    },
-    "./*.node": "./*.node",
-    "./package.json": "./package.json"
+  "bin": {
+    "tnmsc": "./bin/tnmsc.exe"
   },
   "files": [
-    "*.node",
-    "noop.d.mts",
-    "noop.mjs"
-  ],
-  "scripts": {
-    "prepack": "pnpm exec tsx ../../../scripts/write-platform-package-shims.ts ."
-  }
+    "bin"
+  ]
 }

@@ -2,61 +2,40 @@
 
 ## Supported Versions
 
-Only the latest release receives security fixes. No backport patches for older versions.
+Only the latest version receives security fixes.
 
 | Version | Supported |
 |---------|-----------|
-| Latest | ✅ |
-| Older | ❌ |
+| Latest  | ✅ |
+| Historical | ❌ |
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, **do not** report it in a public Issue.
+Do not report in public Issues. Contact [@TrueNine](https://github.com/TrueNine) via GitHub Security Advisory or email.
 
-Contact the maintainer privately via:
+Include: vulnerability description and impact scope, reproduction steps, environment info, fix suggestion (if any).
 
-- GitHub Security Advisory: submit a private report under the repository's **Security** tab
-- Email: contact [@TrueNine](https://github.com/TrueNine) directly
+## Response Time
 
-Please include:
-
-- Vulnerability description and impact scope
-- Reproduction steps (minimal example)
-- Your OS, Node.js version, and `memory-sync` version
-- Suggested fix if any
-
-## Response Timeline
-
-The maintainer is a person, not a security team. No SLA, no 24-hour response guarantee.
-
-- Will acknowledge receipt as soon as possible
-- Will release a patch within a reasonable timeframe after confirmation
-- Will publicly disclose vulnerability details after the fix is released
-
-Don't rush.
+Maintainers are people, not a security team — no SLA. We'll confirm as soon as possible, fix within a reasonable timeframe, and disclose publicly after the fix. Do not push for urgency.
 
 ## Scope
 
-`memory-sync` is now a toolkit made of CLI / SDK / MCP / GUI surfaces, not just a single CLI binary. Its security boundary:
+CLI / SDK / MCP / GUI toolchain. Security boundaries:
 
-- **Reads**: user `.src.mdx` source files, project config files, the global config file (`~/.aindex/.tnmsc.json`), and repository metadata needed for sync
-- **Writes**: target-tool config directories, managed prompt artifacts such as `dist/`, generated skills / README-like outputs, and related helper configs
-- **Cleans**: removes stale managed outputs and target-directory residue during sync or cleanup
+- **Read**: user `.src.mdx` source files, project config, global config (`~/.aindex/.tnmsc.json`), repo metadata required for sync
+- **Write**: target tool config directories, managed prompt artifacts (`dist/`), generated outputs
+- **Cleanup**: erase managed outputs and residuals during sync or cleanup
 
-The following are **out of scope**:
-
-- Security vulnerabilities in target AI tools themselves
-- Compliance of user prompt content
-- Hardening of third-party dependencies, hosted platforms, or the local workstation outside this repository
-- External scripts, private plugins, or unmanaged files injected by the user into the workflow
+Out of scope: vulnerabilities in target AI tools themselves, user prompt content compliance, hardening third-party dependencies outside this repo.
 
 ## Design Principles
 
-- **Separation between source and derived state**: source files, generated artifacts, and target-tool configs must stay clearly separated, auditable, and traceable
-- **Cleanup touches managed outputs only**: cleanup should only remove generated outputs or explicitly configured targets, never silently widen its delete boundary
-- **No hidden telemetry**: no user data is collected or reported
-- **External network behavior must be explicit**: core sync logic must not depend on hidden outbound requests; if release or docs-deploy automation talks to npm, GitHub, or Vercel, that behavior must remain visible in workflow files
+- Source and derivation separation — auditable and traceable
+- Cleanup targets only managed outputs — no expanded deletion scope
+- No hidden telemetry
+- External network behavior must be explicit
 
 ## License
 
-This project is licensed under [AGPL-3.0](LICENSE). Unauthorised commercial use in violation of the licence will be pursued legally.
+[AGPL-3.0](LICENSE). Commercial use violating the license will be pursued.

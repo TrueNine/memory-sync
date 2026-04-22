@@ -1,6 +1,6 @@
 [package]
-name = "memory-sync-gui"
-version = "2026.10412.11942"
+name = "tnmsg"
+version = "2026.10422.10749"
 description = "Memory Sync desktop GUI application"
 authors.workspace = true
 edition.workspace = true
@@ -22,7 +22,7 @@ tauri-plugin-updater = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 dirs = { workspace = true }
-tnmsc = { workspace = true }
+tnmsd = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.10.0"

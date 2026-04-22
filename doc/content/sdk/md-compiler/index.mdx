@@ -10,7 +10,7 @@ import { Callout, Cards, Steps, Tabs } from 'nextra/components'
 # MDX-Compiler 编译器
 
 <Callout type="info">
-  **包标识**: `@truenine/memory-sync-sdk` (npm) / `tnmsc` (Rust crate)  
+  **包标识**: `@truenine/memory-sync-sdk` (npm) / `tnmsd` (Rust crate)  
   **源码位置**: `sdk/src/md-compiler/`
   **导出入口**: `src/index.ts`
 </Callout>
@@ -33,7 +33,7 @@ MDX-Compiler 是 memory-sync monorepo 中的 **Rust-first MDX/Markdown 编译与
 
 MDX-Compiler 当前采用 **Native-first 入口 + TypeScript 参考实现** 的结构：
 
-1. **Native Binding 层（Rust/NAPI）**：核心编译逻辑由 Rust crate `tnmsc` 实现，通过 NAPI-RS 暴露给 Node.js。公开包入口默认走这条路径。
+1. **Native Binding 层（Rust/NAPI）**：核心编译逻辑由 Rust crate `tnmsd` 实现，通过 NAPI-RS 暴露给 Node.js。公开包入口默认走这条路径。
 2. **TypeScript 参考实现（`src/compiler/`）**：仓库内保留完整的 TypeScript 编译流水线，用于源级测试、实现对照和调试，但公共包入口不会自动切换到它。
 
 运行时入口通过 `native-binding.ts` 中的 `getNapiMdCompilerBinding()` 接入 `sdk/src/core/native-binding-loader.ts`：
@@ -371,7 +371,7 @@ flowchart LR
 ### 内部依赖
 
 <Callout type="info">
-  MDX-Compiler 通过 workspace 依赖使用 `tnmsc` 库进行编译过程中的日志输出。
+  MDX-Compiler 通过 workspace 依赖使用 `tnmsd` 库进行编译过程中的日志输出。
 </Callout>
 
 ### 外部依赖 (devDependencies)
@@ -393,7 +393,7 @@ flowchart LR
 
 | Crate | 用途 |
 | --- | --- |
-| `tnmsc` | Workspace 日志库 |
+| `tnmsd` | Workspace 日志库 |
 | `serde` / `serde_json` | JSON 序列化（NAPI 参数传递） |
 | `serde_yml` | YAML 解析（frontmatter 处理） |
 | `markdown` | markdown-rs 解析器（Rust 端 MDX 解析） |

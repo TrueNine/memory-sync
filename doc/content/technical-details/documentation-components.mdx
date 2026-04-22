@@ -19,8 +19,8 @@ status: stable
       tool: "CLI",
       summary: "负责 install 与 clean 执行的用户入口。",
       status: "stable",
-      capabilities: ["运行默认 install 流水线", "支持 install / dry-run / clean / plugins", "暴露 npm 与 crate 入口"],
-      surfaces: ["tnmsc", "pnpm -C cli exec node dist/index.mjs --help"],
+      capabilities: ["运行默认 install 流水线", "支持 install / dry-run / clean / plugins", "暴露 npm native 包与 crate 入口"],
+      surfaces: ["tnmsc", "./target/release/tnmsc --help"],
       notes: "对用户来说，真正的执行入口仍然是 CLI，而不是文档站或 GUI。",
     },
     {
@@ -35,7 +35,7 @@ status: stable
       tool: "GUI",
       summary: "桌面调用与呈现层。",
       status: "beta",
-      capabilities: ["调用 tnmsc crate", "承载桌面工作流", "展示项目状态与操作页"],
+      capabilities: ["调用 tnmsd crate", "承载桌面工作流", "展示项目状态与操作页"],
       surfaces: ["Tauri 桌面壳", "React 前端"],
       notes: "GUI 负责调用与呈现，但不应反向从前端驱动领域设计。",
     },
@@ -152,15 +152,15 @@ status: stable
 
 ## 5. 包管理器安装标签
 
-`PackageManagerTabs` 很适合安装页，这样你就不用硬编码单一的 `npm` 示例。它通过共享组件在 `npm`、`pnpm` 和 `yarn` 之间切换。
+`PackageManagerTabs` 仍然适合“同一个包名，不同包管理器命令”的场景。现在 CLI 改成了按平台/架构发布 native 包，所以安装页更适合直接列出平台包名，而不是继续硬套一个统一包名示例。
 
-<PackageManagerTabs
-  commands={{
-    npm: "npm install -g @truenine/memory-sync-cli",
-    pnpm: "pnpm add -g @truenine/memory-sync-cli",
-    yarn: "yarn global add @truenine/memory-sync-cli",
-  }}
-/>
+```mdx
+- Linux x64 (glibc): `npm install -g @truenine/memory-sync-cli-linux-x64-gnu`
+- Linux arm64 (glibc): `npm install -g @truenine/memory-sync-cli-linux-arm64-gnu`
+- macOS arm64: `npm install -g @truenine/memory-sync-cli-darwin-arm64`
+- macOS x64: `npm install -g @truenine/memory-sync-cli-darwin-x64`
+- Windows x64: `npm install -g @truenine/memory-sync-cli-win32-x64-msvc`
+```
 
 ## 用法
 

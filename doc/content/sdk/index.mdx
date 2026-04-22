@@ -14,11 +14,11 @@ import { Callout, Cards } from 'nextra/components'
 ## 这一层负责什么
 
 - 它包含私有 npm 包 `@truenine/memory-sync-sdk`
-- 它包含 Rust crate `tnmsc` 的实际 workspace 路径
-- 它负责 Rust crate `tnmsc` 的 facade、NAPI 构建、prompt service、schema 生成，以及最小化的 TypeScript loader 入口
+- 它包含 Rust crate `tnmsd` 的实际 workspace 路径
+- 它负责 Rust crate `tnmsd` 的 facade、NAPI 构建、prompt service、schema 生成，以及最小化的 TypeScript loader 入口
 - 它仍然承接少量过渡期 bridge 逻辑，但这些 bridge 路径已经退回到 `sdk/` 内部实现，不再是 `cli/` 的公共组合中心
 - 它是 `mcp/`、`gui/` 以及未来内部消费者的默认依赖入口
-- 它编排 Logger、MDX-Compiler、Script-Runtime 三类基础能力；其中 Logger 和 Script-Runtime 的 TypeScript facade 已内联到 `sdk/src/sdk/*`，`sdk/*` 保留 Rust crate 与发布壳层
+- 它编排 Logger、MDX-Compiler、Script-Runtime 三类基础能力；其中 Logger 和 Script-Runtime 的 TypeScript facade 已内联到 `sdk/src/libraries/*`，`sdk/*` 保留 Rust crate 与发布壳层
 
 ## 这一层不负责什么
 
@@ -33,7 +33,7 @@ import { Callout, Cards } from 'nextra/components'
 - CLI 二进制仍然是 `tnmsc`
 - 公共 npm CLI 包仍然是 `@truenine/memory-sync-cli`
 - 公共平台包仍然是 `@truenine/memory-sync-cli-<suffix>`
-- Rust crate 名称仍然是 `tnmsc`
+- Rust crate 名称现在是 `tnmsd`
 
 变化的是路径和归属关系，而不是这些对外标识本身。
 
@@ -41,7 +41,7 @@ import { Callout, Cards } from 'nextra/components'
 
 <Cards>
   <Cards.Card title="📚 Logger 日志库" href="/docs/sdk/logger" icon="📚">
-    AI 友好的结构化日志系统，为 tnmsc 提供清晰的诊断输出
+    AI 友好的结构化日志系统，为 tnmsd 提供清晰的诊断输出
 
     - ✅ Markdown 格式化的日志输出（`### Title` + 列表）
     - ✅ 结构化诊断记录与缓冲机制（rootCause / exactFix / possibleFixes）
@@ -85,9 +85,9 @@ import { Callout, Cards } from 'nextra/components'
 | --- | --- |
 | `cli/` | 一个对 `sdk/` 导出能力做轻量封装的 shell 和兼容层 |
 | `mcp/` | 通过 `@truenine/memory-sync-sdk` 的最小 binding 访问 prompt 管理能力 |
-| `gui/src-tauri` | 继续依赖 crate `tnmsc`，其实际路径现在位于 `sdk/` 下 |
+| `gui/src-tauri` | 继续依赖 crate `tnmsd`，其实际路径现在位于 `sdk/` 下 |
 
-消费者依赖方向是**单向**的：`cli/`、`mcp/`、`gui/` 都依赖 `sdk/`。在 `sdk/` 下游，MDX-Compiler 仍完整保留在 `sdk/`，而 Logger / Script-Runtime 已形成“`sdk/src/sdk/*` 作为 TypeScript 事实来源 + `sdk/*` 作为 Rust crate / wrapper 发布层”的边界。Library 之间的依赖为：MDX-Compiler → Logger；Logger 和 Script-Runtime 互不依赖。
+消费者依赖方向是**单向**的：`cli/`、`mcp/`、`gui/` 都依赖 `sdk/`。在 `sdk/` 下游，MDX-Compiler 仍完整保留在 `sdk/`，而 Logger / Script-Runtime 已形成"`sdk/src/libraries/*` 作为 TypeScript 事实来源 + `sdk/*` 作为 Rust crate / wrapper 发布层"的边界。Library 之间的依赖为：MDX-Compiler → Logger；Logger 和 Script-Runtime 互不依赖。
 
 ## 边界规则
 
@@ -99,7 +99,7 @@ import { Callout, Cards } from 'nextra/components'
 **最近更新** — 本次重构的主要成果：
 
 - **统一的 NAPI Binding 加载器**：将平台映射、候选路径探测、CLI 平台包扫描和错误聚合收敛到 `sdk/src/core/native-binding-loader.ts`
-- **Logger / Script-Runtime 内联**：TypeScript facade 已迁入 `sdk/src/sdk/*`，公共包 `@truenine/memory-sync-sdk` / `@truenine/memory-sync-sdk` 仅保留 wrapper 入口
+- **Logger / Script-Runtime 内联**：TypeScript facade 已迁入 `sdk/src/libraries/*`，公共包 `@truenine/memory-sync-sdk` 仅保留 wrapper 入口
 - **完整的技术文档体系**：新增 4 个文档页面（Logger、MDX-Compiler、Script-Runtime、架构总览），覆盖 API 参考、架构图、使用示例和最佳实践
 - **标准化的包配置和构建流程**：三个 library 统一收敛到共享加载器 + 包级验证/适配层的职责分工，构建脚本支持增量缓存
 </Callout>
@@ -113,4 +113,4 @@ import { Callout, Cards } from 'nextra/components'
 - [技术细节 / 架构边界](/docs/technical-details/architecture)：查看 `sdk/`、`cli/`、`mcp/` 和 `gui/` 的完整分层
 - [CLI](/docs/cli)：查看公共命令入口、安装路径以及面向兼容性的发布表层
 - [MCP](/docs/mcp)：查看 stdio server 如何消费 `sdk` 的 prompt service
-- [GUI](/docs/gui)：查看桌面层如何调用 `sdk/` 中的 `tnmsc` crate
+- [GUI](/docs/gui)：查看桌面层如何调用 `sdk/` 中的 `tnmsd` crate

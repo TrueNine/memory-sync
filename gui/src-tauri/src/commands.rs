@@ -1,13 +1,12 @@
-/// Tauri commands that bridge the frontend to the `tnmsc` crate facade.
+/// Tauri commands that bridge the frontend to the `tnmsd` crate facade.
 ///
 /// Core install / clean / config / plugin operations run through direct crate APIs.
-/// The log viewer still uses the legacy bridge path until command streaming moves into Rust.
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tnmsc::core::config as core_config;
+use tnmsd::domain::config as core_config;
 
 const PRIMARY_SOURCE_MDX_EXTENSION: &str = ".src.mdx";
 const SOURCE_MDX_FILE_TYPE: &str = "sourceMdx";
@@ -79,48 +78,32 @@ pub struct LogEntry {
 #[tauri::command]
 pub fn install_pipeline(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
   let command_name = if dry_run { "dry-run" } else { "install" };
-  let options = tnmsc::MemorySyncCommandOptions {
+  let options = tnmsd::MemorySyncCommandOptions {
     cwd: Some(cwd),
     ..Default::default()
   };
   let result = if dry_run {
-    tnmsc::dry_run(options)
+    tnmsd::dry_run(options)
   } else {
-    tnmsc::install(options)
+    tnmsd::install(options)
   }
   .map_err(|error| error.to_string())?;
 
   Ok(to_pipeline_result(&result, command_name, dry_run))
 }
 
-/// Load the merged configuration via the tnmsc library API.
+/// Load the merged configuration via the tnmsd library API.
 #[tauri::command]
 pub fn load_config(cwd: String) -> Result<serde_json::Value, String> {
-  let result = tnmsc::load_config(Path::new(&cwd)).map_err(|e| e.to_string())?;
+  let result = tnmsd::load_config(Path::new(&cwd)).map_err(|e| e.to_string())?;
   serde_json::to_value(&result).map_err(|e| e.to_string())
-}
-
-/// List all registered plugins from the crate-owned registry.
-#[tauri::command]
-pub fn list_plugins(_cwd: String) -> Result<Vec<PluginExecutionResult>, String> {
-  Ok(
-    tnmsc::list_plugins()
-      .into_iter()
-      .map(|plugin| PluginExecutionResult {
-        plugin: plugin.name,
-        files: 0,
-        dirs: 0,
-        dry_run: false,
-      })
-      .collect(),
-  )
 }
 
 /// Clean previously generated output files.
 #[tauri::command]
 pub fn clean_outputs(cwd: String, dry_run: bool) -> Result<PipelineResult, String> {
   let command_name = if dry_run { "dry-run-clean" } else { "clean" };
-  let result = tnmsc::clean(tnmsc::MemorySyncCommandOptions {
+  let result = tnmsd::clean(tnmsd::MemorySyncCommandOptions {
     cwd: Some(cwd),
     dry_run: Some(dry_run),
     ..Default::default()
@@ -140,7 +123,7 @@ pub fn get_logs(_cwd: String, _command: String) -> Result<Vec<LogEntry>, String>
 }
 
 fn to_pipeline_result(
-  result: &tnmsc::MemorySyncCommandResult,
+  result: &tnmsd::MemorySyncCommandResult,
   command: &str,
   dry_run: bool,
 ) -> PipelineResult {
@@ -152,11 +135,11 @@ fn to_pipeline_result(
     command: Some(command.to_string()),
     plugin_results: Vec::new(),
     logs: Vec::new(),
-    errors: collect_bridge_messages(result),
+    errors: collect_result_errors(result),
   }
 }
 
-fn collect_bridge_messages(result: &tnmsc::MemorySyncCommandResult) -> Vec<String> {
+fn collect_result_errors(result: &tnmsd::MemorySyncCommandResult) -> Vec<String> {
   let mut messages = Vec::new();
 
   if let Some(message) = result.message.as_ref()
@@ -271,7 +254,7 @@ pub struct AindexFileEntry {
 /// Parsed global config with resolved paths.
 struct ResolvedConfig {
   aindex_root: PathBuf,
-  config: tnmsc::core::config::UserConfigFile,
+  config: tnmsd::domain::config::UserConfigFile,
 }
 
 struct CategoryPaths {
@@ -280,64 +263,26 @@ struct CategoryPaths {
 }
 
 fn resolve_category_paths(
-  config: &tnmsc::core::config::UserConfigFile,
+  _config: &tnmsd::domain::config::UserConfigFile,
   category: &str,
 ) -> Result<CategoryPaths, String> {
-  let aindex = &config.aindex;
-
-  let resolve_pair = |pair: Option<&tnmsc::core::config::DirPair>,
-                      default_source: &str,
-                      default_translated: &str|
-   -> CategoryPaths {
+  let resolve_dir = |default_dir: &str| -> CategoryPaths {
     CategoryPaths {
-      source_rel: pair
-        .and_then(|value| value.src.as_deref())
-        .unwrap_or(default_source)
-        .to_string(),
-      translated_rel: pair
-        .and_then(|value| value.dist.as_deref())
-        .unwrap_or(default_translated)
-        .to_string(),
+      source_rel: default_dir.to_string(),
+      translated_rel: format!("dist/{}", default_dir),
     }
   };
 
   match category {
-    "skills" => Ok(resolve_pair(
-      aindex.skills.as_ref(),
-      core_config::DEFAULT_SKILLS_SRC_DIR,
-      core_config::DEFAULT_SKILLS_DIST_DIR,
-    )),
-    "commands" => Ok(resolve_pair(
-      aindex.commands.as_ref(),
-      core_config::DEFAULT_COMMANDS_SRC_DIR,
-      core_config::DEFAULT_COMMANDS_DIST_DIR,
-    )),
-    "agents" => Ok(resolve_pair(
-      aindex.sub_agents.as_ref(),
-      core_config::DEFAULT_SUB_AGENTS_SRC_DIR,
-      core_config::DEFAULT_SUB_AGENTS_DIST_DIR,
-    )),
-    "rules" => Ok(resolve_pair(
-      aindex.rules.as_ref(),
-      core_config::DEFAULT_RULES_SRC_DIR,
-      core_config::DEFAULT_RULES_DIST_DIR,
-    )),
-    "app" => Ok(resolve_pair(
-      aindex.app.as_ref(),
-      core_config::DEFAULT_APP_SRC_DIR,
-      core_config::DEFAULT_APP_DIST_DIR,
-    )),
-    "ext" => Ok(resolve_pair(
-      aindex.ext.as_ref(),
-      core_config::DEFAULT_EXT_SRC_DIR,
-      core_config::DEFAULT_EXT_DIST_DIR,
-    )),
-    "arch" => Ok(resolve_pair(
-      aindex.arch.as_ref(),
-      core_config::DEFAULT_ARCH_SRC_DIR,
-      core_config::DEFAULT_ARCH_DIST_DIR,
-    )),
-    _ => Err(format!("Unknown category: {category}")),
+    "skills" => Ok(resolve_dir(core_config::DEFAULT_SKILLS_DIR)),
+    "commands" => Ok(resolve_dir(core_config::DEFAULT_COMMANDS_DIR)),
+    "agents" => Ok(resolve_dir(core_config::DEFAULT_SUB_AGENTS_DIR)),
+    "rules" => Ok(resolve_dir(core_config::DEFAULT_RULES_DIR)),
+    "app" => Ok(resolve_dir(core_config::DEFAULT_APP_DIR)),
+    "ext" => Ok(resolve_dir(core_config::DEFAULT_EXT_DIR)),
+    "arch" => Ok(resolve_dir(core_config::DEFAULT_ARCH_DIR)),
+    "softwares" => Ok(resolve_dir(core_config::DEFAULT_SOFTWARES_DIR)),
+    _ => Err("Unsupported category".to_string()),
   }
 }
 
@@ -368,7 +313,7 @@ fn collect_project_series_category_files(
 
 fn collect_root_memory_prompt_files(
   base: &std::path::Path,
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
   out: &mut Vec<AindexFileEntry>,
 ) {
   for (source_rel, translated_rel) in collect_root_memory_prompt_pairs(config) {
@@ -387,31 +332,22 @@ fn collect_root_memory_prompt_files(
 }
 
 fn collect_root_memory_prompt_pairs(
-  config: &tnmsc::core::config::UserConfigFile,
+  _config: &tnmsd::domain::config::UserConfigFile,
 ) -> Vec<(String, String)> {
-  let aindex = &config.aindex;
   [
     (
-      aindex.global_prompt.as_ref(),
-      core_config::DEFAULT_GLOBAL_PROMPT_SRC,
-      core_config::DEFAULT_GLOBAL_PROMPT_DIST,
+      core_config::DEFAULT_GLOBAL_PROMPT,
+      core_config::DEFAULT_GLOBAL_PROMPT_COMPILED,
     ),
     (
-      aindex.workspace_prompt.as_ref(),
-      core_config::DEFAULT_WORKSPACE_PROMPT_SRC,
-      core_config::DEFAULT_WORKSPACE_PROMPT_DIST,
+      core_config::DEFAULT_WORKSPACE_PROMPT,
+      core_config::DEFAULT_WORKSPACE_PROMPT_COMPILED,
     ),
   ]
   .into_iter()
-  .map(|(pair, default_source, default_dist)| {
-    let source_rel = pair
-      .and_then(|value| value.src.as_deref())
-      .unwrap_or(default_source)
-      .replace('\\', "/");
-    let translated_rel = pair
-      .and_then(|value| value.dist.as_deref())
-      .unwrap_or(default_dist)
-      .replace('\\', "/");
+  .map(|(source, compiled)| {
+    let source_rel = source.replace('\\', "/");
+    let translated_rel = format!("dist/{}", compiled);
     (source_rel, translated_rel)
   })
   .collect()
@@ -419,7 +355,7 @@ fn collect_root_memory_prompt_pairs(
 
 fn collect_category_file_entries(
   base: &std::path::Path,
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
   category: &str,
 ) -> Result<Vec<AindexFileEntry>, String> {
   let paths = resolve_category_paths(config, category)?;
@@ -448,15 +384,11 @@ fn collect_category_file_entries(
 /// Read and resolve the merged tnmsc config for the current working directory.
 fn load_resolved_config(cwd: &str) -> Result<ResolvedConfig, String> {
   let result =
-    tnmsc::load_config(Path::new(cwd)).map_err(|e| format!("Failed to load config: {e}"))?;
+    tnmsd::load_config(Path::new(cwd)).map_err(|e| format!("Failed to load config: {e}"))?;
   let config = result.config;
   let workspace_dir = config.workspace_dir.as_deref().unwrap_or(".");
-  let workspace_dir = tnmsc::core::config::resolve_tilde(workspace_dir);
-  let aindex_dir = config
-    .aindex
-    .dir
-    .as_deref()
-    .unwrap_or(core_config::DEFAULT_AINDEX_DIR_NAME);
+  let workspace_dir = tnmsd::domain::config::resolve_tilde(workspace_dir);
+  let aindex_dir = tnmsd::domain::config::DEFAULT_AINDEX_DIR_NAME;
 
   Ok(ResolvedConfig {
     aindex_root: workspace_dir.join(aindex_dir),
@@ -712,7 +644,7 @@ fn derive_english_source_rel(source_rel: &str) -> Option<String> {
 
 fn collect_root_memory_prompt_stats(
   base: &std::path::Path,
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
 ) -> StatAccumulator {
   let mut stats = StatAccumulator::default();
   let mut seen_paths = std::collections::HashSet::new();
@@ -752,7 +684,7 @@ fn accumulate_overall_stats(
 
 fn collect_project_series_stats(
   base: &std::path::Path,
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
   stats: &mut AindexStats,
   all_ext: &mut std::collections::HashMap<String, u32>,
 ) -> Result<(), String> {
@@ -795,7 +727,7 @@ fn collect_project_series_stats(
 
 fn build_aindex_stats(
   base: &std::path::Path,
-  config: &tnmsc::core::config::UserConfigFile,
+  config: &tnmsd::domain::config::UserConfigFile,
 ) -> Result<AindexStats, String> {
   let mut stats = AindexStats::default();
   let mut all_ext: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
@@ -877,8 +809,8 @@ mod tests {
     dir
   }
 
-  fn create_test_config() -> tnmsc::core::config::UserConfigFile {
-    tnmsc::core::config::UserConfigFile::default()
+  fn create_test_config() -> tnmsd::domain::config::UserConfigFile {
+    tnmsd::domain::config::UserConfigFile::default()
   }
 
   #[test]

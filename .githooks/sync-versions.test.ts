@@ -35,13 +35,12 @@ function createFixtureRepo(): string {
     name: '@truenine/memory-sync-cli',
     version: initialVersion
   })
-  writeJson(join(rootDir, 'sdk', 'package.json'), {
-    name: '@truenine/memory-sync-sdk',
-    version: initialVersion,
-    private: true
+  writeJson(join(rootDir, 'gui', 'package.json'), {
+    name: '@truenine/memory-sync-gui',
+    version: initialVersion
   })
-  writeJson(join(rootDir, 'cli-integration-test', 'package.json'), {
-    name: '@truenine/memory-sync-cli-integration-test',
+  writeJson(join(rootDir, 'doc', 'package.json'), {
+    name: '@truenine/memory-sync-docs',
     version: initialVersion,
     private: true
   })
@@ -49,21 +48,40 @@ function createFixtureRepo(): string {
     name: '@truenine/memory-sync-cli-darwin-arm64',
     version: initialVersion
   })
-  writeJson(join(rootDir, 'libraries', 'logger', 'package.json'), {
-    name: '@truenine/logger',
+  writeJson(join(rootDir, 'cli', 'npm', 'linux-x64-gnu', 'package.json'), {
+    name: '@truenine/memory-sync-cli-linux-x64-gnu',
     version: initialVersion
   })
+
   writeText(join(rootDir, 'Cargo.toml'), [
     '[workspace]',
-    'members = ["cli-crate"]',
+    'members = ["sdk", "cli", "mcp", "gui/src-tauri"]',
     '',
     '[workspace.package]',
     `version = "${initialVersion}"`,
     ''
   ].join('\n'))
-  writeText(join(rootDir, 'cli-crate', 'Cargo.toml'), [
+  writeText(join(rootDir, 'sdk', 'Cargo.toml'), [
     '[package]',
-    'name = "cli-crate"',
+    'name = "tnmsd"',
+    'version.workspace = true',
+    ''
+  ].join('\n'))
+  writeText(join(rootDir, 'cli', 'Cargo.toml'), [
+    '[package]',
+    'name = "tnmsc"',
+    'version.workspace = true',
+    ''
+  ].join('\n'))
+  writeText(join(rootDir, 'mcp', 'Cargo.toml'), [
+    '[package]',
+    'name = "tnmsm"',
+    'version.workspace = true',
+    ''
+  ].join('\n'))
+  writeText(join(rootDir, 'gui', 'src-tauri', 'Cargo.toml'), [
+    '[package]',
+    'name = "memory-sync-gui"',
     `version = "${initialVersion}"`,
     ''
   ].join('\n'))
@@ -71,6 +89,26 @@ function createFixtureRepo(): string {
     version: initialVersion,
     productName: 'Memory Sync'
   })
+  writeText(join(rootDir, 'Cargo.lock'), [
+    'version = 4',
+    '',
+    '[[package]]',
+    'name = "tnmsd"',
+    `version = "${initialVersion}"`,
+    '',
+    '[[package]]',
+    'name = "tnmsc"',
+    `version = "${initialVersion}"`,
+    '',
+    '[[package]]',
+    'name = "tnmsm"',
+    `version = "${initialVersion}"`,
+    '',
+    '[[package]]',
+    'name = "memory-sync-gui"',
+    `version = "${initialVersion}"`,
+    ''
+  ].join('\n'))
 
   runGit(rootDir, ['init'])
   runGit(rootDir, ['config', 'user.email', 'codex@example.com'])
@@ -79,6 +117,19 @@ function createFixtureRepo(): string {
   runGit(rootDir, ['commit', '-m', 'initial'])
 
   return rootDir
+}
+
+function expectSharedVersionSurfaces(rootDir: string, nextVersion: string): void {
+  expect(JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  expect(JSON.parse(readFileSync(join(rootDir, 'gui', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  expect(JSON.parse(readFileSync(join(rootDir, 'doc', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'npm', 'linux-x64-gnu', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  expect(readFileSync(join(rootDir, 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
+  expect(readFileSync(join(rootDir, 'gui', 'src-tauri', 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
+  expect(JSON.parse(readFileSync(join(rootDir, 'gui', 'src-tauri', 'tauri.conf.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  expect(readFileSync(join(rootDir, 'Cargo.lock'), 'utf-8')).toContain(`version = "${nextVersion}"`)
 }
 
 const tempDirs: string[] = []
@@ -93,7 +144,7 @@ afterEach(() => {
 })
 
 describe('sync-versions hook', () => {
-  it('uses a staged package.json version as the sync source and stages all propagated changes', () => {
+  it('uses a staged platform package version as the sync source and stages propagated changes', () => {
     const rootDir = createFixtureRepo()
     tempDirs.push(rootDir)
 
@@ -109,101 +160,69 @@ describe('sync-versions hook', () => {
 
     expect(result.targetVersion).toBe(nextVersion)
     expect(result.versionSource).toBe('cli/npm/darwin-arm64/package.json')
-    expect(JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'cli-integration-test', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'sdk', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'libraries', 'logger', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(readFileSync(join(rootDir, 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
-    expect(readFileSync(join(rootDir, 'cli-crate', 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
-    expect(JSON.parse(readFileSync(join(rootDir, 'gui', 'src-tauri', 'tauri.conf.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+    expectSharedVersionSurfaces(rootDir, nextVersion)
     expect(stagedFiles).toEqual(new Set([
+      'Cargo.lock',
       'Cargo.toml',
-      'cli-crate/Cargo.toml',
-      'cli-integration-test/package.json',
       'cli/npm/darwin-arm64/package.json',
+      'cli/npm/linux-x64-gnu/package.json',
       'cli/package.json',
+      'doc/package.json',
+      'gui/package.json',
+      'gui/src-tauri/Cargo.toml',
       'gui/src-tauri/tauri.conf.json',
-      'libraries/logger/package.json',
-      'package.json',
-      'sdk/package.json'
+      'package.json'
     ]))
   })
 
-  it('accepts sdk/package.json as a staged version source and propagates it', () => {
+  it('accepts gui/package.json as a staged version source and propagates it', () => {
     const rootDir = createFixtureRepo()
     tempDirs.push(rootDir)
 
     const nextVersion = '2026.10324.10316'
-    writeJson(join(rootDir, 'sdk', 'package.json'), {
-      name: '@truenine/memory-sync-sdk',
-      version: nextVersion,
-      private: true
+    writeJson(join(rootDir, 'gui', 'package.json'), {
+      name: '@truenine/memory-sync-gui',
+      version: nextVersion
     })
-    runGit(rootDir, ['add', 'sdk/package.json'])
+    runGit(rootDir, ['add', 'gui/package.json'])
 
     const result = runSyncVersions({rootDir})
     const stagedFiles = new Set(runGit(rootDir, ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean))
 
     expect(result.targetVersion).toBe(nextVersion)
-    expect(result.versionSource).toBe('sdk/package.json')
-    expect(JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'cli-integration-test', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'sdk', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'libraries', 'logger', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(readFileSync(join(rootDir, 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
-    expect(readFileSync(join(rootDir, 'cli-crate', 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
-    expect(JSON.parse(readFileSync(join(rootDir, 'gui', 'src-tauri', 'tauri.conf.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+    expect(result.versionSource).toBe('gui/package.json')
+    expectSharedVersionSurfaces(rootDir, nextVersion)
     expect(stagedFiles).toEqual(new Set([
+      'Cargo.lock',
       'Cargo.toml',
-      'cli-crate/Cargo.toml',
-      'cli-integration-test/package.json',
       'cli/npm/darwin-arm64/package.json',
+      'cli/npm/linux-x64-gnu/package.json',
       'cli/package.json',
+      'doc/package.json',
+      'gui/package.json',
+      'gui/src-tauri/Cargo.toml',
       'gui/src-tauri/tauri.conf.json',
-      'libraries/logger/package.json',
-      'package.json',
-      'sdk/package.json'
+      'package.json'
     ]))
   })
 
-  it('accepts cli-integration-test/package.json as a staged version source and propagates it', () => {
+  it('accepts doc/package.json as a staged version source and propagates it', () => {
     const rootDir = createFixtureRepo()
     tempDirs.push(rootDir)
 
     const nextVersion = '2026.10324.10318'
-    writeJson(join(rootDir, 'cli-integration-test', 'package.json'), {
-      name: '@truenine/memory-sync-cli-integration-test',
+    writeJson(join(rootDir, 'doc', 'package.json'), {
+      name: '@truenine/memory-sync-docs',
       version: nextVersion,
       private: true
     })
-    runGit(rootDir, ['add', 'cli-integration-test/package.json'])
+    runGit(rootDir, ['add', 'doc/package.json'])
 
     const result = runSyncVersions({rootDir})
-    const stagedFiles = new Set(runGit(rootDir, ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean))
 
     expect(result.targetVersion).toBe(nextVersion)
-    expect(result.versionSource).toBe('cli-integration-test/package.json')
-    expect(JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'cli-integration-test', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'sdk', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(JSON.parse(readFileSync(join(rootDir, 'libraries', 'logger', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(readFileSync(join(rootDir, 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
-    expect(readFileSync(join(rootDir, 'cli-crate', 'Cargo.toml'), 'utf-8')).toContain(`version = "${nextVersion}"`)
-    expect(JSON.parse(readFileSync(join(rootDir, 'gui', 'src-tauri', 'tauri.conf.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-    expect(stagedFiles).toEqual(new Set([
-      'Cargo.toml',
-      'cli-crate/Cargo.toml',
-      'cli-integration-test/package.json',
-      'cli/npm/darwin-arm64/package.json',
-      'cli/package.json',
-      'gui/src-tauri/tauri.conf.json',
-      'libraries/logger/package.json',
-      'package.json',
-      'sdk/package.json'
-    ]))
+    expect(result.versionSource).toBe('doc/package.json')
+    expectSharedVersionSurfaces(rootDir, nextVersion)
   })
 
   it('fails when staged package.json files propose conflicting versions', () => {
@@ -214,11 +233,12 @@ describe('sync-versions hook', () => {
       name: '@truenine/memory-sync-cli-darwin-arm64',
       version: '2026.10324.10314'
     })
-    writeJson(join(rootDir, 'libraries', 'logger', 'package.json'), {
-      name: '@truenine/logger',
-      version: '2026.10324.10315'
+    writeJson(join(rootDir, 'doc', 'package.json'), {
+      name: '@truenine/memory-sync-docs',
+      version: '2026.10324.10315',
+      private: true
     })
-    runGit(rootDir, ['add', 'cli/npm/darwin-arm64/package.json', 'libraries/logger/package.json'])
+    runGit(rootDir, ['add', 'cli/npm/darwin-arm64/package.json', 'doc/package.json'])
 
     expect(() => runSyncVersions({rootDir})).toThrowError(/Conflicting staged package\.json versions detected/)
   })

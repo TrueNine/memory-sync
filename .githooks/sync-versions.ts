@@ -290,21 +290,37 @@ function syncCargoLockVersion(
   }
 }
 
-function getStagedPackageVersionCandidates(rootDir: string, rootVersion: string): Map<string, string[]> {
+function getStagedVersionCandidates(rootDir: string, rootVersion: string): Map<string, string[]> {
   const stagedFiles = runGit(rootDir, ['diff', '--cached', '--name-only', '--diff-filter=ACMR'])
     .split(/\r?\n/)
     .map(line => line.trim())
     .filter(line => line.length > 0)
-    .filter(filePath => basename(filePath) === 'package.json')
+    .filter(filePath => {
+      const name = basename(filePath)
+      return name === 'package.json' || name === 'Cargo.toml' || name === 'tauri.conf.json'
+    })
 
   const candidates = new Map<string, string[]>()
 
   for (const relativePath of stagedFiles) {
     const stagedContent = runGit(rootDir, ['show', `:${relativePath}`])
-    const json = JSON.parse(stagedContent.replace(/^\uFEFF/, '')) as VersionedJson
-    const version = typeof json.version === 'string' ? json.version.trim() : ''
+    const name = basename(relativePath)
 
-    if (version.length === 0 || version === rootVersion) {
+    let version: string | undefined
+    if (name === 'package.json' || name === 'tauri.conf.json') {
+      const json = JSON.parse(stagedContent.replace(/^\uFEFF/, '')) as VersionedJson
+      version = typeof json.version === 'string' ? json.version.trim() : ''
+    } else if (name === 'Cargo.toml') {
+      version = extractTomlSectionValue(stagedContent, 'workspace.package', 'version')
+      if (version == null) {
+        version = extractTomlSectionValue(stagedContent, 'package', 'version')
+      }
+      if (version != null) {
+        version = version.trim()
+      }
+    }
+
+    if (version == null || version === '' || version === rootVersion) {
       continue
     }
 
@@ -335,7 +351,7 @@ function resolveTargetVersion(
     }
   }
 
-  const candidates = getStagedPackageVersionCandidates(rootDir, rootVersion)
+  const candidates = getStagedVersionCandidates(rootDir, rootVersion)
   const versions = [...candidates.keys()]
 
   if (versions.length === 0) {
@@ -376,6 +392,16 @@ export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersions
   const rootPackagePath = resolve(rootDir, 'package.json')
   const rootCargoPath = resolve(rootDir, 'Cargo.toml')
   const cargoLockPath = resolve(rootDir, 'Cargo.lock')
+
+  const rootCargoContent = readFileSync(rootCargoPath, 'utf-8')
+  const cargoVersion = extractTomlSectionValue(rootCargoContent, 'workspace.package', 'version')
+
+  if (cargoVersion == null || cargoVersion === '') {
+    throw new Error('Root Cargo.toml missing workspace.package.version field')
+  }
+
+  validateVersion(cargoVersion, 'root Cargo.toml workspace.package.version')
+
   const rootPkg = readJsonFile(rootPackagePath)
   const currentRootVersion = typeof rootPkg.version === 'string' ? rootPkg.version.trim() : ''
 
@@ -384,15 +410,6 @@ export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersions
   }
 
   validateVersion(currentRootVersion, 'root package.json')
-
-  const target = resolveTargetVersion(rootDir, currentRootVersion, options.requestedVersion?.trim())
-  const changedPaths = new Set<string>()
-
-  if (rootPkg.version !== target.version) {
-    rootPkg.version = target.version
-    writeJsonFile(rootPackagePath, rootPkg)
-    changedPaths.add(rootPackagePath)
-  }
 
   const packageJsonPaths = discoverFilesByName(rootDir, 'package.json')
     .filter(filePath => resolve(filePath) !== rootPackagePath)
