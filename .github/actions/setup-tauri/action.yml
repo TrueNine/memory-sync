@@ -78,6 +78,16 @@ runs:
         $normalized >> $env:GITHUB_ENV
         "EOF" >> $env:GITHUB_ENV
 
+    - name: Generate ephemeral Tauri signing key
+      if: ${{ inputs.signing-private-key == '' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        key_path="${RUNNER_TEMP}/tauri-ci.key"
+        pnpm -C gui tauri signer generate --ci --force -w "$key_path"
+        echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+
     - name: Get Cargo deps hash (exclude root package version for stable cache key)
       id: cargo-deps-hash
       shell: bash
