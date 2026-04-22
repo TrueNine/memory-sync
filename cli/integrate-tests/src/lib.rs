@@ -375,6 +375,20 @@ pub fn run_tnmsc_with_env(args: &[&str], cwd: &Path, envs: &[(&str, &str)]) -> C
   command_output(&mut command, "cargo run -p tnmsc --bin tnmsc")
 }
 
+pub fn run_packaged_tnmsc_with_env(
+  args: &[&str],
+  cwd: &Path,
+  envs: &[(&str, &str)],
+) -> CommandResult {
+  let mut command = Command::new(release_binary_path());
+  command.args(args).current_dir(cwd);
+  for (key, value) in envs {
+    command.env(key, value);
+  }
+
+  command_output(&mut command, "target/debug/tnmsc")
+}
+
 pub fn run_program_inherit(program: &str, args: &[&str], cwd: &Path) -> bool {
   let mut command;
   #[cfg(unix)]
@@ -574,7 +588,7 @@ pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
   let workspace_root_dir = workspace_root().to_string_lossy().into_owned();
 
   eprintln!("[tnmsc-integrate-tests] running assemble-npm...");
-  let assemble = run_tnmsc_with_env(
+  let assemble = run_packaged_tnmsc_with_env(
     &["assemble-npm", "--profile", "debug"],
     &workspace_root(),
     &[
@@ -628,7 +642,7 @@ pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
         cross_start.elapsed().as_secs_f64()
       );
 
-      let assemble_cross = run_tnmsc_with_env(
+      let assemble_cross = run_packaged_tnmsc_with_env(
         &["assemble-npm", "--profile", "debug"],
         &workspace_root(),
         &[
