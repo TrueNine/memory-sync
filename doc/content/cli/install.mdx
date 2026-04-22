@@ -25,13 +25,21 @@ keywords:
 
 ## 安装 CLI
 
-`@truenine/memory-sync-cli` 现在是 metadata-only 主包，不再直接暴露 `tnmsc`。全局安装时请直接选择与你宿主机匹配的 native 子包：
+`@truenine/memory-sync-cli` 现在会自动为当前受支持的平台安装对应的 native 子包，并直接暴露 `tnmsc`。全局安装时优先使用主包：
 
-- Linux x64 (glibc): `npm install -g @truenine/memory-sync-cli-linux-x64-gnu`
-- Linux arm64 (glibc): `npm install -g @truenine/memory-sync-cli-linux-arm64-gnu`
-- macOS arm64: `npm install -g @truenine/memory-sync-cli-darwin-arm64`
-- macOS x64: `npm install -g @truenine/memory-sync-cli-darwin-x64`
-- Windows x64: `npm install -g @truenine/memory-sync-cli-win32-x64-msvc`
+```sh
+npm install -g @truenine/memory-sync-cli
+```
+
+当前发布的 npm native 子包仍然覆盖下面这些平台组合：
+
+- Linux x64 (glibc)
+- Linux arm64 (glibc)
+- macOS arm64
+- macOS x64
+- Windows x64
+
+如果你在 Linux 上使用 musl 或 Alpine，当前发布的 npm 二进制还不能直接使用；请改用受支持的 glibc 环境。
 
 如果你是在 monorepo 内部开发，通常会改为在仓库根目录运行：
 

@@ -70,6 +70,7 @@ MAIN_PACKAGE_JSON="$(find -L /pnpm/global -path '*/@truenine/memory-sync-mcp/pac
 PLATFORM_PACKAGE_JSON="$(find -L /pnpm/global -path '*/@truenine/memory-sync-mcp-linux-x64-gnu/package.json' -print -quit)"
 test -n "$MAIN_PACKAGE_JSON"
 test -n "$PLATFORM_PACKAGE_JSON"
+test -f "$(dirname "$MAIN_PACKAGE_JSON")/bin/tnmsm.js"
 test -x "$(dirname "$PLATFORM_PACKAGE_JSON")/bin/tnmsm"
 test -x "$(command -v tnmsm)"
 "#,

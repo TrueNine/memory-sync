@@ -411,6 +411,11 @@ export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersions
 
   validateVersion(currentRootVersion, 'root package.json')
 
+  const target = resolveTargetVersion(rootDir, currentRootVersion, options.requestedVersion)
+  const changedPaths = new Set<string>()
+
+  syncJsonVersion(rootPackagePath, target.version, changedPaths)
+
   const packageJsonPaths = discoverFilesByName(rootDir, 'package.json')
     .filter(filePath => resolve(filePath) !== rootPackagePath)
     .sort()

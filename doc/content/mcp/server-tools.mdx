@@ -11,9 +11,17 @@ status: stable
 
 当前公开入口是 Rust 二进制 `tnmsm`：
 
-- npm metadata 主包：`@truenine/memory-sync-mcp`
+- npm 主包：`@truenine/memory-sync-mcp`
 - 平台二进制子包：`@truenine/memory-sync-mcp-<platform>`
 - stdio 命令入口：`tnmsm`
+
+推荐安装方式是直接安装主包：
+
+```sh
+npm install -g @truenine/memory-sync-mcp
+```
+
+当前 npm 二进制仍然只覆盖 glibc Linux、macOS 和 Windows x64；Linux musl/Alpine 还不在发布范围内。
 
 仓库内部还保留了隐藏的 `assemble-npm` 打包命令，用来把 release binary 组装进各个平台子包，但它不是给最终用户直接调用的公开能力。
 

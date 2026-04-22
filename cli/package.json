@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-cli",
-  "version": "2026.10422.10749",
+  "version": "2026.10422.11816",
   "description": "TrueNine Memory Synchronization CLI metadata package",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -10,11 +10,15 @@
     "url": "git+https://github.com/TrueNine/memory-sync.git",
     "directory": "cli"
   },
+  "bin": {
+    "tnmsc": "./bin/tnmsc.js"
+  },
   "exports": {
     "./schema.json": "./schema/tnmsc.schema.json",
     "./package.json": "./package.json"
   },
   "files": [
+    "bin/tnmsc.js",
     "schema/tnmsc.schema.json"
   ],
   "publishConfig": {

@@ -255,6 +255,7 @@ pub fn create_staged_package_root() -> StagedPackageRoot {
     &mcp_manifest_dir().join("package.json"),
     &package_root.join("package.json"),
   );
+  copy_dir_all(&mcp_manifest_dir().join("bin"), &package_root.join("bin"));
   copy_file(
     &mcp_manifest_dir()
       .join("npm")
@@ -265,8 +266,6 @@ pub fn create_staged_package_root() -> StagedPackageRoot {
       .join("linux-x64-gnu")
       .join("package.json"),
   );
-
-  rewrite_main_package_json(&package_root.join("package.json"));
 
   let linux_binary = package_root
     .join("npm")
@@ -299,12 +298,16 @@ pub fn pack_mcp_artifacts() -> PackedArtifacts {
   );
   assemble.assert_success("tnmsm assemble-npm for staged package root");
 
-  let mcp_tarball = pack_package(&staged.package_root, temp_dir.path(), "mcp");
   let linux_tarball = pack_package(
     &staged.package_root.join("npm").join("linux-x64-gnu"),
     temp_dir.path(),
     "linux-x64-gnu",
   );
+  rewrite_main_package_json(
+    &staged.package_root.join("package.json"),
+    "file:/artifacts/linux-x64-gnu.tgz",
+  );
+  let mcp_tarball = pack_package(&staged.package_root, temp_dir.path(), "mcp");
 
   PackedArtifacts {
     _temp_dir: temp_dir,
@@ -317,10 +320,9 @@ pub fn install_packaged_mcp_container() -> TestContainer {
   let artifacts = pack_mcp_artifacts();
   let container = TestContainer::start(&artifacts);
   let install_command = format!(
-    "corepack enable && corepack prepare pnpm@{} --activate && pnpm add -g {} {}",
+    "corepack enable && corepack prepare pnpm@{} --activate && pnpm add -g {}",
     quote_shell(pnpm_version()),
-    quote_shell("/artifacts/mcp.tgz"),
-    quote_shell("/artifacts/linux-x64-gnu.tgz")
+    quote_shell("/artifacts/mcp.tgz")
   );
   container.exec_success(&install_command);
   container
@@ -392,7 +394,7 @@ fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
   tarballs.remove(0)
 }
 
-fn rewrite_main_package_json(path: &Path) {
+fn rewrite_main_package_json(path: &Path, platform_dependency: &str) {
   let raw = fs::read_to_string(path)
     .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
   let mut parsed: serde_json::Value = serde_json::from_str(&raw)
@@ -407,7 +409,7 @@ fn rewrite_main_package_json(path: &Path) {
   object.insert(
     "optionalDependencies".to_string(),
     serde_json::json!({
-      "@truenine/memory-sync-mcp-linux-x64-gnu": current_package_version()
+      "@truenine/memory-sync-mcp-linux-x64-gnu": platform_dependency
     }),
   );
 
@@ -432,6 +434,31 @@ fn copy_file(source: &Path, destination: &Path) {
       destination.display()
     )
   });
+}
+
+fn copy_dir_all(source: &Path, destination: &Path) {
+  fs::create_dir_all(destination)
+    .unwrap_or_else(|error| panic!("failed to create {}: {error}", destination.display()));
+
+  for entry in fs::read_dir(source)
+    .unwrap_or_else(|error| panic!("failed to read {}: {error}", source.display()))
+  {
+    let entry =
+      entry.unwrap_or_else(|error| panic!("failed to read entry in {}: {error}", source.display()));
+    let file_type = entry.file_type().unwrap_or_else(|error| {
+      panic!(
+        "failed to read file type for {}: {error}",
+        entry.path().display()
+      )
+    });
+    let destination_path = destination.join(entry.file_name());
+
+    if file_type.is_dir() {
+      copy_dir_all(&entry.path(), &destination_path);
+    } else {
+      copy_file(&entry.path(), &destination_path);
+    }
+  }
 }
 
 fn command_output(command: &mut Command, label: &str) -> CommandResult {
