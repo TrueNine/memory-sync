@@ -264,8 +264,13 @@ jobs:
             exit 1
           fi
 
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+
+          pushd "$tmp_dir" >/dev/null
           npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
           npm whoami --registry "${NPM_REGISTRY_URL}"
+          popd >/dev/null
 
       - name: Download raw CLI binaries
         uses: actions/download-artifact@v8
@@ -335,8 +340,13 @@ jobs:
             exit 1
           fi
 
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+
+          pushd "$tmp_dir" >/dev/null
           npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
           npm whoami --registry "${NPM_REGISTRY_URL}"
+          popd >/dev/null
 
       - name: Download raw MCP binaries
         uses: actions/download-artifact@v8
