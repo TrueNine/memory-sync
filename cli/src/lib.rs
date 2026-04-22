@@ -11,6 +11,7 @@ pub fn run() -> ExitCode {
 
   if let Some(level) = cli::resolve_log_level(&args) {
     logger::set_global_log_level(level.to_logger_level());
+    tnmsd::infra::logger::set_global_log_level(level.to_sdk_logger_level());
   }
 
   match cli::resolve_command(&args) {

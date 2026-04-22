@@ -9,12 +9,14 @@ use crate::policy::cleanup::{
   CleanupDeclarationsDto, CleanupSnapshot, CleanupTargetDto, CleanupTargetKindDto,
   PluginCleanupSnapshotDto,
 };
+use crate::services::command_diagnostics::build_workspace_mismatch_warning;
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
   let cwd = resolve_cwd(options.cwd.as_deref())?;
   let config_result = load_config(&cwd, options.load_user_config)?;
   let workspace_dir = resolve_workspace_dir(&cwd, &config_result.config)?;
+  let workspace_warning = build_workspace_mismatch_warning(&cwd, &workspace_dir, &config_result);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
   let global_scope = build_global_scope(&config_result.config);
@@ -33,6 +35,15 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
   if options.dry_run.unwrap_or(false) {
     let plan = crate::policy::cleanup::plan_cleanup(snapshot.clone())
       .map_err(|e| CliError::ExecutionError(e))?;
+    let mut warnings = workspace_warning.into_iter().collect::<Vec<_>>();
+    warnings.extend(plan.violations.iter().map(|v| {
+      json!({
+        "type": "violation",
+        "target": v.target_path,
+        "protected": v.protected_path,
+        "reason": v.reason
+      })
+    }));
     Ok(MemorySyncCommandResult {
       success: plan.conflicts.is_empty() && plan.violations.is_empty(),
       files_affected: plan.files_to_delete.len() as i32,
@@ -45,18 +56,7 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
         plan.violations.len(),
         plan.conflicts.len()
       )),
-      warnings: plan
-        .violations
-        .iter()
-        .map(|v| {
-          json!({
-            "type": "violation",
-            "target": v.target_path,
-            "protected": v.protected_path,
-            "reason": v.reason
-          })
-        })
-        .collect(),
+      warnings,
       errors: plan
         .conflicts
         .iter()
@@ -75,18 +75,15 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
       crate::policy::cleanup::perform_cleanup(snapshot).map_err(|e| CliError::ExecutionError(e))?;
     let blocked = !result.violations.is_empty() || !result.conflicts.is_empty();
     let success = !blocked && result.errors.is_empty();
-    let mut warnings = result
-      .violations
-      .iter()
-      .map(|v| {
-        json!({
-          "type": "violation",
-          "target": v.target_path,
-          "protected": v.protected_path,
-          "reason": v.reason
-        })
+    let mut warnings = workspace_warning.into_iter().collect::<Vec<_>>();
+    warnings.extend(result.violations.iter().map(|v| {
+      json!({
+        "type": "violation",
+        "target": v.target_path,
+        "protected": v.protected_path,
+        "reason": v.reason
       })
-      .collect::<Vec<_>>();
+    }));
     let mut errors = result
       .conflicts
       .iter()

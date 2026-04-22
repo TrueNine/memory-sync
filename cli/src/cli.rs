@@ -124,6 +124,16 @@ impl ResolvedLogLevel {
       Self::Error => LogLevel::Error,
     }
   }
+
+  pub fn to_sdk_logger_level(self) -> tnmsd::infra::logger::LogLevel {
+    match self {
+      Self::Trace => tnmsd::infra::logger::LogLevel::Trace,
+      Self::Debug => tnmsd::infra::logger::LogLevel::Debug,
+      Self::Info => tnmsd::infra::logger::LogLevel::Info,
+      Self::Warn => tnmsd::infra::logger::LogLevel::Warn,
+      Self::Error => tnmsd::infra::logger::LogLevel::Error,
+    }
+  }
 }
 
 /// Resolve log level from CLI flags.

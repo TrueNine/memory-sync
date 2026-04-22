@@ -7,12 +7,16 @@ use crate::context::OutputContext;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPlansDto};
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
 use crate::domain::output_plans::droid_output_plan::DroidOutputPlanDto;
+use crate::services::command_diagnostics::build_workspace_mismatch_warning;
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
   let cwd = resolve_cwd(options.cwd.as_deref())?;
   let config_result = load_config(&cwd, options.load_user_config)?;
   let workspace_dir = resolve_workspace_dir(&cwd, &config_result.config)?;
+  let warnings = build_workspace_mismatch_warning(&cwd, &workspace_dir, &config_result)
+    .into_iter()
+    .collect();
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
   let global_scope = build_global_scope(&config_result.config);
   let enabled_plugins = EnabledPlugins::from_config(config_result.config.plugins.as_ref());
@@ -50,7 +54,7 @@ pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandRes
     files_affected: files_affected as i32,
     dirs_affected: dirs_affected as i32,
     message,
-    warnings: Vec::new(),
+    warnings,
     errors: Vec::new(),
   })
 }
