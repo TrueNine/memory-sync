@@ -6,6 +6,7 @@
   "engines": {
     "node": ">=22"
   },
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "tsx scripts/run-next.ts dev",
     "build": "tsx scripts/validate-content.ts && tsx scripts/run-next.ts build",
