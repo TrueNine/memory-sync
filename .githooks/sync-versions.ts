@@ -207,6 +207,32 @@ function validateVersion(version: string, source: string): void {
   }
 }
 
+function syncInternalDependencyVersions(json: VersionedJson, targetVersion: string): boolean {
+  let changed = false
+
+  for (const field of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
+    const deps = json[field]
+    if (deps == null || typeof deps !== 'object' || Array.isArray(deps)) {
+      continue
+    }
+
+    for (const [name, value] of Object.entries(deps as Record<string, unknown>)) {
+      if (!name.startsWith('@truenine/memory-sync-')) {
+        continue
+      }
+
+      if (typeof value !== 'string' || value === targetVersion) {
+        continue
+      }
+
+      ;(deps as Record<string, unknown>)[name] = targetVersion
+      changed = true
+    }
+  }
+
+  return changed
+}
+
 function syncJsonVersion(
   filePath: string,
   targetVersion: string,
@@ -214,7 +240,9 @@ function syncJsonVersion(
 ): void {
   try {
     const json = readJsonFile(filePath)
-    if (json.version === targetVersion) {
+    const dependenciesChanged = syncInternalDependencyVersions(json, targetVersion)
+
+    if (json.version === targetVersion && !dependenciesChanged) {
       return
     }
 
