@@ -215,38 +215,80 @@ pub fn delete_path_sync<P: AsRef<Path>>(path: P) -> io::Result<()> {
   delete_path(path).map(|_| ())
 }
 
+#[cfg(windows)]
+fn strip_windows_extended_prefix(path: &Path) -> Option<PathBuf> {
+  let raw = path.to_string_lossy();
+
+  if let Some(stripped) = raw.strip_prefix(r"\\?\UNC\") {
+    return Some(PathBuf::from(format!(r"\\{}", stripped.replace('/', "\\"))));
+  }
+
+  if let Some(stripped) = raw.strip_prefix(r"\\?\") {
+    return Some(PathBuf::from(stripped.replace('/', "\\")));
+  }
+
+  if let Some(stripped) = raw.strip_prefix("//?/UNC/") {
+    return Some(PathBuf::from(format!(r"\\{}", stripped.replace('/', "\\"))));
+  }
+
+  if let Some(stripped) = raw.strip_prefix("//?/") {
+    return Some(PathBuf::from(stripped.replace('/', "\\")));
+  }
+
+  None
+}
+
+fn resolve_delete_path(path: &Path) -> io::Result<Option<(PathBuf, fs::Metadata)>> {
+  match fs::symlink_metadata(path) {
+    Ok(metadata) => Ok(Some((path.to_path_buf(), metadata))),
+    Err(err) if err.kind() == io::ErrorKind::NotFound => {
+      #[cfg(windows)]
+      if let Some(fallback) = strip_windows_extended_prefix(path)
+        && fallback != path
+      {
+        return match fs::symlink_metadata(&fallback) {
+          Ok(metadata) => Ok(Some((fallback, metadata))),
+          Err(fallback_err) if fallback_err.kind() == io::ErrorKind::NotFound => Ok(None),
+          Err(fallback_err) => Err(fallback_err),
+        };
+      }
+
+      Ok(None)
+    }
+    Err(err) => Err(err),
+  }
+}
+
 fn delete_path(path: impl AsRef<Path>) -> io::Result<bool> {
-  let path = path.as_ref();
-  let metadata = match fs::symlink_metadata(path) {
-    Ok(metadata) => metadata,
-    Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(false),
-    Err(err) => return Err(err),
+  let (path, metadata) = match resolve_delete_path(path.as_ref())? {
+    Some(resolved) => resolved,
+    None => return Ok(false),
   };
 
   if metadata.file_type().is_symlink() {
     #[cfg(windows)]
     {
-      return fs::metadata(path)
+      return fs::metadata(&path)
         .map(|resolved| resolved.is_dir())
         .unwrap_or(false)
-        .then(|| fs::remove_dir(path).or_else(|_| fs::remove_file(path)))
-        .unwrap_or_else(|| fs::remove_file(path).or_else(|_| fs::remove_dir(path)))
+        .then(|| fs::remove_dir(&path).or_else(|_| fs::remove_file(&path)))
+        .unwrap_or_else(|| fs::remove_file(&path).or_else(|_| fs::remove_dir(&path)))
         .map(|_| true);
     }
     #[cfg(not(windows))]
     {
-      return fs::remove_file(path).map(|_| true);
+      return fs::remove_file(&path).map(|_| true);
     }
   }
 
   if metadata.is_dir() {
-    match fs::remove_dir_all(path) {
+    match fs::remove_dir_all(&path) {
       Ok(()) => Ok(true),
       Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
       Err(err) => Err(err),
     }
   } else {
-    match fs::remove_file(path) {
+    match fs::remove_file(&path) {
       Ok(()) => Ok(true),
       Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
       Err(err) => Err(err),
@@ -293,18 +335,16 @@ pub struct DeleteTargetsResult {
 }
 
 fn delete_empty_directory(path: impl AsRef<Path>) -> io::Result<bool> {
-  let path = path.as_ref();
-  let metadata = match fs::symlink_metadata(path) {
-    Ok(metadata) => metadata,
-    Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(false),
-    Err(err) => return Err(err),
+  let (path, metadata) = match resolve_delete_path(path.as_ref())? {
+    Some(resolved) => resolved,
+    None => return Ok(false),
   };
 
   if metadata.file_type().is_symlink() || !metadata.is_dir() {
     return Ok(false);
   }
 
-  match fs::remove_dir(path) {
+  match fs::remove_dir(&path) {
     Ok(()) => Ok(true),
     Err(err)
       if err.kind() == io::ErrorKind::NotFound
@@ -706,6 +746,36 @@ mod tests {
     assert!(result.deleted_paths.is_empty());
     assert!(result.errors.is_empty());
     assert!(target_dir.exists());
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn delete_files_handles_windows_extended_prefix_paths() {
+    let dir = tempdir().unwrap();
+    let file = dir.path().join("artifact.txt");
+    fs::write(&file, b"data").unwrap();
+
+    let extended = format!(r"\\?\{}", file.display());
+    let result = delete_files(&[extended]);
+
+    assert_eq!(result.deleted, 1);
+    assert!(result.errors.is_empty());
+    assert!(!file.exists());
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn delete_files_handles_windows_slash_extended_prefix_paths() {
+    let dir = tempdir().unwrap();
+    let file = dir.path().join("artifact.txt");
+    fs::write(&file, b"data").unwrap();
+
+    let slash_extended = format!("//?/{}", file.display().to_string().replace('\\', "/"));
+    let result = delete_files(&[slash_extended]);
+
+    assert_eq!(result.deleted, 1);
+    assert!(result.errors.is_empty());
+    assert!(!file.exists());
   }
 
   #[test]

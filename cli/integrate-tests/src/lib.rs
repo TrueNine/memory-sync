@@ -575,7 +575,7 @@ pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
 
   eprintln!("[tnmsc-integrate-tests] running assemble-npm...");
   let assemble = run_tnmsc_with_env(
-    &["assemble-npm"],
+    &["assemble-npm", "--profile", "debug"],
     &workspace_root(),
     &[
       ("TNMSC_NPM_PACKAGE_ROOT", package_root.as_str()),
@@ -629,7 +629,7 @@ pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
       );
 
       let assemble_cross = run_tnmsc_with_env(
-        &["assemble-npm"],
+        &["assemble-npm", "--profile", "debug"],
         &workspace_root(),
         &[
           ("TNMSC_NPM_PACKAGE_ROOT", package_root.as_str()),

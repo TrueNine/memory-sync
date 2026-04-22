@@ -73,26 +73,58 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
   } else {
     let result =
       crate::policy::cleanup::perform_cleanup(snapshot).map_err(|e| CliError::ExecutionError(e))?;
+    let blocked = !result.violations.is_empty() || !result.conflicts.is_empty();
+    let success = !blocked && result.errors.is_empty();
+    let mut warnings = result
+      .violations
+      .iter()
+      .map(|v| {
+        json!({
+          "type": "violation",
+          "target": v.target_path,
+          "protected": v.protected_path,
+          "reason": v.reason
+        })
+      })
+      .collect::<Vec<_>>();
+    let mut errors = result
+      .conflicts
+      .iter()
+      .map(|c| {
+        json!({
+          "type": "conflict",
+          "output": c.output_path,
+          "protected": c.protected_path,
+          "reason": c.reason
+        })
+      })
+      .collect::<Vec<_>>();
+    errors.extend(result.errors.iter().map(|e| {
+      json!({
+        "path": e.path,
+        "kind": format!("{:?}", e.kind),
+        "error": e.error
+      })
+    }));
+
     Ok(MemorySyncCommandResult {
-      success: result.errors.is_empty(),
+      success,
       files_affected: result.deleted_files as i32,
       dirs_affected: result.deleted_dirs as i32,
-      message: Some(format!(
-        "Deleted {} files and {} directories",
-        result.deleted_files, result.deleted_dirs
-      )),
-      warnings: Vec::new(),
-      errors: result
-        .errors
-        .iter()
-        .map(|e| {
-          json!({
-            "path": e.path,
-            "kind": format!("{:?}", e.kind),
-            "error": e.error
-          })
-        })
-        .collect(),
+      message: Some(if blocked {
+        format!(
+          "Cleanup blocked: {} conflicts, {} violations",
+          result.conflicts.len(),
+          result.violations.len()
+        )
+      } else {
+        format!(
+          "Deleted {} files and {} directories",
+          result.deleted_files, result.deleted_dirs
+        )
+      }),
+      warnings: std::mem::take(&mut warnings),
+      errors,
     })
   }
 }
