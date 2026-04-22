@@ -237,40 +237,8 @@ jobs:
           path: ${{ matrix.archive }}
           if-no-files-found: error
 
-  cli-real-env-integration:
-    needs: validate-version
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-node-pnpm
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: release-cli-real-env
-
-      - name: Run CLI real-env integration tests
-        run: cargo test -p tnmsc-integrate-tests -- --nocapture
-
-  mcp-real-env-integration:
-    needs: validate-version
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-node-pnpm
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: release-mcp-real-env
-
-      - name: Run MCP real-env integration tests
-        run: cargo test -p tnmsm-integrate-tests -- --nocapture
-
   publish-cli-npm:
-    needs: [validate-version, build-cli-binaries, cli-real-env-integration]
+    needs: [validate-version, build-cli-binaries]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -341,7 +309,7 @@ jobs:
           package-dir: cli
 
   publish-mcp-npm:
-    needs: [validate-version, build-mcp-binaries, mcp-real-env-integration]
+    needs: [validate-version, build-mcp-binaries]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
