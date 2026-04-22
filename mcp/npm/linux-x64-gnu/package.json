@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-mcp-linux-x64-gnu",
-  "version": "2026.10422.11816",
+  "version": "2026.10423.10319",
   "description": "tnmsm native binary for Linux x64 (glibc)",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
