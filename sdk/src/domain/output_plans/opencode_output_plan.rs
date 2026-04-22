@@ -74,7 +74,9 @@ fn build_output_files(
       let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
         continue;
       };
-      let opencode_rules_dir = project_root_dir.join(OPENCODE_PROJECT_CONFIG_DIR).join("rules");
+      let opencode_rules_dir = project_root_dir
+        .join(OPENCODE_PROJECT_CONFIG_DIR)
+        .join("rules");
       for rule in rules {
         if rule.scope != crate::domain::plugin_shared::RuleScope::Project {
           continue;
@@ -102,7 +104,9 @@ fn build_output_files(
       let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
         continue;
       };
-      let opencode_agents_dir = project_root_dir.join(OPENCODE_PROJECT_CONFIG_DIR).join("agents");
+      let opencode_agents_dir = project_root_dir
+        .join(OPENCODE_PROJECT_CONFIG_DIR)
+        .join("agents");
       for sub_agent in sub_agents {
         let agent_file_name = format!("{}.md", sub_agent.canonical_name);
         output_files.push(BaseOutputFileDeclarationDto {
@@ -123,7 +127,9 @@ fn build_output_files(
       let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
         continue;
       };
-      let opencode_skills_dir = project_root_dir.join(OPENCODE_PROJECT_CONFIG_DIR).join("skills");
+      let opencode_skills_dir = project_root_dir
+        .join(OPENCODE_PROJECT_CONFIG_DIR)
+        .join("skills");
       for skill in skills {
         let skill_sub_dir = opencode_skills_dir.join(&skill.skill_name);
 
@@ -177,7 +183,10 @@ fn build_output_files(
 
         if let Some(mcp_config) = skill.mcp_config.as_ref() {
           output_files.push(BaseOutputFileDeclarationDto {
-            path: skill_sub_dir.join("mcp.json").to_string_lossy().into_owned(),
+            path: skill_sub_dir
+              .join("mcp.json")
+              .to_string_lossy()
+              .into_owned(),
             scope: Some(PROJECT_SCOPE.to_string()),
             content: mcp_config.raw_content.clone(),
             encoding: None,
@@ -192,7 +201,9 @@ fn build_output_files(
       let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
         continue;
       };
-      let opencode_commands_dir = project_root_dir.join(OPENCODE_PROJECT_CONFIG_DIR).join("commands");
+      let opencode_commands_dir = project_root_dir
+        .join(OPENCODE_PROJECT_CONFIG_DIR)
+        .join("commands");
       for command in commands {
         let command_file_name = if let Some(prefix) = command.series.as_ref() {
           format!("{}-{}.md", prefix, command.command_name)
@@ -597,14 +608,32 @@ mod tests {
 
   #[test]
   fn hex_color_invalid_cases() {
-    assert!(!is_valid_hex_color("blue"), "CSS named color must be rejected");
-    assert!(!is_valid_hex_color("red"), "CSS named color must be rejected");
+    assert!(
+      !is_valid_hex_color("blue"),
+      "CSS named color must be rejected"
+    );
+    assert!(
+      !is_valid_hex_color("red"),
+      "CSS named color must be rejected"
+    );
     assert!(!is_valid_hex_color("#FFF"), "3-digit hex must be rejected");
-    assert!(!is_valid_hex_color("#FFFFFFAA"), "8-digit hex must be rejected");
-    assert!(!is_valid_hex_color("FFFFFF"), "missing # prefix must be rejected");
-    assert!(!is_valid_hex_color("#GGGGGG"), "non-hex digits must be rejected");
+    assert!(
+      !is_valid_hex_color("#FFFFFFAA"),
+      "8-digit hex must be rejected"
+    );
+    assert!(
+      !is_valid_hex_color("FFFFFF"),
+      "missing # prefix must be rejected"
+    );
+    assert!(
+      !is_valid_hex_color("#GGGGGG"),
+      "non-hex digits must be rejected"
+    );
     assert!(!is_valid_hex_color(""), "empty string must be rejected");
-    assert!(!is_valid_hex_color("#12345"), "5-digit hex must be rejected");
+    assert!(
+      !is_valid_hex_color("#12345"),
+      "5-digit hex must be rejected"
+    );
   }
 
   fn make_test_agent(color: Option<String>) -> crate::domain::plugin_shared::SubAgentPrompt {

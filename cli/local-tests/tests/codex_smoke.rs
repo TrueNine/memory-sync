@@ -43,7 +43,10 @@ fn local_codex_install_generates_global_agents_md() {
   let content = runner
     .read_codex_global_file()
     .expect("~/.codex/AGENTS.md should be readable");
-  assert!(!content.is_empty(), "~/.codex/AGENTS.md should not be empty");
+  assert!(
+    !content.is_empty(),
+    "~/.codex/AGENTS.md should not be empty"
+  );
 }
 
 #[test]
@@ -136,7 +139,7 @@ fn local_codex_prompts_match_aindex_commands() {
       name_str
     );
     let content = std::fs::read_to_string(file.path()).unwrap();
-    
+
     // If file has front matter, validate it
     if content.starts_with("---\n") {
       // Codex prompts use kebab-case for field names (e.g., argument-hint, not argumentHint)
@@ -271,7 +274,9 @@ fn local_codex_project_skills_match_aindex_skills() {
   );
 
   // Count aindex skills
-  let aindex_dir = runner.resolve_aindex_dir().expect("aindex dir should exist");
+  let aindex_dir = runner
+    .resolve_aindex_dir()
+    .expect("aindex dir should exist");
   let aindex_skills_dir = aindex_dir.join("skills");
   let aindex_skill_entries: Vec<_> = std::fs::read_dir(&aindex_skills_dir)
     .unwrap()

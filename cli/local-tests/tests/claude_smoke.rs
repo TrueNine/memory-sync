@@ -120,7 +120,9 @@ fn local_claude_clean_removes_all_project_files() {
   // 递归检查：项目内不应残留任何 CLAUDE.md
   fn collect_claude_md_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
     let mut files = Vec::new();
-    let Ok(entries) = std::fs::read_dir(dir) else { return files };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+      return files;
+    };
     for entry in entries.flatten() {
       let path = entry.path();
       let Ok(ft) = entry.file_type() else { continue };
@@ -128,8 +130,7 @@ fn local_claude_clean_removes_all_project_files() {
         // 跳过 .git、node_modules、target 等
         if let Some(name) = path.file_name() {
           let name = name.to_string_lossy();
-          if name.starts_with('.')
-            && name != ".github"
+          if name.starts_with('.') && name != ".github"
             || name == "node_modules"
             || name == "target"
             || name == "dist"
@@ -178,8 +179,5 @@ fn local_claude_global_file_still_generated() {
   let content = runner
     .read_claude_global_file()
     .expect("global CLAUDE.md should be readable");
-  assert!(
-    !content.is_empty(),
-    "global CLAUDE.md should not be empty"
-  );
+  assert!(!content.is_empty(), "global CLAUDE.md should not be empty");
 }

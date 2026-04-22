@@ -2,7 +2,7 @@
 //!
 //! **前提**：无 — 不依赖任何配置文件或目录结构。
 
-use tnmsc_local_tests::{EXPECTED_SUBCOMMANDS, current_package_version, LocalTestRunner};
+use tnmsc_local_tests::{EXPECTED_SUBCOMMANDS, LocalTestRunner, current_package_version};
 
 #[test]
 fn local_cli_help_shows_expected_subcommands() {

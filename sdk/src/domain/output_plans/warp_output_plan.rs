@@ -59,7 +59,7 @@ fn build_output_files(
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
           content: global_memory.content.clone(),
-            encoding: None,
+          encoding: None,
         });
       }
     }
@@ -81,7 +81,7 @@ fn build_output_files(
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
           content: combined_content,
-            encoding: None,
+          encoding: None,
         });
       }
 
@@ -94,7 +94,7 @@ fn build_output_files(
               .into_owned(),
             scope: Some(PROJECT_SCOPE.to_string()),
             content: child_prompt.content.clone(),
-              encoding: None,
+            encoding: None,
           });
         }
       }
@@ -120,7 +120,7 @@ fn build_output_files(
             .into_owned(),
           scope: Some(PROJECT_SCOPE.to_string()),
           content: ignore_file.content.clone(),
-            encoding: None,
+          encoding: None,
         });
       }
     }

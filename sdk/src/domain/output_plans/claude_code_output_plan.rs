@@ -193,7 +193,10 @@ fn build_output_files(
         // MCP config
         if let Some(mcp_config) = skill.mcp_config.as_ref() {
           output_files.push(BaseOutputFileDeclarationDto {
-            path: skill_sub_dir.join("mcp.json").to_string_lossy().into_owned(),
+            path: skill_sub_dir
+              .join("mcp.json")
+              .to_string_lossy()
+              .into_owned(),
             scope: Some(PROJECT_SCOPE.to_string()),
             content: mcp_config.raw_content.clone(),
             encoding: None,

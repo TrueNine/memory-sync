@@ -566,7 +566,13 @@ fn collect_context(
 fn build_output_map(
   context: &OutputContext,
   enabled_plugins: EnabledPlugins,
-) -> Result<(HashMap<String, Vec<String>>, HashMap<String, CleanupDeclarationsDto>), CliError> {
+) -> Result<
+  (
+    HashMap<String, Vec<String>>,
+    HashMap<String, CleanupDeclarationsDto>,
+  ),
+  CliError,
+> {
   let mut output_map: HashMap<String, Vec<String>> = HashMap::new();
   let mut cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
 
@@ -607,8 +613,7 @@ fn build_output_map(
       }
     }
   }
-  if let Ok(plan) =
-    crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context)
+  if let Ok(plan) = crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context)
   {
     cleanup_map
       .entry("CodexCLIOutputAdaptor".to_string())
@@ -641,8 +646,7 @@ fn build_output_map(
       }
     }
   }
-  if let Ok(plan) =
-    crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context)
+  if let Ok(plan) = crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context)
   {
     cleanup_map
       .entry("DroidCLIOutputAdaptor".to_string())
@@ -690,8 +694,7 @@ fn build_output_map(
       }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context)
-  {
+  if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context) {
     cleanup_map
       .entry("KiroCLIOutputAdaptor".to_string())
       .or_insert_with(CleanupDeclarationsDto::default)
@@ -723,8 +726,7 @@ fn build_output_map(
       }
     }
   }
-  if let Ok(plan) =
-    crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context)
+  if let Ok(plan) = crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context)
   {
     cleanup_map
       .entry("QoderIDEPluginOutputAdaptor".to_string())
@@ -740,8 +742,7 @@ fn build_output_map(
       }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context)
-  {
+  if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context) {
     cleanup_map
       .entry("TraeOutputAdaptor".to_string())
       .or_insert_with(CleanupDeclarationsDto::default)
@@ -756,8 +757,7 @@ fn build_output_map(
       }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context)
-  {
+  if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context) {
     cleanup_map
       .entry("WarpIDEOutputAdaptor".to_string())
       .or_insert_with(CleanupDeclarationsDto::default)
@@ -811,11 +811,14 @@ fn build_cleanup_snapshot(
 
   for plugin_name in all_plugin_names {
     let output_paths = output_map.get(plugin_name).cloned().unwrap_or_default();
-    let cleanup = cleanup_map.get(plugin_name).cloned().unwrap_or_else(|| CleanupDeclarationsDto {
-      delete: Vec::new(),
-      protect: Vec::new(),
-      exclude_scan_globs: Vec::new(),
-    });
+    let cleanup = cleanup_map
+      .get(plugin_name)
+      .cloned()
+      .unwrap_or_else(|| CleanupDeclarationsDto {
+        delete: Vec::new(),
+        protect: Vec::new(),
+        exclude_scan_globs: Vec::new(),
+      });
     plugin_snapshots.push(PluginCleanupSnapshotDto {
       plugin_name: plugin_name.clone(),
       outputs: output_paths,
@@ -1184,22 +1187,34 @@ mod tests {
 
   #[test]
   fn clean_is_path_under_directory_matches_direct_child() {
-    assert!(is_path_under_directory("/workspace/project/file.md", Path::new("/workspace/project")));
+    assert!(is_path_under_directory(
+      "/workspace/project/file.md",
+      Path::new("/workspace/project")
+    ));
   }
 
   #[test]
   fn clean_is_path_under_directory_matches_exact() {
-    assert!(is_path_under_directory("/workspace/project", Path::new("/workspace/project")));
+    assert!(is_path_under_directory(
+      "/workspace/project",
+      Path::new("/workspace/project")
+    ));
   }
 
   #[test]
   fn clean_is_path_under_directory_rejects_sibling() {
-    assert!(!is_path_under_directory("/workspace/other/file.md", Path::new("/workspace/project")));
+    assert!(!is_path_under_directory(
+      "/workspace/other/file.md",
+      Path::new("/workspace/project")
+    ));
   }
 
   #[test]
   fn clean_is_path_under_directory_rejects_parent() {
-    assert!(!is_path_under_directory("/workspace/file.md", Path::new("/workspace/project")));
+    assert!(!is_path_under_directory(
+      "/workspace/file.md",
+      Path::new("/workspace/project")
+    ));
   }
 
   #[test]
@@ -1276,8 +1291,16 @@ mod tests {
       .find(|p| p.plugin_name == "TestPlugin")
       .expect("TestPlugin should exist");
     assert_eq!(test_plugin.outputs.len(), 2);
-    assert!(test_plugin.outputs.contains(&"/tmp/test-workspace/project-a/AGENTS.md".to_string()));
-    assert!(test_plugin.outputs.contains(&"/home/user/.claude/CLAUDE.md".to_string()));
+    assert!(
+      test_plugin
+        .outputs
+        .contains(&"/tmp/test-workspace/project-a/AGENTS.md".to_string())
+    );
+    assert!(
+      test_plugin
+        .outputs
+        .contains(&"/home/user/.claude/CLAUDE.md".to_string())
+    );
   }
 
   #[test]
@@ -1289,19 +1312,12 @@ mod tests {
     std::fs::create_dir_all(ws.join("project-b")).unwrap();
 
     let scope = ws.join("project-a");
-    let snapshot = build_cleanup_snapshot(
-      &ws.to_string_lossy(),
-      &HashMap::new(),
-      &HashMap::new(),
-    )
-    .unwrap();
+    let snapshot =
+      build_cleanup_snapshot(&ws.to_string_lossy(), &HashMap::new(), &HashMap::new()).unwrap();
 
     let filtered = filter_snapshot_by_scope(snapshot, &scope, ws);
 
     assert_eq!(filtered.project_roots.len(), 1);
-    assert_eq!(
-      Path::new(&filtered.project_roots[0]),
-      ws.join("project-a")
-    );
+    assert_eq!(Path::new(&filtered.project_roots[0]), ws.join("project-a"));
   }
 }

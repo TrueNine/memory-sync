@@ -65,16 +65,16 @@ jobs:
           cache-key: ci
 
       - name: Lint
-        run: cargo run -p memory-sync-xtask -- lint
+        run: cargo run -p xtask -- lint
 
       - name: Typecheck
-        run: cargo run -p memory-sync-xtask -- check-type
+        run: cargo run -p xtask -- check-type
 
       - name: Build
-        run: cargo run -p memory-sync-xtask -- build
+        run: cargo run -p xtask -- build
 
       - name: Rust tests
-        run: cargo test --workspace --exclude memory-sync-gui --exclude tnmsc-integrate-tests --exclude tnmsc-local-tests --exclude tnmsm-integrate-tests --lib --bins --tests
+        run: cargo test --workspace --exclude tnmsg --exclude tnmsc-integrate-tests --exclude tnmsc-local-tests --exclude tnmsm-integrate-tests --lib --bins --tests
 
   rust-real-env-integration:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
@@ -118,7 +118,7 @@ jobs:
           version: ${{ steps.gui-version.outputs.version }}
 
       - name: Build GUI
-        run: cargo run -p memory-sync-xtask -- gui-build
+        run: cargo run -p xtask -- gui-build
 
       - name: Test GUI
         run: pnpm -C gui test

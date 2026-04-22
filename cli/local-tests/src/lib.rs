@@ -108,7 +108,9 @@ impl LocalTestRunner {
   /// tnmsc 实际工作的目录（根据配置文件的 workspaceDir）。
   /// 若未配置，则回退到 cwd。
   pub fn effective_workspace(&self) -> PathBuf {
-    self.resolve_workspace_dir().unwrap_or_else(|| self.cwd.clone())
+    self
+      .resolve_workspace_dir()
+      .unwrap_or_else(|| self.cwd.clone())
   }
 
   pub fn run(&self, args: &[&str]) -> CommandResult {
@@ -148,10 +150,7 @@ impl LocalTestRunner {
   }
 
   pub fn assert_aindex_exists(&self) {
-    let aindex_candidates = [
-      self.cwd.join("aindex"),
-      home_dir().join(".aindex"),
-    ];
+    let aindex_candidates = [self.cwd.join("aindex"), home_dir().join(".aindex")];
     let found = aindex_candidates.iter().any(|p| p.is_dir());
     assert!(
       found,
@@ -217,12 +216,22 @@ impl LocalTestRunner {
 
   /// 检查全局 ~/.config/opencode/AGENTS.md 是否存在。
   pub fn opencode_global_file_exists(&self) -> bool {
-    home_dir().join(".config").join("opencode").join("AGENTS.md").is_file()
+    home_dir()
+      .join(".config")
+      .join("opencode")
+      .join("AGENTS.md")
+      .is_file()
   }
 
   /// 读取全局 ~/.config/opencode/AGENTS.md 内容。
   pub fn read_opencode_global_file(&self) -> Option<String> {
-    fs::read_to_string(home_dir().join(".config").join("opencode").join("AGENTS.md")).ok()
+    fs::read_to_string(
+      home_dir()
+        .join(".config")
+        .join("opencode")
+        .join("AGENTS.md"),
+    )
+    .ok()
   }
 
   /// 检查项目级 .opencode/ 目录是否存在。
@@ -344,15 +353,16 @@ pub fn ensure_binary() {
   }
 
   BINARY_BUILT.get_or_init(|| {
-    eprintln!("[tnmsc-local-tests] binary not found at {}", binary.display());
-    eprintln!("[tnmsc-local-tests] compiling debug binary: cargo build -p tnmsc");
-    eprintln!("[tnmsc-local-tests] hint: run `cargo build -p tnmsc` beforehand to skip compilation");
-    let start = std::time::Instant::now();
-    let status = run_program_inherit(
-      "cargo",
-      &["build", "-p", "tnmsc"],
-      &workspace_root(),
+    eprintln!(
+      "[tnmsc-local-tests] binary not found at {}",
+      binary.display()
     );
+    eprintln!("[tnmsc-local-tests] compiling debug binary: cargo build -p tnmsc");
+    eprintln!(
+      "[tnmsc-local-tests] hint: run `cargo build -p tnmsc` beforehand to skip compilation"
+    );
+    let start = std::time::Instant::now();
+    let status = run_program_inherit("cargo", &["build", "-p", "tnmsc"], &workspace_root());
     eprintln!(
       "[tnmsc-local-tests] debug binary compilation finished in {:.2}s",
       start.elapsed().as_secs_f64()

@@ -95,7 +95,9 @@ fn local_clean_from_memory_sync_does_not_clean_other_projects() {
   );
 
   // 从 memory-sync 执行 clean
-  runner.clean().assert_success("tnmsc clean from memory-sync");
+  runner
+    .clean()
+    .assert_success("tnmsc clean from memory-sync");
 
   // memory-sync 的 AGENTS.md 应该被清理
   assert!(

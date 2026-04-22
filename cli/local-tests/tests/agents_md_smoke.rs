@@ -191,7 +191,9 @@ fn local_agents_md_disabled_by_config() {
   // 当 agents_md 被禁用时，clean 服务不会生成对应的 cleanup target，
   // 因此无法依赖 tnmsc clean 来清理这些文件。
   fn remove_all_agents_md(dir: &std::path::Path) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+      return;
+    };
     for entry in entries.flatten() {
       let path = entry.path();
       let Ok(ft) = entry.file_type() else { continue };

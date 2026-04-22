@@ -2,19 +2,18 @@
 import {readFileSync, readdirSync} from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-import {echo} from 'zx'
 
 const CALVER_VERSION_REGEX = /^\d{4}\.(?:0|1\d{2}(?:\d{2})?)\.(?:0|1\d{2}(?:\d{2}(?:\d{2})?)?)$/u
 const rootDir = process.cwd()
 const expectedVersion = process.argv[2]?.trim()
 
 if (expectedVersion == null || expectedVersion === '') {
-  echo('Expected version argument is required.')
+  console.error('Expected version argument is required.')
   process.exit(1)
 }
 
 if (!CALVER_VERSION_REGEX.test(expectedVersion)) {
-  echo(`Invalid release version: ${expectedVersion}`)
+  console.error(`Invalid release version: ${expectedVersion}`)
   process.exit(1)
 }
 
@@ -122,11 +121,11 @@ try {
     'tnmsd',
     'tnmsc',
     'tnmsm',
-    'memory-sync-gui',
+    'tnmsg',
   ])
 
-  echo(`Validated version surfaces for ${expectedVersion}`)
+  console.log(`Validated version surfaces for ${expectedVersion}`)
 } catch (error) {
-  echo(error instanceof Error ? error.message : String(error))
+  console.error(error instanceof Error ? error.message : String(error))
   process.exit(1)
 }

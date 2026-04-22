@@ -494,10 +494,7 @@ mod tests {
   fn test_interpolation_nested_quotes() {
     let scope = make_scope();
     // String literal contains braces that must NOT terminate the expression.
-    assert_eq!(
-      evaluate_interpolations("{\"he{ll}o\"}", &scope),
-      "he{ll}o"
-    );
+    assert_eq!(evaluate_interpolations("{\"he{ll}o\"}", &scope), "he{ll}o");
   }
 
   #[test]
@@ -522,10 +519,7 @@ mod tests {
   #[test]
   fn test_interpolation_empty_braces() {
     let scope = make_scope();
-    assert_eq!(
-      evaluate_interpolations("https://{}", &scope),
-      "https://"
-    );
+    assert_eq!(evaluate_interpolations("https://{}", &scope), "https://");
   }
 
   #[test]
@@ -550,19 +544,13 @@ mod tests {
   #[test]
   fn test_interpolation_single_quotes() {
     let scope = make_scope();
-    assert_eq!(
-      evaluate_interpolations("{'a{b}c'}", &scope),
-      "a{b}c"
-    );
+    assert_eq!(evaluate_interpolations("{'a{b}c'}", &scope), "a{b}c");
   }
 
   #[test]
   fn test_interpolation_backtick_quotes() {
     let scope = make_scope();
-    assert_eq!(
-      evaluate_interpolations("{`a{b}c`}", &scope),
-      "a{b}c"
-    );
+    assert_eq!(evaluate_interpolations("{`a{b}c`}", &scope), "a{b}c");
   }
 
   #[test]

@@ -32,6 +32,7 @@
     "@tauri-apps/cli": "catalog:",
     "@tauri-apps/plugin-shell": "catalog:",
     "@tauri-apps/plugin-updater": "catalog:",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
@@ -46,7 +47,10 @@
     "recharts": "catalog:",
     "tailwindcss": "catalog:",
     "tailwind-merge": "catalog:",
+    "tsx": "catalog:",
     "tw-animate-css": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

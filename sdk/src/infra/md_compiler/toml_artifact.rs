@@ -278,16 +278,26 @@ pub fn build_codex_agent_toml(
   content: &str,
 ) -> Result<String, String> {
   let mut fields = Map::new();
-  fields.insert("name".to_string(), Value::String(canonical_name.to_string()));
+  fields.insert(
+    "name".to_string(),
+    Value::String(canonical_name.to_string()),
+  );
   if let Some(desc) = description {
     fields.insert("description".to_string(), Value::String(desc.to_string()));
   }
-  fields.insert("developer_instructions".to_string(), Value::String(content.to_string()));
+  fields.insert(
+    "developer_instructions".to_string(),
+    Value::String(content.to_string()),
+  );
 
   build_toml_document(
     Value::Object(fields),
     Some(BuildTomlDocumentOptions {
-      field_order: Some(vec!["name".to_string(), "description".to_string(), "developer_instructions".to_string()]),
+      field_order: Some(vec![
+        "name".to_string(),
+        "description".to_string(),
+        "developer_instructions".to_string(),
+      ]),
     }),
   )
 }

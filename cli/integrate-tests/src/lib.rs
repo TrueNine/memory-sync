@@ -142,7 +142,9 @@ impl TestContainer {
         artifacts.test_api_binary.as_path(),
       );
 
-    eprintln!("[tnmsc-integrate-tests] starting testcontainer ({DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG})...");
+    eprintln!(
+      "[tnmsc-integrate-tests] starting testcontainer ({DOCKER_IMAGE_NAME}:{DOCKER_IMAGE_TAG})..."
+    );
     let start = std::time::Instant::now();
     let container = image
       .start()
@@ -438,11 +440,7 @@ pub fn ensure_release_binary() {
   RELEASE_BINARY_BUILT.get_or_init(|| {
     eprintln!("[tnmsc-integrate-tests] compiling debug binary (cargo build -p tnmsc)...");
     let start = std::time::Instant::now();
-    let status = run_program_inherit(
-      "cargo",
-      &["build", "-p", "tnmsc"],
-      &workspace_root(),
-    );
+    let status = run_program_inherit("cargo", &["build", "-p", "tnmsc"], &workspace_root());
     eprintln!(
       "[tnmsc-integrate-tests] debug binary compilation finished in {:.2}s",
       start.elapsed().as_secs_f64()
@@ -451,11 +449,7 @@ pub fn ensure_release_binary() {
   });
 
   let binary = release_binary_path();
-  assert!(
-    binary.is_file(),
-    "missing binary at {}",
-    binary.display()
-  );
+  assert!(binary.is_file(), "missing binary at {}", binary.display());
 }
 
 pub fn ensure_release_test_api_binary() {
@@ -613,7 +607,13 @@ pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
 
       let cross_ok = run_program_inherit(
         "cargo",
-        &["zigbuild", "--target", "x86_64-unknown-linux-gnu", "-p", "tnmsc"],
+        &[
+          "zigbuild",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "-p",
+          "tnmsc",
+        ],
         &workspace_root(),
       );
 

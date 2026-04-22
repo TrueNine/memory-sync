@@ -57,7 +57,8 @@ fn run_cargo(args: &[&str]) -> Result<(), String> {
 }
 
 fn run_pnpm(args: &[&str], dir: Option<&str>) -> Result<(), String> {
-  let mut cmd = ProcCommand::new("pnpm");
+  let pnpm_binary = if cfg!(windows) { "pnpm.cmd" } else { "pnpm" };
+  let mut cmd = ProcCommand::new(pnpm_binary);
   if let Some(d) = dir {
     cmd.arg("-C").arg(d);
   }
@@ -118,12 +119,10 @@ fn run_hook_creation() -> Result<(), String> {
 exec tsx "$PWD/.githooks/sync-versions.ts" "$1"
 "#;
 
-  std::fs::create_dir_all(&hooks_dir)
-    .map_err(|e| format!("Failed to create hooks dir: {}", e))?;
+  std::fs::create_dir_all(&hooks_dir).map_err(|e| format!("Failed to create hooks dir: {}", e))?;
 
   let hook_path = format!("{}/pre-commit", hooks_dir);
-  std::fs::write(&hook_path, hook_content)
-    .map_err(|e| format!("Failed to write hook: {}", e))?;
+  std::fs::write(&hook_path, hook_content).map_err(|e| format!("Failed to write hook: {}", e))?;
 
   #[cfg(unix)]
   {
@@ -142,7 +141,11 @@ fn main() -> Result<(), String> {
   match cli.command {
     Command::Build => {
       println!("[xtask] Building workspace...");
-      run_cargo(&["build", "--workspace"])?;
+      if cfg!(windows) {
+        run_cargo(&["build", "--workspace", "--exclude", "xtask"])?;
+      } else {
+        run_cargo(&["build", "--workspace"])?;
+      }
       println!("[xtask] Build completed.");
     }
     Command::Test => {
@@ -151,11 +154,13 @@ fn main() -> Result<(), String> {
         "test",
         "--workspace",
         "--exclude",
-        "memory-sync-gui",
+        "tnmsg",
         "--exclude",
-        "tnmsc-integration-tests",
+        "tnmsc-integrate-tests",
         "--exclude",
-        "tnmsm-integration-tests",
+        "tnmsc-local-tests",
+        "--exclude",
+        "tnmsm-integrate-tests",
         "--lib",
         "--bins",
         "--tests",
@@ -209,11 +214,13 @@ fn main() -> Result<(), String> {
         "test",
         "--workspace",
         "--exclude",
-        "memory-sync-gui",
+        "tnmsg",
         "--exclude",
-        "tnmsc-integration-tests",
+        "tnmsc-integrate-tests",
         "--exclude",
-        "tnmsm-integration-tests",
+        "tnmsc-local-tests",
+        "--exclude",
+        "tnmsm-integrate-tests",
         "--lib",
         "--bins",
         "--tests",

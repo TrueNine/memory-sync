@@ -739,11 +739,7 @@ mod tests {
 
   #[test]
   fn test_link_url_interpolation_end_to_end() {
-    let result = mdx_to_md(
-      "[docs](https://{profile.name}.com)\n",
-      Some(make_options()),
-    )
-    .unwrap();
+    let result = mdx_to_md("[docs](https://{profile.name}.com)\n", Some(make_options())).unwrap();
     assert_eq!(result, "[docs](https://TrueNine.com)");
   }
 
@@ -760,13 +756,17 @@ mod tests {
   #[test]
   fn test_link_url_multiple_interpolations_end_to_end() {
     let mut opts = make_options();
-    opts.scope.as_mut().unwrap().insert("host".into(), json!("example"));
-    opts.scope.as_mut().unwrap().insert("path".into(), json!("guide"));
-    let result = mdx_to_md(
-      "[guide](https://{host}.com/{path})\n",
-      Some(opts),
-    )
-    .unwrap();
+    opts
+      .scope
+      .as_mut()
+      .unwrap()
+      .insert("host".into(), json!("example"));
+    opts
+      .scope
+      .as_mut()
+      .unwrap()
+      .insert("path".into(), json!("guide"));
+    let result = mdx_to_md("[guide](https://{host}.com/{path})\n", Some(opts)).unwrap();
     assert_eq!(result, "[guide](https://example.com/guide)");
   }
 
@@ -806,11 +806,19 @@ mod tests {
     let result = mdx_to_md_with_metadata(source, None).unwrap();
     assert_eq!(result.content.trim(), "# Content");
     assert_eq!(
-      result.metadata.exports.get("description").and_then(|v| v.as_str()),
+      result
+        .metadata
+        .exports
+        .get("description")
+        .and_then(|v| v.as_str()),
       Some("Test command")
     );
     assert_eq!(
-      result.metadata.exports.get("argumentHint").and_then(|v| v.as_str()),
+      result
+        .metadata
+        .exports
+        .get("argumentHint")
+        .and_then(|v| v.as_str()),
       Some("[question]")
     );
     assert!(

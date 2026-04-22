@@ -82,7 +82,9 @@ fn build_output_files(
 
   // Global ~/.codex/prompts/ (from commands)
   if let Some(commands) = context.fast_commands.as_ref() {
-    let codex_prompts_dir = resolve_effective_home_dir().join(CODEX_GLOBAL_CONFIG_DIR).join(CODEX_PROMPTS_DIR);
+    let codex_prompts_dir = resolve_effective_home_dir()
+      .join(CODEX_GLOBAL_CONFIG_DIR)
+      .join(CODEX_PROMPTS_DIR);
     for command in commands {
       let command_file_name = if let Some(prefix) = command.series.as_ref() {
         format!("{}-{}.md", prefix, command.command_name)
@@ -103,7 +105,9 @@ fn build_output_files(
 
   // Global ~/.codex/agents/ (from subagents, as .toml)
   if let Some(sub_agents) = context.sub_agents.as_ref() {
-    let codex_agents_dir = resolve_effective_home_dir().join(CODEX_GLOBAL_CONFIG_DIR).join(CODEX_AGENTS_DIR);
+    let codex_agents_dir = resolve_effective_home_dir()
+      .join(CODEX_GLOBAL_CONFIG_DIR)
+      .join(CODEX_AGENTS_DIR);
     for sub_agent in sub_agents {
       let agent_file_name = format!("{}.toml", sub_agent.canonical_name);
       let toml_content = build_agent_toml_content(sub_agent);
@@ -125,7 +129,9 @@ fn build_output_files(
       let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
         continue;
       };
-      let codex_skills_dir = project_root_dir.join(CODEX_GLOBAL_CONFIG_DIR).join(CODEX_SKILLS_DIR);
+      let codex_skills_dir = project_root_dir
+        .join(CODEX_GLOBAL_CONFIG_DIR)
+        .join(CODEX_SKILLS_DIR);
       for skill in skills {
         let skill_sub_dir = codex_skills_dir.join(&skill.skill_name);
 
@@ -183,7 +189,10 @@ fn build_output_files(
         // MCP config
         if let Some(mcp_config) = skill.mcp_config.as_ref() {
           output_files.push(BaseOutputFileDeclarationDto {
-            path: skill_sub_dir.join("mcp.json").to_string_lossy().into_owned(),
+            path: skill_sub_dir
+              .join("mcp.json")
+              .to_string_lossy()
+              .into_owned(),
             scope: Some(PROJECT_SCOPE.to_string()),
             content: mcp_config.raw_content.clone(),
             encoding: None,
@@ -199,7 +208,9 @@ fn build_output_files(
       let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
         continue;
       };
-      let codex_agents_dir = project_root_dir.join(CODEX_GLOBAL_CONFIG_DIR).join(CODEX_AGENTS_DIR);
+      let codex_agents_dir = project_root_dir
+        .join(CODEX_GLOBAL_CONFIG_DIR)
+        .join(CODEX_AGENTS_DIR);
       for sub_agent in sub_agents {
         let agent_file_name = format!("{}.toml", sub_agent.canonical_name);
         let toml_content = build_agent_toml_content(sub_agent);
@@ -226,16 +237,20 @@ fn build_agent_toml_content(agent: &crate::domain::plugin_shared::SubAgentPrompt
     .and_then(|fm| fm.description.as_deref())
     .unwrap_or("");
 
-  crate::infra::md_compiler::build_codex_agent_toml(&agent.canonical_name, Some(description), &agent.content)
-    .unwrap_or_else(|_| {
-      // Fallback: simple toml
-      format!(
-        "name = {}\ndescription = {}\ndeveloper_instructions = {}\n",
-        serde_json::to_string(&agent.canonical_name).unwrap_or_default(),
-        serde_json::to_string(description).unwrap_or_default(),
-        serde_json::to_string(&agent.content).unwrap_or_default()
-      )
-    })
+  crate::infra::md_compiler::build_codex_agent_toml(
+    &agent.canonical_name,
+    Some(description),
+    &agent.content,
+  )
+  .unwrap_or_else(|_| {
+    // Fallback: simple toml
+    format!(
+      "name = {}\ndescription = {}\ndeveloper_instructions = {}\n",
+      serde_json::to_string(&agent.canonical_name).unwrap_or_default(),
+      serde_json::to_string(description).unwrap_or_default(),
+      serde_json::to_string(&agent.content).unwrap_or_default()
+    )
+  })
 }
 
 fn build_command_content(command: &crate::domain::plugin_shared::FastCommandPrompt) -> String {
@@ -263,7 +278,7 @@ fn build_command_content(command: &crate::domain::plugin_shared::FastCommandProm
     .into_iter()
     .filter(|(k, v)| {
       // Codex only supports description and argument-hint
-      !v.is_null() 
+      !v.is_null()
         && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
         && (k == "description" || k == "argument-hint")
     })
@@ -304,7 +319,10 @@ fn build_skill_content(skill: &crate::domain::plugin_shared::SkillPrompt) -> Str
   wrap_yaml_front_matter(&metadata, &skill.content)
 }
 
-fn wrap_yaml_front_matter(metadata: &serde_json::Map<String, serde_json::Value>, content: &str) -> String {
+fn wrap_yaml_front_matter(
+  metadata: &serde_json::Map<String, serde_json::Value>,
+  content: &str,
+) -> String {
   if metadata.is_empty() {
     return content.to_string();
   }
@@ -372,7 +390,7 @@ fn force_yaml_values_quoted(yaml: &str) -> String {
 
         // If single-quoted, convert to double-quoted
         if trimmed.starts_with('\'') && trimmed.ends_with('\'') && trimmed.len() > 1 {
-          let inner = &trimmed[1..trimmed.len()-1];
+          let inner = &trimmed[1..trimmed.len() - 1];
           let escaped = inner.replace('\\', "\\\\").replace('"', "\\\"");
           return format!("{}: \"{}\"", key, escaped);
         }
@@ -409,7 +427,7 @@ fn indent_yaml_list_items(yaml: &str) -> String {
 fn camel_to_kebab(s: &str) -> String {
   let mut result = String::new();
   let mut prev_was_upper = false;
-  
+
   for (i, c) in s.chars().enumerate() {
     if c.is_uppercase() {
       if i > 0 && !prev_was_upper {
@@ -422,7 +440,7 @@ fn camel_to_kebab(s: &str) -> String {
       prev_was_upper = false;
     }
   }
-  
+
   result
 }
 
@@ -445,7 +463,10 @@ fn build_cleanup(workspace: &Workspace) -> CleanupDeclarationsDto {
 
   for sub_dir in &[CODEX_PROMPTS_DIR, CODEX_AGENTS_DIR] {
     delete.push(CleanupTargetDto {
-      path: global_codex_dir.join(sub_dir).to_string_lossy().into_owned(),
+      path: global_codex_dir
+        .join(sub_dir)
+        .to_string_lossy()
+        .into_owned(),
       kind: CleanupTargetKindDto::Directory,
       exclude_basenames: Vec::new(),
       protection_mode: None,

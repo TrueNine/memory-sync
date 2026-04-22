@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "cargo run -p memory-sync-xtask -- gui-frontend-build",
-    "beforeDevCommand": "cargo run -p memory-sync-xtask -- gui-frontend-build && pnpm dev"
+    "beforeBuildCommand": "cargo run -p xtask -- gui-frontend-build",
+    "beforeDevCommand": "cargo run -p xtask -- gui-frontend-build && pnpm dev"
   },
   "app": {
     "withGlobalTauri": false,

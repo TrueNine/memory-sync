@@ -489,7 +489,10 @@ fn local_opencode_agent_md_color_must_be_hex_format() {
     for line in content.lines() {
       let trimmed = line.trim();
       if let Some(color_value) = trimmed.strip_prefix("color:") {
-        if !color_value.is_empty() && !color_value.starts_with(' ') && !color_value.starts_with('\t') {
+        if !color_value.is_empty()
+          && !color_value.starts_with(' ')
+          && !color_value.starts_with('\t')
+        {
           continue;
         }
         let color_value = color_value.trim().trim_matches('"').trim_matches('\'');
@@ -526,7 +529,9 @@ fn local_opencode_no_nested_agents_md() {
   // 收集 cwd 下所有 .opencode/AGENTS.md 文件路径
   let mut nested_agents = Vec::new();
   fn collect_opencode_agents(dir: &std::path::Path, nested: &mut Vec<std::path::PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+      return;
+    };
     for entry in entries.flatten() {
       let path = entry.path();
       let Ok(ft) = entry.file_type() else { continue };
@@ -534,8 +539,7 @@ fn local_opencode_no_nested_agents_md() {
         // 跳过 .git、node_modules、target 等
         if let Some(name) = path.file_name() {
           let name = name.to_string_lossy();
-          if name.starts_with('.')
-            && name != ".opencode"
+          if name.starts_with('.') && name != ".opencode"
             || name == "node_modules"
             || name == "target"
             || name == "dist"
