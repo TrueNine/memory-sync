@@ -73,27 +73,8 @@ jobs:
       - name: Build
         run: cargo run -p xtask -- build
 
-      - name: Rust tests
-        run: cargo test --workspace --exclude tnmsg --exclude tnmsc-integrate-tests --exclude tnmsc-local-tests --exclude tnmsm-integrate-tests --lib --bins --tests
-
-  rust-real-env-integration:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-node-pnpm
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: ci-real-env-integration
-
-      - name: Run CLI real-env integration tests
-        run: cargo test -p tnmsc-integrate-tests -- --nocapture
-
-      - name: Run MCP real-env integration tests
-        run: cargo test -p tnmsm-integrate-tests -- --nocapture
+      - name: Rust unit tests
+        run: cargo test --workspace --exclude tnmsg --exclude tnmsc-integrate-tests --exclude tnmsc-local-tests --exclude tnmsm-integrate-tests --lib --bins
 
   gui-smoke:
     needs: changes

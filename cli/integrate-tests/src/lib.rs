@@ -19,6 +19,7 @@ pub const PACKAGED_PLATFORM_PACKAGE: &str = "@truenine/memory-sync-cli-linux-x64
 
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
 static RELEASE_TEST_API_BINARY_BUILT: OnceLock<()> = OnceLock::new();
+static PACKED_CLI_ARTIFACTS: OnceLock<PackedArtifacts> = OnceLock::new();
 
 pub struct CommandResult {
   pub status: i32,
@@ -575,7 +576,11 @@ pub fn create_staged_package_root() -> StagedPackageRoot {
   }
 }
 
-pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
+pub fn pack_cli_artifacts() -> Option<&'static PackedArtifacts> {
+  Some(PACKED_CLI_ARTIFACTS.get_or_init(pack_cli_artifacts_once))
+}
+
+fn pack_cli_artifacts_once() -> PackedArtifacts {
   eprintln!("[tnmsc-integrate-tests] packing CLI artifacts...");
   let total_start = std::time::Instant::now();
 
@@ -680,17 +685,17 @@ pub fn pack_cli_artifacts() -> Option<PackedArtifacts> {
     total_start.elapsed().as_secs_f64()
   );
 
-  Some(PackedArtifacts {
+  PackedArtifacts {
     _temp_dir: temp_dir,
     cli_tarball,
     linux_tarball,
     test_api_binary: staged.test_api_binary,
-  })
+  }
 }
 
 pub fn install_packaged_cli_container() -> Option<TestContainer> {
   let artifacts = pack_cli_artifacts()?;
-  let container = TestContainer::start(&artifacts);
+  let container = TestContainer::start(artifacts);
   let install_command = format!(
     "npm install -g {} {}",
     quote_shell("/artifacts/cli.tgz"),
