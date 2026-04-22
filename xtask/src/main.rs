@@ -82,8 +82,20 @@ fn run_pnpm(args: &[&str], dir: Option<&str>) -> Result<(), String> {
   }
 }
 
+fn gui_workdir() -> Option<&'static str> {
+  let current_dir = std::env::current_dir()
+    .map_err(|e| format!("Failed to get current directory: {}", e))
+    .ok()?;
+
+  if current_dir.file_name().is_some_and(|name| name == "gui") {
+    None
+  } else {
+    Some("gui")
+  }
+}
+
 fn run_tauri(subcommand: &str) -> Result<(), String> {
-  run_pnpm(&["tauri", subcommand], Some("gui"))
+  run_pnpm(&["tauri", subcommand], gui_workdir())
 }
 
 fn run_hook_creation() -> Result<(), String> {
@@ -192,9 +204,10 @@ fn main() -> Result<(), String> {
     }
     Command::GuiFrontendBuild => {
       println!("[xtask] Building GUI frontend...");
-      run_pnpm(&["generate:routes"], Some("gui"))?;
-      run_pnpm(&["generate:icons"], Some("gui"))?;
-      run_pnpm(&["build"], Some("gui"))?;
+      let gui_dir = gui_workdir();
+      run_pnpm(&["generate:routes"], gui_dir)?;
+      run_pnpm(&["generate:icons"], gui_dir)?;
+      run_pnpm(&["build"], gui_dir)?;
       println!("[xtask] GUI frontend build completed.");
     }
     Command::Check => {
