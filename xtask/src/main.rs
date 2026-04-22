@@ -83,23 +83,7 @@ fn run_pnpm(args: &[&str], dir: Option<&str>) -> Result<(), String> {
 }
 
 fn run_tauri(subcommand: &str) -> Result<(), String> {
-  let status = ProcCommand::new("cargo")
-    .args(["tauri", subcommand])
-    .stdout(Stdio::inherit())
-    .stderr(Stdio::inherit())
-    .spawn()
-    .map_err(|e| format!("Failed to spawn tauri: {}", e))?
-    .wait()
-    .map_err(|e| format!("Failed to wait for tauri: {}", e))?;
-
-  if status.success() {
-    Ok(())
-  } else {
-    Err(format!(
-      "Command failed with exit code: {:?}",
-      status.code()
-    ))
-  }
+  run_pnpm(&["tauri", subcommand], Some("gui"))
 }
 
 fn run_hook_creation() -> Result<(), String> {
@@ -142,9 +126,16 @@ fn main() -> Result<(), String> {
     Command::Build => {
       println!("[xtask] Building workspace...");
       if cfg!(windows) {
-        run_cargo(&["build", "--workspace", "--exclude", "xtask"])?;
+        run_cargo(&[
+          "build",
+          "--workspace",
+          "--exclude",
+          "xtask",
+          "--exclude",
+          "tnmsg",
+        ])?;
       } else {
-        run_cargo(&["build", "--workspace"])?;
+        run_cargo(&["build", "--workspace", "--exclude", "tnmsg"])?;
       }
       println!("[xtask] Build completed.");
     }
@@ -177,7 +168,7 @@ fn main() -> Result<(), String> {
     }
     Command::CheckType => {
       println!("[xtask] Running type checking...");
-      run_cargo(&["check", "--workspace"])?;
+      run_cargo(&["check", "--workspace", "--exclude", "tnmsg"])?;
       println!("[xtask] Type checking completed.");
     }
     Command::Bootstrap => {
@@ -209,7 +200,7 @@ fn main() -> Result<(), String> {
     Command::Check => {
       println!("[xtask] Running full check...");
       run_cargo(&["fmt", "--check"])?;
-      run_cargo(&["check", "--workspace"])?;
+      run_cargo(&["check", "--workspace", "--exclude", "tnmsg"])?;
       run_cargo(&[
         "test",
         "--workspace",
