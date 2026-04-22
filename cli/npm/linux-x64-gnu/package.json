@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-cli-linux-x64-gnu",
-  "version": "2026.10423.10517",
+  "version": "2026.10423.10544",
   "description": "tnmsc native binary for Linux x64 (glibc)",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
