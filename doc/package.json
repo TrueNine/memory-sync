@@ -2,11 +2,11 @@
   "name": "@truenine/memory-sync-docs",
   "version": "2026.10422.10749",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
   "description": "Chinese-first manifesto-led documentation site for @truenine/memory-sync.",
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "tsx scripts/run-next.ts dev",
     "build": "tsx scripts/validate-content.ts && tsx scripts/run-next.ts build",
