@@ -89,6 +89,9 @@ jobs:
         with:
           cache-key: ci-packaging-smoke
 
+      - name: Build release binaries (for packaging smoke)
+        run: cargo build --release -p tnmsc -p tnmsm
+
       - name: CLI packaging smoke
         run: cargo test -p tnmsc-integrate-tests packaging_smoke_covers_release_binary_and_global_install -- --exact --nocapture
 
