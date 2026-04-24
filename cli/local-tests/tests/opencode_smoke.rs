@@ -68,8 +68,8 @@ fn local_opencode_install_generates_project_agents_md() {
       name
     );
     assert!(
-      content.contains("mode: subagnet") || content.contains("mode: \"subagnet\""),
-      "agent file {} should contain mode: \"subagnet\" in front matter",
+      content.contains("mode: subagent") || content.contains("mode: \"subagent\""),
+      "agent file {} should contain mode: \"subagent\" in front matter",
       name
     );
   }
@@ -436,8 +436,8 @@ fn local_opencode_agent_md_must_include_subagent_mode() {
   for file in &agent_files {
     let content = std::fs::read_to_string(file.path()).unwrap();
     assert!(
-      content.contains("mode: subagnet") || content.contains("mode: \"subagnet\""),
-      "agent file {} must include mode: \"subagnet\" in YAML front matter",
+      content.contains("mode: subagent") || content.contains("mode: \"subagent\""),
+      "agent file {} must include mode: \"subagent\" in YAML front matter",
       file.file_name().to_string_lossy()
     );
   }

@@ -280,7 +280,7 @@ fn build_agent_content(agent: &crate::domain::plugin_shared::SubAgentPrompt) -> 
   metadata.insert("agent".to_string(), Value::String(agent_source));
   // opencode requires an explicit subagent mode marker here.
   // Without this field, the generated entry is treated as a main agent instead of a subagent.
-  metadata.insert("mode".to_string(), Value::String("subagnet".to_string()));
+  metadata.insert("mode".to_string(), Value::String("subagent".to_string()));
 
   // NOTE: `model` is a future feature for per-agent model override.
   // It is intentionally stripped from output until the feature is designed and implemented.
@@ -660,7 +660,7 @@ mod tests {
     let agent = make_test_agent(Some("blue".to_string()));
     let result = build_agent_content(&agent);
     assert!(
-      result.contains("mode: subagnet") || result.contains("mode: \"subagnet\""),
+      result.contains("mode: subagent") || result.contains("mode: \"subagent\""),
       "subagent mode should always be emitted, got:\n{result}"
     );
     assert!(
@@ -688,7 +688,7 @@ mod tests {
     let agent = make_test_agent(Some("#0000FF".to_string()));
     let result = build_agent_content(&agent);
     assert!(
-      result.contains("mode: subagnet") || result.contains("mode: \"subagnet\""),
+      result.contains("mode: subagent") || result.contains("mode: \"subagent\""),
       "subagent mode should always be emitted, got:\n{result}"
     );
     assert!(
@@ -698,13 +698,13 @@ mod tests {
   }
 
   /// Regression guard: opencode must see generated entries as subagents.
-  /// Without `mode: "subagnet"`, opencode treats the generated file as a main agent.
+  /// Without `mode: "subagent"`, opencode treats the generated file as a main agent.
   #[test]
   fn build_agent_content_forces_subagent_mode() {
     let agent = make_test_agent(None);
     let result = build_agent_content(&agent);
     assert!(
-      result.contains("mode: subagnet") || result.contains("mode: \"subagnet\""),
+      result.contains("mode: subagent") || result.contains("mode: \"subagent\""),
       "subagent mode should always be emitted, got:\n{result}"
     );
   }
