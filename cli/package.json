@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-cli",
-  "version": "2026.10423.10544",
+  "version": "2026.10424.111",
   "description": "TrueNine Memory Synchronization CLI metadata package",
   "author": "TrueNine",
   "license": "AGPL-3.0-only",
@@ -34,10 +34,10 @@
     "test": "cargo test --manifest-path Cargo.toml"
   },
   "optionalDependencies": {
-    "@truenine/memory-sync-cli-darwin-arm64": "2026.10423.10544",
-    "@truenine/memory-sync-cli-darwin-x64": "2026.10423.10544",
-    "@truenine/memory-sync-cli-linux-arm64-gnu": "2026.10423.10544",
-    "@truenine/memory-sync-cli-linux-x64-gnu": "2026.10423.10544",
-    "@truenine/memory-sync-cli-win32-x64-msvc": "2026.10423.10544"
+    "@truenine/memory-sync-cli-darwin-arm64": "2026.10424.111",
+    "@truenine/memory-sync-cli-darwin-x64": "2026.10424.111",
+    "@truenine/memory-sync-cli-linux-arm64-gnu": "2026.10424.111",
+    "@truenine/memory-sync-cli-linux-x64-gnu": "2026.10424.111",
+    "@truenine/memory-sync-cli-win32-x64-msvc": "2026.10424.111"
   }
 }

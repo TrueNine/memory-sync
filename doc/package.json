@@ -1,6 +1,6 @@
 {
   "name": "@truenine/memory-sync-docs",
-  "version": "2026.10423.10544",
+  "version": "2026.10424.111",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "description": "Chinese-first manifesto-led documentation site for @truenine/memory-sync.",

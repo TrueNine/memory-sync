@@ -1,6 +1,6 @@
 [package]
 name = "tnmsg"
-version = "2026.10423.10544"
+version = "2026.10424.111"
 description = "Memory Sync desktop GUI application"
 authors.workspace = true
 edition.workspace = true
