@@ -80,6 +80,7 @@ MAIN_PACKAGE_JSON="$(find -L /usr/local/lib/node_modules -path '*/@truenine/memo
 PLATFORM_PACKAGE_JSON="$(find -L /usr/local/lib/node_modules -path '*/@truenine/memory-sync-cli-linux-x64-gnu/package.json' -print -quit)"
 test -n "$MAIN_PACKAGE_JSON"
 test -n "$PLATFORM_PACKAGE_JSON"
+test -f "$(dirname "$MAIN_PACKAGE_JSON")/bin/tnmsc.js"
 test -x "$(dirname "$PLATFORM_PACKAGE_JSON")/bin/tnmsc"
 test -x "$(command -v tnmsc)"
 grep -q '"@truenine/memory-sync-cli-linux-x64-gnu"' "$MAIN_PACKAGE_JSON"

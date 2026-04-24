@@ -207,6 +207,32 @@ function validateVersion(version: string, source: string): void {
   }
 }
 
+function syncInternalDependencyVersions(json: VersionedJson, targetVersion: string): boolean {
+  let changed = false
+
+  for (const field of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
+    const deps = json[field]
+    if (deps == null || typeof deps !== 'object' || Array.isArray(deps)) {
+      continue
+    }
+
+    for (const [name, value] of Object.entries(deps as Record<string, unknown>)) {
+      if (!name.startsWith('@truenine/memory-sync-')) {
+        continue
+      }
+
+      if (typeof value !== 'string' || value === targetVersion) {
+        continue
+      }
+
+      ;(deps as Record<string, unknown>)[name] = targetVersion
+      changed = true
+    }
+  }
+
+  return changed
+}
+
 function syncJsonVersion(
   filePath: string,
   targetVersion: string,
@@ -214,7 +240,9 @@ function syncJsonVersion(
 ): void {
   try {
     const json = readJsonFile(filePath)
-    if (json.version === targetVersion) {
+    const dependenciesChanged = syncInternalDependencyVersions(json, targetVersion)
+
+    if (json.version === targetVersion && !dependenciesChanged) {
       return
     }
 
@@ -410,6 +438,11 @@ export function runSyncVersions(options: SyncVersionsOptions = {}): SyncVersions
   }
 
   validateVersion(currentRootVersion, 'root package.json')
+
+  const target = resolveTargetVersion(rootDir, currentRootVersion, options.requestedVersion)
+  const changedPaths = new Set<string>()
+
+  syncJsonVersion(rootPackagePath, target.version, changedPaths)
 
   const packageJsonPaths = discoverFilesByName(rootDir, 'package.json')
     .filter(filePath => resolve(filePath) !== rootPackagePath)

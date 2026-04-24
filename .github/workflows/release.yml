@@ -306,6 +306,20 @@ jobs:
       - name: Build CLI package
         run: cargo build --release -p tnmsc
 
+      - name: Smoke test CLI main package
+        shell: bash
+        run: |
+          set -euo pipefail
+          pack_dir="$(mktemp -d)"
+          trap 'rm -rf "$pack_dir"' EXIT
+          pnpm -C cli pack --pack-destination "$pack_dir"
+          cli_tarball="$(find "$pack_dir" -maxdepth 1 -name '*.tgz' -print -quit)"
+          test -n "$cli_tarball"
+          npm install -g "$cli_tarball"
+          command -v tnmsc
+          tnmsc help >/tmp/tnmsc-help.txt
+          grep -q 'install' /tmp/tnmsc-help.txt
+
       - name: Publish CLI package
         uses: ./.github/actions/npm-publish-package
         with:
@@ -381,6 +395,20 @@ jobs:
 
       - name: Build MCP package
         run: cargo build --release -p tnmsm
+
+      - name: Smoke test MCP main package
+        shell: bash
+        run: |
+          set -euo pipefail
+          pack_dir="$(mktemp -d)"
+          trap 'rm -rf "$pack_dir"' EXIT
+          pnpm -C mcp pack --pack-destination "$pack_dir"
+          mcp_tarball="$(find "$pack_dir" -maxdepth 1 -name '*.tgz' -print -quit)"
+          test -n "$mcp_tarball"
+          npm install -g "$mcp_tarball"
+          command -v tnmsm
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | tnmsm >/tmp/tnmsm-initialize.json
+          grep -q '"jsonrpc":"2.0"' /tmp/tnmsm-initialize.json
 
       - name: Publish MCP package
         uses: ./.github/actions/npm-publish-package

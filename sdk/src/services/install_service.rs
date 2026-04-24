@@ -17,6 +17,7 @@ use crate::domain::plugin_shared::{
 };
 use crate::infra::desk_paths;
 use crate::policy::path_blocking;
+use crate::services::command_diagnostics::build_workspace_mismatch_warning;
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 const PLUGIN_AGENTS: &str = "AgentsOutputAdaptor";
@@ -252,6 +253,9 @@ pub(crate) fn install(
   let cwd = resolve_cwd(options.cwd.as_deref())?;
   let config_result = load_config(&cwd, options.load_user_config)?;
   let workspace_dir = resolve_workspace_dir(&cwd, &config_result.config)?;
+  let mut warnings = build_workspace_mismatch_warning(&cwd, &workspace_dir, &config_result)
+    .into_iter()
+    .collect::<Vec<_>>();
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
   let global_scope = build_global_scope(&config_result.config);
   let enabled_plugins = EnabledPlugins::from_config(config_result.config.plugins.as_ref());
@@ -259,13 +263,23 @@ pub(crate) fn install(
   let context = collect_context(&workspace_dir_str, global_scope.as_ref(), enabled_plugins)?;
   let planned_outputs = build_output_files(&context, enabled_plugins)?;
   let execution = write_output_files(&planned_outputs)?;
+  warnings.extend(execution.warnings);
 
   Ok(MemorySyncCommandResult {
     success: execution.errors.is_empty(),
     files_affected: execution.files_affected as i32,
     dirs_affected: execution.dirs_affected as i32,
-    message: None,
-    warnings: execution.warnings,
+    message: Some(
+      if execution.files_affected == 0 && execution.dirs_affected == 0 {
+        "No files needed updates".to_string()
+      } else {
+        format!(
+          "Updated {} files and prepared {} directories",
+          execution.files_affected, execution.dirs_affected
+        )
+      },
+    ),
+    warnings,
     errors: execution.errors,
   })
 }

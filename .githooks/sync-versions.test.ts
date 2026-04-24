@@ -33,7 +33,19 @@ function createFixtureRepo(): string {
   })
   writeJson(join(rootDir, 'cli', 'package.json'), {
     name: '@truenine/memory-sync-cli',
-    version: initialVersion
+    version: initialVersion,
+    optionalDependencies: {
+      '@truenine/memory-sync-cli-darwin-arm64': initialVersion,
+      '@truenine/memory-sync-cli-linux-x64-gnu': initialVersion
+    }
+  })
+  writeJson(join(rootDir, 'mcp', 'package.json'), {
+    name: '@truenine/memory-sync-mcp',
+    version: initialVersion,
+    optionalDependencies: {
+      '@truenine/memory-sync-mcp-darwin-arm64': initialVersion,
+      '@truenine/memory-sync-mcp-linux-x64-gnu': initialVersion
+    }
   })
   writeJson(join(rootDir, 'gui', 'package.json'), {
     name: '@truenine/memory-sync-gui',
@@ -121,7 +133,20 @@ function createFixtureRepo(): string {
 
 function expectSharedVersionSurfaces(rootDir: string, nextVersion: string): void {
   expect(JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
-  expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
+  expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'package.json'), 'utf-8')) as {version: string, optionalDependencies: Record<string, string>}).toMatchObject({
+    version: nextVersion,
+    optionalDependencies: {
+      '@truenine/memory-sync-cli-darwin-arm64': nextVersion,
+      '@truenine/memory-sync-cli-linux-x64-gnu': nextVersion
+    }
+  })
+  expect(JSON.parse(readFileSync(join(rootDir, 'mcp', 'package.json'), 'utf-8')) as {version: string, optionalDependencies: Record<string, string>}).toMatchObject({
+    version: nextVersion,
+    optionalDependencies: {
+      '@truenine/memory-sync-mcp-darwin-arm64': nextVersion,
+      '@truenine/memory-sync-mcp-linux-x64-gnu': nextVersion
+    }
+  })
   expect(JSON.parse(readFileSync(join(rootDir, 'gui', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
   expect(JSON.parse(readFileSync(join(rootDir, 'doc', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
   expect(JSON.parse(readFileSync(join(rootDir, 'cli', 'npm', 'darwin-arm64', 'package.json'), 'utf-8')) as {version: string}).toMatchObject({version: nextVersion})
@@ -171,6 +196,7 @@ describe('sync-versions hook', () => {
       'gui/package.json',
       'gui/src-tauri/Cargo.toml',
       'gui/src-tauri/tauri.conf.json',
+      'mcp/package.json',
       'package.json'
     ]))
   })
@@ -202,6 +228,7 @@ describe('sync-versions hook', () => {
       'gui/package.json',
       'gui/src-tauri/Cargo.toml',
       'gui/src-tauri/tauri.conf.json',
+      'mcp/package.json',
       'package.json'
     ]))
   })

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -17,6 +18,7 @@ const EXIT_MARKER: &str = "__TNMSC_EXIT_CODE__=";
 pub const EXPECTED_SUBCOMMANDS: &[&str] = &["install", "dry-run", "clean", "version", "help"];
 pub const PACKAGED_PLATFORM_PACKAGE: &str = "@truenine/memory-sync-cli-linux-x64-gnu";
 
+static PNPM_VERSION: OnceLock<String> = OnceLock::new();
 static RELEASE_BINARY_BUILT: OnceLock<()> = OnceLock::new();
 static RELEASE_TEST_API_BINARY_BUILT: OnceLock<()> = OnceLock::new();
 static PACKED_CLI_ARTIFACTS: OnceLock<PackedArtifacts> = OnceLock::new();
@@ -451,6 +453,25 @@ pub fn current_package_version() -> &'static str {
   env!("CARGO_PKG_VERSION")
 }
 
+pub fn pnpm_version() -> &'static str {
+  PNPM_VERSION.get_or_init(|| {
+    let package_json_path = workspace_root().join("package.json");
+    let raw = fs::read_to_string(&package_json_path)
+      .unwrap_or_else(|error| panic!("failed to read {}: {error}", package_json_path.display()));
+    let parsed: serde_json::Value = serde_json::from_str(&raw)
+      .unwrap_or_else(|error| panic!("failed to parse {}: {error}", package_json_path.display()));
+    let package_manager = parsed
+      .get("packageManager")
+      .and_then(|value| value.as_str())
+      .unwrap_or("pnpm@latest");
+
+    package_manager
+      .rsplit_once('@')
+      .map(|(_, version)| version.to_string())
+      .unwrap_or_else(|| "latest".to_string())
+  })
+}
+
 pub fn ensure_release_binary() {
   RELEASE_BINARY_BUILT.get_or_init(|| {
     eprintln!("[tnmsc-integrate-tests] compiling debug binary (cargo build -p tnmsc)...");
@@ -544,6 +565,7 @@ pub fn create_staged_package_root() -> StagedPackageRoot {
     &cli_manifest_dir().join("package.json"),
     &package_root.join("package.json"),
   );
+  copy_dir_all(&cli_manifest_dir().join("bin"), &package_root.join("bin"));
   copy_dir_all(
     &cli_manifest_dir().join("schema"),
     &package_root.join("schema"),
@@ -558,8 +580,6 @@ pub fn create_staged_package_root() -> StagedPackageRoot {
       .join("linux-x64-gnu")
       .join("package.json"),
   );
-
-  rewrite_main_package_json(&package_root.join("package.json"));
 
   let linux_binary = package_root
     .join("npm")
@@ -673,12 +693,16 @@ fn pack_cli_artifacts_once() -> PackedArtifacts {
     }
   }
 
-  let cli_tarball = pack_package(&staged.package_root, temp_dir.path(), "cli");
   let linux_tarball = pack_package(
     &staged.package_root.join("npm").join("linux-x64-gnu"),
     temp_dir.path(),
     "linux-x64-gnu",
   );
+  rewrite_main_package_json(
+    &staged.package_root.join("package.json"),
+    "file:/artifacts/linux-x64-gnu.tgz",
+  );
+  let cli_tarball = pack_package(&staged.package_root, temp_dir.path(), "cli");
 
   eprintln!(
     "[tnmsc-integrate-tests] artifact packing finished in {:.2}s",
@@ -696,11 +720,7 @@ fn pack_cli_artifacts_once() -> PackedArtifacts {
 pub fn install_packaged_cli_container() -> Option<TestContainer> {
   let artifacts = pack_cli_artifacts()?;
   let container = TestContainer::start(artifacts);
-  let install_command = format!(
-    "npm install -g {} {}",
-    quote_shell("/artifacts/cli.tgz"),
-    quote_shell("/artifacts/linux-x64-gnu.tgz")
-  );
+  let install_command = format!("npm install -g {}", quote_shell("/artifacts/cli.tgz"));
   let result = container.exec_with_retries_and_timeout(&install_command, 3, 2000, 120);
   result.assert_success(&format!(
     "install tnmsc globally (attempted up to 3 times): {}",
@@ -722,13 +742,6 @@ pub fn quote_shell(value: &str) -> String {
   format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
-fn npm_tarball_name(pkg_name: &str) -> String {
-  pkg_name
-    .strip_prefix('@')
-    .unwrap_or(pkg_name)
-    .replace('/', "-")
-}
-
 fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
   assert!(
     package_dir.exists(),
@@ -744,50 +757,40 @@ fn pack_package(package_dir: &Path, target_root: &Path, name: &str) -> PathBuf {
     )
   });
 
-  let package_json_path = package_dir.join("package.json");
-  let raw = fs::read_to_string(&package_json_path)
-    .unwrap_or_else(|error| panic!("failed to read {}: {error}", package_json_path.display()));
-  let parsed: serde_json::Value = serde_json::from_str(&raw)
-    .unwrap_or_else(|error| panic!("failed to parse {}: {error}", package_json_path.display()));
-  let pkg_name = parsed.get("name").and_then(|v| v.as_str()).unwrap_or(name);
-  let pkg_version = parsed
-    .get("version")
-    .and_then(|v| v.as_str())
-    .unwrap_or("0.0.0");
-  let tarball_name = format!("{}-{}.tgz", npm_tarball_name(pkg_name), pkg_version);
-  let tarball_path = pack_destination.join(&tarball_name);
+  let package_dir = package_dir.to_string_lossy().into_owned();
+  let pack_destination = pack_destination.to_string_lossy().into_owned();
+  let result = run_program(
+    "pnpm",
+    &[
+      "-C",
+      &package_dir,
+      "pack",
+      "--pack-destination",
+      &pack_destination,
+    ],
+    &workspace_root(),
+  );
+  result.assert_success(&format!("pnpm pack for {}", package_dir));
 
-  let gz_file = fs::File::create(&tarball_path)
-    .unwrap_or_else(|error| panic!("failed to create {}: {error}", tarball_path.display()));
-  let gz_encoder = flate2::GzBuilder::new().write(gz_file, flate2::Compression::default());
-  let mut tar_builder = tar::Builder::new(gz_encoder);
+  let mut tarballs = fs::read_dir(&pack_destination)
+    .unwrap_or_else(|error| panic!("failed to read {}: {error}", pack_destination))
+    .filter_map(|entry| entry.ok())
+    .map(|entry| entry.path())
+    .filter(|path| path.extension().and_then(OsStr::to_str) == Some("tgz"))
+    .collect::<Vec<_>>();
 
-  tar_builder
-    .append_dir_all("package", package_dir)
-    .unwrap_or_else(|error| {
-      panic!(
-        "failed to append {} to tarball: {error}",
-        package_dir.display()
-      )
-    });
-
-  let gz_encoder = tar_builder
-    .into_inner()
-    .unwrap_or_else(|error| panic!("failed to finalize tarball: {error}"));
-  gz_encoder
-    .finish()
-    .unwrap_or_else(|error| panic!("failed to finalize gzip: {error}"));
-
+  tarballs.sort();
   assert!(
-    tarball_path.is_file(),
-    "expected tarball at {}",
-    tarball_path.display()
+    tarballs.len() == 1,
+    "expected exactly one tarball in {}, found {}",
+    pack_destination,
+    tarballs.len()
   );
 
-  tarball_path
+  tarballs.remove(0)
 }
 
-fn rewrite_main_package_json(path: &Path) {
+fn rewrite_main_package_json(path: &Path, platform_dependency: &str) {
   let raw = fs::read_to_string(path)
     .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
   let mut parsed: serde_json::Value = serde_json::from_str(&raw)
@@ -804,7 +807,7 @@ fn rewrite_main_package_json(path: &Path) {
     serde_json::Value::Object(
       [(
         PACKAGED_PLATFORM_PACKAGE.to_string(),
-        serde_json::Value::String(current_package_version().to_string()),
+        serde_json::Value::String(platform_dependency.to_string()),
       )]
       .into_iter()
       .collect(),
