@@ -1,17 +1,23 @@
 mod cli;
 mod commands;
-mod logger;
 
 use std::process::ExitCode;
 
 use clap::Parser;
+use tnmsd::infra::logger::{LogLevel, set_global_level};
 
 pub fn run() -> ExitCode {
   let args = cli::Cli::parse();
 
   if let Some(level) = cli::resolve_log_level(&args) {
-    logger::set_global_log_level(level.to_logger_level());
-    tnmsd::infra::logger::set_global_log_level(level.to_sdk_logger_level());
+    let log_level = match level {
+      cli::ResolvedLogLevel::Trace => LogLevel::Trace,
+      cli::ResolvedLogLevel::Debug => LogLevel::Debug,
+      cli::ResolvedLogLevel::Info => LogLevel::Info,
+      cli::ResolvedLogLevel::Warn => LogLevel::Warn,
+      cli::ResolvedLogLevel::Error => LogLevel::Error,
+    };
+    set_global_level(log_level);
   }
 
   match cli::resolve_command(&args) {

@@ -1,8 +1,8 @@
 use std::process::ExitCode;
 
-use serde_json::Value;
+use serde_json::{Value, json};
 
-use crate::logger;
+use tnmsd::infra::logger::{Logger, create_logger, flush};
 
 #[derive(Debug, PartialEq, Eq)]
 struct RenderedCommandResult {
@@ -155,30 +155,44 @@ fn render_entry(label: &str, value: &Value) -> Vec<String> {
   }
 }
 
-fn log_command_start(command_name: &str) {
-  logger::info(&format!("Running {command_name}"));
+fn log_command_start(logger: &Logger, command_name: &str) {
+  logger.info(format!("Running {command_name}"), None);
   if let Ok(current_dir) = std::env::current_dir() {
-    logger::debug(&format!("currentDir={}", current_dir.display()));
+    logger.debug(
+      "currentDir",
+      Some(json!({ "currentDir": current_dir.display().to_string() })),
+    );
   }
 }
 
 fn log_command_finish(
+  logger: &Logger,
   command_name: &str,
   result: &Result<tnmsd::MemorySyncCommandResult, tnmsd::CliError>,
 ) {
   match result {
     Ok(command_result) => {
-      logger::debug(&format!(
-        "{command_name} result: success={}, filesAffected={}, dirsAffected={}, warnings={}, errors={}",
-        command_result.success,
-        command_result.files_affected,
-        command_result.dirs_affected,
-        command_result.warnings.len(),
-        command_result.errors.len(),
-      ));
+      logger.debug(
+        "command result",
+        Some(json!({
+          "command": command_name,
+          "success": command_result.success,
+          "filesAffected": command_result.files_affected,
+          "dirsAffected": command_result.dirs_affected,
+          "warnings": command_result.warnings.len(),
+          "errors": command_result.errors.len(),
+        })),
+      );
     }
     Err(error) => {
-      logger::error(&format!("{command_name} failed: {error}"));
+      logger.error(tnmsd::infra::logger::DiagnosticInput {
+        code: "COMMAND_FAILED".to_string(),
+        title: format!("{command_name} failed"),
+        root_cause: vec![error.to_string()],
+        exact_fix: None,
+        possible_fixes: None,
+        details: None,
+      });
     }
   }
 }
@@ -190,9 +204,10 @@ fn run_command(
   ) -> Result<tnmsd::MemorySyncCommandResult, tnmsd::CliError>,
   options: tnmsd::MemorySyncCommandOptions,
 ) -> ExitCode {
-  log_command_start(command_name);
+  let logger = create_logger("pipeline", None);
+  log_command_start(&logger, command_name);
   let result = operation(options);
-  log_command_finish(command_name, &result);
+  log_command_finish(&logger, command_name, &result);
   let rendered = render_result(result);
 
   for line in rendered.stdout_lines {
@@ -202,8 +217,7 @@ fn run_command(
     eprintln!("{line}");
   }
 
-  logger::flush_output();
-  tnmsd::infra::logger::flush_output();
+  flush();
 
   if rendered.success {
     ExitCode::SUCCESS

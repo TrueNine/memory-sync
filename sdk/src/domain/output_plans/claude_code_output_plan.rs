@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use crate::CliError;
-use crate::context::OutputContext;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
+use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 use crate::domain::config;
+use crate::domain::output_context::OutputContext;
 use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
-use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 
 const CLAUDE_CODE_PLUGIN_NAME: &str = "ClaudeCodeCLIOutputAdaptor";
 const CLAUDE_CODE_MEMORY_FILE: &str = "CLAUDE.md";

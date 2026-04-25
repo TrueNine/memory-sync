@@ -18,7 +18,7 @@ pub use infra::md_compiler;
 pub use services::clean_service;
 pub use services::dry_run_service;
 pub use services::install_service;
-pub use services::prompts::{
+pub use services::prompt_service::{
   ListPromptsOptions, ManagedPromptKind, PromptArtifactRecord, PromptArtifactState,
   PromptCatalogItem, PromptCatalogPaths, PromptCatalogPresence, PromptDetails,
   PromptServiceOptions, PromptSourceLocale, UpsertPromptSourceInput, WritePromptArtifactsInput,

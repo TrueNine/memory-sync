@@ -151,6 +151,9 @@ fn handle_tools_call(params: &Value) -> Value {
   };
   let arguments = params.get("arguments").cloned().unwrap_or(json!({}));
 
+  let logger = tnmsd::infra::logger::create_logger("mcp.tools", None);
+  let _span = logger.span(&format!("tools.{}", name)).enter();
+
   match name {
     "list_prompts" => handle_list_prompts(&arguments),
     "get_prompt" => handle_get_prompt(&arguments),
@@ -319,13 +322,30 @@ fn run_stdio_server() {
 }
 
 fn main() -> ExitCode {
+  // Initialize logger, default Info, override via LOG_LEVEL env var
+  tnmsd::infra::logger::set_global_level(
+    std::env::var("LOG_LEVEL")
+      .ok()
+      .and_then(|s| tnmsd::infra::logger::LogLevel::from_str_loose(&s))
+      .unwrap_or(tnmsd::infra::logger::LogLevel::Info)
+  );
+
   let cli = Cli::parse();
+  let logger = tnmsd::infra::logger::create_logger("tnmsm", None);
 
   match resolve_command(&cli) {
     ResolvedCommand::Serve => {
+      let _span = logger.span("server.serve").enter();
+      logger.info("MCP server started", Some(json!({
+        "serverName": SERVER_NAME,
+        "protocolVersion": PROTOCOL_VERSION,
+      })));
       run_stdio_server();
       ExitCode::SUCCESS
     }
-    ResolvedCommand::AssembleNpm(args) => commands::package::execute(&args),
+    ResolvedCommand::AssembleNpm(args) => {
+      let _span = logger.span("command.assemble_npm").enter();
+      commands::package::execute(&args)
+    }
   }
 }

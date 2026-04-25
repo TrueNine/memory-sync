@@ -1061,6 +1061,9 @@ fn build_prompt_definition_from_id(
 // ---------------------------------------------------------------------------
 
 pub fn list_prompts(options: &ListPromptsOptions) -> Result<Vec<PromptCatalogItem>, String> {
+  let logger = crate::infra::logger::create_logger("prompt_service", None);
+  let _span = logger.span("prompt.list").enter();
+
   let env = resolve_prompt_environment(&options.base)?;
   let items: Vec<PromptCatalogItem> = collect_discovered_prompt_ids(&env)
     .into_iter()
@@ -1073,6 +1076,8 @@ pub fn list_prompts(options: &ListPromptsOptions) -> Result<Vec<PromptCatalogIte
     .filter(|item| matches_filter(item.en_status, options.en_status.as_ref()))
     .filter(|item| matches_query(item, options.query.as_deref()))
     .collect();
+
+  logger.info(format!("Listed {} prompts", items.len()), None);
   Ok(items)
 }
 
@@ -1080,12 +1085,21 @@ pub fn get_prompt(
   prompt_id: &str,
   options: &PromptServiceOptions,
 ) -> Result<Option<PromptDetails>, String> {
+  let logger = crate::infra::logger::create_logger("prompt_service", None);
+  let _span = logger.span("prompt.get").enter();
+
   let env = resolve_prompt_environment(options)?;
   let def = build_prompt_definition_from_id(prompt_id, &env)?;
-  Ok(hydrate_prompt(&def, true))
+  let result = hydrate_prompt(&def, true);
+
+  logger.info(format!("Get prompt: {}", prompt_id), Some(serde_json::json!({ "found": result.is_some() })));
+  Ok(result)
 }
 
 pub fn upsert_prompt_source(input: &UpsertPromptSourceInput) -> Result<PromptDetails, String> {
+  let logger = crate::infra::logger::create_logger("prompt_service", None);
+  let _span = logger.span("prompt.upsert").enter();
+
   let env = resolve_prompt_environment(&input.base)?;
   let definition = build_prompt_definition_from_id(&input.prompt_id, &env)?;
   let locale = input.locale.unwrap_or(PromptSourceLocale::Zh);
@@ -1098,10 +1112,15 @@ pub fn upsert_prompt_source(input: &UpsertPromptSourceInput) -> Result<PromptDet
   }
   let result = hydrate_prompt(&definition, true)
     .ok_or_else(|| format!("Failed to load prompt after write: {}", input.prompt_id))?;
+
+  logger.info(format!("Upserted prompt: {}", input.prompt_id), Some(serde_json::json!({ "locale": format!("{:?}", locale) })));
   Ok(result)
 }
 
 pub fn write_prompt_artifacts(input: &WritePromptArtifactsInput) -> Result<PromptDetails, String> {
+  let logger = crate::infra::logger::create_logger("prompt_service", None);
+  let _span = logger.span("prompt.write_artifacts").enter();
+
   if input.en_content.is_none() {
     return Err("writePromptArtifacts requires enContent".to_string());
   }
@@ -1113,5 +1132,7 @@ pub fn write_prompt_artifacts(input: &WritePromptArtifactsInput) -> Result<Promp
   }
   let result = hydrate_prompt(&definition, true)
     .ok_or_else(|| format!("Failed to load prompt after write: {}", input.prompt_id))?;
+
+  logger.info(format!("Wrote prompt artifacts: {}", input.prompt_id), None);
   Ok(result)
 }

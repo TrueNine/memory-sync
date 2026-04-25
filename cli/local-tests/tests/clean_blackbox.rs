@@ -22,6 +22,10 @@ fn local_clean_removes_project_claude_md() {
   let runner = LocalTestRunner::new();
   runner.assert_project_ready();
 
+  // 先 clean 再 install 确保可复现
+  let clean = runner.clean();
+  clean.assert_success("tnmsc clean before install");
+
   // 先 install 生成文件
   let install = runner.install();
   install.assert_success("tnmsc install before clean");
@@ -44,6 +48,10 @@ fn local_clean_removes_project_claude_md() {
 fn local_clean_dry_run_does_not_remove_files() {
   let runner = LocalTestRunner::new();
   runner.assert_project_ready();
+
+  // 先 clean 再 install 确保可复现
+  let clean = runner.clean();
+  clean.assert_success("tnmsc clean before install");
 
   // 先 install 生成文件
   let install = runner.install();

@@ -408,7 +408,7 @@ mod tests {
     assert_eq!(proxied, "____.git/info/exclude");
 
     let validated = validate_public_path_impl(&proxied, "/tmp/ws/aindex/public")?;
-    assert_eq!(validated, "____.git/info/exclude");
+    assert_eq!(validated.replace('\\', "/"), "____.git/info/exclude");
     Ok(())
   }
 
@@ -418,7 +418,7 @@ mod tests {
     assert_eq!(proxied, "____vscode/settings.json");
 
     let validated = validate_public_path_impl(&proxied, "/tmp/ws/aindex/public")?;
-    assert_eq!(validated, "____vscode/settings.json");
+    assert_eq!(validated.replace('\\', "/"), "____vscode/settings.json");
     Ok(())
   }
 
@@ -438,7 +438,7 @@ mod tests {
     assert_eq!(proxied, "____idea/.gitignore");
 
     let validated = validate_public_path_impl(&proxied, "/tmp/ws/aindex/public")?;
-    assert_eq!(validated, "____idea/.gitignore");
+    assert_eq!(validated.replace('\\', "/"), "____idea/.gitignore");
     Ok(())
   }
 
@@ -467,7 +467,7 @@ console.log(`generated/${ctx.logicalPath}`)
       serde_json::json!({ "scope": "skill" }),
     )?;
 
-    assert_eq!(resolved, "generated/daily/note.md");
+    assert_eq!(resolved.replace('\\', "/"), "generated/daily/note.md");
     Ok(())
   }
 }

@@ -4,6 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 static BINARY_BUILT: OnceLock<()> = OnceLock::new();
 static PROJECT_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -38,6 +39,7 @@ pub struct LocalTestRunner {
   binary: PathBuf,
   cwd: PathBuf,
   _lock_guard: std::sync::MutexGuard<'static, ()>,
+  _file_lock: CrossProcessLock,
 }
 
 impl LocalTestRunner {
@@ -45,11 +47,13 @@ impl LocalTestRunner {
   /// 若该目录不存在，则回退到当前目录。
   pub fn new() -> Self {
     ensure_binary();
-    // 所有测试共享同一个真实项目目录，必须串行执行
+    // Cross-process lock: serialises test binaries sharing the same project
+    let file_lock = acquire_cross_process_lock();
+    // In-process lock: serialises tests within a single binary
     let guard = PROJECT_LOCK
       .get_or_init(|| Mutex::new(()))
       .lock()
-      .expect("project lock should not be poisoned");
+      .unwrap_or_else(|e| e.into_inner());
     let default_project = home_dir().join("workspace").join("memory-sync");
     let cwd = if default_project.is_dir() {
       default_project
@@ -60,15 +64,17 @@ impl LocalTestRunner {
       binary: binary_path(),
       cwd,
       _lock_guard: guard,
+      _file_lock: file_lock,
     }
   }
 
   pub fn with_cwd(cwd: impl AsRef<Path>) -> Self {
     ensure_binary();
+    let file_lock = acquire_cross_process_lock();
     let guard = PROJECT_LOCK
       .get_or_init(|| Mutex::new(()))
       .lock()
-      .expect("project lock should not be poisoned");
+      .unwrap_or_else(|e| e.into_inner());
     let cwd = cwd.as_ref().to_path_buf();
     assert!(
       cwd.is_dir(),
@@ -79,6 +85,7 @@ impl LocalTestRunner {
       binary: binary_path(),
       cwd,
       _lock_guard: guard,
+      _file_lock: file_lock,
     }
   }
 
@@ -123,6 +130,21 @@ impl LocalTestRunner {
   pub fn run_at(&self, cwd: impl AsRef<Path>, args: &[&str]) -> CommandResult {
     let mut cmd = Command::new(&self.binary);
     cmd.args(args).current_dir(cwd.as_ref());
+    command_output(&mut cmd, &format!("tnmsc {}", args.join(" ")))
+  }
+
+  /// 在指定目录下运行 tnmsc 命令，并设置额外环境变量。
+  pub fn run_at_with_env(
+    &self,
+    cwd: impl AsRef<Path>,
+    args: &[&str],
+    envs: &[(&str, &str)],
+  ) -> CommandResult {
+    let mut cmd = Command::new(&self.binary);
+    cmd.args(args).current_dir(cwd.as_ref());
+    for (k, v) in envs {
+      cmd.env(k, v);
+    }
     command_output(&mut cmd, &format!("tnmsc {}", args.join(" ")))
   }
 
@@ -338,6 +360,47 @@ impl LocalTestRunner {
 
   pub fn dry_run(&self) -> CommandResult {
     self.run(&["dry-run"])
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cross-process file lock — prevents test binaries from interfering with each
+// other when running local tests on the shared project directory.
+// ---------------------------------------------------------------------------
+
+pub struct CrossProcessLock(Option<PathBuf>);
+
+impl Drop for CrossProcessLock {
+  fn drop(&mut self) {
+    if let Some(path) = self.0.take() {
+      let _ = std::fs::remove_file(&path);
+    }
+  }
+}
+
+fn acquire_cross_process_lock() -> CrossProcessLock {
+  let lock_path = home_dir().join(".tnmsc_local_test_lock");
+  loop {
+    match std::fs::File::create_new(&lock_path) {
+      Ok(_) => return CrossProcessLock(Some(lock_path)),
+      Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+        // Stale-lock detection: if older than 5 minutes, remove and retry
+        if let Ok(meta) = std::fs::metadata(&lock_path) {
+          if let Ok(created) = meta.created() {
+            if let Ok(elapsed) = created.elapsed() {
+              if elapsed > Duration::from_secs(300) {
+                let _ = std::fs::remove_file(&lock_path);
+                continue;
+              }
+            }
+          }
+        }
+        std::thread::sleep(Duration::from_millis(200));
+      }
+      Err(_) => {
+        std::thread::sleep(Duration::from_millis(200));
+      }
+    }
   }
 }
 

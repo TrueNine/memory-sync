@@ -268,7 +268,9 @@ pub struct RuntimeEnvironmentContext {
 }
 
 fn home_dir() -> Option<PathBuf> {
-  dirs::home_dir()
+  std::env::var_os("HOME")
+    .map(PathBuf::from)
+    .or_else(|| dirs::home_dir())
 }
 
 fn normalize_posix_like_path(raw_path: &str) -> String {
@@ -666,7 +668,13 @@ pub fn resolve_workspace_aindex_source_series_dir(
 }
 
 /// Get the global config file path: `~/.aindex/.tnmsc.json`
+///
+/// Override via `TNMSC_CONFIG_PATH` environment variable.
 pub fn get_global_config_path() -> PathBuf {
+  if let Ok(override_path) = std::env::var("TNMSC_CONFIG_PATH") {
+    return PathBuf::from(override_path);
+  }
+
   let runtime_environment = resolve_runtime_environment();
 
   if let Some(selected_path) = runtime_environment.selected_global_config_path {

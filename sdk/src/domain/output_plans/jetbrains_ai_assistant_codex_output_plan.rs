@@ -1,8 +1,8 @@
 use crate::CliError;
-use crate::context::OutputContext;
 use crate::domain::base_output_plans::BaseOutputPluginPlanDto;
+use crate::domain::cleanup::CleanupDeclarationsDto;
+use crate::domain::output_context::OutputContext;
 use crate::domain::plugin_shared::Workspace;
-use crate::policy::cleanup::CleanupDeclarationsDto;
 
 const JB_PLUGIN_NAME: &str = "JetBrainsAIAssistantCodexOutputAdaptor";
 

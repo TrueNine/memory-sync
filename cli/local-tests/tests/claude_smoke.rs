@@ -101,6 +101,9 @@ fn local_claude_clean_removes_all_project_files() {
   let runner = LocalTestRunner::new();
   runner.assert_project_ready();
 
+  let clean = runner.clean();
+  clean.assert_success("tnmsc clean before install");
+
   let install = runner.install();
   install.assert_success("tnmsc install before clean");
 

@@ -1,40 +1,75 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use serde_json::{Value, json};
+use serde_json::json;
 
-use crate::context::OutputContext;
-use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
+use crate::infra::logger::{Logger, create_logger};
 use crate::policy::cleanup::{
   CleanupDeclarationsDto, CleanupSnapshot, CleanupTargetDto, CleanupTargetKindDto,
   PluginCleanupSnapshotDto,
 };
-use crate::services::command_diagnostics::build_workspace_mismatch_warning;
+use crate::services::command_diagnostics_service::build_workspace_mismatch_warning;
+use crate::services::common::{
+  DefaultPluginKind, EnabledPlugins, collect_context, load_config, resolve_cwd,
+  resolve_workspace_dir, strip_unc_prefix,
+};
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
+  let logger = create_logger("clean", options.log_level.as_deref().and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)));
+  let _span = logger.span("command.clean").enter();
+
+  logger.info("Clean started", None);
+
   let cwd = resolve_cwd(options.cwd.as_deref())?;
+
+  let config_span = logger.span("config.load").enter();
   let config_result = load_config(&cwd, options.load_user_config)?;
+  config_span.exit();
+
   let workspace_dir = resolve_workspace_dir(&cwd, &config_result.config)?;
   let workspace_warning = build_workspace_mismatch_warning(&cwd, &workspace_dir, &config_result);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
-  let global_scope = build_global_scope(&config_result.config);
-  let enabled_plugins = EnabledPlugins::from_config(config_result.config.plugins.as_ref());
+  logger.info("Config loaded", Some(json!({
+    "workspaceDir": &workspace_dir_str,
+  })));
 
-  let context = collect_context(&workspace_dir_str, global_scope.as_ref())?;
-  let (output_map, cleanup_map) = build_output_map(&context, enabled_plugins)?;
+  let global_scope = crate::services::common::build_global_scope(&config_result.config);
+  let enabled_plugins = EnabledPlugins::from_config(config_result.config.plugins.as_ref(), DefaultPluginKind::Clean);
+
+  let context_span = logger.span("context.collect").enter();
+  let context = collect_context(&workspace_dir_str, global_scope.as_ref(), &enabled_plugins, &logger)?;
+  context_span.exit();
+
+  logger.info("Context collected", Some(json!({
+    "globalMemory": context.global_memory.is_some(),
+  })));
+
+  let discover_span = logger.span("cleanup.discover").enter();
+  let (output_map, cleanup_map) = build_output_map(&context, enabled_plugins, &logger)?;
   let mut snapshot = build_cleanup_snapshot(&workspace_dir_str, &output_map, &cleanup_map)?;
+  discover_span.exit();
 
-  // 根据 cwd 限制清理作用域：当 cwd 位于 workspace 的某个子项目下时，
-  // 只清理该项目的文件，不触碰其他项目。
+  logger.info("Cleanup targets discovered", Some(json!({
+    "pluginCount": snapshot.plugin_snapshots.len(),
+    "projectRoots": snapshot.project_roots.len(),
+  })));
+
+  // 根据 cwd 限制清理作用域
   if let Some(scope) = resolve_project_scope(&cwd, &workspace_dir) {
+    logger.info("Project scope resolved", Some(json!({
+      "scope": scope.to_string_lossy().to_string(),
+    })));
     snapshot = filter_snapshot_by_scope(snapshot, &scope, &workspace_dir);
   }
 
   if options.dry_run.unwrap_or(false) {
+    let plan_span = logger.span("cleanup.plan").enter();
     let plan = crate::policy::cleanup::plan_cleanup(snapshot.clone())
       .map_err(|e| CliError::ExecutionError(e))?;
+    plan_span.exit();
+
     let mut warnings = workspace_warning.into_iter().collect::<Vec<_>>();
     warnings.extend(plan.violations.iter().map(|v| {
       json!({
@@ -44,6 +79,15 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
         "reason": v.reason
       })
     }));
+
+    logger.info("Dry run plan", Some(json!({
+      "filesToDelete": plan.files_to_delete.len(),
+      "dirsToDelete": plan.dirs_to_delete.len(),
+      "emptyDirsToDelete": plan.empty_dirs_to_delete.len(),
+      "violations": plan.violations.len(),
+      "conflicts": plan.conflicts.len(),
+    })));
+
     Ok(MemorySyncCommandResult {
       success: plan.conflicts.is_empty() && plan.violations.is_empty(),
       files_affected: plan.files_to_delete.len() as i32,
@@ -71,8 +115,11 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
         .collect(),
     })
   } else {
-    let result =
-      crate::policy::cleanup::perform_cleanup(snapshot).map_err(|e| CliError::ExecutionError(e))?;
+    let execute_span = logger.span("cleanup.execute").enter();
+    let result = crate::policy::cleanup::perform_cleanup(snapshot)
+      .map_err(|e| CliError::ExecutionError(e))?;
+    execute_span.exit();
+
     let blocked = !result.violations.is_empty() || !result.conflicts.is_empty();
     let success = !blocked && result.errors.is_empty();
     let mut warnings = workspace_warning.into_iter().collect::<Vec<_>>();
@@ -104,6 +151,15 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
       })
     }));
 
+    logger.info("Clean completed", Some(json!({
+      "success": success,
+      "deletedFiles": result.deleted_files,
+      "deletedDirs": result.deleted_dirs,
+      "conflicts": result.conflicts.len(),
+      "violations": result.violations.len(),
+      "errors": result.errors.len(),
+    })));
+
     Ok(MemorySyncCommandResult {
       success,
       files_affected: result.deleted_files as i32,
@@ -126,51 +182,24 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
   }
 }
 
-fn resolve_cwd(cwd: Option<&str>) -> Result<PathBuf, CliError> {
-  match cwd {
-    Some(value) => Ok(config::resolve_workspace_dir(value)),
-    None => std::env::current_dir().map_err(CliError::IoError),
+// ---------------------------------------------------------------------------
+// Scope resolution
+// ---------------------------------------------------------------------------
+
+fn resolve_project_scope(cwd: &Path, workspace_dir: &Path) -> Option<PathBuf> {
+  let cwd_norm = strip_unc_prefix(cwd);
+  let ws_norm = strip_unc_prefix(workspace_dir);
+
+  let relative = cwd_norm.strip_prefix(&ws_norm).ok()?;
+
+  if relative.as_os_str().is_empty() {
+    return None;
   }
+
+  let first_component = relative.components().next()?;
+  Some(ws_norm.join(first_component.as_os_str()))
 }
 
-fn load_config(
-  cwd: &Path,
-  load_user_config: Option<bool>,
-) -> Result<config::MergedConfigResult, CliError> {
-  if load_user_config == Some(false) {
-    return Ok(config::MergedConfigResult {
-      config: UserConfigFile::default(),
-      sources: vec![],
-      found: false,
-    });
-  }
-
-  let result = ConfigLoader::with_defaults()
-    .try_load(cwd)
-    .map_err(CliError::ConfigError)?;
-
-  if !result.found {
-    let config_path = config::get_required_global_config_path()
-      .unwrap_or_else(|_| config::get_global_config_path());
-    return Err(CliError::ConfigError(format!(
-      "Required config file not found at {}. Please create it before running tnmsc.",
-      config_path.display()
-    )));
-  }
-
-  Ok(result)
-}
-
-fn resolve_workspace_dir(_cwd: &Path, config: &UserConfigFile) -> Result<PathBuf, CliError> {
-  match config.workspace_dir.as_deref() {
-    Some(dir) => Ok(config::resolve_workspace_dir(dir)),
-    None => Err(CliError::ConfigError(
-      "workspaceDir is required but was not configured. Please set workspaceDir in your .tnmsc.json config file.".to_string(),
-    )),
-  }
-}
-
-/// 检查路径是否在某个目录下（包含目录本身）。
 fn is_path_under_directory(path: &str, directory: &Path) -> bool {
   let path_buf = Path::new(path);
   let path_normalized = if path_buf.is_absolute() {
@@ -188,44 +217,6 @@ fn is_path_under_directory(path: &str, directory: &Path) -> bool {
   path_str == dir_str || path_str.starts_with(&format!("{}/", dir_str))
 }
 
-/// 根据 cwd 和 workspace_dir 解析项目作用域。
-///
-/// 如果 cwd 位于 workspace_dir 的某个直接子目录下，返回该子目录作为作用域。
-/// 如果 cwd 等于 workspace_dir 或位于 workspace_dir 之外，返回 None（清理全部）。
-/// 移除 Windows UNC 前缀 \\?\，使路径可以与其他非 canonicalize 路径比较。
-fn strip_unc_prefix(path: &Path) -> PathBuf {
-  let s = path.to_string_lossy();
-  if let Some(stripped) = s.strip_prefix(r"\\?\") {
-    PathBuf::from(stripped)
-  } else {
-    path.to_path_buf()
-  }
-}
-
-fn resolve_project_scope(cwd: &Path, workspace_dir: &Path) -> Option<PathBuf> {
-  // workspace_dir 可能经过 canonicalize 带有 Windows UNC 前缀，需要统一格式
-  let cwd_norm = strip_unc_prefix(cwd);
-  let ws_norm = strip_unc_prefix(workspace_dir);
-
-  let relative = cwd_norm.strip_prefix(&ws_norm).ok()?;
-
-  // 如果 cwd 等于 workspace_dir，不限制作用域
-  if relative.as_os_str().is_empty() {
-    return None;
-  }
-
-  // 取 workspace_dir 的直接子目录作为作用域
-  let first_component = relative.components().next()?;
-  Some(ws_norm.join(first_component.as_os_str()))
-}
-
-/// 根据作用域过滤 CleanupSnapshot。
-///
-/// 保留规则：
-/// - 位于作用域目录下的路径（项目内文件）
-/// - 位于 workspace 之外的路径（全局文件）
-/// 过滤掉：
-/// - 位于 workspace 内但不在作用域下的路径（其他项目文件）
 fn filter_snapshot_by_scope(
   mut snapshot: CleanupSnapshot,
   scope: &Path,
@@ -255,346 +246,14 @@ fn filter_snapshot_by_scope(
   snapshot
 }
 
-fn build_global_scope(config: &UserConfigFile) -> Option<Value> {
-  let mut scope = serde_json::Map::new();
-
-  let mut os = serde_json::Map::new();
-  os.insert("platform".to_string(), json!(std::env::consts::OS));
-  os.insert("arch".to_string(), json!(std::env::consts::ARCH));
-  os.insert("name".to_string(), json!(std::env::consts::OS));
-  scope.insert("os".to_string(), Value::Object(os));
-
-  if let Some(profile) = config.profile.as_ref() {
-    let mut value = serde_json::Map::new();
-    if let Some(name) = profile.name.as_ref() {
-      value.insert("name".to_string(), json!(name));
-    }
-    if let Some(username) = profile.username.as_ref() {
-      value.insert("username".to_string(), json!(username));
-    }
-    if let Some(gender) = profile.gender.as_ref() {
-      value.insert("gender".to_string(), json!(gender));
-    }
-    if let Some(birthday) = profile.birthday.as_ref() {
-      value.insert("birthday".to_string(), json!(birthday));
-    }
-    for (key, extra) in &profile.extra {
-      value.insert(key.clone(), extra.clone());
-    }
-    if !value.is_empty() {
-      scope.insert("profile".to_string(), Value::Object(value));
-    }
-  }
-
-  if let Some(code_styles) = config.code_styles.as_ref() {
-    let mut value = serde_json::Map::new();
-    if let Some(indent) = code_styles.indent {
-      value.insert(
-        "indent".to_string(),
-        json!(match indent {
-          config::CodeStyleIndent::Tab => "tab",
-          config::CodeStyleIndent::Space => "space",
-        }),
-      );
-    }
-    if let Some(tab_size) = code_styles.tab_size {
-      value.insert("tabSize".to_string(), json!(tab_size));
-    }
-    for (key, extra) in &code_styles.extra {
-      value.insert(key.clone(), extra.clone());
-    }
-    if !value.is_empty() {
-      scope.insert("codeStyles".to_string(), Value::Object(value));
-    }
-  }
-
-  let mut tool = serde_json::Map::new();
-  tool.insert("name".to_string(), json!("tnmsc"));
-  tool.insert("version".to_string(), json!(crate::version()));
-  scope.insert("tool".to_string(), Value::Object(tool));
-
-  (!scope.is_empty()).then(|| Value::Object(scope))
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-struct EnabledPlugins {
-  agents_md: bool,
-  claude_code: bool,
-  codex: bool,
-  cursor: bool,
-  droid: bool,
-  gemini: bool,
-  git: bool,
-  jetbrains: bool,
-  jetbrains_code_style: bool,
-  kiro: bool,
-  opencode: bool,
-  qoder: bool,
-  readme: bool,
-  trae: bool,
-  trae_cn: bool,
-  vscode: bool,
-  warp: bool,
-  windsurf: bool,
-  zed: bool,
-}
-
-impl EnabledPlugins {
-  fn from_config(config: Option<&PluginsConfig>) -> Self {
-    Self {
-      agents_md: config.and_then(|value| value.agents_md).unwrap_or(true),
-      claude_code: config.and_then(|value| value.claude_code).unwrap_or(true),
-      codex: config.and_then(|value| value.codex).unwrap_or(false),
-      cursor: config.and_then(|value| value.cursor).unwrap_or(false),
-      droid: config.and_then(|value| value.droid).unwrap_or(false),
-      gemini: config.and_then(|value| value.gemini).unwrap_or(false),
-      git: config.and_then(|value| value.git).unwrap_or(true),
-      jetbrains: config.and_then(|value| value.jetbrains).unwrap_or(false),
-      jetbrains_code_style: config
-        .and_then(|value| value.jetbrains_code_style)
-        .unwrap_or(false),
-      kiro: config.and_then(|value| value.kiro).unwrap_or(false),
-      opencode: config.and_then(|value| value.opencode).unwrap_or(true),
-      qoder: config.and_then(|value| value.qoder).unwrap_or(false),
-      readme: config.and_then(|value| value.readme).unwrap_or(true),
-      trae: config.and_then(|value| value.trae).unwrap_or(false),
-      trae_cn: config.and_then(|value| value.trae_cn).unwrap_or(false),
-      vscode: config.and_then(|value| value.vscode).unwrap_or(false),
-      warp: config.and_then(|value| value.warp).unwrap_or(false),
-      windsurf: config.and_then(|value| value.windsurf).unwrap_or(false),
-      zed: config.and_then(|value| value.zed).unwrap_or(false),
-    }
-  }
-
-  fn is_enabled(self, plugin_name: &str) -> bool {
-    match plugin_name {
-      "AgentsOutputAdaptor" => self.agents_md,
-      "GitExcludeOutputAdaptor" => self.git,
-      "JetBrainsIDECodeStyleConfigOutputAdaptor" => self.jetbrains_code_style,
-      "VisualStudioCodeIDEConfigOutputAdaptor" => self.vscode,
-      "ZedIDEConfigOutputAdaptor" => self.zed,
-      "ReadmeMdConfigFileOutputAdaptor" => self.readme,
-      "ClaudeCodeCLIOutputAdaptor" => self.claude_code,
-      "CodexCLIOutputAdaptor" => self.codex,
-      "CursorOutputAdaptor" => self.cursor,
-      "DroidCLIOutputAdaptor" => self.droid,
-      "GeminiCLIOutputAdaptor" => self.gemini,
-      "JetBrainsAIAssistantCodexOutputAdaptor" => self.jetbrains,
-      "KiroCLIOutputAdaptor" => self.kiro,
-      "OpencodeCLIOutputAdaptor" => self.opencode,
-      "QoderIDEPluginOutputAdaptor" => self.qoder,
-      "TraeOutputAdaptor" => self.trae || self.trae_cn,
-      "WarpIDEOutputAdaptor" => self.warp,
-      "WindsurfOutputAdaptor" => self.windsurf,
-      _ => false,
-    }
-  }
-}
-
-fn collect_context(
-  workspace_dir: &str,
-  _global_scope: Option<&Value>,
-) -> Result<OutputContext, CliError> {
-  #[derive(Debug, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct WorkspaceEnvelope {
-    workspace: crate::domain::plugin_shared::Workspace,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct GlobalMemoryEnvelope {
-    #[serde(default)]
-    global_memory: Option<crate::domain::plugin_shared::GlobalMemoryPrompt>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct CommandsEnvelope {
-    #[serde(default)]
-    commands: Vec<crate::domain::plugin_shared::FastCommandPrompt>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct SubAgentsEnvelope {
-    #[serde(default)]
-    sub_agents: Vec<crate::domain::plugin_shared::SubAgentPrompt>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct SkillsEnvelope {
-    #[serde(default)]
-    skills: Vec<crate::domain::plugin_shared::SkillPrompt>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct RulesEnvelope {
-    #[serde(default)]
-    rules: Vec<crate::domain::plugin_shared::RulePrompt>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct ReadmeEnvelope {
-    #[serde(default)]
-    readme_prompts: Vec<crate::domain::plugin_shared::ReadmePrompt>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct GitIgnoreEnvelope {
-    #[serde(default)]
-    global_git_ignore: Option<String>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct GitExcludeEnvelope {
-    #[serde(default)]
-    shadow_git_exclude: Option<String>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct SharedIgnoreEnvelope {
-    #[serde(default)]
-    ai_agent_ignore_config_files:
-      Option<Vec<crate::domain::plugin_shared::AIAgentIgnoreConfigFile>>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct VSCodeEnvelope {
-    #[serde(default)]
-    vscode_config_files: Option<Vec<crate::domain::plugin_shared::ProjectIDEConfigFile>>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct ZedEnvelope {
-    #[serde(default)]
-    zed_config_files: Option<Vec<crate::domain::plugin_shared::ProjectIDEConfigFile>>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct JetBrainsEnvelope {
-    #[serde(default)]
-    jetbrains_config_files: Option<Vec<crate::domain::plugin_shared::ProjectIDEConfigFile>>,
-  }
-
-  #[derive(Debug, Default, serde::Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  struct EditorConfigEnvelope {
-    #[serde(default)]
-    editor_config_files: Option<Vec<crate::domain::plugin_shared::ProjectIDEConfigFile>>,
-  }
-
-  fn collect_json<T>(
-    collector: impl Fn(&str) -> Result<String, CliError>,
-    input: Value,
-  ) -> Result<T, CliError>
-  where
-    T: serde::de::DeserializeOwned,
-  {
-    let raw = collector(&input.to_string())?;
-    serde_json::from_str(&raw).map_err(CliError::SerializationError)
-  }
-
-  let aindex = collect_json::<WorkspaceEnvelope>(
-    crate::repositories::aindex_resolvers::collect_aindex_resolvers,
-    json!({ "workspaceDir": workspace_dir }),
-  )?;
-
-  let project_prompts = collect_json::<WorkspaceEnvelope>(
-    crate::repositories::project_prompt::collect_project_prompt,
-    json!({
-      "workspaceDir": workspace_dir,
-      "workspace": aindex.workspace,
-      "globalScope": None::<Value>,
-    }),
-  )?;
-
-  let global_memory = collect_json::<GlobalMemoryEnvelope>(
-    crate::repositories::global_memory::collect_global_memory,
-    json!({ "workspaceDir": workspace_dir, "globalScope": None::<Value> }),
-  )?;
-
-  let commands = collect_json::<CommandsEnvelope>(
-    crate::repositories::command::collect_command,
-    json!({ "workspaceDir": workspace_dir, "globalScope": None::<Value> }),
-  )?;
-  let sub_agents = collect_json::<SubAgentsEnvelope>(
-    crate::repositories::subagent::collect_subagent,
-    json!({ "workspaceDir": workspace_dir, "globalScope": None::<Value> }),
-  )?;
-  let skills = collect_json::<SkillsEnvelope>(
-    crate::repositories::skill::collect_skill,
-    json!({ "workspaceDir": workspace_dir, "globalScope": None::<Value> }),
-  )?;
-  let rules = collect_json::<RulesEnvelope>(
-    crate::repositories::rule::collect_rule,
-    json!({ "workspaceDir": workspace_dir, "globalScope": None::<Value> }),
-  )?;
-  let readme = collect_json::<ReadmeEnvelope>(
-    crate::repositories::readme::collect_readme,
-    json!({ "workspaceDir": workspace_dir, "globalScope": None::<Value> }),
-  )?;
-  let gitignore = collect_json::<GitIgnoreEnvelope>(
-    crate::repositories::gitignore::collect_gitignore,
-    json!({ "workspaceDir": workspace_dir }),
-  )?;
-  let git_exclude = collect_json::<GitExcludeEnvelope>(
-    crate::repositories::git_exclude::collect_git_exclude,
-    json!({ "workspaceDir": workspace_dir }),
-  )?;
-  let shared_ignore = collect_json::<SharedIgnoreEnvelope>(
-    crate::repositories::shared_ignore::collect_shared_ignore,
-    json!({ "workspaceDir": workspace_dir }),
-  )?;
-  let vscode = collect_json::<VSCodeEnvelope>(
-    crate::repositories::vscode_config::collect_vscode_config,
-    json!({ "workspaceDir": workspace_dir }),
-  )?;
-  let zed = collect_json::<ZedEnvelope>(
-    crate::repositories::zed_config::collect_zed_config,
-    json!({ "workspaceDir": workspace_dir }),
-  )?;
-  let jetbrains = collect_json::<JetBrainsEnvelope>(
-    crate::repositories::jetbrains_config::collect_jetbrains_config,
-    json!({ "workspaceDir": workspace_dir }),
-  )?;
-  let editor_config = collect_json::<EditorConfigEnvelope>(
-    crate::repositories::editorconfig::collect_editorconfig,
-    json!({ "workspaceDir": workspace_dir }),
-  )?;
-
-  Ok(OutputContext {
-    workspace: Some(project_prompts.workspace),
-    vscode_config_files: vscode.vscode_config_files,
-    zed_config_files: zed.zed_config_files,
-    jetbrains_config_files: jetbrains.jetbrains_config_files,
-    editor_config_files: editor_config.editor_config_files,
-    fast_commands: (!commands.commands.is_empty()).then_some(commands.commands),
-    sub_agents: (!sub_agents.sub_agents.is_empty()).then_some(sub_agents.sub_agents),
-    skills: (!skills.skills.is_empty()).then_some(skills.skills),
-    rules: (!rules.rules.is_empty()).then_some(rules.rules),
-    global_memory: global_memory.global_memory,
-    global_git_ignore: gitignore.global_git_ignore,
-    shadow_git_exclude: git_exclude.shadow_git_exclude,
-    shadow_source_project_dir: None,
-    readme_prompts: (!readme.readme_prompts.is_empty()).then_some(readme.readme_prompts),
-    ai_agent_ignore_config_files: shared_ignore.ai_agent_ignore_config_files,
-    registered_output_plugins: None,
-  })
-}
+// ---------------------------------------------------------------------------
+// Output map building
+// ---------------------------------------------------------------------------
 
 fn build_output_map(
-  context: &OutputContext,
+  context: &crate::context::OutputContext,
   enabled_plugins: EnabledPlugins,
+  logger: &Logger,
 ) -> Result<
   (
     HashMap<String, Vec<String>>,
@@ -605,11 +264,9 @@ fn build_output_map(
   let mut output_map: HashMap<String, Vec<String>> = HashMap::new();
   let mut cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
 
+  let base_span = logger.span("output.build").enter();
   let base_plans = crate::domain::base_output_plans::build_base_output_plans(context)?;
   for plan in &base_plans.plugins {
-    // Cleanup targets are always collected regardless of plugin enablement.
-    // This ensures `tnmsc clean` removes stale files even when a plugin
-    // has been disabled after previously being enabled.
     cleanup_map
       .entry(plan.plugin_name.clone())
       .or_insert_with(CleanupDeclarationsDto::default)
@@ -625,202 +282,87 @@ fn build_output_map(
     }
   }
 
-  if let Ok(plan) =
-    crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)
-  {
-    cleanup_map
-      .entry("ClaudeCodeCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+  // Build plugin-specific output maps
+  if let Ok(plan) = crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context) {
+    cleanup_map.entry("ClaudeCodeCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.claude_code {
-      for file in &plan.output_files {
-        output_map
-          .entry("ClaudeCodeCLIOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("ClaudeCodeCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context)
-  {
-    cleanup_map
-      .entry("CodexCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+  if let Ok(plan) = crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context) {
+    cleanup_map.entry("CodexCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.codex {
-      for file in &plan.output_files {
-        output_map
-          .entry("CodexCLIOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("CodexCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
-  if let Ok(plan) =
-    crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context)
-  {
-    cleanup_map
-      .entry("CursorOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+  if let Ok(plan) = crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context) {
+    cleanup_map.entry("CursorOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.cursor {
-      for file in &plan.output_files {
-        output_map
-          .entry("CursorOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("CursorOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context)
-  {
-    cleanup_map
-      .entry("DroidCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+  if let Ok(plan) = crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context) {
+    cleanup_map.entry("DroidCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.droid {
-      for file in &plan.output_files {
-        output_map
-          .entry("DroidCLIOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("DroidCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
-  if let Ok(plan) =
-    crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context)
-  {
-    cleanup_map
-      .entry("GeminiCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+  if let Ok(plan) = crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context) {
+    cleanup_map.entry("GeminiCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.gemini {
-      for file in &plan.output_files {
-        output_map
-          .entry("GeminiCLIOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("GeminiCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
   if let Ok(plan) = crate::domain::output_plans::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context) {
-    cleanup_map
-      .entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+    cleanup_map.entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.jetbrains {
-      for file in &plan.output_files {
-        output_map
-          .entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
   if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context) {
-    cleanup_map
-      .entry("KiroCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+    cleanup_map.entry("KiroCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.kiro {
-      for file in &plan.output_files {
-        output_map
-          .entry("KiroCLIOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("KiroCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
-  if let Ok(plan) =
-    crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)
-  {
-    cleanup_map
-      .entry("OpencodeCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+  if let Ok(plan) = crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context) {
+    cleanup_map.entry("OpencodeCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.opencode {
-      for file in &plan.output_files {
-        output_map
-          .entry("OpencodeCLIOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("OpencodeCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context)
-  {
-    cleanup_map
-      .entry("QoderIDEPluginOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+  if let Ok(plan) = crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context) {
+    cleanup_map.entry("QoderIDEPluginOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.qoder {
-      for file in &plan.output_files {
-        output_map
-          .entry("QoderIDEPluginOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("QoderIDEPluginOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
   if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context) {
-    cleanup_map
-      .entry("TraeOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+    cleanup_map.entry("TraeOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.trae || enabled_plugins.trae_cn {
-      for file in &plan.output_files {
-        output_map
-          .entry("TraeOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("TraeOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
   if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context) {
-    cleanup_map
-      .entry("WarpIDEOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+    cleanup_map.entry("WarpIDEOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.warp {
-      for file in &plan.output_files {
-        output_map
-          .entry("WarpIDEOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("WarpIDEOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
-  if let Ok(plan) =
-    crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)
-  {
-    cleanup_map
-      .entry("WindsurfOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
-      .delete
-      .extend(plan.cleanup.delete.clone());
+  if let Ok(plan) = crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context) {
+    cleanup_map.entry("WindsurfOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.windsurf {
-      for file in &plan.output_files {
-        output_map
-          .entry("WindsurfOutputAdaptor".to_string())
-          .or_default()
-          .push(file.path.clone());
-      }
+      for file in &plan.output_files { output_map.entry("WindsurfOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
   }
 
+  base_span.exit();
   Ok((output_map, cleanup_map))
 }
+
+// ---------------------------------------------------------------------------
+// Cleanup snapshot
+// ---------------------------------------------------------------------------
 
 fn build_cleanup_snapshot(
   workspace_dir: &str,
@@ -829,8 +371,6 @@ fn build_cleanup_snapshot(
 ) -> Result<CleanupSnapshot, CliError> {
   let mut plugin_snapshots = Vec::new();
 
-  // Include all plugins that have either outputs or cleanup targets.
-  // This ensures disabled plugins still contribute their cleanup declarations.
   let mut all_plugin_names: Vec<&String> = output_map.keys().collect();
   for name in cleanup_map.keys() {
     if !all_plugin_names.contains(&name) {
@@ -859,7 +399,7 @@ fn build_cleanup_snapshot(
 
   let mut delete_targets = Vec::new();
   for root_path in &project_roots {
-    let root = std::path::Path::new(root_path);
+    let root = Path::new(root_path);
     let agents_path = root.join("AGENTS.md");
     let claude_path = root.join("CLAUDE.md");
     let agt_path = root.join("agt.mdx");
@@ -915,7 +455,7 @@ fn build_cleanup_snapshot(
 }
 
 fn discover_project_roots(workspace_dir: &str) -> Vec<String> {
-  let ws_path = std::path::Path::new(workspace_dir);
+  let ws_path = Path::new(workspace_dir);
   let mut roots = Vec::new();
 
   if let Ok(entries) = std::fs::read_dir(ws_path) {
@@ -937,12 +477,16 @@ fn discover_project_roots(workspace_dir: &str) -> Vec<String> {
   roots
 }
 
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 #[cfg(test)]
 mod tests {
   use super::*;
   use tempfile::TempDir;
 
-  fn with_home_dir<T>(home_dir: &Path, callback: impl FnOnce() -> T) -> T {
+  fn with_home_dir<T>(home_dir: &std::path::Path, callback: impl FnOnce() -> T) -> T {
     let _guard = match crate::domain::TEST_ENV_LOCK.lock() {
       Ok(g) => g,
       Err(error) => error.into_inner(),
@@ -967,7 +511,7 @@ mod tests {
     result
   }
 
-  fn create_test_config(home_dir: &Path, workspace_dir: &Path) -> std::io::Result<()> {
+  fn create_test_config(home_dir: &std::path::Path, workspace_dir: &std::path::Path) -> std::io::Result<()> {
     let config_content = json!({
       "workspaceDir": workspace_dir.to_string_lossy()
     });
@@ -1061,7 +605,7 @@ mod tests {
 
   #[test]
   fn clean_enabled_plugins_from_empty_config() {
-    let plugins = EnabledPlugins::from_config(None);
+    let plugins = EnabledPlugins::from_config(None, DefaultPluginKind::Clean);
     assert!(plugins.agents_md);
     assert!(plugins.claude_code);
     assert!(plugins.git);
@@ -1070,13 +614,13 @@ mod tests {
 
   #[test]
   fn clean_enabled_plugins_respects_config() {
-    let config = PluginsConfig {
+    let config = crate::domain::config::PluginsConfig {
       git: Some(false),
       readme: Some(false),
       claude_code: Some(true),
       ..Default::default()
     };
-    let plugins = EnabledPlugins::from_config(Some(&config));
+    let plugins = EnabledPlugins::from_config(Some(&config), DefaultPluginKind::Clean);
     assert!(!plugins.git);
     assert!(!plugins.readme);
     assert!(plugins.claude_code);
@@ -1084,7 +628,7 @@ mod tests {
 
   #[test]
   fn clean_plugin_name_matching() {
-    let plugins = EnabledPlugins::from_config(None);
+    let plugins = EnabledPlugins::from_config(None, DefaultPluginKind::Clean);
     assert!(plugins.is_enabled("GitExcludeOutputAdaptor"));
     assert!(plugins.is_enabled("ReadmeMdConfigFileOutputAdaptor"));
     assert!(plugins.is_enabled("ClaudeCodeCLIOutputAdaptor"));
@@ -1121,19 +665,10 @@ mod tests {
     assert!(snapshot.aindex_dir.unwrap().contains("aindex"));
   }
 
-  /// 回归测试：clean 必须始终收集所有插件的 cleanup targets，无论插件是否启用。
-  ///
-  /// 设计原因：用户可能在禁用某个插件之前已经运行过 install，导致该插件生成的文件
-  /// 仍然残留在项目或全局目录中。如果 clean 也跟随插件开关，则这些残留文件将永远
-  /// 无法被自动清理，造成"清爽的编程上下文环境"被破坏。
-  ///
-  /// 因此，install 行为受插件开关控制（只生成启用插件的文件），而 clean 行为
-  /// 不受插件开关控制（总是清理所有已知插件的输出文件）。
   #[test]
   fn clean_snapshot_includes_disabled_plugin_cleanup_targets() {
     let workspace_dir = "/tmp/test-workspace";
     let output_map: HashMap<String, Vec<String>> = HashMap::new();
-    // 模拟 agents_md 被禁用：没有 outputs，但有 cleanup targets
     let mut cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
     cleanup_map.insert(
       "AgentsOutputAdaptor".to_string(),
@@ -1173,7 +708,6 @@ mod tests {
     );
   }
 
-  /// 回归测试：build_cleanup_snapshot 应同时包含 output_map 和 cleanup_map 中的插件。
   #[test]
   fn clean_snapshot_collects_from_both_maps() {
     let workspace_dir = "/tmp/test-workspace";
@@ -1336,13 +870,14 @@ mod tests {
   fn clean_filter_snapshot_by_scope_filters_project_roots() {
     let temp_dir = TempDir::new().unwrap();
     let ws = temp_dir.path();
-    // 创建真实的项目目录，discover_project_roots 需要读取实际文件系统
     std::fs::create_dir_all(ws.join("project-a")).unwrap();
     std::fs::create_dir_all(ws.join("project-b")).unwrap();
 
     let scope = ws.join("project-a");
-    let snapshot =
-      build_cleanup_snapshot(&ws.to_string_lossy(), &HashMap::new(), &HashMap::new()).unwrap();
+    let snapshot = build_cleanup_snapshot(&ws.to_string_lossy(),
+      &HashMap::new(),
+      &HashMap::new(),
+    ).unwrap();
 
     let filtered = filter_snapshot_by_scope(snapshot, &scope, ws);
 

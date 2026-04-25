@@ -18,11 +18,11 @@
 use std::path::PathBuf;
 
 use crate::CliError;
-use crate::context::OutputContext;
+use crate::domain::output_context::OutputContext;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
 use crate::domain::config;
 use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
-use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 
 const CODEX_PLUGIN_NAME: &str = "CodexCLIOutputAdaptor";
 const CODEX_INSTRUCTIONS_FILE: &str = "AGENTS.md";
@@ -254,7 +254,7 @@ fn build_agent_toml_content(agent: &crate::domain::plugin_shared::SubAgentPrompt
 }
 
 fn build_command_content(command: &crate::domain::plugin_shared::FastCommandPrompt) -> String {
-  let mut metadata = if let Some(ref yaml_fm) = command.yaml_front_matter {
+  let metadata = if let Some(ref yaml_fm) = command.yaml_front_matter {
     match serde_json::to_value(yaml_fm) {
       Ok(serde_json::Value::Object(map)) => map,
       _ => serde_json::Map::new(),
@@ -539,13 +539,6 @@ fn get_project_output_projects(workspace: &Workspace) -> Vec<&Project> {
     projects.push(root);
   }
   projects
-}
-
-fn get_project_prompt_output_projects(workspace: &Workspace) -> Vec<&Project> {
-  get_project_output_projects(workspace)
-    .into_iter()
-    .filter(|p| p.is_prompt_source_project != Some(true))
-    .collect()
 }
 
 fn resolve_project_root_dir(workspace: &Workspace, project: &Project) -> Option<PathBuf> {
