@@ -1,3 +1,1 @@
-pub mod output_context;
-
-pub use output_context::OutputContext;
+pub use crate::domain::output_context::OutputContext;

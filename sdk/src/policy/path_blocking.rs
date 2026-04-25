@@ -37,7 +37,12 @@ pub fn find_blocking_non_directory_path(expected_dir_path: &str) -> Option<Strin
     } else {
       // Prefix / RootDir handling: keep current as the accumulating base
       if let std::path::Component::RootDir = component {
-        current = PathBuf::from(std::path::MAIN_SEPARATOR_STR);
+        // On Windows, combine prefix with root dir (e.g., "C:" + "\" = "C:\")
+        if !current.as_os_str().is_empty() {
+          current = current.join(std::path::MAIN_SEPARATOR_STR);
+        } else {
+          current = PathBuf::from(std::path::MAIN_SEPARATOR_STR);
+        }
       } else if let std::path::Component::Prefix(prefix) = component {
         current = PathBuf::from(prefix.as_os_str());
       }

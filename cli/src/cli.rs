@@ -6,8 +6,6 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 
-use crate::logger::LogLevel;
-
 /// Cross-AI-tool prompt synchronisation CLI
 #[derive(Parser, Debug)]
 #[command(
@@ -115,25 +113,7 @@ impl ResolvedLogLevel {
     }
   }
 
-  pub fn to_logger_level(self) -> LogLevel {
-    match self {
-      Self::Trace => LogLevel::Trace,
-      Self::Debug => LogLevel::Debug,
-      Self::Info => LogLevel::Info,
-      Self::Warn => LogLevel::Warn,
-      Self::Error => LogLevel::Error,
-    }
-  }
 
-  pub fn to_sdk_logger_level(self) -> tnmsd::infra::logger::LogLevel {
-    match self {
-      Self::Trace => tnmsd::infra::logger::LogLevel::Trace,
-      Self::Debug => tnmsd::infra::logger::LogLevel::Debug,
-      Self::Info => tnmsd::infra::logger::LogLevel::Info,
-      Self::Warn => tnmsd::infra::logger::LogLevel::Warn,
-      Self::Error => tnmsd::infra::logger::LogLevel::Error,
-    }
-  }
 }
 
 /// Resolve log level from CLI flags.

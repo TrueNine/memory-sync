@@ -1,8 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde_json::{Value, json};
 
 use crate::domain::config::MergedConfigResult;
+use crate::services::common::strip_unc_prefix;
 
 pub(crate) fn build_workspace_mismatch_warning(
   cwd: &Path,
@@ -40,15 +41,6 @@ fn normalize_compare_path(path: &Path) -> String {
 
 fn normalize_display_path(path: &Path) -> String {
   strip_unc_prefix(path).to_string_lossy().into_owned()
-}
-
-fn strip_unc_prefix(path: &Path) -> PathBuf {
-  let value = path.to_string_lossy();
-  if let Some(stripped) = value.strip_prefix(r"\\?\") {
-    PathBuf::from(stripped)
-  } else {
-    path.to_path_buf()
-  }
 }
 
 #[cfg(test)]

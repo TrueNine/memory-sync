@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::CliError;
-use crate::context::OutputContext;
+use crate::domain::output_context::OutputContext;
 use crate::domain::config;
 use crate::domain::plugin_shared::{
   FastCommandPrompt, Project, RelativePath, RuleScope, SkillPrompt, SkillResourceEncoding,
   Workspace,
 };
-use crate::policy::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
 
 const DROID_PLUGIN_NAME: &str = "DroidCLIOutputAdaptor";
 const DROID_MEMORY_FILE: &str = "AGENTS.md";
@@ -991,6 +991,7 @@ mod tests {
         .find(|entry| {
           entry
             .path
+            .replace('\\', "/")
             .ends_with("project-a/.factory/skills/ship/SKILL.md")
         })
         .unwrap();
@@ -1000,6 +1001,7 @@ mod tests {
         .find(|entry| {
           entry
             .path
+            .replace('\\', "/")
             .ends_with("project-a/.factory/skills/ship/assets/blob.bin")
         })
         .unwrap();
