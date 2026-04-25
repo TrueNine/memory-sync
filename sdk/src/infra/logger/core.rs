@@ -4,7 +4,9 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use serde_json::Value;
 
-use super::diagnostic::{DiagnosticInput, invalid_record, record_from_input, validate_diagnostic_input};
+use super::diagnostic::{
+  DiagnosticInput, invalid_record, record_from_input, validate_diagnostic_input,
+};
 use super::sink::buffer_diagnostic;
 
 // ---------------------------------------------------------------------------
@@ -102,7 +104,10 @@ impl SpanGuard {
   fn new(span: Span) -> Self {
     // Emit span enter event immediately
     crate::infra::logger::sink::write_span_enter(&span);
-    Self { span, exited: false }
+    Self {
+      span,
+      exited: false,
+    }
   }
 
   pub fn exit(mut self) {
@@ -204,9 +209,12 @@ impl Logger {
   fn log_diagnostic(&self, level: LogLevel, diagnostic: DiagnosticInput) {
     let record = match validate_diagnostic_input(&diagnostic) {
       Ok(()) => record_from_input(&self.namespace, level.as_str(), diagnostic),
-      Err(errors) => {
-        invalid_record(&self.namespace, level.as_str(), serde_json::to_value(&diagnostic).unwrap_or_default(), &errors)
-      }
+      Err(errors) => invalid_record(
+        &self.namespace,
+        level.as_str(),
+        serde_json::to_value(&diagnostic).unwrap_or_default(),
+        &errors,
+      ),
     };
 
     // Buffer diagnostics even if level is Silent

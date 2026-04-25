@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
+use crate::CliError;
 use crate::context::OutputContext;
 use crate::domain::config::{self, ConfigLoader, PluginsConfig, UserConfigFile};
 use crate::infra::logger::Logger;
-use crate::CliError;
 
 // ---------------------------------------------------------------------------
 // Plugin defaults
@@ -386,7 +386,6 @@ pub fn collect_context(
   enabled_plugins: &EnabledPlugins,
   logger: &Logger,
 ) -> Result<OutputContext, CliError> {
-
   let aindex = {
     let _span = logger.span("collect.aindex_resolvers").enter();
     collect_json::<WorkspaceEnvelope>(

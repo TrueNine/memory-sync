@@ -30,21 +30,24 @@ fn missing_config_outputs_diagnostic_with_fix() {
   assert!(
     result.stderr.contains("What happened") || result.stdout.contains("What happened"),
     "error should contain 'What happened' section. stdout:\n{}\nstderr:\n{}",
-    result.stdout, result.stderr
+    result.stdout,
+    result.stderr
   );
 
   // 验证有修复建议（嵌入在错误消息中）
   assert!(
     result.stderr.contains("Please create it") || result.stdout.contains("Please create it"),
     "error should contain fix suggestion. stdout:\n{}\nstderr:\n{}",
-    result.stdout, result.stderr
+    result.stdout,
+    result.stderr
   );
 
   // 验证提及配置文件
   assert!(
     result.stderr.contains(".tnmsc.json") || result.stdout.contains(".tnmsc.json"),
     "error should mention .tnmsc.json. stdout:\n{}\nstderr:\n{}",
-    result.stdout, result.stderr
+    result.stdout,
+    result.stderr
   );
 }
 

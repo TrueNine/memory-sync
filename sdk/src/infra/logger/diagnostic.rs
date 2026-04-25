@@ -50,7 +50,9 @@ pub fn validate_diagnostic_input(input: &DiagnosticInput) -> Result<(), Vec<Stri
     errors.push("rootCause must contain at least one line".to_string());
   }
 
-  if let Some(lines) = &input.exact_fix && lines.is_empty() {
+  if let Some(lines) = &input.exact_fix
+    && lines.is_empty()
+  {
     errors.push("exactFix must contain at least one line when provided".to_string());
   }
 
@@ -60,7 +62,9 @@ pub fn validate_diagnostic_input(input: &DiagnosticInput) -> Result<(), Vec<Stri
     }
     for (index, lines) in fixes.iter().enumerate() {
       if lines.is_empty() {
-        errors.push(format!("possibleFixes[{index}] must contain at least one line"));
+        errors.push(format!(
+          "possibleFixes[{index}] must contain at least one line"
+        ));
       }
     }
   }
@@ -156,11 +160,7 @@ fn append_section(
 use super::formatter::value_to_markdown_lines;
 
 /// Build a diagnostic record from validated input.
-pub fn record_from_input(
-  namespace: &str,
-  level: &str,
-  input: DiagnosticInput,
-) -> DiagnosticRecord {
+pub fn record_from_input(namespace: &str, level: &str, input: DiagnosticInput) -> DiagnosticRecord {
   let mut record = DiagnosticRecord {
     code: input.code.trim().to_string(),
     title: input.title.trim().to_string(),

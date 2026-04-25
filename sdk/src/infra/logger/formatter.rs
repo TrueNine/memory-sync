@@ -5,12 +5,8 @@ use super::core::{Event, LogLevel, Span};
 /// Format an event as Markdown.
 pub fn format_event(event: &Event) -> String {
   match event.level {
-    LogLevel::Warn | LogLevel::Error | LogLevel::Fatal => {
-      format_diagnostic_event(event)
-    }
-    _ => {
-      format_message_event(event)
-    }
+    LogLevel::Warn | LogLevel::Error | LogLevel::Fatal => format_diagnostic_event(event),
+    _ => format_message_event(event),
   }
 }
 
@@ -22,7 +18,10 @@ pub fn format_span_enter(span: &Span) -> String {
 /// Format a span exit event with duration.
 pub fn format_span_exit(span: &Span) -> String {
   let duration_ms = span.duration().as_millis();
-  format!("### {} completed\n  - duration: {}ms", span.name, duration_ms)
+  format!(
+    "### {} completed\n  - duration: {}ms",
+    span.name, duration_ms
+  )
 }
 
 fn format_message_event(event: &Event) -> String {
@@ -52,10 +51,11 @@ fn format_message_event(event: &Event) -> String {
 
 fn format_diagnostic_event(event: &Event) -> String {
   // For diagnostic events, the message contains the serialized DiagnosticRecord
-  let record: super::diagnostic::DiagnosticRecord = match serde_json::from_value(event.message.clone()) {
-    Ok(r) => r,
-    Err(_) => return "### Diagnostic error\n  - failed to parse diagnostic record".to_string(),
-  };
+  let record: super::diagnostic::DiagnosticRecord =
+    match serde_json::from_value(event.message.clone()) {
+      Ok(r) => r,
+      Err(_) => return "### Diagnostic error\n  - failed to parse diagnostic record".to_string(),
+    };
 
   let mut lines = vec![format!("### {}", record.title)];
 
@@ -108,7 +108,10 @@ fn format_diagnostic_event(event: &Event) -> String {
   lines.join("\n")
 }
 
-fn extract_message_and_meta(message: &Value, meta: Option<&Value>) -> (Option<String>, Vec<String>) {
+fn extract_message_and_meta(
+  message: &Value,
+  meta: Option<&Value>,
+) -> (Option<String>, Vec<String>) {
   let (msg, mut lines) = match message {
     Value::String(s) => (Some(s.clone()), Vec::new()),
     Value::Object(map) => {
@@ -159,7 +162,12 @@ pub(crate) fn value_to_markdown_lines(value: &Value) -> Vec<String> {
   lines
 }
 
-pub(crate) fn append_markdown_value(lines: &mut Vec<String>, label: Option<&str>, value: &Value, depth: usize) {
+pub(crate) fn append_markdown_value(
+  lines: &mut Vec<String>,
+  label: Option<&str>,
+  value: &Value,
+  depth: usize,
+) {
   let prefix = "  ".repeat(depth);
   let bullet = format!("{prefix}- ");
 

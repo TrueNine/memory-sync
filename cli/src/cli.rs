@@ -112,8 +112,6 @@ impl ResolvedLogLevel {
       Self::Error => "error",
     }
   }
-
-
 }
 
 /// Resolve log level from CLI flags.

@@ -27,12 +27,21 @@ struct PlannedOutputFile {
 pub(crate) fn install(
   options: MemorySyncCommandOptions,
 ) -> Result<MemorySyncCommandResult, CliError> {
-  let logger = create_logger("install", options.log_level.as_deref().and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)));
+  let logger = create_logger(
+    "install",
+    options
+      .log_level
+      .as_deref()
+      .and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)),
+  );
   let _span = logger.span("command.install").enter();
 
-  logger.info("Install started", Some(json!({
-    "cwd": options.cwd.as_ref(),
-  })));
+  logger.info(
+    "Install started",
+    Some(json!({
+      "cwd": options.cwd.as_ref(),
+    })),
+  );
 
   let cwd = resolve_cwd(options.cwd.as_deref())?;
 
@@ -46,37 +55,57 @@ pub(crate) fn install(
     .collect::<Vec<_>>();
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
-  logger.info("Config loaded", Some(json!({
-    "workspaceDir": &workspace_dir_str,
-    "configFound": config_result.found,
-    "configSources": config_result.sources,
-  })));
+  logger.info(
+    "Config loaded",
+    Some(json!({
+      "workspaceDir": &workspace_dir_str,
+      "configFound": config_result.found,
+      "configSources": config_result.sources,
+    })),
+  );
 
   let global_scope = crate::services::common::build_global_scope(&config_result.config);
-  let enabled_plugins = EnabledPlugins::from_config(config_result.config.plugins.as_ref(), DefaultPluginKind::Install);
+  let enabled_plugins = EnabledPlugins::from_config(
+    config_result.config.plugins.as_ref(),
+    DefaultPluginKind::Install,
+  );
 
-  logger.info("Plugins resolved", Some(json!({
-    "enabled": enabled_plugins.registered_plugins(),
-  })));
+  logger.info(
+    "Plugins resolved",
+    Some(json!({
+      "enabled": enabled_plugins.registered_plugins(),
+    })),
+  );
 
   let context_span = logger.span("context.collect").enter();
-  let context = collect_context(&workspace_dir_str, global_scope.as_ref(), &enabled_plugins, &logger)?;
+  let context = collect_context(
+    &workspace_dir_str,
+    global_scope.as_ref(),
+    &enabled_plugins,
+    &logger,
+  )?;
   context_span.exit();
 
-  logger.info("Context collected", Some(json!({
-    "globalMemory": context.global_memory.is_some(),
-    "commands": context.fast_commands.as_ref().map(|v| v.len()),
-    "skills": context.skills.as_ref().map(|v| v.len()),
-    "rules": context.rules.as_ref().map(|v| v.len()),
-  })));
+  logger.info(
+    "Context collected",
+    Some(json!({
+      "globalMemory": context.global_memory.is_some(),
+      "commands": context.fast_commands.as_ref().map(|v| v.len()),
+      "skills": context.skills.as_ref().map(|v| v.len()),
+      "rules": context.rules.as_ref().map(|v| v.len()),
+    })),
+  );
 
   let output_span = logger.span("output.build").enter();
   let planned_outputs = build_output_files(&context, enabled_plugins, &logger)?;
   output_span.exit();
 
-  logger.info("Output files built", Some(json!({
-    "filesPlanned": planned_outputs.len(),
-  })));
+  logger.info(
+    "Output files built",
+    Some(json!({
+      "filesPlanned": planned_outputs.len(),
+    })),
+  );
 
   let write_span = logger.span("files.write").enter();
   let execution = write_output_files(&planned_outputs, &logger)?;
@@ -84,13 +113,16 @@ pub(crate) fn install(
 
   warnings.extend(execution.warnings);
 
-  logger.info("Install completed", Some(json!({
-    "success": execution.errors.is_empty(),
-    "filesAffected": execution.files_affected,
-    "dirsAffected": execution.dirs_affected,
-    "warnings": warnings.len(),
-    "errors": execution.errors.len(),
-  })));
+  logger.info(
+    "Install completed",
+    Some(json!({
+      "success": execution.errors.is_empty(),
+      "filesAffected": execution.files_affected,
+      "dirsAffected": execution.dirs_affected,
+      "warnings": warnings.len(),
+      "errors": execution.errors.len(),
+    })),
+  );
 
   Ok(MemorySyncCommandResult {
     success: execution.errors.is_empty(),
@@ -125,7 +157,8 @@ fn build_output_files(
 
   if enabled_plugins.claude_code {
     let plugin_span = logger.span("output.claude_code").enter();
-    let plan = crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)?;
+    let plan =
+      crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
     plugin_span.exit();
   }
@@ -167,7 +200,8 @@ fn build_output_files(
   }
   if enabled_plugins.opencode {
     let plugin_span = logger.span("output.opencode").enter();
-    let plan = crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)?;
+    let plan =
+      crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
     plugin_span.exit();
   }
@@ -191,7 +225,8 @@ fn build_output_files(
   }
   if enabled_plugins.windsurf {
     let plugin_span = logger.span("output.windsurf").enter();
-    let plan = crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)?;
+    let plan =
+      crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
     plugin_span.exit();
   }
@@ -288,7 +323,10 @@ fn write_output_files(
 
     let existing = fs::read(path).ok();
     if existing.as_deref() == Some(bytes.as_slice()) {
-      logger.debug(format!("file.skipped: {}", file.path), Some(json!({ "reason": "unchanged" })));
+      logger.debug(
+        format!("file.skipped: {}", file.path),
+        Some(json!({ "reason": "unchanged" })),
+      );
       continue;
     }
 

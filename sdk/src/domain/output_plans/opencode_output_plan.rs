@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use crate::CliError;
-use crate::domain::output_context::OutputContext;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
-use crate::domain::config;
-use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::domain::config;
+use crate::domain::output_context::OutputContext;
+use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 
 const OPENCODE_PLUGIN_NAME: &str = "OpencodeCLIOutputAdaptor";
 const OPENCODE_MEMORY_FILE: &str = "AGENTS.md";

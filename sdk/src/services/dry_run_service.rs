@@ -22,7 +22,13 @@ struct PlannedOutputFile {
 }
 
 pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  let logger = create_logger("dry_run", options.log_level.as_deref().and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)));
+  let logger = create_logger(
+    "dry_run",
+    options
+      .log_level
+      .as_deref()
+      .and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)),
+  );
   let _span = logger.span("command.dry_run").enter();
 
   logger.info("Dry run started", None);
@@ -39,28 +45,45 @@ pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandRes
     .collect();
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
-  logger.info("Config loaded", Some(json!({
-    "workspaceDir": &workspace_dir_str,
-    "configFound": config_result.found,
-  })));
+  logger.info(
+    "Config loaded",
+    Some(json!({
+      "workspaceDir": &workspace_dir_str,
+      "configFound": config_result.found,
+    })),
+  );
 
   let global_scope = crate::services::common::build_global_scope(&config_result.config);
-  let enabled_plugins = EnabledPlugins::from_config(config_result.config.plugins.as_ref(), DefaultPluginKind::DryRun);
+  let enabled_plugins = EnabledPlugins::from_config(
+    config_result.config.plugins.as_ref(),
+    DefaultPluginKind::DryRun,
+  );
 
-  logger.info("Plugins resolved", Some(json!({
-    "enabled": enabled_plugins.registered_plugins(),
-  })));
+  logger.info(
+    "Plugins resolved",
+    Some(json!({
+      "enabled": enabled_plugins.registered_plugins(),
+    })),
+  );
 
   let context_span = logger.span("context.collect").enter();
-  let context = collect_context(&workspace_dir_str, global_scope.as_ref(), &enabled_plugins, &logger)?;
+  let context = collect_context(
+    &workspace_dir_str,
+    global_scope.as_ref(),
+    &enabled_plugins,
+    &logger,
+  )?;
   context_span.exit();
 
-  logger.info("Context collected", Some(json!({
-    "globalMemory": context.global_memory.is_some(),
-    "commands": context.fast_commands.as_ref().map(|v| v.len()),
-    "skills": context.skills.as_ref().map(|v| v.len()),
-    "rules": context.rules.as_ref().map(|v| v.len()),
-  })));
+  logger.info(
+    "Context collected",
+    Some(json!({
+      "globalMemory": context.global_memory.is_some(),
+      "commands": context.fast_commands.as_ref().map(|v| v.len()),
+      "skills": context.skills.as_ref().map(|v| v.len()),
+      "rules": context.rules.as_ref().map(|v| v.len()),
+    })),
+  );
 
   let output_span = logger.span("output.build").enter();
   let planned_outputs = build_output_files(&context, enabled_plugins)?;
@@ -79,10 +102,13 @@ pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandRes
     files_affected += 1;
   }
 
-  logger.info("Dry run completed", Some(json!({
-    "filesWouldCreate": files_affected,
-    "dirsWouldCreate": dirs_affected,
-  })));
+  logger.info(
+    "Dry run completed",
+    Some(json!({
+      "filesWouldCreate": files_affected,
+      "dirsWouldCreate": dirs_affected,
+    })),
+  );
 
   let message = if options.dry_run.unwrap_or(false) {
     Some(format!(
@@ -116,7 +142,8 @@ fn build_output_files(
   push_base_plans(&mut outputs, &base_plans, enabled_plugins);
 
   if enabled_plugins.claude_code {
-    let plan = crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)?;
+    let plan =
+      crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.codex {
@@ -144,7 +171,8 @@ fn build_output_files(
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.opencode {
-    let plan = crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)?;
+    let plan =
+      crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.qoder {
@@ -160,7 +188,8 @@ fn build_output_files(
     push_base_output_files(&mut outputs, &plan.output_files);
   }
   if enabled_plugins.windsurf {
-    let plan = crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)?;
+    let plan =
+      crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)?;
     push_base_output_files(&mut outputs, &plan.output_files);
   }
 
@@ -241,7 +270,10 @@ mod tests {
     result
   }
 
-  fn create_test_config(home_dir: &std::path::Path, workspace_dir: &std::path::Path) -> std::io::Result<()> {
+  fn create_test_config(
+    home_dir: &std::path::Path,
+    workspace_dir: &std::path::Path,
+  ) -> std::io::Result<()> {
     let config_content = json!({
       "workspaceDir": workspace_dir.to_string_lossy()
     });

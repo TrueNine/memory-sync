@@ -2,11 +2,11 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use crate::CliError;
-use crate::domain::output_context::OutputContext;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
-use crate::domain::config;
-use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::domain::config;
+use crate::domain::output_context::OutputContext;
+use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 
 const GEMINI_PLUGIN_NAME: &str = "GeminiCLIOutputAdaptor";
 const GEMINI_MEMORY_FILE: &str = "GEMINI.md";

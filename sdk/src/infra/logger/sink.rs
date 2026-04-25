@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use std::sync::mpsc::{self, Sender, Receiver};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{LazyLock, Mutex};
 use std::thread;
 
@@ -29,7 +29,10 @@ static DIAGNOSTIC_BUFFER: LazyLock<Mutex<Vec<DiagnosticRecord>>> =
 // ---------------------------------------------------------------------------
 
 pub fn write_event(event: &Event) {
-  let use_stderr = matches!(event.level, LogLevel::Error | LogLevel::Fatal | LogLevel::Warn);
+  let use_stderr = matches!(
+    event.level,
+    LogLevel::Error | LogLevel::Fatal | LogLevel::Warn
+  );
   let output = formatter::format_event(event);
   send_output(use_stderr, output);
 }
@@ -65,7 +68,10 @@ pub fn clear_diagnostics() {
 
 pub fn flush() {
   let (ack_tx, ack_rx) = mpsc::channel();
-  if OUTPUT_SINK.send(OutputCommand::Flush { ack: ack_tx }).is_ok() {
+  if OUTPUT_SINK
+    .send(OutputCommand::Flush { ack: ack_tx })
+    .is_ok()
+  {
     let _ = ack_rx.recv();
   }
 }
@@ -76,7 +82,10 @@ pub fn flush() {
 
 fn send_output(use_stderr: bool, output: String) {
   if OUTPUT_SINK
-    .send(OutputCommand::Write { use_stderr, output: output.clone() })
+    .send(OutputCommand::Write {
+      use_stderr,
+      output: output.clone(),
+    })
     .is_err()
   {
     // Fallback: write directly if sink thread is dead

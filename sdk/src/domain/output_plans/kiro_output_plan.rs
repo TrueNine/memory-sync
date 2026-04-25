@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::CliError;
-use crate::domain::output_context::OutputContext;
 use crate::domain::base_output_plans::BaseOutputPluginPlanDto;
-use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::domain::output_context::OutputContext;
+use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 
 const KIRO_PLUGIN_NAME: &str = "KiroCLIOutputAdaptor";
 const PROJECT_SCOPE: &str = "project";

@@ -327,7 +327,7 @@ fn main() -> ExitCode {
     std::env::var("LOG_LEVEL")
       .ok()
       .and_then(|s| tnmsd::infra::logger::LogLevel::from_str_loose(&s))
-      .unwrap_or(tnmsd::infra::logger::LogLevel::Info)
+      .unwrap_or(tnmsd::infra::logger::LogLevel::Info),
   );
 
   let cli = Cli::parse();
@@ -336,10 +336,13 @@ fn main() -> ExitCode {
   match resolve_command(&cli) {
     ResolvedCommand::Serve => {
       let _span = logger.span("server.serve").enter();
-      logger.info("MCP server started", Some(json!({
-        "serverName": SERVER_NAME,
-        "protocolVersion": PROTOCOL_VERSION,
-      })));
+      logger.info(
+        "MCP server started",
+        Some(json!({
+          "serverName": SERVER_NAME,
+          "protocolVersion": PROTOCOL_VERSION,
+        })),
+      );
       run_stdio_server();
       ExitCode::SUCCESS
     }

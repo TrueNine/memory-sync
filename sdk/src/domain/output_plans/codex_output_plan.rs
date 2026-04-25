@@ -18,11 +18,11 @@
 use std::path::PathBuf;
 
 use crate::CliError;
-use crate::domain::output_context::OutputContext;
 use crate::domain::base_output_plans::{BaseOutputFileDeclarationDto, BaseOutputPluginPlanDto};
-use crate::domain::config;
-use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTargetKindDto};
+use crate::domain::config;
+use crate::domain::output_context::OutputContext;
+use crate::domain::plugin_shared::{Project, RelativePath, Workspace};
 
 const CODEX_PLUGIN_NAME: &str = "CodexCLIOutputAdaptor";
 const CODEX_INSTRUCTIONS_FILE: &str = "AGENTS.md";
