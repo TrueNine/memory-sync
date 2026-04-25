@@ -49,7 +49,9 @@ fn install_outputs_key_spans_and_events() {
 
   // 验证 collector span
   assert!(
-    result.stdout.contains("### collect.aindex_resolvers started"),
+    result
+      .stdout
+      .contains("### collect.aindex_resolvers started"),
     "install should output 'collect.aindex_resolvers' span. stdout:\n{}",
     result.stdout
   );

@@ -16,7 +16,13 @@ use crate::services::common::{
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
 pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
-  let logger = create_logger("clean", options.log_level.as_deref().and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)));
+  let logger = create_logger(
+    "clean",
+    options
+      .log_level
+      .as_deref()
+      .and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)),
+  );
   let _span = logger.span("command.clean").enter();
 
   logger.info("Clean started", None);
@@ -31,36 +37,56 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
   let workspace_warning = build_workspace_mismatch_warning(&cwd, &workspace_dir, &config_result);
   let workspace_dir_str = workspace_dir.to_string_lossy().into_owned();
 
-  logger.info("Config loaded", Some(json!({
-    "workspaceDir": &workspace_dir_str,
-  })));
+  logger.info(
+    "Config loaded",
+    Some(json!({
+      "workspaceDir": &workspace_dir_str,
+    })),
+  );
 
   let global_scope = crate::services::common::build_global_scope(&config_result.config);
-  let enabled_plugins = EnabledPlugins::from_config(config_result.config.plugins.as_ref(), DefaultPluginKind::Clean);
+  let enabled_plugins = EnabledPlugins::from_config(
+    config_result.config.plugins.as_ref(),
+    DefaultPluginKind::Clean,
+  );
 
   let context_span = logger.span("context.collect").enter();
-  let context = collect_context(&workspace_dir_str, global_scope.as_ref(), &enabled_plugins, &logger)?;
+  let context = collect_context(
+    &workspace_dir_str,
+    global_scope.as_ref(),
+    &enabled_plugins,
+    &logger,
+  )?;
   context_span.exit();
 
-  logger.info("Context collected", Some(json!({
-    "globalMemory": context.global_memory.is_some(),
-  })));
+  logger.info(
+    "Context collected",
+    Some(json!({
+      "globalMemory": context.global_memory.is_some(),
+    })),
+  );
 
   let discover_span = logger.span("cleanup.discover").enter();
   let (output_map, cleanup_map) = build_output_map(&context, enabled_plugins, &logger)?;
   let mut snapshot = build_cleanup_snapshot(&workspace_dir_str, &output_map, &cleanup_map)?;
   discover_span.exit();
 
-  logger.info("Cleanup targets discovered", Some(json!({
-    "pluginCount": snapshot.plugin_snapshots.len(),
-    "projectRoots": snapshot.project_roots.len(),
-  })));
+  logger.info(
+    "Cleanup targets discovered",
+    Some(json!({
+      "pluginCount": snapshot.plugin_snapshots.len(),
+      "projectRoots": snapshot.project_roots.len(),
+    })),
+  );
 
   // 根据 cwd 限制清理作用域
   if let Some(scope) = resolve_project_scope(&cwd, &workspace_dir) {
-    logger.info("Project scope resolved", Some(json!({
-      "scope": scope.to_string_lossy().to_string(),
-    })));
+    logger.info(
+      "Project scope resolved",
+      Some(json!({
+        "scope": scope.to_string_lossy().to_string(),
+      })),
+    );
     snapshot = filter_snapshot_by_scope(snapshot, &scope, &workspace_dir);
   }
 
@@ -80,13 +106,16 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
       })
     }));
 
-    logger.info("Dry run plan", Some(json!({
-      "filesToDelete": plan.files_to_delete.len(),
-      "dirsToDelete": plan.dirs_to_delete.len(),
-      "emptyDirsToDelete": plan.empty_dirs_to_delete.len(),
-      "violations": plan.violations.len(),
-      "conflicts": plan.conflicts.len(),
-    })));
+    logger.info(
+      "Dry run plan",
+      Some(json!({
+        "filesToDelete": plan.files_to_delete.len(),
+        "dirsToDelete": plan.dirs_to_delete.len(),
+        "emptyDirsToDelete": plan.empty_dirs_to_delete.len(),
+        "violations": plan.violations.len(),
+        "conflicts": plan.conflicts.len(),
+      })),
+    );
 
     Ok(MemorySyncCommandResult {
       success: plan.conflicts.is_empty() && plan.violations.is_empty(),
@@ -116,8 +145,8 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
     })
   } else {
     let execute_span = logger.span("cleanup.execute").enter();
-    let result = crate::policy::cleanup::perform_cleanup(snapshot)
-      .map_err(|e| CliError::ExecutionError(e))?;
+    let result =
+      crate::policy::cleanup::perform_cleanup(snapshot).map_err(|e| CliError::ExecutionError(e))?;
     execute_span.exit();
 
     let blocked = !result.violations.is_empty() || !result.conflicts.is_empty();
@@ -151,14 +180,17 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
       })
     }));
 
-    logger.info("Clean completed", Some(json!({
-      "success": success,
-      "deletedFiles": result.deleted_files,
-      "deletedDirs": result.deleted_dirs,
-      "conflicts": result.conflicts.len(),
-      "violations": result.violations.len(),
-      "errors": result.errors.len(),
-    })));
+    logger.info(
+      "Clean completed",
+      Some(json!({
+        "success": success,
+        "deletedFiles": result.deleted_files,
+        "deletedDirs": result.deleted_dirs,
+        "conflicts": result.conflicts.len(),
+        "violations": result.violations.len(),
+        "errors": result.errors.len(),
+      })),
+    );
 
     Ok(MemorySyncCommandResult {
       success,
@@ -283,34 +315,87 @@ fn build_output_map(
   }
 
   // Build plugin-specific output maps
-  if let Ok(plan) = crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context) {
-    cleanup_map.entry("ClaudeCodeCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+  if let Ok(plan) =
+    crate::domain::output_plans::claude_code_output_plan::build_claude_code_output_plan(context)
+  {
+    cleanup_map
+      .entry("ClaudeCodeCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.claude_code {
-      for file in &plan.output_files { output_map.entry("ClaudeCodeCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("ClaudeCodeCLIOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context) {
-    cleanup_map.entry("CodexCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+  if let Ok(plan) = crate::domain::output_plans::codex_output_plan::build_codex_output_plan(context)
+  {
+    cleanup_map
+      .entry("CodexCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.codex {
-      for file in &plan.output_files { output_map.entry("CodexCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("CodexCLIOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context) {
-    cleanup_map.entry("CursorOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+  if let Ok(plan) =
+    crate::domain::output_plans::cursor_output_plan::build_cursor_output_plan(context)
+  {
+    cleanup_map
+      .entry("CursorOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.cursor {
-      for file in &plan.output_files { output_map.entry("CursorOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("CursorOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context) {
-    cleanup_map.entry("DroidCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+  if let Ok(plan) = crate::domain::output_plans::droid_output_plan::build_droid_output_plan(context)
+  {
+    cleanup_map
+      .entry("DroidCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.droid {
-      for file in &plan.output_files { output_map.entry("DroidCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("DroidCLIOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context) {
-    cleanup_map.entry("GeminiCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+  if let Ok(plan) =
+    crate::domain::output_plans::gemini_output_plan::build_gemini_output_plan(context)
+  {
+    cleanup_map
+      .entry("GeminiCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.gemini {
-      for file in &plan.output_files { output_map.entry("GeminiCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("GeminiCLIOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
   if let Ok(plan) = crate::domain::output_plans::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context) {
@@ -320,39 +405,98 @@ fn build_output_map(
     }
   }
   if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context) {
-    cleanup_map.entry("KiroCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+    cleanup_map
+      .entry("KiroCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.kiro {
-      for file in &plan.output_files { output_map.entry("KiroCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("KiroCLIOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context) {
-    cleanup_map.entry("OpencodeCLIOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+  if let Ok(plan) =
+    crate::domain::output_plans::opencode_output_plan::build_opencode_output_plan(context)
+  {
+    cleanup_map
+      .entry("OpencodeCLIOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.opencode {
-      for file in &plan.output_files { output_map.entry("OpencodeCLIOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("OpencodeCLIOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context) {
-    cleanup_map.entry("QoderIDEPluginOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+  if let Ok(plan) = crate::domain::output_plans::qoder_output_plan::build_qoder_output_plan(context)
+  {
+    cleanup_map
+      .entry("QoderIDEPluginOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.qoder {
-      for file in &plan.output_files { output_map.entry("QoderIDEPluginOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("QoderIDEPluginOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
   if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context) {
-    cleanup_map.entry("TraeOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+    cleanup_map
+      .entry("TraeOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.trae || enabled_plugins.trae_cn {
-      for file in &plan.output_files { output_map.entry("TraeOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("TraeOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
   if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context) {
-    cleanup_map.entry("WarpIDEOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+    cleanup_map
+      .entry("WarpIDEOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.warp {
-      for file in &plan.output_files { output_map.entry("WarpIDEOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("WarpIDEOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
-  if let Ok(plan) = crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context) {
-    cleanup_map.entry("WindsurfOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+  if let Ok(plan) =
+    crate::domain::output_plans::windsurf_output_plan::build_windsurf_output_plan(context)
+  {
+    cleanup_map
+      .entry("WindsurfOutputAdaptor".to_string())
+      .or_insert_with(CleanupDeclarationsDto::default)
+      .delete
+      .extend(plan.cleanup.delete.clone());
     if enabled_plugins.windsurf {
-      for file in &plan.output_files { output_map.entry("WindsurfOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
+      for file in &plan.output_files {
+        output_map
+          .entry("WindsurfOutputAdaptor".to_string())
+          .or_default()
+          .push(file.path.clone());
+      }
     }
   }
 
@@ -511,7 +655,10 @@ mod tests {
     result
   }
 
-  fn create_test_config(home_dir: &std::path::Path, workspace_dir: &std::path::Path) -> std::io::Result<()> {
+  fn create_test_config(
+    home_dir: &std::path::Path,
+    workspace_dir: &std::path::Path,
+  ) -> std::io::Result<()> {
     let config_content = json!({
       "workspaceDir": workspace_dir.to_string_lossy()
     });
@@ -874,10 +1021,8 @@ mod tests {
     std::fs::create_dir_all(ws.join("project-b")).unwrap();
 
     let scope = ws.join("project-a");
-    let snapshot = build_cleanup_snapshot(&ws.to_string_lossy(),
-      &HashMap::new(),
-      &HashMap::new(),
-    ).unwrap();
+    let snapshot =
+      build_cleanup_snapshot(&ws.to_string_lossy(), &HashMap::new(), &HashMap::new()).unwrap();
 
     let filtered = filter_snapshot_by_scope(snapshot, &scope, ws);
 

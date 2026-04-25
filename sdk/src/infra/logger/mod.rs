@@ -10,7 +10,9 @@ pub mod diagnostic;
 pub mod formatter;
 pub mod sink;
 
-pub use core::{LogLevel, Logger, Span, SpanGuard, get_global_level, resolve_level, set_global_level};
+pub use core::{
+  LogLevel, Logger, Span, SpanGuard, get_global_level, resolve_level, set_global_level,
+};
 pub use diagnostic::{DiagnosticInput, DiagnosticRecord, validate_diagnostic_input};
 pub use sink::{clear_diagnostics, drain_diagnostics, flush};
 
@@ -232,7 +234,9 @@ mod tests {
   #[test]
   fn test_resolve_level_fallback_to_global() {
     set_global_level(LogLevel::Warn);
-    unsafe { std::env::remove_var("LOG_LEVEL"); }
+    unsafe {
+      std::env::remove_var("LOG_LEVEL");
+    }
     let level = resolve_level(None);
     assert_eq!(level, LogLevel::Warn);
   }

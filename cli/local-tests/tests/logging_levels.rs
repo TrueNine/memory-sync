@@ -16,7 +16,9 @@ fn trace_level_outputs_span_events() {
 
   // Trace 级别应该输出 collector span
   assert!(
-    result.stdout.contains("### collect.aindex_resolvers started"),
+    result
+      .stdout
+      .contains("### collect.aindex_resolvers started"),
     "--trace should output collector spans. stdout:\n{}",
     result.stdout
   );

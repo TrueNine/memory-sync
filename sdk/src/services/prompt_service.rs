@@ -1092,7 +1092,10 @@ pub fn get_prompt(
   let def = build_prompt_definition_from_id(prompt_id, &env)?;
   let result = hydrate_prompt(&def, true);
 
-  logger.info(format!("Get prompt: {}", prompt_id), Some(serde_json::json!({ "found": result.is_some() })));
+  logger.info(
+    format!("Get prompt: {}", prompt_id),
+    Some(serde_json::json!({ "found": result.is_some() })),
+  );
   Ok(result)
 }
 
@@ -1113,7 +1116,10 @@ pub fn upsert_prompt_source(input: &UpsertPromptSourceInput) -> Result<PromptDet
   let result = hydrate_prompt(&definition, true)
     .ok_or_else(|| format!("Failed to load prompt after write: {}", input.prompt_id))?;
 
-  logger.info(format!("Upserted prompt: {}", input.prompt_id), Some(serde_json::json!({ "locale": format!("{:?}", locale) })));
+  logger.info(
+    format!("Upserted prompt: {}", input.prompt_id),
+    Some(serde_json::json!({ "locale": format!("{:?}", locale) })),
+  );
   Ok(result)
 }
 

@@ -101,7 +101,11 @@ mod tests {
 
     let result = resolve_git_info_dir(tmp.path());
     assert!(result.is_some());
-    let result_str = result.as_ref().unwrap().to_string_lossy().replace('\\', "/");
+    let result_str = result
+      .as_ref()
+      .unwrap()
+      .to_string_lossy()
+      .replace('\\', "/");
     // On Windows, absolute paths starting with / get a drive letter prefix
     let result_normalized = result_str
       .strip_prefix("C:")
