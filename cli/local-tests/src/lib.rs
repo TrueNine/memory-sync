@@ -216,6 +216,16 @@ impl LocalTestRunner {
     fs::read_to_string(home_dir().join(".claude").join("CLAUDE.md")).ok()
   }
 
+  /// 检查项目级 .trae/steering/GLOBAL.md 是否存在。
+  pub fn trae_steering_file_exists(&self) -> bool {
+    self.cwd.join(".trae").join("steering").join("GLOBAL.md").is_file()
+  }
+
+  /// 检查项目级 .trae-cn/user_rules/GLOBAL.md 是否存在。
+  pub fn trae_cn_file_exists(&self) -> bool {
+    self.cwd.join(".trae-cn").join("user_rules").join("GLOBAL.md").is_file()
+  }
+
   /// 检查项目级 CLAUDE.md 是否存在。
   pub fn claude_project_file_exists(&self) -> bool {
     self.cwd.join("CLAUDE.md").is_file()

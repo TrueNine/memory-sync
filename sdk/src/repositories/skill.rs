@@ -977,11 +977,16 @@ mod tests {
 
     let result = collect_skill(&options.to_string());
     assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
     assert!(
-      result
-        .unwrap_err()
-        .to_string()
-        .contains("Missing compiled prompt")
+      err.contains("Missing compiled prompt for skill child doc"),
+      "expected detailed error message with path, got: {}",
+      err
+    );
+    assert!(
+      err.contains("guide.src.mdx"),
+      "expected source path in error: {}",
+      err
     );
   }
 
@@ -1003,11 +1008,16 @@ mod tests {
 
     let result = collect_skill(&options.to_string());
     assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
     assert!(
-      result
-        .unwrap_err()
-        .to_string()
-        .contains("Missing compiled prompt")
+      err.contains("Missing compiled prompt for skill"),
+      "expected detailed error message with path, got: {}",
+      err
+    );
+    assert!(
+      err.contains("skill.src.mdx"),
+      "expected source path in error: {}",
+      err
     );
   }
 
