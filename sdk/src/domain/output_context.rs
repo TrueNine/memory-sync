@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::plugin_shared::{
-  AIAgentIgnoreConfigFile, FastCommandPrompt, GlobalMemoryPrompt, ProjectIDEConfigFile,
+  AIAgentIgnoreConfigFile, SlashCommandPrompt, GlobalMemoryPrompt, ProjectIDEConfigFile,
   ReadmePrompt, RulePrompt, SkillPrompt, SubAgentPrompt, Workspace,
 };
 
@@ -19,7 +19,7 @@ pub struct OutputContext {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub editor_config_files: Option<Vec<ProjectIDEConfigFile>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub fast_commands: Option<Vec<FastCommandPrompt>>,
+  pub slash_commands: Option<Vec<SlashCommandPrompt>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub sub_agents: Option<Vec<SubAgentPrompt>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]

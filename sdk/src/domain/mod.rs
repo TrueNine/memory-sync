@@ -13,7 +13,7 @@ pub use cleanup::{
 pub use config::{ConfigLoader, MergedConfigResult, PluginsConfig, UserConfigFile};
 pub use output_context::OutputContext;
 pub use plugin_shared::{
-  AIAgentIgnoreConfigFile, FastCommandPrompt, GlobalMemoryPrompt, IDEKind, NamingCaseKind,
+  AIAgentIgnoreConfigFile, SlashCommandPrompt, GlobalMemoryPrompt, IDEKind, NamingCaseKind,
   PluginKind, Project, ProjectIDEConfigFile, PromptKind, ReadmePrompt, RelativePath, RulePrompt,
   RuleScope, SkillPrompt, SubAgentPrompt, Workspace,
 };

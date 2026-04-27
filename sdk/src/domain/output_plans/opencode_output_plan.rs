@@ -142,61 +142,11 @@ fn build_output_files(
           content: build_skill_content(skill),
           encoding: None,
         });
-
-        if let Some(child_docs) = skill.child_docs.as_ref() {
-          for child_doc in child_docs {
-            let child_path = child_doc
-              .relative_path
-              .replace(".mdx", ".md")
-              .replace(".src.md", ".md");
-            output_files.push(BaseOutputFileDeclarationDto {
-              path: skill_sub_dir
-                .join(&child_path)
-                .to_string_lossy()
-                .into_owned(),
-              scope: Some(PROJECT_SCOPE.to_string()),
-              content: child_doc.content.clone(),
-              encoding: None,
-            });
-          }
-        }
-
-        if let Some(resources) = skill.resources.as_ref() {
-          for resource in resources {
-            let encoding = match resource.encoding {
-              crate::domain::plugin_shared::SkillResourceEncoding::Base64 => {
-                Some("base64".to_string())
-              }
-              crate::domain::plugin_shared::SkillResourceEncoding::Text => None,
-            };
-            output_files.push(BaseOutputFileDeclarationDto {
-              path: skill_sub_dir
-                .join(&resource.relative_path)
-                .to_string_lossy()
-                .into_owned(),
-              scope: Some(PROJECT_SCOPE.to_string()),
-              content: resource.content.clone(),
-              encoding,
-            });
-          }
-        }
-
-        if let Some(mcp_config) = skill.mcp_config.as_ref() {
-          output_files.push(BaseOutputFileDeclarationDto {
-            path: skill_sub_dir
-              .join("mcp.json")
-              .to_string_lossy()
-              .into_owned(),
-            scope: Some(PROJECT_SCOPE.to_string()),
-            content: mcp_config.raw_content.clone(),
-            encoding: None,
-          });
-        }
       }
     }
   }
 
-  if let Some(commands) = context.fast_commands.as_ref() {
+  if let Some(commands) = context.slash_commands.as_ref() {
     for project in &project_output_projects {
       let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
         continue;
@@ -297,7 +247,7 @@ fn build_agent_content(agent: &crate::domain::plugin_shared::SubAgentPrompt) -> 
   wrap_yaml_front_matter(&metadata, &agent.content)
 }
 
-fn build_command_content(command: &crate::domain::plugin_shared::FastCommandPrompt) -> String {
+fn build_command_content(command: &crate::domain::plugin_shared::SlashCommandPrompt) -> String {
   let mut metadata = if let Some(ref yaml_fm) = command.yaml_front_matter {
     match serde_json::to_value(yaml_fm) {
       Ok(Value::Object(map)) => map,
@@ -742,5 +692,97 @@ mod tests {
     assert_eq!(css_color_name_to_hex("lightgrey"), Some("#D3D3D3"));
     assert_eq!(css_color_name_to_hex("darkgray"), Some("#A9A9A9"));
     assert_eq!(css_color_name_to_hex("darkgrey"), Some("#A9A9A9"));
+  }
+
+  fn make_test_skill(name: &str) -> crate::domain::plugin_shared::SkillPrompt {
+    use crate::domain::plugin_shared::*;
+    SkillPrompt {
+      prompt_type: PromptKind::Skill,
+      content: "body".to_string(),
+      length: 4,
+      skill_name: name.to_string(),
+      dir: crate::infra::path_types::RelativePath::new(name, "/workspace/aindex/skills"),
+      yaml_front_matter: Some(SkillYAMLFrontMatter {
+        description: Some("desc".to_string()),
+        ..SkillYAMLFrontMatter::default()
+      }),
+      child_docs: Some(vec![SkillChildDoc {
+        prompt_type: PromptKind::SkillChildDoc,
+        content: "guide".to_string(),
+        length: 5,
+        file_path_kind: crate::infra::path_types::FilePathKind::Relative,
+        relative_path: "guide.mdx".to_string(),
+        dir: crate::infra::path_types::RelativePath::new("guide.mdx", "/workspace/aindex/skills/test"),
+        raw_front_matter: None,
+        markdown_ast: None,
+        markdown_contents: None,
+      }]),
+      resources: Some(vec![SkillResource {
+        prompt_type: PromptKind::SkillResource,
+        extension: "txt".to_string(),
+        file_name: "notes.txt".to_string(),
+        relative_path: "assets/notes.txt".to_string(),
+        content: "notes".to_string(),
+        encoding: SkillResourceEncoding::Text,
+        length: 5,
+        mime_type: None,
+      }]),
+      mcp_config: Some(SkillMcpConfig {
+        prompt_type: PromptKind::SkillMcpConfig,
+        mcp_servers: std::collections::HashMap::new(),
+        raw_content: "{}".to_string(),
+      }),
+      markdown_contents: None,
+    }
+  }
+
+  #[test]
+  fn skill_output_only_contains_skill_md() {
+    use crate::domain::plugin_shared::*;
+
+    let skill = make_test_skill("test-skill");
+    let context = OutputContext {
+      workspace: Some(Workspace {
+        directory: RootPath::new("/workspace"),
+        projects: vec![Project {
+          name: Some("__workspace__".to_string()),
+          is_workspace_root_project: Some(true),
+          root_memory_prompt: Some(ProjectRootMemoryPrompt {
+            prompt_type: PromptKind::ProjectRootMemory,
+            content: "root".to_string(),
+            length: 4,
+            file_path_kind: FilePathKind::Root,
+            dir: RootPath::new("/workspace"),
+            yaml_front_matter: None,
+            raw_front_matter: None,
+            markdown_ast: None,
+            markdown_contents: None,
+          }),
+          ..Project::default()
+        }],
+      }),
+      skills: Some(vec![skill]),
+      ..OutputContext::default()
+    };
+
+    let plan = build_opencode_output_plan(&context).unwrap();
+    let skill_paths: Vec<&str> = plan
+      .output_files
+      .iter()
+      .map(|f| f.path.as_str())
+      .filter(|p| p.contains(".opencode/skills/test-skill"))
+      .collect();
+
+    assert_eq!(
+      skill_paths.len(),
+      1,
+      "should only have SKILL.md, got: {:?}",
+      skill_paths
+    );
+    assert!(
+      skill_paths[0].ends_with("SKILL.md"),
+      "output should be SKILL.md, got: {}",
+      skill_paths[0]
+    );
   }
 }

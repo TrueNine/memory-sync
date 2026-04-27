@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use crate::domain::config;
 use crate::domain::plugin_shared::{
-  FastCommandPrompt, FastCommandYAMLFrontMatter, PromptKind, RelativePath,
+  SlashCommandPrompt, SlashCommandYAMLFrontMatter, PromptKind, RelativePath,
 };
 use crate::repositories::localized_reader::read_flat_files;
 
@@ -47,7 +47,7 @@ fn validate_command_metadata(
 fn build_command_prompt(
   entry: &crate::repositories::localized_reader::FlatFileEntry,
   dir: &str,
-) -> Result<FastCommandPrompt, crate::CliError> {
+) -> Result<SlashCommandPrompt, crate::CliError> {
   let compiled = entry
     .compiled
     .as_ref()
@@ -98,7 +98,7 @@ fn build_command_prompt(
     None
   } else {
     Some(
-      serde_json::from_value::<FastCommandYAMLFrontMatter>(Value::Object(
+      serde_json::from_value::<SlashCommandYAMLFrontMatter>(Value::Object(
         compiled.metadata.clone(),
       ))
       .map_err(|e| crate::CliError::ConfigError(e.to_string()))?,
@@ -108,8 +108,8 @@ fn build_command_prompt(
   let content = compiled.content.clone();
   let length = content.len();
 
-  Ok(FastCommandPrompt {
-    prompt_type: PromptKind::FastCommand,
+  Ok(SlashCommandPrompt {
+    prompt_type: PromptKind::SlashCommand,
     content,
     length,
     dir: RelativePath::new(&format!("{}.mdx", entry.name), dir),
@@ -137,7 +137,7 @@ pub fn collect_command(options_json: &str) -> Result<String, crate::CliError> {
 
   let entries = read_flat_files(&dir_str, global_scope_json.as_deref())?;
 
-  let mut prompts: Vec<FastCommandPrompt> = Vec::new();
+  let mut prompts: Vec<SlashCommandPrompt> = Vec::new();
   for entry in &entries {
     if entry.compiled.is_none() && (entry.src_zh.is_some() || entry.src_en.is_some()) {
       return Err(crate::CliError::ConfigError(format!(
@@ -153,7 +153,7 @@ pub fn collect_command(options_json: &str) -> Result<String, crate::CliError> {
   #[derive(Debug, Clone, serde::Serialize)]
   #[serde(rename_all = "camelCase")]
   struct CommandResult {
-    commands: Vec<FastCommandPrompt>,
+    commands: Vec<SlashCommandPrompt>,
   }
 
   let result = CommandResult { commands: prompts };

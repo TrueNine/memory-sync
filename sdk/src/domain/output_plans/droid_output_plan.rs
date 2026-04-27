@@ -9,8 +9,7 @@ use crate::domain::cleanup::{CleanupDeclarationsDto, CleanupTargetDto, CleanupTa
 use crate::domain::config;
 use crate::domain::output_context::OutputContext;
 use crate::domain::plugin_shared::{
-  FastCommandPrompt, Project, RelativePath, RuleScope, SkillPrompt, SkillResourceEncoding,
-  Workspace,
+  SlashCommandPrompt, Project, RelativePath, RuleScope, SkillPrompt, Workspace,
 };
 
 const DROID_PLUGIN_NAME: &str = "DroidCLIOutputAdaptor";
@@ -119,7 +118,7 @@ fn append_command_output_files(
   workspace: &Workspace,
   context: &OutputContext,
 ) -> Result<(), CliError> {
-  let commands = context.fast_commands.as_deref().unwrap_or(&[]);
+  let commands = context.slash_commands.as_deref().unwrap_or(&[]);
   let Some(selected_scope) = select_single_scope(commands.iter().map(resolve_command_scope)) else {
     return Ok(());
   };
@@ -225,27 +224,6 @@ fn append_skill_files_for_scope(
       Some(scope),
       build_skill_main_content(skill)?,
     ));
-
-    if let Some(child_docs) = skill.child_docs.as_ref() {
-      for child_doc in child_docs {
-        output_files.push(create_text_output_file(
-          skill_dir.join(transform_child_doc_path(&child_doc.relative_path)),
-          Some(scope),
-          child_doc.content.clone(),
-        ));
-      }
-    }
-
-    if let Some(resources) = skill.resources.as_ref() {
-      for resource in resources {
-        output_files.push(create_resource_output_file(
-          skill_dir.join(&resource.relative_path),
-          Some(scope),
-          resource.content.clone(),
-          resource.encoding,
-        ));
-      }
-    }
   }
 
   Ok(())
@@ -399,25 +377,6 @@ fn create_text_output_file(
   }
 }
 
-fn create_resource_output_file(
-  path: PathBuf,
-  scope: Option<&str>,
-  content: String,
-  encoding: SkillResourceEncoding,
-) -> DroidOutputFileDeclarationDto {
-  let encoding = match encoding {
-    SkillResourceEncoding::Text => "text",
-    SkillResourceEncoding::Base64 => "base64",
-  };
-
-  DroidOutputFileDeclarationDto {
-    path: path.to_string_lossy().into_owned(),
-    scope: scope.map(str::to_string),
-    content,
-    encoding: Some(encoding.to_string()),
-  }
-}
-
 fn create_cleanup_target(
   path: PathBuf,
   kind: CleanupTargetKindDto,
@@ -457,10 +416,10 @@ fn select_single_scope(
 }
 
 fn filter_commands_for_project<'a>(
-  commands: &'a [FastCommandPrompt],
+  commands: &'a [SlashCommandPrompt],
   project_config: Option<&Value>,
   selected_scope: OutputSelectionScope,
-) -> Vec<&'a FastCommandPrompt> {
+) -> Vec<&'a SlashCommandPrompt> {
   let effective_include_series = resolve_effective_include_series(project_config, "commands");
 
   commands
@@ -491,7 +450,7 @@ fn filter_skills_for_project<'a>(
     .collect()
 }
 
-fn resolve_command_scope(command: &FastCommandPrompt) -> OutputSelectionScope {
+fn resolve_command_scope(command: &SlashCommandPrompt) -> OutputSelectionScope {
   if command.global_only == Some(true) {
     return OutputSelectionScope::Global;
   }
@@ -586,7 +545,7 @@ fn resolve_skill_extra_value<'a>(skill: &'a SkillPrompt, key: &str) -> Option<&'
     .and_then(|front_matter| front_matter.extra.get(key))
 }
 
-fn transform_command_name(command: &FastCommandPrompt) -> String {
+fn transform_command_name(command: &SlashCommandPrompt) -> String {
   match command.series.as_deref() {
     Some(series) if !series.is_empty() => format!("{series}-{}.md", command.command_name),
     _ => format!("{}.md", command.command_name),
@@ -601,14 +560,7 @@ fn resolve_skill_dir_name(skill: &SkillPrompt) -> String {
   skill.dir.get_directory_name()
 }
 
-fn transform_child_doc_path(relative_path: &str) -> String {
-  match relative_path.strip_suffix(".mdx") {
-    Some(prefix) => format!("{prefix}.md"),
-    None => relative_path.to_string(),
-  }
-}
-
-fn build_command_content(command: &FastCommandPrompt) -> Result<String, CliError> {
+fn build_command_content(command: &SlashCommandPrompt) -> Result<String, CliError> {
   let front_matter = command
     .yaml_front_matter
     .as_ref()
@@ -671,9 +623,9 @@ mod tests {
 
   use super::*;
   use crate::domain::plugin_shared::{
-    FastCommandYAMLFrontMatter, FilePathKind, GlobalMemoryPrompt, ProjectChildrenMemoryPrompt,
+    SlashCommandYAMLFrontMatter, FilePathKind, GlobalMemoryPrompt, ProjectChildrenMemoryPrompt,
     ProjectRootMemoryPrompt, PromptKind, RootPath, SkillChildDoc, SkillResource,
-    SkillYAMLFrontMatter,
+    SkillResourceEncoding, SkillYAMLFrontMatter,
   };
 
   fn create_relative_path(base_path: &str, path: &str) -> RelativePath {
@@ -741,9 +693,9 @@ mod tests {
     name: &str,
     series: &str,
     content: &str,
-  ) -> FastCommandPrompt {
-    FastCommandPrompt {
-      prompt_type: PromptKind::FastCommand,
+  ) -> SlashCommandPrompt {
+    SlashCommandPrompt {
+      prompt_type: PromptKind::SlashCommand,
       content: content.to_string(),
       length: content.len(),
       dir: create_relative_path(project_root, &format!("commands/{name}.mdx")),
@@ -751,18 +703,18 @@ mod tests {
       series: Some(series.to_string()),
       seri_name: Some(series.to_string()),
       global_only: None,
-      yaml_front_matter: Some(FastCommandYAMLFrontMatter {
+      yaml_front_matter: Some(SlashCommandYAMLFrontMatter {
         description: Some(format!("{name} description")),
-        ..FastCommandYAMLFrontMatter::default()
+        ..SlashCommandYAMLFrontMatter::default()
       }),
       raw_mdx_content: None,
       markdown_contents: None,
     }
   }
 
-  fn create_global_command(project_root: &str, name: &str, content: &str) -> FastCommandPrompt {
-    FastCommandPrompt {
-      prompt_type: PromptKind::FastCommand,
+  fn create_global_command(project_root: &str, name: &str, content: &str) -> SlashCommandPrompt {
+    SlashCommandPrompt {
+      prompt_type: PromptKind::SlashCommand,
       content: content.to_string(),
       length: content.len(),
       dir: create_relative_path(project_root, &format!("commands/{name}.mdx")),
@@ -770,10 +722,10 @@ mod tests {
       series: None,
       seri_name: None,
       global_only: Some(true),
-      yaml_front_matter: Some(FastCommandYAMLFrontMatter {
+      yaml_front_matter: Some(SlashCommandYAMLFrontMatter {
         description: Some(format!("{name} description")),
         scope: Some(RuleScope::Global),
-        ..FastCommandYAMLFrontMatter::default()
+        ..SlashCommandYAMLFrontMatter::default()
       }),
       raw_mdx_content: None,
       markdown_contents: None,
@@ -901,7 +853,7 @@ mod tests {
             },
           ],
         }),
-        fast_commands: Some(vec![
+        slash_commands: Some(vec![
           create_project_command(
             &prompt_source_root.to_string_lossy(),
             "build",
@@ -995,22 +947,10 @@ mod tests {
             .ends_with("project-a/.factory/skills/ship/SKILL.md")
         })
         .unwrap();
-      let skill_resource = plan
-        .output_files
-        .iter()
-        .find(|entry| {
-          entry
-            .path
-            .replace('\\', "/")
-            .ends_with("project-a/.factory/skills/ship/assets/blob.bin")
-        })
-        .unwrap();
-
       assert_eq!(
         skill_main.content,
         "---\nname: ship\ndescription: Skill description\n---\n\nSkill body"
       );
-      assert_eq!(skill_resource.encoding.as_deref(), Some("base64"));
       assert!(
         output_paths.contains(
           &home_dir
@@ -1046,7 +986,7 @@ mod tests {
             create_project(&workspace_dir.to_string_lossy(), "project-a"),
           ],
         }),
-        fast_commands: Some(vec![create_global_command(
+        slash_commands: Some(vec![create_global_command(
           &prompt_source_root.to_string_lossy(),
           "doctor",
           "Run doctor",
@@ -1161,5 +1101,86 @@ mod tests {
           .any(|path| path.ends_with("/commands/AGENTS.md"))
       );
     });
+  }
+
+  #[test]
+  fn skill_output_only_contains_skill_md() {
+    let skill = SkillPrompt {
+      prompt_type: PromptKind::Skill,
+      content: "Skill body".to_string(),
+      length: "Skill body".len(),
+      skill_name: "test-skill".to_string(),
+      dir: RelativePath::new("test-skill", "/workspace"),
+      yaml_front_matter: Some(SkillYAMLFrontMatter {
+        description: Some("Skill description".to_string()),
+        ..SkillYAMLFrontMatter::default()
+      }),
+      mcp_config: None,
+      child_docs: Some(vec![SkillChildDoc {
+        prompt_type: PromptKind::SkillChildDoc,
+        content: "Guide body".to_string(),
+        length: "Guide body".len(),
+        file_path_kind: FilePathKind::Relative,
+        relative_path: "guide.mdx".to_string(),
+        dir: RelativePath::new("guide.mdx", "/workspace"),
+        raw_front_matter: None,
+        markdown_ast: None,
+        markdown_contents: None,
+      }]),
+      resources: Some(vec![SkillResource {
+        prompt_type: PromptKind::SkillResource,
+        extension: ".bin".to_string(),
+        file_name: "blob.bin".to_string(),
+        relative_path: "assets/blob.bin".to_string(),
+        content: "aGVsbG8=".to_string(),
+        encoding: SkillResourceEncoding::Base64,
+        length: 8,
+        mime_type: None,
+      }]),
+      markdown_contents: None,
+    };
+    let context = OutputContext {
+      workspace: Some(Workspace {
+        directory: RootPath::new("/workspace"),
+        projects: vec![Project {
+          name: Some("__workspace__".to_string()),
+          is_workspace_root_project: Some(true),
+          root_memory_prompt: Some(ProjectRootMemoryPrompt {
+            prompt_type: PromptKind::ProjectRootMemory,
+            content: "root".to_string(),
+            length: 4,
+            file_path_kind: FilePathKind::Root,
+            dir: RootPath::new("/workspace"),
+            yaml_front_matter: None,
+            raw_front_matter: None,
+            markdown_ast: None,
+            markdown_contents: None,
+          }),
+          ..Project::default()
+        }],
+      }),
+      skills: Some(vec![skill]),
+      ..OutputContext::default()
+    };
+
+    let plan = build_droid_output_plan(&context).unwrap();
+    let skill_paths: Vec<&str> = plan
+      .output_files
+      .iter()
+      .map(|f| f.path.as_str())
+      .filter(|p| p.contains(".factory/skills/test-skill"))
+      .collect();
+
+    assert_eq!(
+      skill_paths.len(),
+      1,
+      "should only have SKILL.md, got: {:?}",
+      skill_paths
+    );
+    assert!(
+      skill_paths[0].ends_with("SKILL.md"),
+      "output should be SKILL.md, got: {}",
+      skill_paths[0]
+    );
   }
 }

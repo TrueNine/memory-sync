@@ -147,7 +147,7 @@ pub struct GlobalMemoryEnvelope {
 #[serde(rename_all = "camelCase")]
 pub struct CommandsEnvelope {
   #[serde(default)]
-  pub commands: Vec<crate::domain::plugin_shared::FastCommandPrompt>,
+  pub commands: Vec<crate::domain::plugin_shared::SlashCommandPrompt>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -505,7 +505,7 @@ pub fn collect_context(
     zed_config_files: zed.zed_config_files,
     jetbrains_config_files: jetbrains.jetbrains_config_files,
     editor_config_files: editor_config.editor_config_files,
-    fast_commands: (!commands.commands.is_empty()).then_some(commands.commands),
+    slash_commands: (!commands.commands.is_empty()).then_some(commands.commands),
     sub_agents: (!sub_agents.sub_agents.is_empty()).then_some(sub_agents.sub_agents),
     skills: (!skills.skills.is_empty()).then_some(skills.skills),
     rules: (!rules.rules.is_empty()).then_some(rules.rules),
