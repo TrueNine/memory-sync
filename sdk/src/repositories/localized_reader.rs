@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::Path;
 
 use crate::repositories::prompt_artifact::{PromptArtifact, read_prompt_artifact};
@@ -16,17 +15,10 @@ pub fn read_flat_files(
   global_scope_json: Option<&str>,
 ) -> Result<Vec<FlatFileEntry>, crate::CliError> {
   let mut entries: Vec<FlatFileEntry> = Vec::new();
-  let mut seen: HashSet<String> = HashSet::new();
 
   let dir_path = Path::new(dir);
   if dir_path.is_dir() {
-    scan_directory(
-      dir_path,
-      dir_path,
-      &mut seen,
-      &mut entries,
-      global_scope_json,
-    )?;
+    scan_directory(dir_path, dir_path, &mut entries, global_scope_json)?;
   }
 
   Ok(entries)
@@ -35,7 +27,6 @@ pub fn read_flat_files(
 fn scan_directory(
   root: &Path,
   current: &Path,
-  seen: &mut HashSet<String>,
   entries: &mut Vec<FlatFileEntry>,
   global_scope_json: Option<&str>,
 ) -> Result<(), crate::CliError> {
@@ -43,7 +34,7 @@ fn scan_directory(
     let entry = entry.map_err(crate::CliError::IoError)?;
     let path = entry.path();
     if path.is_dir() {
-      scan_directory(root, &path, seen, entries, global_scope_json)?;
+      scan_directory(root, &path, entries, global_scope_json)?;
       continue;
     }
     let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
@@ -113,7 +104,6 @@ fn scan_directory(
         existing.compiled = Some(artifact);
       }
     } else {
-      seen.insert(full_name.clone());
       let mut e = FlatFileEntry {
         name: full_name,
         compiled: None,
