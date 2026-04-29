@@ -265,25 +265,20 @@ pub fn collect_project_prompt(options_json: &str) -> Result<String, crate::CliEr
       continue;
     }
 
-    let series_configs: Vec<String> = if project.project_type.is_some() {
-      vec![project.project_type.clone().unwrap()]
-    } else {
-      SERIES_NAMES.iter().map(|&s| s.to_string()).collect()
+    let series_configs: Vec<String> = match &project.project_type {
+      Some(ptype) => vec![ptype.clone()],
+      None => SERIES_NAMES.iter().map(|&s| s.to_string()).collect(),
     };
 
-    let matching_series = series_configs.iter().find(|series_name| {
+    let Some(series_name) = series_configs.iter().find(|series_name| {
       let project_path =
         config::resolve_workspace_aindex_source_series_dir(&workspace_dir_str, series_name)
           .join(project_name);
       project_path.is_dir()
-    });
-
-    if matching_series.is_none() {
+    }) else {
       enhanced_projects.push(project);
       continue;
-    }
-
-    let series_name = matching_series.unwrap();
+    };
     let shadow_project_path =
       config::resolve_workspace_aindex_source_series_dir(&workspace_dir_str, series_name)
         .join(project_name);
