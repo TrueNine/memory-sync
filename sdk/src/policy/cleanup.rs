@@ -501,8 +501,28 @@ impl BatchedGlobPlanner {
         });
 
       for entry in walker {
-        let Ok(entry) = entry else {
-          continue;
+        let entry = match entry {
+          Ok(e) => e,
+          Err(e) => {
+            // Pre-#200 these errors (permission denied, broken
+            // symlinks, ENOENT during walk) were silently dropped, so
+            // a cleanup that ran with insufficient privileges or
+            // across a half-deleted tree would skip files without
+            // surfacing why. Emit a debug log with the offending
+            // path + io::Error message so operators can correlate a
+            // missed delete with the underlying syscall failure
+            // without changing the "skip and continue" behaviour.
+            let path_text = e.path().map(|p| p.display().to_string()).unwrap_or_default();
+            crate::debug!(
+              logger,
+              "cleanup native walkdir entry skipped",
+              json!({
+                "path": path_text,
+                "error": e.to_string(),
+              })
+            );
+            continue;
+          }
         };
         walked_entries += 1;
 
