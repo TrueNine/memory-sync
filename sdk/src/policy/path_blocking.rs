@@ -66,14 +66,16 @@ pub fn resolve_blocking_file_path(path: &str, target_kind: &str, error: &str) ->
 
 pub fn remove_blocking_file(blocking_path: &str) -> Result<bool, String> {
   let path = Path::new(blocking_path);
-  if !path.exists() {
-    return Ok(false);
-  }
+  // Single stat — `path.exists()` followed by `symlink_metadata` was a
+  // TOCTOU race where another process could create / replace the entry
+  // between the two syscalls. Use `symlink_metadata` directly and treat
+  // `NotFound` as the "nothing to remove" case (#192).
   match std::fs::symlink_metadata(path) {
     Ok(meta) if meta.is_dir() => Ok(false),
     Ok(_) => std::fs::remove_file(path)
       .map(|_| true)
       .map_err(|e| e.to_string()),
+    Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
     Err(e) => Err(e.to_string()),
   }
 }
@@ -137,5 +139,18 @@ mod tests {
 
     assert!(!remove_blocking_file(&blocking_dir.to_string_lossy()).unwrap());
     assert!(blocking_dir.exists());
+  }
+
+  // Regression for #192: a missing path must return Ok(false) instead of
+  // bubbling up the `NotFound` error from `symlink_metadata`. Pre-fix the
+  // function relied on `path.exists()` first; the single-stat path now
+  // has to translate NotFound itself.
+  #[test]
+  fn remove_blocking_file_returns_false_for_missing_path() {
+    let dir = tempdir().unwrap();
+    let missing = dir.path().join("does-not-exist");
+
+    let result = remove_blocking_file(&missing.to_string_lossy()).unwrap();
+    assert!(!result, "missing path should report nothing to remove");
   }
 }
