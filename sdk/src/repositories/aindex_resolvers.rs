@@ -540,7 +540,7 @@ console.log(JSON.stringify({
       .lock()
       .unwrap_or_else(|poisoned| poisoned.into_inner());
     let home_dir = config::resolve_tilde("~");
-    if home_dir == PathBuf::from("~") {
+    if home_dir == Path::new("~") {
       return;
     }
     if !home_dir.exists() {

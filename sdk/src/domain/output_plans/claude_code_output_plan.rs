@@ -264,7 +264,7 @@ fn build_agent_content(agent: &crate::domain::plugin_shared::SubAgentPrompt) -> 
 
   // Filter out empty arrays and null values
   metadata.retain(|_, v| {
-    !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+    !(v.is_null() || v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
   });
 
   if metadata.is_empty() {
@@ -294,7 +294,7 @@ fn build_command_content(command: &crate::domain::plugin_shared::SlashCommandPro
 
   // Filter out empty arrays and null values
   metadata.retain(|_, v| {
-    !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+    !(v.is_null() || v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
   });
 
   if metadata.is_empty() {
@@ -322,7 +322,7 @@ fn build_skill_content(skill: &crate::domain::plugin_shared::SkillPrompt) -> Str
 
   // Filter out empty arrays and null values
   metadata.retain(|_, v| {
-    !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+    !(v.is_null() || v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
   });
 
   if metadata.is_empty() {
@@ -366,6 +366,7 @@ fn indent_yaml_list_items(yaml: &str) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
   use super::*;
   use serde_json::json;

@@ -967,6 +967,14 @@ fn get_protected_path_violation(
   get_protected_path_violation_for_key(&absolute_target_path, &canonical_target_key, guard)
 }
 
+pub fn detect_protected_path_violation(
+  snapshot: &CleanupSnapshot,
+  target_path: &str,
+) -> Result<Option<ProtectedPathViolationDto>, String> {
+  let guard = create_guard(snapshot, &snapshot.protected_rules)?;
+  Ok(get_protected_path_violation(target_path, &guard))
+}
+
 fn target_matches_project_root(target_path: &str, project_root_keys: &HashSet<String>) -> bool {
   build_comparison_keys(target_path)
     .into_iter()

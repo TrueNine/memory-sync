@@ -631,7 +631,7 @@ mod tests {
       let mut scope = EvaluationScope::new();
       scope.insert("a".into(), json!(&a));
       scope.insert("b".into(), json!(&b));
-      let input = format!("https://{{a}}.com/{{b}}");
+      let input = "https://{a}.com/{b}".to_string();
       let result = evaluate_interpolations(&input, &scope);
       prop_assert_eq!(result, format!("https://{}.com/{}", a, b));
     }

@@ -33,9 +33,10 @@ fn extract_mode_from_front_matter_line(line: &str) -> Option<String> {
     return None;
   }
   // 去除引号
-  let value = if after_key.starts_with('"') && after_key.ends_with('"') && after_key.len() >= 2 {
-    &after_key[1..after_key.len() - 1]
-  } else if after_key.starts_with('\'') && after_key.ends_with('\'') && after_key.len() >= 2 {
+  let value = if after_key.len() >= 2
+    && ((after_key.starts_with('"') && after_key.ends_with('"'))
+      || (after_key.starts_with('\'') && after_key.ends_with('\'')))
+  {
     &after_key[1..after_key.len() - 1]
   } else {
     after_key
@@ -61,10 +62,10 @@ fn extract_mode_from_agent_file(content: &str) -> Option<String> {
         break;
       }
     }
-    if in_front_matter {
-      if let Some(mode) = extract_mode_from_front_matter_line(line) {
-        return Some(mode);
-      }
+    if in_front_matter
+      && let Some(mode) = extract_mode_from_front_matter_line(line)
+    {
+      return Some(mode);
     }
   }
   None

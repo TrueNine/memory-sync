@@ -104,8 +104,8 @@ impl LocalTestRunner {
     let parsed: serde_json::Value = serde_json::from_str(&raw).ok()?;
     let ws_dir = parsed.get("workspaceDir")?.as_str()?;
     // 展开 ~/ 为 home_dir
-    let expanded = if ws_dir.starts_with("~/") {
-      home_dir().join(&ws_dir[2..])
+    let expanded = if let Some(stripped) = ws_dir.strip_prefix("~/") {
+      home_dir().join(stripped)
     } else {
       PathBuf::from(ws_dir)
     };
@@ -373,6 +373,12 @@ impl LocalTestRunner {
   }
 }
 
+impl Default for LocalTestRunner {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Cross-process file lock — prevents test binaries from interfering with each
 // other when running local tests on the shared project directory.
@@ -395,15 +401,13 @@ fn acquire_cross_process_lock() -> CrossProcessLock {
       Ok(_) => return CrossProcessLock(Some(lock_path)),
       Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
         // Stale-lock detection: if older than 5 minutes, remove and retry
-        if let Ok(meta) = std::fs::metadata(&lock_path) {
-          if let Ok(created) = meta.created() {
-            if let Ok(elapsed) = created.elapsed() {
-              if elapsed > Duration::from_secs(300) {
-                let _ = std::fs::remove_file(&lock_path);
-                continue;
-              }
-            }
-          }
+        if let Ok(meta) = std::fs::metadata(&lock_path)
+          && let Ok(created) = meta.created()
+          && let Ok(elapsed) = created.elapsed()
+          && elapsed > Duration::from_secs(300)
+        {
+          let _ = std::fs::remove_file(&lock_path);
+          continue;
         }
         std::thread::sleep(Duration::from_millis(200));
       }

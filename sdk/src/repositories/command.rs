@@ -78,10 +78,9 @@ fn build_command_prompt(
     .or_else(|| underscore_index.map(|i| &base_name[..i]))
     .map(String::from);
 
-  let command_name = if parent_dir_name.is_some() || underscore_index.is_none() {
-    base_name.to_string()
-  } else {
-    base_name[underscore_index.unwrap() + 1..].to_string()
+  let command_name = match (parent_dir_name, underscore_index) {
+    (Some(_), _) | (_, None) => base_name.to_string(),
+    (None, Some(index)) => base_name[index + 1..].to_string(),
   };
 
   let global_only = match compiled.metadata.get("scope") {

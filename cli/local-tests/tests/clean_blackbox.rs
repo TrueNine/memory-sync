@@ -94,11 +94,11 @@ fn local_clean_from_memory_sync_does_not_clean_other_projects() {
     "memory-sync/AGENTS.md should exist after install"
   );
   assert!(
-    runner.file_exists_at(&knowladge.join("AGENTS.md")),
+    runner.file_exists_at(knowladge.join("AGENTS.md")),
     "knowladge/AGENTS.md should exist after install"
   );
   assert!(
-    runner.file_exists_at(&aindex.join("AGENTS.md")),
+    runner.file_exists_at(aindex.join("AGENTS.md")),
     "aindex/AGENTS.md should exist after manual create"
   );
 
@@ -115,11 +115,11 @@ fn local_clean_from_memory_sync_does_not_clean_other_projects() {
 
   // 其他项目的 AGENTS.md 应该保留
   assert!(
-    runner.file_exists_at(&knowladge.join("AGENTS.md")),
+    runner.file_exists_at(knowladge.join("AGENTS.md")),
     "knowladge/AGENTS.md should still exist after scoped clean"
   );
   assert!(
-    runner.file_exists_at(&aindex.join("AGENTS.md")),
+    runner.file_exists_at(aindex.join("AGENTS.md")),
     "aindex/AGENTS.md should still exist after scoped clean"
   );
 }
@@ -150,11 +150,11 @@ fn local_clean_from_aindex_does_not_clean_memory_sync() {
     "memory-sync/AGENTS.md should exist after install"
   );
   assert!(
-    runner.file_exists_at(&knowladge.join("AGENTS.md")),
+    runner.file_exists_at(knowladge.join("AGENTS.md")),
     "knowladge/AGENTS.md should exist after install"
   );
   assert!(
-    runner.file_exists_at(&aindex.join("AGENTS.md")),
+    runner.file_exists_at(aindex.join("AGENTS.md")),
     "aindex/AGENTS.md should exist after manual create"
   );
 
@@ -165,7 +165,7 @@ fn local_clean_from_aindex_does_not_clean_memory_sync() {
 
   // aindex 的 AGENTS.md 应该被清理（在作用域内）
   assert!(
-    !runner.file_exists_at(&aindex.join("AGENTS.md")),
+    !runner.file_exists_at(aindex.join("AGENTS.md")),
     "aindex/AGENTS.md should be removed after scoped clean"
   );
 
@@ -175,7 +175,7 @@ fn local_clean_from_aindex_does_not_clean_memory_sync() {
     "memory-sync/AGENTS.md should still exist after scoped clean from aindex"
   );
   assert!(
-    runner.file_exists_at(&knowladge.join("AGENTS.md")),
+    runner.file_exists_at(knowladge.join("AGENTS.md")),
     "knowladge/AGENTS.md should still exist after scoped clean from aindex"
   );
 }
@@ -206,11 +206,11 @@ fn local_clean_from_home_cleans_all_projects() {
     "memory-sync/AGENTS.md should exist after install"
   );
   assert!(
-    runner.file_exists_at(&knowladge.join("AGENTS.md")),
+    runner.file_exists_at(knowladge.join("AGENTS.md")),
     "knowladge/AGENTS.md should exist after install"
   );
   assert!(
-    runner.file_exists_at(&aindex.join("AGENTS.md")),
+    runner.file_exists_at(aindex.join("AGENTS.md")),
     "aindex/AGENTS.md should exist after manual create"
   );
 
@@ -225,11 +225,11 @@ fn local_clean_from_home_cleans_all_projects() {
     "memory-sync/AGENTS.md should be removed after global clean"
   );
   assert!(
-    !runner.file_exists_at(&knowladge.join("AGENTS.md")),
+    !runner.file_exists_at(knowladge.join("AGENTS.md")),
     "knowladge/AGENTS.md should be removed after global clean"
   );
   assert!(
-    !runner.file_exists_at(&aindex.join("AGENTS.md")),
+    !runner.file_exists_at(aindex.join("AGENTS.md")),
     "aindex/AGENTS.md should be removed after global clean"
   );
 }

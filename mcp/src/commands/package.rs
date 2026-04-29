@@ -147,7 +147,7 @@ fn find_target(suffix: &str) -> &'static PackageTarget {
   PACKAGE_TARGETS
     .iter()
     .find(|target| target.suffix == suffix)
-    .expect("package target mapping must stay in sync")
+    .unwrap_or_else(|| unreachable!("package target mapping must stay in sync"))
 }
 
 fn package_root() -> PathBuf {
@@ -163,8 +163,8 @@ fn workspace_root() -> PathBuf {
 
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     .parent()
-    .expect("mcp crate should always live under the workspace root")
-    .to_path_buf()
+    .map(Path::to_path_buf)
+    .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
 }
 
 #[cfg(unix)]

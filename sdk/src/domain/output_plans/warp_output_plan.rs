@@ -101,28 +101,27 @@ fn build_output_files(
     }
   }
 
-  if let Some(ignore_config_files) = context.ai_agent_ignore_config_files.as_ref() {
-    if let Some(ignore_file) = ignore_config_files
+  if let Some(ignore_config_files) = context.ai_agent_ignore_config_files.as_ref()
+    && let Some(ignore_file) = ignore_config_files
       .iter()
       .find(|file| file.file_name == WARP_IGNORE_FILE)
-    {
-      for project in get_concrete_projects(workspace) {
-        let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
-          continue;
-        };
-        if project.is_prompt_source_project == Some(true) {
-          continue;
-        }
-        output_files.push(BaseOutputFileDeclarationDto {
-          path: project_root_dir
-            .join(WARP_IGNORE_FILE)
-            .to_string_lossy()
-            .into_owned(),
-          scope: Some(PROJECT_SCOPE.to_string()),
-          content: ignore_file.content.clone(),
-          encoding: None,
-        });
+  {
+    for project in get_concrete_projects(workspace) {
+      let Some(project_root_dir) = resolve_project_root_dir(workspace, project) else {
+        continue;
+      };
+      if project.is_prompt_source_project == Some(true) {
+        continue;
       }
+      output_files.push(BaseOutputFileDeclarationDto {
+        path: project_root_dir
+          .join(WARP_IGNORE_FILE)
+          .to_string_lossy()
+          .into_owned(),
+        scope: Some(PROJECT_SCOPE.to_string()),
+        content: ignore_file.content.clone(),
+        encoding: None,
+      });
     }
   }
 

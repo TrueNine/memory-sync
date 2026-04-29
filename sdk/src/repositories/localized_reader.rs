@@ -61,31 +61,20 @@ fn scan_directory(
       relative_parent.to_str().unwrap_or("")
     };
 
-    let (base_name, is_zh_source, is_en_source) = if file_name.ends_with(".zh.src.mdx") {
-      (
-        &file_name[..file_name.len() - ".zh.src.mdx".len()],
-        true,
-        false,
-      )
-    } else if file_name.ends_with(".en.src.mdx") {
-      (
-        &file_name[..file_name.len() - ".en.src.mdx".len()],
-        false,
-        true,
-      )
-    } else if file_name.ends_with(".src.mdx") {
-      (
-        &file_name[..file_name.len() - ".src.mdx".len()],
-        true,
-        false,
-      )
-    } else if file_name.ends_with(".cn.mdx") {
-      continue;
-    } else if file_name.ends_with(".mdx") {
-      (&file_name[..file_name.len() - ".mdx".len()], false, false)
-    } else {
-      continue;
-    };
+    let (base_name, is_zh_source, is_en_source) =
+      if let Some(stripped) = file_name.strip_suffix(".zh.src.mdx") {
+        (stripped, true, false)
+      } else if let Some(stripped) = file_name.strip_suffix(".en.src.mdx") {
+        (stripped, false, true)
+      } else if let Some(stripped) = file_name.strip_suffix(".src.mdx") {
+        (stripped, true, false)
+      } else if file_name.ends_with(".cn.mdx") {
+        continue;
+      } else if let Some(stripped) = file_name.strip_suffix(".mdx") {
+        (stripped, false, false)
+      } else {
+        continue;
+      };
 
     let full_name = if relative_parent_str.is_empty() {
       base_name.to_string()
@@ -102,7 +91,7 @@ fn scan_directory(
       },
       global_scope_json,
     )
-    .map_err(|e| crate::CliError::ConfigError(e))?;
+    .map_err(crate::CliError::ConfigError)?;
 
     if let Some(existing) = entries.iter_mut().find(|e| e.name == full_name) {
       if is_zh_source {

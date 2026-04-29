@@ -26,7 +26,9 @@ pub fn run() {
     .setup(|app| {
       tray::create_tray(app)?;
 
-      let window = app.get_webview_window("main").unwrap();
+      let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| tauri::Error::WindowNotFound)?;
       let window_clone = window.clone();
       window.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -38,5 +40,6 @@ pub fn run() {
       Ok(())
     })
     .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .map_err(|error| eprintln!("error while running tauri application: {error}"))
+    .ok();
 }

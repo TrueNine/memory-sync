@@ -98,7 +98,7 @@ fn collect_readme_files_recursive(
 
     let file_path_str = file_path.to_string_lossy().into_owned();
     let artifact = read_prompt_artifact(&file_path_str, "dist", global_scope_json)
-      .map_err(|e| crate::CliError::ConfigError(e))?;
+      .map_err(crate::CliError::ConfigError)?;
 
     let content = artifact.content;
     let length = content.len();

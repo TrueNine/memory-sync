@@ -15,13 +15,16 @@ use crate::services::common::{
 };
 use crate::{CliError, MemorySyncCommandOptions, MemorySyncCommandResult};
 
+type CleanupOutputMap = HashMap<String, Vec<String>>;
+type CleanupDeclarationMap = HashMap<String, CleanupDeclarationsDto>;
+
 pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResult, CliError> {
   let logger = create_logger(
     "clean",
     options
       .log_level
       .as_deref()
-      .and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)),
+      .and_then(crate::infra::logger::LogLevel::from_str_loose),
   );
   let _span = logger.span("command.clean").enter();
 
@@ -93,7 +96,7 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
   if options.dry_run.unwrap_or(false) {
     let plan_span = logger.span("cleanup.plan").enter();
     let plan = crate::policy::cleanup::plan_cleanup(snapshot.clone())
-      .map_err(|e| CliError::ExecutionError(e))?;
+      .map_err(CliError::ExecutionError)?;
     plan_span.exit();
 
     let mut warnings = workspace_warning.into_iter().collect::<Vec<_>>();
@@ -146,7 +149,7 @@ pub fn clean(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandResul
   } else {
     let execute_span = logger.span("cleanup.execute").enter();
     let result =
-      crate::policy::cleanup::perform_cleanup(snapshot).map_err(|e| CliError::ExecutionError(e))?;
+      crate::policy::cleanup::perform_cleanup(snapshot).map_err(CliError::ExecutionError)?;
     execute_span.exit();
 
     let blocked = !result.violations.is_empty() || !result.conflicts.is_empty();
@@ -286,22 +289,16 @@ fn build_output_map(
   context: &crate::context::OutputContext,
   enabled_plugins: EnabledPlugins,
   logger: &Logger,
-) -> Result<
-  (
-    HashMap<String, Vec<String>>,
-    HashMap<String, CleanupDeclarationsDto>,
-  ),
-  CliError,
-> {
-  let mut output_map: HashMap<String, Vec<String>> = HashMap::new();
-  let mut cleanup_map: HashMap<String, CleanupDeclarationsDto> = HashMap::new();
+) -> Result<(CleanupOutputMap, CleanupDeclarationMap), CliError> {
+  let mut output_map: CleanupOutputMap = HashMap::new();
+  let mut cleanup_map: CleanupDeclarationMap = HashMap::new();
 
   let base_span = logger.span("output.build").enter();
   let base_plans = crate::domain::base_output_plans::build_base_output_plans(context)?;
   for plan in &base_plans.plugins {
     cleanup_map
       .entry(plan.plugin_name.clone())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.is_enabled(plan.plugin_name.as_str()) {
@@ -320,7 +317,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("ClaudeCodeCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.claude_code {
@@ -336,7 +333,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("CodexCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.codex {
@@ -353,7 +350,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("CursorOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.cursor {
@@ -369,7 +366,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("DroidCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.droid {
@@ -386,7 +383,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("GeminiCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.gemini {
@@ -399,7 +396,7 @@ fn build_output_map(
     }
   }
   if let Ok(plan) = crate::domain::output_plans::jetbrains_ai_assistant_codex_output_plan::build_jetbrains_ai_assistant_codex_output_plan(context) {
-    cleanup_map.entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string()).or_insert_with(CleanupDeclarationsDto::default).delete.extend(plan.cleanup.delete.clone());
+    cleanup_map.entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string()).or_default().delete.extend(plan.cleanup.delete.clone());
     if enabled_plugins.jetbrains {
       for file in &plan.output_files { output_map.entry("JetBrainsAIAssistantCodexOutputAdaptor".to_string()).or_default().push(file.path.clone()); }
     }
@@ -407,7 +404,7 @@ fn build_output_map(
   if let Ok(plan) = crate::domain::output_plans::kiro_output_plan::build_kiro_output_plan(context) {
     cleanup_map
       .entry("KiroCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.kiro {
@@ -424,7 +421,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("OpencodeCLIOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.opencode {
@@ -440,7 +437,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("QoderIDEPluginOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.qoder {
@@ -455,7 +452,7 @@ fn build_output_map(
   if let Ok(plan) = crate::domain::output_plans::trae_output_plan::build_trae_output_plan(context) {
     cleanup_map
       .entry("TraeOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.trae || enabled_plugins.trae_cn {
@@ -470,7 +467,7 @@ fn build_output_map(
   if let Ok(plan) = crate::domain::output_plans::warp_output_plan::build_warp_output_plan(context) {
     cleanup_map
       .entry("WarpIDEOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.warp {
@@ -487,7 +484,7 @@ fn build_output_map(
   {
     cleanup_map
       .entry("WindsurfOutputAdaptor".to_string())
-      .or_insert_with(CleanupDeclarationsDto::default)
+      .or_default()
       .delete
       .extend(plan.cleanup.delete.clone());
     if enabled_plugins.windsurf {

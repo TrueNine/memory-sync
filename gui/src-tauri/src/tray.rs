@@ -41,7 +41,17 @@ pub fn create_tray(app: &tauri::App) -> Result<TrayIcon, tauri::Error> {
 
   // ── Build the tray icon ─────────────────────────────────────────────
   TrayIconBuilder::new()
-    .icon(app.default_window_icon().unwrap().clone())
+    .icon(
+      app
+        .default_window_icon()
+        .ok_or_else(|| {
+          tauri::Error::InvalidIcon(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "default window icon is not configured",
+          ))
+        })?
+        .clone(),
+    )
     .menu(&menu)
     // Handle context-menu item clicks.
     .on_menu_event(|app, event| {

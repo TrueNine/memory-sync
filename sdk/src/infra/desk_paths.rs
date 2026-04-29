@@ -863,8 +863,7 @@ mod tests {
     fs::create_dir_all(&non_empty).unwrap();
     fs::write(non_empty.join("keep.txt"), b"keep").unwrap();
 
-    let result =
-      plan_workspace_empty_directory_cleanup(&workspace.to_string_lossy().into_owned(), &[], &[]);
+    let result = plan_workspace_empty_directory_cleanup(&workspace.to_string_lossy(), &[], &[]);
 
     assert_eq!(
       result.empty_dirs_to_delete,
@@ -887,7 +886,7 @@ mod tests {
     fs::write(&file_to_delete, b"delete").unwrap();
 
     let result = plan_workspace_empty_directory_cleanup(
-      &workspace.to_string_lossy().into_owned(),
+      &workspace.to_string_lossy(),
       &[file_to_delete.to_string_lossy().into_owned()],
       &[],
     );
@@ -910,8 +909,7 @@ mod tests {
 
     fs::create_dir_all(&empty_in_nm).unwrap();
 
-    let result =
-      plan_workspace_empty_directory_cleanup(&workspace.to_string_lossy().into_owned(), &[], &[]);
+    let result = plan_workspace_empty_directory_cleanup(&workspace.to_string_lossy(), &[], &[]);
 
     assert!(
       !result
@@ -935,7 +933,7 @@ mod tests {
     fs::create_dir_all(&nested_empty).unwrap();
 
     let result = plan_workspace_empty_directory_cleanup(
-      &workspace.to_string_lossy().into_owned(),
+      &workspace.to_string_lossy(),
       &[],
       &[scheduled_dir.to_string_lossy().into_owned()],
     );

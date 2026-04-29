@@ -107,10 +107,10 @@ fn collect_src_mdx_files(dir: &Path) -> Vec<std::path::PathBuf> {
     };
     if ft.is_dir() {
       files.extend(collect_src_mdx_files(&path));
-    } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-      if name.ends_with(".src.mdx") {
-        files.push(path);
-      }
+    } else if let Some(name) = path.file_name().and_then(|n| n.to_str())
+      && name.ends_with(".src.mdx")
+    {
+      files.push(path);
     }
   }
   files

@@ -62,14 +62,14 @@ fn assert_no_residual_module_syntax(content: &str, file_path: &str) -> Result<()
 fn extract_front_matter(raw_mdx: &str) -> (Option<Value>, Option<String>) {
   let front_matter_regex =
     regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok();
-  if let Some(re) = front_matter_regex {
-    if let Some(caps) = re.captures(raw_mdx) {
-      let raw_fm = caps.get(1).map(|m| m.as_str().to_string());
-      let yaml_json = raw_fm
-        .as_deref()
-        .and_then(|fm| serde_yml::from_str::<Value>(fm).ok());
-      return (yaml_json, raw_fm);
-    }
+  if let Some(re) = front_matter_regex
+    && let Some(caps) = re.captures(raw_mdx)
+  {
+    let raw_fm = caps.get(1).map(|m| m.as_str().to_string());
+    let yaml_json = raw_fm
+      .as_deref()
+      .and_then(|fm| serde_yml::from_str::<Value>(fm).ok());
+    return (yaml_json, raw_fm);
   }
   (None, None)
 }
@@ -85,7 +85,7 @@ fn read_root_memory_prompt(
   let file_path_str = file_path.to_string_lossy().into_owned();
 
   let artifact = read_prompt_artifact(&file_path_str, "dist", global_scope_json)
-    .map_err(|e| crate::CliError::ConfigError(e))?;
+    .map_err(crate::CliError::ConfigError)?;
 
   assert_no_residual_module_syntax(&artifact.content, &file_path_str)
     .map_err(crate::CliError::ConfigError)?;
@@ -120,7 +120,7 @@ fn read_child_memory_prompt(
   let file_path_str = file_path.to_string_lossy().into_owned();
 
   let artifact = read_prompt_artifact(&file_path_str, "dist", global_scope_json)
-    .map_err(|e| crate::CliError::ConfigError(e))?;
+    .map_err(crate::CliError::ConfigError)?;
 
   assert_no_residual_module_syntax(&artifact.content, &file_path_str)
     .map_err(crate::CliError::ConfigError)?;
@@ -238,7 +238,7 @@ fn read_workspace_root_project_prompt(
   let file_path_str = file_path.to_string_lossy().into_owned();
 
   let artifact = read_prompt_artifact(&file_path_str, "dist", global_scope_json)
-    .map_err(|e| crate::CliError::ConfigError(e))?;
+    .map_err(crate::CliError::ConfigError)?;
 
   assert_no_residual_module_syntax(&artifact.content, &file_path_str)
     .map_err(crate::CliError::ConfigError)?;
@@ -413,7 +413,7 @@ mod tests {
     )
     .unwrap();
 
-    let workspace = create_workspace(&tmp.path().to_string_lossy().to_string(), vec![]);
+    let workspace = create_workspace(tmp.path().to_string_lossy().as_ref(), vec![]);
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
       "workspace": workspace,
@@ -440,7 +440,7 @@ mod tests {
     fs::create_dir_all(&external_dir).unwrap();
     fs::write(external_dir.join("workspace.mdx"), "Wrong workspace prompt").unwrap();
 
-    let workspace = create_workspace(&tmp.path().to_string_lossy().to_string(), vec![]);
+    let workspace = create_workspace(tmp.path().to_string_lossy().as_ref(), vec![]);
     let options = serde_json::json!({
       "workspaceDir": tmp.path().to_string_lossy().to_string(),
       "workspace": workspace,

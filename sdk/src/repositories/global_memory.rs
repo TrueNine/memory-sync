@@ -38,7 +38,7 @@ pub fn collect_global_memory(options_json: &str) -> Result<String, crate::CliErr
     "dist",
     global_scope_json.as_deref(),
   )
-  .map_err(|e| crate::CliError::ConfigError(e))?;
+  .map_err(crate::CliError::ConfigError)?;
 
   let content = artifact.content.clone();
   let length = content.len();

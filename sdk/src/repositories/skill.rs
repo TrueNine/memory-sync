@@ -76,14 +76,14 @@ fn assert_no_residual_module_syntax(content: &str, file_path: &str) -> Result<()
 fn extract_front_matter(raw_mdx: &str) -> (Option<Value>, Option<String>) {
   let front_matter_regex =
     regex_lite::Regex::new(r"(?s)^---\r?\n(.*?)\r?\n---(?:(?:\r?\n){1,2}|$)").ok();
-  if let Some(re) = front_matter_regex {
-    if let Some(caps) = re.captures(raw_mdx) {
-      let raw_fm = caps.get(1).map(|m| m.as_str().to_string());
-      let yaml_json = raw_fm
-        .as_deref()
-        .and_then(|fm| serde_yml::from_str::<Value>(fm).ok());
-      return (yaml_json, raw_fm);
-    }
+  if let Some(re) = front_matter_regex
+    && let Some(caps) = re.captures(raw_mdx)
+  {
+    let raw_fm = caps.get(1).map(|m| m.as_str().to_string());
+    let yaml_json = raw_fm
+      .as_deref()
+      .and_then(|fm| serde_yml::from_str::<Value>(fm).ok());
+    return (yaml_json, raw_fm);
   }
   (None, None)
 }
@@ -99,62 +99,62 @@ fn extract_skill_metadata_from_export(content: &str) -> Value {
 
   let description_regex =
     regex_lite::Regex::new(r#"description\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = description_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      metadata.insert(
-        "description".to_string(),
-        Value::String(m.as_str().to_string()),
-      );
-    }
+  if let Some(caps) = description_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    metadata.insert(
+      "description".to_string(),
+      Value::String(m.as_str().to_string()),
+    );
   }
 
   let name_regex = regex_lite::Regex::new(r#"name\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = name_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      metadata.insert("name".to_string(), Value::String(m.as_str().to_string()));
-    }
+  if let Some(caps) = name_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    metadata.insert("name".to_string(), Value::String(m.as_str().to_string()));
   }
 
   let display_name_regex =
     regex_lite::Regex::new(r#"displayName\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = display_name_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      metadata.insert(
-        "displayName".to_string(),
-        Value::String(m.as_str().to_string()),
-      );
-    }
+  if let Some(caps) = display_name_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    metadata.insert(
+      "displayName".to_string(),
+      Value::String(m.as_str().to_string()),
+    );
   }
 
   let keywords_regex = regex_lite::Regex::new(r"keywords\s*:\s*\[([^\]]+)\]").unwrap();
-  if let Some(caps) = keywords_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      let keywords: Vec<Value> = m
-        .as_str()
-        .split(',')
-        .map(|k| {
-          k.trim()
-            .trim_matches(|c: char| c == '"' || c == '\'' || c == '`')
-        })
-        .filter(|k| !k.is_empty())
-        .map(|k| Value::String(k.to_string()))
-        .collect();
-      metadata.insert("keywords".to_string(), Value::Array(keywords));
-    }
+  if let Some(caps) = keywords_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    let keywords: Vec<Value> = m
+      .as_str()
+      .split(',')
+      .map(|k| {
+        k.trim()
+          .trim_matches(|c: char| c == '"' || c == '\'' || c == '`')
+      })
+      .filter(|k| !k.is_empty())
+      .map(|k| Value::String(k.to_string()))
+      .collect();
+    metadata.insert("keywords".to_string(), Value::Array(keywords));
   }
 
   let author_regex = regex_lite::Regex::new(r#"author\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = author_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      metadata.insert("author".to_string(), Value::String(m.as_str().to_string()));
-    }
+  if let Some(caps) = author_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    metadata.insert("author".to_string(), Value::String(m.as_str().to_string()));
   }
 
   let version_regex = regex_lite::Regex::new(r#"version\s*:\s*['\"`]([^'\"`]+)['\"`]"#).unwrap();
-  if let Some(caps) = version_regex.captures(object_content) {
-    if let Some(m) = caps.get(1) {
-      metadata.insert("version".to_string(), Value::String(m.as_str().to_string()));
-    }
+  if let Some(caps) = version_regex.captures(object_content)
+    && let Some(m) = caps.get(1)
+  {
+    metadata.insert("version".to_string(), Value::String(m.as_str().to_string()));
   }
 
   Value::Object(metadata)
@@ -298,7 +298,7 @@ fn scan_child_docs(
 
     let file_path_str = path.to_string_lossy().into_owned();
     let artifact = read_prompt_artifact(&file_path_str, "dist", global_scope_json)
-      .map_err(|e| crate::CliError::ConfigError(e))?;
+      .map_err(crate::CliError::ConfigError)?;
     let compiled_content = transform_mdx_references_to_md(&artifact.content);
     assert_no_residual_module_syntax(&compiled_content, &file_path_str)
       .map_err(crate::CliError::ConfigError)?;
@@ -336,7 +336,6 @@ fn scan_child_docs(
 fn scan_resources(
   current_dir: &Path,
   root_src_dir: &Path,
-  skill_dir: &str,
 ) -> Result<Vec<SkillResource>, crate::CliError> {
   let mut resources = Vec::new();
   let entries = match std::fs::read_dir(current_dir) {
@@ -347,7 +346,7 @@ fn scan_resources(
   for entry in entries.flatten() {
     let path = entry.path();
     if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
-      resources.extend(scan_resources(&path, root_src_dir, skill_dir)?);
+      resources.extend(scan_resources(&path, root_src_dir)?);
       continue;
     }
     let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
@@ -435,8 +434,9 @@ fn assert_compiled_child_docs_exist(
     }
     let src_path = skill_src_dir.join(relative_path.replace(".mdx", ".src.mdx"));
     return Err(crate::CliError::ConfigError(format!(
-      "Missing compiled prompt for skill child doc \"{}\". source: {} expected compiled: {}",
-      format!("{}/{}", skill_name, relative_path),
+      "Missing compiled prompt for skill child doc \"{}/{}\". source: {} expected compiled: {}",
+      skill_name,
+      relative_path,
       src_path.to_string_lossy(),
       compiled_path.to_string_lossy()
     )));
@@ -552,7 +552,7 @@ fn create_skill_prompt(
 
   let compiled_file_path_str = compiled_file_path.to_string_lossy().into_owned();
   let artifact = read_prompt_artifact(&compiled_file_path_str, "dist", global_scope_json)
-    .map_err(|e| crate::CliError::ConfigError(e))?;
+    .map_err(crate::CliError::ConfigError)?;
 
   let raw_content = artifact.raw_mdx.clone();
   let content = transform_mdx_references_to_md(&artifact.content);
@@ -560,7 +560,7 @@ fn create_skill_prompt(
     .map_err(crate::CliError::ConfigError)?;
 
   let export_metadata = extract_skill_metadata_from_export(&raw_content);
-  let dist_metadata = Value::Object(artifact.metadata.into_iter().map(|(k, v)| (k, v)).collect());
+  let dist_metadata = Value::Object(artifact.metadata.into_iter().collect());
   let merged_metadata = merge_defined_skill_metadata(&[Some(export_metadata), Some(dist_metadata)]);
 
   let (yaml_front_matter, _raw_front_matter) = extract_front_matter(&raw_content);
@@ -609,7 +609,7 @@ fn create_skill_prompt(
 
   let child_docs = scan_child_docs(skill_dir, skill_dir, &skill_dir_str, global_scope_json)?;
   let resources = if skill_dir.is_dir() {
-    scan_resources(skill_dir, skill_dir, &skill_dir_str)?
+    scan_resources(skill_dir, skill_dir)?
   } else {
     vec![]
   };
@@ -653,12 +653,12 @@ pub fn collect_skill(options_json: &str) -> Result<String, crate::CliError> {
 
   let mut skill_names: Vec<String> = Vec::new();
 
-  if skills_dir.is_dir() {
-    if let Ok(entries) = std::fs::read_dir(&skills_dir) {
-      for entry in entries.flatten() {
-        if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
-          skill_names.push(entry.file_name().to_string_lossy().into_owned());
-        }
+  if skills_dir.is_dir()
+    && let Ok(entries) = std::fs::read_dir(&skills_dir)
+  {
+    for entry in entries.flatten() {
+      if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+        skill_names.push(entry.file_name().to_string_lossy().into_owned());
       }
     }
   }

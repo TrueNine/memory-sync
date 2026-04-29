@@ -31,7 +31,7 @@ fn clean_markdown_content(content: &str) -> String {
   let trimmed_lines: Vec<String> = lines
     .into_iter()
     .map(|line| {
-      let trimmed = line.trim_end_matches(|c: char| c == ' ' || c == '\t');
+      let trimmed = line.trim_end_matches([' ', '\t']);
       trimmed.to_string()
     })
     .collect();
@@ -76,11 +76,11 @@ fn process_markdown_file(
     return;
   }
 
-  if !dry_run {
-    if let Err(err) = std::fs::write(file_path, &cleaned) {
-      errors.push((file_path.to_string_lossy().into_owned(), err.to_string()));
-      return;
-    }
+  if !dry_run
+    && let Err(err) = std::fs::write(file_path, &cleaned)
+  {
+    errors.push((file_path.to_string_lossy().into_owned(), err.to_string()));
+    return;
   }
 
   modified_files.push(file_path.to_string_lossy().into_owned());
@@ -113,12 +113,12 @@ fn process_directory(
 
     if file_type.is_dir() {
       process_directory(&entry_path, modified_files, skipped_files, errors, dry_run);
-    } else if file_type.is_file() {
-      if let Some(name) = entry_path.file_name() {
-        let name_str = name.to_string_lossy();
-        if name_str.ends_with(".md") {
-          process_markdown_file(&entry_path, modified_files, skipped_files, errors, dry_run);
-        }
+    } else if file_type.is_file()
+      && let Some(name) = entry_path.file_name()
+    {
+      let name_str = name.to_string_lossy();
+      if name_str.ends_with(".md") {
+        process_markdown_file(&entry_path, modified_files, skipped_files, errors, dry_run);
       }
     }
   }

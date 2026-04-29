@@ -188,22 +188,22 @@ pub fn resolve_public_path_impl(
 
   // Try Deno runtime first (if available)
   let deno = DenoRuntime::new().ok();
-  if let Some(runtime) = deno {
-    if runtime.is_available() {
-      let proxy_path = std::path::Path::new(&ctx.aindex_dir)
-        .join("public")
-        .join("proxy.ts");
-      let aindex_public_dir = build_aindex_public_dir(&ctx.aindex_dir)?;
-      if let Ok(result) = resolve_path_via_proxy_impl(
-        &proxy_path,
-        &aindex_public_dir,
-        logical_path,
-        serde_json::json!({}),
-      ) {
-        return Ok(result);
-      }
-      // Fall through to Rust implementation if Deno fails
+  if let Some(runtime) = deno
+    && runtime.is_available()
+  {
+    let proxy_path = std::path::Path::new(&ctx.aindex_dir)
+      .join("public")
+      .join("proxy.ts");
+    let aindex_public_dir = build_aindex_public_dir(&ctx.aindex_dir)?;
+    if let Ok(result) = resolve_path_via_proxy_impl(
+      &proxy_path,
+      &aindex_public_dir,
+      logical_path,
+      serde_json::json!({}),
+    ) {
+      return Ok(result);
     }
+    // Fall through to Rust implementation if Deno fails
   }
 
   // Fall back to built-in Rust implementation

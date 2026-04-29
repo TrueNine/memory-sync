@@ -237,7 +237,7 @@ fn build_agent_content(agent: &crate::domain::plugin_shared::SubAgentPrompt) -> 
   metadata.remove("model");
 
   metadata.retain(|_, v| {
-    !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+    !(v.is_null() || v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
   });
 
   if metadata.is_empty() {
@@ -265,7 +265,7 @@ fn build_command_content(command: &crate::domain::plugin_shared::SlashCommandPro
   metadata.insert("command".to_string(), Value::String(command_source));
 
   metadata.retain(|_, v| {
-    !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+    !(v.is_null() || v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
   });
 
   if metadata.is_empty() {
@@ -291,7 +291,7 @@ fn build_skill_content(skill: &crate::domain::plugin_shared::SkillPrompt) -> Str
   );
 
   metadata.retain(|_, v| {
-    !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+    !(v.is_null() || v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
   });
 
   if metadata.is_empty() {

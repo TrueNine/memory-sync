@@ -5,7 +5,7 @@
 
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::rc::Rc;
 
@@ -73,7 +73,7 @@ impl DenoRuntime {
 
     let parsed_context: serde_json::Value = serde_json::from_str(context_json)
       .map_err(|error| format!("Invalid runtime context JSON: {error}"))?;
-    let env_map: HashMap<String, String> = std::env::vars().collect();
+    let env_map = allowed_environment(&parsed_context);
     let bootstrap = format!(
       r#"
 const __TNMS_CONTEXT_JSON = {context_json};
@@ -235,8 +235,22 @@ globalThis.Deno = {{
 
 impl Default for DenoRuntime {
   fn default() -> Self {
-    Self::new().expect("Failed to initialize DenoRuntime")
+    Self
   }
+}
+
+fn allowed_environment(context: &serde_json::Value) -> BTreeMap<String, String> {
+  let allowlist = context
+    .get("allowedEnv")
+    .or_else(|| context.get("allowedEnvVars"))
+    .and_then(serde_json::Value::as_array);
+
+  allowlist
+    .into_iter()
+    .flatten()
+    .filter_map(serde_json::Value::as_str)
+    .filter_map(|name| std::env::var(name).ok().map(|value| (name.to_string(), value)))
+    .collect()
 }
 
 struct TypescriptModuleLoader {
@@ -359,7 +373,7 @@ mod tests {
   static ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
   fn with_path_removed<T>(f: impl FnOnce() -> T) -> T {
-    let _guard = ENV_LOCK.lock().unwrap();
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let original = std::env::var_os("PATH");
     unsafe {
       std::env::remove_var("PATH");
@@ -369,6 +383,22 @@ mod tests {
       match original {
         Some(path) => std::env::set_var("PATH", path),
         None => std::env::remove_var("PATH"),
+      }
+    }
+    result
+  }
+
+  fn with_env_var<T>(name: &str, value: &str, f: impl FnOnce() -> T) -> T {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let original = std::env::var_os(name);
+    unsafe {
+      std::env::set_var(name, value);
+    }
+    let result = f();
+    unsafe {
+      match original {
+        Some(value) => std::env::set_var(name, value),
+        None => std::env::remove_var(name),
       }
     }
     result
@@ -441,5 +471,63 @@ console.log(`proxied/${ctx.logicalPath}`)
       "expected arbitrary proxy execution, got: {result:?}"
     );
     assert_eq!(result.unwrap().trim(), "proxied/notes/today.md");
+  }
+
+  #[test]
+  fn test_execute_ts_hides_untrusted_environment_by_default() {
+    with_env_var("TNMSD_SECRET_TOKEN_FOR_TEST", "secret-value", || {
+      let runtime = DenoRuntime::new().unwrap();
+      let tmp = TempDir::new().unwrap();
+      let script_path = tmp.path().join("env.ts");
+      std::fs::write(
+        &script_path,
+        r#"
+console.log(JSON.stringify({
+  hasSecret: Deno.env.has("TNMSD_SECRET_TOKEN_FOR_TEST"),
+  secret: Deno.env.get("TNMSD_SECRET_TOKEN_FOR_TEST") ?? null,
+  envKeys: Object.keys(Deno.env.toObject())
+}))
+"#,
+      )
+      .unwrap();
+
+      let result = runtime.execute_ts(&script_path, "{}").unwrap();
+      let parsed: serde_json::Value = serde_json::from_str(result.trim()).unwrap();
+
+      assert_eq!(parsed["hasSecret"], false);
+      assert_eq!(parsed["secret"], serde_json::Value::Null);
+      assert_eq!(parsed["envKeys"], serde_json::json!([]));
+    });
+  }
+
+  #[test]
+  fn test_execute_ts_exposes_only_allowed_environment_names() {
+    with_env_var("TNMSD_ALLOWED_ENV_FOR_TEST", "visible-value", || {
+      let runtime = DenoRuntime::new().unwrap();
+      let tmp = TempDir::new().unwrap();
+      let script_path = tmp.path().join("env.ts");
+      std::fs::write(
+        &script_path,
+        r#"
+console.log(JSON.stringify({
+  allowed: Deno.env.get("TNMSD_ALLOWED_ENV_FOR_TEST") ?? null,
+  keys: Object.keys(Deno.env.toObject())
+}))
+"#,
+      )
+      .unwrap();
+
+      let context = serde_json::json!({
+        "allowedEnv": ["TNMSD_ALLOWED_ENV_FOR_TEST", "TNMSD_MISSING_ENV_FOR_TEST"]
+      });
+      let result = runtime.execute_ts(&script_path, &context.to_string()).unwrap();
+      let parsed: serde_json::Value = serde_json::from_str(result.trim()).unwrap();
+
+      assert_eq!(parsed["allowed"], "visible-value");
+      assert_eq!(
+        parsed["keys"],
+        serde_json::json!(["TNMSD_ALLOWED_ENV_FOR_TEST"])
+      );
+    });
   }
 }

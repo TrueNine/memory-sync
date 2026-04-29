@@ -87,7 +87,7 @@ pub fn read_prompt_artifact(
       extract_metadata: true,
       ..Default::default()
     };
-    let result = mdx_to_md_with_metadata(&raw_mdx, Some(opts)).map_err(|e| e)?;
+    let result = mdx_to_md_with_metadata(&raw_mdx, Some(opts))?;
 
     Ok(PromptArtifact {
       raw_mdx,

@@ -192,7 +192,7 @@ pub struct PluginsConfig {
 
 /// User configuration file (.tnmsc.json).
 /// All fields are optional — missing fields use default values.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserConfigFile {
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -209,20 +209,6 @@ pub struct UserConfigFile {
   pub windows: Option<WindowsOptions>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub plugins: Option<PluginsConfig>,
-}
-
-impl Default for UserConfigFile {
-  fn default() -> Self {
-    Self {
-      version: None,
-      workspace_dir: None,
-      log_level: None,
-      profile: None,
-      code_styles: None,
-      windows: None,
-      plugins: None,
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -270,7 +256,7 @@ pub struct RuntimeEnvironmentContext {
 fn home_dir() -> Option<PathBuf> {
   std::env::var_os("HOME")
     .map(PathBuf::from)
-    .or_else(|| dirs::home_dir())
+    .or_else(dirs::home_dir)
 }
 
 fn normalize_posix_like_path(raw_path: &str) -> String {

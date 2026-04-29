@@ -45,20 +45,20 @@ pub fn collect_shared_ignore(options_json: &str) -> Result<String, crate::CliErr
   let mut results: Vec<AIAgentIgnoreConfigFile> = Vec::new();
 
   for file_name in AI_AGENT_IGNORE_TARGET_RELATIVE_PATHS {
-    if let Some(content) = read_public_file(&aindex_dir_str, file_name) {
-      if !content.is_empty() {
-        let proxied_name = proxy_public_path(file_name);
-        let source_path = std::path::Path::new(&aindex_dir_str)
-          .join("public")
-          .join(&proxied_name)
-          .to_string_lossy()
-          .into_owned();
-        results.push(AIAgentIgnoreConfigFile {
-          file_name: file_name.to_string(),
-          content,
-          source_path,
-        });
-      }
+    if let Some(content) = read_public_file(&aindex_dir_str, file_name)
+      && !content.is_empty()
+    {
+      let proxied_name = proxy_public_path(file_name);
+      let source_path = std::path::Path::new(&aindex_dir_str)
+        .join("public")
+        .join(&proxied_name)
+        .to_string_lossy()
+        .into_owned();
+      results.push(AIAgentIgnoreConfigFile {
+        file_name: file_name.to_string(),
+        content,
+        source_path,
+      });
     }
   }
 

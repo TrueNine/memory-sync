@@ -279,7 +279,7 @@ fn run_stdio_server() {
       }
     };
 
-    let is_notification = !request.as_object().map_or(false, |m| m.contains_key("id"));
+    let is_notification = !request.as_object().is_some_and(|m| m.contains_key("id"));
     if is_notification {
       continue;
     }

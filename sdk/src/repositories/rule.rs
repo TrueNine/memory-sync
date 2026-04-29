@@ -109,7 +109,7 @@ fn build_rule_prompt(
   let prefix = normalized_name.split('/').next().unwrap_or("").to_string();
   let rule_name = normalized_name
     .split('/')
-    .last()
+    .next_back()
     .unwrap_or(&normalized_name)
     .to_string();
 

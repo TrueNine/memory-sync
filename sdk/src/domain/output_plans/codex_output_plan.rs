@@ -224,8 +224,7 @@ fn build_command_content(command: &crate::domain::plugin_shared::SlashCommandPro
     .into_iter()
     .filter(|(k, v)| {
       // Codex only supports description and argument-hint
-      !v.is_null()
-        && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+      !(v.is_null() || v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
         && (k == "description" || k == "argument-hint")
     })
     .collect();
@@ -255,7 +254,7 @@ fn build_skill_content(skill: &crate::domain::plugin_shared::SkillPrompt) -> Str
 
   // Filter out empty arrays and null values
   metadata.retain(|_, v| {
-    !v.is_null() && !(v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
+    !(v.is_null() || v.is_array() && v.as_array().map(|a| a.is_empty()).unwrap_or(false))
   });
 
   if metadata.is_empty() {

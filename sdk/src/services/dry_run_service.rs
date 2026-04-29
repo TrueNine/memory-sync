@@ -27,7 +27,7 @@ pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandRes
     options
       .log_level
       .as_deref()
-      .and_then(|s| crate::infra::logger::LogLevel::from_str_loose(s)),
+      .and_then(crate::infra::logger::LogLevel::from_str_loose),
   );
   let _span = logger.span("command.dry_run").enter();
 
@@ -94,10 +94,10 @@ pub fn dry_run(options: MemorySyncCommandOptions) -> Result<MemorySyncCommandRes
 
   for file in planned_outputs.values() {
     let path = Path::new(&file.path);
-    if let Some(parent) = path.parent() {
-      if !parent.exists() {
-        dirs_affected += crate::services::common::count_missing_directories(parent);
-      }
+    if let Some(parent) = path.parent()
+      && !parent.exists()
+    {
+      dirs_affected += crate::services::common::count_missing_directories(parent);
     }
     files_affected += 1;
   }
