@@ -111,9 +111,9 @@ pub fn read_prompt_artifact(
 /// inside fenced code blocks (``` / ~~~) are skipped so legitimately
 /// quoted JS examples don't trip the check.
 ///
-/// Pre-#198 the same body was duplicated in both `skill.rs` and
-/// `project_prompt.rs`; bug fixes had to be applied in lockstep.
-/// Centralising here makes the assertion the single source of truth.
+/// `#254` centralizes the helper that used to be duplicated in both
+/// `skill.rs` and `project_prompt.rs`, so residual-module checks now
+/// have a single in-tree source of truth.
 pub fn assert_no_residual_module_syntax(content: &str, file_path: &str) -> Result<(), String> {
   let code_fence_pattern = regex_lite::Regex::new(r"^\s*(```|~~~)").unwrap();
   let residual_patterns = [
