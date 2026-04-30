@@ -21,6 +21,7 @@ pub mod prompt_artifact;
 pub mod public_config;
 pub mod readme;
 pub mod rule;
+pub mod series_conflict;
 pub mod shared_ignore;
 pub mod skill;
 pub mod subagent;

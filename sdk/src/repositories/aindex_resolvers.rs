@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::path::Path;
 
 use serde::Deserialize;
@@ -30,50 +29,12 @@ fn detect_project_name_conflicts(
   aindex_dir: &Path,
   series_configs: &[SeriesConfig],
 ) -> Result<(), String> {
-  let mut refs_by_project: HashMap<String, Vec<String>> = HashMap::new();
-
-  for series in series_configs {
-    let series_src_dir = aindex_dir.join(series.name);
-    if !series_src_dir.is_dir() {
-      continue;
-    }
-
-    let entries = match std::fs::read_dir(&series_src_dir) {
-      Ok(e) => e,
-      Err(_) => continue,
-    };
-
-    for entry in entries.flatten() {
-      if !entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
-        continue;
-      }
-      let project_name = entry.file_name().to_string_lossy().into_owned();
-      refs_by_project
-        .entry(project_name)
-        .or_default()
-        .push(series.name.to_string());
-    }
-  }
-
-  let conflicts: Vec<String> = refs_by_project
-    .into_iter()
-    .filter(|(_, series_names)| {
-      let unique: std::collections::HashSet<_> = series_names.iter().collect();
-      unique.len() > 1
-    })
-    .map(|(project_name, _)| project_name)
-    .collect();
-
-  if conflicts.is_empty() {
-    Ok(())
-  } else {
-    let mut conflicts_sorted = conflicts;
-    conflicts_sorted.sort();
-    Err(format!(
-      "Aindex project series name conflict: {}",
-      conflicts_sorted.join(", ")
-    ))
-  }
+  let series_names: Vec<&str> = series_configs.iter().map(|s| s.name).collect();
+  crate::repositories::series_conflict::detect_project_name_conflicts(
+    aindex_dir,
+    &series_names,
+    "Aindex project series name conflict",
+  )
 }
 
 fn load_project_config(project_name: &str, config_path: &Path) -> Result<Option<Value>, String> {
