@@ -734,6 +734,25 @@ fn convert_strong_text_element(
   })])
 }
 
+fn simplify_link_text_children(children: Vec<Node>) -> Vec<Node> {
+  children
+    .into_iter()
+    .map(|c| {
+      if let Node::Text(t) = &c
+        && t.value.contains('/')
+        && let Some(basename) = t.value.rsplit('/').next()
+        && basename.contains('.')
+      {
+        return Node::Text(Text {
+          value: basename.to_string(),
+          position: t.position.clone(),
+        });
+      }
+      c
+    })
+    .collect()
+}
+
 fn convert_emphasis_element(
   element: &MdxJsxFlowElement,
   ctx: &ProcessingContext,
@@ -925,7 +944,8 @@ fn transform_children(children: &[Node], ctx: &ProcessingContext) -> Vec<Node> {
         // Simplify link text that looks like a file path
         // (`docs/guide/intro.md` → `intro.md`).
         //
-        // Pre-#195 the guard was `contains('/') && contains('.')`, which
+        // #249 fixes the over-eager link-text simplification bug.
+        // Pre-#249 the guard was `contains('/') && contains('.')`, which
         // also matched version-prefixed strings like `v1.0/release` and
         // simplified them to `release` — losing the version segment
         // that was the actual point of the link text. Tighten the
@@ -933,22 +953,7 @@ fn transform_children(children: &[Node], ctx: &ProcessingContext) -> Vec<Node> {
         // final `/`) to itself contain a `.`. That way a real file
         // path (`a/b.md` → basename `b.md`) still simplifies, but
         // `v1.0/release` (basename `release`, no dot) is left alone.
-        let simplified = new_children
-          .into_iter()
-          .map(|c| {
-            if let Node::Text(t) = &c
-              && t.value.contains('/')
-              && let Some(basename) = t.value.rsplit('/').next()
-              && basename.contains('.')
-            {
-              return Node::Text(Text {
-                value: basename.to_string(),
-                position: t.position.clone(),
-              });
-            }
-            c
-          })
-          .collect();
+        let simplified = simplify_link_text_children(new_children);
         let evaluated_url = evaluate_interpolations(&link.url, &ctx.scope);
         result.push(Node::Link(Link {
           children: simplified,
@@ -1109,9 +1114,10 @@ fn transform_inline_children(children: &[Node], ctx: &ProcessingContext) -> Vec<
       }
       Node::Link(link) => {
         let new_children = transform_inline_children(&link.children, ctx);
+        let simplified = simplify_link_text_children(new_children);
         let evaluated_url = evaluate_interpolations(&link.url, &ctx.scope);
         result.push(Node::Link(Link {
-          children: new_children,
+          children: simplified,
           position: link.position.clone(),
           url: evaluated_url,
           title: link.title.clone(),
@@ -1258,6 +1264,26 @@ mod tests {
     let result = compile("[docs](https://{tool.name}.com)\n", make_scope());
     assert!(
       result.contains("[docs](https://cursor.com)"),
+      "Got: {}",
+      result
+    );
+  }
+
+  #[test]
+  fn test_link_text_keeps_version_prefixed_path_for_issue_249() {
+    let result = compile("[v1.0/release](https://example.com)\n", make_scope());
+    assert!(
+      result.contains("[v1.0/release](https://example.com)"),
+      "Got: {}",
+      result
+    );
+  }
+
+  #[test]
+  fn test_link_text_still_simplifies_real_file_path_after_issue_249() {
+    let result = compile("[docs/guide/intro.md](https://example.com)\n", make_scope());
+    assert!(
+      result.contains("[intro.md](https://example.com)"),
       "Got: {}",
       result
     );
