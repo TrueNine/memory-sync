@@ -41,8 +41,12 @@ const PACKAGE_TARGETS: &[PackageTarget] = &[
 pub fn execute(args: &AssembleNpmArgs) -> ExitCode {
   match assemble_packages(args) {
     Ok(copied) => {
+      // Use stderr: this binary's primary mode is the MCP stdio server,
+      // and stdout is reserved for JSON-RPC framing. Routing all
+      // assemble-npm chatter to stderr keeps stdout protocol-safe even
+      // if the subcommand is ever invoked from a wrapped context.
       for path in copied {
-        println!("Hydrated {}", path.display());
+        eprintln!("Hydrated {}", path.display());
       }
       ExitCode::SUCCESS
     }
