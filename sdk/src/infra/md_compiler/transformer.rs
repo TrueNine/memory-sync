@@ -922,14 +922,24 @@ fn transform_children(children: &[Node], ctx: &ProcessingContext) -> Vec<Node> {
       }
       Node::Link(link) => {
         let new_children = transform_inline_children(&link.children, ctx);
-        // Simplify link text that looks like file paths
+        // Simplify link text that looks like a file path
+        // (`docs/guide/intro.md` → `intro.md`).
+        //
+        // Pre-#195 the guard was `contains('/') && contains('.')`, which
+        // also matched version-prefixed strings like `v1.0/release` and
+        // simplified them to `release` — losing the version segment
+        // that was the actual point of the link text. Tighten the
+        // heuristic to require the *basename* (the segment after the
+        // final `/`) to itself contain a `.`. That way a real file
+        // path (`a/b.md` → basename `b.md`) still simplifies, but
+        // `v1.0/release` (basename `release`, no dot) is left alone.
         let simplified = new_children
           .into_iter()
           .map(|c| {
             if let Node::Text(t) = &c
               && t.value.contains('/')
-              && t.value.contains('.')
               && let Some(basename) = t.value.rsplit('/').next()
+              && basename.contains('.')
             {
               return Node::Text(Text {
                 value: basename.to_string(),
