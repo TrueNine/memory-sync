@@ -765,7 +765,6 @@ fn collect_built_in_dangerous_path_rules() -> Vec<ProtectedRuleDto> {
 fn collect_workspace_reserved_rules(
   workspace_dir: &str,
   project_roots: &[String],
-  _include_reserved_workspace_content_roots: bool,
 ) -> Vec<ProtectedRuleDto> {
   let workspace_dir = path_to_string(&resolve_absolute_path(workspace_dir));
   let aindex_dir = path_to_string(&config::resolve_workspace_aindex_dir(&workspace_dir));
@@ -815,7 +814,6 @@ fn create_guard(
   all_rules.extend(collect_workspace_reserved_rules(
     &snapshot.workspace_dir,
     &snapshot.project_roots,
-    true,
   ));
 
   if let Some(aindex_dir) = snapshot.aindex_dir.as_ref() {
@@ -2072,21 +2070,10 @@ mod tests {
     }
   }
 
-  #[test]
-  fn include_reserved_workspace_content_roots_is_inert() {
-    let temp_dir = tempdir().unwrap();
-    let workspace_dir = temp_dir.path().join("workspace");
-    let aindex_dir = workspace_dir.join("aindex");
-    fs::create_dir_all(&aindex_dir).unwrap();
-
-    let rules_with_content =
-      collect_workspace_reserved_rules(&path_to_string(&workspace_dir), &[], true);
-    let rules_without_content =
-      collect_workspace_reserved_rules(&path_to_string(&workspace_dir), &[], false);
-
-    assert_eq!(rules_with_content.len(), rules_without_content.len());
-    assert_eq!(rules_with_content, rules_without_content);
-  }
+  // Pre-#208 the function took an `_include_reserved_workspace_content_roots`
+  // parameter that the body never read; the surrounding test asserted that
+  // it didn't change the result regardless of value. With the dead parameter
+  // removed the test is no longer meaningful, so it's been deleted.
 
   #[test]
   fn blocks_aindex_root_but_allows_deep_descendant_deletion() {
