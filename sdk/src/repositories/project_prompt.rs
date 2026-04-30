@@ -8,7 +8,7 @@ use crate::domain::plugin_shared::{
   FilePathKind, Project, ProjectChildrenMemoryPrompt, ProjectRootMemoryPrompt, PromptKind,
   RelativePath, RootPath, Workspace,
 };
-use crate::repositories::prompt_artifact::read_prompt_artifact;
+use crate::repositories::prompt_artifact::{assert_no_residual_module_syntax, read_prompt_artifact};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,41 +23,6 @@ struct ProjectPromptInputOptions {
 const SERIES_NAMES: &[&str] = config::DEFAULT_PROJECT_SERIES;
 const PROJECT_MEMORY_FILE: &str = "agt.mdx";
 const SCAN_SKIP_DIRECTORIES: &[&str] = &["node_modules", ".git"];
-
-fn assert_no_residual_module_syntax(content: &str, file_path: &str) -> Result<(), String> {
-  let code_fence_pattern = regex_lite::Regex::new(r"^\s*(```|~~~)").unwrap();
-  let residual_patterns = [
-    regex_lite::Regex::new(r"^\s*export\s+default\b").unwrap(),
-    regex_lite::Regex::new(r"^\s*export\s+const\b").unwrap(),
-    regex_lite::Regex::new(r"^\s*import\b").unwrap(),
-  ];
-  let mut active_fence: Option<&str> = None;
-  for (index, line) in content.lines().enumerate() {
-    if let Some(caps) = code_fence_pattern.captures(line) {
-      let marker = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-      if active_fence.is_none() {
-        active_fence = Some(marker);
-      } else if active_fence == Some(marker) {
-        active_fence = None;
-      }
-      continue;
-    }
-    if active_fence.is_some() {
-      continue;
-    }
-    for pat in &residual_patterns {
-      if pat.is_match(line) {
-        return Err(format!(
-          "Compiled prompt still contains residual module syntax at {}:{}: {}",
-          file_path,
-          index + 1,
-          line.trim()
-        ));
-      }
-    }
-  }
-  Ok(())
-}
 
 fn extract_front_matter(raw_mdx: &str) -> (Option<Value>, Option<String>) {
   let front_matter_regex =
