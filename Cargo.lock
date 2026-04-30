@@ -1145,9 +1145,9 @@ dependencies = [
 
 [[package]]
 name = "deno_core"
-version = "0.399.0"
+version = "0.400.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c1dbe504b49d3df8182331ff4c8cc80a5aec65d2e7c190ee9d82b7192d0eceb"
+checksum = "4ed1303a8cb70e9e4044f01df0d0410542f6b7c76e85c93e93a26bcd14e1e428"
 dependencies = [
  "anyhow",
  "az",
@@ -1229,9 +1229,9 @@ dependencies = [
 
 [[package]]
 name = "deno_ops"
-version = "0.275.0"
+version = "0.276.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5c212331778be520abc506a08319c48dfc870afa5543fdd9d4280b29c2820f4"
+checksum = "1b76896d2bbdde3a38689fdd3bcfd0d83fa748dd6d3575e4f471071ad954d067"
 dependencies = [
  "indexmap 2.13.0",
  "proc-macro2",
@@ -4298,9 +4298,9 @@ checksum = "a96887878f22d7bad8a3b6dc5b7440e0ada9a245242924394987b21cf2210a4c"
 
 [[package]]
 name = "reqwest"
-version = "0.13.2"
+version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab3f43e3283ab1488b624b44b0e988d0acea0b3214e694730a055cb6b2efa801"
+checksum = "62e0021ea2c22aed41653bc7e1419abb2c97e038ff2c33d0e1309e49a97deec0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -4770,9 +4770,9 @@ dependencies = [
 
 [[package]]
 name = "serde_v8"
-version = "0.308.0"
+version = "0.309.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a997ab31931989dde87abe6efcf865450690e8fec099a5a2f9b733ca33d08b2"
+checksum = "d0384d8fb13b9d7e215e281c7e26423e9efe772e475cf26eddf57fb58ff27203"
 dependencies = [
  "deno_error",
  "num-bigint",
@@ -6822,9 +6822,9 @@ dependencies = [
 
 [[package]]
 name = "v8"
-version = "147.2.1"
+version = "147.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34ab71899655e8368fa29d66044b4ba011178dc93c65cf0263068432e77e7359"
+checksum = "2df8fffd507fb18ed000673a83d937f58e60fb07f3306b2274284125b15137cd"
 dependencies = [
  "bindgen",
  "bitflags 2.11.0",
