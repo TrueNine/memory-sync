@@ -522,7 +522,10 @@ impl BatchedGlobPlanner {
             // path + io::Error message so operators can correlate a
             // missed delete with the underlying syscall failure
             // without changing the "skip and continue" behaviour.
-            let path_text = e.path().map(|p| p.display().to_string()).unwrap_or_default();
+            let path_text = e
+              .path()
+              .map(|p| p.display().to_string())
+              .unwrap_or_default();
             crate::debug!(
               logger,
               "cleanup native walkdir entry skipped",
